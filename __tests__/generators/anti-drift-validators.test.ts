@@ -28,9 +28,10 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
   // #1497: check-secret-presence added to the W6 dual-track batch (11 → 12).
   // #1497 A3: check-continue-on-error added to the W6 dual-track batch (12 → 13).
   // #1497 A2: check-min-test-execution added to the W6 Track-B-only batch (2 → 3 ⇒ total 17 → 18).
-  it('emits 18 scripts total at L2/github-off (13 W6-dual + 3 W6-trackB + 4 F4)', () => {
+  // #1497 A4: check-test-scope-tier added to the W6 dual-track batch (13 → 14 ⇒ total 18 → 19).
+  it('emits 19 scripts total at L2/github-off (14 W6-dual + 3 W6-trackB + 4 F4)', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
-    expect(result.files).toHaveLength(18)
+    expect(result.files).toHaveLength(19)
   })
 
   // #1318.2: the 4 always-on-owned scripts are NEVER emitted by anti-drift —
@@ -66,6 +67,7 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-test-integrity.mjs',
       'check-secret-presence.mjs',
       'check-continue-on-error.mjs',
+      'check-test-scope-tier.mjs',
       'check-pr-size-gate.mjs',
       'check-claude-md-lint.mjs',
       'check-workflow-sha-pinning.mjs',
@@ -139,6 +141,7 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-test-integrity.mjs',
       'check-secret-presence.mjs',
       'check-continue-on-error.mjs',
+      'check-test-scope-tier.mjs',
       'check-pr-size-gate.mjs',
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
@@ -224,6 +227,7 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-test-integrity.mjs',
       'check-secret-presence.mjs',
       'check-continue-on-error.mjs',
+      'check-test-scope-tier.mjs',
       'check-pr-size-gate.mjs',
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',

@@ -233,6 +233,7 @@ if (isMain) {
   runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs'])
   runCheck('anti-fake-green (#1412)', 'node', ['scripts/check-anti-fake-green.mjs'])
   runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs'])
+  runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mjs'])
   runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs'])
   runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs'])
   runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs'])

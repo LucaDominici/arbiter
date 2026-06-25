@@ -34,6 +34,10 @@ function emitW6DualTrack(
     // `on`/`yes` and `${{ true }}` forms the regex sibling misses. Dual-track (arbiter self-gate
     // + target). Self-contained (no lib import) so it runs in any generated project.
     'check-continue-on-error.mjs',
+    // A4 #1497: test-scope ↔ tier integrity guard — a test category declared `required` in
+    // test-pyramid.json that NO gate step (check-all check or CI workflow) runs is a silent
+    // false-green. Dual-track (arbiter self-gate + target). Self-contained (no lib import).
+    'check-test-scope-tier.mjs',
     'check-pr-size-gate.mjs',
     // #1266: thin context-file linter (CLAUDE.md/AGENTS.md) — dual-track (arbiter self-gate + target).
     'check-claude-md-lint.mjs',

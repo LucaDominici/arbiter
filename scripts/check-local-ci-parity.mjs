@@ -236,6 +236,7 @@ const CI_COVERAGE = new Map([
   ['anti-proforma (INV-118)', 'gate-full'],
   ['anti-fake-green (#1412)', 'gate-full'],
   ['test pyramid (INV-124)', 'gate-full'],
+  ['test scope-tier (INV-124)', 'gate-full'],
   ['domain-api surface (INV-125)', 'gate-full'],
   ['api e2e (INV-126)', 'gate-full'],
   ['render smoke presence (INV-127)', 'gate-full'],

@@ -395,6 +395,11 @@ runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
 runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
 // ─── L1: test pyramid non-empty gate (INV-124, #1364) ────────────────────────
 runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs']);
+// ─── L1: test-scope ↔ tier integrity (A4, #1497) ─────────────────────────────
+// A declared `required` test category that no gate step (check-all check or CI workflow)
+// runs is a silent false-green. Complements the pyramid gate (file presence) by asserting
+// each required category is actually WIRED into a tier. NO-DATA (no manifest) self-SKIPs.
+runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mjs']);
 // ─── L1: live-API e2e suite gate (INV-126, #1365) ────────────────────────────
 // Service archetypes (api-e2e.json required:true) must ship a non-mocked suite that
 // boots the real binary; required:false / absent manifest ⇒ runtime SKIP.
