@@ -185,7 +185,8 @@ function findViolations(filePath) {
     if (!isConstTrueValue(m[2])) continue
     const block = enclosingBlock(lines, i, m[1].length)
     if (/\b(?:upload|download)-artifact\b/.test(block.text)) continue
-    if (/arbiter-allow-continue-on-error/.test(block.text)) continue
+    // Audited opt-out must carry a non-empty reason; a bare/empty marker does NOT bypass (#1499).
+    if (/arbiter-allow-continue-on-error:[ \t]*\S/.test(block.text)) continue
     if (allowedSteps && block.stepId && allowedSteps.has(block.stepId)) continue
     if (!GATE_COMMAND_RE.test(block.text)) continue
     findings.push(

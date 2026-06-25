@@ -200,6 +200,32 @@ jobs:
     }
   })
 
+  it('an EMPTY-reason `# arbiter-allow-continue-on-error:` marker does NOT bypass → FAIL (#1499)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeWf(
+        dir,
+        'ci.yml',
+        `name: ci
+on: [push]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: L1 gate
+        # arbiter-allow-continue-on-error:
+        run: node scripts/check-all.mjs L1
+        continue-on-error: true
+`,
+      )
+      const r = run(dir)
+      expect(r.status).not.toBe(0)
+      expect(r.stderr).toMatch(/swallows a GATING/)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('a dynamic (non-const) expression is indeterminate → PASS (conservative)', () => {
     const { dir, cleanup } = makeRepo()
     try {

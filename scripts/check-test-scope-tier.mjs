@@ -56,7 +56,13 @@ const CATEGORIES = [
     nameRe: /e2e|end[\s-]?to[\s-]?end/i,
     signalRe: /test:e2e|\be2e\b|playwright|cypress|selenium/i,
   },
-  { id: 'contract', nameRe: /contract/i, signalRe: /test:contract|\bcontract\b|\bpact\b/i },
+  // signal = the specific contract-test forms, NOT the bare word `contract` (which collides with the
+  // always-present check-exit-code-contract.mjs reference on the gate surface → false WIRED, #1499).
+  {
+    id: 'contract',
+    nameRe: /contract/i,
+    signalRe: /test:contract|contract[ _-]?tests?|contract\/|\bpact\b/i,
+  },
   {
     id: 'performance',
     nameRe: /performance|\bperf\b|load|stress/i,

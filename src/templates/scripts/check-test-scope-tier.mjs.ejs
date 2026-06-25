@@ -49,7 +49,9 @@ const DEFAULT_ROOTS = new Set(['__tests__', 'tests', 'test', 'src', 'spec'])
 // so "Hardware Integration" → hardware and "CLI Integration" → integration.
 const CATEGORIES = [
   { id: 'e2e', nameRe: /e2e|end[\s-]?to[\s-]?end/i, signalRe: /test:e2e|\be2e\b|playwright|cypress|selenium/i },
-  { id: 'contract', nameRe: /contract/i, signalRe: /test:contract|\bcontract\b|\bpact\b/i },
+  // signal = specific contract-test forms, NOT bare `contract` (collides with the always-present
+  // check-exit-code-contract.mjs reference on the gate surface → false WIRED, #1499).
+  { id: 'contract', nameRe: /contract/i, signalRe: /test:contract|contract[ _-]?tests?|contract\/|\bpact\b/i },
   {
     id: 'performance',
     nameRe: /performance|\bperf\b|load|stress/i,

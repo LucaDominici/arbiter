@@ -38,6 +38,12 @@ const UNIT = { id: 'L1', name: 'L1 Unit', globs: ['__tests__/**/*.test.ts'], sta
 // Performance lives outside the default test roots and no broad suite runs it — the
 // canonical "declared category, no tier" defect.
 const PERF = { id: 'L5', name: 'L5 Performance', globs: ['perf/**/*.perf.ts'], status: 'required' }
+const CONTRACT = {
+  id: 'L4',
+  name: 'L4 Contract',
+  globs: ['contract/**/*.contract.ts'],
+  status: 'required',
+}
 
 describe('check-test-scope-tier (A4 #1497)', () => {
   it('liveness: a required category no gate runs BLOCKS (exit 1)', () => {
@@ -55,6 +61,32 @@ describe('check-test-scope-tier (A4 #1497)', () => {
         dir,
         "runCheck('unit tests','npm',['run','test:unit'])\n" +
           "runCheck('perf','npm',['run','test:perf'])\n",
+      )
+      expect(guardExit(dir)).toBe(0)
+    })
+  })
+
+  it('a required `contract` level is NOT wired by the always-present exit-code-contract ref → FAIL (#1499)', () => {
+    withTmp((dir) => {
+      manifest(dir, [UNIT, CONTRACT])
+      // The only "contract" on the gate surface is the unrelated exit-code-contract checker — no
+      // actual contract test runs. The bare-word `\bcontract\b` signal used to match this falsely.
+      gate(
+        dir,
+        "runCheck('unit tests','npm',['run','test:unit'])\n" +
+          "runCheck('exit-code contract (INV-53)','node',['scripts/check-exit-code-contract.mjs'])\n",
+      )
+      expect(guardExit(dir)).toBe(1)
+    })
+  })
+
+  it('a required `contract` level wired via a real contract-test command PASSES (exit 0)', () => {
+    withTmp((dir) => {
+      manifest(dir, [UNIT, CONTRACT])
+      gate(
+        dir,
+        "runCheck('unit tests','npm',['run','test:unit'])\n" +
+          "runCheck('contract tests','npm',['run','test:contract'])\n",
       )
       expect(guardExit(dir)).toBe(0)
     })

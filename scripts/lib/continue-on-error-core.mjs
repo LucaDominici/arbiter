@@ -182,8 +182,9 @@ export function findContinueOnErrorViolations(filePath, content) {
     const block = enclosingBlock(lines, i, m[1].length)
     // Sole sanctioned step exception: artifact up/download (its failure must not block CI).
     if (/\b(?:upload|download)-artifact\b/.test(block.text)) continue
-    // Audited, greppable per-block opt-out.
-    if (/arbiter-allow-continue-on-error/.test(block.text)) continue
+    // Audited, greppable per-block opt-out — must carry a non-empty reason (parity with
+    // arbiter-allow-skip); a bare/empty marker does NOT bypass (#1499).
+    if (/arbiter-allow-continue-on-error:[ \t]*\S/.test(block.text)) continue
     // Step-scoped allowlist parity with the regex sibling.
     if (allowedSteps && block.stepId && allowedSteps.has(block.stepId)) continue
     // Only a GATING block (one that runs a recognized gate/test/check command) is a fake-green.
