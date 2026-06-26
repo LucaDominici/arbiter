@@ -64,6 +64,33 @@ describe('01-pr-fast.yml.ejs — structural invariants (CANON-18, #1131)', () =>
     expect(rendered).toContain('ci-required:')
     expect(rendered).toContain('approved-by-human')
   })
+
+  // #1512 gold-align: the lightweight *ArchTest architecture rules run BLOCKING on
+  // every PR for Java L2+ (not only the weekly 13-archunit-extended cron). The heavier
+  // *ModulesTest stays on the cron — the per-PR job must NOT run it.
+  it.each(['L2', 'L3', 'L4'] as const)('java %s: runs *ArchTest blocking per-PR', (level) => {
+    const rendered = render({ language: 'java', buildTool: 'gradle', governanceLevel: level })
+    expect(rendered).toContain('ArchUnit Architecture Tests (Java)')
+    expect(rendered).toContain('*ArchTest')
+    expect(rendered).not.toContain('*ModulesTest')
+  })
+
+  it('java L1: does NOT run the per-PR ArchTest job', () => {
+    const rendered = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L1' })
+    expect(rendered).not.toContain('ArchUnit Architecture Tests (Java)')
+  })
+
+  it('java maven L2: runs *ArchTest via surefire per-PR', () => {
+    const rendered = render({ language: 'java', buildTool: 'maven', governanceLevel: 'L2' })
+    expect(rendered).toContain('ArchUnit Architecture Tests (Java)')
+    expect(rendered).toContain('-Dtest="*ArchTest"')
+  })
+
+  it('java L2+: the per-PR ArchTest lane is a BLOCKING required check (ci-required)', () => {
+    const rendered = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L3' })
+    expect(rendered).toContain('needs.archunit-tests.result')
+    expect(rendered).toMatch(/needs: \[[^\]]*archunit-tests/)
+  })
 })
 
 // #1227 — Parallelization assertions (ADR-090: chain ≤ 3, parallel after gate)
