@@ -537,7 +537,6 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter kit`             | Cross-stack governance kit commands (requires --experimental.kit)               |
 | `arbiter knowledge-map`   | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                  |
 | `arbiter mark`            | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
-| `arbiter notary`          | Notary system — track semantic doc changes                                      |
 | `arbiter note`            | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
 | `arbiter plugin`          | [BETA] Manage arbiter plugins (API not yet stable)                              |
 | `arbiter report`          | Bundle a replay run for bug reports                                             |
@@ -739,6 +738,8 @@ Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine).
 - `--check` — No-regress gate: bootstrap missing baseline (exit 0), fail on regress
 - `--require-baseline` — With --check, a missing baseline is a HARD FAIL (#1419)
 - `--json` — Emit machine-readable JSON output
+- `--cockpit` — Render the rich TTY-gated goldness console (#1475)
+- `--ascii` — Force pure-ASCII cockpit output (no unicode glyphs/ANSI)
 
 ## arbiter graph
 
@@ -811,15 +812,6 @@ Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206).
 - `--task <id>` — Set/override the active task id
 - `--digest <line>` — One-line progress digest for log.md
 - `--dir <dir>` — Target directory (default: current directory)
-
-## arbiter notary
-
-Notary system — track semantic doc changes.
-
-**Subcommands:**
-
-- `arbiter notary check` — Validate Notary footer for staged doc changes (fails if footer missing)
-- `arbiter notary template` — Print expected Notary footer for staged doc changes
 
 ## arbiter note
 
