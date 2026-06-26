@@ -107,6 +107,39 @@ describe('readTranscriptCosts (#703)', () => {
     expect(result.output).toBe(60)
   })
 
+  it('skips a bare `null` line (valid JSON scalar) without abandoning the whole file', () => {
+    // Regression (#1535): `JSON.parse("null")` succeeds → `parsed.type` used to
+    // throw TypeError, propagating to the outer catch and zeroing the file.
+    const valid1 = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-05-18T10:00:00.000Z',
+      message: { usage: { input_tokens: 100, output_tokens: 20 } },
+    })
+    const valid2 = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-05-18T10:02:00.000Z',
+      message: { usage: { input_tokens: 100, output_tokens: 20 } },
+    })
+    const path = tmpFile([valid1, 'null', valid2])
+    const result = readTranscriptCosts(path, '2026-05-18T09:00:00.000Z')
+    expect(result.samples).toBe(2)
+    expect(result.input).toBe(200)
+    expect(result.output).toBe(40)
+  })
+
+  it('filters by instant, not lexicographically, across timestamp formats (#1535)', () => {
+    // Offset form "+02:00" == 10:00Z, which is BEFORE the 11:00Z cutoff → must be
+    // EXCLUDED. A naive string compare ("…T12…+02:00" > "…T11…Z") wrongly keeps it.
+    const offset = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-05-18T12:00:00.000+02:00',
+      message: { usage: { input_tokens: 70, output_tokens: 7 } },
+    })
+    const path = tmpFile([offset])
+    const result = readTranscriptCosts(path, '2026-05-18T11:00:00.000Z')
+    expect(result.samples).toBe(0)
+  })
+
   it('returned object never contains PII fields', () => {
     const line = JSON.stringify({
       type: 'assistant',

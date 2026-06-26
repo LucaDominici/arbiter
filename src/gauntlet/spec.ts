@@ -230,7 +230,7 @@ function parseBlock(ctx: ParseCtx, indent: number): YamlValue {
 
   // Scalar fallback
   ctx.consume()
-  return parseScalar(trimmed.replace(/#.*$/, '').trim())
+  return parseScalar(stripComment(trimmed))
 }
 
 function parseBlockSeq(ctx: ParseCtx, indent: number): YamlValue[] {
@@ -245,7 +245,7 @@ function parseBlockSeq(ctx: ParseCtx, indent: number): YamlValue[] {
     if (!trimmed.startsWith('-')) break
 
     ctx.consume()
-    const rest = trimmed.slice(1).trim().replace(/#.*$/, '').trim()
+    const rest = stripComment(trimmed.slice(1).trim())
 
     if (rest === '') {
       // Multi-line item: indented sub-block
@@ -310,10 +310,7 @@ function parseBlockMap(ctx: ParseCtx, indent: number): Record<string, YamlValue>
     ctx.consume()
     const rawKey = trimmed.slice(0, colonIdx).trim()
     const key = unquote(rawKey)
-    const valuePart = trimmed
-      .slice(colonIdx + 1)
-      .replace(/#.*$/, '')
-      .trim()
+    const valuePart = stripComment(trimmed.slice(colonIdx + 1))
 
     if (valuePart === '') {
       // Value is on subsequent lines
@@ -338,6 +335,35 @@ function parseBlockMap(ctx: ParseCtx, indent: number): Record<string, YamlValue>
     }
   }
   return obj
+}
+
+/**
+ * Strip a trailing YAML comment, returning the trimmed remainder. In YAML a `#`
+ * begins a comment ONLY when it is at string start or preceded by whitespace AND
+ * is not inside a quoted scalar — so `"#fff"`, `bug#hot`, and `#260` are NOT
+ * comments. Quote tracking mirrors `findMappingColon`. (#1528)
+ */
+function stripComment(s: string): string {
+  let inSingle = false
+  let inDouble = false
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i] ?? ''
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle
+      continue
+    }
+    if (c === '"' && !inSingle) {
+      inDouble = !inDouble
+      continue
+    }
+    if (c === '#' && !inSingle && !inDouble) {
+      const prev = i === 0 ? '' : (s[i - 1] ?? '')
+      if (i === 0 || prev === ' ' || prev === '\t') {
+        return s.slice(0, i).trim()
+      }
+    }
+  }
+  return s.trim()
 }
 
 function findMappingColon(s: string): number {

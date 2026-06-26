@@ -38,17 +38,26 @@ export function readTranscriptCosts(transcriptPath: string, sinceISO: string): T
     let input = 0
     let output = 0
     let samples = 0
+    const sinceMs = Date.parse(sinceISO)
 
     for (const line of lines) {
-      let parsed: TranscriptLine
+      let record: unknown
       try {
-        parsed = JSON.parse(line) as TranscriptLine
+        record = JSON.parse(line)
       } catch {
         continue
       }
 
+      // A bare scalar (notably `null` — valid JSON) is not a transcript record:
+      // skip it rather than letting a property read throw and abandon the file.
+      if (typeof record !== 'object' || record === null) continue
+      const parsed = record as TranscriptLine
+
       if (parsed.type !== 'assistant') continue
-      if (!parsed.timestamp || parsed.timestamp < sinceISO) continue
+      // Compare instants numerically — a lexicographic string compare is wrong for
+      // offset forms (`+02:00`) or differing fractional-second widths.
+      const tsMs = Date.parse(parsed.timestamp ?? '')
+      if (Number.isNaN(tsMs) || tsMs < sinceMs) continue
 
       const usage = parsed.message?.usage
       if (!usage) continue
