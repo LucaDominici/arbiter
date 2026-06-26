@@ -240,6 +240,91 @@ describe('01-pr-fast.yml.ejs — build-cache wiring (E2, #1500)', () => {
   })
 })
 
+// PORT A1 (#1502) — fast PR supply-chain + IaC.
+// (a) actions/dependency-review-action as a PR-time supply-chain gate, at the
+//     enableSecurityScanning floor (matches security-early-fail's always-path gating).
+// (b) An IaC scan (checkov) that CONSUMES the previously-classified-but-unused
+//     `infra_changed` output, gated on infra_changed == 'true'.
+describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
+  // Capture a job block: from the job header to the next 2-space job header
+  // (\n  <name>:) — body lines are 4-space indented so they are not split points.
+  function jobSection(rendered: string, job: string): string {
+    return (rendered.split(`  ${job}:`)[1] ?? '').split(/\n {2}(?=\S)/)[0]
+  }
+  const depReviewSection = (r: string) => jobSection(r, 'dependency-review')
+  const iacSection = (r: string) => jobSection(r, 'iac-scan')
+
+  it('(a) dependency-review is a PR-only, SHA-pinned supply-chain gate at L2', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    expect(rendered).toContain('  dependency-review:')
+    const section = depReviewSection(rendered)
+    // PR-only: the action diffs base...head and errors on push.
+    expect(section).toContain("if: github.event_name == 'pull_request'")
+    // SHA-pinned (INV-76) with a version comment.
+    expect(rendered).toMatch(/uses: actions\/dependency-review-action@[0-9a-f]{40}\s+# v\d/)
+    // Configurable fail severity, defaulting to high.
+    expect(section).toContain('fail-on-severity:')
+    expect(section).toContain("'high'")
+    // Hardening: timeout-minutes present.
+    expect(section).toContain('timeout-minutes: 60')
+  })
+
+  it('(a) dependency-review respects the security-scanning floor (absent at L1 starter)', () => {
+    const l1 = render({ language: 'typescript', governanceLevel: 'L1' })
+    expect(l1).not.toContain('  dependency-review:')
+    // present once enableSecurityScanning is on (its always-path gate)
+    const l1sec = render({
+      language: 'typescript',
+      governanceLevel: 'L1',
+      enableSecurityScanning: true,
+    } as Record<string, unknown>)
+    expect(l1sec).toContain('  dependency-review:')
+  })
+
+  it('(a) dependency-review is wired into the ci-required aggregator', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    expect(rendered).toMatch(/needs: \[[^\]]*dependency-review/)
+    expect(rendered).toContain('needs.dependency-review.result')
+  })
+
+  it('(b) iac-scan consumes infra_changed and is a SHA-pinned checkov scan', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    expect(rendered).toContain('  iac-scan:')
+    const section = iacSection(rendered)
+    expect(section).toContain('needs: [classify-changes]')
+    expect(section).toContain("if: needs.classify-changes.outputs.infra_changed == 'true'")
+    // checkov, SHA-pinned, scanning terraform/k8s/dockerfile.
+    expect(rendered).toMatch(/uses: bridgecrewio\/checkov-action@[0-9a-f]{40}\s+# v\d/)
+    expect(section).toContain('terraform')
+    expect(section).toContain('kubernetes')
+    expect(section).toContain('dockerfile')
+    expect(section).toContain('timeout-minutes: 60')
+  })
+
+  it('(b) iac-scan is absent at L1 single-lane (no classify-changes signal)', () => {
+    const l1 = render({ language: 'typescript', governanceLevel: 'L1' })
+    expect(l1).not.toContain('  iac-scan:')
+    // but present at L2 where classify-changes runs
+    expect(render({ language: 'typescript', governanceLevel: 'L2' })).toContain('  iac-scan:')
+  })
+
+  it('(b) iac-scan is wired into the ci-required aggregator', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    expect(rendered).toMatch(/needs: \[[^\]]*iac-scan/)
+    expect(rendered).toContain('needs.iac-scan.result')
+  })
+
+  it('adversarial: both new jobs preserve the language-agnostic floor (java L3 gated)', () => {
+    const rendered = render({
+      language: 'java',
+      buildTool: 'maven',
+      governanceLevel: 'L3',
+    })
+    expect(rendered).toContain('  dependency-review:')
+    expect(rendered).toContain('  iac-scan:')
+  })
+})
+
 // #1296 — CI Required on docs-only PRs: skipped code jobs are accepted ONLY when
 // the docs_only classification skipped them; classify-changes itself must succeed.
 describe('ci-required — docs-only skip acceptance (#1296)', () => {

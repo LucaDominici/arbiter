@@ -95,6 +95,47 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
 
 
+  dependency-review:
+    name: Dependency Review (supply-chain)
+    # A1 (#1502): the canonical FAST PR supply-chain gate. dependency-review-action
+    # diffs the PR's dependency-manifest changes and fails on a newly-introduced
+    # vulnerable dependency — keeping slow full-tree scanners off the always-path.
+    # PR-only (the action diffs base...head and errors on push). Fail severity is
+    # configurable via the DEPENDENCY_REVIEW_FAIL_SEVERITY repo variable (default: high).
+    # Floor: enableSecurityScanning — the same always-path gate as security-early-fail.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Dependency review (fail on newly-introduced high-severity deps)
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
+        with:
+          fail-on-severity: ${{ vars.DEPENDENCY_REVIEW_FAIL_SEVERITY || 'high' }}
+
+  iac-scan:
+    name: IaC Scan (infra-changed)
+    # A1 (#1502): consume the classify-changes `infra_changed` signal (previously
+    # classified but UNUSED) — scan terraform / kubernetes / dockerfile only when the
+    # PR actually touches infrastructure-as-code, keeping the always-path lean.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [classify-changes]
+    if: needs.classify-changes.outputs.infra_changed == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Checkov IaC scan (terraform, kubernetes, dockerfile)
+        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf  # v12.1347.0
+        with:
+          directory: .
+          framework: terraform,kubernetes,dockerfile
+          quiet: true
+          soft_fail: false
+
 
 
   build-workspace:
@@ -397,7 +438,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 
-    needs: [gate, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, gate-full, debt-gates, debt-ratchet, classify-changes]
+    needs: [gate, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, gate-full, debt-gates, debt-ratchet, classify-changes]
     if: always()
     steps:
       - env:
@@ -434,6 +475,16 @@ jobs:
 
           if [[ "${{ needs.security-early-fail.result }}" != "success" ]]; then
             echo "security-early-fail failed"
+            exit 1
+          fi
+          # dependency-review skips on push (PR-only) — only a real finding blocks.
+          if [[ "${{ needs.dependency-review.result }}" == "failure" ]]; then
+            echo "dependency-review failed — a newly-introduced dependency exceeds the severity floor"
+            exit 1
+          fi
+          # iac-scan skips when no infra changed — only a real IaC finding blocks.
+          if [[ "${{ needs.iac-scan.result }}" == "failure" ]]; then
+            echo "iac-scan failed — an infrastructure-as-code misconfiguration was found"
             exit 1
           fi
           if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then
