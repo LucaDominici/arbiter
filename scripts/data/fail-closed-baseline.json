@@ -195,7 +195,6 @@
     "src/integrations/skill-detector.ts",
     "src/kit/brownfield-detect.ts",
     "src/kit/measure.ts",
-    "src/notary/staged.ts",
     "src/recipes/loader.ts",
     "src/review/dispatch.ts",
     "src/risk/classifier.ts",
