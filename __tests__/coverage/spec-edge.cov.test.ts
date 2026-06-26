@@ -119,10 +119,12 @@ describe('parseSpec() — empty-dash items and their sub-blocks', () => {
     expect(spec.constraints).toEqual([{ when: { a: 'x' }, then: 'skip' }])
   })
 
-  it('returns a null dash payload when the sub-block under-runs the expected indent', () => {
+  it('rejects a dash whose sub-block under-runs the expected indent (fail-closed, #1554)', () => {
     // `  -` expects its sub-block at indent 4 (indent + 2), but the following
-    // `when:` line sits at indent 3 → parseBlock hits `lineIndent < indent` and
-    // returns null → the dash item is null → "each constraint must be an object".
+    // `when:` line sits at indent 3. The dash yields null and the indent-3 line
+    // then surfaces as an over-indented sibling of the top-level mapping — which
+    // is malformed YAML (js-yaml errors). The parser now fails closed there
+    // rather than silently building a null constraint.
     const raw: string = [
       'name: dedentdash',
       'dimensions:',
@@ -131,7 +133,7 @@ describe('parseSpec() — empty-dash items and their sub-blocks', () => {
       '  -',
       '   when: { a: x }',
     ].join('\n')
-    expect(expectErr(parseSpec(raw))).toBe('each constraint must be an object')
+    expect(expectErr(parseSpec(raw))).toMatch(/YAML parse error: unexpected over-indentation/)
   })
 })
 
@@ -221,10 +223,12 @@ describe('parseSpec() — parseSubKeysAfterDash null paths', () => {
     expect(expectErr(parseSpec(raw))).toBe('constraint.then must be "skip"')
   })
 
-  it('returns null from parseSubKeysAfterDash on a sub-line that is not a mapping key', () => {
+  it('rejects a non-key sub-line that over-indents the top-level mapping (fail-closed, #1554)', () => {
     // The line following the dash is at the right indent but is a flow scalar
-    // `[notakey]`, which fails the key regex in parseSubKeysAfterDash → it
-    // returns null, leaving the dash without a `then`.
+    // `[notakey]`, which fails the key regex in parseSubKeysAfterDash. The dash
+    // closes without a `then`, and `[notakey]` then surfaces as an over-indented
+    // sibling of the top-level mapping — malformed YAML (js-yaml errors), so the
+    // parser fails closed rather than silently building a partial constraint.
     const raw: string = [
       'name: subnonkey',
       'dimensions:',
@@ -233,7 +237,7 @@ describe('parseSpec() — parseSubKeysAfterDash null paths', () => {
       '  - when: { a: x }',
       '    [notakey]',
     ].join('\n')
-    expect(expectErr(parseSpec(raw))).toBe('constraint.then must be "skip"')
+    expect(expectErr(parseSpec(raw))).toMatch(/YAML parse error: unexpected over-indentation/)
   })
 })
 
@@ -248,10 +252,12 @@ describe('parseSpec() — block-map / block-seq boundary breaks', () => {
     expect(spec.dimensions).toEqual({ a: ['x'] })
   })
 
-  it('breaks a block sequence on a same-indent non-dash sibling line', () => {
-    // Under `colors:`, two dash items then a same-indent `notadash:` line that
-    // does not start with `-` triggers the `!trimmed.startsWith('-')` break in
-    // parseBlockSeq, terminating the sequence at two elements.
+  it('rejects an over-indented mapping sibling after a block sequence (fail-closed, #1554)', () => {
+    // Under `colors:`, two dash items then a `notadash:` line indented MORE than
+    // the `colors` mapping level. The sequence ends at the non-dash line, which
+    // then surfaces as an over-indented sibling of the `dimensions` mapping —
+    // malformed YAML that js-yaml rejects. The old parser silently DROPPED
+    // `notadash`, shrinking the matrix; the parser now fails closed (#1554).
     const raw: string = [
       'name: seqbreak',
       'dimensions:',
@@ -260,7 +266,6 @@ describe('parseSpec() — block-map / block-seq boundary breaks', () => {
       '    - green',
       '    notadash: y',
     ].join('\n')
-    const spec: GauntletSpec = expectOk(parseSpec(raw))
-    expect(spec.dimensions).toEqual({ colors: ['red', 'green'] })
+    expect(expectErr(parseSpec(raw))).toMatch(/YAML parse error: unexpected over-indentation/)
   })
 })
