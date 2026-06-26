@@ -25,6 +25,7 @@ import { type GhErrorKind } from '../github/classify-gh-error.js'
 import { saveConfig, loadConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
+import { levelAtLeast } from '../config/levels.js'
 import type { AutomationConfig } from '../config/schema.js'
 import {
   buildRegistry,
@@ -972,7 +973,7 @@ function buildDefaultConfig(opts: {
     enableDebtGates: opts.governanceLevel !== 'L1',
     enableSuppressions: true,
     enableSecurityScanning: opts.governanceLevel !== 'L1',
-    enableMutationTesting: opts.governanceLevel === 'L3' || opts.governanceLevel === 'L4',
+    enableMutationTesting: levelAtLeast(opts.governanceLevel, 'L3'),
     enableContractTesting: defaultContractType(archetype, hasPublicApi) !== 'none',
     enableEvidenceHarness: opts.governanceLevel === 'L4',
     enableSelfValidationHarness: true,

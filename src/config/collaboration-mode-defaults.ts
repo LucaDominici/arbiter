@@ -18,6 +18,7 @@ import type {
   WizardAnswers,
   ProjectConfig,
 } from '../wizard/types.js'
+import { levelAtLeast } from './levels.js'
 
 // ── Pipeline style table: (collaborationMode × governanceLevel) ──────────────
 // Encodes the design from ADR-051 §collaboration-mode-axis plan table.
@@ -119,7 +120,7 @@ export function resolveDefaultAffinityBatching(mode: CollaborationMode): boolean
  * defaultGateLevel of L1 under L3/L4 governance is what doctor flags (WARN).
  */
 export function resolveDefaultGateLevel(level: GovernanceLevel): 'L1' | 'L2' {
-  return level === 'L3' || level === 'L4' ? 'L2' : 'L1'
+  return levelAtLeast(level, 'L3') ? 'L2' : 'L1'
 }
 
 // ── Public resolver API ───────────────────────────────────────────────────────

@@ -2,6 +2,7 @@
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { levelAtLeast } from '../config/levels.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import {
@@ -234,7 +235,7 @@ function generateCiWorkflows(
   }
 
   // ADR-050 §54-58: nightly/weekly/monthly/heartbeat are L3+ only
-  const isL3Plus = config.governanceLevel === 'L3' || config.governanceLevel === 'L4'
+  const isL3Plus = levelAtLeast(config.governanceLevel, 'L3')
 
   // #1131: trunk-solo gets the lightweight 06-nightly-lite (emitted in
   // generateCiGapWorkflows) INSTEAD of the full nightly/weekly/monthly suite.

@@ -29,6 +29,7 @@ import { detectArchetypeHint } from '../detectors/framework.js'
 import { ARCHETYPE_DB_SET } from '../detectors/axis.js'
 import { defaultContractType, shouldAskContractType } from './archetype-defaults.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
+import { levelAtLeast } from '../config/levels.js'
 import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
 import {
   collaborationModeFromAnswers,
@@ -674,7 +675,7 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     enableDebtGates: answers.governanceLevel !== 'L1',
     enableSuppressions: true,
     enableSecurityScanning: answers.governanceLevel !== 'L1',
-    enableMutationTesting: answers.governanceLevel === 'L3' || answers.governanceLevel === 'L4',
+    enableMutationTesting: levelAtLeast(answers.governanceLevel, 'L3'),
     enableContractTesting:
       (answers.contractType ?? defaultContractType(answers.archetype, answers.hasPublicApi)) !==
       'none',

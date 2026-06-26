@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { levelAtLeast } from '../config/levels.js'
 import { getLogger } from '../utils/logger.js'
 import { generateAgentsMd } from './agents-md.js'
 import type { InstalledSkill } from '../integrations/types.js'
@@ -459,8 +460,7 @@ function buildGovernanceOverlaySpecs(config: ProjectConfig): GeneratorSpec[] {
       // Only fires for trunk-solo at L3/L4 (ADR-091).
       key: 'solo-exception',
       enabled:
-        config.collaborationMode === 'trunk-solo' &&
-        (config.governanceLevel === 'L3' || config.governanceLevel === 'L4'),
+        config.collaborationMode === 'trunk-solo' && levelAtLeast(config.governanceLevel, 'L3'),
       run: (opts) => generateSoloException(config, opts).files,
     },
   ]

@@ -2,15 +2,14 @@
 import type { Language, GovernanceLevel } from '../wizard/types.js'
 import type { Invariant, InvariantTier, InvariantPreset } from './types.js'
 import { INVARIANT_CATALOG } from './catalog.js'
-
-const LEVEL_ORDER: GovernanceLevel[] = ['L1', 'L2', 'L3', 'L4']
+import { levelAtLeast } from '../config/levels.js'
 
 function meetsGovernanceLevel(
   required: GovernanceLevel | undefined,
   actual: GovernanceLevel,
 ): boolean {
   if (!required) return true
-  return LEVEL_ORDER.indexOf(actual) >= LEVEL_ORDER.indexOf(required)
+  return levelAtLeast(actual, required)
 }
 
 export function getFilteredInvariants(config: {

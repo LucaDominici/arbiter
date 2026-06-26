@@ -16,6 +16,7 @@
 import type { Archetype, CollaborationMode, GovernanceLevel, Language } from '../../wizard/types.js'
 import { AUTONOMY_LEVELS } from '../../config/schema.js'
 import type { AutonomyLevel } from '../../config/schema.js'
+import { levelAtLeast } from '../../config/levels.js'
 
 export type CoherenceSeverity = 'OK' | 'WARN' | 'CRITICAL'
 
@@ -284,7 +285,7 @@ export function validateProfileCoherence(
         'Set automation.maxParallelWorktrees to 1, or switch collaborationMode to peer-review/gated-review.',
     }
   }
-  if (defaultGateLevel === 'L1' && (level === 'L3' || level === 'L4')) {
+  if (defaultGateLevel === 'L1' && levelAtLeast(level, 'L3')) {
     return {
       valid: true,
       severity: 'WARN',

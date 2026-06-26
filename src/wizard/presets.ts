@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ProjectConfig, ProjectPreset } from './types.js'
+import { levelAtLeast } from '../config/levels.js'
 
 /** Meta-presets selectable via `--preset` (excludes the no-op 'none'). */
 const SELECTABLE_PRESETS: readonly ProjectPreset[] = ['industrial-grade', 'solo-homelab']
@@ -75,7 +76,7 @@ function applySoloHomelab(config: ProjectConfig): void {
   config.enableEvidenceHarness = false
   config.enableOperationsHandbook = false
 
-  if (config.governanceLevel === 'L3' || config.governanceLevel === 'L4') {
+  if (levelAtLeast(config.governanceLevel, 'L3')) {
     config.governanceLevel = SOLO_HOMELAB_MAX_GOVERNANCE
   }
 }
