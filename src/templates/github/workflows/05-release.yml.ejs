@@ -3,7 +3,6 @@ const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipe
 const _isService = _bucket === 'service';
 const _isCli = _bucket === 'cli';
 const _isBatch = _bucket === 'batch';
-const _mutationInfo = governanceLevel === 'L1';
 const _slsaL3 = governanceLevel === 'L3';
 const _verifyOnSign = governanceLevel !== 'L1';
 %>name: Release (T3)
@@ -88,11 +87,17 @@ jobs:
           retention-days: 30
 
   mutation-blocking:
-    name: Mutation tests<%= _mutationInfo ? ' (informational at L1)' : ' (consume nightly, fallback run)' %>
+    name: Mutation tests (consume nightly, fallback run)
     needs: [build-superset]
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 60
-    continue-on-error: <%= _mutationInfo %>
+    # #1505 gold-align: mutation testing is BLOCKING at every governance level it is emitted at
+    # (the release workflow itself only emits for non-starter pipeline styles). A prior
+    # `continue-on-error: <level === L1>` left a fake-green window where, at L1, a red mutation
+    # run — or a vacuous empty run — silently passed. Mutation enforcement is now fail-closed:
+    # a surviving mutant fails the step (errexit/pipefail), and the fail-on-empty guard below
+    # turns a zero-mutant run into a real failure instead of a vacuous pass.
+    continue-on-error: false
     permissions:
       contents: read
       actions: read
@@ -102,8 +107,8 @@ jobs:
       # CONSUMES the latest nightly mutation-deep result (06-nightly.yml) instead of
       # re-running the full mutation suite synchronously. If no nightly result exists
       # within the freshness window (first release, stale schedule), it FALLS BACK to
-      # running mutation here — gated by level via the job's continue-on-error
-      # (informational at L1, blocking at L2+).
+      # running mutation here — and the fallback is BLOCKING (continue-on-error: false) plus
+      # fail-on-empty (#1505), so a missing/vacuous mutation run fails the release.
       - name: Consume latest nightly mutation-deep result
         id: nightly
         env:
@@ -143,7 +148,9 @@ jobs:
         if: steps.nightly.outputs.fresh != 'true'
       - name: Stryker mutation (fallback — no fresh nightly)
         if: steps.nightly.outputs.fresh != 'true'
-        run: npx stryker run
+        # errexit + pipefail (GitHub bash default) make a below-threshold mutation score fail the
+        # step; the tee feeds the fail-on-empty guard below (#1505).
+        run: npx stryker run 2>&1 | tee mutation-fallback.log
 <% } else if (language === 'java') { %>
       - uses: ./.github/actions/setup-java-maven
         if: steps.nightly.outputs.fresh != 'true'
@@ -152,23 +159,26 @@ jobs:
         if: steps.nightly.outputs.fresh != 'true'
       - name: PITest mutation (fallback — no fresh nightly)
         if: steps.nightly.outputs.fresh != 'true'
-        run: ./gradlew pitest
+        run: ./gradlew pitest 2>&1 | tee mutation-fallback.log
 <% } else { %>
       - name: PITest mutation (fallback — no fresh nightly)
         if: steps.nightly.outputs.fresh != 'true'
-        run: mvn pitest:mutationCoverage
+        run: mvn pitest:mutationCoverage 2>&1 | tee mutation-fallback.log
 <% } %>
 <% } else if (language === 'go') { %>
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
         if: steps.nightly.outputs.fresh != 'true'
         with:
           go-version-file: go.mod
-      - name: go-mutesting (fallback — informational, Go matrix safety)
+      # #1505: the go fallback previously pinned `continue-on-error: true` and appended an
+      # unconditional truthy short-circuit, swallowing every failure — mutation could never fail
+      # the release. The swallow is removed: a surviving mutant fails the step, and an empty run is
+      # caught by the fail-on-empty guard.
+      - name: go-mutesting (fallback — no fresh nightly)
         if: steps.nightly.outputs.fresh != 'true'
-        continue-on-error: true
         run: |
           go install github.com/zimmski/go-mutesting/cmd/go-mutesting@latest
-          go-mutesting ./... || true
+          go-mutesting ./... 2>&1 | tee mutation-fallback.log
 <% } else if (language === 'python') { %>
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         if: steps.nightly.outputs.fresh != 'true'
@@ -178,7 +188,9 @@ jobs:
         if: steps.nightly.outputs.fresh != 'true'
       - name: mutmut mutation (fallback — no fresh nightly)
         if: steps.nightly.outputs.fresh != 'true'
-        run: mutmut run
+        run: |
+          mutmut run 2>&1 | tee mutation-fallback.log
+          mutmut results 2>&1 | tee -a mutation-fallback.log
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
         if: steps.nightly.outputs.fresh != 'true'
@@ -187,8 +199,25 @@ jobs:
         if: steps.nightly.outputs.fresh != 'true'
         run: |
           cargo install cargo-mutants --locked
-          cargo mutants --all-features
+          cargo mutants --all-features 2>&1 | tee mutation-fallback.log
 <% } %>
+      # Fail-on-empty (#1505): a vacuous mutation run (zero mutants generated) must NOT pass the
+      # release gate — that is the cheapest place to fake mutation enforcement. We fail CLOSED: the
+      # gate passes only when the captured output carries a positive mutant-count token for the
+      # language's tool; a missing token (empty run, or a config that mutated nothing) fails loudly
+      # rather than passing silently. The OR-set is per-tool, but only one tool ran.
+      - name: Fail when the mutation run produced no mutants (#1505)
+        if: steps.nightly.outputs.fresh != 'true'
+        run: |
+          if [ ! -s mutation-fallback.log ]; then
+            echo "::error::No mutation output captured — failing closed (an empty run is not a pass)."
+            exit 1
+          fi
+          if ! grep -Eqi 'tests per mutant|mutation score|[1-9][0-9]* mutants|Generated [1-9][0-9]* mutations|total is [1-9]|Caught [1-9]|KILLED|SURVIVED' mutation-fallback.log; then
+            echo "::error::Mutation run generated zero mutants — an empty run is not a pass (#1505)."
+            exit 1
+          fi
+          echo "Mutation run produced mutants — fail-on-empty check passed."
 
   secret-scan-history:
     name: Full-history secret scan

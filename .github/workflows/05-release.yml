@@ -80,7 +80,23 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       - uses: ./.github/actions/setup-node-pnpm
       - name: Stryker mutation
-        run: npx stryker run
+        # errexit + pipefail (GitHub bash default) make a below-threshold mutation score fail the
+        # step; the tee feeds the fail-on-empty guard below (#1505).
+        run: npx stryker run 2>&1 | tee mutation-fallback.log
+      # Fail-on-empty (#1505): a vacuous mutation run (zero mutants generated) must NOT pass the
+      # release gate. Fail CLOSED — the gate passes only when Stryker reports it tested mutants;
+      # an empty run (no source files matched, or a broken config) fails loudly, not silently.
+      - name: Fail when the mutation run produced no mutants (#1505)
+        run: |
+          if [ ! -s mutation-fallback.log ]; then
+            echo "::error::No mutation output captured — failing closed (an empty run is not a pass)."
+            exit 1
+          fi
+          if ! grep -Eqi 'tests per mutant|mutation score|[1-9][0-9]* mutants' mutation-fallback.log; then
+            echo "::error::Mutation run generated zero mutants — an empty run is not a pass (#1505)."
+            exit 1
+          fi
+          echo "Mutation run produced mutants — fail-on-empty check passed."
 
   secret-scan-history:
     name: Full-history secret scan

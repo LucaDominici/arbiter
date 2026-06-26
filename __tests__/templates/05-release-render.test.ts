@@ -136,10 +136,16 @@ describe('05-release.yml.ejs — triggers and concurrency', () => {
 // ─── Governance level branching ───────────────────────────────────────────────
 
 describe('05-release.yml.ejs — governance level branching', () => {
-  it('L1: mutation-blocking is continue-on-error: true (informational)', () => {
+  // #1505 gold-align: mutation testing is BLOCKING at every level the release workflow emits at,
+  // including L1 — the prior `continue-on-error: <level === L1>` left a fake-green window where a
+  // red (or empty) mutation run silently passed at L1.
+  it('L1: mutation-blocking is continue-on-error: false (blocking, #1505)', () => {
     const rendered = renderRelease({ governanceLevel: 'L1' })
-    const mutSection = rendered.split('mutation-blocking:')[1] ?? ''
-    expect(mutSection).toContain('continue-on-error: true')
+    const mutSection = (rendered.split('mutation-blocking:')[1] ?? '').split(
+      'secret-scan-history:',
+    )[0]
+    expect(mutSection).toContain('continue-on-error: false')
+    expect(mutSection).not.toContain('continue-on-error: true')
   })
 
   it('L2: mutation-blocking is continue-on-error: false (blocking)', () => {
@@ -291,7 +297,7 @@ describe('05-release.yml.ejs — per-language mutation tools', () => {
     expect(rendered).toContain('pitest:mutationCoverage')
   })
 
-  it('Go: go-mutesting (informational)', () => {
+  it('Go: go-mutesting', () => {
     const rendered = renderRelease({ language: 'go', buildTool: 'go' })
     expect(rendered).toContain('go-mutesting')
   })
@@ -305,6 +311,71 @@ describe('05-release.yml.ejs — per-language mutation tools', () => {
     const rendered = renderRelease({ language: 'rust', buildTool: 'cargo' })
     expect(rendered).toContain('cargo mutants')
   })
+})
+
+// ─── #1505: mutation testing is blocking with fail-on-empty, no swallow ───────
+
+describe('05-release.yml.ejs — mutation is blocking + fail-on-empty (#1505)', () => {
+  const STACKS = [
+    { language: 'typescript', buildTool: 'npm' },
+    { language: 'java', buildTool: 'gradle' },
+    { language: 'java', buildTool: 'maven' },
+    { language: 'go', buildTool: 'go' },
+    { language: 'python', buildTool: 'pip' },
+    { language: 'rust', buildTool: 'cargo' },
+  ] as const
+
+  const LEVELS = ['L1', 'L2', 'L3'] as const
+
+  function mutSection(overrides: Record<string, unknown>): string {
+    const rendered = renderRelease(overrides)
+    return (rendered.split('mutation-blocking:')[1] ?? '').split('secret-scan-history:')[0]
+  }
+
+  it.each(LEVELS)('governance %s: mutation-blocking job is NOT advisory', (governanceLevel) => {
+    const section = mutSection({ governanceLevel })
+    // The only continue-on-error in the job is the explicit blocking marker.
+    expect(section).toContain('continue-on-error: false')
+    expect(section).not.toContain('continue-on-error: true')
+  })
+
+  it.each(STACKS)(
+    '$language/$buildTool: fail-on-empty guard step is present and gated on no-fresh-nightly',
+    ({ language, buildTool }) => {
+      const section = mutSection({ language, buildTool })
+      expect(section).toContain('Fail when the mutation run produced no mutants')
+      expect(section).toContain('an empty run is not a pass')
+      // The guard runs in the same no-fresh-nightly fallback window as the tool.
+      expect(section).toContain("if: steps.nightly.outputs.fresh != 'true'")
+    },
+  )
+
+  it.each(STACKS)(
+    '$language/$buildTool: mutation output is captured to mutation-fallback.log',
+    ({ language, buildTool }) => {
+      const section = mutSection({ language, buildTool })
+      expect(section).toContain('tee mutation-fallback.log')
+    },
+  )
+
+  // The Go fallback previously swallowed every failure (`continue-on-error: true` + `|| true`).
+  it('Go: no `|| true` swallow on the go-mutesting fallback', () => {
+    const section = mutSection({ language: 'go', buildTool: 'go' })
+    expect(section).toContain('go-mutesting ./... 2>&1 | tee mutation-fallback.log')
+    expect(section).not.toContain('go-mutesting ./... || true')
+  })
+
+  it.each(LEVELS)(
+    'governance %s: no unconditional `|| true` swallows any mutation tool',
+    (governanceLevel) => {
+      for (const { language, buildTool } of STACKS) {
+        const section = mutSection({ governanceLevel, language, buildTool })
+        expect(section).not.toMatch(/mutesting \.\/\.\.\. \|\| true/)
+        expect(section).not.toMatch(/cargo mutants --all-features\s*\|\| true/)
+        expect(section).not.toMatch(/mutmut run\s*\|\| true/)
+      }
+    },
+  )
 })
 
 // ─── Per-language SBOM tools ──────────────────────────────────────────────────
