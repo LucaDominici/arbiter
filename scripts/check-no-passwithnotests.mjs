@@ -20,7 +20,11 @@ try {
   const pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
   const scripts = pkg.scripts ?? {}
   for (const [name, cmd] of Object.entries(scripts)) {
-    if (name.startsWith('test:') && cmd.includes('--passWithNoTests')) {
+    // The canonical `test` script (what `npm test` runs) is just as much a
+    // test-category script as any `test:*` sibling — a bare
+    // `"test": "vitest run --passWithNoTests"` silently passes on an empty
+    // suite, which is the exact lie this guard exists to catch.
+    if ((name === 'test' || name.startsWith('test:')) && cmd.includes('--passWithNoTests')) {
       violations.push(`  package.json scripts.${name}: ${cmd}`)
     }
   }
