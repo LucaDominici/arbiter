@@ -232,7 +232,9 @@ describe('runInit — checkL3MaturityGates blocked branch', () => {
     await runInit(baseOpts({ language: 'typescript', level: 'L3', dryRun: false }))
     expect(existsSync(join(dir, 'arbiter.json'))).toBe(true)
     expect(exitSpy).not.toHaveBeenCalled()
-  })
+    // Full runInit scaffold + L3 maturity gate + baseline-capture subprocess;
+    // the 30s default is too tight for this in the full parallel pool — see #1604.
+  }, 60_000)
 })
 
 // ---------------------------------------------------------------------------
