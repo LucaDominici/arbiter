@@ -3,8 +3,9 @@
 // Gate: verify markdown links in docs/ resolve; follow CANONICAL_PATHS redirects.
 // Exits 0: all links resolve (possibly via redirect) or no docs found.
 // Exits 1: one or more broken links with no valid redirect.
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
+import { walkRepo } from './lib/glob-walk.mjs';
 
 const CWD = process.cwd();
 const CANONICAL_PATHS_FILE = join(CWD, 'docs', 'METHOD', 'CANONICAL_PATHS.md');
@@ -31,18 +32,14 @@ function loadAliases() {
   return aliases;
 }
 
+// Directory walking is delegated to the shared cycle-safe walkRepo (#1521/#1544): a single helper
+// owns tree traversal (symlink-cycle safe, vendor-tree pruning via SKIP_DIRS) instead of a
+// hand-rolled recursion. Returns absolute `.md` paths under `dir`.
 function findMarkdownFiles(dir) {
-  const files = [];
-  if (!existsSync(dir)) return files;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...findMarkdownFiles(full));
-    } else if (entry.isFile() && entry.name.endsWith('.md')) {
-      files.push(full);
-    }
-  }
-  return files;
+  if (!existsSync(dir)) return [];
+  return walkRepo(dir)
+    .filter((rel) => rel.endsWith('.md'))
+    .map((rel) => join(dir, rel));
 }
 
 function isLocal(href) {
