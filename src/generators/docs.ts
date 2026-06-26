@@ -134,20 +134,24 @@ export function generateDocs(
     )
   }
 
-  // F12: docs/security/ scaffold — STRIDE threat model (KIT dim 66, M3 REFERENCE, L2+)
+  // F12: docs/SECURITY/ scaffold — STRIDE threat model (KIT dim 66, M3 REFERENCE, L2+)
+  // #1592: canonical uppercase SECURITY — the case the traceability gate parses
+  // (scripts/check-stride-traceability.mjs) and the case stride-enforcement.ts and
+  // the ISO27001 emit above already use. A lowercase twin orphaned the gate on
+  // Linux and double-keyed the write manifest on case-insensitive FSes.
   results.push(
     writeFile(
-      resolvedPath(base, 'docs', 'security', 'STRIDE.md'),
+      resolvedPath(base, 'docs', 'SECURITY', 'STRIDE.md'),
       renderTemplate('security/STRIDE.md.ejs', data),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
-  // F12: docs/security/ scaffold — risk assessment (KIT dim 66, M3 REFERENCE, L3 only)
+  // F12: docs/SECURITY/ scaffold — risk assessment (KIT dim 66, M3 REFERENCE, L3 only)
   if (config.governanceLevel === 'L3') {
     results.push(
       writeFile(
-        resolvedPath(base, 'docs', 'security', 'RISK_ASSESSMENT.md'),
+        resolvedPath(base, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md'),
         renderTemplate('security/RISK_ASSESSMENT.md.ejs', data),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
