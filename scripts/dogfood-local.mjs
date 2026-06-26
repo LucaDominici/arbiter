@@ -105,8 +105,10 @@ function step(name, cmd, argv, cwd) {
 }
 
 function preInitDeps(language, cwd) {
-  if (language === 'typescript')
-    return step('npm-install', 'npm', ['install', '--legacy-peer-deps'], cwd)
+  // Plain `npm install` — strict peer resolution on. The `--legacy-peer-deps` escape
+  // hatch was dropped (#1557): it was inherited from arbiter's own .npmrc to mask a
+  // single dev-tree peer clash and does not belong in a generated project's install.
+  if (language === 'typescript') return step('npm-install', 'npm', ['install'], cwd)
   if (language === 'python')
     return step(
       'pip-install',

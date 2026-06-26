@@ -184,7 +184,7 @@ For TypeScript fixtures:
 ```bash
 cp -r __tests__/fixtures/real-projects/ts-library /tmp/ts-smoke
 cd /tmp/ts-smoke
-npm install --legacy-peer-deps
+npm install
 node /path/to/arbiter/dist/cli.js init --yes --no-verify --level=L1
 node scripts/check-all.mjs L1
 ```

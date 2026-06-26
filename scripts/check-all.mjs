@@ -180,6 +180,7 @@ if (isMain) {
   runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs'])
   runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])
   runCheck('action pin sha (INV-76)', 'node', ['scripts/check-action-pins.mjs'])
+  runCheck('runtime dep pins (#1557)', 'node', ['scripts/check-runtime-dep-pins.mjs'])
   // Workflow hardening report (gold-audit D-ACTIONS value-report source) — emits
   // .arbiter/reports/workflow-hardening.json. MUST precede the gold-audit no-regress check
   // below so the D-ACTIONS value checks read a fresh report (absent ⇒ NA ⇒ yCount regress).
