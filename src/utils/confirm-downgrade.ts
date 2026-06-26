@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { confirm, isCancel } from '@clack/prompts'
+import { getBoolFlag } from '../config/env-registry.js'
 import type { ReleaseChannel } from './channel.js'
 import { needsDowngradeWarn } from './channel.js'
 
@@ -20,7 +21,7 @@ export async function confirmChannelDowngrade(
   if (!needsDowngradeWarn({ flag: flagChannel, configChannel })) return
 
   const isTTY = process.stdin.isTTY
-  const allowEnv = process.env['ARBITER_ALLOW_CHANNEL_DOWNGRADE'] === '1'
+  const allowEnv = getBoolFlag('ARBITER_ALLOW_CHANNEL_DOWNGRADE')
 
   if (allowEnv) return
 
