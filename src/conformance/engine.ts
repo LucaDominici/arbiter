@@ -12,6 +12,7 @@ import {
   readText,
   readScanText,
   expandGlob,
+  walkRepo,
   hasNestedUnboundedQuantifier,
   MAX_SCAN_BYTES,
 } from './shared.js'
@@ -514,12 +515,35 @@ type GlobResolution =
   | { ok: false; result: EvalCheckResult }
 
 /**
- * Resolve a glob-check's `args.glob` to a SORTED match list — the invalid-glob guard lives here
- * once, shared by every glob-based check (mirrored in scripts/lib/gold-audit-lib.mjs).
+ * A lazily-memoized repo file list for one `evaluate()` (#1522). The first glob check walks the
+ * tree; every subsequent glob check reuses the same list — K glob checks ⇒ ONE tree-walk. A
+ * registry with no glob check never invokes it, so K=0 ⇒ 0 walks (no eager regression).
  */
-function resolveGlobArg(args: Record<string, unknown>, root: string): GlobResolution {
+type FileWalk = () => string[]
+
+/**
+ * Immutable per-`evaluate()` run context threaded to each check: the repo root, the resolved
+ * options, and the memoized tree-walk (#1522). Bundled into one object so the check dispatchers
+ * stay within the parameter ceiling instead of passing root/options/getFiles around individually.
+ */
+interface EvalRun {
+  root: string
+  options: EvaluateOptions
+  getFiles: FileWalk
+}
+
+/**
+ * Resolve a glob-check's `args.glob` to a SORTED match list — the invalid-glob guard lives here
+ * once, shared by every glob-based check (mirrored in scripts/lib/gold-audit-lib.mjs). `getFiles`
+ * threads the per-evaluate memoized walk (#1522) so glob checks share one tree-walk.
+ */
+function resolveGlobArg(
+  args: Record<string, unknown>,
+  root: string,
+  getFiles: FileWalk,
+): GlobResolution {
   const glob = typeof args['glob'] === 'string' ? args['glob'] : ''
-  const matched = expandGlob(root, glob)
+  const matched = glob === '' ? null : expandGlob(root, glob, getFiles())
   if (matched === null) {
     return {
       ok: false,
@@ -602,7 +626,11 @@ function scanForbiddenFiles(
   }
 }
 
-function evalForbiddenPattern(args: Record<string, unknown>, root: string): EvalCheckResult {
+function evalForbiddenPattern(
+  args: Record<string, unknown>,
+  root: string,
+  getFiles: FileWalk,
+): EvalCheckResult {
   const pattern = typeof args['pattern'] === 'string' ? args['pattern'] : ''
   if (pattern === '') {
     return { verdict: 'N', evidence: { file: '', detail: 'empty or non-string pattern' } }
@@ -618,7 +646,7 @@ function evalForbiddenPattern(args: Record<string, unknown>, root: string): Eval
   if (hasNestedUnboundedQuantifier(pattern)) {
     return { verdict: 'N', evidence: { file: '', detail: `unsafe regex (ReDoS risk): ${pattern}` } }
   }
-  const g = resolveGlobArg(args, root)
+  const g = resolveGlobArg(args, root, getFiles)
   if (!g.ok) return g.result
   const { glob, matched } = g
   const excludeRaw = Array.isArray(args['exclude_paths'])
@@ -686,7 +714,11 @@ function isExecutableRegular(abs: string | null): boolean {
   }
 }
 
-function evalFileStat(args: Record<string, unknown>, root: string): EvalCheckResult {
+function evalFileStat(
+  args: Record<string, unknown>,
+  root: string,
+  getFiles: FileWalk,
+): EvalCheckResult {
   const bit = typeof args['bit'] === 'string' ? args['bit'].toLowerCase() : 'executable'
   if (bit !== 'executable') {
     return {
@@ -694,7 +726,7 @@ function evalFileStat(args: Record<string, unknown>, root: string): EvalCheckRes
       evidence: { file: '', detail: `only the executable bit is deterministic, got: ${bit}` },
     }
   }
-  const g = resolveGlobArg(args, root)
+  const g = resolveGlobArg(args, root, getFiles)
   if (!g.ok) return g.result
   const { glob, matched } = g
   if (matched.length === 0) {
@@ -730,15 +762,16 @@ function evalFileStat(args: Record<string, unknown>, root: string): EvalCheckRes
  * Glob/pair checks (version_consistency, forbidden_pattern, file_stat) dispatch BEFORE the
  * single-file `args.path` resolve, since they own their own path handling.
  */
-function evalCheck(check: CheckInput, root: string, options: EvaluateOptions): EvalCheckResult {
+function evalCheck(check: CheckInput, run: EvalRun): EvalCheckResult {
   const type = check.type
   if (type === 'manual') return { verdict: 'NV', evidence: null }
 
+  const { root } = run
   const args = check.args ?? {}
   if (type === 'version_consistency') return evalVersionConsistency(args, root)
-  if (type === 'forbidden_pattern') return evalForbiddenPattern(args, root)
-  if (type === 'file_stat') return evalFileStat(args, root)
-  return evalSingleFileCheck(check, type, args, root, options)
+  if (type === 'forbidden_pattern') return evalForbiddenPattern(args, root, run.getFiles)
+  if (type === 'file_stat') return evalFileStat(args, root, run.getFiles)
+  return evalSingleFileCheck(check, type, args, root, run.options)
 }
 
 /** Dispatch the single-file (path-based) check types after resolving + guarding `args.path`. */
@@ -896,9 +929,8 @@ function buildDimensions(
 function processCheck(
   check: CheckInput,
   overlays: Set<string>,
-  root: string,
   dims: Map<string, DimAccum>,
-  options: EvaluateOptions,
+  run: EvalRun,
 ): {
   checkResult: CheckResult
   yCount: number
@@ -906,7 +938,7 @@ function processCheck(
   earned: number
   possible: number
 } {
-  const applicable = isApplicable(check, overlays, root)
+  const applicable = isApplicable(check, overlays, run.root)
   let verdict: Verdict
   let evidence: Evidence | null
 
@@ -914,7 +946,7 @@ function processCheck(
     verdict = 'NA'
     evidence = null
   } else {
-    const r = evalCheck(check, root, options)
+    const r = evalCheck(check, run)
     verdict = r.verdict
     evidence = r.evidence
   }
@@ -993,8 +1025,19 @@ export function evaluate(
     let earned = 0
     let possible = 0
 
+    // Walk the repo tree at most ONCE for the whole evaluate() (#1522): the first glob check
+    // (forbidden_pattern / file_stat) triggers the walk and every later glob check reuses the
+    // cached list. A registry with no glob check never walks. Per-evaluate state only — no global
+    // cache — so determinism + the fail-closed contract are untouched.
+    let walkedFiles: string[] | null = null
+    const run: EvalRun = {
+      root,
+      options: opts,
+      getFiles: () => (walkedFiles ??= walkRepo(root)),
+    }
+
     for (const check of sorted) {
-      const r = processCheck(check, overlaySet, root, dims, opts)
+      const r = processCheck(check, overlaySet, dims, run)
       checks.push(r.checkResult)
       yCount += r.yCount
       riskyCount += r.riskyCount
