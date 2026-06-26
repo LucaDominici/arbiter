@@ -7,10 +7,10 @@
 //
 // C3 (#1395): probes rewritten to read canonical manifests; evidence narrowed to Evidence.
 
-import { readdirSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import type { Verdict, Evidence } from './engine.js'
-import { safeResolve, readJson, readText, fileExists, globMatch, SKIP_DIRS } from './shared.js'
+import { safeResolve, readJson, readText, fileExists, globMatch, walkRepo } from './shared.js'
 
 export type DimensionVerdict = Verdict
 export type { Verdict, Evidence }
@@ -44,32 +44,6 @@ const DISC_T1: Pick<DimensionEntry, 'family' | 'tier' | 'weight' | 'required_at'
   tier: 1,
   weight: 0,
   required_at: 'L1',
-}
-
-/** Walk directory recursively, returning all file paths (relative to root). */
-function walkFiles(dir: string, root: string, skipDirs: Set<string>): string[] {
-  const results: string[] = []
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return results
-  }
-  for (const entry of entries) {
-    if (skipDirs.has(entry)) continue
-    const abs = join(dir, entry)
-    try {
-      const st = statSync(abs)
-      if (st.isDirectory()) {
-        results.push(...walkFiles(abs, root, skipDirs))
-      } else {
-        results.push(relative(root, abs))
-      }
-    } catch {
-      // skip unreadable entries
-    }
-  }
-  return results
 }
 
 // --- D-TEST-LEVELS ---
@@ -130,7 +104,9 @@ export function probeDTestLevels(root: string): DimensionEntry {
     }
   }
 
-  const allFiles = walkFiles(root, root, SKIP_DIRS)
+  // Route through the shared, cycle-safe walker (lstat skip-symlink + dev:ino visited guard).
+  // A target repo with a directory symlink cycle previously infinite-recursed / OOMed here. #1521.
+  const allFiles = walkRepo(root)
   const failures = levels
     .map((lvl) => checkRequiredLevel(lvl, allFiles))
     .filter((r): r is string => r !== null)

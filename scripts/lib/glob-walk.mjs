@@ -4,7 +4,7 @@
 // CATALOG:   matcher: `**` crosses directories, `*` stays within one path component.
 // CATALOG:   walkRepo returns repo-relative POSIX paths; SKIP_DIRS prunes vendor trees.
 // Pure module — no process exit, no I/O side effects beyond readdir/stat.
-import { readdirSync, lstatSync } from 'node:fs'
+import { readdirSync, lstatSync, statSync } from 'node:fs'
 import { join, isAbsolute } from 'node:path'
 
 export const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
@@ -57,7 +57,21 @@ export function walkRepo(root) {
   // leading char and mangle every relative path (a determinism foot-gun for the glob check types).
   const base = root.replace(/[/\\]+$/, '') || root
   const files = []
+  // Track visited real directories by device:inode so a directory that resolves back to an
+  // ancestor (symlink OR hardlink/bind-mount cycle) terminates instead of looping forever / OOMing.
+  // Strictly stronger than the skip-symlink guard below — that prevents following a symlinked dir;
+  // this also catches a cycle reachable through real directory entries. #1521.
+  const visited = new Set()
   const visit = (dir) => {
+    let dirStat
+    try {
+      dirStat = statSync(dir)
+    } catch {
+      return
+    }
+    const key = `${dirStat.dev}:${dirStat.ino}`
+    if (visited.has(key)) return
+    visited.add(key)
     let entries
     try {
       entries = readdirSync(dir)

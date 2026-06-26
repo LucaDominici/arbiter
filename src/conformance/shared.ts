@@ -222,12 +222,26 @@ function validateGlob(pattern: string): boolean {
 }
 
 /** Walk `root` collecting repo-relative POSIX file paths, pruning SKIP_DIRS. Never throws. */
-function walkRepo(root: string): string[] {
+export function walkRepo(root: string): string[] {
   // Normalize a trailing slash once: a `dir/` root would make `slice(root.length+1)` drop an extra
   // leading char and mangle every relative path (a determinism foot-gun for the glob check types).
   const base = root.replace(/[/\\]+$/, '') || root
   const files: string[] = []
+  // Track visited real directories by device:inode so a directory that resolves back to an
+  // ancestor (symlink OR hardlink/bind-mount cycle) terminates instead of looping forever / OOMing.
+  // Strictly stronger than the skip-symlink guard below — that prevents following a symlinked dir;
+  // this also catches a cycle reachable through real directory entries. #1521.
+  const visited = new Set<string>()
   const visit = (dir: string): void => {
+    let dirStat
+    try {
+      dirStat = statSync(dir)
+    } catch {
+      return
+    }
+    const key = `${dirStat.dev}:${dirStat.ino}`
+    if (visited.has(key)) return
+    visited.add(key)
     let entries: string[]
     try {
       entries = readdirSync(dir)

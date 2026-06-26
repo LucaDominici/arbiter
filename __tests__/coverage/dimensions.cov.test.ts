@@ -6,7 +6,7 @@
 // and the happy path. Filesystem reads are backed by real temp fixture dirs
 // (mkdtempSync under the OS tmpdir) and torn down in afterEach. Pure, fast,
 // deterministic — no Date.now() assertions, no network.
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
@@ -132,6 +132,30 @@ describe('probeDTestLevels', () => {
     expect(entry.verdict).toBe('N')
     expect((entry.evidence as { detail: string }).detail).toContain('unknown')
   })
+
+  it('TERMINATES on a directory symlink cycle in the probed repo (#1521 OOM regression)', () => {
+    // Pre-#1521 the local walkFiles used statSync (follows symlinks) with NO visited guard. TWO
+    // directory symlinks back at the root give a branching factor of 2; the old walker descended
+    // both on every level, fanning out to ~2^40 phantom paths before the OS symlink limit — a real
+    // hang / OOM while probing an arbitrary target repo (verified: the old algorithm times out on
+    // this exact fixture). The walk is now routed through the cycle-safe shared walkRepo (lstat
+    // skip-symlink + dev:ino visited guard), so it terminates immediately and still classifies the
+    // repo. A 5s budget: the fixed walk completes in single-digit ms; the old one never finishes.
+    const root = tmpRoot()
+    writeAt(root, '__tests__/a.test.ts', 'export const a = 1')
+    writeJson(root, 'test-pyramid.json', {
+      levels: [{ level: 'unit', status: 'required', globs: ['__tests__/**/*.test.ts'] }],
+    })
+    symlinkSync(root, join(root, 'loopA'), 'dir')
+    symlinkSync(root, join(root, 'loopB'), 'dir')
+
+    let entry: ReturnType<typeof probeDTestLevels> | undefined
+    expect(() => {
+      entry = probeDTestLevels(root)
+    }).not.toThrow()
+    // The real test file is still discovered (each symlink is recorded once, never traversed).
+    expect(entry?.verdict).toBe('Y')
+  }, 5000)
 })
 
 // ── probeDLiveE2e ───────────────────────────────────────────────────────────────
