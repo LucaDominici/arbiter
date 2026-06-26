@@ -349,6 +349,60 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-01')
   })
 
+  it('multi (polyglot) includes a Rust-only invariant — INV-60 — at L2+ (#1598)', () => {
+    // multi is the superset of all detected languages: a Rust service in a
+    // polyglot repo must receive the same Rust-scoped governance it would in a
+    // single-language project. Previously the filter only admitted java/ts-scoped
+    // invariants for multi, silently dropping INV-60 (the lone rust-only rule).
+    const multi = getFilteredInvariants({
+      language: 'multi',
+      governanceLevel: 'L2',
+      invariantTiers: ALL_TIERS,
+    }).map((inv) => inv.id)
+    expect(multi).toContain('INV-60')
+    // Parity sanity: the same invariant is present for a single-language rust project.
+    const rust = getFilteredInvariants({
+      language: 'rust',
+      governanceLevel: 'L2',
+      invariantTiers: ALL_TIERS,
+    }).map((inv) => inv.id)
+    expect(rust).toContain('INV-60')
+  })
+
+  it('multi is a superset: every single-language-reachable invariant is reachable under multi (#1598)', () => {
+    // Guard against a future rust/go/python-only invariant (like INV-60) being
+    // silently excluded from polyglot projects by a hard-coded language allowlist.
+    // Any invariant that a single-language project receives must also reach a
+    // multi (polyglot) project at the same governance level.
+    const multiIds = new Set(
+      getFilteredInvariants({
+        language: 'multi',
+        governanceLevel: 'L4',
+        invariantTiers: ALL_TIERS,
+        includeArbiterInternal: true,
+        includeExtendedInvariants: true,
+      }).map((inv) => inv.id),
+    )
+    for (const lang of LANGUAGES) {
+      const single = getFilteredInvariants({
+        language: lang,
+        governanceLevel: 'L4',
+        invariantTiers: ALL_TIERS,
+        includeArbiterInternal: true,
+        includeExtendedInvariants: true,
+      })
+      for (const inv of single) {
+        // Only language-scoped invariants are at risk of being dropped by the
+        // multi allowlist; language-agnostic invariants pass unconditionally.
+        if (!inv.languages) continue
+        expect(
+          multiIds.has(inv.id),
+          `${inv.id} (scoped ${inv.languages.join('/')}) reachable for ${lang} but NOT under multi`,
+        ).toBe(true)
+      }
+    }
+  })
+
   it('excludes L2+ invariants at L1', () => {
     const result = getFilteredInvariants({
       language: 'typescript',
@@ -435,7 +489,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, L1+, all-languages, operational)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
-    expect(result).toHaveLength(88)
+    // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
+    expect(result).toHaveLength(87)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -546,7 +601,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, L1+, all-languages, operational)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
-    expect(result).toHaveLength(83)
+    // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
+    expect(result).toHaveLength(82)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -572,12 +628,13 @@ describe('getFilteredInvariants', () => {
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, L1+, all-languages, operational)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
+    // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(84)
+    expect(result).toHaveLength(83)
   })
 
   it('essential preset at L1 returns minimal set', () => {
@@ -622,6 +679,27 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-49')
     expect(ids).toContain('INV-50')
     expect(ids).toContain('INV-51')
+  })
+
+  it('excludes retired (tombstone) invariants from generated output (#1570)', () => {
+    // INV-56 is a status:'retired' tombstone kept for ID-stability only. It must
+    // never reach generated AGENTS.md / GLOBAL_INVARIANTS.md, matching the graph
+    // builder which already drops status !== 'active'. Tombstones stay in the raw
+    // catalog (ID-stability) but are filtered out of every generation context.
+    const retired = INVARIANT_CATALOG.filter((inv) => inv.status === 'retired')
+    expect(retired.length, 'fixture: at least one retired tombstone must exist').toBeGreaterThan(0)
+    for (const level of ['L1', 'L2', 'L3', 'L4'] as const) {
+      const ids = getFilteredInvariants({
+        language: 'typescript',
+        governanceLevel: level,
+        invariantTiers: ALL_TIERS,
+        includeArbiterInternal: true,
+        includeExtendedInvariants: true,
+      }).map((inv) => inv.id)
+      for (const inv of retired) {
+        expect(ids, `${inv.id} (retired) must not appear at ${level}`).not.toContain(inv.id)
+      }
+    }
   })
 
   it('catalog has exactly 23 selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110)', () => {
