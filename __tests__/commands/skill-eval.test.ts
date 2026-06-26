@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { runSkillEval, renderHtmlReport } from '../../src/commands/skill-eval.js'
+import { runSkillEval, renderHtmlReport, matchOk } from '../../src/commands/skill-eval.js'
 import type { Scenario, SkillEvalResult } from '../../src/commands/skill-eval.js'
 
 /** A scenario that always passes: node prints fixed JSON and exits 0. */
@@ -154,5 +154,33 @@ describe('runSkillEval (#1264)', () => {
     const html = renderHtmlReport(result)
     expect(html).toContain('<!doctype html>')
     expect(html).toContain('Skill/Command Regression Eval')
+  })
+})
+
+describe('matchOk ReDoS hardening (#1551)', () => {
+  // The fixture-supplied `stdoutMatches` pattern is untrusted. A catastrophic-
+  // backtracking regex fed a non-matching haystack hangs `new RegExp().test()`
+  // for tens of seconds; the previous bare try/catch only trapped invalid
+  // SYNTAX. A 2s test timeout makes the hang a hard RED on the unfixed code.
+  it('returns promptly for a nested-unbounded-quantifier pattern on hostile stdout', () => {
+    // `(a+)+$` over a long run of 'a' ending in a non-'a' is the canonical
+    // exponential-backtracking trigger.
+    const haystack = `${'a'.repeat(50)}X`
+    // The guard short-circuits to a literal substring test: the pattern string
+    // is not present verbatim, so the answer is false — and, crucially, instant.
+    expect(matchOk(haystack, '(a+)+$')).toBe(false)
+    // A literal substring that IS present still matches via the includes() path.
+    expect(matchOk(`see (a+)+$ here`, '(a+)+$')).toBe(true)
+  }, 2000)
+
+  it('still compiles and matches a safe regex pattern', () => {
+    expect(matchOk('status: ok', '^status: ok$')).toBe(true)
+    expect(matchOk('status: fail', '^status: ok$')).toBe(false)
+  })
+
+  it('falls back to substring on an invalid-syntax pattern', () => {
+    // An unbalanced group is a syntax error → catch → literal includes().
+    expect(matchOk('has (oops literal', '(oops')).toBe(true)
+    expect(matchOk('no match here', '(oops')).toBe(false)
   })
 })

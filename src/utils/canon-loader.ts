@@ -56,8 +56,13 @@ export function loadCanonEntries(canonMdPath: string): CanonEntry[] {
 }
 
 function extractField(section: string, fieldName: string): string {
+  // Every caller passes a compile-time string literal, so fieldName carries no
+  // regex metacharacters today. Escape it defensively anyway so a future dynamic
+  // caller cannot inject metacharacters into the compiled pattern (#1551,
+  // defensive hygiene — not exploitable as written).
+  const safeField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const pattern = new RegExp(
-    `\\*\\*${fieldName}:\\*\\*\\s*([\\s\\S]*?)(?=\\n\\*\\*|\\n---\\n|$)`,
+    `\\*\\*${safeField}:\\*\\*\\s*([\\s\\S]*?)(?=\\n\\*\\*|\\n---\\n|$)`,
     'i',
   )
   const match = section.match(pattern)

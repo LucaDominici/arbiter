@@ -22,6 +22,7 @@ import { join, resolve, dirname } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { readBaselineFileSafe } from '../utils/safe-read.js'
+import { hasNestedUnboundedQuantifier } from '../conformance/shared.js'
 
 /** How a scenario is executed. Only `cli` is wired; `llm` is a deferred seam. */
 type ScenarioBackend = 'cli' | 'llm'
@@ -251,7 +252,18 @@ function runScenarioOnce(scenario: Scenario): RunOutcome {
   }
 }
 
-function matchOk(haystack: string, pattern: string): boolean {
+/**
+ * Test whether `haystack` matches the fixture-supplied `pattern`. The pattern is
+ * untrusted regex source (a scenario's `expect.stdoutMatches`), so a bare
+ * try/catch is not enough: it traps only invalid SYNTAX, never a valid but
+ * catastrophic-backtracking pattern such as `(a+)+$`, which would hang the
+ * skill-eval harness on hostile stdout (#1551). Short-circuit the
+ * nested-unbounded-quantifier family to a literal substring test before
+ * compiling — the same guard the conformance engine applies to its dynamic
+ * RegExp builds. Exported for the ReDoS-timeout regression test.
+ */
+export function matchOk(haystack: string, pattern: string): boolean {
+  if (hasNestedUnboundedQuantifier(pattern)) return haystack.includes(pattern)
   try {
     return new RegExp(pattern).test(haystack)
   } catch {

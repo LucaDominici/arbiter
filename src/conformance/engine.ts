@@ -299,6 +299,10 @@ function extractXmlAttr(text: string, spec: string): number | null {
   const segment = close < 0 ? text.slice(open) : text.slice(open, close)
   // Guard the attr RegExp build: a regex metachar in the attr name (`attr:a@(`) would otherwise
   // throw and (via the top-level catch) zero the whole registry — yield a per-check N instead.
+  // The bare try/catch traps only invalid SYNTAX, so reject the catastrophic-backtracking family
+  // FIRST (matching this file's 3 other dynamic-RegExp sites) lest a valid `(a+)+`-shaped attr
+  // name hang the audit instead of throwing (#1551).
+  if (hasNestedUnboundedQuantifier(attr)) return null
   let m: RegExpExecArray | null
   try {
     m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
