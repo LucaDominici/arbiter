@@ -37,13 +37,13 @@ export function getFilteredInvariants(config: {
     if (inv.selfOnly && !config.includeArbiterInternal) return false
 
     // Language filter: if the invariant requires specific languages, check.
-    // multi-language projects match invariants scoped to java or typescript.
+    // A 'multi' (polyglot) project is the superset of all its languages, so it
+    // matches EVERY language-scoped invariant — a Rust service in a polyglot repo
+    // must receive the same Rust-scoped governance as in a single-language project
+    // (#1598). A previous java/typescript allowlist silently dropped the lone
+    // rust-only invariant (INV-60) and would drop any future go/python-only rule.
     if (inv.languages && !inv.languages.includes(config.language)) {
-      if (
-        config.language !== 'multi' ||
-        (!inv.languages.includes('java') && !inv.languages.includes('typescript'))
-      )
-        return false
+      if (config.language !== 'multi') return false
     }
 
     // Governance level filter

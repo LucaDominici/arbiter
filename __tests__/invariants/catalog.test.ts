@@ -349,6 +349,60 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-01')
   })
 
+  it('multi (polyglot) includes a Rust-only invariant — INV-60 — at L2+ (#1598)', () => {
+    // multi is the superset of all detected languages: a Rust service in a
+    // polyglot repo must receive the same Rust-scoped governance it would in a
+    // single-language project. Previously the filter only admitted java/ts-scoped
+    // invariants for multi, silently dropping INV-60 (the lone rust-only rule).
+    const multi = getFilteredInvariants({
+      language: 'multi',
+      governanceLevel: 'L2',
+      invariantTiers: ALL_TIERS,
+    }).map((inv) => inv.id)
+    expect(multi).toContain('INV-60')
+    // Parity sanity: the same invariant is present for a single-language rust project.
+    const rust = getFilteredInvariants({
+      language: 'rust',
+      governanceLevel: 'L2',
+      invariantTiers: ALL_TIERS,
+    }).map((inv) => inv.id)
+    expect(rust).toContain('INV-60')
+  })
+
+  it('multi is a superset: every single-language-reachable invariant is reachable under multi (#1598)', () => {
+    // Guard against a future rust/go/python-only invariant (like INV-60) being
+    // silently excluded from polyglot projects by a hard-coded language allowlist.
+    // Any invariant that a single-language project receives must also reach a
+    // multi (polyglot) project at the same governance level.
+    const multiIds = new Set(
+      getFilteredInvariants({
+        language: 'multi',
+        governanceLevel: 'L4',
+        invariantTiers: ALL_TIERS,
+        includeArbiterInternal: true,
+        includeExtendedInvariants: true,
+      }).map((inv) => inv.id),
+    )
+    for (const lang of LANGUAGES) {
+      const single = getFilteredInvariants({
+        language: lang,
+        governanceLevel: 'L4',
+        invariantTiers: ALL_TIERS,
+        includeArbiterInternal: true,
+        includeExtendedInvariants: true,
+      })
+      for (const inv of single) {
+        // Only language-scoped invariants are at risk of being dropped by the
+        // multi allowlist; language-agnostic invariants pass unconditionally.
+        if (!inv.languages) continue
+        expect(
+          multiIds.has(inv.id),
+          `${inv.id} (scoped ${inv.languages.join('/')}) reachable for ${lang} but NOT under multi`,
+        ).toBe(true)
+      }
+    }
+  })
+
   it('excludes L2+ invariants at L1', () => {
     const result = getFilteredInvariants({
       language: 'typescript',
