@@ -78,6 +78,82 @@ describe('ipog() — 2-way pairwise (#260, AC-2)', () => {
       const forbidden = row['transport'] === 'plane' && row['duration'] === '1d'
       expect(forbidden).toBe(false)
     }
+    // Every *valid* (non-excluded) pair must still be covered (#1563).
+    assertAllPairsCovered(input, rows, 2)
+  })
+
+  it('constraint does not drop coverable valid pairs (#1563 reproduction)', () => {
+    // 3 dims, single skip constraint. The forbidden row {a:v1,b:v1} is the
+    // sole carrier of valid pairs {a:v1,c:c1} and {b:v1,c:c1} under the naive
+    // post-filter algorithm — those must be re-covered by other rows.
+    const input: IpogInput = {
+      dimensions: {
+        a: ['v1', 'v2'],
+        b: ['v1', 'v2'],
+        c: ['c1', 'c2'],
+      },
+      strength: 2,
+      constraints: [{ when: { a: 'v1', b: 'v1' }, then: 'skip' }],
+    }
+    const rows = ipog(input)
+    for (const row of rows) {
+      expect(row['a'] === 'v1' && row['b'] === 'v1').toBe(false)
+    }
+    assertAllPairsCovered(input, rows, 2)
+  })
+
+  it('constraint spanning seed and later param still covers all valid pairs (#1563)', () => {
+    const input: IpogInput = {
+      dimensions: {
+        a: ['v1', 'v2', 'v3'],
+        b: ['x', 'y'],
+        c: ['p', 'q'],
+      },
+      strength: 2,
+      constraints: [{ when: { a: 'v3', c: 'q' }, then: 'skip' }],
+    }
+    const rows = ipog(input)
+    for (const row of rows) {
+      expect(row['a'] === 'v3' && row['c'] === 'q').toBe(false)
+    }
+    assertAllPairsCovered(input, rows, 2)
+  })
+
+  it('3-way strength with a 2-key constraint still covers all valid triples (#1563)', () => {
+    const input: IpogInput = {
+      dimensions: {
+        a: ['1', '2'],
+        b: ['x', 'y'],
+        c: ['p', 'q'],
+        d: ['m', 'n'],
+      },
+      strength: 3,
+      constraints: [{ when: { a: '1', b: 'x' }, then: 'skip' }],
+    }
+    const rows = ipog(input)
+    for (const row of rows) {
+      expect(row['a'] === '1' && row['b'] === 'x').toBe(false)
+    }
+    assertAllPairsCovered(input, rows, 3)
+  })
+
+  it('throws on an over-constrained spec rather than silently dropping coverage (#1563)', () => {
+    // Single-value dim forced into a skip — unavoidable forbidden row.
+    const input: IpogInput = {
+      dimensions: {
+        a: ['only'],
+        b: ['x', 'y'],
+      },
+      strength: 2,
+      constraints: [{ when: { a: 'only', b: 'x' }, then: 'skip' }],
+    }
+    // params.length (2) <= t (2) → cross-product path removes the forbidden
+    // row; the remaining {a:only,b:y} is valid, so this does NOT throw.
+    const rows = ipog(input)
+    for (const row of rows) {
+      expect(row['a'] === 'only' && row['b'] === 'x').toBe(false)
+    }
+    expect(rows.length).toBeGreaterThan(0)
   })
 
   it('3-way strength: all triples covered', () => {
