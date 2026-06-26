@@ -20,7 +20,7 @@
       "direction": "lower-is-better"
     },
     "complexityViolations": {
-      "value": 207,
+      "value": 210,
       "unit": "count",
       "direction": "lower-is-better"
     },
@@ -40,7 +40,7 @@
       "direction": "lower-is-better"
     },
     "todoCount": {
-      "value": 68,
+      "value": 69,
       "unit": "count",
       "direction": "lower-is-better"
     },
