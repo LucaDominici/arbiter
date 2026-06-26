@@ -35,9 +35,11 @@ async function run(): Promise<void> {
         const src = readFileSync(absPath, 'utf-8')
         // #1348: ensure `basePackage` is an own key so bare references in Java
         // templates resolve their own fallback instead of throwing under EJS
-        // `with(locals)`. Mirrors withBasePackageDefault in ./render.ts; kept
-        // inline because tsx cannot resolve a cross-module value import in the
-        // spawned worker thread (.js→.ts rewrite fails for worker entries).
+        // `with(locals)`. This is the deliberate SSOT-mirror of
+        // `withBasePackageDefault` in ./render.ts — kept inline, NOT imported:
+        // this worker entry runs under tsx, where a relative `./render.js`
+        // import is not rewritten to `render.ts` and fails with "Cannot find
+        // module render.js" (#1552 re-confirmed: the fold breaks the worker).
         const safe = Object.prototype.hasOwnProperty.call(data, 'basePackage')
           ? data
           : { ...data, basePackage: undefined }

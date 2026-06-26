@@ -86,7 +86,7 @@ jobs:
           else
             echo "yamllint: no non-workflow YAML — skipping"
           fi
-<% if (enableSoloDevMode) { %>
+<% if (locals.enableSoloDevMode) { %>
   solo-dev-gate:
     name: Solo-Dev Gate (INV-59)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
