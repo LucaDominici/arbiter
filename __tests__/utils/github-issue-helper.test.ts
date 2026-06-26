@@ -156,6 +156,35 @@ describe('github-issue-helper', () => {
       expect(td.issues).toEqual([99])
     })
 
+    it('tolerates a valid-JSON-but-null tech-debt.json without throwing (#1574)', () => {
+      const dir = tmp()
+      const ev = join(dir, '.arbiter', 'evidence', '_1574')
+      mkdirSync(ev, { recursive: true })
+      // `JSON.parse('null')` succeeds (no SyntaxError) but yields null — the
+      // never-throw-on-malformed-spool contract must still hold.
+      writeFileSync(join(ev, 'tech-debt.json'), 'null', 'utf-8')
+      expect(() => appendTechDebtIssue(ev, 55)).not.toThrow()
+      const td = JSON.parse(readFileSync(join(ev, 'tech-debt.json'), 'utf-8')) as {
+        issues: number[]
+      }
+      expect(td.issues).toEqual([55])
+    })
+
+    it.each(['42', '"x"', '[1,2,3]'])(
+      'tolerates a non-object top-level value %s (resets to the new entry)',
+      (raw) => {
+        const dir = tmp()
+        const ev = join(dir, '.arbiter', 'evidence', '_1574b')
+        mkdirSync(ev, { recursive: true })
+        writeFileSync(join(ev, 'tech-debt.json'), raw, 'utf-8')
+        expect(() => appendTechDebtIssue(ev, 7)).not.toThrow()
+        const td = JSON.parse(readFileSync(join(ev, 'tech-debt.json'), 'utf-8')) as {
+          issues: number[]
+        }
+        expect(td.issues).toEqual([7])
+      },
+    )
+
     it('records to a path gen-gap.mjs can read (.arbiter/evidence/<task>/tech-debt.json)', () => {
       const dir = tmp()
       const ev = join(dir, '.arbiter', 'evidence', 'findings-promote')

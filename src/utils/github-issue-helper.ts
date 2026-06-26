@@ -84,16 +84,23 @@ export function appendTechDebtIssue(evidenceDir: string, issueNumber: number): v
   if (existsSync(tdPath)) {
     const raw = readFileSync(tdPath, 'utf-8')
     try {
-      const parsed = JSON.parse(raw) as { issues: unknown[] }
-      issues = Array.isArray(parsed.issues)
-        ? parsed.issues.filter((v): v is number => typeof v === 'number' && Number.isInteger(v))
-        : []
-    } catch (err: unknown) {
-      if (err instanceof SyntaxError) {
-        issues = []
-      } else {
-        throw err
-      }
+      const parsed: unknown = JSON.parse(raw)
+      // Guard the shape BEFORE dereferencing `.issues`: `JSON.parse('null')`
+      // (and scalars/arrays) parse without a SyntaxError, so a `SyntaxError`-only
+      // narrowing would let `null.issues` throw a TypeError and break the
+      // documented never-throw-on-malformed-spool contract.
+      issues =
+        parsed !== null &&
+        typeof parsed === 'object' &&
+        !Array.isArray(parsed) &&
+        Array.isArray((parsed as { issues?: unknown }).issues)
+          ? (parsed as { issues: unknown[] }).issues.filter(
+              (v): v is number => typeof v === 'number' && Number.isInteger(v),
+            )
+          : []
+    } catch {
+      // Any malformed spool (incl. a SyntaxError) resets to [] per the contract.
+      issues = []
     }
   }
   issues.push(issueNumber)
