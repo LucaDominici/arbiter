@@ -13,8 +13,14 @@ export interface EvidenceEntry {
 }
 
 const LOG_FILENAME = 'cmd-log.jsonl'
-const BACKUP_FILENAME = 'cmd-log.jsonl.1'
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
+
+/**
+ * Process-local monotonic rotation counter. Combined with the pid it makes every
+ * rotated-backup name unique even when a single process rotates several times
+ * within the same millisecond (Date.now() resolution is too coarse on its own).
+ */
+let rotationCounter = 0
 
 export interface AppendEvidenceOptions {
   /** Root directory of the project (`.evidence/` is created inside it). Defaults to `process.cwd()`. */
@@ -29,8 +35,13 @@ export interface AppendEvidenceOptions {
  * Append one JSONL line to `.evidence/cmd-log.jsonl`.
  *
  * - Creates `.evidence/` directory if absent.
- * - Rotates (renames to `.1`) when file size >= maxBytes.
+ * - Rotates (renames the live log aside) when file size >= maxBytes.
  * - NEVER throws — evidence logging must not break CLI invocations.
+ *
+ * Concurrency (#1556): the rotation rename is isolated in its own try/catch so a
+ * lost race (a peer process already renamed the log → ENOENT here) can never skip
+ * the subsequent append, and the backup gets a process-unique suffix so two
+ * processes crossing the boundary together never clobber each other's history.
  */
 export function appendEvidenceLine(entry: EvidenceEntry, opts: AppendEvidenceOptions = {}): void {
   if (opts.noEvidence) return
@@ -53,7 +64,18 @@ export function appendEvidenceLine(entry: EvidenceEntry, opts: AppendEvidenceOpt
     }
 
     if (shouldRotate) {
-      renameSync(logPath, join(evidenceDir, BACKUP_FILENAME))
+      // Isolated: a concurrent rotator may have already moved the log out from
+      // under us (renameSync → ENOENT). Swallow that here so the append below
+      // ALWAYS runs — otherwise this process's entry would be silently dropped.
+      // The unique suffix (pid + epoch ms + monotonic counter) keeps a second
+      // rotator — in another process OR a later rotation in this one — from
+      // overwriting an earlier rotation's history with its own near-empty log.
+      const backupName = `${LOG_FILENAME}.${process.pid}.${Date.now()}.${++rotationCounter}`
+      try {
+        renameSync(logPath, join(evidenceDir, backupName))
+      } catch {
+        // Rotation lost the race (or the file vanished) — fine, the append recovers.
+      }
     }
 
     appendFileSync(logPath, JSON.stringify(entry) + '\n', 'utf-8')
