@@ -314,6 +314,13 @@ describe('enforce-read-only — empirical fire', () => {
     })
     expect(r.status).toBe(1)
   })
+
+  // INV-96 (#1537): an unresolvable path must BLOCK (exit 2), not fall through to allow.
+  it('exits 2 (fail-closed) when the edit path is unresolvable/empty', () => {
+    const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: '' }, '')
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/fail-closed|unresolvable/i)
+  })
 })
 
 // ── EJS hooks ─────────────────────────────────────────────────────────────────

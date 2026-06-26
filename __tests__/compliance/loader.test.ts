@@ -28,6 +28,17 @@ describe('loadComplianceMappings (#263)', () => {
     }
   })
 
+  // INV-96 (#1537): a present-but-unreadable compliance.yaml must NOT be silently
+  // collapsed into "no obligations" — that disarms the compliance control invisibly.
+  it('throws when compliance.yaml is present but unreadable (not silent undefined)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'compliance-bad-'))
+    cleanups.push(() => rmSync(dir, { recursive: true, force: true }))
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    // A directory at the file path makes readFileSync throw EISDIR while existsSync is true.
+    mkdirSync(join(dir, '.arbiter', 'compliance.yaml'), { recursive: true })
+    expect(() => loadComplianceMappings(dir, 'INV-01')).toThrow(/could not be read/i)
+  })
+
   it('returns undefined when compliance.yaml does not exist', () => {
     const dir = mkdtempSync(join(tmpdir(), 'compliance-test-'))
     cleanups.push(() => rmSync(dir, { recursive: true, force: true }))

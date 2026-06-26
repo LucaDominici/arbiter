@@ -267,6 +267,24 @@ describe('edge cases (red-team amendments)', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  // INV-96 (#1537): a CORRUPT arbiter.json must FAIL the archetype guard, never be
+  // silently swallowed — that is exactly when manifest drift is most likely to hide.
+  it('malformed arbiter.json → exit 1 (fail-closed, not silently skipped)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'test-pyramid-bad-arbiter-'))
+    writeFileSync(
+      join(dir, 'test-pyramid.json'),
+      JSON.stringify({ archetype: 'library', levels: [] }),
+    )
+    writeFileSync(join(dir, 'arbiter.json'), '{ not: valid json,, }')
+    try {
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/malformed/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 // ─── Help flag ────────────────────────────────────────────────────────────────

@@ -105,13 +105,28 @@ export function loadComplianceMappings(
   const path = join(dir, COMPLIANCE_RELATIVE_PATH)
   if (!existsSync(path)) return undefined
 
+  let raw: string
   try {
-    const raw = readFileSync(path, 'utf-8')
-    const parsed = parseComplianceYaml(raw)
-    const mappings = parsed[nodeId]
-    if (mappings === undefined || mappings.length === 0) return undefined
-    return mappings
-  } catch {
-    return undefined
+    raw = readFileSync(path, 'utf-8')
+  } catch (err) {
+    // Fail-closed (INV-96): a MISSING file (ENOENT race between existsSync and read)
+    // legitimately yields "no mapping" — but an UNREADABLE file (EACCES, EISDIR,
+    // corruption) must NOT be silently collapsed into "no obligations". Surfacing the
+    // error keeps a present-but-broken compliance.yaml distinguishable from an absent one.
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      (err as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      return undefined
+    }
+    throw new Error(
+      `compliance.yaml present at ${path} but could not be read: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    )
   }
+  const parsed = parseComplianceYaml(raw)
+  const mappings = parsed[nodeId]
+  if (mappings === undefined || mappings.length === 0) return undefined
+  return mappings
 }

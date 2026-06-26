@@ -5,6 +5,15 @@ import { resolveToolInputPath } from './lib.mjs'
 
 const file = resolveToolInputPath()
 
+// Fail closed (INV-96): an unresolvable edit path must BLOCK, not fall through to
+// allow. A guard that protects read-only files must not disarm on uncertainty.
+if (!file) {
+  process.stderr.write(
+    '[arbiter] Read-only guard: unresolvable edit path — blocking (fail-closed, INV-96).\n',
+  )
+  process.exit(2)
+}
+
 const READ_ONLY_PATTERNS = ['AGENTS.md', 'LICENSE', 'package-lock.json', 'Cargo.lock']
 
 for (const pattern of READ_ONLY_PATTERNS) {

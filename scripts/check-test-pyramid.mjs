@@ -67,10 +67,35 @@ async function main() {
     process.exit(2)
   }
 
-  // Archetype mismatch guard: stale manifests detectable at gate time
+  // Archetype mismatch guard: stale manifests detectable at gate time.
+  // Fail-closed (INV-96): a MISSING arbiter.json (ENOENT race) legitimately skips the
+  // guard, but a CORRUPT/unparseable arbiter.json must FAIL — silently skipping the
+  // archetype check is exactly when manifest drift is most likely to hide.
   if (existsSync(ARBITER_PATH)) {
+    let arbiterRaw
     try {
-      const arbiter = JSON.parse(readFileSync(ARBITER_PATH, 'utf-8'))
+      arbiterRaw = readFileSync(ARBITER_PATH, 'utf-8')
+    } catch (err) {
+      if (err && err.code === 'ENOENT') {
+        arbiterRaw = undefined // race: file removed between existsSync and read — nothing to compare
+      } else {
+        process.stderr.write(
+          `[check-test-pyramid] ERROR — cannot read arbiter.json: ${err instanceof Error ? err.message : String(err)}\n`,
+        )
+        process.exit(2)
+      }
+    }
+    if (arbiterRaw !== undefined) {
+      let arbiter
+      try {
+        arbiter = JSON.parse(arbiterRaw)
+      } catch (err) {
+        process.stderr.write(
+          `[check-test-pyramid] FAIL — arbiter.json is malformed (${err instanceof Error ? err.message : String(err)}); ` +
+            `cannot verify archetype — fix the file or run arbiter update to regenerate\n`,
+        )
+        process.exit(1)
+      }
       if (arbiter.archetype && manifest.archetype && arbiter.archetype !== manifest.archetype) {
         process.stderr.write(
           `[check-test-pyramid] FAIL — manifest generated for archetype ${manifest.archetype} ` +
@@ -78,8 +103,6 @@ async function main() {
         )
         process.exit(1)
       }
-    } catch {
-      // arbiter.json parse error — non-fatal; skip mismatch check
     }
   }
 

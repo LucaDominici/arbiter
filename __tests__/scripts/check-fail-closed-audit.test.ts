@@ -176,6 +176,155 @@ describe('check-fail-closed-audit', () => {
     expect(r.status).toBe(0)
   })
 
+  // ── #1537: broadened swallow detection (non-empty swallows must not slip) ──────
+
+  it('flags `catch { return null }` (defaulting swallow, previously passed)', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'ret-null.mjs'),
+      [
+        '#!/usr/bin/env node',
+        'function f() {',
+        '  try {',
+        '    return risky()',
+        '  } catch {',
+        '    return null',
+        '  }',
+        '}',
+        'f()',
+      ].join('\n'),
+    )
+    const r = runAudit(env.root)
+    expect(r.status).toBe(1)
+    expect(r.stdout).toContain('ret-null.mjs')
+    expect(r.stdout).toContain('node-swallowed-catch')
+  })
+
+  it('flags comment-only `catch { // ignore }` (passes ESLint no-empty, slips the old regex)', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'comment-only.mjs'),
+      [
+        '#!/usr/bin/env node',
+        'try {',
+        '  doThing()',
+        '} catch {',
+        '  // ignore malformed input',
+        '}',
+        'process.exit(0)',
+      ].join('\n'),
+    )
+    const r = runAudit(env.root)
+    expect(r.status).toBe(1)
+    expect(r.stdout).toContain('comment-only.mjs')
+    expect(r.stdout).toContain('node-swallowed-catch')
+  })
+
+  it('flags `catch { continue }` swallow', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'cont.mjs'),
+      [
+        '#!/usr/bin/env node',
+        'for (const x of list) {',
+        '  try {',
+        '    parse(x)',
+        '  } catch {',
+        '    continue',
+        '  }',
+        '}',
+        'process.exit(0)',
+      ].join('\n'),
+    )
+    const r = runAudit(env.root)
+    expect(r.status).toBe(1)
+    expect(r.stdout).toContain('cont.mjs')
+  })
+
+  it('does NOT flag a catch that rethrows', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'rethrow.mjs'),
+      ['#!/usr/bin/env node', 'try {', '  doThing()', '} catch (e) {', '  throw e', '}'].join('\n'),
+    )
+    expect(runAudit(env.root).status).toBe(0)
+  })
+
+  it('does NOT flag a catch that surfaces via console.error', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'surface.mjs'),
+      [
+        '#!/usr/bin/env node',
+        'function f() {',
+        '  try {',
+        '    return risky()',
+        '  } catch (e) {',
+        '    console.error(e)',
+        '    return null',
+        '  }',
+        '}',
+        'try { f() } catch (e) { console.error(e); process.exit(1) }',
+      ].join('\n'),
+    )
+    expect(runAudit(env.root).status).toBe(0)
+  })
+
+  it('suppresses a swallow tagged with // FAIL-OPEN-INTENT on the line above the catch', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'intentional.mjs'),
+      [
+        '#!/usr/bin/env node',
+        'function f() {',
+        '  try {',
+        '    bestEffort()',
+        '    // FAIL-OPEN-INTENT: telemetry is best-effort, never blocks',
+        '  } catch {',
+        '    return null',
+        '  }',
+        '}',
+        // top-level handler satisfies the entry-script contract and is not a swallow
+        'try { f() } catch (e) { console.error(e); process.exit(1) }',
+      ].join('\n'),
+    )
+    expect(runAudit(env.root).status).toBe(0)
+  })
+
+  it('does NOT flag a swallow inside a string or comment (no self-match)', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'documented.mjs'),
+      [
+        '#!/usr/bin/env node',
+        '// example of a forbidden shape: } catch { return null }',
+        "const doc = 'a catch { } that is just text'",
+        'console.log(doc)',
+        'try { main() } catch (e) { console.error(e); process.exit(1) }',
+      ].join('\n'),
+    )
+    expect(runAudit(env.root).status).toBe(0)
+  })
+
+  it('scans src/ for swallows but does NOT require entry-point error handling there', () => {
+    mkdirSync(join(env.root, 'src'), { recursive: true })
+    // A library module with no top-level try/catch is fine (not an entry script)...
+    writeFileSync(
+      join(env.root, 'src', 'clean-lib.ts'),
+      ['export function add(a: number, b: number): number {', '  return a + b', '}'].join('\n'),
+    )
+    expect(runAudit(env.root).status).toBe(0)
+    // ...but a defaulting swallow in a src/ module IS caught.
+    writeFileSync(
+      join(env.root, 'src', 'swallow-lib.ts'),
+      [
+        'export function load(): unknown {',
+        '  try {',
+        '    return parse()',
+        '  } catch {',
+        '    return undefined',
+        '  }',
+        '}',
+      ].join('\n'),
+    )
+    const r = runAudit(env.root)
+    expect(r.status).toBe(1)
+    expect(r.stdout).toContain('src/swallow-lib.ts')
+  })
+
   it('writes a baseline file with --update-baseline', () => {
     writeFileSync(
       join(env.root, 'scripts', 'bad.sh'),

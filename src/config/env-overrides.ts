@@ -62,6 +62,19 @@ function parseNumericEnv(raw: string): number | undefined {
   return n
 }
 
+/**
+ * Observability for dropped overrides (INV-96, #1537).
+ *
+ * The env layer must NEVER turn a valid config into an invalid one, so an
+ * unknown field or unparseable value is still ignored — but a SILENT drop lets
+ * an operator believe they tightened a gate when the default is in fact running.
+ * Emit a one-line stderr warning so the drop is observable without changing the
+ * no-invalidate semantics.
+ */
+function warnDroppedOverride(envKey: string, reason: string): void {
+  process.stderr.write(`[arbiter] env override ${envKey} ignored — ${reason}; default retained\n`)
+}
+
 function applyThresholdOverride(
   thresholds: ThresholdsV2,
   envKey: string,
@@ -69,10 +82,14 @@ function applyThresholdOverride(
 ): ThresholdsV2 {
   const camel = screamingSnakeToCamel(envKey.slice(THRESHOLD_PREFIX.length))
   if (!VALID_THRESHOLD_KEYS.has(camel as keyof ThresholdsV2)) {
+    warnDroppedOverride(envKey, `unknown threshold field "${camel}"`)
     return thresholds
   }
   const value = parseNumericEnv(rawValue)
-  if (value === undefined) return thresholds
+  if (value === undefined) {
+    warnDroppedOverride(envKey, `value "${rawValue}" is not a finite number`)
+    return thresholds
+  }
   return { ...thresholds, [camel]: value }
 }
 
@@ -83,10 +100,14 @@ function applyFeatureOverride(
 ): FeatureFlags {
   const camel = screamingSnakeToCamel(envKey.slice(FEATURE_PREFIX.length))
   if (!VALID_FEATURE_KEYS.has(camel as keyof FeatureFlags)) {
+    warnDroppedOverride(envKey, `unknown feature flag "${camel}"`)
     return features
   }
   const value = parseBooleanEnv(rawValue)
-  if (value === undefined) return features
+  if (value === undefined) {
+    warnDroppedOverride(envKey, `value "${rawValue}" is not a recognized boolean`)
+    return features
+  }
   return { ...features, [camel]: value }
 }
 

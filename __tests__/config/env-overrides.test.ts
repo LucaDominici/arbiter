@@ -71,28 +71,65 @@ describe('applyEnvOverrides (#233)', () => {
     expect(out.governanceLevel).toBe('L2')
   })
 
-  it('ignores unknown thresholds fields silently', () => {
+  // INV-96 (#1537): a dropped override must keep the no-invalidate semantics (default
+  // retained) AND become observable — a silent drop lets an operator believe a gate is
+  // tightened when the default is running. Capture stderr to assert the warning.
+  function captureStderr(fn: () => void): string {
+    let buf = ''
+    const orig = process.stderr.write.bind(process.stderr)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    process.stderr.write = ((chunk: any): boolean => {
+      buf += String(chunk)
+      return true
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any
+    try {
+      fn()
+    } finally {
+      process.stderr.write = orig
+    }
+    return buf
+  }
+
+  it('ignores unknown threshold fields but warns (default retained, not silent)', () => {
     const cfg = baseConfig()
-    const out = applyEnvOverrides(cfg, {
-      ARBITER_THRESHOLD__BOGUS_FIELD: '100',
+    let out!: ArbiterConfigV2
+    const err = captureStderr(() => {
+      out = applyEnvOverrides(cfg, { ARBITER_THRESHOLD__BOGUS_FIELD: '100' })
     })
     expect(out.thresholds.lineCoverage).toBe(80)
+    expect(err).toMatch(/ARBITER_THRESHOLD__BOGUS_FIELD/)
+    expect(err).toMatch(/ignored/i)
   })
 
-  it('ignores unknown feature flags silently', () => {
+  it('ignores unknown feature flags but warns (default retained, not silent)', () => {
     const cfg = baseConfig()
-    const out = applyEnvOverrides(cfg, {
-      ARBITER_FEATURE__NOT_A_FEATURE: 'true',
+    let out!: ArbiterConfigV2
+    const err = captureStderr(() => {
+      out = applyEnvOverrides(cfg, { ARBITER_FEATURE__NOT_A_FEATURE: 'true' })
     })
     expect(out.features.contractTesting).toBe(false)
+    expect(err).toMatch(/ARBITER_FEATURE__NOT_A_FEATURE/)
+    expect(err).toMatch(/ignored/i)
   })
 
-  it('ignores numeric coercion failure', () => {
+  it('ignores numeric coercion failure but warns (default retained, not silent)', () => {
     const cfg = baseConfig()
-    const out = applyEnvOverrides(cfg, {
-      ARBITER_THRESHOLD__LINE_COVERAGE: 'abc',
+    let out!: ArbiterConfigV2
+    const err = captureStderr(() => {
+      out = applyEnvOverrides(cfg, { ARBITER_THRESHOLD__LINE_COVERAGE: 'abc' })
     })
     expect(out.thresholds.lineCoverage).toBe(80)
+    expect(err).toMatch(/ARBITER_THRESHOLD__LINE_COVERAGE/)
+    expect(err).toMatch(/not a finite number/i)
+  })
+
+  it('does not warn when a valid override is applied', () => {
+    const cfg = baseConfig()
+    const err = captureStderr(() => {
+      applyEnvOverrides(cfg, { ARBITER_THRESHOLD__LINE_COVERAGE: '85' })
+    })
+    expect(err).toBe('')
   })
 
   it("ignores ARBITER_* env vars that don't match a known pattern", () => {

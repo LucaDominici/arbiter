@@ -5,9 +5,18 @@ import { resolveToolInputPath } from './lib.mjs'
 
 const file = resolveToolInputPath()
 
+// Fail closed (INV-96): an unresolvable edit path must BLOCK, not fall through to
+// allow. A guard that protects LICENSE/lockfiles must not disarm on uncertainty.
+if (!file) {
+  process.stderr.write(
+    '[arbiter] Read-only guard: unresolvable edit path — blocking (fail-closed, INV-96).\n',
+  )
+  process.exit(2)
+}
+
 // Only enforce on files within this repo
 const repoRoot = process.cwd()
-if (file && !file.startsWith(repoRoot)) process.exit(0)
+if (!file.startsWith(repoRoot)) process.exit(0)
 
 const READ_ONLY_PATTERNS = ['LICENSE', 'package-lock.json', 'Cargo.lock']
 
