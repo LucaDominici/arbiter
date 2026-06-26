@@ -3965,7 +3965,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## uuid@8.3.2
+## uuid@11.1.1
 
 - License: MIT
 - Homepage: https://github.com/uuidjs/uuid
