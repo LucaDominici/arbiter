@@ -10,7 +10,7 @@ const GATES = [
   'check-canonical-paths',
 ] as const
 
-export interface HarnessGateResult {
+interface HarnessGateResult {
   name: string
   status: 'pass' | 'fail' | 'skip'
   stdout: string

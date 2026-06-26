@@ -24,10 +24,10 @@ import { jsonOutput } from '../utils/json-output.js'
 import { readBaselineFileSafe } from '../utils/safe-read.js'
 
 /** How a scenario is executed. Only `cli` is wired; `llm` is a deferred seam. */
-export type ScenarioBackend = 'cli' | 'llm'
+type ScenarioBackend = 'cli' | 'llm'
 
 /** Expected-outcome assertions for a single scenario. */
-export interface ScenarioExpectation {
+interface ScenarioExpectation {
   /** Expected process exit code. */
   exitCode?: number
   /** Substring or regex source that stdout must match. */
@@ -89,7 +89,7 @@ export interface ScenarioResult {
 }
 
 /** A fixture that could not be loaded/parsed. */
-export interface ScenarioLoadError {
+interface ScenarioLoadError {
   file: string
   error: string
 }

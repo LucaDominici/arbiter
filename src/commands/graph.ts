@@ -122,7 +122,7 @@ export interface GraphFailure {
  * `failures` is the single authoritative list. `orphans` is preserved for
  * backward compatibility with existing tests (Wave-1 tests pin to `orphans`).
  */
-export interface OrphanInvariant {
+interface OrphanInvariant {
   id: string
   reason: string
 }

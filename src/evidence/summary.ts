@@ -10,11 +10,11 @@ const REQUIRED_FIELDS = [
   'security',
 ] as const
 
-export interface ValidationOk {
+interface ValidationOk {
   ok: true
 }
 
-export interface ValidationFail {
+interface ValidationFail {
   ok: false
   errors: string[]
 }

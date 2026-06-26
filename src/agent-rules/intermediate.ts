@@ -24,7 +24,7 @@ import { GRAPH_RELATIVE_PATH } from '../commands/graph.js'
 
 export type InvSeverity = 'hard-stop' | 'advisory'
 
-export interface AgentRulesInvariant {
+interface AgentRulesInvariant {
   id: string
   statement: string
   severity: InvSeverity
@@ -32,7 +32,7 @@ export interface AgentRulesInvariant {
   applies_to: string[]
 }
 
-export interface AgentRulesWorkflow {
+interface AgentRulesWorkflow {
   trigger: string
   action: string
 }

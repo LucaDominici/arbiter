@@ -4,7 +4,7 @@ import { writeFile, resolvedPath } from '../utils/fs.js'
 import type { ProjectConfig, MetricsProfile } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
-export type { DebtBaselineV2, DebtBaselineMetric } from '../types/debt-baseline.js'
+export type { DebtBaselineV2 } from '../types/debt-baseline.js'
 
 export interface DebtRatchetGeneratorResult {
   files: WriteResult[]

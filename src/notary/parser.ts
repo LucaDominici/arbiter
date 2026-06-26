@@ -17,9 +17,9 @@
  * #256
  */
 
-export type DeltaChangeType = 'add' | 'modify' | 'delete' | 'move'
+type DeltaChangeType = 'add' | 'modify' | 'delete' | 'move'
 
-export interface NotaryDelta {
+interface NotaryDelta {
   file: string
   section: string
   changeType: DeltaChangeType
@@ -27,7 +27,7 @@ export interface NotaryDelta {
   removed: number
 }
 
-export interface NotaryPatch {
+interface NotaryPatch {
   file: string
   status: string
 }

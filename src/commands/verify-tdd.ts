@@ -2,7 +2,7 @@
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
 import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
 
-export interface VerifyTddCheck {
+interface VerifyTddCheck {
   name: string
   pass: boolean
   reason?: string

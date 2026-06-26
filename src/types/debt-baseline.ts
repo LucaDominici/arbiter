@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Archetype } from '../wizard/types.js'
 
-export interface DebtBaselineMetric {
+interface DebtBaselineMetric {
   value: number
   unit: 'percent' | 'count' | 'bytes' | 'kb'
   direction: 'higher-is-better' | 'lower-is-better'

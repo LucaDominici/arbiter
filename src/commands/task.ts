@@ -39,8 +39,8 @@ export class BudgetBreachError extends Error {
 
 // Task-state vocabulary and the unified-document I/O live in `./task-state.ts`.
 // Re-export the phase types here so existing importers (e.g. src/cli.ts) keep their import path.
-export type { TaskPhase, HandoffStrategy } from './task-state.js'
-export { runTaskMark, type TaskMarkOptions } from './task-mark.js'
+export type { TaskPhase } from './task-state.js'
+export { runTaskMark } from './task-mark.js'
 
 export interface TaskAdvanceOptions {
   to: TaskPhase
@@ -272,13 +272,13 @@ export function runTaskRecover(opts: TaskRecoverOptions = {}): void {
 
 /* ─────────────────────  #695 — plan-review gate  ───────────────────── */
 
-export interface RequirePlanReviewPassOptions {
+interface RequirePlanReviewPassOptions {
   dir: string
   taskId: string
   planContent?: string
 }
 
-export interface RequirePlanReviewPassResult {
+interface RequirePlanReviewPassResult {
   ok: boolean
   reason?: string
 }

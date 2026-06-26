@@ -32,13 +32,13 @@ export interface AffinityIssue {
 }
 
 /** One subject↔candidate pairing and its score. */
-export interface AffinityPair {
+interface AffinityPair {
   id: string
   score: number
 }
 
 /** Why a report is not correlated (drives the advisory wording). */
-export type AffinityReason = 'correlated' | 'below-threshold' | 'solo'
+type AffinityReason = 'correlated' | 'below-threshold' | 'solo'
 
 export interface AffinityReport {
   subjectId: string

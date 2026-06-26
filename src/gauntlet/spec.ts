@@ -24,7 +24,7 @@
 
 import { createHash } from 'node:crypto'
 
-export interface GauntletConstraint {
+interface GauntletConstraint {
   when: Record<string, string>
   then: 'skip'
 }

@@ -13,7 +13,7 @@ import type { Verdict, Evidence } from './engine.js'
 import { safeResolve, readJson, readText, fileExists, globMatch, walkRepo } from './shared.js'
 
 export type DimensionVerdict = Verdict
-export type { Verdict, Evidence }
+export type { Evidence }
 
 export interface DimensionEntry {
   id: string

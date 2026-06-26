@@ -18,7 +18,7 @@ import type { BrownfieldClass } from '../kit/thresholds.js'
 import { paint, colorEnabled, asciiOnly, type Sgr } from '../utils/tty.js'
 
 /** Per-check verdict + evidence, as emitted by the engine. */
-export interface GoldCheck {
+interface GoldCheck {
   id: string
   dimension: string
   title: string
@@ -31,7 +31,7 @@ export interface GoldCheck {
 }
 
 /** A "what's missing" family group: the N/P checks for one dimension. */
-export interface GoldGap {
+interface GoldGap {
   dimension: string
   checks: Array<{
     id: string
@@ -43,7 +43,7 @@ export interface GoldGap {
 }
 
 /** The level band keyed by brownfieldClass. */
-export interface GoldLevel {
+interface GoldLevel {
   level: 'L0' | 'L1' | 'L2' | 'L3'
   nextLevel: 'L1' | 'L2' | 'L3' | null
   toNextLevel: number

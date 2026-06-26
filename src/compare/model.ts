@@ -16,7 +16,7 @@
  * - unique-to-one-repo      An invariant/node kind only appears in one repo
  * - risk-class-divergence   Same surface, different risk-class / tier
  */
-export type FindingType =
+type FindingType =
   | 'divergent-enforcement'
   | 'contradictory-adr'
   | 'promotion-asymmetry'

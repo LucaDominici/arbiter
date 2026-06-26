@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { PlanJsonV1, Violation } from '../../types/plan.js'
 
-export interface RuleContext {
+interface RuleContext {
   targetDir: string
 }
 

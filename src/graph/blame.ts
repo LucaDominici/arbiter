@@ -17,7 +17,7 @@ import type { HistoryEvent } from './history.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
-export type TimelineEventKind = 'CREATED' | 'ENFORCED' | 'MODIFIED' | 'MENTIONED' | 'UNKNOWN'
+type TimelineEventKind = 'CREATED' | 'ENFORCED' | 'MODIFIED' | 'MENTIONED' | 'UNKNOWN'
 
 export interface TimelineEntry {
   ts: string

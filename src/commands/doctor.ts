@@ -57,7 +57,7 @@ function readRawCoherenceConfig(dir: string): RawCoherenceConfig | null {
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
 
-export type HealthStatus = 'PASS' | 'WARN' | 'FAIL'
+type HealthStatus = 'PASS' | 'WARN' | 'FAIL'
 
 export interface HealthCheck {
   id: string

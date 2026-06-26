@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 export type JsonStatus = 'ok' | 'warning' | 'error'
-export type JsonErrorClass = 'recoverable' | 'fatal' | 'config'
+type JsonErrorClass = 'recoverable' | 'fatal' | 'config'
 
 interface JsonEnvelope {
   command: string

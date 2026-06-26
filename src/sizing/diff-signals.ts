@@ -22,7 +22,7 @@ import {
 } from './sizing.js'
 
 /** Raw diff size signal (files touched + total added/deleted lines). */
-export interface DiffStat {
+interface DiffStat {
   filesChanged: number
   linesChanged: number
 }
@@ -31,7 +31,7 @@ export interface DiffStat {
 export type DiffStatGatherer = (opts: { dir?: string; base?: string }) => DiffStat
 
 /** Where the resolved tier came from — surfaced for transparency in step output. */
-export type SizeSource = 'explicit' | 'diff' | 'units' | 'default'
+type SizeSource = 'explicit' | 'diff' | 'units' | 'default'
 
 export interface ResolvedSize extends ShipSize {
   source: SizeSource

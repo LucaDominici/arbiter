@@ -46,7 +46,7 @@ function normalizeShipTaskId(raw: string): string {
   return id
 }
 
-export type ShipTier = 'XS' | 'S' | 'Standard'
+type ShipTier = 'XS' | 'S' | 'Standard'
 
 /** Pre-implementation red-team agents per tier (mirrors /task Phase 3.5). */
 const REDTEAM_AGENTS: Record<ShipTier, number> = { XS: 1, S: 2, Standard: 3 }

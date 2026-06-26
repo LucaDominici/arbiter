@@ -29,7 +29,7 @@ export interface KitInstallOptions {
   reportPath?: string
 }
 
-export interface PhaseResult {
+interface PhaseResult {
   phase: 'DETECT' | 'MEASURE' | 'SCAFFOLD' | 'ASSESS' | 'PLAN' | 'VERIFY'
   output: string
 }

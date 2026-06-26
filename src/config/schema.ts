@@ -16,11 +16,9 @@ import type {
   Lane,
   Language,
   ObservabilityConfig,
-  PlanDepth,
   ProjectPreset,
   SoloMergeMode,
   StrictnessTier,
-  TaskTierConfig,
   TaskTiers,
   ThresholdProfile,
   ThresholdsV2,
@@ -28,7 +26,7 @@ import type {
 } from '../wizard/types.js'
 import type { BrownfieldClass } from '../kit/thresholds.js'
 
-export type { ThresholdsV2, TaskTiers, TaskTierConfig, PlanDepth }
+export type { ThresholdsV2, TaskTiers }
 
 export interface FeatureFlags {
   contractTesting: boolean
@@ -49,7 +47,7 @@ export const DEFAULT_TASK_TIERS: TaskTiers = {
   Standard: { planDepth: 'full', reviewAgentCount: 4 },
 }
 
-export interface DecompositionConfig {
+interface DecompositionConfig {
   backend: DecompositionBackendId
   markdown?: { dir: string }
   github?: { owner: string; repo: string }
@@ -59,7 +57,7 @@ export interface DecompositionConfig {
  * File-pattern to ADR mapping for CONTEXT_PACK generation (#254).
  * Pattern supports `*` (non-slash wildcard) and `**` (any-path wildcard).
  */
-export interface ContextPackAdrMapping {
+interface ContextPackAdrMapping {
   pattern: string
   adr: string
 }
@@ -96,7 +94,7 @@ export interface AutomationConfig {
   affinityBatching?: boolean
 }
 
-export interface ContextPackConfig {
+interface ContextPackConfig {
   /** File-pattern to ADR mappings. Used by `arbiter context-pack` to annotate @source: citations. */
   adrMappings?: ContextPackAdrMapping[]
 }
@@ -232,7 +230,7 @@ export interface ArbiterConfigV2 {
   solo?: { mergeMode: SoloMergeMode }
 }
 
-export interface GovernanceConfig {
+interface GovernanceConfig {
   /**
    * Invariant catalog scope.
    * 'core' (default): INV-01..INV-61 only.

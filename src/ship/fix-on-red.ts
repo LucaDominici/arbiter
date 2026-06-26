@@ -228,7 +228,7 @@ export function writeAttempts(taskId: string, repoDir: string, data: ShipAttempt
 
 // ───────────────────────────── 2-strike policy ─────────────────────────────
 
-export interface FixDecision {
+interface FixDecision {
   kind: 'fix'
   signature: string
   attempt: number
@@ -236,13 +236,13 @@ export interface FixDecision {
   /** #1291 — true ONLY at autonomy L3: the driver may push the fix without a human. */
   autopush: boolean
 }
-export interface EscalateDecision {
+interface EscalateDecision {
   kind: 'escalate'
   signature: string
   attempt: number
   nextAction: string
 }
-export interface EscalateUncertainDecision {
+interface EscalateUncertainDecision {
   kind: 'escalate-uncertain'
   signature?: string
   attempt?: number
@@ -291,7 +291,7 @@ export function recordFailure(
 }
 
 /** Autonomy levels the fix decision is gated on (#1291, ADR-093 §4). */
-export type FixAutonomy = 'L0' | 'L1' | 'L2' | 'L3'
+type FixAutonomy = 'L0' | 'L1' | 'L2' | 'L3'
 
 export interface EvaluateRedOptions {
   taskId: string

@@ -20,19 +20,19 @@ import { storeFromSnapshot } from '../graph/store.js'
 import type { GraphSnapshot } from '../graph/model.js'
 import type { GraphStore } from '../graph/store.js'
 
-export interface EnforcementChange {
+interface EnforcementChange {
   inv: string
   direction: 'strengthened' | 'weakened'
   added: string[]
   removed: string[]
 }
 
-export interface AdrSupersession {
+interface AdrSupersession {
   adr: string
   removedImplementors: string[]
 }
 
-export interface SemanticDiffChanges {
+interface SemanticDiffChanges {
   enforcement_changes: EnforcementChange[]
   /** INV ids whose last prover test was removed */
   removed_provers: string[]

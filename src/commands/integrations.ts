@@ -11,7 +11,7 @@ export interface IntegrationsListOptions {
   json?: boolean
 }
 
-export interface IntegrationStatus extends SkillEntry {
+interface IntegrationStatus extends SkillEntry {
   detected: boolean
 }
 
