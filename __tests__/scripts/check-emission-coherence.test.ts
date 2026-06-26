@@ -318,4 +318,80 @@ describe('checkEmissionCoherence (#1331)', () => {
       cleanup()
     }
   })
+
+  // #1518 — REVERSE coherence: an emitted gate script invoked by nothing is a dead
+  // emission (the broader-than-template registry predicate case the forward gate misses).
+  describe('reverse direction — emitted-but-unreferenced gate scripts (#1518)', () => {
+    it('FAILs on a scripts/check-*.mjs that nothing references (dead emission)', () => {
+      const { dir, cleanup } = makeTree({
+        'scripts/check-all.mjs': '// references nothing',
+        'scripts/check-orphan.mjs': '// emitted but never invoked',
+      })
+      try {
+        const { problems } = checkEmissionCoherence(dir)
+        expect(
+          problems.some((p) => p.includes('check-orphan.mjs') && /never referenced/.test(p)),
+        ).toBe(true)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('PASSes when check-all.mjs references the emitted gate script', () => {
+      const { dir, cleanup } = makeTree({
+        'scripts/check-all.mjs': `runCheck('o', 'node', ['scripts/check-orphan.mjs'])`,
+        'scripts/check-orphan.mjs': '// invoked',
+      })
+      try {
+        const { problems } = checkEmissionCoherence(dir)
+        expect(problems).toEqual([])
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('PASSes when only a workflow references the emitted gate script', () => {
+      const { dir, cleanup } = makeTree({
+        'scripts/check-all.mjs': '// none',
+        'scripts/check-orphan.mjs': '// invoked by CI only',
+        '.github/workflows/ci.yml': `jobs:\n  g:\n    name: Gate\n    steps:\n      - run: node scripts/check-orphan.mjs\n`,
+      })
+      try {
+        const { problems } = checkEmissionCoherence(dir)
+        expect(problems).toEqual([])
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('PASSes when another emitted script references it transitively', () => {
+      const { dir, cleanup } = makeTree({
+        'scripts/check-all.mjs': `runCheck('h', 'node', ['scripts/check-hub.mjs'])`,
+        'scripts/check-hub.mjs': `import './check-orphan.mjs'`,
+        'scripts/check-orphan.mjs': '// invoked transitively via the hub',
+      })
+      try {
+        const { problems } = checkEmissionCoherence(dir)
+        expect(problems).toEqual([])
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('PASSes a dead gate script that is allowlisted in optional-emissions.json', () => {
+      const { dir, cleanup } = makeTree({
+        'scripts/check-all.mjs': '// none',
+        'scripts/check-overlay.mjs': '// industry overlay, referenced only in some configs',
+        'scripts/optional-emissions.json': JSON.stringify({
+          optional: [{ path: 'scripts/check-overlay.mjs', rationale: 'frontend overlay only' }],
+        }),
+      })
+      try {
+        const { problems } = checkEmissionCoherence(dir)
+        expect(problems).toEqual([])
+      } finally {
+        cleanup()
+      }
+    })
+  })
 })

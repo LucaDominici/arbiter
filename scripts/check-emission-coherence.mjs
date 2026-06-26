@@ -240,6 +240,85 @@ function checkSettings(dir, problems) {
   }
 }
 
+// Recursively collect every `.mjs` path (relative to `dir`) under `sub`.
+function collectMjs(dir, sub, acc) {
+  const root = join(dir, sub)
+  if (!existsSync(root)) return
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const rel = `${sub}/${entry.name}`
+    if (entry.isDirectory()) collectMjs(dir, rel, acc)
+    else if (entry.name.endsWith('.mjs')) acc.push(rel)
+  }
+}
+
+// #1518 — REVERSE coherence. The forward checks above resolve every reference to an
+// emitted file (reference → file); they CANNOT catch a script that is EMITTED but
+// never INVOKED. That is the other half of the registry↔check-all activation seam: a
+// registry `enabled:` predicate broader than the template's `<% if %>` guard emits a
+// gate script at a level/cell where nothing references it. The dead file ships into
+// every target project's tree and the divergence is invisible to the forward gate.
+//
+// This asserts the reverse: every emitted `scripts/check-*.mjs` is referenced by the
+// execution/reference surface (check-all.mjs, githooks, workflows, settings, hooks,
+// Makefile, commands) OR transitively by another emitted `.mjs` (e.g. a guard-registry
+// helper). An intentionally-unreferenced overlay script is allowlisted via
+// optional-emissions.json — symmetric with the forward guarded-missing path.
+//
+// Blind spot (accepted, documented): two mutually-referencing dead scripts pass. The
+// truly-orphan case — referenced by NOTHING — is the one that ships a dead file, and
+// that is exactly what this catches, cheaply and toolchain-free across the matrix.
+function checkUnreferencedScripts(dir, optional, problems) {
+  const scriptsDir = join(dir, 'scripts')
+  if (!existsSync(scriptsDir)) return
+  const gateScripts = readdirSync(scriptsDir).filter(
+    (f) => /^check-.*\.mjs$/.test(f) && f !== 'check-all.mjs',
+  )
+  if (gateScripts.length === 0) return
+
+  // Build a content map of every reference-bearing surface, read once.
+  const mjs = []
+  collectMjs(dir, 'scripts', mjs)
+  collectMjs(dir, '.claude/hooks', mjs)
+  /** @type {Map<string, string>} */
+  const corpus = new Map()
+  for (const rel of mjs) {
+    const c = read(dir, rel)
+    if (c !== null) corpus.set(rel, c)
+  }
+  const addSurface = (rel) => {
+    const c = read(dir, rel)
+    if (c !== null) corpus.set(rel, c)
+  }
+  addSurface('scripts/check-all.mjs')
+  addSurface('.claude/settings.json')
+  addSurface('Makefile')
+  for (const h of ['pre-commit', 'pre-push', 'commit-msg']) addSurface(`.githooks/${h}`)
+  const wfDir = join(dir, '.github/workflows')
+  if (existsSync(wfDir)) {
+    for (const f of readdirSync(wfDir)) if (/\.ya?ml$/.test(f)) addSurface(`.github/workflows/${f}`)
+  }
+  const cmdDir = join(dir, '.claude/commands')
+  if (existsSync(cmdDir)) {
+    for (const f of readdirSync(cmdDir)) if (f.endsWith('.md')) addSurface(`.claude/commands/${f}`)
+  }
+
+  for (const g of gateScripts) {
+    const self = `scripts/${g}`
+    if (optional.has(self)) continue
+    let referenced = false
+    for (const [rel, content] of corpus) {
+      if (rel === self) continue
+      if (content.includes(g)) {
+        referenced = true
+        break
+      }
+    }
+    if (!referenced) {
+      problems.push(`scripts/${g} is emitted but never referenced (dead emission)`)
+    }
+  }
+}
+
 /**
  * Lint a generated tree for cross-reference coherence.
  * @param {string} dir - root of the generated tree.
@@ -249,6 +328,7 @@ export function checkEmissionCoherence(dir) {
   const { paths: optional, problems: manifestProblems } = loadOptionalManifest(dir)
   const problems = [...manifestProblems]
   checkCheckAll(dir, optional, problems)
+  checkUnreferencedScripts(dir, optional, problems)
   checkHooks(dir, problems)
   checkGithooks(dir, optional, problems)
   checkWorkflows(dir, problems)

@@ -1,6 +1,18 @@
 {
-  "$comment": "INV-123 (#1331, #1345): manifest of intentionally-optional gate scripts. check-all.mjs references each behind an existsSync() guard; they are emitted only for the overlay/archetype noted in the rationale. The emission-coherence gate (scripts/check-emission-coherence.mjs) scans check-all.mjs, .claude/hooks/hooks.mjs, .githooks/*, .github/workflows/*, .claude/settings.json, the Makefile, and .claude/commands/*.md, and treats a GUARDED-missing reference as a FAIL UNLESS it is listed here with a non-empty rationale. An UNGUARDED-missing reference (including any Makefile-recipe or command-playbook reference, which are unguarded by construction) can NEVER be silenced by this manifest.",
+  "$comment": "INV-123 (#1331, #1345, #1518): manifest of intentionally-optional gate scripts. Covers BOTH coherence directions. FORWARD: check-all.mjs references a script behind an existsSync() guard but the overlay/archetype that emits it is absent — a GUARDED-missing reference. REVERSE (#1518): a script is EMITTED unconditionally but wired (referenced) only at some governance levels/overlays, so at other cells it ships present-but-unreferenced. The emission-coherence gate (scripts/check-emission-coherence.mjs) scans check-all.mjs, .claude/hooks/hooks.mjs, .githooks/*, .github/workflows/*, .claude/settings.json, the Makefile, and .claude/commands/*.md; it FAILs a GUARDED-missing reference OR an emitted-but-unreferenced scripts/check-*.mjs UNLESS that path is listed here with a non-empty rationale. An UNGUARDED-missing reference (including any Makefile-recipe or command-playbook reference, which are unguarded by construction) can NEVER be silenced by this manifest.",
   "optional": [
+    {
+      "path": "scripts/check-doc-set.mjs",
+      "rationale": "REVERSE (#1518): emitted unconditionally as an advisory thin-runner (`npx arbiter doc-set`), but wired (runWarnCheck 'doc-set') in check-all.mjs only at L2+ (INV-135). At L1 it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-anti-fake-green.mjs",
+      "rationale": "REVERSE (#1518): emitted unconditionally as an advisory aggregate thin-runner, but wired (runWarnCheck 'anti-fake-green') in check-all.mjs only at L2+ (INV-135). At L1 it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-secret-scan.mjs",
+      "rationale": "REVERSE (#1518): emitted to every target by the anti-drift family (INV-89), but wired (runCheck 'secret scan') in check-all.mjs only when enableSecurityScanning is true. With security scanning disabled it ships present-but-unwired, available for manual/CI invocation."
+    },
     {
       "path": "scripts/ci-classify-changes.mjs",
       "rationale": "Emitted by the github-setup generator (L2+ only); referenced by .githooks/pre-push behind a shell `[ -f ]` guard. Absent on L1 projects, where the pre-push guard skips it gracefully."
