@@ -34,8 +34,13 @@ export function canonicalJson(value: unknown): string {
 
 function sortedReplacer(_key: string, value: unknown): unknown {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    // Codepoint (UTF-16) order, NOT `localeCompare`: this comparator feeds both the
+    // stored SHA-256 checksum and the on-disk bytes, so it MUST be byte-identical on
+    // every machine. `localeCompare` uses the runtime's default collator (locale/LANG
+    // dependent), which can reorder non-ASCII keys and false-fail the hard checksum
+    // across machines/CI runners (#1601).
     const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-      a.localeCompare(b),
+      a < b ? -1 : a > b ? 1 : 0,
     )
     return Object.fromEntries(entries)
   }

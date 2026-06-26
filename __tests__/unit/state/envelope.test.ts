@@ -20,6 +20,24 @@ describe('canonicalJson', () => {
   it('preserves array order', () => {
     expect(canonicalJson([3, 1, 2])).toBe('[\n  3,\n  1,\n  2\n]')
   })
+  it('orders non-ASCII keys by codepoint, NOT locale collation (#1601)', () => {
+    // Under a codepoint sort, the second char decides: 'z' (U+007A) < 'ö' (U+00F6),
+    // and 'az' is a prefix of 'az_b'. A locale collator (e.g. en-US) instead folds
+    // 'ö'→'o' and would emit [aö, az, az_b] — a locale-dependent, non-deterministic
+    // byte layout for an integrity-critical serializer.
+    const out = canonicalJson({ aö: 1, az: 2, az_b: 3 })
+    const order = [...out.matchAll(/"([^"]+)":/g)].map((m) => m[1])
+    expect(order).toEqual(['az', 'az_b', 'aö'])
+  })
+  it('checksum is identical to an explicit codepoint sort (locale-proof, #1601)', () => {
+    const obj = { aö: 1, az: 2, az_b: 3, 'a-b': 4 }
+    const expected = JSON.stringify(
+      Object.fromEntries(Object.entries(obj).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
+      null,
+      2,
+    )
+    expect(canonicalJson(obj)).toBe(expected)
+  })
 })
 
 describe('computeChecksum + wrapSnapshot', () => {
