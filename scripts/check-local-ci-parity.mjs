@@ -462,11 +462,12 @@ if (localResult.parityContentHash === ciResult.parityContentHash) {
   process.exit(0)
 }
 
-// Hashes differ — report drift
-process.stderr.write('check-local-ci-parity: FAIL — local↔CI parity drift detected\n\n')
-process.stderr.write(`  local:  ${localResult.parityContentHash}\n`)
-process.stderr.write(`  ci:     ${ciResult.parityContentHash}\n\n`)
-
+// Hashes differ. Distinguish a real behavioural drift from a stale-CI-artifact
+// set-membership difference (#1602). A gate present on only ONE side (absent in the other)
+// means the gate SET changed between the last CI run and now — e.g. a new gate added to
+// check-all.mjs that the pre-existing CI artifact predates; CI runs the same check-all.mjs
+// and will include it on its next run. That is NOT a result drift. Only a gate present in
+// BOTH sides with a DIFFERENT pass value is a real local↔CI drift that must block the push.
 const localMap = new Map((localResult.parityGates ?? []).map((g) => [g.name, g.pass]))
 const ciMap = new Map((ciResult.parityGates ?? []).map((g) => [g.name, g.pass]))
 
@@ -480,15 +481,28 @@ for (const name of [...allNames].sort()) {
   }
 }
 
-if (diffs.length > 0) {
-  process.stderr.write('  Differing gates:\n')
-  for (const d of diffs) {
-    const lStr = d.local === undefined ? 'absent' : d.local ? 'PASS' : 'FAIL'
-    const cStr = d.ci === undefined ? 'absent' : d.ci ? 'PASS' : 'FAIL'
-    process.stderr.write(`    ${d.name}: local=${lStr}, ci=${cStr}\n`)
+const fmt = (v) => (v === undefined ? 'absent' : v ? 'PASS' : 'FAIL')
+const realDrifts = diffs.filter((d) => d.local !== undefined && d.ci !== undefined)
+const staleOnly = diffs.filter((d) => d.local === undefined || d.ci === undefined)
+
+if (realDrifts.length === 0) {
+  // Only set-membership differences → stale CI artifact, not a behavioural drift. Neutral.
+  process.stdout.write(
+    'check-local-ci-parity: hash differs only by gate-set membership ' +
+      `(stale CI artifact; ${staleOnly.length} gate(s) present on one side only) — no result drift. Neutral.\n`,
+  )
+  for (const d of staleOnly) {
+    process.stdout.write(`    ${d.name}: local=${fmt(d.local)}, ci=${fmt(d.ci)}\n`)
   }
-  process.stderr.write('\n')
+  process.exit(0)
 }
 
-process.stderr.write('  Fix: resolve the differing gates locally and in CI, then re-run.\n\n')
+process.stderr.write('check-local-ci-parity: FAIL — local↔CI parity drift detected\n\n')
+process.stderr.write(`  local:  ${localResult.parityContentHash}\n`)
+process.stderr.write(`  ci:     ${ciResult.parityContentHash}\n\n`)
+process.stderr.write('  Differing gates (result drift):\n')
+for (const d of realDrifts) {
+  process.stderr.write(`    ${d.name}: local=${fmt(d.local)}, ci=${fmt(d.ci)}\n`)
+}
+process.stderr.write('\n  Fix: resolve the differing gates locally and in CI, then re-run.\n\n')
 process.exit(1)
