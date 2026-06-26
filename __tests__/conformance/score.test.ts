@@ -150,6 +150,46 @@ describe('computeConformance — Unit 4: T2 score below gate → CONFORMANT', ()
   })
 })
 
+// ── Unit 4b: GOLD is reachable when only ONE family carries tier-2 dims (#1599) ──────────────
+//
+// In production only docs-convention (weight 0.20) has any tier-2 dimensions; discipline,
+// reality-contact and code-quality-gold carry none. Before renormalization the ceiling was
+// docs-convention·0.20 = 0.20 < the 0.85–0.92 gate, so GOLD was mathematically unreachable for
+// EVERY project. With live-weight renormalization a perfect single-live-family project scores 1.0.
+
+describe('computeConformance — Unit 4b: GOLD reachable with one live tier-2 family (#1599)', () => {
+  it('a perfect project whose ONLY tier-2 dims are docs-convention reaches score 1.0 and GOLD', () => {
+    const dimensions: DimensionEntry[] = [
+      // all tier-1 Y/NA (gate satisfied)
+      dim('D-TEST-LEVELS', 1, 'Y', 'reality-contact'),
+      dim('D-LIVE-E2E', 1, 'NA', 'reality-contact'),
+      dim('D-GATE-GREEN', 1, 'Y', 'discipline'),
+      dim('D-DONE-EVIDENCE', 1, 'Y', 'reality-contact'),
+      dim('D-NO-OVERCLAIM', 1, 'Y', 'discipline'),
+      // tier-2 dims ONLY in docs-convention (the production shape) — the other three families
+      // have zero tier-2 dims, exactly as authored in doc-probes.ts / dimensions.ts.
+      dim('DOC-README', 2, 'Y', 'docs-convention'),
+      dim('DOC-CHANGELOG', 2, 'Y', 'docs-convention'),
+      dim('DOC-LICENSE', 2, 'Y', 'docs-convention'),
+    ]
+    const result: TwoTierResult = computeConformance(dimensions, DEFAULT_T, true)
+    // renormalized: docs-convention 1.0 over liveWeight 0.20 → 1.0 (NOT the old 0.20 ceiling)
+    expect(result.score).toBeCloseTo(1.0)
+    expect(result.verdict).toBe('GOLD')
+  })
+
+  it('a half-Y single-live-family project scores 0.5 (renormalized, not 0.5·weight)', () => {
+    const dimensions: DimensionEntry[] = [
+      dim('D-TEST-LEVELS', 1, 'Y', 'reality-contact'),
+      dim('DOC-README', 2, 'Y', 'docs-convention'),
+      dim('DOC-CHANGELOG', 2, 'N', 'docs-convention'),
+    ]
+    const result: TwoTierResult = computeConformance(dimensions, DEFAULT_T, true)
+    // one Y + one N in the only live family → 0.5, renormalized by its own weight → 0.5 (not 0.10)
+    expect(result.score).toBeCloseTo(0.5)
+  })
+})
+
 // ── Unit 5: validateConformanceThresholds — missing tier1Members ──────────────
 
 describe('validateConformanceThresholds — Unit 5: missing tier1Members', () => {
