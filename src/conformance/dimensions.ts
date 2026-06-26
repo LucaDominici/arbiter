@@ -12,8 +12,7 @@ import { join } from 'node:path'
 import type { Verdict, Evidence } from './engine.js'
 import { safeResolve, readJson, readText, fileExists, globMatch, walkRepo } from './shared.js'
 
-export type DimensionVerdict = Verdict
-export type { Evidence }
+export type { Verdict, Evidence }
 
 export interface DimensionEntry {
   id: string
@@ -26,7 +25,7 @@ export interface DimensionEntry {
   weight: number
   /** Minimum governance level at which this dimension is required. */
   required_at: string
-  verdict: DimensionVerdict
+  verdict: Verdict
   evidence: Evidence
 }
 

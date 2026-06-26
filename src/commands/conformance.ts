@@ -43,7 +43,7 @@ import type { TwoTierResult } from '../conformance/score.js'
 import { autoFillConformanceThresholds } from '../config/schema.js'
 import type { GovernanceLevel } from '../wizard/types.js'
 
-export type { DimensionVerdict } from '../conformance/dimensions.js'
+export type { Verdict } from '../conformance/dimensions.js'
 
 export interface ConformanceOptions {
   /** Project root to evaluate (default: process.cwd()). */

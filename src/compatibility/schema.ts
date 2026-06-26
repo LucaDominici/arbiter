@@ -25,16 +25,46 @@ export type ProbeStatus = 'passed' | 'skipped' | 'failed' | 'warning'
 /** Whether probe checks installed tool version or invokes a build command */
 type ProbeKind = 'version' | 'build'
 
-export interface ProbeResult {
+/** Fields shared by every probe outcome regardless of `status`. */
+interface ProbeResultBase {
   tool: string
-  status: ProbeStatus
   /** Distinguishes version checks from build-invocation probes */
   kind?: ProbeKind
-  /** Parsed version if the tool was found */
-  version?: SemVer
-  /** Human-readable reason for skipped or failed */
-  reason?: string
 }
+
+/**
+ * Result of probing a single tool, discriminated on `status` (#1533 item 3).
+ * Modelling the four outcomes as a union — rather than a flat record with three
+ * independent optionals — makes the real invariants compile-time facts: a
+ * `failed`/`skipped`/`warning` probe ALWAYS carries a `reason`, and only the
+ * version-bearing states expose `version`. Consumers no longer defensively
+ * null-check fields the type can prove present (or absent).
+ */
+export type ProbeResult =
+  | (ProbeResultBase & {
+      status: 'passed'
+      /** Parsed version when this was a version probe that found the tool. */
+      version?: SemVer
+      /** Optional advisory trail (e.g. build stderr warnings on a zero exit). */
+      reason?: string
+    })
+  | (ProbeResultBase & {
+      status: 'failed'
+      /** Present when a version probe found-but-rejected the tool. */
+      version?: SemVer
+      /** Human-readable failure cause — always present for a failure. */
+      reason: string
+    })
+  | (ProbeResultBase & {
+      status: 'skipped'
+      /** Why the probe was skipped (e.g. toolchain-missing). */
+      reason: string
+    })
+  | (ProbeResultBase & {
+      status: 'warning'
+      /** Human-readable warning detail — always present for a warning. */
+      reason: string
+    })
 
 /**
  * Aggregated report for all probed tools. `hasFailures`/`hasWarnings` are DERIVED from `probes`

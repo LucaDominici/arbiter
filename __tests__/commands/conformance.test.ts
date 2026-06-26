@@ -9,7 +9,7 @@ import {
   baselineMtime,
   type ConformanceOptions,
   type ConformanceScanResult,
-  type DimensionVerdict,
+  type Verdict,
 } from '../../src/commands/conformance.js'
 import { renderConformanceMd } from '../../src/conformance/render.js'
 
@@ -228,13 +228,13 @@ describe('conformance (#1369)', () => {
     expect(dim!.verdict).toBe('Y')
   })
 
-  // ── AC-13: DimensionVerdict type check ─────────────────────────────────
+  // ── AC-13: Verdict type check ─────────────────────────────────
   it('AC-13: verdict values are one of the expected enum values', () => {
     const dir = tmpRepo()
     writeArbiter(dir)
 
     const result = runConformance({ dir })
-    const validVerdicts: DimensionVerdict[] = ['Y', 'P', 'N', 'NA', 'NV']
+    const validVerdicts: Verdict[] = ['Y', 'P', 'N', 'NA', 'NV']
     for (const dim of result.dimensions) {
       expect(validVerdicts).toContain(dim.verdict)
     }
@@ -296,7 +296,7 @@ describe('conformance (#1369)', () => {
     writeArbiter(dir)
 
     const result = runConformance({ dir })
-    const newScale: DimensionVerdict[] = ['Y', 'P', 'N', 'NA', 'NV']
+    const newScale: Verdict[] = ['Y', 'P', 'N', 'NA', 'NV']
     for (const dim of result.dimensions) {
       expect(newScale).toContain(dim.verdict)
     }

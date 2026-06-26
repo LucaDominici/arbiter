@@ -22,8 +22,11 @@ const REMEDIATION: Partial<Record<string, string>> = {
 }
 
 function versionStr(p: ProbeResult): string {
-  if (!p.version) return ''
-  return `${p.version.major}.${p.version.minor}.${p.version.patch}`
+  // `version` exists only on the version-bearing states of the discriminated
+  // union (passed/failed); narrow with `in` before reading it (#1533 item 3).
+  const v = 'version' in p ? p.version : undefined
+  if (!v) return ''
+  return `${v.major}.${v.minor}.${v.patch}`
 }
 
 export function formatText(report: VerifyReport): string {
