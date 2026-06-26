@@ -303,6 +303,16 @@ export interface ReviewCodeResult {
 function aggregatedToExitCode(agg: AggregatedReview): 0 | 1 | 2 {
   if (agg.blockers.length > 0) return 2
   if (agg.warnings.length > 0) return 1
+  // Fail-closed backstop (#1596): every agent must be accounted for — either
+  // counted clean (passCount) or having itemized at least one finding. An agent
+  // that is neither (passed:false with NO findings) is a malformed / contract-
+  // violating reviewer; gating on blocker/warning counts alone would silently
+  // resolve it to a green exit 0 in a merge gate. Note: a notes-only agent is
+  // itemized (appears in `notes`) so it stays exit 0 — notes are non-blocking.
+  const agentsWithFindings = new Set(
+    [...agg.blockers, ...agg.warnings, ...agg.notes].map((f) => f.agent),
+  )
+  if (agg.passCount + agentsWithFindings.size < agg.totalAgents) return 2
   return 0
 }
 

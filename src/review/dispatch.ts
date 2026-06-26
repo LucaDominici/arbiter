@@ -697,6 +697,18 @@ export function parseAgentReport(stdout: string, agent: string): AgentReport {
     findings.push(f)
   }
   const passed = parsed['passed'] === true
+  // Enforce the prompt's passed-iff-findings-empty contract at the parse
+  // boundary (multi-agent.ts:169). An agent that signals failure without
+  // itemizing (passed:false, findings:[]) — or claims passed:true while listing
+  // findings — would otherwise contribute zero blockers and silently resolve a
+  // merge-gating review to green. Throwing here makes dispatchClaudeAgent's
+  // catch surface the discrepancy as a real blocker finding (#1596).
+  if (passed !== (findings.length === 0)) {
+    throw new Error(
+      `agent "${agent}" violated the passed-iff-findings-empty contract: ` +
+        `passed=${passed} but findings.length=${findings.length}`,
+    )
+  }
   return { findings, passed }
 }
 

@@ -529,6 +529,26 @@ describe('parseAgentReport (W-6, direct tests)', () => {
       parseAgentReport('{"findings":[{"severity":"note","agent":"bugs"}],"passed":false}', 'bugs'),
     ).toThrow(/malformed finding/)
   })
+
+  // ─── #1596: enforce the passed-iff-findings-empty contract at the boundary ───
+
+  it('throws when passed:false but findings is empty (contract violation)', () => {
+    // An agent that signals failure without itemizing would otherwise parse
+    // cleanly and contribute zero blockers — a silent fail-open. The
+    // dispatchClaudeAgent catch converts this throw into a real blocker.
+    expect(() => parseAgentReport('{"findings":[],"passed":false}', 'bugs')).toThrow(
+      /passed.*findings|contract/i,
+    )
+  })
+
+  it('throws when passed:true but findings is non-empty (contract violation)', () => {
+    expect(() =>
+      parseAgentReport(
+        '{"findings":[{"severity":"note","agent":"bugs","message":"x"}],"passed":true}',
+        'bugs',
+      ),
+    ).toThrow(/passed.*findings|contract/i)
+  })
 })
 
 describe('dispatchClaudeAgent concurrency (#1514)', () => {

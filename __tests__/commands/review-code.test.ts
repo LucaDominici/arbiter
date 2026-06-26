@@ -140,6 +140,29 @@ describe('runReviewCode (#236)', () => {
     expect(result.aggregated.blockers[0]?.message).toMatch(/infra failure/)
   })
 
+  it('#1596: a non-pass agent with no findings → fail-closed exit (passCount < totalAgents)', async () => {
+    // An agent that signals failure WITHOUT itemizing (passed:false, findings:[])
+    // contributes zero blockers/warnings. Gating on blocker/warning counts alone
+    // would resolve the whole review to a green exit 0 — a silent fail-open in a
+    // merge gate. The passCount<totalAgents backstop must catch it.
+    const result = await runReviewCode({
+      dir: env.dir,
+      tier: 'S',
+      diffOverride: FIXED_DIFF,
+      dispatcher: async (prompt, agentName) => ({
+        agent: agentName,
+        findings: [],
+        passed: false,
+        rawStdout: JSON.stringify({ findings: [], passed: false }),
+        prompt,
+      }),
+    })
+    expect(result.aggregated.blockers).toHaveLength(0)
+    expect(result.aggregated.warnings).toHaveLength(0)
+    expect(result.aggregated.passCount).toBeLessThan(result.aggregated.totalAgents)
+    expect(result.exitCode).not.toBe(0)
+  })
+
   it('Standard tier dispatches 5 agents', async () => {
     const calls: string[] = []
     const result = await runReviewCode({
