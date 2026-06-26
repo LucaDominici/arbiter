@@ -44,6 +44,17 @@ describe('verify-spotbugs.mjs.ejs rendering (#212)', () => {
     const out = renderTemplate(SCRIPT, cfg({ language: 'java' }))
     expect(out).toContain('process.exit(1)')
   })
+
+  it('ratchets suppression growth in config/spotbugs-exclude.xml (#1510)', () => {
+    const out = renderTemplate(SCRIPT, cfg({ language: 'java' }))
+    // Pure exported counter over the exclude-filter <Match> entries.
+    expect(out).toContain('export function countSuppressionMatches')
+    expect(out).toContain('config/spotbugs-exclude.xml')
+    // Records an accepted suppression count + seeds it on first run, fails on growth.
+    expect(out).toContain('maxSuppressions')
+    expect(out).toContain('suppression count grew')
+    expect(out).toContain('Seeded suppression baseline')
+  })
 })
 
 describe('spotbugs-baseline.json.ejs rendering (#212)', () => {

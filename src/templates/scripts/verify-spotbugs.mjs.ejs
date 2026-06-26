@@ -61,7 +61,7 @@ const findings = [...xml.matchAll(bugInstancePattern)].map((m) => ({
 
 // ─── Load Baseline ───────────────────────────────────────────────────────────
 
-/** @type {{ baselined: string[]; policy: string }} */
+/** @type {{ baselined: string[]; policy: string; maxSuppressions?: number }} */
 let baseline = {
   baselined: [],
   policy: "security-category bugs are never baselined",
@@ -77,6 +77,25 @@ if (existsSync(BASELINE_JSON)) {
 }
 
 const baselinedSet = new Set(baseline.baselined);
+
+// ─── Suppression-growth ratchet (INV-44, #1510) ──────────────────────────────
+// A suppressed finding never appears in the report, so the finding-baseline above
+// cannot see it — quality can silently backslide by ADDING <Match> entries to the
+// exclude filter. Ratchet the suppression COUNT: it may only grow with an explicit
+// baseline bump (the justification lives in the reviewed commit), never silently.
+const EXCLUDE_FILTER = join("config", "spotbugs-exclude.xml");
+
+/** Pure: count <Match> suppression entries in a SpotBugs exclude-filter XML. */
+export function countSuppressionMatches(xml) {
+  if (typeof xml !== "string") return 0;
+  return (xml.match(/<Match\b/g) || []).length;
+}
+
+const currentSuppressions = existsSync(EXCLUDE_FILTER)
+  ? countSuppressionMatches(readFileSync(EXCLUDE_FILTER, "utf-8"))
+  : 0;
+const baselineMaxSuppressions =
+  typeof baseline.maxSuppressions === "number" ? baseline.maxSuppressions : null;
 
 // ─── Classify Findings ───────────────────────────────────────────────────────
 
@@ -142,10 +161,12 @@ if (updateBaseline) {
   const newBaseline = {
     baselined: Array.from(new Set([...baselinedSet, ...newNonSecurity])).sort(),
     policy: baseline.policy,
+    // #1510: record the accepted suppression count so future growth is gated.
+    maxSuppressions: currentSuppressions,
   };
   writeFileSync(BASELINE_JSON, JSON.stringify(newBaseline, null, 2) + "\n");
   console.log(
-    `[spotbugs] Baseline updated: ${newBaseline.baselined.length} entries`,
+    `[spotbugs] Baseline updated: ${newBaseline.baselined.length} entries, ${currentSuppressions} suppression(s)`,
   );
   process.exit(0);
 }
@@ -170,6 +191,23 @@ if (newNonSecurity.length > 0) {
   console.error(
     `[spotbugs] Gate FAILED: ${newNonSecurity.length} new non-security finding(s). ` +
       "Run with --update-baseline to add to baseline after review.",
+  );
+  process.exit(1);
+}
+
+// #1510: suppression-growth ratchet. First run (no recorded max) seeds the count and
+// passes; afterwards an unjustified new <Match> in config/spotbugs-exclude.xml is red.
+if (baselineMaxSuppressions === null) {
+  const seeded = { ...baseline, maxSuppressions: currentSuppressions };
+  writeFileSync(BASELINE_JSON, JSON.stringify(seeded, null, 2) + "\n");
+  console.log(
+    `[spotbugs] Seeded suppression baseline: ${currentSuppressions} <Match> entry(ies).`,
+  );
+} else if (currentSuppressions > baselineMaxSuppressions) {
+  console.error(
+    `[spotbugs] Gate FAILED: suppression count grew ${baselineMaxSuppressions} → ${currentSuppressions} ` +
+      "in config/spotbugs-exclude.xml. A new suppression hides a finding — fix the root cause, " +
+      "or run --update-baseline to accept it (the justification lives in the reviewed commit).",
   );
   process.exit(1);
 }
