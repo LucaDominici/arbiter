@@ -26,15 +26,22 @@ jobs:
         run: |
           STALE_DAYS=14
           CLOSE_DAYS=28
-          NOW=$(date +%s)
-          STALE_CUTOFF=$((NOW - STALE_DAYS * 86400))
-          CLOSE_CUTOFF=$((NOW - CLOSE_DAYS * 86400))
+          # Exported so the child python3 sees them via os.environ (a plain shell
+          # var is NOT inherited by the subprocess environment).
+          export NOW=$(date +%s)
+          export STALE_CUTOFF=$((NOW - STALE_DAYS * 86400))
+          export CLOSE_CUTOFF=$((NOW - CLOSE_DAYS * 86400))
 
-          gh pr list --repo "$GH_REPO" --state open --json number,updatedAt,labels --limit 200 \
-            | python3 - <<'PYEOF'
-          import sys, json, subprocess, os, time
+          # Write the PR list to a file: a `gh ... | python3 - <<EOF` pipe collides
+          # with the heredoc on stdin (the heredoc wins, the JSON is discarded and
+          # json.load crashes). Reading from a file keeps stdin free for the program.
+          gh pr list --repo "$GH_REPO" --state open --json number,updatedAt,labels --limit 200 > prs.json
 
-          data = json.load(sys.stdin)
+          python3 <<'PYEOF'
+          import json, subprocess, os, time
+
+          with open('prs.json') as f:
+              data = json.load(f)
           repo = os.environ['GH_REPO']
           now = int(os.environ['NOW'])
           stale_cutoff = int(os.environ['STALE_CUTOFF'])
