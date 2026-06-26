@@ -194,6 +194,53 @@ export function resolveToolInputPath(rawStdin) {
   return typeof fromEnv === 'string' ? fromEnv : ''
 }
 
+/**
+ * Resolve the shell command a Bash tool is about to run / has just run.
+ *
+ * The command-hook counterpart of resolveToolInputPath. The Claude Code hook
+ * protocol delivers the Bash payload as a JSON object on stdin
+ * (`{ tool_name, tool_input: { command, ... } }`); the Codex adapter instead
+ * sets the `CLAUDE_TOOL_INPUT_COMMAND` environment variable. A hook that reads
+ * only the env var silently no-ops under the stdin-JSON protocol (it sees an
+ * empty command and exits 0 without inspecting it). This resolver accepts BOTH:
+ * it prefers the stdin-JSON `tool_input.command`, then falls back to the env var
+ * (Codex path). Returns '' when neither is present.
+ *
+ * stdin (fd 0) is consumed at most once and only when it is a pipe/file; on a
+ * TTY or when no payload is available it returns '' without blocking.
+ *
+ * @param {string} [rawStdin] Optional pre-read stdin payload (tests / callers
+ *   that already buffered fd 0). When omitted, fd 0 is read directly.
+ * @returns {string} The resolved command, or '' if none could be determined.
+ */
+export function resolveToolInputCommand(rawStdin) {
+  let raw = rawStdin
+  if (typeof raw !== 'string') {
+    raw = ''
+    try {
+      // Reading fd 0 throws EAGAIN on an interactive TTY with no piped input;
+      // treat any read failure as "no stdin payload" and fall through to env.
+      raw = readFileSync(0, 'utf-8')
+    } catch {
+      raw = ''
+    }
+  }
+  const trimmed = raw.trim()
+  if (trimmed) {
+    try {
+      const payload = JSON.parse(trimmed)
+      const fromStdin = payload?.tool_input?.command
+      if (typeof fromStdin === 'string' && fromStdin.length > 0) {
+        return fromStdin
+      }
+    } catch {
+      // Not JSON (or not the expected shape) — fall through to the env fallback.
+    }
+  }
+  const fromEnv = process.env.CLAUDE_TOOL_INPUT_COMMAND
+  return typeof fromEnv === 'string' ? fromEnv : ''
+}
+
 /** Returns the git repository root, falling back to process.cwd(). */
 export function getRepoRoot() {
   const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {

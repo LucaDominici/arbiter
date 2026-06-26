@@ -27,7 +27,16 @@ export function generateCodex(
     ),
   )
 
-  // Rules mirror — same as .claude/rules/ (skip if exists)
+  // Tool-agnostic subset of .claude/rules/ (skip if exists). The Claude track also
+  // emits 40-context-economy, 55-brainstorm-terminal-state, and 75-impact-vault-reading
+  // (plus conditional 45-mcp-fallback) — those are DELIBERATELY omitted here because
+  // each is coupled to a Claude-only mechanism the Codex track does not generate:
+  //   - 40 routes through `.claude/knowledge-map.json` (Claude artifact),
+  //   - 55 is enforced by the `post-brainstorm-stop` hook + `/task` (Claude hooks/commands),
+  //   - 75 drives the `/impact` skill + `graphify` + `pre-edit-plan-anchor` hook (Claude-only).
+  // The exact delta is locked by a parity test in __tests__/tools/codex.test.ts so the two
+  // tracks cannot drift further unnoticed (#1586). 05/25/50/60 are byte-identical to the
+  // Claude rule files; 90 is a Codex-tailored exec protocol.
   const rulesDir = resolvedPath(base, '.agents', 'rules')
   const rules = [
     {
@@ -37,6 +46,14 @@ export function generateCodex(
     {
       file: '25-todo-folder-policy.md',
       template: 'codex/rules/25-todo-folder-policy.md',
+    },
+    {
+      file: '50-batch-execution.md',
+      template: 'codex/rules/50-batch-execution.md',
+    },
+    {
+      file: '60-incidental-capture.md',
+      template: 'codex/rules/60-incidental-capture.md',
     },
     {
       file: '90-exec-protocol.md',

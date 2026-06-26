@@ -15,7 +15,9 @@ const TPL_DIR = join(process.cwd(), 'src/templates/claude/hooks')
 let HOOKS_DIR = ''
 let ORPHAN_TODO_HOOK = ''
 let SSOT_GUARD_HOOK = ''
-const STOP_DANGEROUS_HOOK = join(process.cwd(), 'src/templates/claude/hooks/stop-dangerous.mjs')
+// stop-dangerous.mjs now imports ./lib.mjs (resolveToolInputCommand, #1565), so it too must be
+// materialized alongside a rendered lib.mjs — spawning from src/templates/ would fail to resolve it.
+let STOP_DANGEROUS_HOOK = ''
 
 beforeAll(() => {
   HOOKS_DIR = mkdtempSync(join(tmpdir(), 'arbiter-codex-hooks-'))
@@ -27,11 +29,16 @@ beforeAll(() => {
       makeConfig(process.cwd(), { projectName: 'arbiter' }),
     ),
   )
-  for (const name of ['check-no-orphan-todo.mjs', 'pre-edit-ssot-guard.mjs']) {
+  for (const name of [
+    'check-no-orphan-todo.mjs',
+    'pre-edit-ssot-guard.mjs',
+    'stop-dangerous.mjs',
+  ]) {
     writeFileSync(join(HOOKS_DIR, name), readFileSync(join(TPL_DIR, name), 'utf-8'))
   }
   ORPHAN_TODO_HOOK = join(HOOKS_DIR, 'check-no-orphan-todo.mjs')
   SSOT_GUARD_HOOK = join(HOOKS_DIR, 'pre-edit-ssot-guard.mjs')
+  STOP_DANGEROUS_HOOK = join(HOOKS_DIR, 'stop-dangerous.mjs')
 })
 
 function runAdapter(stdinPayload: object, hookPath: string, extraEnv: Record<string, string> = {}) {

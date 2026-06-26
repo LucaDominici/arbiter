@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 // Arbiter hook: block dangerous bash commands
 // Fires on: PreToolUse → Bash
-const command = process.env.CLAUDE_TOOL_INPUT_COMMAND ?? ''
+import { resolveToolInputCommand } from './lib.mjs'
+
+// Resolve the command from stdin-JSON (real Claude Code) or the env var (Codex).
+// Reading only the env var made this guard silently inert under Claude Code (#1565).
+const command = resolveToolInputCommand()
 
 const DANGEROUS_PATTERNS = [
   'rm -rf /',

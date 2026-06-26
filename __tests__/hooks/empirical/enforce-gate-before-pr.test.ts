@@ -1,18 +1,33 @@
 import { spawnSync, execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
+import { renderTemplate } from '../../../src/utils/render.js'
+import { makeConfig } from '../../helpers.js'
 
-const HOOK_PATH = resolve(
+const RAW_HOOK_PATH = resolve(
   import.meta.dirname,
   '../../../src/templates/claude/hooks/enforce-gate-before-pr.mjs',
 )
 
-function runHook(env: NodeJS.ProcessEnv, cwd: string): ReturnType<typeof spawnSync> {
-  return spawnSync('node', [HOOK_PATH], {
+// The hook imports ./lib.mjs (resolveToolInputCommand, #1565). Materialize the raw hook
+// alongside a rendered lib.mjs in each repo's .claude/hooks/ so the import resolves —
+// spawning straight from src/templates/ would fail (only lib.mjs.ejs lives there).
+function materializeHook(dir: string): string {
+  const hooksDir = join(dir, '.claude', 'hooks')
+  mkdirSync(hooksDir, { recursive: true })
+  const cfg = makeConfig(dir, { language: 'typescript', projectName: 'gate-pr-test' })
+  writeFileSync(join(hooksDir, 'lib.mjs'), renderTemplate('claude/hooks/lib.mjs.ejs', cfg))
+  const hookPath = join(hooksDir, 'enforce-gate-before-pr.mjs')
+  writeFileSync(hookPath, readFileSync(RAW_HOOK_PATH, 'utf-8'))
+  return hookPath
+}
+
+function runHook(env: NodeJS.ProcessEnv, dir: string): ReturnType<typeof spawnSync> {
+  return spawnSync('node', [join(dir, '.claude', 'hooks', 'enforce-gate-before-pr.mjs')], {
     env: { ...process.env, ...env },
-    cwd,
+    cwd: dir,
     encoding: 'utf-8',
   })
 }
@@ -23,6 +38,7 @@ function setupGitRepo(): string {
   execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], { cwd: dir, stdio: 'ignore' })
+  materializeHook(dir)
   return dir
 }
 
