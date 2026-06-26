@@ -146,6 +146,36 @@ function parseTags(raw: unknown): { ok: false; reason: string } | { ok: true; ta
   return { ok: true, tags }
 }
 
+/**
+ * Escape a raw string for embedding inside a double-quoted source literal in
+ * Java or Rust (both share the `\`, `"`, and C-style control escapes). Without
+ * this, a value containing `"` or `\` produces non-compiling generated source
+ * (#1590). Used by the Java and Rust gauntlet emitters.
+ */
+export function escapeStringLiteral(raw: string): string {
+  return raw
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+}
+
+/**
+ * Coerce an arbitrary string into a valid source identifier: strip every
+ * character that is not `[A-Za-z0-9_]`, prefix `_` when empty or digit-leading,
+ * and suffix `_` when the result collides with a language reserved keyword. This
+ * keeps emitted class/method/module/param names compiling even for adversarial
+ * or merely natural spec input (an apostrophe, a `match` dimension) (#1590).
+ */
+export function sanitizeIdentifier(raw: string, reserved: readonly string[] = []): string {
+  let id = raw.replace(/[^A-Za-z0-9_]/g, '')
+  if (id === '') id = '_'
+  if (/^[0-9]/.test(id)) id = `_${id}`
+  if (reserved.includes(id)) id = `${id}_`
+  return id
+}
+
 /** Compute a stable SHA-256 hash for a spec. Used by the sync gate. */
 export function specHash(raw: string): string {
   // Normalise line endings and trim trailing whitespace before hashing
