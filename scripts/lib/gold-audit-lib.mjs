@@ -266,6 +266,57 @@ function extractJson(text, select) {
   return Number.isFinite(n) ? n : null
 }
 
+// A real element open ends in whitespace, '>' or '/' (not another name char) — mirrors the TS
+// engine's isXmlElementBoundary so neither `count:` nor `attr:` matches a tag PREFIX.
+function isXmlElementBoundary(c) {
+  return (
+    c === undefined || c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '>' || c === '/'
+  )
+}
+
+// Index of the Nth `<tag` whose next char ends the element name (a real open, never a tag PREFIX),
+// or -1. `nth < 0` ⇒ count all such opens instead. Shared by `count:` and `attr:` so the
+// prefix-boundary guard lives once (mirrors src/conformance/engine.ts scanElementOpens).
+function scanElementOpens(text, tag, nth) {
+  const needle = `<${tag}`
+  let count = 0
+  let from = 0
+  for (;;) {
+    const i = text.indexOf(needle, from)
+    if (i < 0) break
+    if (isXmlElementBoundary(text[i + needle.length])) {
+      if (nth >= 0 && count === nth) return i
+      count++
+    }
+    from = i + needle.length
+  }
+  return nth >= 0 ? -1 : count
+}
+
+function extractXmlAttr(text, spec) {
+  const at = spec.indexOf('@')
+  if (at < 0) return null
+  const tag = spec.slice(0, at)
+  const attr = spec.slice(at + 1)
+  if (tag === '' || attr === '') return null
+  // Read from the FIRST boundary-valid `<tag` open — never a tag prefix.
+  const open = scanElementOpens(text, tag, 0)
+  if (open < 0) return null
+  const close = text.indexOf('>', open)
+  const segment = close < 0 ? text.slice(open) : text.slice(open, close)
+  // Guard the attr RegExp build: a regex metachar in the attr name (`attr:a@(`) would otherwise
+  // throw — yield null (⇒ per-check N 'no metric') instead of crashing the whole audit.
+  let m
+  try {
+    m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
+  } catch {
+    return null
+  }
+  if (m === null) return null
+  const n = Number(m[1])
+  return Number.isFinite(n) ? n : null
+}
+
 /**
  * Read a numeric metric from an XML report. Selectors (deterministic, dependency-free):
  *   `count:tag`        → number of `<tag` occurrences (open or self-closing)
@@ -275,50 +326,10 @@ function extractXml(text, select) {
   if (select.startsWith('count:')) {
     const tag = select.slice('count:'.length)
     if (tag === '') return null
-    let count = 0
-    const needle = `<${tag}`
-    let from = 0
-    for (;;) {
-      const i = text.indexOf(needle, from)
-      if (i < 0) break
-      const next = text[i + needle.length]
-      if (
-        next === undefined ||
-        next === ' ' ||
-        next === '\t' ||
-        next === '\n' ||
-        next === '\r' ||
-        next === '>' ||
-        next === '/'
-      ) {
-        count++
-      }
-      from = i + needle.length
-    }
-    return count
+    return scanElementOpens(text, tag, -1)
   }
   if (select.startsWith('attr:')) {
-    const spec = select.slice('attr:'.length)
-    const at = spec.indexOf('@')
-    if (at < 0) return null
-    const tag = spec.slice(0, at)
-    const attr = spec.slice(at + 1)
-    if (tag === '' || attr === '') return null
-    const open = text.indexOf(`<${tag}`)
-    if (open < 0) return null
-    const close = text.indexOf('>', open)
-    const segment = close < 0 ? text.slice(open) : text.slice(open, close)
-    // Guard the attr RegExp build: a regex metachar in the attr name (`attr:a@(`) would otherwise
-    // throw — yield null (⇒ per-check N 'no metric') instead of crashing the whole audit.
-    let m
-    try {
-      m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
-    } catch {
-      return null
-    }
-    if (m === null) return null
-    const n = Number(m[1])
-    return Number.isFinite(n) ? n : null
+    return extractXmlAttr(text, select.slice('attr:'.length))
   }
   return null
 }
@@ -858,7 +869,12 @@ function evaluateInner(registry, overlays, root, options = {}) {
       evidence = r.evidence
     }
 
-    const weight = Number(check.weight ?? 1)
+    // A non-numeric/non-finite/negative weight (a registry typo like `weight: high`) yields NaN, and
+    // a single NaN poisons the summed earned/possible accumulators for the WHOLE registry → a silent
+    // overall score of 0. Coerce any such weight to the default 1 (mirrors src/conformance/engine.ts)
+    // so one bad cell can never zero every sibling's score.
+    const rawWeight = Number(check.weight ?? 1)
+    const weight = Number.isFinite(rawWeight) && rawWeight >= 0 ? rawWeight : 1
     const risk = check.risk === 'RISKY' ? 'RISKY' : 'SAFE'
     if (risk === 'RISKY') riskyCount++
     if (verdict === 'Y') yCount++

@@ -265,43 +265,58 @@ function isXmlElementBoundary(c: string | undefined): boolean {
   )
 }
 
+// Index of the Nth `<tag` whose next char ends the element name (a real open, never a tag PREFIX),
+// or -1. `nth < 0` ⇒ count all such opens instead. Shared by `count:` and `attr:` so the
+// prefix-boundary guard lives once: a bare indexOf('<cov') would match `<coverage` and read the
+// wrong element. Returns the index when nth>=0, or the total count when nth<0.
+function scanElementOpens(text: string, tag: string, nth: number): number {
+  const needle = `<${tag}`
+  let count = 0
+  let from = 0
+  for (;;) {
+    const i = text.indexOf(needle, from)
+    if (i < 0) break
+    if (isXmlElementBoundary(text[i + needle.length])) {
+      if (nth >= 0 && count === nth) return i
+      count++
+    }
+    from = i + needle.length
+  }
+  return nth >= 0 ? -1 : count
+}
+
+function extractXmlAttr(text: string, spec: string): number | null {
+  const at = spec.indexOf('@')
+  if (at < 0) return null
+  const tag = spec.slice(0, at)
+  const attr = spec.slice(at + 1)
+  if (tag === '' || attr === '') return null
+  // Read from the FIRST boundary-valid `<tag` open — never a tag prefix.
+  const open = scanElementOpens(text, tag, 0)
+  if (open < 0) return null
+  const close = text.indexOf('>', open)
+  const segment = close < 0 ? text.slice(open) : text.slice(open, close)
+  // Guard the attr RegExp build: a regex metachar in the attr name (`attr:a@(`) would otherwise
+  // throw and (via the top-level catch) zero the whole registry — yield a per-check N instead.
+  let m: RegExpExecArray | null
+  try {
+    m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
+  } catch {
+    return null
+  }
+  if (m === null) return null
+  const n = Number(m[1])
+  return Number.isFinite(n) ? n : null
+}
+
 function extractXml(text: string, select: string): number | null {
   if (select.startsWith('count:')) {
     const tag = select.slice('count:'.length)
     if (tag === '') return null
-    let count = 0
-    const needle = `<${tag}`
-    let from = 0
-    for (;;) {
-      const i = text.indexOf(needle, from)
-      if (i < 0) break
-      if (isXmlElementBoundary(text[i + needle.length])) count++
-      from = i + needle.length
-    }
-    return count
+    return scanElementOpens(text, tag, -1)
   }
   if (select.startsWith('attr:')) {
-    const spec = select.slice('attr:'.length)
-    const at = spec.indexOf('@')
-    if (at < 0) return null
-    const tag = spec.slice(0, at)
-    const attr = spec.slice(at + 1)
-    if (tag === '' || attr === '') return null
-    const open = text.indexOf(`<${tag}`)
-    if (open < 0) return null
-    const close = text.indexOf('>', open)
-    const segment = close < 0 ? text.slice(open) : text.slice(open, close)
-    // Guard the attr RegExp build: a regex metachar in the attr name (`attr:a@(`) would otherwise
-    // throw and (via the top-level catch) zero the whole registry — yield a per-check N instead.
-    let m: RegExpExecArray | null
-    try {
-      m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
-    } catch {
-      return null
-    }
-    if (m === null) return null
-    const n = Number(m[1])
-    return Number.isFinite(n) ? n : null
+    return extractXmlAttr(text, select.slice('attr:'.length))
   }
   return null
 }
@@ -905,8 +920,12 @@ function processCheck(
   }
 
   // Coerce weight numerically (a YAML-quoted `weight: '2'` must SUM, not string-concatenate, the
-  // accumulator) — byte-identical to the .mjs `Number(check.weight ?? 1)`.
-  const weight = Number(check.weight ?? 1)
+  // accumulator) — byte-identical to the .mjs. A non-numeric/non-finite/negative weight (a registry
+  // typo like `weight: high`) would otherwise yield NaN, and a single NaN poisons the summed
+  // earned/possible accumulators for the WHOLE registry → a silent overall score of 0. Coerce any
+  // such weight to the default 1 so one bad cell can never zero every sibling's score.
+  const rawWeight = Number(check.weight ?? 1)
+  const weight = Number.isFinite(rawWeight) && rawWeight >= 0 ? rawWeight : 1
   const risk = check.risk === 'RISKY' ? 'RISKY' : 'SAFE'
   // String()-coerce every emitted metadata field (an unquoted YAML scalar like `dimension: 7` types
   // to a number) so the scored payload is byte-identical to the .mjs across loosely-typed registries.

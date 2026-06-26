@@ -1077,4 +1077,67 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
     // verdict + evidence + score byte-identical across the two engines
     expect(mjsResult).toEqual(tsResult)
   })
+
+  // ── Parity case 23 (#1532 Bug 1): attr: XML selector must NOT match a tag PREFIX ─────────
+  // `attr:cov@rate` must read <cov rate>, not the <coverage rate> whose name merely starts with
+  // "cov". An unguarded indexOf('<cov') matches the <coverage> prefix and reads the wrong element's
+  // attribute — a false-but-numeric metric that flips the verdict. The count: branch already guards
+  // the element boundary; the attr: branch must too. Both engines must agree.
+  it('parity: attr: selector reads the boundary-correct element, not a tag prefix (#1532)', async () => {
+    const root = tmpDir()
+    // <coverage rate="0.42"> would be matched by the bare prefix '<cov'; the intended element is
+    // the inner <cov rate="0.99"/>. A gte-0.9 bar distinguishes them: 0.99⇒Y (correct), 0.42⇒N (bug).
+    writeFileSync(join(root, 'rep.xml'), '<coverage rate="0.42"><cov rate="0.99"/></coverage>\n')
+    const reg: RegistryInput = {
+      checks: [
+        {
+          id: 'ATTR-PREFIX',
+          type: 'value',
+          args: {
+            path: 'rep.xml',
+            format: 'xml',
+            select: 'attr:cov@rate',
+            op: 'gte',
+            expected: 0.9,
+          },
+        },
+      ],
+    }
+    const tsResult = evaluate(reg, new Set<string>(), root)
+    const mjsResult = (await Promise.resolve(
+      mjsModule.evaluate(reg, new Set<string>(), root),
+    )) as Record<string, unknown>
+
+    // reads 0.99 from <cov> (boundary-valid), 0.99 >= 0.9 ⇒ Y. The bug would read 0.42 ⇒ N.
+    expect(tsResult.checks[0]?.verdict).toBe('Y')
+    expect(mjsResult).toEqual(tsResult)
+  })
+
+  // ── Parity case 24 (#1532 Bug 2): a non-numeric weight must NOT NaN-poison the whole score ──────
+  // `weight: 'high'` (a registry typo) makes Number(...) NaN. Unguarded, a single NaN poisons the
+  // summed earned/possible accumulators for the ENTIRE registry, and the `possible > 0` guard then
+  // silently reports an overall score of 0 (NaN > 0 is false) — a catastrophically wrong verdict with
+  // no error. The weight must be coerced to a sane default (1) so siblings still score. Both engines.
+  it('parity: non-numeric weight coerces to 1, does not zero the whole score (#1532)', async () => {
+    const root = tmpDir()
+    writeFileSync(join(root, 'README.md'), '# r\n')
+    const reg = {
+      checks: [
+        { id: 'W-OK1', type: 'file_exists', args: { path: 'README.md' }, weight: 2 },
+        { id: 'W-BAD', type: 'file_exists', args: { path: 'README.md' }, weight: 'high' },
+        { id: 'W-OK2', type: 'file_exists', args: { path: 'README.md' }, weight: 2 },
+      ],
+    } as unknown as RegistryInput
+    const tsResult = evaluate(reg, new Set<string>(), root)
+    const mjsResult = (await Promise.resolve(
+      mjsModule.evaluate(reg, new Set<string>(), root),
+    )) as Record<string, unknown>
+
+    // all three Y; weights 2 + 1(coerced) + 2 = 5 earned / 5 possible ⇒ 100 (NOT a silent 0).
+    expect(tsResult.score).toBe(100)
+    // the offending check's emitted weight is the coerced 1, never NaN.
+    const byId = Object.fromEntries(tsResult.checks.map((c) => [c.id, c.weight]))
+    expect(byId['W-BAD']).toBe(1)
+    expect(mjsResult).toEqual(tsResult)
+  })
 })
