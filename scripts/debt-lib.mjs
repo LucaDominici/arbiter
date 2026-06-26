@@ -14,8 +14,20 @@ import {
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 
+// The `eslint <paths> --format json` output for this repo exceeds the Node
+// spawnSync default maxBuffer (1 MiB); without a raised ceiling the child aborts
+// with ENOBUFS, stdout is silently truncated, the JSON fails to parse, and the
+// metric collapses to 0 (the dormant complexityViolations ratchet root cause,
+// #1542). 64 MiB comfortably covers the full-repo eslint/knip JSON reports.
+const RUN_MAX_BUFFER = 64 * 1024 * 1024
+
 function run(cmd, args, opts) {
-  return spawnSync(cmd, args, { encoding: 'utf-8', shell: false, ...opts })
+  return spawnSync(cmd, args, {
+    encoding: 'utf-8',
+    shell: false,
+    maxBuffer: RUN_MAX_BUFFER,
+    ...opts,
+  })
 }
 
 // jscpd v5 ships its scanner as a prebuilt native `cpd` binary selected per
@@ -497,11 +509,15 @@ export function collectMetrics(cwd, collectionErrors = []) {
   }
 
   // ── Complexity violations (eslint rule) ───────────────────────────────────
+  // Scan `scripts` alongside `src`: the gate-enforcement layer is the
+  // highest-leverage code in the repo and was previously exempt from the
+  // complexity ratchet (#1523/#1542). The baseline grandfathers the current
+  // offenders; the ratchet blocks any net increase and admits gradual burn-down.
   const eslintComplexRaw = spawnOrSkip(
     'complexityViolations',
     'eslint',
     'npx',
-    ['eslint', 'src', '--format', 'json', '--rule', '{"complexity":["warn",10]}'],
+    ['eslint', 'src', 'scripts', '--format', 'json', '--rule', '{"complexity":["warn",10]}'],
     { cwd },
   )
   if (eslintComplexRaw !== null) {

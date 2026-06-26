@@ -20,7 +20,7 @@
       "direction": "lower-is-better"
     },
     "complexityViolations": {
-      "value": 0,
+      "value": 207,
       "unit": "count",
       "direction": "lower-is-better"
     },
