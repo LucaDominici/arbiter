@@ -10,9 +10,18 @@
 // longest path from per-step duration estimates) and additionally extracts each
 // job's steps for time lookup. Different axis, different output, and it lives
 // under `__tests__/` as a typed test util rather than a `.mjs` gate. New file
-// justified. Parser shape is intentionally modelled on the prior-art
-// line-oriented scanner (no `yaml`/`js-yaml` import — neither is a declared
-// dependency, importing one would trip the knip/dependency gates).
+// justified. The critical-path parser below stays line-oriented (it only needs
+// the job DAG + per-step identifiers, and a tolerant scanner is robust to the
+// `${{ }}` expression soup in step bodies).
+//
+// #1549: the reusable-workflow contract helpers at the bottom of this file DO
+// fully parse rendered YAML via `js-yaml` (a declared devDependency, ^4.1.0).
+// Resolving a caller's `with:` block against a callee's `on.workflow_call.inputs`
+// needs real structural parsing — the line scanner cannot reliably associate a
+// `with:` key with the enclosing job's `uses:`. This is the static guard that
+// would have caught the #1548 `_notify` contract break.
+
+import yaml from 'js-yaml'
 
 /** A single workflow job parsed from rendered YAML. */
 export interface WorkflowJob {
@@ -297,4 +306,118 @@ export function formatCriticalPath(cp: CriticalPath, budgetMinutes: number): str
 
 function round(n: number): number {
   return Math.round(n * 10) / 10
+}
+
+// ─── Reusable-workflow contract resolution (#1548, #1549) ────────────────────
+
+/** A single declared input on a reusable workflow's `on.workflow_call`. */
+export interface ReusableInputSpec {
+  /** True when the input is declared `required: true` (no default fallback). */
+  readonly required: boolean
+}
+
+/**
+ * Parse a rendered workflow's `on.workflow_call.inputs` into a map of
+ * input-name → spec. Returns `null` when the workflow declares no
+ * `workflow_call` trigger (i.e. it is not a reusable/callable workflow).
+ */
+export function parseWorkflowCallInputs(content: string): Map<string, ReusableInputSpec> | null {
+  const doc = yaml.load(content) as Record<string, unknown> | null
+  if (!doc || typeof doc !== 'object') return null
+  const on = (doc as { on?: unknown }).on
+  if (!on || typeof on !== 'object') return null
+  const wc = (on as { workflow_call?: unknown }).workflow_call
+  if (wc === undefined) return null
+  const inputs = wc && typeof wc === 'object' ? (wc as { inputs?: unknown }).inputs : undefined
+  const map = new Map<string, ReusableInputSpec>()
+  if (inputs && typeof inputs === 'object') {
+    for (const [name, spec] of Object.entries(inputs as Record<string, unknown>)) {
+      const required =
+        !!spec && typeof spec === 'object' && (spec as { required?: unknown }).required === true
+      map.set(name, { required })
+    }
+  }
+  return map
+}
+
+/** A reusable-workflow invocation found in a caller workflow's jobs. */
+export interface ReusableCall {
+  /** Calling job id. */
+  readonly job: string
+  /** Callee workflow file name, e.g. `_notify.yml`. */
+  readonly callee: string
+  /** Keys supplied in the call's `with:` block (empty when none). */
+  readonly withKeys: string[]
+}
+
+/**
+ * Extract every job whose body is a *local* reusable-workflow call
+ * (`uses: ./.github/workflows/<file>`), together with the keys it passes via
+ * `with:`. Remote `uses:` (org/repo@ref) calls are ignored — their contract is
+ * not resolvable from this repo.
+ */
+export function parseReusableCalls(content: string): ReusableCall[] {
+  const doc = yaml.load(content) as Record<string, unknown> | null
+  const jobs = doc && typeof doc === 'object' ? (doc as { jobs?: unknown }).jobs : undefined
+  if (!jobs || typeof jobs !== 'object') return []
+  const calls: ReusableCall[] = []
+  for (const [job, body] of Object.entries(jobs as Record<string, unknown>)) {
+    if (!body || typeof body !== 'object') continue
+    const uses = (body as { uses?: unknown }).uses
+    if (typeof uses !== 'string') continue
+    const match = /^\.\/\.github\/workflows\/(\S+)$/.exec(uses.trim())
+    if (!match) continue
+    const withBlock = (body as { with?: unknown }).with
+    const withKeys =
+      withBlock && typeof withBlock === 'object' ? Object.keys(withBlock as object) : []
+    calls.push({ job, callee: match[1], withKeys })
+  }
+  return calls
+}
+
+/** A resolved violation of a reusable-workflow input contract. */
+export interface ReusableContractViolation {
+  readonly job: string
+  readonly callee: string
+  readonly kind: 'undeclared-input' | 'missing-required-input'
+  readonly input: string
+}
+
+/**
+ * Resolve one caller's reusable calls against the callee input contracts.
+ * Flags (a) every `with:` key the callee does not declare, and (b) every
+ * `required: true` callee input the caller fails to supply. `contracts` maps a
+ * callee file name (`_notify.yml`) to its parsed inputs. A call to a callee
+ * absent from `contracts` is skipped (caller-side test cannot resolve it).
+ */
+export function resolveReusableContract(
+  calls: readonly ReusableCall[],
+  contracts: Map<string, Map<string, ReusableInputSpec>>,
+): ReusableContractViolation[] {
+  const violations: ReusableContractViolation[] = []
+  for (const call of calls) {
+    const inputs = contracts.get(call.callee)
+    if (!inputs) continue
+    for (const key of call.withKeys) {
+      if (!inputs.has(key)) {
+        violations.push({
+          job: call.job,
+          callee: call.callee,
+          kind: 'undeclared-input',
+          input: key,
+        })
+      }
+    }
+    for (const [name, spec] of inputs) {
+      if (spec.required && !call.withKeys.includes(name)) {
+        violations.push({
+          job: call.job,
+          callee: call.callee,
+          kind: 'missing-required-input',
+          input: name,
+        })
+      }
+    }
+  }
+  return violations
 }

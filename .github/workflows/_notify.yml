@@ -1,43 +1,92 @@
 name: _notify (reusable)
 
+# Reusable failure-alert workflow. Both deploy callers (04-deploy-test,
+# 10-deploy-prod) invoke this from an `if: failure()` job with the
+# failure-summary interface below. Keep these inputs in lockstep with every
+# caller's `with:` block — the workflow-structure L1 sweep statically resolves
+# each caller's `with:` against this contract (#1548, #1549).
 on:
   workflow_call:
     inputs:
-      issue-number:
-        required: true
-        type: number
-      body:
+      workflow_name:
+        description: Human-readable name of the failing workflow.
         required: true
         type: string
+      area:
+        description: Subsystem/area for triage (e.g. deploy, ci).
+        required: false
+        type: string
+        default: ci
+      severity:
+        description: Severity tag for the alert (e.g. P0, P1).
+        required: false
+        type: string
+        default: P2
+      branch:
+        description: Branch the failure occurred on.
+        required: false
+        type: string
+        default: ''
+      run_url:
+        description: URL of the failing workflow run.
+        required: false
+        type: string
+        default: ''
+      failure_summary:
+        description: One-line summary of what failed.
+        required: false
+        type: string
+        default: ''
+      status:
+        description: Run status reported by the caller (e.g. failure).
+        required: false
+        type: string
+        default: failure
 
 permissions:
   issues: write
 
 jobs:
   notify:
-    name: Post or update issue comment
+    name: Open or update failure issue
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
-      - name: Post or update issue comment
+      - name: Open or update failure issue
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ inputs.issue-number }}
-          BODY: ${{ inputs.body }}
+          WORKFLOW_NAME: ${{ inputs.workflow_name }}
+          AREA: ${{ inputs.area }}
+          SEVERITY: ${{ inputs.severity }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_URL: ${{ inputs.run_url }}
+          FAILURE_SUMMARY: ${{ inputs.failure_summary }}
+          STATUS: ${{ inputs.status }}
         run: |
-          MARKER="<!-- arbiter-notify -->"
-          FULL_BODY="${MARKER}
-          ${BODY}"
-          COMMENT_ID=$(gh api \
-            "repos/${GH_REPO}/issues/${ISSUE_NUMBER}/comments" \
-            --jq ".[] | select(.body | startswith(\"${MARKER}\")) | .id" \
-            | head -1)
-          if [ -n "$COMMENT_ID" ]; then
-            gh api --method PATCH \
-              "repos/${GH_REPO}/issues/comments/${COMMENT_ID}" \
-              -f body="${FULL_BODY}" > /dev/null
+          MARKER="<!-- arbiter-notify:${WORKFLOW_NAME} -->"
+          TITLE="[${SEVERITY}] ${WORKFLOW_NAME} failed"
+          BODY="${MARKER}
+          **Workflow:** ${WORKFLOW_NAME}
+          **Area:** ${AREA}
+          **Severity:** ${SEVERITY}
+          **Branch:** ${BRANCH}
+          **Status:** ${STATUS}
+          **Run:** ${RUN_URL}
+
+          ${FAILURE_SUMMARY}"
+          ISSUE_NUMBER=$(gh issue list \
+            --repo "${GH_REPO}" \
+            --state open \
+            --search "${MARKER} in:body" \
+            --json number \
+            --jq '.[0].number // empty')
+          if [ -n "$ISSUE_NUMBER" ]; then
+            gh issue comment "$ISSUE_NUMBER" \
+              --repo "${GH_REPO}" \
+              --body "${BODY}" > /dev/null
           else
-            gh api --method POST \
-              "repos/${GH_REPO}/issues/${ISSUE_NUMBER}/comments" \
-              -f body="${FULL_BODY}" > /dev/null
+            gh issue create \
+              --repo "${GH_REPO}" \
+              --title "${TITLE}" \
+              --body "${BODY}" > /dev/null
           fi

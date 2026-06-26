@@ -2,6 +2,11 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+import {
+  parseReusableCalls,
+  parseWorkflowCallInputs,
+  resolveReusableContract,
+} from '../utils/workflow-graph.js'
 
 function renderDeployProd(overrides: Record<string, unknown> = {}) {
   return renderTemplate(
@@ -154,5 +159,46 @@ describe('10-deploy-prod.yml.ejs — P0 failure notification', () => {
   it('notify-failure references _notify.yml reusable workflow', () => {
     const rendered = renderDeployProd({})
     expect(rendered).toContain('_notify.yml')
+  })
+
+  // #1548 regression: the notify-failure caller passed workflow_name/area/
+  // severity/branch/run_url/failure_summary/status, but _notify.yml only ever
+  // declared issue-number/body — so the `if: failure()` alert path was a
+  // permanently-invalid reusable-workflow call. Resolve the caller's `with:`
+  // block against the callee's declared on.workflow_call.inputs.
+  it('notify-failure `with:` keys all resolve against _notify.yml inputs (#1548)', () => {
+    const data = makeConfig('/tmp/test', {}) as unknown as Record<string, unknown>
+    const caller = renderDeployProd({})
+    const callee = renderTemplate('github/workflows/_notify.yml.ejs', data)
+
+    const contracts = new Map([['_notify.yml', parseWorkflowCallInputs(callee)!]])
+    const calls = parseReusableCalls(caller).filter((c) => c.callee === '_notify.yml')
+
+    // Sanity: the caller really does call _notify.yml with a non-empty `with:`.
+    expect(calls.length).toBeGreaterThan(0)
+    expect(calls[0].withKeys).toContain('workflow_name')
+    expect(calls[0].withKeys).toContain('failure_summary')
+
+    const violations = resolveReusableContract(calls, contracts)
+    expect(violations, JSON.stringify(violations)).toEqual([])
+  })
+
+  it('_notify.yml declares the failure-summary contract its callers use (#1548)', () => {
+    const data = makeConfig('/tmp/test', {}) as unknown as Record<string, unknown>
+    const inputs = parseWorkflowCallInputs(renderTemplate('github/workflows/_notify.yml.ejs', data))
+    expect(inputs).not.toBeNull()
+    for (const key of [
+      'workflow_name',
+      'area',
+      'severity',
+      'branch',
+      'run_url',
+      'failure_summary',
+      'status',
+    ]) {
+      expect(inputs!.has(key)).toBe(true)
+    }
+    // workflow_name is the single required input; the rest carry defaults.
+    expect(inputs!.get('workflow_name')!.required).toBe(true)
   })
 })
