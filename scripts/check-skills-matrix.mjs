@@ -1,25 +1,31 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// Validate src/compatibility/skills-matrix.json:
-//   1. Schema is valid (Zod via skills-validator.ts)
-//   2. All `replaces` entries reference actual SKILL_NAMES from generators/skills.ts
-// Usage: node scripts/check-skills-matrix.mjs
+// Validate a skills-matrix.json (defaults to src/compatibility/skills-matrix.json):
+//   1. Required fields present + integrationStatus is a known enum value
+//      (a standalone re-implementation — this gate does NOT load Zod or
+//      skills-validator.ts; it runs as plain node with zero TS deps)
+//   2. All `replaces` entries reference a canonical SKILL_NAME
+// Usage: node scripts/check-skills-matrix.mjs [matrix.json]
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const root = process.cwd()
-const matrixPath = resolve(root, 'src/compatibility/skills-matrix.json')
+const matrixPath = process.argv[2]
+  ? resolve(process.argv[2])
+  : resolve(root, 'src/compatibility/skills-matrix.json')
 
-const VALID_SKILL_NAMES = new Set([
-  'tdd',
-  'verification',
-  'architect-review',
-  'clean-code',
-  'understand-code',
-  'codebase-audit',
-  'epic-decompose',
-  'configure',
-])
+// Canonical allow-list — read from the SKILL_NAMES SSOT (src/generators/
+// skill-names.json) so this plain-JS gate cannot drift from the TS sources the
+// way a hand-copied Set did (#1583). One source feeds skills.ts, the validator,
+// and this gate.
+const namesPath = resolve(root, 'src/generators/skill-names.json')
+let VALID_SKILL_NAMES
+try {
+  VALID_SKILL_NAMES = new Set(JSON.parse(readFileSync(namesPath, 'utf-8')))
+} catch (err) {
+  console.error(`[skills-matrix] FAIL: cannot read SKILL_NAMES SSOT ${namesPath}: ${err.message}`)
+  process.exit(1)
+}
 
 let raw
 try {
