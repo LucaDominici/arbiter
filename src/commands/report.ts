@@ -17,6 +17,8 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { createGzip } from 'node:zlib'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { getLogger } from '../utils/logger.js'
@@ -171,35 +173,35 @@ export async function runReport(opts: ReportOptions = {}): Promise<ReportResult>
 
 // ─── Minimal POSIX ustar writer (no external deps) ─────────────────────────
 
-function writeTarGz(runDir: string, files: string[], outPath: string): Promise<void> {
-  return new Promise<void>((resolveP, rejectP) => {
-    mkdirSync(dirname(outPath), { recursive: true })
-    const gz = createGzip()
-    const sink = createWriteStream(outPath)
-    gz.on('error', rejectP)
-    sink.on('error', rejectP)
-    sink.on('finish', () => {
-      resolveP()
-    })
-    gz.pipe(sink)
-
-    for (const rel of files) {
-      const full = join(runDir, rel)
-      let buf: Buffer
-      try {
-        buf = readFileSync(full)
-      } catch {
-        continue
-      }
-      gz.write(makeTarHeader(rel, buf.length))
-      gz.write(buf)
-      const pad = 512 - (buf.length % 512)
-      if (pad < 512) gz.write(Buffer.alloc(pad))
+/**
+ * Lazily yield the raw tar (ustar) byte stream for `files`. Because this is a
+ * generator pulled on demand by `Readable.from`, each file is read only when
+ * the downstream gzip/disk side is ready for it — so memory stays bounded to
+ * the in-flight chunks instead of accumulating the whole archive (#1534).
+ */
+function* tarEntries(runDir: string, files: string[]): Generator<Buffer> {
+  for (const rel of files) {
+    const full = join(runDir, rel)
+    let buf: Buffer
+    try {
+      buf = readFileSync(full)
+    } catch {
+      continue
     }
-    // Two trailing 512-byte zero blocks mark end-of-archive.
-    gz.write(Buffer.alloc(1024))
-    gz.end()
-  })
+    yield makeTarHeader(rel, buf.length)
+    yield buf
+    const pad = 512 - (buf.length % 512)
+    if (pad < 512) yield Buffer.alloc(pad)
+  }
+  // Two trailing 512-byte zero blocks mark end-of-archive.
+  yield Buffer.alloc(1024)
+}
+
+async function writeTarGz(runDir: string, files: string[], outPath: string): Promise<void> {
+  mkdirSync(dirname(outPath), { recursive: true })
+  // `pipeline` wires backpressure end-to-end: the entry generator is paused
+  // whenever gzip's writable buffer or the file sink is full.
+  await pipeline(Readable.from(tarEntries(runDir, files)), createGzip(), createWriteStream(outPath))
 }
 
 function makeTarHeader(name: string, size: number): Buffer {
@@ -234,4 +236,5 @@ export const __internal = {
   resolveRunId,
   writeManifest,
   readManifestFiles,
+  tarEntries,
 }

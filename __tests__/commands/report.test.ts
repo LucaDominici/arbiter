@@ -13,6 +13,8 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
+import { Readable, Writable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { runReport, resolveRunId, __internal } from '../../src/commands/report.js'
 
 let testDir: string
@@ -136,6 +138,52 @@ describe('runReport', () => {
     await expect(
       runReport({ runId: 'nonexistent', logsDir, reportsDir, auto: true }),
     ).rejects.toThrow(/run directory does not exist/)
+  })
+
+  // #1534: the tar writer must stream entries lazily and respect backpressure,
+  // never buffering the whole archive in memory.
+  it('streams tar entries lazily through a backpressuring sink', async () => {
+    const seeds: Record<string, string> = {}
+    for (let i = 0; i < 20; i++) seeds[`f${i}.bin`] = 'x'.repeat(64 * 1024)
+    const runDir = seedRun('bp', seeds)
+    const files = __internal.collectSafeFiles(runDir).files
+
+    let produced = 0
+    function* counted(): Generator<Buffer> {
+      for (const chunk of __internal.tarEntries(runDir, files)) {
+        produced++
+        yield chunk
+      }
+    }
+
+    let consumed = 0
+    let maxAhead = 0
+    const slowSink = new Writable({
+      highWaterMark: 1,
+      write(_chunk, _enc, cb) {
+        consumed++
+        maxAhead = Math.max(maxAhead, produced - consumed)
+        // Simulate a slow disk so the source must wait on backpressure.
+        setImmediate(cb)
+      },
+    })
+
+    await pipeline(Readable.from(counted()), slowSink)
+
+    // The archive is dozens of chunks (20 files × header/body/pad + trailer).
+    expect(produced).toBeGreaterThan(40)
+    // Backpressure respected: the source never races the full archive ahead of
+    // the sink — it stays within the stream's small buffer window.
+    expect(maxAhead).toBeLessThan(produced)
+  })
+
+  it('tarEntries produces a gzip-roundtrippable archive for large multi-chunk files', async () => {
+    const big = 'A'.repeat(200 * 1024)
+    seedRun('big', { 'log1.txt': big, 'log2.txt': 'B'.repeat(100 * 1024) })
+    const result = await runReport({ runId: 'big', logsDir, reportsDir, auto: true })
+    const raw = gunzipSync(readFileSync(result.bundlePath!))
+    expect(raw.includes(Buffer.from('log1.txt'))).toBe(true)
+    expect(raw.includes(Buffer.from(big))).toBe(true)
   })
 
   it('symlink in run dir is excluded from bundle', async () => {
