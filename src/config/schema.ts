@@ -382,7 +382,12 @@ export const VALID_BRANCHING_STRATEGIES: ReadonlySet<string> = new Set([
   'github-flow',
   'github-flow-with-develop',
 ])
-const AI_TOOLS: ReadonlySet<string> = new Set([
+/**
+ * Canonical AI-tool allow-list — the single source of truth for tool validation.
+ * #1594: exported so the v1→v2 migration filter imports it instead of keeping a
+ * stale hand-copy that silently strips newer tools (gemini/windsurf/aider).
+ */
+export const AI_TOOLS: ReadonlySet<string> = new Set([
   'claude',
   'codex',
   'cursor',
@@ -392,8 +397,59 @@ const AI_TOOLS: ReadonlySet<string> = new Set([
   'aider',
 ])
 
+/**
+ * #1589/#1579: known-value sets for the constrained-union optionals so
+ * validateConfig rejects a typo'd value at the trust boundary instead of letting
+ * it fall through to the weaker default. Each `Record<Union, true>` forces the
+ * set to stay exhaustive and in-sync with its union at compile time — a member
+ * added to (or removed from) the union breaks the build until the set matches.
+ */
+type DatabaseEngineUnion = NonNullable<ArbiterConfigV2['databaseEngine']>
+const DATABASE_ENGINE_VALUES: Record<DatabaseEngineUnion, true> = {
+  postgresql: true,
+  mysql: true,
+  mongodb: true,
+  sqlite: true,
+  other: true,
+  none: true,
+}
+const STRICTNESS_TIER_VALUES: Record<StrictnessTier, true> = { practical: true, pedantic: true }
+const THRESHOLD_PROFILE_VALUES: Record<ThresholdProfile, true> = { scaled: true, fixed: true }
+const CONTRACT_TYPE_VALUES: Record<ContractType, true> = {
+  'rest-owned': true,
+  'rest-public': true,
+  graphql: true,
+  grpc: true,
+  'message-queue': true,
+  none: true,
+}
+const DATABASE_ENGINES: ReadonlySet<string> = new Set(Object.keys(DATABASE_ENGINE_VALUES))
+const STRICTNESS_TIERS: ReadonlySet<string> = new Set(Object.keys(STRICTNESS_TIER_VALUES))
+const THRESHOLD_PROFILES: ReadonlySet<string> = new Set(Object.keys(THRESHOLD_PROFILE_VALUES))
+const CONTRACT_TYPES: ReadonlySet<string> = new Set(Object.keys(CONTRACT_TYPE_VALUES))
+
 function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val)
+}
+
+const THRESHOLD_COVERAGE_KEYS = ['lineCoverage', 'branchCoverage', 'mutationScore'] as const
+const THRESHOLD_POSITIVE_KEYS = ['cyclomaticComplexity', 'methodLength', 'maxParams'] as const
+
+/**
+ * #1585: single source of truth for threshold range validity — coverage keys are
+ * 1..100, the positive keys are > 0. Exported so the env-override layer
+ * (env-overrides.ts) reuses the exact same bounds validateThresholds enforces and
+ * the two definitions cannot drift. An out-of-range env override is dropped+warned
+ * by the override layer instead of flowing through and bricking validateConfig.
+ */
+export function isThresholdValueInRange(key: string, value: number): boolean {
+  if ((THRESHOLD_COVERAGE_KEYS as readonly string[]).includes(key)) {
+    return value > 0 && value <= 100
+  }
+  if ((THRESHOLD_POSITIVE_KEYS as readonly string[]).includes(key)) {
+    return value > 0
+  }
+  return true
 }
 
 /**
@@ -406,17 +462,15 @@ function validateThresholds(raw: unknown, errors: string[]): void {
     errors.push('thresholds must be an object')
     return
   }
-  const coverage = ['lineCoverage', 'branchCoverage', 'mutationScore'] as const
-  for (const key of coverage) {
+  for (const key of THRESHOLD_COVERAGE_KEYS) {
     const v = raw[key]
-    if (typeof v !== 'number' || v <= 0 || v > 100) {
+    if (typeof v !== 'number' || !isThresholdValueInRange(key, v)) {
       errors.push(`thresholds.${key} must be a number between 1 and 100`)
     }
   }
-  const positive = ['cyclomaticComplexity', 'methodLength', 'maxParams'] as const
-  for (const key of positive) {
+  for (const key of THRESHOLD_POSITIVE_KEYS) {
     const v = raw[key]
-    if (typeof v !== 'number' || v <= 0) {
+    if (typeof v !== 'number' || !isThresholdValueInRange(key, v)) {
       errors.push(`thresholds.${key} must be a positive number`)
     }
   }
@@ -515,6 +569,33 @@ function validateOptionalScalars(raw: Record<string, unknown>, errors: string[])
   }
 }
 
+/**
+ * #1579/#1589: validate the constrained-union optionals (databaseEngine,
+ * strictnessTier, thresholdProfile, contractType). Each governs gate strictness or
+ * test scaffolding routing; a typo'd value previously passed validateConfig
+ * untouched (final `as unknown` cast) and silently degraded to the weaker default
+ * with no diagnostic. Mirrors the industryOverlay / collaborationMode precedent:
+ * validate only if present, emit `<field> must be one of … — got <v>` on mismatch.
+ */
+function validateOptionalEnums(raw: Record<string, unknown>, errors: string[]): void {
+  const checks: ReadonlyArray<readonly [string, ReadonlySet<string>]> = [
+    ['databaseEngine', DATABASE_ENGINES],
+    ['strictnessTier', STRICTNESS_TIERS],
+    ['thresholdProfile', THRESHOLD_PROFILES],
+    ['contractType', CONTRACT_TYPES],
+  ]
+  for (const [field, allowed] of checks) {
+    if (field in raw && raw[field] !== undefined) {
+      const v = raw[field]
+      if (typeof v !== 'string' || !allowed.has(v)) {
+        errors.push(
+          `${field} must be one of ${[...allowed].join(', ')} — got ${typeof v === 'string' ? v : typeof v}`,
+        )
+      }
+    }
+  }
+}
+
 export function validateConfig(raw: unknown): ValidateResult {
   if (!isRecord(raw)) {
     return { ok: false, errors: ['config must be a non-null object'] }
@@ -533,6 +614,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   }
 
   validateOptionalScalars(draft, errors)
+  validateOptionalEnums(draft, errors)
 
   const rawLevel = draft['governanceLevel']
   const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel

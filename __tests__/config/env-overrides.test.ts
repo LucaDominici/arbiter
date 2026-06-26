@@ -132,6 +132,45 @@ describe('applyEnvOverrides (#233)', () => {
     expect(err).toBe('')
   })
 
+  // #1585: an out-of-range coverage override must be DROPPED (default retained) and
+  // warned — applying it would flow into validateConfig and brick every command.
+  it.each([
+    ['ARBITER_THRESHOLD__LINE_COVERAGE', '150'],
+    ['ARBITER_THRESHOLD__LINE_COVERAGE', '0'],
+    ['ARBITER_THRESHOLD__BRANCH_COVERAGE', '101'],
+    ['ARBITER_THRESHOLD__MUTATION_SCORE', '-5'],
+  ])('drops out-of-range coverage override %s=%s and warns', (key, raw) => {
+    const cfg = baseConfig()
+    let out!: ArbiterConfigV2
+    const err = captureStderr(() => {
+      out = applyEnvOverrides(cfg, { [key]: raw })
+    })
+    // default L2 thresholds retained, never the out-of-range value
+    expect(out.thresholds.lineCoverage).toBe(80)
+    expect(out.thresholds.branchCoverage).toBe(70)
+    expect(out.thresholds.mutationScore).toBe(80)
+    expect(err).toMatch(new RegExp(key))
+    expect(err).toMatch(/out of range/i)
+  })
+
+  it('drops a zero/negative positive-key override (methodLength=0) and warns', () => {
+    const cfg = baseConfig()
+    let out!: ArbiterConfigV2
+    const err = captureStderr(() => {
+      out = applyEnvOverrides(cfg, { ARBITER_THRESHOLD__METHOD_LENGTH: '0' })
+    })
+    expect(out.thresholds.methodLength).toBe(cfg.thresholds.methodLength)
+    expect(err).toMatch(/ARBITER_THRESHOLD__METHOD_LENGTH/)
+    expect(err).toMatch(/out of range/i)
+  })
+
+  it('keeps the no-invalidate contract: validateConfig stays ok after an out-of-range override', async () => {
+    const { validateConfig } = await import('../../src/config/schema.js')
+    const cfg = baseConfig()
+    const out = applyEnvOverrides(cfg, { ARBITER_THRESHOLD__LINE_COVERAGE: '150' })
+    expect(validateConfig(out).ok).toBe(true)
+  })
+
   it("ignores ARBITER_* env vars that don't match a known pattern", () => {
     const cfg = baseConfig()
     const out = applyEnvOverrides(cfg, {

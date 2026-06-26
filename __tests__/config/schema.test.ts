@@ -688,6 +688,49 @@ describe('validateConfig — channel field (#662)', () => {
   })
 })
 
+describe('validateConfig — constrained-union optionals (#1579, #1589)', () => {
+  it('accepts a config without any of the optional enums', () => {
+    expect(validateConfig(BASE_VALID).ok).toBe(true)
+  })
+
+  it.each([
+    ['databaseEngine', 'postgresql'],
+    ['databaseEngine', 'sqlite'],
+    ['databaseEngine', 'none'],
+    ['strictnessTier', 'pedantic'],
+    ['strictnessTier', 'practical'],
+    ['thresholdProfile', 'scaled'],
+    ['thresholdProfile', 'fixed'],
+    ['contractType', 'rest-owned'],
+    ['contractType', 'message-queue'],
+    ['contractType', 'none'],
+  ])('accepts %s="%s"', (field, value) => {
+    const r = validateConfig({ ...BASE_VALID, [field]: value })
+    expect(r.ok).toBe(true)
+  })
+
+  it.each([
+    ['databaseEngine', 'redis'],
+    ['databaseEngine', 'postgres'],
+    ['strictnessTier', 'pedantik'],
+    ['strictnessTier', 'practical '],
+    ['thresholdProfile', 'scaledd'],
+    ['contractType', 'rest'],
+  ])('rejects typo %s="%s" with a precise diagnostic', (field, value) => {
+    const r = validateConfig({ ...BASE_VALID, [field]: value })
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.errors.some((e) => e.startsWith(`${field} must be one of`))).toBe(true)
+    }
+  })
+
+  it('rejects a non-string enum value reporting its type', () => {
+    const r = validateConfig({ ...BASE_VALID, databaseEngine: 42 })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('databaseEngine'))).toBe(true)
+  })
+})
+
 describe('DEFAULT_THRESHOLDS', () => {
   it('L2 has lineCoverage=80, branchCoverage=70, mutationScore=80', () => {
     expect(DEFAULT_THRESHOLDS.L2.lineCoverage).toBe(80)

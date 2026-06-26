@@ -17,6 +17,7 @@
  */
 
 import { parseBooleanEnv } from '../utils/env.js'
+import { isThresholdValueInRange } from './schema.js'
 import type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 } from './schema.js'
 
 type Env = Record<string, string | undefined>
@@ -88,6 +89,15 @@ function applyThresholdOverride(
   const value = parseNumericEnv(rawValue)
   if (value === undefined) {
     warnDroppedOverride(envKey, `value "${rawValue}" is not a finite number`)
+    return thresholds
+  }
+  // #1585: an out-of-range value (coverage keys must be 1..100; positive keys > 0)
+  // must be dropped+warned here — applying it would flow into validateConfig and
+  // brick every arbiter command in the shell with a misleading "fix arbiter.json"
+  // error, breaking this module's documented no-invalidate contract. Range bounds
+  // are the SSOT predicate shared with validateThresholds so they cannot drift.
+  if (!isThresholdValueInRange(camel, value)) {
+    warnDroppedOverride(envKey, `value "${rawValue}" is out of range`)
     return thresholds
   }
   return { ...thresholds, [camel]: value }

@@ -182,6 +182,20 @@ describe("migrate — v1 (version: '0.1')", () => {
     expect(result.features.debtGates).toBe(false)
   })
 
+  // #1594: the migration tool-filter must use the canonical 7-entry AI_TOOLS set,
+  // not a stale 4-entry hand-copy that silently strips gemini/windsurf/aider.
+  it.each(['gemini', 'windsurf', 'aider'])('preserves newer tool "%s" across v1→v2', (tool) => {
+    const v1 = {
+      version: '0.1',
+      tools: ['claude', tool],
+      governanceLevel: 'L2',
+      useGitHub: false,
+    }
+    const result = migrate(v1)
+    expect(result.tools).toContain('claude')
+    expect(result.tools).toContain(tool)
+  })
+
   it('v1 contractType grpc → features.contractTesting=true', () => {
     const v1 = {
       version: '0.1',

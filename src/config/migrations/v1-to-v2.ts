@@ -15,6 +15,7 @@ import {
   type DecompositionBackendId,
   type FeatureFlags,
   type ThresholdsV2,
+  AI_TOOLS,
   DEFAULT_THRESHOLDS,
   validateConfig,
 } from '../schema.js'
@@ -25,8 +26,6 @@ import { getLogger } from '../../utils/logger.js'
 function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val)
 }
-
-const AI_TOOLS: ReadonlySet<string> = new Set(['claude', 'codex', 'cursor', 'copilot'])
 
 function warnUseGitHubDeprecated(): void {
   getLogger().warn(
