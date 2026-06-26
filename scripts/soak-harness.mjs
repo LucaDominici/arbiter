@@ -5,10 +5,10 @@
 // evidence backlog within bound.
 //
 // Mode: SOAK_MODE=full (30 days) or SOAK_MODE=compressed (7 days, default).
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { execFileSync, execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 
 const MODE = process.env.SOAK_MODE ?? 'compressed'
 const DAYS = MODE === 'full' ? 30 : 7
@@ -52,9 +52,8 @@ try {
   fail(0, `fixture init failed: ${err.message}`)
 }
 
-// Take initial snapshot of key generated files.
-// TODO(#596): compare against real .arbiter-generated.json once init is wired.
-const SNAPSHOT = {}
+// TODO(#596): take an initial snapshot of key generated files and compare
+// against real .arbiter-generated.json once init is wired.
 
 for (let day = 1; day <= DAYS; day++) {
   log(`--- Day ${day}/${DAYS} ---`)

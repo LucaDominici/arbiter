@@ -6,7 +6,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const root = process.cwd()
-let exitCode = 0
 const violations = { coverage: [], field: [], enforcement: [], redaction: [] }
 
 // ─── Load files ───────────────────────────────────────────────────────────────

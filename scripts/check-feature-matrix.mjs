@@ -20,7 +20,7 @@
  * NOTE: This script runs without a build step and cannot import from src/.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
 const ROOT = process.cwd()
 

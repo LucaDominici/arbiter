@@ -31,7 +31,7 @@
 // via --refresh-stubs and overwrites ONLY a file whose bytes equal the rendered stub template.
 
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
-import { join, dirname, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
 const args = process.argv.slice(2)

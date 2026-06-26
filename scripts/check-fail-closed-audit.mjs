@@ -31,7 +31,7 @@
 // fail the gate. To remove a file from the baseline (i.e. when it has been
 // fixed) regenerate the baseline with `--update-baseline`.
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 const rootArgIdx = args.indexOf('--root')

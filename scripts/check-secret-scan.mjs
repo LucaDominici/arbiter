@@ -8,7 +8,7 @@
 //
 // Usage: node scripts/check-secret-scan.mjs [--dir <path>] [--help]
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join, resolve, extname } from 'node:path'
 
 const args = process.argv.slice(2)

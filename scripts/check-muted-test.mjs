@@ -39,10 +39,9 @@ const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
 
-// Directories that conventionally hold gate tests across the supported stacks.
-const TEST_DIR_NAMES = new Set(['__tests__', 'test', 'tests', 'spec', 'specs'])
-
 // A file is a gate test if its name matches one of these (JS/TS/JVM/Rust/Python/Go conventions).
+// JS/TS/Rust/Python/Go tests are identified by filename; bare `.java`/`.kt` files are dir-gated to
+// a JVM test tree (src/test/**) inside collectTestFiles via the `inJvmTestTree` flag below.
 function isTestFile(name) {
   return (
     /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/.test(name) ||

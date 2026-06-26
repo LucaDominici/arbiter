@@ -2,7 +2,7 @@
 // check-spdx-headers.mjs — verify every src/**/*.ts file starts with SPDX-License-Identifier
 // header: // SPDX-License-Identifier: Apache-2.0 (first non-empty line or within first 5 lines)
 // Usage: node scripts/check-spdx-headers.mjs [--dir=path]
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve, join, extname } from 'node:path'
 
 const args = process.argv.slice(2)

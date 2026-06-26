@@ -15,7 +15,7 @@
 //   - if frontmatter `title` is non-empty, the H1 text matches it (case-sensitive)
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, sep, resolve, relative } from 'node:path'
+import { join, sep, relative } from 'node:path'
 
 const CWD = process.cwd()
 

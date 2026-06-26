@@ -13,7 +13,13 @@ const PIPE_TEE_RE = /\|\s*tee\b/
 const PIPEFAIL_RE = /set\s+-[a-z]*o\s+pipefail|set\s+-[a-z]*o pipefail/
 const PIPESTATUS_RE = /\$\{?PIPESTATUS\[/
 
-const EXTENSIONS = new Set(['.sh', '.ejs'])
+// File suffixes scanned for unguarded pipe/tee. Shell scripts and the EJS
+// templates that emit shell: bare `.sh`, `.sh.ejs` / `.mjs.ejs` script
+// templates, and workflow templates (`.yml.ejs` / `.yaml.ejs`) whose `run:`
+// blocks are shell. This is the single source of truth for the walk filter
+// below — keep them in lock-step (#1523: the old `.ejs`-wide set was dead and
+// silently dropped `.yml.ejs` coverage).
+const SCAN_SUFFIXES = ['.sh', '.sh.ejs', '.mjs.ejs', '.yml.ejs', '.yaml.ejs']
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git'])
 
 const scanDirs = process.argv.slice(2).length > 0 ? process.argv.slice(2) : [process.cwd()]
@@ -42,7 +48,7 @@ function scan(dir) {
       scan(full)
     } else {
       const name = full.slice(full.lastIndexOf('/') + 1)
-      if (name.endsWith('.sh') || name.endsWith('.sh.ejs') || name.endsWith('.mjs.ejs')) {
+      if (SCAN_SUFFIXES.some((suffix) => name.endsWith(suffix))) {
         scanFile(full)
       }
     }

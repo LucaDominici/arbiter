@@ -11,7 +11,7 @@
 //
 // Uses spawnSync from node:child_process (scripts/ exception to src/ INV-12 rule).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join, resolve, dirname } from 'node:path'
+import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { minimatch } from 'minimatch'
 
@@ -281,7 +281,6 @@ function runScoreMode(config) {
 
 // --- --explain mode ---
 function explainFile(config, filePath) {
-  const auditorNames = Object.keys(config.auditors)
   const reasons = []
 
   // Check critical_paths

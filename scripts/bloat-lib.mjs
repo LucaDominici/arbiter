@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // bloat-lib.mjs — helpers for file-count and LOC measurement (CANON-16, INV-46)
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join, extname } from 'node:path'
 
 const TEST_RE = /(?:^|\/)__tests__(?:\/|$)|\.(test|spec)\.[cm]?[jt]s$/

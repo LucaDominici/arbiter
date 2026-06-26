@@ -66,6 +66,50 @@ export default tseslint.config(
       '@typescript-eslint/no-require-imports': 'off',
     },
   },
+  // #1523: scripts/ is the gate-enforcement layer (every gate, ratchet and CI
+  // check lives here) yet was historically exempt from ESLint entirely — so the
+  // code that *enforces* the quality bar got zero dead-code analysis. Lint it
+  // for unused vars / unreachable branches at the same bar as src/. The .mjs
+  // gate scripts are not in tsconfig.json, so type-aware rules are disabled and
+  // `no-undef` is off (node globals are not declared via an env block here).
+  // Complexity / max-lines burn-down for scripts is tracked separately.
+  {
+    files: ['scripts/**/*.mjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      sourceType: 'module',
+      ecmaVersion: 'latest',
+    },
+    rules: {
+      // node globals are not declared via an env block; `no-undef` would flag
+      // process/Buffer/etc. as false positives.
+      'no-undef': 'off',
+      // The dead-code gate this block exists to close (#1523). `_`-prefixed
+      // bindings are the project convention for an intentionally-unused
+      // value/arg/caught-error and stay exempt.
+      'no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+      'no-unreachable': 'error',
+      // Avoid double-reporting the same dead code through the type-aware twin.
+      '@typescript-eslint/no-unused-vars': 'off',
+      // Broader lint hardening of the enforcement layer (regex hygiene, escape
+      // cleanup, caught-error preservation) and the complexity / max-lines
+      // burn-down are out of scope for the dead-code closure and tracked in the
+      // #1523 follow-up. Kept off here so the focused gate lands green without
+      // regressing anything (scripts/ had zero linting before this block).
+      'no-useless-escape': 'off',
+      'no-regex-spaces': 'off',
+      'no-useless-assignment': 'off',
+      'preserve-caught-error': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
+    },
+  },
   {
     ignores: [
       'dist/',
@@ -73,7 +117,6 @@ export default tseslint.config(
       'vitest.config.ts',
       'eslint.config.js',
       'src/templates/',
-      'scripts/',
       '__tests__/fixtures/',
     ],
   },

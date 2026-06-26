@@ -7,29 +7,6 @@ import { join, extname } from 'node:path'
 
 let violations = 0
 
-function walk(dir, fn) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
-  }
-  for (const entry of entries) {
-    const full = join(dir, entry)
-    let stat
-    try {
-      stat = statSync(full)
-    } catch {
-      continue
-    }
-    if (stat.isDirectory()) {
-      walk(full, fn)
-    } else {
-      fn(full, entry)
-    }
-  }
-}
-
 function flag(file, message) {
   console.error(`[NAMING] ${file}: ${message}`)
   violations++

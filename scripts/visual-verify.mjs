@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Visual verification script (#700): 5 DOM checks × 3 viewports via Playwright.
 // Graceful fallback when Playwright is absent (--skip-if-missing).
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { writeFileSync, mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 

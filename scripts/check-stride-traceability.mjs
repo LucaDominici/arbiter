@@ -3,7 +3,7 @@
 // Scans HIGH/CRITICAL claims in governance docs and verifies each has a
 // @Security:<id> or @RACI:<id> annotation in the codebase.
 // Usage: node scripts/check-stride-traceability.mjs (must be run from project root)
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, extname } from 'node:path'
 
 let failed = 0

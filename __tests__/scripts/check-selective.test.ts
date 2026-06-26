@@ -1,28 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 
 // Unit tests for selective gating logic (ADR-053)
-// Tests the computeSkipped() function exported from scripts/check-all.mjs
-// and the resetSelectiveState() export for test isolation
+// Tests the computeSkipped() pure function exported from scripts/check-all.mjs.
+// Isolation comes from the cache-busted dynamic import (no module-level state).
 
 let computeSkipped: (
   changedFiles: string[],
   registry: Array<{ name: string; affects: string[] }>,
   blacklist: string[],
 ) => Set<string>
-let resetSelectiveState: () => void
 
 beforeEach(async () => {
-  // Dynamic import for test isolation via resetSelectiveState
+  // Cache-busted dynamic import for test isolation.
   const mod = await import('../../scripts/check-all.mjs?t=' + Date.now())
   computeSkipped = (mod as { computeSkipped: typeof computeSkipped }).computeSkipped
-  resetSelectiveState = (mod as { resetSelectiveState: typeof resetSelectiveState })
-    .resetSelectiveState
-  if (resetSelectiveState) resetSelectiveState()
-})
-
-afterEach(() => {
-  if (resetSelectiveState) resetSelectiveState()
 })
 
 describe('computeSkipped — blacklist forces full gate', () => {

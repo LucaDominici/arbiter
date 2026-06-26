@@ -38,14 +38,8 @@ import { minimatch } from 'minimatch'
 import { runCheck, runWarnCheck, runToolCheck, getResults, getFailed } from './lib/run-helpers.mjs'
 import { parseCheckArgs } from './lib/parse-check-args.mjs'
 
-// isMain guard so computeSkipped/resetSelectiveState can be imported without running checks.
+// isMain guard so computeSkipped can be imported without running checks.
 const isMain = process.argv[1] === fileURLToPath(import.meta.url)
-
-let skippedChecks = new Set()
-
-export function resetSelectiveState() {
-  skippedChecks = new Set()
-}
 
 /**
  * Compute which checks to skip given a set of changed files (opt-in selective gating).
@@ -105,7 +99,9 @@ if (isMain) {
   runCheck('no tracked artifacts (INV-117)', 'node', ['scripts/check-no-tracked-artifacts.mjs'])
   runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
   runCheck('format', 'npx', ['prettier', '--check', '.'])
-  runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])
+  // #1523: scripts/ (the gate-enforcement layer) is linted alongside src/ and
+  // __tests__/ so the enforcer is held to the same dead-code bar it imposes.
+  runCheck('lint', 'npx', ['eslint', 'src', '__tests__', 'scripts'])
   runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
   runCheck(
     'greenfield smoke',
