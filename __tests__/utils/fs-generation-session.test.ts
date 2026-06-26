@@ -105,14 +105,27 @@ describe('fs generation session (#1328 hash-aware skipIfExists)', () => {
     expect(recorded['blocker/child.txt']).toBeUndefined()
   })
 
-  it('A3: beginGenerationSession defensively resets a leaked prior session', () => {
+  it('A3: beginGenerationSession throws when a session is already active (#1531)', () => {
     beginGenerationSession({ targetDir: '/leaked/other', prevHashes: { x: sha('x') } })
-    // no endGenerationSession — simulate a leak, then a new command begins
+    // A second begin while one is active means a missed `endGenerationSession`
+    // (leaked finally) or an unsupported nested/concurrent generation. Fail loud
+    // instead of silently clobbering the active session — the silent overwrite
+    // could otherwise discard an in-flight manifest baseline (#1531).
+    expect(() => beginGenerationSession({ targetDir: dir, prevHashes: {} })).toThrow(
+      /already active/,
+    )
+    // The original session is untouched; the afterEach guard clears it.
+  })
+
+  it('A3b: sequential begin→end→begin in one process is allowed (#1531)', () => {
     beginGenerationSession({ targetDir: dir, prevHashes: {} })
-    writeFile(join(dir, 'fresh.txt'), 'FRESH')
-    const recorded = endGenerationSession()
-    expect(recorded['fresh.txt']).toBe(sha('FRESH'))
-    expect(recorded['x']).toBeUndefined()
+    writeFile(join(dir, 'a.txt'), 'A')
+    endGenerationSession()
+    // A fresh session after a clean end must NOT throw — sequential reuse (tests,
+    // batch) stays safe; only an unmatched begin is rejected.
+    expect(() => beginGenerationSession({ targetDir: dir, prevHashes: {} })).not.toThrow()
+    writeFile(join(dir, 'b.txt'), 'B')
+    expect(endGenerationSession()['b.txt']).toBe(sha('B'))
   })
 
   it('dryRun records NO hash (diff must not record a baseline for content not written)', () => {

@@ -165,15 +165,27 @@ function sha256(content: string): string {
 }
 
 /**
- * Begin a generation session. Defensively OVERWRITES any pre-existing session
- * (A3): a leaked session from a prior command (e.g. a throw that bypassed `end`)
- * must never affect the next command in the same process (tests, batch mode).
+ * Begin a generation session. THROWS when a session is already active (#1531):
+ * `writeFile` reads a single module-level session, so reentrancy is unsupported.
+ * An active session at begin-time can only mean a missed `endGenerationSession`
+ * (a leaked `finally`) or an attempted nested/concurrent generation — both real
+ * bugs whose silent overwrite would discard the in-flight manifest baseline.
+ * Surface them loudly rather than clobbering. Sequential `begin → end → begin`
+ * reuse in one process stays valid because `end` clears the session first.
  */
 export function beginGenerationSession(opts: {
   targetDir: string
   prevHashes: Record<string, string>
   onWithheld?: (key: string) => void
 }): void {
+  if (generationSession !== null) {
+    throw new Error(
+      'beginGenerationSession: a generation session is already active. This means a ' +
+        'prior session was not ended (missing endGenerationSession in a finally block) ' +
+        'or a nested/concurrent generation was attempted — both unsupported, since ' +
+        'writeFile reads a single module-level session.',
+    )
+  }
   generationSession = {
     targetDir: opts.targetDir,
     prevHashes: new Map(Object.entries(opts.prevHashes)),
