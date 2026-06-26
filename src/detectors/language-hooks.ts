@@ -128,7 +128,11 @@ const offending = lines.flatMap((line, i) => {
   // (#278 finding #6).
   if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return [];
   if (t.startsWith('import ') || t.startsWith('package ')) return [];
-  return /\\b(List|Map|Set|Collection|ArrayList|HashMap|HashSet|LinkedList|Queue|Deque|Iterator|Optional)\\b(?!<)/.test(line) ? [\`\${i + 1}: \${line.trim()}\`] : [];
+  // Exclude a following '<' (parameterized: List<String>) AND a following '.'
+  // (static-factory call / field access: List.of, Optional.empty). Without the
+  // '.' exclusion the hook false-positived on idiomatic modern Java (List.of,
+  // Map.of, Set.of, Optional.empty/ofNullable) on every edit (#1560).
+  return /\\b(List|Map|Set|Collection|ArrayList|HashMap|HashSet|LinkedList|Queue|Deque|Iterator|Optional)\\b(?![<.])/.test(line) ? [\`\${i + 1}: \${line.trim()}\`] : [];
 });
 if (offending.length > 0) {
   process.stderr.write(\`[arbiter] INV: Raw generic type found (always use type parameters like List<String>): \${file}\\n\`);
