@@ -7,6 +7,7 @@ import {
   worktreeDirectoryName,
   resolveWorktreeBase,
   worktreePathFor,
+  siblingWorktreePathFor,
 } from '../../src/worktree/paths.js'
 
 describe('sanitizeTaskId', () => {
@@ -24,6 +25,54 @@ describe('sanitizeTaskId', () => {
 
   it('rejects slashes in the id', () => {
     expect(() => sanitizeTaskId('12/3')).toThrow(/invalid/i)
+  })
+
+  it('rejects backslashes in the id', () => {
+    expect(() => sanitizeTaskId('12\\3')).toThrow(/invalid/i)
+  })
+
+  // #1541 — the docstring calls this a "security guard"; harden it so its safety
+  // is intrinsic (not merely backstopped by git's ref validation downstream).
+  it('rejects a parent-directory traversal segment', () => {
+    expect(() => sanitizeTaskId('..')).toThrow(/invalid/i)
+    expect(() => sanitizeTaskId('#..')).toThrow(/invalid/i)
+    expect(() => sanitizeTaskId('..foo')).toThrow(/invalid/i)
+  })
+
+  it('rejects a leading dash (git-flag confusion)', () => {
+    expect(() => sanitizeTaskId('-x')).toThrow(/invalid/i)
+    expect(() => sanitizeTaskId('#-x')).toThrow(/invalid/i)
+  })
+
+  it('rejects characters outside the whitelist', () => {
+    expect(() => sanitizeTaskId('1;2')).toThrow(/invalid/i)
+    expect(() => sanitizeTaskId('a b')).toThrow(/invalid/i)
+    expect(() => sanitizeTaskId('')).toThrow(/invalid/i)
+  })
+
+  it('still accepts ordinary task ids', () => {
+    expect(sanitizeTaskId('123')).toBe('#123')
+    expect(sanitizeTaskId('#123')).toBe('#123')
+    expect(sanitizeTaskId('123-fix-thing')).toBe('#123-fix-thing')
+  })
+})
+
+describe('siblingWorktreePathFor (#1541)', () => {
+  it('places an ordinary slug under <repo>.worktrees', () => {
+    expect(siblingWorktreePathFor('/home/u/repo', 'my-feature')).toBe(
+      join('/home/u', 'repo.worktrees', 'my-feature'),
+    )
+  })
+
+  it('rejects a traversal that would escape the worktrees base', () => {
+    expect(() => siblingWorktreePathFor('/home/u/repo', '../evil')).toThrow(/sibling/i)
+    expect(() => siblingWorktreePathFor('/home/u/repo', '..')).toThrow(/sibling/i)
+  })
+
+  it('rejects path separators and empty values', () => {
+    expect(() => siblingWorktreePathFor('/home/u/repo', 'a/b')).toThrow(/sibling/i)
+    expect(() => siblingWorktreePathFor('/home/u/repo', 'a\\b')).toThrow(/sibling/i)
+    expect(() => siblingWorktreePathFor('/home/u/repo', '')).toThrow(/sibling/i)
   })
 })
 

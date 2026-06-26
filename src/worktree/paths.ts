@@ -3,14 +3,33 @@ import { dirname, basename, join } from 'node:path'
 
 /**
  * Normalise a raw task ID to the canonical `#NNN` form.
- * Throws on IDs containing path separators (security guard).
+ *
+ * Security guard (#1541): the id becomes part of an on-disk worktree path AND a
+ * git branch ref, so the validation here is intrinsic, not merely backstopped by
+ * git's downstream ref-format check. Rejects (after stripping the single
+ * optional leading `#`):
+ *   - empty input
+ *   - any character outside the whitelist `[A-Za-z0-9._-]` (covers `/`, `\`, and
+ *     shell/space metacharacters)
+ *   - a leading `-` (would be parsed as a flag by git / other CLIs)
+ *   - a `..` parent-directory traversal segment
  */
 export function sanitizeTaskId(raw: string): string {
   const trimmed = raw.trim()
-  if (trimmed.includes('/') || trimmed.includes('\\')) {
-    throw new Error(`Invalid task ID (must not contain slashes): ${raw}`)
+  const core = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
+  if (core.length === 0) {
+    throw new Error(`Invalid task ID (empty): ${JSON.stringify(raw)}`)
   }
-  return trimmed.startsWith('#') ? trimmed : `#${trimmed}`
+  if (!/^[A-Za-z0-9._-]+$/.test(core)) {
+    throw new Error(`Invalid task ID (illegal characters, must match [A-Za-z0-9._-]): ${raw}`)
+  }
+  if (core.startsWith('-')) {
+    throw new Error(`Invalid task ID (must not start with '-'): ${raw}`)
+  }
+  if (core.includes('..')) {
+    throw new Error(`Invalid task ID (must not contain '..'): ${raw}`)
+  }
+  return `#${core}`
 }
 
 /**
@@ -81,6 +100,15 @@ export function worktreePathFor(worktreeBase: string, taskId: string, slug?: str
  * Precedence: explicit `--sibling <slug>` > default `worktreeDirectoryName(taskId, slug)`.
  */
 export function siblingWorktreePathFor(gitRoot: string, siblingSlug: string): string {
+  // #1541: the `--sibling <v>` value reaches here verbatim with a valid branch
+  // name, so (unlike the default flow) git does NOT backstop a traversal. Reject
+  // path separators and `..` so the worktree cannot be placed outside the
+  // `<repo>.worktrees` base.
+  if (siblingSlug.length === 0 || /[/\\]/.test(siblingSlug) || siblingSlug.includes('..')) {
+    throw new Error(
+      `Invalid sibling worktree name (must not be empty or contain path separators or '..'): ${JSON.stringify(siblingSlug)}`,
+    )
+  }
   const parent = dirname(gitRoot)
   const repoName = basename(gitRoot)
   return join(parent, `${repoName}.worktrees`, siblingSlug)

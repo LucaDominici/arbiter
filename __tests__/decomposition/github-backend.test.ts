@@ -167,6 +167,12 @@ describe('GitHubBackend', () => {
       await expect(backend.get('#42')).rejects.toThrow(/gh issue view/i)
     })
 
+    it('rejects a non-integer issue id before shelling out (flag-confusion guard)', async () => {
+      const backend = new GitHubBackend(baseConfig())
+      await expect(backend.get('--json')).rejects.toThrow(/issue id/i)
+      expect(mockRunCliJson).not.toHaveBeenCalled()
+    })
+
     it('returns null on CliError (issue not found)', async () => {
       mockRunCliJson.mockImplementation(() => {
         throw new CliError(
@@ -296,6 +302,12 @@ describe('GitHubBackend', () => {
         expect.arrayContaining(['issue', 'close', '3']),
         expect.anything(),
       )
+    })
+
+    it('rejects a flag-like issue id before shelling out', async () => {
+      const backend = new GitHubBackend(baseConfig())
+      await expect(backend.close('-R')).rejects.toThrow(/issue id/i)
+      expect(mockRunCli).not.toHaveBeenCalled()
     })
   })
 })

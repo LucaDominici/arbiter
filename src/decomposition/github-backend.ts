@@ -84,8 +84,19 @@ function parseGhIssueList(raw: unknown): GhIssue[] {
   return raw.map((item, i) => assertGhIssue(item, `gh issue list[${i}]`))
 }
 
+/**
+ * Strip an optional leading `#` and assert the remainder is a positive integer.
+ * The result is passed to `gh` as a bare positional; a flag-like value
+ * (`--json`, `-R`, `-X`) would be parsed by gh's arg parser as an option rather
+ * than the issue number (argument/flag confusion). `shell:false` stops shell
+ * injection but not this. (#1541)
+ */
 function stripHash(id: string): string {
-  return id.startsWith('#') ? id.slice(1) : id
+  const num = id.startsWith('#') ? id.slice(1) : id
+  if (!/^[0-9]+$/.test(num)) {
+    throw new Error(`Invalid issue id: expected a positive integer, got ${JSON.stringify(id)}`)
+  }
+  return num
 }
 
 export class GitHubBackend implements DecompositionBackend {
@@ -156,7 +167,14 @@ export class GitHubBackend implements DecompositionBackend {
   }
 
   get(id: string): Promise<WorkUnit | null> {
-    const num = stripHash(id)
+    let num: string
+    try {
+      num = stripHash(id)
+    } catch (err) {
+      // An invalid (e.g. flag-like) id is a programming/usage error, not a
+      // "not found" — propagate it rather than masking it as a null result.
+      return Promise.reject(err instanceof Error ? err : new Error(String(err)))
+    }
     try {
       const issue = assertGhIssue(
         runCliJson(
@@ -226,7 +244,12 @@ export class GitHubBackend implements DecompositionBackend {
   }
 
   close(id: string, opts?: { reason?: string }): Promise<void> {
-    const num = stripHash(id)
+    let num: string
+    try {
+      num = stripHash(id)
+    } catch (err) {
+      return Promise.reject(err instanceof Error ? err : new Error(String(err)))
+    }
     const args = ['issue', 'close', num, '-R', this.repoFlag()]
 
     if (opts?.reason) {
