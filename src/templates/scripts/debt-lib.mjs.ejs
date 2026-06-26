@@ -8,8 +8,20 @@ import {
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
+// The `eslint <paths> --format json` report can exceed the Node spawnSync
+// default maxBuffer (1 MiB); without a raised ceiling the child aborts with
+// ENOBUFS, stdout is truncated, the JSON fails to parse, and the metric collapses
+// to 0 — the complexity ratchet would then compare 0 vs 0 forever. 64 MiB covers
+// the full eslint/knip JSON reports.
+const RUN_MAX_BUFFER = 64 * 1024 * 1024;
+
 function run(cmd, args, opts) {
-  return spawnSync(cmd, args, { encoding: 'utf-8', shell: false, ...opts });
+  return spawnSync(cmd, args, {
+    encoding: 'utf-8',
+    shell: false,
+    maxBuffer: RUN_MAX_BUFFER,
+    ...opts,
+  });
 }
 
 // jscpd v5 ships its scanner as a prebuilt native `cpd` binary selected per
