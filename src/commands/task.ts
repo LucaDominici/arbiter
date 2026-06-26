@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { sanitizeTaskId } from '../review/dispatch.js'
+import { getBoolFlag } from '../config/env-registry.js'
 import {
   type TaskPhase,
   type UnifiedTaskState,
@@ -368,7 +369,7 @@ function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOp
   const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
   const sanit = sanitizeTaskId(rawId)
   const inCi = process.env.CI === 'true'
-  const envBypass = process.env.ARBITER_SKIP_PLAN_REVIEW === '1'
+  const envBypass = getBoolFlag('ARBITER_SKIP_PLAN_REVIEW')
 
   if (opts.skipPlanReview === true) {
     writeBypassRecord(dir, sanit, 'flag')
@@ -499,7 +500,7 @@ function checkTddEvidenceGate(dir: string, claudeDir: string): void {
 }
 
 function runBudgetCheck(rawId: string, dir: string, opts: TaskAdvanceOptions): void {
-  const skipBudget = opts.skipBudget === true || process.env['ARBITER_COST_BUDGET_SKIP'] === '1'
+  const skipBudget = opts.skipBudget === true || getBoolFlag('ARBITER_COST_BUDGET_SKIP')
   if (skipBudget) return
   const costEvidencePath = join(dir, '.arbiter', 'evidence', 'cost', `${rawId}.json`)
   try {
@@ -648,7 +649,7 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
   void claudeDir
   const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
 
-  const isPostClear = opts.postClear === true || process.env['ARBITER_POST_CLEAR'] === '1'
+  const isPostClear = opts.postClear === true || getBoolFlag('ARBITER_POST_CLEAR')
 
   if (isPostClear) {
     handlePostClearReEntry(rawId, dir, opts)

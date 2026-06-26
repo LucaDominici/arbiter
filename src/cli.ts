@@ -80,7 +80,7 @@ import {
 } from './commands/work.js'
 import type { WorkUnitPhase, WorkUnitStatus } from './decomposition/types.js'
 import { appendEvidenceLine } from './utils/evidence-log.js'
-import { parseBooleanEnv } from './utils/env.js'
+import { getBoolFlag } from './config/env-registry.js'
 import { runCli } from './utils/run-cli.js'
 import {
   ArbiterError,
@@ -143,8 +143,7 @@ function printCliError(msg: string): void {
  */
 const _rawArgv = process.argv.slice(2)
 const _noEvidenceIdx = _rawArgv.indexOf('--no-evidence')
-const _noEvidence =
-  _noEvidenceIdx !== -1 || parseBooleanEnv(process.env['ARBITER_NO_EVIDENCE']) === true
+const _noEvidence = _noEvidenceIdx !== -1 || getBoolFlag('ARBITER_NO_EVIDENCE')
 if (_noEvidenceIdx !== -1) {
   process.argv.splice(2 + _noEvidenceIdx, 1)
 }
