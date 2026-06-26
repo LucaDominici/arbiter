@@ -10,6 +10,7 @@ import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json
 import { getLogger } from '../utils/logger.js'
 import { detectAdverseGitState } from '../detectors/git.js'
 import { detectGithubAccess } from '../detectors/github.js'
+import { detectLegacyWorkflowCollisionWarning } from '../detectors/workflow-collision.js'
 import { resolveAxisFields } from '../detectors/axis.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../utils/config.js'
@@ -422,10 +423,15 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     // warnings channel as backend warnings — json mode lists it, text mode prints it.
     const unwiredWarning = detectUnwiredGateWarning(results)
     const gateSigWarning = detectGateSignatureWarning(results)
+    // B2 (#1502): after emitting the numbered workflow set, scan the target for
+    // pre-existing LEGACY workflows whose triggers collide (double-running CI,
+    // racing release/signing on one tag). Conservative warn-only — never deletes.
+    const legacyCollisionWarning = detectLegacyWorkflowCollisionWarning(targetDir)
     const allWarnings = [
       ...backendResult.warnings,
       ...(unwiredWarning ? [unwiredWarning] : []),
       ...(gateSigWarning ? [gateSigWarning] : []),
+      ...(legacyCollisionWarning ? [legacyCollisionWarning] : []),
     ]
 
     const validation = validateConfig(nextConfig)
