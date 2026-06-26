@@ -39,6 +39,52 @@ describe('validateConfig — governanceLevel casing normalization', () => {
   })
 })
 
+describe('validateConfig — purity (no input mutation, #1530)', () => {
+  const base = {
+    version: '0.2',
+    tools: ['claude'],
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: false,
+      securityScanning: false,
+      evidenceHarness: false,
+      debtGates: false,
+      suppressions: true,
+    },
+  }
+
+  it('does not upper-case governanceLevel on the caller object', () => {
+    const input = { ...base, governanceLevel: 'l2', thresholds: DEFAULT_THRESHOLDS.L2 }
+    const result = validateConfig(input)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.config.governanceLevel).toBe('L2')
+    // The caller's object must be untouched — normalization lives on the returned copy.
+    expect(input.governanceLevel).toBe('l2')
+  })
+
+  it('does not inject auto-filled thresholds into the caller object', () => {
+    const input = { ...base, governanceLevel: 'L2' } as Record<string, unknown>
+    const result = validateConfig(input)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.config.thresholds).toEqual(DEFAULT_THRESHOLDS.L2)
+    // The auto-fill must not leak onto the input.
+    expect(input['thresholds']).toBeUndefined()
+  })
+
+  it('validates a frozen config without throwing', () => {
+    const input = Object.freeze({
+      ...base,
+      governanceLevel: 'l2',
+      thresholds: DEFAULT_THRESHOLDS.L2,
+    })
+    expect(() => validateConfig(input)).not.toThrow()
+    const result = validateConfig(input)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.config.governanceLevel).toBe('L2')
+  })
+})
+
 describe('validateConfig — valid v2', () => {
   it('accepts a well-formed v2 config', () => {
     const config = {
