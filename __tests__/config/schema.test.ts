@@ -700,6 +700,16 @@ describe('DEFAULT_THRESHOLDS', () => {
     expect(DEFAULT_THRESHOLDS.L3.mutationScore).toBeGreaterThanOrEqual(
       DEFAULT_THRESHOLDS.L2.mutationScore,
     )
+    expect(DEFAULT_THRESHOLDS.L3.branchCoverage).toBeGreaterThan(
+      DEFAULT_THRESHOLDS.L2.branchCoverage,
+    )
+  })
+
+  it('L3/L4 branch floor reaches the gold bar of 88% (#1511)', () => {
+    // Gold-standard branch-coverage bar is >=0.88; the top governance tiers must
+    // not sit ~8pp below it. Enforced as the non-droppable vitest `branches:` floor.
+    expect(DEFAULT_THRESHOLDS.L3.branchCoverage).toBe(88)
+    expect(DEFAULT_THRESHOLDS.L4.branchCoverage).toBe(88)
   })
 
   it('L1 has more lenient values than L2', () => {

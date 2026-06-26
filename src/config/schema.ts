@@ -260,7 +260,9 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
   },
   L3: {
     lineCoverage: 85,
-    branchCoverage: 80,
+    // #1511 — gold-standard branch bar (>=0.88). Branch coverage is a stronger
+    // decision-path signal than lines; the top tiers no longer sit ~8pp below it.
+    branchCoverage: 88,
     mutationScore: 85,
     cyclomaticComplexity: 10,
     methodLength: 40,
@@ -268,7 +270,8 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
   },
   L4: {
     lineCoverage: 85,
-    branchCoverage: 80,
+    // #1511 — gold-standard branch bar (>=0.88), matching L3.
+    branchCoverage: 88,
     mutationScore: 85,
     cyclomaticComplexity: 10,
     methodLength: 40,
