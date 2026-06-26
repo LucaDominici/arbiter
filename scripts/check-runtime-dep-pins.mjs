@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // arbiter — runtime-dependency exact-pin self-check gate (#1557, enforced).
 //
+// CATALOG: Enforces exact (non-caret) version pins on every published runtime dependency (#1557).
+// CATALOG: Rejected fold-in into check-action-pins.mjs because that gate enforces SHA pins on GitHub Actions YAML, a different artifact and spec.
+// CATALOG: Rejected fold-in into check-debt-ratchet/audit because supply-chain pin discipline is a hard pass/fail invariant, not a trend metric.
+//
 // arbiter SHA-pins every GitHub Action (check-action-pins.mjs / INV-76) and emits
 // container-digest gates to consumers (#1442), yet its OWN published runtime
 // `dependencies` were caret-ranged. npm strips package-lock from published tarballs,
