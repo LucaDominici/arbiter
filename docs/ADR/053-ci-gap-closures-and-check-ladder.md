@@ -122,3 +122,6 @@ Cosign sign-blob is attempted as a best-effort annotation (fail-open: `FAIL-OPEN
 - [axe-core CLI](https://github.com/dequelabs/axe-core-npm/tree/develop/packages/cli)
 - ADR-050 §54-58: nightly/weekly/monthly/heartbeat are L3+ only
 - ADR-051: collaboration-mode axis driving `collaborationMode` field
+- `docs/SYSTEM/CI-TIER-MODEL.md`: the cadence × governance model that classifies the gap
+  workflows added here (06-nightly-lite, 15-codeql, 16-frontend-quality, 17-ossf-scorecard)
+  into cadence buckets — overlay only, the emit predicates are unchanged (#1502).

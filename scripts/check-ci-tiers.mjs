@@ -5,6 +5,7 @@
 // Exits 1: fewer than minPresent are present.
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { assertCanonicalPartition } from './lib/ci-cadence.mjs'
 
 const CWD = process.cwd()
 const WORKFLOWS_DIR = join(CWD, '.github', 'workflows')
@@ -20,6 +21,19 @@ const ALL_CANONICAL = [
   '08-monthly.yml',
   '09-heartbeat.yml',
 ]
+
+// PORT D1 (#1502): the cadence model (docs/SYSTEM/CI-TIER-MODEL.md) is an executable
+// SSOT — every canonical workflow MUST be classified into exactly one cadence bucket
+// (ALWAYS / NIGHTLY / WEEKLY-MONTHLY / PROD). A canonical workflow added without a
+// cadence classification fails this gate, keeping the docs + generator + gate in lockstep.
+// This is a self-consistency assertion (constants only): it never relaxes the L1-L4
+// emit predicates, it only asserts the cadence overlay covers the canonical set.
+const cadenceErrors = assertCanonicalPartition(ALL_CANONICAL)
+if (cadenceErrors.length > 0) {
+  console.error('check-ci-tiers: FAIL — cadence-bucket partition is incomplete (PORT D1):')
+  for (const e of cadenceErrors) console.error(`  ${e}`)
+  process.exit(1)
+}
 
 /**
  * Read the minPresent value from the INV-73 entry in src/invariants/catalog.ts.

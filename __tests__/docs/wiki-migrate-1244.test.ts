@@ -87,7 +87,10 @@ const DELETE_LIST = [
   'docs/runbooks/rollback.md',
   'docs/runbooks/troubleshooting.md',
   'docs/SECURITY/RISK_ASSESSMENT.md',
-  'docs/SYSTEM/CI-TIER-MODEL.md',
+  // docs/SYSTEM/CI-TIER-MODEL.md was §WIKI-migrated by #1244, but #1502 (PORT D1)
+  // re-established it as the canonical hand-authored spec for the cadence × governance
+  // model (referenced by ADR-050 + ci-tier-workflows.md). It is now a live doc, not a
+  // wiki-only mirror, so it is intentionally NOT in the delete list.
   'docs/SYSTEM/WORKFLOW-MODEL.md',
   'docs/testing/POST_MERGE_REVIEW_TEMPLATE.md',
 ] as const

@@ -171,3 +171,13 @@ the primary UX.
 - Spec: `docs/SYSTEM/CI-TIER-MODEL.md`
 - Issue: #1004
 - Related: ADR-040 (governance tiers), ADR-042 (gate tiers)
+
+## Amendment — Cadence overlay (2026-06, #1502)
+
+The spec referenced above, `docs/SYSTEM/CI-TIER-MODEL.md`, now exists and adds a **cadence
+axis** layered on top of the archetype-default + governance-floor model decided here. The
+cadence axis classifies every emitted workflow into one of four buckets (ALWAYS / NIGHTLY /
+WEEKLY-MONTHLY / PROD) — it decides _when_ a workflow runs, never _which_ governance level
+emits it. The emit predicates and the L1-L4 floor in this ADR are unchanged. The cadence
+classification is an executable SSOT (`scripts/lib/ci-cadence.mjs`) asserted by
+`scripts/check-ci-tiers.mjs`.
