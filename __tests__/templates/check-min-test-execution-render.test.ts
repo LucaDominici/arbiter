@@ -48,6 +48,15 @@ describe('scripts/check-min-test-execution.mjs.ejs (A2, #1497)', () => {
     expect(content).not.toContain("from './lib/")
   })
 
+  it('does not early-return NA on a runner-less package.json — falls through to go.mod (polyglot)', () => {
+    const content = render()
+    // Regression (gate-reality audit): a JS-frontend + Go-backend repo has a root package.json
+    // with no vitest/jest. The guard must NOT short-circuit to NA before reaching the go.mod
+    // branch, or the empty-suite false-green goes unchecked for the backend suite.
+    expect(content).not.toContain('return null // node project')
+    expect(content).toMatch(/fall through to the go\.mod/i)
+  })
+
   it('parses real captured collect output across vitest/jest/pytest/go (empty ⇒ 0, real ⇒ N)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mte-parse-'))
     try {
