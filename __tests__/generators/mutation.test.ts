@@ -14,23 +14,60 @@ afterEach(() => {
 })
 
 describe('generateMutation — governance level gate', () => {
-  it('returns empty files at L1 for any language', () => {
+  it('returns empty files at L1 for a starter pipeline (no release → no mutation gate)', () => {
     const config = makeConfig(dir, {
       language: 'java',
       governanceLevel: 'L1',
       buildTool: 'gradle',
+      collaborationMode: 'trunk-solo', // L1 trunk-solo → starter
     })
     const result = generateMutation(config)
     expect(result.files).toHaveLength(0)
   })
 
-  it('returns empty files at L2 for any language', () => {
+  it('returns empty files at L2 for a starter pipeline', () => {
     const config = makeConfig(dir, {
       language: 'typescript',
       governanceLevel: 'L2',
+      collaborationMode: 'trunk-solo', // L2 trunk-solo → starter
     })
     const result = generateMutation(config)
     expect(result.files).toHaveLength(0)
+  })
+
+  it('returns empty files at L1 when an explicit starter pipelineStyle suppresses the release', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      governanceLevel: 'L1',
+      pipelineStyle: 'starter',
+    })
+    const result = generateMutation(config)
+    expect(result.files).toHaveLength(0)
+  })
+
+  // #1543 — a non-starter release at L1/L2 enforces mutation as BLOCKING (#1505),
+  // so the matching tool config MUST be generated or the fail-on-empty fallback fails.
+  it('emits stryker.conf.json at L2 for a non-starter pipeline (peer-review L2 → standard)', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      collaborationMode: 'peer-review', // L2 peer-review → standard (release emitted)
+    })
+    const result = generateMutation(config)
+    const stryker = result.files.find((f) => f.path.endsWith('stryker.conf.json'))
+    expect(stryker, 'stryker.conf.json not emitted for non-starter L2').toBeDefined()
+    expect(existsSync(stryker!.path)).toBe(true)
+  })
+
+  it('emits stryker.conf.json at L1 for a non-starter pipeline (gated-review L1 → standard)', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      governanceLevel: 'L1',
+      collaborationMode: 'gated-review', // L1 gated-review → standard (release emitted)
+    })
+    const result = generateMutation(config)
+    const stryker = result.files.find((f) => f.path.endsWith('stryker.conf.json'))
+    expect(stryker, 'stryker.conf.json not emitted for non-starter L1').toBeDefined()
   })
 })
 
@@ -79,11 +116,12 @@ describe('generateMutation — Java L3', () => {
     expect(existsSync(mavenFile!.path)).toBe(true)
   })
 
-  it('does NOT emit pitest.gradle at L2', () => {
+  it('does NOT emit pitest.gradle at L2 for a starter pipeline', () => {
     const config = makeConfig(dir, {
       language: 'java',
       governanceLevel: 'L2',
       buildTool: 'gradle',
+      collaborationMode: 'trunk-solo', // L2 trunk-solo → starter (no release)
     })
     const result = generateMutation(config)
     const pitestFile = result.files.find((f) => f.path.endsWith('pitest.gradle'))
@@ -120,10 +158,11 @@ describe('generateMutation — TypeScript L3', () => {
     expect(content).toContain('vitest')
   })
 
-  it('does NOT emit stryker.conf.json at L2', () => {
+  it('does NOT emit stryker.conf.json at L2 for a starter pipeline', () => {
     const config = makeConfig(dir, {
       language: 'typescript',
       governanceLevel: 'L2',
+      collaborationMode: 'trunk-solo', // L2 trunk-solo → starter (no release)
     })
     const result = generateMutation(config)
     const strykerFile = result.files.find((f) => f.path.endsWith('stryker.conf.json'))

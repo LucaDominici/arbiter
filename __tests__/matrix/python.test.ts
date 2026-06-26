@@ -322,8 +322,9 @@ describe('matrix: Python L3 mutation gate (mutmut)', () => {
     expect(content).not.toContain('mutmut')
   })
 
-  it('L2 config does NOT emit mutmut-config.toml', () => {
-    const config = pythonL3Config({ governanceLevel: 'L2' })
+  it('L2 starter pipeline does NOT emit mutmut-config.toml', () => {
+    // #1543: configs are absent only where no release enforces mutation (starter style).
+    const config = pythonL3Config({ governanceLevel: 'L2', collaborationMode: 'trunk-solo' })
     runGenerators(config)
     expect(existsSync(join(dir, 'mutmut-config.toml'))).toBe(false)
   })

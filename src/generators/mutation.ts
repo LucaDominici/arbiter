@@ -3,6 +3,8 @@ import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { resolveEffectiveThresholds } from '../config/thresholds.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
+import { levelAtLeast } from '../config/levels.js'
+import { releaseEnforcesMutation } from './github.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -40,7 +42,15 @@ export function generateMutation(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): MutationGeneratorResult {
-  if (config.governanceLevel === 'L1' || config.governanceLevel === 'L2') return { files: [] }
+  // #1543 — emit mutation configs at L3+ (always), OR at any level whose release
+  // workflow enforces mutation as BLOCKING (non-starter pipeline style). Previously
+  // gated on L3+ only, which left L1/L2 standard pipelines (e.g. peer-review L2,
+  // gated-review L1/L2) running 05-release's mutation-blocking job with no config →
+  // a zero-mutant fallback that the #1505 fail-on-empty guard fails. Starter pipelines
+  // at L1/L2 (e.g. trunk-solo) emit no release, so they still emit no config.
+  if (!levelAtLeast(config.governanceLevel, 'L3') && !releaseEnforcesMutation(config)) {
+    return { files: [] }
+  }
 
   const { language, targetDir, acceptBetaTools = false } = config
 

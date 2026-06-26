@@ -276,10 +276,17 @@ describe('matrix: TypeScript L3 mutation gate (Stryker)', () => {
     expect(content).toContain("runToolCheck('mutation (stryker)', 'npx', ['stryker', 'run']")
   })
 
-  it('L2 config does NOT emit stryker.conf.json', () => {
-    const config = tsL3Config({ governanceLevel: 'L2' })
+  it('L2 starter pipeline does NOT emit stryker.conf.json', () => {
+    // #1543: configs are absent only where no release enforces mutation (starter style).
+    const config = tsL3Config({ governanceLevel: 'L2', collaborationMode: 'trunk-solo' })
     runGenerators(config)
     expect(existsSync(join(dir, 'stryker.conf.json'))).toBe(false)
+  })
+
+  it('L2 non-starter pipeline DOES emit stryker.conf.json (#1543 release enforces mutation)', () => {
+    const config = tsL3Config({ governanceLevel: 'L2', collaborationMode: 'peer-review' })
+    runGenerators(config)
+    expect(existsSync(join(dir, 'stryker.conf.json'))).toBe(true)
   })
 
   it('AGENTS.md L3 mentions stryker and 85%', () => {

@@ -424,8 +424,9 @@ describe('matrix: Java L3 mutation gate (pitest)', () => {
     expect(content).toContain("runCheck('mutation (pitest)', './gradlew', ['pitest', '-q']")
   })
 
-  it('L2 Gradle config does NOT emit pitest.gradle', () => {
-    const config = javaL3Config({ governanceLevel: 'L2' })
+  it('L2 Gradle starter pipeline does NOT emit pitest.gradle', () => {
+    // #1543: configs are absent only where no release enforces mutation (starter style).
+    const config = javaL3Config({ governanceLevel: 'L2', collaborationMode: 'trunk-solo' })
     runGenerators(config)
     expect(existsSync(join(dir, 'gradle', 'pitest.gradle'))).toBe(false)
   })

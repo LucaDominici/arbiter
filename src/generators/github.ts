@@ -41,6 +41,18 @@ function resolveStyle(config: ProjectConfig): 'starter' | 'standard' | 'industri
   return 'standard'
 }
 
+/**
+ * #1543 — the release workflow (05-release.yml) is emitted, and its mutation-blocking
+ * job enforces mutation as BLOCKING (#1505), exactly when the resolved pipeline style is
+ * non-starter. Mutation tool configs must therefore be generated wherever this returns
+ * true, so the fail-on-empty fallback run has a real config instead of yielding zero
+ * mutants and failing the release. This is the SINGLE predicate both the release emission
+ * (here) and the mutation-config generator (`generateMutation`) consume — they cannot drift.
+ */
+export function releaseEnforcesMutation(config: ProjectConfig): boolean {
+  return resolveStyle(config) !== 'starter'
+}
+
 function generateIndustrialWorkflows(
   workflowsDir: string,
   data: ProjectConfig,

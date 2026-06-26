@@ -287,8 +287,9 @@ describe('matrix: Rust L3 mutation gate (cargo-mutants)', () => {
     expect(content).not.toContain('mutants')
   })
 
-  it('L2 config does NOT emit cargo-mutants.toml', () => {
-    const config = rustL3Config({ governanceLevel: 'L2' })
+  it('L2 starter pipeline does NOT emit cargo-mutants.toml', () => {
+    // #1543: configs are absent only where no release enforces mutation (starter style).
+    const config = rustL3Config({ governanceLevel: 'L2', collaborationMode: 'trunk-solo' })
     runGenerators(config)
     expect(existsSync(join(dir, 'cargo-mutants.toml'))).toBe(false)
   })
