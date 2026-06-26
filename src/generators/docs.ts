@@ -134,18 +134,13 @@ export function generateDocs(
     )
   }
 
-  // F12: docs/SECURITY/ scaffold — STRIDE threat model (KIT dim 66, M3 REFERENCE, L2+)
-  // #1592: canonical uppercase SECURITY — the case the traceability gate parses
-  // (scripts/check-stride-traceability.mjs) and the case stride-enforcement.ts and
-  // the ISO27001 emit above already use. A lowercase twin orphaned the gate on
-  // Linux and double-keyed the write manifest on case-insensitive FSes.
-  results.push(
-    writeFile(
-      resolvedPath(base, 'docs', 'SECURITY', 'STRIDE.md'),
-      renderTemplate('security/STRIDE.md.ejs', data),
-      { skipIfExists: true, dryRun: opts.dryRun },
-    ),
-  )
+  // #1578/#1592: docs/SECURITY/STRIDE.md is emitted solely by the purpose-built
+  // stride-enforcement generator (which also owns the check-stride-traceability gate
+  // that parses it). docs.ts previously emitted a second copy to the same path with
+  // identical L2+ gating; once #1592 unified the casing to uppercase SECURITY the two
+  // writes collapsed onto one key and the #1578 no-double-emit guard fired. Dropping
+  // the duplicate here leaves stride-enforcement as the sole emitter — the emission
+  // surface is unchanged (STRIDE.md is still produced at L2/L3/L4).
 
   // F12: docs/SECURITY/ scaffold — risk assessment (KIT dim 66, M3 REFERENCE, L3 only)
   if (config.governanceLevel === 'L3') {

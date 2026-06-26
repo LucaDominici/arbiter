@@ -60,7 +60,13 @@ function fetchExistingTitles(): Set<string> {
       if (typeof title === 'string') titles.add(title)
     }
     return titles
-  } catch {
+  } catch (err) {
+    // Best-effort dedup: surface the failure so a silently-skipped title fetch (which
+    // would let duplicate issues be created) is observable, then degrade to empty.
+    const reason = err instanceof Error ? err.message : String(err)
+    process.stderr.write(
+      `[emit-issues] could not fetch existing issue titles — dedup skipped: ${reason}\n`,
+    )
     return new Set()
   }
 }

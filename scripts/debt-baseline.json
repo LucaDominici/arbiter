@@ -20,7 +20,7 @@
       "direction": "lower-is-better"
     },
     "complexityViolations": {
-      "value": 212,
+      "value": 214,
       "unit": "count",
       "direction": "lower-is-better"
     },
@@ -35,7 +35,7 @@
       "direction": "lower-is-better"
     },
     "publicApiSurface": {
-      "value": 1249,
+      "value": 1255,
       "unit": "count",
       "direction": "lower-is-better"
     },

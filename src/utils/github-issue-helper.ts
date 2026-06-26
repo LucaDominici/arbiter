@@ -98,8 +98,8 @@ export function appendTechDebtIssue(evidenceDir: string, issueNumber: number): v
               (v): v is number => typeof v === 'number' && Number.isInteger(v),
             )
           : []
+      // FAIL-OPEN-INTENT: malformed tech-debt spool resets to [] per the never-throw contract (#1574)
     } catch {
-      // Any malformed spool (incl. a SyntaxError) resets to [] per the contract.
       issues = []
     }
   }

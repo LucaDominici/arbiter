@@ -179,18 +179,22 @@ describe('generateDocs — runbooks scaffold (#897)', () => {
 })
 
 describe('generateDocs — docs/SECURITY/ scaffold (#897)', () => {
-  it('emits docs/SECURITY/STRIDE.md at L2', () => {
-    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+  // #1578/#1592: STRIDE.md has a single owner — the stride-enforcement generator.
+  // generateDocs must NOT emit it (a second emit to the same path is the exact
+  // double-emit the #1578 conformance guard rejects). These tests pin the
+  // sole-emitter contract so the duplicate cannot silently come back.
+  it.each(['L2', 'L3'] as const)('generateDocs does NOT emit STRIDE.md at %s', (level) => {
+    generateDocs(makeConfig(dir, { governanceLevel: level }))
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'STRIDE.md'))).toBe(false)
+  })
+
+  it.each(['L2', 'L3'] as const)('stride-enforcement emits STRIDE.md at %s', (level) => {
+    generateStrideEnforcement(makeConfig(dir, { governanceLevel: level }))
     expect(existsSync(join(dir, 'docs', 'SECURITY', 'STRIDE.md'))).toBe(true)
   })
 
-  it('emits docs/SECURITY/STRIDE.md at L3', () => {
-    generateDocs(makeConfig(dir, { governanceLevel: 'L3' }))
-    expect(existsSync(join(dir, 'docs', 'SECURITY', 'STRIDE.md'))).toBe(true)
-  })
-
-  it('does not emit docs/SECURITY/STRIDE.md at L1', () => {
-    generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
+  it('stride-enforcement does not emit STRIDE.md at L1', () => {
+    generateStrideEnforcement(makeConfig(dir, { governanceLevel: 'L1' }))
     expect(existsSync(join(dir, 'docs', 'SECURITY', 'STRIDE.md'))).toBe(false)
   })
 
@@ -214,7 +218,7 @@ describe('generateDocs — docs/SECURITY/ scaffold (#897)', () => {
     mkdirSync(secDir, { recursive: true })
     const target = join(secDir, 'STRIDE.md')
     writeFileSync(target, 'PREEXISTING')
-    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    generateStrideEnforcement(makeConfig(dir, { governanceLevel: 'L2' }))
     expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
   })
 })
