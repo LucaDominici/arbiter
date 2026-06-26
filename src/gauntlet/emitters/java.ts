@@ -12,25 +12,86 @@
 
 import type { GauntletSpec } from '../spec.js'
 import type { IpogRow } from '../ipog.js'
+import { escapeStringLiteral, sanitizeIdentifier } from '../spec.js'
+
+/** A representative subset of Java reserved words that could appear as a dim key. */
+const JAVA_RESERVED: readonly string[] = [
+  'abstract',
+  'assert',
+  'boolean',
+  'break',
+  'byte',
+  'case',
+  'catch',
+  'char',
+  'class',
+  'const',
+  'continue',
+  'default',
+  'do',
+  'double',
+  'else',
+  'enum',
+  'extends',
+  'final',
+  'finally',
+  'float',
+  'for',
+  'goto',
+  'if',
+  'implements',
+  'import',
+  'instanceof',
+  'int',
+  'interface',
+  'long',
+  'native',
+  'new',
+  'package',
+  'private',
+  'protected',
+  'public',
+  'return',
+  'short',
+  'static',
+  'strictfp',
+  'super',
+  'switch',
+  'synchronized',
+  'this',
+  'throw',
+  'throws',
+  'transient',
+  'try',
+  'void',
+  'volatile',
+  'while',
+  'true',
+  'false',
+  'null',
+  'var',
+]
 
 export function emitJava(spec: GauntletSpec, rows: IpogRow[]): string {
   if (rows.length === 0) {
     throw new Error('Gauntlet emitter: no rows match constraints — cannot emit empty test suite')
   }
   const firstRow = rows[0] as IpogRow
-  const className = toPascalCase(spec.name) + 'GauntletTest'
+  const className = sanitizeIdentifier(toPascalCase(spec.name)) + 'GauntletTest'
+  const methodName = sanitizeIdentifier(`test_${toCamelCase(spec.name)}`)
   const params = Object.keys(firstRow)
+  const ident = (p: string): string => sanitizeIdentifier(toCamelCase(p), JAVA_RESERVED)
 
   const argStream = rows
     .map((row) => {
-      const vals = params.map((p) => `"${row[p] ?? ''}"`)
+      const vals = params.map((p) => `"${escapeStringLiteral(row[p] ?? '')}"`)
       return `      Arguments.of(${vals.join(', ')})`
     })
     .join(',\n')
 
-  const paramDecls = params.map((p) => `String ${toCamelCase(p)}`).join(', ')
+  const paramDecls = params.map((p) => `String ${ident(p)}`).join(', ')
   const assertBody = params
-    .map((p) => `    assertNotNull(${toCamelCase(p)}, "${p} must not be null");`)
+    .map((p) => `    assertNotNull(${ident(p)}, "${escapeStringLiteral(p)} must not be null");`)
     .join('\n')
 
   return [
@@ -56,7 +117,7 @@ export function emitJava(spec: GauntletSpec, rows: IpogRow[]): string {
     ``,
     `    @ParameterizedTest`,
     `    @MethodSource("matrix")`,
-    `    void test_${toCamelCase(spec.name)}(${paramDecls}) {`,
+    `    void ${methodName}(${paramDecls}) {`,
     `        // TODO(#260): implement test body using params`,
     assertBody,
     `    }`,

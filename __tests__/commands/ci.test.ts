@@ -48,6 +48,21 @@ describe('ci plan (#261, AC-1 AC-2 AC-4)', () => {
     expect(result.plan.warning).toMatch(/no graph/)
   })
 
+  it('returns a structured exit-2 plan on a malformed graph.json instead of crashing (#1593)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    // Valid JSON but no nodes/edges arrays — must not throw an uncaught TypeError.
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(join(dir, '.arbiter', 'graph.json'), '{}', 'utf-8')
+    let result: ReturnType<typeof runCiPlan> | undefined
+    expect(() => {
+      result = runCiPlan({ dir, changedFiles: ['src/foo.ts'] })
+    }).not.toThrow()
+    expect(result?.status).toBe('error')
+    expect(result?.exitCode).toBe(2)
+    expect(result?.reason).toBeDefined()
+  })
+
   it('traverses graph and finds impacted INVs', () => {
     const dir = makeTmp()
     dirs.push(dir)

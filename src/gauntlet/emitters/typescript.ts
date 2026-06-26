@@ -25,10 +25,13 @@ export function emitTypeScript(spec: GauntletSpec, rows: IpogRow[]): string {
     '',
     `const matrix = ${JSON.stringify(rows, null, 2)} as const`,
     '',
-    `test.describe('${spec.name}', () => {`,
+    // Names/tags are JSON-encoded, never spliced raw: an apostrophe must not
+    // close the string and a `${...}` in a tag must not become a live
+    // template-literal interpolation evaluated at test runtime (#1590).
+    `test.describe(${JSON.stringify(spec.name)}, () => {`,
     `  for (const params of matrix) {`,
     `    const label = Object.entries(params).map(([k,v]) => \`\${k}=\${v}\`).join(', ')`,
-    `    test(\`[${spec.tags[0] ?? '@gauntlet'}] \${label}\`, async ({ page }) => {`,
+    `    test(${JSON.stringify(`[${spec.tags[0] ?? '@gauntlet'}] `)} + label, async ({ page }) => {`,
     `      // TODO(#260): implement test body using params`,
     `      expect(params).toBeTruthy()`,
     `    })`,

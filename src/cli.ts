@@ -2055,11 +2055,9 @@ gauntlet
   .description('Check generated tests are in sync with spec hash')
   .requiredOption('--spec <path>', 'Path to gauntlet.yaml spec file')
   .requiredOption('--out <dir>', 'Directory of generated test files')
-  .option('--coverage <mode>', 'Coverage mode: pairwise | 3-way (default: pairwise)', 'pairwise')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { spec: string; out: string; coverage: string; json: boolean }) => {
-    const coverage = opts.coverage === '3-way' ? '3-way' : 'pairwise'
-    const result = runGauntletVerify({ spec: opts.spec, out: opts.out, coverage })
+  .action((opts: { spec: string; out: string; json: boolean }) => {
+    const result = runGauntletVerify({ spec: opts.spec, out: opts.out })
     if (opts.json) {
       jsonOutput(
         'gauntlet verify',
@@ -2236,8 +2234,9 @@ review
       json: boolean
       postPr?: string
     }) => {
-      const { readFileSync: rfs, existsSync: efs } = await import('node:fs')
+      const { existsSync: efs } = await import('node:fs')
       const { resolve: res, join: pjoin } = await import('node:path')
+      const { loadGraphSnapshot: loadGraph } = await import('./graph/load.js')
       const dir = res(opts.dir ?? '.')
 
       const headPath =
@@ -2256,12 +2255,25 @@ review
         )
       }
 
-      const head = JSON.parse(rfs(headPath, 'utf-8')) as import('./graph/model.js').GraphSnapshot
-      const base = efs(basePath)
-        ? (JSON.parse(rfs(basePath, 'utf-8')) as import('./graph/model.js').GraphSnapshot)
-        : { nodes: [], edges: [] }
+      // Route both graphs through the SSOT loader (#1593): a valid-JSON-but-
+      // malformed graph.json must yield the advertised `review diff: FAIL` /
+      // exit 2, not an uncaught `snapshot.nodes is not iterable`.
+      const headOutcome = loadGraph(headPath)
+      if (!headOutcome.ok) {
+        process.stderr.write(`review diff: FAIL — ${headOutcome.reason}\n`)
+        process.exit(2)
+      }
+      let base: import('./graph/model.js').GraphSnapshot = { nodes: [], edges: [] }
+      if (efs(basePath)) {
+        const baseOutcome = loadGraph(basePath)
+        if (!baseOutcome.ok) {
+          process.stderr.write(`review diff: FAIL — ${baseOutcome.reason}\n`)
+          process.exit(2)
+        }
+        base = baseOutcome.snapshot
+      }
 
-      const result = runReviewDiff({ base, head })
+      const result = runReviewDiff({ base, head: headOutcome.snapshot })
 
       if (opts.json) {
         jsonOutput(

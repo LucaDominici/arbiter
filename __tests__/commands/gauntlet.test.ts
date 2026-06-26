@@ -158,6 +158,22 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
     expect(result.status).toBe('ok')
     expect(result.graphEdges).toBeGreaterThan(0)
   })
+
+  it('degrades to zero edges on a malformed graph.json instead of crashing (#1593)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    const spec = writeSpec(dir)
+    const outDir = join(dir, 'out')
+    // Valid JSON, but missing the nodes/edges arrays — must not throw.
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(join(dir, '.arbiter', 'graph.json'), '{}', 'utf-8')
+    let result: ReturnType<typeof runGauntletGenerate> | undefined
+    expect(() => {
+      result = runGauntletGenerate({ spec, out: outDir, stack: 'typescript', dir })
+    }).not.toThrow()
+    expect(result?.status).toBe('ok')
+    expect(result?.graphEdges).toBe(0)
+  })
 })
 
 describe('gauntlet verify (#260, AC-4 AC-5)', () => {
@@ -175,7 +191,7 @@ describe('gauntlet verify (#260, AC-4 AC-5)', () => {
     const spec = writeSpec(dir)
     const outDir = join(dir, 'out')
     runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
-    const result = runGauntletVerify({ spec, out: outDir, coverage: 'pairwise' })
+    const result = runGauntletVerify({ spec, out: outDir })
     expect(result.status).toBe('ok')
     expect(result.exitCode).toBe(0)
   })
@@ -188,7 +204,7 @@ describe('gauntlet verify (#260, AC-4 AC-5)', () => {
     runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
     // Mutate spec
     writeFileSync(spec, BASIC_SPEC + '\n# changed\n', 'utf-8')
-    const result = runGauntletVerify({ spec, out: outDir, coverage: 'pairwise' })
+    const result = runGauntletVerify({ spec, out: outDir })
     expect(result.status).toBe('error')
     expect(result.reason).toMatch(/out of sync/)
   })
@@ -197,8 +213,36 @@ describe('gauntlet verify (#260, AC-4 AC-5)', () => {
     const dir = makeTmp()
     dirs.push(dir)
     const spec = writeSpec(dir)
-    const result = runGauntletVerify({ spec, out: join(dir, 'nonexistent'), coverage: 'pairwise' })
+    const result = runGauntletVerify({ spec, out: join(dir, 'nonexistent') })
     expect(result.status).toBe('error')
     expect(result.reason).toMatch(/not found|no generated/)
+  })
+
+  it('fails (exit 2) when the generated test file was deleted (#1572)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    const spec = writeSpec(dir)
+    const outDir = join(dir, 'out')
+    const gen = runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
+    // Tamper: delete the generated artifact, keep the spec and hash sidecar.
+    rmSync(gen.files[0]!, { force: true })
+    const result = runGauntletVerify({ spec, out: outDir })
+    expect(result.status).toBe('error')
+    expect(result.exitCode).toBe(2)
+    expect(result.reason).toMatch(/missing|deleted/i)
+  })
+
+  it('fails (exit 2) when the generated test file was hand-edited (#1572)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    const spec = writeSpec(dir)
+    const outDir = join(dir, 'out')
+    const gen = runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
+    // Tamper: gut the generated artifact while leaving the spec untouched.
+    writeFileSync(gen.files[0]!, '// gutted, no assertions\n', 'utf-8')
+    const result = runGauntletVerify({ spec, out: outDir })
+    expect(result.status).toBe('error')
+    expect(result.exitCode).toBe(2)
+    expect(result.reason).toMatch(/modified|drift|sync/i)
   })
 })

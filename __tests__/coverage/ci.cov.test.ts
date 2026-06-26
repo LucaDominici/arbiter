@@ -71,7 +71,7 @@ describe('runCiPlan — parse-error branch', () => {
     expect(result.exitCode).toBe(2)
     expect(result.plan.fallback).toBe(true)
     expect(result.plan.risk_class).toBe('R-unknown')
-    expect(result.reason).toMatch(/failed to parse graph/)
+    expect(result.reason).toMatch(/failed to load graph/)
   })
 
   it('error plan carries empty impacted/required arrays', () => {

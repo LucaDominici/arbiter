@@ -107,4 +107,21 @@ describe('trace command (#259, AC-4 + AC-9)', () => {
     expect(result.status).toBe('error')
     expect(result.reason).toMatch(/unknown node id/)
   })
+
+  it('rejects a graph with an element-level invalid node kind (#1593 SSOT validation)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'trace-badkind-'))
+    cleanups.push(() => rmSync(dir, { recursive: true, force: true }))
+    const path = join(dir, '.arbiter', 'graph.json')
+    mkdirSync(dirname(path), { recursive: true })
+    // nodes/edges are arrays (passes the old inline loader) but the node kind
+    // is not in ALL_NODE_KINDS — the SSOT loader validates each element.
+    writeFileSync(
+      path,
+      JSON.stringify({ nodes: [{ id: 'X:1', kind: 'BOGUS', attrs: {} }], edges: [] }),
+      'utf-8',
+    )
+    const result = runTrace({ from: 'X:1', dir })
+    expect(result.status).toBe('error')
+    expect(result.reason).toMatch(/schema validation/)
+  })
 })
