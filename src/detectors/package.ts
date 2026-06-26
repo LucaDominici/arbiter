@@ -10,8 +10,19 @@ export function detectBasePackage(dir: string): string | undefined {
   const pomPath = join(dir, 'pom.xml')
   if (existsSync(pomPath)) {
     const content = readFileSync(pomPath, 'utf-8')
-    const match = content.match(/<groupId>([^<]+)<\/groupId>/)
-    if (match?.[1]) return match[1].trim()
+    // The project's OWN <groupId> is the base package, not the inherited
+    // <parent> groupId. In a standard Spring Boot pom the <parent> block
+    // (spring-boot-starter-parent → org.springframework.boot) precedes the
+    // project's groupId, so a first-match regex over the raw content grabs the
+    // framework's package and mis-scaffolds every generated source under it
+    // (#1582). Strip the <parent> block first so the project's groupId wins.
+    const stripped = content.replace(/<parent>[\s\S]*?<\/parent>/i, '')
+    const own = stripped.match(/<groupId>([^<]+)<\/groupId>/)
+    if (own?.[1]) return own[1].trim()
+    // Maven inheritance: a child that omits its own <groupId> inherits the
+    // parent's. With the project groupId absent, fall back to the parent's.
+    const inherited = content.match(/<groupId>([^<]+)<\/groupId>/)
+    if (inherited?.[1]) return inherited[1].trim()
   }
 
   // Match `group = "com.acme"` (Groovy DSL) and `group = "com.acme"` (Kotlin DSL —
