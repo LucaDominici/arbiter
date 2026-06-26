@@ -155,13 +155,19 @@ export function saveGeneratedManifest(
   unwiredGuards: string[] = [],
 ): void {
   const path = join(dir, GENERATED_MANIFEST_FILE)
-  const sorted = Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b)))
+  // Codepoint order, NOT `localeCompare`: the manifest is a committed, deterministically
+  // regenerated integrity file, so its byte layout must be locale-independent (#1601).
+  const sorted = Object.fromEntries(
+    Object.entries(files).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  )
   const envelope: GeneratedManifestV1 = { $schemaVersion: CURRENT_MANIFEST_VERSION, files: sorted }
   // Only attach the honest-status section when there IS a gap, so a clean update
   // leaves the manifest byte-identical to today (no fleet-wide diff churn). The
   // list is re-derived every update, so wiring the gate later clears it.
   if (unwiredGuards.length > 0) {
-    envelope.unwiredGuards = [...new Set(unwiredGuards)].sort((a, b) => a.localeCompare(b))
+    envelope.unwiredGuards = [...new Set(unwiredGuards)].sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    )
   }
   const body = JSON.stringify(envelope, null, 2) + '\n'
   mkdirSync(dirname(path), { recursive: true })

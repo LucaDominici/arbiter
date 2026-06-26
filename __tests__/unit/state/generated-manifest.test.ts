@@ -33,6 +33,20 @@ describe('generated-manifest', () => {
     expect(loadGeneratedManifest(dir)).toEqual(files)
   })
 
+  it('orders file keys by codepoint, not locale collation (#1601)', () => {
+    // A non-ASCII path key must land deterministically: codepoint order puts 'z' (U+007A)
+    // before 'ö' (U+00F6), so `aö.txt` sorts AFTER `az.txt` regardless of the runtime LANG.
+    const files = {
+      'aö.txt': 'a'.repeat(64),
+      'az.txt': 'b'.repeat(64),
+      'az_b.txt': 'c'.repeat(64),
+    }
+    saveGeneratedManifest(dir, files)
+    const raw = readFileSync(join(dir, GENERATED_MANIFEST_FILE), 'utf-8')
+    const fileKeys = (JSON.parse(raw) as { files: Record<string, string> }).files
+    expect(Object.keys(fileKeys)).toEqual(['az.txt', 'az_b.txt', 'aö.txt'])
+  })
+
   it('saved manifest carries a $schemaVersion and no backup file is created', () => {
     saveGeneratedManifest(dir, { 'a.txt': 'a'.repeat(64) })
     const raw = JSON.parse(readFileSync(join(dir, GENERATED_MANIFEST_FILE), 'utf-8')) as {

@@ -63,6 +63,22 @@ describe('shouldRedactKey', () => {
       expect(shouldRedactKey(key)).toBe(false)
     })
   }
+
+  // #1573: key-name heuristic extensions — DSN segment + run-together compounds.
+  const extendedPositives = ['SENTRY_DSN', 'APP_DSN', 'APIKEY', 'MYAPITOKEN', 'PRIVATEKEY']
+  for (const key of extendedPositives) {
+    it(`redacts ${key} (extended heuristic)`, () => {
+      expect(shouldRedactKey(key)).toBe(true)
+    })
+  }
+
+  // Compound-word matching must NOT over-redact these benign run-together keys.
+  const extendedNegatives = ['MONKEY', 'COMPASS', 'AUTHOR']
+  for (const key of extendedNegatives) {
+    it(`keeps ${key} (no false-positive from compound match)`, () => {
+      expect(shouldRedactKey(key)).toBe(false)
+    })
+  }
 })
 
 describe('redactEnv', () => {
@@ -77,6 +93,33 @@ describe('redactEnv', () => {
     expect(out.GITHUB_TOKEN).toBe('***REDACTED***')
     expect(out.OPENAI_API_KEY).toBe('***REDACTED***')
     expect(out.USER).toBe('alice')
+  })
+
+  // #1573: value-based pass — connection strings carry `user:pass@` userinfo whose
+  // KEY name trips none of the keyword heuristics, yet the VALUE is a cleartext secret.
+  it('redacts connection-string values with embedded user:pass@ userinfo', () => {
+    const out = redactEnv({
+      DATABASE_URL: 'postgres://user:secretpass@host:5432/db',
+      REDIS_URL: 'redis://default:hunter2@cache:6379',
+      MONGODB_URI: 'mongodb://admin:s3cr3t@mongo/app',
+      AMQP_URL: 'amqp://guest:guestpw@broker:5672',
+    })
+    expect(out.DATABASE_URL).toBe('***REDACTED***')
+    expect(out.REDIS_URL).toBe('***REDACTED***')
+    expect(out.MONGODB_URI).toBe('***REDACTED***')
+    expect(out.AMQP_URL).toBe('***REDACTED***')
+  })
+
+  it('redacts a SENTRY_DSN value via the userinfo value pass', () => {
+    const out = redactEnv({ SENTRY_DSN: 'https://pubkey:privkey@o0.ingest.sentry.io/1' })
+    expect(out.SENTRY_DSN).toBe('***REDACTED***')
+  })
+
+  it('keeps a benign connection string with no userinfo (preserves diagnostic value)', () => {
+    // Locked behaviour (#1573): no embedded credential → not redacted, the URL stays
+    // visible for replay diagnostics. The key name alone does not imply a secret.
+    const out = redactEnv({ DATABASE_URL: 'postgres://db-host:5432/app' })
+    expect(out.DATABASE_URL).toBe('postgres://db-host:5432/app')
   })
 })
 

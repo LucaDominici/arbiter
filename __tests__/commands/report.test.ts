@@ -202,3 +202,58 @@ describe('runReport', () => {
     expect(result.rejected).toContain('leaky.txt')
   })
 })
+
+// #1571: the ustar header guard validated the entry name in UTF-16 code units but
+// wrote it as UTF-8 bytes — the two disagree for any non-ASCII path, silently
+// truncating multi-byte names and over-strictly aborting legitimately deep paths.
+describe('makeTarHeader / splitUstarName (#1571)', () => {
+  // Read the full path back out of a 512-byte ustar header (prefix + '/' + name).
+  function readUstarPath(header: Buffer): string {
+    const readField = (off: number, len: number): string => {
+      const slice = header.subarray(off, off + len)
+      const nul = slice.indexOf(0)
+      return slice.toString('utf-8', 0, nul === -1 ? len : nul)
+    }
+    const name = readField(0, 100)
+    const prefix = readField(345, 155)
+    return prefix.length > 0 ? `${prefix}/${name}` : name
+  }
+
+  it('round-trips a multi-byte (CJK) filename via UTF-8 bytes without truncation', () => {
+    // 30 CJK chars = 90 UTF-8 bytes: fits the 100-byte name field exactly, but a
+    // UTF-16-length check (30) vs a UTF-8 write would never reveal a near-limit case.
+    const name = '日'.repeat(30) + '.log'
+    const header = __internal.makeTarHeader(name, 10)
+    expect(readUstarPath(header)).toBe(name)
+  })
+
+  it('splits a deep ASCII path into the ustar prefix field instead of aborting', () => {
+    // > 100 bytes total, every component small → must bundle via prefix, not throw.
+    const name = Array.from({ length: 30 }, (_, i) => `dir${i}`).join('/') + '/file.txt'
+    expect(Buffer.byteLength(name, 'utf8')).toBeGreaterThan(100)
+    const split = __internal.splitUstarName(name)
+    expect(Buffer.byteLength(split.name, 'utf8')).toBeLessThanOrEqual(100)
+    expect(Buffer.byteLength(split.prefix, 'utf8')).toBeLessThanOrEqual(155)
+    const header = __internal.makeTarHeader(name, 5)
+    expect(readUstarPath(header)).toBe(name)
+  })
+
+  it('throws (no silent truncation) when a single component exceeds 100 UTF-8 bytes', () => {
+    // 60 CJK chars = 180 UTF-8 bytes, no separator → unrepresentable in ustar. The
+    // OLD guard (name.length = 60 ≤ 100) passed and silently truncated to 100 bytes.
+    const name = '漢'.repeat(60) + '.log'
+    expect(name.length).toBeLessThanOrEqual(100)
+    expect(Buffer.byteLength(name, 'utf8')).toBeGreaterThan(100)
+    expect(() => __internal.makeTarHeader(name, 1)).toThrow(/too long/)
+  })
+
+  it('produces a 512-byte header with a correct ustar checksum', () => {
+    const header = __internal.makeTarHeader('logs/run/output.log', 42)
+    expect(header.length).toBe(512)
+    // Recompute the checksum with the field treated as 8 spaces, per ustar spec.
+    let sum = 0
+    for (let i = 0; i < 512; i++) sum += i >= 148 && i < 156 ? 0x20 : (header[i] ?? 0)
+    const stored = parseInt(header.subarray(148, 154).toString('utf-8').trim(), 8)
+    expect(stored).toBe(sum)
+  })
+})

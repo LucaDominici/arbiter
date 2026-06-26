@@ -113,6 +113,15 @@ describe('loadPlugin', () => {
     )
   })
 
+  it('rejects a plugin whose package.json manifest is invalid (#1562)', async () => {
+    // Manifest lacks the mandatory `arbiter-plugin` keyword — the schema validator
+    // (previously dead production code) is now wired into the runtime load path.
+    installFixture(dir, 'bad-manifest-plugin', 'bad-manifest')
+    await expect(loadPlugin('bad-manifest-plugin', dir)).rejects.toThrow(
+      /invalid package\.json manifest|arbiter-plugin/,
+    )
+  })
+
   it('throws a descriptive error when package is not installed', async () => {
     await expect(loadPlugin('nonexistent-plugin', dir)).rejects.toThrow(/not found/)
   })
