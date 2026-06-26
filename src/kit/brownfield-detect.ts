@@ -126,6 +126,134 @@ function readVitestCoverage(repoPath: string): number | null {
   return null
 }
 
+/**
+ * Read the overall `line-rate` (already a 0–1 ratio) from a Cobertura XML report at
+ * one of the candidate paths. Shared by the Python (`coverage xml`) and Rust
+ * (`cargo-llvm-cov --cobertura`) readers. Returns null if absent/unparseable or the
+ * rate is outside [0,1]. Does NOT divide — a Cobertura `line-rate` is a fraction,
+ * not a 0–100 percentage (#1584).
+ */
+function readCoberturaLineRate(candidatePaths: string[]): number | null {
+  for (const xmlPath of candidatePaths) {
+    if (!existsSync(xmlPath)) continue
+    try {
+      const xml = readFileSync(xmlPath, 'utf8')
+      // The root <coverage …> element carries the aggregate line-rate.
+      const match = /<coverage\b[^>]*\bline-rate="([0-9.]+)"/.exec(xml)
+      if (!match) continue
+      const rate = Number(match[1])
+      if (!isNaN(rate) && rate >= 0 && rate <= 1) return rate
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+/**
+ * Parse a Python coverage report and return line-coverage ratio (0–1). Prefers
+ * `coverage.xml` (Cobertura `line-rate`), then `coverage.json` (pytest-cov:
+ * `totals.percent_covered` is a 0–100 percentage → /100). Returns null if neither
+ * is present/parseable.
+ */
+function readPythonCoverage(repoPath: string): number | null {
+  const xmlRate = readCoberturaLineRate([join(repoPath, 'coverage.xml')])
+  if (xmlRate !== null) return xmlRate
+  const jsonPath = join(repoPath, 'coverage.json')
+  if (existsSync(jsonPath)) {
+    try {
+      const raw = JSON.parse(readFileSync(jsonPath, 'utf8')) as {
+        totals?: { percent_covered?: number }
+      }
+      const pct = raw.totals?.percent_covered
+      if (typeof pct === 'number') return pct / 100
+    } catch {
+      // fall through to null
+    }
+  }
+  return null
+}
+
+/**
+ * Parse a Go `go tool cover` profile (`coverage.out`) and return the
+ * statement-coverage ratio (0–1): covered statements / total statements. Each
+ * profile block is `file:sL.sC,eL.eC numStmts count`; a block counts as covered
+ * when `count > 0` (set/count/atomic modes). Returns null if absent, unparseable,
+ * or empty.
+ */
+function readGoCoverage(repoPath: string): number | null {
+  const candidatePaths = [join(repoPath, 'coverage.out'), join(repoPath, 'cover.out')]
+  for (const profilePath of candidatePaths) {
+    if (!existsSync(profilePath)) continue
+    try {
+      const lines = readFileSync(profilePath, 'utf8').trim().split('\n')
+      let total = 0
+      let covered = 0
+      for (const line of lines) {
+        if (line.startsWith('mode:') || line.trim() === '') continue
+        const parts = line.trim().split(/\s+/)
+        if (parts.length < 3) continue
+        const numStmts = Number(parts[parts.length - 2])
+        const count = Number(parts[parts.length - 1])
+        if (isNaN(numStmts) || isNaN(count)) continue
+        total += numStmts
+        if (count > 0) covered += numStmts
+      }
+      if (total === 0) return null
+      return covered / total
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+/**
+ * Parse a Rust `cargo-llvm-cov --cobertura` report and return line-coverage ratio
+ * (0–1) from the Cobertura `line-rate`. Returns null if absent/unparseable.
+ */
+function readRustCoverage(repoPath: string): number | null {
+  return readCoberturaLineRate([
+    join(repoPath, 'cobertura.xml'),
+    join(repoPath, 'target', 'llvm-cov', 'cobertura.xml'),
+    join(repoPath, 'target', 'nextest', 'cobertura.xml'),
+  ])
+}
+
+/**
+ * Select and run the coverage reader(s) for a language, returning the first
+ * measurable line/statement-coverage ratio (0–1) or null. For `multi`, the readers
+ * are chained jacoco → vitest → python → go → rust so a polyglot repo with any one
+ * report is still measured. Wiring every language (not just JVM/TS) is what stops
+ * under-tested Go/Python/Rust repos from being misclassified into the lenient band
+ * by the null short-circuit (#1584).
+ */
+function readCoverage(repoPath: string, language: string): number | null {
+  const byLanguage: Record<string, (p: string) => number | null> = {
+    java: readJacocoCoverage,
+    typescript: readVitestCoverage,
+    python: readPythonCoverage,
+    go: readGoCoverage,
+    rust: readRustCoverage,
+  }
+  if (language === 'multi') {
+    const chain = [
+      readJacocoCoverage,
+      readVitestCoverage,
+      readPythonCoverage,
+      readGoCoverage,
+      readRustCoverage,
+    ]
+    for (const reader of chain) {
+      const ratio = reader(repoPath)
+      if (ratio !== null) return ratio
+    }
+    return null
+  }
+  const reader = byLanguage[language]
+  return reader ? reader(repoPath) : null
+}
+
 export interface BrownfieldDetectResult {
   /** Detected brownfield class. */
   brownfieldClass: BrownfieldClass
@@ -148,19 +276,17 @@ export interface BrownfieldDetectResult {
  *
  * When coverage is unavailable, the boundary between light/medium/heavy
  * is decided by file count alone, with light = 50–500 and medium = 500–2000.
+ *
+ * Coverage is read for every supported language — java (jacoco), typescript
+ * (vitest), python (coverage.xml/json), go (coverage.out), rust (cargo-llvm-cov) —
+ * so a low-coverage non-JVM/TS repo is no longer mis-classified into the lenient
+ * band by an always-null coverage short-circuit (#1584).
  */
 export function detectBrownfieldClass(repoPath: string, language: string): BrownfieldDetectResult {
   const exts = getSourceExts(language)
   const sourceFileCount = countSourceFiles(repoPath, exts)
 
-  let coverageRatio: number | null = null
-  if (language === 'java' || language === 'multi') {
-    coverageRatio = readJacocoCoverage(repoPath)
-  }
-  if (language === 'typescript' || (language === 'multi' && coverageRatio === null)) {
-    coverageRatio = readVitestCoverage(repoPath)
-  }
-
+  const coverageRatio = readCoverage(repoPath, language)
   const coverageUsed = coverageRatio !== null
 
   let brownfieldClass: BrownfieldClass
