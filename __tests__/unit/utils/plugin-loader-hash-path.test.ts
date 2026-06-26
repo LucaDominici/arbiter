@@ -15,7 +15,14 @@ function stagePlugin(baseDir: string): void {
   mkdirSync(pkgDir, { recursive: true })
   writeFileSync(
     join(pkgDir, 'package.json'),
-    JSON.stringify({ name: PLUGIN_NAME, version: '0.0.1', main: 'index.js' }),
+    // `arbiter-plugin` keyword is required by the manifest validator now wired into
+    // loadPlugin (#1562); a published plugin always declares it.
+    JSON.stringify({
+      name: PLUGIN_NAME,
+      version: '0.0.1',
+      main: 'index.js',
+      keywords: ['arbiter-plugin'],
+    }),
   )
   // CJS — `await import()` wraps module.exports as .default inside the worker.
   writeFileSync(

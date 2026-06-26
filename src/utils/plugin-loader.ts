@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createRequire } from 'node:module'
 import { pathToFileURL, fileURLToPath } from 'node:url'
-import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import type { ArbiterPlugin, PluginResult } from '../types/plugin.js'
+import { validatePluginPackageJson } from '../integrations/plugin-schema.js'
 import { ArbiterError } from './errors.js'
 
 const VALID_NAME_RE = /^[a-z0-9][a-z0-9-_]*$/
@@ -118,6 +120,48 @@ function invokeInWorker(
   })
 }
 
+/**
+ * Read the plugin package's own `package.json` by walking up from the resolved entry
+ * file to the nearest manifest (the package root). A published package always ships
+ * one, so absence is itself a load failure.
+ */
+function readPluginManifest(entry: string): unknown {
+  let dir = dirname(entry)
+  for (let depth = 0; depth < 64; depth++) {
+    const candidate = join(dir, 'package.json')
+    if (existsSync(candidate)) {
+      try {
+        return JSON.parse(readFileSync(candidate, 'utf-8'))
+      } catch (err) {
+        throw new Error(
+          `package.json at ${candidate} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
+          { cause: err },
+        )
+      }
+    }
+    const parent = dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  throw new Error('no package.json manifest found for plugin')
+}
+
+/**
+ * Validate the plugin's `package.json` manifest (npm-valid name, semver version,
+ * mandatory `arbiter-plugin` keyword) BEFORE the untrusted module is executed (#1562).
+ * This is the manifest-level guarantee the schema validator was written and tested for
+ * but never wired into the runtime; `validatePluginShape` (post-load) covers the
+ * distinct runtime-object contract.
+ */
+function validatePluginManifest(entry: string, pkg: string): void {
+  const result = validatePluginPackageJson(readPluginManifest(entry))
+  if (!result.ok) {
+    throw new Error(
+      `Plugin "${pkg}" has an invalid package.json manifest: ${result.errors.join('; ')}`,
+    )
+  }
+}
+
 async function loadRawMod(
   require: NodeJS.Require,
   entry: string,
@@ -159,6 +203,9 @@ export async function loadPlugin(
       { cause: err },
     )
   }
+  // Validate the manifest BEFORE loading/executing the module, so a plugin with a
+  // malformed package.json is rejected without its top-level code ever running (#1562).
+  validatePluginManifest(entry, pkg)
   // Prefer CJS require for metadata extraction: avoids pathToFileURL encoding
   // '#' as '%23', which breaks Vite's module resolver in test environments.
   // Falls back to dynamic import for ESM-only plugins (ERR_REQUIRE_ESM).
