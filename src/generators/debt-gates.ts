@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
-import { getLogger } from '../utils/logger.js'
+import { mutatePackageJson } from '../utils/pkg.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -11,76 +10,48 @@ export interface DebtGatesGeneratorResult {
 }
 
 function injectTestScripts(targetDir: string, dryRun: boolean): void {
-  if (dryRun) return
-  const pkgPath = resolvedPath(targetDir, 'package.json')
-  if (!existsSync(pkgPath)) return
-  let pkg: Record<string, unknown>
-  try {
-    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
-  } catch (err) {
-    getLogger().warn(
-      'debt_gates.inject_test_scripts_parse_failed',
-      { path: pkgPath, err: String(err) },
-      'injectTestScripts: failed to parse package.json',
-    )
-    return
-  }
-  const scripts = (pkg.scripts ?? {}) as Record<string, string>
-  // Mirror arbiter's own dogfooded test-tier convention (path-based, not vitest
-  // `--project`): the generated vitest.config.ts defines no `projects`, so
-  // `vitest run --project <tier>` crashed every generated TS project's gate
-  // (#1324). The optional tiers add --passWithNoTests so a greenfield project
-  // that has not yet added contract/integration/behavioral tests stays green.
-  const testScripts: Record<string, string> = {
-    'test:unit': 'vitest run',
-    'test:contract': 'vitest run --passWithNoTests __tests__/contract',
-    'test:integration': 'vitest run --passWithNoTests __tests__/integrations',
-    'test:behavioral': 'vitest run --passWithNoTests __tests__/behavioral',
-  }
-  let changed = false
-  for (const [key, value] of Object.entries(testScripts)) {
-    if (!scripts[key]) {
-      scripts[key] = value
-      changed = true
+  mutatePackageJson(targetDir, dryRun, (pkg) => {
+    const scripts = (pkg.scripts ?? {}) as Record<string, string>
+    // Mirror arbiter's own dogfooded test-tier convention (path-based, not vitest
+    // `--project`): the generated vitest.config.ts defines no `projects`, so
+    // `vitest run --project <tier>` crashed every generated TS project's gate
+    // (#1324). The optional tiers add --passWithNoTests so a greenfield project
+    // that has not yet added contract/integration/behavioral tests stays green.
+    const testScripts: Record<string, string> = {
+      'test:unit': 'vitest run',
+      'test:contract': 'vitest run --passWithNoTests __tests__/contract',
+      'test:integration': 'vitest run --passWithNoTests __tests__/integrations',
+      'test:behavioral': 'vitest run --passWithNoTests __tests__/behavioral',
     }
-  }
-  if (changed) {
-    pkg.scripts = scripts
-    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
-  }
+    let changed = false
+    for (const [key, value] of Object.entries(testScripts)) {
+      if (!scripts[key]) {
+        scripts[key] = value
+        changed = true
+      }
+    }
+    if (changed) pkg.scripts = scripts
+    return changed
+  })
 }
 
 function injectDepCruiserPackageJson(targetDir: string, dryRun: boolean): void {
-  if (dryRun) return
-  const pkgPath = resolvedPath(targetDir, 'package.json')
-  if (!existsSync(pkgPath)) return
-  let pkg: Record<string, unknown>
-  try {
-    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
-  } catch (err) {
-    getLogger().warn(
-      'debt_gates.inject_depcruiser_parse_failed',
-      { path: pkgPath, err: String(err) },
-      'injectDepCruiserPackageJson: failed to parse package.json',
-    )
-    return
-  }
-  const scripts = (pkg.scripts ?? {}) as Record<string, string>
-  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
-  let changed = false
-  if (!scripts['check:arch']) {
-    scripts['check:arch'] = 'depcruise src'
-    pkg.scripts = scripts
-    changed = true
-  }
-  if (!devDeps['dependency-cruiser']) {
-    devDeps['dependency-cruiser'] = '^16.0.0'
-    pkg.devDependencies = devDeps
-    changed = true
-  }
-  if (changed) {
-    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
-  }
+  mutatePackageJson(targetDir, dryRun, (pkg) => {
+    const scripts = (pkg.scripts ?? {}) as Record<string, string>
+    const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
+    let changed = false
+    if (!scripts['check:arch']) {
+      scripts['check:arch'] = 'depcruise src'
+      pkg.scripts = scripts
+      changed = true
+    }
+    if (!devDeps['dependency-cruiser']) {
+      devDeps['dependency-cruiser'] = '^16.0.0'
+      pkg.devDependencies = devDeps
+      changed = true
+    }
+    return changed
+  })
 }
 
 // The toolchain the generated L1/L2 gate actually invokes (tsc, prettier, eslint,
@@ -100,34 +71,20 @@ const TS_GATE_DEVDEPS: Record<string, string> = {
 }
 
 function injectTsGateToolchain(targetDir: string, dryRun: boolean): void {
-  if (dryRun) return
-  const pkgPath = resolvedPath(targetDir, 'package.json')
-  if (!existsSync(pkgPath)) return
-  let pkg: Record<string, unknown>
-  try {
-    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
-  } catch (err) {
-    getLogger().warn(
-      'debt_gates.inject_toolchain_parse_failed',
-      { path: pkgPath, err: String(err) },
-      'injectTsGateToolchain: failed to parse package.json',
-    )
-    return
-  }
-  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
-  let changed = false
-  for (const [name, version] of Object.entries(TS_GATE_DEVDEPS)) {
-    // Respect a version the user already pinned — only fill in what is absent so a
-    // brownfield project's existing toolchain versions are never overwritten.
-    if (!devDeps[name] && !(pkg.dependencies as Record<string, string> | undefined)?.[name]) {
-      devDeps[name] = version
-      changed = true
+  mutatePackageJson(targetDir, dryRun, (pkg) => {
+    const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
+    let changed = false
+    for (const [name, version] of Object.entries(TS_GATE_DEVDEPS)) {
+      // Respect a version the user already pinned — only fill in what is absent so a
+      // brownfield project's existing toolchain versions are never overwritten.
+      if (!devDeps[name] && !(pkg.dependencies as Record<string, string> | undefined)?.[name]) {
+        devDeps[name] = version
+        changed = true
+      }
     }
-  }
-  if (changed) {
-    pkg.devDependencies = devDeps
-    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
-  }
+    if (changed) pkg.devDependencies = devDeps
+    return changed
+  })
 }
 
 // Gate-essential TypeScript config files — every one is consumed by the generated

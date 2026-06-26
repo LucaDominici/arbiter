@@ -25,12 +25,51 @@ function assertNonVolatileVersion(name: string, version: string): void {
 }
 
 /**
+ * The single read-modify-write choke-point for a target project's package.json.
+ * Owns the whole skeleton — `existsSync` guard, parse-with-warn, and the write —
+ * so no generator re-implements it (DRY, CANON-22; #1519). The write is routed
+ * through the `utils/fs.ts` `writeFile` façade, which is **atomic** (temp-file +
+ * rename), honours `--dry-run`, and translates errno→i18n: a crash or `ENOSPC`
+ * mid-write can therefore never truncate the user's package.json (the worst file
+ * to leave half-written). Calling raw `node:fs` `writeFileSync` on package.json
+ * is a façade bypass — every site must go through here instead.
+ *
+ * No-op when `dryRun` is set, package.json is absent, or it is unparseable. The
+ * caller's `mutate` callback receives the parsed object, applies its change in
+ * place, and returns `true` iff it changed anything; the write fires only then,
+ * so an idempotent re-run leaves the file byte-identical (no spurious rewrite).
+ */
+export function mutatePackageJson(
+  targetDir: string,
+  dryRun: boolean,
+  mutate: (pkg: Record<string, unknown>) => boolean,
+): void {
+  if (dryRun) return
+  const pkgPath = resolvedPath(targetDir, 'package.json')
+  if (!existsSync(pkgPath)) return
+  let pkg: Record<string, unknown>
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
+  } catch (err) {
+    getLogger().warn(
+      'pkg.mutate_parse_failed',
+      { path: pkgPath, err: String(err) },
+      'mutatePackageJson: failed to parse package.json',
+    )
+    return
+  }
+  if (mutate(pkg)) {
+    writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n', { dryRun })
+  }
+}
+
+/**
  * Add a devDependency to the target project's package.json if absent, so an
  * emitted `npx <tool>` gate resolves at install time. Single-writer; a no-op when
  * package.json is absent, unparseable, or the dependency is already present.
- * Routes the write through the fs façade (honours `--dry-run` and the
- * direct-write gate). Shared by the tool-config generators (jscpd, stylelint, …)
- * so each does not re-implement the read-modify-write (DRY, CANON-22).
+ * Routes the write through {@link mutatePackageJson} (atomic, dry-run-honouring).
+ * Shared by the tool-config generators (jscpd, stylelint, …) so each does not
+ * re-implement the read-modify-write (DRY, CANON-22).
  * Rejects volatile install channels (`file:`/`.tgz`) structurally (#1314).
  */
 export function injectDevDependency(
@@ -40,24 +79,11 @@ export function injectDevDependency(
   dryRun: boolean,
 ): void {
   assertNonVolatileVersion(name, version)
-  if (dryRun) return
-  const pkgPath = resolvedPath(targetDir, 'package.json')
-  if (!existsSync(pkgPath)) return
-  let pkg: Record<string, unknown>
-  try {
-    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
-  } catch (err) {
-    getLogger().warn(
-      'pkg.inject_devdep_parse_failed',
-      { path: pkgPath, name, err: String(err) },
-      'injectDevDependency: failed to parse package.json',
-    )
-    return
-  }
-  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
-  if (!devDeps[name]) {
+  mutatePackageJson(targetDir, dryRun, (pkg) => {
+    const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
+    if (devDeps[name]) return false
     devDeps[name] = version
     pkg.devDependencies = devDeps
-    writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n', { dryRun })
-  }
+    return true
+  })
 }

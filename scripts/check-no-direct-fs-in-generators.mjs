@@ -25,11 +25,10 @@ const WRITE_OPS = /\b(writeFileSync|mkdirSync|copyFileSync|appendFileSync|rename
 
 // Allowlisted generators with guarded writes (must be kept ≤ current list)
 const ALLOWLIST = new Set([
-  'api-middleware.ts',
+  // #1519: api-middleware, contract-testing, debt-gates, githooks were removed —
+  // they now route every package.json write through utils/pkg.ts mutatePackageJson
+  // (atomic fs façade), so they no longer import raw node:fs write-ops.
   'claude.ts',
-  'contract-testing.ts',
-  'debt-gates.ts',
-  'githooks.ts',
   'github-setup.ts',
   'integration-testing.ts',
   'kit.ts',

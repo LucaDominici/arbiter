@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { mutatePackageJson } from '../utils/pkg.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -28,32 +29,20 @@ function isTypeScript(config: ProjectConfig): boolean {
  * package.json at targetDir. Idempotent: does nothing if already present.
  */
 function injectPrepareScript(targetDir: string, dryRun: boolean): void {
-  if (dryRun) return
-  const pkgPath = resolvedPath(targetDir, 'package.json')
-  if (!existsSync(pkgPath)) return
+  mutatePackageJson(targetDir, dryRun, (pkg) => {
+    const hooksCmd = 'git config core.hooksPath .githooks'
+    const scripts = (pkg.scripts ?? {}) as Record<string, string>
 
-  const raw = readFileSync(pkgPath, 'utf-8')
-  let pkg: Record<string, unknown>
-  try {
-    pkg = JSON.parse(raw) as Record<string, unknown>
-  } catch {
-    // Malformed package.json — skip injection
-    return
-  }
+    const existing = scripts.prepare ?? ''
+    if (existing.includes(hooksCmd)) {
+      // Already injected — idempotent
+      return false
+    }
 
-  const hooksCmd = 'git config core.hooksPath .githooks'
-  const scripts = (pkg.scripts ?? {}) as Record<string, string>
-
-  const existing = scripts.prepare ?? ''
-  if (existing.includes(hooksCmd)) {
-    // Already injected — idempotent
-    return
-  }
-
-  scripts.prepare = existing ? `${existing} && ${hooksCmd}` : hooksCmd
-  pkg.scripts = scripts
-
-  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+    scripts.prepare = existing ? `${existing} && ${hooksCmd}` : hooksCmd
+    pkg.scripts = scripts
+    return true
+  })
 }
 
 export function generateGithooks(

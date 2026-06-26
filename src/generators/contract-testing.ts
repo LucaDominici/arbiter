@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { mutatePackageJson } from '../utils/pkg.js'
 import { getLogger } from '../utils/logger.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import type { ProjectConfig } from '../wizard/types.js'
@@ -12,26 +12,13 @@ export interface ContractTestingGeneratorResult {
 }
 
 function injectPactPackageJson(targetDir: string, dryRun: boolean): void {
-  if (dryRun) return
-  const pkgPath = resolvedPath(targetDir, 'package.json')
-  if (!existsSync(pkgPath)) return
-  let pkg: Record<string, unknown>
-  try {
-    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
-  } catch (err) {
-    getLogger().warn(
-      'contract_testing.inject_pact_parse_failed',
-      { path: pkgPath, err: String(err) },
-      'injectPactPackageJson: failed to parse package.json',
-    )
-    return
-  }
-  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
-  if (!devDeps['@pact-foundation/pact']) {
+  mutatePackageJson(targetDir, dryRun, (pkg) => {
+    const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
+    if (devDeps['@pact-foundation/pact']) return false
     devDeps['@pact-foundation/pact'] = '^16.4.0'
     pkg.devDependencies = devDeps
-    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
-  }
+    return true
+  })
 }
 
 /** Compute the Java contracts package path. Falls back to "contracts". */
