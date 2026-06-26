@@ -84,6 +84,25 @@ if (titlePending && currentId) {
   process.exit(2)
 }
 
+// Retired tombstones (status: 'retired') are kept in the catalog only for
+// ID-stability (#1244) — they enforce nothing and must not appear as live rows
+// in AGENTS.md (#1570). Drop them from the forward requirement (don't demand a
+// row) and exempt them from the reverse orphan check (don't flag a leftover row).
+// Each catalog entry is an object literal starting with `id: 'INV-NN'`; we scan
+// from each id to the next to find its `status: 'retired'` marker.
+const retiredIds = new Set()
+{
+  const idRe = /id:\s*'(INV-\d+)'/g
+  const marks = []
+  let mm
+  while ((mm = idRe.exec(catalogSrc)) !== null) marks.push({ id: mm[1], at: mm.index })
+  for (let i = 0; i < marks.length; i++) {
+    const end = i + 1 < marks.length ? marks[i + 1].at : catalogSrc.length
+    if (/status:\s*'retired'/.test(catalogSrc.slice(marks[i].at, end))) retiredIds.add(marks[i].id)
+  }
+}
+for (const id of retiredIds) catalogEntries.delete(id)
+
 // Extract {id, title} pairs from AGENTS.md: format is **INV-NN:** title
 const agentsInvEntries = new Map()
 for (const m of agentsSrc.matchAll(/\*\*(INV-\d+):\*\*\s*(.+)/g)) {
@@ -127,8 +146,10 @@ for (const [id, catalogTitle] of catalogEntries) {
 }
 
 // Reverse (#485): every **INV-NN:** in AGENTS.md must have a catalog entry.
+// A leftover row for a retired tombstone is exempt (#1570) — it has a real
+// catalog entry, just one we deliberately dropped from the live set above.
 for (const id of agentsInvEntries.keys()) {
-  if (!catalogEntries.has(id)) {
+  if (!catalogEntries.has(id) && !retiredIds.has(id)) {
     process.stdout.write(`  ORPHAN in AGENTS.md: ${id} (no entry in catalog)
 `)
     violations++

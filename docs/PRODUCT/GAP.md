@@ -81,54 +81,53 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-44:** SpotBugs security-category bugs MUST NEVER be    | AGENTS.md:92                                                       | medium   |
 | - **INV-28:** SSOT documents must not contradict               | run drift — AGENTS.md:103                                          | medium   |
 | - **INV-48:** EJS template render-test coverage must not reg   | AGENTS.md:114                                                      | medium   |
-| - **INV-56:** Knowledge-map freshness                          | line counts must not — AGENTS.md:122                               | medium   |
-| - **INV-85:** No kit source leakage                            | committed kit files mu — AGENTS.md:163                             | medium   |
-| - The nightly CI stamp artifact (`.arbiter/nightly/last-run.   | AGENTS.md:200                                                      | medium   |
-| - Every gate, hook, check, and generator emitted by arbiter    | AGENTS.md:212                                                      | medium   |
-| push.branches                                                  | AGENTS.md:232                                                      | medium   |
-| cosign copy                                                    | AGENTS.md:232                                                      | medium   |
-| scripts/constraint-map.json                                    | AGENTS.md:268                                                      | medium   |
-| - **INV-117:** arbiter self-repo must not track binary build   | AGENTS.md:271                                                      | medium   |
-| - **INV-120:** Workflow needs-chain depth must not exceed th   | AGENTS.md:277                                                      | medium   |
-| - **INV-121:** Stack conformity                                | the repo-root manifest mus — AGENTS.md:279                         | medium   |
-| - _Enforcement:_ `scripts/check-stack-conformity.mjs` (L1, g   | AGENTS.md:280                                                      | medium   |
-| - _Enforcement:_ Integration + unit tests (`**tests**/integr   | AGENTS.md:283                                                      | medium   |
-| uses:                                                          | AGENTS.md:286                                                      | medium   |
-| ./                                                             | AGENTS.md:286                                                      | medium   |
-| docker://                                                      | AGENTS.md:286                                                      | medium   |
-| src/templates/scripts/optional-emissions.json.ejs              | AGENTS.md:286                                                      | medium   |
-| required:false                                                 | AGENTS.md:289                                                      | medium   |
-| required:true                                                  | AGENTS.md:289                                                      | medium   |
-| backend-web-db                                                 | AGENTS.md:289                                                      | medium   |
-| glob                                                           | AGENTS.md:289                                                      | medium   |
-| tests/api/                                                     | AGENTS.md:289                                                      | medium   |
-| src/generators/check-all.ts                                    | AGENTS.md:289                                                      | medium   |
-| src/templates/scripts/check-api-e2e.mjs.ejs                    | AGENTS.md:289                                                      | medium   |
-| tests/api/run.sh                                               | AGENTS.md:289                                                      | medium   |
-| src/generators/api-e2e.ts                                      | AGENTS.md:289                                                      | medium   |
-| run.sh                                                         | AGENTS.md:289                                                      | medium   |
-| tests/e2e/render-smoke.spec.ts                                 | AGENTS.md:295                                                      | medium   |
-| \*_/_.render-smoke.{spec,test}.ts                              | AGENTS.md:295                                                      | medium   |
-| frontend/tests/e2e/render-smoke.spec.ts                        | AGENTS.md:295                                                      | medium   |
-| src/templates/scripts/check-render-smoke.mjs.ejs               | AGENTS.md:295                                                      | medium   |
-| scripts/lib/glob-walk.mjs                                      | AGENTS.md:295                                                      | medium   |
-| src/generators/frontend-quality.ts                             | AGENTS.md:295                                                      | medium   |
-| src/templates/e2e/playwright-ts/render-smoke.spec.ts.ejs       | AGENTS.md:295                                                      | medium   |
-| VRT_SETUP.md                                                   | AGENTS.md:295                                                      | medium   |
-| - **INV-130:** E2E flaky-test quarantine annotates but never   | AGENTS.md:303                                                      | medium   |
-| .arbiter/e2e/quarantine.json                                   | AGENTS.md:304                                                      | medium   |
-| expires                                                        | AGENTS.md:304                                                      | medium   |
-| required                                                       | AGENTS.md:321                                                      | medium   |
-| n/a                                                            | AGENTS.md:321                                                      | medium   |
-| src/templates/scripts/check-test-pyramid.mjs.ejs               | AGENTS.md:321                                                      | medium   |
-| src/generators/test-pyramid-manifest.ts                        | AGENTS.md:321                                                      | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:329                                                      | medium   |
-| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:333                                                      | medium   |
-| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:337                                                      | medium   |
-| unknown                                                        | AGENTS.md:346                                                      | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:449                                             | medium   |
-| debt-baseline.json                                             | AGENTS.md:455                                                      | medium   |
-| --update                                                       | AGENTS.md:455                                                      | medium   |
+| - **INV-85:** No kit source leakage                            | committed kit files mu — AGENTS.md:162                             | medium   |
+| - The nightly CI stamp artifact (`.arbiter/nightly/last-run.   | AGENTS.md:199                                                      | medium   |
+| - Every gate, hook, check, and generator emitted by arbiter    | AGENTS.md:211                                                      | medium   |
+| push.branches                                                  | AGENTS.md:231                                                      | medium   |
+| cosign copy                                                    | AGENTS.md:231                                                      | medium   |
+| scripts/constraint-map.json                                    | AGENTS.md:267                                                      | medium   |
+| - **INV-117:** arbiter self-repo must not track binary build   | AGENTS.md:270                                                      | medium   |
+| - **INV-120:** Workflow needs-chain depth must not exceed th   | AGENTS.md:276                                                      | medium   |
+| - **INV-121:** Stack conformity                                | the repo-root manifest mus — AGENTS.md:278                         | medium   |
+| - _Enforcement:_ `scripts/check-stack-conformity.mjs` (L1, g   | AGENTS.md:279                                                      | medium   |
+| - _Enforcement:_ Integration + unit tests (`**tests**/integr   | AGENTS.md:282                                                      | medium   |
+| uses:                                                          | AGENTS.md:285                                                      | medium   |
+| ./                                                             | AGENTS.md:285                                                      | medium   |
+| docker://                                                      | AGENTS.md:285                                                      | medium   |
+| src/templates/scripts/optional-emissions.json.ejs              | AGENTS.md:285                                                      | medium   |
+| required:false                                                 | AGENTS.md:288                                                      | medium   |
+| required:true                                                  | AGENTS.md:288                                                      | medium   |
+| backend-web-db                                                 | AGENTS.md:288                                                      | medium   |
+| glob                                                           | AGENTS.md:288                                                      | medium   |
+| tests/api/                                                     | AGENTS.md:288                                                      | medium   |
+| src/generators/check-all.ts                                    | AGENTS.md:288                                                      | medium   |
+| src/templates/scripts/check-api-e2e.mjs.ejs                    | AGENTS.md:288                                                      | medium   |
+| tests/api/run.sh                                               | AGENTS.md:288                                                      | medium   |
+| src/generators/api-e2e.ts                                      | AGENTS.md:288                                                      | medium   |
+| run.sh                                                         | AGENTS.md:288                                                      | medium   |
+| tests/e2e/render-smoke.spec.ts                                 | AGENTS.md:294                                                      | medium   |
+| \*_/_.render-smoke.{spec,test}.ts                              | AGENTS.md:294                                                      | medium   |
+| frontend/tests/e2e/render-smoke.spec.ts                        | AGENTS.md:294                                                      | medium   |
+| src/templates/scripts/check-render-smoke.mjs.ejs               | AGENTS.md:294                                                      | medium   |
+| scripts/lib/glob-walk.mjs                                      | AGENTS.md:294                                                      | medium   |
+| src/generators/frontend-quality.ts                             | AGENTS.md:294                                                      | medium   |
+| src/templates/e2e/playwright-ts/render-smoke.spec.ts.ejs       | AGENTS.md:294                                                      | medium   |
+| VRT_SETUP.md                                                   | AGENTS.md:294                                                      | medium   |
+| - **INV-130:** E2E flaky-test quarantine annotates but never   | AGENTS.md:302                                                      | medium   |
+| .arbiter/e2e/quarantine.json                                   | AGENTS.md:303                                                      | medium   |
+| expires                                                        | AGENTS.md:303                                                      | medium   |
+| required                                                       | AGENTS.md:320                                                      | medium   |
+| n/a                                                            | AGENTS.md:320                                                      | medium   |
+| src/templates/scripts/check-test-pyramid.mjs.ejs               | AGENTS.md:320                                                      | medium   |
+| src/generators/test-pyramid-manifest.ts                        | AGENTS.md:320                                                      | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:328                                                      | medium   |
+| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:332                                                      | medium   |
+| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:336                                                      | medium   |
+| unknown                                                        | AGENTS.md:345                                                      | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:448                                             | medium   |
+| debt-baseline.json                                             | AGENTS.md:454                                                      | medium   |
+| --update                                                       | AGENTS.md:454                                                      | medium   |
 | scripts/check-constraint-scan.mjs                              | docs/SYSTEM/CANON.md:160                                           | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must   | docs/SYSTEM/CANON.md:252                                           | medium   |
 | **Rule:** A code-quality rule may be promoted to a \*\*HARD GA | docs/SYSTEM/CANON.md:314                                           | medium   |

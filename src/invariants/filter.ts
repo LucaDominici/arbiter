@@ -25,6 +25,11 @@ export function getFilteredInvariants(config: {
   includeExtendedInvariants?: boolean
 }): Invariant[] {
   return INVARIANT_CATALOG.filter((inv) => {
+    // Retired tombstones (status: 'retired') are kept in the catalog only for
+    // ID-stability — they enforce nothing. Never leak them into generated
+    // AGENTS.md / GLOBAL_INVARIANTS.md (#1570), matching src/graph/builders/inv.ts.
+    if (inv.status === 'retired') return false
+
     // extended invariants are excluded unless the caller explicitly opts in
     if (inv.optInGroup === 'extended' && !config.includeExtendedInvariants) return false
 

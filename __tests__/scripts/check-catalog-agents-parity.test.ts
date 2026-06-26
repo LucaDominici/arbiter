@@ -334,6 +334,43 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
     }
   })
 
+  // #1570: retired tombstones (status: 'retired') are kept in the catalog for
+  // ID-stability but must NOT be required as live rows in AGENTS.md, and must not
+  // be flagged as orphans if a tombstone row is left behind.
+  function retiredEntry(id: string, title: string): string {
+    return `  {\n    id: '${id}',\n    tier: 'governance',\n    title: '${title}',\n    status: 'retired',\n  }`
+  }
+
+  it('exits 0 when a retired catalog entry is absent from AGENTS.md (#1570)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      writeFileSync(catalog, `${makeCatalog(['INV-01'])}\n${retiredEntry('INV-56', 'Dead rule')}`)
+      // AGENTS.md omits the retired INV-56 — must NOT fail with MISSING.
+      writeFileSync(agents, makeAgents(['INV-01']))
+      expect(run(catalog, agents).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when a retired catalog entry is still present in AGENTS.md (not orphaned) (#1570)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      writeFileSync(catalog, `${makeCatalog(['INV-01'])}\n${retiredEntry('INV-56', 'Dead rule')}`)
+      writeFileSync(
+        agents,
+        makeAgents([{ id: 'INV-01', title: 'Default title for INV-01' }, 'INV-56']),
+      )
+      expect(run(catalog, agents).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('passes against the real catalog and AGENTS.md', () => {
     const result = run(resolve('src/invariants/catalog.ts'), resolve('AGENTS.md'))
     expect(result.status).toBe(0)

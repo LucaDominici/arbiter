@@ -435,7 +435,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, L1+, all-languages, operational)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
-    expect(result).toHaveLength(88)
+    // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
+    expect(result).toHaveLength(87)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -546,7 +547,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, L1+, all-languages, operational)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
-    expect(result).toHaveLength(83)
+    // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
+    expect(result).toHaveLength(82)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -572,12 +574,13 @@ describe('getFilteredInvariants', () => {
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, L1+, all-languages, operational)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
+    // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(84)
+    expect(result).toHaveLength(83)
   })
 
   it('essential preset at L1 returns minimal set', () => {
@@ -622,6 +625,27 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-49')
     expect(ids).toContain('INV-50')
     expect(ids).toContain('INV-51')
+  })
+
+  it('excludes retired (tombstone) invariants from generated output (#1570)', () => {
+    // INV-56 is a status:'retired' tombstone kept for ID-stability only. It must
+    // never reach generated AGENTS.md / GLOBAL_INVARIANTS.md, matching the graph
+    // builder which already drops status !== 'active'. Tombstones stay in the raw
+    // catalog (ID-stability) but are filtered out of every generation context.
+    const retired = INVARIANT_CATALOG.filter((inv) => inv.status === 'retired')
+    expect(retired.length, 'fixture: at least one retired tombstone must exist').toBeGreaterThan(0)
+    for (const level of ['L1', 'L2', 'L3', 'L4'] as const) {
+      const ids = getFilteredInvariants({
+        language: 'typescript',
+        governanceLevel: level,
+        invariantTiers: ALL_TIERS,
+        includeArbiterInternal: true,
+        includeExtendedInvariants: true,
+      }).map((inv) => inv.id)
+      for (const inv of retired) {
+        expect(ids, `${inv.id} (retired) must not appear at ${level}`).not.toContain(inv.id)
+      }
+    }
   })
 
   it('catalog has exactly 23 selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110)', () => {
