@@ -4,8 +4,9 @@
 // Each match must be registered in the inventory allowlist to pass.
 // Usage: node scripts/check-no-raw-strings.mjs [srcDir] [--inventory <path>]
 // Exits 1 if any unregistered raw strings are found.
-import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
-import { join, relative, basename } from 'node:path'
+import { readFileSync, existsSync } from 'node:fs'
+import { join, relative, resolve, basename } from 'node:path'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 // console.(log|warn|error)( followed by a quote character (start of raw string)
 const RAW_CONSOLE = /\bconsole\.(log|warn|error)\(\s*['"`]/
@@ -75,21 +76,12 @@ function scanFile(filePath) {
 }
 
 function scan(dir, violations) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    const stat = statSync(full)
-    if (stat.isDirectory()) {
-      scan(full, violations)
-    } else {
-      violations.push(...scanFile(full))
-    }
+  // Cycle-safe walk via the shared helper (#1521). walkRepo prunes vendor trees and never
+  // recurses into a symlinked directory; we re-apply this script's own SKIP_DIRS (e.g. `templates`)
+  // as a path-segment filter so the visited set is identical, minus the symlink-cycle bug.
+  for (const rel of walkRepo(resolve(dir))) {
+    if (rel.split('/').some((seg) => SKIP_DIRS.has(seg))) continue
+    violations.push(...scanFile(join(dir, rel)))
   }
 }
 

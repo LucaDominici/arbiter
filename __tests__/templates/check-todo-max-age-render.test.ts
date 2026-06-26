@@ -3,7 +3,7 @@
 // executable node script with INV-53 exit codes, and its PURE age logic must work when
 // imported — over-age linked TODO → FAIL classification, empty/offline map → SKIP.
 import { describe, it, expect, beforeAll } from 'vitest'
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, readFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -35,6 +35,10 @@ beforeAll(async () => {
   const dir = mkdtempSync(join(tmpdir(), 'todoage-'))
   const file = join(dir, 'check-todo-max-age.mjs')
   writeFileSync(file, render('scripts/check-todo-max-age.mjs.ejs'))
+  // The rendered gate imports the shared cycle-safe walker (#1521); stage it alongside,
+  // exactly as the generator co-emits scripts/lib/glob-walk.mjs into every project.
+  mkdirSync(join(dir, 'lib'), { recursive: true })
+  writeFileSync(join(dir, 'lib', 'glob-walk.mjs'), render('scripts/lib/glob-walk.mjs.ejs'))
   gate = (await import(pathToFileURL(file).href)) as unknown as Gate
   rmSync(dir, { recursive: true, force: true })
 })

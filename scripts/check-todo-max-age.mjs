@@ -18,8 +18,9 @@
 // CATALOG: enforces TODO max-age (INV-133) — a TODO(#NNN) whose linked issue is older than MAX_AGE_DAYS days ages out the gate, with age taken from the issue created_at.
 // CATALOG: rejected fold-in into check-no-orphan-todo.mjs because that gate is a static text scan enforcing TODO traceability (presence of #NNN) with no network; this one resolves issue created_at via gh and must graceful-skip offline — a distinct lifecycle and failure model.
 // CATALOG: rejected fold-in into check-suppressions.mjs because suppression-expiry keys off inline expiry dates, not linked-issue age, and shares no parsing or gh-resolution path.
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { walkRepo } from './lib/glob-walk.mjs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
@@ -111,28 +112,16 @@ function fetchCreatedAt(ownerRepo, issueNumber) {
 }
 
 function scan(dir, baseDir, acc) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let stat
-    try {
-      stat = statSync(full)
-    } catch {
-      continue
-    }
-    if (stat.isDirectory()) {
-      scan(full, baseDir, acc)
-    } else if (EXTENSIONS.has(full.slice(full.lastIndexOf('.')))) {
-      const content = readFileSync(full, 'utf-8')
-      for (const ref of parseTodoIssueRefs(content)) {
-        acc.push({ file: relative(baseDir, full), issueNumber: ref.issueNumber, line: ref.line })
-      }
+  // Cycle-safe walk via the shared helper (#1521): walkRepo prunes vendor trees and never recurses
+  // into a symlinked directory. Re-apply this script's own SKIP_DIRS as a path-segment filter so the
+  // visited set is identical, minus the symlink-cycle bug.
+  for (const rel of walkRepo(dir)) {
+    if (rel.split('/').some((seg) => SKIP_DIRS.has(seg))) continue
+    const full = join(dir, rel)
+    if (!EXTENSIONS.has(full.slice(full.lastIndexOf('.')))) continue
+    const content = readFileSync(full, 'utf-8')
+    for (const ref of parseTodoIssueRefs(content)) {
+      acc.push({ file: relative(baseDir, full), issueNumber: ref.issueNumber, line: ref.line })
     }
   }
 }

@@ -3,8 +3,9 @@
 // Unguarded pipe/tee masks exit-code failures (the tee command always exits 0).
 // Usage: node scripts/check-pipe-tee-hazard.mjs [dir...]
 // Always exits 0 (advisory — emits [WARN], does not block).
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 // Context window for guard detection (lines above and below the tee line).
 const CONTEXT_LINES = 20
@@ -27,30 +28,14 @@ const baseDir = process.cwd()
 let warnings = 0
 
 function scan(dir) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch (err) {
-    process.stderr.write(`  [warn] could not read directory ${dir}: ${err.message}\n`)
-    return
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let stat
-    try {
-      stat = statSync(full)
-    } catch (err) {
-      process.stderr.write(`  [warn] could not stat ${full}: ${err.message}\n`)
-      continue
-    }
-    if (stat.isDirectory()) {
-      scan(full)
-    } else {
-      const name = full.slice(full.lastIndexOf('/') + 1)
-      if (SCAN_SUFFIXES.some((suffix) => name.endsWith(suffix))) {
-        scanFile(full)
-      }
+  // Cycle-safe walk via the shared helper (#1521): walkRepo prunes vendor trees and never recurses
+  // into a symlinked directory. Re-apply this script's own SKIP_DIRS as a path-segment filter so the
+  // visited set is identical, minus the symlink-cycle bug. Unreadable dirs are skipped silently.
+  for (const rel of walkRepo(resolve(dir))) {
+    if (rel.split('/').some((seg) => SKIP_DIRS.has(seg))) continue
+    const name = rel.slice(rel.lastIndexOf('/') + 1)
+    if (SCAN_SUFFIXES.some((suffix) => name.endsWith(suffix))) {
+      scanFile(join(dir, rel))
     }
   }
 }
