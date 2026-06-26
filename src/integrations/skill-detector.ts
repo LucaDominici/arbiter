@@ -60,7 +60,25 @@ function findSkillFiles(dir: string, depth: number, found: string[], count: { n:
   }
 }
 
-function readSkill(path: string): InstalledSkill | null {
+/**
+ * Derive the owning plugin for a SKILL.md found under a plugin tree
+ * (`.../<PLUGIN>/<VERSION>/skills/<NAME>/SKILL.md`). The owner is the directory
+ * two levels above the `skills/` segment — robust to an extra marketplace
+ * segment (`plugins/cache/<MARKETPLACE>/<PLUGIN>/<VERSION>/skills/...`) and to a
+ * flat, version-less layout. This replaces the former hard requirement that the
+ * SKILL.md carry an arbiter-invented `pluginOwner` frontmatter key — no real
+ * Claude skill carries it (#1566).
+ */
+function derivePluginOwner(path: string): string {
+  const segs = path.split(/[\\/]+/).filter(Boolean)
+  const skillsIdx = segs.lastIndexOf('skills')
+  if (skillsIdx < 1) return 'plugin'
+  const grandparent = segs[skillsIdx - 2]
+  if (grandparent && grandparent !== 'cache' && grandparent !== 'plugins') return grandparent
+  return segs[skillsIdx - 1] ?? 'plugin'
+}
+
+function readSkill(path: string, deriveOwner: (p: string) => string): InstalledSkill | null {
   let content: string
   try {
     content = readFileSync(path, 'utf-8')
@@ -68,28 +86,42 @@ function readSkill(path: string): InstalledSkill | null {
     return null
   }
   const fm = parseFrontmatter(content)
-  if (!fm || !fm['name'] || !fm['pluginOwner']) return null
-  const skillId = `${fm['pluginOwner']}:${fm['name']}`
+  // `name` is the only mandatory frontmatter field (the Claude skill spec is
+  // `name` + `description`). `pluginOwner` is an OPTIONAL override — when absent
+  // (every real skill) the owner is derived from the install path.
+  if (!fm || !fm['name']) return null
+  const owner = fm['pluginOwner'] ?? deriveOwner(path)
+  const skillId = `${owner}:${fm['name']}`
   return {
     skillId,
-    pluginOwner: fm['pluginOwner'],
+    pluginOwner: owner,
     version: fm['version'] ?? 'unknown',
     sourcePath: path,
     ...(fm['role'] ? { role: fm['role'] } : {}),
   }
 }
 
-function collectFromDir(dir: string, seen: Set<string>, results: InstalledSkill[]): void {
+function collectFromDir(
+  dir: string,
+  seen: Set<string>,
+  results: InstalledSkill[],
+  deriveOwner: (p: string) => string,
+): void {
   const found: string[] = []
   findSkillFiles(dir, 0, found, { n: 0 })
   for (const path of found) {
-    const skill = readSkill(path)
+    const skill = readSkill(path, deriveOwner)
     if (!skill) continue
     if (seen.has(skill.skillId)) continue
     seen.add(skill.skillId)
     results.push(skill)
   }
 }
+
+// Owner sentinels for the two non-plugin scan roots (a SKILL.md placed directly
+// under a `skills/` dir, not inside a versioned plugin tree).
+const projectOwner = (): string => 'project'
+const userOwner = (): string => 'user'
 
 // Detect installed skills by scanning 4 locations in priority order.
 // First hit per skillId wins. Scan order:
@@ -111,11 +143,23 @@ export function detectInstalledSkills(opts: DetectOptions): InstalledSkill[] {
   const seen = new Set<string>()
   const results: InstalledSkill[] = []
 
-  collectFromDir(join(targetDir, '.claude', 'plugins'), seen, results)
-  collectFromDir(join(targetDir, '.claude', 'skills'), seen, results)
-  collectFromDir(join(claudeHome, 'plugins', 'cache'), seen, results)
-  collectFromDir(join(claudeHome, 'skills'), seen, results)
+  // Guard against a CWD-relative walk: when targetDir/claudeHome is falsy,
+  // `join('', 'plugins', 'cache')` collapses to the RELATIVE path `plugins/cache`
+  // and the detector would scan dirs under the process CWD instead of the user
+  // home. Skip a scan root entirely when its base is empty (#1566).
+  if (targetDir) {
+    collectFromDir(join(targetDir, '.claude', 'plugins'), seen, results, derivePluginOwner)
+    collectFromDir(join(targetDir, '.claude', 'skills'), seen, results, projectOwner)
+  }
+  if (claudeHome) {
+    collectFromDir(join(claudeHome, 'plugins', 'cache'), seen, results, derivePluginOwner)
+    collectFromDir(join(claudeHome, 'skills'), seen, results, userOwner)
+  }
 
+  // Freeze before caching so a consumer that mutates the result (sort/push)
+  // cannot corrupt the shared per-session cache for later callers (#1566). The
+  // reference stays stable, preserving the #798 cache-identity contract.
+  Object.freeze(results)
   skillCache.set(cacheKey, results)
   return results
 }
