@@ -136,6 +136,20 @@ function generateCiGapWorkflows(
       ),
     )
 
+  // PORT A2 (#1502): trunk-solo L3+ gets a lite weekly sweep. A solo prod service
+  // runs 06-nightly-lite + 09-heartbeat but is excluded from the full 07-weekly /
+  // 08-monthly suite, so it would otherwise get no deep weekly security pass. The
+  // lite weekly adds dependency freshness, a stale action-pin audit, and a
+  // deep-security subset (Semgrep SAST + secret history). Mirrors the nightly-lite shape.
+  if (cm === 'trunk-solo' && isL3Plus)
+    files.push(
+      writeFile(
+        join(workflowsDir, '07-weekly-lite.yml'),
+        renderTemplate('github/workflows/07-weekly-lite.yml.ejs', config),
+        { dryRun },
+      ),
+    )
+
   if (needsCodeql(cm, isL2Plus, config.language))
     files.push(
       writeFile(

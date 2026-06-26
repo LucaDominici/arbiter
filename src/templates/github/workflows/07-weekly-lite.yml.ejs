@@ -1,0 +1,205 @@
+<%
+// PORT A2 (#1502): weekly-lite — emitted ONLY for trunk-solo L3+ (predicate in
+// src/generators/github.ts: cm === 'trunk-solo' && isL3Plus). A solo prod service
+// runs 06-nightly-lite + 09-heartbeat but is EXCLUDED from the full 07-weekly /
+// 08-monthly deep sweep, so it would never get a deep weekly security pass. This
+// lite weekly fills that gap with three lean jobs: dependency freshness, a stale
+// action-pin audit, and a deep-security subset (Semgrep SAST + full-history secret
+// scan). Mirrors the 06-nightly-lite gating shape. Schedule offset (05:00 Sun) to
+// avoid clashing with 06-nightly-lite (03:00 daily) and the full 07-weekly (04:00 Sun).
+const _runner = "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}";
+%>name: Weekly Lite (T5-lite)
+
+on:
+  schedule:
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: weekly-lite
+  cancel-in-progress: false
+
+jobs:
+  dep-freshness:
+    name: Dependency freshness report (lite)
+    runs-on: <%- _runner %>
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+<% if (language === 'typescript') { %>
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Check outdated packages
+        run: npm outdated || true
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Check outdated dependencies
+        run: |
+<% if (buildTool === 'gradle') { %>
+          ./gradlew dependencyUpdates || true
+<% } else { %>
+          mvn versions:display-dependency-updates || true
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - name: Check outdated Go modules
+        run: go list -u -m all 2>/dev/null | grep '\[' || true
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version-file: .python-version
+      - run: pip install pip-review
+      - name: Check outdated packages
+        run: pip-review || true
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # branch:stable @ 2026-05-24
+      - name: Check outdated crates
+        run: |
+          cargo install cargo-outdated --locked || true
+          cargo outdated || true
+<% } %>
+
+  action-version-audit:
+    name: Stale action pin audit
+    runs-on: <%- _runner %>
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Find SHA-pinned actions older than 180 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          WORKFLOWS=$(find .github/workflows -name '*.yml' | head -20)
+          STALE=0
+          CUTOFF=$(date -d '180 days ago' +%s 2>/dev/null || date -v-180d +%s)
+          for wf in $WORKFLOWS; do
+            REFS=$(grep -oP 'uses: \S+@[a-f0-9]{40}' "$wf" | sed 's/uses: //' || true)
+            for ref in $REFS; do
+              ACTION=$(echo "$ref" | cut -d@ -f1)
+              SHA=$(echo "$ref" | cut -d@ -f2)
+              PUSHED=$(gh api "repos/$ACTION/git/commits/$SHA" --jq '.committer.date' 2>/dev/null || echo "")
+              if [ -n "$PUSHED" ]; then
+                PUSHED_EPOCH=$(date -d "$PUSHED" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$PUSHED" +%s)
+                if [ "$PUSHED_EPOCH" -lt "$CUTOFF" ]; then
+                  echo "::warning::Stale pin in $wf: $ref (pushed $PUSHED)"
+                  STALE=$((STALE + 1))
+                fi
+              fi
+            done
+          done
+          echo "Stale pins found: $STALE"
+
+  deep-security:
+    name: Deep security subset (Semgrep SAST + secret history)
+    runs-on: <%- _runner %>
+    timeout-minutes: 30
+    steps:
+      # #1311: self-hosted persistent workspaces can keep a stale
+      # .git/refs/**/*.lock from an interrupted run, which makes the
+      # deep checkout below fail with "cannot lock ref". No-op on
+      # ephemeral runners.
+      - name: Clean stale git ref locks (self-hosted)
+        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
+        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+      # PORT A2 (#1502): Semgrep is a 2nd SAST that covers what CodeQL misses for a
+      # trunk-solo project — trunk-solo gets no CodeQL (15-codeql) and no full
+      # 06-nightly Semgrep job, so this is its only SAST. Run via the pinned CLI
+      # (no unverified third-party action — INV-76 / the fabricated-pin lesson).
+      # Ruleset configurable via the SEMGREP_RULES repo/org variable.
+      - name: Install Semgrep (pinned CLI)
+        run: pip install semgrep
+      - name: Semgrep SAST (configurable ruleset)
+        env:
+          SEMGREP_RULES: ${{ vars.SEMGREP_RULES || 'auto' }}
+          # Informational by default; set repo/org var SEMGREP_STRICT=true to make
+          # findings fail the weekly-lite gate.
+          SEMGREP_STRICT: ${{ vars.SEMGREP_STRICT }}
+        run: |
+          set -uo pipefail
+          ARGS="--config ${SEMGREP_RULES} --sarif --output semgrep.sarif --metrics=off"
+          if [ "${SEMGREP_STRICT:-}" = "true" ]; then
+            semgrep scan ${ARGS} --error
+          else
+            semgrep scan ${ARGS} || echo "::warning::Semgrep reported findings (informational; set SEMGREP_STRICT=true to block)"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          retention-days: 30
+      - name: Gitleaks full history scan
+        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+        with:
+          args: detect --source . --log-opts="--all --full-history"
+
+  weekly-lite-required:
+    name: Weekly lite gate
+    needs:
+      - dep-freshness
+      - action-version-audit
+      - deep-security
+    if: always()
+    runs-on: <%- _runner %>
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Assert no hard failures
+        run: |
+          RESULTS=(
+            "${{ needs.dep-freshness.result }}"
+            "${{ needs.action-version-audit.result }}"
+            "${{ needs.deep-security.result }}"
+          )
+          FAILED=0
+          for r in "${RESULTS[@]}"; do
+            if [ "$r" = "failure" ]; then
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" = "1" ]; then
+            echo "::error::One or more weekly-lite jobs failed."
+            exit 1
+          fi
+          echo "Weekly-lite gate passed."
+
+      - name: File issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING=$(gh issue list \
+            --label weekly-regression \
+            --state open \
+            --limit 1 \
+            --json number \
+            --repo "$GH_REPO" \
+            --jq '.[0].number // empty')
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "[weekly-lite] regression detected (${{ github.run_id }})" \
+              --body "Weekly-lite workflow failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              --label weekly-regression \
+              --repo "$GH_REPO"
+          fi

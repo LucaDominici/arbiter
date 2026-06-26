@@ -350,6 +350,46 @@ describe('06-nightly.yml.ejs — E1 moved-in heavy tools (#1502)', () => {
   })
 })
 
+// ─── PORT A2 (#1502): Semgrep SAST (2nd SAST — covers Rust + trunk-solo) ───────
+
+describe('06-nightly.yml.ejs — A2 Semgrep SAST (#1502)', () => {
+  const STACKS = [
+    { language: 'typescript', buildTool: 'npm' },
+    { language: 'java', buildTool: 'maven' },
+    { language: 'go', buildTool: 'go' },
+    { language: 'python', buildTool: 'pip' },
+    { language: 'rust', buildTool: 'cargo' },
+  ] as const
+
+  it.each(STACKS)('$language: semgrep-sast job present (language-agnostic SAST)', (s) => {
+    const rendered = renderNightly(s)
+    expect(rendered).toContain('semgrep-sast:')
+    expect(rendered).toContain('semgrep scan')
+  })
+
+  it('Rust gets Semgrep SAST (the case CodeQL cannot cover)', () => {
+    const rendered = renderNightly({ language: 'rust', buildTool: 'cargo' })
+    const job = rendered.split('semgrep-sast:')[1] ?? ''
+    expect(job).toContain('pip install semgrep')
+  })
+
+  it('Semgrep ruleset is configurable via SEMGREP_RULES', () => {
+    expect(renderNightly({})).toContain('SEMGREP_RULES')
+  })
+
+  it('Semgrep runs via the pinned CLI — not an unverified third-party action', () => {
+    const rendered = renderNightly({})
+    expect(rendered).not.toMatch(/uses:\s+\S*semgrep/i)
+  })
+
+  it('semgrep-sast declares timeout-minutes (workflow hardening)', () => {
+    const rendered = renderNightly({})
+    const afterHeader = rendered.split('\n  semgrep-sast:')[1] ?? ''
+    const preamble = afterHeader.split('\n    steps:')[0]
+    expect(preamble).toContain('timeout-minutes:')
+  })
+})
+
 // ─── Issue filing on failure ──────────────────────────────────────────────────
 
 describe('06-nightly.yml.ejs — issue filing on regression', () => {

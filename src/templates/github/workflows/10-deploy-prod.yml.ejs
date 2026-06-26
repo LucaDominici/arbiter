@@ -77,6 +77,27 @@ const _dt = ({
 <% if (_dt !== 'none') { %>
 <%- include('_partials/sigstore-preflight.ejs') %>
 <%- include('_cosign-copy/' + _dt + '.ejs') %>
+
+      # PORT A2 (#1502): provenance admission gate — fail-closed verification of the
+      # signature arbiter itself produces in 05-release, at the single deploy chokepoint,
+      # immediately before deploy. The per-target cosign-copy partial verifies the
+      # promoted PROD image right after promotion; this re-asserts the keyless signature
+      # on the EXACT digest-pinned ref about to be deployed (${IMAGE_TAG}) at the deploy
+      # boundary, so an unverified image can never reach the deploy step — regardless of
+      # which deploy-target partial ran (a uniform, target-agnostic admission gate, not a
+      # per-branch obligation). cosign is already installed by the cosign-copy partial.
+      - name: Provenance admission gate — verify image before deploy (fail-closed)
+        run: |
+          set -euo pipefail
+          if [ -z "${IMAGE_TAG:-}" ]; then
+            echo "::error::IMAGE_TAG is not set — the cosign-copy step must export the pinned image ref before the admission gate"
+            exit 1
+          fi
+          cosign verify \
+            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/\.github/workflows/05-release\.yml@refs/tags/v.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${IMAGE_TAG}"
+
 <%- include('_deploy/' + _dt + '.ejs') %>
 <% } %>
 

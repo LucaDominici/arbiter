@@ -41,6 +41,8 @@ if (_style !== 'starter' && _isL3Plus && _cm !== 'trunk-solo') {
   _required.push('06-nightly.yml', '07-weekly.yml', '08-monthly.yml');
 }
 if (_cm === 'trunk-solo' && _isL2Plus) _required.push('06-nightly-lite.yml');
+// PORT A2 (#1502): trunk-solo L3+ gets the lite weekly sweep (07-weekly-lite).
+if (_cm === 'trunk-solo' && _isL3Plus) _required.push('07-weekly-lite.yml');
 if (_isL3Plus) _required.push('09-heartbeat.yml');
 -%>
 #!/usr/bin/env node

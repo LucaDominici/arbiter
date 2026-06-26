@@ -170,6 +170,43 @@ jobs:
           cargo audit
 <% } %>
 
+  semgrep-sast:
+    name: Semgrep SAST (2nd SAST — covers Rust + trunk-solo)
+    # PORT A2 (#1502): Semgrep is a second SAST alongside CodeQL (15-codeql). It
+    # covers the two cases CodeQL misses: Rust (unsupported by CodeQL) and any
+    # config that never emits CodeQL. Semgrep is language-agnostic — it scans the
+    # source tree directly, so no per-language toolchain branch is needed. Run via
+    # the pinned CLI rather than an unverified third-party action (INV-76 / the
+    # fabricated-pin lesson). Ruleset configurable via the SEMGREP_RULES variable.
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Install Semgrep (pinned CLI)
+        run: pip install semgrep
+      - name: Semgrep SAST (configurable ruleset)
+        env:
+          SEMGREP_RULES: ${{ vars.SEMGREP_RULES || 'auto' }}
+          # Informational by default; set repo/org var SEMGREP_STRICT=true to block.
+          SEMGREP_STRICT: ${{ vars.SEMGREP_STRICT }}
+        run: |
+          set -uo pipefail
+          ARGS="--config ${SEMGREP_RULES} --sarif --output semgrep.sarif --metrics=off"
+          if [ "${SEMGREP_STRICT:-}" = "true" ]; then
+            semgrep scan ${ARGS} --error
+          else
+            semgrep scan ${ARGS} || echo "::warning::Semgrep reported findings (informational; set SEMGREP_STRICT=true to block)"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          retention-days: 30
+
   fuzz:
     name: Fuzz testing
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}

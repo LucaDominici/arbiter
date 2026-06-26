@@ -185,6 +185,51 @@ describe('check-ci-tiers.mjs — collab/level-aware required set (#1319.2, INV-7
     }
   })
 
+  // PORT A2 (#1502): trunk-solo L3+ requires a deep weekly sweep — 07-weekly-lite
+  // OR the full 07-weekly satisfies the slot.
+  it('trunk-solo L3 FAILS when the weekly slot (07-weekly-lite / 07-weekly) is missing', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeCatalogWithMinPresent(dir, 1)
+      writeArbiterJson(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L3' })
+      writeWorkflows(dir, [
+        '01-pr-fast.yml',
+        '02-pr-extended.yml',
+        '03-human-approval.yml',
+        '06-nightly-lite.yml',
+        '09-heartbeat.yml',
+        // 07-weekly-lite.yml absent → collab-aware layer must FAIL
+      ])
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('INV-72')
+      expect(result.stderr).toContain('07-weekly-lite.yml')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('trunk-solo L3 PASSES when 07-weekly-lite satisfies the weekly slot', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeCatalogWithMinPresent(dir, 1)
+      writeArbiterJson(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L3' })
+      writeWorkflows(dir, [
+        '01-pr-fast.yml',
+        '02-pr-extended.yml',
+        '03-human-approval.yml',
+        '05-release.yml',
+        '06-nightly-lite.yml',
+        '07-weekly-lite.yml',
+        '09-heartbeat.yml',
+      ])
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('trunk-solo L2 FAILS when neither 06-nightly nor 06-nightly-lite present', () => {
     const { dir, cleanup } = makeDir()
     try {

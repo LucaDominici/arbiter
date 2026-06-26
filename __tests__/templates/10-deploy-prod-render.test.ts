@@ -102,6 +102,47 @@ describe('10-deploy-prod.yml.ejs — security invariants', () => {
   })
 })
 
+// ─── PORT A2 (#1502): provenance admission gate before deploy ─────────────────
+
+describe('10-deploy-prod.yml.ejs — A2 provenance admission gate (#1502)', () => {
+  function renderWithTarget(overrides: Record<string, unknown> = {}) {
+    return renderDeployProd({
+      deployTarget: 'ghcr',
+      githubOwner: 'acme',
+      githubRepo: 'svc',
+      ...overrides,
+    })
+  }
+
+  it('emits a fail-closed cosign-verify admission gate when a deploy target is set', () => {
+    const rendered = renderWithTarget()
+    expect(rendered).toContain('Provenance admission gate')
+    expect(rendered).toContain('cosign verify')
+    // fail-closed: missing IMAGE_TAG aborts the job
+    expect(rendered).toContain('IMAGE_TAG is not set')
+  })
+
+  it('admission gate verifies the signature 05-release produces (identity regexp)', () => {
+    const rendered = renderWithTarget()
+    expect(rendered).toContain('05-release')
+    expect(rendered).toContain('token.actions.githubusercontent.com')
+  })
+
+  it('admission gate runs BEFORE the deploy step (no unverified image deploys)', () => {
+    const rendered = renderWithTarget()
+    const gateIdx = rendered.indexOf('Provenance admission gate')
+    const deployIdx = rendered.indexOf('Deploy — GHCR')
+    expect(gateIdx).toBeGreaterThan(-1)
+    expect(deployIdx).toBeGreaterThan(-1)
+    expect(gateIdx).toBeLessThan(deployIdx)
+  })
+
+  it('no deploy target → no admission gate (scaffold-only workflow)', () => {
+    const rendered = renderDeployProd({})
+    expect(rendered).not.toContain('Provenance admission gate')
+  })
+})
+
 // ─── P0 notify ───────────────────────────────────────────────────────────────
 
 describe('10-deploy-prod.yml.ejs — P0 failure notification', () => {

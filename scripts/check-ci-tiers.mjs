@@ -98,6 +98,8 @@ function collabAwareMissing() {
   }
   // Trunk-solo nightly slot: lite OR full nightly satisfies it.
   if (cm === 'trunk-solo' && isL2Plus) slots.push(['06-nightly-lite.yml', '06-nightly.yml'])
+  // PORT A2 (#1502): trunk-solo L3+ deep weekly sweep — lite OR full weekly satisfies it.
+  if (cm === 'trunk-solo' && isL3Plus) slots.push(['07-weekly-lite.yml', '07-weekly.yml'])
   if (isL3Plus) slots.push(['09-heartbeat.yml'])
 
   const missingSlots = []

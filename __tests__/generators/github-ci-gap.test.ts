@@ -42,6 +42,33 @@ describe('generateGithub — CI gap workflows (ADR-053)', () => {
     expect(existsSync(join(dir, '.github', 'workflows', '06-nightly-lite.yml'))).toBe(false)
   })
 
+  // ─── PORT A2 (#1502): trunk-solo L3+ weekly-lite ───────────────────────────
+
+  it('trunk-solo L3: 07-weekly-lite.yml emitted', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, '.github', 'workflows', '07-weekly-lite.yml'))).toBe(true)
+  })
+
+  it('trunk-solo L4: 07-weekly-lite.yml emitted', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L4' }))
+    expect(existsSync(join(dir, '.github', 'workflows', '07-weekly-lite.yml'))).toBe(true)
+  })
+
+  it('trunk-solo L2: 07-weekly-lite.yml NOT emitted (L3+ only)', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, '.github', 'workflows', '07-weekly-lite.yml'))).toBe(false)
+  })
+
+  it('trunk-solo L3: full 07-weekly.yml NOT emitted (lite replaces it for solo)', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, '.github', 'workflows', '07-weekly.yml'))).toBe(false)
+  })
+
+  it('peer-review L3: 07-weekly-lite.yml NOT emitted (peer-review uses full weekly)', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'peer-review', governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, '.github', 'workflows', '07-weekly-lite.yml'))).toBe(false)
+  })
+
   // ─── peer-review: codeql + dep-review in 01-pr-fast ────────────────────────
 
   it('peer-review L2: 15-codeql.yml emitted', () => {
