@@ -92,6 +92,35 @@ describe('createProjectBoard', () => {
     expect(result.created).toBe(false)
   })
 
+  it('surfaces a malformed project element (missing title) in warnings (#1536)', async () => {
+    const { createProjectBoard } = await import('../../src/github/project-board.js')
+    // project list: an element without a string "title" — the old code would
+    // throw a cryptic "Cannot read properties of undefined (reading startsWith)"
+    // deep inside .find(); validation must surface a clean diagnostic instead.
+    mockRunCliJson.mockReturnValueOnce({ projects: [{ number: 1, url: 'u' }] })
+    // fall through to create — also malformed so we stay on the error path
+    mockRunCliJson.mockReturnValueOnce({ not: 'a-project' })
+
+    const result = createProjectBoard('owner', 'repo', 'myProject')
+
+    expect(result.warnings.some((w) => /title/i.test(w))).toBe(true)
+  })
+
+  it('surfaces a malformed field element (missing name) in warnings (#1536)', async () => {
+    const { createProjectBoard } = await import('../../src/github/project-board.js')
+    // Board exists
+    mockRunCliJson.mockReturnValueOnce({
+      projects: [{ number: 3, title: 'myProject Board · owner/repo', url: 'https://x/3' }],
+    })
+    // field-list: an element without a string "name"
+    mockRunCliJson.mockReturnValueOnce({ fields: [{ id: 'no-name' }] })
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
+
+    const result = createProjectBoard('owner', 'repo', 'myProject')
+
+    expect(result.warnings.some((w) => /name/i.test(w))).toBe(true)
+  })
+
   it('surfaces findExistingBoard errors in warnings[] when create succeeds (#474)', async () => {
     const { createProjectBoard } = await import('../../src/github/project-board.js')
     mockRunCliJson

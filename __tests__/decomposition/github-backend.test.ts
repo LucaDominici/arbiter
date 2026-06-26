@@ -106,6 +106,18 @@ describe('GitHubBackend', () => {
       )
     })
 
+    it('rejects a non-array gh issue list payload', async () => {
+      mockRunCliJson.mockReturnValue({ not: 'an array' })
+      const backend = new GitHubBackend(baseConfig())
+      await expect(backend.list()).rejects.toThrow(/gh issue list/i)
+    })
+
+    it('rejects a list element with a non-array labels field', async () => {
+      mockRunCliJson.mockReturnValue([{ number: 1, title: 't', state: 'OPEN', labels: 'oops' }])
+      const backend = new GitHubBackend(baseConfig())
+      await expect(backend.list()).rejects.toThrow(/labels/i)
+    })
+
     it('throws for unsupported status filter (in_progress)', async () => {
       const backend = new GitHubBackend(baseConfig())
       await expect(backend.list({ status: 'in_progress' })).rejects.toThrow(
@@ -142,6 +154,23 @@ describe('GitHubBackend', () => {
       expect(unit).not.toBeNull()
       expect(unit!.id).toBe('#42')
       expect(unit!.body).toBe('details')
+    })
+
+    it('rejects a malformed gh issue payload (missing string title)', async () => {
+      mockRunCliJson.mockReturnValue({
+        number: 42,
+        // title missing
+        state: 'OPEN',
+        labels: [],
+      })
+      const backend = new GitHubBackend(baseConfig())
+      await expect(backend.get('#42')).rejects.toThrow(/gh issue view/i)
+    })
+
+    it('rejects a non-integer issue id before shelling out (flag-confusion guard)', async () => {
+      const backend = new GitHubBackend(baseConfig())
+      await expect(backend.get('--json')).rejects.toThrow(/issue id/i)
+      expect(mockRunCliJson).not.toHaveBeenCalled()
     })
 
     it('returns null on CliError (issue not found)', async () => {
@@ -273,6 +302,12 @@ describe('GitHubBackend', () => {
         expect.arrayContaining(['issue', 'close', '3']),
         expect.anything(),
       )
+    })
+
+    it('rejects a flag-like issue id before shelling out', async () => {
+      const backend = new GitHubBackend(baseConfig())
+      await expect(backend.close('-R')).rejects.toThrow(/issue id/i)
+      expect(mockRunCli).not.toHaveBeenCalled()
     })
   })
 })

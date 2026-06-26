@@ -34,6 +34,21 @@ describe('fetchAffinityContext', () => {
     expect(candidates.map((c) => c.id)).toEqual(['#1260'])
   })
 
+  it('throws a clean diagnostic when the subject payload is malformed (#1536)', async () => {
+    const { fetchAffinityContext } = await import('../../src/affinity/gh-issues.js')
+    // `number` missing → the old blind `as GhIssueRaw` cast produced `#undefined`
+    mockRunCliJson.mockReturnValueOnce({ labels: [], milestone: null })
+    expect(() => fetchAffinityContext('#1259')).toThrow(/gh issue view/i)
+  })
+
+  it('throws when the sibling list is not an array (#1536)', async () => {
+    const { fetchAffinityContext } = await import('../../src/affinity/gh-issues.js')
+    mockRunCliJson
+      .mockReturnValueOnce({ number: 1, labels: [], milestone: { title: 'M5' } })
+      .mockReturnValueOnce({ not: 'an array' })
+    expect(() => fetchAffinityContext('#1')).toThrow(/gh issue list/i)
+  })
+
   it('returns no candidates (solo) when the subject has no milestone', async () => {
     const { fetchAffinityContext } = await import('../../src/affinity/gh-issues.js')
     mockRunCliJson.mockReturnValueOnce({ number: 1259, labels: [], milestone: null })

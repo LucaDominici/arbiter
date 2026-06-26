@@ -19,6 +19,20 @@
 
 type DeltaChangeType = 'add' | 'modify' | 'delete' | 'move'
 
+/**
+ * The closed set of legal change types. `parseNotaryFooter` captures the type
+ * with a permissive `(\w+)` regex and casts it to {@link DeltaChangeType}, so a
+ * footer like `(rename, +1 -0)` yields a value typed as the union but absent
+ * from it. {@link validateNotaryFooter} re-checks against this set at runtime so
+ * the cast cannot silently smuggle an illegal value past validation. (#1536)
+ */
+const VALID_CHANGE_TYPES: ReadonlySet<string> = new Set<DeltaChangeType>([
+  'add',
+  'modify',
+  'delete',
+  'move',
+])
+
 interface NotaryDelta {
   file: string
   section: string
@@ -128,6 +142,15 @@ export function validateNotaryFooter(footer: NotaryFooter): string[] {
   if (footer.patches.length === 0) {
     errors.push('Notary footer must include at least one Patch entry')
   }
+
+  footer.deltas.forEach((delta, i) => {
+    if (!VALID_CHANGE_TYPES.has(delta.changeType)) {
+      errors.push(
+        `Notary footer Delta entry ${i + 1} has invalid change type "${delta.changeType}" ` +
+          `(expected one of: add, modify, delete, move)`,
+      )
+    }
+  })
 
   return errors
 }

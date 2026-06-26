@@ -89,4 +89,32 @@ describe('validateNotaryFooter', () => {
     expect(errors.length).toBeGreaterThan(0)
     expect(errors[0]).toMatch(/patch/i)
   })
+
+  it('fails when a Delta carries an illegal change type (e.g. "rename")', () => {
+    // The regex captures `(\w+)` and casts straight to DeltaChangeType, so a
+    // footer like `(rename, +1 -0)` parses to a value typed as the union but not
+    // in it. The validator must reject it instead of silently accepting.
+    const msg = `feat: bad change type
+
+Notary:
+- Delta: f.ts §s (rename, +1 -0)
+- Intent: something
+- Patch: docs/X.md (update)`
+    const parsed = parseNotaryFooter(msg)
+    expect(parsed).not.toBeNull()
+    expect(parsed?.deltas[0]?.changeType).toBe('rename' as unknown as 'add')
+    const errors = validateNotaryFooter(parsed!)
+    expect(errors.some((e) => /change type/i.test(e) && /rename/.test(e))).toBe(true)
+  })
+
+  it('accepts all four legal change types', () => {
+    for (const ct of ['add', 'modify', 'delete', 'move'] as const) {
+      const errors = validateNotaryFooter({
+        deltas: [{ file: 'a.ts', section: 's', changeType: ct, added: 1, removed: 0 }],
+        intent: 'ok',
+        patches: [{ file: 'docs/X.md', status: 'update' }],
+      })
+      expect(errors).toEqual([])
+    }
+  })
 })
