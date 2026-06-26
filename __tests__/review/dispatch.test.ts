@@ -8,17 +8,20 @@ import {
   rmSync,
   existsSync,
   readdirSync,
+  chmodSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   buildReviewPrompt,
+  dispatchClaudeAgent,
   dispatchPlanReview,
   extractFirstJsonObject,
   parseAgentReport,
   sanitizeTaskId,
   type SubagentDispatcher,
 } from '../../src/review/dispatch.js'
+import { dispatchAgents } from '../../src/review/multi-agent.js'
 
 const PASS_PLAN = `# Plan: feature
 ## Scope
@@ -464,5 +467,56 @@ describe('parseAgentReport (W-6, direct tests)', () => {
     expect(() =>
       parseAgentReport('{"findings":[{"severity":"note","agent":"bugs"}],"passed":false}', 'bugs'),
     ).toThrow(/malformed finding/)
+  })
+})
+
+describe('dispatchClaudeAgent concurrency (#1514)', () => {
+  let dir: string
+  let fakeCli: string
+  const SLEEP_MS = 400
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-agent-cc-'))
+    // Fake `claude`: ignores its args, sleeps, then emits a valid agent report.
+    // A spawnSync-based dispatcher would serialize these sleeps; spawn does not.
+    fakeCli = join(dir, 'fake-claude.mjs')
+    writeFileSync(
+      fakeCli,
+      [
+        '#!/usr/bin/env node',
+        `setTimeout(() => {`,
+        `  process.stdout.write(JSON.stringify({ findings: [], passed: true }))`,
+        `}, ${SLEEP_MS})`,
+        '',
+      ].join('\n'),
+    )
+    chmodSync(fakeCli, 0o755)
+  })
+
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('dispatches N agents concurrently — wall clock ≈ MAX(agents), not SUM', async () => {
+    const dispatch = dispatchClaudeAgent({ cmd: fakeCli, timeoutMs: 30_000 })
+    const prompts = [
+      { name: 'bugs', prompt: '<reviewAgent>a</reviewAgent>' },
+      { name: 'type-safety', prompt: '<reviewAgent>b</reviewAgent>' },
+      { name: 'silent-failure-hunter', prompt: '<reviewAgent>c</reviewAgent>' },
+    ]
+    const start = Date.now()
+    const results = await dispatchAgents(prompts, { dispatch })
+    const elapsed = Date.now() - start
+
+    // All agents succeeded (no dispatch failures folded into blockers).
+    expect(results.map((r) => r.agent).sort()).toEqual([
+      'bugs',
+      'silent-failure-hunter',
+      'type-safety',
+    ])
+    expect(results.every((r) => r.passed)).toBe(true)
+
+    // Serial cost would be 3 * SLEEP_MS = 1200ms. Concurrent is ~SLEEP_MS.
+    // Ceiling at 2x a single sleep leaves ample headroom while still failing
+    // hard on the old sequential spawnSync behaviour.
+    expect(elapsed).toBeLessThan(2 * SLEEP_MS)
   })
 })

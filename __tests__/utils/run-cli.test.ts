@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { runCli, runCliJson, CliError } from '../../src/utils/run-cli.js'
+import { runCli, runCliAsync, runCliJson, CliError } from '../../src/utils/run-cli.js'
 
 describe('runCli', () => {
   it('returns stdout, stderr, exitCode and durationMs on success', () => {
@@ -191,5 +191,113 @@ describe('runCliJson', () => {
     }
     expect(err).toBeInstanceOf(CliError)
     expect(err!.exitCode).toBe(1)
+  })
+})
+
+describe('runCliAsync', () => {
+  it('returns stdout, stderr, exitCode and durationMs on success', async () => {
+    const result = await runCliAsync('node', [
+      '-e',
+      "process.stdout.write('hello'); process.stderr.write('world')",
+    ])
+    expect(result.stdout).toBe('hello')
+    expect(result.stderr).toBe('world')
+    expect(result.exitCode).toBe(0)
+    expect(result.durationMs).toBeGreaterThanOrEqual(0)
+  })
+
+  it('throws CliError on non-zero exit, preserving stderr and exitCode', async () => {
+    const err = await runCliAsync('node', [
+      '-e',
+      "process.stderr.write('boom'); process.exit(2)",
+    ]).catch((e) => e as CliError)
+    expect(err).toBeInstanceOf(CliError)
+    expect(err.exitCode).toBe(2)
+    expect(err.stderr).toBe('boom')
+    expect(err.timedOut).toBe(false)
+    expect(err.notFound).toBe(false)
+  })
+
+  it('throws CliError with timedOut=true when command exceeds timeoutMs', async () => {
+    const err = await runCliAsync('node', ['-e', 'setInterval(()=>{}, 1000)'], {
+      timeoutMs: 150,
+    }).catch((e) => e as CliError)
+    expect(err).toBeInstanceOf(CliError)
+    expect(err.timedOut).toBe(true)
+    expect(err.notFound).toBe(false)
+    expect(err.message).toMatch(/timed out/i)
+  })
+
+  it('throws a fatal CliError naming the buffer limit when output overflows maxBuffer', async () => {
+    const err = await runCliAsync(
+      'node',
+      ['-e', "process.stdout.write('x'.repeat(2 * 1024 * 1024))"],
+      { maxBufferBytes: 1 * 1024 * 1024, retries: 3, retryDelayMs: 1 },
+    ).catch((e) => e as CliError)
+    expect(err).toBeInstanceOf(CliError)
+    expect(err.outputTruncated).toBe(true)
+    expect(err.timedOut).toBe(false)
+    expect(err.message).toMatch(/output exceeded buffer limit/i)
+    expect(err.message).toMatch(/1 MB/)
+  })
+
+  it('throws CliError with notFound=true when command is missing', async () => {
+    const err = await runCliAsync('arbiter-nonexistent-command-xyz-12345', []).catch(
+      (e) => e as CliError,
+    )
+    expect(err).toBeInstanceOf(CliError)
+    expect(err.notFound).toBe(true)
+    expect(err.timedOut).toBe(false)
+    expect(err.message).toMatch(/not found/i)
+  })
+
+  it('retries failing commands and succeeds when attempts eventually pass', async () => {
+    const counterFile = join(tmpdir(), `run-cli-async-retry-${Date.now()}.txt`)
+    writeFileSync(counterFile, '0')
+    try {
+      const script = [
+        "const fs = require('fs');",
+        `const n = parseInt(fs.readFileSync('${counterFile}', 'utf-8'), 10) + 1;`,
+        `fs.writeFileSync('${counterFile}', String(n));`,
+        'if (n < 3) { process.exit(1); }',
+        "process.stdout.write('attempt ' + n);",
+      ].join('\n')
+      const result = await runCliAsync('node', ['-e', script], { retries: 3, retryDelayMs: 5 })
+      expect(result.stdout).toBe('attempt 3')
+      expect(result.exitCode).toBe(0)
+    } finally {
+      rmSync(counterFile, { force: true })
+    }
+  })
+
+  it('pipes input to child stdin', async () => {
+    const result = await runCliAsync(
+      'node',
+      ['-e', "process.stdin.on('data', d => process.stdout.write(d))"],
+      { input: 'piped-data' },
+    )
+    expect(result.stdout).toBe('piped-data')
+  })
+
+  it('passes cwd and env to the child process', async () => {
+    const result = await runCliAsync(
+      'node',
+      ['-e', "process.stdout.write(process.cwd() + ':' + (process.env.ARB_ASYNC ?? 'missing'))"],
+      { cwd: tmpdir(), env: { ARB_ASYNC: 'present', PATH: process.env.PATH ?? '' } },
+    )
+    expect(result.stdout).toContain('present')
+  })
+
+  it('runs concurrently: two slow children overlap rather than serialize', async () => {
+    // Each child sleeps ~300ms. Run serially under spawnSync that is ~600ms;
+    // genuinely concurrent (spawn + event loop free) it is ~300ms. Assert the
+    // wall clock is closer to MAX than SUM — the core #1514 guarantee.
+    const sleeper = ['-e', 'setTimeout(() => process.stdout.write("done"), 300)']
+    const start = Date.now()
+    const results = await Promise.all([runCliAsync('node', sleeper), runCliAsync('node', sleeper)])
+    const elapsed = Date.now() - start
+    expect(results.map((r) => r.stdout)).toEqual(['done', 'done'])
+    // Generous ceiling well below the ~600ms serial cost to avoid CI flake.
+    expect(elapsed).toBeLessThan(500)
   })
 })

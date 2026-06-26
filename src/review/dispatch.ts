@@ -26,7 +26,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { CliError, runCli } from '../utils/run-cli.js'
+import { CliError, runCli, runCliAsync } from '../utils/run-cli.js'
 import type { AgentReport, AgentResult, Finding } from './multi-agent.js'
 import { computeSsotDigest, escapeXml } from './ssot.js'
 import { TIER_PASS_COUNT, type ReviewTier } from './tier-constants.js'
@@ -665,10 +665,14 @@ export function dispatchClaudeAgent(
   const timeoutMs = opts.timeoutMs ?? 600_000
   const evidenceDir = opts.evidenceDir
 
-  return (prompt: string, agentName: string): Promise<AgentResult> => {
+  return async (prompt: string, agentName: string): Promise<AgentResult> => {
     let rawStdout = ''
     try {
-      const result = runCli(cmd, ['-p', prompt], { timeoutMs })
+      // `runCliAsync` (spawn, not spawnSync) keeps the event loop free, so when
+      // `dispatchAgents` launches N of these via `Promise.allSettled(...map)` the
+      // child `claude` processes run concurrently instead of serialized — wall
+      // clock becomes MAX(agents), not SUM(agents). (#1514)
+      const result = await runCliAsync(cmd, ['-p', prompt], { timeoutMs })
       rawStdout = result.stdout
       const report = parseAgentReport(rawStdout, agentName)
       const agentResult: AgentResult = {
@@ -681,7 +685,7 @@ export function dispatchClaudeAgent(
       if (evidenceDir !== undefined) {
         persistAgentResponse(evidenceDir, agentName, agentResult)
       }
-      return Promise.resolve(agentResult)
+      return agentResult
     } catch (err) {
       const isTimeout = err instanceof CliError && err.timedOut
       const message = err instanceof Error ? err.message : String(err)
@@ -704,7 +708,7 @@ export function dispatchClaudeAgent(
       if (evidenceDir !== undefined) {
         persistAgentResponse(evidenceDir, agentName, failResult)
       }
-      return Promise.resolve(failResult)
+      return failResult
     }
   }
 }
