@@ -20,6 +20,7 @@ import {
 } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { walkDir } from './walk-dir.js'
 
 export interface ReplayInputs {
   runId: string
@@ -95,29 +96,10 @@ function snapshotArbiterState(cwd: string): Record<string, unknown> {
   }
   const arbiterDir = join(cwd, '.arbiter')
   if (existsSync(arbiterDir)) {
-    snap.arbiterDir = listFiles(arbiterDir, arbiterDir).sort()
+    // Symlink-safe by construction (Dirent walk never descends symlinked dirs). #1521.
+    snap.arbiterDir = walkDir(arbiterDir, { base: arbiterDir }).sort()
   }
   return snap
-}
-
-function listFiles(root: string, base: string): string[] {
-  const out: string[] = []
-  let entries
-  try {
-    entries = readdirSync(root, { withFileTypes: true })
-  } catch {
-    return out
-  }
-  for (const entry of entries) {
-    const full = join(root, entry.name)
-    const rel = full.slice(base.length + 1)
-    if (entry.isDirectory()) {
-      out.push(...listFiles(full, base))
-    } else if (entry.isFile()) {
-      out.push(rel)
-    }
-  }
-  return out
 }
 
 export function startReplay(inputs: ReplayInputs): ReplayHandle {
