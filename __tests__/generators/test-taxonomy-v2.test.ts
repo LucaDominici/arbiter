@@ -14,8 +14,12 @@
  *     (new sections appended) not architecturally divergent.
  */
 import { describe, it, expect } from 'vitest'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { getTestPyramidProfile } from '../../src/config/test-pyramid-profiles.js'
+import { generateTestTaxonomy } from '../../src/generators/test-taxonomy.js'
 import { makeConfig } from '../helpers.js'
 
 describe('TEST_TAXONOMY.md.ejs — T1 extensions (#257)', () => {
@@ -169,6 +173,38 @@ describe('TEST_TAXONOMY.md.ejs — T1 extensions (#257)', () => {
     for (const kw of sharedKeywords) {
       expect(tsContent.toLowerCase()).toContain(kw.toLowerCase())
       expect(javaContent.toLowerCase()).toContain(kw.toLowerCase())
+    }
+  })
+})
+
+// #1524: generateTestTaxonomy must read `taxonomy.domainDims[]` off the config
+// object through the typed `TaxonomyConfig` shape (no more untyped double-cast).
+describe('generateTestTaxonomy — reads taxonomy.domainDims from config (#1524)', () => {
+  it('flows config.taxonomy.domainDims into the generated doc', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'arbiter-taxonomy-'))
+    try {
+      const config = makeConfig(tmp, {})
+      const withDims = {
+        ...config,
+        taxonomy: { domainDims: ['tenant-isolation', 'billing-accuracy'] },
+      } as typeof config
+      generateTestTaxonomy(withDims)
+      const content = readFileSync(join(tmp, 'docs', 'TEST_TAXONOMY.md'), 'utf8')
+      expect(content).toContain('tenant-isolation')
+      expect(content).toContain('billing-accuracy')
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+
+  it('degrades to no domain dims when taxonomy is absent or malformed', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'arbiter-taxonomy-'))
+    try {
+      const config = makeConfig(tmp, {})
+      const malformed = { ...config, taxonomy: { domainDims: 'not-an-array' } } as unknown
+      expect(() => generateTestTaxonomy(malformed as typeof config)).not.toThrow()
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
     }
   })
 })

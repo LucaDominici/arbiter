@@ -48,7 +48,7 @@ function errorsOf(raw: unknown): string[] {
 
 describe('exported constants', () => {
   it('exposes a stable schema version and tier/threshold defaults', () => {
-    expect(CURRENT_CONFIG_SCHEMA_VERSION).toBe(5)
+    expect(CURRENT_CONFIG_SCHEMA_VERSION).toBe(4)
     expect(DEFAULT_TASK_TIERS.XS.planDepth).toBe('minimal')
     expect(DEFAULT_TASK_TIERS.Standard.reviewAgentCount).toBe(4)
     expect(DEFAULT_THRESHOLDS.L1.lineCoverage).toBe(60)

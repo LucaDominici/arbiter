@@ -13,6 +13,7 @@ import { acquireLock } from '../utils/file-lock.js'
 import os from 'node:os'
 import { jsonOutput } from '../utils/json-output.js'
 import { loadConfig, writeSnapshot } from '../utils/config.js'
+import type { ArbiterConfig } from '../utils/config.js'
 import { runCli } from '../utils/run-cli.js'
 import { inspectLock, forceReleaseLock } from '../utils/file-lock.js'
 import type { LockInfo } from '../utils/file-lock.js'
@@ -30,8 +31,29 @@ import {
   validateLanguageArchetypeCoherence,
 } from './wizard/coherence.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
-import type { IndustryOverlay } from './wizard/coherence.js'
-import type { Archetype, CollaborationMode, GovernanceLevel, Language } from '../wizard/types.js'
+
+/**
+ * #1524: the raw shape the coherence checks read from arbiter.json. Reuses the
+ * canonical {@link ArbiterConfig} type (one SSOT, no per-check inline re-declares)
+ * plus the legacy top-level `enableSoloDevMode` alias the collaboration resolver
+ * still honours. Read RAW (no migrate/validate) so a config that is *missing* a
+ * field surfaces as an advisory WARN instead of `loadConfig` throwing.
+ */
+type RawCoherenceConfig = Partial<ArbiterConfig> & { enableSoloDevMode?: boolean }
+
+/**
+ * #1524: single typed read of arbiter.json for the coherence checks, replacing
+ * five duplicated `JSON.parse(readFileSync(...))` blocks with divergent inline
+ * narrow types. Returns null when the file is absent or unreadable so each check
+ * can emit its own WARN detail.
+ */
+function readRawCoherenceConfig(dir: string): RawCoherenceConfig | null {
+  try {
+    return JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as RawCoherenceConfig
+  } catch {
+    return null
+  }
+}
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
 
@@ -227,15 +249,8 @@ function checkProfileCoherence(dir: string): HealthCheck {
     status: 'PASS',
     detail: 'coherent',
   }
-  let cfg: {
-    automation?: { maxParallelWorktrees?: number; defaultGateLevel?: string }
-    collaborationMode?: CollaborationMode
-    enableSoloDevMode?: boolean
-    governanceLevel?: GovernanceLevel
-  }
-  try {
-    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
-  } catch {
+  const cfg = readRawCoherenceConfig(dir)
+  if (cfg === null) {
     check.status = 'WARN'
     check.detail = 'could not read arbiter.json for profile-coherence check'
     return check
@@ -275,10 +290,8 @@ function checkCollaborationCoherence(dir: string): HealthCheck {
     status: 'PASS',
     detail: 'coherent',
   }
-  let cfg: { collaborationMode?: CollaborationMode; governanceLevel?: GovernanceLevel }
-  try {
-    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
-  } catch {
+  const cfg = readRawCoherenceConfig(dir)
+  if (cfg === null) {
     check.status = 'WARN'
     check.detail = 'could not read arbiter.json for coherence check'
     return check
@@ -313,10 +326,8 @@ function checkLanguageArchetypeCoherence(dir: string): HealthCheck {
     status: 'PASS',
     detail: 'coherent',
   }
-  let cfg: { language?: Language; archetype?: Archetype }
-  try {
-    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
-  } catch {
+  const cfg = readRawCoherenceConfig(dir)
+  if (cfg === null) {
     check.status = 'WARN'
     check.detail = 'could not read arbiter.json for language-archetype check'
     return check
@@ -350,10 +361,8 @@ function checkOverlayCoherence(dir: string): HealthCheck {
     status: 'PASS',
     detail: 'coherent',
   }
-  let cfg: { industryOverlay?: IndustryOverlay; governanceLevel?: GovernanceLevel }
-  try {
-    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
-  } catch {
+  const cfg = readRawCoherenceConfig(dir)
+  if (cfg === null) {
     check.status = 'WARN'
     check.detail = 'could not read arbiter.json for overlay-coherence check'
     return check
@@ -410,14 +419,8 @@ function checkAutonomyCoherence(dir: string): HealthCheck {
     status: 'PASS',
     detail: 'coherent',
   }
-  let cfg: {
-    automation?: { autonomy?: string }
-    governanceLevel?: GovernanceLevel
-    useGitHub?: boolean
-  }
-  try {
-    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
-  } catch {
+  const cfg = readRawCoherenceConfig(dir)
+  if (cfg === null) {
     check.status = 'WARN'
     check.detail = 'could not read arbiter.json for autonomy-coherence check'
     return check

@@ -32,8 +32,17 @@ const MINIMAL_V3: ArbiterConfigV2 = {
 // ─── CURRENT_CONFIG_SCHEMA_VERSION ────────────────────────────────────────────
 
 describe('schema version', () => {
-  it('CURRENT_CONFIG_SCHEMA_VERSION is 5', () => {
-    expect(CURRENT_CONFIG_SCHEMA_VERSION).toBe(5)
+  it('CURRENT_CONFIG_SCHEMA_VERSION is 4', () => {
+    expect(CURRENT_CONFIG_SCHEMA_VERSION).toBe(4)
+  })
+
+  // #1524: the loader's ceiling must equal the highest version the migration
+  // chain can emit. The chain terminates at migrateV3ToV4 (stamps 4), so the
+  // constant must be 4 — otherwise loadConfig accepts a $schemaVersion this
+  // build can neither emit nor understand.
+  it('equals the migration terminus stamped by migrate()', () => {
+    const migrated = migrate(MINIMAL_V3)
+    expect(migrated.$schemaVersion).toBe(CURRENT_CONFIG_SCHEMA_VERSION)
   })
 })
 

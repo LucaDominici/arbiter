@@ -110,8 +110,24 @@ export interface ContextPackConfig {
  *
  * Loading a config with `$schemaVersion > CURRENT_CONFIG_SCHEMA_VERSION`
  * is a hard error (do not silently load); see `loadConfig`.
+ *
+ * #1524: kept in lock-step with the migration terminus. The chain ends at
+ * `migrateV3ToV4`, which stamps `$schemaVersion: 4`, so a freshly-migrated
+ * config is a `4`. There is no `v4-to-v5` migration, so advertising `5` here
+ * desynced the loader's ceiling from the highest version this build can emit.
+ * The `migration-terminus` invariant test guards this equality.
  */
-export const CURRENT_CONFIG_SCHEMA_VERSION = 5
+export const CURRENT_CONFIG_SCHEMA_VERSION = 4
+
+/**
+ * #257/#1524: domain-specific test-taxonomy configuration. Its `domainDims[]`
+ * flow into the TEST_TAXONOMY template. Declared here (the config SSOT) so the
+ * generator can read it through the type system instead of an untyped cast.
+ */
+export interface TaxonomyConfig {
+  /** Project-specific taxonomy dimensions appended to the archetype defaults. */
+  domainDims?: string[]
+}
 
 export interface ArbiterConfigV2 {
   version: string
@@ -174,6 +190,13 @@ export interface ArbiterConfigV2 {
   plugins?: string[]
   lanes?: Lane[]
   taskTiers?: TaskTiers
+  /**
+   * #257/#1524: domain-specific test-taxonomy dimensions. Consumed by the
+   * TEST_TAXONOMY generator (`generateTestTaxonomy`) and surfaced in
+   * docs/TEST_TAXONOMY.md. Declared on the SSOT type so a key typo or rename is
+   * a compile error rather than a silent fall-through to `[]`.
+   */
+  taxonomy?: TaxonomyConfig
   /** CONTEXT_PACK generator configuration (#254). */
   contextPack?: ContextPackConfig
   /** #1291 — ship autonomy gating (ADR-093 §4). Absent ⇒ L0 (ask each step). */
