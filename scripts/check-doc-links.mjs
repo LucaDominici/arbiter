@@ -4,8 +4,10 @@
 // Exits 1: one or more broken links with no valid redirect.
 // Also emits .arbiter/reports/doc-links.json ({ broken, filesScanned }) for the gold-audit
 // D-DOCS doc-link-integrity value check (GA-DOC-08) — deterministic, read by the gold engine.
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, dirname, resolve, relative, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 const CWD = process.cwd()
 const CANONICAL_PATHS_FILE = join(CWD, 'docs', 'METHOD', 'CANONICAL_PATHS.md')
@@ -27,7 +29,7 @@ const ROOT_FILES = [
   'GLOBAL_INVARIANTS.md',
   'OBSIDIAN.md',
 ]
-const SKIP_PATH_SEGMENTS = [
+export const SKIP_PATH_SEGMENTS = [
   `${sep}node_modules${sep}`,
   `${sep}dist${sep}`,
   `${sep}.git${sep}`,
@@ -63,18 +65,19 @@ function shouldSkip(absPath) {
   return SKIP_PATH_SEGMENTS.some((seg) => absPath.includes(seg))
 }
 
-function findMarkdownFiles(dir) {
+/**
+ * Collect every `.md` file under `dir` (recursively). Traversal is delegated to the shared
+ * cycle-safe walkRepo (#1521/#1544); this gate's own SKIP_PATH_SEGMENTS are re-applied to each
+ * returned path so the visited set is identical to the old hand-rolled walk (minus the symlink-
+ * cycle bug), plus walkRepo's widened SKIP_DIRS (build/coverage/.coverage). Returns absolute paths.
+ */
+export function findMarkdownFiles(dir) {
+  if (!existsSync(dir) || shouldSkip(dir + sep)) return []
   const files = []
-  if (!existsSync(dir)) return files
-  if (shouldSkip(dir + sep)) return files
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      if (shouldSkip(full + sep)) continue
-      files.push(...findMarkdownFiles(full))
-    } else if (entry.isFile() && entry.name.endsWith('.md')) {
-      files.push(full)
-    }
+  for (const rel of walkRepo(dir)) {
+    const full = join(dir, rel)
+    if (shouldSkip(full)) continue
+    if (rel.endsWith('.md')) files.push(full)
   }
   return files
 }
@@ -100,53 +103,13 @@ function isLocal(href) {
   )
 }
 
-const aliases = loadAliases()
-const markdownFiles = collectScanFiles()
-
-if (markdownFiles.length === 0) {
-  process.stdout.write('  check-doc-links: no docs found — skipping\n')
-  process.exit(0)
-}
-
 // Extract [text](href) links from markdown
 const LINK_PATTERN = /\[([^\]]*)\]\(([^)]+)\)/g
-let broken = 0
 
 function stripCodeSpansAndBlocks(text) {
   // Remove fenced code blocks first (```...```), then inline code spans (`...`).
   const noFences = text.replace(/```[\s\S]*?```/g, '')
   return noFences.replace(/`[^`\n]*`/g, '')
-}
-
-for (const file of markdownFiles) {
-  const raw = readFileSync(file, 'utf-8')
-  const content = stripCodeSpansAndBlocks(raw)
-  const fileDir = dirname(file)
-  for (const linkMatch of content.matchAll(LINK_PATTERN)) {
-    const href = linkMatch[2].split('#')[0]
-    if (!href || !isLocal(href)) continue
-
-    const absTarget = resolve(fileDir, href)
-    const relTarget = relative(CWD, absTarget)
-
-    if (ignored.has(relTarget)) continue
-    if (existsSync(absTarget)) continue
-
-    const redirectTarget = aliases.get(relTarget)
-    if (redirectTarget) {
-      const absRedirect = join(CWD, redirectTarget)
-      if (existsSync(absRedirect)) continue
-      const srcRel = relative(CWD, file)
-      process.stdout
-        .write(`  broken: ${srcRel}: ${relTarget} → redirect ${redirectTarget} also missing
-`)
-    } else {
-      const srcRel = relative(CWD, file)
-      process.stdout.write(`  broken: ${srcRel}: ${relTarget}
-`)
-    }
-    broken++
-  }
 }
 
 // Emit the deterministic report (consumed by gold-audit GA-DOC-08) in both branches.
@@ -155,14 +118,65 @@ function writeDocLinksReport(brokenCount, filesScanned) {
   mkdirSync(dirname(out), { recursive: true })
   writeFileSync(out, JSON.stringify({ broken: brokenCount, filesScanned }, null, 2) + '\n')
 }
-writeDocLinksReport(broken, markdownFiles.length)
 
-if (broken === 0) {
-  process.stdout.write(`  check-doc-links: all links resolve (${markdownFiles.length} files scanned)
+function main() {
+  const aliases = loadAliases()
+  const markdownFiles = collectScanFiles()
+
+  if (markdownFiles.length === 0) {
+    process.stdout.write('  check-doc-links: no docs found — skipping\n')
+    process.exit(0)
+  }
+
+  let broken = 0
+
+  for (const file of markdownFiles) {
+    const raw = readFileSync(file, 'utf-8')
+    const content = stripCodeSpansAndBlocks(raw)
+    const fileDir = dirname(file)
+    for (const linkMatch of content.matchAll(LINK_PATTERN)) {
+      const href = linkMatch[2].split('#')[0]
+      if (!href || !isLocal(href)) continue
+
+      const absTarget = resolve(fileDir, href)
+      const relTarget = relative(CWD, absTarget)
+
+      if (ignored.has(relTarget)) continue
+      if (existsSync(absTarget)) continue
+
+      const redirectTarget = aliases.get(relTarget)
+      if (redirectTarget) {
+        const absRedirect = join(CWD, redirectTarget)
+        if (existsSync(absRedirect)) continue
+        const srcRel = relative(CWD, file)
+        process.stdout
+          .write(`  broken: ${srcRel}: ${relTarget} → redirect ${redirectTarget} also missing
 `)
-  process.exit(0)
+      } else {
+        const srcRel = relative(CWD, file)
+        process.stdout.write(`  broken: ${srcRel}: ${relTarget}
+`)
+      }
+      broken++
+    }
+  }
+
+  writeDocLinksReport(broken, markdownFiles.length)
+
+  if (broken === 0) {
+    process.stdout.write(
+      `  check-doc-links: all links resolve (${markdownFiles.length} files scanned)
+`,
+    )
+    process.exit(0)
+  }
+
+  process.stdout.write(`\n  check-doc-links: ${broken} broken link(s) found
+`)
+  process.exit(1)
 }
 
-process.stdout.write(`\n  check-doc-links: ${broken} broken link(s) found
-`)
-process.exit(1)
+// Only run main when invoked as CLI (not imported in tests).
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main()
+}

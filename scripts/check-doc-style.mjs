@@ -14,8 +14,10 @@
 //   - exactly one top-level H1 (`# ...`) in body
 //   - if frontmatter `title` is non-empty, the H1 text matches it (case-sensitive)
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, sep, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 const CWD = process.cwd()
 
@@ -29,7 +31,7 @@ const ROOT_FILES = [
   'GLOBAL_INVARIANTS.md',
   'OBSIDIAN.md',
 ]
-const SKIP_PATH_SEGMENTS = [
+export const SKIP_PATH_SEGMENTS = [
   `${sep}node_modules${sep}`,
   `${sep}dist${sep}`,
   `${sep}.git${sep}`,
@@ -43,7 +45,7 @@ const SKIP_PATH_SEGMENTS = [
   `${sep}.claude${sep}.task${sep}`,
 ]
 // Auto-generated files that bypass frontmatter requirements
-const SKIP_FILENAMES = new Set([
+export const SKIP_FILENAMES = new Set([
   'INDEX.md',
   'DECISIONS.md', // generated digest (gen-adr-readme.mjs) — uses status: generated
 ])
@@ -66,15 +68,20 @@ function shouldSkip(absPath) {
   return SKIP_PATH_SEGMENTS.some((s) => absPath.includes(s))
 }
 
-function walk(dir) {
+/**
+ * Collect every hand-authored `.md` file under `dir` (recursively). Traversal is delegated to the
+ * shared cycle-safe walkRepo (#1521/#1544); this gate's own SKIP_PATH_SEGMENTS + SKIP_FILENAMES are
+ * re-applied to each returned path so the visited set is identical to the old hand-rolled walk
+ * (minus the symlink-cycle bug), plus walkRepo's widened SKIP_DIRS (build/coverage/.coverage).
+ */
+export function walk(dir) {
+  if (!existsSync(dir) || shouldSkip(dir + sep)) return []
   const out = []
-  if (!existsSync(dir) || shouldSkip(dir + sep)) return out
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name)
-    if (e.isDirectory()) {
-      if (shouldSkip(p + sep)) continue
-      out.push(...walk(p))
-    } else if (e.isFile() && e.name.endsWith('.md') && !SKIP_FILENAMES.has(e.name)) out.push(p)
+  for (const rel of walkRepo(dir)) {
+    const full = join(dir, rel)
+    if (shouldSkip(full)) continue
+    const name = rel.slice(rel.lastIndexOf('/') + 1)
+    if (name.endsWith('.md') && !SKIP_FILENAMES.has(name)) out.push(full)
   }
   return out
 }
@@ -120,76 +127,84 @@ function findH1s(content, bodyStart) {
   return h1s
 }
 
-const files = collectFiles()
-const errors = []
-const warnings = []
+function main() {
+  const files = collectFiles()
+  const errors = []
+  const warnings = []
 
-for (const file of files) {
-  const rel = relative(CWD, file)
-  const content = readFileSync(file, 'utf-8')
-  const fm = parseFrontmatter(content)
-  if (!fm.present) {
-    errors.push(`${rel}: missing frontmatter block`)
-    continue
+  for (const file of files) {
+    const rel = relative(CWD, file)
+    const content = readFileSync(file, 'utf-8')
+    const fm = parseFrontmatter(content)
+    if (!fm.present) {
+      errors.push(`${rel}: missing frontmatter block`)
+      continue
+    }
+    // HARD: required keys must be present.
+    const missing = REQUIRED_KEYS.filter((k) => !fm.kv.has(k))
+    if (missing.length > 0) {
+      errors.push(`${rel}: missing frontmatter key(s): ${missing.join(', ')}`)
+    }
+    // HARD: last_review must be ISO date when set.
+    if (
+      fm.kv.has('last_review') &&
+      fm.kv.get('last_review') &&
+      !ISO_DATE.test(fm.kv.get('last_review'))
+    ) {
+      errors.push(`${rel}: last_review "${fm.kv.get('last_review')}" is not ISO date (YYYY-MM-DD)`)
+    }
+    // HARD: doc_version must be semver when set.
+    if (
+      fm.kv.has('doc_version') &&
+      fm.kv.get('doc_version') &&
+      !SEMVER.test(fm.kv.get('doc_version'))
+    ) {
+      errors.push(`${rel}: doc_version "${fm.kv.get('doc_version')}" is not semver (X.Y.Z)`)
+    }
+    // SOFT: status should be one of the canonical lifecycle values.
+    if (fm.kv.has('status') && fm.kv.get('status') && !VALID_STATUS.has(fm.kv.get('status'))) {
+      warnings.push(
+        `${rel}: non-canonical status "${fm.kv.get('status')}" (canonical: ${[...VALID_STATUS].join(', ')})`,
+      )
+    }
+    // SOFT: every doc should have an H1; multi-H1 should be reviewed.
+    const h1s = findH1s(content, fm.bodyStart ?? 0)
+    if (h1s.length === 0) {
+      warnings.push(`${rel}: no H1 heading found in body`)
+    } else if (h1s.length > 1) {
+      warnings.push(`${rel}: ${h1s.length} H1 headings — exactly one preferred`)
+    }
   }
-  // HARD: required keys must be present.
-  const missing = REQUIRED_KEYS.filter((k) => !fm.kv.has(k))
-  if (missing.length > 0) {
-    errors.push(`${rel}: missing frontmatter key(s): ${missing.join(', ')}`)
-  }
-  // HARD: last_review must be ISO date when set.
-  if (
-    fm.kv.has('last_review') &&
-    fm.kv.get('last_review') &&
-    !ISO_DATE.test(fm.kv.get('last_review'))
-  ) {
-    errors.push(`${rel}: last_review "${fm.kv.get('last_review')}" is not ISO date (YYYY-MM-DD)`)
-  }
-  // HARD: doc_version must be semver when set.
-  if (
-    fm.kv.has('doc_version') &&
-    fm.kv.get('doc_version') &&
-    !SEMVER.test(fm.kv.get('doc_version'))
-  ) {
-    errors.push(`${rel}: doc_version "${fm.kv.get('doc_version')}" is not semver (X.Y.Z)`)
-  }
-  // SOFT: status should be one of the canonical lifecycle values.
-  if (fm.kv.has('status') && fm.kv.get('status') && !VALID_STATUS.has(fm.kv.get('status'))) {
-    warnings.push(
-      `${rel}: non-canonical status "${fm.kv.get('status')}" (canonical: ${[...VALID_STATUS].join(', ')})`,
-    )
-  }
-  // SOFT: every doc should have an H1; multi-H1 should be reviewed.
-  const h1s = findH1s(content, fm.bodyStart ?? 0)
-  if (h1s.length === 0) {
-    warnings.push(`${rel}: no H1 heading found in body`)
-  } else if (h1s.length > 1) {
-    warnings.push(`${rel}: ${h1s.length} H1 headings — exactly one preferred`)
-  }
-}
 
-if (errors.length === 0) {
+  if (errors.length === 0) {
+    if (warnings.length > 0) {
+      process.stdout.write(
+        `  check-doc-style: ${files.length} files OK; ${warnings.length} soft warning(s)\n`,
+      )
+      for (const w of warnings.slice(0, 20)) process.stdout.write(`    [warn] ${w}\n`)
+      if (warnings.length > 20)
+        process.stdout.write(`    [warn] ... +${warnings.length - 20} more\n`)
+    } else {
+      process.stdout.write(`  check-doc-style: all ${files.length} files OK\n`)
+    }
+    process.exit(0)
+  }
+
+  process.stdout.write(
+    `  check-doc-style: ${errors.length} hard error(s) across ${files.length} files\n`,
+  )
+  for (const e of errors) process.stdout.write(`    ${e}\n`)
   if (warnings.length > 0) {
     process.stdout.write(
-      `  check-doc-style: ${files.length} files OK; ${warnings.length} soft warning(s)\n`,
+      `  check-doc-style: ${warnings.length} additional soft warning(s) (not failure)\n`,
     )
-    for (const w of warnings.slice(0, 20)) process.stdout.write(`    [warn] ${w}\n`)
-    if (warnings.length > 20) process.stdout.write(`    [warn] ... +${warnings.length - 20} more\n`)
-  } else {
-    process.stdout.write(`  check-doc-style: all ${files.length} files OK\n`)
+    for (const w of warnings.slice(0, 10)) process.stdout.write(`    [warn] ${w}\n`)
+    if (warnings.length > 10) process.stdout.write(`    [warn] ... +${warnings.length - 10} more\n`)
   }
-  process.exit(0)
+  process.exit(1)
 }
 
-process.stdout.write(
-  `  check-doc-style: ${errors.length} hard error(s) across ${files.length} files\n`,
-)
-for (const e of errors) process.stdout.write(`    ${e}\n`)
-if (warnings.length > 0) {
-  process.stdout.write(
-    `  check-doc-style: ${warnings.length} additional soft warning(s) (not failure)\n`,
-  )
-  for (const w of warnings.slice(0, 10)) process.stdout.write(`    [warn] ${w}\n`)
-  if (warnings.length > 10) process.stdout.write(`    [warn] ... +${warnings.length - 10} more\n`)
+// Only run main when invoked as CLI (not imported in tests).
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main()
 }
-process.exit(1)
