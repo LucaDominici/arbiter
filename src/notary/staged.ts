@@ -7,7 +7,7 @@
  * #256
  */
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { resolve } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 
 /**
@@ -30,14 +30,27 @@ export function getStagedDocFiles(cwd?: string): string[] {
 }
 
 /**
- * Returns the in-progress commit message by reading .git/COMMIT_EDITMSG.
+ * Returns the in-progress commit message by reading COMMIT_EDITMSG.
  * Returns empty string when unavailable (e.g. not in a commit context).
+ *
+ * Resolves the path via `git rev-parse --git-path COMMIT_EDITMSG` rather than
+ * hand-joining `<cwd>/.git/COMMIT_EDITMSG`. In a primary checkout `.git` is a
+ * directory and `--git-path` returns a relative `.git/COMMIT_EDITMSG`; in a git
+ * worktree `.git` is a gitdir-pointer FILE and the real COMMIT_EDITMSG lives
+ * under `<main>/.git/worktrees/<name>/`, which `--git-path` returns as an
+ * absolute path. `resolve(dir, ...)` is correct for both — the old hand-join
+ * always returned '' in a worktree, false-failing `arbiter notary check` (#1561).
  */
 export function getStagedCommitMessage(cwd?: string): string {
-  const gitDir = cwd ? join(cwd, '.git') : join(process.cwd(), '.git')
-  const msgPath = join(gitDir, 'COMMIT_EDITMSG')
-  if (!existsSync(msgPath)) return ''
+  const dir = cwd ?? process.cwd()
   try {
+    const result = runCli('git', ['rev-parse', '--git-path', 'COMMIT_EDITMSG'], {
+      cwd: dir,
+      timeoutMs: 5000,
+    })
+    if (result.exitCode !== 0) return ''
+    const msgPath = resolve(dir, result.stdout.trim())
+    if (!existsSync(msgPath)) return ''
     return readFileSync(msgPath, 'utf-8')
   } catch {
     return ''

@@ -369,7 +369,9 @@ describe('runInit — brownfield baseline capture (non-fatal warn branch)', () =
       quiet: true,
     })
     expect(existsSync(join(dir, 'arbiter.json'))).toBe(true)
-  })
+    // Full runInit scaffold + brownfield-capture subprocess; the 30s default is
+    // too tight for this in the full parallel pool — see #1604.
+  }, 60_000)
 })
 
 // ---------------------------------------------------------------------------
