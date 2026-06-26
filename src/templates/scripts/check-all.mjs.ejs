@@ -831,6 +831,12 @@ if (level === 'L2') {
 <% } else if (language === 'java' && buildTool === 'maven') { %>
   runCheck('mutation (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q'], { soft: graceActive });
 <% } %>
+  // #1508: mutation-score non-regression ratchet — backstops the absolute mutationThreshold
+  // so the killed-mutant ratio cannot silently erode floor-ward. Self-SKIPs when no report
+  // exists (and seeds on first run), so it only ever fails on a genuine regression.
+  if (existsSync('scripts/verify-mutation-baseline.mjs')) {
+    runCheck('mutation baseline (#1508)', 'node', ['scripts/verify-mutation-baseline.mjs'], { soft: graceActive });
+  }
 <% } %>
   // ─── L2: STRIDE/RACI traceability ───────────────────────────────────────────
   runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });

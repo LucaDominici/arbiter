@@ -157,6 +157,7 @@
     "scripts/verify-fe-coverage.mjs",
     "scripts/verify-i18n-parity.mjs",
     "scripts/verify-module-coverage.mjs",
+    "scripts/verify-mutation-baseline.mjs",
     "scripts/verify-tokens.mjs",
     "src/test/example.behavioral.test.ts",
     "standards/doc-profile",

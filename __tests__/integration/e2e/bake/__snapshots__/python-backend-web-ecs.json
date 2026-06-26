@@ -140,6 +140,7 @@
     "scripts/self-validation.mjs",
     "scripts/setup-hooks.sh",
     "scripts/verify-module-coverage.mjs",
+    "scripts/verify-mutation-baseline.mjs",
     "standards/doc-profile",
     "standards/gold-doc-set.yml",
     "standards/gold-registry.yml",

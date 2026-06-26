@@ -138,6 +138,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'verify-module-coverage.mjs'],
     tpl: 'scripts/verify-module-coverage.mjs.ejs',
   },
+  // #1508: mutation-score non-regression ratchet. Emitted unconditionally (self-SKIPs
+  // when no mutation report exists, or the stack is not yet supported); wired blocking
+  // next to the mutation gate so the killed-mutant ratio cannot silently drift toward
+  // the absolute floor without ever tripping a regression.
+  {
+    rel: ['scripts', 'verify-mutation-baseline.mjs'],
+    tpl: 'scripts/verify-mutation-baseline.mjs.ejs',
+  },
   {
     // #1365/INV-126: live-API e2e gate. Emitted unconditionally (manifest absent or
     // required:false ⇒ runtime SKIP); the suite itself is scaffolded by the api-e2e

@@ -147,6 +147,7 @@
     "scripts/optional-emissions.json",
     "scripts/self-validation.mjs",
     "scripts/verify-module-coverage.mjs",
+    "scripts/verify-mutation-baseline.mjs",
     "src/middleware/410-gone-handler.ts",
     "src/middleware/correlation-id.ts",
     "src/middleware/deprecation.ts",
