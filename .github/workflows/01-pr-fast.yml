@@ -135,6 +135,15 @@ jobs:
           framework: terraform,kubernetes,dockerfile
           quiet: true
           soft_fail: false
+      # #1509 gold-align: Checkov scans for known misconfigurations; tflint is the
+      # Terraform-specific *linter* (provider-aware deprecations, invalid arg
+      # combinations, unused declarations). Reference-grade IaC pipelines run it
+      # BLOCKING — no soft-fail. `--recursive` exits 0 when the repo carries no
+      # `.tf` files, so non-Terraform infra changes (k8s/dockerfile) stay green.
+      - name: Setup tflint (Terraform linter)
+        uses: terraform-linters/setup-tflint@b480b8fcdaa6f2c577f8e4fa799e89e756bb7c93  # v6.2.2
+      - name: tflint (Terraform lint, blocking)
+        run: tflint --recursive --no-color
 
 
 

@@ -328,6 +328,16 @@ describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
     expect(section).toContain('timeout-minutes: 60')
   })
 
+  it('(b) iac-scan runs a SHA-pinned, blocking tflint Terraform linter (#1509)', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    const section = iacSection(rendered)
+    // tflint setup action SHA-pinned with a version comment.
+    expect(section).toMatch(/uses: terraform-linters\/setup-tflint@[0-9a-f]{40}\s+# v\d/)
+    // Blocking lint invocation (no soft-fail / continue-on-error on the tflint run).
+    expect(section).toMatch(/tflint --recursive/)
+    expect(section).not.toContain('continue-on-error')
+  })
+
   it('(b) iac-scan is absent at L1 single-lane (no classify-changes signal)', () => {
     const l1 = render({ language: 'typescript', governanceLevel: 'L1' })
     expect(l1).not.toContain('  iac-scan:')
