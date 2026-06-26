@@ -1,14 +1,16 @@
 {
   "workspaces": {
     ".": {
-      "entry": ["src/adapters/index.ts!"],
-      "project": ["src/**/*.ts", "!src/templates/**"]
+      "entry": ["src/adapters/index.ts!", "scripts/**/*.mjs"],
+      "project": ["src/**/*.ts", "!src/templates/**", "scripts/**/*.mjs"]
     }
   },
   "ignoreDependencies": ["@commitlint/cli", "jscpd", "minimatch", "@stryker-mutator/core"],
   "ignoreFiles": ["src/test/example.behavioral.test.ts", "src/utils/plugin-worker.ts"],
   "ignoreBinaries": [
     "stryker",
+    "gh",
+    "cosign",
     "which",
     "java",
     "python3",
