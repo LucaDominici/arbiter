@@ -30,6 +30,28 @@ fi
 
 # Unset git hook env vars so nested git calls in scripts work correctly.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
+
+# gold-align (#1506 yamllint / #1507 shellcheck): mirror the CI config-lint lane
+# locally so YAML/shell style defects fail before CI, not after a round-trip. Each
+# linter is best-effort-on-absence (skip with a note when the tool isn't installed,
+# matching the node/node_modules guards above) but BLOCKING when present.
+_staged=$(git diff --cached --name-only --diff-filter=ACM)
+if command -v shellcheck >/dev/null 2>&1; then
+  _sh=$(echo "$_staged" | grep -E '\.sh$' || true)
+  if [ -n "$_sh" ]; then
+    echo "$_sh" | xargs shellcheck --severity=warning || exit 1
+  fi
+fi
+if command -v yamllint >/dev/null 2>&1; then
+  _yml=$(echo "$_staged" | grep -E '\.ya?ml$' | grep -v '^\.github/workflows/' || true)
+  if [ -n "$_yml" ]; then
+    if [ -f .yamllint.yml ] || [ -f .yamllint.yaml ] || [ -f .yamllint ]; then
+      echo "$_yml" | xargs yamllint || exit 1
+    else
+      echo "$_yml" | xargs yamllint -d relaxed || exit 1
+    fi
+  fi
+fi
 <% if (language === 'typescript') { %>
 
 # Vite/vitest (v5+) cannot handle '#' in the project root path — it treats '#'

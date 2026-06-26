@@ -28,6 +28,58 @@ concurrency:
 
 
 jobs:
+  config-lint:
+    name: Config Lint (yaml + shell)
+    # gold-align (#1506 yamllint / #1507 shellcheck): a language-agnostic style/
+    # structure lint lane. yamllint checks non-workflow YAML (indentation, duplicate
+    # keys, trailing spaces, document structure) — complementary to actionlint, which
+    # owns .github/workflows *semantics*. shellcheck checks generated *.sh for unquoted
+    # expansions / unsafe word-splitting at warning severity. Both BLOCKING; both
+    # version-pinned for reproducibility. Each linter no-ops cleanly (green) when the
+    # repo carries no matching files. Committed .yamllint.yml / .shellcheckrc (when
+    # present) are auto-discovered and make the rules explicit + tunable.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Install shellcheck (pinned)
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz \
+            | tar -xJ -C "$RUNNER_TEMP/bin" --strip-components=1 shellcheck-v0.10.0/shellcheck
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: shellcheck (generated shell, blocking at warning severity)
+        # .shellcheckrc (when present) is auto-discovered. No *.sh ⇒ no-op (green).
+        run: |
+          files=$(git ls-files '*.sh')
+          if [ -n "$files" ]; then
+            echo "$files" | xargs shellcheck --severity=warning
+          else
+            echo "shellcheck: no *.sh files — skipping"
+          fi
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.12'
+      - name: Install yamllint (pinned)
+        run: pip install yamllint==1.35.1
+      - name: yamllint (non-workflow YAML, blocking on errors)
+        # actionlint owns .github/workflows semantics; exclude them to avoid overlap.
+        # A committed .yamllint.yml (when present) is auto-discovered and authoritative;
+        # otherwise fall back to yamllint's built-in `relaxed` preset — both block on
+        # ERRORS only (line-length etc. stay advisory warnings). No matching YAML ⇒ no-op.
+        run: |
+          files=$(git ls-files '*.yml' '*.yaml' ':!.github/workflows/**')
+          if [ -n "$files" ]; then
+            if [ -f .yamllint.yml ] || [ -f .yamllint.yaml ] || [ -f .yamllint ]; then
+              echo "$files" | xargs yamllint
+            else
+              echo "$files" | xargs yamllint -d relaxed
+            fi
+          else
+            echo "yamllint: no non-workflow YAML — skipping"
+          fi
 
   security-early-fail:
     name: Security (PII + Secrets)
