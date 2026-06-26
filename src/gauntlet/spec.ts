@@ -173,7 +173,30 @@ export function specHash(raw: string): string {
 // Use unknown to avoid the self-referential type alias restriction in TS < 4.8
 type YamlValue = unknown
 
-function parseMinimalYaml(text: string): YamlValue {
+/**
+ * Indentation width of a line, in columns. YAML forbids the TAB character for
+ * indentation (it makes column arithmetic ambiguous), so a leading tab is a hard
+ * parse error here — failing closed rather than silently miscounting a tab as a
+ * single column and mis-nesting the document (#1554). js-yaml rejects the same.
+ */
+function computeIndent(line: string): number {
+  const width = line.length - line.trimStart().length
+  for (let i = 0; i < width; i++) {
+    if (line[i] === '\t') {
+      throw new Error('tab character is not allowed for indentation')
+    }
+  }
+  return width
+}
+
+/**
+ * Parse the gauntlet YAML subset into a plain value. Fail-closed: every
+ * construct the parser does not model (over-indentation, duplicate keys, tab
+ * indentation, an unbalanced flow collection) throws rather than silently
+ * producing a divergent shape (#1554). Exported for the differential test that
+ * pins this parser against js-yaml.
+ */
+export function parseMinimalYaml(text: string): YamlValue {
   const lines = text.split('\n')
   const ctx = new ParseCtx(lines)
   return parseBlock(ctx, 0)
@@ -210,7 +233,7 @@ function parseBlock(ctx: ParseCtx, indent: number): YamlValue {
   if (line === undefined) return null
 
   const trimmed = line.trim()
-  const lineIndent = line.length - line.trimStart().length
+  const lineIndent = computeIndent(line)
 
   if (lineIndent < indent) return null
 
@@ -239,7 +262,7 @@ function parseBlockSeq(ctx: ParseCtx, indent: number): YamlValue[] {
     ctx.skipBlanks()
     const line = ctx.peek()
     if (line === undefined) break
-    const lineIndent = line.length - line.trimStart().length
+    const lineIndent = computeIndent(line)
     if (lineIndent < indent) break
     const trimmed = line.trim()
     if (!trimmed.startsWith('-')) break
@@ -282,7 +305,7 @@ function parseSubKeysAfterDash(ctx: ParseCtx, indent: number): YamlValue {
   ctx.skipBlanks()
   const line = ctx.peek()
   if (line === undefined) return null
-  const lineIndent = line.length - line.trimStart().length
+  const lineIndent = computeIndent(line)
   if (lineIndent < indent) return null
   const trimmed = line.trim()
   if (/^[a-zA-Z_][a-zA-Z0-9_-]*\s*:/.test(trimmed)) {
@@ -297,9 +320,16 @@ function parseBlockMap(ctx: ParseCtx, indent: number): Record<string, YamlValue>
     ctx.skipBlanks()
     const line = ctx.peek()
     if (line === undefined) break
-    const lineIndent = line.length - line.trimStart().length
+    const lineIndent = computeIndent(line)
     if (lineIndent < indent) break
-    if (lineIndent > indent) break // Should not happen at this level
+    if (lineIndent > indent) {
+      // A sibling MORE indented than this mapping level is malformed YAML — the
+      // child of the previous key, if any, was already consumed by the value
+      // parse, so a leftover over-indented line means the document does not nest
+      // the way it appears to. js-yaml errors here; failing closed prevents a
+      // silently dropped mapping entry from shrinking the gauntlet matrix (#1554).
+      throw new Error(`unexpected over-indentation in mapping (indent ${lineIndent} > ${indent})`)
+    }
 
     const trimmed = line.trim()
     if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('-')) break
@@ -310,6 +340,11 @@ function parseBlockMap(ctx: ParseCtx, indent: number): Record<string, YamlValue>
     ctx.consume()
     const rawKey = trimmed.slice(0, colonIdx).trim()
     const key = unquote(rawKey)
+    // YAML mandates an error on a duplicate key; the old last-wins silently
+    // discarded the earlier entry — fail closed instead (#1554).
+    if (Object.hasOwn(obj, key)) {
+      throw new Error(`duplicate mapping key: ${key}`)
+    }
     const valuePart = stripComment(trimmed.slice(colonIdx + 1))
 
     if (valuePart === '') {
@@ -325,7 +360,7 @@ function parseBlockMap(ctx: ParseCtx, indent: number): Record<string, YamlValue>
       ctx.skipBlanks()
       const next = ctx.peek()
       if (next !== undefined) {
-        const nextIndent = next.length - next.trimStart().length
+        const nextIndent = computeIndent(next)
         if (nextIndent > indent) {
           obj[key] = parseBlock(ctx, nextIndent)
           continue
@@ -389,24 +424,121 @@ function findMappingColon(s: string): number {
   return -1
 }
 
+/**
+ * Return the substring strictly inside the flow collection that OPENS at `s[0]`
+ * (`[` or `{`), locating the matching close at the correct nesting depth while
+ * respecting quotes — NOT the first `]`/`}` (the old `.replace(/\].*$/,'')`
+ * truncated `["x]y"]` at the inner bracket). Throws on an unbalanced collection
+ * or on non-whitespace trailing content after the close (#1554).
+ */
+function flowInner(s: string, open: string, close: string): string {
+  let depth = 0
+  let inSingle = false
+  let inDouble = false
+  let end = -1
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i] ?? ''
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle
+      continue
+    }
+    if (c === '"' && !inSingle) {
+      inDouble = !inDouble
+      continue
+    }
+    if (inSingle || inDouble) continue
+    if (c === open) depth++
+    else if (c === close) {
+      depth--
+      if (depth === 0) {
+        end = i
+        break
+      }
+    }
+  }
+  if (end < 0) throw new Error(`unbalanced ${open}${close} flow collection`)
+  if (s.slice(end + 1).trim() !== '') {
+    throw new Error(`unexpected content after ${close} in flow collection`)
+  }
+  return s.slice(1, end)
+}
+
+/**
+ * Split a flow-collection inner string on its TOP-LEVEL commas only, respecting
+ * quotes and nested `[]`/`{}` so `"us,east"` and `[a,b]` are kept intact (the old
+ * `.split(',')` corrupted any embedded comma into extra members) (#1554).
+ */
+function splitFlowEntries(inner: string): string[] {
+  const out: string[] = []
+  let depth = 0
+  let inSingle = false
+  let inDouble = false
+  let start = 0
+  for (let i = 0; i < inner.length; i++) {
+    const c = inner[i] ?? ''
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle
+      continue
+    }
+    if (c === '"' && !inSingle) {
+      inDouble = !inDouble
+      continue
+    }
+    if (inSingle || inDouble) continue
+    if (c === '[' || c === '{') depth++
+    else if (c === ']' || c === '}') depth--
+    else if (c === ',' && depth === 0) {
+      out.push(inner.slice(start, i))
+      start = i + 1
+    }
+  }
+  out.push(inner.slice(start))
+  return out
+}
+
+/** Index of the first colon not inside a quoted scalar (the flow key/value
+ *  separator), or -1. Quote-aware twin of the old `indexOf(':')` (#1554). */
+function firstUnquotedColon(s: string): number {
+  let inSingle = false
+  let inDouble = false
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i] ?? ''
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle
+      continue
+    }
+    if (c === '"' && !inSingle) {
+      inDouble = !inDouble
+      continue
+    }
+    if (c === ':' && !inSingle && !inDouble) return i
+  }
+  return -1
+}
+
 function parseFlowSeq(s: string): string[] {
-  // Extract content between [ and ]
-  const inner = s.replace(/^\[/, '').replace(/\].*$/, '')
-  return inner
-    .split(',')
+  const inner = flowInner(s, '[', ']')
+  if (inner.trim() === '') return []
+  return splitFlowEntries(inner)
     .map((t) => unquote(t.trim()))
     .filter((t) => t !== '')
 }
 
 function parseFlowMap(s: string): Record<string, string> {
-  const inner = s.replace(/^\{/, '').replace(/\}.*$/, '')
+  const inner = flowInner(s, '{', '}')
   const obj: Record<string, string> = {}
-  for (const pair of inner.split(',')) {
-    const colonIdx = pair.indexOf(':')
+  if (inner.trim() === '') return obj
+  for (const pair of splitFlowEntries(inner)) {
+    const colonIdx = firstUnquotedColon(pair)
     if (colonIdx < 0) continue
     const k = unquote(pair.slice(0, colonIdx).trim())
     const v = unquote(pair.slice(colonIdx + 1).trim())
-    if (k !== '') obj[k] = v
+    if (k === '') continue
+    // YAML mandates an error on a duplicate key; fail closed (#1554).
+    if (Object.hasOwn(obj, k)) {
+      throw new Error(`duplicate mapping key: ${k}`)
+    }
+    obj[k] = v
   }
   return obj
 }
