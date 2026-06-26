@@ -71,6 +71,8 @@
     ".gitignore",
     ".prettierignore",
     ".prettierrc.json",
+    ".shellcheckrc",
+    ".yamllint.yml",
     "AGENTS.md",
     "Makefile",
     "api-e2e.json",

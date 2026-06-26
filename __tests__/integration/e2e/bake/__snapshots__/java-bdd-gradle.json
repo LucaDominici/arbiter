@@ -67,6 +67,8 @@
     ".githooks/pre-commit",
     ".githooks/pre-push",
     ".gitignore",
+    ".shellcheckrc",
+    ".yamllint.yml",
     "AGENTS.md",
     "Makefile",
     "api-e2e.json",

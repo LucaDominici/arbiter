@@ -258,16 +258,14 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     ...buildGateScriptSpecs(config),
     {
       key: 'debt-gates',
-      // Always run for typescript/multi so injectTestScripts fires regardless of
-      // enableDebtGates — check-all.mjs calls test:unit/contract/integration/behavioral
-      // unconditionally for TS at L1+ (#933 F13). Also always-on for python so the
-      // gate-essential python scaffold (ruff.toml + requirements-dev.txt) emits at
-      // L1, where the generated gate runs ruff/pytest (B4, #1491).
-      enabled:
-        config.enableDebtGates ||
-        config.language === 'typescript' ||
-        config.language === 'multi' ||
-        config.language === 'python',
+      // Always run: generateDebtGates emits the language-agnostic config-lint pair
+      // (.yamllint.yml + .shellcheckrc) for EVERY archetype/level (#1546), then guards
+      // the language-specific scaffold internally. It already ran unconditionally for
+      // typescript/multi (injectTestScripts, #933 F13) and python (gate-essential
+      // ruff.toml + requirements-dev.txt at L1, B4 #1491); now rust/go/java/kotlin at
+      // L1 run too so the universal configs land — their debt extras still sit below
+      // the in-function enableDebtGates guard.
+      enabled: true,
       run: (opts) => generateDebtGates(config, opts).files,
     },
     {

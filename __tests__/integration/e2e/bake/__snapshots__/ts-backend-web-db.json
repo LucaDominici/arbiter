@@ -69,6 +69,8 @@
     ".githooks/pre-commit",
     ".githooks/pre-push",
     ".prettierrc.json",
+    ".shellcheckrc",
+    ".yamllint.yml",
     "AGENTS.md",
     "Makefile",
     "__tests__/contract/error-shape.contract.test.ts",

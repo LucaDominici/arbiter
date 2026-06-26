@@ -16,13 +16,65 @@ describe('generateDebtGates', () => {
     cleanupTestProject(dir)
   })
 
-  it('emits no debt-gate extras for rust/go when enableDebtGates is false', () => {
-    // rust/go have no first-run gate scaffold to emit (their debt configs sit below
-    // the enableDebtGates guard), so debtGates:false is a clean no-op. (TS and
-    // Python DO emit an always-on gate-essential scaffold — covered separately.)
+  it('emits only the universal config-lint configs for rust/go when enableDebtGates is false (#1546)', () => {
+    // rust/go have no language-specific first-run gate scaffold (their debt configs
+    // sit below the enableDebtGates guard). What DOES emit unconditionally is the
+    // language-agnostic config-lint pair (.yamllint.yml + .shellcheckrc) that the
+    // generated config-lint CI lane + pre-commit hook auto-discover (#1506/#1507).
     const config = makeConfig(dir, { language: 'rust', enableDebtGates: false })
-    const result = generateDebtGates(config)
-    expect(result.files).toHaveLength(0)
+    const emitted = generateDebtGates(config).files.map((f) => f.path)
+    expect(emitted.some((p) => p.endsWith('.yamllint.yml'))).toBe(true)
+    expect(emitted.some((p) => p.endsWith('.shellcheckrc'))).toBe(true)
+    // No language-specific debt extras leak in below the enableDebtGates guard.
+    expect(emitted.some((p) => p.endsWith('rustfmt.toml'))).toBe(false)
+    expect(emitted).toHaveLength(2)
+  })
+
+  // ── Universal config-lint configs (#1506/#1507 → emitted by #1546) ───────────
+  // .yamllint.yml + .shellcheckrc are language-agnostic: every generated repo has
+  // non-workflow YAML and/or shell, and the config-lint CI lane + pre-commit hook
+  // run at every governance level. They must therefore be committed into the target
+  // for ALL archetypes, regardless of enableDebtGates, so the linters are explicit
+  // and tunable (not relying on the relaxed/default fallback).
+  for (const language of ['typescript', 'go', 'java', 'python', 'rust'] as const) {
+    for (const enableDebtGates of [true, false] as const) {
+      it(`emits .yamllint.yml + .shellcheckrc for ${language} (debtGates=${enableDebtGates}) (#1546)`, () => {
+        cleanupTestProject(dir)
+        dir = createTestProject(language)
+        const config = makeConfig(dir, { language, enableDebtGates })
+        const emitted = generateDebtGates(config).files.map((f) => f.path)
+        expect(emitted.some((p) => p.endsWith('.yamllint.yml'))).toBe(true)
+        expect(emitted.some((p) => p.endsWith('.shellcheckrc'))).toBe(true)
+        expect(existsSync(join(dir, '.yamllint.yml'))).toBe(true)
+        expect(existsSync(join(dir, '.shellcheckrc'))).toBe(true)
+      })
+    }
+  }
+
+  it('.yamllint.yml matches the config-lint CI lane (extends default, ignores workflows, no EJS leak) (#1546)', () => {
+    const config = makeConfig(dir, { language: 'typescript', enableDebtGates: false })
+    generateDebtGates(config)
+    const content = readFileSync(join(dir, '.yamllint.yml'), 'utf-8')
+    expect(content).not.toContain('<%')
+    expect(content).toContain('extends: default')
+    // actionlint owns workflow semantics — yamllint must skip them (matches the CI
+    // pathspec :!.github/workflows/** so the two linters never overlap).
+    expect(content).toContain('.github/workflows/')
+    // Sensible default: permit the prettier/flow-mapping `{ a: 1 }` inner-space style
+    // so a generated repo with formatter-emitted YAML does not error on first lint.
+    expect(content).toMatch(/braces:/)
+    expect(content).toContain('max-spaces-inside: 1')
+  })
+
+  it('.shellcheckrc matches the config-lint CI lane (bash, external-sources, no EJS leak) (#1546)', () => {
+    const config = makeConfig(dir, { language: 'typescript', enableDebtGates: false })
+    generateDebtGates(config)
+    const content = readFileSync(join(dir, '.shellcheckrc'), 'utf-8')
+    expect(content).not.toContain('<%')
+    // The CI lane + hook run `shellcheck --severity=warning`; the committed rc pins
+    // the dialect (bash shebangs) and follows statically-resolvable `source`d files.
+    expect(content).toContain('shell=bash')
+    expect(content).toContain('external-sources=true')
   })
 
   it('emits the always-on Python gate scaffold even when enableDebtGates is false (B4)', () => {

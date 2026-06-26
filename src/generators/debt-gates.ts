@@ -144,6 +144,24 @@ export function generateDebtGates(
   const base = config.targetDir
   const data = { ...config, strictnessTier: config.strictnessTier ?? 'practical' }
 
+  // Universal config-lint configs (#1546, closing #1506/#1507). Language-agnostic:
+  // every generated repo has non-workflow YAML and/or shell, and the config-lint CI
+  // lane + pre-commit hook run at every governance level. Committed + tunable, they
+  // are auto-discovered by yamllint/shellcheck — making the rules explicit and
+  // project-tunable rather than relying on the relaxed/default fallback. Emitted for
+  // ALL archetypes, before any language or enableDebtGates gating.
+  for (const [rel, tmpl] of [
+    ['.yamllint.yml', 'static-analysis/.yamllint.yml.ejs'],
+    ['.shellcheckrc', 'static-analysis/.shellcheckrc.ejs'],
+  ] as const) {
+    results.push(
+      writeFile(resolvedPath(base, rel), renderTemplate(tmpl, data), {
+        skipIfExists: true,
+        dryRun: opts.dryRun,
+      }),
+    )
+  }
+
   if (config.language === 'typescript' || config.language === 'multi') {
     injectTestScripts(base, opts.dryRun)
     // Gate-essential TS scaffold — emitted for EVERY TS init (even L1, where
