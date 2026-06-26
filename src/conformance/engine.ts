@@ -190,6 +190,13 @@ function evalFileExists(abs: string, rel: string): EvalCheckResult {
 }
 
 function evalFileContains(abs: string, rel: string, pattern: string): EvalCheckResult {
+  // An empty/missing pattern is a registry authoring error, never a satisfied property: `''.indexOf`
+  // matches at index 0 of any readable file, so an omitted `pattern` would fake-green a verified-Y
+  // with zero evidence that anything is present. Refuse it — mirrors evalForbiddenPattern's
+  // empty-pattern N so the anti-fake-green contract is uniform across check types (#1591).
+  if (pattern === '') {
+    return { verdict: 'N', evidence: { file: rel, detail: 'empty or missing pattern' } }
+  }
   const text = readText(abs)
   if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
   const line = lineOf(text, pattern)
@@ -227,6 +234,11 @@ function evalCountMatches(
 }
 
 function evalValue(abs: string, rel: string, expected: string): EvalCheckResult {
+  // Same empty-needle hole as evalFileContains: `''.indexOf` matches line 1 of any readable file, so
+  // a value check that omits `equals` would fake-green to Y with no evidence. Refuse it (#1591).
+  if (expected === '') {
+    return { verdict: 'N', evidence: { file: rel, detail: 'empty or missing pattern' } }
+  }
   const text = readText(abs)
   if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
   const line = lineOf(text, expected)

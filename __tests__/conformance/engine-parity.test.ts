@@ -216,6 +216,55 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
     expect(mjsById).toEqual(tsById)
   })
 
+  // ── Parity case 5b (#1591): an empty/missing pattern must NOT fake-green file_contains / value ──
+  //
+  // `''.indexOf(text) === 0` for ANY readable file, so a registry entry that omits `pattern`
+  // (file_contains) or `equals` (legacy value) used to verdict Y at line 1 — a verified-Y with zero
+  // evidence anything is present. Both engines must now refuse it with an identical N, matching the
+  // empty-pattern N that forbidden_pattern already enforces (anti-fake-green uniformity).
+  it('parity: empty/missing pattern → N (not fake-green Y) for file_contains + value (#1591)', async () => {
+    const root = tmpDir()
+    writeFileSync(join(root, 'README.md'), '# anything readable\n')
+    const reg: RegistryInput = {
+      checks: [
+        // pattern omitted ⇒ String(undefined ?? '') === '' ⇒ must be N, never Y@line1
+        { id: 'E-01', type: 'file_contains', args: { path: 'README.md' } },
+        // explicit empty pattern ⇒ same N
+        { id: 'E-02', type: 'file_contains', args: { path: 'README.md', pattern: '' } },
+        // legacy value with equals omitted ⇒ N (not Y@line1)
+        { id: 'E-03', type: 'value', args: { path: 'README.md' } },
+        // a real present pattern still verdicts Y (regression guard for the happy path)
+        { id: 'E-04', type: 'file_contains', args: { path: 'README.md', pattern: 'readable' } },
+      ],
+    }
+    const tsResult = evaluate(reg, new Set<string>(), root)
+    const mjsResult = (await Promise.resolve(
+      mjsModule.evaluate(reg, new Set<string>(), root),
+    )) as Record<string, unknown>
+
+    const shape = (c: { verdict: string; evidence: Evidence | null }) => ({
+      verdict: c.verdict,
+      evidence: c.evidence,
+    })
+    const tsById = Object.fromEntries(tsResult.checks.map((c) => [c.id, shape(c)]))
+    const mjsChecks =
+      (mjsResult['checks'] as Array<{ id: string; verdict: string; evidence: Evidence | null }>) ??
+      []
+    const mjsById = Object.fromEntries(mjsChecks.map((c) => [c.id, shape(c)]))
+
+    expect(tsById['E-01']).toEqual({
+      verdict: 'N',
+      evidence: { file: 'README.md', detail: 'empty or missing pattern' },
+    })
+    expect(tsById['E-02']).toEqual(tsById['E-01'])
+    expect(tsById['E-03']).toEqual({
+      verdict: 'N',
+      evidence: { file: 'README.md', detail: 'empty or missing pattern' },
+    })
+    expect((tsById['E-04'] as { verdict: string }).verdict).toBe('Y')
+    expect(mjsById).toEqual(tsById)
+  })
+
   // ── Parity case 6 (#1413): value-op report extraction + threshold_ref must be byte-identical ──
   //
   // The value op reads PRE-GENERATED tool reports deterministically (no live spawn): xml/json/regex
