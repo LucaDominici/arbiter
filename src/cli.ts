@@ -2055,11 +2055,9 @@ gauntlet
   .description('Check generated tests are in sync with spec hash')
   .requiredOption('--spec <path>', 'Path to gauntlet.yaml spec file')
   .requiredOption('--out <dir>', 'Directory of generated test files')
-  .option('--coverage <mode>', 'Coverage mode: pairwise | 3-way (default: pairwise)', 'pairwise')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { spec: string; out: string; coverage: string; json: boolean }) => {
-    const coverage = opts.coverage === '3-way' ? '3-way' : 'pairwise'
-    const result = runGauntletVerify({ spec: opts.spec, out: opts.out, coverage })
+  .action((opts: { spec: string; out: string; json: boolean }) => {
+    const result = runGauntletVerify({ spec: opts.spec, out: opts.out })
     if (opts.json) {
       jsonOutput(
         'gauntlet verify',

@@ -23,7 +23,8 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
+import { createHash } from 'node:crypto'
 import { parseSpec, specHash } from '../gauntlet/spec.js'
 import { ipog } from '../gauntlet/ipog.js'
 import { emitTypeScript } from '../gauntlet/emitters/typescript.js'
@@ -99,9 +100,14 @@ export function runGauntletGenerate(opts: GauntletGenerateOptions): GauntletGene
   writeFileSync(outFile, content, 'utf-8')
   files.push(outFile)
 
-  // Write hash file for sync gate
-  const hash = specHash(rawSpec)
-  writeFileSync(join(outDir, HASH_FILE), hash, 'utf-8')
+  // Write a manifest hash (#1572): the spec hash PLUS a sha256 of every emitted
+  // file. This lets `verify` detect a deleted or hand-edited artifact, not just
+  // a mutated spec.
+  const manifest: GauntletHashManifest = {
+    spec: specHash(rawSpec),
+    files: { [basename(outFile)]: sha256(content) },
+  }
+  writeFileSync(join(outDir, HASH_FILE), JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
 
   // Graph integration
   let graphEdges = 0
@@ -117,7 +123,6 @@ export function runGauntletGenerate(opts: GauntletGenerateOptions): GauntletGene
 export interface GauntletVerifyOptions {
   spec: string
   out: string
-  coverage: 'pairwise' | '3-way'
 }
 
 export interface GauntletVerifyResult {
@@ -125,6 +130,14 @@ export interface GauntletVerifyResult {
   exitCode: 0 | 2
   reason?: string
 }
+
+/** Manifest persisted to `.gauntlet-hash`: spec hash + per-file content hash (#1572). */
+interface GauntletHashManifest {
+  spec: string
+  files: Record<string, string>
+}
+
+const REGEN_HINT = 're-run `arbiter gauntlet generate`'
 
 export function runGauntletVerify(opts: GauntletVerifyOptions): GauntletVerifyResult {
   const specPath = resolve(opts.spec)
@@ -143,15 +156,41 @@ export function runGauntletVerify(opts: GauntletVerifyOptions): GauntletVerifyRe
     return { status: 'error', exitCode: 2, reason: `spec not found at ${specPath}` }
   }
 
-  const rawSpec = readFileSync(specPath, 'utf-8')
-  const currentHash = specHash(rawSpec)
-  const storedHash = readFileSync(hashFile, 'utf-8').trim()
-
-  if (currentHash !== storedHash) {
+  const manifest = parseHashManifest(readFileSync(hashFile, 'utf-8'))
+  if (manifest === null) {
     return {
       status: 'error',
       exitCode: 2,
-      reason: `generated tests are out of sync with spec — re-run \`arbiter gauntlet generate\``,
+      reason: `generated tests are out of sync with spec (unreadable hash manifest) — ${REGEN_HINT}`,
+    }
+  }
+
+  const currentHash = specHash(readFileSync(specPath, 'utf-8'))
+  if (currentHash !== manifest.spec) {
+    return {
+      status: 'error',
+      exitCode: 2,
+      reason: `generated tests are out of sync with spec — ${REGEN_HINT}`,
+    }
+  }
+
+  // The artifact the gate is supposed to protect must still exist AND match the
+  // bytes the generator emitted — a deleted or hand-edited test must fail (#1572).
+  for (const [name, expected] of Object.entries(manifest.files)) {
+    const filePath = join(outDir, name)
+    if (!existsSync(filePath)) {
+      return {
+        status: 'error',
+        exitCode: 2,
+        reason: `generated test "${name}" is missing (deleted since generation) — ${REGEN_HINT}`,
+      }
+    }
+    if (sha256(readFileSync(filePath, 'utf-8')) !== expected) {
+      return {
+        status: 'error',
+        exitCode: 2,
+        reason: `generated test "${name}" was modified since generation (content drift) — ${REGEN_HINT}`,
+      }
     }
   }
 
@@ -159,6 +198,35 @@ export function runGauntletVerify(opts: GauntletVerifyOptions): GauntletVerifyRe
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+/** SHA-256 of raw content (exact bytes — no normalisation, so any edit is caught). */
+function sha256(content: string): string {
+  return createHash('sha256').update(content, 'utf-8').digest('hex')
+}
+
+/**
+ * Parse and shape-validate the `.gauntlet-hash` manifest. Returns `null` for any
+ * legacy plain-hash sidecar or corrupt content so the caller can treat it as
+ * out-of-sync rather than trusting it (#1572).
+ */
+function parseHashManifest(raw: string): GauntletHashManifest | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null
+  const obj = parsed as Record<string, unknown>
+  if (typeof obj['spec'] !== 'string') return null
+  if (typeof obj['files'] !== 'object' || obj['files'] === null) return null
+  const files: Record<string, string> = {}
+  for (const [k, v] of Object.entries(obj['files'] as Record<string, unknown>)) {
+    if (typeof v !== 'string') return null
+    files[k] = v
+  }
+  return { spec: obj['spec'], files }
+}
 
 function generateContent(
   stack: GauntletStack,

@@ -10,7 +10,12 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { parseSpec, specHash } from '../../src/gauntlet/spec.js'
+import {
+  parseSpec,
+  specHash,
+  escapeStringLiteral,
+  sanitizeIdentifier,
+} from '../../src/gauntlet/spec.js'
 import type { ParseSpecResult, GauntletSpec } from '../../src/gauntlet/spec.js'
 
 /** Narrow a ParseSpecResult to its ok-spec, failing the test otherwise. */
@@ -294,5 +299,41 @@ describe('specHash()', () => {
 
   it('produces different hashes for materially different content', () => {
     expect(specHash('name: a')).not.toBe(specHash('name: b'))
+  })
+})
+
+// ── escapeStringLiteral / sanitizeIdentifier (#1590) ─────────────────────────
+
+describe('escapeStringLiteral', () => {
+  it('escapes backslash, double-quote, and C-style control characters', () => {
+    expect(escapeStringLiteral('a"b')).toBe('a\\"b')
+    expect(escapeStringLiteral('c\\d')).toBe('c\\\\d')
+    expect(escapeStringLiteral('x\ny\tz\r')).toBe('x\\ny\\tz\\r')
+  })
+
+  it('leaves a clean string untouched', () => {
+    expect(escapeStringLiteral('plain')).toBe('plain')
+  })
+})
+
+describe('sanitizeIdentifier', () => {
+  it('strips non-identifier characters', () => {
+    expect(sanitizeIdentifier("trip's form")).toBe('tripsform')
+  })
+
+  it('prefixes an underscore when empty after stripping', () => {
+    expect(sanitizeIdentifier('!!!')).toBe('_')
+  })
+
+  it('prefixes an underscore when digit-leading', () => {
+    expect(sanitizeIdentifier('1st')).toBe('_1st')
+  })
+
+  it('suffixes an underscore on a reserved keyword', () => {
+    expect(sanitizeIdentifier('match', ['match', 'type'])).toBe('match_')
+  })
+
+  it('leaves a valid non-reserved identifier untouched', () => {
+    expect(sanitizeIdentifier('region', ['match'])).toBe('region')
   })
 })
