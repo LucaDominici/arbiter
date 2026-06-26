@@ -2,9 +2,20 @@
 
 import type { DerivedKit, DerivedKitDim } from './schema.js'
 
-// RFC 4180 quoting: wrap in double quotes if contains comma, quote, or newline.
-function csvCell(val: string | undefined | null): string {
+// Neutralize spreadsheet formula triggers (CWE-1236) BEFORE RFC-4180 quoting.
+// A cell beginning with =, +, -, @, TAB, or CR is evaluated as a formula by
+// Excel / LibreOffice Calc / Google Sheets. Prefixing with a single quote forces
+// the spreadsheet to treat the value as literal text. This is the OWASP-recommended
+// mitigation and is applied to both the CSV and xlsx export paths.
+export function neutralizeFormula(val: string | undefined | null): string {
   const s = val ?? ''
+  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
+}
+
+// RFC 4180 quoting: wrap in double quotes if contains comma, quote, or newline.
+// Formula neutralization is applied first so the literal-text prefix survives quoting.
+export function csvCell(val: string | undefined | null): string {
+  const s = neutralizeFormula(val)
   if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
     return `"${s.replace(/"/g, '""')}"`
   }

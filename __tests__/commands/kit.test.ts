@@ -53,6 +53,23 @@ describe('toCsv — RFC 4180 quoting', () => {
     expect(lines.length).toBe(3) // header + 2 rows
     expect(lines[0]).toMatch(/^id,/)
   })
+
+  // CWE-1236: a note beginning with a formula trigger is neutralized so a
+  // spreadsheet renders it as literal text rather than evaluating it.
+  it('neutralizes a leading formula trigger in a note cell', () => {
+    const dim = makeDim({ note: '=HYPERLINK("http://evil.example")' })
+    const csv = toCsv([dim])
+    // Contains a comma+quote → RFC-4180 quoted; payload must start with the prefix.
+    expect(csv).toContain('"\'=HYPERLINK')
+    expect(csv).not.toMatch(/,=HYPERLINK/)
+  })
+
+  it('leaves a benign note cell untouched', () => {
+    const dim = makeDim({ note: 'Linting only' })
+    const csv = toCsv([dim])
+    expect(csv).toContain('Linting only')
+    expect(csv).not.toContain("'Linting")
+  })
 })
 
 describe('kit CLI', () => {

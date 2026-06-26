@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { csvCell, neutralizeFormula } from '../kit/csv.js'
+
 const START_MARKER = '<!-- FEATURE_MATRIX_START -->'
 const END_MARKER = '<!-- FEATURE_MATRIX_END -->'
 
@@ -70,15 +72,6 @@ export function parseFeatureMatrixRows(text: string): FeatureMatrixRow[] {
   return rows
 }
 
-// RFC-4180 cell quoting (same pattern as src/kit/csv.ts)
-function csvCell(val: string | undefined | null): string {
-  const s = val ?? ''
-  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
-    return `"${s.replace(/"/g, '""')}"`
-  }
-  return s
-}
-
 /** Convert parsed rows to RFC-4180 CSV string. */
 export function featureMatrixToCsv(rows: FeatureMatrixRow[]): string {
   const headers = [
@@ -141,17 +134,20 @@ export async function featureMatrixToXlsx(rows: FeatureMatrixRow[]): Promise<Buf
   headerRow.commit()
 
   for (const row of rows) {
+    // Neutralize formula triggers (CWE-1236): xlsx cells are added raw, so they
+    // do not pass through csvCell. A spreadsheet opens xlsx by definition, so the
+    // injection risk is at its highest here.
     ws.addRow({
-      featureId: row.featureId,
-      capability: row.capability,
-      kitDims: row.kitDims.join(','),
-      level: row.level,
-      status: row.status,
-      codeRef: row.codeRef,
-      testRef: row.testRef,
-      docRef: row.docRef,
-      issueRef: row.issueRef,
-      note: row.note,
+      featureId: neutralizeFormula(row.featureId),
+      capability: neutralizeFormula(row.capability),
+      kitDims: neutralizeFormula(row.kitDims.join(',')),
+      level: neutralizeFormula(row.level),
+      status: neutralizeFormula(row.status),
+      codeRef: neutralizeFormula(row.codeRef),
+      testRef: neutralizeFormula(row.testRef),
+      docRef: neutralizeFormula(row.docRef),
+      issueRef: neutralizeFormula(row.issueRef),
+      note: neutralizeFormula(row.note),
     })
   }
 
