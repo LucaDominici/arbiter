@@ -6,7 +6,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { resolveToolInputPath } from "./lib.mjs";
+import { resolveToolInputPath, debounceHook } from "./lib.mjs";
 
 const file = resolveToolInputPath();
 if (!file) process.exit(0);
@@ -20,6 +20,12 @@ if (!existsSync(madgeBin)) {
   process.stdout.write(`[arbiter] circular-deps: madge not installed — skip (run: npm install -D madge)\n`);
   process.exit(0);
 }
+
+// madge rebuilds the WHOLE src/ import graph; it cannot be scoped to one file.
+// Debounce so a burst of edits triggers at most one run instead of O(repo)/edit
+// (#1515). The L1 gate runs madge --circular authoritatively before commit/push,
+// so a skipped per-edit run never lets a cycle reach a commit.
+if (debounceHook("madge-circular-deps")) process.exit(0);
 
 const srcDir = existsSync(join(repoRoot, "src")) ? "src" : ".";
 const result = spawnSync(madgeBin, ["--circular", "--extensions", "ts,tsx,js,jsx", srcDir], {

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Arbiter hook: run format + lint after file edits
 // Hook type: PostToolUse (Edit|Write)
-// Stack: typescript | Format: npx prettier --check . | Lint: npm run lint
+// Stack: typescript | Format: npx prettier --check . | Lint: npx eslint
 // Skips non-source files (docs, config, lock files, generated dirs)
+// Format/lint are scoped to the EDITED file (#1515) — never a whole-repo scan.
 // Always exits 0 (non-blocking, informational)
 
-import { getRepoRoot, logInfo, logWarn, resolveToolInputPath } from './lib.mjs'
+import { getRepoRoot, logInfo, logWarn, resolveToolInputPath, scopeCommandToFile } from './lib.mjs'
 import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -30,36 +31,41 @@ if (!existsSync(filePath)) process.exit(0)
 
 const root = getRepoRoot()
 
-// ── Step 1: FORMAT ──────────────────────────────────────────────────────────
-const formatParts = 'npx prettier --check .'.split(' ')
-const formatResult = spawnSync(formatParts[0], [...formatParts.slice(1)], {
-  encoding: 'utf-8',
-  cwd: root,
-  shell: false,
-  timeout: 10000,
-})
-if (formatResult.status === 0) {
-  process.stderr.write(`[post-edit] Formatted: ${filePath.split('/').pop()}\n`)
-  logInfo(`post-edit-dispatch: formatted ${filePath}`)
-} else {
-  process.stderr.write(
-    `[post-edit] Format check issues in ${filePath.split('/').pop()} (non-blocking)\n`,
-  )
-  logWarn(`post-edit-dispatch: format-issues ${filePath}`)
+// ── Step 1: FORMAT (scoped to the edited file, #1515) ────────────────────────
+// arbiter validates (`--check`) rather than auto-writing, to avoid silent edits.
+const formatParts = scopeCommandToFile('npx prettier --check .', filePath)
+if (formatParts.length > 0) {
+  const formatResult = spawnSync(formatParts[0], formatParts.slice(1), {
+    encoding: 'utf-8',
+    cwd: root,
+    shell: false,
+    timeout: 10000,
+  })
+  if (formatResult.status === 0) {
+    process.stderr.write(`[post-edit] Formatted: ${filePath.split('/').pop()}\n`)
+    logInfo(`post-edit-dispatch: formatted ${filePath}`)
+  } else {
+    process.stderr.write(
+      `[post-edit] Format check issues in ${filePath.split('/').pop()} (non-blocking)\n`,
+    )
+    logWarn(`post-edit-dispatch: format-issues ${filePath}`)
+  }
 }
 
-// ── Step 2: LINT ────────────────────────────────────────────────────────────
-const lintParts = 'npm run lint'.split(' ')
-const lintResult = spawnSync(lintParts[0], [...lintParts.slice(1)], {
-  encoding: 'utf-8',
-  cwd: root,
-  shell: false,
-  timeout: 15000,
-})
-if (lintResult.status === 0) {
-  process.stderr.write(`[post-edit] Lint passed\n`)
-  logInfo(`post-edit-dispatch: lint-passed ${filePath}`)
-} else {
-  process.stderr.write(`[post-edit] Lint issues detected (non-blocking)\n`)
-  logWarn(`post-edit-dispatch: lint-issues ${filePath}`)
+// ── Step 2: LINT (scoped to the edited file, #1515) ──────────────────────────
+const lintParts = scopeCommandToFile('npx eslint src __tests__', filePath)
+if (lintParts.length > 0) {
+  const lintResult = spawnSync(lintParts[0], lintParts.slice(1), {
+    encoding: 'utf-8',
+    cwd: root,
+    shell: false,
+    timeout: 15000,
+  })
+  if (lintResult.status === 0) {
+    process.stderr.write(`[post-edit] Lint passed\n`)
+    logInfo(`post-edit-dispatch: lint-passed ${filePath}`)
+  } else {
+    process.stderr.write(`[post-edit] Lint issues detected (non-blocking)\n`)
+    logWarn(`post-edit-dispatch: lint-issues ${filePath}`)
+  }
 }

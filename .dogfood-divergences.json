@@ -37,7 +37,7 @@
   },
   {
     "path": "hooks/post-edit-dispatch.mjs",
-    "reason": "Arbiter self-dogfood: uses 'npx prettier --check .' instead of 'npx prettier --write .' \u2014 arbiter validates format rather than auto-fixing to avoid silent file changes. Template uses the formatCommand variable which defaults to --write. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: hardcodes 'npx prettier --check .' (validate, not auto-fix, to avoid silent file changes) and 'npx eslint src __tests__' as the scopeCommandToFile inputs, whereas the template feeds the formatCommand/lintCommand config variables. Both scope to the single edited file via scopeCommandToFile (#1515); the divergence is only the hardcoded vs config-driven command source. (Confirmed intentional 2026-05-29, #1092; updated #1515.)"
   },
   {
     "path": "rules/90-exec-protocol.md",

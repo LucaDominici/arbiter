@@ -3,12 +3,18 @@
 // Fires on: PostToolUse → Edit|Write (TypeScript projects only)
 import { existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { resolveToolInputPath } from './lib.mjs'
+import { resolveToolInputPath, debounceHook } from './lib.mjs'
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
 const TS_EXTS = ['.ts', '.tsx', '.mts', '.cts']
 if (!TS_EXTS.some((ext) => file.endsWith(ext))) process.exit(0)
+
+// knip builds the WHOLE-project graph; it cannot be scoped to one file. Debounce
+// it so a burst of edits triggers at most one run instead of O(repo)/edit (#1515).
+// The L1 gate runs knip authoritatively before commit/push, so a skipped per-edit
+// run never lets an unused export reach a commit.
+if (debounceHook('knip-unused-exports')) process.exit(0)
 
 let raw = ''
 try {

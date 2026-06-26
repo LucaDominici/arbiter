@@ -1,7 +1,9 @@
 // Arbiter hook library — shared utilities for all hooks
 // Project: <%= projectName %>
-import { mkdirSync, appendFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, appendFileSync, readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 const PROJECT = '<%= projectName %>';
@@ -18,6 +20,55 @@ function logEvent(level, message) {
 export const logInfo = (msg) => logEvent('INFO', msg);
 export const logWarn = (msg) => logEvent('WARN', msg);
 export const logError = (msg) => logEvent('ERROR', msg);
+
+/**
+ * Per-edit debounce for whole-graph hooks (#1515). knip / madge analyse the
+ * entire project graph and cannot be scoped to one file, so running them on
+ * every save is O(repo)/edit. This caps them to at most once per `windowMs`
+ * across a burst of edits (the L1 gate re-runs them authoritatively before
+ * commit/push, so a skipped per-edit run never weakens enforcement). Keyed by
+ * cwd so sibling repos do not share a marker. Fail-open: any FS error runs the
+ * check rather than silently disabling it. Set ARBITER_HOOK_DEBOUNCE_MS=0 to
+ * disable. Returns true when the caller should skip (still within the window).
+ */
+export function debounceHook(key, windowMs = Number(process.env.ARBITER_HOOK_DEBOUNCE_MS ?? 20000)) {
+  if (!(windowMs > 0)) return false;
+  try {
+    const dir = join(tmpdir(), 'arbiter-hook-debounce');
+    const id = createHash('sha1').update(process.cwd()).digest('hex').slice(0, 16);
+    const marker = join(dir, `${key}-${id}`);
+    if (existsSync(marker) && Date.now() - statSync(marker).mtimeMs < windowMs) return true;
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(marker, String(Date.now()));
+  } catch {
+    // fail-open: never silently disable enforcement on a transient FS error.
+  }
+  return false;
+}
+
+/**
+ * Scope a whole-repo format/lint command to the single edited file (#1515).
+ * Per-edit hooks must not re-scan the entire repo. Rewrites a configured
+ * command into an argv targeting one file when the tool supports it:
+ *   - npm/yarn/pnpm "lint" script indirection → direct `npx eslint <file>`
+ *   - known per-file tools (prettier/eslint/ruff/black/gofmt/rustfmt/biome):
+ *     strip trailing whole-repo path tokens, append the file
+ *   - whole-graph tools (cargo/mvn/gradle/golangci-lint/go): returned unchanged
+ *     (not meaningfully scopeable to one file — left to the gate).
+ * Returns an argv array ready for spawnSync.
+ */
+export function scopeCommandToFile(command, file) {
+  const toks = String(command || '').split(' ').filter(Boolean);
+  if (toks.length === 0) return toks;
+  if (/^(npm|yarn|pnpm)$/.test(toks[0]) && toks.includes('lint')) return ['npx', 'eslint', file];
+  const tool = toks[0] === 'npx' ? toks[1] : toks[0];
+  const SCOPEABLE = new Set(['prettier', 'eslint', 'ruff', 'black', 'gofmt', 'rustfmt', 'biome']);
+  if (!SCOPEABLE.has(tool)) return toks;
+  const REPO_TARGETS = new Set(['.', './', 'src', '__tests__', 'tests']);
+  while (toks.length > 1 && REPO_TARGETS.has(toks[toks.length - 1])) toks.pop();
+  toks.push(file);
+  return toks;
+}
 
 /**
  * Sanitize a task id into a safe filesystem segment AND safe regex literal.
