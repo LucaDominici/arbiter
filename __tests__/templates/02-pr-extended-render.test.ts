@@ -135,11 +135,21 @@ describe('02-pr-extended.yml.ejs — per-language integration steps', () => {
 // ─── Service archetype gating ─────────────────────────────────────────────────
 
 describe('02-pr-extended.yml.ejs — service archetype gating', () => {
-  it('service archetype: container-scan, dast-baseline, load-smoke present', () => {
+  it('service archetype: container-scan present (conditional PR gate)', () => {
     const rendered = renderExt({ archetype: 'backend-web-db' })
     expect(rendered).toContain('container-scan:')
-    expect(rendered).toContain('dast-baseline:')
-    expect(rendered).toContain('load-smoke:')
+  })
+
+  // E4 (#1502): DAST (ZAP) + k6 load-smoke are deploy/nightly-cadence tools — they
+  // need a running app and add minutes to every extended PR. They moved OFF the PR
+  // path (→ 04-deploy-test ephemeral env + 06-nightly). The PR path keeps only the
+  // conditional container-scan + license-scan gates.
+  it('service archetype: dast-baseline + load-smoke NOT on the PR path (moved to deploy/nightly)', () => {
+    const rendered = renderExt({ archetype: 'backend-web-db' })
+    expect(rendered).not.toContain('dast-baseline:')
+    expect(rendered).not.toContain('load-smoke:')
+    expect(rendered).not.toContain('zaproxy/action-baseline')
+    expect(rendered).not.toContain('k6 run')
   })
 
   it('service archetype: Trivy HIGH,CRITICAL exit-code 1', () => {
@@ -148,30 +158,18 @@ describe('02-pr-extended.yml.ejs — service archetype gating', () => {
     expect(rendered).toContain("exit-code: '1'")
   })
 
-  it('service archetype: OWASP ZAP baseline present', () => {
-    const rendered = renderExt({ archetype: 'backend-web-db' })
-    expect(rendered).toContain('zaproxy/action-baseline')
-    expect(rendered).toContain('fail_action: true')
-  })
-
-  it('service archetype: k6 smoke test 60s present', () => {
-    const rendered = renderExt({ archetype: 'backend-web-db' })
-    expect(rendered).toContain('k6 run')
-    expect(rendered).toContain('60s')
-  })
-
   it('service archetype: Toxiproxy step in integration-tests', () => {
     const rendered = renderExt({ archetype: 'backend-web-db', language: 'typescript' })
     expect(rendered).toContain('Toxiproxy resilience test')
     expect(rendered).toContain('test:resilience')
   })
 
-  it('service archetype: service jobs listed in extended-required needs', () => {
+  it('service archetype: container-scan in extended-required needs; dast/load are not', () => {
     const rendered = renderExt({ archetype: 'backend-web-db' })
     const aggregator = rendered.split('extended-required:')[1] ?? ''
     expect(aggregator).toContain('container-scan')
-    expect(aggregator).toContain('dast-baseline')
-    expect(aggregator).toContain('load-smoke')
+    expect(aggregator).not.toContain('dast-baseline')
+    expect(aggregator).not.toContain('load-smoke')
   })
 
   it('library archetype: no container-scan, dast-baseline, load-smoke', () => {

@@ -88,47 +88,103 @@ jobs:
           retention-days: 30
 
   mutation-blocking:
-    name: Mutation tests<%= _mutationInfo ? ' (informational at L1)' : ' (blocking)' %>
+    name: Mutation tests<%= _mutationInfo ? ' (informational at L1)' : ' (consume nightly, fallback run)' %>
     needs: [build-superset]
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 60
     continue-on-error: <%= _mutationInfo %>
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      # E4 (#1502): decouple release latency from mutation runtime. The release gate
+      # CONSUMES the latest nightly mutation-deep result (06-nightly.yml) instead of
+      # re-running the full mutation suite synchronously. If no nightly result exists
+      # within the freshness window (first release, stale schedule), it FALLS BACK to
+      # running mutation here — gated by level via the job's continue-on-error
+      # (informational at L1, blocking at L2+).
+      - name: Consume latest nightly mutation-deep result
+        id: nightly
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # Freshness window (days) for accepting a nightly mutation result; repo/org var override.
+          MUTATION_NIGHTLY_MAX_AGE_DAYS: ${{ vars.MUTATION_NIGHTLY_MAX_AGE_DAYS || '7' }}
+        run: |
+          set -uo pipefail
+          FRESH=false
+          MAX_AGE="${MUTATION_NIGHTLY_MAX_AGE_DAYS:-7}"
+          RUN_JSON=$(gh run list --repo "$GH_REPO" --workflow 06-nightly.yml \
+            --branch "$DEFAULT_BRANCH" --status completed --limit 1 \
+            --json databaseId,createdAt 2>/dev/null || echo '[]')
+          RUN_ID=$(printf '%s' "$RUN_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['databaseId'] if d else '')" 2>/dev/null || echo '')
+          if [ -n "$RUN_ID" ]; then
+            CREATED=$(printf '%s' "$RUN_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['createdAt'] if d else '')" 2>/dev/null || echo '')
+            CONCLUSION=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
+              --jq '.jobs[] | select(.name=="Deep mutation testing") | .conclusion' 2>/dev/null || echo '')
+            AGE_DAYS=99999
+            if [ -n "$CREATED" ]; then
+              AGE_DAYS=$(( ( $(date -u +%s) - $(date -u -d "$CREATED" +%s) ) / 86400 ))
+            fi
+            echo "Latest nightly run $RUN_ID: mutation-deep=${CONCLUSION:-unknown}, age=${AGE_DAYS}d (max ${MAX_AGE}d)"
+            if [ "$CONCLUSION" = "success" ] && [ "$AGE_DAYS" -le "$MAX_AGE" ]; then
+              FRESH=true
+              echo "::notice::Release mutation gate satisfied by nightly mutation-deep (run $RUN_ID)."
+            fi
+          else
+            echo "No completed nightly run found on $DEFAULT_BRANCH."
+          fi
+          echo "fresh=$FRESH" >> "$GITHUB_OUTPUT"
+          [ "$FRESH" = "true" ] || echo "No fresh nightly mutation result — running mutation synchronously as fallback."
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
-      - name: Stryker mutation
+        if: steps.nightly.outputs.fresh != 'true'
+      - name: Stryker mutation (fallback — no fresh nightly)
+        if: steps.nightly.outputs.fresh != 'true'
         run: npx stryker run
 <% } else if (language === 'java') { %>
       - uses: ./.github/actions/setup-java-maven
+        if: steps.nightly.outputs.fresh != 'true'
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
-      - name: PITest mutation
+        if: steps.nightly.outputs.fresh != 'true'
+      - name: PITest mutation (fallback — no fresh nightly)
+        if: steps.nightly.outputs.fresh != 'true'
         run: ./gradlew pitest
 <% } else { %>
-      - name: PITest mutation
+      - name: PITest mutation (fallback — no fresh nightly)
+        if: steps.nightly.outputs.fresh != 'true'
         run: mvn pitest:mutationCoverage
 <% } %>
 <% } else if (language === 'go') { %>
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+        if: steps.nightly.outputs.fresh != 'true'
         with:
           go-version-file: go.mod
-      - name: go-mutesting (informational — Go matrix safety)
+      - name: go-mutesting (fallback — informational, Go matrix safety)
+        if: steps.nightly.outputs.fresh != 'true'
         continue-on-error: true
         run: |
           go install github.com/zimmski/go-mutesting/cmd/go-mutesting@latest
           go-mutesting ./... || true
 <% } else if (language === 'python') { %>
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        if: steps.nightly.outputs.fresh != 'true'
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]" mutmut
-      - name: mutmut mutation
+        if: steps.nightly.outputs.fresh != 'true'
+      - name: mutmut mutation (fallback — no fresh nightly)
+        if: steps.nightly.outputs.fresh != 'true'
         run: mutmut run
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
+        if: steps.nightly.outputs.fresh != 'true'
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # branch:stable @ 2026-05-24
-      - name: cargo-mutants mutation
+      - name: cargo-mutants mutation (fallback — no fresh nightly)
+        if: steps.nightly.outputs.fresh != 'true'
         run: |
           cargo install cargo-mutants --locked
           cargo mutants --all-features

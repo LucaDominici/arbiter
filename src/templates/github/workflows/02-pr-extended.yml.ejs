@@ -304,46 +304,12 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
 
-  dast-baseline:
-    name: DAST Baseline (T2)
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [check-trigger]
-    if: needs.check-trigger.outputs.should_run == 'true'
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-      - name: Start application
-        run: docker compose up -d --wait
-      - name: OWASP ZAP baseline scan
-        uses: zaproxy/action-baseline@66042c8e7e24680119199a017e5b0e8603bf4dae  # v0.12.0
-        with:
-          target: 'http://localhost:8080'
-          fail_action: true
-          rules_file_name: '.zap/rules.tsv'
-          allow_issue_writing: false
-      - name: Stop application
-        if: always()
-        run: docker compose down
-
-  load-smoke:
-    name: Load Smoke Test (T2)
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [check-trigger]
-    if: needs.check-trigger.outputs.should_run == 'true'
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-      - name: Install k6
-        run: |
-          curl -sSL https://github.com/grafana/k6/releases/download/v0.52.0/k6-v0.52.0-linux-amd64.tar.gz \
-            | tar -xz -C /usr/local/bin --strip-components=1 k6-v0.52.0-linux-amd64/k6
-      - name: Start application
-        run: docker compose up -d --wait
-      - name: k6 smoke test (60 s)
-        run: k6 run --duration 60s --vus 10 scripts/k6-smoke.js
-      - name: Stop application
-        if: always()
-        run: docker compose down
+  # E4 (#1502): DAST (ZAP baseline) and k6 load-smoke are deploy/nightly-cadence
+  # tools — they need a running application and add minutes to every extended PR.
+  # They moved OFF the PR path: DAST baseline now runs against the ephemeral env in
+  # 04-deploy-test.yml (consolidated into 06-nightly's dast-full), and load testing
+  # runs at deploy-test (post-deploy-smoke) + nightly cadence. The PR path keeps only
+  # the conditional container-scan + license-scan gates.
 
 <% } %>
   license-scan:
@@ -463,7 +429,7 @@ jobs:
   const _extNeeds = ['check-trigger', 'integration-tests', 'license-scan', 'behavioral-tests'];
   if (language === 'typescript') _extNeeds.push('build-workspace', 'bake-e2e-tests');
   if (contractType && contractType !== 'none') _extNeeds.push('contract-extended');
-  if (_isService) _extNeeds.push('container-scan', 'dast-baseline', 'load-smoke');
+  if (_isService) _extNeeds.push('container-scan');
 %>
     needs: [<%= _extNeeds.join(', ') %>]
     if: always()
@@ -494,12 +460,6 @@ jobs:
 <% if (_isService) { %>
           if [[ "${{ needs.container-scan.result }}" == "failure" ]]; then
             echo "container-scan failed"; exit 1
-          fi
-          if [[ "${{ needs.dast-baseline.result }}" == "failure" ]]; then
-            echo "dast-baseline failed"; exit 1
-          fi
-          if [[ "${{ needs.load-smoke.result }}" == "failure" ]]; then
-            echo "load-smoke failed"; exit 1
           fi
 <% } %>
           echo "Extended CI passed or skipped"

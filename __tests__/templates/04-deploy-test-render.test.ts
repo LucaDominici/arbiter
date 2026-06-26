@@ -158,3 +158,31 @@ describe('04-deploy-test.yml.ejs — smoke test', () => {
     expect(rendered).toContain('skip')
   })
 })
+
+// ─── DAST baseline (E4 #1502 — moved off the PR path to the ephemeral env) ─────
+
+describe('04-deploy-test.yml.ejs — DAST baseline', () => {
+  it('dast-baseline job present and runs after deploy-test', () => {
+    const rendered = renderDeployTest({})
+    expect(rendered).toContain('dast-baseline:')
+    const dast = rendered.split('dast-baseline:')[1] ?? ''
+    expect(dast).toContain('needs: [deploy-test]')
+  })
+
+  it('dast-baseline runs OWASP ZAP baseline against the TEST env URL', () => {
+    const rendered = renderDeployTest({})
+    expect(rendered).toContain('zaproxy/action-baseline')
+    expect(rendered).toContain('${{ secrets.TEST_BASE_URL }}')
+  })
+
+  it('dast-baseline skips gracefully when TEST_BASE_URL is unset (SKIP_DAST_BASELINE)', () => {
+    const rendered = renderDeployTest({})
+    expect(rendered).toContain('SKIP_DAST_BASELINE')
+  })
+
+  it('dast-baseline is wired into the notify-on-failure needs', () => {
+    const rendered = renderDeployTest({})
+    const notify = rendered.split('notify:')[1] ?? ''
+    expect(notify).toContain('dast-baseline')
+  })
+})

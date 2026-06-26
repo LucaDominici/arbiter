@@ -326,11 +326,58 @@ const _dt = ({
           if-no-files-found: ignore
           retention-days: 7
 
+  # === GROUP: dast ===
+
+  # E4 (#1502): DAST baseline moved off the PR path (02-pr-extended) to here, where
+  # it runs against the ephemeral TEST environment that deploy-test just provisioned —
+  # a live URL actually exists at this cadence. Skips gracefully (like post-deploy-smoke)
+  # when TEST_BASE_URL is unset, so a non-web deploy never fails on a missing target.
+  # The deep counterpart (full active scan) lives at nightly cadence (06-nightly dast-full).
+  dast-baseline:
+    name: DAST Baseline (ZAP — ephemeral TEST env)
+    needs: [deploy-test]
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_BUILD || '["ubuntu-latest"]') }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - name: Resolve DAST target
+        id: target
+        env:
+          BASE_URL: ${{ secrets.TEST_BASE_URL }}
+          # Sanctioned opt-out: set repo/org variable SKIP_DAST_BASELINE=true to skip.
+          # With it unset, an empty TEST_BASE_URL FAILS loud — never a silent green.
+          SKIP_DAST_BASELINE: ${{ vars.SKIP_DAST_BASELINE }}
+        run: |
+          if [ -z "$BASE_URL" ]; then
+            if [ "${SKIP_DAST_BASELINE}" = "true" ]; then
+              echo "::notice::SKIP_DAST_BASELINE=true — DAST baseline explicitly skipped"
+              echo "run=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::TEST_BASE_URL secret is empty and SKIP_DAST_BASELINE is not 'true'"
+              exit 1
+            fi
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: OWASP ZAP baseline scan (ephemeral TEST env)
+        if: steps.target.outputs.run == 'true'
+        uses: zaproxy/action-baseline@66042c8e7e24680119199a017e5b0e8603bf4dae  # v0.12.0
+        with:
+          target: ${{ secrets.TEST_BASE_URL }}
+          fail_action: true
+          rules_file_name: '.zap/rules.tsv'
+          allow_issue_writing: false
+
   # === GROUP: notify ===
 
   notify:
     name: Notify on Failure
-    needs: [build-and-sign, deploy-test, post-deploy-smoke]
+    needs: [build-and-sign, deploy-test, post-deploy-smoke, dast-baseline]
     if: failure()
     uses: ./.github/workflows/_notify.yml
     with:

@@ -159,6 +159,41 @@ describe('05-release.yml.ejs — governance level branching', () => {
     expect(rendered).toContain('L3 hermetic')
   })
 
+  // E4 (#1502): the release gate consumes the latest nightly mutation-deep result
+  // instead of re-running the full mutation suite synchronously — release latency is
+  // decoupled from mutation runtime. A level-gated fallback runs mutation only when
+  // no fresh nightly result exists.
+  describe('E4: mutation-blocking consumes nightly mutation-deep (#1502)', () => {
+    it('reads the latest nightly mutation result via gh (no synchronous re-run by default)', () => {
+      const rendered = renderRelease({})
+      const mutSection = rendered.split('mutation-blocking:')[1] ?? ''
+      expect(mutSection).toContain('Consume latest nightly mutation-deep result')
+      expect(mutSection).toContain('gh run list')
+      expect(mutSection).toContain('06-nightly.yml')
+      expect(mutSection).toContain('Deep mutation testing')
+    })
+
+    it('fallback mutation run is guarded by the no-fresh-nightly condition', () => {
+      const rendered = renderRelease({ language: 'typescript' })
+      const mutSection = rendered.split('mutation-blocking:')[1] ?? ''
+      expect(mutSection).toContain("if: steps.nightly.outputs.fresh != 'true'")
+      expect(mutSection).toContain('npx stryker run')
+    })
+
+    it('job has actions: read permission to read the nightly run status', () => {
+      const rendered = renderRelease({})
+      const mutSection = (rendered.split('mutation-blocking:')[1] ?? '').split(
+        'secret-scan-history:',
+      )[0]
+      expect(mutSection).toContain('actions: read')
+    })
+
+    it('freshness window is parameterized (MUTATION_NIGHTLY_MAX_AGE_DAYS)', () => {
+      const rendered = renderRelease({})
+      expect(rendered).toContain('MUTATION_NIGHTLY_MAX_AGE_DAYS')
+    })
+  })
+
   it('L2: slsa-provenance name mentions L2 signed', () => {
     const rendered = renderRelease({ governanceLevel: 'L2' })
     expect(rendered).toContain('L2 signed')

@@ -233,6 +233,42 @@ describe('06-nightly.yml.ejs — service archetype gating', () => {
     const dastSection = rendered.split('dast-full:')[1] ?? ''
     expect(dastSection).toContain('if: false')
   })
+
+  // E4 (#1502): the PR-path dast-baseline consolidated here — dast-full now starts
+  // the app so the full active scan has a live target (it previously pointed at
+  // localhost:8080 with nothing running).
+  it('service archetype: dast-full starts the app (docker compose up)', () => {
+    const rendered = renderNightly({ archetype: 'backend-web-db' })
+    const dastSection = (rendered.split('dast-full:')[1] ?? '').split('load-smoke:')[0]
+    expect(dastSection).toContain('docker compose up -d --wait')
+    expect(dastSection).toContain('docker compose down')
+  })
+})
+
+// ─── PORT E4 (#1502): load-smoke moved off the PR path to nightly cadence ──────
+
+describe('06-nightly.yml.ejs — E4 load-smoke (#1502)', () => {
+  it('service archetype: load-smoke job present (k6, nightly cadence)', () => {
+    const rendered = renderNightly({ archetype: 'backend-web-db' })
+    expect(rendered).toContain('load-smoke:')
+    expect(rendered).toContain('k6 run')
+  })
+
+  it('service archetype: load-smoke wired into the nightly-required gate needs', () => {
+    const rendered = renderNightly({ archetype: 'backend-web-db' })
+    const gate = rendered.split('nightly-required:')[1] ?? ''
+    expect(gate).toContain('load-smoke')
+  })
+
+  it('library archetype: no load-smoke job', () => {
+    const rendered = renderNightly({ archetype: 'library' })
+    expect(rendered).not.toContain('load-smoke:')
+  })
+
+  it('cli archetype: no load-smoke job', () => {
+    const rendered = renderNightly({ archetype: 'cli' })
+    expect(rendered).not.toContain('load-smoke:')
+  })
 })
 
 // ─── Gitleaks full history ────────────────────────────────────────────────────
