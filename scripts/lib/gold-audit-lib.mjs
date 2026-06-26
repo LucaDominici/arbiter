@@ -18,7 +18,7 @@
 
 import { existsSync, readFileSync, statSync, lstatSync } from 'node:fs'
 import { resolve, relative, isAbsolute } from 'node:path'
-import { globMatch, validateGlob, walkRepo } from './glob-walk.mjs'
+import { globToRegExp, validateGlob, walkRepo } from './glob-walk.mjs'
 
 /**
  * Resolve a registry-declared path inside root; reject traversal + null bytes. Parity contract:
@@ -173,20 +173,26 @@ function lineAtIndex(text, idx) {
 
 // ── Constrained deterministic glob (#1470) ──────────────────────────────────────
 //
-// Glob support reuses scripts/lib/glob-walk.mjs (globMatch/validateGlob/walkRepo: POSIX paths,
+// Glob support reuses scripts/lib/glob-walk.mjs (globToRegExp/validateGlob/walkRepo: POSIX paths,
 // prunes SKIP_DIRS) — one canonical matcher, never a hand-written copy (CANON-16). The TS engine
 // mirrors this via src/conformance/shared.ts expandGlob (engine-parity gate). Both sort with a plain
 // `.sort()` (code-unit), NEVER localeCompare, so the file order is byte-identical across engines.
 
 /**
  * Expand a repo-rooted glob to a SORTED array of repo-relative POSIX paths, or null when the glob
- * is invalid (absolute / `..`-traversal / non-string). An empty array is a valid "matched nothing".
+ * is invalid (absolute / `..`-traversal / non-string / empty). An empty array is a valid "matched
+ * nothing". The glob's RegExp is compiled ONCE (via globToRegExp) and `.test()`d per file, not
+ * recompiled per file (#1522/#1600).
+ *
+ * `files` is an OPTIONAL pre-walked repo file list (#1600): when a single evaluate() resolves several
+ * globs it walks the tree once and threads the result here, so K glob checks share ONE tree-walk
+ * instead of K. Absent ⇒ this walks the tree itself (the standalone-call contract is unchanged).
+ * Output-invariant ⇒ engine-parity stays byte-identical; mirrors src/conformance/shared.ts expandGlob.
  */
-function expandGlob(root, pattern) {
+function expandGlob(root, pattern, files) {
   if (typeof pattern !== 'string' || pattern === '' || !validateGlob(pattern)) return null
-  return walkRepo(root)
-    .filter((f) => globMatch(pattern, f))
-    .sort()
+  const re = globToRegExp(pattern)
+  return (files ?? walkRepo(root)).filter((f) => re.test(f)).sort()
 }
 
 /**
@@ -202,10 +208,12 @@ function cmpCodeUnit(a, b) {
  * Resolve a glob-check's `args.glob` to a SORTED match list. Returns { ok:true, glob, matched } on
  * success, or { ok:false, result } (a verified-N) when the glob is invalid/empty — shared by every
  * glob-based check so the invalid-glob guard exists once (mirrored in src/conformance/engine.ts).
+ * `getFiles` threads the per-evaluate memoized walk (#1600) so glob checks share one tree-walk; an
+ * empty glob short-circuits to null WITHOUT triggering the walk (K=0 ⇒ 0 walks).
  */
-function resolveGlobArg(args, root) {
+function resolveGlobArg(args, root, getFiles) {
   const glob = typeof args.glob === 'string' ? args.glob : ''
-  const matched = expandGlob(root, glob)
+  const matched = glob === '' ? null : expandGlob(root, glob, getFiles())
   if (matched === null) {
     return {
       ok: false,
@@ -257,8 +265,15 @@ function extractJson(text, select) {
   } catch {
     return null
   }
-  for (const key of select.split('.')) {
-    if (key === '') continue
+  const keys = select.split('.').filter((k) => k !== '')
+  for (const [i, key] of keys.entries()) {
+    // A null/absent collection has zero elements: a TERMINAL `length` selector over a null/undefined
+    // node resolves to 0, not "no metric". golangci-lint marshals a nil (zero-issue) issue slice to
+    // JSON `null`, so a CLEAN Go lint run reads `Issues.length` = 0 ≤ ceiling (Y) instead of N "no
+    // metric for json:Issues.length" — the asymmetry that only bit the passing case (#1569).
+    if (key === 'length' && i === keys.length - 1 && (node === null || node === undefined)) {
+      return 0
+    }
     if (node === null || typeof node !== 'object') return null
     node = node[key]
   }
@@ -530,6 +545,13 @@ function evalFileExists(abs, rel) {
 }
 
 function evalFileContains(abs, rel, pattern) {
+  // An empty/missing pattern is a registry authoring error, never a satisfied property: `''.indexOf`
+  // matches at index 0 of any readable file, so an omitted `pattern` would fake-green a verified-Y
+  // with zero evidence that anything is present. Refuse it — mirrors evalForbiddenPattern's
+  // empty-pattern N so the anti-fake-green contract is uniform across check types (#1591).
+  if (pattern === '') {
+    return { verdict: 'N', evidence: { file: rel, detail: 'empty or missing pattern' } }
+  }
   const text = readText(abs)
   if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
   const line = lineOf(text, pattern)
@@ -562,6 +584,11 @@ function evalCountMatches(abs, rel, pattern, want) {
 }
 
 function evalValue(abs, rel, expected) {
+  // Same empty-needle hole as evalFileContains: `''.indexOf` matches line 1 of any readable file, so
+  // a value check that omits `equals` would fake-green to Y with no evidence. Refuse it (#1591).
+  if (expected === '') {
+    return { verdict: 'N', evidence: { file: rel, detail: 'empty or missing pattern' } }
+  }
   const text = readText(abs)
   if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
   const line = lineOf(text, expected)
@@ -585,7 +612,7 @@ function hasGlobChar(s) {
   return /[*?[\]]/.test(s)
 }
 
-function evalForbiddenPattern(args, root) {
+function evalForbiddenPattern(args, root, getFiles) {
   const pattern = typeof args.pattern === 'string' ? args.pattern : ''
   if (pattern === '') {
     return { verdict: 'N', evidence: { file: '', detail: 'empty or non-string pattern' } }
@@ -601,7 +628,7 @@ function evalForbiddenPattern(args, root) {
   if (hasNestedUnboundedQuantifier(pattern)) {
     return { verdict: 'N', evidence: { file: '', detail: `unsafe regex (ReDoS risk): ${pattern}` } }
   }
-  const g = resolveGlobArg(args, root)
+  const g = resolveGlobArg(args, root, getFiles)
   if (!g.ok) return g.result
   const { glob, matched } = g
   const excludeRaw = Array.isArray(args.exclude_paths) ? args.exclude_paths : []
@@ -676,7 +703,7 @@ function evalForbiddenPattern(args, root) {
 // are evaluated by their OWN mode (lstat), never their target's. Verdict: all exec ⇒ Y, some ⇒ P,
 // none ⇒ N; a valid glob matching 0 files ⇒ NA; a malformed glob ⇒ N.
 
-function evalFileStat(args, root) {
+function evalFileStat(args, root, getFiles) {
   const bit = typeof args.bit === 'string' ? args.bit.toLowerCase() : 'executable'
   if (bit !== 'executable') {
     return {
@@ -684,7 +711,7 @@ function evalFileStat(args, root) {
       evidence: { file: '', detail: `only the executable bit is deterministic, got: ${bit}` },
     }
   }
-  const g = resolveGlobArg(args, root)
+  const g = resolveGlobArg(args, root, getFiles)
   if (!g.ok) return g.result
   const { glob, matched } = g
   if (matched.length === 0) {
@@ -731,13 +758,13 @@ function evalFileStat(args, root) {
  * null for NA/NV. Glob/pair checks (version_consistency, forbidden_pattern, file_stat) dispatch
  * BEFORE the single-file `args.path` resolve, since they own their own path handling.
  */
-function evalCheck(check, root, options) {
+function evalCheck(check, root, options, getFiles) {
   const type = check.type
   if (type === 'manual') return { verdict: 'NV', evidence: null }
   const args = check.args || {}
   if (type === 'version_consistency') return evalVersionConsistency(args, root)
-  if (type === 'forbidden_pattern') return evalForbiddenPattern(args, root)
-  if (type === 'file_stat') return evalFileStat(args, root)
+  if (type === 'forbidden_pattern') return evalForbiddenPattern(args, root, getFiles)
+  if (type === 'file_stat') return evalFileStat(args, root, getFiles)
 
   const abs = safeResolve(root, args.path)
   if (abs === null) {
@@ -859,6 +886,13 @@ function evaluateInner(registry, overlays, root, options = {}) {
   let earned = 0
   let possible = 0
 
+  // Walk the repo tree at most ONCE for the whole evaluate() (#1600): the first glob check
+  // (forbidden_pattern / file_stat) triggers the walk and every later glob check reuses the cached
+  // list. A registry with no glob check never walks (K=0 ⇒ 0 walks). Per-evaluate state only — no
+  // global cache — so determinism + the fail-closed contract are untouched. Mirrors engine.ts EvalRun.
+  let walkedFiles = null
+  const getFiles = () => (walkedFiles ??= walkRepo(root))
+
   for (const check of sorted) {
     const applicable = isApplicable(check, overlaySet, root)
     let verdict
@@ -867,7 +901,7 @@ function evaluateInner(registry, overlays, root, options = {}) {
       verdict = 'NA'
       evidence = null
     } else {
-      const r = evalCheck(check, root, opts)
+      const r = evalCheck(check, root, opts, getFiles)
       verdict = r.verdict
       evidence = r.evidence
     }
@@ -1073,7 +1107,7 @@ export function gapReport(result) {
  *   STALE   — reports are declared but NONE are present (the tools never ran)
  * @param {{checks?: unknown[]}} registry
  * @param {string} root
- * @param {{ staleHours?: number, now?: number }} [options]
+ * @param {{ staleHours?: number, now?: number, overlays?: Set<string>|Iterable<string> }} [options]
  * @returns {{ status: 'FRESH'|'PARTIAL'|'STALE', staleHours: number,
  *   counts: { total: number, present: number, fresh: number },
  *   reports: Array<{ path: string, present: boolean, ageHours: number|null, fresh: boolean }> }}
@@ -1082,6 +1116,13 @@ export function freshness(registry, root, options = {}) {
   const staleHours =
     Number.isFinite(options.staleHours) && options.staleHours >= 0 ? options.staleHours : 24
   const now = typeof options.now === 'number' ? options.now : Date.now()
+  // #1580: gate freshness on the SAME overlay set evaluate() uses. A report check the engine would
+  // score NA (its applies_if overlay is UNMET — capability off / cross-language audit) is not a
+  // freshness concern: counting its absent report toward STALE/PARTIAL conflates "the tool never ran"
+  // with "the capability does not apply" — the exact distinction freshness exists to make. Without a
+  // gate, --check-fresh (a fail-closed exit-1 gate) hard-fails demanding reports the engine never scores.
+  const overlaySet =
+    options.overlays instanceof Set ? options.overlays : new Set(options.overlays || [])
   const checks = Array.isArray(registry?.checks) ? registry.checks : []
   const reports = []
   for (const c of checks) {
@@ -1091,6 +1132,9 @@ export function freshness(registry, root, options = {}) {
     // Only a value check with a report `format` reads a pre-generated tool report; a legacy value
     // check (args.equals, no format) reads a tracked source file and is not a freshness concern.
     if (!args.format) continue
+    // Skip a report check whose applies_if overlay is UNMET — the engine NA's it, so its report is
+    // neither expected nor counted (isApplicable's fail-safe: a malformed precondition ⇒ APPLIES).
+    if (!isApplicable(c, overlaySet, root)) continue
     const p = typeof args.path === 'string' ? args.path : null
     if (p === null) continue
     const abs = safeResolve(root, p)

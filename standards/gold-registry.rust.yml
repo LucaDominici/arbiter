@@ -87,16 +87,18 @@ checks:
     applies_if: has-rust
   - id: RS-COV-02
     dimension: D-COVERAGE
-    title: Line coverage % meets the per-class floor (tarpaulin cobertura line-rate ×100)
+    title: Line coverage meets the per-class floor (tarpaulin cobertura line-rate, a 0..1 ratio)
     type: value
     args:
       path: cobertura.xml
       format: regex
       select: '<coverage[^>]*line-rate="([0-9.]+)"'
       op: gte
-      # tarpaulin emits line-rate as a 0..1 ratio; the threshold bar is expressed in the same units
-      # downstream. The registry carries NO literal — the per-class floor lives in thresholds.yml.
-    threshold_ref: rust.coverage.line
+      # tarpaulin emits line-rate as a 0..1 RATIO (100% coverage → 1.0) and the engine extracts the
+      # raw capture with NO ×100 scaling, so the bar must be in 0..1 units too: threshold_ref points at
+      # rust.coverage.line_rate (gold 0.90), NOT the 0..100 percent family. The registry carries no
+      # literal — the per-class floor lives in thresholds.yml (#1569).
+    threshold_ref: rust.coverage.line_rate
     weight: 2
     risk: SAFE
     applies_if: has-rust

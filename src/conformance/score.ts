@@ -45,10 +45,16 @@ function isExcluded(verdict: DimensionEntry['verdict']): boolean {
 }
 
 /**
- * Compute weighted T2 score across the four quality families.
- * NA/NV dims are excluded from family denominators.
- * Families with no eligible dims contribute 0 to the weighted sum
- * but their weight still divides the total.
+ * Compute weighted T2 score across the four quality families, RENORMALIZED by live weight.
+ *
+ * NA/NV dims are excluded from family denominators. A family with no eligible dims contributes
+ * nothing AND its weight is removed from the denominator — the score is `Σ(familyScore·weight) /
+ * Σ(weight)` over only the families that actually contributed. Without this renormalization the
+ * ceiling would be capped at the sum of the participating weights: in practice only docs-convention
+ * (weight 0.20) carries any tier-2 dims, so a perfect project would top out at 0.20 and the GOLD
+ * verdict (gate 0.85–0.92) would be mathematically unreachable for every project (#1599). A family
+ * whose weight is vestigial today (no tier-2 probes authored yet) therefore neither inflates nor
+ * deflates the score — it simply does not participate until it carries dims.
  */
 function computeTier2Score(
   tier2Dims: DimensionEntry[],
@@ -61,20 +67,23 @@ function computeTier2Score(
     'code-quality-gold',
   ]
   let weightedSum = 0
+  let liveWeight = 0
 
   for (const family of families) {
     const inFamily = tier2Dims.filter((d) => d.family === family)
     const eligible = inFamily.filter((d) => !isExcluded(d.verdict))
     if (eligible.length === 0) {
-      // No eligible dims → family score = 0, still contributes 0 weighted
+      // No eligible dims → the family does not participate; its weight is NOT added to liveWeight.
       continue
     }
     const familyScore =
       eligible.reduce((sum, d) => sum + verdictPoints(d.verdict), 0) / eligible.length
     weightedSum += familyScore * familyWeights[family]
+    liveWeight += familyWeights[family]
   }
 
-  return weightedSum
+  // Renormalize by the weight that actually participated; no live family ⇒ 0 (nothing to score).
+  return liveWeight > 0 ? weightedSum / liveWeight : 0
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────

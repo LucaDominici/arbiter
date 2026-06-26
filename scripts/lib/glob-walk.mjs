@@ -10,11 +10,13 @@ import { join, isAbsolute } from 'node:path'
 export const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
 
 /**
- * Translate a restricted glob (`**`, `*`) into a RegExp and test a POSIX path.
- * `**\/` crosses directory boundaries; `**` (not followed by /) matches any run;
- * `*` matches within a single path component.
+ * Compile a restricted glob (`**`, `*`) into a RegExp ONCE. Compiling is the per-check cost; a
+ * caller filtering many paths against one glob compiles a single RegExp here and `.test()`s it per
+ * file instead of `new RegExp` per file (#1522/#1600). Output-invariant ⇒ engine-parity preserved.
+ * `**\/` crosses directory boundaries; `**` (not followed by /) matches any run; `*` stays within
+ * a single path component. Mirrors src/conformance/shared.ts globToRegExp byte-for-byte.
  */
-export function globMatch(pattern, filepath) {
+export function globToRegExp(pattern) {
   let reStr = '^'
   let i = 0
   while (i < pattern.length) {
@@ -39,7 +41,16 @@ export function globMatch(pattern, filepath) {
     }
   }
   reStr += '$'
-  return new RegExp(reStr).test(filepath)
+  return new RegExp(reStr)
+}
+
+/**
+ * Translate a restricted glob (`**`, `*`) into a RegExp and test a POSIX path. Convenience wrapper
+ * over {@link globToRegExp} for one-off single-path tests (callers filtering a LIST should compile
+ * once via globToRegExp and reuse the RegExp — see gold-audit-lib expandGlob).
+ */
+export function globMatch(pattern, filepath) {
+  return globToRegExp(pattern).test(filepath)
 }
 
 /** Reject absolute or `..`-traversal globs (path-traversal guard). */

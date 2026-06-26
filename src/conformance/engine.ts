@@ -190,6 +190,13 @@ function evalFileExists(abs: string, rel: string): EvalCheckResult {
 }
 
 function evalFileContains(abs: string, rel: string, pattern: string): EvalCheckResult {
+  // An empty/missing pattern is a registry authoring error, never a satisfied property: `''.indexOf`
+  // matches at index 0 of any readable file, so an omitted `pattern` would fake-green a verified-Y
+  // with zero evidence that anything is present. Refuse it — mirrors evalForbiddenPattern's
+  // empty-pattern N so the anti-fake-green contract is uniform across check types (#1591).
+  if (pattern === '') {
+    return { verdict: 'N', evidence: { file: rel, detail: 'empty or missing pattern' } }
+  }
   const text = readText(abs)
   if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
   const line = lineOf(text, pattern)
@@ -227,6 +234,11 @@ function evalCountMatches(
 }
 
 function evalValue(abs: string, rel: string, expected: string): EvalCheckResult {
+  // Same empty-needle hole as evalFileContains: `''.indexOf` matches line 1 of any readable file, so
+  // a value check that omits `equals` would fake-green to Y with no evidence. Refuse it (#1591).
+  if (expected === '') {
+    return { verdict: 'N', evidence: { file: rel, detail: 'empty or missing pattern' } }
+  }
   const text = readText(abs)
   if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
   const line = lineOf(text, expected)
@@ -245,8 +257,15 @@ function extractJson(text: string, select: string): number | null {
   } catch {
     return null
   }
-  for (const key of select.split('.')) {
-    if (key === '') continue
+  const keys = select.split('.').filter((k) => k !== '')
+  for (const [i, key] of keys.entries()) {
+    // A null/absent collection has zero elements: a TERMINAL `length` selector over a null/undefined
+    // node resolves to 0, not "no metric". golangci-lint marshals a nil (zero-issue) issue slice to
+    // JSON `null`, so a CLEAN Go lint run reads `Issues.length` = 0 ≤ ceiling (Y) instead of N "no
+    // metric for json:Issues.length" — the asymmetry that only bit the passing case (#1569).
+    if (key === 'length' && i === keys.length - 1 && (node === null || node === undefined)) {
+      return 0
+    }
     if (node === null || typeof node !== 'object') return null
     node = (node as Record<string, unknown>)[key]
   }

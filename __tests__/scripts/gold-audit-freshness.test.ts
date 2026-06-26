@@ -15,7 +15,7 @@ let lib: {
   freshness: (
     registry: unknown,
     root: string,
-    opts?: { staleHours?: number; now?: number },
+    opts?: { staleHours?: number; now?: number; overlays?: Set<string> },
   ) => {
     status: string
     counts: { total: number; present: number; fresh: number }
@@ -121,6 +121,51 @@ describe('freshness banner (#1473)', () => {
       const f = lib.freshness(noReports, dir, { staleHours: 24, now: NOW })
       expect(f.status).toBe('FRESH')
       expect(f.counts.total).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('IGNORES an applies_if-gated report when its overlay is disabled (#1580)', () => {
+    // A registry whose ONLY report checks are gated behind a `has-ts` overlay. With the overlay
+    // ABSENT the engine NA's both, so their missing reports must NOT make freshness STALE/PARTIAL —
+    // there is nothing to be fresh about. Pre-#1580 freshness stat'd them anyway and returned STALE,
+    // hard-failing --check-fresh for a capability the engine never scores.
+    const gated = {
+      checks: [
+        {
+          id: 'TS-LINT',
+          type: 'value',
+          args: { path: 'eslint-report.json', format: 'json', select: 'errorCount', op: 'lte' },
+          applies_if: 'has-ts',
+        },
+        {
+          id: 'TS-COV',
+          type: 'value',
+          args: {
+            path: 'coverage/coverage-summary.json',
+            format: 'json',
+            select: 'pct',
+            op: 'gte',
+          },
+          applies_if: { type: 'capability', name: 'has-ts' },
+        },
+      ],
+    }
+    const dir = makeRepo()
+    try {
+      // overlay disabled (empty set) ⇒ both checks NA ⇒ freshness sees zero reports ⇒ FRESH (vacuous)
+      const off = lib.freshness(gated, dir, { staleHours: 24, now: NOW, overlays: new Set() })
+      expect(off.status).toBe('FRESH')
+      expect(off.counts.total).toBe(0)
+      // overlay enabled ⇒ both checks applicable ⇒ absent reports ⇒ STALE (fail-closed, as before)
+      const on = lib.freshness(gated, dir, {
+        staleHours: 24,
+        now: NOW,
+        overlays: new Set(['has-ts']),
+      })
+      expect(on.status).toBe('STALE')
+      expect(on.counts.total).toBe(2)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
