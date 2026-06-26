@@ -10,9 +10,10 @@
 //   buildRenderContext, templateToMaterialized, isAllowlisted,
 //   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS
 
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
@@ -328,23 +329,21 @@ async function main() {
   // Lazy-load ejs so the exported helpers work without it
   const ejs = (await import('ejs')).default
 
-  function findEjs(dir) {
-    const results = []
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry)
-      if (statSync(full).isDirectory()) {
-        results.push(...findEjs(full))
-      } else if (full.endsWith('.ejs')) {
-        results.push(full)
-      }
-    }
-    return results
-  }
   // Corpus derives from TEMPLATE_ROOTS — the same SSOT that maps paths — so a new
-  // family can never be mapped-but-unwalked (vacuous gate, #1290). A missing root
-  // directory is a hard error, not a skip (fail-closed).
+  // family can never be mapped-but-unwalked (vacuous gate, #1290). Each family root is
+  // walked with the shared hardened glob-walk helper (cycle-safe lstat + visited-inode
+  // guard, #1521), filtered to .ejs, then re-absolutized so templateToMaterialized can
+  // locate the family marker. A missing root directory stays a hard error, not a skip
+  // (fail-closed): walkRepo returns [] for an absent dir, so guard existence explicitly
+  // to preserve the throw the raw readdirSync gave before this migration.
   const templates = Object.keys(TEMPLATE_ROOTS)
-    .flatMap((marker) => findEjs(join(repoRoot, marker)))
+    .flatMap((marker) => {
+      const root = join(repoRoot, marker)
+      if (!existsSync(root)) throw new Error(`dogfood corpus root missing: ${root}`)
+      return walkRepo(root)
+        .filter((full) => full.endsWith('.ejs'))
+        .map((full) => join(root, full))
+    })
     .sort()
 
   // Load arbiter's own config
