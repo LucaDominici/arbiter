@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Archetype, Language } from '../wizard/types.js'
 import { readFileSafe, readPackageJsonSafe } from '../utils/safe-read.js'
+import { jvmRoot } from './language.js'
 
 export function detectFramework(dir: string, language: Language): string | null {
   if (language === 'multi') return detectMultiFramework(dir)
@@ -20,11 +21,13 @@ export function detectFramework(dir: string, language: Language): string | null 
  */
 function detectMultiFramework(dir: string): string | null {
   const ts = detectTypescriptFramework(dir)
-  const javaBuildPresent =
-    existsSync(join(dir, 'build.gradle')) ||
-    existsSync(join(dir, 'build.gradle.kts')) ||
-    existsSync(join(dir, 'pom.xml'))
-  const java = javaBuildPresent ? detectJavaFramework(dir) : null
+  // The JVM build of a real polyglot monorepo lives under backend/, not at the
+  // root (#1378 classifies exactly that shape as `multi`). Resolve the Java side
+  // against jvmRoot so the Spring/Quarkus framework is detected there instead of
+  // being silently dropped — which collapsed the composite to the TS framework
+  // alone and skipped all Java-side governance (#1567).
+  const javaDir = jvmRoot(dir)
+  const java = javaDir !== null ? detectJavaFramework(javaDir) : null
   if (ts && java) return `${ts}+${java}`
   return ts ?? java
 }

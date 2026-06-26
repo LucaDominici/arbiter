@@ -160,4 +160,29 @@ describe('getLanguageHooks', () => {
     expect(hook.body).toContain("t.startsWith('import ')")
     expect(hook.body).toContain("t.startsWith('package ')")
   })
+
+  it('check-no-raw-types does not flag idiomatic static factories but flags raw types (#1560)', () => {
+    const hooks = getLanguageHooks('java')
+    const hook = hooks.find((h) => h.name === 'check-no-raw-types.mjs')!
+    // Extract the EXACT raw-type regex emitted into the hook body so this test
+    // exercises the shipped pattern, not a hand-copied facsimile. The matcher
+    // requires the `(?![<.])` lookahead — a regression to `(?!<)` makes the
+    // extraction return null and the test fail loudly.
+    const m = hook.body.match(/\/\\b\((List[^)]*)\)\\b\(\?!\[<\.\]\)\//)
+    expect(m).not.toBeNull()
+    const rx = new RegExp('\\b(' + m![1] + ')\\b(?![<.])')
+
+    // Static-factory calls and parameterized declarations — must NOT flag.
+    expect(rx.test('var x = List.of(1,2,3);')).toBe(false)
+    expect(rx.test('Optional.empty();')).toBe(false)
+    expect(rx.test('Optional.ofNullable(x);')).toBe(false)
+    expect(rx.test('Set<Integer> s = Set.of();')).toBe(false)
+    expect(rx.test('Map<String,String> m = Map.of();')).toBe(false)
+    expect(rx.test('List<String> ok = new ArrayList<>();')).toBe(false)
+
+    // Genuine raw types — must still flag.
+    expect(rx.test('List raw = new ArrayList();')).toBe(true)
+    expect(rx.test('Map field;')).toBe(true)
+    expect(rx.test('private Set names;')).toBe(true)
+  })
 })

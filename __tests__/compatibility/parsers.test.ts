@@ -79,6 +79,35 @@ describe('parseJavaVersion', () => {
       patch: 402,
     })
   })
+  it('parses bare-major GA strings with dropped trailing zeros (#1564)', () => {
+    // JEP 223/322: the first GA build of a feature release reports a bare major.
+    expect(parseJavaVersion('openjdk version "21" 2023-09-19\n')).toEqual({
+      major: 21,
+      minor: 0,
+      patch: 0,
+    })
+    expect(parseJavaVersion('openjdk version "17" 2021-09-14\n')).toEqual({
+      major: 17,
+      minor: 0,
+      patch: 0,
+    })
+    expect(parseJavaVersion('java version "24"\n')).toEqual({
+      major: 24,
+      minor: 0,
+      patch: 0,
+    })
+  })
+  it('parses a major.minor GA string with dropped patch (#1564)', () => {
+    expect(parseJavaVersion('openjdk version "21.0" 2023\n')).toEqual({
+      major: 21,
+      minor: 0,
+      patch: 0,
+    })
+  })
+  it('still rejects a bare legacy "1" without the dotted feature element (#1564)', () => {
+    // The legacy 1.x remap needs the minor element to recover the real major.
+    expect(parseJavaVersion('java version "1"\n')).toBeNull()
+  })
   it('returns null for empty', () => {
     expect(parseJavaVersion('')).toBeNull()
   })

@@ -20,6 +20,7 @@ import {
   parseKotlinVersion,
 } from './parsers.js'
 import type { SemVer } from './parsers.js'
+import type { Language } from '../wizard/types.js'
 import type { LanguageMatrix, MatrixEntry, ProbeResult, VerifyReport } from './schema.js'
 import { makeVerifyReport } from './schema.js'
 import matrixJson from './matrix.json' with { type: 'json' }
@@ -115,13 +116,21 @@ const BUILD_PROBE_SPECS: Record<string, BuildProbeSpec> = {
     args: ['build', '-n', './...'],
     requires: 'go.mod',
   },
-  python: {
-    name: 'ruff:version',
-    command: 'ruff',
-    args: ['--version'],
-    requires: '',
-  },
+  // No python build probe: it ran `ruff --version` (requires:'' → always),
+  // duplicating the matrix version probe for ruff and adding zero signal — yet
+  // diverged from it when ruff was absent (version probe skipped, build probe
+  // failed → false verify failure). Dropped in favour of the single version
+  // probe (#1597 gap 1).
 }
+
+/**
+ * Matches a CLI error meaning the tool does not recognise the `--version` flag
+ * (Click "No such option: --version" / argparse "unrecognized arguments:
+ * --version" / generic "unknown option ... --version"). Such a tool is present
+ * but its version is unprobeable, so the probe skips rather than fails (#1597).
+ */
+const VERSION_FLAG_UNSUPPORTED =
+  /(no such option|unrecognized arguments?|unknown option|invalid option)[^\n]*--version/i
 
 /**
  * Probe a single tool: run its version command and check against the range.
@@ -156,6 +165,19 @@ export function probeTool(
         }
       }
       const detail = (err.stderr || err.stdout || err.message).trim().slice(0, 500)
+      // A tool that rejects `--version` as an unknown option (Click "No such
+      // option: --version", argparse "unrecognized arguments: --version") is
+      // present but unprobeable — e.g. import-linter only added --version in
+      // 2.11, so installs in [2.0, 2.10] error here. That is not an invalid
+      // toolchain; skip rather than hard-fail verification (#1597 gap 3).
+      if (VERSION_FLAG_UNSUPPORTED.test(detail)) {
+        return {
+          tool,
+          status: 'skipped',
+          reason:
+            'version-flag-unsupported: tool does not support --version (cannot probe version)',
+        }
+      }
       return {
         tool,
         status: 'failed',
@@ -317,11 +339,14 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
   } catch (err) {
     if (err instanceof CliError) {
       if (err.notFound) {
+        // A missing build tool is non-fatal, mirroring the version probes'
+        // toolchain-missing policy — a user without the tool installed should
+        // skip, not fail verification (#1597 gap 1).
         return {
           tool: spec.name,
-          status: 'failed',
+          status: 'skipped',
           kind: 'build',
-          reason: `build tool missing: ${spec.command}`,
+          reason: 'toolchain-missing',
         }
       }
       if (err.timedOut) {
@@ -345,26 +370,40 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
 }
 
 /**
+ * Resolve the matrix entries to probe for a detected stack. A `multi` polyglot
+ * monorepo unions the TypeScript and JVM (Java) toolchains so it actually
+ * verifies both sides instead of returning zero coverage and printing a
+ * false-OK green banner (#1597 gap 2). Unknown/uncovered stacks return [].
+ */
+function matrixEntriesFor(lang: Language): MatrixEntry[] {
+  switch (lang) {
+    case 'typescript':
+      return MATRIX.typescript
+    case 'java':
+      return MATRIX.java
+    case 'kotlin':
+      return MATRIX.kotlin
+    case 'rust':
+      return MATRIX.rust
+    case 'go':
+      return MATRIX.go
+    case 'python':
+      return MATRIX.python
+    case 'multi':
+      return [...MATRIX.typescript, ...MATRIX.java]
+    default:
+      return []
+  }
+}
+
+/**
  * Run all tool probes for the detected stack in the given directory.
  * Runs version probes first, then a per-stack build probe.
  */
 export function runProbes(dir: string): VerifyReport {
   const lang = detectLanguage(dir)
 
-  const entries: MatrixEntry[] =
-    lang === 'typescript'
-      ? MATRIX.typescript
-      : lang === 'java'
-        ? MATRIX.java
-        : lang === 'kotlin'
-          ? MATRIX.kotlin
-          : lang === 'rust'
-            ? MATRIX.rust
-            : lang === 'go'
-              ? MATRIX.go
-              : lang === 'python'
-                ? MATRIX.python
-                : []
+  const entries: MatrixEntry[] = matrixEntriesFor(lang)
 
   const probes: ProbeResult[] = entries.map(({ tool, range }) => {
     const spec = TOOL_SPECS[tool]

@@ -31,6 +31,20 @@ function findJvmBuildFile(dir: string): string | null {
   return null
 }
 
+/**
+ * Resolve the directory that holds the JVM build for a (possibly polyglot) project.
+ * Mirrors `findJvmBuildFile`'s root-then-`backend/` ordering so framework and build
+ * detection agree with `detectLanguageWithSource` on WHERE the JVM build lives
+ * (single SSOT). Returns `dir` for a root JVM build, `join(dir,'backend')` for a
+ * `backend/` JVM build, or `null` when no JVM build file is present anywhere (#1567).
+ */
+export function jvmRoot(dir: string): string | null {
+  if (findJvmBuildFile(dir) !== null) return dir
+  const backend = join(dir, 'backend')
+  if (findJvmBuildFile(backend) !== null) return backend
+  return null
+}
+
 export function detectLanguageWithSource(dir: string): {
   language: Language
   source: string | null

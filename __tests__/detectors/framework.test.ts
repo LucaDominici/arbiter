@@ -249,6 +249,26 @@ describe('detectFramework', () => {
       )
       expect(detectFramework(dir, 'multi')).toBe('express+spring-boot')
     })
+
+    it('detects the Java framework under backend/ (the real monorepo shape) (#1567)', () => {
+      // detectLanguageWithSource classifies this exact shape (root package.json +
+      // backend/ JVM build) as `multi` after #1378. The Java side lives in backend/,
+      // not at the root, so the framework detector must resolve it via jvmRoot.
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { express: '^4' } }))
+      mkdirSync(join(dir, 'backend'), { recursive: true })
+      writeFileSync(join(dir, 'backend', 'build.gradle'), 'id "spring-boot" version "3.0.0"')
+      expect(detectFramework(dir, 'multi')).toBe('express+spring-boot')
+    })
+
+    it('detects a backend/pom.xml Spring Boot side (#1567)', () => {
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { express: '^4' } }))
+      mkdirSync(join(dir, 'backend'), { recursive: true })
+      writeFileSync(
+        join(dir, 'backend', 'pom.xml'),
+        '<project><parent><groupId>org.springframework.boot</groupId></parent></project>',
+      )
+      expect(detectFramework(dir, 'multi')).toBe('express+spring-boot')
+    })
   })
 })
 

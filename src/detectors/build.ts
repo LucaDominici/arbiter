@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Language } from '../wizard/types.js'
 import { readPackageJsonSafe } from '../utils/safe-read.js'
+import { jvmRoot } from './language.js'
 
 export interface BuildCommands {
   buildTool: string
@@ -20,7 +21,11 @@ export function detectBuildCommands(dir: string, language: Language): BuildComma
       return detectRustCommands(dir)
     case 'java':
     case 'multi':
-      return detectJavaCommands(dir)
+      // For `multi` the JVM build lives under backend/, not the root (#1378); resolve
+      // it via jvmRoot so a Maven backend gets Maven commands instead of falling
+      // through to the Gradle default for an empty root (#1567). For `java` jvmRoot
+      // is the root itself, so behaviour is unchanged.
+      return detectJavaCommands(jvmRoot(dir) ?? dir)
     case 'go':
       return {
         buildTool: 'go',
