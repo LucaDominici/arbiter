@@ -63,11 +63,16 @@ vi.mock('../../src/state/generated-manifest.js', () => ({
   manifestKey: (targetDir: string, filePath: string): string =>
     filePath.replace(`${targetDir}/`, '').replace(/\\/g, '/'),
 }))
-vi.mock('../../src/commands/init.js', () => ({
-  runGithubSetup: vi.fn().mockReturnValue({ warnings: [] }),
-  printResults: vi.fn(),
-  runPlugins: vi.fn().mockResolvedValue([]),
-}))
+vi.mock('../../src/commands/init.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/commands/init.js')>()
+  return {
+    // Keep the real config-boundary slugify (#1550) — update.ts calls it.
+    slugifyProjectName: actual.slugifyProjectName,
+    runGithubSetup: vi.fn().mockReturnValue({ warnings: [] }),
+    printResults: vi.fn(),
+    runPlugins: vi.fn().mockResolvedValue([]),
+  }
+})
 
 import { runUpdate, detectUnwiredGateWarning } from '../../src/commands/update.js'
 import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../../src/utils/config.js'

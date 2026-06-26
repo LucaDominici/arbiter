@@ -2,7 +2,7 @@
 # Replace PLACEHOLDER values before your first scan.
 sonar.organization=PLACEHOLDER_ORG
 sonar.projectKey=PLACEHOLDER_PROJECT_KEY
-sonar.projectName=<%= projectName %>
+sonar.projectName=<%- projectName.replace(/\\/g, '\\\\') %>
 sonar.qualitygate.wait=true
 <% if (language === 'java') { %>
 sonar.sources=src/main/java
