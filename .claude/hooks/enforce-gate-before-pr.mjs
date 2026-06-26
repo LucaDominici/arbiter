@@ -7,8 +7,11 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { resolveToolInputCommand } from './lib.mjs'
 
-const command = process.env.CLAUDE_TOOL_INPUT_COMMAND ?? ''
+// Resolve the command from stdin-JSON (real Claude Code) or the env var (Codex).
+// Reading only the env var made this guard silently inert under Claude Code (#1565).
+const command = resolveToolInputCommand()
 if (!command.includes('gh pr create')) process.exit(0)
 
 if (process.env.ARBITER_SKIP_GATE_MARKER === '1') {

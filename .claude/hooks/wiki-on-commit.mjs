@@ -4,9 +4,12 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { resolveToolInputCommand } from './lib.mjs'
 
 try {
-  const command = process.env.CLAUDE_TOOL_INPUT_COMMAND ?? ''
+  // Resolve the command from stdin-JSON (real Claude Code) or the env var (Codex).
+  // Reading only the env var made this guard silently inert under Claude Code (#1565).
+  const command = resolveToolInputCommand()
 
   // Only act on git commit commands
   if (!/^git commit/.test(command)) process.exit(0)

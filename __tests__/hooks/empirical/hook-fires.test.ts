@@ -59,17 +59,27 @@ function spawnHook(
 // ── static hooks ──────────────────────────────────────────────────────────────
 
 describe('stop-dangerous — empirical fire', () => {
-  const hookPath = join(STATIC_HOOKS_DIR, 'stop-dangerous.mjs')
+  let dir: string
+  let hookPath: string
+
+  beforeEach(() => {
+    // Raw .mjs hook copied verbatim alongside the rendered lib.mjs it now imports
+    // (resolveToolInputCommand). Spawning from src/templates/ would fail to resolve ./lib.mjs.
+    ;({ dir, hookPath } = makeRawHook('stop-dangerous.mjs'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
 
   it('exits 0 for benign command', () => {
-    const r = spawnHook(hookPath, process.cwd(), {
+    const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'npm test',
     })
     expect(r.status).toBe(0)
   })
 
   it('exits 1 and emits stderr for rm -rf /', () => {
-    const r = spawnHook(hookPath, process.cwd(), {
+    const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'rm -rf /tmp/blah',
     })
     expect(r.status).toBe(1)
@@ -77,7 +87,7 @@ describe('stop-dangerous — empirical fire', () => {
   })
 
   it('exits 1 for git push --force', () => {
-    const r = spawnHook(hookPath, process.cwd(), {
+    const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'git push --force origin main',
     })
     expect(r.status).toBe(1)
@@ -320,6 +330,150 @@ describe('enforce-read-only — empirical fire', () => {
     const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: '' }, '')
     expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/fail-closed|unresolvable/i)
+  })
+})
+
+// ── Bash command hooks — stdin-JSON protocol (no env var) ───────────────────────
+// Regression for #1565: under the real Claude Code hook protocol the Bash tool payload
+// arrives as JSON on stdin ({ tool_input: { command } }) and NOTHING sets the
+// CLAUDE_TOOL_INPUT_COMMAND env var (only the Codex adapter does). A command hook that
+// reads ONLY process.env.CLAUDE_TOOL_INPUT_COMMAND sees '' and silently no-ops. These
+// tests drive each command hook the way Claude Code does — stdin JSON, NO env var — and
+// assert it actually fires. Without resolveToolInputCommand()'s stdin parse, every
+// assertion below regresses to the (broken) no-op exit 0.
+
+function spawnCommandHookStdin(hookPath: string, dir: string, command: string) {
+  return spawnSync('node', [hookPath], {
+    cwd: dir,
+    encoding: 'utf-8',
+    input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+    // Deliberately NO CLAUDE_TOOL_INPUT_COMMAND — only the stdin payload carries the command.
+    env: { ...process.env, CLAUDE_TOOL_INPUT_COMMAND: '' },
+    timeout: 5000,
+  })
+}
+
+describe('stop-dangerous (raw hook) — stdin-JSON protocol (no env var)', () => {
+  let dir: string
+  let hookPath: string
+
+  beforeEach(() => {
+    ;({ dir, hookPath } = makeRawHook('stop-dangerous.mjs'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('exits 1 for rm -rf / delivered via stdin JSON', () => {
+    const r = spawnCommandHookStdin(hookPath, dir, 'rm -rf /')
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/blocked/i)
+  })
+
+  it('exits 1 for git push --force delivered via stdin JSON', () => {
+    const r = spawnCommandHookStdin(hookPath, dir, 'git push --force origin main')
+    expect(r.status).toBe(1)
+  })
+
+  it('exits 0 for a benign command delivered via stdin JSON', () => {
+    const r = spawnCommandHookStdin(hookPath, dir, 'npm test')
+    expect(r.status).toBe(0)
+  })
+})
+
+describe('enforce-gate-before-pr (raw hook) — stdin-JSON protocol (no env var)', () => {
+  let dir: string
+  let hookPath: string
+
+  beforeEach(() => {
+    ;({ dir, hookPath } = makeRawHook('enforce-gate-before-pr.mjs'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('exits 2 (blocks) for gh pr create with no gate-pass marker via stdin JSON', () => {
+    const r = spawnCommandHookStdin(hookPath, dir, 'gh pr create --fill')
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/GATE GUARD/)
+  })
+
+  it('exits 0 for a non-pr command via stdin JSON', () => {
+    const r = spawnCommandHookStdin(hookPath, dir, 'git status')
+    expect(r.status).toBe(0)
+  })
+})
+
+describe('post-commit-check — stdin-JSON protocol (no env var)', () => {
+  let dir: string
+  let hooksDir: string
+  let hookPath: string
+
+  beforeEach(() => {
+    ;({ dir, hooksDir } = makeHookDir())
+    hookPath = renderEjsHook(hooksDir, 'post-commit-check.mjs.ejs')
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('exits 1 on a non-conventional commit message delivered via stdin JSON', () => {
+    spawnSync('git', ['init'], { cwd: dir, encoding: 'utf-8' })
+    spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], { cwd: dir, encoding: 'utf-8' })
+    spawnSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: dir, encoding: 'utf-8' })
+    spawnSync('git', ['commit', '--allow-empty', '-m', 'bad commit message'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
+    const r = spawnCommandHookStdin(hookPath, dir, 'git commit -m "bad commit message"')
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/INV-22/)
+  })
+
+  it('exits 0 when the stdin command is not a git commit', () => {
+    const r = spawnCommandHookStdin(hookPath, dir, 'npm test')
+    expect(r.status).toBe(0)
+  })
+})
+
+describe('wiki-on-commit — stdin-JSON protocol (no env var)', () => {
+  let dir: string
+  let hooksDir: string
+  let hookPath: string
+
+  function gitCommit(message: string, addPath?: string) {
+    if (addPath) spawnSync('git', ['add', addPath], { cwd: dir, encoding: 'utf-8' })
+    spawnSync('git', ['commit', '--allow-empty', '-m', message], { cwd: dir, encoding: 'utf-8' })
+  }
+
+  beforeEach(() => {
+    ;({ dir, hooksDir } = makeHookDir())
+    hookPath = renderEjsHook(hooksDir, 'wiki-on-commit.mjs.ejs')
+    spawnSync('git', ['init'], { cwd: dir, encoding: 'utf-8' })
+    spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], { cwd: dir, encoding: 'utf-8' })
+    spawnSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: dir, encoding: 'utf-8' })
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('recognizes a git commit via stdin JSON and runs gen-wiki (exit 1 when script is absent)', () => {
+    // Two commits; the last touches docs/*.md, and wiki/ exists but scripts/gen-wiki.mjs
+    // does NOT — so once the command is recognized the hook reaches gen-wiki and fails.
+    // Before #1565 the empty command short-circuited to exit 0 and never got here.
+    gitCommit('feat: init')
+    mkdirSync(join(dir, 'docs'), { recursive: true })
+    writeFileSync(join(dir, 'docs', 'foo.md'), '# foo\n')
+    gitCommit('docs: add foo', 'docs/foo.md')
+    mkdirSync(join(dir, 'wiki'), { recursive: true })
+    const r = spawnCommandHookStdin(hookPath, dir, 'git commit -m "docs: add foo"')
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/wiki-on-commit/)
+  })
+
+  it('exits 0 when the stdin command is not a git commit', () => {
+    const r = spawnCommandHookStdin(hookPath, dir, 'ls -la')
+    expect(r.status).toBe(0)
   })
 })
 
