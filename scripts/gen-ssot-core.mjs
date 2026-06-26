@@ -27,6 +27,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 const BEGIN_MARKER = '<!-- BEGIN GENERATED INVENTORY -->'
 const END_MARKER = '<!-- END GENERATED INVENTORY -->'
@@ -84,15 +85,18 @@ function firstKind(tags) {
   return t ? t.slice('kind/'.length) : ''
 }
 
-/** Recursively collect .md files under dir. */
-function walkMarkdown(dir, out = []) {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === '.git') continue
-    const full = join(dir, entry)
-    if (statSync(full).isDirectory()) walkMarkdown(full, out)
-    else if (entry.endsWith('.md')) out.push(full)
-  }
-  return out
+/**
+ * Recursively collect absolute paths of .md files under dir.
+ * Delegates to the shared hardened walker (lstat + skip-symlink + visited-inode
+ * cycle guard, #1521) instead of a hand-rolled statSync recursion — a symlinked
+ * directory cycle in docs/ would otherwise infinite-recurse. The shared SKIP_DIRS
+ * additionally prunes coverage/ (the dim-NN stub tree), which selectSsotDocs already
+ * excludes below, so the generated SSOT inventory is byte-identical.
+ */
+function walkMarkdown(dir) {
+  return walkRepo(dir)
+    .filter((rel) => rel.endsWith('.md'))
+    .map((rel) => join(dir, rel))
 }
 
 // ---------------------------------------------------------------------------
