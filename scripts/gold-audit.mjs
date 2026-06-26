@@ -190,7 +190,8 @@ function main() {
   // (declared but NONE present — the tools never ran). Out-of-band: the wall-clock never touches the
   // scored payload or the no-regress baseline. PARTIAL/FRESH are advisory (exit 0).
   if (flag('--check-fresh')) {
-    const f = freshness(registry, CWD, { staleHours: STALE_HOURS })
+    // #1580: pass the active overlay set so freshness ignores reports for checks the engine NA's.
+    const f = freshness(registry, CWD, { staleHours: STALE_HOURS, overlays })
     const c = f.counts
     if (f.status === 'STALE') {
       process.stderr.write(
@@ -259,7 +260,7 @@ function main() {
   // payload PLUS the out-of-band freshness object (wall-clock). Kept SEPARATE from `--json` so the
   // scored artifact (no-regress baseline, bake snapshots) stays byte-deterministic + freshness-free.
   if (flag('--cockpit-data')) {
-    const fresh = freshness(registry, CWD, { staleHours: STALE_HOURS })
+    const fresh = freshness(registry, CWD, { staleHours: STALE_HOURS, overlays })
     process.stdout.write(JSON.stringify({ payload: enriched, freshness: fresh }) + '\n')
     return 0
   }
@@ -279,7 +280,7 @@ function main() {
 
   // Advisory freshness banner (out-of-band; never in the --json scored payload). Only shown when the
   // registry declares value-check reports — otherwise there is nothing to be fresh/stale about.
-  const fresh = freshness(registry, CWD, { staleHours: STALE_HOURS })
+  const fresh = freshness(registry, CWD, { staleHours: STALE_HOURS, overlays })
   if (fresh.counts.total > 0) {
     process.stdout.write(
       `gold-audit: freshness ${fresh.status} ` +

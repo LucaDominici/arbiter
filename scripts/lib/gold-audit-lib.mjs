@@ -1092,7 +1092,7 @@ export function gapReport(result) {
  *   STALE   — reports are declared but NONE are present (the tools never ran)
  * @param {{checks?: unknown[]}} registry
  * @param {string} root
- * @param {{ staleHours?: number, now?: number }} [options]
+ * @param {{ staleHours?: number, now?: number, overlays?: Set<string>|Iterable<string> }} [options]
  * @returns {{ status: 'FRESH'|'PARTIAL'|'STALE', staleHours: number,
  *   counts: { total: number, present: number, fresh: number },
  *   reports: Array<{ path: string, present: boolean, ageHours: number|null, fresh: boolean }> }}
@@ -1101,6 +1101,13 @@ export function freshness(registry, root, options = {}) {
   const staleHours =
     Number.isFinite(options.staleHours) && options.staleHours >= 0 ? options.staleHours : 24
   const now = typeof options.now === 'number' ? options.now : Date.now()
+  // #1580: gate freshness on the SAME overlay set evaluate() uses. A report check the engine would
+  // score NA (its applies_if overlay is UNMET — capability off / cross-language audit) is not a
+  // freshness concern: counting its absent report toward STALE/PARTIAL conflates "the tool never ran"
+  // with "the capability does not apply" — the exact distinction freshness exists to make. Without a
+  // gate, --check-fresh (a fail-closed exit-1 gate) hard-fails demanding reports the engine never scores.
+  const overlaySet =
+    options.overlays instanceof Set ? options.overlays : new Set(options.overlays || [])
   const checks = Array.isArray(registry?.checks) ? registry.checks : []
   const reports = []
   for (const c of checks) {
@@ -1110,6 +1117,9 @@ export function freshness(registry, root, options = {}) {
     // Only a value check with a report `format` reads a pre-generated tool report; a legacy value
     // check (args.equals, no format) reads a tracked source file and is not a freshness concern.
     if (!args.format) continue
+    // Skip a report check whose applies_if overlay is UNMET — the engine NA's it, so its report is
+    // neither expected nor counted (isApplicable's fail-safe: a malformed precondition ⇒ APPLIES).
+    if (!isApplicable(c, overlaySet, root)) continue
     const p = typeof args.path === 'string' ? args.path : null
     if (p === null) continue
     const abs = safeResolve(root, p)
