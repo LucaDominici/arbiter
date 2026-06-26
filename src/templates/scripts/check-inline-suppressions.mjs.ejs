@@ -5,8 +5,9 @@
 // Part of the anti-drift validator family (W6).
 // Usage: node scripts/check-inline-suppressions.mjs [--help]
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { walkRepo } from './lib/glob-walk.mjs';
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.stdout.write('Usage: node scripts/check-inline-suppressions.mjs [--help]\nValidates arbiter-suppress directives in source files.\n');
@@ -132,16 +133,14 @@ function scanFile(filePath, counters) {
 }
 
 function walkDir(dir, counters) {
-  for (const entry of readdirSync(dir)) {
-    if (IGNORED_DIRS.has(entry)) continue;
-    const fullPath = join(dir, entry);
-    const stat = statSync(fullPath);
-    if (stat.isDirectory()) {
-      walkDir(fullPath, counters);
-    } else if (stat.isFile()) {
-      const ext = entry.slice(entry.lastIndexOf('.'));
-      if (SCANNED_EXTENSIONS.has(ext)) scanFile(fullPath, counters);
-    }
+  // Cycle-safe walk via the shared helper (#1521): walkRepo prunes vendor trees and never recurses
+  // into a symlinked directory. Re-apply this script's own IGNORED_DIRS as a path-segment filter so
+  // the visited set is identical, minus the symlink-cycle bug.
+  for (const rel of walkRepo(resolve(dir))) {
+    if (rel.split('/').some((seg) => IGNORED_DIRS.has(seg))) continue;
+    const name = rel.slice(rel.lastIndexOf('/') + 1);
+    const ext = name.slice(name.lastIndexOf('.'));
+    if (SCANNED_EXTENSIONS.has(ext)) scanFile(join(dir, rel), counters);
   }
 }
 

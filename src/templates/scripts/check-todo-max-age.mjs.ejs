@@ -14,8 +14,9 @@
 //   0  PASS / SKIP (no over-age TODO, or created_at unresolvable — offline)
 //   1  FAIL — one or more linked issues are older than MAX_AGE_DAYS
 //   2  ERROR — invocation error
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { walkRepo } from './lib/glob-walk.mjs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -83,28 +84,16 @@ function fetchCreatedAt(ownerRepo, issueNumber) {
 }
 
 function scan(dir, baseDir, acc) {
-  let entries;
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const full = join(dir, entry);
-    let stat;
-    try {
-      stat = statSync(full);
-    } catch {
-      continue;
-    }
-    if (stat.isDirectory()) {
-      scan(full, baseDir, acc);
-    } else if (EXTENSIONS.has(full.slice(full.lastIndexOf('.')))) {
-      const content = readFileSync(full, 'utf-8');
-      for (const ref of parseTodoIssueRefs(content)) {
-        acc.push({ file: relative(baseDir, full), issueNumber: ref.issueNumber, line: ref.line });
-      }
+  // Cycle-safe walk via the shared helper (#1521): walkRepo prunes vendor trees and never recurses
+  // into a symlinked directory. Re-apply this script's own SKIP_DIRS as a path-segment filter so the
+  // visited set is identical, minus the symlink-cycle bug.
+  for (const rel of walkRepo(dir)) {
+    if (rel.split('/').some((seg) => SKIP_DIRS.has(seg))) continue;
+    const full = join(dir, rel);
+    if (!EXTENSIONS.has(full.slice(full.lastIndexOf('.')))) continue;
+    const content = readFileSync(full, 'utf-8');
+    for (const ref of parseTodoIssueRefs(content)) {
+      acc.push({ file: relative(baseDir, full), issueNumber: ref.issueNumber, line: ref.line });
     }
   }
 }

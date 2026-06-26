@@ -30,7 +30,8 @@ describe('check-inline-suppressions.mjs.ejs rendering (CANON-04)', () => {
   })
 
   it('scans subdirectories recursively', () => {
-    expect(render()).toContain('readdirSync')
+    // Recursion is delegated to the shared cycle-safe walker (#1521).
+    expect(render()).toContain('walkRepo')
   })
 
   it('exits with non-zero on failures', () => {
