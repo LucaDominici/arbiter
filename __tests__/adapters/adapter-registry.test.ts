@@ -118,16 +118,20 @@ describe('TypeScript adapter (real)', () => {
     expect(tsAdapter.isStub).toBe(false)
   })
 
-  it('returns a lint command string', () => {
+  it('lintCommand returns a non-null string invoking eslint', () => {
     const lint = tsAdapter.lintCommand()
     expect(typeof lint).toBe('string')
-    expect(lint).toBeTruthy()
+    // Assert the actual tool, not just presence — a refactor to a different
+    // linter (e.g. deprecated tslint) or an empty invocation must fail here
+    // (parity with the Java adapter's checkstyle/pmd assertions below).
+    expect(lint).toMatch(/eslint/)
   })
 
-  it('returns a format command string', () => {
+  it('formatCommand returns a non-null string invoking prettier', () => {
     const format = tsAdapter.formatCommand()
     expect(typeof format).toBe('string')
-    expect(format).toBeTruthy()
+    // Assert the actual formatter, not just presence.
+    expect(format).toMatch(/prettier/)
   })
 
   it('has language = typescript', () => {
@@ -142,14 +146,15 @@ describe('TypeScript adapter (real)', () => {
     expect(tsAdapter.supportsMutation()).toBe(true)
   })
 
-  it('languageHooks returns at least one hook', () => {
+  it('languageHooks returns the check-no-any.mjs INV-04 guard', () => {
     const hooks = tsAdapter.languageHooks()
     expect(hooks.length).toBeGreaterThan(0)
-    for (const hook of hooks) {
-      expect(typeof hook.name).toBe('string')
-      expect(typeof hook.description).toBe('string')
-      expect(typeof hook.body).toBe('string')
-    }
+    // Assert the hook's identity and intent, not just that fields are strings —
+    // a regression that dropped the guard or renamed it must fail here.
+    const guard = hooks.find((h) => h.name === 'check-no-any.mjs')
+    expect(guard).toBeDefined()
+    expect(guard?.description).toMatch(/INV-04/)
+    expect(guard?.body).toBeTruthy()
   })
 })
 

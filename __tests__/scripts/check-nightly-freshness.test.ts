@@ -45,6 +45,10 @@ describe('check-nightly-freshness.mjs (INV-93)', () => {
   })
 
   // ─── Vacuous pass (no artifact) ───────────────────────────────────────────
+  // NOTE: exit 0 on a missing artifact is an INTENTIONAL, documented fail-open
+  // (check-nightly-freshness.mjs:8-9,63-68 — "exit 0 — artifact absent"), not a
+  // defect. These tests pin that designed behaviour so a future reader does not
+  // "fix" the vacuous pass into a fail-closed and break greenfield/first-run.
 
   it('exits 0 when artifact file does not exist', () => {
     const artifact = join(tmpDir, 'nonexistent.json')
@@ -82,13 +86,28 @@ describe('check-nightly-freshness.mjs (INV-93)', () => {
     expect(result.exitCode).toBe(0)
   })
 
-  it('exits 0 when artifact timestamp is exactly at the boundary (max-age-hours minus 1 min)', () => {
+  it('exits 0 when artifact timestamp is just under the boundary (max-age-hours minus 1 min)', () => {
     const artifact = join(tmpDir, 'last-run.json')
     // 25h 59m ago — within 26h window
     const nearBoundary = new Date(Date.now() - (26 * 60 - 1) * 60 * 1000).toISOString()
     writeFileSync(artifact, JSON.stringify({ timestamp: nearBoundary }))
     const result = runScript(artifact, 26)
     expect(result.exitCode).toBe(0)
+  })
+
+  it('exits 1 when artifact timestamp is just over the boundary (max-age-hours plus 1 min)', () => {
+    const artifact = join(tmpDir, 'last-run.json')
+    // 26h 1m ago — just past the 26h window; together with the just-under case
+    // above this brackets the script's strict `>` comparison
+    // (check-nightly-freshness.mjs:110) on both sides. The exact-26h boundary is
+    // intentionally NOT asserted: the elapsed time between this test's Date.now()
+    // and the script's own Date.now() in a separate subprocess makes an
+    // exact-max-age comparison inherently flaky, so we pin the operator without
+    // depending on sub-minute timing precision.
+    const justOver = new Date(Date.now() - (26 * 60 + 1) * 60 * 1000).toISOString()
+    writeFileSync(artifact, JSON.stringify({ timestamp: justOver }))
+    const result = runScript(artifact, 26)
+    expect(result.exitCode).toBe(1)
   })
 
   // ─── Stale artifact ───────────────────────────────────────────────────────

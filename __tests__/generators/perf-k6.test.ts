@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generatePerfK6 } from '../../src/generators/perf-k6.js'
 
@@ -94,6 +95,18 @@ describe('generatePerfK6', () => {
     const config = makeConfig(dir, { enablePerfTesting: true })
     generatePerfK6(config)
     expect(existsSync(join(dir, 'scripts', 'validate-k6-scenarios.mjs'))).toBe(true)
+  })
+
+  it('emits a validate-k6-scenarios.mjs that is parseable JavaScript', () => {
+    // existsSync alone never proves the emitted artifact runs. This template is
+    // pure static `.mjs` wrapped in `.ejs` (0 EJS tags), so a hand-edited syntax
+    // error would ship green to consumers with no other signal (#1540). Assert
+    // the rendered file actually parses via `node --check`.
+    const config = makeConfig(dir, { enablePerfTesting: true })
+    generatePerfK6(config)
+    const scriptPath = join(dir, 'scripts', 'validate-k6-scenarios.mjs')
+    const check = spawnSync('node', ['--check', scriptPath], { encoding: 'utf-8' })
+    expect(check.status, check.stderr).toBe(0)
   })
 
   it('scenario files use skipIfExists (idempotent on re-run)', () => {
