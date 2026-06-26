@@ -1,23 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod'
 import skillsMatrixJson from './skills-matrix.json' with { type: 'json' }
+import skillNames from '../generators/skill-names.json' with { type: 'json' }
 import type { SkillMatrixEntry } from '../integrations/types.js'
 
-// Keep in sync with SKILL_NAMES in src/generators/skills.ts
-const VALID_SKILL_NAMES = new Set([
-  'tdd',
-  'verification',
-  'architect-review',
-  'clean-code',
-  'understand-code',
-  'codebase-audit',
-  'epic-decompose',
-  'configure',
-  'brainstorming',
-  'wave-drain',
-  'impact',
-  'close-gold-gap',
-])
+// Derived from the canonical SKILL_NAMES SSOT (src/generators/skill-names.json)
+// rather than hand-copied — see #1559. Importing the JSON directly (not
+// SKILL_NAMES from generators/skills.ts) keeps the dependency acyclic, since
+// skills.ts already imports this module for getSkillsMatrixEntries.
+const VALID_SKILL_NAMES = new Set<string>(skillNames)
 
 const SkillEntrySchema = z.object({
   skillId: z.string().min(1),

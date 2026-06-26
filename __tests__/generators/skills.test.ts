@@ -2,25 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
-import { generateSkills } from '../../src/generators/skills.js'
+import { generateSkills, SKILL_NAMES } from '../../src/generators/skills.js'
 import type { InstalledSkill } from '../../src/integrations/types.js'
-
-const SKILL_NAMES = [
-  'tdd',
-  'verification',
-  'architect-review',
-  'clean-code',
-  'understand-code',
-  'codebase-audit',
-  'epic-decompose',
-  'configure',
-  'brainstorming',
-  'wave-drain',
-  'impact',
-  'gold-audit',
-  'close-gold-gap',
-  'levelup',
-] as const
 
 const SUPERPOWERS_TDD: InstalledSkill = {
   skillId: 'superpowers:test-driven-development',

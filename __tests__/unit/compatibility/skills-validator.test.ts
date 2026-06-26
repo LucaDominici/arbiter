@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { validateSkillsMatrix } from '../../../src/compatibility/skills-validator.js'
 import type { SkillsMatrix } from '../../../src/compatibility/skills-validator.js'
+import { SKILL_NAMES } from '../../../src/generators/skills.js'
 
 const VALID_MATRIX: SkillsMatrix = {
   $schemaVersion: 1,
@@ -86,17 +87,33 @@ describe('validateSkillsMatrix', () => {
     expect(result.valid).toBe(false)
   })
 
+  // #1559: the validator allow-list must derive from the canonical SKILL_NAMES
+  // SSOT — not a stale hand-copy. gold-audit and levelup are legitimate
+  // canonical skills that the old 12-entry hand-copy silently omitted.
+  it('accepts gold-audit and levelup in replaces (regression for SSOT drift)', () => {
+    const withDrifted: SkillsMatrix = {
+      ...VALID_MATRIX,
+      skills: [
+        {
+          skillId: 'superpowers:levelup',
+          pluginOwner: 'superpowers',
+          versionRange: '>=1.0.0',
+          role: 'level-up loop',
+          integrationStatus: 'beta',
+          replaces: ['gold-audit', 'levelup'],
+          referenceUrl: '',
+        },
+      ],
+    }
+    const result = validateSkillsMatrix(withDrifted)
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  // #1559: assert the validator accepts EVERY canonical name — derived from the
+  // SSOT so a future name addition cannot silently drift out of the allow-list.
   it('accepts all valid SKILL_NAMES in replaces', () => {
-    const allSkillNames = [
-      'tdd',
-      'verification',
-      'architect-review',
-      'clean-code',
-      'understand-code',
-      'codebase-audit',
-      'epic-decompose',
-      'configure',
-    ]
+    const allSkillNames = [...SKILL_NAMES]
     const withAll: SkillsMatrix = {
       ...VALID_MATRIX,
       skills: [

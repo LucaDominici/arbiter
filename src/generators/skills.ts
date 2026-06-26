@@ -5,28 +5,21 @@ import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { InstalledSkill, SkipReport } from '../integrations/types.js'
 import { getSkillsMatrixEntries } from '../compatibility/skills-validator.js'
+import skillNames from './skill-names.json' with { type: 'json' }
 
 export interface SkillsGeneratorResult {
   files: WriteResult[]
   skipped: SkipReport[]
 }
 
-export const SKILL_NAMES = [
-  'tdd',
-  'verification',
-  'architect-review',
-  'clean-code',
-  'understand-code',
-  'codebase-audit',
-  'epic-decompose',
-  'configure',
-  'brainstorming',
-  'wave-drain',
-  'impact',
-  'gold-audit',
-  'close-gold-gap',
-  'levelup',
-] as const
+/**
+ * Canonical list of built-in skill names — the single source of truth.
+ *
+ * Sourced from `skill-names.json` so every consumer (the validator allow-list,
+ * the `check-skills-matrix.mjs` gate, and the test suites) derives from ONE
+ * file. Hand-copying this list is the drift class that #1559/#1583 eliminated.
+ */
+export const SKILL_NAMES: readonly string[] = skillNames
 
 function findReplacingSkill(
   skillName: string,
