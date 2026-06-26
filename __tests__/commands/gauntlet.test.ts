@@ -158,6 +158,22 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
     expect(result.status).toBe('ok')
     expect(result.graphEdges).toBeGreaterThan(0)
   })
+
+  it('degrades to zero edges on a malformed graph.json instead of crashing (#1593)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    const spec = writeSpec(dir)
+    const outDir = join(dir, 'out')
+    // Valid JSON, but missing the nodes/edges arrays — must not throw.
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(join(dir, '.arbiter', 'graph.json'), '{}', 'utf-8')
+    let result: ReturnType<typeof runGauntletGenerate> | undefined
+    expect(() => {
+      result = runGauntletGenerate({ spec, out: outDir, stack: 'typescript', dir })
+    }).not.toThrow()
+    expect(result?.status).toBe('ok')
+    expect(result?.graphEdges).toBe(0)
+  })
 })
 
 describe('gauntlet verify (#260, AC-4 AC-5)', () => {

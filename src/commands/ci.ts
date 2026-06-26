@@ -21,10 +21,10 @@
  *   - New file justified.
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { storeFromSnapshot } from '../graph/store.js'
-import type { GraphSnapshot } from '../graph/model.js'
+import { loadGraphSnapshot } from '../graph/load.js'
 import { GRAPH_RELATIVE_PATH } from './graph.js'
 import type { GraphStore } from '../graph/store.js'
 
@@ -85,19 +85,20 @@ export function runCiPlan(opts: CiPlanOptions): CiPlanResult {
     return { status: 'ok', exitCode: 0, plan, ...(mermaid !== undefined ? { mermaid } : {}) }
   }
 
-  let snapshot: GraphSnapshot
-  try {
-    snapshot = JSON.parse(readFileSync(graphPath, 'utf-8')) as GraphSnapshot
-  } catch (err) {
+  // Route through the SSOT loader (#1593): a valid-JSON-but-malformed graph.json
+  // (e.g. `{}` from a truncated `arbiter graph build`) must yield the structured
+  // exit-2 fallback, not an uncaught `snapshot.nodes is not iterable`.
+  const outcome = loadGraphSnapshot(graphPath)
+  if (!outcome.ok) {
     return {
       status: 'error',
       exitCode: 2,
       plan: { risk_class: 'R-unknown', impacted_invs: [], required_gates: [], fallback: true },
-      reason: `failed to parse graph: ${err instanceof Error ? err.message : String(err)}`,
+      reason: `failed to load graph: ${outcome.reason}`,
     }
   }
 
-  const store = storeFromSnapshot(snapshot)
+  const store = storeFromSnapshot(outcome.snapshot)
   const { impactedInvs, requiredGates } = traverseImpact(store, changedFiles)
   const riskClass = computeRiskClass(changedFiles)
 

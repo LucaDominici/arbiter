@@ -30,7 +30,7 @@ import { emitTypeScript } from '../gauntlet/emitters/typescript.js'
 import { emitJava } from '../gauntlet/emitters/java.js'
 import { emitRust } from '../gauntlet/emitters/rust.js'
 import { storeFromSnapshot } from '../graph/store.js'
-import type { GraphSnapshot } from '../graph/model.js'
+import { loadGraphSnapshot } from '../graph/load.js'
 import { GRAPH_RELATIVE_PATH } from './graph.js'
 
 export type GauntletStack = 'typescript' | 'java' | 'rust'
@@ -188,14 +188,15 @@ function integrateGraph(
   specFilePath: string,
   rowCount: number,
 ): number {
-  let snapshot: GraphSnapshot
-  try {
-    snapshot = JSON.parse(readFileSync(graphPath, 'utf-8')) as GraphSnapshot
-  } catch {
+  // Route through the SSOT loader (#1593): a malformed graph.json must degrade
+  // to zero edges (the prior catch intent), not crash the gauntlet run with an
+  // uncaught `snapshot.nodes is not iterable`.
+  const outcome = loadGraphSnapshot(graphPath)
+  if (!outcome.ok) {
     return 0
   }
 
-  const store = storeFromSnapshot(snapshot)
+  const store = storeFromSnapshot(outcome.snapshot)
   let edgesAdded = 0
 
   const specNodeId = `SYMBOL:gauntlet-spec:${specName}`
