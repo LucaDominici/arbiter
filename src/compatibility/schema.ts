@@ -36,16 +36,39 @@ export interface ProbeResult {
   reason?: string
 }
 
-/** Aggregated report for all probed tools */
+/**
+ * Aggregated report for all probed tools. `hasFailures`/`hasWarnings` are DERIVED from `probes`
+ * and `probes` is readonly, so the invariant cannot drift — always build one via
+ * {@link makeVerifyReport}, never by hand-setting the two booleans alongside a mutable array.
+ */
 export interface VerifyReport {
   /** Target directory that was probed */
-  dir: string
+  readonly dir: string
   /** Detected language stack */
-  stack: string
+  readonly stack: string
   /** Results for each probed tool */
-  probes: ProbeResult[]
-  /** true if any probe has status "failed" */
-  hasFailures: boolean
-  /** true if any probe has status "warning" */
-  hasWarnings: boolean
+  readonly probes: readonly ProbeResult[]
+  /** true if any probe has status "failed" (derived from `probes`) */
+  readonly hasFailures: boolean
+  /** true if any probe has status "warning" (derived from `probes`) */
+  readonly hasWarnings: boolean
+}
+
+/**
+ * Construct a {@link VerifyReport}, deriving `hasFailures`/`hasWarnings` from `probes` in the one
+ * place they are computed. This is the only sanctioned constructor — it keeps the two summary
+ * booleans in lock-step with the probe array so no producer can leave them out of sync (#1533).
+ */
+export function makeVerifyReport(
+  dir: string,
+  stack: string,
+  probes: readonly ProbeResult[],
+): VerifyReport {
+  return {
+    dir,
+    stack,
+    probes,
+    hasFailures: probes.some((p) => p.status === 'failed'),
+    hasWarnings: probes.some((p) => p.status === 'warning'),
+  }
 }

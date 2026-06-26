@@ -21,6 +21,7 @@ import {
 } from './parsers.js'
 import type { SemVer } from './parsers.js'
 import type { LanguageMatrix, MatrixEntry, ProbeResult, VerifyReport } from './schema.js'
+import { makeVerifyReport } from './schema.js'
 import matrixJson from './matrix.json' with { type: 'json' }
 
 type OutputChannel = 'stdout' | 'stderr'
@@ -391,10 +392,9 @@ export function runProbes(dir: string): VerifyReport {
     probes.push(hooksProbe)
   }
 
-  const hasFailures = probes.some((p) => p.status === 'failed')
-  const hasWarnings = probes.some((p) => p.status === 'warning')
-
-  return { dir, stack: lang, probes, hasFailures, hasWarnings }
+  // Derive hasFailures/hasWarnings in the one sanctioned place (the factory) so the two summary
+  // booleans can never drift out of sync with `probes` (#1533).
+  return makeVerifyReport(dir, lang, probes)
 }
 
 /**
