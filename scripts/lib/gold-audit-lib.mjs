@@ -18,7 +18,7 @@
 
 import { existsSync, readFileSync, statSync, lstatSync } from 'node:fs'
 import { resolve, relative, isAbsolute } from 'node:path'
-import { globMatch, validateGlob, walkRepo } from './glob-walk.mjs'
+import { globToRegExp, validateGlob, walkRepo } from './glob-walk.mjs'
 
 /**
  * Resolve a registry-declared path inside root; reject traversal + null bytes. Parity contract:
@@ -173,20 +173,26 @@ function lineAtIndex(text, idx) {
 
 // ── Constrained deterministic glob (#1470) ──────────────────────────────────────
 //
-// Glob support reuses scripts/lib/glob-walk.mjs (globMatch/validateGlob/walkRepo: POSIX paths,
+// Glob support reuses scripts/lib/glob-walk.mjs (globToRegExp/validateGlob/walkRepo: POSIX paths,
 // prunes SKIP_DIRS) — one canonical matcher, never a hand-written copy (CANON-16). The TS engine
 // mirrors this via src/conformance/shared.ts expandGlob (engine-parity gate). Both sort with a plain
 // `.sort()` (code-unit), NEVER localeCompare, so the file order is byte-identical across engines.
 
 /**
  * Expand a repo-rooted glob to a SORTED array of repo-relative POSIX paths, or null when the glob
- * is invalid (absolute / `..`-traversal / non-string). An empty array is a valid "matched nothing".
+ * is invalid (absolute / `..`-traversal / non-string / empty). An empty array is a valid "matched
+ * nothing". The glob's RegExp is compiled ONCE (via globToRegExp) and `.test()`d per file, not
+ * recompiled per file (#1522/#1600).
+ *
+ * `files` is an OPTIONAL pre-walked repo file list (#1600): when a single evaluate() resolves several
+ * globs it walks the tree once and threads the result here, so K glob checks share ONE tree-walk
+ * instead of K. Absent ⇒ this walks the tree itself (the standalone-call contract is unchanged).
+ * Output-invariant ⇒ engine-parity stays byte-identical; mirrors src/conformance/shared.ts expandGlob.
  */
-function expandGlob(root, pattern) {
+function expandGlob(root, pattern, files) {
   if (typeof pattern !== 'string' || pattern === '' || !validateGlob(pattern)) return null
-  return walkRepo(root)
-    .filter((f) => globMatch(pattern, f))
-    .sort()
+  const re = globToRegExp(pattern)
+  return (files ?? walkRepo(root)).filter((f) => re.test(f)).sort()
 }
 
 /**
@@ -202,10 +208,12 @@ function cmpCodeUnit(a, b) {
  * Resolve a glob-check's `args.glob` to a SORTED match list. Returns { ok:true, glob, matched } on
  * success, or { ok:false, result } (a verified-N) when the glob is invalid/empty — shared by every
  * glob-based check so the invalid-glob guard exists once (mirrored in src/conformance/engine.ts).
+ * `getFiles` threads the per-evaluate memoized walk (#1600) so glob checks share one tree-walk; an
+ * empty glob short-circuits to null WITHOUT triggering the walk (K=0 ⇒ 0 walks).
  */
-function resolveGlobArg(args, root) {
+function resolveGlobArg(args, root, getFiles) {
   const glob = typeof args.glob === 'string' ? args.glob : ''
-  const matched = expandGlob(root, glob)
+  const matched = glob === '' ? null : expandGlob(root, glob, getFiles())
   if (matched === null) {
     return {
       ok: false,
@@ -604,7 +612,7 @@ function hasGlobChar(s) {
   return /[*?[\]]/.test(s)
 }
 
-function evalForbiddenPattern(args, root) {
+function evalForbiddenPattern(args, root, getFiles) {
   const pattern = typeof args.pattern === 'string' ? args.pattern : ''
   if (pattern === '') {
     return { verdict: 'N', evidence: { file: '', detail: 'empty or non-string pattern' } }
@@ -620,7 +628,7 @@ function evalForbiddenPattern(args, root) {
   if (hasNestedUnboundedQuantifier(pattern)) {
     return { verdict: 'N', evidence: { file: '', detail: `unsafe regex (ReDoS risk): ${pattern}` } }
   }
-  const g = resolveGlobArg(args, root)
+  const g = resolveGlobArg(args, root, getFiles)
   if (!g.ok) return g.result
   const { glob, matched } = g
   const excludeRaw = Array.isArray(args.exclude_paths) ? args.exclude_paths : []
@@ -695,7 +703,7 @@ function evalForbiddenPattern(args, root) {
 // are evaluated by their OWN mode (lstat), never their target's. Verdict: all exec ⇒ Y, some ⇒ P,
 // none ⇒ N; a valid glob matching 0 files ⇒ NA; a malformed glob ⇒ N.
 
-function evalFileStat(args, root) {
+function evalFileStat(args, root, getFiles) {
   const bit = typeof args.bit === 'string' ? args.bit.toLowerCase() : 'executable'
   if (bit !== 'executable') {
     return {
@@ -703,7 +711,7 @@ function evalFileStat(args, root) {
       evidence: { file: '', detail: `only the executable bit is deterministic, got: ${bit}` },
     }
   }
-  const g = resolveGlobArg(args, root)
+  const g = resolveGlobArg(args, root, getFiles)
   if (!g.ok) return g.result
   const { glob, matched } = g
   if (matched.length === 0) {
@@ -750,13 +758,13 @@ function evalFileStat(args, root) {
  * null for NA/NV. Glob/pair checks (version_consistency, forbidden_pattern, file_stat) dispatch
  * BEFORE the single-file `args.path` resolve, since they own their own path handling.
  */
-function evalCheck(check, root, options) {
+function evalCheck(check, root, options, getFiles) {
   const type = check.type
   if (type === 'manual') return { verdict: 'NV', evidence: null }
   const args = check.args || {}
   if (type === 'version_consistency') return evalVersionConsistency(args, root)
-  if (type === 'forbidden_pattern') return evalForbiddenPattern(args, root)
-  if (type === 'file_stat') return evalFileStat(args, root)
+  if (type === 'forbidden_pattern') return evalForbiddenPattern(args, root, getFiles)
+  if (type === 'file_stat') return evalFileStat(args, root, getFiles)
 
   const abs = safeResolve(root, args.path)
   if (abs === null) {
@@ -878,6 +886,13 @@ function evaluateInner(registry, overlays, root, options = {}) {
   let earned = 0
   let possible = 0
 
+  // Walk the repo tree at most ONCE for the whole evaluate() (#1600): the first glob check
+  // (forbidden_pattern / file_stat) triggers the walk and every later glob check reuses the cached
+  // list. A registry with no glob check never walks (K=0 ⇒ 0 walks). Per-evaluate state only — no
+  // global cache — so determinism + the fail-closed contract are untouched. Mirrors engine.ts EvalRun.
+  let walkedFiles = null
+  const getFiles = () => (walkedFiles ??= walkRepo(root))
+
   for (const check of sorted) {
     const applicable = isApplicable(check, overlaySet, root)
     let verdict
@@ -886,7 +901,7 @@ function evaluateInner(registry, overlays, root, options = {}) {
       verdict = 'NA'
       evidence = null
     } else {
-      const r = evalCheck(check, root, opts)
+      const r = evalCheck(check, root, opts, getFiles)
       verdict = r.verdict
       evidence = r.evidence
     }
