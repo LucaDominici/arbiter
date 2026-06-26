@@ -156,14 +156,14 @@ describe('generateGoldKit brownfield re-init (CANON-11)', () => {
   })
 })
 
-// ─── CANON-11: UNCONDITIONAL_EMISSIONS includes the gold thin runner ─────────
+// ─── #1578: generateCheckAll wires (but no longer emits) the gold thin runner ──
 
-describe('generateCheckAll UNCONDITIONAL_EMISSIONS (#1419, CANON-11)', () => {
-  it('generateCheckAll includes scripts/gold-audit.mjs', () => {
+describe('generateCheckAll wiring for gold-audit (#1419, #1578)', () => {
+  it('generateCheckAll does NOT emit scripts/gold-audit.mjs — generateGoldKit is sole emitter (#1578)', () => {
     const config = makeConfig(dir, { language: 'typescript', archetype: 'backend-web-db' })
     const result = generateCheckAll(config)
     const paths = result.files.map((f) => f.path)
-    expect(paths.some((p) => p.endsWith('scripts/gold-audit.mjs'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('scripts/gold-audit.mjs'))).toBe(false)
   })
 
   it('generated check-all.mjs wires gold-audit ADVISORY (runWarnCheck, plain --check)', () => {

@@ -86,8 +86,11 @@ export function isL3Allowed(
   language: Language,
   feature: MaturityFeature,
   acceptBetaTools: boolean,
+  // #1595: the maturity resolver is injectable (defaults to the real matrix lookup) so the
+  // out-of-union fail-safe arm below is unit-testable without a malformed matrix fixture.
+  resolve: (language: Language, feature: MaturityFeature) => MaturityResult = checkMaturity,
 ): L3CheckResult {
-  const { maturity, tool, reason } = checkMaturity(language, feature)
+  const { maturity, tool, reason } = resolve(language, feature)
 
   switch (maturity) {
     case 'proven':
@@ -119,5 +122,23 @@ export function isL3Allowed(
           `${feature} is marked "unavailable" for ${language} in the cross-language matrix. ` +
           `${reason}.`,
       }
+
+    default: {
+      // #1595: `maturity` ultimately comes from loadMatrix's unvalidated `as MaturityMatrix`
+      // cast, so a hand-edited typo or a future tier can reach here as an out-of-union string.
+      // Without this arm the switch fell off the end returning `undefined`, and every caller
+      // crashed with an opaque `Cannot read properties of undefined (reading 'allowed')` —
+      // naming neither the feature nor the bad value. Fail safe: block and name the value.
+      // The `never` binding restores compile-time exhaustiveness — a MaturityLevel added to
+      // the union without a `case` above becomes a tsc error on this assignment.
+      const unexpected: never = maturity
+      return {
+        allowed: false,
+        errorMessage:
+          `Unexpected maturity "${String(unexpected)}" for ${feature} on ${language} in the ` +
+          `cross-language matrix (expected proven, beta, unsafe, or unavailable). ` +
+          `Fix the matrix entry or extend MaturityLevel.`,
+      }
+    }
   }
 }

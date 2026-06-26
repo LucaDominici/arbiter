@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { checkMaturity, isL3Allowed, type MaturityLevel } from '../../src/utils/maturity-check.js'
+import {
+  checkMaturity,
+  isL3Allowed,
+  type MaturityLevel,
+  type MaturityResult,
+} from '../../src/utils/maturity-check.js'
 
 describe('checkMaturity', () => {
   it('returns proven for java mutation testing', () => {
@@ -118,5 +123,39 @@ describe('isL3Allowed', () => {
 
   it('allows python beta mutation with flag', () => {
     expect(isL3Allowed('python', 'mutation', true)).toEqual({ allowed: true })
+  })
+})
+
+// #1595: the matrix JSON is cast `as MaturityMatrix` with no runtime validation, so a
+// hand-edited typo or a future tier can flow through checkMaturity as an out-of-union
+// maturity. The isL3Allowed switch had no `default` arm — it fell off the end returning
+// `undefined`, crashing every caller with an opaque `reading 'allowed'` TypeError. The
+// `resolve` seam injects such a value to pin the fail-safe (block + name the value).
+describe('isL3Allowed — out-of-union maturity fail-safe (#1595)', () => {
+  const badResolve = (): MaturityResult => ({
+    maturity: 'experimental' as MaturityLevel,
+    tool: 'some-tool',
+    reason: 'hand-edited matrix typo',
+  })
+
+  it('returns a blocked result naming the unexpected maturity (never crashes/undefined)', () => {
+    const result = isL3Allowed('typescript', 'mutation', false, badResolve)
+    expect(result).toBeDefined()
+    expect(result.allowed).toBe(false)
+    expect(result.errorMessage).toContain('experimental')
+  })
+
+  it('blocks even with accept-beta-tools for an unexpected maturity', () => {
+    const result = isL3Allowed('typescript', 'mutation', true, badResolve)
+    expect(result.allowed).toBe(false)
+  })
+
+  it('still honours a valid maturity supplied through the injected resolver', () => {
+    const result = isL3Allowed('typescript', 'mutation', false, () => ({
+      maturity: 'proven',
+      tool: 't',
+      reason: 'r',
+    }))
+    expect(result).toEqual({ allowed: true })
   })
 })

@@ -26,18 +26,18 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 24 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + gold-audit + doc-set + anti-fake-green + todo-max-age + module-coverage + 4 file-scan guards)', () => {
+  it('emits exactly 23 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + 4 file-scan guards) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
     // + check-api-e2e.mjs (INV-126, #1365)
     // + check-render-smoke.mjs + lib/glob-walk.mjs (INV-127, #1366)
-    // + conformance.mjs (INV-128, #1398)
+    // (conformance.mjs INV-128/#1398 + gold-audit.mjs #1419 are NOT emitted here — their
+    //  dedicated always-on owners are the sole emitters; generateCheckAll only wires them, #1578)
     // + check-no-tracked-artifacts.mjs (INV-129, #1407)
     // + check-image-pins.mjs (#1442)
     // + lib/e2e-reliability.mjs + check-e2e-quarantine.mjs (INV-130, #1445)
     // + check-tdd-evidence.mjs (INV-131, #1446)
-    // + gold-audit.mjs (thin runner, #1419)
     // + check-doc-set.mjs + check-anti-fake-green.mjs (thin runners, INV-135, #1428)
     // + check-todo-max-age.mjs (INV-133, #1456)
     // + verify-module-coverage.mjs (INV-134, #1457)
@@ -47,7 +47,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(25)
+    expect(result.files).toHaveLength(23)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-todo-max-age.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/verify-module-coverage.mjs'))).toBe(
       true,
@@ -58,8 +58,11 @@ describe('generateCheckAll', () => {
     expect(result.files.some((f) => f.path.endsWith('scripts/optional-emissions.json'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-render-smoke.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/glob-walk.mjs'))).toBe(true)
-    expect(result.files.some((f) => f.path.endsWith('scripts/conformance.mjs'))).toBe(true)
-    expect(result.files.some((f) => f.path.endsWith('scripts/gold-audit.mjs'))).toBe(true)
+    // #1578: conformance.mjs and gold-audit.mjs are NOT emitted by generateCheckAll —
+    // their dedicated always-on owners (conformance / gold-kit) are the sole emitters.
+    // generateCheckAll still WIRES them (advisory runWarnCheck), see the wiring tests.
+    expect(result.files.some((f) => f.path.endsWith('scripts/conformance.mjs'))).toBe(false)
+    expect(result.files.some((f) => f.path.endsWith('scripts/gold-audit.mjs'))).toBe(false)
     expect(
       result.files.some((f) => f.path.endsWith('scripts/check-no-tracked-artifacts.mjs')),
     ).toBe(true)
