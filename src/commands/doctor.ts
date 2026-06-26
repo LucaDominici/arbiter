@@ -8,6 +8,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, unlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { walkDir } from '../utils/walk-dir.js'
 import { acquireLock } from '../utils/file-lock.js'
 import os from 'node:os'
 import { jsonOutput } from '../utils/json-output.js'
@@ -963,21 +964,14 @@ function isBackupFile(name: string): boolean {
 }
 
 function collectBackups(dir: string, out: string[]): void {
-  let entries
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-  } catch (err: unknown) {
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === 'ENOENT' || code === 'EACCES') return
-    throw err
-  }
-  for (const entry of entries) {
-    if (entry.isDirectory()) {
-      if (!CLEAN_SKIP_DIRS.has(entry.name)) collectBackups(join(dir, entry.name), out)
-    } else if (entry.isFile() && isBackupFile(entry.name)) {
-      out.push(join(dir, entry.name))
-    }
-  }
+  // Shared Dirent walk: symlink-safe by construction, same skip/filter/error policy as before. #1521.
+  out.push(
+    ...walkDir(dir, {
+      skipDirs: CLEAN_SKIP_DIRS,
+      filter: (name) => isBackupFile(name),
+      errorMode: 'fs-soft',
+    }),
+  )
 }
 
 export function runDoctorClean(opts: DoctorCleanOptions = {}): DoctorCleanResult {
