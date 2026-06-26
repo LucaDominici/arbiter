@@ -71,6 +71,7 @@ const SKIP_FILES = new Set([
   'scripts/lib/secret-presence-core.mjs', // #1497 pure scan semantics; consumers own the exit contract
   'scripts/lib/anti-fake-green-guards.mjs', // #1497 pure guard roster data; no entry point
   'scripts/lib/guard-flip-registry.mjs', // #1497 pure flip-proof registry; no entry point
+  'scripts/lib/ci-cadence.mjs', // #1502 pure cadence-bucket SSOT/partition helper; no entry point
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/
