@@ -40,6 +40,14 @@ type RawVerdict = Verdict | 'ERROR'
 export interface SubagentResult {
   stdout: string
   exitCode: number
+  /**
+   * Set ONLY by {@link DEFAULT_DISPATCHER} when the `claude` CLI binary is
+   * absent (`CliError.notFound`). It is the single legitimate "skip plan-review"
+   * signal `ARBITER_PLAN_REVIEW_OPTIONAL` honours — kept distinct from a
+   * dispatcher that ran and crashed, and from a model that merely printed the
+   * string `verdict: ERROR`. Both of the latter must finalise FAIL (#1577).
+   */
+  dispatcherUnavailable?: boolean
 }
 
 export interface SubagentDispatcher {
@@ -106,10 +114,32 @@ export function buildReviewPrompt(opts: BuildPromptOptions): string {
   ].join('\n')
 }
 
-function parseRawVerdict(stdout: string): RawVerdict {
-  const m = stdout.match(/verdict:\s*(PASS|WARN|FAIL|ERROR)/i)
-  if (!m) return 'FAIL'
-  return (m[1] ?? 'FAIL').toUpperCase() as RawVerdict
+/**
+ * Parse the model's plan-review verdict from stdout, taking the LAST
+ * `verdict: <PASS|WARN|FAIL>` token rather than the first.
+ *
+ * `buildReviewPrompt` embeds the rubric ("verdict: PASS" … "verdict: FAIL")
+ * verbatim in the prompt, so a model that restates the rubric before its
+ * conclusion puts `verdict: PASS` first in the transcript. A first-token match
+ * would then score PASS even when the real verdict at the bottom is FAIL — a
+ * prompt-echo fake-green where token ORDER, not the model's decision, sets the
+ * governance verdict. Taking the last occurrence makes the model's concluding
+ * verdict authoritative (#1577).
+ *
+ * `ERROR` is deliberately NOT in the parsed vocabulary: dispatcher
+ * unavailability is a transport state carried by
+ * {@link SubagentResult.dispatcherUnavailable}, never a token a model can claim
+ * by printing `verdict: ERROR` (which would otherwise be laundered to PASS under
+ * `ARBITER_PLAN_REVIEW_OPTIONAL`). An unparseable transcript falls back to FAIL.
+ */
+function parseRawVerdict(stdout: string): Verdict {
+  const re = /verdict:\s*(PASS|WARN|FAIL)\b/gi
+  let last: RegExpExecArray | null = null
+  for (let m = re.exec(stdout); m !== null; m = re.exec(stdout)) {
+    last = m
+  }
+  if (last === null) return 'FAIL'
+  return (last[1] ?? 'FAIL').toUpperCase() as Verdict
 }
 
 /** Default dispatcher: spawns `claude` via runCli (INV-12). */
@@ -120,7 +150,10 @@ const DEFAULT_DISPATCHER: SubagentDispatcher = {
       return { stdout: result.stdout, exitCode: result.exitCode }
     } catch (err) {
       if (err instanceof CliError && err.notFound) {
-        return { stdout: 'verdict: ERROR\n', exitCode: 127 }
+        // The ONLY legitimate "skip plan-review" signal — flagged explicitly so
+        // ARBITER_PLAN_REVIEW_OPTIONAL honours exactly this case and nothing
+        // else (a crash, or a model echoing "verdict: ERROR"). #1577.
+        return { stdout: '', exitCode: 127, dispatcherUnavailable: true }
       }
       throw err
     }
@@ -250,7 +283,10 @@ function runCycle(
   const passVerdicts: RawVerdict[] = []
   for (let p = 1; p <= passCount; p++) {
     const r = dispatcher.run(prompt)
-    const v = parseRawVerdict(r.stdout)
+    // The synthetic ERROR cycle-state is reached ONLY via the explicit
+    // dispatcher-unavailable transport flag (claude binary missing), never by
+    // parsing a token out of stdout. #1577.
+    const v: RawVerdict = r.dispatcherUnavailable === true ? 'ERROR' : parseRawVerdict(r.stdout)
     passVerdicts.push(v)
     const file = join(runDir, `pass-${cycleIdx * passCount + p}.json`)
     writeFileSync(
@@ -311,8 +347,11 @@ export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
     try {
       outcome = runCycle(dispatcher, prompt, passCount, runDir, cycle)
     } catch (err) {
+      // A dispatcher CRASH (claude installed but OOM'd / threw) is NOT the
+      // claude-missing skip case — it must finalise FAIL even under OPTIONAL.
+      // Record the cause and stop; do NOT alias it to the ERROR cycle-state,
+      // which finaliseVerdict would launder to PASS under OPTIONAL. #1577.
       cycleError = err instanceof Error ? err.message : String(err)
-      lastRaw = 'ERROR'
       break
     }
     totalInvocations += outcome.passVerdicts.length
@@ -321,8 +360,11 @@ export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
     // WARN — revise
   }
 
-  const final = finaliseVerdict(lastRaw, attempts)
-  const resolvedReason = cycleError !== undefined ? cycleError : final.reason
+  const final: FinaliseOutcome =
+    cycleError !== undefined
+      ? { verdict: 'FAIL', reason: `plan-review dispatcher crashed: ${cycleError}` }
+      : finaliseVerdict(lastRaw, attempts)
+  const resolvedReason = final.reason
   const planDigest = createHash('sha256').update(opts.planContent).digest('hex')
   const latestPath = writeLatest(evidenceDir, {
     verdict: final.verdict,

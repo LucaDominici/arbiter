@@ -342,34 +342,95 @@ describe('dispatchPlanReview (#235, #695)', () => {
   })
 
   // ─── claude CLI missing handling ───
+  // The genuine "claude not installed" skip is signalled by the
+  // dispatcherUnavailable transport flag, NOT by a `verdict: ERROR` token in
+  // stdout (a model could print that, or a crash could synthesise it). #1577.
 
-  it('dispatcher returning ERROR verdict → final FAIL with "claude required" reason', () => {
-    const errorDisp: SubagentDispatcher = {
-      run: () => ({ stdout: 'verdict: ERROR\n', exitCode: 127 }),
+  it('dispatcher unavailable (claude not installed) → final FAIL with "claude required" reason', () => {
+    const unavailableDisp: SubagentDispatcher = {
+      run: () => ({ stdout: '', exitCode: 127, dispatcherUnavailable: true }),
     }
     const result = dispatchPlanReview({
       planContent: PASS_PLAN,
       dir: env.dir,
       tier: 'XS',
-      dispatcher: errorDisp,
+      dispatcher: unavailableDisp,
     })
     expect(result.verdict).toBe('FAIL')
     expect(result.reason).toMatch(/claude/i)
   })
 
-  it('ARBITER_PLAN_REVIEW_OPTIONAL=1 converts ERROR → PASS (SKIPPED)', () => {
+  it('ARBITER_PLAN_REVIEW_OPTIONAL=1 converts dispatcher-unavailable → PASS (SKIPPED)', () => {
     process.env.ARBITER_PLAN_REVIEW_OPTIONAL = '1'
-    const errorDisp: SubagentDispatcher = {
-      run: () => ({ stdout: 'verdict: ERROR\n', exitCode: 127 }),
+    const unavailableDisp: SubagentDispatcher = {
+      run: () => ({ stdout: '', exitCode: 127, dispatcherUnavailable: true }),
     }
     const result = dispatchPlanReview({
       planContent: PASS_PLAN,
       dir: env.dir,
       tier: 'XS',
-      dispatcher: errorDisp,
+      dispatcher: unavailableDisp,
     })
     expect(result.verdict).toBe('PASS')
     expect(result.exitCode).toBe(0)
+  })
+
+  // ─── #1577: verdict parser must take the LAST token (rubric-echo fake-green) ───
+
+  it('rubric echo followed by real FAIL → FAIL (last token wins, not first PASS)', () => {
+    // The prompt embeds the rubric ("verdict: PASS" … "verdict: FAIL"); a model
+    // that restates it before its conclusion puts PASS first in stdout. The
+    // old first-token parser scored PASS — a prompt-echo fake-green.
+    const echoDisp: SubagentDispatcher = {
+      run: () => ({
+        stdout:
+          'The rubric says verdict: PASS — implementable; verdict: WARN — fixable gaps; ' +
+          'verdict: FAIL — invariant violation.\nMy decision is:\nverdict: FAIL\n',
+        exitCode: 0,
+      }),
+    }
+    const result = dispatchPlanReview({
+      planContent: PASS_PLAN,
+      dir: env.dir,
+      tier: 'XS',
+      dispatcher: echoDisp,
+    })
+    expect(result.verdict).toBe('FAIL')
+  })
+
+  // ─── #1577: a model printing "verdict: ERROR" is NOT the skip case ───
+
+  it('model emits "verdict: ERROR" under OPTIONAL → not laundered to PASS', () => {
+    process.env.ARBITER_PLAN_REVIEW_OPTIONAL = '1'
+    const erroryDisp: SubagentDispatcher = {
+      run: () => ({ stdout: 'verdict: ERROR could not parse the plan\n', exitCode: 0 }),
+    }
+    const result = dispatchPlanReview({
+      planContent: PASS_PLAN,
+      dir: env.dir,
+      tier: 'XS',
+      dispatcher: erroryDisp,
+    })
+    expect(result.verdict).not.toBe('PASS')
+  })
+
+  // ─── #1577: a dispatcher CRASH finalises FAIL even under OPTIONAL ───
+
+  it('dispatcher crash under OPTIONAL → FAIL (crash ≠ claude-missing skip)', () => {
+    process.env.ARBITER_PLAN_REVIEW_OPTIONAL = '1'
+    const crashDisp: SubagentDispatcher = {
+      run: () => {
+        throw new Error('claude OOM killed mid-stream')
+      },
+    }
+    const result = dispatchPlanReview({
+      planContent: PASS_PLAN,
+      dir: env.dir,
+      tier: 'XS',
+      dispatcher: crashDisp,
+    })
+    expect(result.verdict).toBe('FAIL')
+    expect(result.reason).toMatch(/crash/i)
   })
 })
 

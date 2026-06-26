@@ -100,12 +100,14 @@ describe('dispatchPlanReview — dispatcher-throws (cycleError) path', () => {
     })
     expect(result.verdict).toBe('FAIL')
     expect(result.exitCode).toBe(2)
-    expect(result.reason).toBe('boom-explosion')
+    // #1577: a crash reason is prefixed so it is unmistakably a dispatcher
+    // failure (not the claude-missing skip) and still carries the cause.
+    expect(result.reason).toBe('plan-review dispatcher crashed: boom-explosion')
     // attempts increments before the throw; no completed invocations recorded.
     expect(result.attempts).toBe(1)
     expect(result.totalInvocations).toBe(0)
     const latest = JSON.parse(readFileSync(result.latestPath, 'utf-8')) as Record<string, unknown>
-    expect(latest.reason).toBe('boom-explosion')
+    expect(latest.reason).toBe('plan-review dispatcher crashed: boom-explosion')
     expect(latest.source).toBe('dispatch')
   })
 
@@ -122,15 +124,20 @@ describe('dispatchPlanReview — dispatcher-throws (cycleError) path', () => {
       dispatcher: stringThrower,
     })
     expect(result.verdict).toBe('FAIL')
-    expect(result.reason).toBe('plain-string-failure')
+    expect(result.reason).toBe('plan-review dispatcher crashed: plain-string-failure')
   })
 
-  it('ERROR verdict with ARBITER_PLAN_REVIEW_OPTIONAL unset → FAIL with claude-required reason', () => {
+  it('dispatcher-unavailable with ARBITER_PLAN_REVIEW_OPTIONAL unset → FAIL with claude-required reason', () => {
+    // #1577: claude-missing is signalled by the dispatcherUnavailable transport
+    // flag, not a `verdict: ERROR` stdout token a model could forge.
+    const unavailableDispatcher: SubagentDispatcher = {
+      run: (): SubagentResult => ({ stdout: '', exitCode: 127, dispatcherUnavailable: true }),
+    }
     const result = dispatchPlanReview({
       planContent: PLAN,
       dir: env.dir,
       tier: 'XS',
-      dispatcher: rawDispatcher('verdict: ERROR\n'),
+      dispatcher: unavailableDispatcher,
     })
     expect(result.verdict).toBe('FAIL')
     expect(result.reason).toMatch(/claude CLI required/i)
