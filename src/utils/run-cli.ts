@@ -9,6 +9,14 @@ export interface RunCliOptions {
   retries?: number
   retryDelayMs?: number
   input?: string
+  /**
+   * Maximum bytes buffered from the child's stdout/stderr. Defaults to
+   * {@link DEFAULT_MAX_BUFFER_BYTES} (64 MB) rather than Node's 1 MB default,
+   * which silently truncates large output (e.g. a full `git diff` of a branch)
+   * and kills the child with an opaque `ENOBUFS`/`exit -1`. Raise it for
+   * callers that legitimately produce more output.
+   */
+  maxBufferBytes?: number
 }
 
 export interface RunCliResult {
@@ -26,6 +34,7 @@ interface CliErrorDetails {
   stderr: string
   timedOut: boolean
   notFound: boolean
+  outputTruncated?: boolean
 }
 
 export class CliError extends Error {
@@ -36,6 +45,8 @@ export class CliError extends Error {
   readonly stderr: string
   readonly timedOut: boolean
   readonly notFound: boolean
+  /** True when the child was killed because its output exceeded `maxBuffer`. */
+  readonly outputTruncated: boolean
 
   constructor(details: CliErrorDetails, message?: string) {
     super(message ?? formatMessage(details))
@@ -47,10 +58,21 @@ export class CliError extends Error {
     this.stderr = details.stderr
     this.timedOut = details.timedOut
     this.notFound = details.notFound
+    this.outputTruncated = details.outputTruncated ?? false
   }
 }
 
 const DEFAULT_TIMEOUT_MS = 60_000
+
+/**
+ * Default cap on bytes buffered from a child's stdout/stderr. Node's own
+ * default is 1 MB, which truncates ordinary large output (a few-thousand-line
+ * `git diff`, a big `gh` JSON payload) and surfaces as an opaque `exit -1`.
+ * Aligned with the generated run-helpers (`run-helpers.mjs`, 50 MB) and the
+ * 64 MB used by `check-min-test-execution`, so the framework no longer holds
+ * target projects to a higher standard than its own central wrapper (#1520).
+ */
+const DEFAULT_MAX_BUFFER_BYTES = 64 * 1024 * 1024
 
 type Attempt = { ok: true; result: RunCliResult } | { ok: false; error: CliError; fatal: boolean }
 
@@ -59,6 +81,7 @@ interface RunOnceOptions {
   env: NodeJS.ProcessEnv | undefined
   input: string | undefined
   timeoutMs: number
+  maxBufferBytes: number
 }
 
 function runOnce(cmd: string, args: readonly string[], opts: RunOnceOptions): Attempt {
@@ -68,6 +91,7 @@ function runOnce(cmd: string, args: readonly string[], opts: RunOnceOptions): At
     env: opts.env,
     timeout: opts.timeoutMs,
     input: opts.input,
+    maxBuffer: opts.maxBufferBytes,
     encoding: 'utf-8',
     shell: false,
   })
@@ -92,6 +116,32 @@ function runOnce(cmd: string, args: readonly string[], opts: RunOnceOptions): At
           notFound: true,
         },
         `Command not found: ${cmd}`,
+      ),
+    }
+  }
+
+  // Output overflowed `maxBuffer`: Node kills the child (SIGTERM) and sets
+  // error.code === 'ENOBUFS' with truncated stdout/stderr. This is deterministic
+  // — retrying re-runs the same overflow — so it is fatal, and it must NOT be
+  // misread as the SIGTERM-timeout case below. Surface a clear cause instead of
+  // an opaque "exit -1". (#1520)
+  if (errorCode === 'ENOBUFS') {
+    const limitMb = Math.round(opts.maxBufferBytes / (1024 * 1024))
+    return {
+      ok: false,
+      fatal: true,
+      error: new CliError(
+        {
+          cmd,
+          args,
+          exitCode: -1,
+          stdout,
+          stderr,
+          timedOut: false,
+          notFound: false,
+          outputTruncated: true,
+        },
+        `Command output exceeded buffer limit (${limitMb} MB): ${`${cmd} ${args.join(' ')}`.trim()}`,
       ),
     }
   }
@@ -154,6 +204,7 @@ export function runCli(
     env: opts.env,
     input: opts.input,
     timeoutMs,
+    maxBufferBytes: opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES,
   }
 
   const attemptErrors: CliError[] = []

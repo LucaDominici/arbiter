@@ -45,6 +45,39 @@ describe('runCli', () => {
     expect(err!.message).toMatch(/timed out/i)
   })
 
+  it('throws a fatal CliError naming the buffer limit when output overflows maxBuffer', () => {
+    // Child writes 2 MB but the cap is set to 1 MB → spawnSync kills it with
+    // ENOBUFS. Without the fix this surfaces as a generic "exit -1"; with it,
+    // the cause (output exceeded buffer) is named and not retried. (#1520)
+    let err: CliError | undefined
+    try {
+      runCli('node', ['-e', "process.stdout.write('x'.repeat(2 * 1024 * 1024))"], {
+        maxBufferBytes: 1 * 1024 * 1024,
+        // retries must NOT fire — overflow is deterministic/fatal.
+        retries: 3,
+        retryDelayMs: 1,
+      })
+    } catch (e) {
+      err = e as CliError
+    }
+    expect(err).toBeInstanceOf(CliError)
+    expect(err!.outputTruncated).toBe(true)
+    expect(err!.timedOut).toBe(false)
+    expect(err!.notFound).toBe(false)
+    expect(err!.message).toMatch(/output exceeded buffer limit/i)
+    expect(err!.message).toMatch(/1 MB/)
+    // Regression guard: the old behaviour reported this as a bare "exit -1".
+    expect(err!.message).not.toMatch(/Command failed \(exit -1\)/)
+  })
+
+  it('does not truncate large output under the raised default buffer', () => {
+    // 2 MB exceeds Node's 1 MB default but is well under DEFAULT_MAX_BUFFER_BYTES,
+    // so it must round-trip intact without an explicit maxBufferBytes. (#1520)
+    const result = runCli('node', ['-e', "process.stdout.write('y'.repeat(2 * 1024 * 1024))"])
+    expect(result.stdout.length).toBe(2 * 1024 * 1024)
+    expect(result.exitCode).toBe(0)
+  })
+
   it('throws CliError with clear message when command is not found', () => {
     let err: CliError | undefined
     try {
