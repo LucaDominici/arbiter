@@ -7,7 +7,14 @@
 
 import { existsSync, statSync, lstatSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { safeResolve, readText, expandGlob } from './shared.js'
+import {
+  safeResolve,
+  readText,
+  readScanText,
+  expandGlob,
+  hasNestedUnboundedQuantifier,
+  MAX_SCAN_BYTES,
+} from './shared.js'
 
 /** Deterministic, locale-independent string order (UTF-16 code units) — byte-identical with the
  * .mjs engine and immune to Node/ICU collation drift (#1471). Used for every check/dimension sort. */
@@ -301,6 +308,9 @@ function extractXml(text: string, select: string): number | null {
 
 /** Read a numeric metric from text via a regex whose first capture group is the number. */
 function extractRegex(text: string, select: string): number | null {
+  // Reject catastrophic-backtracking patterns (#1525) — a valid-syntax ReDoS regex would otherwise
+  // hang on adversarial report text; the surrounding try/catch only catches invalid syntax.
+  if (hasNestedUnboundedQuantifier(select)) return null
   let re: RegExp
   try {
     re = new RegExp(select)
@@ -369,8 +379,13 @@ function evalValueReport(
   if (bar === null) {
     return { verdict: 'N', evidence: { file: rel, detail: 'unresolved threshold' } }
   }
-  const text = readText(abs)
-  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
+  // Capped read (#1525): a regex-format report is fed to a registry regex — bound the bytes it sees.
+  const read = readScanText(abs)
+  if (!read.ok) {
+    const detail = read.reason === 'oversize' ? 'report too large to scan' : 'unreadable'
+    return { verdict: 'N', evidence: { file: rel, detail } }
+  }
+  const text = read.text
   const actual = extractMetric(text, format, select)
   if (actual === null) {
     return { verdict: 'N', evidence: { file: rel, detail: `no metric for ${format}:${select}` } }
@@ -387,6 +402,8 @@ function evalValueReport(
 /** First capture group of `pattern` (multiline) in `text` = the latest declared version, or null. */
 function latestChangelogVersion(text: string, pattern: unknown): string | null {
   if (typeof pattern !== 'string' || pattern === '') return null
+  // Reject catastrophic-backtracking patterns (#1525) before running over the full changelog text.
+  if (hasNestedUnboundedQuantifier(pattern)) return null
   let re: RegExp
   try {
     re = new RegExp(pattern, 'm')
@@ -439,9 +456,13 @@ function evalVersionConsistency(args: Record<string, unknown>, root: string): Ev
   const vText = readText(vAbs)
   if (vText === null)
     return { verdict: 'N', evidence: { file: vFile, detail: 'missing version file' } }
-  const cText = readText(cAbs)
-  if (cText === null)
-    return { verdict: 'N', evidence: { file: cFile, detail: 'missing changelog' } }
+  // Capped read (#1525): the changelog is fed to a registry regex — bound the bytes it runs over.
+  const cRead = readScanText(cAbs)
+  if (!cRead.ok) {
+    const detail = cRead.reason === 'oversize' ? 'changelog too large to scan' : 'missing changelog'
+    return { verdict: 'N', evidence: { file: cFile, detail } }
+  }
+  const cText = cRead.text
   const version = vSelect !== '' ? extractJsonString(vText, vSelect) : vText.trim()
   if (version === null) {
     return { verdict: 'P', evidence: { file: vFile, detail: `no ${vSelect} in version file` } }
@@ -533,13 +554,20 @@ function scanForbiddenFiles(
 ): EvalCheckResult {
   for (const rel of remaining) {
     const abs = safeResolve(root, rel)
-    const text = abs === null ? null : readText(abs)
-    if (text === null) {
-      // A matched, non-excluded file we cannot read ⇒ we cannot assert the pattern is ABSENT over
-      // it. Fail-closed N (never a silent skip → a chmod-000 file holding the marker must not
-      // fake-green to Y). Deterministic: `remaining` is sorted, so the first anomaly wins.
-      return { verdict: 'N', evidence: { file: rel, detail: 'unreadable — cannot verify absence' } }
+    // Capped read (#1525): an over-cap matched file fails closed — we cannot assert ABSENCE over
+    // bytes we refuse to read, so it is N (never a fake-green Y), with the cap noted in the evidence.
+    const read = abs === null ? null : readScanText(abs)
+    if (read === null || !read.ok) {
+      // A matched, non-excluded file we cannot read (or that exceeds the scan cap) ⇒ we cannot assert
+      // the pattern is ABSENT over it. Fail-closed N (never a silent skip → a chmod-000 file holding
+      // the marker must not fake-green to Y). Deterministic: `remaining` is sorted, first anomaly wins.
+      const detail =
+        read !== null && read.reason === 'oversize'
+          ? `too large to scan (> ${MAX_SCAN_BYTES} bytes) — cannot verify absence`
+          : 'unreadable — cannot verify absence'
+      return { verdict: 'N', evidence: { file: rel, detail } }
     }
+    const text = read.text
     const m = re.exec(text)
     if (m !== null) {
       return {
@@ -569,6 +597,11 @@ function evalForbiddenPattern(args: Record<string, unknown>, root: string): Eval
     re = new RegExp(pattern)
   } catch {
     return { verdict: 'N', evidence: { file: '', detail: `invalid regex: ${pattern}` } }
+  }
+  // Reject catastrophic-backtracking patterns (#1525): a valid-syntax ReDoS regex like (a+)+$ would
+  // otherwise hang scanForbiddenFiles over an adversarial matched file. Deterministic ⇒ engine-parity.
+  if (hasNestedUnboundedQuantifier(pattern)) {
+    return { verdict: 'N', evidence: { file: '', detail: `unsafe regex (ReDoS risk): ${pattern}` } }
   }
   const g = resolveGlobArg(args, root)
   if (!g.ok) return g.result

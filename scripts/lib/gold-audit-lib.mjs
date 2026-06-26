@@ -44,6 +44,117 @@ function readText(abs) {
   }
 }
 
+// ── #1525: ReDoS + unbounded-read hardening for registry-supplied regexes ────────────────────────
+//
+// The gold-registry is PROJECT-AUTHORED data and, in a consumer that wires this audit into CI and
+// accepts fork PRs, an attacker controls both the registry pattern AND the scanned file contents.
+// Two DETERMINISTIC layers (fixed input ⇒ fixed verdict ⇒ engine-parity), byte-identical to
+// src/conformance/shared.ts: (1) readScanText caps the bytes a registry regex runs over; (2)
+// hasNestedUnboundedQuantifier rejects the catastrophic-backtracking family at compile. A bare
+// try/catch around new RegExp() only catches invalid-syntax — it never stops (a+)+$ from hanging.
+
+/** Byte cap for any file a registry-supplied regex is run over (ReDoS input bound, ~2 MB). */
+const MAX_SCAN_BYTES = 2_000_000
+
+/**
+ * Read a file for regex scanning, capped at MAX_SCAN_BYTES. Returns { ok:true, text } or
+ * { ok:false, reason:'unreadable'|'oversize' }; an over-cap file is NEVER read (fails closed).
+ */
+function readScanText(abs) {
+  let size
+  try {
+    size = statSync(abs).size
+  } catch {
+    return { ok: false, reason: 'unreadable' }
+  }
+  if (size > MAX_SCAN_BYTES) return { ok: false, reason: 'oversize' }
+  const text = readText(abs)
+  return text === null ? { ok: false, reason: 'unreadable' } : { ok: true, text }
+}
+
+/** Advance past a `[...]` char class starting at `i` (on '['). Returns the index just after ']'. */
+function skipCharClass(src, i) {
+  let j = i + 1
+  if (src[j] === '^') j++
+  if (src[j] === ']') j++ // a ']' immediately after '[' / '[^' is a literal class member
+  while (j < src.length && src[j] !== ']') {
+    if (src[j] === '\\') j++ // an escaped char inside the class spans two positions
+    j++
+  }
+  return j + 1
+}
+
+/** Parse a `{...}` quantifier at `i` (on '{'). isQuant=false ⇒ '{' is a literal, not a quantifier. */
+function braceQuantifier(src, i) {
+  const close = src.indexOf('}', i)
+  if (close < 0) return { isQuant: false }
+  const body = src.slice(i + 1, close)
+  // JS quantifier syntax: {n}, {n,}, {n,m}. {,m} is NOT a quantifier (treated as a literal).
+  if (!/^\d+(,\d*)?$/.test(body)) return { isQuant: false }
+  return { isQuant: true, unbounded: /^\d+,$/.test(body), next: close + 1 }
+}
+
+/**
+ * True when `source` applies an UNBOUNDED quantifier (`*`, `+`, `{n,}`) to a group whose body itself
+ * contains an unbounded quantifier — the nested-quantifier / star-height≥2 family (e.g. `(a+)+`,
+ * `(.*)+`, `((a+))+`) whose backtracking grows exponentially with input length. One linear,
+ * dependency-free, DETERMINISTIC scan, byte-identical to src/conformance/shared.ts. Deliberately
+ * narrow defense-in-depth (paired with MAX_SCAN_BYTES): not every ReDoS family is modelled.
+ */
+function hasNestedUnboundedQuantifier(source) {
+  const groupSawUnbounded = [false]
+  let prevGroupSawUnbounded = false
+  let i = 0
+  const n = source.length
+  while (i < n) {
+    const ch = source[i]
+    if (ch === '\\') {
+      i += 2
+      prevGroupSawUnbounded = false
+      continue
+    }
+    if (ch === '[') {
+      i = skipCharClass(source, i)
+      prevGroupSawUnbounded = false
+      continue
+    }
+    if (ch === '(') {
+      groupSawUnbounded.push(false)
+      i++
+      prevGroupSawUnbounded = false
+      continue
+    }
+    if (ch === ')') {
+      const closed = groupSawUnbounded.length > 1 ? (groupSawUnbounded.pop() ?? false) : false
+      if (closed) groupSawUnbounded[groupSawUnbounded.length - 1] = true
+      prevGroupSawUnbounded = closed
+      i++
+      continue
+    }
+    let unbounded = false
+    let next = i + 1
+    if (ch === '*' || ch === '+') {
+      unbounded = true
+    } else if (ch === '{') {
+      const q = braceQuantifier(source, i)
+      if (q.isQuant) {
+        unbounded = q.unbounded
+        next = q.next
+      }
+    }
+    if (unbounded) {
+      if (prevGroupSawUnbounded) return true
+      groupSawUnbounded[groupSawUnbounded.length - 1] = true
+      prevGroupSawUnbounded = false
+      i = next
+      continue
+    }
+    prevGroupSawUnbounded = false
+    i = next
+  }
+  return false
+}
+
 /** 1-based line number of the first occurrence of `needle` in `text`, or null. */
 function lineOf(text, needle) {
   const idx = text.indexOf(needle)
@@ -214,6 +325,9 @@ function extractXml(text, select) {
 
 /** Read a numeric metric from text via a regex whose first capture group is the number. */
 function extractRegex(text, select) {
+  // Reject catastrophic-backtracking patterns (#1525) — a valid-syntax ReDoS regex would otherwise
+  // hang on adversarial report text; the surrounding try/catch only catches invalid syntax.
+  if (hasNestedUnboundedQuantifier(select)) return null
   let re
   try {
     re = new RegExp(select)
@@ -275,8 +389,13 @@ function evalValueReport(abs, rel, check, options) {
   if (bar === null) {
     return { verdict: 'N', evidence: { file: rel, detail: 'unresolved threshold' } }
   }
-  const text = readText(abs)
-  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
+  // Capped read (#1525): a regex-format report is fed to a registry regex — bound the bytes it sees.
+  const read = readScanText(abs)
+  if (!read.ok) {
+    const detail = read.reason === 'oversize' ? 'report too large to scan' : 'unreadable'
+    return { verdict: 'N', evidence: { file: rel, detail } }
+  }
+  const text = read.text
   const actual = extractMetric(text, format, select)
   if (actual === null) {
     return { verdict: 'N', evidence: { file: rel, detail: `no metric for ${format}:${select}` } }
@@ -295,6 +414,8 @@ function evalValueReport(abs, rel, check, options) {
 /** First capture group of `pattern` (multiline) in `text` = the latest declared version, or null. */
 function latestChangelogVersion(text, pattern) {
   if (typeof pattern !== 'string' || pattern === '') return null
+  // Reject catastrophic-backtracking patterns (#1525) before running over the full changelog text.
+  if (hasNestedUnboundedQuantifier(pattern)) return null
   let re
   try {
     re = new RegExp(pattern, 'm')
@@ -347,9 +468,13 @@ function evalVersionConsistency(args, root) {
   const vText = readText(vAbs)
   if (vText === null)
     return { verdict: 'N', evidence: { file: vFile, detail: 'missing version file' } }
-  const cText = readText(cAbs)
-  if (cText === null)
-    return { verdict: 'N', evidence: { file: cFile, detail: 'missing changelog' } }
+  // Capped read (#1525): the changelog is fed to a registry regex — bound the bytes it runs over.
+  const cRead = readScanText(cAbs)
+  if (!cRead.ok) {
+    const detail = cRead.reason === 'oversize' ? 'changelog too large to scan' : 'missing changelog'
+    return { verdict: 'N', evidence: { file: cFile, detail } }
+  }
+  const cText = cRead.text
   const version = vSelect !== '' ? extractJsonString(vText, vSelect) : vText.trim()
   if (version === null) {
     return { verdict: 'P', evidence: { file: vFile, detail: `no ${vSelect} in version file` } }
@@ -457,6 +582,11 @@ function evalForbiddenPattern(args, root) {
   } catch {
     return { verdict: 'N', evidence: { file: '', detail: `invalid regex: ${pattern}` } }
   }
+  // Reject catastrophic-backtracking patterns (#1525): a valid-syntax ReDoS regex like (a+)+$ would
+  // otherwise hang the scan over an adversarial matched file. Deterministic ⇒ engine-parity.
+  if (hasNestedUnboundedQuantifier(pattern)) {
+    return { verdict: 'N', evidence: { file: '', detail: `unsafe regex (ReDoS risk): ${pattern}` } }
+  }
   const g = resolveGlobArg(args, root)
   if (!g.ok) return g.result
   const { glob, matched } = g
@@ -491,13 +621,20 @@ function evalForbiddenPattern(args, root) {
   }
   for (const rel of remaining) {
     const abs = safeResolve(root, rel)
-    const text = abs === null ? null : readText(abs)
-    if (text === null) {
-      // A matched, non-excluded file we cannot read ⇒ we cannot assert the pattern is ABSENT over
-      // it. Fail-closed N (never a silent skip → a chmod-000 file holding the marker must not
-      // fake-green to Y). Deterministic: `remaining` is sorted, so the first anomaly wins.
-      return { verdict: 'N', evidence: { file: rel, detail: 'unreadable — cannot verify absence' } }
+    // Capped read (#1525): an over-cap matched file fails closed — we cannot assert ABSENCE over
+    // bytes we refuse to read, so it is N (never a fake-green Y), with the cap noted in the evidence.
+    const read = abs === null ? null : readScanText(abs)
+    if (read === null || !read.ok) {
+      // A matched, non-excluded file we cannot read (or that exceeds the scan cap) ⇒ we cannot assert
+      // the pattern is ABSENT over it. Fail-closed N (never a silent skip → a chmod-000 file holding
+      // the marker must not fake-green to Y). Deterministic: `remaining` is sorted, first anomaly wins.
+      const detail =
+        read !== null && read.reason === 'oversize'
+          ? `too large to scan (> ${MAX_SCAN_BYTES} bytes) — cannot verify absence`
+          : 'unreadable — cannot verify absence'
+      return { verdict: 'N', evidence: { file: rel, detail } }
     }
+    const text = read.text
     const m = re.exec(text)
     if (m !== null) {
       return {

@@ -32,6 +32,11 @@ import {
   type EvaluateOptions,
   type Verdict,
 } from '../../src/conformance/engine.js'
+import {
+  hasNestedUnboundedQuantifier,
+  readScanText,
+  MAX_SCAN_BYTES,
+} from '../../src/conformance/shared.js'
 
 const created: string[] = []
 afterEach(() => {
@@ -1337,6 +1342,115 @@ describe('ratchet branch edges', () => {
     expect(r.dimensions['D-A']).toEqual({ score: 90, y: 4 })
     expect(r.dimensions['D-B']).toEqual({ score: 100, y: 2 })
     expect(r.dimensions['D-C']).toEqual({ score: 50, y: 1 })
+  })
+})
+
+// ── #1525: ReDoS + unbounded-read hardening on untrusted registry regexes ────────────────────────
+
+describe('hasNestedUnboundedQuantifier (ReDoS guard, #1525)', () => {
+  it('flags the catastrophic nested-unbounded-quantifier family', () => {
+    for (const p of [
+      '(a+)+$',
+      '(a*)*',
+      '(a+)*',
+      '(.*)+',
+      '((a+))+',
+      '(a+){2,}',
+      '(?:a+)+',
+      '([a-z]+)*',
+    ]) {
+      expect(hasNestedUnboundedQuantifier(p), `should flag: ${p}`).toBe(true)
+    }
+  })
+
+  it('does NOT flag safe / linear patterns (no false positives)', () => {
+    for (const p of [
+      String.raw`^##\s*\[?(\d+\.\d+\.\d+)`, // real changelog_pattern
+      String.raw`type="LINE"[^>]*covered="(\d+)"`, // real java coverage select
+      String.raw`<coverage[^>]*line-rate="([0-9.]+)"`, // real rust coverage select
+      'Coverage: ([0-9.]+)%',
+      String.raw`value=(\w+)`,
+      '^release:(.*)$',
+      '(a+)', // a quantified group, but not itself quantified
+      '(a+)?', // a bounded (?) outer quantifier is not catastrophic
+      '(a+){2}', // a bounded {n} outer quantifier
+      'a+b+', // two unbounded quantifiers, not nested
+      '(a+)b+', // sibling, not nested
+      '(a+)(b)+', // the outer + applies to (b), which has no inner quantifier
+      '[0-9]+',
+      'FIXME_MARKER',
+    ]) {
+      expect(hasNestedUnboundedQuantifier(p), `should NOT flag: ${p}`).toBe(false)
+    }
+  })
+})
+
+describe('forbidden_pattern ReDoS guard (#1525)', () => {
+  it('rejects a catastrophic pattern as N WITHOUT hanging on an adversarial file', { timeout: 3000 }, () => {
+    const root = tmpRoot()
+    // 50k "a" + "!" — would wedge new RegExp("(a+)+$").exec() for effectively forever unguarded.
+    writeFileSync(join(root, 'evil.ts'), 'a'.repeat(50_000) + '!')
+    const t0 = Date.now()
+    const r = verdictOf(root, {
+      id: 'FP-REDOS',
+      type: 'forbidden_pattern',
+      args: { glob: '*.ts', pattern: '(a+)+$' },
+    })
+    // Rejected at compile-guard before any file is scanned ⇒ N, fast.
+    expect(r.verdict).toBe('N')
+    expect(r.detail).toContain('unsafe regex (ReDoS risk)')
+    expect(Date.now() - t0).toBeLessThan(1000)
+  })
+
+  it('still scans normally for a safe pattern (guard does not over-reject)', () => {
+    const root = tmpRoot()
+    writeFileSync(join(root, 'a.ts'), 'const a = 1 // FIXME_MARKER here\n')
+    const present = verdictOf(root, {
+      id: 'FP-SAFE-N',
+      type: 'forbidden_pattern',
+      args: { glob: '*.ts', pattern: 'FIXME_MARKER' },
+    })
+    expect(present.verdict).toBe('N')
+    expect(present.detail).toBe('forbidden pattern present')
+    const absent = verdictOf(root, {
+      id: 'FP-SAFE-Y',
+      type: 'forbidden_pattern',
+      args: { glob: '*.ts', pattern: 'XYZZY_NEVER' },
+    })
+    expect(absent.verdict).toBe('Y')
+  })
+
+  it('fails closed (N) on a matched file exceeding the scan cap — never a fake-green Y', () => {
+    const root = tmpRoot()
+    // > MAX_SCAN_BYTES of a benign char; the pattern is absent, but we refuse to read it ⇒ N.
+    writeFileSync(join(root, 'big.ts'), 'x'.repeat(MAX_SCAN_BYTES + 1))
+    const r = verdictOf(root, {
+      id: 'FP-BIG',
+      type: 'forbidden_pattern',
+      args: { glob: '*.ts', pattern: 'NOPE_NOT_PRESENT' },
+    })
+    expect(r.verdict).toBe('N')
+    expect(r.detail).toContain('too large to scan')
+  })
+})
+
+describe('readScanText (input cap, #1525)', () => {
+  it('reads a normal file', () => {
+    const root = tmpRoot()
+    writeFileSync(join(root, 'f.txt'), 'hello')
+    const r = readScanText(join(root, 'f.txt'))
+    expect(r).toEqual({ ok: true, text: 'hello' })
+  })
+
+  it('reports unreadable for a missing file', () => {
+    const root = tmpRoot()
+    expect(readScanText(join(root, 'absent.txt'))).toEqual({ ok: false, reason: 'unreadable' })
+  })
+
+  it('reports oversize for a file beyond the cap', () => {
+    const root = tmpRoot()
+    writeFileSync(join(root, 'big.txt'), 'y'.repeat(MAX_SCAN_BYTES + 1))
+    expect(readScanText(join(root, 'big.txt'))).toEqual({ ok: false, reason: 'oversize' })
   })
 })
 

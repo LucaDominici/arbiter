@@ -1041,4 +1041,40 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
     expect(byId['P-MALFORMED']).toBe('Y') // fail-safe: never a silent skip
     expect(mjsResult).toEqual(tsResult)
   })
+
+  // ── Parity case 22 (#1525): ReDoS guard + scan cap must reject identically across engines ──────
+  // A registry-supplied catastrophic regex (a+)+$ must be rejected as N (never run over the file) in
+  // BOTH engines, and the full payload (including the unsafe-regex evidence detail) must be deep-equal
+  // — the hardening cannot be allowed to silently diverge the verdict between the .ts and .mjs twins.
+  it('parity: catastrophic forbidden_pattern → identical N + bounded completion (#1525)', async () => {
+    const root = tmpDir()
+    mkdirSync(join(root, 'src'), { recursive: true })
+    // An adversarial file that would wedge an unguarded (a+)+$ scan for effectively forever.
+    writeFileSync(join(root, 'src', 'evil.ts'), 'a'.repeat(40_000) + '!')
+    writeFileSync(join(root, 'src', 'ok.ts'), 'const a = 1\n')
+    const reg: RegistryInput = {
+      checks: [
+        // catastrophic pattern ⇒ N (rejected at compile-guard, file never scanned)
+        {
+          id: 'FP-REDOS',
+          type: 'forbidden_pattern',
+          args: { glob: 'src/**/*.ts', pattern: '(a+)+$' },
+        },
+        // a safe sibling still scores normally (absent ⇒ Y) — the guard does not over-reject
+        { id: 'FP-OK', type: 'forbidden_pattern', args: { glob: 'src/**/*.ts', pattern: 'XYZZY' } },
+      ],
+    }
+    const t0 = Date.now()
+    const tsResult = evaluate(reg, new Set<string>(), root)
+    const mjsResult = (await Promise.resolve(
+      mjsModule.evaluate(reg, new Set<string>(), root),
+    )) as Record<string, unknown>
+    expect(Date.now() - t0).toBeLessThan(3000) // a re-enabled hang would blow past this
+
+    const byId = Object.fromEntries(tsResult.checks.map((c) => [c.id, c.verdict]))
+    expect(byId['FP-REDOS']).toBe('N')
+    expect(byId['FP-OK']).toBe('Y')
+    // verdict + evidence + score byte-identical across the two engines
+    expect(mjsResult).toEqual(tsResult)
+  })
 })

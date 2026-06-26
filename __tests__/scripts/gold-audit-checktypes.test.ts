@@ -307,6 +307,22 @@ checks:
     expect(audit(badReg, { 'src/a.ts': 'x\n' }).byId['GA-HYG-01'].verdict).toBe('N')
   })
 
+  it('N on a catastrophic-backtracking pattern WITHOUT hanging the audit (#1525)', () => {
+    const redosReg = `version: '1.0.0'
+checks:
+  - id: GA-HYG-01
+    type: forbidden_pattern
+    args: { glob: 'src/*.ts', pattern: '(a+)+$' }
+    weight: 1
+`
+    const t0 = Date.now()
+    // 40k "a" + "!" would wedge an unguarded (a+)+$ scan; the guard rejects it before scanning.
+    const { byId } = audit(redosReg, { 'src/a.ts': 'a'.repeat(40_000) + '!' })
+    expect(byId['GA-HYG-01'].verdict).toBe('N')
+    expect(byId['GA-HYG-01'].evidence?.detail).toContain('unsafe regex (ReDoS risk)')
+    expect(Date.now() - t0).toBeLessThan(8000) // a re-enabled hang would never return in time
+  })
+
   it('is deterministic — byte-identical JSON across two runs', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gold-fp-det-'))
     try {

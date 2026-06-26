@@ -4,7 +4,7 @@
 // Extracted from dimensions.ts and engine.ts to eliminate CANON-22 duplication.
 // safeResolve is security-sensitive: reject path traversal and null bytes.
 
-import { existsSync, readFileSync, readdirSync, lstatSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, lstatSync, statSync } from 'node:fs'
 import { resolve, relative, isAbsolute, join } from 'node:path'
 
 /** Safely resolve a path inside root, rejecting traversal and null bytes. Returns null on invalid path. */
@@ -23,6 +23,134 @@ export function readText(abs: string): string | null {
   } catch {
     return null
   }
+}
+
+// ── #1525: ReDoS + unbounded-read hardening for registry-supplied regexes ────────────────────────
+//
+// The gold-registry is PROJECT-AUTHORED data and, in a consumer that wires gold-audit into CI and
+// accepts fork PRs, an attacker controls both the registry pattern AND the scanned file contents.
+// Registry authors do NOT own ReDoS-safety once an attacker can influence either input. Two layers,
+// both DETERMINISTIC (fixed input ⇒ fixed verdict) so the engine-parity gate stays byte-identical:
+//   1. readScanText caps the bytes a registry regex ever runs over (an over-cap file fails closed —
+//      we cannot assert a property over bytes we refuse to read).
+//   2. hasNestedUnboundedQuantifier rejects the catastrophic-backtracking regex family at compile.
+// A bare try/catch around new RegExp() only catches INVALID-SYNTAX throws — it never stops a valid
+// pattern like (a+)+$ from hanging the process, so it is a false-safe defense on its own.
+
+/** Byte cap for any file a registry-supplied regex is run over (ReDoS input bound, ~2 MB). */
+export const MAX_SCAN_BYTES = 2_000_000
+
+/** Result of a capped read: the text, or a fail-closed reason (never throws). */
+export type ScanRead = { ok: true; text: string } | { ok: false; reason: 'unreadable' | 'oversize' }
+
+/**
+ * Read a file for regex scanning, capped at {@link MAX_SCAN_BYTES}. An over-cap file is NEVER read
+ * (it fails closed with `oversize`) so a registry regex can never run over unbounded input. Mirrors
+ * scripts/lib/gold-audit-lib.mjs byte-for-byte (engine-parity).
+ */
+export function readScanText(abs: string): ScanRead {
+  let size: number
+  try {
+    size = statSync(abs).size
+  } catch {
+    return { ok: false, reason: 'unreadable' }
+  }
+  if (size > MAX_SCAN_BYTES) return { ok: false, reason: 'oversize' }
+  const text = readText(abs)
+  return text === null ? { ok: false, reason: 'unreadable' } : { ok: true, text }
+}
+
+/** Advance past a `[...]` char class starting at `i` (on '['). Returns the index just after ']'. */
+function skipCharClass(src: string, i: number): number {
+  let j = i + 1
+  if (src[j] === '^') j++
+  if (src[j] === ']') j++ // a ']' immediately after '[' / '[^' is a literal class member
+  while (j < src.length && src[j] !== ']') {
+    if (src[j] === '\\') j++ // an escaped char inside the class spans two positions
+    j++
+  }
+  return j + 1
+}
+
+/** Parse a `{...}` quantifier at `i` (on '{'). isQuant=false ⇒ '{' is a literal, not a quantifier. */
+function braceQuantifier(
+  src: string,
+  i: number,
+): { isQuant: false } | { isQuant: true; unbounded: boolean; next: number } {
+  const close = src.indexOf('}', i)
+  if (close < 0) return { isQuant: false }
+  const body = src.slice(i + 1, close)
+  // JS quantifier syntax: {n}, {n,}, {n,m}. {,m} is NOT a quantifier (treated as a literal).
+  if (!/^\d+(,\d*)?$/.test(body)) return { isQuant: false }
+  return { isQuant: true, unbounded: /^\d+,$/.test(body), next: close + 1 }
+}
+
+/**
+ * True when `source` applies an UNBOUNDED quantifier (`*`, `+`, `{n,}`) to a group whose body itself
+ * contains an unbounded quantifier — the nested-quantifier / star-height≥2 family (e.g. `(a+)+`,
+ * `(a*)*`, `(.*)+`, `((a+))+`) whose backtracking grows exponentially with input length. One linear,
+ * dependency-free, DETERMINISTIC scan (pattern text ⇒ fixed answer) so it is byte-identical across
+ * the TS and .mjs engines. Deliberately NARROW defense-in-depth (paired with {@link MAX_SCAN_BYTES}):
+ * it does not model every ReDoS family (e.g. overlapping alternation `(a|a)+`).
+ */
+export function hasNestedUnboundedQuantifier(source: string): boolean {
+  // groupSawUnbounded[d] = the group open at depth d has an unbounded quantifier somewhere in its body
+  // so far. Index 0 is the implicit top level. prevGroupSawUnbounded tracks whether the atom just
+  // consumed was a group carrying such a quantifier — a quantifier right after it is the unsafe case.
+  const groupSawUnbounded: boolean[] = [false]
+  let prevGroupSawUnbounded = false
+  let i = 0
+  const n = source.length
+  while (i < n) {
+    const ch = source[i]
+    if (ch === '\\') {
+      i += 2
+      prevGroupSawUnbounded = false
+      continue
+    }
+    if (ch === '[') {
+      i = skipCharClass(source, i)
+      prevGroupSawUnbounded = false
+      continue
+    }
+    if (ch === '(') {
+      groupSawUnbounded.push(false)
+      i++
+      prevGroupSawUnbounded = false
+      continue
+    }
+    if (ch === ')') {
+      const closed = groupSawUnbounded.length > 1 ? (groupSawUnbounded.pop() ?? false) : false
+      // Bubble the unbounded-ness to the enclosing group so a quantifier on an OUTER wrapper of a
+      // quantified group is still caught (e.g. `((a+))+`).
+      if (closed) groupSawUnbounded[groupSawUnbounded.length - 1] = true
+      prevGroupSawUnbounded = closed
+      i++
+      continue
+    }
+    let unbounded = false
+    let next = i + 1
+    if (ch === '*' || ch === '+') {
+      unbounded = true
+    } else if (ch === '{') {
+      const q = braceQuantifier(source, i)
+      if (q.isQuant) {
+        unbounded = q.unbounded
+        next = q.next
+      }
+    }
+    if (unbounded) {
+      if (prevGroupSawUnbounded) return true // unbounded quantifier on a quantifier-bearing group
+      groupSawUnbounded[groupSawUnbounded.length - 1] = true
+      prevGroupSawUnbounded = false
+      i = next
+      continue
+    }
+    // Any other atom (literal, '?', a bounded {n}/{n,m}) does not nest unbounded quantifiers.
+    prevGroupSawUnbounded = false
+    i = next
+  }
+  return false
 }
 
 /** Parse JSON, returning null on any parse or IO error. */
