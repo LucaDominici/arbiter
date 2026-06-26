@@ -29,10 +29,10 @@ jobs:
     name: Postman/Newman Contract Tests (INV-35)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
+<%  if (language === 'java' || language === 'multi') { %>
     services:
-<%  if (language === 'java') { %>
       app:
-        image: ${{ vars.APP_IMAGE || 'ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}' }}
+        image: ${{ vars.APP_IMAGE || format('ghcr.io/{0}:pr-{1}', github.repository, github.event.pull_request.number) }}
         ports:
           - 8080:8080
         env:

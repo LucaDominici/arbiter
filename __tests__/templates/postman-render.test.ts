@@ -180,4 +180,30 @@ describe('_contract-postman.yml.ejs — structural invariants (CANON-04, CANON-1
     const content = renderContractWorkflow({ projectName: 'my-service' })
     expect(content).toContain('my-service')
   })
+
+  // #1576 — defect 1: the default service image must be a SINGLE GitHub Actions
+  // expression. Nested `${{ ... ${{ ... }} ... }}` is not re-evaluated by Actions
+  // (actionlint is blind to it), so the inner refs would ship as a literal,
+  // malformed image reference on the default path (vars.APP_IMAGE unset).
+  it('builds the default service image with format(), not a nested expression', () => {
+    const content = renderContractWorkflow()
+    // No `${{` may appear inside a single-quoted string literal of an outer expr.
+    expect(content).not.toContain("'ghcr.io/${{")
+    expect(content).toContain(
+      "format('ghcr.io/{0}:pr-{1}', github.repository, github.event.pull_request.number)",
+    )
+  })
+
+  // #1576 — defect 2: the workflow is emitted for `java || multi`, so the services
+  // body must render for `multi` too. A bare `services:` with no `app` container
+  // would leave Newman hitting a dead port.
+  it.each(['java', 'multi'] as const)(
+    '%s: renders the app service container (no bare services:)',
+    (language) => {
+      const content = renderContractWorkflow({ language })
+      expect(content).toContain('services:')
+      expect(content).toContain('app:')
+      expect(content).toContain('SPRING_PROFILES_ACTIVE: contract-test')
+    },
+  )
 })
