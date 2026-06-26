@@ -148,3 +148,26 @@ describe('check-commit-footer-rationale.mjs (INV-119) — footer validation', ()
     expect(r.stdout).toContain('VALID')
   })
 })
+
+describe('check-commit-footer-rationale.mjs (INV-119) — suppression-file classification', () => {
+  // Regression (wave-E integration): the title-string interpolation hardening of
+  // src/templates/suppressions/suppressions-schema.json.ejs falsely tripped the gate.
+  // A schema *template* emitted into target projects is not an active security waiver.
+  it('does NOT classify EJS suppression templates under src/templates/ as waivers', () => {
+    const r = run(['--test-path', 'src/templates/suppressions/suppressions-schema.json.ejs'], '.')
+    expect(r.status).toBe(0)
+    expect(r.stdout.trim()).toBe('NOT-SUPPRESSION-FILE')
+  })
+
+  it('still classifies a real top-level suppressions/ waiver as a waiver', () => {
+    const r = run(['--test-path', 'suppressions/.gitleaksignore'], '.')
+    expect(r.status).toBe(0)
+    expect(r.stdout.trim()).toBe('SUPPRESSION-FILE')
+  })
+
+  it('still classifies a .trivyignore as a waiver', () => {
+    const r = run(['--test-path', '.trivyignore'], '.')
+    expect(r.status).toBe(0)
+    expect(r.stdout.trim()).toBe('SUPPRESSION-FILE')
+  })
+})

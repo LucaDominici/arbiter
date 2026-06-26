@@ -27,6 +27,7 @@ Options:
   --evidence-dir=<path> Directory to write evidence artifact (default: .arbiter/evidence/commit-footer-audit/)
   --dry-run             Do not scan git history; validate --test-trailer value only
   --test-trailer=<val>  Validate a trailer string (for testing); use with --dry-run
+  --test-path=<path>    Print whether a path is classified as a suppression file (for testing)
   --help, -h            Show this help and exit
 
 Recognized footer trailers:
@@ -36,7 +37,8 @@ Recognized footer trailers:
   Sigstore-Bypass: <reason> | retry-after:<YYYY-MM-DD>
 
 Suppression-touching files (patterns):
-  *.trivyignore  *owasp-suppressions*  *pitest*override*  suppressions/**`
+  *.trivyignore  *owasp-suppressions*  *pitest*override*  suppressions/**
+  (excludes EJS templates under src/templates/ — schema templates, not active waivers)`
 
 // Recognized trailer keys
 const RECOGNIZED_TRAILERS = [
@@ -56,10 +58,18 @@ const SUPPRESSION_FILE_PATTERNS = [
   /\/suppressions\//,
 ]
 
+// EJS templates under src/templates/ are emitted into target projects — they define the
+// *shape* of suppression artifacts (e.g. suppressions-schema.json.ejs), they are not
+// arbiter's own active security waivers. A real waiver requiring rationale lives in the
+// top-level `suppressions/` tree (still matched by /^suppressions\//). Editing a schema
+// template must not demand a Suppression-Rationale footer.
+const TEMPLATE_SOURCE_PREFIX = /(^|\/)src\/templates\//
+
 /**
  * Check if a file path touches suppression artifacts.
  */
 function isSuppressionFile(filePath) {
+  if (TEMPLATE_SOURCE_PREFIX.test(filePath) && /\.ejs$/.test(filePath)) return false
   return SUPPRESSION_FILE_PATTERNS.some((pat) => pat.test(filePath))
 }
 
@@ -80,6 +90,7 @@ function parseArgs() {
   let evidenceDir = join(SCRIPT_DIR, '.arbiter', 'evidence', 'commit-footer-audit')
   let dryRun = false
   let testTrailer = null
+  let testPath = null
   let help = false
 
   for (let i = 0; i < raw.length; i++) {
@@ -88,6 +99,10 @@ function parseArgs() {
       help = true
     } else if (arg === '--dry-run') {
       dryRun = true
+    } else if (arg.startsWith('--test-path=')) {
+      testPath = arg.slice('--test-path='.length)
+    } else if (arg === '--test-path' && i + 1 < raw.length) {
+      testPath = raw[++i]
     } else if (arg.startsWith('--range=')) {
       range = arg.slice('--range='.length)
     } else if (arg === '--range' && i + 1 < raw.length) {
@@ -103,7 +118,7 @@ function parseArgs() {
     }
   }
 
-  return { range, evidenceDir, dryRun, testTrailer, help }
+  return { range, evidenceDir, dryRun, testTrailer, testPath, help }
 }
 
 /**
@@ -198,10 +213,18 @@ function writeEvidence(evidenceDir, data) {
 }
 
 function main() {
-  const { range, evidenceDir, dryRun, testTrailer, help } = parseArgs()
+  const { range, evidenceDir, dryRun, testTrailer, testPath, help } = parseArgs()
 
   if (help) {
     process.stdout.write(HELP + '\n')
+    process.exit(0)
+  }
+
+  // --test-path mode: classify a single path (for tests); exit 0 regardless.
+  if (testPath !== null) {
+    process.stdout.write(
+      isSuppressionFile(testPath) ? 'SUPPRESSION-FILE\n' : 'NOT-SUPPRESSION-FILE\n',
+    )
     process.exit(0)
   }
 
