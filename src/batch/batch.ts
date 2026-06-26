@@ -19,7 +19,7 @@
 // multi-issue analog of how affinity/sizing "never throw, degrade".
 
 /** A closed union — an issue either ships or is blocked. No free-text status. */
-export type IssueStatus = 'shipped' | 'blocked'
+type IssueStatus = 'shipped' | 'blocked'
 
 /** The outcome the per-issue runner returns (or that isolation synthesises on a throw). */
 export interface IssueOutcome {

@@ -16,11 +16,9 @@ import type {
   Lane,
   Language,
   ObservabilityConfig,
-  PlanDepth,
   ProjectPreset,
   SoloMergeMode,
   StrictnessTier,
-  TaskTierConfig,
   TaskTiers,
   ThresholdProfile,
   ThresholdsV2,
@@ -28,7 +26,7 @@ import type {
 } from '../wizard/types.js'
 import type { BrownfieldClass } from '../kit/thresholds.js'
 
-export type { ThresholdsV2, TaskTiers, TaskTierConfig, PlanDepth }
+export type { ThresholdsV2, TaskTiers }
 
 export interface FeatureFlags {
   contractTesting: boolean
@@ -49,7 +47,7 @@ export const DEFAULT_TASK_TIERS: TaskTiers = {
   Standard: { planDepth: 'full', reviewAgentCount: 4 },
 }
 
-export interface DecompositionConfig {
+interface DecompositionConfig {
   backend: DecompositionBackendId
   markdown?: { dir: string }
   github?: { owner: string; repo: string }
@@ -59,7 +57,7 @@ export interface DecompositionConfig {
  * File-pattern to ADR mapping for CONTEXT_PACK generation (#254).
  * Pattern supports `*` (non-slash wildcard) and `**` (any-path wildcard).
  */
-export interface ContextPackAdrMapping {
+interface ContextPackAdrMapping {
   pattern: string
   adr: string
 }
@@ -96,7 +94,7 @@ export interface AutomationConfig {
   affinityBatching?: boolean
 }
 
-export interface ContextPackConfig {
+interface ContextPackConfig {
   /** File-pattern to ADR mappings. Used by `arbiter context-pack` to annotate @source: citations. */
   adrMappings?: ContextPackAdrMapping[]
 }
@@ -110,8 +108,24 @@ export interface ContextPackConfig {
  *
  * Loading a config with `$schemaVersion > CURRENT_CONFIG_SCHEMA_VERSION`
  * is a hard error (do not silently load); see `loadConfig`.
+ *
+ * #1524: kept in lock-step with the migration terminus. The chain ends at
+ * `migrateV3ToV4`, which stamps `$schemaVersion: 4`, so a freshly-migrated
+ * config is a `4`. There is no `v4-to-v5` migration, so advertising `5` here
+ * desynced the loader's ceiling from the highest version this build can emit.
+ * The `migration-terminus` invariant test guards this equality.
  */
-export const CURRENT_CONFIG_SCHEMA_VERSION = 5
+export const CURRENT_CONFIG_SCHEMA_VERSION = 4
+
+/**
+ * #257/#1524: domain-specific test-taxonomy configuration. Its `domainDims[]`
+ * flow into the TEST_TAXONOMY template. Declared here (the config SSOT) so the
+ * generator can read it through the type system instead of an untyped cast.
+ */
+export interface TaxonomyConfig {
+  /** Project-specific taxonomy dimensions appended to the archetype defaults. */
+  domainDims?: string[]
+}
 
 export interface ArbiterConfigV2 {
   version: string
@@ -174,6 +188,13 @@ export interface ArbiterConfigV2 {
   plugins?: string[]
   lanes?: Lane[]
   taskTiers?: TaskTiers
+  /**
+   * #257/#1524: domain-specific test-taxonomy dimensions. Consumed by the
+   * TEST_TAXONOMY generator (`generateTestTaxonomy`) and surfaced in
+   * docs/TEST_TAXONOMY.md. Declared on the SSOT type so a key typo or rename is
+   * a compile error rather than a silent fall-through to `[]`.
+   */
+  taxonomy?: TaxonomyConfig
   /** CONTEXT_PACK generator configuration (#254). */
   contextPack?: ContextPackConfig
   /** #1291 — ship autonomy gating (ADR-093 §4). Absent ⇒ L0 (ask each step). */
@@ -209,7 +230,7 @@ export interface ArbiterConfigV2 {
   solo?: { mergeMode: SoloMergeMode }
 }
 
-export interface GovernanceConfig {
+interface GovernanceConfig {
   /**
    * Invariant catalog scope.
    * 'core' (default): INV-01..INV-61 only.
@@ -372,18 +393,21 @@ function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val)
 }
 
-function validateThresholds(raw: unknown, errors: string[]): boolean {
+/**
+ * #1530: signals failure purely via the shared `errors[]` out-param, like its ten
+ * sibling validators. (Historically returned a `boolean` that every call site
+ * discarded — a dead, misleading contract.)
+ */
+function validateThresholds(raw: unknown, errors: string[]): void {
   if (!isRecord(raw)) {
     errors.push('thresholds must be an object')
-    return false
+    return
   }
-  let ok = true
   const coverage = ['lineCoverage', 'branchCoverage', 'mutationScore'] as const
   for (const key of coverage) {
     const v = raw[key]
     if (typeof v !== 'number' || v <= 0 || v > 100) {
       errors.push(`thresholds.${key} must be a number between 1 and 100`)
-      ok = false
     }
   }
   const positive = ['cyclomaticComplexity', 'methodLength', 'maxParams'] as const
@@ -391,18 +415,16 @@ function validateThresholds(raw: unknown, errors: string[]): boolean {
     const v = raw[key]
     if (typeof v !== 'number' || v <= 0) {
       errors.push(`thresholds.${key} must be a positive number`)
-      ok = false
     }
   }
-  return ok
 }
 
-function validateFeatures(raw: unknown, errors: string[]): boolean {
+/** #1530: `: void` like its siblings — failure flows through `errors[]`, not a return. */
+function validateFeatures(raw: unknown, errors: string[]): void {
   if (!isRecord(raw)) {
     errors.push('features must be an object')
-    return false
+    return
   }
-  let ok = true
   const flags = [
     'contractTesting',
     'mutationTesting',
@@ -414,20 +436,16 @@ function validateFeatures(raw: unknown, errors: string[]): boolean {
   for (const key of flags) {
     if (typeof raw[key] !== 'boolean') {
       errors.push(`features.${key} must be a boolean`)
-      ok = false
     }
   }
   // selfValidationHarness is optional for forward-compat; validate only if present
   if ('selfValidationHarness' in raw && typeof raw['selfValidationHarness'] !== 'boolean') {
     errors.push('features.selfValidationHarness must be a boolean')
-    ok = false
   }
   // soloDevMode is optional; validate only if present
   if ('soloDevMode' in raw && typeof raw['soloDevMode'] !== 'boolean') {
     errors.push('features.soloDevMode must be a boolean')
-    ok = false
   }
-  return ok
 }
 
 /**
@@ -499,54 +517,60 @@ export function validateConfig(raw: unknown): ValidateResult {
     return { ok: false, errors: ['config must be a non-null object'] }
   }
 
+  // #1530: validateConfig is a pure validator — normalize on a deep copy so the
+  // caller's object (which may be frozen, shared, or cached) is never mutated.
+  // The governanceLevel upper-case and threshold auto-fill below write only to
+  // `draft`, which becomes the returned config.
+  const draft = structuredClone(raw)
+
   const errors: string[] = []
 
-  if (typeof raw['version'] !== 'string') {
+  if (typeof draft['version'] !== 'string') {
     errors.push('version must be a string')
   }
 
-  validateOptionalScalars(raw, errors)
+  validateOptionalScalars(draft, errors)
 
-  const rawLevel = raw['governanceLevel']
+  const rawLevel = draft['governanceLevel']
   const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
-  if (typeof rawLevel === 'string') raw['governanceLevel'] = level
+  if (typeof rawLevel === 'string') draft['governanceLevel'] = level
   if (typeof level !== 'string' || !GOVERNANCE_LEVELS.has(level)) {
     errors.push(`governanceLevel must be one of L1, L2, L3, L4 — got ${String(rawLevel)}`)
   }
 
   if (
-    !Array.isArray(raw['tools']) ||
-    (raw['tools'] as unknown[]).some((t) => !AI_TOOLS.has(t as string))
+    !Array.isArray(draft['tools']) ||
+    (draft['tools'] as unknown[]).some((t) => !AI_TOOLS.has(t as string))
   ) {
     errors.push('tools must be an array of valid AI tools')
   }
 
-  const hasUseGitHub = typeof raw['useGitHub'] === 'boolean'
-  const hasPermitGitHub = typeof raw['permitGitHub'] === 'boolean'
+  const hasUseGitHub = typeof draft['useGitHub'] === 'boolean'
+  const hasPermitGitHub = typeof draft['permitGitHub'] === 'boolean'
   if (!hasUseGitHub && !hasPermitGitHub) {
     errors.push('useGitHub or permitGitHub must be a boolean')
   }
 
   // ADR-051 (#1119): validate collaboration-mode axis fields when present.
-  validateCollaborationAxes(raw, errors)
+  validateCollaborationAxes(draft, errors)
 
-  autoFillThresholds(raw, level)
+  autoFillThresholds(draft, level)
 
-  validateFeatures(raw['features'], errors)
-  validateThresholds(raw['thresholds'], errors)
-  validateDecomposition(raw['decomposition'], errors)
-  validateFrontend(raw['frontend'], errors)
-  validateLanes(raw['lanes'], errors)
-  validateTaskTiers(raw['taskTiers'], errors)
-  validateContextPack(raw['contextPack'], errors)
-  validateAutomation(raw['automation'], errors)
-  validateChannel(raw['channel'], errors)
-  validateGovernance(raw['governance'], errors)
-  validateKit(raw['kit'], errors)
+  validateFeatures(draft['features'], errors)
+  validateThresholds(draft['thresholds'], errors)
+  validateDecomposition(draft['decomposition'], errors)
+  validateFrontend(draft['frontend'], errors)
+  validateLanes(draft['lanes'], errors)
+  validateTaskTiers(draft['taskTiers'], errors)
+  validateContextPack(draft['contextPack'], errors)
+  validateAutomation(draft['automation'], errors)
+  validateChannel(draft['channel'], errors)
+  validateGovernance(draft['governance'], errors)
+  validateKit(draft['kit'], errors)
 
   // #1394 — validate conformanceThresholds when present in config
-  if (raw['conformanceThresholds'] !== undefined) {
-    const ctErrors = validateConformanceThresholds(raw['conformanceThresholds'])
+  if (draft['conformanceThresholds'] !== undefined) {
+    const ctErrors = validateConformanceThresholds(draft['conformanceThresholds'])
     errors.push(...ctErrors)
   }
 
@@ -554,7 +578,7 @@ export function validateConfig(raw: unknown): ValidateResult {
     return { ok: false, errors }
   }
 
-  const config = { ...raw } as unknown as ArbiterConfigV2
+  const config = draft as unknown as ArbiterConfigV2
   return { ok: true, config }
 }
 

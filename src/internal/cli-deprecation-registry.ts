@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-export type DeprecationStage = 'warn' | 'hide' | 'remove'
+type DeprecationStage = 'warn' | 'hide' | 'remove'
 
 export interface DeprecatedFlagRecord {
   flag: string

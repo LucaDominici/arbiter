@@ -61,6 +61,7 @@ import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
 import { runNotaryCheck, runNotaryTemplate } from './commands/notary.js'
 import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
+import type { GraphFormat } from './commands/graph.js'
 import { runTrace, type TraceFormat } from './commands/trace.js'
 import { runBlame, type BlameFormat } from './commands/blame.js'
 import { runCompare } from './commands/compare.js'
@@ -1178,7 +1179,7 @@ graph
     const buildOpts: import('./commands/graph.js').GraphBuildOptions = {}
     if (opts.dir !== undefined) buildOpts.dir = opts.dir
     if (opts.output !== undefined) buildOpts.output = opts.output
-    buildOpts.format = opts.format as import('./commands/graph.js').GraphFormat
+    buildOpts.format = opts.format as GraphFormat
     const result = runGraphBuild(buildOpts)
     if (opts.json) {
       jsonOutput(

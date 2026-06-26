@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Archetype } from '../wizard/types.js'
 
-export interface TestLevel {
+interface TestLevel {
   /** Machine-readable level ID, e.g. "L1", "L2", "L3" */
   id: string
   /** Short label, e.g. "L1 Unit" */

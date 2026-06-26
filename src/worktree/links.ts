@@ -12,7 +12,7 @@ import {
 import { dirname, resolve } from 'node:path'
 import type { WorktreeLinkSpec } from '../wizard/types.js'
 
-export type LinkResult = 'LINKED' | 'LINKED_DIR' | 'COPIED_TEMPLATE' | 'COPIED_DIR' | 'MISSING'
+type LinkResult = 'LINKED' | 'LINKED_DIR' | 'COPIED_TEMPLATE' | 'COPIED_DIR' | 'MISSING'
 
 export interface MaterializeResult {
   spec: WorktreeLinkSpec

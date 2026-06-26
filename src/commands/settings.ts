@@ -7,7 +7,7 @@
 
 import { loadConfig } from '../utils/config.js'
 
-export interface SettingField {
+interface SettingField {
   /** Dotted path as accepted by `arbiter configure --set path=value`. */
   path: string
   /** Human label shown in the discovery listing. */

@@ -23,7 +23,7 @@ export interface LanguageMatrix {
 export type ProbeStatus = 'passed' | 'skipped' | 'failed' | 'warning'
 
 /** Whether probe checks installed tool version or invokes a build command */
-export type ProbeKind = 'version' | 'build'
+type ProbeKind = 'version' | 'build'
 
 export interface ProbeResult {
   tool: string

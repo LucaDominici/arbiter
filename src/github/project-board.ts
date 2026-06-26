@@ -2,7 +2,7 @@
 import { runCli, runCliJson } from '../utils/run-cli.js'
 import { classifyGhError, type GhErrorKind } from './classify-gh-error.js'
 
-export interface ProjectBoardError {
+interface ProjectBoardError {
   message: string
   kind: GhErrorKind
 }

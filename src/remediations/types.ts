@@ -43,7 +43,7 @@ export interface RemediationGap {
 export type RemediationKind = 'doc-set' | 'test' | 'config' | 'process'
 
 /** One concrete, deterministic remediation step. A step DELEGATES — it never executes here. */
-export interface RemediationStep {
+interface RemediationStep {
   /** Imperative human/agent instruction. */
   action: string
   /** Optional command this step DELEGATES to (run by the human/agent, not by this module). */

@@ -62,7 +62,7 @@ function runCmd(cmd: string, args: string[], cwd: string): string | null {
   }
 }
 
-export type AdverseGitStateType = 'detached-head' | 'rebase' | 'merge' | 'cherry-pick' | 'bisect'
+type AdverseGitStateType = 'detached-head' | 'rebase' | 'merge' | 'cherry-pick' | 'bisect'
 
 export interface AdverseGitState {
   type: AdverseGitStateType

@@ -22,6 +22,5 @@
     "0BSD",
     "Unlicense",
     "Python-2.0"
-  ],
-  "exclude": ["types", "nsTypes", "enumMembers"]
+  ]
 }

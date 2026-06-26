@@ -3,6 +3,7 @@ import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { getTestPyramidProfile } from '../config/test-pyramid-profiles.js'
 import type { ProjectConfig } from '../wizard/types.js'
+import type { TaxonomyConfig } from '../config/schema.js'
 import type { WriteResult } from '../utils/fs.js'
 
 export interface TestTaxonomyResult {
@@ -12,11 +13,16 @@ export interface TestTaxonomyResult {
 /**
  * Extract domain-specific dimensions from arbiter.json `taxonomy.domainDims[]`.
  * Returns an empty array when the config key is absent or malformed.
+ *
+ * #1524: read through the typed `TaxonomyConfig` shape rather than the old
+ * `as unknown as Record<string, unknown>` double-cast, so a rename of the
+ * `taxonomy`/`domainDims` keys is a compile error rather than a silent `[]`.
+ * The defensive runtime guards stay — arbiter.json is untrusted on-disk input.
  */
 function extractDomainDims(config: ProjectConfig): string[] {
-  const raw = (config as unknown as Record<string, unknown>)['taxonomy']
-  if (raw == null || typeof raw !== 'object') return []
-  const dims = (raw as Record<string, unknown>)['domainDims']
+  const taxonomy = (config as { taxonomy?: TaxonomyConfig }).taxonomy
+  if (taxonomy == null || typeof taxonomy !== 'object') return []
+  const dims = taxonomy.domainDims
   if (!Array.isArray(dims)) return []
   return dims.filter((d): d is string => typeof d === 'string')
 }

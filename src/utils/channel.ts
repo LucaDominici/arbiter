@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 export type ReleaseChannel = 'latest' | 'beta' | 'canary'
-export type ChannelSource = 'flag' | 'config' | 'default'
+type ChannelSource = 'flag' | 'config' | 'default'
 
 export interface ResolvedChannel {
   value: ReleaseChannel

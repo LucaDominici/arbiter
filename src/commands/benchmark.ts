@@ -13,7 +13,7 @@ export interface BenchmarkHooksOptions {
   baselineFile?: string
 }
 
-export interface HookTiming {
+interface HookTiming {
   hook: string
   p50: number
   p95: number

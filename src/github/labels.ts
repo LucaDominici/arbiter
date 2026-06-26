@@ -3,7 +3,7 @@ import { runCli, runCliJson } from '../utils/run-cli.js'
 import { TASK_SIZE_LABELS } from '../generators/labels.js'
 import { classifyGhError, type GhErrorKind } from './classify-gh-error.js'
 
-export interface Label {
+interface Label {
   name: string
   color: string
   description: string
@@ -39,7 +39,7 @@ const STANDARD_LABELS: Label[] = [
   })),
 ]
 
-export interface LabelError {
+interface LabelError {
   message: string
   kind: GhErrorKind
 }

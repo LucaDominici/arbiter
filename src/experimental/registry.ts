@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-export type StabilityTarget = 'beta' | 'stable'
+type StabilityTarget = 'beta' | 'stable'
 
 export interface ExperimentRecord {
   name: string

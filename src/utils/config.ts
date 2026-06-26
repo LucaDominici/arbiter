@@ -5,12 +5,7 @@ import { writeFile } from './fs.js'
 import { acquireLock } from './file-lock.js'
 import { getLogger } from './logger.js'
 import { ConfigError } from './errors.js'
-import {
-  type ArbiterConfigV2,
-  type FeatureFlags,
-  type ThresholdsV2,
-  validateConfig,
-} from '../config/schema.js'
+import { type ArbiterConfigV2, validateConfig } from '../config/schema.js'
 import { migrate } from '../config/migrations/index.js'
 import { applyEnvOverrides } from '../config/env-overrides.js'
 import { rotateBackup } from '../state/backups.js'
@@ -22,7 +17,7 @@ import {
 } from '../state/envelope.js'
 import { migrateState } from '../state/migrations/index.js'
 
-export type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 }
+export type { ArbiterConfigV2 }
 export type ArbiterConfig = ArbiterConfigV2
 
 const CONFIG_FILE = 'arbiter.json'

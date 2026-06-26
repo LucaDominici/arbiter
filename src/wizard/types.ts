@@ -173,7 +173,7 @@ export type SoloMergeMode = 'direct' | 'pr-ff'
 /** ADR-051: whether /task auto-opens a worktree. */
 export type WorktreeAutoMode = 'always' | 'optional' | 'never'
 
-export type WorktreeLinkStrategy = 'symlink' | 'copy'
+type WorktreeLinkStrategy = 'symlink' | 'copy'
 
 export interface WorktreeLinkSpec {
   /** Relative path inside the repo (e.g. ".env", ".claude/settings.local.json") */
@@ -484,9 +484,9 @@ export interface ProjectConfig {
   enableCodeownersNotify?: boolean
 }
 
-export type PlanDepth = 'minimal' | 'brief' | 'full'
+type PlanDepth = 'minimal' | 'brief' | 'full'
 
-export interface TaskTierConfig {
+interface TaskTierConfig {
   planDepth: PlanDepth
   reviewAgentCount: number
 }
@@ -575,7 +575,7 @@ export interface FrontendConfig {
   validationLib?: string
 }
 
-export type EvidenceRetentionMode = 'local-last-N' | 'external-bucket' | 'none'
+type EvidenceRetentionMode = 'local-last-N' | 'external-bucket' | 'none'
 
 export interface EvidenceRetentionConfig {
   mode: EvidenceRetentionMode

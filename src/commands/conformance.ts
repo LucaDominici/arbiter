@@ -44,7 +44,6 @@ import { autoFillConformanceThresholds } from '../config/schema.js'
 import type { GovernanceLevel } from '../wizard/types.js'
 
 export type { DimensionVerdict } from '../conformance/dimensions.js'
-export type { DimensionEntry }
 
 export interface ConformanceOptions {
   /** Project root to evaluate (default: process.cwd()). */

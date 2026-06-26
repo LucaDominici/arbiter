@@ -20,7 +20,7 @@
  *   3. Apply constraint pruning: remove / replace rows matching skip constraints.
  */
 
-export interface IpogConstraint {
+interface IpogConstraint {
   when: Record<string, string>
   then: 'skip'
 }

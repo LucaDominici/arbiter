@@ -10,7 +10,7 @@
 import type { CatalogEntry, RemediationGap, RemediationPlan } from '../types.js'
 
 /** Per-invocation context (repo root + the resolved catalog entry for this gap). */
-export interface RemediationContext {
+interface RemediationContext {
   /** Repo root the recipe targets (informational — handlers never touch the filesystem). */
   repo: string
   /** The catalog entry resolved for this gap (carries kind/expectedVerdict/ssot/rationale). */

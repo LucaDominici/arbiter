@@ -30,7 +30,7 @@ export type TaskPhase =
   | 'verification'
   | 'complete'
 
-export type HandoffStrategy = 'interactive' | 'inline' | null
+type HandoffStrategy = 'interactive' | 'inline' | null
 
 export const PHASE_ORDER: readonly TaskPhase[] = [
   'preflight',
@@ -61,7 +61,7 @@ export function isTddPhase(s: string): s is Exclude<TddPhase, null> {
   return s === 'RED' || s === 'GREEN' || s === 'REFACTOR'
 }
 
-export interface StepCursor {
+interface StepCursor {
   /** Fine-grained TDD sub-phase within the coarse `red`/`green`/`refactor` phases. */
   tddPhase: TddPhase
   /** One-line description of the most recently completed sub-step. */
@@ -76,7 +76,7 @@ export interface StepCursor {
  * map each finding to an auditor and cap that auditor's verdict contribution
  * while the finding is unresolved (see `.claude/commands/review-code.md`).
  */
-export interface RedTeamFinding {
+interface RedTeamFinding {
   /** Stable forward-link id, e.g. `RT-01`. */
   id: string
   /** CRITICAL | HIGH | MEDIUM | LOW. */

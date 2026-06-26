@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { SKILL_NAMES } from '../generators/skills.js'
 
-export type InstallSource = 'builtin' | 'plugin' | 'npm'
+type InstallSource = 'builtin' | 'plugin' | 'npm'
 
 export interface SkillEntry {
   id: string

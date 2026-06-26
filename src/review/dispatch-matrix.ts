@@ -24,8 +24,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-export type DispatchTier = 'XS' | 'S' | 'Standard'
-export type DispatchReviewMode = 'plan' | 'code'
+type DispatchTier = 'XS' | 'S' | 'Standard'
+type DispatchReviewMode = 'plan' | 'code'
 
 /** A fully-specified lookup key into the dispatch oracle. */
 export interface DispatchKey {

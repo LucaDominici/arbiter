@@ -5,7 +5,7 @@
 // is treated as out-of-scope regardless of its measured status.
 import type { BrownfieldClass } from './thresholds.js'
 
-export type AssessStatus = 'Y' | 'P' | 'N' | 'NA'
+type AssessStatus = 'Y' | 'P' | 'N' | 'NA'
 
 export interface DimAssessment {
   dimId: string
@@ -14,13 +14,13 @@ export interface DimAssessment {
   applicability?: 'applicable' | 'na'
 }
 
-export interface WaveEntry {
+interface WaveEntry {
   dimId: string
   status: AssessStatus
   category: string
 }
 
-export interface Wave {
+interface Wave {
   label: 'W0' | 'W1' | 'W2' | 'W3'
   goal: string
   dimensions: WaveEntry[]

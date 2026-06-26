@@ -324,7 +324,7 @@ describe('migrate — $schemaVersion routing (#605)', () => {
     expect(result.$schemaVersion).toBe(4)
   })
   it('throws hard error when $schemaVersion is greater than current understanding', () => {
-    expect(() => migrate({ ...CANONICAL_V2, $schemaVersion: 99 })).toThrow(/understands at most 5/i)
+    expect(() => migrate({ ...CANONICAL_V2, $schemaVersion: 99 })).toThrow(/understands at most 4/i)
   })
   it('accepts equal $schemaVersion (current)', () => {
     expect(() => migrate({ ...CANONICAL_V2, $schemaVersion: 3 })).not.toThrow()

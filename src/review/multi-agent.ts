@@ -28,7 +28,7 @@ import { computeSsotDigest, escapeXml } from './ssot.js'
 import { TIER_REVIEWER_COUNT, type ReviewTier } from './tier-constants.js'
 
 /** Severity of a single review finding. */
-export type FindingSeverity = 'blocker' | 'warning' | 'note'
+type FindingSeverity = 'blocker' | 'warning' | 'note'
 
 /** A single reviewer observation. */
 export interface Finding {

@@ -18,7 +18,7 @@ import { AUTONOMY_LEVELS } from '../../config/schema.js'
 import type { AutonomyLevel } from '../../config/schema.js'
 import { levelAtLeast } from '../../config/levels.js'
 
-export type CoherenceSeverity = 'OK' | 'WARN' | 'CRITICAL'
+type CoherenceSeverity = 'OK' | 'WARN' | 'CRITICAL'
 
 /**
  * #1254: the industryOverlay axis. Mirrors `ProjectConfig.industryOverlay`,

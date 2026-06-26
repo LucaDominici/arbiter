@@ -60,7 +60,7 @@ type RawScalar = string | number
  *   count_matches  — met when `path` contains `pattern` at least `min` (default 1) times
  *   capability     — met when `name` is in the active overlay set (object form of the legacy string)
  */
-export interface PreconditionInput {
+interface PreconditionInput {
   type?: RawScalar
   path?: RawScalar
   pattern?: RawScalar
@@ -68,7 +68,7 @@ export interface PreconditionInput {
   name?: RawScalar
 }
 
-export interface CheckInput {
+interface CheckInput {
   id: RawScalar
   /** Optional at the type level: a malformed registry can omit it ⇒ scored as an unknown-type N. */
   type?: RawScalar
@@ -107,9 +107,9 @@ export interface RegistryInput {
 }
 
 /** Per-class numeric bar for one threshold_ref key (the thresholds.yml row). */
-export type ThresholdRow = Record<string, number>
+type ThresholdRow = Record<string, number>
 /** The brownfield-class threshold SSOT: threshold_ref → { gold, light, medium, heavy }. */
-export type ThresholdTable = Record<string, ThresholdRow>
+type ThresholdTable = Record<string, ThresholdRow>
 
 /** Optional evaluation context: thresholds SSOT + the active brownfield class (#1413). */
 export interface EvaluateOptions {
@@ -117,7 +117,7 @@ export interface EvaluateOptions {
   brownfieldClass?: string
 }
 
-export interface CheckResult {
+interface CheckResult {
   id: string
   dimension: string
   title: string

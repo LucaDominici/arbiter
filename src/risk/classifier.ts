@@ -32,7 +32,7 @@ export type RiskLevel = 'R0' | 'R1' | 'R2' | 'R3' | 'R4'
  * NOT a risk level — explicitly out-of-band.
  */
 export const UNCLASSIFIED_LEVEL = 'R-unknown' as const
-export type Unclassified = typeof UNCLASSIFIED_LEVEL
+type Unclassified = typeof UNCLASSIFIED_LEVEL
 
 export type ClassifyResult = RiskLevel | Unclassified
 
