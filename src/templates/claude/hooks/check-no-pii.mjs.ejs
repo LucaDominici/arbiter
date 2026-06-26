@@ -2,7 +2,7 @@
 // Arbiter hook: block PII patterns in edited files (INV-12)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from "node:fs";
-import { resolveToolInputPath } from "./lib.mjs";
+import { findInlineSuppression, resolveToolInputPath } from "./lib.mjs";
 
 const file = resolveToolInputPath();
 if (!file || !existsSync(file)) process.exit(0);
@@ -19,6 +19,7 @@ const SKIP_EXTENSIONS = [
   ".bin",
   ".toml",
   ".json",
+  ".md",
 ];
 if (SKIP_EXTENSIONS.some((ext) => file.endsWith(ext))) process.exit(0);
 
@@ -42,10 +43,10 @@ const PII_PATTERNS = [
 ];
 
 const findings = [];
+const lines = content.split("\n");
 for (const { label, re } of PII_PATTERNS) {
-  const lines = content.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    if (re.test(lines[i])) {
+    if (re.test(lines[i]) && !findInlineSuppression(content, i, "INV-12")) {
       findings.push(
         `  line ${i + 1} [${label}]: ${lines[i].trim().slice(0, 80)}`,
       );
@@ -57,7 +58,9 @@ if (findings.length > 0) {
   process.stderr.write(`[arbiter] INV-12: PII pattern detected in ${file}:\n`);
   findings.slice(0, 5).forEach((f) => process.stderr.write(`${f}\n`));
   process.stderr.write(
-    `Add an allowlist entry to suppressions/pii-allowlist.json if this is a test fixture.\n`,
+    `If this is a test fixture / known-safe value, add an inline\n` +
+      `  // arbiter-suppress(INV-12, until=YYYY-MM-DD, reason="…", owner=you)\n` +
+      `directive on the line above the match.\n`,
   );
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-12\` for details.\n`);
   process.exit(1);
