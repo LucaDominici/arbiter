@@ -43,6 +43,27 @@ export const FORBIDDEN = [
 ]
 
 /**
+ * Required-path matchers. The leak guard catches what ships that should NOT; this
+ * catches what must ship but is MISSING. Runtime data files that the compiled code
+ * reads at execution time (resolved next to their emitted `.js`) must be in the
+ * tarball or the published command throws `ENOENT` on first read — invisible to
+ * source-tree gates and to the dev checkout (where `src/` is still present). The
+ * kit catalog/derived data was exactly this class of silent omission (#1575, same
+ * family as the closed #1011). Each entry has a human `label` and a `test(path)`
+ * predicate; the manifest must contain at least one path that satisfies it.
+ */
+export const REQUIRED = [
+  {
+    label: 'kit catalog runtime data (dist/kit/catalog.json)',
+    test: (p) => p === 'dist/kit/catalog.json',
+  },
+  {
+    label: 'kit derived runtime data (dist/kit/derived.json)',
+    test: (p) => p === 'dist/kit/derived.json',
+  },
+]
+
+/**
  * Pure classifier. Given the list of tarball entry paths, returns every forbidden
  * path with the label of the rule it tripped. Side-effect-free so every rule is
  * unit-testable without spawning `npm pack`.
@@ -63,6 +84,23 @@ export function classifyTarball(paths) {
     }
   }
   return violations
+}
+
+/**
+ * Pure presence check. Given the tarball entry paths, returns every REQUIRED rule
+ * that nothing in the manifest satisfies. Side-effect-free so the required-asset
+ * policy is unit-testable without spawning `npm pack`.
+ *
+ * @param {string[]} paths package-root-relative POSIX paths
+ * @returns {Array<{ label: string }>} unmet requirements (empty = all present)
+ */
+export function findMissingRequired(paths) {
+  const normalised = paths.map((raw) => String(raw).replace(/\\/g, '/').replace(/^\.\//, ''))
+  const missing = []
+  for (const rule of REQUIRED) {
+    if (!normalised.some((p) => rule.test(p))) missing.push({ label: rule.label })
+  }
+  return missing
 }
 
 /**
@@ -95,22 +133,40 @@ export function checkTarballContents() {
   }
 
   const violations = classifyTarball(files)
+  const missing = findMissingRequired(files)
 
-  if (violations.length > 0) {
-    process.stderr.write(
-      `check-tarball-contents: FAIL — ${violations.length} forbidden path(s) would ship:\n`,
-    )
-    for (const v of violations) {
-      process.stderr.write(`  ${v.path}  [${v.label}]\n`)
+  if (violations.length > 0 || missing.length > 0) {
+    if (violations.length > 0) {
+      process.stderr.write(
+        `check-tarball-contents: FAIL — ${violations.length} forbidden path(s) would ship:\n`,
+      )
+      for (const v of violations) {
+        process.stderr.write(`  ${v.path}  [${v.label}]\n`)
+      }
+      process.stderr.write(
+        `\nCurate package.json "files" (negate the offending subpath, e.g. "!docs/internal")\n` +
+          `or remove the working-tree artifact. A wholesale dir entry re-includes everything beneath it.\n`,
+      )
     }
-    process.stderr.write(
-      `\nCurate package.json "files" (negate the offending subpath, e.g. "!docs/internal")\n` +
-        `or remove the working-tree artifact. A wholesale dir entry re-includes everything beneath it.\n`,
-    )
+    if (missing.length > 0) {
+      process.stderr.write(
+        `check-tarball-contents: FAIL — ${missing.length} required runtime asset(s) are MISSING:\n`,
+      )
+      for (const m of missing) {
+        process.stderr.write(`  [${m.label}]\n`)
+      }
+      process.stderr.write(
+        `\nThe compiled code reads these at runtime; without them the published command\n` +
+          `throws ENOENT on first use. Ensure the build step copies them into dist/ and\n` +
+          `that package.json "files" ships the dist subtree.\n`,
+      )
+    }
     return 1
   }
 
-  process.stdout.write(`check-tarball-contents: OK (${files.length} files, no forbidden paths)\n`)
+  process.stdout.write(
+    `check-tarball-contents: OK (${files.length} files, no forbidden paths, ${REQUIRED.length} required asset(s) present)\n`,
+  )
   return 0
 }
 

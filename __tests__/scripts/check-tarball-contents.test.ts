@@ -17,7 +17,12 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { classifyTarball, FORBIDDEN } from '../../scripts/check-tarball-contents.mjs'
+import {
+  classifyTarball,
+  findMissingRequired,
+  FORBIDDEN,
+  REQUIRED,
+} from '../../scripts/check-tarball-contents.mjs'
 
 describe('classifyTarball — forbidden-path detection (#1491 tarball-leak)', () => {
   it('flags a docs/internal/** maintainer runbook', () => {
@@ -62,6 +67,65 @@ describe('classifyTarball — forbidden-path detection (#1491 tarball-leak)', ()
 
   it('exposes a non-empty declarative rule list', () => {
     expect(FORBIDDEN.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('findMissingRequired — required runtime-asset presence (#1575)', () => {
+  it('flags a manifest missing dist/kit/catalog.json AND dist/kit/derived.json', () => {
+    const m = findMissingRequired(['dist/cli.js', 'README.md'])
+    expect(m).toHaveLength(REQUIRED.length)
+    expect(m.map((x) => x.label).join(' ')).toMatch(/catalog\.json/)
+    expect(m.map((x) => x.label).join(' ')).toMatch(/derived\.json/)
+  })
+
+  it('flags a manifest that ships only the kit .js but not the runtime JSON', () => {
+    // Exactly the #1575 bug: tsc emits dist/kit/*.js but the JSON is never copied.
+    const m = findMissingRequired(['dist/kit/catalog.js', 'dist/kit/derived.js', 'dist/cli.js'])
+    expect(m).toHaveLength(2)
+  })
+
+  it('passes a manifest that ships both kit runtime data files', () => {
+    const m = findMissingRequired([
+      'dist/cli.js',
+      'dist/kit/catalog.js',
+      'dist/kit/catalog.json',
+      'dist/kit/derived.json',
+    ])
+    expect(m).toEqual([])
+  })
+
+  it('normalises backslash separators and leading ./ before matching', () => {
+    const m = findMissingRequired(['.\\dist\\kit\\catalog.json', './dist/kit/derived.json'])
+    expect(m).toEqual([])
+  })
+
+  it('exposes a non-empty declarative required-rule list', () => {
+    expect(REQUIRED.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('package.json build ships kit runtime data into dist/ (#1575)', () => {
+  const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as {
+    files: string[]
+    scripts: Record<string, string>
+  }
+
+  it('the build script copies the kit catalog + derived JSON next to the emitted dist/kit/*.js', () => {
+    // tsc emits dist/kit/*.js but NOT the data files the code reads at runtime; the
+    // build must co-locate them or `arbiter kit` throws ENOENT in a published install.
+    expect(pkg.scripts.build).toMatch(/dist\/kit/)
+    expect(pkg.scripts.build).toMatch(/catalog\.json/)
+    expect(pkg.scripts.build).toMatch(/derived\.json/)
+  })
+
+  it('the build derives the kit data (build-kit) before copying it', () => {
+    // derived.json is generated + gitignored, so a clean publish must regenerate it
+    // before the copy step or the cp fails on a fresh checkout.
+    expect(pkg.scripts.build).toMatch(/build-kit\.mjs/)
+  })
+
+  it('ships the dist/ subtree (which now carries dist/kit/*.json) in files[]', () => {
+    expect(pkg.files).toContain('dist')
   })
 })
 

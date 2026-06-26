@@ -353,7 +353,7 @@ export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstall
     if (opts.emitIssues) {
       const emitResult = emitWaveIssues(wavePlan, opts.dryRun ?? false)
       process.stderr.write(
-        `[emit-issues] created:${emitResult.created} skipped:${emitResult.skipped}\n`,
+        `[emit-issues] created:${emitResult.created} skipped:${emitResult.skipped} failed:${emitResult.failed}\n`,
       )
     }
 

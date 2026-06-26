@@ -36,7 +36,7 @@
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc && cp -r src/templates dist/templates && mkdir -p dist/i18n && cp src/i18n/*.json dist/i18n/ && mkdir -p dist/compatibility && cp src/compatibility/*.json dist/compatibility/ && chmod +x dist/cli.js",
+    "build": "rm -rf dist && node scripts/build-kit.mjs && tsc && cp -r src/templates dist/templates && mkdir -p dist/i18n && cp src/i18n/*.json dist/i18n/ && mkdir -p dist/compatibility && cp src/compatibility/*.json dist/compatibility/ && mkdir -p dist/kit && cp src/kit/catalog.json src/kit/derived.json dist/kit/ && chmod +x dist/cli.js",
     "check:i18n": "node scripts/check-no-raw-strings.mjs src --inventory __tests__/i18n/_migration-inventory.json",
     "dev": "tsx src/cli.ts",
     "prepack": "npm run build && node scripts/gen-third-party-licenses.mjs",
