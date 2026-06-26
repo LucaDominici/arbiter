@@ -71,7 +71,7 @@
     "gold:report": "node scripts/gold-report.mjs"
   },
   "dependencies": {
-    "@clack/prompts": "1.5.1",
+    "@clack/prompts": "1.6.0",
     "commander": "15.0.0",
     "ejs": "6.0.1",
     "exceljs": "4.4.0",
