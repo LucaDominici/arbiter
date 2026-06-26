@@ -50,8 +50,20 @@ const REDACTABLE_WORDS = new Set([
   'CREDENTIALS',
   'PRIVATE',
   'API',
+  // `*_DSN` carries a project secret (e.g. SENTRY_DSN's public key) even when the
+  // value has no `user:pass@` userinfo, so the value pass below cannot catch it (#1573).
+  'DSN',
 ])
 const REDACTION_PREFIX_RE = /^(GH_|GITHUB_|NPM_)/i
+// Strong compound secret words, matched even without an underscore boundary so a
+// run-together key like `APIKEY` redacts the same as `API_KEY` (#1573). Deliberately
+// omits short ambiguous words (KEY/PASS/AUTH/API) to avoid MONKEY/COMPASS/AUTHOR-class
+// false positives; those stay segment-bounded via REDACTABLE_WORDS.
+const COMPOUND_SECRET_RE = /TOKEN|SECRET|PASSWORD|PASSWD|APIKEY|PRIVATEKEY|CREDENTIAL/
+// A connection string carrying `scheme://user:password@host` userinfo embeds a secret
+// in its VALUE regardless of the key name — the single most common way DB/cache/broker
+// credentials leak (DATABASE_URL, REDIS_URL, MONGODB_URI, AMQP_URL, …) (#1573).
+const URL_USERINFO_RE = /:\/\/[^/@\s]+:[^/@\s]+@/
 
 function defaultReplayBaseDir(): string {
   return join(homedir(), '.arbiter', 'logs')
@@ -59,15 +71,19 @@ function defaultReplayBaseDir(): string {
 
 export function shouldRedactKey(key: string): boolean {
   if (REDACTION_PREFIX_RE.test(key)) return true
-  const segments = key.toUpperCase().split('_')
-  return segments.some((seg) => REDACTABLE_WORDS.has(seg))
+  const upper = key.toUpperCase()
+  if (COMPOUND_SECRET_RE.test(upper)) return true
+  return upper.split('_').some((seg) => REDACTABLE_WORDS.has(seg))
 }
 
 export function redactEnv(env: NodeJS.ProcessEnv): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(env)) {
     if (v === undefined) continue
-    out[k] = shouldRedactKey(k) ? REDACTED : v
+    // Redact on a key-name match OR a value that embeds `user:pass@` userinfo — the
+    // latter catches credential-bearing connection strings whose key name (e.g.
+    // DATABASE_URL) trips none of the keyword heuristics.
+    out[k] = shouldRedactKey(k) || URL_USERINFO_RE.test(v) ? REDACTED : v
   }
   return out
 }
