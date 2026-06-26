@@ -71,6 +71,91 @@ export function scopeCommandToFile(command, file) {
 }
 
 /**
+ * Splits the argument list of an `arbiter-suppress(...)` directive on top-level
+ * commas, honoring single/double quoted values so a `reason="a, b"` stays intact.
+ * Kept inline (no shared import) so the emitted hook library is dependency-free.
+ */
+function parseSuppressArgs(argsStr) {
+  const parts = [];
+  let current = '';
+  let inQuote = false;
+  let quoteChar = '';
+  for (const ch of argsStr) {
+    if (!inQuote && (ch === '"' || ch === "'")) {
+      inQuote = true;
+      quoteChar = ch;
+      current += ch;
+    } else if (inQuote && ch === quoteChar) {
+      inQuote = false;
+      quoteChar = '';
+      current += ch;
+    } else if (!inQuote && ch === ',') {
+      parts.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+/**
+ * Checks whether an inline `// arbiter-suppress(INV-NN, until=…, reason=…, owner=…)`
+ * directive on the same or previous line covers the given invariant ID. Returns
+ * true only for a complete, non-expired directive (valid `until` date in the
+ * future, `reason` >= 10 chars, `owner` present). Mirrors arbiter's own
+ * `.claude/hooks/lib.mjs::findInlineSuppression` so generated projects get the
+ * SAME honored escape hatch the hook messages advertise (#1553).
+ * @param {string} fileContent full file content
+ * @param {number} lineIndex 0-based line index of the violation
+ * @param {string|null} invId e.g. "INV-12", or null to match any valid directive
+ */
+export function findInlineSuppression(fileContent, lineIndex, invId) {
+  const lines = fileContent.split('\n');
+  const candidateLines = [lines[lineIndex]];
+  if (lineIndex > 0) candidateLines.unshift(lines[lineIndex - 1]);
+
+  const SUPPRESS_RE = /\/\/\s*arbiter-suppress\(([^)]+)\)/;
+
+  for (const line of candidateLines) {
+    const m = SUPPRESS_RE.test(line) ? line.match(SUPPRESS_RE) : null;
+    if (!m) continue;
+
+    const parts = parseSuppressArgs(m[1]);
+    if (parts.length === 0) continue;
+
+    const firstPart = parts[0];
+    if (invId !== null && firstPart !== invId) continue;
+
+    const kvPairs = {};
+    for (let i = 1; i < parts.length; i++) {
+      const eqIdx = parts[i].indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = parts[i].slice(0, eqIdx).trim();
+      let val = parts[i].slice(eqIdx + 1).trim();
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1);
+      }
+      kvPairs[key] = val;
+    }
+
+    if (!kvPairs.until || !kvPairs.reason || !kvPairs.owner) continue;
+
+    const expiry = new Date(kvPairs.until);
+    if (isNaN(expiry.getTime())) continue;
+    if (expiry.getTime() < Date.now()) continue;
+    if (kvPairs.reason.length < 10) continue;
+
+    return true;
+  }
+  return false;
+}
+
+/**
  * Sanitize a task id into a safe filesystem segment AND safe regex literal.
  * MUST stay in lockstep with `src/review/dispatch.ts::sanitizeTaskId`.
  * Parity enforced by `__tests__/lib/sanitize-task-id-parity.test.ts`.
