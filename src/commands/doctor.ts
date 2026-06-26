@@ -136,7 +136,7 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
 
   out.push(checkGateScript(dir))
   out.push(checkGateToolchain(dir))
-  out.push(checkLockfile(dir))
+  out.push(...checkLockfiles(dir))
   out.push(checkStackAdapterHealth(dir))
   out.push(checkCollaborationCoherence(dir))
   out.push(checkLanguageArchetypeCoherence(dir))
@@ -549,12 +549,25 @@ function probePidAlive(pid: number): boolean | null {
 
 const LOCK_CHECK_ID = 'arbiter-lock'
 
-function checkLockfile(dir: string): HealthCheck {
-  const lockPath = join(dir, '.arbiter', '.lock')
+/**
+ * The advisory locks arbiter manages under `.arbiter/`. `.lock` guards the
+ * command-level robust lock; `kit.lock` guards `saveConfig` (config persistence
+ * for init/configure/kit-install/upgrade-level/plugin). Both are crash-safe
+ * (file-lock.ts `acquireLock`) and BOTH must be inspected/repaired by doctor —
+ * a stale `kit.lock` would otherwise brick every future config write with no
+ * built-in recovery path (#1517).
+ */
+const MANAGED_LOCKS: { rel: string; id: string }[] = [
+  { rel: join('.arbiter', '.lock'), id: LOCK_CHECK_ID },
+  { rel: join('.arbiter', 'kit.lock'), id: 'arbiter-kit-lock' },
+]
+
+function checkLockHealth(dir: string, rel: string, id: string): HealthCheck {
+  const lockPath = join(dir, rel)
   if (!existsSync(lockPath)) {
     return {
-      id: LOCK_CHECK_ID,
-      label: '.arbiter/.lock not present',
+      id,
+      label: `${rel} not present`,
       status: 'PASS',
       detail: 'no leftover lock file',
     }
@@ -562,8 +575,8 @@ function checkLockfile(dir: string): HealthCheck {
   const info = readLockInfoForHealth(lockPath)
   if (info === null) {
     return {
-      id: LOCK_CHECK_ID,
-      label: '.arbiter/.lock unreadable',
+      id,
+      label: `${rel} unreadable`,
       status: 'WARN',
       detail: 'lock file exists but contents are not valid JSON',
       hint: `Run \`arbiter doctor recover-lock\` to remove it.`,
@@ -577,19 +590,23 @@ function checkLockfile(dir: string): HealthCheck {
   if (stale) {
     const aliveLabel = pidAlive === false ? 'not alive' : `age ${ageH}h`
     return {
-      id: LOCK_CHECK_ID,
-      label: '.arbiter/.lock stale',
+      id,
+      label: `${rel} stale`,
       status: 'WARN',
       detail: `pid ${info.pid} (${aliveLabel}), cmd: ${info.cmd}`,
       hint: 'Run `arbiter doctor recover-lock` to clean up.',
     }
   }
   return {
-    id: LOCK_CHECK_ID,
-    label: '.arbiter/.lock active',
+    id,
+    label: `${rel} active`,
     status: 'PASS',
     detail: `pid ${info.pid}, age ${ageH}h${sameHost ? '' : ' (other host)'}`,
   }
+}
+
+function checkLockfiles(dir: string): HealthCheck[] {
+  return MANAGED_LOCKS.map(({ rel, id }) => checkLockHealth(dir, rel, id))
 }
 
 function checkGatePassLog(dir: string): HealthCheck {
@@ -767,28 +784,34 @@ async function repairStaleLockInChecks(
   dir: string,
   checks: HealthCheck[],
 ): Promise<DoctorHealthResult['repaired']> {
-  const lockCheck = checks.find((c) => c.id === LOCK_CHECK_ID)
-  if (!lockCheck || lockCheck.status !== 'WARN') return undefined
+  let firstRepaired: DoctorHealthResult['repaired']
 
-  const lockPath = join(dir, '.arbiter', '.lock')
-  const info = readLockInfoForHealth(lockPath)
-  if (!info) return undefined
+  for (const { rel, id } of MANAGED_LOCKS) {
+    const lockCheck = checks.find((c) => c.id === id)
+    if (!lockCheck || lockCheck.status !== 'WARN') continue
 
-  try {
-    await forceReleaseLock(lockPath, info.pid, dir)
-  } catch (err) {
-    lockCheck.hint =
-      err instanceof ArbiterError
-        ? `auto-repair failed: ${err.message}`
-        : `auto-repair failed: ${err instanceof Error ? err.message : String(err)}`
-    return undefined
+    const lockPath = join(dir, rel)
+    const info = readLockInfoForHealth(lockPath)
+    if (!info) continue
+
+    try {
+      await forceReleaseLock(lockPath, info.pid, dir)
+    } catch (err) {
+      lockCheck.hint =
+        err instanceof ArbiterError
+          ? `auto-repair failed: ${err.message}`
+          : `auto-repair failed: ${err instanceof Error ? err.message : String(err)}`
+      continue
+    }
+
+    lockCheck.status = 'PASS'
+    lockCheck.label = `${rel} released (auto-repaired)`
+    lockCheck.detail = `released stale lock pid ${info.pid}`
+    delete lockCheck.hint
+    firstRepaired ??= { lockPath, pid: info.pid }
   }
 
-  lockCheck.status = 'PASS'
-  lockCheck.label = '.arbiter/.lock released (auto-repaired)'
-  lockCheck.detail = `released stale lock pid ${info.pid}`
-  delete lockCheck.hint
-  return { lockPath, pid: info.pid }
+  return firstRepaired
 }
 
 // ── doctor repair-state (#619) ───────────────────────────────────────────────
@@ -877,37 +900,47 @@ export async function runDoctorRecoverLock(
   opts: DoctorRecoverLockOptions = {},
 ): Promise<DoctorRecoverLockResult> {
   const targetDir = resolve(opts.dir ?? '.')
-  const lockPath = join(targetDir, '.arbiter', '.lock')
 
-  const info = await inspectLock(lockPath)
-  if (!info) {
+  // Inspect + release EVERY managed lock (.arbiter/.lock AND .arbiter/kit.lock),
+  // so a stale kit.lock that bricks saveConfig is no longer unreachable (#1517).
+  let firstInfo: LockInfo | undefined
+  let released = false
+
+  for (const { rel } of MANAGED_LOCKS) {
+    const lockPath = join(targetDir, rel)
+    const info = await inspectLock(lockPath)
+    if (!info) continue
+
+    if (!opts.json) {
+      const age = Math.round((Date.now() - new Date(info.startedAt).getTime()) / 1000)
+      const onThisHost = info.hostname === os.hostname() ? 'yes' : 'no'
+      process.stdout.write(`  Lock found (${rel}):\n`)
+      process.stdout.write(`    pid:       ${info.pid}\n`)
+      process.stdout.write(`    hostname:  ${info.hostname}\n`)
+      process.stdout.write(`    cmd:       ${info.cmd}\n`)
+      process.stdout.write(`    age:       ${age}s\n`)
+      process.stdout.write(`    this host: ${onThisHost}\n`)
+    }
+
+    await forceReleaseLock(lockPath, info.pid, targetDir)
+    released = true
+    firstInfo ??= info
+    if (!opts.json) process.stdout.write(`  Lock released.\n`)
+  }
+
+  if (!firstInfo) {
     if (opts.json) {
       jsonOutput('doctor recover-lock', 'ok', { found: false, released: false })
     } else {
-      process.stdout.write(`  No lock file found at ${lockPath}\n`)
+      process.stdout.write(`  No lock file found in ${join(targetDir, '.arbiter')}\n`)
     }
     return { found: false, released: false }
   }
 
-  if (!opts.json) {
-    const age = Math.round((Date.now() - new Date(info.startedAt).getTime()) / 1000)
-    const onThisHost = info.hostname === os.hostname() ? 'yes' : 'no'
-    process.stdout.write(`  Lock found:\n`)
-    process.stdout.write(`    pid:       ${info.pid}\n`)
-    process.stdout.write(`    hostname:  ${info.hostname}\n`)
-    process.stdout.write(`    cmd:       ${info.cmd}\n`)
-    process.stdout.write(`    age:       ${age}s\n`)
-    process.stdout.write(`    this host: ${onThisHost}\n`)
-  }
-
-  await forceReleaseLock(lockPath, info.pid, targetDir)
-
   if (opts.json) {
-    jsonOutput('doctor recover-lock', 'ok', { found: true, released: true, info })
-  } else {
-    process.stdout.write(`  Lock released.\n`)
+    jsonOutput('doctor recover-lock', 'ok', { found: true, released, info: firstInfo })
   }
-  return { found: true, released: true, info }
+  return { found: true, released, info: firstInfo }
 }
 
 // ── doctor clean (#1217) ─────────────────────────────────────────────────────

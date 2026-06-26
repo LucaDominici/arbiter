@@ -504,6 +504,53 @@ describe('runDoctorHealth (#539)', () => {
     expect(result.repaired).toBeUndefined()
     expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(true)
   })
+
+  // #1517 — doctor must also detect/repair a stale `kit.lock` (guards saveConfig).
+
+  function writeKitLock(dir: string, overrides: Partial<LockInfo> = {}): void {
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    const info: LockInfo = {
+      pid: 12345,
+      hostname: os.hostname(),
+      bootId: 'test-boot-id',
+      startedAt: new Date(Date.now() - 10_000).toISOString(),
+      cmd: 'arbiter init',
+      nonce: 'aabbccdd',
+      ...overrides,
+    }
+    writeFileSync(join(dir, '.arbiter', 'kit.lock'), JSON.stringify(info), 'utf-8')
+  }
+
+  it('WARN arbiter-kit-lock when a stale kit.lock is orphaned (#1517)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    writeKitLock(dir, { pid: 999_999_999 })
+    const result = await runDoctorHealth({ dir, json: true })
+    const kitLockCheck = result.checks.find((c) => c.id === 'arbiter-kit-lock')
+    expect(kitLockCheck?.status).toBe('WARN')
+    expect(kitLockCheck?.hint).toMatch(/recover-lock/)
+  })
+
+  it('--repair releases a stale kit.lock (WARN → PASS) (#1517)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    writeKitLock(dir, { pid: 999_999_999 })
+    const result = await runDoctorHealth({ dir, json: true, repair: true })
+    const kitLockCheck = result.checks.find((c) => c.id === 'arbiter-kit-lock')
+    expect(kitLockCheck?.status).toBe('PASS')
+    expect(kitLockCheck?.label).toMatch(/auto-repaired/i)
+    expect(result.repaired?.pid).toBe(999_999_999)
+    expect(existsSync(join(dir, '.arbiter', 'kit.lock'))).toBe(false)
+  })
+
+  it('recover-lock releases an orphaned kit.lock so saveConfig is unblocked (#1517)', async () => {
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeKitLock(dir, { pid: 999_999_999 })
+    const result = await runDoctorRecoverLock({ dir, json: true })
+    expect(result.found).toBe(true)
+    expect(result.released).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', 'kit.lock'))).toBe(false)
+  })
 })
 
 // ── runDoctorRepairState (#619) ───────────────────────────────────────────────

@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeFile } from './fs.js'
-import { atomicWriteFile, withLock } from './atomic-write.js'
+import { acquireLock } from './file-lock.js'
 import { getLogger } from './logger.js'
 import { ConfigError } from './errors.js'
 import {
@@ -28,12 +28,28 @@ export type ArbiterConfig = ArbiterConfigV2
 const CONFIG_FILE = 'arbiter.json'
 const SNAPSHOT_FILE = '.arbiter-generated.json'
 
+/**
+ * Persist `arbiter.json` under a robust advisory lock.
+ *
+ * The write is serialised through `.arbiter/kit.lock` acquired via the
+ * crash-safe `acquireLock` primitive (file-lock.ts): it performs stale-takeover
+ * (a lock orphaned by a crashed/SIGKILL'd run is reclaimed instead of bricking
+ * every future write), registers exit/SIGINT/SIGTERM/SIGHUP cleanup, refuses
+ * symlinked lock paths, and raises actionable `E_LOCK_*` errors that point at
+ * `arbiter doctor recover-lock`. `kit.lock` is intentionally distinct from
+ * `.arbiter/.lock` so a caller already holding the robust lock (e.g.
+ * `upgrade-level`) does not self-deadlock — `doctor` is taught about both
+ * (#1517).
+ */
 export async function saveConfig(dir: string, config: ArbiterConfig): Promise<void> {
   const lockDir = join(dir, '.arbiter')
   mkdirSync(lockDir, { recursive: true })
-  await withLock(join(lockDir, 'kit.lock'), () =>
-    atomicWriteFile(join(dir, CONFIG_FILE), JSON.stringify(config, null, 2) + '\n'),
-  )
+  const lock = await acquireLock(join(lockDir, 'kit.lock'))
+  try {
+    writeFile(join(dir, CONFIG_FILE), JSON.stringify(config, null, 2) + '\n')
+  } finally {
+    await lock.release()
+  }
 }
 
 export function saveConfigAndSnapshot(dir: string, config: ArbiterConfig): void {

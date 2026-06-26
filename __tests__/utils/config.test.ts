@@ -369,3 +369,58 @@ describe('arbiter config — automation block (#1291, ADR-093 §4)', () => {
     if (!result.ok) expect(result.errors.join(' ')).toContain('automation.autonomy')
   })
 })
+
+// ── kit.lock crash-safety / reentrancy (#1517) ────────────────────────────────
+//
+// Regression: saveConfig used to acquire kit.lock via the brittle `withLock`
+// (open 'wx', cleanup only in finally). A crash/abort orphaned the lock and every
+// subsequent saveConfig failed forever with a raw EEXIST that doctor could not
+// repair. saveConfig now uses the robust `acquireLock` (file-lock.ts), which
+// performs stale-takeover, so an orphaned kit.lock no longer bricks config writes.
+describe('saveConfig kit.lock is crash-safe (#1517)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-kitlock-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('recovers from an orphaned (stale) kit.lock via stale-takeover instead of failing forever', async () => {
+    const os = await import('node:os')
+    const lockDir = join(dir, '.arbiter')
+    const { mkdirSync } = await import('node:fs')
+    mkdirSync(lockDir, { recursive: true })
+    const lockPath = join(lockDir, 'kit.lock')
+
+    // Orphaned lock from a crashed run: valid lock-info but a different boot id,
+    // which `isStale` treats as unconditionally stale (machine rebooted).
+    const stale = {
+      pid: process.pid,
+      hostname: os.hostname(),
+      bootId: 'orphaned-boot-id-from-a-previous-crash',
+      startedAt: new Date(Date.now() - 10_000).toISOString(),
+      cmd: 'arbiter init',
+      nonce: 'orphaned-nonce',
+    }
+    writeFileSync(lockPath, JSON.stringify(stale), 'utf-8')
+
+    // With the old `withLock`, this rejects with a raw EEXIST. With `acquireLock`
+    // it takes over the stale lock and the write succeeds.
+    await expect(saveConfig(dir, defaultConfig())).resolves.toBeUndefined()
+
+    const loaded = loadConfig(dir)
+    expect(loaded).not.toBeNull()
+    // Lock is released after a clean run — no orphan left behind.
+    expect(existsSync(lockPath)).toBe(false)
+  })
+
+  it('serialises config writes through kit.lock and releases it after a clean run', async () => {
+    await saveConfig(dir, defaultConfig())
+    expect(existsSync(join(dir, 'arbiter.json'))).toBe(true)
+    // Lock must not linger after the write completes.
+    expect(existsSync(join(dir, '.arbiter', 'kit.lock'))).toBe(false)
+  })
+})
