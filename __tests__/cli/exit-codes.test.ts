@@ -140,11 +140,16 @@ vi.mock('../../src/generators/registry.js', () => ({
   runGeneratorsFromRegistry: vi.fn().mockReturnValue([]),
   runGeneratorsSelective: vi.fn().mockReturnValue([]),
 }))
-vi.mock('../../src/commands/init.js', () => ({
-  runGithubSetup: vi.fn().mockReturnValue({ warnings: [] }),
-  printResults: vi.fn(),
-  runPlugins: vi.fn().mockResolvedValue([]),
-}))
+vi.mock('../../src/commands/init.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/commands/init.js')>()
+  return {
+    // Keep the real config-boundary slugify (#1550) — update.ts calls it.
+    slugifyProjectName: actual.slugifyProjectName,
+    runGithubSetup: vi.fn().mockReturnValue({ warnings: [] }),
+    printResults: vi.fn(),
+    runPlugins: vi.fn().mockResolvedValue([]),
+  }
+})
 
 import { runUpdate } from '../../src/commands/update.js'
 import { loadConfig } from '../../src/utils/config.js'

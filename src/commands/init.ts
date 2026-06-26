@@ -133,9 +133,24 @@ function runPreMutationGitGuards(targetDir: string, options: InitOptions): void 
   }
 }
 
+/**
+ * Normalize a raw directory basename into a structurally inert project name (#1550).
+ *
+ * `projectName` is derived from `basename(targetDir)` and then interpolated into
+ * generated JSON / `.properties` / TOML / shell config files. A raw basename may
+ * carry JSON-structural (`"`, `\`), HTML-meta (`&`, `<`, `>`) or shell metacharacters
+ * that corrupt or break those emitted files. Slugifying ONCE here — the config
+ * boundary shared by init/update/diff — collapses every disallowed character to `-`
+ * and keeps only `[A-Za-z0-9._-]`, so downstream interpolation is always safe. Falls
+ * back to `app` when nothing survives (e.g. a basename of only metacharacters).
+ */
+export function slugifyProjectName(raw: string): string {
+  return raw.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+|[-.]+$/g, '') || 'app'
+}
+
 export async function runInit(options: InitOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const projectName = basename(targetDir)
+  const projectName = slugifyProjectName(basename(targetDir))
   const log: (msg: string) => void = options.json
     ? (): void => {}
     : (msg: string): void => {

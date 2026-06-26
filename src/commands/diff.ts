@@ -8,6 +8,7 @@
 // by calling `gh` (ADR-001; diff is strictly read-only).
 import { resolve, basename, relative } from 'node:path'
 import { loadConfig } from '../utils/config.js'
+import { slugifyProjectName } from './init.js'
 import { resolveProjectConfig, gitHubPermitted } from '../config/resolve-project-config.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../generators/registry.js'
@@ -137,7 +138,7 @@ function printHuman(
 
 export function runDiff(options: DiffOptions): void {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const projectName = basename(targetDir)
+  const projectName = slugifyProjectName(basename(targetDir))
 
   if (!options.json) {
     process.stdout.write(`${t('cli.diff.banner')}\n`)

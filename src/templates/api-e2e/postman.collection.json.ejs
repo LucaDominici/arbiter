@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "<%- projectName || 'service' %> live API e2e (INV-126)",
+    "name": <%- JSON.stringify(`${projectName || 'service'} live API e2e (INV-126)`) %>,
     "description": "Non-mocked Newman/Postman suite — runs against the REAL booted binary. Boot it via tests/api/run.sh; set baseUrl to the running address.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

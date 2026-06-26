@@ -18,7 +18,7 @@ import { detectLegacyWorkflowCollisionWarning } from '../detectors/workflow-coll
 import { resolveAxisFields } from '../detectors/axis.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../utils/config.js'
-import { runGithubSetup, printResults, runPlugins } from './init.js'
+import { runGithubSetup, printResults, runPlugins, slugifyProjectName } from './init.js'
 import { diffConfig, impactedGenerators } from '../config/diff.js'
 import { validateConfig } from '../config/schema.js'
 import { resolveProjectConfig } from '../config/resolve-project-config.js'
@@ -385,7 +385,7 @@ function handleAdverseState(
 
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const projectName = basename(targetDir)
+  const projectName = slugifyProjectName(basename(targetDir))
   const log: (msg: string) => void = options.json
     ? (): void => {}
     : (msg: string): void => {
