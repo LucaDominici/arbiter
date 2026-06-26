@@ -20,8 +20,9 @@
 //   generation is DEFERRED to #1419 (LU-1), which consolidates #1412/#1413/#1374 downstream gen.
 // Exit codes per INV-53: 0=PASS / NO-DATA-skip, 1=FAIL (muted gate test found), 2=ERROR (self).
 // Usage: node scripts/check-muted-test.mjs [--dir <path>] [--help]
-import { readdirSync, statSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -36,8 +37,6 @@ if (args.includes('--help') || args.includes('-h')) {
 }
 const dirArgIdx = args.indexOf('--dir')
 const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]) : process.cwd()
-
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
 
 // A file is a gate test if its name matches one of these (JS/TS/JVM/Rust/Python/Go conventions).
 // JS/TS/Rust/Python/Go tests are identified by filename; bare `.java`/`.kt` files are dir-gated to
@@ -91,37 +90,31 @@ const MUTE_PATTERNS = [
 // reason, still fails closed.
 const EXEMPT_RE = /(?:^|\s)(?:\/\/+|#+|\*)\s*(?:arbiter-allow-skip|muted-test-exempt):\s*\S/
 
-/** Recursively collect gate-test file paths, gating JVM files to src/test/** dirs. */
-function collectTestFiles(dir, acc, inJvmTestTree) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
+/** A file sits in a JVM test tree if any ancestor dir (relative to ROOT) is named test/tests. */
+function inJvmTestTree(rel) {
+  const segs = rel.split('/')
+  segs.pop() // drop the filename — only ancestor dirs gate the JVM test tree
+  return segs.includes('test') || segs.includes('tests')
+}
+
+/**
+ * Collect gate-test file paths via the shared, cycle-safe walker (#1521), gating JVM files to
+ * src/test/** dirs. walkRepo's SKIP_DIRS already prune node_modules/.git/dist/build/coverage/.coverage.
+ */
+function collectTestFiles(root) {
+  const acc = []
+  for (const rel of walkRepo(root)) {
+    const name = rel.slice(rel.lastIndexOf('/') + 1)
+    if (!isTestFile(name)) continue
+    // Bare .java/.kt only count when inside a test tree (src/test/**), to avoid main sources.
+    if (/\.(java|kt)$/.test(name) && !/Test\.(java|kt)$/.test(name) && !inJvmTestTree(rel)) continue
+    acc.push(join(root, rel))
   }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let st
-    try {
-      st = statSync(full)
-    } catch {
-      continue
-    }
-    if (st.isDirectory()) {
-      const nextJvm = inJvmTestTree || entry === 'test' || entry === 'tests'
-      collectTestFiles(full, acc, nextJvm)
-    } else if (isTestFile(entry)) {
-      // Bare .java/.kt only count when inside a test tree (src/test/**), to avoid main sources.
-      if (/\.(java|kt)$/.test(entry) && !/Test\.(java|kt)$/.test(entry) && !inJvmTestTree) continue
-      acc.push(full)
-    }
-  }
+  return acc
 }
 
 function main() {
-  const files = []
-  collectTestFiles(ROOT, files, false)
+  const files = collectTestFiles(ROOT)
 
   if (files.length === 0) {
     // NO-DATA: no gate test files discovered. Explicit skip, never a manufactured pass.

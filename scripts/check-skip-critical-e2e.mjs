@@ -13,8 +13,9 @@
 // selfOnly: arbiter-repo-only for now; downstream consumer-project gen DEFERRED to #1419 (LU-1).
 // Exit codes per INV-53: 0=PASS / NA (no e2e config), 1=FAIL (skipped e2e spec), 2=ERROR.
 // Usage: node scripts/check-skip-critical-e2e.mjs [--dir <path>] [--help]
-import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -26,8 +27,6 @@ if (args.includes('--help') || args.includes('-h')) {
 }
 const dirArgIdx = args.indexOf('--dir')
 const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]) : process.cwd()
-
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
 
 // e2e config signals — if none exists, there is no e2e surface to skip (verdict NA).
 const E2E_CONFIG_FILES = [
@@ -56,29 +55,24 @@ function hasE2eConfig() {
   return E2E_CONFIG_FILES.some((f) => existsSync(join(ROOT, f)))
 }
 
-/** Collect spec files that live under an e2e-named directory. */
-function collectE2eSpecs(dir, acc, inE2eTree) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
+/** A file sits in an e2e tree if any ancestor dir (relative to ROOT) is an E2E_DIR_NAMES name. */
+function inE2eTree(rel) {
+  const segs = rel.split('/')
+  segs.pop() // drop the filename — only ancestor dirs gate the e2e tree
+  return segs.some((s) => E2E_DIR_NAMES.has(s))
+}
+
+/**
+ * Collect spec files that live under an e2e-named directory, via the shared cycle-safe walker
+ * (#1521). walkRepo's SKIP_DIRS already prune node_modules/.git/dist/build/coverage/.coverage.
+ */
+function collectE2eSpecs(root) {
+  const acc = []
+  for (const rel of walkRepo(root)) {
+    const name = rel.slice(rel.lastIndexOf('/') + 1)
+    if (inE2eTree(rel) && SPEC_RE.test(name)) acc.push(join(root, rel))
   }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let st
-    try {
-      st = statSync(full)
-    } catch {
-      continue
-    }
-    if (st.isDirectory()) {
-      collectE2eSpecs(full, acc, inE2eTree || E2E_DIR_NAMES.has(entry))
-    } else if (inE2eTree && SPEC_RE.test(entry)) {
-      acc.push(full)
-    }
-  }
+  return acc
 }
 
 function main() {
@@ -87,8 +81,7 @@ function main() {
     return 0
   }
 
-  const specs = []
-  collectE2eSpecs(ROOT, specs, false)
+  const specs = collectE2eSpecs(ROOT)
 
   const violations = []
   for (const file of specs) {
