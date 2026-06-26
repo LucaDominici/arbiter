@@ -81,6 +81,12 @@ function storedOptionalFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
       : {}),
     ...(stored.basePackage !== undefined ? { basePackage: stored.basePackage } : {}),
     ...(stored.taskTiers !== undefined ? { taskTiers: stored.taskTiers } : {}),
+    // #1568: round-trip the provider blocks the writer persists. observability/auth were
+    // added to the writer (buildProviderFields) + diff CHANGE_IMPACT but never to this
+    // reader, so resolveProjectConfig dropped them to undefined — disabling the
+    // observability/auth generators on every `arbiter update`/`diff`. Mirror `frontend`.
+    ...(stored.observability !== undefined ? { observability: stored.observability } : {}),
+    ...(stored.auth !== undefined ? { auth: stored.auth } : {}),
     ...(stored.frontend !== undefined ? { frontend: stored.frontend } : {}),
   }
 }

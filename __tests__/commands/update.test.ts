@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveProjectConfig } from '../../src/config/resolve-project-config.js'
+import { buildRegistry } from '../../src/generators/registry.js'
 import type { ArbiterConfigV2 } from '../../src/utils/config.js'
 
 // Pins the canonical config builder now that it lives in resolve-project-config.ts
@@ -89,5 +90,26 @@ describe('resolveProjectConfig — canonical builder field mapping (#1077)', () 
     writeFileSync(join(dir, 'go.mod'), 'module example.com/x\n\ngo 1.22\n')
     const { config } = resolveProjectConfig(dir, 'x', makeStored({ language: 'go' }))
     expect(config.language).toBe('go')
+  })
+
+  // #1568: the writer (buildArbiterConfig) persists observability/auth/frontend, but the
+  // round-trip reader (storedOptionalFields) previously spread only `frontend`, so a stored
+  // non-none observability/auth was dropped to undefined — disabling both provider generators
+  // on every `arbiter update`/`diff`. Pin that a stored config carrying both survives the
+  // round-trip AND that buildRegistry enables the observability/auth specs for it.
+  it('round-trips stored observability and auth provider config (#1568)', () => {
+    const stored = makeStored({
+      observability: { provider: 'signoz', metrics: true, logs: true },
+      auth: { provider: 'app-level-ts', protocols: ['oidc'] },
+    })
+    const { config } = resolveProjectConfig(dir, 'x', stored)
+    expect(config.observability).toEqual({ provider: 'signoz', metrics: true, logs: true })
+    expect(config.auth).toEqual({ provider: 'app-level-ts', protocols: ['oidc'] })
+
+    const registry = buildRegistry(config)
+    const obs = registry.find((s) => s.key === 'observability')
+    const auth = registry.find((s) => s.key === 'auth')
+    expect(obs?.enabled).toBe(true)
+    expect(auth?.enabled).toBe(true)
   })
 })
