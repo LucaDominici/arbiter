@@ -20,13 +20,14 @@
  *
  * (3) is the static guard that would have caught #1548.
  *
- * Scope note: workflows are rendered under their always-emitted (no container
- * deploy-target) configuration. A separate, out-of-this-batch defect — the
- * `_cosign-copy/*` and sigstore partials emit an inline multi-line `python3 -c`
- * heredoc whose column-0 lines break the enclosing `run: |` block scalar, so
- * `10-deploy-prod`/`05-release` render to INVALID YAML when a container deploy
- * target is configured — is tracked as #1558 (those partials are not in this
- * batch's file manifest). This sweep is what surfaced it.
+ * Deploy-target axis (#1558): workflows are also rendered under every container
+ * deploy target (`ghcr`/`aws-ecs`/`gcp-cloud-run`/`azure-container-app`), which
+ * pulls in the `_partials/sigstore-preflight`, `_cosign-copy/<target>` and
+ * `_deploy/<target>` includes. This locks out the regression #1558 fixed: the
+ * `_cosign-copy/ghcr` partial emitted an inline multi-line `python3 -c` heredoc
+ * whose column-0 lines broke the enclosing `run: |` block scalar, so
+ * `10-deploy-prod`/`05-release` rendered to INVALID YAML whenever a container
+ * deploy target was configured. This sweep is what surfaced it.
  *
  * Existing Code Survey (CANON-16): test-only file. Reuses the reusable-contract
  * resolution helpers added to `__tests__/utils/workflow-graph.ts` (#1548); no
@@ -111,6 +112,27 @@ const CONFIGS: Array<{ name: string; data: Record<string, unknown> }> = [
       enableSoloDevMode: true,
       governanceLevel: 'L2',
     }),
+  },
+  // Container deploy-target axis (#1558): `10-deploy-prod`/`05-release` pull in the
+  // `_partials/sigstore-preflight`, `_cosign-copy/<target>` and `_deploy/<target>`
+  // includes only when a container deploy target is configured. Every target must
+  // still render to valid YAML — the inline digest-resolution steps must not break
+  // the enclosing `run: |` block scalar (the defect this axis was added to lock out).
+  {
+    name: 'deploy/ghcr/L2',
+    data: makeRenderData({ governanceLevel: 'L2', deployTarget: 'ghcr' }),
+  },
+  {
+    name: 'deploy/aws-ecs/L2',
+    data: makeRenderData({ governanceLevel: 'L2', deployTarget: 'aws-ecs' }),
+  },
+  {
+    name: 'deploy/gcp-cloud-run/L2',
+    data: makeRenderData({ governanceLevel: 'L2', deployTarget: 'gcp-cloud-run' }),
+  },
+  {
+    name: 'deploy/azure-container-app/L2',
+    data: makeRenderData({ governanceLevel: 'L2', deployTarget: 'azure-container-app' }),
   },
 ]
 
