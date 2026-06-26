@@ -4,6 +4,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { generateDocs } from '../../src/generators/docs.js'
+import { generateStrideEnforcement } from '../../src/generators/stride-enforcement.js'
 import { makeConfig } from '../helpers.js'
 
 let dir: string
@@ -177,45 +178,75 @@ describe('generateDocs — runbooks scaffold (#897)', () => {
   })
 })
 
-describe('generateDocs — docs/security/ scaffold (#897)', () => {
-  it('emits docs/security/STRIDE.md at L2', () => {
+describe('generateDocs — docs/SECURITY/ scaffold (#897)', () => {
+  it('emits docs/SECURITY/STRIDE.md at L2', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
-    expect(existsSync(join(dir, 'docs', 'security', 'STRIDE.md'))).toBe(true)
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'STRIDE.md'))).toBe(true)
   })
 
-  it('emits docs/security/STRIDE.md at L3', () => {
+  it('emits docs/SECURITY/STRIDE.md at L3', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L3' }))
-    expect(existsSync(join(dir, 'docs', 'security', 'STRIDE.md'))).toBe(true)
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'STRIDE.md'))).toBe(true)
   })
 
-  it('does not emit docs/security/STRIDE.md at L1', () => {
+  it('does not emit docs/SECURITY/STRIDE.md at L1', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
-    expect(existsSync(join(dir, 'docs', 'security', 'STRIDE.md'))).toBe(false)
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'STRIDE.md'))).toBe(false)
   })
 
-  it('emits docs/security/RISK_ASSESSMENT.md at L3', () => {
+  it('emits docs/SECURITY/RISK_ASSESSMENT.md at L3', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L3' }))
-    expect(existsSync(join(dir, 'docs', 'security', 'RISK_ASSESSMENT.md'))).toBe(true)
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md'))).toBe(true)
   })
 
-  it('does not emit docs/security/RISK_ASSESSMENT.md at L2', () => {
+  it('does not emit docs/SECURITY/RISK_ASSESSMENT.md at L2', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
-    expect(existsSync(join(dir, 'docs', 'security', 'RISK_ASSESSMENT.md'))).toBe(false)
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md'))).toBe(false)
   })
 
-  it('does not emit docs/security/RISK_ASSESSMENT.md at L1', () => {
+  it('does not emit docs/SECURITY/RISK_ASSESSMENT.md at L1', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
-    expect(existsSync(join(dir, 'docs', 'security', 'RISK_ASSESSMENT.md'))).toBe(false)
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md'))).toBe(false)
   })
 
-  it('skipIfExists on docs/security/STRIDE.md (#897, CANON-11)', () => {
-    const secDir = join(dir, 'docs', 'security')
+  it('skipIfExists on docs/SECURITY/STRIDE.md (#897, CANON-11)', () => {
+    const secDir = join(dir, 'docs', 'SECURITY')
     mkdirSync(secDir, { recursive: true })
     const target = join(secDir, 'STRIDE.md')
     writeFileSync(target, 'PREEXISTING')
     generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
     expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
   })
+})
+
+// #1592: docs.ts and stride-enforcement.ts both render security/STRIDE.md.ejs.
+// A case-divergent path pair (docs/security vs docs/SECURITY) orphans the gate on
+// Linux and double-keys the write manifest on case-insensitive FSes. Guard the
+// whole class: no two emitted paths across the always-on generators may collide
+// under toLowerCase() unless they are the SAME exact path (an intended
+// byte-identical idempotent re-emit, classified `skipped`).
+describe('generateDocs + generateStrideEnforcement — no case-divergent path collisions (#1592)', () => {
+  for (const level of ['L2', 'L3', 'L4'] as const) {
+    it(`no two emitted paths differ only by case at ${level}`, () => {
+      const cfg = makeConfig(dir, { governanceLevel: level })
+      const paths = [
+        ...generateDocs(cfg).files.map((f) => f.path),
+        ...generateStrideEnforcement(cfg).files.map((f) => f.path),
+      ]
+      const byLower = new Map<string, Set<string>>()
+      for (const p of paths) {
+        const key = p.toLowerCase()
+        if (!byLower.has(key)) byLower.set(key, new Set())
+        byLower.get(key)!.add(p)
+      }
+      const collisions = [...byLower.values()]
+        .filter((variants) => variants.size > 1)
+        .map((variants) => [...variants].join(' <-> '))
+      expect(collisions, `case-divergent path collision(s):\n  ${collisions.join('\n  ')}`).toEqual(
+        [],
+      )
+    })
+  }
 })
 
 describe('generateDocs — steering docs scaffold (#1268)', () => {
