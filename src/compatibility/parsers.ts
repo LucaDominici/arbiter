@@ -54,15 +54,26 @@ export const parseNpmVersion = (raw: string): SemVer | null => parseWith(SPECS.n
  * in the shared spec table, so this parser stays standalone.
  */
 export function parseJavaVersion(raw: string): SemVer | null {
-  const m = raw.match(/"(\d+)\.(\d+)\.(\d+)(?:_(\d+))?"/)
+  // JEP 223 (Java 9) / JEP 322 (Java 10) drop trailing-zero elements from the
+  // version string, so the first GA build of every feature release reports a
+  // bare major ("21", "17", "24"). Make minor/patch optional in the modern
+  // branch so those valid JDKs parse instead of being rejected as
+  // "unrecognized version output" → false toolchain incompatibility (#1564).
+  const m = raw.match(/"(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:_(\d+))?"/)
   if (!m) return null
   const [, maj, min, pat, sub] = m
-  if (maj === undefined || min === undefined || pat === undefined) return null
+  if (maj === undefined) return null
   if (maj === '1') {
-    // legacy 1.x format → real major is min
+    // legacy 1.x format → real major is the minor element; requires the dotted
+    // form (a bare "1" carries no recoverable feature version).
+    if (min === undefined || pat === undefined) return null
     return { major: +min, minor: +pat, patch: sub !== undefined ? +sub : 0 }
   }
-  return { major: +maj, minor: +min, patch: +pat }
+  return {
+    major: +maj,
+    minor: min !== undefined ? +min : 0,
+    patch: pat !== undefined ? +pat : 0,
+  }
 }
 
 /** `Gradle 8.5` or `Gradle 7.6.4` */
