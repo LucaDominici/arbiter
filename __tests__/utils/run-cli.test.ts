@@ -228,6 +228,24 @@ describe('runCliAsync', () => {
     expect(err.message).toMatch(/timed out/i)
   })
 
+  it('escalates SIGTERM→SIGKILL so a SIGTERM-trapping child still times out (#1581)', async () => {
+    // The child installs a SIGTERM handler that ignores the signal and keeps
+    // looping — common in CLIs with graceful-shutdown handlers. Without a
+    // SIGKILL escalation the watchdog's single SIGTERM is swallowed, the child
+    // never emits 'close', and runCliAsync hangs forever (timeout defeated).
+    const start = Date.now()
+    const err = await runCliAsync(
+      'node',
+      ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"],
+      { timeoutMs: 300 },
+    ).catch((e) => e as CliError)
+    const elapsed = Date.now() - start
+    expect(err).toBeInstanceOf(CliError)
+    expect(err.timedOut).toBe(true)
+    // Must settle within timeoutMs + the SIGKILL grace + margin, not hang.
+    expect(elapsed).toBeLessThan(300 + 2000 + 4000)
+  }, 10_000)
+
   it('throws a fatal CliError naming the buffer limit when output overflows maxBuffer', async () => {
     const err = await runCliAsync(
       'node',

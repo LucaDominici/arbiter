@@ -65,6 +65,15 @@ export class CliError extends Error {
 const DEFAULT_TIMEOUT_MS = 60_000
 
 /**
+ * Grace period after SIGTERM before the async runner escalates to SIGKILL.
+ * A child that traps or ignores SIGTERM (graceful-shutdown handlers are common
+ * in CLIs) would otherwise never exit, never emit `'close'`, and leave the
+ * runCliAsync Promise unsettled — defeating the timeout entirely (#1581). The
+ * sync runner does not need this: `spawnSync({ timeout })` escalates natively.
+ */
+const KILL_GRACE_MS = 2_000
+
+/**
  * Default cap on bytes buffered from a child's stdout/stderr. Node's own
  * default is 1 MB, which truncates ordinary large output (a few-thousand-line
  * `git diff`, a big `gh` JSON payload) and surfaces as an opaque `exit -1`.
@@ -233,6 +242,7 @@ function runOnceAsync(
     let overflow = false
     let timedOut = false
     let settled = false
+    let killTimer: ReturnType<typeof setTimeout> | undefined
 
     const settle = (
       obs: Omit<AttemptObservation, 'cmd' | 'args' | 'timeoutMs' | 'maxBufferBytes'>,
@@ -240,6 +250,8 @@ function runOnceAsync(
       if (settled) return
       settled = true
       clearTimeout(timer)
+      // A clean 'close' cancels any pending SIGKILL escalation.
+      if (killTimer !== undefined) clearTimeout(killTimer)
       resolve(
         classifyAttempt({
           ...obs,
@@ -251,9 +263,21 @@ function runOnceAsync(
       )
     }
 
+    // SIGTERM, then escalate to SIGKILL after a grace period if the child does
+    // not exit — a child that traps/ignores SIGTERM would otherwise never emit
+    // 'close' and hang this Promise forever, defeating the timeout (#1581). The
+    // grace timer is armed at most once and unref'd so it never holds the event
+    // loop open on its own.
+    const terminate = (): void => {
+      child.kill('SIGTERM')
+      if (killTimer !== undefined) return
+      killTimer = setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS)
+      if (typeof killTimer.unref === 'function') killTimer.unref()
+    }
+
     const timer = setTimeout(() => {
       timedOut = true
-      child.kill('SIGTERM')
+      terminate()
     }, opts.timeoutMs)
     // Do not let the watchdog keep the event loop alive on its own.
     if (typeof timer.unref === 'function') timer.unref()
@@ -265,7 +289,7 @@ function runOnceAsync(
       stdoutBytes += Buffer.byteLength(chunk)
       if (stdoutBytes > opts.maxBufferBytes) {
         overflow = true
-        child.kill('SIGTERM')
+        terminate()
         return
       }
       stdout += chunk
@@ -274,7 +298,7 @@ function runOnceAsync(
       stderrBytes += Buffer.byteLength(chunk)
       if (stderrBytes > opts.maxBufferBytes) {
         overflow = true
-        child.kill('SIGTERM')
+        terminate()
         return
       }
       stderr += chunk
