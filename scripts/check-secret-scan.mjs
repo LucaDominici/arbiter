@@ -8,8 +8,9 @@
 //
 // Usage: node scripts/check-secret-scan.mjs [--dir <path>] [--help]
 
-import { readFileSync, readdirSync } from 'node:fs'
-import { join, resolve, extname } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join, resolve, extname, basename } from 'node:path'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -55,33 +56,19 @@ const SCANNED_EXTENSIONS = new Set([
   '.sh',
   '.env',
 ])
-const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage'])
 const IGNORED_FILES = new Set(['.gitleaksignore', 'pii-allowlist.json'])
 
-function collectFiles(dir) {
-  const results = []
-  let entries
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
-    return results
-  }
-  for (const entry of entries) {
-    if (entry.isSymbolicLink()) continue
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      if (IGNORED_DIRS.has(entry.name)) continue
-      results.push(...collectFiles(full))
-    } else if (entry.isFile()) {
-      if (IGNORED_FILES.has(entry.name)) continue
-      if (!SCANNED_EXTENSIONS.has(extname(entry.name).toLowerCase())) continue
-      results.push(full)
-    }
-  }
-  return results
-}
-
-const files = collectFiles(CWD)
+// Tree-walk + vendor-dir pruning is delegated to the shared hardened helper
+// (scripts/lib/glob-walk.mjs): one canonical SKIP_DIRS set plus the lstat /
+// skip-symlink cycle guard, replacing this script's own recursive walker
+// (#1521). walkRepo yields repo-relative POSIX paths under CWD; we rejoin to
+// CWD and apply the secret-scan file allow-list (extension + ignored names).
+const files = walkRepo(CWD)
+  .map((rel) => join(CWD, rel))
+  .filter(
+    (full) =>
+      !IGNORED_FILES.has(basename(full)) && SCANNED_EXTENSIONS.has(extname(full).toLowerCase()),
+  )
 let violations = 0
 
 for (const file of files) {
