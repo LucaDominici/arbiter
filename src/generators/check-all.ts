@@ -164,22 +164,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'lib', 'glob-walk.mjs'],
     tpl: 'scripts/lib/glob-walk.mjs.ejs',
   },
-  // #1398 (INV-128): conformance scorecard runner. Emitted unconditionally so every
-  // governed project can run `node scripts/conformance.mjs --check`; wired as an
-  // advisory (runWarnCheck) in check-all.mjs L2 so it never hard-fails the gate.
-  {
-    rel: ['scripts', 'conformance.mjs'],
-    tpl: 'scripts/conformance.mjs.ejs',
-  },
-  // #1419: gold-audit thin runner. Delegates to `npx arbiter gold-audit --check`
-  // (the engine + `yaml` dep stay in arbiter's env). Emitted unconditionally and
-  // wired ADVISORY (runWarnCheck, plain --check) in check-all.mjs so a fresh consumer
-  // bootstraps its baseline on first run with no day-1 redness. The consumer-DATA
-  // standards/* that this runner reads are emitted by generateGoldKit (gold-kit gen).
-  {
-    rel: ['scripts', 'gold-audit.mjs'],
-    tpl: 'scripts/gold-audit.mjs.ejs',
-  },
+  // #1398 (INV-128) conformance.mjs and #1419 gold-audit.mjs are NOT listed here:
+  // each has a dedicated always-on owner (generateConformanceScript / generateGoldKit)
+  // that runs later in the registry and is the SOLE emitter. Listing them here too made
+  // generateCheckAll a second always-on emitter — the #1318.2 double-write class (false
+  // "already exist" on fresh init + duplicated/over-counted `arbiter diff` entries, #1578).
+  // The wiring is independent of emission: check-all.mjs.ejs gates each as an advisory
+  // `runWarnCheck` on `existsSync(scripts/<file>)`, so the gate stays fully intact.
   // #1428 (INV-135): doc-set + anti-fake-green thin runners. Each delegates to
   // `npx arbiter <cmd>` (the engine + `yaml` dep stay in arbiter's env), so a consumer
   // needs NO local `yaml` dep. Emitted unconditionally and wired ADVISORY (runWarnCheck)
