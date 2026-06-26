@@ -310,6 +310,26 @@ function round(n: number): number {
 
 // ─── Reusable-workflow contract resolution (#1548, #1549) ────────────────────
 
+/**
+ * Parse a rendered workflow's `jobs` into a map of job-id → declared `needs:`
+ * (normalized to a string array; a scalar `needs: x` becomes `['x']`). Uses
+ * `js-yaml` so the result reflects the structure GitHub actually sees. Returns
+ * an empty map when the document has no `jobs`.
+ */
+export function parseJobNeeds(content: string): Map<string, string[]> {
+  const doc = yaml.load(content) as Record<string, unknown> | null
+  const jobs = doc && typeof doc === 'object' ? (doc as { jobs?: unknown }).jobs : undefined
+  const map = new Map<string, string[]>()
+  if (!jobs || typeof jobs !== 'object') return map
+  for (const [job, body] of Object.entries(jobs as Record<string, unknown>)) {
+    const needs = body && typeof body === 'object' ? (body as { needs?: unknown }).needs : undefined
+    if (typeof needs === 'string') map.set(job, [needs])
+    else if (Array.isArray(needs)) map.set(job, needs.map(String))
+    else map.set(job, [])
+  }
+  return map
+}
+
 /** A single declared input on a reusable workflow's `on.workflow_call`. */
 export interface ReusableInputSpec {
   /** True when the input is declared `required: true` (no default fallback). */
