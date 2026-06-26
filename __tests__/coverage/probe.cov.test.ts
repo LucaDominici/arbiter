@@ -280,7 +280,7 @@ describe('runProbes — language dispatch ternary', () => {
       if (cmd === 'python3') return ok('Python 3.12.2\n')
       if (cmd === 'pip') return ok('pip 24.0 from /x (python 3.12)\n')
       if (cmd === 'ruff') return ok('ruff 0.4.5\n')
-      if (cmd === 'lint-imports') return ok('lint-imports, version 2.1.0\n')
+      if (cmd === 'lint-imports') return ok('lint-imports, version 2.11.0\n')
       return ok('')
     })
     const report = runProbes('/py/dir')

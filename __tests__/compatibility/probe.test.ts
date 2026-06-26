@@ -133,6 +133,43 @@ describe('probeTool — non-zero exit → failed', () => {
   })
 })
 
+describe('probeTool — --version unsupported → skipped (#1597)', () => {
+  it('returns skipped when the tool errors that --version is not a known option', () => {
+    // import-linter only added `--version` in 2.11; installs in [2.0, 2.10]
+    // (which satisfy the matrix floor) error with Click "No such option:
+    // --version". That means the version is unprobeable, not invalid — skip,
+    // do not hard-fail verification (#1597 gap 3).
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: 'lint-imports',
+        args: ['--version'],
+        exitCode: 2,
+        stdout: '',
+        stderr: 'Error: No such option: --version',
+        timedOut: false,
+      })
+    })
+    const result = probeTool('lint-imports', ['--version'], '>=2.11', 'stdout')
+    expect(result.status).toBe('skipped')
+    expect(result.reason).toMatch(/--version/)
+  })
+
+  it('returns skipped for an argparse "unrecognized arguments: --version" error', () => {
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: 'sometool',
+        args: ['--version'],
+        exitCode: 2,
+        stdout: '',
+        stderr: 'usage: sometool ...\nsometool: error: unrecognized arguments: --version',
+        timedOut: false,
+      })
+    })
+    const result = probeTool('lint-imports', ['--version'], '>=2.11', 'stdout')
+    expect(result.status).toBe('skipped')
+  })
+})
+
 describe('probeTool — no spec → failed', () => {
   it('returns failed when TOOL_SPECS lookup misses', () => {
     const result = probeTool('unknown-tool-xyz', ['--version'], '>=1', 'stdout')
@@ -319,8 +356,11 @@ describe('runBuildProbe — CliError → failed', () => {
   })
 })
 
-describe("runBuildProbe — notFound → failed with 'build tool missing'", () => {
-  it('returns failed with build-tool-missing reason when command not installed', () => {
+describe('runBuildProbe — notFound → skipped (toolchain-missing, non-fatal) (#1597)', () => {
+  it('returns skipped when the build tool is not installed', () => {
+    // A missing build tool must be non-fatal, mirroring the version probes'
+    // toolchain-missing policy — otherwise a user without (e.g.) ruff or cargo
+    // installed fails verification despite a valid project (#1597 gap 1).
     mockExistsSync.mockReturnValue(true)
     mockRunCli.mockImplementation(() => {
       throw new CliError({
@@ -339,9 +379,9 @@ describe("runBuildProbe — notFound → failed with 'build tool missing'", () =
       args: ['check'],
       requires: 'Cargo.toml',
     })
-    expect(result.status).toBe('failed')
+    expect(result.status).toBe('skipped')
     expect(result.kind).toBe('build')
-    expect(result.reason).toBe('build tool missing: cargo')
+    expect(result.reason).toBe('toolchain-missing')
   })
 })
 
@@ -426,16 +466,28 @@ describe('runProbes — unknown stack coverage gap', () => {
     expect(report.hasFailures).toBe(false)
   })
 
-  it('emits a skipped probe when detectLanguage returns multi', () => {
+  it('probes the union of the TS and JVM toolchains for multi, never zero-coverage (#1597)', () => {
+    // A polyglot monorepo must actually verify both sides, not return a single
+    // "no matrix coverage" skipped that prints a false-OK green banner.
     mockDetectLanguage.mockReturnValue('multi')
-    mockExistsSync.mockReturnValue(false)
+    mockExistsSync.mockReturnValue(false) // no build files, no githooks
+    // Every tool absent → all version probes skip (toolchain-missing), non-fatal.
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: 'x',
+        args: [],
+        exitCode: -1,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        notFound: true,
+      })
+    })
     const report = runProbes('/some/dir')
     expect(report.stack).toBe('multi')
-    expect(
-      report.probes.some(
-        (p) => p.status === 'skipped' && /no matrix coverage/.test(p.reason ?? ''),
-      ),
-    ).toBe(true)
+    expect(report.probes.map((p) => p.tool)).toEqual(['node', 'npm', 'java', 'gradle', 'mvn'])
+    expect(report.probes.some((p) => /no matrix coverage/.test(p.reason ?? ''))).toBe(false)
+    expect(report.hasFailures).toBe(false)
   })
 })
 
