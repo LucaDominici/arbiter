@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { writeFileSync, unlinkSync } from 'node:fs'
+import { writeFileSync, unlinkSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { detectBuildCommands } from '../../src/detectors/build.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
@@ -151,6 +151,32 @@ describe('detectBuildCommands', () => {
       writeFileSync(join(dir, 'gradlew'), '#!/bin/sh')
       const result = detectBuildCommands(dir, 'java')
       expect(result.buildTool).toBe('gradle')
+    })
+  })
+
+  describe('multi (#1567)', () => {
+    beforeEach(() => {
+      dir = createTestProject('typescript')
+    })
+
+    it('emits Maven commands for a backend/pom.xml monorepo', () => {
+      // The real multi shape (#1378): root package.json + backend/ JVM build.
+      // The JVM build lives under backend/, so build detection must resolve it
+      // there — not fall through to the Gradle default at the empty root.
+      mkdirSync(join(dir, 'backend'), { recursive: true })
+      writeFileSync(join(dir, 'backend', 'pom.xml'), '<project/>')
+      const result = detectBuildCommands(dir, 'multi')
+      expect(result.buildTool).toBe('maven')
+      expect(result.buildCommand).toBe('mvn package -DskipTests')
+      expect(result.testCommand).toBe('mvn test')
+    })
+
+    it('emits Gradle commands for a backend/build.gradle monorepo', () => {
+      mkdirSync(join(dir, 'backend'), { recursive: true })
+      writeFileSync(join(dir, 'backend', 'build.gradle'), 'id "spring-boot"')
+      const result = detectBuildCommands(dir, 'multi')
+      expect(result.buildTool).toBe('gradle')
+      expect(result.buildCommand).toBe('gradle build -x test')
     })
   })
 
