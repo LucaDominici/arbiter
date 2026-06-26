@@ -4,10 +4,19 @@
 // (scripts/lib/gold-audit-lib.mjs) produce identical verdicts, score, and yCount
 // on shared mini-registry test cases.
 // Uses dynamic import() (not spawnSync) to preserve the JS value boundary.
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync, symlinkSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  rmSync,
+  chmodSync,
+  symlinkSync,
+} from 'node:fs'
 import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { parse as parseYaml } from 'yaml'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { evaluate, type RegistryInput, type Evidence } from '../../src/conformance/engine.js'
 
@@ -1188,5 +1197,129 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
     const byId = Object.fromEntries(tsResult.checks.map((c) => [c.id, c.weight]))
     expect(byId['W-BAD']).toBe(1)
     expect(mjsResult).toEqual(tsResult)
+  })
+
+  // ── Parity case (#1569): a clean Go lint (`Issues: null`) + a 100%-Rust coverage 0..1 ratio must
+  // BOTH score Y on the cleanest repos — the two value-check defects that only bit the passing case.
+  it('parity: clean Go lint (Issues:null) + 100% Rust ratio score Y in both engines (#1569)', async () => {
+    const root = tmpDir()
+    // golangci-lint marshals a nil (zero-issue) issue slice to JSON `null` on a CLEAN run.
+    writeFileSync(join(root, 'golangci-report.json'), JSON.stringify({ Issues: null }))
+    // A dirty run carries a real slice; a missing `Issues` key is also a zero-count collection.
+    writeFileSync(join(root, 'golangci-dirty.json'), JSON.stringify({ Issues: [{ x: 1 }] }))
+    writeFileSync(join(root, 'golangci-nokey.json'), JSON.stringify({ other: 1 }))
+    // tarpaulin cobertura: line-rate is a 0..1 ratio; 100% coverage → 1.0.
+    writeFileSync(join(root, 'cobertura.xml'), '<coverage line-rate="1.0" branch-rate="0.5"/>')
+    const reg: RegistryInput = {
+      checks: [
+        // clean Go lint: Issues.length over `null` ⇒ 0 ≤ ceiling(0) ⇒ Y (was N "no metric")
+        {
+          id: 'GO-CLEAN',
+          type: 'value',
+          args: {
+            path: 'golangci-report.json',
+            format: 'json',
+            select: 'Issues.length',
+            op: 'lte',
+          },
+          threshold_ref: 'go.lint',
+        },
+        // dirty Go lint: length 1 > ceiling(0) ⇒ N (regression guard — the failing case still fails)
+        {
+          id: 'GO-DIRTY',
+          type: 'value',
+          args: { path: 'golangci-dirty.json', format: 'json', select: 'Issues.length', op: 'lte' },
+          threshold_ref: 'go.lint',
+        },
+        // absent Issues key: an absent collection is also zero-count ⇒ Y
+        {
+          id: 'GO-NOKEY',
+          type: 'value',
+          args: { path: 'golangci-nokey.json', format: 'json', select: 'Issues.length', op: 'lte' },
+          threshold_ref: 'go.lint',
+        },
+        // Rust 100% coverage: 1.0 ratio gte 0.90 ratio bar ⇒ Y (was 1.0 gte 90 ⇒ N pre-#1569)
+        {
+          id: 'RS-COV',
+          type: 'value',
+          args: {
+            path: 'cobertura.xml',
+            format: 'regex',
+            select: '<coverage[^>]*line-rate="([0-9.]+)"',
+            op: 'gte',
+          },
+          threshold_ref: 'rust.coverage.line_rate',
+        },
+      ],
+    }
+    const opts = {
+      thresholds: {
+        'go.lint': { gold: 0, light: 5, medium: 20, heavy: 100 },
+        'rust.coverage.line_rate': { gold: 0.9, light: 0.8, medium: 0.6, heavy: 0.4 },
+      },
+      brownfieldClass: 'gold',
+    }
+    const tsResult = evaluate(reg, new Set<string>(), root, opts)
+    const mjsResult = (await Promise.resolve(
+      mjsModule.evaluate(reg, new Set<string>(), root, opts),
+    )) as Record<string, unknown>
+
+    const tsById = Object.fromEntries(tsResult.checks.map((c) => [c.id, c.verdict]))
+    expect(tsById['GO-CLEAN']).toBe('Y')
+    expect(tsById['GO-DIRTY']).toBe('N')
+    expect(tsById['GO-NOKEY']).toBe('Y')
+    expect(tsById['RS-COV']).toBe('Y')
+    expect(mjsResult).toEqual(tsResult)
+  })
+})
+
+// ── #1569: the SHIPPED rust registry + thresholds must be unit-consistent (0..1 vs 0..1) ─────────
+//
+// RS-COV-02 selects tarpaulin's `line-rate` (a 0..1 ratio); its threshold_ref must resolve to a
+// 0..1 bar, not the 0..100 percent family — otherwise a 100%-covered Rust repo scores N forever.
+// This guards the actual standards/ data, not just an inline fixture, so the unit mismatch cannot
+// silently regress.
+describe('shipped rust registry coverage unit (#1569)', () => {
+  function loadYaml(rel: string): Record<string, unknown> {
+    const text = readFileSync(join(REPO_ROOT, rel), 'utf-8')
+    return (parseYaml(text) ?? {}) as Record<string, unknown>
+  }
+
+  it('RS-COV-02 threshold_ref resolves to a 0..1 ratio bar (gold ≤ 1)', () => {
+    const registry = loadYaml('standards/gold-registry.rust.yml')
+    const checks = (registry['checks'] as Array<Record<string, unknown>>) ?? []
+    const rsCov = checks.find((c) => c['id'] === 'RS-COV-02')
+    expect(rsCov, 'RS-COV-02 present').toBeDefined()
+    const ref = rsCov?.['threshold_ref']
+    expect(ref).toBe('rust.coverage.line_rate')
+
+    const thresholds = loadYaml('standards/thresholds.yml')['thresholds'] as Record<
+      string,
+      Record<string, number>
+    >
+    const row = thresholds[ref as string]
+    expect(row, 'threshold row exists').toBeDefined()
+    // A 0..1 ratio bar: every per-class value must be ≤ 1 (NOT a 0..100 percent like 90).
+    for (const [cls, bar] of Object.entries(row)) {
+      expect(bar, `${cls} bar is a 0..1 ratio`).toBeLessThanOrEqual(1)
+      expect(bar).toBeGreaterThan(0)
+    }
+  })
+
+  it('a 100%-coverage cobertura report scores RS-COV-02 = Y against the shipped bar', () => {
+    const registry = loadYaml('standards/gold-registry.rust.yml') as unknown as RegistryInput
+    const thresholds = loadYaml('standards/thresholds.yml')['thresholds'] as Record<
+      string,
+      Record<string, number>
+    >
+    const root = tmpDir()
+    writeFileSync(join(root, 'cobertura.xml'), '<coverage line-rate="1.0" branch-rate="0.9"/>')
+    // has-rust active so the applies_if check is evaluated, not NA'd.
+    const result = evaluate(registry, new Set(['has-rust']), root, {
+      thresholds,
+      brownfieldClass: 'gold',
+    })
+    const rsCov = result.checks.find((c) => c.id === 'RS-COV-02')
+    expect(rsCov?.verdict).toBe('Y')
   })
 })

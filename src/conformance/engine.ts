@@ -257,8 +257,15 @@ function extractJson(text: string, select: string): number | null {
   } catch {
     return null
   }
-  for (const key of select.split('.')) {
-    if (key === '') continue
+  const keys = select.split('.').filter((k) => k !== '')
+  for (const [i, key] of keys.entries()) {
+    // A null/absent collection has zero elements: a TERMINAL `length` selector over a null/undefined
+    // node resolves to 0, not "no metric". golangci-lint marshals a nil (zero-issue) issue slice to
+    // JSON `null`, so a CLEAN Go lint run reads `Issues.length` = 0 ≤ ceiling (Y) instead of N "no
+    // metric for json:Issues.length" — the asymmetry that only bit the passing case (#1569).
+    if (key === 'length' && i === keys.length - 1 && (node === null || node === undefined)) {
+      return 0
+    }
     if (node === null || typeof node !== 'object') return null
     node = (node as Record<string, unknown>)[key]
   }
