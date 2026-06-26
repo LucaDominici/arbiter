@@ -85,6 +85,41 @@ export function detectUnwiredGateWarning(results: WriteResult[]): string | null 
   )
 }
 
+/** CI workflows that invoke the gate as `node scripts/check-all.mjs <level> --json <path>`. */
+const GATE_INVOKING_WORKFLOWS = ['01-pr-fast.yml', '06-nightly.yml', 'drift-shadow.yml']
+
+/**
+ * #1504: detect a possible gate-signature mismatch. When `arbiter update`
+ * (re)writes a CI workflow that runs `node scripts/check-all.mjs L2 --json <path>`
+ * AND `scripts/check-all.mjs` is WITHHELD (user-modified), the withheld gate may
+ * not parse that invocation — a parser that reads the level positionally as
+ * `process.argv[2]` only (or ignores `--json`) runs the wrong level and writes no
+ * gate-result artifact while the job stays GREEN (the B1 fake-green). Returns a
+ * human-readable warning string, or null when there is nothing to warn about.
+ *
+ * Exported for unit testing the pure decision independent of runUpdate.
+ */
+export function detectGateSignatureWarning(results: WriteResult[]): string | null {
+  const checkAllWithheld = results.some(
+    (r) => r.withheld === true && r.path.replace(/\\/g, '/').endsWith('/scripts/check-all.mjs'),
+  )
+  if (!checkAllWithheld) return null
+  const wroteGateWorkflow = results.some((r) => {
+    if (r.action !== 'created' && r.action !== 'backed-up-and-replaced') return false
+    const norm = r.path.replace(/\\/g, '/')
+    return GATE_INVOKING_WORKFLOWS.some((w) => norm.endsWith(`/.github/workflows/${w}`))
+  })
+  if (!wroteGateWorkflow) return null
+  return (
+    `Warning: a CI workflow that invokes \`node scripts/check-all.mjs <level> --json <path>\` ` +
+    `was (re)written but check-all.mjs is withheld (user-modified) — its arg parser may not ` +
+    `match this invocation. Verify your check-all.mjs accepts a POSITIONAL level (\`L2\`) and ` +
+    `\`--json [path]\`; a parser that reads the level only as \`process.argv[2]\` or ignores ` +
+    `\`--json\` will silently run the wrong level and write no gate-result artifact while the ` +
+    `job stays green (a fake-green). Re-sync check-all.mjs to the template, or update its parser.`
+  )
+}
+
 function selectAndRun(
   specs: ReturnType<typeof buildRegistry>,
   snapshot: ArbiterConfigV2 | null,
@@ -386,9 +421,12 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     // user-modified check-all.mjs withheld the wiring fix) through the same
     // warnings channel as backend warnings — json mode lists it, text mode prints it.
     const unwiredWarning = detectUnwiredGateWarning(results)
-    const allWarnings = unwiredWarning
-      ? [...backendResult.warnings, unwiredWarning]
-      : backendResult.warnings
+    const gateSigWarning = detectGateSignatureWarning(results)
+    const allWarnings = [
+      ...backendResult.warnings,
+      ...(unwiredWarning ? [unwiredWarning] : []),
+      ...(gateSigWarning ? [gateSigWarning] : []),
+    ]
 
     const validation = validateConfig(nextConfig)
     if (!validation.ok) {

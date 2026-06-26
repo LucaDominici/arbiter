@@ -3,7 +3,7 @@
 // scripts/check-all.mjs is WITHHELD (user-modified), the new gate lands unwired —
 // update must emit an explicit warning. Pure helper unit-tested directly.
 import { describe, it, expect } from 'vitest'
-import { detectUnwiredGateWarning } from '../../src/commands/update.js'
+import { detectUnwiredGateWarning, detectGateSignatureWarning } from '../../src/commands/update.js'
 import type { WriteResult } from '../../src/utils/fs.js'
 
 describe('detectUnwiredGateWarning (#1410)', () => {
@@ -69,5 +69,51 @@ describe('detectUnwiredGateWarning (#1410)', () => {
     ]
     const warning = detectUnwiredGateWarning(results) ?? ''
     expect(warning).toContain('re-sync')
+  })
+})
+
+describe('detectGateSignatureWarning (#1504)', () => {
+  it('warns when a gate-invoking workflow is (re)written AND check-all.mjs is withheld', () => {
+    const results: WriteResult[] = [
+      { path: '/p/.github/workflows/01-pr-fast.yml', action: 'backed-up-and-replaced' },
+      { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld: true },
+    ]
+    const warning = detectGateSignatureWarning(results)
+    expect(warning).not.toBeNull()
+    expect(warning).toContain('withheld')
+    expect(warning).toContain('--json')
+    expect(warning).toContain('fake-green')
+  })
+
+  it('fires for a freshly created nightly workflow too', () => {
+    const results: WriteResult[] = [
+      { path: '/p/.github/workflows/06-nightly.yml', action: 'created' },
+      { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld: true },
+    ]
+    expect(detectGateSignatureWarning(results)).not.toBeNull()
+  })
+
+  it('does NOT warn when check-all.mjs is freshly re-synced (not withheld)', () => {
+    const results: WriteResult[] = [
+      { path: '/p/.github/workflows/01-pr-fast.yml', action: 'backed-up-and-replaced' },
+      { path: '/p/scripts/check-all.mjs', action: 'backed-up-and-replaced' },
+    ]
+    expect(detectGateSignatureWarning(results)).toBeNull()
+  })
+
+  it('does NOT warn when no gate-invoking workflow was written (only check-all withheld)', () => {
+    const results: WriteResult[] = [
+      { path: '/p/.github/workflows/15-codeql.yml', action: 'created' },
+      { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld: true },
+    ]
+    expect(detectGateSignatureWarning(results)).toBeNull()
+  })
+
+  it('does NOT warn when the workflow was skipped (unchanged), not (re)written', () => {
+    const results: WriteResult[] = [
+      { path: '/p/.github/workflows/01-pr-fast.yml', action: 'skipped' },
+      { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld: true },
+    ]
+    expect(detectGateSignatureWarning(results)).toBeNull()
   })
 })

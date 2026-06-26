@@ -27,16 +27,59 @@ import { evaluateCoverageGate } from './lib/coverage-gate.mjs';
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
+// >>> ARG-PARSE-START (#1504) — robust, fail-loud gate-arg parsing.
+// Accept EVERY invocation form arbiter emits: the positional level
+// (`check-all.mjs L2`), the subcommand aliases the Makefile + git hooks use
+// (`check`/`gate`/`full`/`simulate-nightly`/`simulate-weekly`), the flag form
+// (`--level L2` / `--level=L2`), and `--json [path]` — in any order.
+// A garbage or missing level FAILS LOUD (exit 2). It must NEVER silently degrade
+// to a weaker level than asked: a positional parser that reads the literal
+// `--level` as the level string skips the L2 branch while the job stays green —
+// that silent L2→L1 downgrade is the exact fake-green this gate exists to kill.
+const _LEVELS = ['L1', 'L2', 'L3', 'L4'];
+// Subcommand alias → level. `check` is the fast pre-commit lane; everything
+// heavier maps to L2 (the strongest tier this generated gate implements).
+const _SUBCOMMAND_LEVEL = {
+  check: 'L1',
+  gate: 'L2',
+  full: 'L2',
+  'simulate-nightly': 'L2',
+  'simulate-weekly': 'L2',
+};
 let level = 'L2';
 let jsonPath = null;
 const _rawArgs = process.argv.slice(2);
+const _gateUsage =
+  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]]';
+function _gateFatal(_msg) {
+  console.error(`[GATE] FATAL: ${_msg}`);
+  console.error(`[GATE] ${_gateUsage}`);
+  process.exit(2);
+}
 for (let _i = 0; _i < _rawArgs.length; _i++) {
-  if (_rawArgs[_i] === '--json') {
-    jsonPath = (_i + 1 < _rawArgs.length && !_rawArgs[_i + 1].startsWith('-')) ? _rawArgs[++_i] : '';
-  } else if (['L1', 'L2', 'L3', 'L4'].includes(_rawArgs[_i])) {
-    level = _rawArgs[_i];
+  const _a = _rawArgs[_i];
+  if (_a === '--json') {
+    jsonPath = _i + 1 < _rawArgs.length && !_rawArgs[_i + 1].startsWith('-') ? _rawArgs[++_i] : '';
+  } else if (_a === '--level') {
+    const _val = _rawArgs[_i + 1];
+    if (!_LEVELS.includes(_val))
+      _gateFatal(`--level requires one of ${_LEVELS.join('|')}, got "${_val ?? '(missing)'}"`);
+    level = _val;
+    _i++;
+  } else if (_a.startsWith('--level=')) {
+    const _val = _a.slice('--level='.length);
+    if (!_LEVELS.includes(_val))
+      _gateFatal(`--level requires one of ${_LEVELS.join('|')}, got "${_val}"`);
+    level = _val;
+  } else if (_LEVELS.includes(_a)) {
+    level = _a;
+  } else if (Object.prototype.hasOwnProperty.call(_SUBCOMMAND_LEVEL, _a)) {
+    level = _SUBCOMMAND_LEVEL[_a];
+  } else {
+    _gateFatal(`unrecognized argument "${_a}"`);
   }
 }
+// <<< ARG-PARSE-END (#1504)
 
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
 // A freshly-upgraded L1→L2 project may run its new L2 gates WARN-only for a
