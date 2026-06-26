@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
-import { computeThresholds } from '../config/thresholds.js'
+import { resolveEffectiveThresholds } from '../config/thresholds.js'
 import type { Archetype, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -31,16 +31,21 @@ export function generateCoverage(
   const results: WriteResult[] = []
   const base = config.targetDir
 
-  const thresholds = computeThresholds(
-    config.linesOfCode ?? 0,
-    config.thresholdProfile ?? 'fixed',
-    config.governanceLevel,
-  )
+  // #1527 — resolve via the single shared precedence rule (same as check-all +
+  // mutation). `thresholds` in the template data is OVERRIDDEN with the resolved
+  // line/branch floors so vitest `lines`/`functions`/`branches`/`statements` all
+  // mirror the same SSOT as the check-all gate — no mixed-SSOT vitest.config.ts.
+  const effective = resolveEffectiveThresholds(config)
 
   const data = {
     ...config,
-    coverageThreshold: thresholds.coverageThreshold,
-    coverageEnabled: thresholds.coverageEnabled,
+    thresholds: {
+      ...config.thresholds,
+      lineCoverage: effective.lineCoverage,
+      branchCoverage: effective.branchCoverage,
+    },
+    coverageThreshold: effective.lineCoverage,
+    coverageEnabled: effective.coverageEnabled,
     // #359 (INV-60): binary-size budget for Rust binary archetypes.
     // Zero for non-binary archetypes; template emission is archetype-gated.
     binarySizeBytes: binarySizeBudget(config.archetype),

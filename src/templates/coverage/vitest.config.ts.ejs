@@ -32,10 +32,15 @@ export default defineConfig({
         // floor when coverage drops between runs — regressions must be an
         // explicit edit, never auto-applied (#353, INV-30 spirit).
         thresholdAutoUpdate: false,
+        // #1527 — all four keys mirror the SAME resolved floor as the check-all
+        // gate. `lines`/`functions`/`statements` share the line-coverage value
+        // (no mixed SSOT); `branches` uses the branch floor. The generator
+        // (src/generators/coverage.ts) overrides `thresholds` with the resolved
+        // values, so this never disagrees with the gate.
         lines: <%= locals.thresholds ? locals.thresholds.lineCoverage : coverageThreshold %>,
-        functions: <%= coverageThreshold %>,
+        functions: <%= locals.thresholds ? locals.thresholds.lineCoverage : coverageThreshold %>,
         branches: <%= locals.thresholds ? locals.thresholds.branchCoverage : coverageThreshold %>,
-        statements: <%= coverageThreshold %>,
+        statements: <%= locals.thresholds ? locals.thresholds.lineCoverage : coverageThreshold %>,
       },
     },
   },

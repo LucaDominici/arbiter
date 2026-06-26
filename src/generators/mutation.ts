@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { resolveEffectiveThresholds } from '../config/thresholds.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -50,8 +51,9 @@ export function generateMutation(
 
   const data: object = {
     ...config,
-    // #484 — `??` not `||`; see comment in src/generators/check-all.ts.
-    mutationThreshold: config.thresholds?.mutationScore ?? 85,
+    // #1527 — resolve via the single shared precedence rule (same as check-all +
+    // coverage); replaces the old hardcoded `?? 85` that ignored computeThresholds.
+    mutationThreshold: resolveEffectiveThresholds(config).mutationScore,
     basePackage: config.basePackage ?? 'com.example',
     modulePath: config.projectName.replace(/-/g, '_'),
   }

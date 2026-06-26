@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
-import { computeThresholds } from '../config/thresholds.js'
+import { resolveEffectiveThresholds } from '../config/thresholds.js'
 import { isSubtreeFrontendLane } from '../detectors/lanes.js'
 import type { Archetype, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -219,21 +219,17 @@ export function generateCheckAll(
   const results: WriteResult[] = []
   const base = config.targetDir
 
-  const computed = computeThresholds(
-    config.linesOfCode ?? 0,
-    config.thresholdProfile ?? 'fixed',
-    config.governanceLevel,
-  )
+  // #1527 — single resolver shared with the coverage + mutation generators so
+  // the gate floor can never disagree with the tool-config floor for the same
+  // project. Replaces the old per-generator `?? computed` precedence (#484).
+  const effective = resolveEffectiveThresholds(config)
 
   const data = {
     ...config,
-    // #484 — use `??` not `||` so explicit numeric thresholds (validated > 0 by
-    // src/config/schema.ts::validateThresholds) are honored. `||` would treat
-    // 0 as falsy and silently substitute the computed default.
-    coverageThreshold: config.thresholds?.lineCoverage ?? computed.coverageThreshold,
-    coverageEnabled: computed.coverageEnabled,
-    mutationEnabled: computed.mutationEnabled,
-    mutationThreshold: config.thresholds?.mutationScore ?? computed.mutationThreshold,
+    coverageThreshold: effective.lineCoverage,
+    coverageEnabled: effective.coverageEnabled,
+    mutationEnabled: effective.mutationEnabled,
+    mutationThreshold: effective.mutationScore,
     // #359 (INV-60): binary-size cap consumed by the rust archetype branch of
     // check-all.mjs. Value is 0 for non-binary archetypes; the template guards
     // emission on archetype before reading the variable, so 0 is inert.

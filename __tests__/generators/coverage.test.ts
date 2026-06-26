@@ -56,6 +56,52 @@ describe('generateCoverage', () => {
     expect(content).toContain("include: ['src/**']")
   })
 
+  it('#1527: vitest lines/functions/statements share ONE floor (no mixed SSOT)', () => {
+    // At L1 the old template emitted lines:60 but functions/statements:80 inside
+    // the same file (SSOT-A vs SSOT-B). They must now all be the same number.
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      governanceLevel: 'L1',
+      enableDebtGates: true,
+      thresholdProfile: 'fixed',
+    })
+    generateCoverage(config)
+    const content = readFileSync(join(dir, 'vitest.config.ts'), 'utf-8')
+    const grab = (key: string): number => {
+      const m = content.match(new RegExp(`${key}:\\s*(\\d+)`))
+      if (!m) throw new Error(`missing ${key} in vitest.config.ts`)
+      return Number(m[1])
+    }
+    const lines = grab('lines')
+    expect(lines).toBe(60) // DEFAULT_THRESHOLDS.L1.lineCoverage — the single SSOT
+    expect(grab('functions')).toBe(lines)
+    expect(grab('statements')).toBe(lines)
+    expect(grab('branches')).toBe(50) // DEFAULT_THRESHOLDS.L1.branchCoverage
+  })
+
+  it('#1527: an explicit lineCoverage override propagates to all coverage keys', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      enableDebtGates: true,
+      thresholdProfile: 'fixed',
+      thresholds: {
+        lineCoverage: 90,
+        branchCoverage: 70,
+        mutationScore: 80,
+        cyclomaticComplexity: 15,
+        methodLength: 65,
+        maxParams: 7,
+      },
+    })
+    generateCoverage(config)
+    const content = readFileSync(join(dir, 'vitest.config.ts'), 'utf-8')
+    expect(content).toContain('lines: 90')
+    expect(content).toContain('functions: 90')
+    expect(content).toContain('statements: 90')
+    expect(content).toContain('branches: 70')
+  })
+
   // ── Java ───────────────────────────────────────────────────────────────────
 
   it('generates gradle/jacoco.gradle for Java Gradle projects', () => {
