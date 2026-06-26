@@ -204,10 +204,34 @@ async function writeTarGz(runDir: string, files: string[], outPath: string): Pro
   await pipeline(Readable.from(tarEntries(runDir, files)), createGzip(), createWriteStream(outPath))
 }
 
+/**
+ * Split a relative path into ustar `prefix` (≤155 bytes, offset 345) + `name`
+ * (≤100 bytes, offset 0) fields. Both limits are measured in UTF-8 BYTES — the unit
+ * actually written — not UTF-16 code units, so multi-byte paths are validated against
+ * their true on-disk size (#1571). A path whose UTF-8 size exceeds 100 bytes is split
+ * on a `/` boundary instead of aborting the whole bundle; only a single path component
+ * that is itself >100 bytes (or a total >255) is unrepresentable and throws.
+ */
+function splitUstarName(name: string): { name: string; prefix: string } {
+  if (Buffer.byteLength(name, 'utf8') <= 100) return { name, prefix: '' }
+  // Scan separators left→right: the first split whose trailing segment fits the
+  // 100-byte name field has the smallest qualifying prefix. If that prefix still
+  // exceeds 155 bytes, no later (larger) prefix can fit either → unrepresentable.
+  for (let i = name.indexOf('/'); i !== -1; i = name.indexOf('/', i + 1)) {
+    const rest = name.slice(i + 1)
+    if (rest.length > 0 && Buffer.byteLength(rest, 'utf8') <= 100) {
+      const prefix = name.slice(0, i)
+      if (Buffer.byteLength(prefix, 'utf8') <= 155) return { name: rest, prefix }
+      break
+    }
+  }
+  throw new Error(`tar entry name too long for ustar (no <=100-byte split): ${name}`)
+}
+
 function makeTarHeader(name: string, size: number): Buffer {
   const header = Buffer.alloc(512)
-  if (name.length > 100) throw new Error(`tar entry name too long: ${name}`)
-  header.write(name, 0, 100, 'utf-8')
+  const { name: nameField, prefix } = splitUstarName(name)
+  header.write(nameField, 0, 100, 'utf-8')
   writeOctal(header, 100, 8, 0o644)
   writeOctal(header, 108, 8, 0)
   writeOctal(header, 116, 8, 0)
@@ -217,6 +241,9 @@ function makeTarHeader(name: string, size: number): Buffer {
   header.write('0', 156, 1, 'utf-8')
   header.write('ustar\0', 257, 6, 'utf-8')
   header.write('00', 263, 2, 'utf-8')
+  // ustar prefix field (offset 345, 155 bytes): only written for deep paths so the
+  // common short-path header stays byte-identical.
+  if (prefix.length > 0) header.write(prefix, 345, 155, 'utf-8')
   let checksum = 0
   for (let i = 0; i < 512; i++) checksum += header[i] ?? 0
   writeOctal(header, 148, 7, checksum)
@@ -237,4 +264,6 @@ export const __internal = {
   writeManifest,
   readManifestFiles,
   tarEntries,
+  makeTarHeader,
+  splitUstarName,
 }
