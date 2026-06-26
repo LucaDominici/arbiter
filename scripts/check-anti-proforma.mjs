@@ -9,9 +9,10 @@
 // Exit codes per INV-53: 0=PASS/WARN (warn-default), 1=FAIL (--enforce), 2=ERROR
 // Usage: node scripts/check-anti-proforma.mjs [--dir=<path>] [--enforce] [--help]
 
-import { readdirSync, statSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 
@@ -59,7 +60,6 @@ const ASSERTION_PATTERNS = [
 
 const TEST_BLOCK_PATTERN = /^\s*(?:it|test)\s*\(/
 const EXEMPT_COMMENT_PATTERN = /\/\/\s*anti-proforma-exempt:/i
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
 
 /**
  * Returns true if the filename is a test file.
@@ -102,30 +102,15 @@ function parseArgs() {
 }
 
 /**
- * Recursively walk directories for test files.
+ * Collect test files under `dir` via the shared, cycle-safe walker (#1521). walkRepo's SKIP_DIRS
+ * already prune node_modules/.git/dist/build/coverage/.coverage.
  */
-function walkDir(dir, files) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
+function collectTestFiles(dir) {
+  const files = []
+  for (const rel of walkRepo(dir)) {
+    if (isTestFile(rel.slice(rel.lastIndexOf('/') + 1))) files.push(join(dir, rel))
   }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let stat
-    try {
-      stat = statSync(full)
-    } catch {
-      continue
-    }
-    if (stat.isDirectory()) {
-      walkDir(full, files)
-    } else if (isTestFile(entry)) {
-      files.push(full)
-    }
-  }
+  return files
 }
 
 /**
@@ -195,8 +180,7 @@ function main() {
     process.exit(0)
   }
 
-  const testFiles = []
-  walkDir(dir, testFiles)
+  const testFiles = collectTestFiles(dir)
 
   let totalTests = 0
   let proformaViolations = 0

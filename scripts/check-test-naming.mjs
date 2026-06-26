@@ -2,8 +2,9 @@
 // Test naming convention gate for arbiter
 // Flags test files that don't follow the project's naming convention.
 // Exit 1 if violations found (HARD gate — L1+).
-import { readdirSync, statSync, readFileSync } from 'node:fs'
-import { join, extname } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 let violations = 0
 
@@ -12,48 +13,32 @@ function flag(file, message) {
   violations++
 }
 
-// TypeScript: test files must match *.test.ts or *.spec.ts
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage'])
-function walkTs(dir) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let stat
+// TypeScript: test files must match *.test.ts or *.spec.ts. Walk via the shared, cycle-safe
+// helper (#1521) — its SKIP_DIRS already prune node_modules/.git/dist/build/coverage/.coverage.
+function checkTs(root) {
+  for (const rel of walkRepo(root)) {
+    if (!rel.endsWith('.ts') || rel.endsWith('.d.ts')) continue
+    const full = join(root, rel)
+    const looksLikeTest = rel.endsWith('.test.ts') || rel.endsWith('.spec.ts')
+    let content = ''
     try {
-      stat = statSync(full)
+      content = readFileSync(full, 'utf-8')
     } catch {
       continue
     }
-    if (stat.isDirectory()) {
-      walkTs(full)
-    } else if (extname(entry) === '.ts' && !entry.endsWith('.d.ts')) {
-      const looksLikeTest = entry.endsWith('.test.ts') || entry.endsWith('.spec.ts')
-      let content = ''
-      try {
-        content = readFileSync(full, 'utf-8')
-      } catch {
-        continue
-      }
-      const hasTestImport =
-        content.includes("from 'vitest'") ||
-        content.includes('from "vitest"') ||
-        content.includes("from '@jest") ||
-        content.includes('from "@jest') ||
-        (content.includes('describe(') && content.includes('it('))
-      if (hasTestImport && !looksLikeTest) {
-        flag(full, 'test file must be named *.test.ts or *.spec.ts')
-      }
+    const hasTestImport =
+      content.includes("from 'vitest'") ||
+      content.includes('from "vitest"') ||
+      content.includes("from '@jest") ||
+      content.includes('from "@jest') ||
+      (content.includes('describe(') && content.includes('it('))
+    if (hasTestImport && !looksLikeTest) {
+      flag(full, 'test file must be named *.test.ts or *.spec.ts')
     }
   }
 }
-walkTs('src')
-walkTs('__tests__')
+checkTs('src')
+checkTs('__tests__')
 
 if (violations > 0) {
   console.error(
