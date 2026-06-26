@@ -184,10 +184,12 @@ export function fileExists(abs: string): boolean {
 export const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
 
 /**
- * Translate a restricted glob (`**`, `*`) into a RegExp and test a POSIX path. Shared by the
- * conformance engine and the dimension probes (one matcher, no hand-written copies — CANON-16).
+ * Compile a restricted glob (`**`, `*`) into a RegExp ONCE. Compiling is the per-check cost; a
+ * caller filtering many paths against one glob compiles a single RegExp here and `.test()`s it per
+ * file (instead of `new RegExp` per file — #1522). Output-invariant ⇒ engine-parity is preserved.
+ * Internal: callers go through {@link globMatch} (single path) or {@link expandGlob} (a file list).
  */
-export function globMatch(pattern: string, filepath: string): boolean {
+function globToRegExp(pattern: string): RegExp {
   let reStr = '^'
   let i = 0
   while (i < pattern.length) {
@@ -212,7 +214,16 @@ export function globMatch(pattern: string, filepath: string): boolean {
     }
   }
   reStr += '$'
-  return new RegExp(reStr).test(filepath)
+  return new RegExp(reStr)
+}
+
+/**
+ * Translate a restricted glob (`**`, `*`) into a RegExp and test a POSIX path. Shared by the
+ * conformance engine and the dimension probes (one matcher, no hand-written copies — CANON-16).
+ * Convenience wrapper over {@link globToRegExp} for one-off single-path tests.
+ */
+export function globMatch(pattern: string, filepath: string): boolean {
+  return globToRegExp(pattern).test(filepath)
 }
 
 /** Reject absolute or `..`-traversal globs (path-traversal guard). */
@@ -279,10 +290,14 @@ export function walkRepo(root: string): string[] {
  * is invalid (absolute / `..`-traversal / non-string / empty). An empty array is a valid "matched
  * nothing". Sort is a plain code-unit `.sort()` (NEVER localeCompare) for byte-identical ordering
  * across the TS and .mjs engines.
+ *
+ * `files` is an OPTIONAL pre-walked repo file list (#1522): when a single `evaluate()` resolves
+ * several globs it walks the tree once and threads the result here, so K glob checks share ONE
+ * tree-walk instead of K. Absent ⇒ this walks the tree itself (the standalone-call contract is
+ * unchanged). The glob's RegExp is compiled once (via {@link globToRegExp}) and tested per file.
  */
-export function expandGlob(root: string, pattern: string): string[] | null {
+export function expandGlob(root: string, pattern: string, files?: string[]): string[] | null {
   if (typeof pattern !== 'string' || pattern === '' || !validateGlob(pattern)) return null
-  return walkRepo(root)
-    .filter((f) => globMatch(pattern, f))
-    .sort()
+  const re = globToRegExp(pattern)
+  return (files ?? walkRepo(root)).filter((f) => re.test(f)).sort()
 }
