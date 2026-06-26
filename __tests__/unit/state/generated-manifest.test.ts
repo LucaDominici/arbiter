@@ -7,6 +7,7 @@ import {
   GENERATED_MANIFEST_FILE,
   loadGeneratedManifest,
   saveGeneratedManifest,
+  loadUnwiredGuards,
   manifestKey,
 } from '../../../src/state/generated-manifest.js'
 import { FatalError } from '../../../src/utils/errors.js'
@@ -65,6 +66,59 @@ describe('generated-manifest', () => {
       'utf-8',
     )
     expect(() => loadGeneratedManifest(dir)).toThrow(FatalError)
+  })
+
+  describe('unwiredGuards honest-status section (#1504/M1)', () => {
+    const files = { 'scripts/check-anti-fake-green.mjs': 'a'.repeat(64) }
+
+    it('records shipped-but-unwired guards as a distinct honest section, sorted+deduped', () => {
+      saveGeneratedManifest(dir, files, [
+        'scripts/check-min-test-execution.mjs',
+        'scripts/check-anti-fake-green.mjs',
+        'scripts/check-anti-fake-green.mjs', // dup
+      ])
+      expect(loadUnwiredGuards(dir)).toEqual([
+        'scripts/check-anti-fake-green.mjs',
+        'scripts/check-min-test-execution.mjs',
+      ])
+      // The guard is STILL tracked in files (for hash provenance) but the honest
+      // section flags it as not-fully-delivered — the manifest no longer over-claims.
+      expect(loadGeneratedManifest(dir)['scripts/check-anti-fake-green.mjs']).toBeDefined()
+    })
+
+    it('omits the section entirely when there is no gap (clean manifest stays byte-identical)', () => {
+      saveGeneratedManifest(dir, files)
+      const raw = readFileSync(join(dir, GENERATED_MANIFEST_FILE), 'utf-8')
+      expect(raw).not.toContain('unwiredGuards')
+      expect(loadUnwiredGuards(dir)).toEqual([])
+    })
+
+    it('clears a previously-recorded gap once the gate is wired (empty list omits the section)', () => {
+      saveGeneratedManifest(dir, files, ['scripts/check-anti-fake-green.mjs'])
+      expect(loadUnwiredGuards(dir)).toHaveLength(1)
+      saveGeneratedManifest(dir, files, [])
+      expect(loadUnwiredGuards(dir)).toEqual([])
+    })
+
+    it('missing manifest → empty unwired list (no false positive)', () => {
+      expect(loadUnwiredGuards(dir)).toEqual([])
+    })
+
+    it('malformed unwiredGuards (non-string array) fails CLOSED, never silently dropped', () => {
+      writeFileSync(
+        join(dir, GENERATED_MANIFEST_FILE),
+        JSON.stringify({ $schemaVersion: 1, files: {}, unwiredGuards: [42] }),
+        'utf-8',
+      )
+      expect(() => loadUnwiredGuards(dir)).toThrow(FatalError)
+      expect(() => loadGeneratedManifest(dir)).toThrow(FatalError)
+    })
+
+    it('unwiredGuards present as a valid string[] round-trips through loadGeneratedManifest too', () => {
+      saveGeneratedManifest(dir, files, ['scripts/check-anti-fake-green.mjs'])
+      // The files map still loads cleanly (the honest section does not break it).
+      expect(loadGeneratedManifest(dir)).toEqual(files)
+    })
   })
 
   describe('manifestKey (A7 posix normalization + containment)', () => {

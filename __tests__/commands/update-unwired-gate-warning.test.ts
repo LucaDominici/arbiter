@@ -3,7 +3,11 @@
 // scripts/check-all.mjs is WITHHELD (user-modified), the new gate lands unwired —
 // update must emit an explicit warning. Pure helper unit-tested directly.
 import { describe, it, expect } from 'vitest'
-import { detectUnwiredGateWarning, detectGateSignatureWarning } from '../../src/commands/update.js'
+import {
+  detectUnwiredGateWarning,
+  detectGateSignatureWarning,
+  unwiredGuardKeys,
+} from '../../src/commands/update.js'
 import type { WriteResult } from '../../src/utils/fs.js'
 
 describe('detectUnwiredGateWarning (#1410)', () => {
@@ -69,6 +73,48 @@ describe('detectUnwiredGateWarning (#1410)', () => {
     ]
     const warning = detectUnwiredGateWarning(results) ?? ''
     expect(warning).toContain('re-sync')
+  })
+})
+
+describe('unwiredGuardKeys — honest manifest section (#1504/M1)', () => {
+  it('returns targetDir-relative keys of newly-landed guards when check-all is withheld', () => {
+    const results: WriteResult[] = [
+      { path: '/p/scripts/check-anti-fake-green.mjs', action: 'created' },
+      { path: '/p/scripts/check-min-test-execution.mjs', action: 'backed-up-and-replaced' },
+      { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld: true },
+    ]
+    expect(unwiredGuardKeys(results, '/p')).toEqual([
+      'scripts/check-anti-fake-green.mjs',
+      'scripts/check-min-test-execution.mjs',
+    ])
+  })
+
+  it('returns the SAME set the warning lists (file and console cannot disagree)', () => {
+    const results: WriteResult[] = [
+      { path: '/p/scripts/check-foo.mjs', action: 'created' },
+      { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld: true },
+    ]
+    const keys = unwiredGuardKeys(results, '/p')
+    const warning = detectUnwiredGateWarning(results) ?? ''
+    expect(keys).toEqual(['scripts/check-foo.mjs'])
+    // every recorded key's basename appears in the operator-facing warning
+    for (const k of keys) expect(warning).toContain(k.slice(k.lastIndexOf('/') + 1))
+  })
+
+  it('is EMPTY when check-all is freshly re-synced (gap closed → no over-claim, no false flag)', () => {
+    const results: WriteResult[] = [
+      { path: '/p/scripts/check-foo.mjs', action: 'created' },
+      { path: '/p/scripts/check-all.mjs', action: 'backed-up-and-replaced' },
+    ]
+    expect(unwiredGuardKeys(results, '/p')).toEqual([])
+  })
+
+  it('is EMPTY when no new guard landed (only check-all withheld)', () => {
+    const results: WriteResult[] = [
+      { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld: true },
+      { path: '/p/AGENTS.md', action: 'created' },
+    ]
+    expect(unwiredGuardKeys(results, '/p')).toEqual([])
   })
 })
 

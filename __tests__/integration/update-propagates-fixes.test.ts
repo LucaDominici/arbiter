@@ -11,7 +11,11 @@ import { createHash } from 'node:crypto'
 import { runInit } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { runDiff } from '../../src/commands/diff.js'
-import { loadGeneratedManifest, saveGeneratedManifest } from '../../src/state/generated-manifest.js'
+import {
+  loadGeneratedManifest,
+  saveGeneratedManifest,
+  loadUnwiredGuards,
+} from '../../src/state/generated-manifest.js'
 
 const sha = (s: string): string => createHash('sha256').update(s).digest('hex')
 
@@ -212,5 +216,62 @@ describe('#1344 withheld template-fix visibility', () => {
     }
     const done = writes.find((w) => w.includes('withheld')) ?? ''
     expect(done).toMatch(/[1-9]\d* withheld/)
+  })
+})
+
+// #1504 (M1): when check-all.mjs is WITHHELD and a guard script lands fresh (the
+// anti-fake-green rollout footgun), the manifest must NOT silently claim that guard
+// as delivered protection — it records it in an honest shipped-but-unwired section.
+describe('#1504 manifest honesty for withheld-gate guards', () => {
+  let dir: string
+
+  beforeEach(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'arb-1504-'))
+    initGit(dir)
+    await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('does NOT mark a freshly-landed guard as fully delivered when check-all is withheld', async () => {
+    const manifest = loadGeneratedManifest(dir)
+    // Pick a real guard script emitted by init (NOT check-all itself).
+    const guardKey = Object.keys(manifest).find(
+      (k) => /^scripts\/check-[^/]+\.mjs$/.test(k) && k !== 'scripts/check-all.mjs',
+    )
+    expect(guardKey).toBeDefined()
+    if (!guardKey) return
+
+    // Simulate the rollout footgun: the guard is ABSENT (predates this arbiter), so
+    // `update` re-creates it = newly landed; meanwhile check-all.mjs is user-modified
+    // so the template fix that wires the guard is withheld.
+    rmSync(join(dir, guardKey))
+    const withoutGuard = Object.fromEntries(
+      Object.entries(manifest).filter(([k]) => k !== guardKey),
+    )
+    writeFileSync(join(dir, 'scripts', 'check-all.mjs'), '// USER EDIT — diverged gate\n')
+    saveGeneratedManifest(dir, withoutGuard)
+
+    // The unwired-gate warning fires here → update exits with the warning code (1);
+    // swallow it so we can assert the manifest the run persisted before exiting.
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    try {
+      await runUpdate({ dir, github: false })
+    } finally {
+      exitSpy.mockRestore()
+    }
+
+    // Honest status: the re-created guard is flagged shipped-but-unwired, NOT a
+    // silent "delivered" file the project's manifest claims as live protection.
+    const unwired = loadUnwiredGuards(dir)
+    expect(unwired).toContain(guardKey)
+    // The guard is still tracked in `files` (hash provenance for future fixes)…
+    expect(loadGeneratedManifest(dir)[guardKey]).toBeDefined()
+  })
+
+  it('records NO unwired section on a clean update (check-all not withheld)', async () => {
+    await runUpdate({ dir, github: false })
+    expect(loadUnwiredGuards(dir)).toEqual([])
   })
 })

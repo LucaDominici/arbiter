@@ -4,7 +4,11 @@ import { resolve, basename, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, FatalError } from '../utils/errors.js'
 import { beginGenerationSession, endGenerationSession, type WriteResult } from '../utils/fs.js'
-import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
+import {
+  loadGeneratedManifest,
+  saveGeneratedManifest,
+  manifestKey,
+} from '../state/generated-manifest.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
@@ -67,12 +71,35 @@ function isNewlyLandedCheckScript(r: WriteResult): boolean {
  * Exported for unit testing the pure decision independent of the heavy runUpdate
  * filesystem/git path.
  */
-export function detectUnwiredGateWarning(results: WriteResult[]): string | null {
+/**
+ * The newly-landed `scripts/check-*.mjs` gate scripts that are unwired because
+ * `scripts/check-all.mjs` is withheld. The single source for BOTH the post-update
+ * warning ({@link detectUnwiredGateWarning}) and the honest manifest section
+ * ({@link unwiredGuardKeys}) — they must list exactly the same set so the file on
+ * disk and the operator's console can never disagree.
+ */
+function unwiredGuardResults(results: WriteResult[]): WriteResult[] {
   const checkAllWithheld = results.some(
     (r) => r.withheld === true && r.path.replace(/\\/g, '/').endsWith('/scripts/check-all.mjs'),
   )
-  if (!checkAllWithheld) return null
-  const newGates = results.filter(isNewlyLandedCheckScript).map((r) => {
+  if (!checkAllWithheld) return []
+  return results.filter(isNewlyLandedCheckScript)
+}
+
+/**
+ * #1504 (M1): the targetDir-relative manifest keys of the shipped-but-unwired
+ * guards, for recording in `.arbiter-generated-manifest.json`. Paths that escape
+ * targetDir (manifestKey → null) are dropped, matching the manifest's own
+ * portable-key contract. Exported for unit testing the pure decision.
+ */
+export function unwiredGuardKeys(results: WriteResult[], targetDir: string): string[] {
+  return unwiredGuardResults(results)
+    .map((r) => manifestKey(targetDir, r.path))
+    .filter((k): k is string => k !== null)
+}
+
+export function detectUnwiredGateWarning(results: WriteResult[]): string | null {
+  const newGates = unwiredGuardResults(results).map((r) => {
     const norm = r.path.replace(/\\/g, '/')
     return norm.slice(norm.lastIndexOf('/') + 1)
   })
@@ -183,7 +210,13 @@ function selectAndRunWithManifest(
   beginGenerationSession({ targetDir, prevHashes: prevManifest })
   const out = selectAndRun(specs, snapshot, stored)
   const generatedHashes = endGenerationSession()
-  saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes })
+  // #1504 (M1): record any delivered-but-unwired guard scripts (check-all withheld)
+  // as an HONEST status in the manifest — re-derived every update so wiring the
+  // gate later clears it. Without this the manifest's `files` map over-claims a
+  // guard that never runs as "delivered protection" (the exact fake-green this wave
+  // exists to kill). Mirrors the post-update warning surfaced in runUpdate.
+  const unwired = unwiredGuardKeys(out.results, targetDir)
+  saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes }, unwired)
   return out
 }
 

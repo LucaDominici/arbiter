@@ -30,6 +30,19 @@ const CURRENT_MANIFEST_VERSION = 1
 interface GeneratedManifestV1 {
   $schemaVersion: 1
   files: Record<string, string>
+  /**
+   * #1504 (M1): targetDir-relative paths of delivered guard scripts that are
+   * SHIPPED-BUT-UNWIRED — present on disk (and tracked in `files`) but NOT invoked
+   * by the project's effective gate because `scripts/check-all.mjs` is withheld
+   * (user-modified, so the template fix that wires them was preserved, not applied).
+   *
+   * The honest counterpart to the post-update unwired-gate warning: a downstream
+   * reader/auditor that trusts `files` as "delivered protection" would otherwise
+   * over-read a guard that never runs. Listing it here records the gap instead of
+   * silently claiming delivery. Omitted entirely when there is no gap (clean
+   * manifests stay byte-identical — no fleet-wide churn).
+   */
+  unwiredGuards?: string[]
 }
 
 /**
@@ -80,6 +93,35 @@ export function loadGeneratedManifest(dir: string): Record<string, string> {
   return parsed.files
 }
 
+/**
+ * Read the honest shipped-but-unwired guard list (#1504/M1). Returns `[]` for a
+ * missing manifest or one with no gap. Shares the same fail-closed load path as
+ * {@link loadGeneratedManifest}: a corrupt/wrong-shape manifest THROWS rather than
+ * masking the gap. The downstream counterpart to the post-update warning — an
+ * auditor calls this to see which delivered guards never run.
+ */
+export function loadUnwiredGuards(dir: string): string[] {
+  const path = join(dir, GENERATED_MANIFEST_FILE)
+  if (!existsSync(path)) return []
+  const raw = readFileSync(path, 'utf-8')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    throw new FatalError(
+      'E_MANIFEST_CORRUPT',
+      `${GENERATED_MANIFEST_FILE} is present but unparseable (${err instanceof Error ? err.message : String(err)}).`,
+    )
+  }
+  if (!isManifestShape(parsed)) {
+    throw new FatalError(
+      'E_MANIFEST_SHAPE',
+      `${GENERATED_MANIFEST_FILE} has an invalid shape or unsupported $schemaVersion.`,
+    )
+  }
+  return parsed.unwiredGuards ?? []
+}
+
 function isManifestShape(v: unknown): v is GeneratedManifestV1 {
   if (typeof v !== 'object' || v === null) return false
   const obj = v as Record<string, unknown>
@@ -88,7 +130,16 @@ function isManifestShape(v: unknown): v is GeneratedManifestV1 {
   if (obj['$schemaVersion'] !== CURRENT_MANIFEST_VERSION) return false
   const files = obj['files']
   if (typeof files !== 'object' || files === null || Array.isArray(files)) return false
-  return Object.values(files as Record<string, unknown>).every((h) => typeof h === 'string')
+  if (!Object.values(files as Record<string, unknown>).every((h) => typeof h === 'string'))
+    return false
+  // Optional honest-status section (#1504/M1): when present it MUST be a string[]
+  // — a malformed unwiredGuards fails closed rather than being silently dropped,
+  // which would re-hide the gap it exists to surface.
+  const unwired = obj['unwiredGuards']
+  if (unwired !== undefined) {
+    if (!Array.isArray(unwired) || !unwired.every((s) => typeof s === 'string')) return false
+  }
+  return true
 }
 
 /**
@@ -98,10 +149,20 @@ function isManifestShape(v: unknown): v is GeneratedManifestV1 {
  * into fleet commits; the manifest is deterministic/regenerated, so no backup is
  * warranted.
  */
-export function saveGeneratedManifest(dir: string, files: Record<string, string>): void {
+export function saveGeneratedManifest(
+  dir: string,
+  files: Record<string, string>,
+  unwiredGuards: string[] = [],
+): void {
   const path = join(dir, GENERATED_MANIFEST_FILE)
   const sorted = Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b)))
   const envelope: GeneratedManifestV1 = { $schemaVersion: CURRENT_MANIFEST_VERSION, files: sorted }
+  // Only attach the honest-status section when there IS a gap, so a clean update
+  // leaves the manifest byte-identical to today (no fleet-wide diff churn). The
+  // list is re-derived every update, so wiring the gate later clears it.
+  if (unwiredGuards.length > 0) {
+    envelope.unwiredGuards = [...new Set(unwiredGuards)].sort((a, b) => a.localeCompare(b))
+  }
   const body = JSON.stringify(envelope, null, 2) + '\n'
   mkdirSync(dirname(path), { recursive: true })
   const tmp = `${path}.arbiter-tmp-${randomBytes(4).toString('hex')}`

@@ -59,6 +59,9 @@ vi.mock('../../src/generators/registry.js', () => ({
 vi.mock('../../src/state/generated-manifest.js', () => ({
   loadGeneratedManifest: vi.fn().mockReturnValue({}),
   saveGeneratedManifest: vi.fn(),
+  // #1504: update now derives unwired-guard manifest keys via manifestKey.
+  manifestKey: (targetDir: string, filePath: string): string =>
+    filePath.replace(`${targetDir}/`, '').replace(/\\/g, '/'),
 }))
 vi.mock('../../src/commands/init.js', () => ({
   runGithubSetup: vi.fn().mockReturnValue({ warnings: [] }),
