@@ -26,6 +26,46 @@ interface GhField {
   name: string
 }
 
+/**
+ * Validate one `gh project list` element before it is trusted as a
+ * {@link GhProject}. Without this, an element lacking a string `title` throws a
+ * cryptic `Cannot read properties of undefined (reading 'startsWith')` deep in
+ * `.find()`; the surrounding try/catch then surfaces an opaque message. Mirrors
+ * the wrapper checks already present in this module. (#1536)
+ */
+function assertGhProject(value: unknown, i: number): GhProject {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error(`Unexpected gh project list output: element ${i} is not an object`)
+  }
+  const obj = value as Record<string, unknown>
+  if (typeof obj['number'] !== 'number') {
+    throw new Error(
+      `Unexpected gh project list output: element ${i} missing numeric "number" field`,
+    )
+  }
+  if (typeof obj['title'] !== 'string') {
+    throw new Error(`Unexpected gh project list output: element ${i} missing string "title" field`)
+  }
+  if (typeof obj['url'] !== 'string') {
+    throw new Error(`Unexpected gh project list output: element ${i} missing string "url" field`)
+  }
+  return value as GhProject
+}
+
+/** Validate one `gh project field-list` element as a {@link GhField}. (#1536) */
+function assertGhField(value: unknown, i: number): GhField {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    typeof (value as Record<string, unknown>)['name'] !== 'string'
+  ) {
+    throw new Error(
+      `Unexpected gh project field-list output: element ${i} missing string "name" field`,
+    )
+  }
+  return value as GhField
+}
+
 function findExistingBoard(
   owner: string,
   prefix: string,
@@ -50,7 +90,7 @@ function findExistingBoard(
     if (!Array.isArray(rawObj['projects'])) {
       throw new Error(`Unexpected gh project list output: "projects" field is not an array`)
     }
-    const projects = rawObj['projects'] as GhProject[]
+    const projects = rawObj['projects'].map((item, i) => assertGhProject(item, i))
     const match = projects.find((p) => p.title === prefix || p.title.startsWith(prefix + ' · '))
     return match ? { number: match.number, url: match.url } : null
   } catch (err) {
@@ -88,7 +128,7 @@ function existingFieldNames(
     if (!Array.isArray(rawObj['fields'])) {
       throw new Error(`Unexpected gh project field-list output: "fields" field is not an array`)
     }
-    const fields = rawObj['fields'] as GhField[]
+    const fields = rawObj['fields'].map((item, i) => assertGhField(item, i))
     return new Set(fields.map((f) => f.name))
   } catch (err) {
     // #492: surface the error rather than swallowing it. Without this, malformed

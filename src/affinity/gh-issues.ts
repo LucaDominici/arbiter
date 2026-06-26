@@ -21,6 +21,33 @@ function stripHash(id: string): string {
   return id.startsWith('#') ? id.slice(1) : id
 }
 
+/**
+ * Validate `gh issue {view,list}` JSON before it is trusted as a
+ * {@link GhIssueRaw}. `runCliJson` returns `unknown` so callers narrow it; a
+ * blind `as GhIssueRaw` cast let a missing `number` surface downstream as the
+ * id `#undefined`. `toAffinityIssue` already degrades gracefully on
+ * `labels`/`milestone`, so only `number` needs a hard assertion. (#1536)
+ */
+function assertGhIssueRaw(value: unknown, ctx: string): GhIssueRaw {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    typeof (value as Record<string, unknown>)['number'] !== 'number'
+  ) {
+    throw new Error(`Unexpected ${ctx} output: missing numeric "number" field`)
+  }
+  return value as GhIssueRaw
+}
+
+function parseGhIssueRawList(raw: unknown): GhIssueRaw[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `Unexpected gh issue list output: expected array, got ${raw === null ? 'null' : typeof raw}`,
+    )
+  }
+  return raw.map((item, i) => assertGhIssueRaw(item, `gh issue list[${i}]`))
+}
+
 function toAffinityIssue(raw: GhIssueRaw): AffinityIssue {
   const issue: AffinityIssue = {
     id: `#${raw.number}`,
@@ -42,32 +69,33 @@ export function fetchAffinityContext(
   const num = stripHash(subjectId)
   const cwdOpt = opts.dir !== undefined ? { cwd: opts.dir } : {}
 
-  const rawSubject = runCliJson(
-    'gh',
-    ['issue', 'view', num, '--json', 'number,labels,milestone'],
-    cwdOpt,
-  ) as GhIssueRaw
+  const rawSubject = assertGhIssueRaw(
+    runCliJson('gh', ['issue', 'view', num, '--json', 'number,labels,milestone'], cwdOpt),
+    'gh issue view',
+  )
   const subject = toAffinityIssue(rawSubject)
 
   // No milestone → no same-milestone siblings to correlate against (solo).
   if (subject.milestone === undefined) return { subject, candidates: [] }
 
-  const rawList = runCliJson(
-    'gh',
-    [
-      'issue',
-      'list',
-      '--state',
-      'open',
-      '--milestone',
-      subject.milestone,
-      '--limit',
-      String(SIBLING_CAP),
-      '--json',
-      'number,labels,milestone',
-    ],
-    cwdOpt,
-  ) as GhIssueRaw[]
+  const rawList = parseGhIssueRawList(
+    runCliJson(
+      'gh',
+      [
+        'issue',
+        'list',
+        '--state',
+        'open',
+        '--milestone',
+        subject.milestone,
+        '--limit',
+        String(SIBLING_CAP),
+        '--json',
+        'number,labels,milestone',
+      ],
+      cwdOpt,
+    ),
+  )
 
   const candidates = rawList
     .map(toAffinityIssue)
