@@ -55,21 +55,38 @@ describe('emitWaveIssues', () => {
 
 // ─── Creates one issue per W1 dim ─────────────────────────────────────────────
 
+/** Find the `gh issue create` calls among all runCli invocations. */
+function createCalls(): Array<[string, string[]]> {
+  return (runCli as ReturnType<typeof vi.fn>).mock.calls.filter((c) =>
+    (c as [string, string[]])[1]?.includes('create'),
+  ) as Array<[string, string[]]>
+}
+
 describe('emitWaveIssues — with W1 dims', () => {
-  it('calls runCli once per W1 dim', () => {
+  it('creates one issue per W1 dim', () => {
     const plan = makeWavePlan([
       { dimId: 'N03', category: 'static-analysis' },
       { dimId: 'N07', category: 'testing' },
     ])
     const result = emitWaveIssues(plan, false)
-    expect(runCli).toHaveBeenCalledTimes(2)
+    expect(createCalls()).toHaveLength(2)
     expect(result.created).toBe(2)
+    expect(result.failed).toBe(0)
+  })
+
+  it('queries existing issues once before creating (dedup probe)', () => {
+    const plan = makeWavePlan([{ dimId: 'N03', category: 'static-analysis' }])
+    emitWaveIssues(plan, false)
+    const listCalls = (runCli as ReturnType<typeof vi.fn>).mock.calls.filter((c) =>
+      (c as [string, string[]])[1]?.includes('list'),
+    )
+    expect(listCalls).toHaveLength(1)
   })
 
   it('gh issue command contains dim ID in title', () => {
     const plan = makeWavePlan([{ dimId: 'N03', category: 'static-analysis' }])
     emitWaveIssues(plan, false)
-    const [cmd, args] = (runCli as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string[]]
+    const [cmd, args] = createCalls()[0]
     const fullCmd = `${cmd} ${args.join(' ')}`
     expect(fullCmd).toContain('N03')
   })
@@ -77,8 +94,64 @@ describe('emitWaveIssues — with W1 dims', () => {
   it('uses gh issue create subcommand', () => {
     const plan = makeWavePlan([{ dimId: 'N01', category: 'testing' }])
     emitWaveIssues(plan, false)
-    const [cmd] = (runCli as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string[]]
+    const [cmd] = createCalls()[0]
     expect(cmd).toBe('gh')
+  })
+})
+
+// ─── Idempotency: existing issues are not duplicated (#1575) ───────────────────
+
+describe('emitWaveIssues — idempotency', () => {
+  it('skips a dim whose issue already exists and creates none for it', () => {
+    const mocked = runCli as ReturnType<typeof vi.fn>
+    // First call is the `gh issue list` dedup probe — return an existing N03 issue.
+    mocked.mockImplementationOnce(() => ({
+      stdout: JSON.stringify([{ title: 'kit(#1043): enforce N03' }]),
+      stderr: '',
+      exitCode: 0,
+    }))
+    const plan = makeWavePlan([{ dimId: 'N03', category: 'static-analysis' }])
+    const result = emitWaveIssues(plan, false)
+    expect(result.created).toBe(0)
+    expect(result.skipped).toBe(1)
+    expect(createCalls()).toHaveLength(0)
+  })
+
+  it('creates only the missing dim when some already exist', () => {
+    const mocked = runCli as ReturnType<typeof vi.fn>
+    mocked.mockImplementationOnce(() => ({
+      stdout: JSON.stringify([{ title: 'kit(#1043): enforce N03' }]),
+      stderr: '',
+      exitCode: 0,
+    }))
+    const plan = makeWavePlan([
+      { dimId: 'N03', category: 'static-analysis' },
+      { dimId: 'N07', category: 'testing' },
+    ])
+    const result = emitWaveIssues(plan, false)
+    expect(result.created).toBe(1)
+    expect(result.skipped).toBe(1)
+    const created = createCalls()
+    expect(created).toHaveLength(1)
+    expect(`${created[0][0]} ${created[0][1].join(' ')}`).toContain('N07')
+  })
+
+  it('counts a create that throws as failed without aborting the rest', () => {
+    const mocked = runCli as ReturnType<typeof vi.fn>
+    // list probe → no existing issues
+    mocked.mockImplementationOnce(() => ({ stdout: '[]', stderr: '', exitCode: 0 }))
+    // first create throws, second succeeds
+    mocked.mockImplementationOnce(() => {
+      throw new Error('gh: not authenticated')
+    })
+    mocked.mockImplementationOnce(() => ({ stdout: '', stderr: '', exitCode: 0 }))
+    const plan = makeWavePlan([
+      { dimId: 'N03', category: 'static-analysis' },
+      { dimId: 'N07', category: 'testing' },
+    ])
+    const result = emitWaveIssues(plan, false)
+    expect(result.failed).toBe(1)
+    expect(result.created).toBe(1)
   })
 })
 

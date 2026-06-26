@@ -11,23 +11,22 @@ import {
   type Stack,
 } from '../kit/schema.js'
 import { toCsv } from '../kit/csv.js'
+import { kitDataPath } from '../kit/catalog.js'
 import { scanForRedactedTokens, type LexiconEntry } from '../kit/redaction.js'
 import { generateKitDocs } from '../generators/kit.js'
 
 const STACKS = ['java', 'typescript', 'python', 'go', 'rust'] as const
 
 function loadDerived(): DerivedKit {
-  const derivedPath = resolve(fileURLToPath(import.meta.url), '../../..', 'src/kit/derived.json')
+  const derivedPath = kitDataPath('derived.json')
   if (!existsSync(derivedPath)) {
-    throw new Error(
-      '[arbiter] src/kit/derived.json not found — run node scripts/build-kit.mjs first.',
-    )
+    throw new Error('[arbiter] kit derived.json not found — run node scripts/build-kit.mjs first.')
   }
   try {
     return DerivedKitSchema.parse(JSON.parse(readFileSync(derivedPath, 'utf-8')))
   } catch (err) {
     throw new Error(
-      '[arbiter] src/kit/derived.json is stale or invalid — run node scripts/build-kit.mjs to rebuild.',
+      '[arbiter] kit derived.json is stale or invalid — run node scripts/build-kit.mjs to rebuild.',
       { cause: err },
     )
   }
@@ -224,6 +223,37 @@ interface KitValidation {
 }
 
 /**
+ * Redaction subcheck (INV-85). The lexicon (scripts/data/) is a maintainer asset
+ * intentionally NOT shipped in the npm tarball, so in a published install it is
+ * absent and the check is skipped (severity 0) rather than failing closed —
+ * otherwise the gate would block every kit subcommand even though the shipped
+ * catalog was already redaction-clean at build time (#1575). Extracted from
+ * `computeKitValidation` to keep that function under the complexity ceiling.
+ */
+function runRedactionSubcheck(root: string): KitValidation {
+  const stdout: string[] = []
+  const stderr: string[] = []
+  const lexiconPath = resolve(root, 'scripts/data/redaction-lexicon.json')
+  if (!existsSync(lexiconPath)) return { severity: 0, stdout, stderr }
+  try {
+    const lexicon = JSON.parse(readFileSync(lexiconPath, 'utf-8')) as LexiconEntry[]
+    const catalogText = readFileSync(kitDataPath('catalog.json'), 'utf-8')
+    const matches = scanForRedactedTokens(catalogText, lexicon)
+    if (matches.length > 0) {
+      stdout.push('[INV-85] redaction FAIL')
+      for (const m of matches) stdout.push(`  line ${m.line} [${m.token}]: ${m.lineContent.trim()}`)
+      return { severity: 1, stdout, stderr }
+    }
+    return { severity: 0, stdout, stderr }
+  } catch (err) {
+    stderr.push(
+      `[arbiter kit validate] redaction ERROR: ${err instanceof Error ? err.message : String(err)}`,
+    )
+    return { severity: 2, stdout, stderr }
+  }
+}
+
+/**
  * Validate the kit catalog against its real state — schema, mapping parity, and
  * redaction. Pure with respect to process streams: returns the lines and the
  * aggregate severity rather than writing/exiting, so both the `kit validate`
@@ -238,7 +268,7 @@ function computeKitValidation(): KitValidation {
   // ─── Subcheck 1: schema ───────────────────────────────────────────────────
   let catalog: CatalogArr | null = null
   try {
-    const catalogPath = resolve(root, 'src/kit/catalog.json')
+    const catalogPath = kitDataPath('catalog.json')
     catalog = KitCatalogSchema.parse(JSON.parse(readFileSync(catalogPath, 'utf-8')) as unknown)
   } catch (err) {
     stderr.push(
@@ -264,24 +294,11 @@ function computeKitValidation(): KitValidation {
     }
   }
 
-  // ─── Subcheck 3: redaction ────────────────────────────────────────────────
-  try {
-    const lexicon = JSON.parse(
-      readFileSync(resolve(root, 'scripts/data/redaction-lexicon.json'), 'utf-8'),
-    ) as LexiconEntry[]
-    const catalogText = readFileSync(resolve(root, 'src/kit/catalog.json'), 'utf-8')
-    const matches = scanForRedactedTokens(catalogText, lexicon)
-    if (matches.length > 0) {
-      stdout.push('[INV-85] redaction FAIL')
-      for (const m of matches) stdout.push(`  line ${m.line} [${m.token}]: ${m.lineContent.trim()}`)
-      maxSeverity = Math.max(maxSeverity, 1)
-    }
-  } catch (err) {
-    stderr.push(
-      `[arbiter kit validate] redaction ERROR: ${err instanceof Error ? err.message : String(err)}`,
-    )
-    maxSeverity = Math.max(maxSeverity, 2)
-  }
+  // ─── Subcheck 3: redaction (skipped when the maintainer lexicon is unshipped) ─
+  const redaction = runRedactionSubcheck(root)
+  maxSeverity = Math.max(maxSeverity, redaction.severity)
+  stdout.push(...redaction.stdout)
+  stderr.push(...redaction.stderr)
 
   // ─── Summary ──────────────────────────────────────────────────────────────
   if (maxSeverity === 0) {

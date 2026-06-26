@@ -32,6 +32,34 @@ function addVitestCoverage(repoDir: string, pct: number): void {
   )
 }
 
+/** Cobertura XML with the given overall line-rate (a 0–1 fraction). */
+function addCoberturaXml(repoDir: string, fileName: string, lineRate: number): void {
+  writeFileSync(
+    join(repoDir, fileName),
+    `<?xml version="1.0" ?>\n<coverage line-rate="${lineRate}" branch-rate="0" version="1.0">\n  <packages/>\n</coverage>\n`,
+  )
+}
+
+/** pytest-cov coverage.json (totals.percent_covered is a 0–100 percentage). */
+function addPythonCoverageJson(repoDir: string, percentCovered: number): void {
+  writeFileSync(
+    join(repoDir, 'coverage.json'),
+    JSON.stringify({ totals: { percent_covered: percentCovered } }),
+  )
+}
+
+/** Go `go tool cover` profile: each block is `file:sL.sC,eL.eC numStmts count`. */
+function addGoCoverageOut(repoDir: string, coveredStmts: number, uncoveredStmts: number): void {
+  const lines = ['mode: set']
+  for (let i = 0; i < coveredStmts; i++) {
+    lines.push(`pkg/f.go:${i + 1}.1,${i + 1}.20 1 1`)
+  }
+  for (let i = 0; i < uncoveredStmts; i++) {
+    lines.push(`pkg/g.go:${i + 1}.1,${i + 1}.20 1 0`)
+  }
+  writeFileSync(join(repoDir, 'coverage.out'), lines.join('\n') + '\n')
+}
+
 let repoDir: string
 
 beforeEach(() => {
@@ -120,5 +148,111 @@ describe('detectBrownfieldClass — typescript coverage (vitest)', () => {
     addVitestCoverage(repoDir, 60)
     const result = detectBrownfieldClass(repoDir, 'typescript')
     expect(result.brownfieldClass).toBe('light')
+  })
+})
+
+// ─── Python coverage (coverage.xml / coverage.json) — #1584 ───────────────────
+
+describe('detectBrownfieldClass — python coverage', () => {
+  it('reads coverage.xml line-rate (a 0–1 fraction, NOT a percentage)', () => {
+    repoDir = makeRepo(100, '.py')
+    addCoberturaXml(repoDir, 'coverage.xml', 0.2) // 20% → below 30% → medium
+    const result = detectBrownfieldClass(repoDir, 'python')
+    expect(result.coverageUsed).toBe(true)
+    expect(result.coverageRatio).toBeCloseTo(0.2)
+    expect(result.brownfieldClass).toBe('medium')
+  })
+
+  it('reads pytest-cov coverage.json totals.percent_covered (a 0–100 percentage)', () => {
+    repoDir = makeRepo(100, '.py')
+    addPythonCoverageJson(repoDir, 12) // 12% → medium
+    const result = detectBrownfieldClass(repoDir, 'python')
+    expect(result.coverageRatio).toBeCloseTo(0.12)
+    expect(result.brownfieldClass).toBe('medium')
+  })
+
+  it('REGRESSION: a low-coverage 100-file python repo is NOT classified light', () => {
+    // Before #1584 no python reader ran → coverageRatio stayed null → lenient "light".
+    repoDir = makeRepo(100, '.py')
+    addCoberturaXml(repoDir, 'coverage.xml', 0.03) // 3% coverage
+    const result = detectBrownfieldClass(repoDir, 'python')
+    expect(result.brownfieldClass).not.toBe('light')
+    expect(result.brownfieldClass).toBe('medium')
+  })
+
+  it('REGRESSION: a low-coverage 600-file python repo classifies heavy, not medium', () => {
+    repoDir = makeRepo(600, '.py')
+    addPythonCoverageJson(repoDir, 3) // 3% → below 5% → heavy
+    const result = detectBrownfieldClass(repoDir, 'python')
+    expect(result.brownfieldClass).toBe('heavy')
+  })
+})
+
+// ─── Go coverage (coverage.out) — #1584 ───────────────────────────────────────
+
+describe('detectBrownfieldClass — go coverage', () => {
+  it('reads coverage.out statement coverage and applies the boundary', () => {
+    repoDir = makeRepo(100, '.go')
+    addGoCoverageOut(repoDir, 20, 80) // 20/100 = 20% → medium
+    const result = detectBrownfieldClass(repoDir, 'go')
+    expect(result.coverageUsed).toBe(true)
+    expect(result.coverageRatio).toBeCloseTo(0.2)
+    expect(result.brownfieldClass).toBe('medium')
+  })
+
+  it('classifies a well-tested go repo as light', () => {
+    repoDir = makeRepo(100, '.go')
+    addGoCoverageOut(repoDir, 70, 30) // 70% → light
+    const result = detectBrownfieldClass(repoDir, 'go')
+    expect(result.brownfieldClass).toBe('light')
+  })
+
+  it('REGRESSION: a low-coverage 100-file go repo is NOT classified light', () => {
+    repoDir = makeRepo(100, '.go')
+    addGoCoverageOut(repoDir, 4, 96) // 4% coverage
+    const result = detectBrownfieldClass(repoDir, 'go')
+    expect(result.brownfieldClass).not.toBe('light')
+    expect(result.brownfieldClass).toBe('medium')
+  })
+})
+
+// ─── Rust coverage (cargo-llvm-cov cobertura) — #1584 ─────────────────────────
+
+describe('detectBrownfieldClass — rust coverage', () => {
+  it('reads cobertura line-rate from cargo-llvm-cov output', () => {
+    repoDir = makeRepo(100, '.rs')
+    addCoberturaXml(repoDir, 'cobertura.xml', 0.18) // 18% → medium
+    const result = detectBrownfieldClass(repoDir, 'rust')
+    expect(result.coverageUsed).toBe(true)
+    expect(result.coverageRatio).toBeCloseTo(0.18)
+    expect(result.brownfieldClass).toBe('medium')
+  })
+
+  it('REGRESSION: a low-coverage 100-file rust repo is NOT classified light', () => {
+    repoDir = makeRepo(100, '.rs')
+    addCoberturaXml(repoDir, 'cobertura.xml', 0.02) // 2% coverage
+    const result = detectBrownfieldClass(repoDir, 'rust')
+    expect(result.brownfieldClass).not.toBe('light')
+    expect(result.brownfieldClass).toBe('medium')
+  })
+})
+
+// ─── multi chains all readers — #1584 ─────────────────────────────────────────
+
+describe('detectBrownfieldClass — multi chains every language reader', () => {
+  it('picks up a python coverage.xml in a multi-language scan', () => {
+    repoDir = makeRepo(100, '.py')
+    addCoberturaXml(repoDir, 'coverage.xml', 0.1) // 10% → medium
+    const result = detectBrownfieldClass(repoDir, 'multi')
+    expect(result.coverageUsed).toBe(true)
+    expect(result.brownfieldClass).toBe('medium')
+  })
+
+  it('picks up a go coverage.out in a multi-language scan', () => {
+    repoDir = makeRepo(100, '.go')
+    addGoCoverageOut(repoDir, 10, 90) // 10% → medium
+    const result = detectBrownfieldClass(repoDir, 'multi')
+    expect(result.coverageUsed).toBe(true)
+    expect(result.brownfieldClass).toBe('medium')
   })
 })
