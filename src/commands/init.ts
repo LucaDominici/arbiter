@@ -8,7 +8,7 @@ import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText } from '../compatibility/report.js'
-import { detectLanguageWithSource } from '../detectors/language.js'
+import { detectLanguageWithSource, jvmRoot } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
 import { detectFramework, detectArchetypeHint } from '../detectors/framework.js'
 import { detectGitInfo, detectAdverseGitState } from '../detectors/git.js'
@@ -545,6 +545,13 @@ async function resolveConfig(args: {
   })
   if (wizardResult === null) {
     return null
+  }
+  // #1659: the interactive wizard never collects basePackage (only the non-interactive
+  // path spread detectedBasePackage). A user who picks java/kotlin + hexagonal/layered in
+  // the wizard otherwise got config.basePackage === undefined → generateArchUnit emits ZERO
+  // enforcement. Enrich here, respecting any explicit value the wizard ever sets.
+  if (wizardResult.basePackage === undefined) {
+    Object.assign(wizardResult, detectedBasePackage(language, targetDir))
   }
   return wizardResult
 }
@@ -1263,8 +1270,13 @@ function detectedBasePackage(
   language: Language,
   targetDir: string,
 ): { basePackage: string } | Record<never, never> {
-  if (language !== 'java' && language !== 'multi') return {}
-  const bp = detectBasePackage(targetDir)
+  // #1659: kotlin is a JVM language generateArchUnit processes — it was excluded here,
+  // so even `--language kotlin` got basePackage undefined and emitted zero ArchUnit.
+  if (language !== 'java' && language !== 'kotlin' && language !== 'multi') return {}
+  // #1659: detect against the JVM root (root or `backend/` for a multi monorepo, per the
+  // #1567 jvmRoot SSOT), not the repo root — otherwise a polyglot repo with backend/pom.xml
+  // detects no basePackage and the Java ArchUnit suite is silently dropped.
+  const bp = detectBasePackage(jvmRoot(targetDir) ?? targetDir)
   return bp !== undefined ? { basePackage: bp } : {}
 }
 
