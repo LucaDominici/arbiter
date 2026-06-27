@@ -1352,7 +1352,7 @@ describe('#1629: coverage selectors + per-language lint thresholds', () => {
   it('JA-COV-02 scores the report-total LINE percent, not a leftmost method count', () => {
     const registry = loadYaml('standards/gold-registry.java.yml') as unknown as RegistryInput
     const root = tmpDir()
-    const dir = join(root, 'target/site/jacoco')
+    const dir = join(root, 'target/coverage') // arbiter's Maven JaCoCo output dir (#1682)
     mkdirSync(dir, { recursive: true })
     writeFileSync(
       join(dir, 'jacoco.xml'),
@@ -1385,7 +1385,7 @@ describe('#1629: coverage selectors + per-language lint thresholds', () => {
   it('JA-COV-03/04 read jacoco.xml report-total percents (no phantom coverage-summary.json)', () => {
     const registry = loadYaml('standards/gold-registry.java.yml') as unknown as RegistryInput
     const root = tmpDir()
-    const dir = join(root, 'target/site/jacoco')
+    const dir = join(root, 'target/coverage') // arbiter's Maven JaCoCo output dir (#1682)
     mkdirSync(dir, { recursive: true })
     writeFileSync(
       join(dir, 'jacoco.xml'),
