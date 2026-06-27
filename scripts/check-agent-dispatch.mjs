@@ -147,6 +147,42 @@ for (const tier of matrix.axes.tier) {
   }
 }
 
+// ── 4. review_pass_count value parity vs tier-constants.ts (#1662) ────────────
+// The matrix re-declares the same per-tier review-pass numbers that the REAL
+// dispatcher reads from src/review/tier-constants.ts (TIER_PASS_COUNT drives the
+// plan-review pass loop; TIER_REVIEWER_COUNT drives the code-review persona count).
+// Without this cross-check the two SSOTs can silently drift — mirror the existing
+// tier_verticals mirror check for the pass-count axis.
+let TIER_PASS_COUNT, TIER_REVIEWER_COUNT
+try {
+  const constsUrl = pathToFileURL(join(REPO_ROOT, 'dist', 'review', 'tier-constants.js')).href
+  ;({ TIER_PASS_COUNT, TIER_REVIEWER_COUNT } = await import(constsUrl))
+} catch (e) {
+  invoke(
+    `cannot import compiled tier-constants (dist/review/tier-constants.js) — run "npm run build": ${e.message}`,
+  )
+}
+if (!TIER_PASS_COUNT || !TIER_REVIEWER_COUNT) {
+  invoke('dist/review/tier-constants.js does not export TIER_PASS_COUNT / TIER_REVIEWER_COUNT')
+}
+const PASS_SOURCES = {
+  plan: ['TIER_PASS_COUNT', TIER_PASS_COUNT],
+  code: ['TIER_REVIEWER_COUNT', TIER_REVIEWER_COUNT],
+}
+for (const tier of matrix.axes.tier) {
+  for (const [mode, [srcName, srcMap]] of Object.entries(PASS_SOURCES)) {
+    const declared = matrix.review_pass_count[mode]?.[tier]
+    const actual = srcMap[tier]
+    if (declared !== actual) {
+      fail(
+        `review_pass_count.${mode}.${tier} drift: matrix declares ${declared} but ` +
+          `tier-constants.ts::${srcName}.${tier} is ${actual}. ` +
+          `tier-constants.ts is the SSOT; update the matrix (or the constant) so they agree.`,
+      )
+    }
+  }
+}
+
 process.stdout.write(
   `[check-agent-dispatch] OK — dispatch matrix matches actual derivation ` +
     `(${matrix.axes.tier.length} tiers × ${matrix.axes.track.length} tracks × ` +

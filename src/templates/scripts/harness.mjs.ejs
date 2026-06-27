@@ -20,6 +20,7 @@ const GATES = [
 ];
 
 let failed = 0;
+let executed = 0;
 
 for (const gate of GATES) {
   const scriptPath = join(__dirname, `${gate}.mjs`);
@@ -27,6 +28,7 @@ for (const gate of GATES) {
     process.stdout.write(`  harness: ${gate} — skip (script not found)\n`);
     continue;
   }
+  executed++;
   process.stdout.write(`  harness: ${gate} ... `);
   const r = spawnSync('node', [scriptPath], {
     encoding: 'utf-8',
@@ -42,6 +44,13 @@ for (const gate of GATES) {
     failed++;
     if (fast) break;
   }
+}
+
+// Vacuous-green floor: a run that executed no gate verified nothing — never
+// report a passing exit (anti-fake-green).
+if (executed === 0) {
+  process.stdout.write('  harness: no SSOT gate scripts found — nothing was verified\n');
+  process.exit(1);
 }
 
 process.exit(failed > 0 ? 1 : 0);

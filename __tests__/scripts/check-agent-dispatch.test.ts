@@ -72,6 +72,26 @@ describe('check-agent-dispatch — catches a planted mismatch (AC4)', () => {
     expect(`${r.stdout}${r.stderr}`).toMatch(/mismatch|drift|security|Standard/i)
   })
 
+  it('exits non-zero when review_pass_count drifts from tier-constants.ts (#1662)', () => {
+    // Start from a clean matrix (a sibling case may have mutated tmp) and plant
+    // ONLY a pass-count mismatch: bump plan.Standard so the matrix disagrees with
+    // src/review/tier-constants.ts::TIER_PASS_COUNT.Standard.
+    cpSync(MATRIX, join(tmp, '.claude/agent-dispatch-matrix.json'))
+    const m = JSON.parse(readFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), 'utf-8'))
+    m.review_pass_count.plan.Standard = m.review_pass_count.plan.Standard + 1
+    writeFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), JSON.stringify(m, null, 2))
+
+    const r = spawnSync(process.execPath, [SCRIPT, '--matrix-root', tmp], {
+      encoding: 'utf-8',
+      cwd: REPO_ROOT,
+      env: { ...process.env, NO_COLOR: '1' },
+    })
+    // Restore so later cases in this block see the clean matrix.
+    cpSync(MATRIX, join(tmp, '.claude/agent-dispatch-matrix.json'))
+    expect(r.status).not.toBe(0)
+    expect(`${r.stdout}${r.stderr}`).toMatch(/review_pass_count|TIER_PASS_COUNT|drift/i)
+  })
+
   it('exits non-zero (fail-loud) when the matrix file is absent', () => {
     const empty = mkdtempSync(join(tmpdir(), 'agent-dispatch-empty-'))
     const r = spawnSync(process.execPath, [SCRIPT, '--matrix-root', empty], {
