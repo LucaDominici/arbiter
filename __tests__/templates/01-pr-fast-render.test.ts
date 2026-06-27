@@ -287,6 +287,13 @@ describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
     const section = depReviewSection(rendered)
     // PR-only: the action diffs base...head and errors on push.
     expect(section).toContain("if: github.event_name == 'pull_request'")
+    // #1685: GHAS-gated at the JOB level so the job SKIPS (a non-failure the
+    // aggregator tolerates) until GHAS is enabled, instead of hard-erroring on a
+    // repo without Dependency Graph + Advanced Security and redding every PR.
+    expect(section).toContain("vars.GHAS_ENABLED == 'true'")
+    // INV-80: the skip is JOB-LEVEL — no step actually sets continue-on-error: true,
+    // which would silently neuter the gate once GHAS is turned on.
+    expect(section).not.toMatch(/continue-on-error:\s*true/)
     // SHA-pinned (INV-76) with a version comment.
     expect(rendered).toMatch(/uses: actions\/dependency-review-action@[0-9a-f]{40}\s+# v\d/)
     // Configurable fail severity, defaulting to high.
@@ -320,11 +327,14 @@ describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
     const section = iacSection(rendered)
     expect(section).toContain('needs: [classify-changes]')
     expect(section).toContain("if: needs.classify-changes.outputs.infra_changed == 'true'")
-    // checkov, SHA-pinned, scanning terraform/k8s/dockerfile.
+    // checkov, SHA-pinned. #1685: the action exposes a SINGLE `framework` input
+    // passed as one `--framework <value>` arg, so the prior comma-join crashed
+    // checkov with "invalid choice". `all` is the documented-valid multi-framework
+    // value; the broken comma-join form must be gone and soft_fail stays false.
     expect(rendered).toMatch(/uses: bridgecrewio\/checkov-action@[0-9a-f]{40}\s+# v\d/)
-    expect(section).toContain('terraform')
-    expect(section).toContain('kubernetes')
-    expect(section).toContain('dockerfile')
+    expect(section).toMatch(/^ *framework: all *$/m)
+    expect(section).not.toContain('framework: terraform,kubernetes,dockerfile')
+    expect(section).toContain('soft_fail: false')
     expect(section).toContain('timeout-minutes: 60')
   })
 

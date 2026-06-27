@@ -71,6 +71,12 @@ export function initGit(dir: string): void {
 // does not own (git metadata, dependency installs, runtime artefacts).
 const EXCLUDE_PREFIXES = ['.git/', 'node_modules/', '.gradle/', 'target/', 'build/']
 const EXCLUDE_FILES = new Set(['.DS_Store'])
+// #1685: ENV-DERIVED outputs whose presence depends on the HOST, not on the
+// generator. `.arbiter/detected-integrations.json` is emitted only when arbiter
+// init detects host integrations/skills — present on a dev machine, absent in CI's
+// clean env. Keyed by repo-relative POSIX path so the bake name-list snapshot is
+// reproducible across environments. (Detection in init.ts is intentionally left as-is.)
+const EXCLUDE_RELS = new Set(['.arbiter/detected-integrations.json'])
 
 export function listProjectFiles(dir: string): string[] {
   const out: string[] = []
@@ -81,7 +87,7 @@ export function listProjectFiles(dir: string): string[] {
     for (const entry of readdirSync(current)) {
       const full = join(current, entry)
       const rel = relative(dir, full)
-      if (EXCLUDE_FILES.has(entry)) continue
+      if (EXCLUDE_FILES.has(entry) || EXCLUDE_RELS.has(rel)) continue
       if (EXCLUDE_PREFIXES.some((p) => rel === p.slice(0, -1) || rel.startsWith(p))) continue
       const st = statSync(full)
       if (st.isDirectory()) {
