@@ -366,7 +366,8 @@ const THRESHOLDS = join(ROOT, 'standards', 'thresholds.yml')
 
 // The jacoco.xml a JaCoCo tool emits (#1629). Its report-TOTAL counters (last in document order)
 // encode the given percents directly: covered=pct, missed=100-pct ⇒ covered*100/(covered+missed)=pct.
-const JACOCO_PATH = 'target/site/jacoco/jacoco.xml'
+// arbiter's Maven generator writes it to target/coverage/jacoco.xml, not the JaCoCo default (#1682).
+const JACOCO_PATH = 'target/coverage/jacoco.xml'
 function jacocoXml(pct: { line: number; branch: number; instruction: number }): string {
   const counter = (type: string, p: number): string =>
     `<counter type="${type}" missed="${100 - p}" covered="${p}"/>`
@@ -511,6 +512,67 @@ describe('gold-audit --stack java (#1413 per-stack registry)', () => {
     try {
       const r = run(dir, ['--strict', '--registry', JAVA_REGISTRY, '--thresholds', THRESHOLDS])
       expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// ── #1682: JaCoCo coverage path must match arbiter's emitted location (Maven vs Gradle) ──────────
+//
+// arbiter's Java generator emits JaCoCo XML to target/coverage/jacoco.xml (Maven) and
+// build/coverage/coverage.xml (Gradle) — NOT the JaCoCo default target/site/jacoco/. The registry
+// splits JA-COV into Maven (01-04) + Gradle (05-08) variants, each pointing at the REAL emitted
+// path. file_exists report-present checks are gated by the build manifest (pom.xml / build.gradle)
+// so the non-matching build tool NA's instead of false-N'ing; value-report checks self-gate (an
+// absent report ⇒ NA, never a false-N). Only the active build tool's coverage is graded.
+const MAVEN_JACOCO = 'target/coverage/jacoco.xml'
+const GRADLE_JACOCO = 'build/coverage/coverage.xml'
+
+describe('gold-audit --stack java: JaCoCo path matches the generator (#1682)', () => {
+  it('Maven project: coverage report at target/coverage/jacoco.xml is found (NA→Y)', () => {
+    const { dir, cleanup } = makeJavaRepo({
+      'pom.xml': '<project/>',
+      [MAVEN_JACOCO]: jacocoXml({ line: 85, branch: 75, instruction: 85 }),
+    })
+    try {
+      const { byId } = runJava(dir, 'light') // coverage.line bar 80, coverage.branch bar 70
+      // report-present (Maven, gated by pom.xml) ⇒ Y at the REAL emitted path
+      expect(byId['JA-COV-01'].verdict).toBe('Y')
+      // value-report checks read the REAL Maven path ⇒ Y (would be NA at the old default path)
+      expect(byId['JA-COV-02'].verdict).toBe('Y') // line 85 >= 80
+      expect(byId['JA-COV-03'].verdict).toBe('Y') // instruction 85 >= 80
+      expect(byId['JA-COV-04'].verdict).toBe('Y') // branch 75 >= 70
+      expect((byId['JA-COV-02'].evidence as { file?: string }).file).toBe(MAVEN_JACOCO)
+      // the Gradle variants do not apply / find no report ⇒ NA, never a false-N
+      expect(byId['JA-COV-05'].verdict).toBe('NA')
+      expect(byId['JA-COV-06'].verdict).toBe('NA')
+      expect(byId['JA-COV-07'].verdict).toBe('NA')
+      expect(byId['JA-COV-08'].verdict).toBe('NA')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('Gradle project: coverage report at build/coverage/coverage.xml is found (NA→Y)', () => {
+    const { dir, cleanup } = makeJavaRepo({
+      'build.gradle': "apply plugin: 'java'\n",
+      [GRADLE_JACOCO]: jacocoXml({ line: 85, branch: 75, instruction: 85 }),
+    })
+    try {
+      const { byId } = runJava(dir, 'light')
+      // report-present (Gradle, gated by build.gradle) ⇒ Y at the REAL emitted path
+      expect(byId['JA-COV-05'].verdict).toBe('Y')
+      // value-report checks read the REAL Gradle path ⇒ Y (would be NA at the old default path)
+      expect(byId['JA-COV-06'].verdict).toBe('Y') // line 85 >= 80
+      expect(byId['JA-COV-07'].verdict).toBe('Y') // instruction 85 >= 80
+      expect(byId['JA-COV-08'].verdict).toBe('Y') // branch 75 >= 70
+      expect((byId['JA-COV-06'].evidence as { file?: string }).file).toBe(GRADLE_JACOCO)
+      // the Maven variants do not apply / find no report ⇒ NA, never a false-N
+      expect(byId['JA-COV-01'].verdict).toBe('NA')
+      expect(byId['JA-COV-02'].verdict).toBe('NA')
+      expect(byId['JA-COV-03'].verdict).toBe('NA')
+      expect(byId['JA-COV-04'].verdict).toBe('NA')
     } finally {
       cleanup()
     }
