@@ -4,6 +4,7 @@
   "description": "Governance installer for AI-assisted software development, with an optional orchestration layer",
   "license": "Apache-2.0",
   "type": "module",
+  "packageManager": "npm@10.9.8",
   "bin": {
     "arbiter": "./dist/cli.js"
   },
@@ -111,7 +112,8 @@
     "yaml": "^2.9.0"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0 <11.0.0"
   },
   "workspaces": [
     "website",

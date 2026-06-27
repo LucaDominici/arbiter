@@ -3,8 +3,9 @@
 # already-generated repos on their next `arbiter update` (#1131).
 name: Setup Node.js + npm ci
 description: >-
-  Sets up Node.js from .nvmrc with the npm cache, then runs `npm ci`.
-  Set the `install` input to 'false' for setup-only jobs.
+  Sets up Node.js from .nvmrc with the npm cache, pins npm to the version declared
+  in package.json#packageManager (corepack), then runs `npm ci`. Set the `install`
+  input to 'false' for setup-only jobs.
 
 inputs:
   node-version-file:
@@ -24,6 +25,15 @@ runs:
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: npm
+    # #1684: pin npm to package.json#packageManager so CI, local dev and Dependabot
+    # converge on the SAME npm major. Without this, node 22's bundled npm (10.x) and a
+    # locally/Dependabot-written npm-11 lock disagree and `npm ci` fails repo-wide. The
+    # check-npm-ci-drift gate (run under the pinned npm) is the pre-merge backstop.
+    - name: Pin npm to package.json#packageManager (corepack)
+      shell: bash
+      run: |
+        corepack enable npm
+        echo "Pinned npm: $(npm --version)"
     - name: Install dependencies (npm ci)
       if: ${{ inputs.install == 'true' }}
       shell: bash

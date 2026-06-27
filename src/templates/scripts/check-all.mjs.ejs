@@ -153,6 +153,39 @@ if (existsSync('eslint.config.static.mjs')) {
   console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
 }
 runCheck('unit tests', 'npm', ['run', 'test:unit']);
+// ─── L1: npm-ci lockfile drift under the pinned npm (#1684) ────────────────────
+// Verifies `npm ci` would succeed under the npm pinned in package.json#packageManager,
+// catching the local/Dependabot-vs-CI npm-major skew that rejects the lock repo-wide.
+// Invokes the pinned npm EXPLICITLY (npx npm@<pin>) — ambient npm may be a newer major
+// that hides the skew. SKIP-neutral when there is no packageManager pin or no lockfile:
+// the pin is opt-in, and the gate activates the moment one is added.
+{
+  const _driftStart = Date.now();
+  process.stdout.write('[CHECK] npm-ci drift ... ');
+  let _driftStatus = 'PASS';
+  try {
+    const _pin = existsSync('package.json')
+      ? (JSON.parse(readFileSync('package.json', 'utf-8')).packageManager || '').match(/^npm@(\d+\.\d+\.\d+)/)
+      : null;
+    if (!_pin || !existsSync('package-lock.json')) {
+      console.log('SKIP (no packageManager npm pin or lockfile)');
+    } else {
+      const _r = spawnSync('npx', ['-y', 'npm@' + _pin[1], 'ci', '--dry-run'], { encoding: 'utf-8', shell: false });
+      if (_r.error) {
+        console.log('SKIP (pinned npm@' + _pin[1] + ' unavailable)');
+      } else if (_r.status === 0) {
+        console.log('PASS');
+      } else {
+        console.log('FAIL');
+        process.stdout.write('package-lock.json is out of sync under npm@' + _pin[1] + ' — relock: npx -y npm@' + _pin[1] + ' install --package-lock-only\n');
+        _driftStatus = 'FAIL';
+      }
+    }
+  } catch (_e) {
+    console.log('SKIP (' + (_e && _e.message ? _e.message : 'unreadable package.json') + ')');
+  }
+  pushResult('npm-ci drift', _driftStatus, Date.now() - _driftStart);
+}
 <% } %><% if (language === 'rust') { %>
 runCheck('fmt', 'cargo', ['fmt', '--check']);
 runCheck('clippy', 'cargo', ['clippy', '--', '-D', 'warnings']);
@@ -1018,8 +1051,8 @@ if (level === 'L2') {
   // gates (runs whenever level===L2). Self-SKIPs when origin/main is unavailable or
   // there are no task-ID commits.
   runCheck('tdd-evidence (INV-131)', 'node', ['scripts/check-tdd-evidence.mjs'], { soft: graceActive });
-  // ─── L2: TODO max-age enforcement (INV-133, #1456) ────────────────────────────
-  // A TODO(#NNN) whose linked issue was created more than MAX_AGE_DAYS (default 180)
+  // ─── L2: over-age task-marker enforcement (INV-133, #1456) ────────────────────
+  // A TODO(#123) marker whose linked issue was created more than MAX_AGE_DAYS (default 180)
   // ago FAILS the gate. Age is derived from the issue created_at only. Graceful-SKIP
   // when gh is missing / token absent / offline (never false-fails).
   runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], { soft: graceActive });
