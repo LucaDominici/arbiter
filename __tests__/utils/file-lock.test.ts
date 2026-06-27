@@ -105,6 +105,37 @@ describe('file-lock (#614 #618)', () => {
     await fulfilled[0]!.value.release()
   })
 
+  // ── Ownership-checked deletion — nonce guard (#1636) ──────────────────────
+
+  // After a legitimate stale-takeover the lockfile belongs to ANOTHER holder
+  // (a fresh nonce). Our release()/exit/signal cleanup must not unlink it, or a
+  // third process could acquire concurrently with the new owner — two holders.
+  it('release() does NOT unlink a lock taken over by another holder (nonce mismatch)', async () => {
+    const handle = await acquireLock(lockPath)
+    const mine = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
+
+    // Simulate a stale-takeover: another process rewrote the lockfile with a
+    // different nonce while we still hold our handle.
+    const takenOver: LockInfo = { ...mine, pid: mine.pid + 1, nonce: 'taken-over-nonce' }
+    writeFileSync(lockPath, JSON.stringify(takenOver))
+
+    await handle.release()
+
+    // The foreign lock survives our cleanup, intact.
+    expect(existsSync(lockPath)).toBe(true)
+    const after = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
+    expect(after.nonce).toBe('taken-over-nonce')
+  })
+
+  // The matching positive case: when the on-disk nonce still matches ours, the
+  // final release unlinks normally.
+  it('release() unlinks the lock when the on-disk nonce still matches (ours)', async () => {
+    const handle = await acquireLock(lockPath)
+    expect(existsSync(lockPath)).toBe(true)
+    await handle.release()
+    expect(existsSync(lockPath)).toBe(false)
+  })
+
   // ── Stale detection — dead PID ────────────────────────────────────────────
 
   it('auto-takeovers stale lock whose PID is dead (ESRCH)', async () => {

@@ -48,8 +48,10 @@ const CLEANUP_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
  * reentrant primitive a single command lock can be held across an entire
  * `loadConfig → mutate → save` without a nested acquire deadlocking.
  *
- * Each entry also carries the acquirer's `nonce` (the per-acquire ownership
- * token) so the delete path can be made ownership-safe.
+ * Each entry also carries the acquirer's `nonce` so every delete path can be
+ * ownership-checked (#1636) — `deleteLock` only unlinks when the on-disk lock
+ * still bears our nonce, so a stale-takeover handoff cannot make our cleanup
+ * unlink another holder's lock.
  */
 interface HeldLock {
   count: number
@@ -268,9 +270,15 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
 
   const ourNonce = info.nonce
 
+  // Ownership-checked deletion (#1636): only unlink when the on-disk lock still
+  // bears OUR nonce. After a legitimate stale-takeover, a later process owns the
+  // lockfile with a different nonce; our `release()`/exit/signal cleanup must not
+  // unlink it, or two holders could run concurrently.
   function deleteLock(): void {
     try {
-      unlinkSync(lockPath)
+      if (readLockInfo(lockPath)?.nonce === ourNonce) {
+        unlinkSync(lockPath)
+      }
     } catch {
       /* best-effort */
     }
