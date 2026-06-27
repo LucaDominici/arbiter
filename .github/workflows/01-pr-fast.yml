@@ -157,7 +157,14 @@ jobs:
     # Floor: enableSecurityScanning — the same always-path gate as security-early-fail.
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    if: github.event_name == 'pull_request'
+    # PR-only AND GHAS-gated (#1685): dependency-review-action HARD-errors when the
+    # repo lacks Dependency Graph + GitHub Advanced Security, which reds every PR
+    # while GHAS is off. A JOB-LEVEL guard makes the job SKIP (result=skipped, which
+    # the ci-required aggregator treats as non-failure) until GHAS is enabled by
+    # setting the GHAS_ENABLED repo variable to 'true'. NOT step-level
+    # continue-on-error: that would violate INV-80 and silently neuter the gate once
+    # GHAS is on. With the var set, a real finding still fails the job and blocks.
+    if: github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'
     permissions:
       contents: read
     steps:
@@ -180,11 +187,17 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-      - name: Checkov IaC scan (terraform, kubernetes, dockerfile)
+      - name: Checkov IaC scan (all frameworks)
         uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf  # v12.1347.0
         with:
           directory: .
-          framework: terraform,kubernetes,dockerfile
+          # #1685: the checkov-action exposes a single `framework` input passed as one
+          # `--framework <value>` arg, so the previous comma-join
+          # (`terraform,kubernetes,dockerfile`) crashed checkov with "invalid choice".
+          # The action cannot emit repeated flags, so `all` is the documented-valid
+          # multi-framework value (it is also checkov's own default scope). soft_fail
+          # stays false: a real misconfiguration must block (INV-80).
+          framework: all
           quiet: true
           soft_fail: false
       # #1509 gold-align: Checkov scans for known misconfigurations; tflint is the

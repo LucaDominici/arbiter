@@ -3,7 +3,8 @@
 // stage to tmpdir, run `arbiter init`, assert generated arbiter.json validates,
 // snapshot the delta of generated files. Bake tier asserts STRUCTURE only —
 // no exec of the generated project (that is C3 functional tier).
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit } from '../../../../src/commands/init.js'
@@ -40,6 +41,29 @@ function writeSnapshot(snap: BakeSnapshot): void {
   mkdirSync(dirname(p), { recursive: true })
   writeFileSync(p, `${JSON.stringify(snap, null, 2)}\n`)
 }
+
+// #1685 part 4: the bake name-list comparison must be ENV-INDEPENDENT. arbiter
+// init emits `.arbiter/detected-integrations.json` only when host integrations are
+// detected — present on a dev host with skills installed, ABSENT in CI's clean env.
+// Including it made every committed snapshot (captured locally, with the file) fail
+// against CI's regeneration (without it) — a ±1 name-list delta unrelated to the
+// generator. listProjectFiles must exclude it so the snapshot is reproducible
+// everywhere. Detection in init.ts is deliberately untouched.
+describe('listProjectFiles — env-derived files excluded (#1685)', () => {
+  it('excludes .arbiter/detected-integrations.json but keeps real generated files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-lpf-'))
+    try {
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(join(dir, '.arbiter', 'detected-integrations.json'), '{}')
+      writeFileSync(join(dir, 'arbiter.json'), '{}')
+      const files = listProjectFiles(dir)
+      expect(files).not.toContain('.arbiter/detected-integrations.json')
+      expect(files).toContain('arbiter.json')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
 
 const fixtures = listFixtures('bake', 'functional').sort()
 
