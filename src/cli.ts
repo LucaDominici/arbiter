@@ -571,6 +571,27 @@ program
       recipe?: string
       recipeSha256?: string
     }) => {
+      // #1671: validate --archetype against the union BEFORE scaffolding, mirroring
+      // `arbiter configure`. An out-of-union value (e.g. `service`) was blind-cast
+      // to Archetype, crashed the test-pyramid/test-taxonomy generators, and left a
+      // corrupt arbiter.json with no test-pyramid.json behind. Fail before any file
+      // is written. (--language is already validated inside runInit via parseLanguage.)
+      const VALID_ARCHETYPES = [
+        'backend-web-db',
+        'cli',
+        'library',
+        'data-pipeline',
+        'frontend-spa',
+        'embedded',
+      ]
+      if (opts.archetype !== undefined && !VALID_ARCHETYPES.includes(opts.archetype)) {
+        throw ArbiterError.fromKey(
+          'E_INVALID_ARCHETYPE',
+          'errors.E_INVALID_ARCHETYPE',
+          { field: 'archetype', value: opts.archetype, valid: VALID_ARCHETYPES.join(', ') },
+          { hint: 'Run `arbiter init --help` for the list of valid archetypes.' },
+        )
+      }
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
       const preset = resolvePresetOption(opts.preset)
