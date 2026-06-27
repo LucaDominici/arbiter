@@ -22,6 +22,9 @@ const DANGEROUS_PATTERNS = [
 for (const pattern of DANGEROUS_PATTERNS) {
   if (command.includes(pattern)) {
     process.stderr.write(`[arbiter] Blocked dangerous command: ${command}\n`)
-    process.exit(1)
+    // Exit 2 is the ONLY blocking code for a PreToolUse hook (#1631): it aborts the
+    // Bash call and feeds stderr to the agent. Any other non-zero exit (incl. 1) is
+    // non-blocking — the dangerous command would run anyway.
+    process.exit(2)
   }
 }

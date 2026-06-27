@@ -58,5 +58,6 @@ if (findings.length > 0) {
     `Add an allowlist entry to suppressions/pii-allowlist.json if this is a test fixture.\n`,
   )
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-12\` for details.\n`)
-  process.exit(1)
+  // Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631).
+  process.exit(2)
 }

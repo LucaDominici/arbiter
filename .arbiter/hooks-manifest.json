@@ -10,7 +10,7 @@
         "codex"
       ],
       "spawnable": true,
-      "expectedExitCode": 1,
+      "expectedExitCode": 2,
       "fixture": {
         "type": "file-with-content",
         "content": "it.skip('broken test', () => {})\n",
@@ -27,7 +27,7 @@
         "codex"
       ],
       "spawnable": true,
-      "expectedExitCode": 1,
+      "expectedExitCode": 2,
       "fixture": {
         "type": "file-with-content",
         "content": "// TODO: bare todo without task id\n",
@@ -43,7 +43,7 @@
         "codex"
       ],
       "spawnable": true,
-      "expectedExitCode": 1,
+      "expectedExitCode": 2,
       "fixture": {
         "type": "file-with-content",
         "content": "const x = 'PLACEHOLDER';\n",
@@ -58,7 +58,7 @@
         "claude"
       ],
       "spawnable": true,
-      "expectedExitCode": 1,
+      "expectedExitCode": 2,
       "fixture": {
         "type": "file-with-content",
         "content": "@Disabled\npublic void testFoo() {}\n",
@@ -84,7 +84,7 @@
         "codex"
       ],
       "spawnable": false,
-      "expectedExitCode": 1,
+      "expectedExitCode": 2,
       "rationale": "INV-12: PII patterns (email, phone, credit card) must not appear in committed files. EJS template rendered at init time; empirical coverage in __tests__/hooks/empirical/hook-fires.test.ts"
     },
     {
@@ -95,14 +95,14 @@
         "codex"
       ],
       "spawnable": true,
-      "expectedExitCode": 1,
+      "expectedExitCode": 2,
       "fixture": {
         "type": "env-only",
         "env": {
           "CLAUDE_TOOL_INPUT_PATH": "package-lock.json"
         }
       },
-      "rationale": "Designated read-only files (AGENTS.md, LICENSE, package-lock.json, Cargo.lock) must not be edited silently"
+      "rationale": "Designated read-only files (AGENTS.md, LICENSE, package-lock.json, Cargo.lock) must not be edited silently. A match BLOCKS via exit 2 — exit 1 was non-blocking and inverted vs the fail-closed path (#1631)."
     },
     {
       "file": "stop-dangerous.mjs",
@@ -112,14 +112,14 @@
         "codex"
       ],
       "spawnable": true,
-      "expectedExitCode": 1,
+      "expectedExitCode": 2,
       "fixture": {
         "type": "env-only",
         "env": {
           "CLAUDE_TOOL_INPUT_COMMAND": "rm -rf /"
         }
       },
-      "rationale": "Dangerous shell commands (rm -rf /, force push, DROP TABLE) must be blocked"
+      "rationale": "Dangerous shell commands (rm -rf /, force push, DROP TABLE) must be BLOCKED via exit 2 — the only blocking PreToolUse code; exit 1 printed stderr but let the command run (#1631)."
     },
     {
       "file": "pre-edit-ssot-guard.mjs",

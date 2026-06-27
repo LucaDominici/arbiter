@@ -64,5 +64,6 @@ if (offending.length > 0) {
     `[arbiter] NI-11: Skipped/disabled test found in ${file} — remove the skip or open a tracking issue:\n`,
   )
   offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`))
-  process.exit(1)
+  // Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631).
+  process.exit(2)
 }

@@ -52,7 +52,7 @@ describe('#1553 emitted check-no-pii hook honors the advertised escape hatch', (
     try {
       const f = join(dir, 'leak.ts')
       writeFileSync(f, 'export const contact = "alice@example.com"\n')
-      expect(runHook(dir, f)).toBe(1)
+      expect(runHook(dir, f)).toBe(2)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -84,7 +84,7 @@ describe('#1553 emitted check-no-pii hook honors the advertised escape hatch', (
         '// arbiter-suppress(INV-12, until=2000-01-01, reason="documented test fixture", owner=team)\n' +
           'export const sample = "alice@example.com"\n',
       )
-      expect(runHook(dir, f)).toBe(1)
+      expect(runHook(dir, f)).toBe(2)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

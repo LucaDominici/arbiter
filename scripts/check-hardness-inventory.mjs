@@ -84,6 +84,26 @@ if (!existsSync(manifestPath)) {
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
 const manifestByFile = new Map(manifest.hooks.map((h) => [h.file, h]))
 
+// ─── 0. HARD blocking-code invariant (#1631) ────────────────────────────────────
+// Under the Claude Code hook protocol, exit 2 is the ONLY blocking code: a PreToolUse
+// exit 2 aborts the tool call and feeds stderr to the agent; a PostToolUse exit 2 feeds
+// the violation back to the agent. Any OTHER non-zero exit (including 1) is NON-BLOCKING
+// — the tool call proceeds and the agent never sees the violation. A "HARD" guard that
+// declares expectedExitCode 1 is therefore pure ceremony (it certified a non-blocking
+// exit as enforcement). Enforce that every HARD hook declaring an expectedExitCode
+// declares 2, so a future HARD guard cannot silently regress to a non-blocking exit.
+for (const entry of manifest.hooks) {
+  if (entry.classification !== 'HARD' || entry.expectedExitCode === undefined) continue
+  if (entry.expectedExitCode === 2) {
+    pass(`${entry.file} declares blocking exit 2 (HARD)`)
+  } else {
+    fail(
+      `[hardness-blocking] ${entry.file} is HARD but declares expectedExitCode ${entry.expectedExitCode} — ` +
+        `HARD guards block only via exit 2 (exit 1 is non-blocking under the Claude Code hook protocol). See #1631.`,
+    )
+  }
+}
+
 // ─── 1. Drift detection ───────────────────────────────────────────────────────
 
 // Every hook file in hooksDir (excluding lib.mjs.ejs) must have a manifest entry
