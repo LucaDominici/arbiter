@@ -32,6 +32,13 @@ const TRACK_B_EXEMPT = new Set([
   'check-e2e-quarantine.mjs', // INV-130: emitted E2E reliability quarantine gate for target projects (#1445)
   'check-tdd-evidence.mjs', // INV-131: emitted TDD-evidence re-verification gate for target projects (#1446)
   'verify-module-coverage.mjs', // INV-134: emitted per-module coverage ratchet (advisory) for target projects (#1457)
+  // Track-B workflow/FE gates: generated from src/templates/scripts/*.mjs.ejs into target
+  // projects, never run as arbiter self-gates. Newly subtracted (#1664) because the
+  // position-agnostic check-* existence pass below would otherwise flag them.
+  'check-fe-boundaries.mjs', // INV-102..104: emitted by the check-all generator for FE target projects (#1127)
+  'check-workflow-perms.mjs', // INV-77: emitted workflow least-privilege gate for target projects
+  'check-workflow-job-naming.mjs', // INV-89: Track-B-only workflow job-naming gate for target projects
+  'check-workflow-sha-pinning.mjs', // INV-89: Track-B-only workflow SHA-pinning gate for target projects
 ])
 
 // Match scripts/<name>.mjs — broadened to all prefix patterns and digits.
@@ -70,6 +77,35 @@ for (const hook of uniqueHooks) {
   }
 }
 
+// #1664: close the inverse-citation blind spot. Hooks are also cited with the
+// filename OUTSIDE the parens, the parens carrying trigger context — e.g.
+// `Claude hook: check-no-pii.mjs (PostToolUse, Edit|Write)`. Such a citation has
+// no `scripts/` prefix and no parenthesised filename, so it escaped BOTH passes
+// above; a future typo or deleted hook in this already-in-use style would pass
+// undetected. Scan position-agnostic for every cited gate-style `check-*.mjs`
+// (case-insensitive — names are conventionally lowercase, but fold case so an
+// uppercase typo cannot slip through), subtract the names already validated by
+// the wiring/paren passes plus the always-present check-all.mjs and the Track-B
+// generated gates, then assert each remaining name exists as a hook or script.
+const checkRefs = [...catalogSrc.matchAll(/(check-[a-z0-9-]+\.mjs)(?!\.ejs)/gi)].map((m) =>
+  m[1].toLowerCase(),
+)
+const uniqueChecks = [...new Set(checkRefs)].filter(
+  (s) =>
+    !uniqueScripts.includes(s) &&
+    !uniqueHooks.includes(s) &&
+    s !== 'check-all.mjs' &&
+    !TRACK_B_EXEMPT.has(s),
+)
+for (const name of uniqueChecks) {
+  const existsAsHook = existsSync(resolve(root, '.claude/hooks', name))
+  const existsAsScript = existsSync(resolve(root, 'scripts', name))
+  if (!existsAsHook && !existsAsScript) {
+    process.stdout.write(`  CITED hook does not exist (.claude/hooks/ or scripts/): ${name}\n`)
+    violations++
+  }
+}
+
 if (violations > 0) {
   process.stdout.write(
     `[check-inv-enforcement-wired] FAIL: ${violations} enforcement script(s) not wired/found\n`,
@@ -77,5 +113,6 @@ if (violations > 0) {
   process.exit(1)
 }
 process.stdout.write(
-  `[check-inv-enforcement-wired] OK — ${uniqueScripts.length} gate scripts wired, ${uniqueHooks.length} hook citations verified\n`,
+  `[check-inv-enforcement-wired] OK — ${uniqueScripts.length} gate scripts wired, ` +
+    `${uniqueHooks.length} paren-cited + ${uniqueChecks.length} bare check-* hook citations verified\n`,
 )

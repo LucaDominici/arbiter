@@ -171,6 +171,61 @@ describe('check-inv-enforcement-wired.mjs (INV-52 / CANON-09)', () => {
     }
   })
 
+  // #1664: inverse-citation style — filename OUTSIDE the parens, the parens
+  // carrying trigger context (e.g. `Claude hook: check-no-pii.mjs (PostToolUse,
+  // Edit|Write)`). This escaped BOTH the wiring (no scripts/ prefix) and the
+  // paren-existence (no filename inside parens) passes. RED before the fix: a
+  // fictional hook in this style passed GREEN.
+  it('exits 1 when a check-* hook is cited name-outside-parens and does not exist [#1664]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-12',\n  enforcement: 'Claude hook: check-ghost-nonexistent.mjs (PostToolUse, Edit|Write)',`,
+      )
+      writeFileSync(gate, `// gate with no scripts`)
+      const result = run(catalog, gate)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('check-ghost-nonexistent.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 for the real name-outside-parens citation style pointing at an existing hook [#1664]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const gate = join(dir, 'check-all.mjs')
+      // check-no-pii.mjs exists under .claude/hooks/ — the live line-189 style.
+      writeFileSync(
+        catalog,
+        `  id: 'INV-12',\n  enforcement: 'Claude hook: check-no-pii.mjs (PostToolUse, Edit|Write)',`,
+      )
+      writeFileSync(gate, `// gate with no scripts`)
+      expect(run(catalog, gate).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('folds case so an uppercase check-* typo cannot escape the existence pass [#1664]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(catalog, `  id: 'INV-12',\n  enforcement: 'hook Check-Ghost-Upper.mjs (Stop)',`)
+      writeFileSync(gate, `// gate with no scripts`)
+      const result = run(catalog, gate)
+      expect(result.status).toBe(1)
+      expect(result.stdout.toLowerCase()).toContain('check-ghost-upper.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('passes against the real catalog and check-all.mjs', () => {
     const result = run(resolve('src/invariants/catalog.ts'), resolve('scripts/check-all.mjs'))
     expect(result.status).toBe(0)
