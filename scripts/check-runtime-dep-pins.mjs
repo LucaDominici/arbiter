@@ -15,8 +15,11 @@
 // EXACT version, so what a consumer resolves is byte-for-byte what arbiter ships.
 //
 // Scope: `dependencies` only — the deps that ship to consumers. `devDependencies` are
-// caret-ranged by design (not published, refreshed by Dependabot) and `overrides` is a
-// security FLOOR (e.g. uuid ^11.1.1), not a shipped resolution, so neither is gated.
+// caret-ranged by design (not published, refreshed by Dependabot). `overrides` are NOT a
+// consumer protection and NOT a security floor: npm applies them only to the root project
+// being installed, so they constrain arbiter's OWN dev tree but are silently ignored when
+// @arbiter/cli is consumed as a dependency (#1670). Neither is gated here — a consumer-facing
+// transitive-resolution audit (npm pack → install → audit) is the right check for that class.
 // Enforced: any non-exact runtime dependency spec fails the gate (exit 1).
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
