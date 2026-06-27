@@ -1427,7 +1427,9 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'with a CycloneDX SBOM via cosign attest --predicate. Trivy must scan the filesystem for ' +
       'CRITICAL vulnerabilities (exit-code: 1) before the signing step runs. HIGH vulnerabilities ' +
       'are reported but do not block (target projects may have legacy deps). ' +
-      'A _sigstore-retry-sign reusable workflow provides retry-on-flake semantics for signing.',
+      'A _sigstore-retry-sign reusable workflow is also generated as opt-in scaffolding for ' +
+      'retry-on-flake signing; the live 05-release cosign-sign job signs inline and does not ' +
+      'yet delegate to it (#1663), so retry-on-flake is available to wire in, not yet active.',
     alwaysActive: false,
     selfOnly: false,
     minGovernanceLevel: 'L2',

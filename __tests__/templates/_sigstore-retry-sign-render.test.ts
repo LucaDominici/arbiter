@@ -30,4 +30,23 @@ describe('_sigstore-retry-sign.yml.ejs rendering (CANON-04, INV-76, #1076)', () 
     const rendered = renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data)
     expect(rendered).toContain('delay=$((delay * 2))')
   })
+
+  // #1663: the single `artifact-path` input conflated an artifact NAME (for
+  // download-artifact) with a filesystem PATH (for cosign sign-blob). It is split
+  // into `artifact-name` and `artifact-file` so neither concept is misused.
+  it('separates artifact-name (download) from artifact-file (sign) — no conflated artifact-path', () => {
+    const rendered = renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data)
+    expect(rendered).toContain('artifact-name:')
+    expect(rendered).toContain('artifact-file:')
+    expect(rendered).not.toContain('artifact-path')
+  })
+
+  it('download step uses artifact-name with an explicit path; sign uses artifact-file', () => {
+    const rendered = renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data)
+    // download-artifact pulls by NAME and lands in a deterministic directory
+    expect(rendered).toMatch(/name:\s*\$\{\{\s*inputs\.artifact-name\s*\}\}/)
+    expect(rendered).toMatch(/download-artifact[\s\S]*?path:\s*\./)
+    // the file handed to cosign comes from artifact-file via env (injection-safe)
+    expect(rendered).toMatch(/ARTIFACT:\s*\$\{\{\s*inputs\.artifact-file\s*\}\}/)
+  })
 })
