@@ -247,3 +247,115 @@ describe('check-action-pins.mjs (#902/#886, INV-76 enforced)', () => {
     }
   })
 })
+
+// #1666: divergent-sha gate (major-bucketed). One immutable sha is ONE upstream release,
+// so pinning an action to >1 distinct sha within a single MAJOR is a dup-sha bug that is
+// NEVER allowlistable; a split ACROSS majors is allowed only when explicitly declared.
+describe('check-action-pins.mjs (#1666, divergent-sha major-bucketed)', () => {
+  function writeWorkflow(dir: string, name: string, body: string): void {
+    const wfDir = join(dir, '.github', 'workflows')
+    mkdirSync(wfDir, { recursive: true })
+    writeFileSync(join(wfDir, name), body)
+  }
+
+  // (a) reproduce-RED: a WITHIN-major patch divergence fails even on an allowlisted action.
+  // upload-artifact is allowlisted for a v4/v7 cross-major split, but two DIFFERENT v4 shas
+  // is a dup-sha bug — the allowlist does not (and must not) excuse it.
+  it('fails a within-major dup even when the action is on the cross-major allowlist', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeWorkflow(
+        dir,
+        'a.yml',
+        'jobs:\n  j:\n    steps:\n' +
+          '      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2\n' +
+          '      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08  # v4.6.0\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('divergent SHAs within one major')
+      expect(result.stderr).toContain('actions/upload-artifact')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // (b) reproduce-RED: a DECLARED cross-major split passes (each major → its exact allowlisted sha).
+  it('passes a declared cross-major split (download-artifact v4 + v8)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeWorkflow(
+        dir,
+        'a.yml',
+        'jobs:\n  j:\n    steps:\n' +
+          '      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0\n' +
+          '      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('all action references are SHA-pinned')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // The core bug class: a within-major dup on a NON-allowlisted action is a hard fail.
+  it('fails two distinct shas of one action within the same major (non-allowlisted)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeWorkflow(
+        dir,
+        'a.yml',
+        'jobs:\n  j:\n    steps:\n' +
+          `      - uses: actions/setup-go@${'a'.repeat(40)}  # v5\n` +
+          `      - uses: actions/setup-go@${'b'.repeat(40)}  # v5\n`,
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('divergent SHAs within one major')
+      expect(result.stderr).toContain('actions/setup-go')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // An UNDECLARED cross-major split (action not in the allowlist) is a hard fail.
+  it('fails an undeclared cross-major split (action absent from the allowlist)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeWorkflow(
+        dir,
+        'a.yml',
+        'jobs:\n  j:\n    steps:\n' +
+          `      - uses: actions/cache@${'a'.repeat(40)}  # v3\n` +
+          `      - uses: actions/cache@${'b'.repeat(40)}  # v4\n`,
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('undeclared cross-major')
+      expect(result.stderr).toContain('actions/cache')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // 0ver: the effective major is `0.<minor>`. v0.9 vs v0.24 are DIFFERENT effective majors
+  // (cross-major, allowlisted for anchore); two v0.24.x shas would be a within-major dup.
+  it('passes a declared 0ver cross-major split (anchore v0.9 + v0.24)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeWorkflow(
+        dir,
+        'a.yml',
+        'jobs:\n  j:\n    steps:\n' +
+          '      - uses: anchore/sbom-action@f6c3d0fe42c3cf876e3462574e4c9416b5e0f07a  # v0.9.0\n' +
+          '      - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('all action references are SHA-pinned')
+    } finally {
+      cleanup()
+    }
+  })
+})

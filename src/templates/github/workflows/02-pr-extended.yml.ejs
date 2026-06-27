@@ -297,7 +297,7 @@ jobs:
         run: docker build -t scan-target:${{ github.sha }} .
       - name: Trivy container scan
         if: steps.dockerfile-check.outputs.changed == 'true'
-        uses: aquasecurity/trivy-action@314ff8b43182423b84c50b1670b0e10f858f2d98  # master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: 'scan-target:${{ github.sha }}'
           severity: 'HIGH,CRITICAL'
