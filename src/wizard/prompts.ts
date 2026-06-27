@@ -376,6 +376,19 @@ async function collectAxisAnswers(raw: RawAnswers): Promise<void> {
     }),
   )
 
+  // 9b — deployTarget (only for deploy archetypes). #1639: this is the only thing that
+  // ever populates answers.deployTarget — without it the cloud targets were unreachable
+  // through init and the deriveDeployTarget `?? 'ghcr'` left operand was dead.
+  if (DEPLOY_ARCHETYPES.includes(raw.archetype)) {
+    raw.deployTarget = await unwrap(
+      select({
+        message: 'Deploy target (CI deploy workflows):',
+        options: DEPLOY_TARGET_OPTIONS,
+        initialValue: 'ghcr',
+      }),
+    )
+  }
+
   // 10 — multi-tenant.
   raw.isMultiTenant = await unwrap(
     select({
@@ -829,6 +842,17 @@ const ARCHITECTURE_STYLE_OPTIONS: Opt<ArchitectureStyle>[] = [
     value: 'modular-monolith',
     label: 'modular-monolith — Bounded-context module isolation',
   },
+]
+
+// #1639: deploy-target choices. Without this prompt nothing ever set
+// answers.deployTarget, so the `?? 'ghcr'` fallback's left operand was dead and the
+// three cloud targets (azure/aws/gcp) were unreachable through interactive init.
+const DEPLOY_TARGET_OPTIONS: Opt<DeployTarget>[] = [
+  { value: 'ghcr', label: 'ghcr                — GitHub Container Registry image build (default)' },
+  { value: 'azure-container-app', label: 'azure-container-app — Azure Container Apps deploy' },
+  { value: 'aws-ecs', label: 'aws-ecs             — AWS ECS deploy' },
+  { value: 'gcp-cloud-run', label: 'gcp-cloud-run       — Google Cloud Run deploy' },
+  { value: 'none', label: 'none                — no deploy workflows' },
 ]
 
 const CONTRACT_TYPE_OPTIONS: Opt<ContractType>[] = [

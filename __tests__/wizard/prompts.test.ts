@@ -44,6 +44,7 @@ interface ClackAnswers {
   hasPublicApi?: boolean
   isMultiTenant?: boolean
   contractType?: string
+  deployTarget?: string
   decompositionBackend?: string
   collaborationMode?: string
   pipelineStyle?: string
@@ -76,6 +77,7 @@ function setupClack(answers: ClackAnswers): void {
     if (message.startsWith('Does the project expose a public API')) return answers.hasPublicApi
     if (message.startsWith('Is the project multi-tenant')) return answers.isMultiTenant
     if (message.startsWith('Contract testing style')) return answers.contractType
+    if (message.startsWith('Deploy target')) return answers.deployTarget
     if (message.startsWith('Decomposition backend')) return answers.decompositionBackend
     if (message.startsWith('Collaboration mode')) return answers.collaborationMode
     if (message.startsWith('Pipeline style')) return answers.pipelineStyle
@@ -309,6 +311,34 @@ describe('runWizard greenfield flow', () => {
     expect(out).toMatch(/pharma/)
     // the L1+heavy advisory should surface (WARN copy mentions governanceLevel)
     expect(out).toMatch(/governanceLevel|heavy|coherent|⚠/i)
+  })
+
+  // #1639: the wizard now collects deployTarget for deploy archetypes, so the cloud
+  // targets are reachable through interactive init and the `?? 'ghcr'` left operand lives.
+  it('threads a selected cloud deployTarget into the resulting config (backend-web-db)', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      archetype: 'backend-web-db',
+      deployTarget: 'gcp-cloud-run',
+      proceed: true,
+    })
+    const result = await runWizard(makeWizardInput())
+    expect(result!.deployTarget).toBe('gcp-cloud-run')
+  })
+
+  it('forces deployTarget=none for a non-deploy archetype (no prompt shown)', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      archetype: 'library',
+      deployTarget: 'gcp-cloud-run', // even if a value leaks in, library coerces to none
+      proceed: true,
+    })
+    const result = await runWizard(makeWizardInput())
+    expect(result!.deployTarget).toBe('none')
   })
 
   it('returns null when user cancels at confirmation', async () => {
