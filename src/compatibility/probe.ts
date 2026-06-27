@@ -90,37 +90,65 @@ export interface BuildProbeSpec {
   requires: string
 }
 
-/** Per-stack build probe specs. Run in target project directory after generation. */
-const BUILD_PROBE_SPECS: Record<string, BuildProbeSpec> = {
-  typescript: {
-    name: 'tsc:noEmit',
-    command: 'npx',
-    args: ['tsc', '--noEmit'],
-    requires: 'tsconfig.json',
-  },
-  java: {
-    name: 'gradlew:version',
-    command: './gradlew',
-    args: ['--version'],
-    requires: 'gradlew',
-  },
-  rust: {
-    name: 'cargo:check',
-    command: 'cargo',
-    args: ['check'],
-    requires: 'Cargo.toml',
-  },
-  go: {
-    name: 'go:build',
-    command: 'go',
-    args: ['build', '-n', './...'],
-    requires: 'go.mod',
-  },
-  // No python build probe: it ran `ruff --version` (requires:'' → always),
-  // duplicating the matrix version probe for ruff and adding zero signal — yet
-  // diverged from it when ruff was absent (version probe skipped, build probe
-  // failed → false verify failure). Dropped in favour of the single version
-  // probe (#1597 gap 1).
+// Per-stack build-invocation probe specs (run in the target project directory after
+// generation). Defined as named constants so the polyglot `multi` and `kotlin` stacks
+// can REUSE them instead of needing their own keyed entry (#1627).
+//
+// No python build probe: it ran `ruff --version` (requires:'' → always), duplicating the
+// matrix version probe for ruff and adding zero signal — yet diverged from it when ruff
+// was absent (version probe skipped, build probe failed → false verify failure). Dropped
+// in favour of the single version probe (#1597 gap 1).
+const TSC_BUILD_PROBE: BuildProbeSpec = {
+  name: 'tsc:noEmit',
+  command: 'npx',
+  args: ['tsc', '--noEmit'],
+  requires: 'tsconfig.json',
+}
+const GRADLEW_BUILD_PROBE: BuildProbeSpec = {
+  name: 'gradlew:version',
+  command: './gradlew',
+  args: ['--version'],
+  requires: 'gradlew',
+}
+const CARGO_BUILD_PROBE: BuildProbeSpec = {
+  name: 'cargo:check',
+  command: 'cargo',
+  args: ['check'],
+  requires: 'Cargo.toml',
+}
+const GO_BUILD_PROBE: BuildProbeSpec = {
+  name: 'go:build',
+  command: 'go',
+  args: ['build', '-n', './...'],
+  requires: 'go.mod',
+}
+
+/**
+ * Resolve the build-invocation probes to run for a detected stack, mirroring
+ * `matrixEntriesFor` (#1627). A `multi` polyglot monorepo unions the TypeScript
+ * type-check (`tsc:noEmit`) and the JVM gradle-wrapper resolution (`gradlew:version`)
+ * so it actually exercises BOTH builds; `kotlin` reuses the gradle-wrapper probe (its
+ * build is structurally identical to the Java/Gradle one). The previous flat
+ * `BUILD_PROBE_SPECS[lang]` lookup had no `multi`/`kotlin` key, so those two stacks
+ * silently ran NO build probe — strictly weaker than single-TS/Java. Unknown/uncovered
+ * stacks (e.g. `python`) return [].
+ */
+function buildProbesFor(lang: Language): BuildProbeSpec[] {
+  switch (lang) {
+    case 'typescript':
+      return [TSC_BUILD_PROBE]
+    case 'java':
+    case 'kotlin':
+      return [GRADLEW_BUILD_PROBE]
+    case 'rust':
+      return [CARGO_BUILD_PROBE]
+    case 'go':
+      return [GO_BUILD_PROBE]
+    case 'multi':
+      return [TSC_BUILD_PROBE, GRADLEW_BUILD_PROBE]
+    default:
+      return []
+  }
 }
 
 /**
@@ -421,8 +449,7 @@ export function runProbes(dir: string): VerifyReport {
     })
   }
 
-  const buildSpec = BUILD_PROBE_SPECS[lang]
-  if (buildSpec !== undefined) {
+  for (const buildSpec of buildProbesFor(lang)) {
     probes.push(runBuildProbe(dir, buildSpec))
   }
 
