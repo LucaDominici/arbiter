@@ -1186,7 +1186,6 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'degrade the deployment pipeline and break branch-protection required checks.',
     alwaysActive: false,
     enforcement: 'scripts/check-ci-tiers.mjs (L1 gate)',
-    migrationStatus: 'transition',
     minPresent: 6,
   },
 
