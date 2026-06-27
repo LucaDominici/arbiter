@@ -731,6 +731,39 @@ describe('validateConfig — constrained-union optionals (#1579, #1589)', () => 
   })
 })
 
+describe('validateConfig — nested provider unions (#1632)', () => {
+  it.each([
+    ['auth', 'keycloak'],
+    ['auth', 'saas-auth0'],
+    ['auth', 'none'],
+    ['observability', 'signoz'],
+    ['observability', 'prom-grafana-loki-jaeger'],
+    ['observability', 'none'],
+  ])('accepts %s.provider="%s"', (field, value) => {
+    const r = validateConfig({ ...BASE_VALID, [field]: { provider: value } })
+    expect(r.ok).toBe(true)
+  })
+
+  it.each([
+    ['auth', 'keycloack'],
+    ['auth', 'auth0'],
+    ['observability', 'signozz'],
+    ['observability', 'grafana'],
+  ])('rejects typo %s.provider="%s" with a precise diagnostic', (field, value) => {
+    const r = validateConfig({ ...BASE_VALID, [field]: { provider: value } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.errors.some((e) => e.startsWith(`${field}.provider must be one of`))).toBe(true)
+    }
+  })
+
+  it('rejects a non-string provider reporting its type', () => {
+    const r = validateConfig({ ...BASE_VALID, auth: { provider: 42 } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('auth.provider'))).toBe(true)
+  })
+})
+
 describe('DEFAULT_THRESHOLDS', () => {
   it('L2 has lineCoverage=80, branchCoverage=70, mutationScore=80', () => {
     expect(DEFAULT_THRESHOLDS.L2.lineCoverage).toBe(80)

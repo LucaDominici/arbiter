@@ -4,6 +4,7 @@ import type {
   Archetype,
   ArchitectureStyle,
   AuthConfig,
+  AuthProvider,
   AutonomyLevel,
   BranchingStrategy,
   CollaborationMode,
@@ -17,6 +18,7 @@ import type {
   Lane,
   Language,
   ObservabilityConfig,
+  ObservabilityProvider,
   ProjectPreset,
   SoloMergeMode,
   StrictnessTier,
@@ -431,10 +433,43 @@ const CONTRACT_TYPE_VALUES: Record<ContractType, true> = {
   'message-queue': true,
   none: true,
 }
+// #1632: the two NESTED provider unions. validateConfig validated the four scalar
+// unions above but never these — a typo'd auth.provider/observability.provider passed
+// the trust boundary (hand-edit, CLI cast, or round-trip) and the generator emitted a
+// content-less setup doc. The exhaustive Record forces each set to track its union.
+const AUTH_PROVIDER_VALUES: Record<AuthProvider, true> = {
+  none: true,
+  'app-level-ts': true,
+  authelia: true,
+  authentik: true,
+  'ory-stack': true,
+  zitadel: true,
+  keycloak: true,
+  'saas-clerk': true,
+  'saas-auth0': true,
+  'saas-supabase-auth': true,
+  'saas-cognito': true,
+}
+const OBSERVABILITY_PROVIDER_VALUES: Record<ObservabilityProvider, true> = {
+  none: true,
+  'stdout-minimal': true,
+  'victoria-vector-quickwit': true,
+  signoz: true,
+  openobserve: true,
+  'prom-grafana-loki-jaeger': true,
+  'saas-sentry': true,
+  'saas-datadog': true,
+  'saas-axiom': true,
+  'saas-betterstack': true,
+}
 const DATABASE_ENGINES: ReadonlySet<string> = new Set(Object.keys(DATABASE_ENGINE_VALUES))
 const STRICTNESS_TIERS: ReadonlySet<string> = new Set(Object.keys(STRICTNESS_TIER_VALUES))
 const THRESHOLD_PROFILES: ReadonlySet<string> = new Set(Object.keys(THRESHOLD_PROFILE_VALUES))
 const CONTRACT_TYPES: ReadonlySet<string> = new Set(Object.keys(CONTRACT_TYPE_VALUES))
+const AUTH_PROVIDERS: ReadonlySet<string> = new Set(Object.keys(AUTH_PROVIDER_VALUES))
+const OBSERVABILITY_PROVIDERS: ReadonlySet<string> = new Set(
+  Object.keys(OBSERVABILITY_PROVIDER_VALUES),
+)
 
 function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val)
@@ -604,6 +639,30 @@ function validateOptionalEnums(raw: Record<string, unknown>, errors: string[]): 
   }
 }
 
+/**
+ * #1632: validate the two NESTED provider unions (auth.provider,
+ * observability.provider). Mirrors validateOptionalEnums for the scalar unions:
+ * when the block is present and carries a provider, assert it is a known member —
+ * otherwise a typo silently produces a content-less AUTH_SETUP.md / OBSERVABILITY.md.
+ */
+function validateProviders(raw: Record<string, unknown>, errors: string[]): void {
+  const checks: ReadonlyArray<readonly [string, ReadonlySet<string>]> = [
+    ['auth', AUTH_PROVIDERS],
+    ['observability', OBSERVABILITY_PROVIDERS],
+  ]
+  for (const [field, allowed] of checks) {
+    const block = raw[field]
+    if (isRecord(block) && block['provider'] !== undefined) {
+      const v = block['provider']
+      if (typeof v !== 'string' || !allowed.has(v)) {
+        errors.push(
+          `${field}.provider must be one of ${[...allowed].join(', ')} — got ${typeof v === 'string' ? v : typeof v}`,
+        )
+      }
+    }
+  }
+}
+
 export function validateConfig(raw: unknown): ValidateResult {
   if (!isRecord(raw)) {
     return { ok: false, errors: ['config must be a non-null object'] }
@@ -623,6 +682,7 @@ export function validateConfig(raw: unknown): ValidateResult {
 
   validateOptionalScalars(draft, errors)
   validateOptionalEnums(draft, errors)
+  validateProviders(draft, errors)
 
   const rawLevel = draft['governanceLevel']
   const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
