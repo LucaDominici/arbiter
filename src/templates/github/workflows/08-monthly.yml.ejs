@@ -64,7 +64,7 @@ jobs:
         run: pip list --outdated --format=json > dep-age-report.json || true
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # branch:stable @ 2026-05-24
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - name: cargo outdated report
         run: |
           cargo install cargo-outdated --locked
@@ -117,7 +117,7 @@ jobs:
         run: pip-licenses --format=json --output-file=license-report.json
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # branch:stable @ 2026-05-24
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - name: cargo-deny licenses full audit
         run: |
           cargo install cargo-deny --locked
@@ -213,7 +213,7 @@ jobs:
         run: cyclonedx-py environment -o sbom.cdx.json || true
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # branch:stable @ 2026-05-24
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - name: cargo-cyclonedx SBOM
         run: |
           cargo install cargo-cyclonedx --locked

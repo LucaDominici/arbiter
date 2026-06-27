@@ -45,6 +45,15 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 // Matches both YAML sequence members ('- uses: foo/bar@ref') and direct keys ('uses: foo/bar@ref').
 // Captures action path (group 1) and ref (group 2). Quoted refs are unwrapped post-match.
 const USES_PATTERN = /^\s+(?:-\s+)?uses:\s+["']?([^@\s"']+)@([^\s#"']+)["']?/gm;
+// Comment-truthfulness scan (#1666, mirrored from the self gate / #1614): a single immutable sha
+// resolves to exactly ONE upstream release, so two pins of the SAME sha must not advertise
+// DIFFERENT MAJOR versions. Captures action (1), 40-hex sha (2), and the `# vN…` label (3).
+// `# v6` vs `# v6.0.3` is precision (same major), tolerated; `# v9` vs `# v7` for one sha lies.
+const USES_WITH_COMMENT = /^\s+(?:-\s+)?uses:\s+["']?([^@\s"']+)@([0-9a-fA-F]{40})["']?\s*#\s*(v\d+\S*)/gm;
+const majorOf = (versionLabel) => {
+  const m = /^v(\d+)/.exec(versionLabel);
+  return m ? m[1] : null;
+};
 
 function stripQuotes(s) {
   if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
@@ -54,6 +63,9 @@ function stripQuotes(s) {
 }
 
 const violations = [];
+// action@sha -> Map<versionLabel, Set<file>>; populated across the whole scanned set so a
+// contradiction split across two workflow files is still caught.
+const shaComments = new Map();
 for (const file of yamlFiles) {
   const content = readFileSync(file, 'utf-8');
   for (const match of content.matchAll(USES_PATTERN)) {
@@ -65,21 +77,50 @@ for (const file of yamlFiles) {
       violations.push({ file: file.replace(CWD + '/', ''), action, ref });
     }
   }
+  for (const match of content.matchAll(USES_WITH_COMMENT)) {
+    const action = match[1];
+    if (action.startsWith('.') || action.startsWith('docker://')) continue;
+    const key = `${action}@${match[2]}`;
+    const versionLabel = match[3];
+    if (!shaComments.has(key)) shaComments.set(key, new Map());
+    const labels = shaComments.get(key);
+    if (!labels.has(versionLabel)) labels.set(versionLabel, new Set());
+    labels.get(versionLabel).add(file.replace(CWD + '/', ''));
+  }
 }
 
-if (violations.length === 0) {
-  console.log('  check-action-pins: all action references are SHA-pinned');
+// A sha whose pins disagree on the MAJOR version is mislabelled — exactly one label is false.
+// Differing patch/minor precision on a shared major is not a contradiction.
+const commentViolations = [];
+for (const [key, labels] of shaComments) {
+  const majors = new Set([...labels.keys()].map(majorOf).filter((v) => v !== null));
+  if (majors.size > 1) commentViolations.push({ key, labels });
+}
+
+if (violations.length === 0 && commentViolations.length === 0) {
+  console.log('  check-action-pins: all action references are SHA-pinned with truthful version comments');
   process.exit(0);
 }
 
 const label = LEVEL === 'L1' ? 'WARN' : 'FAIL';
-console.log(`  check-action-pins: ${violations.length} non-SHA action reference(s) [${label}]:`);
-for (const v of violations) {
-  console.log(`    ${v.file}: ${v.action}@${v.ref}`);
+if (violations.length > 0) {
+  console.log(`  check-action-pins: ${violations.length} non-SHA action reference(s) [${label}]:`);
+  for (const v of violations) {
+    console.log(`    ${v.file}: ${v.action}@${v.ref}`);
+  }
+}
+if (commentViolations.length > 0) {
+  console.log(`  check-action-pins: ${commentViolations.length} action SHA(s) with contradictory version comments [${label}] — a sha maps to ONE release:`);
+  for (const v of commentViolations) {
+    const detail = [...v.labels.entries()]
+      .map(([versionLabel, files]) => `# ${versionLabel} (${[...files].join(', ')})`)
+      .join(' vs ');
+    console.log(`    ${v.key}: ${detail}`);
+  }
 }
 
 if (LEVEL === 'L1') {
-  console.log('  check-action-pins: tag references are warnings at L1 — upgrade to SHA pins when ready');
+  console.log('  check-action-pins: violations are warnings at L1 — fix before upgrading to L2/L3');
   process.exit(0);
 }
 
