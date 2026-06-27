@@ -9,6 +9,7 @@ import type {
   CollaborationMode,
   ConformanceThresholds,
   ContractType,
+  DeployTarget,
   EvidenceRetentionConfig,
   FrontendConfig,
   GovernanceLevel,
@@ -183,6 +184,13 @@ export interface ArbiterConfigV2 {
     | 'regulated'
     | 'none'
   basePackage?: string
+  /**
+   * #1616: deploy target axis. Consumed by the github (04-deploy-test/10-deploy-prod
+   * workflows) and infra (azure-container-app) generators. Persisted so `arbiter
+   * update`/`diff` re-emit deploy workflows + infra instead of silently coercing to
+   * 'none' on every backend-web-db project's round-trip.
+   */
+  deployTarget?: DeployTarget
   invariantTiers?: InvariantTier[]
   worktree?: WorktreeConfig
   plugins?: string[]

@@ -112,4 +112,18 @@ describe('resolveProjectConfig — canonical builder field mapping (#1077)', () 
     expect(obs?.enabled).toBe(true)
     expect(auth?.enabled).toBe(true)
   })
+
+  // #1616: deployTarget + taxonomy were persisted by the writer but never read back
+  // by storedOptionalFields — so the round-trip coerced deployTarget→'none' and
+  // taxonomy→undefined, silently disabling deploy-workflow propagation and custom
+  // test-taxonomy dims on every backend-web-db `arbiter update`/`diff`.
+  it('round-trips stored deployTarget and taxonomy config (#1616)', () => {
+    const stored = makeStored({
+      deployTarget: 'azure-container-app',
+      taxonomy: { domainDims: ['billing', 'fraud'] },
+    } as Partial<ArbiterConfigV2>)
+    const { config } = resolveProjectConfig(dir, 'x', stored)
+    expect(config.deployTarget).toBe('azure-container-app')
+    expect(config.taxonomy).toEqual({ domainDims: ['billing', 'fraud'] })
+  })
 })

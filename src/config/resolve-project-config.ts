@@ -81,6 +81,11 @@ function storedOptionalFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
       : {}),
     ...(stored.basePackage !== undefined ? { basePackage: stored.basePackage } : {}),
     ...(stored.taskTiers !== undefined ? { taskTiers: stored.taskTiers } : {}),
+    // #1616: round-trip deployTarget + taxonomy so `arbiter update`/`diff` keep
+    // re-emitting deploy workflows/infra and custom test-taxonomy dimensions instead
+    // of silently coercing them to 'none'/[] on every backend-web-db project.
+    ...(stored.deployTarget !== undefined ? { deployTarget: stored.deployTarget } : {}),
+    ...(stored.taxonomy !== undefined ? { taxonomy: stored.taxonomy } : {}),
     // #1568: round-trip the provider blocks the writer persists. observability/auth were
     // added to the writer (buildProviderFields) + diff CHANGE_IMPACT but never to this
     // reader, so resolveProjectConfig dropped them to undefined — disabling the

@@ -280,6 +280,13 @@ export interface ProjectConfig {
   invariantTiers: InvariantTier[]
   /** Base Java package (e.g. "com.example.myapp"). Detected from pom.xml/build.gradle for Java projects. */
   basePackage?: string
+  /**
+   * #257/#1524/#1616: domain-specific test-taxonomy dimensions. Consumed by the
+   * test-taxonomy generator and round-tripped through arbiter.json so custom
+   * dimensions survive `arbiter update`. Structural-typed here (not imported from
+   * config/schema) to keep the wizard layer free of a config→wizard back-edge.
+   */
+  taxonomy?: { domainDims?: string[] }
   /** Whether to generate mutation testing configuration. Default true for L2+. */
   enableMutationTesting?: boolean
   /** Whether to generate contract testing configuration. Default from contractType. */

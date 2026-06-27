@@ -1137,6 +1137,48 @@ function buildProviderFields(
 }
 
 /**
+ * Build the optional governance-axis portion of the stored config. Extracted from
+ * buildArbiterConfig to keep its cyclomatic complexity within the 15-branch ceiling
+ * (#1616 added deployTarget + taxonomy, pushing the inline spread block over it).
+ * Each field is persisted only when present; industryOverlay/deployTarget also
+ * collapse their semantic-'none' to absence so a clean round-trip omits them.
+ */
+function buildOptionalAxisFields(
+  config: ProjectConfig,
+): Pick<
+  ArbiterConfig,
+  | 'evidenceRetention'
+  | 'thresholdProfile'
+  | 'strictnessTier'
+  | 'industryOverlay'
+  | 'basePackage'
+  | 'deployTarget'
+  | 'taxonomy'
+> {
+  return {
+    ...(config.evidenceRetention !== undefined
+      ? { evidenceRetention: config.evidenceRetention }
+      : {}),
+    ...(config.thresholdProfile !== undefined ? { thresholdProfile: config.thresholdProfile } : {}),
+    ...(config.strictnessTier !== undefined ? { strictnessTier: config.strictnessTier } : {}),
+    // #1254: persist the compliance overlay so doctor can flag the cell and
+    // `arbiter update` re-emits the overlay. Omitted when none/absent.
+    ...(config.industryOverlay !== undefined && config.industryOverlay !== 'none'
+      ? { industryOverlay: config.industryOverlay }
+      : {}),
+    ...(config.basePackage !== undefined ? { basePackage: config.basePackage } : {}),
+    // #1616: persist deployTarget + taxonomy so `arbiter update`/`diff` re-emit the
+    // deploy workflows/infra and custom test-taxonomy dimensions. Without this the
+    // round-trip rebuilt ProjectConfig with deployTarget=undefined→'none' and
+    // taxonomy=undefined→[], silently disabling both on every update.
+    ...(config.deployTarget !== undefined && config.deployTarget !== 'none'
+      ? { deployTarget: config.deployTarget }
+      : {}),
+    ...(config.taxonomy !== undefined ? { taxonomy: config.taxonomy } : {}),
+  }
+}
+
+/**
  * ADR-051 (#1119): build the collaboration-mode + automation portion of the stored config.
  * Extracted from buildArbiterConfig to keep its complexity within the 15-statement limit.
  * Only collaborationMode + explicit user overrides (solo.mergeMode, branchingStrategy) are
@@ -1194,18 +1236,8 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...buildDatabaseFields(config),
     hasPublicApi: config.hasPublicApi,
     ...(config.acceptBetaTools === true ? { acceptBetaTools: true } : {}),
-    ...(config.evidenceRetention !== undefined
-      ? { evidenceRetention: config.evidenceRetention }
-      : {}),
-    ...(config.thresholdProfile !== undefined ? { thresholdProfile: config.thresholdProfile } : {}),
-    ...(config.strictnessTier !== undefined ? { strictnessTier: config.strictnessTier } : {}),
     contractType: config.contractType,
-    // #1254: persist the compliance overlay so doctor can flag the cell and
-    // `arbiter update` re-emits the overlay. Omitted when none/absent.
-    ...(config.industryOverlay !== undefined && config.industryOverlay !== 'none'
-      ? { industryOverlay: config.industryOverlay }
-      : {}),
-    ...(config.basePackage !== undefined ? { basePackage: config.basePackage } : {}),
+    ...buildOptionalAxisFields(config),
     ...(config.lanes.length > 0 ? { lanes: config.lanes } : {}),
     ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),
     ...buildProviderFields(config),

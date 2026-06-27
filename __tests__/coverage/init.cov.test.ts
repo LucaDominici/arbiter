@@ -166,6 +166,24 @@ describe('buildArbiterConfig — optional-spread branches', () => {
     expect(out).not.toHaveProperty('industryOverlay')
   })
 
+  // #1616 — deployTarget + taxonomy must be persisted so `arbiter update`/`diff`
+  // re-emit deploy workflows/infra and custom test-taxonomy dims (previously dropped).
+  it('persists deployTarget and taxonomy when present (#1616)', () => {
+    const out = buildArbiterConfig(
+      makeConfig(dir, {
+        deployTarget: 'azure-container-app',
+        taxonomy: { domainDims: ['billing', 'fraud'] },
+      }),
+    )
+    expect(out.deployTarget).toBe('azure-container-app')
+    expect(out.taxonomy).toEqual({ domainDims: ['billing', 'fraud'] })
+  })
+
+  it('omits deployTarget when it is "none" (#1616)', () => {
+    const out = buildArbiterConfig(makeConfig(dir, { deployTarget: 'none' }))
+    expect(out).not.toHaveProperty('deployTarget')
+  })
+
   it('omits preset when it is "none"', () => {
     const out = buildArbiterConfig(makeConfig(dir, { preset: 'none' }))
     expect(out).not.toHaveProperty('preset')
