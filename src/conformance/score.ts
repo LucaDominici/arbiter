@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // conformance/score.ts — Two-tier conjunctive conformance scoring (#1394/C2 of #1369).
 //
-// Tier-1 gate: any N on a Tier-1 dimension → NON-CONFORMANT regardless of Tier-2.
+// Tier-1 gate: any N OR P on a Tier-1 dimension → NON-CONFORMANT regardless of Tier-2.
+//   Membership is the STRUCTURAL `tier === 1` field (the SSOT in dimensions.ts), not a
+//   hand-maintained allow-list that drifted out of sync (#1658). `tier1Members` is kept
+//   only as an additive explicit override. P is treated as non-pass: a partial on a
+//   must-pass dimension is not a pass.
 // Tier-2 family-weighted score: RC 35% / code-quality-gold 30% / docs-convention 20% / discipline 15%.
 // Gold: all T1 Y/NA AND T2 ≥ goldTier2Gate AND ratchetOk === true.
 
@@ -100,14 +104,21 @@ export function computeConformance(
   thresholds: ConformanceThresholds,
   ratchetOk = false,
 ): TwoTierResult {
-  // Tier-1 gate: any dim in tier1Members with verdict N → NON-CONFORMANT.
+  // Tier-1 gate: any STRUCTURALLY tier-1 dim (or one explicitly listed in tier1Members)
+  // with verdict N OR P → NON-CONFORMANT. #1658: keying solely on the hand-maintained
+  // tier1Members allow-list left 4 structurally-tier-1 dims (D-COVERAGE-THRESHOLDS,
+  // D-COMMIT-HYGIENE, D-INVARIANTS-ENFORCED, DISC-finding-hygiene) in a dead zone —
+  // excluded from BOTH the gate and the tier-2 score (which filters tier === 2), so a
+  // repo could read GOLD with coverage < 80% failing. P is non-pass: a partial on a
+  // must-pass dimension is not a pass.
   // This IS anti-fake-green guard #8 (outcome-axis veto, #1412): a reality-contact Tier-1
-  // dimension (family 'reality-contact', tier 1 in dimensions.ts, e.g. D-LIVE-E2E) that is N
-  // vetoes the whole score to 0 — a high process score cannot mask a missing outcome signal.
-  // It is NOT re-implemented as a separate guard script; the equivalence is documented in
+  // dimension (e.g. D-LIVE-E2E) that is N vetoes the whole score to 0 — a high process
+  // score cannot mask a missing outcome signal. The equivalence is documented in
   // docs/REFERENCE/anti-fake-green.md so the guard family stays honest about what ships.
   const tier1Fails = dimensions.filter(
-    (d) => thresholds.tier1Members.includes(d.id) && d.verdict === 'N',
+    (d) =>
+      (d.tier === 1 || thresholds.tier1Members.includes(d.id)) &&
+      (d.verdict === 'N' || d.verdict === 'P'),
   )
   if (tier1Fails.length > 0) {
     return { verdict: 'NON-CONFORMANT', tier1Fails, score: 0, ratchetOk }

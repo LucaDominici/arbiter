@@ -291,6 +291,11 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
 
 // ── Conformance thresholds SSOT (#1394/C2) ───────────────────────────────────
 
+// #1658: must list EVERY id whose probe carries `tier: 1` in dimensions.ts. The score
+// engine now derives the must-pass gate from the structural `tier` field, so this list
+// is an additive override — but it must not drift below the structural set or it
+// misrepresents what the gate enforces. The 4 trailing ids (coverage/invariants/commit/
+// finding hygiene) were the orphaned tier-1 dims that previously sat in a dead zone.
 const TIER1_MEMBERS_DEFAULT = [
   'D-TEST-LEVELS',
   'D-GATE-GREEN',
@@ -299,6 +304,10 @@ const TIER1_MEMBERS_DEFAULT = [
   'D-LIVE-E2E',
   'D-FE-RENDER-GATE',
   'D-DOMAIN-API',
+  'D-COVERAGE-THRESHOLDS',
+  'D-INVARIANTS-ENFORCED',
+  'D-COMMIT-HYGIENE',
+  'DISC-finding-hygiene',
 ]
 
 const DEFAULT_FAMILY_WEIGHTS: ConformanceThresholds['familyWeights'] = {

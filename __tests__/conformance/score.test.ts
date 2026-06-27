@@ -190,6 +190,51 @@ describe('computeConformance — Unit 4b: GOLD reachable with one live tier-2 fa
   })
 })
 
+// ── #1658: structural tier-1 gate (not the drifted allow-list) + P-as-non-pass ──
+
+describe('computeConformance — structural tier-1 gate (#1658)', () => {
+  it('vetoes on a structurally tier-1 dim that is NOT in tier1Members (over-credit fix)', () => {
+    // D-COVERAGE-THRESHOLDS is tier:1 in dimensions.ts but was absent from the 7-member
+    // allow-list — so an N coverage dim used to slip through to GOLD. The structural gate
+    // catches it. Note DEFAULT_T.tier1Members deliberately does NOT list it.
+    const dimensions: DimensionEntry[] = [
+      dim('D-TEST-LEVELS', 1, 'Y', 'reality-contact'),
+      dim('D-LIVE-E2E', 1, 'NA', 'reality-contact'),
+      dim('D-GATE-GREEN', 1, 'Y', 'reality-contact'),
+      dim('D-DONE-EVIDENCE', 1, 'Y', 'reality-contact'),
+      dim('D-NO-OVERCLAIM', 1, 'Y', 'reality-contact'),
+      dim('D-COVERAGE-THRESHOLDS', 1, 'N', 'discipline'), // tier-1, NOT in allow-list
+      dim('D-T2-DOCS', 2, 'Y', 'docs-convention'),
+    ]
+    const result = computeConformance(dimensions, DEFAULT_T, true)
+    expect(result.verdict).toBe('NON-CONFORMANT')
+    expect(result.tier1Fails.some((d) => d.id === 'D-COVERAGE-THRESHOLDS')).toBe(true)
+  })
+
+  it('treats a tier-1 P as non-pass (must-pass dimension cannot be partial)', () => {
+    const dimensions: DimensionEntry[] = [
+      dim('D-TEST-LEVELS', 1, 'Y', 'reality-contact'),
+      dim('DISC-finding-hygiene', 1, 'P', 'discipline'), // tier-1 partial → veto
+      dim('D-T2-DOCS', 2, 'Y', 'docs-convention'),
+    ]
+    const result = computeConformance(dimensions, DEFAULT_T, true)
+    expect(result.verdict).toBe('NON-CONFORMANT')
+    expect(result.tier1Fails.some((d) => d.id === 'DISC-finding-hygiene')).toBe(true)
+  })
+
+  it('keeps tier1Members default in parity with the structural tier-1 set', () => {
+    const t = autoFillConformanceThresholds('L1')
+    for (const id of [
+      'D-COVERAGE-THRESHOLDS',
+      'D-INVARIANTS-ENFORCED',
+      'D-COMMIT-HYGIENE',
+      'DISC-finding-hygiene',
+    ]) {
+      expect(t.tier1Members).toContain(id)
+    }
+  })
+})
+
 // ── Unit 5: validateConformanceThresholds — missing tier1Members ──────────────
 
 describe('validateConformanceThresholds — Unit 5: missing tier1Members', () => {
