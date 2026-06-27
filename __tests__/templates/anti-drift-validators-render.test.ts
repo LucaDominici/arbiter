@@ -424,6 +424,69 @@ describe('check-action-pins.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
     expect(content).not.toContain('<%')
     expect(content).not.toContain('%>')
   })
+
+  // ─── #1666 (dual-track): comment-truthfulness mirrored into the SHIPPED gate ──
+  // #1614 added a rule to arbiter's SELF gate that fails when ONE sha advertises
+  // contradictory MAJOR version comments (a sha maps to exactly one release, so one
+  // label lies). The shipped template gate only checked SHA *format* — consumers got
+  // no protection. This mirrors the rule so generated projects catch the lie too,
+  // respecting the template's level model (warn at L1, hard-fail at L2/L3).
+  function runRenderedPins(
+    level: 'L1' | 'L2' | 'L3',
+    workflows: Record<string, string>,
+  ): { status: number; stdout: string } {
+    const d = mkdtempSync(join(tmpdir(), 'pins-render-'))
+    try {
+      const scriptsDir = join(d, 'scripts')
+      const wfDir = join(d, '.github', 'workflows')
+      mkdirSync(scriptsDir, { recursive: true })
+      mkdirSync(wfDir, { recursive: true })
+      writeFileSync(
+        join(scriptsDir, 'check-action-pins.mjs'),
+        renderTemplate('scripts/check-action-pins.mjs.ejs', makeData({ governanceLevel: level })),
+      )
+      for (const [name, body] of Object.entries(workflows)) writeFileSync(join(wfDir, name), body)
+      const r = spawnSync('node', [join(scriptsDir, 'check-action-pins.mjs')], {
+        encoding: 'utf-8',
+        cwd: d,
+      })
+      return { status: r.status ?? 1, stdout: r.stdout ?? '' }
+    } finally {
+      rmSync(d, { recursive: true, force: true })
+    }
+  }
+
+  // Same 40-hex sha, two different MAJOR labels across two files — exactly one lies.
+  const CONTRADICTORY: Record<string, string> = {
+    'a.yml':
+      'jobs:\n  a:\n    steps:\n      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v9\n',
+    'b.yml':
+      'jobs:\n  b:\n    steps:\n      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7\n',
+  }
+
+  it('L2: rendered gate FAILS on one sha with contradictory major comments (# v9 vs # v7)', () => {
+    const { status, stdout } = runRenderedPins('L2', CONTRADICTORY)
+    expect(status).toBe(1)
+    expect(stdout).toContain('contradictory version comments')
+    expect(stdout).toContain('actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b')
+  })
+
+  it('L2: rendered gate TOLERATES same-major precision (# v6 vs # v6.0.3)', () => {
+    const ok: Record<string, string> = {
+      'a.yml':
+        'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6\n',
+      'b.yml':
+        'jobs:\n  b:\n    steps:\n      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3\n',
+    }
+    const { status } = runRenderedPins('L2', ok)
+    expect(status).toBe(0)
+  })
+
+  it('L1: a contradictory comment is a WARNING (exit 0), not a hard fail', () => {
+    const { status, stdout } = runRenderedPins('L1', CONTRADICTORY)
+    expect(status).toBe(0)
+    expect(stdout).toContain('contradictory version comments')
+  })
 })
 
 // ─── F4: check-workflow-perms.mjs.ejs ────────────────────────────────────────
