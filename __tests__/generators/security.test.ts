@@ -134,11 +134,17 @@ describe('generateSecurity', () => {
     expect(content).not.toContain('/* ignore malformed allowlist */')
   })
 
-  it('pii-scan.mjs isAllowed requires at least one filter field', () => {
+  it('pii-scan.mjs isAllowed enforces an anchored specificity floor (#1669)', () => {
     const config = makeConfig(dir, { enableSecurityScanning: true })
     generateSecurity(config)
     const content = readFileSync(join(dir, 'scripts', 'pii-scan.mjs'), 'utf-8')
-    expect(content).toContain('!entry.file && !entry.line && !entry.pattern')
+    // A suppression must be narrow: exact pattern, or an exact file+line pair.
+    expect(content).toContain('hasPattern || (hasFile && hasLine)')
+    // File is path-anchored (startsWith), pattern is exact — never substring containment.
+    expect(content).toContain('rel.startsWith(prefix)')
+    expect(content).toContain('matchStr !== entry.pattern')
+    expect(content).not.toContain('!rel.includes(entry.file)')
+    expect(content).not.toContain('!matchStr.includes(entry.pattern)')
   })
 
   for (const lang of ['typescript', 'rust', 'go', 'python', 'java'] as const) {

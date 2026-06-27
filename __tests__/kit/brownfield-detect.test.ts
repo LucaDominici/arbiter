@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { detectBrownfieldClass } from '../../src/kit/brownfield-detect.js'
@@ -84,6 +84,34 @@ describe('detectBrownfieldClass — gold (< 50 files)', () => {
     const result = detectBrownfieldClass(repoDir, 'java')
     expect(result.brownfieldClass).toBe('gold')
     expect(result.sourceFileCount).toBe(0)
+  })
+})
+
+describe('detectBrownfieldClass — symlink-safe source counting (#1645)', () => {
+  it('does not follow a directory-symlink cycle (no count inflation, terminates)', () => {
+    // 5 real source files; a directory symlink cycle (src/loop -> src) would, under a
+    // symlink-following statSync walk, re-walk src to the depth cap and multiply the count.
+    repoDir = makeRepo(5, '.ts')
+    symlinkSync(join(repoDir, 'src'), join(repoDir, 'src', 'loop'), 'dir')
+    const result = detectBrownfieldClass(repoDir, 'typescript')
+    // RED before the fix: count was inflated far above 5 by the re-walked cycle.
+    expect(result.sourceFileCount).toBe(5)
+    expect(result.brownfieldClass).toBe('gold')
+  })
+
+  it('does not count files reachable only through a symlink to an external tree', () => {
+    repoDir = makeRepo(5, '.ts')
+    // An external directory full of source files, reachable only via a repo symlink.
+    const external = mkdtempSync(join(tmpdir(), 'arbiter-bd-ext-'))
+    try {
+      for (let i = 0; i < 40; i++) writeFileSync(join(external, `Ext${i}.ts`), '')
+      symlinkSync(external, join(repoDir, 'src', 'linkedtree'), 'dir')
+      const result = detectBrownfieldClass(repoDir, 'typescript')
+      // RED before the fix: the 40 external files were followed and counted, inflating the band.
+      expect(result.sourceFileCount).toBe(5)
+    } finally {
+      rmSync(external, { recursive: true, force: true })
+    }
   })
 })
 

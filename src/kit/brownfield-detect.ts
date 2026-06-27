@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { readdirSync, statSync, existsSync, readFileSync } from 'node:fs'
+import { readdirSync, lstatSync, existsSync, readFileSync } from 'node:fs'
 import { join, extname } from 'node:path'
 import type { BrownfieldClass } from './thresholds.js'
 
@@ -52,7 +52,11 @@ function countSourceFiles(dir: string, exts: Set<string>, depth = 0): number {
     const full = join(dir, entry)
     let st
     try {
-      st = statSync(full)
+      // lstatSync (not statSync) so a symlinked directory reports isDirectory() === false and is
+      // skipped (#1645): following symlinks let a cycle (e.g. `current -> .`) re-walk to the depth
+      // cap and let an out-of-repo symlink (e.g. `-> /usr`) inflate sourceFileCount, skewing the
+      // brownfield band. Mirrors the cycle-safe lstatSync walk in measure.ts findRecursive.
+      st = lstatSync(full)
     } catch {
       continue
     }
