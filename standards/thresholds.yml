@@ -85,7 +85,27 @@ thresholds:
     medium: 100
     heavy: 500
 
-  # ── Go coverage (higher-is-better) — read from a `go test` cover summary (coverage.json pct).
+  # ── Per-language lint ceilings (lower-is-better): each tool family resolves its OWN row so tuning
+  # the JS bar never silently re-tunes Go/Python/Rust (#1629). Seeded with the eslint.errors values
+  # above — identical bars ⇒ no verdict change, only the row name is decoupled from ESLint.
+  golangci.issues: # golangci-lint issue count (golangci-report.json)
+    gold: 0
+    light: 25
+    medium: 100
+    heavy: 500
+  ruff.findings: # ruff finding count (ruff-report.json)
+    gold: 0
+    light: 25
+    medium: 100
+    heavy: 500
+  clippy.warnings: # clippy warning count (clippy-report.json)
+    gold: 0
+    light: 25
+    medium: 100
+    heavy: 500
+
+  # ── Go coverage (higher-is-better) — total statement coverage % parsed from the `go test
+  # -coverprofile=coverage.out` profile (#1629); there is no Go coverage.json.
   go.coverage.line:
     gold: 90
     light: 80

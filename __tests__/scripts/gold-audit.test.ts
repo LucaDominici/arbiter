@@ -364,6 +364,21 @@ const ROOT = resolve('.')
 const JAVA_REGISTRY = join(ROOT, 'standards', 'gold-registry.java.yml')
 const THRESHOLDS = join(ROOT, 'standards', 'thresholds.yml')
 
+// The jacoco.xml a JaCoCo tool emits (#1629). Its report-TOTAL counters (last in document order)
+// encode the given percents directly: covered=pct, missed=100-pct ⇒ covered*100/(covered+missed)=pct.
+const JACOCO_PATH = 'target/site/jacoco/jacoco.xml'
+function jacocoXml(pct: { line: number; branch: number; instruction: number }): string {
+  const counter = (type: string, p: number): string =>
+    `<counter type="${type}" missed="${100 - p}" covered="${p}"/>`
+  return (
+    '<report name="demo">' +
+    counter('INSTRUCTION', pct.instruction) +
+    counter('LINE', pct.line) +
+    counter('BRANCH', pct.branch) +
+    '</report>'
+  )
+}
+
 /** A repo with the has-java overlay enabled and a configurable set of pre-generated reports. */
 function makeJavaRepo(reports: Record<string, string> = {}): {
   dir: string
@@ -432,19 +447,16 @@ describe('gold-audit --stack java (#1413 per-stack registry)', () => {
   it('present reports under the per-class bar → Y with evidence', () => {
     const { dir, cleanup } = makeJavaRepo({
       'target/checkstyle-result.xml': '<checkstyle><file><error/><error/></file></checkstyle>',
-      'target/coverage-summary.json': JSON.stringify({
-        total: { lines: { pct: 85 }, branches: { pct: 75 } },
-      }),
+      [JACOCO_PATH]: jacocoXml({ line: 85, branch: 75, instruction: 85 }),
     })
     try {
       const { byId } = runJava(dir, 'light') // checkstyle bar 25, coverage.line 80, branch 70
       expect(byId['JA-STYLE-02'].verdict).toBe('Y') // 2 errors <= 25
-      expect(byId['JA-COV-03'].verdict).toBe('Y') // 85 >= 80
-      expect(byId['JA-COV-04'].verdict).toBe('Y') // 75 >= 70
+      expect(byId['JA-COV-02'].verdict).toBe('Y') // line 85 >= 80
+      expect(byId['JA-COV-03'].verdict).toBe('Y') // instruction 85 >= 80
+      expect(byId['JA-COV-04'].verdict).toBe('Y') // branch 75 >= 70
       expect(byId['JA-STYLE-02'].evidence).toBeTruthy()
-      expect((byId['JA-COV-03'].evidence as { file?: string }).file).toBe(
-        'target/coverage-summary.json',
-      )
+      expect((byId['JA-COV-02'].evidence as { file?: string }).file).toBe(JACOCO_PATH)
     } finally {
       cleanup()
     }
@@ -452,9 +464,7 @@ describe('gold-audit --stack java (#1413 per-stack registry)', () => {
 
   it('threshold_ref resolves per class — gold bar fails what light passes (same report)', () => {
     const reports = {
-      'target/coverage-summary.json': JSON.stringify({
-        total: { lines: { pct: 85 }, branches: { pct: 75 } },
-      }),
+      [JACOCO_PATH]: jacocoXml({ line: 85, branch: 75, instruction: 85 }),
       'target/checkstyle-result.xml': '<checkstyle><file><error/><error/></file></checkstyle>',
     }
     const a = makeJavaRepo(reports)
@@ -462,9 +472,9 @@ describe('gold-audit --stack java (#1413 per-stack registry)', () => {
     try {
       const light = runJava(a.dir, 'light')
       const gold = runJava(b.dir, 'gold')
-      // coverage 85: light bar 80 ⇒ Y, gold bar 90 ⇒ N
-      expect(light.byId['JA-COV-03'].verdict).toBe('Y')
-      expect(gold.byId['JA-COV-03'].verdict).toBe('N')
+      // line coverage 85: light bar 80 ⇒ Y, gold bar 90 ⇒ N
+      expect(light.byId['JA-COV-02'].verdict).toBe('Y')
+      expect(gold.byId['JA-COV-02'].verdict).toBe('N')
       // checkstyle 2 errors: light bar 25 ⇒ Y, gold bar 0 ⇒ N
       expect(light.byId['JA-STYLE-02'].verdict).toBe('Y')
       expect(gold.byId['JA-STYLE-02'].verdict).toBe('N')
@@ -476,7 +486,7 @@ describe('gold-audit --stack java (#1413 per-stack registry)', () => {
 
   it('is byte-stable across two runs (determinism)', () => {
     const { dir, cleanup } = makeJavaRepo({
-      'target/coverage-summary.json': JSON.stringify({ total: { lines: { pct: 85 } } }),
+      [JACOCO_PATH]: jacocoXml({ line: 85, branch: 75, instruction: 85 }),
     })
     try {
       const args = [

@@ -60,7 +60,7 @@ checks:
       format: json
       select: 'warnings'
       op: lte
-    threshold_ref: eslint.errors
+    threshold_ref: clippy.warnings
     weight: 2
     risk: SAFE
     applies_if: has-rust

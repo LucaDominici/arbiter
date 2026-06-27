@@ -112,17 +112,20 @@ checks:
     weight: 1
     risk: SAFE
     applies_if: has-java
+  # JA-COV-02/03/04 score the report-TOTAL coverage PERCENT of the jacoco.xml a JaCoCo tool actually
+  # emits, via the engine's `coverage:TYPE` selector (last <counter type="TYPE">, covered/(covered+
+  # missed)·100). The prior regex grabbed the LEFTMOST method counter's raw covered-LINE COUNT and
+  # compared it to a percent bar (false-N for every JaCoCo repo); the prior json fallbacks read a
+  # target/coverage-summary.json no Java tool emits (#1629).
   - id: JA-COV-02
     dimension: D-COVERAGE
-    title: Line coverage meets the per-class floor (jacoco.xml LINE covered ratio)
+    title: Line coverage % meets the per-class floor (jacoco.xml report-total LINE)
     type: value
     args:
       path: target/site/jacoco/jacoco.xml
-      format: regex
-      select: 'type="LINE"[^>]*covered="(\d+)"'
+      format: xml
+      select: 'coverage:LINE'
       op: gte
-      # NOTE: covered-count proxy; the registry author keeps the bar a ratio-independent floor via
-      # threshold_ref. For a true ratio, emit a coverage-summary.json (see JA-COV-03).
     threshold_ref: coverage.line
     weight: 2
     risk: SAFE
@@ -130,12 +133,12 @@ checks:
     anchor: INV-25
   - id: JA-COV-03
     dimension: D-COVERAGE
-    title: Line coverage % meets the per-class floor (coverage-summary.json)
+    title: Instruction coverage % meets the per-class floor (jacoco.xml report-total INSTRUCTION)
     type: value
     args:
-      path: target/coverage-summary.json
-      format: json
-      select: 'total.lines.pct'
+      path: target/site/jacoco/jacoco.xml
+      format: xml
+      select: 'coverage:INSTRUCTION'
       op: gte
     threshold_ref: coverage.line
     weight: 2
@@ -143,12 +146,12 @@ checks:
     applies_if: has-java
   - id: JA-COV-04
     dimension: D-COVERAGE
-    title: Branch coverage % meets the per-class floor (coverage-summary.json)
+    title: Branch coverage % meets the per-class floor (jacoco.xml report-total BRANCH)
     type: value
     args:
-      path: target/coverage-summary.json
-      format: json
-      select: 'total.branches.pct'
+      path: target/site/jacoco/jacoco.xml
+      format: xml
+      select: 'coverage:BRANCH'
       op: gte
     threshold_ref: coverage.branch
     weight: 1
