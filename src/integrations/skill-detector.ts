@@ -92,7 +92,7 @@ function findSkillFiles(dir: string, depth: number, found: string[], count: Walk
  *     (optionally prefixed by a `<marketplace>` segment). Owner = the dir two
  *     levels above `skills/` (falling back one level when there is no version dir).
  *   - Flat, version-less (the real majority on a live machine):
- *     `<marketplace>/<plugin>/<hash>/<name>/SKILL.md` — NO `skills/` segment.
+ *     `<marketplace>/<plugin>/<hash>/<name>/SKILL.md` — no `skills/` path part.
  *     The plugin dir is always three levels above the SKILL.md leaf
  *     (`…/<plugin>/<hash>/<name>/SKILL.md`), independent of a marketplace prefix.
  *
