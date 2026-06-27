@@ -29,7 +29,7 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
   // #1497 A3: check-continue-on-error added to the W6 dual-track batch (12 → 13).
   // #1497 A2: check-min-test-execution added to the W6 Track-B-only batch (2 → 3 ⇒ total 17 → 18).
   // #1497 A4: check-test-scope-tier added to the W6 dual-track batch (13 → 14 ⇒ total 18 → 19).
-  it('emits 19 scripts total at L2/github-off (14 W6-dual + 3 W6-trackB + 4 F4)', () => {
+  it('emits 19 scripts total at L2/github-off (12 W6-dual + 3 W6-trackB + 4 F4)', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
     expect(result.files).toHaveLength(19)
   })
@@ -317,4 +317,89 @@ describe('anti-drift × owner exactly-once emission (#1318.2)', () => {
       }
     })
   }
+})
+
+// ─── #1674: prose ↔ generator emit-array parity ──────────────────────────────
+// AGENTS.md §Invariants (INV-89) and docs/REFERENCE/anti-drift-family.md
+// enumerate the emitted script family in prose. The generator emit arrays are
+// the SSOT; the count-asserting tests above keep the arrays trustworthy, but
+// nothing diffed the PROSE against them — which is exactly how the enumeration
+// drifted (advertised check-pii-scan/check-tier-coverage as emitted while the
+// generator refuses both, and omitted the #1497/#1266 guards). This self-gate
+// closes that gap in BOTH directions.
+describe('INV-89 prose ↔ generator emit-array parity (#1674)', () => {
+  // Scripts the generator explicitly refuses to emit for targets (#1152):
+  // check-pii-scan duplicates the native pii-scan; check-tier-coverage is an
+  // arbiter-self meta-gate. Neither may be advertised as emitted.
+  const NEVER_EMITTED = ['check-pii-scan.mjs', 'check-tier-coverage.mjs'] as const
+
+  // The full emitted superset across the config matrix. Github-off + L1 emits
+  // the github trio fallback; selfVal=false emits the exit-code-contract
+  // fallback. The union of those two configs covers every script the generator
+  // can emit (the github-on path is a strict subset).
+  function emittedUnion(): Set<string> {
+    const tmp = mkdtempSync(join(tmpdir(), 'arbiter-adv-prose-'))
+    try {
+      const union = new Set<string>()
+      for (const overrides of [{}, { enableSelfValidationHarness: false }]) {
+        for (const f of generateAntiDriftValidators(makeConfig(tmp, overrides), {
+          dryRun: true,
+        }).files) {
+          const name = f.path.split('/').pop()
+          if (name) union.add(name)
+        }
+      }
+      return union
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  }
+
+  function scriptTokens(text: string): Set<string> {
+    return new Set(text.match(/check-[a-z0-9-]+\.mjs/g) ?? [])
+  }
+
+  it('AGENTS.md INV-89 enforcement row lists every emitted script and no never-emitted script', () => {
+    const agents = readFileSync(resolve('AGENTS.md'), 'utf-8')
+    const start = agents.indexOf('## Anti-Drift Validator Family (INV-89)')
+    expect(start).toBeGreaterThanOrEqual(0)
+    // The enforcement block runs until the next top-level heading.
+    const rest = agents.slice(start + 1)
+    const end = rest.indexOf('\n## ')
+    const block = end >= 0 ? rest.slice(0, end) : rest
+    const tokens = scriptTokens(block)
+
+    const emitted = emittedUnion()
+    const missing = [...emitted].filter((s) => !tokens.has(s)).sort()
+    expect(missing, `AGENTS.md INV-89 row omits emitted scripts: ${missing.join(', ')}`).toEqual([])
+    for (const banned of NEVER_EMITTED) {
+      expect(tokens.has(banned), `AGENTS.md INV-89 row falsely lists ${banned} as emitted`).toBe(
+        false,
+      )
+    }
+  })
+
+  it('anti-drift-family.md Family Overview table matches the emitted set exactly', () => {
+    const doc = readFileSync(resolve('docs/REFERENCE/anti-drift-family.md'), 'utf-8')
+    const start = doc.indexOf('## Family Overview')
+    expect(start).toBeGreaterThanOrEqual(0)
+    const rest = doc.slice(start)
+    const end = rest.indexOf('\n## ', 1)
+    const section = end >= 0 ? rest.slice(0, end) : rest
+    // Collect script names that appear as the FIRST backticked cell of a table row.
+    const rowScripts = new Set<string>()
+    for (const line of section.split('\n')) {
+      const m = line.match(/^\|\s*`(check-[a-z0-9-]+\.mjs)`/)
+      if (m) rowScripts.add(m[1])
+    }
+
+    const emitted = emittedUnion()
+    const missing = [...emitted].filter((s) => !rowScripts.has(s)).sort()
+    const extra = [...rowScripts].filter((s) => !emitted.has(s)).sort()
+    expect(missing, `family table omits emitted scripts: ${missing.join(', ')}`).toEqual([])
+    expect(extra, `family table lists non-emitted scripts as rows: ${extra.join(', ')}`).toEqual([])
+    for (const banned of NEVER_EMITTED) {
+      expect(rowScripts.has(banned), `family table falsely lists ${banned} as emitted`).toBe(false)
+    }
+  })
 })
