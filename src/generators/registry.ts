@@ -542,8 +542,10 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'playwright-ts',
+      // #1606: a polyglot (multi) repo's frontend is a TS SPA — give it the same
+      // Playwright a11y/render harness a pure-TS repo gets (otherwise silently stripped).
       enabled:
-        config.language === 'typescript' &&
+        (config.language === 'typescript' || config.language === 'multi') &&
         (config.archetype === 'frontend-spa' || config.archetype === BACKEND_WEB_DB),
       run: (opts) => generatePlaywrightTs(config, opts).files,
     },

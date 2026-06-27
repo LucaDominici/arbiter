@@ -41,7 +41,10 @@ export function generateFrontendQuality(
   // The spec is TypeScript/Playwright-based, so it is emitted only for TS frontends;
   // the presence gate (check-render-smoke.mjs) is language-agnostic and emitted
   // unconditionally by check-all.ts.
-  const isTsFrontend = config.language === 'typescript'
+  // #1606: a polyglot (language=multi) repo's frontend lane is a TS SPA too — emit the
+  // TS render-smoke starter for it, otherwise the unconditional language-agnostic
+  // presence gate (check-render-smoke.mjs) finds zero specs and the project is Day-1 RED.
+  const isTsFrontend = config.language === 'typescript' || config.language === 'multi'
   const renderSmokeSpec = isTsFrontend
     ? renderTemplate('e2e/playwright-ts/render-smoke.spec.ts.ejs', templateData)
     : null

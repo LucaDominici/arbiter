@@ -25,7 +25,8 @@ export function generatePlaywrightTs(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): PlaywrightTsResult {
-  if (config.language !== 'typescript') {
+  // #1606: emit for typescript AND multi (a polyglot repo's frontend lane is TS).
+  if (config.language !== 'typescript' && config.language !== 'multi') {
     return { files: [] }
   }
   if (!A11Y_ARCHETYPES.has(config.archetype)) {

@@ -181,6 +181,15 @@ describe('generateFrontendQuality (#1127)', () => {
     expect(existsSync(join(dir, 'tests', 'e2e', 'render-smoke.spec.ts'))).toBe(true)
   })
 
+  // #1606: a polyglot (multi) frontend is a TS SPA too — it MUST get the render-smoke
+  // starter, otherwise the unconditional render-smoke presence gate is Day-1 RED.
+  it('scaffolds the render-smoke spec for a language=multi frontend-spa (#1606)', () => {
+    generateFrontendQuality(
+      makeConfig(dir, { archetype: 'frontend-spa', language: 'multi', governanceLevel: 'L2' }),
+    )
+    expect(existsSync(join(dir, 'tests', 'e2e', 'render-smoke.spec.ts'))).toBe(true)
+  })
+
   it('does NOT scaffold the render-smoke spec for a non-TS frontend', () => {
     const pyDir = createTestProject('python')
     try {

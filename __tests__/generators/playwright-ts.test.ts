@@ -51,6 +51,16 @@ describe('generatePlaywrightTs (#349)', () => {
     expect(result.files).toHaveLength(0)
   })
 
+  // #1606: a polyglot (multi) repo's frontend lane is a TS SPA — it must get the same
+  // a11y/render harness, not be silently stripped of it.
+  it('emits the a11y harness for language=multi frontend-spa (#1606)', () => {
+    const config = makeConfig(dir, { language: 'multi', archetype: 'frontend-spa' })
+    const result = generatePlaywrightTs(config)
+    expect(result.files.length).toBeGreaterThan(0)
+    expect(existsSync(join(dir, 'tests', 'e2e', 'a11y', 'run-axe.ts'))).toBe(true)
+    expect(existsSync(join(dir, 'tests', 'e2e', 'a11y.spec.ts'))).toBe(true)
+  })
+
   it('emitted run-axe.ts contains the critical-throw policy', () => {
     const config = makeConfig(dir, { language: 'typescript', archetype: 'frontend-spa' })
     generatePlaywrightTs(config)
