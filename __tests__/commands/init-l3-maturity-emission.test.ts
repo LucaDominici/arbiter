@@ -5,10 +5,7 @@
 // — so a still-ungated emitted cell is now consulted, and an unmodeled language×dim is
 // NOT falsely blocked (the #1606 pattern, generalised).
 import { describe, it, expect } from 'vitest'
-import {
-  deriveL3MaturityChecks,
-  type L3MaturityCapability,
-} from '../../src/commands/init.js'
+import { deriveL3MaturityChecks, type L3MaturityCapability } from '../../src/commands/init.js'
 import { buildRegistry } from '../../src/generators/registry.js'
 import { isL3Allowed } from '../../src/utils/maturity-check.js'
 import { makeConfig } from '../helpers.js'
@@ -43,14 +40,23 @@ describe('deriveL3MaturityChecks — emission-plan-driven L3 gate (#1678)', () =
 
   it('blocks a kotlin service on its beta cells (security/coverage/architecture/static_analysis)', () => {
     // Every emitted kotlin tool is beta in the matrix; the gate must surface them.
-    const checks = checksFor({ language: 'kotlin', archetype: 'backend-web-db', basePackage: 'com.example' })
+    const checks = checksFor({
+      language: 'kotlin',
+      archetype: 'backend-web-db',
+      basePackage: 'com.example',
+    })
     const blocked = blockedFeatures(checks)
     expect(blocked.length).toBeGreaterThan(0)
     expect(blocked).toEqual(expect.arrayContaining(['security', 'coverage', 'static_analysis']))
   })
 
   it('does NOT block a typescript service — every emitted TS tool is proven', () => {
-    const checks = checksFor({ language: 'typescript', archetype: 'backend-web-db', hasDatabase: true, hasPublicApi: true })
+    const checks = checksFor({
+      language: 'typescript',
+      archetype: 'backend-web-db',
+      hasDatabase: true,
+      hasPublicApi: true,
+    })
     expect(checks.length).toBeGreaterThan(0)
     expect(blockedFeatures(checks)).toEqual([])
   })
