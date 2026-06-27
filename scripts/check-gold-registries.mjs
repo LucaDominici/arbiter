@@ -26,7 +26,7 @@ const args = process.argv.slice(2)
 const stdArg = args.indexOf('--standards')
 const STANDARDS = stdArg >= 0 && args[stdArg + 1] ? resolve(args[stdArg + 1]) : resolve('standards')
 
-const VALUE_FORMATS = new Set(['json', 'xml', 'regex'])
+const VALUE_FORMATS = new Set(['json', 'xml', 'regex', 'go-coverprofile'])
 const VALUE_OPS = new Set(['gte', 'lte', 'eq'])
 const PER_STACK_RE = /^gold-registry\.([a-z0-9-]+)\.yml$/i
 

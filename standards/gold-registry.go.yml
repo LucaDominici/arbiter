@@ -60,7 +60,7 @@ checks:
       format: json
       select: 'Issues.length'
       op: lte
-    threshold_ref: eslint.errors
+    threshold_ref: golangci.issues
     weight: 2
     risk: SAFE
     applies_if: has-go
@@ -77,22 +77,25 @@ checks:
     applies_if: has-go
 
   # ── D-COVERAGE: coverage wired AND line coverage % meets the per-class floor. ──────────────────
+  # arbiter's Go templates run `go test -coverprofile=coverage.out` — a text profile, NOT a JSON
+  # summary (no Go tool emits coverage.json). The engine's go-coverprofile format sums the profile's
+  # statement blocks to the same total % that `go tool cover -func` reports (#1629).
   - id: GO-COV-01
     dimension: D-COVERAGE
-    title: Go coverage report present (coverage measured)
+    title: Go coverage profile present (coverage measured)
     type: file_exists
-    args: { path: coverage.json }
+    args: { path: coverage.out }
     weight: 1
     risk: SAFE
     applies_if: has-go
   - id: GO-COV-02
     dimension: D-COVERAGE
-    title: Line coverage % meets the per-class floor (go cover summary)
+    title: Statement coverage % meets the per-class floor (coverage.out profile)
     type: value
     args:
-      path: coverage.json
-      format: json
-      select: 'total.lines.pct'
+      path: coverage.out
+      format: go-coverprofile
+      select: 'line'
       op: gte
     threshold_ref: go.coverage.line
     weight: 2

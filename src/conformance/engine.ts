@@ -333,6 +333,56 @@ function extractXmlAttr(text: string, spec: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/** Parse one `<tag …>` element segment's `name="value"` pairs into a map (fixed regex, ReDoS-safe). */
+function parseXmlAttrs(segment: string): Record<string, string> {
+  const attrs: Record<string, string> = {}
+  const re = /([\w:.-]+)\s*=\s*"([^"]*)"/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(segment)) !== null) attrs[m[1] as string] = m[2] as string
+  return attrs
+}
+
+/**
+ * Coverage PERCENT from a JaCoCo-style report's report-TOTAL counter: the LAST
+ * `<counter type="<TYPE>" missed="M" covered="C"/>` element (JaCoCo emits counters in
+ * method → class → package → report order, so the report total is last in document order),
+ * computed as C*100/(C+M). Selecting the LAST match — not the leftmost — and dividing covered by
+ * the total is what makes this a real coverage RATIO instead of one arbitrary method's raw
+ * covered-line COUNT (#1629). Null when no such counter exists, an attr is missing/non-numeric, or
+ * the total is 0 (0/0 asserts no coverage). `(C*100)/total` keeps clean integers exactly representable.
+ */
+function extractCoveragePercent(text: string, counterType: string): number | null {
+  const needle = '<counter'
+  let from = 0
+  let covered: number | null = null
+  let missed: number | null = null
+  for (;;) {
+    const i = text.indexOf(needle, from)
+    if (i < 0) break
+    from = i + needle.length
+    if (!isXmlElementBoundary(text[i + needle.length])) continue
+    const close = text.indexOf('>', i)
+    const segment = close < 0 ? text.slice(i) : text.slice(i, close)
+    const attrs = parseXmlAttrs(segment)
+    if (attrs['type'] !== counterType) continue
+    const c = Number(attrs['covered'])
+    const m = Number(attrs['missed'])
+    if (!Number.isFinite(c) || !Number.isFinite(m)) continue
+    covered = c
+    missed = m
+  }
+  if (covered === null || missed === null) return null
+  const total = covered + missed
+  if (total <= 0) return null
+  return (covered * 100) / total
+}
+
+/**
+ * Read a numeric metric from an XML report. Selectors (deterministic, dependency-free):
+ *   `count:tag`        → number of `<tag` occurrences (open or self-closing)
+ *   `attr:tag@name`    → the numeric `name="…"` attribute of the first `<tag …>` element
+ *   `coverage:TYPE`    → report-total coverage PERCENT of the LAST `<counter type="TYPE">` (#1629)
+ */
 function extractXml(text: string, select: string): number | null {
   if (select.startsWith('count:')) {
     const tag = select.slice('count:'.length)
@@ -341,6 +391,11 @@ function extractXml(text: string, select: string): number | null {
   }
   if (select.startsWith('attr:')) {
     return extractXmlAttr(text, select.slice('attr:'.length))
+  }
+  if (select.startsWith('coverage:')) {
+    const counterType = select.slice('coverage:'.length)
+    if (counterType === '') return null
+    return extractCoveragePercent(text, counterType)
   }
   return null
 }
@@ -362,11 +417,37 @@ function extractRegex(text: string, select: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/**
+ * Total statement (≈ line) coverage PERCENT from a Go `go test -coverprofile` profile — the real
+ * artifact arbiter emits (there is no Go coverage.json). Each data line is
+ * `file.go:sl.sc,el.ec numStmt hitCount`; sum numStmt over all blocks and over the hit subset, then
+ * coveredStmts*100/totalStmts — exactly what `go tool cover -func` reports as total (#1629).
+ * Deterministic + dependency-free. Null when the profile has no data block or zero total statements.
+ */
+function extractGoCoverProfile(text: string): number | null {
+  let total = 0
+  let covered = 0
+  let sawBlock = false
+  for (const raw of text.split('\n')) {
+    const m = /:\d+\.\d+,\d+\.\d+\s+(\d+)\s+(\d+)\s*$/.exec(raw)
+    if (m === null) continue
+    const numStmt = Number(m[1])
+    const hits = Number(m[2])
+    if (!Number.isFinite(numStmt) || !Number.isFinite(hits)) continue
+    total += numStmt
+    if (hits > 0) covered += numStmt
+    sawBlock = true
+  }
+  if (!sawBlock || total <= 0) return null
+  return (covered * 100) / total
+}
+
 /** Extract a numeric metric from a report's text for the given format + selector, or null. */
 function extractMetric(text: string, format: string, select: string): number | null {
   if (format === 'json') return extractJson(text, select)
   if (format === 'xml') return extractXml(text, select)
   if (format === 'regex') return extractRegex(text, select)
+  if (format === 'go-coverprofile') return extractGoCoverProfile(text)
   return null
 }
 
