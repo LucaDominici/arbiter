@@ -108,25 +108,33 @@ function parseCliTs(src) {
     const varMatch = varRe.exec(stripped)
     if (varMatch) {
       const varName = varMatch[1]
-      const subRe = new RegExp(`\\b${varName}\\s*\\.command\\('([^'<>]+)'\\)`, 'g')
+      // Capture the full registered spec (allow positional args like `plan <file>`),
+      // then reduce to the base subcommand name. A class that forbids `<`/`>` would
+      // silently drop every positional-arg subcommand (#1646).
+      const subRe = new RegExp(`\\b${varName}\\s*\\.command\\('([^']+)'\\)`, 'g')
       for (const sm of stripped.matchAll(subRe)) {
-        const subName = sm[1].trim()
+        // Strip argument specs (<required> [optional]) — base subcommand name only.
+        const subName = sm[1].trim().split(/[\s<[]/)[0]
         // Skip if the captured subcommand name is the same as the top-level command name
         // (this avoids the self-referencing artifact from the variable assignment).
         if (subName === name) continue
-        // Get description for the subcommand
-        const subEscaped = subName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const subBlockRe = new RegExp(
-          `\\.command\\('${subEscaped}'\\)([\\s\\S]{0,500}?)(?=\\.command\\('|$)`,
-        )
-        const subBlock = subBlockRe.exec(stripped)
+        // Resolve the description from THIS subcommand's own registration block.
+        // Scope the search to the match offset (sm.index) so a same-named command
+        // elsewhere in the file (e.g. a top-level `.command('diff')`) cannot hijack
+        // the description (#1646). Bound the block by the NEXT `.command(` rather
+        // than a fixed char window — a long `.action` body must not push the search
+        // past the description into an unrelated command (#1646).
+        const tail = stripped.slice(sm.index)
+        const afterCmd = tail.replace(/^[\s\S]*?\.command\('[^']+'\)/, '')
+        const nextCmd = afterCmd.search(/\.command\('/)
+        const subBlockBody = nextCmd === -1 ? afterCmd : afterCmd.slice(0, nextCmd)
+        // Tolerate a multi-line `.description(\n  '...'\n)` registration — the
+        // string may be on its own line and trailed by a comma (#1646).
         let subDesc = ''
-        if (subBlock) {
-          const sdm =
-            /\.description\('([^']+)'\)/.exec(subBlock[0]) ??
-            /\.description\("([^"]+)"\)/.exec(subBlock[0])
-          if (sdm) subDesc = sdm[1]
-        }
+        const sdm =
+          /\.description\(\s*'([^']+)'/.exec(subBlockBody) ??
+          /\.description\(\s*"([^"]+)"/.exec(subBlockBody)
+        if (sdm) subDesc = sdm[1]
         subNames.push({ name: subName, description: subDesc })
       }
     }

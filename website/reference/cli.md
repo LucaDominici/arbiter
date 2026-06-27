@@ -562,8 +562,8 @@ Export or verify AI agent governance rules (#265).
 
 **Subcommands:**
 
-- `arbiter agent-rules export`
-- `arbiter agent-rules verify` — Probe toolchain compatibility for the detected stack
+- `arbiter agent-rules export` — Export governance rules to a target AI agent format
+- `arbiter agent-rules verify` — Verify that agent rule files match the current graph (drift detection)
 
 ## arbiter anti-fake-green
 
@@ -579,7 +579,7 @@ Performance benchmarks for arbiter.
 
 **Subcommands:**
 
-- `arbiter benchmark hooks`
+- `arbiter benchmark hooks` — Measure hook latency (p50/p95/p99 per hook)
 
 ## arbiter blame
 
@@ -597,8 +597,8 @@ Governance-aware CI planning (#261).
 
 **Subcommands:**
 
-- `arbiter ci plan`
-- `arbiter ci verify-plan`
+- `arbiter ci plan` — Compute affected invariants and required gates from changed files
+- `arbiter ci verify-plan` — Verify that all required gates from a ci plan actually ran
 
 ## arbiter close-gold-gap
 
@@ -673,9 +673,9 @@ Diagnose and repair arbiter state.
 
 **Subcommands:**
 
-- `arbiter doctor repair-state`
-- `arbiter doctor recover-lock`
-- `arbiter doctor clean`
+- `arbiter doctor repair-state` — Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)
+- `arbiter doctor recover-lock` — Force-release a stale .arbiter/.lock file left by a crashed process
+- `arbiter doctor clean` — Remove arbiter backup files (_.arbiter-backup, .arbiter-generated.json.bak._)
 
 **Options:**
 
@@ -690,7 +690,7 @@ Inspect registered experimental features.
 
 **Subcommands:**
 
-- `arbiter experiments list` — List detected integrations and recommend missing ones (doctor advisory target)
+- `arbiter experiments list` — List all registered experiments and their status
 
 ## arbiter explain
 
@@ -707,7 +707,7 @@ Feature/RTM matrix commands (INV-112).
 
 **Subcommands:**
 
-- `arbiter feature-matrix export`
+- `arbiter feature-matrix export` — Export docs/PRODUCT/FEATURE_MATRIX.md to CSV or xlsx
 
 ## arbiter findings
 
@@ -715,8 +715,8 @@ Inspect and promote the incidental-finding spool (#1403).
 
 **Subcommands:**
 
-- `arbiter findings list` — List detected integrations and recommend missing ones (doctor advisory target)
-- `arbiter findings promote`
+- `arbiter findings list` — List the deduped findings currently in the spool
+- `arbiter findings promote` — Re-validate vs HEAD, dedup vs open issues, and file the surviving findings
 
 ## arbiter gauntlet
 
@@ -724,8 +724,8 @@ Pairwise/combinatorial test generation (#260).
 
 **Subcommands:**
 
-- `arbiter gauntlet generate` — Generate per-dimension reference docs (requires --experimental.kit)
-- `arbiter gauntlet verify` — Probe toolchain compatibility for the detected stack
+- `arbiter gauntlet generate` — Read YAML spec, run IPOG, write test files
+- `arbiter gauntlet verify` — Check generated tests are in sync with spec hash
 
 ## arbiter gold-audit
 
@@ -745,7 +745,7 @@ Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine).
 
 **Subcommands:**
 
-- `arbiter graph build`
+- `arbiter graph build` — Build the provenance graph from invariants and write .arbiter/graph.json
 
 **Options:**
 
@@ -787,10 +787,12 @@ Cross-stack governance kit commands (requires --experimental.kit).
 
 **Subcommands:**
 
-- `arbiter kit list` — List detected integrations and recommend missing ones (doctor advisory target)
+- `arbiter kit list` — List kit dimensions
+- `arbiter kit show` — Show details for a kit dimension by ID (e.g. N01)
+- `arbiter kit explain` — Explain a kit dimension with per-stack projection
 - `arbiter kit validate` — Validate kit catalog: schema, parity, and redaction (requires --experimental.kit)
 - `arbiter kit generate` — Generate per-dimension reference docs (requires --experimental.kit)
-- `arbiter kit install`
+- `arbiter kit install` — Run the 6-phase kit install lifecycle: DETECT → MEASURE → SCAFFOLD → ASSESS → PLAN → VERIFY
 
 ## arbiter knowledge-map
 
@@ -832,7 +834,10 @@ Capture an out-of-scope finding to the per-agent JSONL spool (#1401).
 
 **Subcommands:**
 
-- `arbiter plugin list` — List detected integrations and recommend missing ones (doctor advisory target)
+- `arbiter plugin add` — Add a plugin to this project (validates it is resolvable first)
+- `arbiter plugin remove` — Remove a plugin from this project
+- `arbiter plugin list` — List plugins configured for this project
+- `arbiter plugin init` — Scaffold a new plugin package at ./arbiter-plugin-&lt;name&gt;/ (API v1.1)
 
 ## arbiter report
 
@@ -850,8 +855,10 @@ Review artefacts (plans, code) against governance invariants.
 
 **Subcommands:**
 
-- `arbiter review code`
-- `arbiter review diff` — Show what arbiter update would change (dry run)
+- `arbiter review plan` — Review a plan markdown file via a Claude subagent (#235)
+- `arbiter review submit` — Record agent-produced plan-review verdicts into the gate evidence (agent-agnostic; pairs with `review plan --emit-prompts`) (#1329)
+- `arbiter review code` — Multi-agent code review: dispatch N parallel reviewers based on tier (#236)
+- `arbiter review diff` — Semantic diff between two graph snapshots (#262)
 
 ## arbiter settings
 
@@ -891,7 +898,7 @@ Regression-eval harness for arbiter's own skills/commands (#1264).
 
 **Subcommands:**
 
-- `arbiter skill-eval run`
+- `arbiter skill-eval run` — Run scenario fixtures, score pass/fail with variance, emit a report
 
 ## arbiter task
 
@@ -900,11 +907,11 @@ Manage task lifecycle state.
 **Subcommands:**
 
 - `arbiter task resume` — Print recovery instructions for the current task phase
-- `arbiter task advance`
+- `arbiter task advance` — Advance (or reverse) the task lifecycle phase
 - `arbiter task recover` — Print 3-layer recovery context for the current task (#694)
-- `arbiter task record-red`
-- `arbiter task record-tech-debt`
-- `arbiter task init`
+- `arbiter task record-red` — Record TDD red-phase evidence: run a failing test and capture evidence (#551)
+- `arbiter task record-tech-debt` — File a tech-debt GitHub issue and persist evidence (#702)
+- `arbiter task init` — Initialise / update the unified task document (#1206)
 - `arbiter task get` — Print a single task-state field for shell consumers (#1206)
 
 ## arbiter trace
@@ -954,8 +961,10 @@ Probe toolchain compatibility for the detected stack.
 
 **Subcommands:**
 
-- `arbiter verify evidence`
-- `arbiter verify graph` — Manage the provenance graph (#259)
+- `arbiter verify evidence` — Verify the .evidence/SUMMARY.json snapshot (SHA + freshness window).
+- `arbiter verify plan` — Validate a PLAN.json against invariant rules and write REVIEW.json (#253)
+- `arbiter verify graph` — Verify the provenance graph (#259) — fails on orphan invariants (no enforces / no implements)
+- `arbiter verify tdd` — Verify TDD red-phase evidence for a task — replayable audit (#553)
 
 **Options:**
 
@@ -968,8 +977,11 @@ Manage work units via decomposition backend.
 
 **Subcommands:**
 
-- `arbiter work list` — List detected integrations and recommend missing ones (doctor advisory target)
-- `arbiter work create`
+- `arbiter work list` — List work units
+- `arbiter work create` — Create a new work unit
+- `arbiter work show` — Show details of a work unit
+- `arbiter work close` — Mark a work unit as done
+- `arbiter work advance` — Advance a work unit to a new lifecycle phase
 
 ## arbiter worktree
 
@@ -977,5 +989,7 @@ Manage git worktrees for parallel task development.
 
 **Subcommands:**
 
-- `arbiter worktree list` — List detected integrations and recommend missing ones (doctor advisory target)
+- `arbiter worktree open` — Create a sibling worktree with a task branch and symlinked local files
+- `arbiter worktree close` — Tear down a task worktree after its branch is merged
+- `arbiter worktree list` — List open task worktrees
 <!-- END GENERATED:cli -->

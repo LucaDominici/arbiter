@@ -171,4 +171,59 @@ describe('gen-cli-ref.mjs', () => {
       cleanup()
     }
   })
+
+  // Regression (#1646): positional-arg subcommands must be documented, and a
+  // subcommand description must be resolved from the PARENT's scope — not the
+  // first same-named `.command()` elsewhere in the file.
+  it('documents positional-arg subcommands and scopes subcommand descriptions to the parent', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      // Top-level `diff` with a distinct description that must NOT be mis-attributed
+      // to the review subcommand `diff`.
+      const cliTs = `import { Command } from 'commander'
+const program = new Command()
+program
+  .command('diff')
+  .description('Top-level diff dry run')
+  .action(() => {})
+const review = program
+  .command('review')
+  .description('Review artefacts')
+review
+  .command('plan <file>')
+  .description('Review a plan file')
+  .action(() => {})
+review
+  .command('submit <file>')
+  .description(
+    'Submit review verdicts',
+  )
+  .action(() => {})
+review
+  .command('code')
+  .description('Multi-agent code review')
+  .action(() => {})
+review
+  .command('diff')
+  .description('Semantic graph diff (#262)')
+  .action(() => {})
+program.parse()
+`
+      writeFileSync(join(dir, 'cli.ts'), cliTs)
+      makeCliMd(dir, '')
+      const w = run([`--cli=${join(dir, 'cli.ts')}`, `--doc=${join(dir, 'cli.md')}`], dir)
+      expect(w.status).toBe(0)
+      const content = readFileSync(join(dir, 'cli.md'), 'utf-8')
+      // Positional-arg subcommands present (base name only).
+      expect(content).toContain('`arbiter review plan`')
+      expect(content).toContain('`arbiter review submit`')
+      // Multi-line `.description(\n  '...'\n)` registration is still captured.
+      expect(content).toMatch(/arbiter review submit`.*Submit review verdicts/)
+      // review diff's own description, NOT the top-level diff description.
+      expect(content).toMatch(/arbiter review diff`.*Semantic graph diff \(#262\)/)
+      expect(content).not.toMatch(/arbiter review diff`.*Top-level diff dry run/)
+    } finally {
+      cleanup()
+    }
+  })
 })
