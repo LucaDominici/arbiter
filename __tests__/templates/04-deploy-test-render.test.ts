@@ -112,6 +112,28 @@ describe('04-deploy-test.yml.ejs — security invariants', () => {
     const rendered = renderDeployTest({ language: 'java', buildTool: 'maven' })
     expect(rendered).toContain('run_attempt')
   })
+
+  // #1650: every push/sign to ghcr.io needs an explicit docker login — GitHub does
+  // not auto-authenticate the docker CLI. Without it the build-and-sign job is RED.
+  it('logs in to the container registry before pushing (#1650)', () => {
+    const rendered = renderDeployTest({ language: 'java', buildTool: 'maven' })
+    expect(rendered).toContain('docker/login-action@')
+    const loginIdx = rendered.indexOf('docker/login-action@')
+    // anchor on step names (the run-body / explanatory comment also mention "docker push")
+    const pushStepIdx = rendered.indexOf('- name: Push to container registry')
+    const signStepIdx = rendered.indexOf('- name: cosign sign image')
+    expect(loginIdx).toBeGreaterThan(-1)
+    // login precedes the first registry write (push) and the signature push (sign)
+    expect(loginIdx).toBeLessThan(pushStepIdx)
+    expect(loginIdx).toBeLessThan(signStepIdx)
+  })
+
+  it('registry login uses GITHUB_TOKEN + github.actor against CONTAINER_REGISTRY (#1650)', () => {
+    const rendered = renderDeployTest({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).toContain("registry: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}")
+    expect(rendered).toContain('username: ${{ github.actor }}')
+    expect(rendered).toContain('password: ${{ secrets.GITHUB_TOKEN }}')
+  })
 })
 
 // ─── Per-language SBOM generation ────────────────────────────────────────────

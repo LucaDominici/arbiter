@@ -3,9 +3,15 @@ name: Post-merge CODEOWNERS notification
 # Sends a plain-text email to CODEOWNERS after each merged PR.
 # Body: PR URL, author, coverage %, changed files. No PR body (untrusted text).
 #
-# Trust boundary: when a fork PR is merged, this workflow runs on the merge
-# commit on the default branch with full secret access. The Python step never
-# logs str(exception) on SMTP failure to avoid credential leakage in job logs.
+# Trust boundary (#1661): this runs on the `pull_request` (closed) event, NOT
+# pull_request_target. GitHub withholds repository secrets — and downgrades
+# GITHUB_TOKEN to read-only — from ANY pull_request run whose head branch is a
+# FORK, merged or not. So a merged FORK PR has empty MAIL_SERVER and exits at the
+# guard below: CODEOWNERS are emailed only for SAME-REPO branch merges (where
+# secrets are present). Fork-merge notification would need a workflow_run-chained
+# or pull_request_target design; it is intentionally not covered here.
+# The Python step never logs str(exception) on SMTP failure to avoid credential
+# leakage in job logs.
 #
 # Setup required:
 #   secrets:   MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD

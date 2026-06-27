@@ -55,6 +55,35 @@ describe('_k6-runner.yml.ejs — render invariants (CANON-04, #895)', () => {
     const rendered = renderTemplate('github/workflows/_k6-runner.yml.ejs', makeData())
     expect(rendered).toContain('k6')
   })
+
+  // #1660: workflow_dispatch inputs must reach the shell via env: indirection, never
+  // interpolated as ${{ inputs.* }} inside a run: body (GitHub Actions template-injection
+  // seam). Mirrors the rule documented in issue-state.yml.ejs / _notify.yml.ejs.
+  it('forwards dispatch inputs via env: and references shell vars in run bodies (#1660)', () => {
+    const rendered = renderTemplate('github/workflows/_k6-runner.yml.ejs', makeData())
+    // env: mappings carry the untrusted values
+    expect(rendered).toContain('TARGET_URL: ${{ inputs.target_url }}')
+    expect(rendered).toContain('VUS: ${{ inputs.vus }}')
+    expect(rendered).toContain('DURATION: ${{ inputs.duration }}')
+    expect(rendered).toContain('SCENARIO: ${{ inputs.scenario }}')
+    // run: bodies reference the shell vars, not the splice
+    expect(rendered).toContain('echo "K6_BASE_URL=$TARGET_URL"')
+  })
+
+  it('no ${{ inputs.* }} interpolation survives inside a run: body (#1660)', () => {
+    const rendered = renderTemplate('github/workflows/_k6-runner.yml.ejs', makeData())
+    // the exact injectable splices the verbatim template shipped
+    expect(rendered).not.toContain('echo "K6_BASE_URL=${{ inputs.target_url }}"')
+    expect(rendered).not.toContain('SCENARIO="${{ inputs.scenario }}"')
+    expect(rendered).not.toContain('if [ -n "${{ inputs.vus }}" ]')
+  })
+
+  // #1666: checkout pinned to the canonical v6.0.3 sha; stale v4.2.2 divergence removed.
+  it('pins actions/checkout to the canonical v6.0.3 sha, not stale v4.2.2 (#1666)', () => {
+    const rendered = renderTemplate('github/workflows/_k6-runner.yml.ejs', makeData())
+    expect(rendered).toContain('actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10')
+    expect(rendered).not.toContain('11bd71901bbe5b1630ceea73d27597364c9af683')
+  })
 })
 
 // ─── Scenario templates ───────────────────────────────────────────────────────

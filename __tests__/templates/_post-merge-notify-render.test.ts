@@ -38,6 +38,21 @@ describe('_post-merge-notify.yml.ejs — structural invariants (CANON-18)', () =
     expect(rendered).toContain('types: [closed]')
   })
 
+  // #1661: the prior trust-boundary comment falsely claimed merged fork PRs run
+  // "with full secret access". On the pull_request (closed) event, fork-head runs get
+  // NO repository secrets, so fork merges silently never notify. Correct the comment.
+  it('does not claim fork-PR merges run with full secret access (#1661)', () => {
+    const rendered = renderNotify()
+    expect(rendered).not.toContain('full secret access')
+  })
+
+  it('comment states fork-PR runs are withheld secrets on pull_request (#1661)', () => {
+    const rendered = renderNotify()
+    expect(rendered).toContain('pull_request_target')
+    expect(rendered).toMatch(/withholds repository secrets/i)
+    expect(rendered).toMatch(/SAME-REPO branch merges/i)
+  })
+
   it.each(STACKS)(
     '$language: merged == true at job level (not shell)',
     ({ language, buildTool }) => {

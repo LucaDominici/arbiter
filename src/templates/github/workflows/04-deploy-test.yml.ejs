@@ -101,6 +101,17 @@ jobs:
         with:
           driver: docker
 
+      # #1650: GitHub Actions does NOT auto-authenticate the docker CLI to the
+      # container registry; `packages: write` only scopes GITHUB_TOKEN. Without an
+      # explicit login, every `docker push` / `cosign sign` below returns
+      # `denied: requested access to the resource is denied`. Mirrors 05-release.
+      - name: Log in to container registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9  # v3
+        with:
+          registry: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Restore Trivy DB cache
         uses: actions/cache/restore@5a3ec84abb95a8ab4ca1d11a90ab8e1a8d6b2571  # v4
         with:
