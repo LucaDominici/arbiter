@@ -79,26 +79,40 @@ function scanLines(content, patterns) {
     .filter(({ line }) => patterns.some((p) => p.test(line)))
 }
 
+// Cycle guard (#1638): track visited real directories by device:inode so a
+// hardlink / bind-mount cycle under src/ terminates instead of recursing forever
+// and OOM-ing the consumer's CI / PostToolUse hook. Symlinked entries are never
+// descended (and symlinked source files never read) — a directory symlink that
+// points at an ancestor is the live failure mode this closes. Mirrors the #1555
+// policy already applied to the boundaries/ scanners; statSync still follows
+// symlinks so we rely on the Dirent isSymbolicLink() skip, not on st.isDirectory().
+const _seenDirs = new Set()
+
 function walkSrc(dir, fn) {
   if (!existsSync(dir)) return
+  let dst
+  try {
+    dst = statSync(dir)
+  } catch {
+    return
+  }
+  const key = `${dst.dev}:${dst.ino}`
+  if (_seenDirs.has(key)) return
+  _seenDirs.add(key)
   let entries
   try {
-    entries = readdirSync(dir)
+    entries = readdirSync(dir, { withFileTypes: true })
   } catch {
     return
   }
   for (const entry of entries) {
-    const full = join(dir, entry)
-    let st
-    try {
-      st = statSync(full)
-    } catch {
-      continue
-    }
-    if (st.isDirectory()) {
-      if (entry === 'node_modules' || entry === '.git' || entry === '__tests__') continue
+    if (entry.isSymbolicLink()) continue // never follow symlinks (cycle / out-of-tree leak)
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '__tests__')
+        continue
       walkSrc(full, fn)
-    } else if (st.isFile() && SOURCE_EXTS.has(extname(entry))) {
+    } else if (entry.isFile() && SOURCE_EXTS.has(extname(entry.name))) {
       fn(full)
     }
   }
