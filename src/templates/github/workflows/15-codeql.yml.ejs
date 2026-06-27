@@ -3,12 +3,28 @@ const _cm = (typeof collaborationMode !== 'undefined' ? collaborationMode : 'pee
 const _runner = (_cm === 'gated-review' && (governanceLevel === 'L3' || governanceLevel === 'L4'))
   ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}"
   : "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}";
-const _codeqlLang = language === 'typescript' ? 'javascript-typescript'
-  : language === 'java' ? 'java-kotlin'
-  : language === 'go' ? 'go'
-  : language === 'python' ? 'python'
-  : 'javascript-typescript';
-%>name: CodeQL SAST (T1)
+// #1624: a single immutable language string defaulting to 'javascript-typescript' false-greens
+// the entire compiled-language backend of a polyglot (language === 'multi') repo — CodeQL would
+// scan only the TS frontend while the JVM backend goes unscanned behind a passing check. Resolve
+// the FULL set of CodeQL languages the detected stack contains and analyze each as its own matrix
+// leg, so every language present is actually scanned. `multi` is the TS-frontend + JVM-backend
+// monorepo (src/detectors/language.ts) — treat it as the superset of its parts, never a single
+// interpreted language. `kotlin` maps to CodeQL's java-kotlin pack (a bare 'kotlin' fell through
+// to the TS default before, scanning a Kotlin codebase as TypeScript).
+const _codeqlLangMap = {
+  typescript: ['javascript-typescript'],
+  java: ['java-kotlin'],
+  kotlin: ['java-kotlin'],
+  go: ['go'],
+  python: ['python'],
+  multi: ['java-kotlin', 'javascript-typescript'],
+};
+const _codeqlLangs = _codeqlLangMap[language] || ['javascript-typescript'];
+// For `multi` the JVM build lives under backend/ (not the repo root); single-language JVM stacks
+// build at the root. CodeQL must compile the JVM leg to trace it, so point the build there.
+const _jvmDir = (language === 'multi') ? 'backend' : null;
+-%>
+name: CodeQL SAST (T1)
 
 on:
   push:
@@ -28,15 +44,20 @@ concurrency:
 
 jobs:
   analyze:
-    name: CodeQL analysis
+    name: CodeQL analysis (${{ matrix.language }})
     runs-on: <%- _runner %>
     timeout-minutes: 30
+    strategy:
+      # One leg per CodeQL language present in the stack. fail-fast: false so a build break in
+      # one language leg does not mask (cancel) the SAST of the others (#1624).
+      fail-fast: false
+      matrix:
+        language: <%- JSON.stringify(_codeqlLangs) %>
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
       # .git/refs/**/*.lock from an interrupted run, which makes the
       # deep checkout below fail with "cannot lock ref". No-op on
-      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
-      # the checkout step's name:/SHA pin below, not this guard.
+      # ephemeral runners.
       - name: Clean stale git ref locks (self-hosted)
         # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
         run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
@@ -47,32 +68,53 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@4f3212b61783c3c68e8309a0f18a699764811cda # v3.28.8
         with:
-          languages: <%- _codeqlLang %>
+          languages: ${{ matrix.language }}
+<% if (_codeqlLangs.includes('java-kotlin')) { -%>
 
-<% if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+      - name: Set up Java
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
-<% if (buildTool === 'gradle') { %>
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-      - name: Build
+<% if (buildTool === 'gradle') { -%>
+      - name: Set up Gradle
+        if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - name: Build (Gradle)
+        if: matrix.language == 'java-kotlin'
+<% if (_jvmDir) { -%>
+        working-directory: <%- _jvmDir %>
+<% } -%>
         run: ./gradlew classes testClasses
-<% } else { %>
-      - name: Build
+<% } else { -%>
+      - name: Build (Maven)
+        if: matrix.language == 'java-kotlin'
+<% if (_jvmDir) { -%>
+        working-directory: <%- _jvmDir %>
+<% } -%>
         run: mvn compile test-compile -DskipTests
-<% } %>
-<% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+<% } -%>
+<% } -%>
+<% if (_codeqlLangs.includes('go')) { -%>
+
+      - name: Set up Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
-      - name: Build
+      - name: Build (Go)
+        if: matrix.language == 'go'
         run: go build ./...
-<% } else if (language === 'typescript') { %>
-      - uses: ./.github/actions/setup-node-pnpm
-<% } %>
+<% } -%>
+<% if (_codeqlLangs.includes('javascript-typescript')) { -%>
+
+      - name: Set up Node
+        if: matrix.language == 'javascript-typescript'
+        uses: ./.github/actions/setup-node-pnpm
+<% } -%>
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@4f3212b61783c3c68e8309a0f18a699764811cda # v3.28.8
         with:
-          category: '/language:<%- _codeqlLang %>'
+          category: '/language:${{ matrix.language }}'
