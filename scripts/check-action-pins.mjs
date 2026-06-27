@@ -37,6 +37,15 @@ const TEMPLATED_REF = /^(?:<%|\$\{)/
 // Matches 'uses: action@ref' and '- uses: action@ref'; captures action (group 1) and ref (group 2).
 // USES_PATTERN requires leading whitespace; column-0 'uses:' is not valid GitHub Actions syntax.
 const USES_PATTERN = /^\s+(?:-\s+)?uses:\s+["']?([^@\s"']+)@([^\s#"']+)["']?/gm
+// Comment-truthfulness scan (#1614): captures action (1), 40-hex sha (2), and the trailing
+// `# vN…` version label (3). A single immutable sha resolves to exactly ONE upstream release,
+// so two pins of the SAME sha must not advertise DIFFERENT MAJOR versions. INV-76 verifies the
+// sha is 40-hex but never that the human-readable label is truthful; sync-action-pins only
+// reconciles same-named self/template pairs — so a sha mislabelled `# v9` when it is really v7
+// ships to every generated project unflagged. `# v6` vs `# v6.0.3` is precision (same major),
+// not a contradiction, and is tolerated; `# v9` vs `# v7` for one sha is a factual lie.
+const USES_WITH_COMMENT =
+  /^\s+(?:-\s+)?uses:\s+["']?([^@\s"']+)@([0-9a-fA-F]{40})["']?\s*#\s*(v\d+\S*)/gm
 
 const violations = []
 const scan = (file, content) => {
@@ -52,6 +61,26 @@ const scan = (file, content) => {
   }
 }
 
+// action@sha -> Map<versionLabel, Set<file>>; populated across the whole scanned set so a
+// contradiction split across two files (e.g. template vs another template) is still caught.
+const shaComments = new Map()
+const majorOf = (label) => {
+  const m = /^v(\d+)/.exec(label)
+  return m ? m[1] : null
+}
+const scanComments = (file, content) => {
+  for (const match of content.matchAll(USES_WITH_COMMENT)) {
+    const action = match[1]
+    if (action.startsWith('.') || action.startsWith('docker://')) continue
+    const key = `${action}@${match[2]}`
+    const label = match[3]
+    if (!shaComments.has(key)) shaComments.set(key, new Map())
+    const labels = shaComments.get(key)
+    if (!labels.has(label)) labels.set(label, new Set())
+    labels.get(label).add(relative(CWD, file))
+  }
+}
+
 for (const file of [...yamlFiles, ...templateFiles]) {
   let content
   try {
@@ -61,18 +90,45 @@ for (const file of [...yamlFiles, ...templateFiles]) {
     continue
   }
   scan(file, content)
+  scanComments(file, content)
 }
 
-if (violations.length === 0) {
-  console.log('  check-action-pins: all action references are SHA-pinned')
+// A sha whose pins disagree on the MAJOR version is mislabelled — exactly one of the labels
+// is false. Differing patch/minor precision on a shared major is not a contradiction.
+const commentViolations = []
+for (const [key, labels] of shaComments) {
+  const majors = new Set([...labels.keys()].map(majorOf).filter((v) => v !== null))
+  if (majors.size > 1) commentViolations.push({ key, labels })
+}
+
+if (violations.length === 0 && commentViolations.length === 0) {
+  console.log(
+    '  check-action-pins: all action references are SHA-pinned with truthful version comments',
+  )
   process.exit(0)
 }
 
 // Enforced (#886): a non-SHA action reference is a hard stop — fail the gate.
-process.stderr.write(
-  `  check-action-pins: ${violations.length} non-SHA action reference(s) — INV-76 requires 40-hex SHA pins:\n`,
-)
-for (const v of violations) {
-  process.stderr.write(`    ${v.file}: ${v.action}@${v.ref}\n`)
+if (violations.length > 0) {
+  process.stderr.write(
+    `  check-action-pins: ${violations.length} non-SHA action reference(s) — INV-76 requires 40-hex SHA pins:\n`,
+  )
+  for (const v of violations) {
+    process.stderr.write(`    ${v.file}: ${v.action}@${v.ref}\n`)
+  }
 }
+
+// Enforced (#1614): a sha labelled with contradictory major versions is a hard stop.
+if (commentViolations.length > 0) {
+  process.stderr.write(
+    `  check-action-pins: ${commentViolations.length} action SHA(s) with contradictory version comments — a sha maps to ONE release (#1614):\n`,
+  )
+  for (const v of commentViolations) {
+    const detail = [...v.labels.entries()]
+      .map(([label, files]) => `# ${label} (${[...files].join(', ')})`)
+      .join(' vs ')
+    process.stderr.write(`    ${v.key}: ${detail}\n`)
+  }
+}
+
 process.exit(1)

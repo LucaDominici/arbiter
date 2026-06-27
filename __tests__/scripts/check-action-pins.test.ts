@@ -179,6 +179,56 @@ describe('check-action-pins.mjs (#902/#886, INV-76 enforced)', () => {
     }
   })
 
+  // #1614: INV-76 verifies the sha is 40-hex but never that the trailing `# vN` comment is
+  // truthful. A single immutable sha resolves to ONE upstream release, so two pins of the same
+  // sha advertising different MAJOR versions means one comment lies — a supply-chain-hygiene
+  // defect that misleads any maintainer rotating pins by reading the labels.
+  it('rejects one sha labelled with contradictory major versions (e.g. # v9 vs # v7)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const wfDir = join(dir, '.github', 'workflows')
+      mkdirSync(wfDir, { recursive: true })
+      // Same 40-hex sha, two different MAJOR labels across two files.
+      writeFileSync(
+        join(wfDir, 'a.yml'),
+        'jobs:\n  a:\n    steps:\n      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v9\n',
+      )
+      writeFileSync(
+        join(wfDir, 'b.yml'),
+        'jobs:\n  b:\n    steps:\n      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('contradictory version comments')
+      expect(result.stderr).toContain(
+        'actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b',
+      )
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('tolerates differing precision on the same major (# v6 vs # v6.0.3)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const wfDir = join(dir, '.github', 'workflows')
+      mkdirSync(wfDir, { recursive: true })
+      writeFileSync(
+        join(wfDir, 'a.yml'),
+        'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6\n',
+      )
+      writeFileSync(
+        join(wfDir, 'b.yml'),
+        'jobs:\n  b:\n    steps:\n      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('truthful version comments')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('only scans .ejs files under a workflows/ template dir (ignores other templates)', () => {
     const { dir, cleanup } = makeDir()
     try {

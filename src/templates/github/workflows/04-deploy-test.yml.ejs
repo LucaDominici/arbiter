@@ -52,7 +52,7 @@ jobs:
       image-tag: ${{ steps.tag.outputs.image_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
 <% if (language === 'java' && buildTool === 'maven') { %>
       - name: Setup Java (Maven)
@@ -265,7 +265,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
 <%
 // RT-2: coalesce undefined (absent from legacy configs) to 'none' before comparison
@@ -293,7 +293,7 @@ const _dt = ({
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - name: k6 smoke (LT1 — post-deploy gate)
         env:
@@ -342,7 +342,7 @@ const _dt = ({
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - name: Resolve DAST target
         id: target
