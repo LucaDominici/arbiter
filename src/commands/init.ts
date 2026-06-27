@@ -1369,9 +1369,25 @@ function checkL3MaturityGates(config: ProjectConfig): void {
 
   const l3Features: Array<'mutation' | 'contract'> = ['mutation', 'contract']
   const blocked: string[] = []
+  const accept = config.acceptBetaTools ?? false
 
   for (const feature of l3Features) {
-    const result = isL3Allowed(config.language, feature, config.acceptBetaTools ?? false)
+    const result = isL3Allowed(config.language, feature, accept)
+    if (!result.allowed && result.errorMessage) {
+      blocked.push(`  • ${result.errorMessage}`)
+    }
+  }
+
+  // #1628: the python a11y harness (axe-playwright-python, matrix a11y:python=beta) is
+  // emitted at L3 for frontend-spa/backend-web-db (registry playwright-python) with NO
+  // maturity gate — beta tooling provisioned at L3 with no --accept-beta-tools record.
+  // Gate the concrete reproduced case. (Driving the gate from the FULL emission plan
+  // across all 18 matrix dims is the broader fix tracked in the #1628 follow-up.)
+  const emitsPythonA11y =
+    config.language === 'python' &&
+    (config.archetype === 'frontend-spa' || config.archetype === 'backend-web-db')
+  if (emitsPythonA11y) {
+    const result = isL3Allowed(config.language, 'a11y', accept)
     if (!result.allowed && result.errorMessage) {
       blocked.push(`  • ${result.errorMessage}`)
     }

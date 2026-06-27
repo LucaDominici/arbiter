@@ -98,6 +98,22 @@ describe('isL3Allowed', () => {
     expect(result.errorMessage).toMatch(/unsafe/i)
   })
 
+  // #1628: the python a11y harness (axe-playwright-python = beta) must be gated at L3.
+  it('blocks python a11y (beta) at L3 without flag', () => {
+    const result = isL3Allowed('python', 'a11y', false)
+    expect(result.allowed).toBe(false)
+    expect(result.errorMessage).toMatch(/beta/i)
+    expect(result.errorMessage).toMatch(/--accept-beta-tools/i)
+  })
+
+  it('allows python a11y at L3 with --accept-beta-tools', () => {
+    expect(isL3Allowed('python', 'a11y', true)).toEqual({ allowed: true })
+  })
+
+  it('allows typescript a11y (proven) at L3 without flag', () => {
+    expect(isL3Allowed('typescript', 'a11y', false)).toEqual({ allowed: true })
+  })
+
   it('blocks beta feature at L3 without flag', () => {
     const result = isL3Allowed('rust', 'mutation', false)
     expect(result.allowed).toBe(false)

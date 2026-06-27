@@ -15,6 +15,9 @@ export type MaturityFeature =
   | 'security'
   | 'bdd'
   | 'style_tokens'
+  // #1628: the a11y harness (axe-playwright-python = beta for python) is emitted at L3
+  // but was ungated. Gated for the python a11y harness in checkL3MaturityGates.
+  | 'a11y'
 
 interface MaturityEntry {
   tool: string

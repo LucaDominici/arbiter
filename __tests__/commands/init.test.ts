@@ -362,6 +362,36 @@ describe('runInit', () => {
     expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
   })
 
+  // #1628: the python a11y harness (axe-playwright-python = beta) is emitted at L3 for
+  // frontend-spa/backend-web-db; the L3 maturity gate must now consult a11y and block
+  // without --accept-beta-tools (previously a11y was never gated).
+  it('L3 gate consults a11y for a python frontend-spa init (#1628)', async () => {
+    mockIsL3Allowed.mockImplementation((_lang, feature) =>
+      feature === 'a11y'
+        ? { allowed: false, errorMessage: 'axe-playwright-python is beta for python' }
+        : { allowed: true, errorMessage: null },
+    )
+    exitSpy.mockImplementation((code?: number) => {
+      throw new Error(`process.exit(${code})`)
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L3',
+        language: 'python',
+        archetype: 'frontend-spa',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toThrow('process.exit(1)')
+    expect(mockIsL3Allowed).toHaveBeenCalledWith('python', 'a11y', false)
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+  })
+
   // #1347: (collaborationMode × governanceLevel) coherence is enforced at the
   // pre-generation init gate — the same point as the L3 maturity gate — so a
   // CRITICAL cell is refused before any files are written (previously it slipped
