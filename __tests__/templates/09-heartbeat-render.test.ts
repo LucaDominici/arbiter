@@ -168,9 +168,9 @@ describe('09-heartbeat.yml.ejs — issue filing on failure', () => {
     expect(rendered).toContain('--state open')
   })
 
-  it('issue filing steps run only on failure', () => {
+  it('issue filing steps run with if: always() for open-or-close pattern', () => {
     const rendered = renderHeartbeat({})
-    const issueSteps = rendered.split('if: failure()').length - 1
+    const issueSteps = rendered.split('if: always()').length - 1
     expect(issueSteps).toBeGreaterThanOrEqual(3)
   })
 })

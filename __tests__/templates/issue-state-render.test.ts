@@ -25,9 +25,10 @@ describe('issue-state.yml.ejs rendering', () => {
     expect(rendered).toContain('process.env.PR_BODY')
   })
 
-  it('uses CI_BUILD_RUNNER_LABEL runner variable', () => {
+  it('uses RUNNER_LABELS_TEST runner variable with ubuntu-latest fallback', () => {
     const data = makeConfig('/tmp/test') as unknown as Record<string, unknown>
     const rendered = renderTemplate('github/workflows/issue-state.yml.ejs', data)
-    expect(rendered).toContain('CI_BUILD_RUNNER_LABEL')
+    expect(rendered).toContain('vars.RUNNER_LABELS_TEST')
+    expect(rendered).toContain('ubuntu-latest')
   })
 })

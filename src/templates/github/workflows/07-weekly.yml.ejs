@@ -21,7 +21,7 @@ jobs:
 <% if (_isService) { %>
   cross-db-matrix:
     name: Cross-DB matrix (Postgres / MySQL / MSSQL / MariaDB)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -142,7 +142,7 @@ jobs:
 <% } %>
   dep-freshness:
     name: Dependency freshness report
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -186,7 +186,7 @@ jobs:
 
   perf-trend:
     name: k6 performance trend
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -199,7 +199,7 @@ jobs:
 
   action-version-audit:
     name: Stale action pin audit
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -240,7 +240,7 @@ jobs:
       - cross-os-matrix
 <% } %>
     if: always()
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - name: Weekly gate summary

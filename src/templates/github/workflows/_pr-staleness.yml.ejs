@@ -15,7 +15,7 @@ permissions:
 jobs:
   stale:
     name: Mark and close stale PRs
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     permissions:
       pull-requests: write
     steps:

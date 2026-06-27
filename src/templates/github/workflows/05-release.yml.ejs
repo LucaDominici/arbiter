@@ -89,7 +89,7 @@ jobs:
   mutation-blocking:
     name: Mutation tests (consume nightly, fallback run)
     needs: [build-superset]
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     # #1505 gold-align: mutation testing is BLOCKING at every governance level it is emitted at
     # (the release workflow itself only emits for non-starter pipeline styles). A prior
@@ -222,17 +222,9 @@ jobs:
   secret-scan-history:
     name: Full-history secret scan
     needs: [build-superset]
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
-      # #1311: self-hosted persistent workspaces can keep a stale
-      # .git/refs/**/*.lock from an interrupted run, which makes the
-      # deep checkout below fail with "cannot lock ref". No-op on
-      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
-      # the checkout step's name:/SHA pin below, not this guard.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
@@ -245,7 +237,7 @@ jobs:
   sbom:
     name: Generate SBOM
     needs: [build-superset]
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
@@ -301,7 +293,7 @@ jobs:
     name: Sign artifact (cosign keyless)
     needs: [build-superset, mutation-blocking, secret-scan-history]
     if: github.event_name != 'pull_request'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     permissions:
       contents: write
@@ -353,7 +345,7 @@ jobs:
     name: Attest build provenance
     needs: [build-superset]
     if: github.event_name != 'pull_request'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     permissions:
       id-token: write
@@ -419,7 +411,7 @@ jobs:
     name: Build and sign container (service)
     needs: [cosign-sign, attest-build-provenance, slsa-provenance, trivy-strict-release]
     if: github.event_name != 'pull_request'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -485,17 +477,9 @@ jobs:
     name: Build multi-arch binaries (cli)
     needs: [cosign-sign, attest-build-provenance, slsa-provenance]
     if: github.event_name != 'pull_request'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
-      # #1311: self-hosted persistent workspaces can keep a stale
-      # .git/refs/**/*.lock from an interrupted run, which makes the
-      # deep checkout below fail with "cannot lock ref". No-op on
-      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
-      # the checkout step's name:/SHA pin below, not this guard.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
@@ -569,7 +553,7 @@ jobs:
     name: Bundle batch artifact
     needs: [cosign-sign, attest-build-provenance, slsa-provenance]
     if: github.event_name != 'pull_request'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
@@ -611,7 +595,7 @@ jobs:
     name: Publish package (lib)
     needs: [cosign-sign, attest-build-provenance, slsa-provenance]
     if: github.event_name != 'pull_request'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -698,7 +682,7 @@ jobs:
       - publish-package
 <% } %>
     if: always()
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - name: Release gate summary

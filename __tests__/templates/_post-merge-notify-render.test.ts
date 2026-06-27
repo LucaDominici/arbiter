@@ -73,11 +73,11 @@ describe('_post-merge-notify.yml.ejs — structural invariants (CANON-18)', () =
   })
 
   it.each(STACKS)(
-    '$language: runs-on: uses CI_BUILD_RUNNER_LABEL with ubuntu-latest fallback (ADR-023 #959)',
+    '$language: runs-on: uses RUNNER_LABELS_TEST with ubuntu-latest fallback (ADR-023 #959)',
     ({ language, buildTool }) => {
       const rendered = renderNotify({ language, buildTool })
-      expect(rendered).toContain('vars.CI_BUILD_RUNNER_LABEL')
-      expect(rendered).toContain("'ubuntu-latest'")
+      expect(rendered).toContain('vars.RUNNER_LABELS_TEST')
+      expect(rendered).toContain('ubuntu-latest')
     },
   )
 })

@@ -18,7 +18,7 @@ jobs:
       github.event.review.state == 'approved' &&
       github.event.review.user.login != github.event.pull_request.user.login &&
       github.event.review.user.type != 'Bot'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     permissions:
       pull-requests: write
     steps:
