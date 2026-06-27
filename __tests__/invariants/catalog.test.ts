@@ -17,12 +17,20 @@ const ALL_TIERS: InvariantTier[] = [
   'governance',
 ]
 
+// Count expectations are each derived from a single named constant, so the
+// it() title and its expect() assertion can never drift apart (#1609). A future
+// off-by-N regression then surfaces under a truthful test name, not a stale one.
+const EXPECTED_TOTAL_ENTRIES = 133
+const EXPECTED_TIER4_OPERATIONAL = 47
+const EXPECTED_TIER5_GOVERNANCE = 50
+const EXPECTED_SELFONLY = 29
+
 // ---------------------------------------------------------------------------
 // INVARIANT_CATALOG structure
 // ---------------------------------------------------------------------------
 
 describe('INVARIANT_CATALOG', () => {
-  it('has exactly 106 entries', () => {
+  it(`has exactly ${EXPECTED_TOTAL_ENTRIES} entries`, () => {
     // Updated in #1099: +1 (INV-107 ADR SSOT integrity, selfOnly governance)
     // Updated in #1100: +1 (INV-108 SSOT core set exhaustiveness, selfOnly governance)
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, typescript operational)
@@ -48,7 +56,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, operational/Tier-4, selfOnly)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational/Tier-4)
     // Updated #1456: +1 (INV-133 TODO max-age enforced via linked-issue creation date, governance/Tier-5, all-languages)
-    expect(INVARIANT_CATALOG).toHaveLength(133)
+    expect(INVARIANT_CATALOG).toHaveLength(EXPECTED_TOTAL_ENTRIES)
   })
 
   it('all IDs are unique', () => {
@@ -141,7 +149,7 @@ describe('INVARIANT_CATALOG', () => {
     expect(tier3).toHaveLength(16)
   })
 
-  it('has exactly 33 Tier 4 invariants', () => {
+  it(`has exactly ${EXPECTED_TIER4_OPERATIONAL} Tier 4 invariants`, () => {
     // Updated in #1127: +4 (INV-102/103/104/105 — FE governance, tier=operational)
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, operational)
     // Updated #1312: +1 (INV-121 stack-conformity gate, operational)
@@ -156,10 +164,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, operational, selfOnly)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(47)
+    expect(tier4).toHaveLength(EXPECTED_TIER4_OPERATIONAL)
   })
 
-  it('has exactly 37 Tier 5 invariants', () => {
+  it(`has exactly ${EXPECTED_TIER5_GOVERNANCE} Tier 5 invariants`, () => {
     // Updated in #1099: +1 (INV-107)
     // Updated in #1100: +1 (INV-108)
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
@@ -171,7 +179,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance, all-languages)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(50)
+    expect(tier5).toHaveLength(EXPECTED_TIER5_GOVERNANCE)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -702,7 +710,7 @@ describe('getFilteredInvariants', () => {
     }
   })
 
-  it('catalog has exactly 23 selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110)', () => {
+  it(`catalog has exactly ${EXPECTED_SELFONLY} selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110)`, () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
     // Updated #1206: +1 (INV-113 single authoritative task-phase document)
     // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly)
@@ -710,7 +718,7 @@ describe('getFilteredInvariants', () => {
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, selfOnly)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
-    expect(selfOnly).toHaveLength(29)
+    expect(selfOnly).toHaveLength(EXPECTED_SELFONLY)
     const ids = selfOnly.map((inv) => inv.id)
     expect(ids).toContain('INV-32')
     expect(ids).toContain('INV-36')
