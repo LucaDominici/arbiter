@@ -1,8 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
-// Red phase: all tests must FAIL until scripts/check-commit-footer-rationale.mjs is implemented.
+// Exercises scripts/check-commit-footer-rationale.mjs (INV-119).
+//
+// The range-scan tests are HERMETIC (#1679): each builds a throwaway git repo
+// (mktemp + git init + controlled commits) and drives the gate against THAT range
+// via --range. They never read the live repo's origin/main..HEAD, so they pass
+// regardless of what the working repo's own HEAD currently touches — closing the
+// circular block where a dev's not-yet-footed suppression commit made the gate's
+// own tests fail. --dry-run is deliberately NOT used for the range tests: it
+// short-circuits the real range-scan, so it cannot prove the scan path runs.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, readdirSync, readFileSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -18,13 +33,138 @@ function fixture(): { dir: string; cleanup: () => void } {
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
+// Shape of the evidence artifact the gate writes (arbiter-commit-footer-audit-v1).
+interface FooterEvidence {
+  schema: string
+  generated_at: string
+  branch: string
+  range: string
+  commits_scanned: number
+  commits_requiring_footer: number
+  commits_with_valid_footer: number
+  violations: unknown[]
+  result: string
+}
+
+function git(dir: string, args: string[]): string {
+  const r = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' })
+  if (r.status !== 0) {
+    throw new Error(
+      `git ${args.join(' ')} failed (status ${r.status ?? 'null'}): ${r.stderr ?? ''}`,
+    )
+  }
+  return r.stdout ?? ''
+}
+
+interface HermeticRepo {
+  dir: string
+  range: string
+  cleanup: () => void
+}
+
+/**
+ * Build a throwaway git repo whose tip commit touches `suppressions/`. When
+ * `withFooter` is true the commit carries a valid Suppression-Rationale trailer.
+ * Returns a `base..HEAD` range that contains exactly that one suppression commit
+ * (the base commit, which touches no suppression file, is excluded).
+ */
+function repoWithSuppressionCommit(withFooter: boolean): HermeticRepo {
+  const dir = mkdtempSync(join(tmpdir(), 'commit-footer-repo-'))
+  git(dir, ['init', '-q'])
+  git(dir, ['config', 'user.email', 'hermetic-committer'])
+  git(dir, ['config', 'user.name', 'Hermetic Test'])
+  git(dir, ['config', 'commit.gpgsign', 'false'])
+
+  // Base commit — no suppression file; excluded from the scanned range.
+  writeFileSync(join(dir, 'README.md'), '# hermetic fixture\n')
+  git(dir, ['add', 'README.md'])
+  git(dir, ['commit', '-q', '-m', 'chore: base commit'])
+  const base = git(dir, ['rev-parse', 'HEAD']).trim()
+
+  // Suppression-touching commit at HEAD.
+  mkdirSync(join(dir, 'suppressions'), { recursive: true })
+  writeFileSync(join(dir, 'suppressions', 'waiver.txt'), 'CVE-2024-1234 waived\n')
+  git(dir, ['add', join('suppressions', 'waiver.txt')])
+  const commitArgs = withFooter
+    ? [
+        'commit',
+        '-q',
+        '-m',
+        'chore: add suppression waiver',
+        '-m',
+        'Suppression-Rationale: CVE-2024-1234 | low impact, no exploit path | expires:2099-12-31',
+      ]
+    : ['commit', '-q', '-m', 'chore: add suppression waiver without footer']
+  git(dir, commitArgs)
+
+  return {
+    dir,
+    range: `${base}..HEAD`,
+    cleanup: () => rmSync(dir, { recursive: true, force: true }),
+  }
+}
+
+function readEvidence(evidenceDir: string): FooterEvidence {
+  const files = readdirSync(evidenceDir).filter((f) => f.endsWith('.json'))
+  expect(files.length).toBeGreaterThanOrEqual(1)
+  return JSON.parse(readFileSync(join(evidenceDir, files[0]), 'utf-8')) as FooterEvidence
+}
+
 describe('check-commit-footer-rationale.mjs (INV-119)', () => {
-  it('passes when no suppression-touching commits in range', () => {
-    // Run against the real repo — currently no commits touching trivyignore/suppressions in the task branch that lack a footer
-    // In a repo with no suppression commits, should exit 0
-    const r = run(['--range', 'origin/main..HEAD'], '.')
-    // Either passes (0) or hits origin/main unavailable (also 0 with WARN)
-    expect([0]).toContain(r.status)
+  it('passes (exit 0, PASS) for a suppression-touching commit WITH a valid footer', () => {
+    const repo = repoWithSuppressionCommit(true)
+    const evidence = fixture()
+    try {
+      const r = run(['--range', repo.range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('PASS')
+      const ev = readEvidence(evidence.dir)
+      expect(ev.result).toBe('PASS')
+      expect(ev.commits_requiring_footer).toBeGreaterThanOrEqual(1)
+      expect(ev.commits_with_valid_footer).toBeGreaterThanOrEqual(1)
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
+  })
+
+  it('writes a PASS evidence artifact with the required schema fields', () => {
+    const repo = repoWithSuppressionCommit(true)
+    const evidence = fixture()
+    try {
+      const r = run(['--range', repo.range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(0)
+      const ev = readEvidence(evidence.dir)
+      expect(ev.schema).toBe('arbiter-commit-footer-audit-v1')
+      expect(ev.generated_at).toBeTruthy()
+      expect(typeof ev.branch).toBe('string')
+      expect(ev.range).toBe(repo.range)
+      expect(typeof ev.commits_scanned).toBe('number')
+      expect(typeof ev.commits_requiring_footer).toBe('number')
+      expect(typeof ev.commits_with_valid_footer).toBe('number')
+      expect(Array.isArray(ev.violations)).toBe(true)
+      expect(ev.result).toBe('PASS')
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
+  })
+
+  it('fails (exit 1, FOOTER-MISSING) for a suppression-touching commit WITHOUT a footer', () => {
+    const repo = repoWithSuppressionCommit(false)
+    const evidence = fixture()
+    try {
+      const r = run(['--range', repo.range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('FOOTER-MISSING')
+      const ev = readEvidence(evidence.dir)
+      expect(ev.result).toBe('FAIL')
+      expect(ev.commits_requiring_footer).toBeGreaterThanOrEqual(1)
+      expect(ev.violations.length).toBeGreaterThanOrEqual(1)
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
   })
 
   it('handles --help flag without error', () => {
@@ -43,45 +183,6 @@ describe('check-commit-footer-rationale.mjs (INV-119)', () => {
       expect(r.status).toBe(0)
       // Should emit a warning about unavailability
       expect(r.stderr).toContain('WARN')
-    } finally {
-      cleanup()
-    }
-  })
-
-  it('writes evidence artifact JSON on validation', () => {
-    const { dir: evidenceDir, cleanup } = fixture()
-    try {
-      const r = run(['--range', 'origin/main..HEAD', '--evidence-dir', evidenceDir], '.')
-      expect(r.status).toBe(0)
-      // Evidence file should be created
-      const files = readdirSync(evidenceDir)
-      expect(files.some((f) => f.endsWith('.json'))).toBe(true)
-    } finally {
-      cleanup()
-    }
-  })
-
-  it('validates evidence artifact has required schema fields', () => {
-    const { dir: evidenceDir, cleanup } = fixture()
-    try {
-      run(['--range', 'origin/main..HEAD', '--evidence-dir', evidenceDir], '.')
-      const files = readdirSync(evidenceDir)
-      const jsonFile = files.find((f) => f.endsWith('.json'))
-      if (jsonFile) {
-        const artifact = JSON.parse(readFileSync(join(evidenceDir, jsonFile), 'utf-8')) as Record<
-          string,
-          unknown
-        >
-        expect(artifact['schema']).toBe('arbiter-commit-footer-audit-v1')
-        expect(artifact).toHaveProperty('generated_at')
-        expect(artifact).toHaveProperty('branch')
-        expect(artifact).toHaveProperty('range')
-        expect(artifact).toHaveProperty('commits_scanned')
-        expect(artifact).toHaveProperty('commits_requiring_footer')
-        expect(artifact).toHaveProperty('commits_with_valid_footer')
-        expect(artifact).toHaveProperty('violations')
-        expect(artifact).toHaveProperty('result')
-      }
     } finally {
       cleanup()
     }
