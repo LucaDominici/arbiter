@@ -502,10 +502,35 @@ const DATABASE_ENGINES: ReadonlySet<string> = new Set(Object.keys(DATABASE_ENGIN
 const STRICTNESS_TIERS: ReadonlySet<string> = new Set(Object.keys(STRICTNESS_TIER_VALUES))
 const THRESHOLD_PROFILES: ReadonlySet<string> = new Set(Object.keys(THRESHOLD_PROFILE_VALUES))
 const CONTRACT_TYPES: ReadonlySet<string> = new Set(Object.keys(CONTRACT_TYPE_VALUES))
-const AUTH_PROVIDERS: ReadonlySet<string> = new Set(Object.keys(AUTH_PROVIDER_VALUES))
-const OBSERVABILITY_PROVIDERS: ReadonlySet<string> = new Set(
+// #1676: exported so the `arbiter init` CLI cast site (src/cli.ts) can reject an
+// unknown --auth-provider/--observability-provider value at parse time, instead of
+// blind-casting it and emitting a content-less AUTH_SETUP.md/OBSERVABILITY.md once
+// before the next validateConfig load catches it.
+export const AUTH_PROVIDERS: ReadonlySet<string> = new Set(Object.keys(AUTH_PROVIDER_VALUES))
+export const OBSERVABILITY_PROVIDERS: ReadonlySet<string> = new Set(
   Object.keys(OBSERVABILITY_PROVIDER_VALUES),
 )
+
+// #1677: deploy-target union runtime mirror. The exhaustive Record forces the set
+// to track the DeployTarget union (a new member is a tsc error here until listed).
+// Consumed by the `arbiter init --deploy-target` flag validator (src/cli.ts).
+const DEPLOY_TARGET_VALUES: Record<DeployTarget, true> = {
+  ghcr: true,
+  'azure-container-app': true,
+  'aws-ecs': true,
+  'gcp-cloud-run': true,
+  none: true,
+}
+export const DEPLOY_TARGETS: ReadonlySet<string> = new Set(Object.keys(DEPLOY_TARGET_VALUES))
+
+/**
+ * #1677: type-narrowing validator for the `--deploy-target` non-interactive flag.
+ * Mirrors the `validateProviders` membership-check pattern; rejecting at the CLI cast
+ * site (no silent coercion) keeps an unknown value from reaching buildNonInteractiveConfig.
+ */
+export function isDeployTarget(value: string): value is DeployTarget {
+  return DEPLOY_TARGETS.has(value)
+}
 
 function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val)

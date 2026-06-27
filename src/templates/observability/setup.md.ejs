@@ -469,6 +469,17 @@ logger.info({ traceId: ctx.traceId, msg: 'request completed' })
 ```env
 BETTERSTACK_SOURCE_TOKEN=<your-source-token>
 ```
+<% } else { %>
+
+## Unknown provider — `<%= observability.provider %>`
+
+arbiter has no setup recipe for the configured `observability.provider`. This usually
+means a typo or a value from a newer arbiter version. No provider-specific instructions
+could be emitted.
+
+- Re-run the wizard (`arbiter init`) and pick a supported provider, or
+- Fix `observability.provider` in `arbiter.json` to a known value, then run `arbiter update`.
+
 <% } %>
 
 ---
