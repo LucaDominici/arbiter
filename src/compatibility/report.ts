@@ -18,7 +18,8 @@ const REMEDIATION: Partial<Record<string, string>> = {
   'tsc:noEmit': 'Fix TypeScript errors or install: npm install --save-dev typescript',
   'cargo:check': 'Fix Rust compile errors: cargo check',
   'go:build': 'Fix Go build errors: go build ./...',
-  'ruff:version': 'Install ruff: pip install ruff',
+  // (no 'ruff:version' key: the ruff build probe was dropped in #1597; the live
+  // ruff remediation is the `ruff` version-probe key above — #1627)
 }
 
 function versionStr(p: ProbeResult): string {

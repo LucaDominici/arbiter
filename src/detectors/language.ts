@@ -64,7 +64,12 @@ export function detectLanguageWithSource(dir: string): {
     if (hasKotlinSources(dir)) return { language: 'kotlin', source: jvmAtRoot }
     return { language: 'java', source: jvmAtRoot }
   }
-  if (hasTs) return { language: 'typescript', source: 'package.json' }
+  // #1625: a compiled-language manifest at the root takes precedence over a root
+  // package.json, mirroring the JVM-at-root precedence above. Rust+wasm-pack,
+  // Go+npm-frontend-tooling, and Python+JS-tooling all carry a root package.json
+  // alongside their real manifest; the primary language is the compiled one — a root
+  // package.json next to it is build/dev tooling (npm scripts), not a TS project.
+  // The bare `package.json` (typescript) check therefore MUST come last.
   if (existsSync(join(dir, 'Cargo.toml'))) return { language: 'rust', source: 'Cargo.toml' }
   if (existsSync(join(dir, 'go.mod'))) return { language: 'go', source: 'go.mod' }
   if (existsSync(join(dir, 'pyproject.toml')))
@@ -72,6 +77,7 @@ export function detectLanguageWithSource(dir: string): {
   if (existsSync(join(dir, 'setup.py'))) return { language: 'python', source: 'setup.py' }
   if (existsSync(join(dir, 'requirements.txt')))
     return { language: 'python', source: 'requirements.txt' }
+  if (hasTs) return { language: 'typescript', source: 'package.json' }
   return { language: 'unknown', source: null }
 }
 
@@ -126,22 +132,28 @@ export function languageSignalPresent(dir: string, lang: Language): boolean {
  *
  * Corroboration — rather than blind "stored wins" — preserves `update`'s documented
  * language-migration detection (schema.ts): if the stored language's signal is GONE
- * (a genuine on-disk migration, e.g. package.json removed and go.mod added), the
- * stored value is no longer trusted and `detectLanguage` re-detects, so the migration
- * still propagates. Crash-safe: a missing/undefined `stored.language` simply falls
- * through to filesystem detection.
+ * AND the project now concretely detects as a DIFFERENT language (a genuine on-disk
+ * migration, e.g. package.json removed and go.mod added), the re-detected language
+ * wins. But an ABSENT signal that yields no detection at all (`unknown`) must NOT
+ * erase an explicit stored choice — `arbiter init --language X` persists the language
+ * before any manifest is scaffolded, so a greenfield repo has a stored language and
+ * zero on-disk signal; downgrading it to `unknown` would drop every language-gated
+ * generator on the next `update` (#1625). Crash-safe: a missing/undefined
+ * `stored.language` simply falls through to filesystem detection.
  */
 export function resolveLanguage(
   dir: string,
   stored: { language?: Language } | undefined,
 ): Language {
   const storedLang = stored?.language
-  if (
-    storedLang !== undefined &&
-    storedLang !== 'unknown' &&
-    languageSignalPresent(dir, storedLang)
-  ) {
-    return storedLang
+  if (storedLang !== undefined && storedLang !== 'unknown') {
+    // Stored language still corroborated on disk → it wins (a frontend-lane
+    // package.json must not shadow a stored go/rust primary). #1343
+    if (languageSignalPresent(dir, storedLang)) return storedLang
+    // Signal gone: only a CONCRETE re-detection (a genuine migration) overrides;
+    // `unknown` (no signal at all) preserves the explicit stored choice. #1625
+    const detected = detectLanguage(dir)
+    return detected === 'unknown' ? storedLang : detected
   }
   return detectLanguage(dir)
 }

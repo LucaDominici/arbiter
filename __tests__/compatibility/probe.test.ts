@@ -438,14 +438,16 @@ describe('runBuildProbe — empty requires → always run', () => {
   it('runs command even when requires is empty string', () => {
     mockExistsSync.mockReturnValue(false) // should not be called for empty requires
     mockRunCli.mockReturnValue({
-      stdout: 'ruff 0.4.5\n',
+      stdout: 'ok\n',
       stderr: '',
       exitCode: 0,
       durationMs: 5,
     })
+    // Synthetic always-run spec (#1627): NOT a real probe — the dropped ruff build
+    // probe was the only requires:'' spec, so name it generically to avoid implying one.
     const result = runBuildProbe('/some/dir', {
-      name: 'ruff:version',
-      command: 'ruff',
+      name: 'always-run:probe',
+      command: 'noop',
       args: ['--version'],
       requires: '',
     })
@@ -485,16 +487,39 @@ describe('runProbes — unknown stack coverage gap', () => {
     })
     const report = runProbes('/some/dir')
     expect(report.stack).toBe('multi')
-    expect(report.probes.map((p) => p.tool)).toEqual(['node', 'npm', 'java', 'gradle', 'mvn'])
+    // #1627: multi now ALSO runs both build probes (tsc:noEmit + gradlew:version);
+    // with no build files on disk they skip at the requires-guard but are still emitted.
+    expect(report.probes.map((p) => p.tool)).toEqual([
+      'node',
+      'npm',
+      'java',
+      'gradle',
+      'mvn',
+      'tsc:noEmit',
+      'gradlew:version',
+    ])
     expect(report.probes.some((p) => /no matrix coverage/.test(p.reason ?? ''))).toBe(false)
     expect(report.hasFailures).toBe(false)
+  })
+
+  // #1627: the build layer must union TS+JVM for multi, not silently run nothing.
+  it('runs tsc:noEmit + gradlew:version build probes for multi when build files exist (#1627)', () => {
+    mockDetectLanguage.mockReturnValue('multi')
+    mockExistsSync.mockReturnValue(true) // tsconfig.json + gradlew present → build probes run
+    // Build commands exit 0 with empty stderr → passed. (Version probes get empty
+    // stdout and may fail to parse, but this test asserts only the build layer.)
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+    const report = runProbes('/some/dir')
+    const builds = report.probes.filter((p) => p.kind === 'build')
+    expect(builds.map((p) => p.tool)).toEqual(['tsc:noEmit', 'gradlew:version'])
+    expect(builds.every((p) => p.status === 'passed')).toBe(true)
   })
 })
 
 describe('runProbes — kotlin dispatch', () => {
-  it('runs java + kotlinc + gradle version probes when detectLanguage returns kotlin', () => {
+  it('runs java + kotlinc + gradle version probes plus a gradlew:version build probe', () => {
     mockDetectLanguage.mockReturnValue('kotlin')
-    mockExistsSync.mockReturnValue(false) // no build-probe spec for kotlin anyway
+    mockExistsSync.mockReturnValue(false) // no gradlew on disk → build probe skips (still emitted)
     mockRunCli
       .mockReturnValueOnce({
         stdout: '',
@@ -517,10 +542,30 @@ describe('runProbes — kotlin dispatch', () => {
 
     const report = runProbes('/some/kotlin/dir')
     expect(report.stack).toBe('kotlin')
-    expect(report.probes).toHaveLength(3)
-    expect(report.probes.map((p) => p.tool)).toEqual(['java', 'kotlinc', 'gradle'])
-    expect(report.probes.every((p) => p.status === 'passed')).toBe(true)
+    // #1627: kotlin now also gets the gradle-wrapper build probe (reused from java);
+    // with no gradlew on disk it skips at the requires-guard but is still emitted.
+    expect(report.probes).toHaveLength(4)
+    expect(report.probes.map((p) => p.tool)).toEqual([
+      'java',
+      'kotlinc',
+      'gradle',
+      'gradlew:version',
+    ])
+    expect(report.probes.slice(0, 3).every((p) => p.status === 'passed')).toBe(true)
+    expect(report.probes[3]?.status).toBe('skipped')
+    expect(report.probes[3]?.kind).toBe('build')
     expect(report.hasFailures).toBe(false)
+  })
+
+  // #1627: when the gradle wrapper IS present the kotlin build probe actually runs.
+  it('runs the gradlew:version build probe for kotlin when gradlew exists (#1627)', () => {
+    mockDetectLanguage.mockReturnValue('kotlin')
+    mockExistsSync.mockReturnValue(true) // gradlew present → build probe runs
+    mockRunCli.mockReturnValue({ stdout: 'Gradle 8.5\n', stderr: '', exitCode: 0, durationMs: 5 })
+    const report = runProbes('/some/kotlin/dir')
+    const builds = report.probes.filter((p) => p.kind === 'build')
+    expect(builds.map((p) => p.tool)).toEqual(['gradlew:version'])
+    expect(builds[0]?.status).toBe('passed')
   })
 })
 
@@ -570,7 +615,8 @@ describe('probeHooksPath', () => {
 describe('runProbes — hasWarnings aggregation', () => {
   it('sets hasWarnings=true when probeHooksPath returns a warning', () => {
     mockDetectLanguage.mockReturnValue('kotlin')
-    // kotlin probes: 3x runCli (java, kotlinc, gradle), no build probe
+    // kotlin probes: 3x runCli (java, kotlinc, gradle); the gradlew:version build probe
+    // skips (no gradlew on disk, see existsSync impl below) so it consumes no runCli call.
     mockRunCli
       .mockReturnValueOnce({
         stdout: '',
@@ -600,8 +646,8 @@ describe('runProbes — hasWarnings aggregation', () => {
           timedOut: false,
         })
       })
-    // probeHooksPath: existsSync(.githooks/pre-commit) → true
-    mockExistsSync.mockReturnValueOnce(true)
+    // gradlew build-probe requires-guard → false (skip); probeHooksPath pre-commit → true
+    mockExistsSync.mockImplementation((p) => String(p).includes('.githooks'))
 
     const report = runProbes('/some/kotlin/dir')
     expect(report.hasWarnings).toBe(true)
