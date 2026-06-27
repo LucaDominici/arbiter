@@ -81,7 +81,12 @@ import {
 import type { WorkUnitPhase, WorkUnitStatus } from './decomposition/types.js'
 import { appendEvidenceLine } from './utils/evidence-log.js'
 import { getBoolFlag } from './config/env-registry.js'
-import { AUTH_PROVIDERS, OBSERVABILITY_PROVIDERS, DEPLOY_TARGETS, isDeployTarget } from './config/schema.js'
+import {
+  AUTH_PROVIDERS,
+  OBSERVABILITY_PROVIDERS,
+  DEPLOY_TARGETS,
+  isDeployTarget,
+} from './config/schema.js'
 import { runCli } from './utils/run-cli.js'
 import {
   ArbiterError,
@@ -304,6 +309,67 @@ function parseCmdArgs(): { cmd: string; args: string[] } {
     }
   }
   return { cmd: first, args: tokens.slice(1) }
+}
+
+/**
+ * Validate the `init` union-typed flags against their exported value sets BEFORE any
+ * scaffolding, so an out-of-union value fails with an explicit error instead of being
+ * blind-cast and corrupting generated output. Extracted from the init action to keep
+ * that action under the complexity/line ceilings (#1671/#1676/#1677).
+ */
+function validateInitFlags(opts: {
+  archetype?: string
+  authProvider?: string
+  observabilityProvider?: string
+  deployTarget?: string
+}): void {
+  const VALID_ARCHETYPES = [
+    'backend-web-db',
+    'cli',
+    'library',
+    'data-pipeline',
+    'frontend-spa',
+    'embedded',
+  ]
+  if (opts.archetype !== undefined && !VALID_ARCHETYPES.includes(opts.archetype)) {
+    throw ArbiterError.fromKey(
+      'E_INVALID_ARCHETYPE',
+      'errors.E_INVALID_ARCHETYPE',
+      { field: 'archetype', value: opts.archetype, valid: VALID_ARCHETYPES.join(', ') },
+      { hint: 'Run `arbiter init --help` for the list of valid archetypes.' },
+    )
+  }
+  if (opts.authProvider !== undefined && !AUTH_PROVIDERS.has(opts.authProvider)) {
+    throw ArbiterError.fromKey(
+      'E_INVALID_ARCHETYPE',
+      'errors.E_INVALID_ARCHETYPE',
+      { field: 'auth-provider', value: opts.authProvider, valid: [...AUTH_PROVIDERS].join(', ') },
+      { hint: 'Run `arbiter init --help` for the list of valid auth providers.' },
+    )
+  }
+  if (
+    opts.observabilityProvider !== undefined &&
+    !OBSERVABILITY_PROVIDERS.has(opts.observabilityProvider)
+  ) {
+    throw ArbiterError.fromKey(
+      'E_INVALID_ARCHETYPE',
+      'errors.E_INVALID_ARCHETYPE',
+      {
+        field: 'observability-provider',
+        value: opts.observabilityProvider,
+        valid: [...OBSERVABILITY_PROVIDERS].join(', '),
+      },
+      { hint: 'Run `arbiter init --help` for the list of valid observability providers.' },
+    )
+  }
+  if (opts.deployTarget !== undefined && !isDeployTarget(opts.deployTarget)) {
+    throw ArbiterError.fromKey(
+      'E_INVALID_ARCHETYPE',
+      'errors.E_INVALID_ARCHETYPE',
+      { field: 'deploy-target', value: opts.deployTarget, valid: [...DEPLOY_TARGETS].join(', ') },
+      { hint: 'Run `arbiter init --help` for the list of valid deploy targets.' },
+    )
+  }
 }
 
 const _parsedCmd = parseCmdArgs()
@@ -577,63 +643,10 @@ program
       recipe?: string
       recipeSha256?: string
     }) => {
-      // #1671: validate --archetype against the union BEFORE scaffolding, mirroring
-      // `arbiter configure`. An out-of-union value (e.g. `service`) was blind-cast
-      // to Archetype, crashed the test-pyramid/test-taxonomy generators, and left a
-      // corrupt arbiter.json with no test-pyramid.json behind. Fail before any file
-      // is written. (--language is already validated inside runInit via parseLanguage.)
-      const VALID_ARCHETYPES = [
-        'backend-web-db',
-        'cli',
-        'library',
-        'data-pipeline',
-        'frontend-spa',
-        'embedded',
-      ]
-      if (opts.archetype !== undefined && !VALID_ARCHETYPES.includes(opts.archetype)) {
-        throw ArbiterError.fromKey(
-          'E_INVALID_ARCHETYPE',
-          'errors.E_INVALID_ARCHETYPE',
-          { field: 'archetype', value: opts.archetype, valid: VALID_ARCHETYPES.join(', ') },
-          { hint: 'Run `arbiter init --help` for the list of valid archetypes.' },
-        )
-      }
-      // #1676: validate --auth-provider/--observability-provider against the
-      // exported unions BEFORE scaffolding. An out-of-union value was blind-cast
-      // and emitted a content-less AUTH_SETUP.md/OBSERVABILITY.md once before the
-      // next validateConfig load caught it. Fail with an explicit error instead.
-      if (opts.authProvider !== undefined && !AUTH_PROVIDERS.has(opts.authProvider)) {
-        throw ArbiterError.fromKey(
-          'E_INVALID_ARCHETYPE',
-          'errors.E_INVALID_ARCHETYPE',
-          { field: 'auth-provider', value: opts.authProvider, valid: [...AUTH_PROVIDERS].join(', ') },
-          { hint: 'Run `arbiter init --help` for the list of valid auth providers.' },
-        )
-      }
-      if (
-        opts.observabilityProvider !== undefined &&
-        !OBSERVABILITY_PROVIDERS.has(opts.observabilityProvider)
-      ) {
-        throw ArbiterError.fromKey(
-          'E_INVALID_ARCHETYPE',
-          'errors.E_INVALID_ARCHETYPE',
-          {
-            field: 'observability-provider',
-            value: opts.observabilityProvider,
-            valid: [...OBSERVABILITY_PROVIDERS].join(', '),
-          },
-          { hint: 'Run `arbiter init --help` for the list of valid observability providers.' },
-        )
-      }
-      // #1677: validate --deploy-target against the DeployTarget union before scaffolding.
-      if (opts.deployTarget !== undefined && !isDeployTarget(opts.deployTarget)) {
-        throw ArbiterError.fromKey(
-          'E_INVALID_ARCHETYPE',
-          'errors.E_INVALID_ARCHETYPE',
-          { field: 'deploy-target', value: opts.deployTarget, valid: [...DEPLOY_TARGETS].join(', ') },
-          { hint: 'Run `arbiter init --help` for the list of valid deploy targets.' },
-        )
-      }
+      // Validate union-typed flags (archetype #1671, auth/observability #1676, deploy
+      // #1677) BEFORE scaffolding — see validateInitFlags. --language is validated inside
+      // runInit via parseLanguage.
+      validateInitFlags(opts)
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
       const preset = resolvePresetOption(opts.preset)
