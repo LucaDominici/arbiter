@@ -22,7 +22,7 @@
  *   - New file justified.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 import { parseSpec, specHash } from '../gauntlet/spec.js'
@@ -74,7 +74,16 @@ export function runGauntletGenerate(opts: GauntletGenerateOptions): GauntletGene
     }
   }
 
-  const rawSpec = readFileSync(specPath, 'utf-8')
+  // FS read is part of the structured contract (#1648): a directory, EACCES, or
+  // any other read error must surface as `{status:'error',exitCode:2}`, not a
+  // thrown crash that the CLI global catch reports as exit 1.
+  let rawSpec: string
+  try {
+    rawSpec = readFileSync(specPath, 'utf-8')
+  } catch (err) {
+    return generateFsError(err)
+  }
+
   const parseResult = parseSpec(rawSpec)
   if (!parseResult.ok) {
     return {
@@ -91,30 +100,54 @@ export function runGauntletGenerate(opts: GauntletGenerateOptions): GauntletGene
   const strength = spec.strategy === '3-way' ? 3 : 2
   const rows = ipog({ dimensions: spec.dimensions, strength, constraints: spec.constraints })
 
-  mkdirSync(outDir, { recursive: true })
-
+  // The whole FS write body is guarded (#1648): mkdir/write of the artifact and
+  // the hash manifest each return the structured exit-2 envelope on ENOTDIR /
+  // EISDIR / EACCES / ENOSPC rather than escaping the contract.
   const files: string[] = []
-  const content = generateContent(stack, spec, rows)
-  const ext = stackExtension(stack)
-  const outFile = join(outDir, `${spec.name}-gauntlet.${ext}`)
-  writeFileSync(outFile, content, 'utf-8')
-  files.push(outFile)
+  let outFile: string
+  try {
+    mkdirSync(outDir, { recursive: true })
 
-  // Write a manifest hash (#1572): the spec hash PLUS a sha256 of every emitted
-  // file. This lets `verify` detect a deleted or hand-edited artifact, not just
-  // a mutated spec.
-  const manifest: GauntletHashManifest = {
-    spec: specHash(rawSpec),
-    files: { [basename(outFile)]: sha256(content) },
+    const content = generateContent(stack, spec, rows)
+    const ext = stackExtension(stack)
+    // The spec author controls `spec.name`, and the emitters already sanitize it
+    // per-sink for source identifiers (#1590). The OUTPUT FILENAME is a sink too:
+    // a raw `/` or `..` would write OUTSIDE outDir (path traversal / arbitrary
+    // write, #1620). Sanitize to a filesystem-safe stem so the artifact is always
+    // confined to outDir — matching the codebase's accept-and-sanitize stance
+    // rather than rejecting otherwise-valid names (`#260`, `bug#hot`).
+    outFile = join(outDir, `${safeFileStem(spec.name)}-gauntlet.${ext}`)
+    writeFileSync(outFile, content, 'utf-8')
+    files.push(outFile)
+
+    // Write a manifest hash (#1572): the spec hash PLUS a sha256 of every emitted
+    // file. This lets `verify` detect a deleted or hand-edited artifact, not just
+    // a mutated spec. MERGE into a same-spec manifest instead of overwriting it
+    // wholesale (#1644): a polyglot suite emits one artifact per stack into a
+    // shared outDir, and each must stay tracked — otherwise only the last-generated
+    // file is tamper-evident.
+    const newSpecHash = specHash(rawSpec)
+    const manifest: GauntletHashManifest = {
+      spec: newSpecHash,
+      files: { ...priorTrackedFiles(outDir, newSpecHash), [basename(outFile)]: sha256(content) },
+    }
+    writeFileSync(join(outDir, HASH_FILE), JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
+  } catch (err) {
+    return generateFsError(err)
   }
-  writeFileSync(join(outDir, HASH_FILE), JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
 
-  // Graph integration
+  // Graph integration — best-effort (#1648): a graph read/write failure degrades
+  // to zero edges (mirroring the loadGraphSnapshot fail-soft) rather than failing
+  // an otherwise-successful generate.
   let graphEdges = 0
   const dir = opts.dir !== undefined ? resolve(opts.dir) : dirname(specPath)
   const graphPath = join(dir, GRAPH_RELATIVE_PATH)
   if (existsSync(graphPath)) {
-    graphEdges = integrateGraph(graphPath, spec.name, specPath, rows.length)
+    try {
+      graphEdges = integrateGraph(graphPath, spec.name, specPath, rows.length)
+    } catch {
+      graphEdges = 0
+    }
   }
 
   return { status: 'ok', exitCode: 0, files, rows: rows.length, graphEdges }
@@ -194,6 +227,19 @@ export function runGauntletVerify(opts: GauntletVerifyOptions): GauntletVerifyRe
     }
   }
 
+  // Symmetric to the deleted/modified checks (#1644): an artifact present on disk
+  // but absent from the manifest is untracked — a stale leftover or a hand-dropped
+  // test that the hash gate would otherwise wave through. Fail closed on it.
+  for (const entry of readdirSync(outDir)) {
+    if (isGauntletArtifact(entry) && !Object.hasOwn(manifest.files, entry)) {
+      return {
+        status: 'error',
+        exitCode: 2,
+        reason: `untracked generated artifact "${entry}" found in ${outDir} (not in the hash manifest) — ${REGEN_HINT}`,
+      }
+    }
+  }
+
   return { status: 'ok', exitCode: 0 }
 }
 
@@ -202,6 +248,51 @@ export function runGauntletVerify(opts: GauntletVerifyOptions): GauntletVerifyRe
 /** SHA-256 of raw content (exact bytes — no normalisation, so any edit is caught). */
 function sha256(content: string): string {
   return createHash('sha256').update(content, 'utf-8').digest('hex')
+}
+
+/**
+ * Coerce a spec name into a filesystem-safe filename stem (#1620). Every char
+ * outside `[A-Za-z0-9._-]` — including the `/` and `\` path separators that drive
+ * traversal — is mapped to `_`, so the emitted `${stem}-gauntlet.${ext}` can never
+ * resolve outside outDir. Leading dots are stripped so a name like `..` cannot
+ * yield a dotfile/relative-looking stem; an empty result falls back to `gauntlet`.
+ */
+function safeFileStem(name: string): string {
+  const stem = name.replace(/[^A-Za-z0-9._-]/g, '_').replace(/^\.+/, '')
+  return stem === '' ? 'gauntlet' : stem
+}
+
+/** True for a generated gauntlet artifact (`<stem>-gauntlet.<ext>`); excludes the
+ *  `.gauntlet-hash` manifest sidecar, which has no `-gauntlet.` segment. */
+function isGauntletArtifact(filename: string): boolean {
+  return /-gauntlet\.[^.]/.test(filename)
+}
+
+/**
+ * Read the artifact map already tracked in `outDir`'s `.gauntlet-hash`, but only
+ * when its spec hash still matches the spec being generated (#1644). A same-spec
+ * manifest is merged so a multi-stack suite keeps every prior stack tracked; a
+ * stale (different-spec) or unreadable manifest contributes nothing, so the new
+ * generation starts fresh — prior artifacts are stale by definition.
+ */
+function priorTrackedFiles(outDir: string, currentSpecHash: string): Record<string, string> {
+  const hashPath = join(outDir, HASH_FILE)
+  if (!existsSync(hashPath)) return {}
+  const prior = parseHashManifest(readFileSync(hashPath, 'utf-8'))
+  if (prior === null || prior.spec !== currentSpecHash) return {}
+  return prior.files
+}
+
+/** Structured exit-2 envelope for an FS failure inside generate (#1648). */
+function generateFsError(err: unknown): GauntletGenerateResult {
+  return {
+    status: 'error',
+    exitCode: 2,
+    files: [],
+    rows: 0,
+    graphEdges: 0,
+    reason: err instanceof Error ? err.message : String(err),
+  }
 }
 
 /**
