@@ -282,17 +282,27 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(log).toHaveLength(2)
   })
 
-  it('INV-33: does not persist graceEndsAt when baseline capture fails', async () => {
+  // #1630: a baseline-capture failure must NOT abort the level bump. Previously
+  // an unguarded runCli that threw left governanceLevel stale at L1 (and on a
+  // fresh L1→L2 consumer the script does not even exist → MODULE_NOT_FOUND on
+  // every run). The call is now existsSync-guarded and try/catch'd; saveConfig
+  // always runs so the level persists, with a warning to re-run after `update`.
+  // (The #498 ordering guarantee — validation failure aborts before any capture —
+  // is unchanged and covered by the separate validateConfig-failure test below.)
+  it('a failing baseline-capture script does not abort the level bump (#1630)', async () => {
     seedConfig('L1')
+    // The script must exist for runCli to be invoked under the existsSync guard.
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'capture-debt-baseline.mjs'), '// stub\n')
     vi.mocked(runCli).mockImplementationOnce(() => {
       throw new Error('Simulated baseline failure')
     })
 
-    await expect(runUpgradeLevel({ dir, target: 'L2' })).rejects.toThrow()
+    await runUpgradeLevel({ dir, target: 'L2' })
 
     const saved = loadConfig(dir)
-    expect(saved?.graceEndsAt).toBeUndefined()
-    expect(saved?.governanceLevel).toBe('L1')
+    expect(saved?.governanceLevel).toBe('L2')
+    expect(saved?.graceEndsAt).toBeDefined()
   })
 
   it('L1→L3 upgrade does NOT say "will WARN" — warn mode is L1→L2 only (#309)', async () => {

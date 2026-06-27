@@ -6,6 +6,7 @@ import type { GovernanceLevel } from '../wizard/types.js'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
 import { runCli } from '../utils/run-cli.js'
+import { getLogger } from '../utils/logger.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { validateConfig } from '../config/schema.js'
 import { ArbiterError } from '../utils/errors.js'
@@ -75,6 +76,29 @@ function assertValidGraceDays(days: number | undefined): void {
   if (days !== undefined && (!Number.isInteger(days) || days < 1)) {
     throw new Error(
       `--days must be a positive integer (>= 1); got "${String(days)}". Example: --days 30.`,
+    )
+  }
+}
+
+/**
+ * #1630: the debt-baseline script only exists at L2+ (emitted when enableDebtGates
+ * is on). During the canonical L1→L2 upgrade the target project does NOT yet carry
+ * it — it is generated later by the user's subsequent `arbiter update`. Running it
+ * unconditionally aborted `runUpgradeLevel` with a raw MODULE_NOT_FOUND *before*
+ * saveConfig, so the level never persisted on every freshly-generated consumer.
+ * Guard existence + catch failures so a missing/failing baseline never blocks the
+ * level bump (saveConfig still runs). Mirrors init.ts `runBrownfieldCapture`.
+ */
+function captureBaselineIfPresent(dir: string): void {
+  const baselineScript = join(dir, 'scripts', 'capture-debt-baseline.mjs')
+  if (!existsSync(baselineScript)) return
+  try {
+    runCli('node', ['scripts/capture-debt-baseline.mjs', '--update'], { cwd: dir })
+  } catch (err) {
+    getLogger().warn(
+      'upgrade_level.baseline_capture_failed',
+      { err: err instanceof Error ? err.message : String(err) },
+      'Baseline capture skipped/failed; re-run after `arbiter update`.',
     )
   }
 }
@@ -162,9 +186,7 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
     )
   }
 
-  runCli('node', ['scripts/capture-debt-baseline.mjs', '--update'], {
-    cwd: dir,
-  })
+  captureBaselineIfPresent(dir)
 
   mkdirSync(join(dir, '.arbiter'), { recursive: true })
   const lock = await acquireLock(join(dir, '.arbiter', '.lock'))
