@@ -49,7 +49,7 @@ permissions:
 jobs:
   notify:
     name: Open or update failure issue
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     steps:
       - name: Open or update failure issue
         env:

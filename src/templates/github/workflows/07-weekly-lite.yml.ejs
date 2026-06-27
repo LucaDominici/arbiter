@@ -7,7 +7,7 @@
 // action-pin audit, and a deep-security subset (Semgrep SAST + full-history secret
 // scan). Mirrors the 06-nightly-lite gating shape. Schedule offset (05:00 Sun) to
 // avoid clashing with 06-nightly-lite (03:00 daily) and the full 07-weekly (04:00 Sun).
-const _runner = "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}";
+const _runner = "${{ fromJSON(vars.RUNNER_LABELS_TEST || '[\"ubuntu-latest\"]') }}";
 %>name: Weekly Lite (T5-lite)
 
 on:
@@ -107,9 +107,6 @@ jobs:
       # .git/refs/**/*.lock from an interrupted run, which makes the
       # deep checkout below fail with "cannot lock ref". No-op on
       # ephemeral runners.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0

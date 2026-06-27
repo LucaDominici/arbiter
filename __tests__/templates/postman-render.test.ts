@@ -180,8 +180,9 @@ describe('_contract-postman.yml.ejs — structural invariants (CANON-04, CANON-1
     expect(content).toMatch(/actions\/checkout@[0-9a-f]{40}/)
   })
 
-  it('references CI_BUILD_RUNNER_LABEL variable (INV-13)', () => {
-    expect(renderContractWorkflow()).toContain('CI_BUILD_RUNNER_LABEL')
+  it('uses RUNNER_LABELS_TEST runner variable with ubuntu-latest fallback (INV-13)', () => {
+    expect(renderContractWorkflow()).toContain('vars.RUNNER_LABELS_TEST')
+    expect(renderContractWorkflow()).toContain('ubuntu-latest')
   })
 
   it('uses projectName in collection variable when set', () => {

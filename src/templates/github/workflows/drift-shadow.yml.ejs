@@ -11,7 +11,7 @@ permissions:
 jobs:
   drift-check:
     name: Gate Result Drift Check
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     permissions:
       issues: write
     steps:

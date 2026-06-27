@@ -7,6 +7,13 @@
     "scope": "pii-allowlist"
   },
   {
+    "file": "__tests__/templates/_post-merge-notify-render.test.ts",
+    "reason": "noreply@github.com appears in test assertions verifying the _post-merge-notify template renders a valid From/To address — fixture data, not real PII. Already covered by the __tests__/ wildcard but added explicitly due to hook path-match behaviour.",
+    "owner": "core",
+    "expiresAt": "2027-06-13",
+    "scope": "pii-allowlist"
+  },
+  {
     "file": "src/templates/github/workflows/_post-merge-notify.yml.ejs",
     "reason": "Generic noreply@github.com fallback address used as msg[From]/msg[To] when MAIL_USERNAME secret is unset — public no-reply convention, not real PII (#943).",
     "owner": "core",

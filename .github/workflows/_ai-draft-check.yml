@@ -20,7 +20,7 @@ permissions:
 jobs:
   ai-draft-check:
     name: AI-PR human-approval check (INV-91)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     if: github.event.pull_request.user.type == 'Bot'
     steps:
       - name: Assert approved-by-human label on bot-authored PR

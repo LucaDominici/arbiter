@@ -21,7 +21,7 @@ jobs:
     # source repo with its own taxonomy) sets the DISABLE_LABEL_SYNC variable to
     # 'true' so labels.yml is NOT applied to that repo's live label set (#1131).
     if: ${{ vars.DISABLE_LABEL_SYNC != 'true' }}
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Sync labels from .github/labels.yml

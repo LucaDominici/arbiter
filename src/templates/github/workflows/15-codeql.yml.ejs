@@ -2,13 +2,13 @@
 const _cm = (typeof collaborationMode !== 'undefined' ? collaborationMode : 'peer-review');
 const _runner = (_cm === 'gated-review' && (governanceLevel === 'L3' || governanceLevel === 'L4'))
   ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}"
-  : "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}";
+  : "${{ fromJSON(vars.RUNNER_LABELS_TEST || '[\"ubuntu-latest\"]') }}";
 // #1624: a single immutable language string defaulting to 'javascript-typescript' false-greens
-// the entire compiled-language backend of a polyglot (language === 'multi') repo — CodeQL would
+// the entire compiled-language backend of a polyglot (language === 'multi') repo - CodeQL would
 // scan only the TS frontend while the JVM backend goes unscanned behind a passing check. Resolve
 // the FULL set of CodeQL languages the detected stack contains and analyze each as its own matrix
 // leg, so every language present is actually scanned. `multi` is the TS-frontend + JVM-backend
-// monorepo (src/detectors/language.ts) — treat it as the superset of its parts, never a single
+// monorepo (src/detectors/language.ts) - treat it as the superset of its parts, never a single
 // interpreted language. `kotlin` maps to CodeQL's java-kotlin pack (a bare 'kotlin' fell through
 // to the TS default before, scanning a Kotlin codebase as TypeScript).
 const _codeqlLangMap = {
@@ -58,9 +58,6 @@ jobs:
       # .git/refs/**/*.lock from an interrupted run, which makes the
       # deep checkout below fail with "cannot lock ref". No-op on
       # ephemeral runners.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0

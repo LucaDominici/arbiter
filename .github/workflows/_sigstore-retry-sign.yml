@@ -26,7 +26,7 @@ permissions:
 jobs:
   sign-with-retry:
     name: Sign artifact (cosign keyless, retry)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     permissions:
       id-token: write
       contents: read

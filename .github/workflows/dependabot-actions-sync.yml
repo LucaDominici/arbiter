@@ -28,7 +28,7 @@ permissions:
 jobs:
   sync-action-pins:
     name: Sync EJS Action Pins
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     if: >
       github.actor == 'dependabot[bot]' &&
       startsWith(github.head_ref, 'dependabot/github_actions/')

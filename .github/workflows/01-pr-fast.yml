@@ -86,14 +86,6 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
-      # #1311: self-hosted persistent workspaces can keep a stale
-      # .git/refs/**/*.lock from an interrupted run, which makes the
-      # deep checkout below fail with "cannot lock ref". No-op on
-      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
-      # the checkout step's name:/SHA pin below, not this guard.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
@@ -125,14 +117,6 @@ jobs:
       infra_changed: ${{ steps.classify.outputs.infra_changed }}
       high_risk: ${{ steps.classify.outputs.high_risk }}
     steps:
-      # #1311: self-hosted persistent workspaces can keep a stale
-      # .git/refs/**/*.lock from an interrupted run, which makes the
-      # deep checkout below fail with "cannot lock ref". No-op on
-      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
-      # the checkout step's name:/SHA pin below, not this guard.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
@@ -335,14 +319,6 @@ jobs:
     timeout-minutes: 60
     if: github.event_name == 'pull_request'
     steps:
-      # #1311: self-hosted persistent workspaces can keep a stale
-      # .git/refs/**/*.lock from an interrupted run, which makes the
-      # deep checkout below fail with "cannot lock ref". No-op on
-      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
-      # the checkout step's name:/SHA pin below, not this guard.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
@@ -402,14 +378,6 @@ jobs:
     timeout-minutes: 60
     needs: [gate]
     steps:
-      # #1311: self-hosted persistent workspaces can keep a stale
-      # .git/refs/**/*.lock from an interrupted run, which makes the
-      # deep checkout below fail with "cannot lock ref". No-op on
-      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
-      # the checkout step's name:/SHA pin below, not this guard.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
@@ -469,14 +437,6 @@ jobs:
 
     timeout-minutes: 60
     steps:
-      # #1311: self-hosted persistent workspaces can keep a stale
-      # .git/refs/**/*.lock from an interrupted run, which makes the
-      # deep checkout below fail with "cannot lock ref". No-op on
-      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
-      # the checkout step's name:/SHA pin below, not this guard.
-      - name: Clean stale git ref locks (self-hosted)
-        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
-        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
@@ -581,4 +541,54 @@ jobs:
             echo "gate-full (L2) failed or was cancelled"
             exit 1
           fi
+
+
+  post-merge-gate:
+    name: D4-LITE post-merge gate (main)
+    needs: [classify-changes]
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.classify-changes.result == 'success' &&
+      needs.classify-changes.outputs.docs_only != 'true'
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Install gitleaks
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Install actionlint
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" actionlint
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Build
+        run: npm run build && node scripts/build-kit.mjs
+      - name: Run full L2 gate (D4-LITE catch-net)
+        run: node scripts/check-all.mjs L2
+
+  post-merge-notify:
+    name: D4-LITE notify on failure
+    needs: [post-merge-gate]
+    if: always() && needs.post-merge-gate.result == 'failure'
+    permissions:
+      issues: write
+    uses: ./.github/workflows/_notify.yml
+    with:
+      workflow_name: D4-LITE post-merge gate
+      area: ci
+      severity: P1
+      branch: main
+      run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      failure_summary: Post-merge L2 gate failed on main — a change merged without full verification.
+      status: failure
+
 
