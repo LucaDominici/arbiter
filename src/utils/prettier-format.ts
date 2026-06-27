@@ -8,9 +8,11 @@ import { runCli, CliError } from './run-cli.js'
 import { getLogger } from './logger.js'
 
 /**
- * Resolve the prettier CLI entrypoint bundled with arbiter's own dependency tree.
- * Returns null when prettier is not installed alongside arbiter (production installs
- * where prettier is a devDependency).
+ * Resolve the prettier CLI entrypoint installed in arbiter's own dependency tree.
+ * Prettier is a runtime `dependency` (package.json), so this resolves in every
+ * published install — `npm i -g`/`npx` materialise `dependencies`. Returns null
+ * only in a degraded tree where the package is somehow absent, so callers stay
+ * best-effort rather than throwing (#1651).
  */
 function resolveOwnPrettierBin(): string | null {
   try {
@@ -24,8 +26,9 @@ function resolveOwnPrettierBin(): string | null {
 }
 
 // Resolve the prettier invocation (binary + base args + config args) for targetDir.
-// Prefers arbiter's own bundled prettier (deterministic — a fresh target scaffold has
-// no node_modules yet); falls back to the target's prettier via `npx --no-install`.
+// Prefers arbiter's own dependency-tree prettier (deterministic — it ships as a runtime
+// dependency, and a fresh target scaffold has no node_modules yet); falls back to the
+// target's prettier via `npx --no-install` only in a degraded tree.
 function resolvePrettierInvocation(targetDir: string): {
   cmd: string
   baseArgs: string[]

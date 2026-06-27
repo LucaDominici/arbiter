@@ -112,9 +112,10 @@ describe('check-runtime-dep-pins.mjs (#1557)', () => {
     }
   })
 
-  // Red→green guard: arbiter's OWN package.json must pass. Before #1557 its 5 runtime
-  // deps were caret-ranged, so this exited 1; after exact-pinning it exits 0.
-  it("passes against arbiter's own package.json (all 5 runtime deps exact-pinned)", () => {
+  // Red→green guard: arbiter's OWN package.json must pass. Before #1557 its runtime
+  // deps were caret-ranged, so this exited 1; after exact-pinning it exits 0. prettier
+  // joined the runtime deps in #1651 and must be exact-pinned too.
+  it("passes against arbiter's own package.json (all runtime deps exact-pinned)", () => {
     const result = run(process.cwd())
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('all runtime dependencies are exact-pinned')
