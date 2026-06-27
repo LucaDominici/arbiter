@@ -58,4 +58,13 @@ describe('observability/setup.md.ejs (#725)', () => {
       expect(render(p), `${p}: missing traceId`).toMatch(/traceId|trace_id|trace-id/i)
     }
   })
+
+  // #1676: the provider if/else-if chain previously had no final `else`, so an unknown
+  // provider rendered a content-less body. The new `else` emits an explicit notice.
+  it('unknown provider: emits an explicit "unknown provider" notice (not an empty body)', () => {
+    const out = render('bogus')
+    expect(out).toMatch(/unknown provider/i)
+    expect(out).toMatch(/re-run the wizard|fix `?observability\.provider`?/i)
+    expect(out).toContain('bogus')
+  })
 })

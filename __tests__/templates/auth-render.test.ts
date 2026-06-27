@@ -53,4 +53,15 @@ describe('auth/setup.md.ejs (#726)', () => {
   it('saas-cognito: shows Amazon Cognito section', () => {
     expect(render('saas-cognito')).toMatch(/cognito|amazon/i)
   })
+
+  // #1676: the provider if/else-if chain previously had no final `else`, so an unknown
+  // provider rendered a content-less body between the header and the Checklist. The new
+  // `else` emits an explicit, actionable notice instead of an empty section.
+  it('unknown provider: emits an explicit "unknown provider" notice (not an empty body)', () => {
+    const out = render('bogus')
+    expect(out).toMatch(/unknown provider/i)
+    expect(out).toMatch(/re-run the wizard|fix `?auth\.provider`?/i)
+    // The bad value is surfaced so the operator can find the typo.
+    expect(out).toContain('bogus')
+  })
 })

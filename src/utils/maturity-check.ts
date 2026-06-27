@@ -7,6 +7,9 @@ const require = createRequire(import.meta.url)
 export type MaturityLevel = 'proven' | 'beta' | 'unsafe' | 'unavailable'
 
 export type MaturityFeature =
+  // #1678: static_analysis is emitted by the always-on debt-gates generator (per-language
+  // linter config); kotlin=detekt is beta, so it must be reachable by the L3 gate.
+  | 'static_analysis'
   | 'mutation'
   | 'contract'
   | 'coverage'
@@ -70,6 +73,22 @@ export function checkMaturity(language: Language, feature: MaturityFeature): Mat
     tool: entry.tool,
     reason: entry.reason,
   }
+}
+
+/**
+ * #1678: does the matrix carry an explicit cell for this language × feature?
+ *
+ * The emission-plan-derived L3 gate uses this to distinguish two cases `checkMaturity`
+ * conflates as `unavailable`:
+ *  - an EXPLICIT cell whose maturity is `unavailable` (e.g. e2e:rust) → a real verdict
+ *    the gate must honour (block);
+ *  - NO cell at all (e.g. any dimension for a polyglot `multi` core, which the matrix
+ *    does not model) → the matrix has no opinion, so blocking would be a false positive
+ *    (the #1606 pattern, generalised). The deriver skips these instead of gating them.
+ */
+export function hasMatrixCell(language: Language, feature: MaturityFeature): boolean {
+  const matrix = loadMatrix()
+  return matrix[feature]?.[language] !== undefined
 }
 
 export interface L3CheckResult {

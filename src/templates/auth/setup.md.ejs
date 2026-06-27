@@ -634,6 +634,17 @@ COGNITO_USER_POOL_ID=<region>_<pool-id>
 COGNITO_CLIENT_ID=<your-app-client-id>
 AWS_REGION=<your-region>
 ```
+<% } else { %>
+
+## Unknown provider — `<%= auth.provider %>`
+
+arbiter has no setup recipe for the configured `auth.provider`. This usually means a
+typo or a value from a newer arbiter version. No provider-specific instructions could
+be emitted.
+
+- Re-run the wizard (`arbiter init`) and pick a supported provider, or
+- Fix `auth.provider` in `arbiter.json` to a known value, then run `arbiter update`.
+
 <% } %>
 
 ---
