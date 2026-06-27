@@ -77,6 +77,13 @@ describe('_k6-runner.yml.ejs — render invariants (CANON-04, #895)', () => {
     expect(rendered).not.toContain('SCENARIO="${{ inputs.scenario }}"')
     expect(rendered).not.toContain('if [ -n "${{ inputs.vus }}" ]')
   })
+
+  // #1666: checkout pinned to the canonical v6.0.3 sha; stale v4.2.2 divergence removed.
+  it('pins actions/checkout to the canonical v6.0.3 sha, not stale v4.2.2 (#1666)', () => {
+    const rendered = renderTemplate('github/workflows/_k6-runner.yml.ejs', makeData())
+    expect(rendered).toContain('actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10')
+    expect(rendered).not.toContain('11bd71901bbe5b1630ceea73d27597364c9af683')
+  })
 })
 
 // ─── Scenario templates ───────────────────────────────────────────────────────
