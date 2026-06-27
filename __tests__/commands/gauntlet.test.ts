@@ -10,7 +10,7 @@
  */
 
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
 import { runGauntletGenerate, runGauntletVerify } from '../../src/commands/gauntlet.js'
@@ -142,6 +142,41 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
     expect(result.reason).toMatch(/name/)
   })
 
+  it('confines the output file to outDir when spec.name contains "/" or ".." (#1620)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    const malicious = `name: "../ESCAPED"\ndimensions:\n  a: [x, y]\n  b: [p, q]\n`
+    const spec = writeSpec(dir, malicious)
+    const outDir = join(dir, 'out')
+    const result = runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
+    expect(result.status).toBe('ok')
+    const written = result.files[0]!
+    // The artifact must NOT escape outDir.
+    expect(resolve(written).startsWith(resolve(outDir) + sep)).toBe(true)
+    expect(existsSync(written)).toBe(true)
+    // Nothing escaped to the parent dir.
+    expect(existsSync(join(dir, 'ESCAPED-gauntlet.spec.ts'))).toBe(false)
+    // Manifest and disk agree, so verify still passes.
+    expect(runGauntletVerify({ spec, out: outDir }).status).toBe('ok')
+  })
+
+  it('returns a structured exit-2 error (not a thrown crash) when outDir cannot be created (#1648)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    const spec = writeSpec(dir)
+    // A regular file in the path makes `mkdir -p` throw ENOTDIR (recursive does
+    // NOT swallow a file as a path component).
+    const blocker = join(dir, 'afile')
+    writeFileSync(blocker, 'x', 'utf-8')
+    let result: ReturnType<typeof runGauntletGenerate> | undefined
+    expect(() => {
+      result = runGauntletGenerate({ spec, out: join(blocker, 'sub'), stack: 'typescript' })
+    }).not.toThrow()
+    expect(result?.status).toBe('error')
+    expect(result?.exitCode).toBe(2)
+    expect(result?.reason).toBeTruthy()
+  })
+
   it('integrates with graph: emits GAUNTLET edges when graph.json exists', () => {
     const dir = makeTmp()
     dirs.push(dir)
@@ -244,5 +279,38 @@ describe('gauntlet verify (#260, AC-4 AC-5)', () => {
     expect(result.status).toBe('error')
     expect(result.exitCode).toBe(2)
     expect(result.reason).toMatch(/modified|drift|sync/i)
+  })
+
+  it('tracks every stack artifact in a shared outDir; editing any one fails verify (#1644)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    const spec = writeSpec(dir)
+    const outDir = join(dir, 'out')
+    const ts = runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
+    const jv = runGauntletGenerate({ spec, out: outDir, stack: 'java' })
+    expect(ts.status).toBe('ok')
+    expect(jv.status).toBe('ok')
+    // Both artifacts coexist on disk.
+    expect(existsSync(ts.files[0]!)).toBe(true)
+    expect(existsSync(jv.files[0]!)).toBe(true)
+    // The TypeScript artifact (NOT the most-recently-generated one) is tampered.
+    writeFileSync(ts.files[0]!, '// gutted\n', 'utf-8')
+    const result = runGauntletVerify({ spec, out: outDir })
+    expect(result.status).toBe('error')
+    expect(result.exitCode).toBe(2)
+  })
+
+  it('fails (exit 2) when an untracked *-gauntlet.* artifact is left in outDir (#1644)', () => {
+    const dir = makeTmp()
+    dirs.push(dir)
+    const spec = writeSpec(dir)
+    const outDir = join(dir, 'out')
+    runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
+    // A stale artifact no longer enumerated by the manifest must be caught.
+    writeFileSync(join(outDir, 'rogue-gauntlet.rs'), 'fn main() {}\n', 'utf-8')
+    const result = runGauntletVerify({ spec, out: outDir })
+    expect(result.status).toBe('error')
+    expect(result.exitCode).toBe(2)
+    expect(result.reason).toMatch(/untracked|unexpected/i)
   })
 })
