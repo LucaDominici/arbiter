@@ -68,7 +68,7 @@ checks:
       format: json
       select: 'length'
       op: lte
-    threshold_ref: eslint.errors
+    threshold_ref: ruff.findings
     weight: 2
     risk: SAFE
     applies_if: has-python

@@ -1323,3 +1323,172 @@ describe('shipped rust registry coverage unit (#1569)', () => {
     expect(rsCov?.verdict).toBe('Y')
   })
 })
+
+// ── #1629: Java/Go coverage selectors + per-language lint threshold decoupling ────────────────────
+//
+// Three determinism-preserving registry-semantics defects the engine-parity gate cannot catch (a
+// wrong-but-consistent selector is byte-identical across engines): (1) JA-COV-02 scored a method's
+// raw covered-LINE COUNT (leftmost regex match) against a PERCENT bar; (2) JA-COV-03/04 read a
+// coverage-summary.json no JaCoCo tool emits; (3) GO-COV-02 read a coverage.json no Go tool emits;
+// (4) go/py/rust lint checks gated on the row literally named `eslint.errors`.
+describe('#1629: coverage selectors + per-language lint thresholds', () => {
+  function loadYaml(rel: string): Record<string, unknown> {
+    return (parseYaml(readFileSync(join(REPO_ROOT, rel), 'utf-8')) ?? {}) as Record<string, unknown>
+  }
+  function thresholdsTable(): Record<string, Record<string, number>> {
+    return loadYaml('standards/thresholds.yml')['thresholds'] as Record<
+      string,
+      Record<string, number>
+    >
+  }
+  function byId(result: { checks: Array<{ id: string }> }): Record<string, { id: string }> {
+    return Object.fromEntries(result.checks.map((c) => [c.id, c]))
+  }
+
+  // Defect 2: line coverage must be the report-TOTAL percent (last <counter type="LINE">), not the
+  // leftmost method's raw covered-line count. The fixture's first/method LINE counter (covered=3)
+  // differs from the report total (90/100) AND the assertion is a PERCENT, so a fix that still grabs
+  // the leftmost match — or reads a raw count — fails this test.
+  it('JA-COV-02 scores the report-total LINE percent, not a leftmost method count', () => {
+    const registry = loadYaml('standards/gold-registry.java.yml') as unknown as RegistryInput
+    const root = tmpDir()
+    const dir = join(root, 'target/site/jacoco')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      join(dir, 'jacoco.xml'),
+      '<report name="demo">' +
+        '<package name="com/example"><class name="com/example/Foo">' +
+        '<method name="bar"><counter type="INSTRUCTION" missed="2" covered="40"/>' +
+        '<counter type="LINE" missed="0" covered="3"/></method>' +
+        '<counter type="LINE" missed="1" covered="9"/>' +
+        '</class></package>' +
+        '<counter type="INSTRUCTION" missed="20" covered="180"/>' +
+        '<counter type="LINE" missed="10" covered="90"/>' +
+        '<counter type="BRANCH" missed="10" covered="90"/>' +
+        '</report>',
+    )
+    const result = evaluate(registry, new Set(['has-java']), root, {
+      thresholds: thresholdsTable(),
+      brownfieldClass: 'gold',
+    })
+    const checks = byId(result) as Record<
+      string,
+      { verdict: string; evidence: { detail?: string } }
+    >
+    // report-total LINE = 90/(90+10) = 90% ⇒ gold bar 90 ⇒ Y (was raw count 3 ⇒ "3 !gte 90" ⇒ N)
+    expect(checks['JA-COV-02'].verdict).toBe('Y')
+    expect(checks['JA-COV-02'].evidence.detail).toContain('90 gte 90')
+  })
+
+  // Defect 3: JA-COV-03 (instruction) + JA-COV-04 (branch) must read the jacoco.xml a JaCoCo tool
+  // actually emits, never the phantom target/coverage-summary.json (istanbul shape, no Java emitter).
+  it('JA-COV-03/04 read jacoco.xml report-total percents (no phantom coverage-summary.json)', () => {
+    const registry = loadYaml('standards/gold-registry.java.yml') as unknown as RegistryInput
+    const root = tmpDir()
+    const dir = join(root, 'target/site/jacoco')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      join(dir, 'jacoco.xml'),
+      '<report name="demo">' +
+        '<counter type="INSTRUCTION" missed="20" covered="180"/>' + // 90%
+        '<counter type="LINE" missed="10" covered="90"/>' + // 90%
+        '<counter type="BRANCH" missed="40" covered="60"/>' + // 60%
+        '</report>',
+    )
+    const result = evaluate(registry, new Set(['has-java']), root, {
+      thresholds: thresholdsTable(),
+      brownfieldClass: 'gold',
+    })
+    const checks = byId(result) as Record<string, { verdict: string; evidence: { file?: string } }>
+    expect(checks['JA-COV-03'].verdict).toBe('Y') // instruction 90 ≥ 90 (coverage.line)
+    expect(checks['JA-COV-04'].verdict).toBe('N') // branch 60 < 85 (coverage.branch gold)
+    expect(checks['JA-COV-03'].evidence.file).toContain('jacoco.xml')
+    expect(checks['JA-COV-04'].evidence.file).toContain('jacoco.xml')
+  })
+
+  // Defect 4: Go line coverage must be parsed from the coverage.out profile arbiter actually emits
+  // (`go test -coverprofile`), never the phantom coverage.json (istanbul shape).
+  it('GO-COV-01/02 read the coverage.out statement-coverage percent', () => {
+    const registry = loadYaml('standards/gold-registry.go.yml') as unknown as RegistryInput
+    const root = tmpDir()
+    // 9 of 10 statements covered ⇒ 90%
+    writeFileSync(
+      join(root, 'coverage.out'),
+      'mode: atomic\n' +
+        'pkg/a.go:1.1,3.16 5 4\n' + // 5 stmts, hit ⇒ covered
+        'pkg/a.go:5.2,6.12 4 1\n' + // 4 stmts, hit ⇒ covered
+        'pkg/a.go:8.2,8.20 1 0\n', // 1 stmt, NOT hit
+    )
+    const result = evaluate(registry, new Set(['has-go']), root, {
+      thresholds: thresholdsTable(),
+      brownfieldClass: 'gold',
+    })
+    const checks = byId(result) as Record<
+      string,
+      { verdict: string; evidence: { detail?: string } }
+    >
+    expect(checks['GO-COV-01'].verdict).toBe('Y') // coverage.out present
+    expect(checks['GO-COV-02'].verdict).toBe('Y') // 90 ≥ 90
+    expect(checks['GO-COV-02'].evidence.detail).toContain('90 gte 90')
+  })
+
+  // Defect 1/3: the three non-ESLint linters must resolve their OWN threshold_ref row, seeded with
+  // the SAME bars as eslint.errors ⇒ a corrected key name with NO verdict regression.
+  it('go/py/rust lint checks reference their own tool-family row (same bars as eslint.errors)', () => {
+    const thresholds = thresholdsTable()
+    const eslint = thresholds['eslint.errors']
+    const cases: Array<[string, string, string]> = [
+      ['go', 'GO-LINT-02', 'golangci.issues'],
+      ['python', 'PY-LINT-03', 'ruff.findings'],
+      ['rust', 'RS-LINT-02', 'clippy.warnings'],
+    ]
+    for (const [stack, id, ref] of cases) {
+      const checks = (loadYaml(`standards/gold-registry.${stack}.yml`)['checks'] ?? []) as Array<
+        Record<string, unknown>
+      >
+      const check = checks.find((c) => c['id'] === id)
+      expect(check, `${id} present`).toBeDefined()
+      expect(check?.['threshold_ref'], `${id} repointed`).toBe(ref)
+      // Identical bars ⇒ no verdict change, only the key name is corrected (decoupled from JS).
+      expect(thresholds[ref], `${ref} seeded from eslint.errors`).toEqual(eslint)
+    }
+  })
+
+  // Parity: the new xml `coverage:` selector and the new `go-coverprofile` format must produce
+  // byte-identical verdicts in BOTH engines (the engine-parity contract).
+  it('parity: coverage: xml selector + go-coverprofile format identical across engines', async () => {
+    const root = tmpDir()
+    writeFileSync(
+      join(root, 'jacoco.xml'),
+      '<report><counter type="LINE" missed="10" covered="90"/></report>',
+    )
+    writeFileSync(join(root, 'coverage.out'), 'mode: atomic\nx.go:1.1,2.9 9 1\nx.go:3.1,3.5 1 0\n')
+    const reg: RegistryInput = {
+      version: '1.0.0',
+      checks: [
+        {
+          id: 'C-LINE',
+          type: 'value',
+          args: { path: 'jacoco.xml', format: 'xml', select: 'coverage:LINE', op: 'gte' },
+          threshold_ref: 'coverage.line',
+        },
+        {
+          id: 'C-GO',
+          type: 'value',
+          args: { path: 'coverage.out', format: 'go-coverprofile', select: 'line', op: 'gte' },
+          threshold_ref: 'coverage.line',
+        },
+      ],
+    }
+    const opts = { thresholds: { 'coverage.line': { gold: 90 } }, brownfieldClass: 'gold' }
+    const ts = evaluate(reg, new Set<string>(), root, opts)
+    const mjs = (await Promise.resolve(mjsModule.evaluate(reg, new Set<string>(), root, opts))) as {
+      checks: Array<{ id: string; verdict: string }>
+    }
+    const tsV = Object.fromEntries(ts.checks.map((c) => [c.id, c.verdict]))
+    const mjsV = Object.fromEntries(mjs.checks.map((c) => [c.id, c.verdict]))
+    expect(tsV).toEqual(mjsV)
+    expect(tsV['C-LINE']).toBe('Y') // 90% ≥ 90
+    expect(tsV['C-GO']).toBe('Y') // 9/10 = 90% ≥ 90
+  })
+})
