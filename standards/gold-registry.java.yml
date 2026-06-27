@@ -104,25 +104,36 @@ checks:
     applies_if: has-java
 
   # ── D-COVERAGE: JaCoCo wired AND line/branch coverage meet the per-class floor. ───────────────
+  # arbiter's Java generator emits the JaCoCo XML to a CUSTOM path, NOT the JaCoCo default
+  # target/site/jacoco/ (#1682): Maven → target/coverage/jacoco.xml (jacoco-maven-setup.md sets
+  # <outputDirectory>${project.build.directory}/coverage</outputDirectory>); Gradle →
+  # build/coverage/coverage.xml (jacoco.gradle xml.outputLocation, with csv.required = false, so no
+  # CSV is emitted for Gradle). The value-report engine reads ONE path per check (no anyOf), so the
+  # coverage checks split into Maven (01-04) and Gradle (05-08) variants, each pointing at the REAL
+  # emitted file. file_exists report-present checks (01, 05) score N when absent, so they are GATED
+  # by the build manifest (pom.xml / build.gradle) ⇒ the non-active build tool NA's, never false-N's.
+  # value-report checks (02-04, 06-08) self-gate: an absent report ⇒ NA (#1413), so only the active
+  # build tool's report is graded and the other build tool's variants NA on the missing file.
+  #
+  # JA-COV-0{2,3,4} / JA-COV-0{6,7,8} score the report-TOTAL coverage PERCENT of the jacoco.xml a
+  # JaCoCo tool emits, via the engine's `coverage:TYPE` selector (last <counter type="TYPE">,
+  # covered/(covered+missed)·100). The prior regex grabbed the LEFTMOST method counter's raw
+  # covered-LINE COUNT and compared it to a percent bar (false-N for every JaCoCo repo); the prior
+  # json fallbacks read a target/coverage-summary.json no Java tool emits (#1629).
   - id: JA-COV-01
     dimension: D-COVERAGE
-    title: JaCoCo report present (coverage measured)
+    title: JaCoCo XML report present — Maven (target/coverage/jacoco.xml)
     type: file_exists
-    args: { path: target/site/jacoco/jacoco.csv }
+    args: { path: target/coverage/jacoco.xml }
     weight: 1
     risk: SAFE
-    applies_if: has-java
-  # JA-COV-02/03/04 score the report-TOTAL coverage PERCENT of the jacoco.xml a JaCoCo tool actually
-  # emits, via the engine's `coverage:TYPE` selector (last <counter type="TYPE">, covered/(covered+
-  # missed)·100). The prior regex grabbed the LEFTMOST method counter's raw covered-LINE COUNT and
-  # compared it to a percent bar (false-N for every JaCoCo repo); the prior json fallbacks read a
-  # target/coverage-summary.json no Java tool emits (#1629).
+    applies_if: { type: file_exists, path: pom.xml }
   - id: JA-COV-02
     dimension: D-COVERAGE
-    title: Line coverage % meets the per-class floor (jacoco.xml report-total LINE)
+    title: Line coverage % meets the per-class floor — Maven (jacoco.xml report-total LINE)
     type: value
     args:
-      path: target/site/jacoco/jacoco.xml
+      path: target/coverage/jacoco.xml
       format: xml
       select: 'coverage:LINE'
       op: gte
@@ -133,10 +144,10 @@ checks:
     anchor: INV-25
   - id: JA-COV-03
     dimension: D-COVERAGE
-    title: Instruction coverage % meets the per-class floor (jacoco.xml report-total INSTRUCTION)
+    title: Instruction coverage % meets the per-class floor — Maven (jacoco.xml report-total INSTRUCTION)
     type: value
     args:
-      path: target/site/jacoco/jacoco.xml
+      path: target/coverage/jacoco.xml
       format: xml
       select: 'coverage:INSTRUCTION'
       op: gte
@@ -146,10 +157,58 @@ checks:
     applies_if: has-java
   - id: JA-COV-04
     dimension: D-COVERAGE
-    title: Branch coverage % meets the per-class floor (jacoco.xml report-total BRANCH)
+    title: Branch coverage % meets the per-class floor — Maven (jacoco.xml report-total BRANCH)
     type: value
     args:
-      path: target/site/jacoco/jacoco.xml
+      path: target/coverage/jacoco.xml
+      format: xml
+      select: 'coverage:BRANCH'
+      op: gte
+    threshold_ref: coverage.branch
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+  - id: JA-COV-05
+    dimension: D-COVERAGE
+    title: JaCoCo XML report present — Gradle (build/coverage/coverage.xml)
+    type: file_exists
+    args: { path: build/coverage/coverage.xml }
+    weight: 1
+    risk: SAFE
+    applies_if: { type: file_exists, path: build.gradle }
+  - id: JA-COV-06
+    dimension: D-COVERAGE
+    title: Line coverage % meets the per-class floor — Gradle (coverage.xml report-total LINE)
+    type: value
+    args:
+      path: build/coverage/coverage.xml
+      format: xml
+      select: 'coverage:LINE'
+      op: gte
+    threshold_ref: coverage.line
+    weight: 2
+    risk: SAFE
+    applies_if: has-java
+    anchor: INV-25
+  - id: JA-COV-07
+    dimension: D-COVERAGE
+    title: Instruction coverage % meets the per-class floor — Gradle (coverage.xml report-total INSTRUCTION)
+    type: value
+    args:
+      path: build/coverage/coverage.xml
+      format: xml
+      select: 'coverage:INSTRUCTION'
+      op: gte
+    threshold_ref: coverage.line
+    weight: 2
+    risk: SAFE
+    applies_if: has-java
+  - id: JA-COV-08
+    dimension: D-COVERAGE
+    title: Branch coverage % meets the per-class floor — Gradle (coverage.xml report-total BRANCH)
+    type: value
+    args:
+      path: build/coverage/coverage.xml
       format: xml
       select: 'coverage:BRANCH'
       op: gte
