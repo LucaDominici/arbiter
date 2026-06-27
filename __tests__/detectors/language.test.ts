@@ -227,6 +227,41 @@ describe('detectLanguageWithSource', () => {
     expect(result.language).toBe('java')
     expect(result.source).toBe('pom.xml')
   })
+
+  // #1625: a compiled-language manifest at the root must win over a root package.json
+  // (Rust+wasm-pack, Go+npm tooling, Python+JS tooling all carry both). The bare
+  // package.json typescript check must come LAST, never shadow Cargo.toml/go.mod/pyproject.
+  it('returns rust when Cargo.toml + root package.json both exist (#1625)', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    writeFileSync(join(dir, 'Cargo.toml'), '[package]')
+    expect(detectLanguageWithSource(dir)).toEqual({ language: 'rust', source: 'Cargo.toml' })
+  })
+
+  it('returns go when go.mod + root package.json both exist (#1625)', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    writeFileSync(join(dir, 'go.mod'), 'module x\n')
+    expect(detectLanguageWithSource(dir)).toEqual({ language: 'go', source: 'go.mod' })
+  })
+
+  it('returns python when pyproject.toml + root package.json both exist (#1625)', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    writeFileSync(join(dir, 'pyproject.toml'), '')
+    expect(detectLanguageWithSource(dir)).toEqual({ language: 'python', source: 'pyproject.toml' })
+  })
+
+  it('returns python when setup.py + root package.json both exist (#1625)', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    writeFileSync(join(dir, 'setup.py'), '')
+    expect(detectLanguageWithSource(dir)).toEqual({ language: 'python', source: 'setup.py' })
+  })
+
+  it('still returns typescript for package.json alone (no compiled manifest) (#1625)', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    expect(detectLanguageWithSource(dir)).toEqual({
+      language: 'typescript',
+      source: 'package.json',
+    })
+  })
 })
 
 // #1343: stored arbiter.json `language` must win over filesystem detection while
@@ -292,12 +327,24 @@ describe('resolveLanguage', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('R1: returns stored go when go.mod present even though package.json would detect typescript', () => {
+  it('R1: returns stored go when go.mod + frontend-lane package.json both present', () => {
     writeFileSync(join(dir, 'go.mod'), 'module x\n')
     writeFileSync(join(dir, 'package.json'), '{}')
-    // sanity: filesystem detection alone is wrong here
-    expect(detectLanguage(dir)).toBe('typescript')
+    // #1625: a compiled-language manifest at root now wins over package.json, so
+    // detection alone is also correct here; the stored value still corroborates.
+    expect(detectLanguage(dir)).toBe('go')
     expect(resolveLanguage(dir, { language: 'go' })).toBe('go')
+  })
+
+  it('R4: greenfield — stored typescript with NO on-disk manifest is preserved, not downgraded to unknown (#1625)', () => {
+    // `arbiter init --language typescript` persists the language but scaffolds no
+    // package.json; the next `update` must NOT erase the explicit choice.
+    expect(detectLanguage(dir)).toBe('unknown')
+    expect(resolveLanguage(dir, { language: 'typescript' })).toBe('typescript')
+  })
+
+  it('R5: greenfield — stored rust with no manifest is preserved', () => {
+    expect(resolveLanguage(dir, { language: 'rust' })).toBe('rust')
   })
 
   it('R2: falls back to detectLanguage when stored language is undefined', () => {
