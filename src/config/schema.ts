@@ -238,6 +238,13 @@ export interface ArbiterConfigV2 {
    * Persisted only when set via `arbiter configure --set solo.mergeMode=…`.
    */
   solo?: { mergeMode: SoloMergeMode }
+  /**
+   * #1394/#1623: conformance scoring override. When present (and valid), it is merged
+   * over the level-default + brownfield overlay so a project can pin its own tier-1
+   * members / family weights / gold gate. validateConfig validates it; runConformance
+   * reads + applies it. Absent ⇒ the governance×brownfield default drives the bar.
+   */
+  conformanceThresholds?: ConformanceThresholds
 }
 
 interface GovernanceConfig {
@@ -374,6 +381,26 @@ export function autoFillConformanceThresholds(
   if (cls !== undefined) {
     const overlay = BROWNFIELD_CONFORMANCE_OVERLAYS[cls]
     return { ...base, ...overlay }
+  }
+  return base
+}
+
+/**
+ * #1623: resolve the conformance thresholds that actually drive the verdict —
+ * level default + brownfield overlay, with a present-and-VALID stored override
+ * merged on top. Pure (no IO); the caller resolves the brownfield class. Before
+ * this both halves of the #1394 two-tier SSOT were inert: the overlay was never
+ * reached (runConformance passed no class) and the `conformanceThresholds` config
+ * field validated yet was read by no one.
+ */
+export function resolveConformanceThresholds(
+  level: GovernanceLevel,
+  cls: BrownfieldClass,
+  storedOverride?: unknown,
+): ConformanceThresholds {
+  const base = autoFillConformanceThresholds(level, cls)
+  if (storedOverride !== undefined && validateConformanceThresholds(storedOverride).length === 0) {
+    return { ...base, ...(storedOverride as ConformanceThresholds) }
   }
   return base
 }

@@ -40,7 +40,8 @@ import {
 import { computeSummary } from '../conformance/render.js'
 import { computeConformance } from '../conformance/score.js'
 import type { TwoTierResult } from '../conformance/score.js'
-import { autoFillConformanceThresholds } from '../config/schema.js'
+import { resolveConformanceThresholds } from '../config/schema.js'
+import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
 import type { GovernanceLevel } from '../wizard/types.js'
 
 export type { Verdict } from '../conformance/dimensions.js'
@@ -237,6 +238,22 @@ function computeDefaultResult(
  *
  * Exit codes (INV-53): 0=pass, 1=fail, 2=error.
  */
+/**
+ * #1623: resolve the brownfield class for the repo (same detector gold-audit uses) so
+ * the conformance overlay + any stored `conformanceThresholds` override actually drive
+ * the bar — previously runConformance passed no class and read no override.
+ */
+function thresholdsForRepo(
+  root: string,
+  arbiterConfig: Record<string, unknown>,
+  level: GovernanceLevel,
+): ReturnType<typeof resolveConformanceThresholds> {
+  const language =
+    typeof arbiterConfig['language'] === 'string' ? arbiterConfig['language'] : 'multi'
+  const cls = detectBrownfieldClass(root, language).brownfieldClass
+  return resolveConformanceThresholds(level, cls, arbiterConfig['conformanceThresholds'])
+}
+
 export function runConformance(opts: ConformanceOptions = {}): ConformanceScanResult {
   const root = resolve(opts.dir ?? process.cwd())
   const failOn = opts.failOn ?? 'fail'
@@ -251,7 +268,7 @@ export function runConformance(opts: ConformanceOptions = {}): ConformanceScanRe
 
   const dimensions = collectDimensions(root, archetype)
   const summary = computeSummary(dimensions)
-  const thresholds = autoFillConformanceThresholds(governanceLevel)
+  const thresholds = thresholdsForRepo(root, arbiterConfig, governanceLevel)
   // GOLD requires non-regression (ratchetOk). An absent baseline means nothing to regress from
   // → reachable on merit; a present baseline means the score must not drop below it (#1605).
   // Without threading this, the production path never passed ratchetOk, so computeConformance

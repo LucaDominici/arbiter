@@ -7,6 +7,7 @@ import type { DimensionEntry } from '../../src/conformance/dimensions.js'
 import {
   validateConformanceThresholds,
   autoFillConformanceThresholds,
+  resolveConformanceThresholds,
 } from '../../src/config/schema.js'
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
@@ -232,6 +233,43 @@ describe('computeConformance — structural tier-1 gate (#1658)', () => {
     ]) {
       expect(t.tier1Members).toContain(id)
     }
+  })
+})
+
+// ── #1623: brownfield overlay + stored override are now both wired ────────────
+
+describe('resolveConformanceThresholds — overlay + override wiring (#1623)', () => {
+  it('applies the brownfield overlay (heavy relaxes the gold gate below the level default)', () => {
+    // Site 1: runConformance used to pass no class → strict level default. A heavy
+    // brownfield repo is intended to be scored against the relaxed 0.70 gate.
+    const strict = autoFillConformanceThresholds('L3') // 0.90
+    const relaxed = resolveConformanceThresholds('L3', 'heavy')
+    expect(relaxed.goldTier2Gate).toBe(0.7)
+    expect(relaxed.goldTier2Gate).toBeLessThan(strict.goldTier2Gate)
+  })
+
+  it('merges a present-and-valid stored override over the overlay (phantom field now honored)', () => {
+    // Site 2: a hand-added conformanceThresholds field validated but was read by no one.
+    const override = {
+      tier1Members: ['D-TEST-LEVELS'],
+      familyWeights: {
+        discipline: 0.25,
+        'reality-contact': 0.25,
+        'docs-convention': 0.25,
+        'code-quality-gold': 0.25,
+      },
+      goldTier2Gate: 0.5,
+    }
+    const out = resolveConformanceThresholds('L2', 'gold', override)
+    expect(out.goldTier2Gate).toBe(0.5)
+    expect(out.familyWeights.discipline).toBe(0.25)
+  })
+
+  it('ignores an invalid stored override and falls back to the overlay default', () => {
+    const bad = { goldTier2Gate: 'not-a-number' }
+    const out = resolveConformanceThresholds('L2', 'gold', bad)
+    // gold overlay for L2 → 0.90 (NOT the malformed override)
+    expect(out.goldTier2Gate).toBe(0.9)
   })
 })
 
