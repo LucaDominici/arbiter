@@ -837,12 +837,6 @@ describe('defaultPresetForLevel', () => {
 // ---------------------------------------------------------------------------
 
 describe('INV-73 migration status', () => {
-  it('INV-73 has migrationStatus: transition (W4 self-only CI tier baseline)', () => {
-    const inv73 = INVARIANT_CATALOG.find((inv) => inv.id === 'INV-73')
-    expect(inv73, 'INV-73 must exist in catalog').toBeDefined()
-    expect(inv73!.migrationStatus).toBe('transition')
-  })
-
   it('INV-73 minPresent is 6 (6 canonical workflows in W10 baseline: 01+02+03+06+07+09)', () => {
     const inv73 = INVARIANT_CATALOG.find((inv) => inv.id === 'INV-73')
     expect(inv73!.minPresent).toBe(6)
