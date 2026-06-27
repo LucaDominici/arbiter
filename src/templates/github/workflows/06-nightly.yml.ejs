@@ -38,7 +38,7 @@ jobs:
       - name: Stryker mutation (full suite)
         run: npx stryker run
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -51,7 +51,7 @@ jobs:
         run: mvn test-compile org.pitest:pitest-maven:mutationCoverage
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - name: Install go-mutesting
@@ -137,7 +137,7 @@ jobs:
         with:
           scan-args: '--lockfile=package-lock.json'
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -149,7 +149,7 @@ jobs:
           format: HTML
           args: '--failOnCVSS 7'
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - name: govulncheck
@@ -218,7 +218,7 @@ jobs:
       - name: fast-check fuzz (property-based)
         run: npm run test:fuzz
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -230,7 +230,7 @@ jobs:
           mvn test -Djqwik.database=false
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - name: Go native fuzz (30 min budget)
@@ -285,7 +285,7 @@ jobs:
           VITEST_NATIVE: "1"
         run: npm run test:e2e:native
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -297,7 +297,7 @@ jobs:
           mvn test -Dgroups='soak,e2e' || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - name: Go soak tests (60 min budget)
@@ -345,12 +345,12 @@ jobs:
         with:
           python-version: '3.12'
 
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         if: matrix.stack == 'go'
         with:
           go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
 
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         if: matrix.stack == 'java'
         with:
           distribution: temurin
@@ -392,7 +392,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
 
@@ -402,7 +402,7 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -439,12 +439,12 @@ jobs:
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
 <% } else if (language === 'python') { %>
@@ -574,7 +574,7 @@ jobs:
       - run: cargo install cargo-tarpaulin --locked
       - run: cargo tarpaulin --fail-under <%= _covThreshold %> --out Html --out Xml --out Lcov --output-dir coverage/
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -596,7 +596,7 @@ jobs:
           cp -r target/coverage/. coverage/ 2>/dev/null || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - run: go test -coverprofile=coverage.out -covermode=atomic ./...
@@ -660,7 +660,7 @@ jobs:
         with:
           fetch-depth: 0
 <% if (language === 'java') { %>
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
