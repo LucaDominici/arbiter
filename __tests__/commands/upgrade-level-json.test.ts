@@ -8,6 +8,18 @@ vi.mock('../../src/utils/config.js', () => ({
 vi.mock('../../src/utils/run-cli.js', () => ({
   runCli: vi.fn(),
 }))
+// Keep this test hermetic: it mocks node:fs partially (real openSync/writeSync,
+// mocked readFileSync), which is incompatible with the real lock primitive — the
+// ownership-checked deleteLock (#1636) can't read back its nonce, so the lockfile
+// would leak into the real repo cwd and fail every subsequent run. This test
+// exercises the --json envelope, not locking, so stub acquireLock to a no-op.
+vi.mock('../../src/utils/file-lock.js', () => ({
+  acquireLock: vi.fn().mockResolvedValue({
+    path: '.arbiter/.lock',
+    pid: process.pid,
+    release: vi.fn().mockResolvedValue(undefined),
+  }),
+}))
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>()
   return {
