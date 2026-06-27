@@ -2541,6 +2541,19 @@ kit
       for (const phase of result.phases) {
         process.stdout.write(`[${phase.phase}] ${phase.output}\n`)
       }
+      // #1643: a partial scaffold failure (some generators failed) must surface
+      // its per-failure detail and exit non-zero — matching `arbiter update`'s
+      // fail-closed semantics. Previously `generatorErrors` was dead output: the
+      // caller never read it, so a half-installed kit exited 0 with no diagnostic.
+      if (result.generatorErrors?.length) {
+        process.stderr.write(
+          `[kit install] SCAFFOLD failed — ${result.generatorErrors.length} generator(s):\n`,
+        )
+        for (const line of result.generatorErrors) {
+          process.stderr.write(`  - ${line}\n`)
+        }
+        process.exit(2)
+      }
       if (!result.ok) {
         process.stderr.write(`[kit install] ${result.error ?? 'unknown error'}\n`)
         process.exit(1)
