@@ -94,6 +94,9 @@ function captureBaselineIfPresent(dir: string): void {
   if (!existsSync(baselineScript)) return
   try {
     runCli('node', ['scripts/capture-debt-baseline.mjs', '--update'], { cwd: dir })
+    // #1630: re-raising would re-introduce the L1-consumer abort this guard fixes; the
+    // failure is surfaced via logger.warn below and saveConfig still runs.
+    // FAIL-OPEN-INTENT: a missing/failing debt-baseline must never block the level bump.
   } catch (err) {
     getLogger().warn(
       'upgrade_level.baseline_capture_failed',
