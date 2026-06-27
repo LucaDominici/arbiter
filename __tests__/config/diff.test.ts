@@ -287,4 +287,57 @@ describe('impactedGenerators — scoped regen', () => {
     const keys = impactedGenerators(diffConfig(a, b))
     expect(keys.has('*')).toBe(true)
   })
+
+  // #1654 — newly-mapped generator-driving fields stay scoped (not full regen).
+  it('basePackage change → archunit + mutation + modulith (scoped)', () => {
+    const a = baseV2({ basePackage: 'com.acme.old' })
+    const b = baseV2({ basePackage: 'com.acme.new' })
+    const keys = impactedGenerators(diffConfig(a, b))
+    expect(keys.has('*')).toBe(false)
+    expect(keys.has('archunit')).toBe(true)
+    expect(keys.has('mutation')).toBe(true)
+    expect(keys.has('modulith')).toBe(true)
+  })
+
+  it('strictnessTier change → root + debt-gates + rust-boundaries (scoped)', () => {
+    const a = baseV2({ strictnessTier: 'practical' })
+    const b = baseV2({ strictnessTier: 'pedantic' })
+    const keys = impactedGenerators(diffConfig(a, b))
+    expect(keys.has('*')).toBe(false)
+    expect(keys.has('root')).toBe(true)
+    expect(keys.has('debt-gates')).toBe(true)
+    expect(keys.has('rust-boundaries')).toBe(true)
+  })
+
+  it('taxonomy change → test-taxonomy + api-e2e (scoped)', () => {
+    const a = baseV2({ taxonomy: { domainDims: ['billing'] } })
+    const b = baseV2({ taxonomy: { domainDims: ['billing', 'fraud'] } })
+    const keys = impactedGenerators(diffConfig(a, b))
+    expect(keys.has('*')).toBe(false)
+    expect(keys.has('test-taxonomy')).toBe(true)
+    expect(keys.has('api-e2e')).toBe(true)
+  })
+})
+
+// #1654 — the fail-OPEN hole: a diff touching BOTH a mapped and an unmapped
+// generator-driving field previously ran selective regen and silently dropped the
+// unmapped field's generators. impactedGenerators must now fail SAFE → full regen.
+describe('impactedGenerators — fail-safe on unmapped paths (#1654)', () => {
+  it('a single unmapped generator-driving field → full regen', () => {
+    const a = baseV2({ thresholdProfile: 'scaled' } as Partial<ArbiterConfigV2>)
+    // graceEndsAt is round-tripped but not generator-mapped → must escalate.
+    const b = baseV2({ thresholdProfile: 'scaled', graceEndsAt: '2099-01-01T00:00:00Z' })
+    const keys = impactedGenerators(diffConfig(a, b))
+    expect(keys.has('*')).toBe(true)
+  })
+
+  it('mixed mapped + unmapped change escalates to full regen (no silent skip)', () => {
+    const a = baseV2()
+    const b = baseV2({
+      thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 90 }, // mapped → coverage
+      graceEndsAt: '2099-01-01T00:00:00Z', // unmapped → would have been dropped
+    })
+    const keys = impactedGenerators(diffConfig(a, b))
+    expect(keys.has('*')).toBe(true)
+  })
 })

@@ -175,6 +175,25 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   'thresholds.methodLength': ['debt-gates'],
   'thresholds.maxParams': ['debt-gates'],
   invariantTiers: ['global-invariants', 'agents-md'],
+  // #1654: round-tripped, generator-driving fields that previously had no
+  // PATH_TO_KEYS entry — a change to one (alongside a mapped field) was silently
+  // skipped on `arbiter update`, leaving stale artifacts. Mapped precisely so the
+  // common edit pattern stays scoped instead of falling through to full regen.
+  basePackage: [
+    'archunit',
+    'mutation',
+    'modulith',
+    'api-middleware',
+    'behavioral-tests',
+    'integration-testing',
+    'contract-testing',
+  ],
+  strictnessTier: ['root', 'debt-gates', 'rust-boundaries'],
+  thresholdProfile: ['root', 'coverage', 'debt-gates'],
+  evidenceRetention: ['evidence-retention', 'baseline-gitignore', 'nightly'],
+  // diffConfig emits the bare `taxonomy` path (not dotted) since taxonomy is not
+  // in the nested-diff allow-list; map the object key it actually produces.
+  taxonomy: ['test-taxonomy', 'api-e2e'],
   hasPublicApi: ['api-middleware'],
   industryOverlay: ['pharma', 'iso27001-controls', 'iso9001', 'regulated-overlay'],
   'observability.provider': ['observability'],
@@ -242,9 +261,16 @@ export function impactedGenerators(diff: ConfigDiff): ImpactedSet {
 
   for (const path of diff.paths) {
     const keys = PATH_TO_KEYS[path]
-    if (keys) {
-      for (const k of keys) result.add(k)
+    if (!keys) {
+      // #1654: fail SAFE, not open. A changed path that is neither an axis field
+      // nor a mapped generator-driving field previously contributed nothing —
+      // so a mixed diff (one mapped + one unmapped field) ran selective regen and
+      // silently skipped the unmapped field's generators, leaving stale artifacts.
+      // Escalate any unknown path to full regen instead of dropping it.
+      result.add('*')
+      return result
     }
+    for (const k of keys) result.add(k)
   }
 
   return result
