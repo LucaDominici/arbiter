@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { writeFileSync, mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { loadConfig, saveConfig, type ArbiterConfig } from '../utils/config.js'
+import { acquireLock, type LockHandle } from '../utils/file-lock.js'
 import type { BrownfieldClass } from '../kit/thresholds.js'
 import { buildWavePlan, type DimAssessment, type WavePlan } from '../kit/wave-engine.js'
 import { loadCatalog } from '../kit/catalog.js'
@@ -302,7 +303,18 @@ function writeAuditReport(
 
 export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstallResult> {
   const phases: PhaseResult[] = []
+  // #1617: kit-install persists arbiter.json via saveConfig in phaseMeasure, so
+  // it must be mutually excluded with `arbiter update` (which holds the same
+  // `.arbiter/.lock` across its whole read-modify-write). Hold the shared command
+  // lock from BEFORE loadConfig through the write so the two cannot lost-update
+  // each other. A dry-run never persists, so it skips the lock to preserve the
+  // concurrent dry-run path (kit-install-concurrent.test.ts).
+  let lock: LockHandle | null = null
   try {
+    if (!opts.dryRun) {
+      mkdirSync(join(opts.targetDir, '.arbiter'), { recursive: true })
+      lock = await acquireLock(join(opts.targetDir, '.arbiter', '.lock'))
+    }
     // #1095: when --language is omitted, auto-detect from the target repo instead
     // of defaulting to a hardcoded stack. An explicit --language always wins.
     const resolvedOpts: KitInstallOptions = {
@@ -365,5 +377,7 @@ export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstall
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return { ok: false, phases, error: message }
+  } finally {
+    if (lock) await lock.release()
   }
 }

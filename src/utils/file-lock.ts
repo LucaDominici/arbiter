@@ -35,6 +35,59 @@ interface AcquireOpts {
 
 const DEFAULT_STALE_MS = 60 * 60 * 1000 // 1 hour
 
+const CLEANUP_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
+
+/**
+ * Per-process registry of locks this process currently holds, keyed by the
+ * resolved lock path.
+ *
+ * Makes `acquireLock` REENTRANT (#1617): a same-process re-acquire of a path
+ * already held is a ref-counted no-op instead of self-deadlocking on the
+ * exclusive `openSync(path, 'wx')`. Non-reentrancy was exactly what forced the
+ * two-lock-file workaround in #1517 (`.arbiter/.lock` vs `kit.lock`); with a
+ * reentrant primitive a single command lock can be held across an entire
+ * `loadConfig → mutate → save` without a nested acquire deadlocking.
+ *
+ * Each entry also carries the acquirer's `nonce` (the per-acquire ownership
+ * token) so the delete path can be made ownership-safe.
+ */
+interface HeldLock {
+  count: number
+  nonce: string
+  deleteLock: () => void
+  signalCleanup: () => void
+}
+
+const heldLocks = new Map<string, HeldLock>()
+
+/**
+ * Build the shared release handle for a held lock. Reentrant acquires return
+ * one of these per call; each `release()` decrements the ref-count and only the
+ * final release detaches the exit/signal handlers and unlinks the lockfile.
+ * Idempotent: a double `release()` on the same handle is a no-op.
+ */
+function makeLockHandle(key: string, lockPath: string): LockHandle {
+  let released = false
+  return {
+    path: lockPath,
+    pid: process.pid,
+    release: (): Promise<void> => {
+      if (released) return Promise.resolve()
+      released = true
+      const held = heldLocks.get(key)
+      if (!held) return Promise.resolve()
+      held.count -= 1
+      if (held.count <= 0) {
+        process.removeListener('exit', held.deleteLock)
+        for (const sig of CLEANUP_SIGNALS) process.removeListener(sig, held.signalCleanup)
+        heldLocks.delete(key)
+        held.deleteLock()
+      }
+      return Promise.resolve()
+    },
+  }
+}
+
 function readBootId(): string {
   try {
     return readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
@@ -156,6 +209,18 @@ function tryTakeover(lockPath: string, info: LockInfo, staleAgeMs: number): bool
 
 export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Promise<LockHandle> {
   const staleAgeMs = opts.staleAgeMs ?? DEFAULT_STALE_MS
+  const key = resolve(lockPath)
+
+  // Reentrant fast-path (#1617): this process already holds the lock → bump the
+  // ref-count and hand back a release handle. No second `openSync('wx')`, so a
+  // command holding the lock can re-acquire it (directly or via a nested writer)
+  // without self-deadlocking. Cross-process exclusion is unaffected — the
+  // registry is per-process; other processes still contend on the filesystem.
+  const alreadyHeld = heldLocks.get(key)
+  if (alreadyHeld) {
+    alreadyHeld.count += 1
+    return makeLockHandle(key, lockPath)
+  }
 
   if (isSymlink(lockPath)) {
     throw ArbiterError.fromKey('E_LOCK_SYMLINK', 'errors.E_LOCK_SYMLINK', { path: lockPath })
@@ -201,6 +266,8 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
 
   await attempt(3)
 
+  const ourNonce = info.nonce
+
   function deleteLock(): void {
     try {
       unlinkSync(lockPath)
@@ -208,8 +275,6 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
       /* best-effort */
     }
   }
-
-  process.once('exit', deleteLock)
 
   const signalCleanup = (): void => {
     try {
@@ -219,23 +284,15 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
     }
     process.exit(130)
   }
-  const CLEANUP_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
+
+  process.once('exit', deleteLock)
   for (const sig of CLEANUP_SIGNALS) {
     process.once(sig, signalCleanup)
   }
 
-  return {
-    path: lockPath,
-    pid: process.pid,
-    release: (): Promise<void> => {
-      process.removeListener('exit', deleteLock)
-      for (const sig of CLEANUP_SIGNALS) {
-        process.removeListener(sig, signalCleanup)
-      }
-      deleteLock()
-      return Promise.resolve()
-    },
-  }
+  heldLocks.set(key, { count: 1, nonce: ourNonce, deleteLock, signalCleanup })
+
+  return makeLockHandle(key, lockPath)
 }
 
 export function inspectLock(lockPath: string): Promise<LockInfo | null> {

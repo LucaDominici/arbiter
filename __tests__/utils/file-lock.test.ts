@@ -57,10 +57,29 @@ describe('file-lock (#614 #618)', () => {
     await handle.release()
   })
 
-  it('second acquire rejects when lock is held', async () => {
-    const handle = await acquireLock(lockPath)
-    await expect(acquireLock(lockPath)).rejects.toThrow()
-    await handle.release()
+  // #1617: acquireLock is REENTRANT within a single process. A same-path
+  // re-acquire by the holding process is a ref-counted no-op — it neither
+  // rejects nor rewrites the on-disk lock — and the lockfile survives until the
+  // LAST holder releases. (Cross-process exclusion is unchanged — see the EPERM
+  // and 20-concurrent contention tests below.)
+  it('re-acquire in the same process is reentrant (ref-counted)', async () => {
+    const h1 = await acquireLock(lockPath)
+    const first = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
+
+    const h2 = await acquireLock(lockPath)
+    const second = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
+    // Reentrant acquire did not rewrite the lock (same nonce).
+    expect(second.nonce).toBe(first.nonce)
+
+    // Releasing one holder leaves the lock in place (ref-count still > 0).
+    await h1.release()
+    expect(existsSync(lockPath)).toBe(true)
+
+    // The final release unlinks it; a double-release is a harmless no-op.
+    await h2.release()
+    expect(existsSync(lockPath)).toBe(false)
+    await h2.release()
+    expect(existsSync(lockPath)).toBe(false)
   })
 
   it('allows re-acquire after release', async () => {

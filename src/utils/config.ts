@@ -26,15 +26,21 @@ const SNAPSHOT_FILE = '.arbiter-generated.json'
 /**
  * Persist `arbiter.json` under a robust advisory lock.
  *
- * The write is serialised through `.arbiter/kit.lock` acquired via the
- * crash-safe `acquireLock` primitive (file-lock.ts): it performs stale-takeover
- * (a lock orphaned by a crashed/SIGKILL'd run is reclaimed instead of bricking
- * every future write), registers exit/SIGINT/SIGTERM/SIGHUP cleanup, refuses
- * symlinked lock paths, and raises actionable `E_LOCK_*` errors that point at
- * `arbiter doctor recover-lock`. `kit.lock` is intentionally distinct from
- * `.arbiter/.lock` so a caller already holding the robust lock (e.g.
- * `upgrade-level`) does not self-deadlock — `doctor` is taught about both
- * (#1517).
+ * Mutual exclusion across the whole config-writer set is the COMMAND-level
+ * `.arbiter/.lock`: every config-mutating command — init, configure, plugin,
+ * upgrade-level, update AND kit-install (#1617) — acquires `.arbiter/.lock`
+ * around its entire `loadConfig → mutate → save`, so no two of them can
+ * lost-update each other's `arbiter.json`. `acquireLock` is reentrant (#1617),
+ * so holding that command lock and re-entering it from a nested writer is a
+ * ref-counted no-op rather than a self-deadlock.
+ *
+ * Within that boundary `saveConfig` ALSO serialises through `.arbiter/kit.lock`
+ * via the crash-safe `acquireLock` primitive (file-lock.ts): it performs
+ * stale-takeover (a lock orphaned by a crashed/SIGKILL'd run is reclaimed
+ * instead of bricking every future write), registers exit/SIGINT/SIGTERM/SIGHUP
+ * cleanup, refuses symlinked lock paths, and raises actionable `E_LOCK_*` errors
+ * that point at `arbiter doctor recover-lock`. `kit.lock` is a distinct inner
+ * lock from `.arbiter/.lock`; `doctor` is taught about both (#1517).
  */
 export async function saveConfig(dir: string, config: ArbiterConfig): Promise<void> {
   const lockDir = join(dir, '.arbiter')
@@ -47,6 +53,15 @@ export async function saveConfig(dir: string, config: ArbiterConfig): Promise<vo
   }
 }
 
+/**
+ * Persist `arbiter.json` AND its `.arbiter-generated.json` snapshot.
+ *
+ * Unlike `saveConfig` this takes no inner lock of its own: its sole caller is
+ * `arbiter update`, which holds the command-level `.arbiter/.lock` (reentrant,
+ * #1617) across the whole read-modify-write — the same lock kit-install and the
+ * other config writers hold, so update and kit-install are mutually excluded and
+ * cannot lost-update each other (#1617). Callers MUST hold `.arbiter/.lock`.
+ */
 export function saveConfigAndSnapshot(dir: string, config: ArbiterConfig): void {
   const json = JSON.stringify(config, null, 2) + '\n'
   writeFile(join(dir, CONFIG_FILE), json)

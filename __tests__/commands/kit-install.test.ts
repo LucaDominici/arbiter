@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import os, { tmpdir } from 'node:os'
 import { runKitInstall, type KitInstallOptions } from '../../src/commands/kit-install.js'
 import { defaultConfig } from '../helpers/default-config.js'
+
+function realBootId(): string {
+  try {
+    return readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+  } catch {
+    return 'unknown'
+  }
+}
 
 let tmpDir: string
 
@@ -111,5 +119,50 @@ describe('runKitInstall — MEASURE phase', () => {
     const measure = result.phases.find((p) => p.phase === 'MEASURE')
     expect(measure?.output).toContain('MEASURE:')
     expect(measure?.output).toMatch(/\d+ dims measured/)
+  })
+})
+
+// #1617: kit-install persists arbiter.json (phaseMeasure → saveConfig), so a
+// non-dry-run must hold the shared `.arbiter/.lock` — the same command lock
+// `arbiter update` holds — across its whole read-modify-write. With both on one
+// lock, update ⟂ kit-install can no longer lost-update each other's config.
+describe('runKitInstall — config-write mutual exclusion (#1617)', () => {
+  it('fails when .arbiter/.lock is already held by a live writer (non-dry-run)', async () => {
+    writeFileSync(join(tmpDir, 'arbiter.json'), JSON.stringify(defaultConfig(), null, 2) + '\n')
+    mkdirSync(join(tmpDir, '.arbiter'), { recursive: true })
+    // A live lock (our own PID → alive, fresh → not stale) simulating an
+    // in-flight `arbiter update` holding the command lock.
+    const liveLock = {
+      pid: process.pid,
+      hostname: os.hostname(),
+      bootId: realBootId(),
+      startedAt: new Date().toISOString(),
+      cmd: 'arbiter update',
+      nonce: 'held-by-update',
+    }
+    writeFileSync(join(tmpDir, '.arbiter', '.lock'), JSON.stringify(liveLock))
+
+    const result = await runKitInstall(makeOptions({ dryRun: false }))
+
+    expect(result.ok).toBe(false)
+    expect(result.error ?? '').toMatch(/lock|already running/i)
+  })
+
+  it('does NOT take the lock for a dry-run (concurrent dry-runs stay allowed)', async () => {
+    writeFileSync(join(tmpDir, 'arbiter.json'), JSON.stringify(defaultConfig(), null, 2) + '\n')
+    mkdirSync(join(tmpDir, '.arbiter'), { recursive: true })
+    const liveLock = {
+      pid: process.pid,
+      hostname: os.hostname(),
+      bootId: realBootId(),
+      startedAt: new Date().toISOString(),
+      cmd: 'arbiter update',
+      nonce: 'held-by-update',
+    }
+    writeFileSync(join(tmpDir, '.arbiter', '.lock'), JSON.stringify(liveLock))
+
+    // Dry-run never persists → never contends on the lock → succeeds.
+    const result = await runKitInstall(makeOptions({ dryRun: true }))
+    expect(result.ok).toBe(true)
   })
 })
