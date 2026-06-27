@@ -59,7 +59,16 @@
       "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
     },
     {
-      "skillId": "pr-review-toolkit:code-reviewer",
+      "skillId": "superpowers:using-superpowers",
+      "pluginOwner": "superpowers",
+      "versionRange": ">=5.0.0",
+      "role": "session bootstrap (skill discovery)",
+      "integrationStatus": "beta",
+      "replaces": [],
+      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+    },
+    {
+      "skillId": "pr-review-toolkit:review-pr",
       "pluginOwner": "pr-review-toolkit",
       "versionRange": ">=1.0.0",
       "role": "PR code review",

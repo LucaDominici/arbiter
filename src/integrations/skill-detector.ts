@@ -4,7 +4,17 @@ import { join } from 'node:path'
 import type { InstalledSkill } from './types.js'
 
 const MAX_DEPTH = 6
-const MAX_ENTRIES = 500
+// Safety ceiling against a pathological tree (symlink loops, an enormous
+// unrelated dir). Real plugin caches already exceed 1600 SKILL.md (#1634), so
+// the former 500 cap silently truncated ~70% of installs in filesystem-arbitrary
+// order. Raised well above any realistic count, the walk is sorted (deterministic)
+// and surfaces a diagnostic if the ceiling is ever reached — never a silent drop.
+const MAX_ENTRIES = 50000
+
+// Directories never worth walking for SKILL.md — VCS/editor metadata and
+// dependency trees. Pruning them keeps the budget for real skills and avoids
+// mis-detecting a SKILL.md vendored inside a dependency (#1634).
+const SKIP_DIRS = new Set(['node_modules'])
 
 interface DetectOptions {
   targetDir: string
@@ -32,8 +42,13 @@ function parseFrontmatter(content: string): Record<string, string> | null {
   return result
 }
 
+interface WalkCount {
+  n: number
+  truncated: boolean
+}
+
 /** Walk a directory tree up to maxDepth, returning paths of all SKILL.md files found. */
-function findSkillFiles(dir: string, depth: number, found: string[], count: { n: number }): void {
+function findSkillFiles(dir: string, depth: number, found: string[], count: WalkCount): void {
   if (depth > MAX_DEPTH || count.n >= MAX_ENTRIES) return
   if (!existsSync(dir)) return
   let entries: string[]
@@ -42,8 +57,17 @@ function findSkillFiles(dir: string, depth: number, found: string[], count: { n:
   } catch {
     return
   }
+  // Sort so the traversal order is deterministic across machines — without this,
+  // a residual truncation would drop a filesystem-arbitrary subset (#1634).
+  entries.sort()
   for (const entry of entries) {
-    if (count.n >= MAX_ENTRIES) break
+    if (count.n >= MAX_ENTRIES) {
+      count.truncated = true
+      break
+    }
+    // Prune VCS/editor metadata and dependency trees — never hosts a real skill,
+    // and a vendored SKILL.md inside one would be mis-attributed (#1634).
+    if (entry.startsWith('.') || SKIP_DIRS.has(entry)) continue
     const full = join(dir, entry)
     let st
     try {
@@ -61,21 +85,33 @@ function findSkillFiles(dir: string, depth: number, found: string[], count: { n:
 }
 
 /**
- * Derive the owning plugin for a SKILL.md found under a plugin tree
- * (`.../<PLUGIN>/<VERSION>/skills/<NAME>/SKILL.md`). The owner is the directory
- * two levels above the `skills/` segment — robust to an extra marketplace
- * segment (`plugins/cache/<MARKETPLACE>/<PLUGIN>/<VERSION>/skills/...`) and to a
- * flat, version-less layout. This replaces the former hard requirement that the
- * SKILL.md carry an arbiter-invented `pluginOwner` frontmatter key — no real
- * Claude skill carries it (#1566).
+ * Derive the owning plugin for a SKILL.md found under a plugin tree, relative to
+ * the `root` it was discovered under. Two real layouts coexist (#1634):
+ *
+ *   - Official "skills"-segment: `<plugin>/<version>/skills/<name>/SKILL.md`
+ *     (optionally prefixed by a `<marketplace>` segment). Owner = the dir two
+ *     levels above `skills/` (falling back one level when there is no version dir).
+ *   - Flat, version-less (the real majority on a live machine):
+ *     `<marketplace>/<plugin>/<hash>/<name>/SKILL.md` — NO `skills/` segment.
+ *     The plugin dir is always three levels above the SKILL.md leaf
+ *     (`…/<plugin>/<hash>/<name>/SKILL.md`), independent of a marketplace prefix.
+ *
+ * Anchoring on the scan `root` (not a brittle `lastIndexOf('skills')`) means the
+ * flat majority resolves to the real plugin owner instead of the `'plugin'`
+ * sentinel — which previously collapsed distinct plugins into colliding skillIds.
  */
-function derivePluginOwner(path: string): string {
+function derivePluginOwner(path: string, root: string): string {
   const segs = path.split(/[\\/]+/).filter(Boolean)
-  const skillsIdx = segs.lastIndexOf('skills')
-  if (skillsIdx < 1) return 'plugin'
-  const grandparent = segs[skillsIdx - 2]
-  if (grandparent && grandparent !== 'cache' && grandparent !== 'plugins') return grandparent
-  return segs[skillsIdx - 1] ?? 'plugin'
+  const rootLen = root.split(/[\\/]+/).filter(Boolean).length
+  const rel = segs.slice(rootLen)
+  const skillsIdx = rel.lastIndexOf('skills')
+  if (skillsIdx >= 1) {
+    return rel[skillsIdx - 2] ?? rel[skillsIdx - 1] ?? 'plugin'
+  }
+  // Flat layout: rel = [..., <plugin>, <hash>, <name>, 'SKILL.md'].
+  if (rel.length >= 4) return rel[rel.length - 4] ?? 'plugin'
+  if (rel.length >= 3) return rel[rel.length - 3] ?? 'plugin'
+  return 'plugin'
 }
 
 function readSkill(path: string, deriveOwner: (p: string) => string): InstalledSkill | null {
@@ -108,7 +144,15 @@ function collectFromDir(
   deriveOwner: (p: string) => string,
 ): void {
   const found: string[] = []
-  findSkillFiles(dir, 0, found, { n: 0 })
+  const count: WalkCount = { n: 0, truncated: false }
+  findSkillFiles(dir, 0, found, count)
+  if (count.truncated) {
+    // Never a silent partial scan: surface the ceiling so a missing skill is
+    // attributable rather than mysterious (#1634).
+    process.stderr.write(
+      `[arbiter] skill scan reached MAX_ENTRIES (${MAX_ENTRIES}) under ${dir}; results may be partial\n`,
+    )
+  }
   for (const path of found) {
     const skill = readSkill(path, deriveOwner)
     if (!skill) continue
@@ -148,11 +192,13 @@ export function detectInstalledSkills(opts: DetectOptions): InstalledSkill[] {
   // and the detector would scan dirs under the process CWD instead of the user
   // home. Skip a scan root entirely when its base is empty (#1566).
   if (targetDir) {
-    collectFromDir(join(targetDir, '.claude', 'plugins'), seen, results, derivePluginOwner)
+    const pluginsRoot = join(targetDir, '.claude', 'plugins')
+    collectFromDir(pluginsRoot, seen, results, (p) => derivePluginOwner(p, pluginsRoot))
     collectFromDir(join(targetDir, '.claude', 'skills'), seen, results, projectOwner)
   }
   if (claudeHome) {
-    collectFromDir(join(claudeHome, 'plugins', 'cache'), seen, results, derivePluginOwner)
+    const cacheRoot = join(claudeHome, 'plugins', 'cache')
+    collectFromDir(cacheRoot, seen, results, (p) => derivePluginOwner(p, cacheRoot))
     collectFromDir(join(claudeHome, 'skills'), seen, results, userOwner)
   }
 
