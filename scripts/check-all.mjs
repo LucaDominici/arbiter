@@ -181,6 +181,10 @@ if (isMain) {
   runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])
   runCheck('action pin sha (INV-76)', 'node', ['scripts/check-action-pins.mjs'])
   runCheck('runtime dep pins (#1557)', 'node', ['scripts/check-runtime-dep-pins.mjs'])
+  // #1684: npm-ci lockfile-drift gate — `npm ci` parity UNDER THE PINNED npm
+  // (package.json#packageManager), invoked as npx npm@<pin> NOT ambient npm so the
+  // local-npm-11 vs CI-npm-10 lock skew that breaks `npm ci` repo-wide is caught pre-merge.
+  runCheck('npm-ci drift (#1684)', 'node', ['scripts/check-npm-ci-drift.mjs'])
   // Workflow hardening report (gold-audit D-ACTIONS value-report source) — emits
   // .arbiter/reports/workflow-hardening.json. MUST precede the gold-audit no-regress check
   // below so the D-ACTIONS value checks read a fresh report (absent ⇒ NA ⇒ yCount regress).
@@ -278,7 +282,7 @@ if (isMain) {
     runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
     runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
     runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
-    // INV-133 (#1456): over-age linked-TODO gate. SKIPs offline / no token.
+    // INV-133 (#1456): over-age linked task-marker gate. SKIPs offline / no token.
     runCheck('todo max-age', 'node', ['scripts/check-todo-max-age.mjs'])
     runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
     runCheck('commit-footer rationale (INV-119)', 'node', [
