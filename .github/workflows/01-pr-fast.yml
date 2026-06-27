@@ -171,6 +171,11 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Create Checkov problem-matcher stub
+        # checkov-action@99bb2caf runs ::add-matcher:: before copying the file into
+        # the workspace, causing ##[error] that fails the step even when checkov
+        # itself finds no violations. Pre-creating the stub makes the command a no-op.
+        run: echo '{"problemMatcher":[]}' > checkov-problem-matcher-softfail.json
       - name: Checkov IaC scan (all frameworks)
         uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf  # v12.1347.0
         with:
