@@ -52,8 +52,11 @@ const BASE: GraphSnapshot = snap(
 )
 
 describe('runReviewDiff — diff direction & risk delta branches', () => {
-  it('treats equal added/removed counts as strengthened (boundary removed === added)', () => {
+  it('treats a 1-for-1 enforcement swap as weakened + BLOCK (#1647 fail-safe)', () => {
     // base enforces {a, b}; head enforces {a, c} → 1 removed (b), 1 added (c).
+    // A net-neutral substitution removes a proven enforcer and adds an unproven
+    // one: fail-safe classifies it as weakened (any removed enforcer) and BLOCKs
+    // with exit 2 until the replacement is shown equivalent.
     const head = snap(
       [
         node('INV-04', 'INV'),
@@ -73,12 +76,13 @@ describe('runReviewDiff — diff direction & risk delta branches', () => {
     const result = runReviewDiff({ base: BASE, head })
     const change = result.changes.enforcement_changes.find((c) => c.inv === 'INV-04')
     expect(change).toBeDefined()
-    expect(change?.direction).toBe('strengthened')
+    expect(change?.direction).toBe('weakened')
     expect(change?.added).toEqual(['GATE:c'])
     expect(change?.removed).toEqual(['GATE:b'])
-    // strengthened only, no weakening, no lost provers → risk decreased, PASS.
-    expect(result.recommendation).toBe('PASS')
-    expect(result.risk_delta).toBe('decreased')
+    // a removed enforcer → weakening → risk increased, BLOCK, exit 2.
+    expect(result.recommendation).toBe('BLOCK')
+    expect(result.risk_delta).toBe('increased')
+    expect(result.exitCode).toBe(2)
   })
 
   it('reports risk_delta unchanged + PASS when snapshots are identical', () => {

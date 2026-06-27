@@ -95,8 +95,13 @@ export function runReviewDiff(opts: ReviewDiffOptions): ReviewDiffResult {
   const summary = `[${recommendation}] ${lines[0]}`
 
   return {
+    // #1647: this is a governance GATE, not an advisory report. When an INV's
+    // enforcement is weakened or its last prover removed, `block` is true and the
+    // command MUST exit non-zero so any CI/`/ship` step gating on the exit code
+    // actually fails. Hardcoding `0` here made the gate fail-open (BLOCK printed,
+    // exit 0). `2` matches the declared `exitCode: 0 | 2` union.
     status: 'ok',
-    exitCode: 0,
+    exitCode: block ? 2 : 0,
     recommendation,
     risk_delta: riskDelta,
     changes: {
@@ -128,8 +133,13 @@ function diffEnforcement(base: GraphStore, head: GraphStore): EnforcementChange[
 
     if (added.length === 0 && removed.length === 0) continue
 
-    const direction: 'strengthened' | 'weakened' =
-      removed.length > added.length ? 'weakened' : 'strengthened'
+    // #1647: fail-safe — ANY removed enforcer counts as weakening, including a
+    // net-neutral 1-for-1 swap (remove INV-04's sole gate, add a different,
+    // possibly weaker or no-op gate). The old `removed.length > added.length`
+    // tie-broke a {A}->{B} swap to `strengthened`, letting an enforcement
+    // substitution pass GREEN unreviewed. A swap is treated as weakened until the
+    // replacement is proven equivalent.
+    const direction: 'strengthened' | 'weakened' = removed.length > 0 ? 'weakened' : 'strengthened'
 
     changes.push({ inv: invId, direction, added, removed })
   }
