@@ -21,6 +21,8 @@ for (const pattern of READ_ONLY_PATTERNS) {
     process.stderr.write(
       `[arbiter] Read-only file — edit requires explicit justification: ${file}\n`,
     )
-    process.exit(1)
+    // Exit 2 BLOCKS the edit (#1631). Exit 1 was non-blocking — the protected-file
+    // edit proceeded, and the guard was inverted vs the fail-closed path above (exit 2).
+    process.exit(2)
   }
 }

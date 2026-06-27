@@ -92,8 +92,8 @@ describe('codex-adapter', () => {
     const patch = `*** Begin Patch\n*** Update File: ${file}\n@@\n-old line\n+new line\n*** End Patch`
 
     const result = runAdapter(makeApplyPatchPayload(patch), ORPHAN_TODO_HOOK)
-    // Hook fires and finds orphan TODO — exit 1
-    expect(result.status).toBe(1)
+    // Hook fires and finds orphan TODO — blocks via exit 2 (#1631)
+    expect(result.status).toBe(2)
     expect(result.stderr).toContain('INV-21')
   })
 
@@ -118,8 +118,8 @@ describe('codex-adapter', () => {
   it('sets CLAUDE_TOOL_INPUT_COMMAND for bash tool and delegates to hook', () => {
     const payload = makeBashPayload('rm -rf /')
     const result = runAdapter(payload, STOP_DANGEROUS_HOOK)
-    // stop-dangerous blocks rm -rf / — exit 1
-    expect(result.status).toBe(1)
+    // stop-dangerous blocks rm -rf / — exit 2 (#1631)
+    expect(result.status).toBe(2)
   })
 
   it('exits 0 for bash tool with safe command', () => {
@@ -171,8 +171,8 @@ describe('codex-adapter', () => {
     const patch = `*** Begin Patch\n*** Update File: ${file1}\n@@\n-old\n+new\n*** Update File: ${file2}\n@@\n-old\n+new\n*** End Patch`
 
     const result = runAdapter(makeApplyPatchPayload(patch), ORPHAN_TODO_HOOK)
-    // file1 has orphan TODO — should exit 1
-    expect(result.status).toBe(1)
+    // file1 has orphan TODO — should block via exit 2 (#1631)
+    expect(result.status).toBe(2)
   })
 
   it('detects violation in second file when first file is clean', () => {
@@ -185,7 +185,7 @@ describe('codex-adapter', () => {
 
     const result = runAdapter(makeApplyPatchPayload(patch), ORPHAN_TODO_HOOK)
     // file2 has orphan TODO — loop must iterate past index 0
-    expect(result.status).toBe(1)
+    expect(result.status).toBe(2)
   })
 
   it('captures Move to rename target for hook checks', () => {
@@ -201,6 +201,6 @@ describe('codex-adapter', () => {
     writeFileSync(file, `// ${'TODO'}: orphan in new file\n`)
     const patch = `*** Begin Patch\n*** Add File: ${file}\n+new content\n*** End Patch`
     const result = runAdapter(makeApplyPatchPayload(patch), ORPHAN_TODO_HOOK)
-    expect(result.status).toBe(1)
+    expect(result.status).toBe(2)
   })
 })

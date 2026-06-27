@@ -78,19 +78,21 @@ describe('stop-dangerous — empirical fire', () => {
     expect(r.status).toBe(0)
   })
 
-  it('exits 1 and emits stderr for rm -rf /', () => {
+  // Exit 2 is the only blocking code for a PreToolUse hook (#1631) — exit 1 prints
+  // stderr but lets the dangerous command run. A safety guard must block via exit 2.
+  it('exits 2 and emits stderr for rm -rf /', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'rm -rf /tmp/blah',
     })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/blocked/i)
   })
 
-  it('exits 1 for git push --force', () => {
+  it('exits 2 for git push --force', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'git push --force origin main',
     })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
   })
 })
 
@@ -119,11 +121,13 @@ describe('check-no-pii — empirical fire', () => {
     expect(r.status).toBe(0)
   })
 
-  it('exits 1 when file contains email address pattern', () => {
+  // Exit 2 feeds the violation back to Claude for a PostToolUse content guard (#1631);
+  // exit 1 shows the user only and Claude never sees the leak.
+  it('exits 2 when file contains email address pattern', () => {
     const f = join(dir, 'dirty.ts')
     writeFileSync(f, 'const contact = "user@example.com";\n')
     const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/INV-12|PII/i)
   })
 })
@@ -160,11 +164,11 @@ describe('check-no-pii — stdin-JSON protocol (no env var)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('exits 1 on a violating file delivered via stdin JSON', () => {
+  it('exits 2 on a violating file delivered via stdin JSON', () => {
     const f = join(dir, 'dirty.ts')
     writeFileSync(f, 'const contact = "user@example.com";\n')
     const r = spawnHookStdin(hookPath, dir, f)
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/INV-12|PII/i)
   })
 
@@ -241,12 +245,12 @@ describe('check-no-placeholders (raw hook) — stdin-JSON protocol (no env var)'
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('exits 1 on a placeholder-laden file delivered via stdin JSON', () => {
+  it('exits 2 on a placeholder-laden file delivered via stdin JSON', () => {
     const f = join(dir, 'wip.ts')
     // Concatenate to avoid this very hook firing on the test source.
     writeFileSync(f, '// FIX' + 'ME: finish this\n')
     const r = spawnHookStdin(hookPath, dir, f)
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
   })
 })
 
@@ -282,12 +286,12 @@ describe('check-no-orphan-todo — empirical fire', () => {
     expect(r.status).toBe(0)
   })
 
-  it('exits 1 for bare TODO without task ID', () => {
+  it('exits 2 for bare TODO without task ID', () => {
     const f = join(dir, 'bad.ts')
     // Write literal content to temp file — no hook fires on test source
     writeFileSync(f, '// TO' + 'DO: needs fixing\n')
     const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/INV-21|orphan/i)
   })
 })
@@ -310,19 +314,21 @@ describe('enforce-read-only — empirical fire', () => {
     expect(r.status).toBe(0)
   })
 
-  it('exits 1 when AGENTS.md is targeted', () => {
+  // A protected-file match must BLOCK via exit 2 (#1631); exit 1 let the edit proceed —
+  // the guard blocked nothing and was additionally inverted vs the fail-closed path.
+  it('exits 2 when AGENTS.md is targeted', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_PATH: '/project/AGENTS.md',
     })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/read-only/i)
   })
 
-  it('exits 1 when package-lock.json is targeted', () => {
+  it('exits 2 when package-lock.json is targeted', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_PATH: 'package-lock.json',
     })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
   })
 
   // INV-96 (#1537): an unresolvable path must BLOCK (exit 2), not fall through to allow.
@@ -364,15 +370,15 @@ describe('stop-dangerous (raw hook) — stdin-JSON protocol (no env var)', () =>
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('exits 1 for rm -rf / delivered via stdin JSON', () => {
+  it('exits 2 for rm -rf / delivered via stdin JSON', () => {
     const r = spawnCommandHookStdin(hookPath, dir, 'rm -rf /')
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/blocked/i)
   })
 
-  it('exits 1 for git push --force delivered via stdin JSON', () => {
+  it('exits 2 for git push --force delivered via stdin JSON', () => {
     const r = spawnCommandHookStdin(hookPath, dir, 'git push --force origin main')
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
   })
 
   it('exits 0 for a benign command delivered via stdin JSON', () => {
@@ -690,26 +696,27 @@ describe('check-no-skipped-tests — empirical fire (#730)', () => {
     expect(r.status).toBe(0)
   })
 
-  it('exits 1 for it.skip( in a .ts file', () => {
+  // PostToolUse content guard must block via exit 2 so Claude sees the violation (#1631).
+  it('exits 2 for it.skip( in a .ts file', () => {
     const f = join(dir, 'foo.test.ts')
     writeFileSync(f, "it.skip('broken', () => {})\n")
     const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/NI-11/)
   })
 
-  it('exits 1 for xit( in a .ts file', () => {
+  it('exits 2 for xit( in a .ts file', () => {
     const f = join(dir, 'foo.test.ts')
     writeFileSync(f, "xit('old', () => {})\n")
     const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
   })
 
-  it('exits 1 for @Disabled in a .java file', () => {
+  it('exits 2 for @Disabled in a .java file', () => {
     const f = join(dir, 'FooTest.java')
     writeFileSync(f, '@Disabled\n@Test\npublic void testFoo() {}\n')
     const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/NI-11/)
   })
 

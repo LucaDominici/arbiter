@@ -115,7 +115,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
           `${ORPHAN_MARKER}
 `,
         )
-        expect(runHook('check-no-orphan-todo.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-orphan-todo.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
@@ -128,7 +128,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
         const expired =
           '// arbiter-suppress(INV-21, until=2020-01-01, reason="Legacy code needs cleanup", owner=@luca)'
         writeFileSync(f, `${expired}\n${ORPHAN_MARKER}\n`)
-        expect(runHook('check-no-orphan-todo.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-orphan-todo.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
@@ -141,7 +141,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
         const wrongInv =
           '// arbiter-suppress(INV-04, until=2099-01-01, reason="Wrong invariant used here for todo", owner=@luca)'
         writeFileSync(f, `${wrongInv}\n${ORPHAN_MARKER}\n`)
-        expect(runHook('check-no-orphan-todo.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-orphan-todo.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
@@ -166,7 +166,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
       try {
         const f = join(dir, 'test.ts')
         writeFileSync(f, 'const email = "user@example.com";\n')
-        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
@@ -180,7 +180,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
           f,
           '// arbiter-suppress(INV-12, until=2020-01-01, reason="Test fixture email address for integration tests", owner=@luca)\nconst email = "user@example.com";\n',
         )
-        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
@@ -194,7 +194,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
           f,
           '// arbiter-suppress(INV-04, until=2099-01-01, reason="Test fixture email address for integration tests", owner=@luca)\nconst email = "user@example.com";\n',
         )
-        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
@@ -208,7 +208,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
           f,
           '// arbiter-suppress(INV-12, until=2099-01-01, reason="short", owner=@luca)\nconst email = "user@example.com";\n',
         )
-        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }

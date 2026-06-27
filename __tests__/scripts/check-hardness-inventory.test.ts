@@ -109,7 +109,7 @@ describe('check-hardness-inventory.mjs (hook hardness manifest gate)', () => {
     try {
       writeFileSync(join(f.hooksDir, 'sample.mjs'), 'process.exit(0)\n')
       writeManifest(f.manifest, [
-        { file: 'sample.mjs', classification: 'HARD', spawnable: true, expectedExitCode: 1 },
+        { file: 'sample.mjs', classification: 'HARD', spawnable: true, expectedExitCode: 2 },
       ])
       const r = run(f.manifest, f.hooksDir, f.codexTemplate)
       expect(r.status).toBe(1)
@@ -119,10 +119,38 @@ describe('check-hardness-inventory.mjs (hook hardness manifest gate)', () => {
     }
   })
 
-  it('exits 0 when a HARD+spawnable hook empirically exits its declared code on the fixture', () => {
+  it('exits 0 when a HARD+spawnable hook empirically exits its declared blocking code on the fixture', () => {
     const f = makeFixture()
     try {
-      // Hook exits 1 iff the fixture env var is set — matches expectedExitCode.
+      // Hook exits 2 (the blocking code) iff the fixture env var is set — matches expectedExitCode.
+      writeFileSync(
+        join(f.hooksDir, 'sample.mjs'),
+        'process.exit(process.env.MY_VIOLATION ? 2 : 0)\n',
+      )
+      writeManifest(f.manifest, [
+        {
+          file: 'sample.mjs',
+          classification: 'HARD',
+          spawnable: true,
+          expectedExitCode: 2,
+          fixture: { type: 'env-only', env: { MY_VIOLATION: '1' } },
+        },
+      ])
+      const r = run(f.manifest, f.hooksDir, f.codexTemplate)
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('exits 2 on violation fixture')
+    } finally {
+      f.cleanup()
+    }
+  })
+
+  // #1631: exit 2 is the only blocking code under the Claude Code hook protocol. A HARD
+  // guard that declares expectedExitCode 1 is non-blocking ceremony — the gate must reject it.
+  it('exits 1 when a HARD hook declares a non-blocking expectedExitCode (1) — #1631', () => {
+    const f = makeFixture()
+    try {
+      // The empirical spawn would MATCH (hook exits 1, declares 1), but exit 1 is
+      // non-blocking — the blocking-code invariant must still fail it.
       writeFileSync(
         join(f.hooksDir, 'sample.mjs'),
         'process.exit(process.env.MY_VIOLATION ? 1 : 0)\n',
@@ -137,8 +165,32 @@ describe('check-hardness-inventory.mjs (hook hardness manifest gate)', () => {
         },
       ])
       const r = run(f.manifest, f.hooksDir, f.codexTemplate)
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('HARD guards block only via exit 2')
+    } finally {
+      f.cleanup()
+    }
+  })
+
+  it('passes the blocking-code invariant for a HARD hook declaring exit 2 — #1631', () => {
+    const f = makeFixture()
+    try {
+      writeFileSync(
+        join(f.hooksDir, 'sample.mjs'),
+        'process.exit(process.env.MY_VIOLATION ? 2 : 0)\n',
+      )
+      writeManifest(f.manifest, [
+        {
+          file: 'sample.mjs',
+          classification: 'HARD',
+          spawnable: true,
+          expectedExitCode: 2,
+          fixture: { type: 'env-only', env: { MY_VIOLATION: '1' } },
+        },
+      ])
+      const r = run(f.manifest, f.hooksDir, f.codexTemplate)
       expect(r.status).toBe(0)
-      expect(r.stdout).toContain('exits 1 on violation fixture')
+      expect(r.stdout).toContain('declares blocking exit 2 (HARD)')
     } finally {
       f.cleanup()
     }
@@ -147,14 +199,14 @@ describe('check-hardness-inventory.mjs (hook hardness manifest gate)', () => {
   it('exits 1 when a HARD hook does not exit its declared code (ceremony regression)', () => {
     const f = makeFixture()
     try {
-      // Hook always exits 0, but manifest declares it HARD with expectedExitCode 1.
+      // Hook always exits 0, but manifest declares it HARD with the blocking exit 2.
       writeFileSync(join(f.hooksDir, 'sample.mjs'), 'process.exit(0)\n')
       writeManifest(f.manifest, [
         {
           file: 'sample.mjs',
           classification: 'HARD',
           spawnable: true,
-          expectedExitCode: 1,
+          expectedExitCode: 2,
           fixture: { type: 'env-only', env: { MY_VIOLATION: '1' } },
         },
       ])

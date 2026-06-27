@@ -46,5 +46,6 @@ if (found.length > 0) {
   console.error(`Placeholder patterns found in ${file}:`)
   for (const msg of found) console.error(msg)
   console.error('\nRemove placeholder/WIP/disabled-test patterns before saving.')
-  process.exit(1)
+  // Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631).
+  process.exit(2)
 }

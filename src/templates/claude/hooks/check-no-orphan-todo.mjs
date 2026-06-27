@@ -41,5 +41,6 @@ if (offending.length > 0) {
   )
   offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`))
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-21\` for details.\n`)
-  process.exit(1)
+  // Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631).
+  process.exit(2)
 }

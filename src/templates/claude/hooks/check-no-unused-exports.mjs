@@ -57,4 +57,5 @@ for (const f of fileIssues) {
   }
 }
 process.stderr.write('\nRemove unused exports before saving.\n')
-process.exit(1)
+// Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631).
+process.exit(2)
