@@ -107,6 +107,32 @@ describe('10-deploy-prod.yml.ejs — security invariants', () => {
   })
 })
 
+// ─── #1619: ghcr cosign-copy jq digest filter handles lowercase + capitalized keys ──
+
+describe('_cosign-copy/ghcr.ejs — multi-arch digest resolution (#1619)', () => {
+  function renderGhcr(overrides: Record<string, unknown> = {}) {
+    return renderDeployProd({
+      deployTarget: 'ghcr',
+      githubOwner: 'acme',
+      githubRepo: 'svc',
+      ...overrides,
+    })
+  }
+
+  it('jq digest filter accepts lowercase .platform.os / .digest (multi-arch manifest lists)', () => {
+    const rendered = renderGhcr()
+    // `docker manifest inspect` emits lowercase keys for multi-arch indices.
+    expect(rendered).toContain('.platform.os // .Platform.os')
+    expect(rendered).toContain('.digest // .Digest')
+  })
+
+  it('no longer hard-codes capitalized-only .Platform.os / .Digest selectors', () => {
+    const rendered = renderGhcr()
+    // The old verbatim filter would fall through to .config.digest for multi-arch.
+    expect(rendered).not.toContain('select(.Platform.os == "linux")')
+  })
+})
+
 // ─── PORT A2 (#1502): provenance admission gate before deploy ─────────────────
 
 describe('10-deploy-prod.yml.ejs — A2 provenance admission gate (#1502)', () => {

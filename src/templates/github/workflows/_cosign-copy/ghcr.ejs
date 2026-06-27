@@ -11,8 +11,12 @@
           set -euo pipefail
           # jq (preinstalled on GitHub runners) keeps digest extraction on one line — a
           # multi-line `python3 -c` body at column 0 would break the `run: |` block scalar.
+          # #1619: multi-arch manifest lists from `docker manifest inspect` emit LOWERCASE
+          # .platform.os/.digest; some single-arch registries emit capitalized .Platform/.Digest.
+          # Accept either casing so a multi-arch index resolves instead of falling through to
+          # .config.digest (empty/wrong for a manifest-list index).
           IMAGE_SHA=$(docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}" 2>/dev/null \
-            | jq -r '([.manifests[]? | select(.Platform.os == "linux") | .Digest][0]) // .config.digest // ""' 2>/dev/null || echo "")
+            | jq -r '([.manifests[]? | select((.platform.os // .Platform.os) == "linux") | (.digest // .Digest)][0]) // .config.digest // ""' 2>/dev/null || echo "")
           if [ -z "${IMAGE_SHA}" ]; then
             echo "::error::Could not resolve digest for ${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}. Ensure the image was published by the TEST deploy workflow."
             exit 1
@@ -40,7 +44,7 @@
         run: |
           set -euo pipefail
           DEST_DIGEST=$(docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}" 2>/dev/null \
-            | jq -r '([.manifests[]? | select(.Platform.os == "linux") | .Digest][0]) // .config.digest // ""' 2>/dev/null || echo "")
+            | jq -r '([.manifests[]? | select((.platform.os // .Platform.os) == "linux") | (.digest // .Digest)][0]) // .config.digest // ""' 2>/dev/null || echo "")
           if [ -z "${DEST_DIGEST}" ]; then
             echo "::error::Could not resolve PROD digest after cosign copy"
             exit 1
