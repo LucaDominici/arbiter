@@ -65,7 +65,7 @@ import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
 import { loadRecipe } from '../recipes/loader.js'
 import type { Recipe } from '../recipes/schema.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
-import { computeSkipReport } from '../generators/skills.js'
+import { computeSkipReport, excludeOwnEmittedSkills } from '../generators/skills.js'
 
 export interface InitOptions {
   yes: boolean
@@ -290,7 +290,9 @@ function emitInitOutput(
 
 function detectAndAuditSkills(targetDir: string): ReturnType<typeof detectInstalledSkills> {
   const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
-  const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
+  // #1640: drop arbiter's own emitted project skills so a post-init `arbiter update`
+  // does not list them as third-party integrations in AGENTS.md (init == update).
+  const installedSkills = excludeOwnEmittedSkills(detectInstalledSkills({ targetDir, claudeHome }))
   const skipReport = computeSkipReport(installedSkills)
   if (installedSkills.length > 0) {
     writeFile(

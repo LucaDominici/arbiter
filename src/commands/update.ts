@@ -17,6 +17,7 @@ import { detectGithubAccess } from '../detectors/github.js'
 import { detectLegacyWorkflowCollisionWarning } from '../detectors/workflow-collision.js'
 import { resolveAxisFields } from '../detectors/axis.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
+import { excludeOwnEmittedSkills } from '../generators/skills.js'
 import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../utils/config.js'
 import { runGithubSetup, printResults, runPlugins, slugifyProjectName } from './init.js'
 import { diffConfig, impactedGenerators } from '../config/diff.js'
@@ -288,7 +289,9 @@ function detectProjectInfo(
 
   const axisFields = resolveAxisFields(stored, targetDir, language, framework)
   const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
-  const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
+  // #1640: exclude arbiter's own emitted project skills so update does not append
+  // them to the AGENTS.md Integrations table as third-party rows (init == update).
+  const installedSkills = excludeOwnEmittedSkills(detectInstalledSkills({ targetDir, claudeHome }))
   const specs = buildRegistry(config, installedSkills)
   return { config, specs, useGitHub, axisFields }
 }

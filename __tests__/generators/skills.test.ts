@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
-import { generateSkills, SKILL_NAMES } from '../../src/generators/skills.js'
+import {
+  generateSkills,
+  SKILL_NAMES,
+  excludeOwnEmittedSkills,
+} from '../../src/generators/skills.js'
 import type { InstalledSkill } from '../../src/integrations/types.js'
 
 const SUPERPOWERS_TDD: InstalledSkill = {
@@ -12,6 +16,30 @@ const SUPERPOWERS_TDD: InstalledSkill = {
   sourcePath: '/some/SKILL.md',
   role: 'TDD enforcement',
 }
+
+describe('excludeOwnEmittedSkills (#1640)', () => {
+  const mkProjectSkill = (name: string): InstalledSkill => ({
+    skillId: `project:${name}`,
+    pluginOwner: 'project',
+    version: '0.0.0',
+    sourcePath: `/x/.claude/skills/${name}/SKILL.md`,
+  })
+
+  it("drops arbiter's own project-scoped emitted skills (owner project, name ∈ SKILL_NAMES)", () => {
+    const own = SKILL_NAMES.map(mkProjectSkill)
+    expect(excludeOwnEmittedSkills(own)).toEqual([])
+  })
+
+  it('keeps genuine third-party skills (non-project owner)', () => {
+    const out = excludeOwnEmittedSkills([SUPERPOWERS_TDD, mkProjectSkill(SKILL_NAMES[0] ?? 'tdd')])
+    expect(out).toEqual([SUPERPOWERS_TDD])
+  })
+
+  it('keeps a project-owned skill whose name is NOT a built-in SKILL_NAME', () => {
+    const custom = mkProjectSkill('my-bespoke-skill')
+    expect(excludeOwnEmittedSkills([custom])).toEqual([custom])
+  })
+})
 
 describe('generateSkills', () => {
   let dir: string

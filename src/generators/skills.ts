@@ -21,6 +21,31 @@ export interface SkillsGeneratorResult {
  */
 export const SKILL_NAMES: readonly string[] = skillNames
 
+/** Owner assigned to project-local `.claude/skills/` by the detector (skill-detector.ts). */
+const PROJECT_SKILL_OWNER = 'project'
+const SKILL_NAME_SET: ReadonlySet<string> = new Set(SKILL_NAMES)
+
+/**
+ * #1640 — drop arbiter's OWN project-scoped emitted skills (owner `project`, name ∈
+ * SKILL_NAMES) from a detected `InstalledSkill[]` before it feeds the AGENTS.md
+ * Integrations table.
+ *
+ * After `arbiter init` writes `.claude/skills/<name>/SKILL.md`, the next `arbiter
+ * update` detector picks them up as `project:*` installs and lists them as
+ * third-party integrations that "replace the built-in arbiter skill generator — do
+ * not regenerate" — misleading (they ARE that generator's output) and a real
+ * non-idempotency (init → AGENTS.md ≠ update → AGENTS.md). These ids are never in
+ * any skills-matrix `replaces` list, so excluding them here cannot change which
+ * generators are skipped — it only keeps the table to genuine third-party rows.
+ */
+export function excludeOwnEmittedSkills(skills: InstalledSkill[]): InstalledSkill[] {
+  return skills.filter((s) => {
+    if (s.pluginOwner !== PROJECT_SKILL_OWNER) return true
+    const name = s.skillId.slice(s.skillId.indexOf(':') + 1)
+    return !SKILL_NAME_SET.has(name)
+  })
+}
+
 /** Parse a `X.Y.Z` core version. Returns null when the string is not a semver. */
 function parseSemver(v: string): [number, number, number] | null {
   const m = /^(\d+)\.(\d+)\.(\d+)/.exec(v.trim())
