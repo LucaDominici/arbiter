@@ -186,6 +186,25 @@ describe('runHarness (#255)', () => {
     }
   })
 
+  it('exits 1 when every gate script is absent — vacuous-green floor (#1652)', async () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      for (const name of GATE_NAMES) {
+        rmSync(join(dir, 'scripts', `${name}.mjs`))
+      }
+      const { runHarness } = await import('../../src/commands/harness.js')
+      const result = runHarness({ dir })
+      expect(result.skipped).toBe(4)
+      expect(result.passed).toBe(0)
+      expect(result.failed).toBe(0)
+      // Nothing was verified — must not report a passing (0) exit.
+      expect(result.exitCode).toBe(1)
+      expect(runCliMock).not.toHaveBeenCalled()
+    } finally {
+      cleanup()
+    }
+  })
+
   it('writes gate output to stdout', async () => {
     const { dir, cleanup } = makeDir()
     try {
