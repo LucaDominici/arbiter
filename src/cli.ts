@@ -81,6 +81,7 @@ import {
 import type { WorkUnitPhase, WorkUnitStatus } from './decomposition/types.js'
 import { appendEvidenceLine } from './utils/evidence-log.js'
 import { getBoolFlag } from './config/env-registry.js'
+import { AUTH_PROVIDERS, OBSERVABILITY_PROVIDERS, DEPLOY_TARGETS, isDeployTarget } from './config/schema.js'
 import { runCli } from './utils/run-cli.js'
 import {
   ArbiterError,
@@ -538,6 +539,10 @@ program
     '--observability-provider <provider>',
     'Override observability provider (used with --preset or standalone)',
   )
+  .option(
+    '--deploy-target <target>',
+    'Deploy target: ghcr | azure-container-app | aws-ecs | gcp-cloud-run | none (non-interactive complement to the wizard)',
+  )
   .option('--github', 'Activate GitHub API calls and set permitGitHub:true in stored config', false)
   .option(
     '--solo',
@@ -568,6 +573,7 @@ program
       preset?: string
       authProvider?: string
       observabilityProvider?: string
+      deployTarget?: string
       recipe?: string
       recipeSha256?: string
     }) => {
@@ -590,6 +596,42 @@ program
           'errors.E_INVALID_ARCHETYPE',
           { field: 'archetype', value: opts.archetype, valid: VALID_ARCHETYPES.join(', ') },
           { hint: 'Run `arbiter init --help` for the list of valid archetypes.' },
+        )
+      }
+      // #1676: validate --auth-provider/--observability-provider against the
+      // exported unions BEFORE scaffolding. An out-of-union value was blind-cast
+      // and emitted a content-less AUTH_SETUP.md/OBSERVABILITY.md once before the
+      // next validateConfig load caught it. Fail with an explicit error instead.
+      if (opts.authProvider !== undefined && !AUTH_PROVIDERS.has(opts.authProvider)) {
+        throw ArbiterError.fromKey(
+          'E_INVALID_ARCHETYPE',
+          'errors.E_INVALID_ARCHETYPE',
+          { field: 'auth-provider', value: opts.authProvider, valid: [...AUTH_PROVIDERS].join(', ') },
+          { hint: 'Run `arbiter init --help` for the list of valid auth providers.' },
+        )
+      }
+      if (
+        opts.observabilityProvider !== undefined &&
+        !OBSERVABILITY_PROVIDERS.has(opts.observabilityProvider)
+      ) {
+        throw ArbiterError.fromKey(
+          'E_INVALID_ARCHETYPE',
+          'errors.E_INVALID_ARCHETYPE',
+          {
+            field: 'observability-provider',
+            value: opts.observabilityProvider,
+            valid: [...OBSERVABILITY_PROVIDERS].join(', '),
+          },
+          { hint: 'Run `arbiter init --help` for the list of valid observability providers.' },
+        )
+      }
+      // #1677: validate --deploy-target against the DeployTarget union before scaffolding.
+      if (opts.deployTarget !== undefined && !isDeployTarget(opts.deployTarget)) {
+        throw ArbiterError.fromKey(
+          'E_INVALID_ARCHETYPE',
+          'errors.E_INVALID_ARCHETYPE',
+          { field: 'deploy-target', value: opts.deployTarget, valid: [...DEPLOY_TARGETS].join(', ') },
+          { hint: 'Run `arbiter init --help` for the list of valid deploy targets.' },
         )
       }
       const backend =
@@ -628,6 +670,9 @@ program
           : {}),
         ...(opts.archetype !== undefined
           ? { archetype: opts.archetype as import('./wizard/types.js').Archetype }
+          : {}),
+        ...(opts.deployTarget !== undefined
+          ? { deployTarget: opts.deployTarget as import('./wizard/types.js').DeployTarget }
           : {}),
       })
     },

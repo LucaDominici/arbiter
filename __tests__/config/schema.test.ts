@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { validateConfig, DEFAULT_THRESHOLDS } from '../../src/config/schema.js'
+import {
+  validateConfig,
+  DEFAULT_THRESHOLDS,
+  AUTH_PROVIDERS,
+  OBSERVABILITY_PROVIDERS,
+  DEPLOY_TARGETS,
+  isDeployTarget,
+} from '../../src/config/schema.js'
 import { migrateV1ToV2 } from '../../src/config/migrations/v1-to-v2.js'
 
 describe('validateConfig — governanceLevel casing normalization', () => {
@@ -761,6 +768,36 @@ describe('validateConfig — nested provider unions (#1632)', () => {
     const r = validateConfig({ ...BASE_VALID, auth: { provider: 42 } })
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.errors.some((e) => e.includes('auth.provider'))).toBe(true)
+  })
+})
+
+// #1676/#1677: provider + deploy-target unions are exported for the `arbiter init`
+// CLI cast site to validate against (no silent coercion of an unknown flag value).
+describe('exported provider/deploy-target unions (#1676/#1677)', () => {
+  it('AUTH_PROVIDERS carries known members and rejects a typo', () => {
+    expect(AUTH_PROVIDERS.has('keycloak')).toBe(true)
+    expect(AUTH_PROVIDERS.has('none')).toBe(true)
+    expect(AUTH_PROVIDERS.has('keycloack')).toBe(false)
+  })
+
+  it('OBSERVABILITY_PROVIDERS carries known members and rejects a typo', () => {
+    expect(OBSERVABILITY_PROVIDERS.has('signoz')).toBe(true)
+    expect(OBSERVABILITY_PROVIDERS.has('none')).toBe(true)
+    expect(OBSERVABILITY_PROVIDERS.has('grafana')).toBe(false)
+  })
+
+  it('DEPLOY_TARGETS covers exactly the documented flag values', () => {
+    expect([...DEPLOY_TARGETS].sort()).toEqual(
+      ['aws-ecs', 'azure-container-app', 'gcp-cloud-run', 'ghcr', 'none'].sort(),
+    )
+  })
+
+  it('isDeployTarget narrows known values and rejects unknown ones', () => {
+    expect(isDeployTarget('gcp-cloud-run')).toBe(true)
+    expect(isDeployTarget('ghcr')).toBe(true)
+    expect(isDeployTarget('none')).toBe(true)
+    expect(isDeployTarget('bogus')).toBe(false)
+    expect(isDeployTarget('')).toBe(false)
   })
 })
 

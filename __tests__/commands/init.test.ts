@@ -98,6 +98,9 @@ vi.mock('../../src/utils/run-cli.js', () => ({
 }))
 vi.mock('../../src/utils/maturity-check.js', () => ({
   isL3Allowed: vi.fn().mockReturnValue({ allowed: true, errorMessage: null }),
+  // #1678: the emission-plan deriver consults hasMatrixCell to drop unmodeled
+  // language×dim pairs. Default to "cell exists" so the mocked isL3Allowed governs.
+  hasMatrixCell: vi.fn().mockReturnValue(true),
 }))
 vi.mock('../../src/github/labels.js', () => ({
   provisionLabels: vi
@@ -127,7 +130,7 @@ vi.mock('../../src/utils/plugin-loader.js', () => ({
 
 import { runWizard, determineFlow } from '../../src/wizard/prompts.js'
 import { detectLanguageWithSource } from '../../src/detectors/language.js'
-import { runGeneratorsFromRegistry } from '../../src/generators/registry.js'
+import { runGeneratorsFromRegistry, buildRegistry } from '../../src/generators/registry.js'
 import { runProbes } from '../../src/compatibility/probe.js'
 import { isL3Allowed } from '../../src/utils/maturity-check.js'
 import { provisionLabels } from '../../src/github/labels.js'
@@ -141,6 +144,7 @@ import { validateConfig } from '../../src/config/schema.js'
 const mockRunWizard = vi.mocked(runWizard)
 const mockDetermineFlow = vi.mocked(determineFlow)
 const mockRunGeneratorsFromRegistry = vi.mocked(runGeneratorsFromRegistry)
+const mockBuildRegistry = vi.mocked(buildRegistry)
 const mockRunProbes = vi.mocked(runProbes)
 const mockIsL3Allowed = vi.mocked(isL3Allowed)
 const mockProvisionLabels = vi.mocked(provisionLabels)
@@ -161,6 +165,9 @@ describe('runInit', () => {
     vi.clearAllMocks()
     // Re-set defaults after clearAllMocks
     mockRunGeneratorsFromRegistry.mockReturnValue([])
+    // #1678: the L3 gate derives its checks from buildRegistry(); default to an empty
+    // plan (no maturity blocks) and let the maturity-gate tests inject specs.
+    mockBuildRegistry.mockReturnValue([])
     mockRunProbes.mockReturnValue({
       dir: '/tmp',
       stack: 'typescript',
@@ -340,6 +347,9 @@ describe('runInit', () => {
   })
 
   it('L3 maturity gate blocks generation when feature not allowed', async () => {
+    // #1678: the gate derives its checks from the emission plan; inject a spec that
+    // maps to a matrix dimension (mutation) so there is a capability to evaluate.
+    mockBuildRegistry.mockReturnValue([{ key: 'mutation', enabled: true, run: () => [] }])
     mockIsL3Allowed.mockReturnValue({
       allowed: false,
       errorMessage: 'mutation testing is beta for typescript',
@@ -366,6 +376,10 @@ describe('runInit', () => {
   // frontend-spa/backend-web-db; the L3 maturity gate must now consult a11y and block
   // without --accept-beta-tools (previously a11y was never gated).
   it('L3 gate consults a11y for a python frontend-spa init (#1628)', async () => {
+    // #1678: playwright-python in the emission plan → a11y/python check derived.
+    mockBuildRegistry.mockReturnValue([
+      { key: 'playwright-python', enabled: true, run: () => [] },
+    ])
     mockIsL3Allowed.mockImplementation((_lang, feature) =>
       feature === 'a11y'
         ? { allowed: false, errorMessage: 'axe-playwright-python is beta for python' }

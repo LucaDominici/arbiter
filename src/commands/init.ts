@@ -31,6 +31,7 @@ import {
   buildRegistry,
   runGeneratorsFromRegistry,
   type GeneratorFailure,
+  type GeneratorSpec,
 } from '../generators/registry.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
@@ -38,7 +39,7 @@ import { renderFromAbsPath } from '../utils/render.js'
 import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile, beginGenerationSession, endGenerationSession } from '../utils/fs.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
-import { isL3Allowed } from '../utils/maturity-check.js'
+import { isL3Allowed, hasMatrixCell, type MaturityFeature } from '../utils/maturity-check.js'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { applyPreset } from '../wizard/presets.js'
@@ -57,6 +58,7 @@ import type {
   ProjectPreset,
   AuthProvider,
   ObservabilityProvider,
+  DeployTarget,
   Lane,
   CollaborationMode,
 } from '../wizard/types.js'
@@ -95,6 +97,12 @@ export interface InitOptions {
   authProvider?: AuthProvider
   /** Override observability provider after preset is applied. */
   observabilityProvider?: ObservabilityProvider
+  /**
+   * #1677: non-interactive deploy target (--deploy-target). Mirrors the interactive
+   * wizard's deployTarget question; spread into the non-interactive config so a CI
+   * `arbiter init --yes --deploy-target gcp-cloud-run` persists the same axis.
+   */
+  deployTarget?: DeployTarget
   /** Override detected language (skips auto-detection). */
   language?: Language
   /** Override detected archetype (skips auto-detection). */
@@ -465,6 +473,9 @@ function buildNonInteractiveConfig(args: {
     solo: options.solo === true,
   })
   if (recipe) applyRecipeOverrides(config, recipe)
+  // #1677: a recipe's deployTarget (if any) is applied above; an explicit
+  // --deploy-target flag is the operator's final word, so it wins last.
+  if (options.deployTarget !== undefined) config.deployTarget = options.deployTarget
   return config
 }
 
@@ -1359,35 +1370,104 @@ function parseLanguage(language: Language | undefined): Language | undefined {
   throw ArbiterError.fromKey('E_INVALID_LANGUAGE', 'errors.E_INVALID_LANGUAGE', { language })
 }
 
+/** A single (matrix dimension × effective tool-language) the L3 gate must consult. */
+export interface L3MaturityCapability {
+  feature: MaturityFeature
+  /** The language whose TOOL is actually emitted — not always config.language (#1606). */
+  language: Language
+}
+
 /**
- * Gate check for L3 maturity. Blocks generation if any L3 feature
- * (mutation, contract) is marked unsafe or beta without --accept-beta-tools.
+ * #1678: map ONE enabled generator to the matrix dimension(s) it emits + the EFFECTIVE
+ * tool-language for each. The effective language is `config.language` for per-language
+ * tooling, but a FIXED tool-language where the emitted binding is language-specific:
+ *  - frontend `style_tokens` is always stylelint (typescript);
+ *  - `playwright-ts` runs the proven TS axe/Playwright binding even for a `multi` repo
+ *    (#1606) — so a11y/e2e resolve to typescript, never the unmodeled 'multi';
+ *  - `playwright-python` runs the python binding → python.
+ * Generators with no matrix dimension return [].
+ */
+function capabilitiesForGenerator(
+  key: GeneratorSpec['key'],
+  config: ProjectConfig,
+): L3MaturityCapability[] {
+  switch (key) {
+    case 'mutation':
+      return [{ feature: 'mutation', language: config.language }]
+    case 'contract-testing':
+      return [{ feature: 'contract', language: config.language }]
+    case 'coverage':
+      return [{ feature: 'coverage', language: config.language }]
+    case 'security':
+      return [{ feature: 'security', language: config.language }]
+    case 'debt-gates':
+      return [{ feature: 'static_analysis', language: config.language }]
+    case 'behavioral-tests':
+      return [{ feature: 'bdd', language: config.language }]
+    // architecture is emitted by the always-on boundary generators; one representative
+    // key avoids N duplicate (architecture, config.language) rows (deduped anyway).
+    case 'archunit':
+      return [{ feature: 'architecture', language: config.language }]
+    case 'frontend-quality':
+      return [{ feature: 'style_tokens', language: 'typescript' }]
+    case 'playwright-ts':
+      return [
+        { feature: 'a11y', language: 'typescript' },
+        { feature: 'e2e', language: 'typescript' },
+      ]
+    case 'playwright-python':
+      return [
+        { feature: 'a11y', language: 'python' },
+        { feature: 'e2e', language: 'python' },
+      ]
+    default:
+      return []
+  }
+}
+
+/**
+ * #1678: derive the L3 maturity checks from the ACTUAL emission plan rather than a
+ * hard-coded feature list. Iterates the enabled registry specs, maps each to its matrix
+ * dimension(s) + effective tool-language, drops dimensions the matrix has no cell for
+ * (an unmodeled language×dim such as anything on a polyglot `multi` core — blocking
+ * those would be the #1606 false-positive generalised), and dedupes.
+ *
+ * `specs` is injected (the caller passes `buildRegistry(config)`) so the pure mapping
+ * is unit-testable without the init machinery and without re-deriving enabled-ness.
+ */
+export function deriveL3MaturityChecks(
+  config: ProjectConfig,
+  specs: GeneratorSpec[],
+): L3MaturityCapability[] {
+  const seen = new Set<string>()
+  const checks: L3MaturityCapability[] = []
+  for (const spec of specs) {
+    if (!spec.enabled) continue
+    for (const cap of capabilitiesForGenerator(spec.key, config)) {
+      if (!hasMatrixCell(cap.language, cap.feature)) continue
+      const dedupeKey = `${cap.feature}:${cap.language}`
+      if (seen.has(dedupeKey)) continue
+      seen.add(dedupeKey)
+      checks.push(cap)
+    }
+  }
+  return checks
+}
+
+/**
+ * Gate check for L3 maturity. Blocks generation when any capability the emission plan
+ * will ACTUALLY emit resolves to beta/unsafe/unavailable in the cross-language matrix
+ * without --accept-beta-tools (#1678 — driven by the registry, not a hard-coded list).
  * Exits the process with an actionable error message on violation.
  */
 function checkL3MaturityGates(config: ProjectConfig): void {
   if (config.governanceLevel !== 'L3') return
 
-  const l3Features: Array<'mutation' | 'contract'> = ['mutation', 'contract']
-  const blocked: string[] = []
   const accept = config.acceptBetaTools ?? false
+  const blocked: string[] = []
 
-  for (const feature of l3Features) {
-    const result = isL3Allowed(config.language, feature, accept)
-    if (!result.allowed && result.errorMessage) {
-      blocked.push(`  • ${result.errorMessage}`)
-    }
-  }
-
-  // #1628: the python a11y harness (axe-playwright-python, matrix a11y:python=beta) is
-  // emitted at L3 for frontend-spa/backend-web-db (registry playwright-python) with NO
-  // maturity gate — beta tooling provisioned at L3 with no --accept-beta-tools record.
-  // Gate the concrete reproduced case. (Driving the gate from the FULL emission plan
-  // across all 18 matrix dims is the broader fix tracked in the #1628 follow-up.)
-  const emitsPythonA11y =
-    config.language === 'python' &&
-    (config.archetype === 'frontend-spa' || config.archetype === 'backend-web-db')
-  if (emitsPythonA11y) {
-    const result = isL3Allowed(config.language, 'a11y', accept)
+  for (const { feature, language } of deriveL3MaturityChecks(config, buildRegistry(config))) {
+    const result = isL3Allowed(language, feature, accept)
     if (!result.allowed && result.errorMessage) {
       blocked.push(`  • ${result.errorMessage}`)
     }
