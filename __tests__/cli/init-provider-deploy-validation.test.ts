@@ -28,7 +28,10 @@ describe('init provider/deploy-target flag validation (#1676/#1677)', () => {
   })
 
   it('rejects an invalid --auth-provider before writing any file (#1676)', () => {
-    const r = spawn(['init', '--yes', '--level', 'L1', '--auth-provider', 'bogus', '--dir', dir], dir)
+    const r = spawn(
+      ['init', '--yes', '--level', 'L1', '--auth-provider', 'bogus', '--dir', dir],
+      dir,
+    )
     expect(r.status).toBeGreaterThan(0)
     expect(`${r.stderr}${r.stdout}`).toMatch(/auth-provider/i)
     expect(existsSync(join(dir, 'arbiter.json'))).toBe(false)
@@ -45,7 +48,10 @@ describe('init provider/deploy-target flag validation (#1676/#1677)', () => {
   })
 
   it('rejects an invalid --deploy-target before writing any file (#1677)', () => {
-    const r = spawn(['init', '--yes', '--level', 'L1', '--deploy-target', 'bogus', '--dir', dir], dir)
+    const r = spawn(
+      ['init', '--yes', '--level', 'L1', '--deploy-target', 'bogus', '--dir', dir],
+      dir,
+    )
     expect(r.status).toBeGreaterThan(0)
     expect(`${r.stderr}${r.stdout}`).toMatch(/deploy-target/i)
     expect(existsSync(join(dir, 'arbiter.json'))).toBe(false)
@@ -53,7 +59,17 @@ describe('init provider/deploy-target flag validation (#1676/#1677)', () => {
 
   it('--yes --deploy-target gcp-cloud-run persists deployTarget into arbiter.json (#1677)', () => {
     const r = spawn(
-      ['init', '--yes', '--level', 'L1', '--no-verify', '--deploy-target', 'gcp-cloud-run', '--dir', dir],
+      [
+        'init',
+        '--yes',
+        '--level',
+        'L1',
+        '--no-verify',
+        '--deploy-target',
+        'gcp-cloud-run',
+        '--dir',
+        dir,
+      ],
       dir,
     )
     expect(r.status).toBe(0)

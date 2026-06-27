@@ -10,14 +10,7 @@
 // short-circuits the real range-scan, so it cannot prove the scan path runs.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import {
-  mkdtempSync,
-  mkdirSync,
-  rmSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 

@@ -377,9 +377,7 @@ describe('runInit', () => {
   // without --accept-beta-tools (previously a11y was never gated).
   it('L3 gate consults a11y for a python frontend-spa init (#1628)', async () => {
     // #1678: playwright-python in the emission plan → a11y/python check derived.
-    mockBuildRegistry.mockReturnValue([
-      { key: 'playwright-python', enabled: true, run: () => [] },
-    ])
+    mockBuildRegistry.mockReturnValue([{ key: 'playwright-python', enabled: true, run: () => [] }])
     mockIsL3Allowed.mockImplementation((_lang, feature) =>
       feature === 'a11y'
         ? { allowed: false, errorMessage: 'axe-playwright-python is beta for python' }
