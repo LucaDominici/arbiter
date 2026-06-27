@@ -53,18 +53,14 @@ When `arbiter init` detects installed Claude Code skills, it checks this matrix 
 
 ## Valid SKILL_NAMES (built-in generators)
 
-The `replaces` array must only reference these names:
+The `replaces` array must only reference a built-in generator name. The single
+source of truth for that set is **`src/generators/skill-names.json`** — do NOT
+hand-copy it here (the duplicate list drifted and was the same drift class #1559
+eliminated for the validator).
 
-- `tdd`
-- `verification`
-- `architect-review`
-- `clean-code`
-- `understand-code`
-- `codebase-audit`
-- `epic-decompose`
-- `configure`
-
-Enforced by the `skills-matrix-schema` L1 gate (`scripts/check-skills-matrix.mjs`).
+Both the validator (`skills-validator.ts`) and the `skills-matrix-schema` L1 gate
+(`scripts/check-skills-matrix.mjs`) derive their allow-list from
+`skill-names.json`, so any name absent from it fails the gate automatically.
 
 ## Promotion Process
 
