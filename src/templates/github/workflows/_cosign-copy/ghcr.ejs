@@ -1,3 +1,14 @@
+      # #1650: cosign copy WRITES a new tag and cosign verify reads it, so this job
+      # must authenticate to the registry first. GitHub Actions does not auto-login the
+      # docker CLI; `packages: write` only scopes GITHUB_TOKEN. The AWS/GCP/Azure
+      # cosign-copy partials already log in — GHCR was the lone path that skipped it.
+      - name: Log in to container registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9  # v3
+        with:
+          registry: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install cosign (keyless OIDC)
         uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3.8.1
 

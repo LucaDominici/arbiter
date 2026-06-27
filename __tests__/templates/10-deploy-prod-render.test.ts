@@ -131,6 +131,18 @@ describe('_cosign-copy/ghcr.ejs — multi-arch digest resolution (#1619)', () =>
     // The old verbatim filter would fall through to .config.digest for multi-arch.
     expect(rendered).not.toContain('select(.Platform.os == "linux")')
   })
+
+  // #1650: cosign copy/verify WRITE+READ the registry — the partial must log in first.
+  it('logs in to the registry before cosign copy (#1650)', () => {
+    const rendered = renderGhcr()
+    expect(rendered).toContain('docker/login-action@')
+    const loginIdx = rendered.indexOf('docker/login-action@')
+    // anchor on the step name (the explanatory comment also mentions "cosign copy")
+    const copyIdx = rendered.indexOf('- name: cosign copy TEST')
+    expect(loginIdx).toBeGreaterThan(-1)
+    expect(copyIdx).toBeGreaterThan(-1)
+    expect(loginIdx).toBeLessThan(copyIdx)
+  })
 })
 
 // ─── PORT A2 (#1502): provenance admission gate before deploy ─────────────────
