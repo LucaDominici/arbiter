@@ -252,7 +252,13 @@ export function runConformance(opts: ConformanceOptions = {}): ConformanceScanRe
   const dimensions = collectDimensions(root, archetype)
   const summary = computeSummary(dimensions)
   const thresholds = autoFillConformanceThresholds(governanceLevel)
-  const twoTier = computeConformance(dimensions, thresholds)
+  // GOLD requires non-regression (ratchetOk). An absent baseline means nothing to regress from
+  // → reachable on merit; a present baseline means the score must not drop below it (#1605).
+  // Without threading this, the production path never passed ratchetOk, so computeConformance
+  // capped every project at CONFORMANT and GOLD was unreachable.
+  const ratchetBaseline = readBaseline(root)
+  const ratchetOk = ratchetBaseline === null || summary.score >= ratchetBaseline.score
+  const twoTier = computeConformance(dimensions, thresholds, ratchetOk)
   const payload: CorePayload = { verdict: twoTier.verdict, score: summary.score, dimensions }
 
   if (opts.check) return applyCheckRatchet(root, payload)

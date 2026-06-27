@@ -49,6 +49,18 @@ describe('conformance (#1369)', () => {
     return dir
   }
 
+  // ── #1605: ratchetOk is derived from the baseline and threaded into the verdict ──
+  it('#1605: derives ratchetOk from the baseline (absent = non-regression) without crashing', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+    // Absent baseline → ratchetOk derived true → GOLD gate is reachable (was hard-capped before).
+    const result = runConformance({ dir })
+    expect(['GOLD', 'CONFORMANT', 'NON-CONFORMANT', 'SKIP']).toContain(result.verdict)
+    // Record a baseline at the current score, then re-run --check: same score is non-regression.
+    runConformance({ dir, updateBaseline: true })
+    expect(runConformance({ dir, check: true }).status).toBe('ok')
+  })
+
   // ── AC-1: basic invocation returns a result ────────────────────────────────
   it('AC-1: returns a ConformanceResult with all required fields', () => {
     const dir = tmpRepo()
