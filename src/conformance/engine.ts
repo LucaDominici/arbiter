@@ -354,8 +354,9 @@ function parseXmlAttrs(segment: string): Record<string, string> {
 function extractCoveragePercent(text: string, counterType: string): number | null {
   const needle = '<counter'
   let from = 0
-  let covered: number | null = null
-  let missed: number | null = null
+  let covered = 0
+  let missed = 0
+  let found = false
   for (;;) {
     const i = text.indexOf(needle, from)
     if (i < 0) break
@@ -370,8 +371,9 @@ function extractCoveragePercent(text: string, counterType: string): number | nul
     if (!Number.isFinite(c) || !Number.isFinite(m)) continue
     covered = c
     missed = m
+    found = true
   }
-  if (covered === null || missed === null) return null
+  if (!found) return null
   const total = covered + missed
   if (total <= 0) return null
   return (covered * 100) / total
