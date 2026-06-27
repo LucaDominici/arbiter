@@ -346,6 +346,21 @@ describe('migrate — $schemaVersion routing (#605)', () => {
   it('accepts missing $schemaVersion (back-compat)', () => {
     expect(() => migrate(CANONICAL_V2)).not.toThrow()
   })
+  // #1618 — a string future-version must not bypass the ceiling guard and be
+  // silently downgraded. Coerce-and-compare so "9" is rejected like numeric 9.
+  it('rejects a string future $schemaVersion instead of silently downgrading it', () => {
+    expect(() => migrate({ ...CANONICAL_V2, $schemaVersion: '9' })).toThrow(
+      /understands at most 4/i,
+    )
+  })
+  it('rejects a non-numeric (corrupt) $schemaVersion', () => {
+    expect(() => migrate({ ...CANONICAL_V2, $schemaVersion: 'abc' })).toThrow(
+      /understands at most 4/i,
+    )
+  })
+  it('accepts a string current-or-below $schemaVersion (coerced)', () => {
+    expect(() => migrate({ ...CANONICAL_V2, $schemaVersion: '3' })).not.toThrow()
+  })
 })
 
 describe('migrate — error handling', () => {

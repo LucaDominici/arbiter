@@ -71,6 +71,26 @@ describe('applyEnvOverrides (#233)', () => {
     expect(out.governanceLevel).toBe('L2')
   })
 
+  // #1618 Site 1 — bumping the level re-derives auto-derived thresholds so the new
+  // level's coverage/complexity bars actually apply (no silent half-upgrade).
+  it('re-derives auto-derived thresholds when ARBITER_GOVERNANCE_LEVEL bumps the level', () => {
+    const cfg = baseConfig() // thresholds === DEFAULT_THRESHOLDS.L2
+    const out = applyEnvOverrides(cfg, { ARBITER_GOVERNANCE_LEVEL: 'L3' })
+    expect(out.governanceLevel).toBe('L3')
+    expect(out.thresholds.lineCoverage).toBe(DEFAULT_THRESHOLDS.L3.lineCoverage)
+    expect(out.thresholds).toEqual(DEFAULT_THRESHOLDS.L3)
+  })
+
+  it('keeps custom thresholds on a level bump but warns the half-upgrade is observable', () => {
+    const cfg = { ...baseConfig(), thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 73 } }
+    const warning = captureStderr(() => {
+      const out = applyEnvOverrides(cfg, { ARBITER_GOVERNANCE_LEVEL: 'L3' })
+      expect(out.governanceLevel).toBe('L3')
+      expect(out.thresholds.lineCoverage).toBe(73) // custom block preserved
+    })
+    expect(warning).toMatch(/L2→L3/)
+  })
+
   // INV-96 (#1537): a dropped override must keep the no-invalidate semantics (default
   // retained) AND become observable — a silent drop lets an operator believe a gate is
   // tightened when the default is running. Capture stderr to assert the warning.

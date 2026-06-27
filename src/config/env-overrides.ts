@@ -16,8 +16,9 @@
  * Issue: #233
  */
 
+import type { GovernanceLevel } from '../wizard/types.js'
 import { parseBooleanEnv } from '../utils/env.js'
-import { isThresholdValueInRange } from './schema.js'
+import { DEFAULT_THRESHOLDS, isThresholdValueInRange } from './schema.js'
 import type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 } from './schema.js'
 
 type Env = Record<string, string | undefined>
@@ -126,6 +127,26 @@ function applyFeatureOverride(
  * Top-level overrides are deliberately limited to a curated allow-list to
  * avoid corruption of nested objects (which require their own prefixes).
  */
+const THRESHOLD_KEYS: ReadonlyArray<keyof ThresholdsV2> = [
+  'lineCoverage',
+  'branchCoverage',
+  'mutationScore',
+  'cyclomaticComplexity',
+  'methodLength',
+  'maxParams',
+]
+
+/**
+ * #1618 — true when `thresholds` deep-equals the auto-derived default block for
+ * `level`. Used to decide whether a governance-level env bump may safely
+ * re-derive thresholds (auto-derived ⇒ yes) or must leave a custom block intact
+ * (and warn that the half-upgrade is observable).
+ */
+function thresholdsAreDefaultFor(thresholds: ThresholdsV2, level: GovernanceLevel): boolean {
+  const def = DEFAULT_THRESHOLDS[level]
+  return THRESHOLD_KEYS.every((k) => thresholds[k] === def[k])
+}
+
 function applyTopLevelOverride(
   cfg: ArbiterConfigV2,
   envKey: string,
@@ -136,7 +157,23 @@ function applyTopLevelOverride(
   const camel = screamingSnakeToCamel(tail)
   if (camel === 'governanceLevel') {
     if (rawValue === 'L1' || rawValue === 'L2' || rawValue === 'L3' || rawValue === 'L4') {
-      return { ...cfg, governanceLevel: rawValue }
+      const oldLevel = cfg.governanceLevel
+      const next: ArbiterConfigV2 = { ...cfg, governanceLevel: rawValue }
+      if (rawValue === oldLevel) return next
+      // #1618 — autoFillThresholds only fills when thresholds === undefined, so a
+      // file-backed config carries the OLD level's numbers. Bumping the level alone
+      // would tighten level-derived behaviour while coverage/complexity/mutation stay
+      // at the weaker old bar — a silent half-upgrade. Re-derive when the stored block
+      // is the auto-derived default; otherwise keep the custom block but make the
+      // mismatch observable via the same channel as warnDroppedOverride.
+      if (thresholdsAreDefaultFor(cfg.thresholds, oldLevel)) {
+        return { ...next, thresholds: { ...DEFAULT_THRESHOLDS[rawValue] } }
+      }
+      warnDroppedOverride(
+        envKey,
+        `level bumped ${oldLevel}→${rawValue} but custom thresholds were kept — coverage/complexity bars still reflect ${oldLevel}`,
+      )
+      return next
     }
   }
   // Other top-level scalars are not exposed via this loose prefix to avoid

@@ -41,11 +41,20 @@ export function migrate(raw: unknown): ArbiterConfigV2 {
   }
 
   const schemaVersion = raw['$schemaVersion']
-  if (typeof schemaVersion === 'number' && schemaVersion > CURRENT_CONFIG_SCHEMA_VERSION) {
-    throw new Error(
-      `arbiter.json has $schemaVersion=${schemaVersion} but this arbiter build understands at most ${CURRENT_CONFIG_SCHEMA_VERSION}. ` +
-        `Upgrade arbiter or downgrade the config file.`,
-    )
+  if (schemaVersion !== undefined) {
+    // #1618 — coerce-and-validate before the ceiling compare. A non-numeric
+    // `$schemaVersion` (e.g. the string "9" from a hand-edit or a newer build that
+    // serializes it as a string) previously skipped the `typeof === 'number'` guard
+    // entirely and was silently re-stamped DOWN to the current version — exactly the
+    // from-the-future downgrade this guard exists to prevent. Treat any present
+    // non-numeric value as a future/corrupt config and reject it with the same error.
+    const numericVersion = typeof schemaVersion === 'number' ? schemaVersion : Number(schemaVersion)
+    if (Number.isNaN(numericVersion) || numericVersion > CURRENT_CONFIG_SCHEMA_VERSION) {
+      throw new Error(
+        `arbiter.json has $schemaVersion=${JSON.stringify(schemaVersion)} but this arbiter build understands at most ${CURRENT_CONFIG_SCHEMA_VERSION}. ` +
+          `Upgrade arbiter or downgrade the config file.`,
+      )
+    }
   }
 
   const version = raw['version']
