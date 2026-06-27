@@ -75,6 +75,7 @@
     "commander": "15.0.0",
     "ejs": "6.0.1",
     "exceljs": "4.4.0",
+    "prettier": "3.8.4",
     "zod": "4.4.3"
   },
   "overrides": {
@@ -102,7 +103,6 @@
     "js-yaml": "^4.1.0",
     "knip": "^6.17.1",
     "madge": "^8.0.0",
-    "prettier": "^3.8.4",
     "smol-toml": "^1.6.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",

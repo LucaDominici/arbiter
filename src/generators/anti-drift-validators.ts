@@ -150,11 +150,12 @@ function emitF4Validators(
 /**
  * W6+F4 Anti-Drift Validator Family (INV-89)
  *
- * Emits check-*.mjs scripts for target projects (#1152, #1266, #1318.2):
- * - W6 batch (11 scripts):
- *   - 9 dual-track scripts (check-pii-scan excluded — duplicates native pii-scan;
- *     check-claude-md-lint added #1266 — thin CLAUDE.md/AGENTS.md context-file linter)
- *   - 2 Track-B-only scripts (not wired in arbiter's own gate)
+ * Emits check-*.mjs scripts for target projects (#1152, #1266, #1318.2, #1497):
+ * - W6 batch (15 scripts):
+ *   - 12 dual-track scripts (check-pii-scan excluded — duplicates native pii-scan;
+ *     check-claude-md-lint added #1266 — thin CLAUDE.md/AGENTS.md context-file linter;
+ *     check-secret-presence + check-continue-on-error + check-test-scope-tier added #1497)
+ *   - 3 Track-B-only scripts (not wired in arbiter's own gate; check-min-test-execution added #1497)
  * - F4 batch: check-validator-helptext (anti-drift is sole owner) + the
  *   github-owned trio (check-action-pins/check-workflow-perms/check-ci-tiers) as
  *   a CONDITIONAL FALLBACK — emitted only when github-setup is disabled (L1 or
