@@ -571,6 +571,27 @@ program
       recipe?: string
       recipeSha256?: string
     }) => {
+      // #1671: validate --archetype against the union BEFORE scaffolding, mirroring
+      // `arbiter configure`. An out-of-union value (e.g. `service`) was blind-cast
+      // to Archetype, crashed the test-pyramid/test-taxonomy generators, and left a
+      // corrupt arbiter.json with no test-pyramid.json behind. Fail before any file
+      // is written. (--language is already validated inside runInit via parseLanguage.)
+      const VALID_ARCHETYPES = [
+        'backend-web-db',
+        'cli',
+        'library',
+        'data-pipeline',
+        'frontend-spa',
+        'embedded',
+      ]
+      if (opts.archetype !== undefined && !VALID_ARCHETYPES.includes(opts.archetype)) {
+        throw ArbiterError.fromKey(
+          'E_INVALID_ARCHETYPE',
+          'errors.E_INVALID_ARCHETYPE',
+          { field: 'archetype', value: opts.archetype, valid: VALID_ARCHETYPES.join(', ') },
+          { hint: 'Run `arbiter init --help` for the list of valid archetypes.' },
+        )
+      }
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
       const preset = resolvePresetOption(opts.preset)
@@ -1271,7 +1292,9 @@ program
   .description('Upgrade governance level with a grace period for new gates')
   .option('--target <level>', 'Target level (L2, L3, or L4)')
   .option('--extend', 'Extend an existing active grace period by --days (default: 30)', false)
-  .option('--days <n>', 'Grace period length in days (default: 30)', parseInt)
+  // #1607: keep the raw string here (validate in the action) so the error can
+  // echo the actual typo; bare `parseInt` silently yielded NaN for `--days abc`.
+  .option('--days <n>', 'Grace period length in days (default: 30)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--interactive', 'Guided level selection on a TTY (#1168)', false)
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -1279,7 +1302,7 @@ program
     (opts: {
       target?: string
       extend: boolean
-      days?: number
+      days?: string
       dir?: string
       interactive: boolean
       json: boolean
@@ -1307,7 +1330,15 @@ program
         }
         upgradeOpts.target = opts.target
       }
-      if (opts.days !== undefined) upgradeOpts.days = opts.days
+      if (opts.days !== undefined) {
+        const parsedDays = Number.parseInt(opts.days, 10)
+        if (!Number.isInteger(parsedDays) || parsedDays < 1) {
+          printCliError(`invalid --days "${opts.days}". Must be a positive integer (>= 1).`)
+          getLogger().error('invalid_days', { value: opts.days })
+          process.exit(1)
+        }
+        upgradeOpts.days = parsedDays
+      }
       if (opts.dir !== undefined) upgradeOpts.dir = opts.dir
       runUpgradeLevel(upgradeOpts).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
@@ -1990,10 +2021,20 @@ gauntlet
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { spec: string; out: string; stack: string; dir?: string; json: boolean }) => {
     const stackRaw = opts.stack
-    const stack: GauntletStack =
-      stackRaw === 'typescript' || stackRaw === 'java' || stackRaw === 'rust'
-        ? stackRaw
-        : 'typescript'
+    // #1641: reject an unknown --stack instead of silently coercing it to
+    // `typescript`. The old default-coercion ternary swallowed any typo (`go`,
+    // `pyhton`, `Java`) and emitted a wrong-language, never-run suite with exit 0
+    // — undetectable in CI. Validate explicitly and fail-closed with exit 2.
+    if (stackRaw !== 'typescript' && stackRaw !== 'java' && stackRaw !== 'rust') {
+      const reason = `unknown --stack "${stackRaw}" (expected typescript|java|rust)`
+      if (opts.json) {
+        jsonOutput('gauntlet generate', 'error', { exitCode: 2 }, [reason])
+      } else {
+        process.stderr.write(`gauntlet generate: FAIL — ${reason}\n`)
+      }
+      process.exit(2)
+    }
+    const stack: GauntletStack = stackRaw
     const result = runGauntletGenerate({
       spec: opts.spec,
       out: opts.out,
@@ -2530,6 +2571,19 @@ kit
       })
       for (const phase of result.phases) {
         process.stdout.write(`[${phase.phase}] ${phase.output}\n`)
+      }
+      // #1643: a partial scaffold failure (some generators failed) must surface
+      // its per-failure detail and exit non-zero — matching `arbiter update`'s
+      // fail-closed semantics. Previously `generatorErrors` was dead output: the
+      // caller never read it, so a half-installed kit exited 0 with no diagnostic.
+      if (result.generatorErrors?.length) {
+        process.stderr.write(
+          `[kit install] SCAFFOLD failed — ${result.generatorErrors.length} generator(s):\n`,
+        )
+        for (const line of result.generatorErrors) {
+          process.stderr.write(`  - ${line}\n`)
+        }
+        process.exit(2)
       }
       if (!result.ok) {
         process.stderr.write(`[kit install] ${result.error ?? 'unknown error'}\n`)

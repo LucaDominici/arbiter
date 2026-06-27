@@ -107,13 +107,30 @@ const SCAFFOLDED_LEVEL: Partial<Record<Language, string>> = {
 // Default for every language whose init scaffold populates the L1 tier.
 const DEFAULT_SCAFFOLDED_LEVEL = 'L1'
 
+/**
+ * Resolve the glob patterns for a tier × language. #1653: `multi` (polyglot) has
+ * no key in the per-language GLOB tables, so it previously resolved to `[]` —
+ * making the `required` L1 tier glob-less and failing the unconditional
+ * check-test-pyramid gate on every freshly-inited polyglot project (Day-1 RED).
+ * For `multi` the globs are the union of every concrete language's globs for that
+ * tier, so the L1 union matches the Java + TS BDD tests `behavioral-tests`
+ * actually scaffolds for `multi` and the required tier turns green honestly.
+ */
+function globsForLevel(id: string, language: Language): string[] {
+  const map = GLOB_BY_LEVEL[id] ?? {}
+  if (language === 'multi') {
+    return [...new Set(Object.values(map).flat())]
+  }
+  return map[language] ?? []
+}
+
 function buildManifestLevel(id: string, name: string, language: Language): object {
   // Rust L1 gets n/a — inline tests are undetectable by file presence
   if (id === 'L1' && language === 'rust') {
     return { id, name, status: 'n/a', rationale: RUST_L1_RATIONALE }
   }
 
-  const globs = GLOB_BY_LEVEL[id]?.[language] ?? []
+  const globs = globsForLevel(id, language)
 
   // Only the single tier the init scaffold populates is `required`; every other
   // tier is greenfield-`n/a` (retaining globs) so first-run is green and honest.

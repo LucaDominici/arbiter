@@ -249,3 +249,37 @@ describe('parseWorkspaceYaml', () => {
     expect(result.spec.repos[0]?.path).toBe('./x')
   })
 })
+
+// #1607: a --workspace parse failure must surface its precise reason in
+// runCompare's `reason`, not collapse to the misleading "No repo paths provided".
+describe('runCompare — --workspace error fidelity (#1607)', () => {
+  let dir: string
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('surfaces the read-error reason when --workspace file is missing', () => {
+    dir = mkdtempSync(join(tmpdir(), 'compare-ws-'))
+    const missing = join(dir, 'does-not-exist.yaml')
+    const result = runCompare({ workspace: missing })
+    expect(result.exitCode).toBe(2)
+    expect(result.reason).toContain('failed to read workspace file')
+    expect(result.reason).not.toContain('No repo paths provided')
+  })
+
+  it('surfaces the no-repos reason when --workspace spec has no repos', () => {
+    dir = mkdtempSync(join(tmpdir(), 'compare-ws-'))
+    const empty = join(dir, 'empty.yaml')
+    writeFileSync(empty, 'name: empty\n', 'utf-8')
+    const result = runCompare({ workspace: empty })
+    expect(result.exitCode).toBe(2)
+    expect(result.reason).toContain('no repos found in workspace spec')
+    expect(result.reason).not.toContain('No repo paths provided')
+  })
+
+  it('still reports the generic message when neither paths nor --workspace given', () => {
+    const result = runCompare({})
+    expect(result.exitCode).toBe(2)
+    expect(result.reason).toContain('No repo paths provided')
+  })
+})

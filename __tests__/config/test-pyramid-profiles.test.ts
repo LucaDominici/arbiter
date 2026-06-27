@@ -166,4 +166,13 @@ describe('getTestPyramidProfile', () => {
     expect(typeof p.hasContractTests).toBe('boolean')
     expect(Array.isArray(p.levels)).toBe(true)
   })
+
+  // ─── unknown archetype (#1671) ─────────────────────────────────────────────
+
+  it('throws a typed error on an unknown archetype instead of returning undefined', () => {
+    // Cast through unknown: an un-validated caller (blind-cast CLI flag) could
+    // reach here with a value outside the union — it must fail loudly, not return
+    // undefined and crash later on `.levels`.
+    expect(() => getTestPyramidProfile('service' as unknown as never)).toThrow(/unknown archetype/)
+  })
 })

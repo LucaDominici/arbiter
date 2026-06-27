@@ -36,6 +36,7 @@ describe('review diff (#262)', () => {
     const result = runReviewDiff({ base: BASE_SNAP, head: BASE_SNAP })
     expect(result.status).toBe('ok')
     expect(result.recommendation).toBe('PASS')
+    expect(result.exitCode).toBe(0)
     expect(result.changes.enforcement_changes).toEqual([])
     expect(result.changes.removed_provers).toEqual([])
     expect(result.changes.adr_supersessions).toEqual([])
@@ -49,6 +50,8 @@ describe('review diff (#262)', () => {
     const result = runReviewDiff({ base: BASE_SNAP, head: headSnap })
     expect(result.status).toBe('ok')
     expect(result.recommendation).toBe('BLOCK')
+    // #1647: BLOCK must surface as a non-zero exit so the gate actually fails CI.
+    expect(result.exitCode).toBe(2)
     const weakened = result.changes.enforcement_changes.find(
       (c) => c.inv === 'INV-04' && c.direction === 'weakened',
     )
@@ -68,6 +71,7 @@ describe('review diff (#262)', () => {
     }
     const result = runReviewDiff({ base: BASE_SNAP, head: headSnap })
     expect(result.recommendation).toBe('PASS')
+    expect(result.exitCode).toBe(0)
     const strengthened = result.changes.enforcement_changes.find(
       (c) => c.inv === 'INV-04' && c.direction === 'strengthened',
     )
@@ -81,6 +85,7 @@ describe('review diff (#262)', () => {
     }
     const result = runReviewDiff({ base: BASE_SNAP, head: headSnap })
     expect(result.recommendation).toBe('BLOCK')
+    expect(result.exitCode).toBe(2)
     expect(result.changes.removed_provers).toContain('INV-04')
   })
 

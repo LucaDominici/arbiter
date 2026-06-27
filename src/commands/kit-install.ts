@@ -200,7 +200,12 @@ function phaseScaffold(
   const skipped = results.filter((r) => r.action === 'skipped').length
   const genCount = new Set(specs.filter((s) => s.enabled).map((s) => s.key)).size
 
-  const suffix = errors.length > 0 ? ` (${errors.length} generator(s) failed)` : ''
+  // #1643: name the failing generators in the phase line instead of a bare
+  // count, so the operator can see *which* generators failed at a glance.
+  const suffix =
+    errors.length > 0
+      ? ` (${errors.length} generator(s) failed: ${errors.map((e) => e.key).join(', ')})`
+      : ''
   if (opts.dryRun) {
     return [
       {
@@ -369,7 +374,13 @@ export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstall
       )
     }
 
-    const result: KitInstallResult = { ok: true, phases, wavePlan }
+    // #1643: a scaffold/generator failure is NOT a success. Previously this
+    // returned ok:true even with non-empty scaffoldErrors, and the CLI ignored
+    // `generatorErrors` entirely — so a partial scaffold exited 0 with the failure
+    // detail discarded. Match `arbiter update`: fail-closed when any generator
+    // failed, carrying the per-failure messages for the caller to surface.
+    const ok = scaffoldErrors.length === 0
+    const result: KitInstallResult = { ok, phases, wavePlan }
     if (scaffoldErrors.length > 0) {
       result.generatorErrors = scaffoldErrors.map((e) => `${e.key}: ${e.message}`)
     }

@@ -209,7 +209,20 @@ const PROFILES: Record<Archetype, TestPyramidProfile> = {
 /**
  * Return the test pyramid profile for the given archetype.
  * Profiles are statically defined — no I/O.
+ *
+ * #1671: fail loudly on an unknown archetype instead of returning `undefined`.
+ * An un-validated caller (e.g. a blind-cast CLI flag) previously got `undefined`
+ * here and then dereferenced `.levels` for an opaque
+ * `Cannot read properties of undefined (reading 'levels')`. A typed error names
+ * the offending value at the source.
  */
 export function getTestPyramidProfile(archetype: Archetype): TestPyramidProfile {
-  return PROFILES[archetype]
+  // Look up through a widened index type: the `Record<Archetype, …>` declaration
+  // claims the access is always defined, but an un-validated caller can pass a
+  // value outside the union (blind cast), so the runtime guard is real.
+  const profile = (PROFILES as Record<string, TestPyramidProfile | undefined>)[archetype]
+  if (profile === undefined) {
+    throw new Error(`unknown archetype "${archetype}" — no test pyramid profile defined for it`)
+  }
+  return profile
 }

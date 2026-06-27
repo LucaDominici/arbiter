@@ -135,6 +135,33 @@ describe('generateTestPyramidManifest (R8, CANON-05)', () => {
     generateTestPyramidManifest(config, { dryRun: true })
     expect(existsSync(join(dir, 'test-pyramid.json'))).toBe(false)
   })
+
+  // #1653: polyglot (`multi`) had no key in the per-language GLOB tables, so its
+  // `required` L1 tier got empty globs and failed the unconditional gate Day-1.
+  it('emits non-empty globs for every required tier when language is "multi"', () => {
+    const config = makeConfig(dir, { language: 'multi', archetype: 'library' })
+    const result = generateTestPyramidManifest(config)
+    const manifestFile = result.files.find((f) => f.path.endsWith('test-pyramid.json'))!
+    const manifest: { levels: Array<{ id: string; status: string; globs?: string[] }> } =
+      JSON.parse(readFileSync(manifestFile.path, 'utf-8'))
+    const required = manifest.levels.filter((l) => l.status === 'required')
+    expect(required.length).toBeGreaterThan(0)
+    for (const lvl of required) {
+      expect(lvl.globs?.length ?? 0).toBeGreaterThan(0)
+    }
+  })
+
+  it('multi L1 globs are the union of concrete languages (TS + Java BDD scaffold targets)', () => {
+    const config = makeConfig(dir, { language: 'multi', archetype: 'library' })
+    const result = generateTestPyramidManifest(config)
+    const manifestFile = result.files.find((f) => f.path.endsWith('test-pyramid.json'))!
+    const manifest: { levels: Array<{ id: string; globs?: string[] }> } = JSON.parse(
+      readFileSync(manifestFile.path, 'utf-8'),
+    )
+    const l1 = manifest.levels.find((l) => l.id === 'L1')!
+    expect(l1.globs).toContain('src/**/*.test.ts')
+    expect(l1.globs).toContain('src/test/**/*Test.java')
+  })
 })
 
 // ─── R9: CANON-04 — template renders without error + CATALOG block ────────────
