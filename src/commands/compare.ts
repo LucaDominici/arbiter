@@ -47,7 +47,7 @@ export interface CompareResult {
 
 export function runCompare(opts: CompareOptions): CompareResult {
   // 1. Resolve repo paths
-  const rawPaths = resolvePaths(opts)
+  const { paths: rawPaths, workspaceError } = resolvePaths(opts)
   if (rawPaths.length === 0) {
     return {
       status: 'error',
@@ -55,7 +55,12 @@ export function runCompare(opts: CompareOptions): CompareResult {
       reposLoaded: 0,
       findings: [],
       warnings: [],
-      reason: 'No repo paths provided. Pass paths as arguments or use --workspace.',
+      // #1607: when --workspace was given but the file was missing or had no
+      // repos, surface parseWorkspaceFile's precise reason (read-error / no-repos)
+      // instead of the misleading generic "No repo paths provided" — which sent
+      // users debugging a real workspace file down a dead end.
+      reason:
+        workspaceError ?? 'No repo paths provided. Pass paths as arguments or use --workspace.',
     }
   }
 
@@ -120,13 +125,18 @@ export function runCompare(opts: CompareOptions): CompareResult {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function resolvePaths(opts: CompareOptions): string[] {
+/**
+ * Resolve the repo paths to compare. Returns a discriminated result so a
+ * `--workspace` parse failure (#1607) can carry its precise `reason` upward
+ * instead of being flattened to an empty list that looks like "no paths given".
+ */
+function resolvePaths(opts: CompareOptions): { paths: string[]; workspaceError?: string } {
   if (opts.workspace !== undefined) {
     const outcome = parseWorkspaceFile(resolve(opts.workspace))
-    if (!outcome.ok) return []
-    return outcome.spec.repos.map((r) => r.path)
+    if (!outcome.ok) return { paths: [], workspaceError: outcome.reason }
+    return { paths: outcome.spec.repos.map((r) => r.path) }
   }
-  return opts.paths ?? []
+  return { paths: opts.paths ?? [] }
 }
 
 function filterByTopic(findings: CompareFinding[], topic: string): CompareFinding[] {

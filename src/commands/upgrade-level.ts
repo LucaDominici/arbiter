@@ -63,7 +63,25 @@ function resolveGraceWindow(
   return { graceEndsAt: new Date(ms).toISOString(), effectiveDays: clamped ? GRACE_MAX_DAYS : days }
 }
 
+/**
+ * #1607: `--days` is the lone numeric flag that was never range-checked. A
+ * non-integer (e.g. parseInt("abc")=NaN) reached `resolveGraceWindow` and threw
+ * the opaque `RangeError: Invalid time value`; a value < 1 (`--days 0`/`-5`) was
+ * accepted silently and persisted a now/past `graceEndsAt` — granting ZERO grace
+ * against the new gates. Reject at this choke-point so both `--target` and
+ * `--extend` (which reuse `opts.days`) are covered, including direct callers.
+ */
+function assertValidGraceDays(days: number | undefined): void {
+  if (days !== undefined && (!Number.isInteger(days) || days < 1)) {
+    throw new Error(
+      `--days must be a positive integer (>= 1); got "${String(days)}". Example: --days 30.`,
+    )
+  }
+}
+
 export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> {
+  assertValidGraceDays(opts.days)
+
   const dir = resolve(opts.dir ?? '.')
   const stored = loadConfig(dir)
 

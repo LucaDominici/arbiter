@@ -85,6 +85,33 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(Math.abs(endsAt - expected)).toBeLessThan(5000)
   })
 
+  // #1607: `--days` must be a positive integer. A NaN crashed the date math with
+  // an opaque "Invalid time value"; a value < 1 silently persisted a zero/past
+  // grace window. The choke-point guard now rejects both, and never persists.
+  it('rejects --days < 1 (no config mutation)', async () => {
+    seedConfig('L1')
+    await expect(runUpgradeLevel({ dir, target: 'L2', days: 0 })).rejects.toThrow(
+      /positive integer/,
+    )
+    expect(loadConfig(dir)?.governanceLevel).toBe('L1')
+  })
+
+  it('rejects a negative --days (no config mutation)', async () => {
+    seedConfig('L1')
+    await expect(runUpgradeLevel({ dir, target: 'L2', days: -5 })).rejects.toThrow(
+      /positive integer/,
+    )
+    expect(loadConfig(dir)?.governanceLevel).toBe('L1')
+  })
+
+  it('rejects a NaN --days instead of throwing "Invalid time value"', async () => {
+    seedConfig('L1')
+    await expect(runUpgradeLevel({ dir, target: 'L2', days: Number.NaN })).rejects.toThrow(
+      /positive integer/,
+    )
+    expect(loadConfig(dir)?.governanceLevel).toBe('L1')
+  })
+
   it('clamps an over-long --days to GRACE_MAX_DAYS so the gate cannot be silently neutered', async () => {
     seedConfig('L1')
 

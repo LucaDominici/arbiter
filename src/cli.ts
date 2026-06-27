@@ -1271,7 +1271,9 @@ program
   .description('Upgrade governance level with a grace period for new gates')
   .option('--target <level>', 'Target level (L2, L3, or L4)')
   .option('--extend', 'Extend an existing active grace period by --days (default: 30)', false)
-  .option('--days <n>', 'Grace period length in days (default: 30)', parseInt)
+  // #1607: keep the raw string here (validate in the action) so the error can
+  // echo the actual typo; bare `parseInt` silently yielded NaN for `--days abc`.
+  .option('--days <n>', 'Grace period length in days (default: 30)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--interactive', 'Guided level selection on a TTY (#1168)', false)
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -1279,7 +1281,7 @@ program
     (opts: {
       target?: string
       extend: boolean
-      days?: number
+      days?: string
       dir?: string
       interactive: boolean
       json: boolean
@@ -1307,7 +1309,15 @@ program
         }
         upgradeOpts.target = opts.target
       }
-      if (opts.days !== undefined) upgradeOpts.days = opts.days
+      if (opts.days !== undefined) {
+        const parsedDays = Number.parseInt(opts.days, 10)
+        if (!Number.isInteger(parsedDays) || parsedDays < 1) {
+          printCliError(`invalid --days "${opts.days}". Must be a positive integer (>= 1).`)
+          getLogger().error('invalid_days', { value: opts.days })
+          process.exit(1)
+        }
+        upgradeOpts.days = parsedDays
+      }
       if (opts.dir !== undefined) upgradeOpts.dir = opts.dir
       runUpgradeLevel(upgradeOpts).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
