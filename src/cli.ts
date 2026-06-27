@@ -1990,10 +1990,20 @@ gauntlet
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { spec: string; out: string; stack: string; dir?: string; json: boolean }) => {
     const stackRaw = opts.stack
-    const stack: GauntletStack =
-      stackRaw === 'typescript' || stackRaw === 'java' || stackRaw === 'rust'
-        ? stackRaw
-        : 'typescript'
+    // #1641: reject an unknown --stack instead of silently coercing it to
+    // `typescript`. The old default-coercion ternary swallowed any typo (`go`,
+    // `pyhton`, `Java`) and emitted a wrong-language, never-run suite with exit 0
+    // — undetectable in CI. Validate explicitly and fail-closed with exit 2.
+    if (stackRaw !== 'typescript' && stackRaw !== 'java' && stackRaw !== 'rust') {
+      const reason = `unknown --stack "${stackRaw}" (expected typescript|java|rust)`
+      if (opts.json) {
+        jsonOutput('gauntlet generate', 'error', { exitCode: 2 }, [reason])
+      } else {
+        process.stderr.write(`gauntlet generate: FAIL — ${reason}\n`)
+      }
+      process.exit(2)
+    }
+    const stack: GauntletStack = stackRaw
     const result = runGauntletGenerate({
       spec: opts.spec,
       out: opts.out,
