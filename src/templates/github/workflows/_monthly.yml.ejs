@@ -18,6 +18,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
       - name: npm-check-updates dep age report
         run: |
+          # FAIL-OPEN-INTENT: ncu exits non-zero when updates exist; report is what matters
           npx --yes npm-check-updates --jsonAll > dep-age-report.json || true
           echo "Dep age report generated."
 <% } else if (language === 'java') { %>
