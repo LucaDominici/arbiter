@@ -1,0 +1,291 @@
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  dep-age-audit:
+    name: Dependency age audit (>180 days)
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+<% if (language === 'typescript') { %>
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: npm-check-updates dep age report
+        run: |
+          npx --yes npm-check-updates --jsonAll > dep-age-report.json || true
+          echo "Dep age report generated."
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
+      - name: gradle dependencyUpdates report
+        run: ./gradlew dependencyUpdates -Drevision=release || true
+<% } else { %>
+      - name: maven versions plugin report
+        run: mvn versions:display-dependency-updates -DprocessDependencyManagement=true || true
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+        with:
+          go-version-file: go.mod
+      - name: go list -u -m all
+        run: go list -u -m all > dep-age-report.txt || true
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version-file: .python-version
+      - run: pip install pip-outdated
+      - name: pip outdated report
+        run: pip list --outdated --format=json > dep-age-report.json || true
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - name: cargo outdated report
+        run: |
+          cargo install cargo-outdated --locked
+          cargo outdated --format json > dep-age-report.json || true
+<% } %>
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dep-age-report-${{ github.run_id }}
+          path: dep-age-report.*
+          retention-days: 365
+          if-no-files-found: warn
+
+  license-full-audit:
+    name: Full license compliance scan
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+<% if (language === 'typescript') { %>
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: license-checker full report
+        run: npx --yes license-checker --json --out license-report.json
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
+      - name: gradle license report
+        run: ./gradlew licenseReport || true
+<% } else { %>
+      - name: license-maven-plugin full report
+        run: mvn license:aggregate-third-party-report || true
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+        with:
+          go-version-file: go.mod
+      - name: go-licenses full report
+        run: |
+          go install github.com/google/go-licenses@latest
+          go-licenses report ./... > license-report.csv || true
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version-file: .python-version
+      - run: pip install pip-licenses
+      - name: pip-licenses full report
+        run: pip-licenses --format=json --output-file=license-report.json
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - name: cargo-deny licenses full audit
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check licenses
+<% } %>
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: license-report-${{ github.run_id }}
+          path: license-report.*
+          retention-days: 365
+          if-no-files-found: warn
+
+  action-pins-stale-audit:
+    name: GitHub Actions SHA pin staleness (>180d)
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Audit action pin ages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STALE=0
+          UNREACHABLE=0
+          THRESHOLD_DAYS=180
+          NOW_EPOCH=$(date +%s)
+          while IFS= read -r line; do
+            REPO=$(echo "$line" | sed -E 's/.*uses: ([^@]+)@[a-f0-9]{40}.*/\1/')
+            SHA=$(echo "$line" | sed -E 's/.*@([a-f0-9]{40}).*/\1/')
+            if [[ "$REPO" == "$line" || "$SHA" == "$line" ]]; then continue; fi
+            COMMIT_DATE=$(gh api "repos/$REPO/commits/$SHA" --jq '.commit.committer.date' 2>/dev/null || echo "")
+            if [ -z "$COMMIT_DATE" ]; then
+              echo "::warning::$REPO@$SHA is unreachable (deleted/private/renamed?)"
+              UNREACHABLE=$((UNREACHABLE + 1))
+              continue
+            fi
+            COMMIT_EPOCH=$(date -d "$COMMIT_DATE" +%s 2>/dev/null || echo 0)
+            AGE_DAYS=$(( (NOW_EPOCH - COMMIT_EPOCH) / 86400 ))
+            if [ "$AGE_DAYS" -gt "$THRESHOLD_DAYS" ]; then
+              echo "::warning::$REPO@$SHA is ${AGE_DAYS}d old (>${THRESHOLD_DAYS}d)"
+              STALE=$((STALE + 1))
+            fi
+          done < <(grep -rEh 'uses: [^@]+@[a-f0-9]{40}' .github/workflows/ 2>/dev/null | sort -u)
+          echo "Stale action pins: $STALE"
+          echo "Unreachable action pins: $UNREACHABLE"
+          echo "stale_count=$STALE" >> "$GITHUB_OUTPUT"
+          echo "unreachable_count=$UNREACHABLE" >> "$GITHUB_OUTPUT"
+
+  sbom-archive:
+    name: SBOM full snapshot
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+<% if (language === 'typescript') { %>
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: npm sbom (CycloneDX)
+        run: npm sbom --sbom-format=cyclonedx > sbom.cdx.json
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
+      - name: gradle CycloneDX SBOM
+        run: ./gradlew cyclonedxBom || true
+<% } else { %>
+      - name: maven CycloneDX SBOM
+        run: mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+        with:
+          go-version-file: go.mod
+      - name: syft SBOM
+        uses: anchore/sbom-action@f6c3d0fe42c3cf876e3462574e4c9416b5e0f07a  # v0.9.0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version-file: .python-version
+      - run: pip install cyclonedx-bom
+      - name: cyclonedx-py SBOM
+        run: cyclonedx-py environment -o sbom.cdx.json || true
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - name: cargo-cyclonedx SBOM
+        run: |
+          cargo install cargo-cyclonedx --locked
+          cargo cyclonedx --format json -o sbom.cdx.json
+<% } %>
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-snapshot-${{ github.run_id }}
+          path: sbom.cdx.json
+          retention-days: 365
+          if-no-files-found: warn
+
+  evidence-collect:
+    name: Upload monthly evidence summary
+    needs:
+      - dep-age-audit
+      - license-full-audit
+      - action-pins-stale-audit
+      - sbom-archive
+    if: always()
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Collect evidence summary
+        run: |
+          mkdir -p monthly-evidence
+          echo "Monthly run: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > monthly-evidence/summary.txt
+          echo "Ref: ${{ github.sha }}" >> monthly-evidence/summary.txt
+          echo "Run ID: ${{ github.run_id }}" >> monthly-evidence/summary.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: monthly-evidence-${{ github.run_id }}
+          path: monthly-evidence/
+          retention-days: 365
+
+  monthly-required:
+    name: Monthly gate
+    needs:
+      - dep-age-audit
+      - license-full-audit
+      - action-pins-stale-audit
+      - sbom-archive
+    if: always()
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - name: Assert all jobs succeeded
+        run: |
+          declare -A RESULTS=(
+            [dep-age-audit]="${{ needs.dep-age-audit.result }}"
+            [license-full-audit]="${{ needs.license-full-audit.result }}"
+            [action-pins-stale-audit]="${{ needs.action-pins-stale-audit.result }}"
+            [sbom-archive]="${{ needs.sbom-archive.result }}"
+          )
+          FAILED=0
+          for job in "${!RESULTS[@]}"; do
+            r="${RESULTS[$job]}"
+            # Treat anything other than "success" as failure (cancelled, timed_out,
+            # skipped, failure, or empty from typos in needs:).
+            if [ "$r" != "success" ]; then
+              echo "::error::$job result=$r (expected: success)"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" = "1" ]; then
+            echo "::error::One or more monthly jobs did not succeed."
+            exit 1
+          fi
+          echo "Monthly gate passed."
+
+      - name: File issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING=$(gh issue list \
+            --label monthly-regression \
+            --state open \
+            --limit 1 \
+            --json number \
+            --repo "$GH_REPO" \
+            --jq '.[0].number // empty')
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "[monthly] regression detected (${{ github.run_id }})" \
+              --body "Monthly workflow failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              --label monthly-regression \
+              --repo "$GH_REPO"
+          fi
