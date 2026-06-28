@@ -1,0 +1,87 @@
+<%
+const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
+const _isService = _bucket === 'service';
+%>on:
+  workflow_call:
+    inputs:
+      nvd-cache-namespace:
+        description: Cache namespace for NVD data (e.g. nightly, weekly)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  dast-full:
+    name: OWASP ZAP full scan
+<% if (!_isService) { %>
+    if: false
+<% } %>
+    continue-on-error: true
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      # E4 (#1502): the PR-path dast-baseline (02-pr-extended) consolidated here at
+      # nightly cadence. Start the application so the full active scan has a live
+      # target — the prior nightly scan pointed at localhost:8080 with nothing running.
+      - name: Start application
+        run: docker compose up -d --wait
+      - name: ZAP full scan
+        uses: zaproxy/action-full-scan@d2a07475d467566c9a3e3c700f31f47724aa1060  # v0.10.0
+        with:
+          target: 'http://localhost:8080'
+          fail_action: false
+          artifact_name: zap-full-report
+      - name: Stop application
+        if: always()
+        run: docker compose down
+
+  dep-cve-refresh:
+    name: Dependency CVE refresh
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+<% if (language === 'typescript') { %>
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: npm audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: osv-scanner
+        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+        with:
+          scan-args: '--lockfile=package-lock.json'
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c  # main @ 2026-05-28
+        with:
+          project: '${{ github.repository }}'
+          path: '.'
+          format: HTML
+          args: '--failOnCVSS 7'
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - name: govulncheck
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee  # v1
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version-file: .python-version
+      - run: pip install pip-audit
+      - name: pip-audit
+        run: pip-audit --strict
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: cargo-audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+<% } %>

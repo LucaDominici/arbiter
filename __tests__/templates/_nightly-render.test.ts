@@ -50,9 +50,20 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).not.toContain('mutation-deep')
   })
 
-  it.each(STACKS)('$language: dep-cve-refresh job present', ({ language, buildTool }) => {
-    const rendered = renderNightlyPartial({ language, buildTool })
-    expect(rendered).toContain('dep-cve-refresh:')
+  it('nightly delegates to shared-security partial (#1694)', () => {
+    const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).toContain('shared-security:')
+    expect(rendered).toContain('nvd-cache-namespace: nightly')
+  })
+
+  it('nightly does NOT define inline dep-cve-refresh job (#1694)', () => {
+    const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).not.toContain('dep-cve-refresh:')
+  })
+
+  it('nightly does NOT define inline dast-full job (#1694)', () => {
+    const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).not.toContain('dast-full:')
   })
 
   it.each(STACKS)('$language: fuzz job present', ({ language, buildTool }) => {
