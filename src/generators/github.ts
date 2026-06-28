@@ -220,6 +220,11 @@ function generateScheduledWorkflows(
       { dryRun },
     ),
     writeFile(
+      join(workflowsDir, '_shared-security.yml'),
+      renderTemplate('github/workflows/_shared-security.yml.ejs', data),
+      { dryRun },
+    ),
+    writeFile(
       join(workflowsDir, '_weekly.yml'),
       renderTemplate('github/workflows/_weekly.yml.ejs', data),
       { dryRun },
