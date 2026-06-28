@@ -308,7 +308,7 @@ function generateCiWorkflows(
     )
   }
 
-  if (style === 'industrial') files.push(...generateIndustrialWorkflows(workflowsDir, data, dryRun))
+  if (style === 'industrial' && isL3Plus) files.push(...generateIndustrialWorkflows(workflowsDir, data, dryRun))
 
   files.push(...generateCiGapWorkflows(workflowsDir, config, dryRun))
 
