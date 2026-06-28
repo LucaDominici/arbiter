@@ -6,6 +6,10 @@ report/
 .arbiter/
 .claude/worktrees/
 docs/PLAN/
+# Python cache directories (#1686)
+.pytest_cache/
+__pycache__/
+.mypy_cache/
 __tests__/fixtures/real-projects/**/target/
 __tests__/fixtures/real-projects/**/.pytest_cache/
 docs/REFERENCE/coverage/dim-*.md
