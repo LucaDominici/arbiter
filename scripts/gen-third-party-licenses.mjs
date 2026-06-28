@@ -26,7 +26,14 @@
 // reflects what is actually installed, not a hand-maintained list. The
 // generator FAILS CLOSED on any unresolved (`UNKNOWN`) license: a legal
 // artifact must never silently omit an obligation.
-import { readFileSync, writeFileSync, readdirSync, globSync, lstatSync, realpathSync } from 'node:fs'
+import {
+  readFileSync,
+  writeFileSync,
+  readdirSync,
+  globSync,
+  lstatSync,
+  realpathSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 
