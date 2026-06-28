@@ -17,7 +17,9 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
       - name: Check outdated packages
-        run: npm outdated || true
+        run: |
+          # FAIL-OPEN-INTENT: npm outdated exits 1 when packages are stale; step is informational
+          npm outdated || true
 
 
   perf-trend:
@@ -47,6 +49,7 @@ jobs:
           STALE=0
           CUTOFF=$(date -d '180 days ago' +%s 2>/dev/null || date -v-180d +%s)
           for wf in $WORKFLOWS; do
+            # FAIL-OPEN-INTENT: grep exits 1 on no matches; empty REFS is valid
             REFS=$(grep -oP 'uses: \S+@[a-f0-9]{40}' "$wf" | sed 's/uses: //' || true)
             for ref in $REFS; do
               ACTION=$(echo "$ref" | cut -d@ -f1)
