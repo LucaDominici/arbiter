@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/ship-driver.md'
 source_sha: 'ad1644a5e94c4c94f78d3cb601bb5e5516b5e4ed'
-last_updated: '2026-06-21'
+last_updated: '2026-06-28'
 ---
 
 # Reference: Ship Driver (generated)

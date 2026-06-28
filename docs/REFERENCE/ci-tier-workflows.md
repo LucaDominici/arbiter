@@ -12,12 +12,23 @@ related: ['docs/SYSTEM/CI-TIER-MODEL.md']
 # CI Tier Workflows — Reference
 
 arbiter generates a CI tier of up to **18 numbered workflow files** (`01`–`18`, plus the
-`06-nightly-lite` / `07-weekly-lite` variants) and a set of reusable helper workflows. Every
-workflow is classified into one of four **cadence buckets** (ALWAYS / NIGHTLY /
+`06-nightly-lite` / `07-weekly-lite` variants), a set of reusable helper workflows, and three
+**reusable schedule partials** (`_nightly.yml`, `_weekly.yml`, `_monthly.yml`). Every
+numbered workflow is classified into one of four **cadence buckets** (ALWAYS / NIGHTLY /
 WEEKLY-MONTHLY / PROD) and is emitted only when its governance/emit predicate holds. The
 model — cadence axis × governance axis — is specified in
 [`docs/SYSTEM/CI-TIER-MODEL.md`](../SYSTEM/CI-TIER-MODEL.md); this page is the per-workflow
 inventory.
+
+### Thin-caller / reusable-partial pattern (#1691)
+
+`06-nightly.yml`, `07-weekly.yml`, and `08-monthly.yml` are **thin callers**: they carry only
+the schedule trigger, `workflow_dispatch:`, and the top-level `concurrency:` group. All job
+definitions live in the corresponding `_nightly.yml` / `_weekly.yml` / `_monthly.yml`
+reusable partials (invoked via `uses: ./.github/workflows/_*.yml`). This keeps the job
+definitions testable in isolation and prevents schedule/concurrency settings from leaking into
+the `workflow_call:` context (GitHub does not propagate `concurrency:` from a caller into a
+called workflow).
 
 > Which workflows a given project receives depends on its `collaborationMode`,
 > `governanceLevel`, `archetype`, and `deployTarget`. The "Emitted when" column is the exact
@@ -39,19 +50,19 @@ inventory.
 
 ### NIGHTLY — daily schedule (heavy sweep + watchdog)
 
-| File                  | Emitted when                                      | Purpose                                                         |
-| --------------------- | ------------------------------------------------- | --------------------------------------------------------------- |
-| `06-nightly.yml`      | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Full nightly: mutation, full coverage, DAST, dep-CVE            |
-| `06-nightly-lite.yml` | `trunk-solo` + L2+                                | Lite nightly: integration + CVE refresh (no mutation/SLSA/SBOM) |
-| `09-heartbeat.yml`    | L3+                                               | Daily watchdog: asserts nightly/weekly/monthly ran on schedule  |
+| File                  | Emitted when                                      | Purpose                                                               |
+| --------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
+| `06-nightly.yml`      | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_nightly.yml` (schedule 02:00 UTC + concurrency group) |
+| `06-nightly-lite.yml` | `trunk-solo` + L2+                                | Lite nightly: integration + CVE refresh (no mutation/SLSA/SBOM)       |
+| `09-heartbeat.yml`    | L3+                                               | Daily watchdog: asserts nightly/weekly/monthly ran on schedule        |
 
 ### WEEKLY-MONTHLY — weekly (Sun/Mon) + monthly schedule (deep audits)
 
 | File                        | Emitted when                                      | Purpose                                                                                |
 | --------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `07-weekly.yml`             | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Weekly: dep audit, license scan, regression baseline                                   |
+| `07-weekly.yml`             | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_weekly.yml` (schedule Sun 03:00 UTC + concurrency group)               |
 | `07-weekly-lite.yml`        | `trunk-solo` + L3+                                | Lite weekly deep sweep: dep freshness, action-pin audit, Semgrep SAST + secret history |
-| `08-monthly.yml`            | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Monthly: deep security scan, stale-dep report                                          |
+| `08-monthly.yml`            | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_monthly.yml` (schedule 1st of month 04:00 UTC + concurrency group)     |
 | `12-mutation-scheduled.yml` | `style === 'industrial'`                          | Scheduled mutation testing (Mon)                                                       |
 | `13-archunit-extended.yml`  | `style === 'industrial'`                          | Scheduled architecture-rule enforcement (Mon)                                          |
 | `14-license-scan.yml`       | `style === 'industrial'`                          | Scheduled license / SBOM scan (Mon)                                                    |
@@ -68,17 +79,20 @@ inventory.
 
 ## Reusable & utility workflows (no cadence bucket)
 
-| File                       | Emitted when                               | Purpose                                                           |
-| -------------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| `_notify.yml`              | GitHub enabled                             | Reusable: idempotent GitHub Issue notification                    |
-| `_label-sync.yml`          | GitHub enabled                             | Reusable: sync `.github/labels.yml` → repo labels on push to main |
-| `_label-on-approve.yml`    | GitHub enabled                             | Bot: label management on PR review approval                       |
-| `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling                            |
-| `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                               |
-| `_sigstore-retry-sign.yml` | with `05-release` (`style !== 'starter'`)  | Reusable: cosign signing with retry/backoff                       |
-| `_post-merge-notify.yml`   | L2+ **and** `enableCodeownersNotify: true` | Optional: email CODEOWNERS after each merged PR (#943, opt-in)    |
-| `issue-state.yml`          | GitHub enabled                             | Issue lifecycle state automation                                  |
-| `drift-shadow.yml`         | `enableSoloDevMode` (trunk-solo)           | Shadow drift-detection for solo/trunk repos                       |
+| File                       | Emitted when                               | Purpose                                                                    |
+| -------------------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `_nightly.yml`             | same as `06-nightly.yml`                   | Reusable partial: all nightly job definitions (called by `06-nightly.yml`) |
+| `_weekly.yml`              | same as `07-weekly.yml`                    | Reusable partial: all weekly job definitions (called by `07-weekly.yml`)   |
+| `_monthly.yml`             | same as `08-monthly.yml`                   | Reusable partial: all monthly job definitions (called by `08-monthly.yml`) |
+| `_notify.yml`              | GitHub enabled                             | Reusable: idempotent GitHub Issue notification                             |
+| `_label-sync.yml`          | GitHub enabled                             | Reusable: sync `.github/labels.yml` → repo labels on push to main          |
+| `_label-on-approve.yml`    | GitHub enabled                             | Bot: label management on PR review approval                                |
+| `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling                                     |
+| `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                                        |
+| `_sigstore-retry-sign.yml` | with `05-release` (`style !== 'starter'`)  | Reusable: cosign signing with retry/backoff                                |
+| `_post-merge-notify.yml`   | L2+ **and** `enableCodeownersNotify: true` | Optional: email CODEOWNERS after each merged PR (#943, opt-in)             |
+| `issue-state.yml`          | GitHub enabled                             | Issue lifecycle state automation                                           |
+| `drift-shadow.yml`         | `enableSoloDevMode` (trunk-solo)           | Shadow drift-detection for solo/trunk repos                                |
 
 `_contract-postman.yml`, `_k6-runner.yml`, and the `_cosign-copy` / `_deploy` / `_partials`
 directories are sub-workflow partials included by the workflows above (contract testing, k6
@@ -105,15 +119,16 @@ floor, the gate verifies:
 
 In addition to the workflows, `generateCiTier` / `generateGithub` emit:
 
-| File                                          | Purpose                                                                                  |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `.github/labels.yml`                          | Canonical label list (size, AI governance, CI tier, lifecycle)                           |
-| `.github/extended-ci-paths.txt`               | Version-controlled SSOT of sensitive paths the `02-pr-extended` check-trigger gate reads |
-| `.github/dependabot.yml`                      | Dependency update config                                                                 |
-| `.github/actions/setup-node-pnpm/action.yml`  | Composite action for Node + pnpm setup                                                   |
-| `.github/actions/setup-java-maven/action.yml` | Composite action for Java + Maven setup with reactor restore (Java projects only, #1226) |
-| `.github/actions/build-cache/action.yml`      | Composite build-cache action (node-workspace / wheel restore) (#1497)                    |
-| `.github/actions/sign-and-attest/action.yml`  | Composite cosign sign + attest action (release/deploy path)                              |
+| File                                          | Purpose                                                                                                                                         |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/labels.yml`                          | Canonical label list (size, AI governance, CI tier, lifecycle)                                                                                  |
+| `.github/extended-ci-paths.txt`               | Version-controlled SSOT of sensitive paths the `02-pr-extended` check-trigger gate reads                                                        |
+| `.github/dependabot.yml`                      | Dependency update config                                                                                                                        |
+| `.github/actions/setup-node-pnpm/action.yml`  | Composite action for Node + pnpm setup                                                                                                          |
+| `.github/actions/setup-java-maven/action.yml` | Composite action for Java + Maven setup with reactor restore (Java projects only, #1226)                                                        |
+| `.github/actions/build-cache/action.yml`      | Composite build-cache action (node-workspace / wheel restore) (#1497)                                                                           |
+| `.github/actions/sign-and-attest/action.yml`  | Composite cosign sign + attest action (release/deploy path)                                                                                     |
+| `sonar-project.properties`                    | SonarQube project config; JaCoCo XML path set per build tool (`maven` → `target/coverage/jacoco.xml`, `gradle` → `build/coverage/coverage.xml`) |
 
 ## Jobs in 01-pr-fast.yml
 
@@ -138,6 +153,14 @@ The `scripts/check-action-pins.mjs` gate enforces this at L2.
 
 Every generated workflow declares explicit top-level `permissions:` with least-privilege
 defaults. The `scripts/check-workflow-perms.mjs` gate enforces this at L1.
+
+## Worktree pre-commit skip (#1695)
+
+`.githooks/pre-commit` detects when it is running inside a git worktree (`[ -f ".git" ]` —
+worktrees have a `.git` file, not a directory) and exits early after running gitleaks but
+before the full L1 gate. This avoids the `node_modules` symlink issue that causes
+`gen-third-party-licenses` to report 0 production deps in worktrees (root cause tracked in
+#1695). CI enforces the full gate on the integration branch, so no governance gap exists.
 
 ## Post-merge CODEOWNERS notification (#943, opt-in)
 

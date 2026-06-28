@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/ci-tier-workflows.md'
-source_sha: '233a5057f5f40410a26aa06a44c846001fb448e5'
-last_updated: '2026-06-26'
+source_sha: '7455d619bee3485a48818c52df1b5379510625b5'
+last_updated: '2026-06-28'
 ---
 
 # CI Tier Workflows — Reference
@@ -13,12 +13,23 @@ last_updated: '2026-06-26'
 # CI Tier Workflows — Reference
 
 arbiter generates a CI tier of up to **18 numbered workflow files** (`01`–`18`, plus the
-`06-nightly-lite` / `07-weekly-lite` variants) and a set of reusable helper workflows. Every
-workflow is classified into one of four **cadence buckets** (ALWAYS / NIGHTLY /
+`06-nightly-lite` / `07-weekly-lite` variants), a set of reusable helper workflows, and three
+**reusable schedule partials** (`_nightly.yml`, `_weekly.yml`, `_monthly.yml`). Every
+numbered workflow is classified into one of four **cadence buckets** (ALWAYS / NIGHTLY /
 WEEKLY-MONTHLY / PROD) and is emitted only when its governance/emit predicate holds. The
 model — cadence axis × governance axis — is specified in
 [`docs/SYSTEM/CI-TIER-MODEL.md`](../SYSTEM/CI-TIER-MODEL.md); this page is the per-workflow
 inventory.
+
+### Thin-caller / reusable-partial pattern (#1691)
+
+`06-nightly.yml`, `07-weekly.yml`, and `08-monthly.yml` are **thin callers**: they carry only
+the schedule trigger, `workflow_dispatch:`, and the top-level `concurrency:` group. All job
+definitions live in the corresponding `_nightly.yml` / `_weekly.yml` / `_monthly.yml`
+reusable partials (invoked via `uses: ./.github/workflows/_*.yml`). This keeps the job
+definitions testable in isolation and prevents schedule/concurrency settings from leaking into
+the `workflow_call:` context (GitHub does not propagate `concurrency:` from a caller into a
+called workflow).
 
 > Which workflows a given project receives depends on its `collaborationMode`,
 > `governanceLevel`, `archetype`, and `deployTarget`. The "Emitted when" column is the exact
@@ -40,19 +51,19 @@ inventory.
 
 ### NIGHTLY — daily schedule (heavy sweep + watchdog)
 
-| File                  | Emitted when                                      | Purpose                                                         |
-| --------------------- | ------------------------------------------------- | --------------------------------------------------------------- |
-| `06-nightly.yml`      | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Full nightly: mutation, full coverage, DAST, dep-CVE            |
-| `06-nightly-lite.yml` | `trunk-solo` + L2+                                | Lite nightly: integration + CVE refresh (no mutation/SLSA/SBOM) |
-| `09-heartbeat.yml`    | L3+                                               | Daily watchdog: asserts nightly/weekly/monthly ran on schedule  |
+| File                  | Emitted when                                      | Purpose                                                               |
+| --------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
+| `06-nightly.yml`      | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_nightly.yml` (schedule 02:00 UTC + concurrency group) |
+| `06-nightly-lite.yml` | `trunk-solo` + L2+                                | Lite nightly: integration + CVE refresh (no mutation/SLSA/SBOM)       |
+| `09-heartbeat.yml`    | L3+                                               | Daily watchdog: asserts nightly/weekly/monthly ran on schedule        |
 
 ### WEEKLY-MONTHLY — weekly (Sun/Mon) + monthly schedule (deep audits)
 
 | File                        | Emitted when                                      | Purpose                                                                                |
 | --------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `07-weekly.yml`             | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Weekly: dep audit, license scan, regression baseline                                   |
+| `07-weekly.yml`             | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_weekly.yml` (schedule Sun 03:00 UTC + concurrency group)               |
 | `07-weekly-lite.yml`        | `trunk-solo` + L3+                                | Lite weekly deep sweep: dep freshness, action-pin audit, Semgrep SAST + secret history |
-| `08-monthly.yml`            | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Monthly: deep security scan, stale-dep report                                          |
+| `08-monthly.yml`            | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_monthly.yml` (schedule 1st of month 04:00 UTC + concurrency group)     |
 | `12-mutation-scheduled.yml` | `style === 'industrial'`                          | Scheduled mutation testing (Mon)                                                       |
 | `13-archunit-extended.yml`  | `style === 'industrial'`                          | Scheduled architecture-rule enforcement (Mon)                                          |
 | `14-license-scan.yml`       | `style === 'industrial'`                          | Scheduled license / SBOM scan (Mon)                                                    |
@@ -69,33 +80,18 @@ inventory.
 
 ## Reusable & utility workflows (no cadence bucket)
 
-| File                       | Emitted when                               | Purpose                                                           |
-| -------------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| `_notify.yml`              | GitHub enabled                             | Reusable: idempotent GitHub Issue notification                    |
-| `_label-sync.yml`          | GitHub enabled                             | Reusable: sync `.github/labels.yml` → repo labels on push to main |
-| `_label-on-approve.yml`    | GitHub enabled                             | Bot: label management on PR review approval                       |
-| `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling                            |
-| `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                               |
-| `_sigstore-retry-sign.yml` | with `05-release` (`style !== 'starter'`)  | Reusable: cosign signing with retry/backoff                       |
-| `_post-merge-notify.yml`   | L2+ **and** `enableCodeownersNotify: true` | Optional: email CODEOWNERS after each merged PR (#943, opt-in)    |
-| `issue-state.yml`          | GitHub enabled                             | Issue lifecycle state automation                                  |
-| `drift-shadow.yml`         | `enableSoloDevMode` (trunk-solo)           | Shadow drift-detection for solo/trunk repos                       |
-
-`_contract-postman.yml`, `_k6-runner.yml`, and the `_cosign-copy` / `_deploy` / `_partials`
-directories are sub-workflow partials included by the workflows above (contract testing, k6
-runner, signing/deploy reuse); they are not independently scheduled.
-
-## INV-73 canonical presence floor
-
-`scripts/check-ci-tiers.mjs` enforces presence of the canonical numbered set
-(`01`, `02`, `03`, `05`, `06`, `07`, `08`, `09`) via the INV-73 `minPresent` floor (read
-from `src/invariants/catalog.ts`; arbiter-self runs at `minPresent: 6` during the
-`migrationStatus: 'transition'` window, target projects require the full set). On top of the
-floor, the gate verifies:
-
-- **INV-72 collaboration-mode/level-aware required set** — the exact inverse of the
-  generation predicates (e.g. `trunk-solo` + L3+ requires the nightly slot
-  `06-nightly-lite | 06-nightly`, the 
+| File                       | Emitted when                               | Purpose                                                                    |
+| -------------------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `_nightly.yml`             | same as `06-nightly.yml`                   | Reusable partial: all nightly job definitions (called by `06-nightly.yml`) |
+| `_weekly.yml`              | same as `07-weekly.yml`                    | Reusable partial: all weekly job definitions (called by `07-weekly.yml`)   |
+| `_monthly.yml`             | same as `08-monthly.yml`                   | Reusable partial: all monthly job definitions (called by `08-monthly.yml`) |
+| `_notify.yml`              | GitHub enabled                             | Reusable: idempotent GitHub Issue notification                             |
+| `_label-sync.yml`          | GitHub enabled                             | Reusable: sync `.github/labels.yml` → repo labels on push to main          |
+| `_label-on-approve.yml`    | GitHub enabled                             | Bot: label management on PR review approval                                |
+| `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling                                     |
+| `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                                        |
+| `_sigstore-retry-sign.yml` | with `05-release` (`style !== 'starter'`)  | Reusable: cosign signing with retry/backoff                                |
+| `_post-merge
 
 *[content truncated — see source for full text]*
 

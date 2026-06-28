@@ -1,6 +1,6 @@
 ---
 generated: true
-last_updated: '2026-06-21'
+last_updated: '2026-06-28'
 ---
 
 # Wiki Index
@@ -68,5 +68,6 @@ last_updated: '2026-06-21'
 - [[security-stride]]
 - [[semver]]
 - [[system-canon]]
+- [[system-ci-tier-model]]
 - [[system-decisions]]
 - [[system-hook-contracts]]

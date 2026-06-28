@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/MILESTONES.md'
 source_sha: '96037e195f6163300ffa556d91b834b5120add64'
-last_updated: '2026-06-21'
+last_updated: '2026-06-28'
 ---
 
 # Arbiter — Milestones
