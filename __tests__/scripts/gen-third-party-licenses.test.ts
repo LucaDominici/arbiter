@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
 import { spawnSync, execSync } from 'node:child_process'
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import {
+  readFileSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  globSync,
+  lstatSync,
+  realpathSync,
+} from 'node:fs'
 import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -9,29 +18,84 @@ const SCRIPT = resolve('scripts/gen-third-party-licenses.mjs')
 const OUT = resolve('THIRD_PARTY_LICENSES.md')
 
 /**
+ * When `node_modules` is a symlink (git worktree), `npm ls` must run from the
+ * real main repo root to report the correct production closure. Otherwise it
+ * sees the entire shared node_modules and reports all packages as candidates.
+ */
+function resolveNpmCwd(): string {
+  const cwd = resolve('.')
+  try {
+    const nmPath = join(cwd, 'node_modules')
+    const stat = lstatSync(nmPath)
+    if (stat.isSymbolicLink()) {
+      return resolve(realpathSync(nmPath), '..')
+    }
+  } catch {
+    /* no node_modules or stat failed — use cwd */
+  }
+  return cwd
+}
+
+const NPM_CWD = resolveNpmCwd()
+
+/**
+ * Collect the names of all local workspace packages declared in the root
+ * package.json#workspaces globs. Reads from NPM_CWD (main repo root in
+ * worktrees) to resolve workspace dirs correctly.
+ */
+function workspaceNames(): Set<string> {
+  const pkg = JSON.parse(readFileSync(join(NPM_CWD, 'package.json'), 'utf8')) as {
+    workspaces?: string[]
+  }
+  const patterns = Array.isArray(pkg.workspaces) ? pkg.workspaces : []
+  const names = new Set<string>()
+  for (const pattern of patterns) {
+    const dirs = globSync(pattern, { cwd: NPM_CWD })
+    for (const dir of dirs) {
+      try {
+        const ws = JSON.parse(readFileSync(join(NPM_CWD, dir, 'package.json'), 'utf8')) as {
+          name?: string
+        }
+        if (ws.name) names.add(ws.name)
+      } catch {
+        /* missing package.json — skip */
+      }
+    }
+  }
+  return names
+}
+
+/**
  * The true production dependency closure a consumer installs with
  * `npm install @arbiter/cli` — every registry package reachable from the
- * root `dependencies`, pruning local workspace packages (resolved `file:`)
- * whose own subtrees are not part of arbiter's runtime. This is what the
- * attribution file must cover, not merely the 5 direct deps.
+ * root `dependencies`, pruning local workspace packages (resolved `file:`
+ * AND name in the workspace set) whose own subtrees are not part of
+ * arbiter's runtime. This is what the attribution file must cover, not
+ * merely the 5 direct deps.
  */
 function productionClosure(): string[] {
   const raw = execSync('npm ls --omit=dev --all --json', {
+    cwd: NPM_CWD,
     encoding: 'utf-8',
     maxBuffer: 32 * 1024 * 1024,
   })
   const tree = JSON.parse(raw) as {
-    dependencies?: Record<string, { resolved?: string; version?: string; dependencies?: unknown }>
+    dependencies?: Record<
+      string,
+      { resolved?: string; missing?: boolean; version?: string; dependencies?: unknown }
+    >
   }
+  const wsNames = workspaceNames()
   const acc: Record<string, true> = {}
   const walk = (node: { dependencies?: Record<string, unknown> }): void => {
     const deps = (node.dependencies ?? {}) as Record<
       string,
-      { resolved?: string; dependencies?: unknown }
+      { resolved?: string; missing?: boolean; dependencies?: unknown }
     >
     for (const [name, child] of Object.entries(deps)) {
+      if (child.missing) continue // peer dep listed but not installed — skip
       const resolved = child.resolved ?? ''
-      if (resolved.startsWith('file:')) continue // prune local workspace subtree
+      if (resolved.startsWith('file:') && wsNames.has(name)) continue // prune local workspace subtree
       if (!acc[name]) {
         acc[name] = true
         walk(child as { dependencies?: Record<string, unknown> })
@@ -160,5 +224,27 @@ describe('gen-third-party-licenses.mjs', () => {
   it('package.json files[] ships THIRD_PARTY_LICENSES.md', () => {
     const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf8'))
     expect(pkg.files).toContain('THIRD_PARTY_LICENSES.md')
+  })
+
+  it('includes registry packages with file: paths when not in workspaces (#1695)', () => {
+    // In git worktrees, `npm ls --long` resolves ALL packages through the
+    // node_modules symlink, yielding `file:` resolved paths for every package
+    // — including real registry deps. The old filter pruned ALL `file:` paths,
+    // yielding 0 deps. The fix prunes only packages whose name is in the local
+    // workspace set. This test uses a fixture that simulates the worktree output
+    // (all `file:` resolved paths, none of them workspace packages) and verifies
+    // that both packages appear in the generated attribution.
+    const fixture = resolve('__tests__/fixtures/npm-ls-worktree.json')
+    const original = readFileSync(OUT, 'utf8')
+    try {
+      const result = run(['--npm-ls-fixture', fixture])
+      expect(result.status).toBe(0)
+      expect(result.stderr).toContain('wrote THIRD_PARTY_LICENSES.md')
+      const written = readFileSync(OUT, 'utf8')
+      expect(written).toContain('## semver@')
+      expect(written).toContain('## ejs@')
+    } finally {
+      writeFileSync(OUT, original)
+    }
   })
 })

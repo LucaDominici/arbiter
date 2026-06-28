@@ -26,12 +26,48 @@
 // reflects what is actually installed, not a hand-maintained list. The
 // generator FAILS CLOSED on any unresolved (`UNKNOWN`) license: a legal
 // artifact must never silently omit an obligation.
-import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, readdirSync, globSync, lstatSync, realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 
 const ROOT = process.cwd()
 const OUT_FILE = resolve(ROOT, 'THIRD_PARTY_LICENSES.md')
+
+/**
+ * In a git worktree, `node_modules` is a symlink to the main repo's
+ * `node_modules`. Running `npm ls` from the worktree gives a bloated,
+ * incorrect production dependency closure (it sees ALL packages in the shared
+ * store, not just those reachable from the CLI's production dep graph). Detect
+ * the symlink and resolve to the main repo root so `npm ls` reports the
+ * correct closure.
+ */
+function resolveNpmCwd(dir) {
+  try {
+    const nmPath = join(dir, 'node_modules')
+    const stat = lstatSync(nmPath)
+    if (stat.isSymbolicLink()) {
+      // node_modules is a symlink → git worktree. Use the real parent as npm cwd.
+      return resolve(realpathSync(nmPath), '..')
+    }
+  } catch {
+    /* no node_modules or stat failed — use dir as-is */
+  }
+  return dir
+}
+
+const NPM_ROOT = resolveNpmCwd(ROOT)
+
+// --npm-ls-fixture=<path> or --npm-ls-fixture <path>: substitute a JSON file for the
+// `npm ls` spawn (testing only). Supports both `=` and space-separated forms.
+const _fixtureIdx = process.argv.findIndex(
+  (a) => a === '--npm-ls-fixture' || a.startsWith('--npm-ls-fixture='),
+)
+const _fixturePath =
+  _fixtureIdx === -1
+    ? null
+    : process.argv[_fixtureIdx].startsWith('--npm-ls-fixture=')
+      ? process.argv[_fixtureIdx].slice('--npm-ls-fixture='.length)
+      : (process.argv[_fixtureIdx + 1] ?? null)
 const HEADER = `# Third-Party Licenses
 
 arbiter (\`@arbiter/cli\`) is distributed under the Apache License 2.0. This file
@@ -117,47 +153,82 @@ function homepageOf(pkgJson) {
 }
 
 /**
+ * Collect the `name` fields of all local workspace packages declared in the
+ * root `package.json#workspaces` globs. Used to distinguish first-party
+ * workspace packages (which carry `file:` resolved paths in `npm ls --long`)
+ * from third-party registry packages whose paths happen to be `file:` paths
+ * in git worktrees where `node_modules` is a symlink to the main repo.
+ */
+function readWorkspaceNames() {
+  const pkg = JSON.parse(readFileSync(join(NPM_ROOT, 'package.json'), 'utf8'))
+  const patterns = Array.isArray(pkg.workspaces) ? pkg.workspaces : []
+  const names = new Set()
+  for (const pattern of patterns) {
+    const dirs = globSync(pattern, { cwd: NPM_ROOT })
+    for (const dir of dirs) {
+      try {
+        const ws = JSON.parse(readFileSync(join(NPM_ROOT, dir, 'package.json'), 'utf8'))
+        if (ws.name) names.add(ws.name)
+      } catch {
+        /* missing package.json — skip */
+      }
+    }
+  }
+  return names
+}
+
+/**
  * Resolve the full production dependency closure via `npm ls`. Returns one
  * entry per distinct package@version actually installed, with its on-disk
  * `path` (transitive deps may be nested under a parent or installed at several
  * versions — the path from `npm ls --long` is the only reliable resolver).
- * Local workspace packages (resolved `file:`) are pruned: they are first-party,
- * not redistributed third parties. Entries are sorted name-then-version.
+ * Local workspace packages (resolved `file:` AND name in workspaces set) are
+ * pruned: they are first-party, not redistributed third parties. Third-party
+ * packages with `file:` resolved paths (as seen in git worktrees where
+ * node_modules is a symlink) are retained. Entries are sorted name-then-version.
  */
 function productionClosure() {
   let raw
-  try {
-    raw = execFileSync('npm', ['ls', '--omit=dev', '--all', '--json', '--long'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-      // `npm ls` exits non-zero on benign peer-dep warnings; we only need the
-      // JSON tree it always prints, so capture stdout regardless of exit code.
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-  } catch (err) {
-    // execFileSync throws on non-zero exit but still attaches captured stdout.
-    raw = err && typeof err.stdout === 'string' ? err.stdout : ''
-    if (!raw) {
-      throw new Error(
-        `Cannot enumerate production dependency closure: ${err instanceof Error ? err.message : String(err)}. Run \`npm ci\` first.`,
-      )
+  if (_fixturePath) {
+    raw = readFileSync(_fixturePath, 'utf8')
+  } else {
+    try {
+      raw = execFileSync('npm', ['ls', '--omit=dev', '--all', '--json', '--long'], {
+        // Use NPM_ROOT (main repo root in worktrees) so `npm ls` reports the
+        // correct production closure rather than the entire shared node_modules.
+        cwd: NPM_ROOT,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        // `npm ls` exits non-zero on benign peer-dep warnings; we only need the
+        // JSON tree it always prints, so capture stdout regardless of exit code.
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+    } catch (err) {
+      // execFileSync throws on non-zero exit but still attaches captured stdout.
+      raw = err && typeof err.stdout === 'string' ? err.stdout : ''
+      if (!raw) {
+        throw new Error(
+          `Cannot enumerate production dependency closure: ${err instanceof Error ? err.message : String(err)}. Run \`npm ci\` first.`,
+        )
+      }
     }
   }
   const tree = JSON.parse(raw)
+  const workspaceNames = readWorkspaceNames()
   const byKey = new Map()
   const walk = (node) => {
     const deps = node && node.dependencies ? node.dependencies : {}
     for (const [name, child] of Object.entries(deps)) {
+      if (child && child.missing) continue // peer dep listed but not installed — skip
       const resolved = (child && child.resolved) || ''
-      if (resolved.startsWith('file:')) continue // first-party workspace — prune
+      if (resolved.startsWith('file:') && workspaceNames.has(name)) continue // first-party workspace — prune
       const version = (child && child.version) || '0.0.0'
       const key = `${name}@${version}`
       if (!byKey.has(key)) {
         byKey.set(key, {
           name,
           version,
-          path: (child && child.path) || resolve(ROOT, 'node_modules', name),
+          path: (child && child.path) || resolve(NPM_ROOT, 'node_modules', name),
         })
         walk(child)
       }
