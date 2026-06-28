@@ -204,6 +204,49 @@ function generateCiGapWorkflows(
   return files
 }
 
+/**
+ * #1691: Emit the reusable partials (_nightly/_weekly/_monthly) + their thin-dispatcher callers.
+ * Extracted from generateCiWorkflows to keep that function under the 100-line lint ceiling.
+ */
+function generateScheduledWorkflows(
+  workflowsDir: string,
+  data: ProjectConfig,
+  dryRun: boolean,
+): WriteResult[] {
+  return [
+    writeFile(
+      join(workflowsDir, '_nightly.yml'),
+      renderTemplate('github/workflows/_nightly.yml.ejs', data),
+      { dryRun },
+    ),
+    writeFile(
+      join(workflowsDir, '_weekly.yml'),
+      renderTemplate('github/workflows/_weekly.yml.ejs', data),
+      { dryRun },
+    ),
+    writeFile(
+      join(workflowsDir, '_monthly.yml'),
+      renderTemplate('github/workflows/_monthly.yml.ejs', data),
+      { dryRun },
+    ),
+    writeFile(
+      join(workflowsDir, '06-nightly.yml'),
+      renderTemplate('github/workflows/06-nightly.yml.ejs', data),
+      { dryRun },
+    ),
+    writeFile(
+      join(workflowsDir, '07-weekly.yml'),
+      renderTemplate('github/workflows/07-weekly.yml.ejs', data),
+      { dryRun },
+    ),
+    writeFile(
+      join(workflowsDir, '08-monthly.yml'),
+      renderTemplate('github/workflows/08-monthly.yml.ejs', data),
+      { dryRun },
+    ),
+  ]
+}
+
 function generateCiWorkflows(
   workflowsDir: string,
   config: ProjectConfig,
@@ -251,26 +294,9 @@ function generateCiWorkflows(
 
   // #1131: trunk-solo gets the lightweight 06-nightly-lite (emitted in
   // generateCiGapWorkflows) INSTEAD of the full nightly/weekly/monthly suite.
-  // Excluding it here prevents the double-emit of 06-nightly + 06-nightly-lite.
-  if (style !== 'starter' && isL3Plus && cm !== 'trunk-solo') {
-    files.push(
-      writeFile(
-        join(workflowsDir, '06-nightly.yml'),
-        renderTemplate('github/workflows/06-nightly.yml.ejs', data),
-        { dryRun },
-      ),
-      writeFile(
-        join(workflowsDir, '07-weekly.yml'),
-        renderTemplate('github/workflows/07-weekly.yml.ejs', data),
-        { dryRun },
-      ),
-      writeFile(
-        join(workflowsDir, '08-monthly.yml'),
-        renderTemplate('github/workflows/08-monthly.yml.ejs', data),
-        { dryRun },
-      ),
-    )
-  }
+  // #1691: reusable partials (_nightly/_weekly/_monthly) are emitted alongside callers.
+  if (style !== 'starter' && isL3Plus && cm !== 'trunk-solo')
+    files.push(...generateScheduledWorkflows(workflowsDir, data, dryRun))
 
   if (isL3Plus) {
     files.push(

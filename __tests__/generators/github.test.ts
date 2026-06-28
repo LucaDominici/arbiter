@@ -398,6 +398,17 @@ describe('generateGithub — ciTierMode workflow subset', () => {
     }
   })
 
+  it('full mode at L3 emits reusable partials _nightly/_weekly/_monthly (#1691)', () => {
+    // #1691: the callers (06/07/08) are thin dispatchers; job definitions live in partials.
+    generateGithub(makeConfig(dir, { ciTierMode: 'full', governanceLevel: 'L3' }))
+    const wfDir = join(dir, '.github', 'workflows')
+    for (const partial of ['_nightly.yml', '_weekly.yml', '_monthly.yml']) {
+      expect(existsSync(join(wfDir, partial)), `${partial} must be emitted alongside caller`).toBe(
+        true,
+      )
+    }
+  })
+
   it('undefined ciTierMode defaults to standard; L3 emits release and nightly', () => {
     // ADR-050: standard style at L3 emits 05-release and 06-nightly.
     generateGithub(makeConfig(dir, { governanceLevel: 'L3' }))
