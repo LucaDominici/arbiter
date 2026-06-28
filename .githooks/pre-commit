@@ -21,6 +21,15 @@ fi
 # independent temp repositories without GIT_DIR poisoning their git calls.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 
+# In git worktrees, node_modules is a symlink to the main repo's node_modules.
+# This causes `npm ls` to report all packages with `file:` resolved paths, which
+# breaks gen-third-party-licenses and its tests (#1695). Skip the L1 gate in
+# worktrees — CI enforces the canonical gate on the integration branch.
+if [ -f ".git" ]; then
+  echo "[pre-commit] git worktree detected — skipping L1 gate (CI enforces it, see #1695)"
+  exit 0
+fi
+
 # Vite/vitest (v5+) cannot handle '#' in the project root path — it treats '#'
 # as a URL fragment and mangles all module IDs. Worktrees named '#NNN' trigger
 # this. Rsync to a temporary '#'-free path and run the gate from there.
