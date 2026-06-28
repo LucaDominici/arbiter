@@ -146,8 +146,9 @@ describe('generated gate invocation is arg-compatible (#1504)', () => {
     expect(wf).not.toContain('check-all.mjs --level L2')
   })
 
-  it('06-nightly emits the POSITIONAL level form', () => {
-    const wf = renderTemplate('github/workflows/06-nightly.yml.ejs', CI_CTX)
+  it('_nightly.yml.ejs (reusable partial, #1691) emits the POSITIONAL level form', () => {
+    // #1691: gate-full-nightly job lives in _nightly.yml.ejs; thin caller has no check-all.mjs.
+    const wf = renderTemplate('github/workflows/_nightly.yml.ejs', CI_CTX)
     expect(wf).toContain('node scripts/check-all.mjs L2 --json gate-result-nightly.json')
     expect(wf).not.toContain('check-all.mjs --level L2')
   })

@@ -1404,17 +1404,30 @@ describe('cross-product: workflow templates — SHA-pinned action refs (INV-76, 
     { tpl: 'github/workflows/04-deploy-test.yml.ejs', level: 'L2', expectRefs: true },
     { tpl: 'github/workflows/05-release.yml.ejs', level: 'L2', expectRefs: true },
     { tpl: 'github/workflows/10-deploy-prod.yml.ejs', level: 'L2', expectRefs: true },
-    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', expectRefs: true },
-    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
-    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
-    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'rust', expectRefs: true },
-    { tpl: 'github/workflows/07-weekly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
-    { tpl: 'github/workflows/07-weekly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
-    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', expectRefs: true },
-    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
-    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
-    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'python', expectRefs: true },
-    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'rust', expectRefs: true },
+    // #1691: 06/07/08 are thin callers (uses: ./.github/workflows/_*.yml only — no third-party refs).
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', expectRefs: false },
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'java', expectRefs: false },
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'go', expectRefs: false },
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'rust', expectRefs: false },
+    { tpl: 'github/workflows/07-weekly.yml.ejs', level: 'L2', lang: 'java', expectRefs: false },
+    { tpl: 'github/workflows/07-weekly.yml.ejs', level: 'L2', lang: 'go', expectRefs: false },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', expectRefs: false },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'java', expectRefs: false },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'go', expectRefs: false },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'python', expectRefs: false },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'rust', expectRefs: false },
+    // #1691: reusable partials carry all the third-party action refs (INV-76).
+    { tpl: 'github/workflows/_nightly.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/_nightly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
+    { tpl: 'github/workflows/_nightly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
+    { tpl: 'github/workflows/_nightly.yml.ejs', level: 'L2', lang: 'rust', expectRefs: true },
+    { tpl: 'github/workflows/_weekly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
+    { tpl: 'github/workflows/_weekly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
+    { tpl: 'github/workflows/_monthly.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/_monthly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
+    { tpl: 'github/workflows/_monthly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
+    { tpl: 'github/workflows/_monthly.yml.ejs', level: 'L2', lang: 'python', expectRefs: true },
+    { tpl: 'github/workflows/_monthly.yml.ejs', level: 'L2', lang: 'rust', expectRefs: true },
     {
       tpl: 'github/workflows/12-mutation-scheduled.yml.ejs',
       level: 'L2',
@@ -1458,8 +1471,10 @@ describe('cross-product: workflow templates — SHA-pinned action refs (INV-76, 
 // ── #1076 Sub-2: Top-level permissions block (INV-77) ────────────────────────
 
 describe('cross-product: workflow templates — top-level permissions block (INV-77, #1076)', () => {
-  // These 26 enumerated *.yml.ejs templates must render with a top-level permissions: block.
+  // These 29 enumerated *.yml.ejs templates must render with a top-level permissions: block.
   // This ratchet prevents future template edits from accidentally removing permissions.
+  // #1691: added _nightly.yml.ejs, _weekly.yml.ejs, _monthly.yml.ejs (26 → 29).
+  // These templates must render with a top-level permissions: block.
   const ALL_WORKFLOW_TEMPLATES: Array<{ tpl: string; level: GovernanceLevel; lang?: string }> = [
     { tpl: 'github/workflows/01-pr-fast.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/02-pr-extended.yml.ejs', level: 'L2' },
@@ -1469,6 +1484,10 @@ describe('cross-product: workflow templates — top-level permissions block (INV
     { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/07-weekly.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2' },
+    // #1691: reusable partials also carry top-level permissions (INV-77).
+    { tpl: 'github/workflows/_nightly.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_weekly.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_monthly.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/09-heartbeat.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/10-deploy-prod.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/11-k6-on-demand.yml.ejs', level: 'L2' },

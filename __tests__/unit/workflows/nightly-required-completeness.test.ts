@@ -6,7 +6,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const WORKFLOW_PATH = resolve('.github/workflows/06-nightly.yml')
+// #1691: nightly job definitions live in _nightly.yml (reusable partial); 06-nightly.yml is a thin caller.
+const WORKFLOW_PATH = resolve('.github/workflows/_nightly.yml')
 
 function parseNightlyRequiredNeeds(src: string): string[] {
   // Locate the nightly-required job block specifically, not evidence-collect or others.

@@ -44,8 +44,9 @@ describe('CI gate-full job (#1225)', () => {
     expect(ciRequiredSection.substring(0, 500)).toMatch(/gate-full/)
   })
 
-  it('06-nightly.yml has a gate-full / full-gate job running check-all.mjs', () => {
-    const yml = readWorkflow('06-nightly.yml')
+  it('_nightly.yml (reusable partial, #1691) has a gate-full / full-gate job running check-all.mjs', () => {
+    // #1691: gate-full-nightly job lives in the reusable partial, not the thin caller.
+    const yml = readWorkflow('_nightly.yml')
     expect(yml).toMatch(/gate-full|full-gate/)
     expect(yml).toMatch(/check-all\.mjs/)
   })
@@ -68,8 +69,9 @@ describe('CI gate-full EJS template (#1225, CANON-01)', () => {
     expect(rendered).not.toMatch(/^\s{2}gate-full:/m)
   })
 
-  it('rendered 06-nightly.yml.ejs contains gate-full/full-gate job', () => {
-    const rendered = renderTemplate('github/workflows/06-nightly.yml.ejs', renderCtx)
+  it('rendered _nightly.yml.ejs (reusable partial, #1691) contains gate-full/full-gate job', () => {
+    // #1691: gate-full-nightly job lives in the reusable partial, not the thin caller.
+    const rendered = renderTemplate('github/workflows/_nightly.yml.ejs', renderCtx)
     expect(rendered).toMatch(/gate-full|full-gate/)
     expect(rendered).toMatch(/check-all\.mjs/)
   })
