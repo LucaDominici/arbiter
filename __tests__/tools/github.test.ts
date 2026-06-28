@@ -24,14 +24,15 @@ describe('tool output: github', () => {
     })
   }
 
-  it('generates T1+T2+T3+T4+T5+T5b+T6 CI workflows, PR template, extended-ci-paths SSOT, 5 issue templates, compliance-item, issue-state, dependabot, sign-and-attest action, sigstore-retry-sign, AI-PR gate, and codeql workflows (27 files total, #1691 adds _nightly/_weekly/_monthly partials)', () => {
+  it('generates T1+T2+T3+T4+T5+T5b+T6 CI workflows, PR template, extended-ci-paths SSOT, 5 issue templates, compliance-item, issue-state, dependabot, sign-and-attest action, sigstore-retry-sign, AI-PR gate, and codeql workflows (28 files total, #1691 adds _nightly/_weekly/_monthly, #1694 adds _shared-security)', () => {
     // Default config resolves to peer-review (#1131). peer-review L2+ emits
     // 15-codeql.yml (see github-ci-gap.test.ts); previously the gap-workflow
     // guards read the *raw* (undefined) collaborationMode and suppressed it.
     // #1691: peer-review L3+ emits 3 additional reusable partials (_nightly, _weekly, _monthly).
+    // #1694: adds _shared-security.yml reusable partial (called from _nightly and _weekly).
     const config = githubConfig({ governanceLevel: 'L3' })
     const result = generateGithub(config)
-    expect(result.files).toHaveLength(27)
+    expect(result.files).toHaveLength(28)
     expect(result.files.map((f) => f.path).some((p) => p.endsWith('15-codeql.yml'))).toBe(true)
   })
 
