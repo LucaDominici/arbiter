@@ -231,13 +231,42 @@ describe('gen-third-party-licenses.mjs', () => {
     // node_modules symlink, yielding `file:` resolved paths for every package
     // — including real registry deps. The old filter pruned ALL `file:` paths,
     // yielding 0 deps. The fix prunes only packages whose name is in the local
-    // workspace set. This test uses a fixture that simulates the worktree output
-    // (all `file:` resolved paths, none of them workspace packages) and verifies
-    // that both packages appear in the generated attribution.
-    const fixture = resolve('__tests__/fixtures/npm-ls-worktree.json')
+    // workspace set. This test builds a fixture dynamically (paths must point to
+    // packages actually installed on this machine — machine-agnostic) that
+    // simulates the worktree output and verifies both packages appear in the
+    // generated attribution.
+    const nmDir = join(NPM_CWD, 'node_modules')
+    const semverVersion = (
+      JSON.parse(readFileSync(join(nmDir, 'semver', 'package.json'), 'utf8')) as {
+        version: string
+      }
+    ).version
+    const ejsVersion = (
+      JSON.parse(readFileSync(join(nmDir, 'ejs', 'package.json'), 'utf8')) as { version: string }
+    ).version
+    const fixtureData = JSON.stringify({
+      name: '@arbiter/cli',
+      version: '0.0.0',
+      dependencies: {
+        semver: {
+          version: semverVersion,
+          resolved: 'file:../../../../arbiter/node_modules/semver',
+          path: join(nmDir, 'semver'),
+          dependencies: {},
+        },
+        ejs: {
+          version: ejsVersion,
+          resolved: 'file:../../../../arbiter/node_modules/ejs',
+          path: join(nmDir, 'ejs'),
+          dependencies: {},
+        },
+      },
+    })
+    const tempFixture = join(tmpdir(), `npm-ls-worktree-${process.pid}.json`)
+    writeFileSync(tempFixture, fixtureData)
     const original = readFileSync(OUT, 'utf8')
     try {
-      const result = run(['--npm-ls-fixture', fixture])
+      const result = run(['--npm-ls-fixture', tempFixture])
       expect(result.status).toBe(0)
       expect(result.stderr).toContain('wrote THIRD_PARTY_LICENSES.md')
       const written = readFileSync(OUT, 'utf8')
@@ -245,6 +274,7 @@ describe('gen-third-party-licenses.mjs', () => {
       expect(written).toContain('## ejs@')
     } finally {
       writeFileSync(OUT, original)
+      rmSync(tempFixture, { force: true })
     }
   })
 })
