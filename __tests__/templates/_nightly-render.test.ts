@@ -45,9 +45,9 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).not.toContain('concurrency:')
   })
 
-  it.each(STACKS)('$language: mutation-deep job present', ({ language, buildTool }) => {
-    const rendered = renderNightlyPartial({ language, buildTool })
-    expect(rendered).toContain('mutation-deep:')
+  it('nightly does not define a mutation-deep job (#1692)', () => {
+    const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).not.toContain('mutation-deep')
   })
 
   it.each(STACKS)('$language: dep-cve-refresh job present', ({ language, buildTool }) => {
@@ -93,34 +93,5 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).toContain('toxiproxy-resilience:')
     expect(rendered).not.toContain('shopify/toxiproxy-github-action')
     expect(rendered).toContain('releases/download/v2.12.0/toxiproxy-server-linux-amd64')
-  })
-})
-
-// ─── Per-language mutation tools ──────────────────────────────────────────────
-
-describe('_nightly.yml.ejs — per-language mutation tools', () => {
-  it('TypeScript: Stryker mutation', () => {
-    const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
-    expect(rendered).toContain('stryker run')
-  })
-
-  it('Java Gradle: PITest mutation', () => {
-    const rendered = renderNightlyPartial({ language: 'java', buildTool: 'gradle' })
-    expect(rendered).toContain('pitest')
-  })
-
-  it('Go: go-mutesting (informational)', () => {
-    const rendered = renderNightlyPartial({ language: 'go', buildTool: 'go' })
-    expect(rendered).toContain('go-mutesting')
-  })
-
-  it('Python: mutmut full run', () => {
-    const rendered = renderNightlyPartial({ language: 'python', buildTool: 'pip' })
-    expect(rendered).toContain('mutmut run')
-  })
-
-  it('Rust: cargo-mutants full suite', () => {
-    const rendered = renderNightlyPartial({ language: 'rust', buildTool: 'cargo' })
-    expect(rendered).toContain('cargo mutants')
   })
 })

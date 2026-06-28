@@ -9,55 +9,6 @@ permissions:
   issues: write
 
 jobs:
-  mutation-deep:
-    name: Deep mutation testing
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          fetch-depth: 0
-<% if (language === 'typescript') { %>
-      - uses: ./.github/actions/setup-node-pnpm
-      - name: Stryker mutation (full suite)
-        run: npx stryker run
-<% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: '21'
-<% if (buildTool === 'gradle') { %>
-      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
-      - name: PITest mutation (full suite)
-        run: ./gradlew pitest
-<% } else { %>
-      - name: PITest mutation (full suite)
-        run: mvn test-compile org.pitest:pitest-maven:mutationCoverage
-<% } %>
-<% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
-        with:
-          go-version-file: go.mod
-      - name: Install go-mutesting
-        run: go install github.com/zimmski/go-mutesting/cmd/go-mutesting@latest
-      - name: Mutation testing (informational)
-        run: go-mutesting ./... || true
-<% } else if (language === 'python') { %>
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version-file: .python-version
-      - run: pip install -e ".[dev]"
-      - name: mutmut full run
-        run: mutmut run
-<% } else if (language === 'rust') { %>
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-      - name: cargo-mutants (full suite)
-        run: |
-          cargo install cargo-mutants --locked
-          cargo mutants --all-features
-<% } %>
-
   dast-full:
     name: OWASP ZAP full scan
 <% if (!_isService) { %>
@@ -646,7 +597,6 @@ jobs:
   evidence-collect:
     name: Upload nightly evidence artifacts
     needs:
-      - mutation-deep
       - dep-cve-refresh
       - fuzz
       - soak-e2e
@@ -684,7 +634,6 @@ jobs:
   nightly-required:
     name: Nightly gate
     needs:
-      - mutation-deep
       - dep-cve-refresh
       - fuzz
       - soak-e2e
@@ -710,7 +659,6 @@ jobs:
       - name: Assert no hard failures
         run: |
           RESULTS=(
-            "${{ needs.mutation-deep.result }}"
             "${{ needs.dep-cve-refresh.result }}"
             "${{ needs.fuzz.result }}"
             "${{ needs.soak-e2e.result }}"
