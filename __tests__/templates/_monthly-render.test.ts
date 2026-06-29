@@ -26,6 +26,11 @@ describe('_monthly.yml.ejs — structural invariants (CANON-18)', () => {
 
   const LEVELS = ['L1', 'L2', 'L3'] as const
 
+  it('has explicit reusable workflow display name', () => {
+    const rendered = renderMonthlyPartial({ language: 'typescript', governanceLevel: 'L3' })
+    expect(rendered).toMatch(/^name: Monthly jobs \(reusable\)$/m)
+  })
+
   it('has workflow_call trigger', () => {
     const rendered = renderMonthlyPartial({ language: 'typescript', governanceLevel: 'L3' })
     expect(rendered).toContain('workflow_call:')

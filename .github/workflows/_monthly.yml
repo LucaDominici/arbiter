@@ -1,3 +1,5 @@
+name: Monthly jobs (reusable)
+
 on:
   workflow_call:
 

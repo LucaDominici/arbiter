@@ -1,8 +1,11 @@
+name: Weekly jobs (reusable)
+
 <%
 const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
 const _isService = _bucket === 'service';
 const _isCli = _bucket === 'cli';
-%>on:
+%>
+on:
   workflow_call:
 
 permissions:

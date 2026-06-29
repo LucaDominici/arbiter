@@ -29,6 +29,8 @@ reusable partials (invoked via `uses: ./.github/workflows/_*.yml`). This keeps t
 definitions testable in isolation and prevents schedule/concurrency settings from leaking into
 the `workflow_call:` context (GitHub does not propagate `concurrency:` from a caller into a
 called workflow).
+Each reusable partial also declares an explicit top-level `name:` so GitHub Actions displays a
+readable workflow label instead of the raw `.github/workflows/_*.yml` path.
 
 > Which workflows a given project receives depends on its `collaborationMode`,
 > `governanceLevel`, `archetype`, and `deployTarget`. The "Emitted when" column is the exact

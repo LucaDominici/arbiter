@@ -1,3 +1,5 @@
+name: Nightly jobs (reusable)
+
 on:
   workflow_call:
 

@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/ci-tier-workflows.md'
-source_sha: '7455d619bee3485a48818c52df1b5379510625b5'
-last_updated: '2026-06-28'
+source_sha: 'dbb0685a26448df98452a0edd6d8f0c1a9ab893c'
+last_updated: '2026-06-29'
 ---
 
 # CI Tier Workflows — Reference
@@ -30,6 +30,8 @@ reusable partials (invoked via `uses: ./.github/workflows/_*.yml`). This keeps t
 definitions testable in isolation and prevents schedule/concurrency settings from leaking into
 the `workflow_call:` context (GitHub does not propagate `concurrency:` from a caller into a
 called workflow).
+Each reusable partial also declares an explicit top-level `name:` so GitHub Actions displays a
+readable workflow label instead of the raw `.github/workflows/_*.yml` path.
 
 > Which workflows a given project receives depends on its `collaborationMode`,
 > `governanceLevel`, `archetype`, and `deployTarget`. The "Emitted when" column is the exact

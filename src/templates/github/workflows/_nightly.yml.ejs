@@ -1,7 +1,10 @@
+name: Nightly jobs (reusable)
+
 <%
 const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
 const _isService = _bucket === 'service';
-%>on:
+%>
+on:
   workflow_call:
 
 permissions:
