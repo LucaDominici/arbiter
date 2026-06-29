@@ -489,6 +489,33 @@ describe('probeInvariantsEnforced', () => {
     expect(entry.verdict).toBe('NV')
     expect((entry.evidence as { detail: string }).detail).toContain('no invariants catalog')
   })
+
+  // --- #1698: accept GLOBAL_INVARIANTS.md (committed, fresh-clone-present) as fallback ---
+
+  it('Y when GLOBAL_INVARIANTS.md (non-trivial) is present (fresh-clone path)', () => {
+    const root = tmpRoot()
+    writeAt(root, 'GLOBAL_INVARIANTS.md', '# Invariants\n\n## Architectural\n\n- INV-1: foo\n')
+    const entry = probeInvariantsEnforced(root)
+    expect(entry.id).toBe('D-INVARIANTS-ENFORCED')
+    expect(entry.verdict).toBe('Y')
+    expect((entry.evidence as { file: string }).file).toBe('GLOBAL_INVARIANTS.md')
+  })
+
+  it('NV when GLOBAL_INVARIANTS.md is a stub (no ## heading / no INV- marker)', () => {
+    const root = tmpRoot()
+    writeAt(root, 'GLOBAL_INVARIANTS.md', '# TBD\n')
+    const entry = probeInvariantsEnforced(root)
+    expect(entry.verdict).toBe('NV')
+  })
+
+  it('Y prefers .arbiter/invariants.json over GLOBAL_INVARIANTS.md when both are present', () => {
+    const root = tmpRoot()
+    writeJson(root, '.arbiter/invariants.json', { invariants: [] })
+    writeAt(root, 'GLOBAL_INVARIANTS.md', '# Invariants\n## Architectural\n- INV-1: foo\n')
+    const entry = probeInvariantsEnforced(root)
+    expect(entry.verdict).toBe('Y')
+    expect((entry.evidence as { file: string }).file).toBe('.arbiter/invariants.json')
+  })
 })
 
 // ── probeNoOverclaim ────────────────────────────────────────────────────────────
@@ -531,11 +558,33 @@ describe('probeCommitHygiene', () => {
   it('Y when both .husky/ and .commitlintrc.json are present', () => {
     const root = tmpRoot()
     mkdirSync(join(root, '.husky'), { recursive: true })
+    writeAt(root, '.husky/commit-msg', '#!/bin/sh\n')
     writeJson(root, '.commitlintrc.json', { extends: ['@commitlint/config-conventional'] })
     const entry = probeCommitHygiene(root)
     expect(entry.id).toBe('D-COMMIT-HYGIENE')
     expect(entry.verdict).toBe('Y')
     expect((entry.evidence as { detail: string }).detail).toContain('present')
+  })
+
+  // --- #1698: accept the form arbiter actually emits (.githooks/ + commitlint.config.js) ---
+
+  it('Y when .githooks/ (non-empty) and commitlint.config.js are present', () => {
+    const root = tmpRoot()
+    mkdirSync(join(root, '.githooks'), { recursive: true })
+    writeAt(root, '.githooks/pre-commit', '#!/bin/sh\n')
+    writeAt(root, 'commitlint.config.js', "module.exports = { extends: ['@commitlint/config-conventional'] }\n")
+    const entry = probeCommitHygiene(root)
+    expect(entry.id).toBe('D-COMMIT-HYGIENE')
+    expect(entry.verdict).toBe('Y')
+  })
+
+  it('Y when .githooks/ (non-empty) and .commitlintrc.js are present', () => {
+    const root = tmpRoot()
+    mkdirSync(join(root, '.githooks'), { recursive: true })
+    writeAt(root, '.githooks/commit-msg', '#!/bin/sh\n')
+    writeAt(root, '.commitlintrc.js', 'module.exports = {}\n')
+    const entry = probeCommitHygiene(root)
+    expect(entry.verdict).toBe('Y')
   })
 
   it('N when .husky/ is missing', () => {
@@ -549,9 +598,27 @@ describe('probeCommitHygiene', () => {
   it('N when .commitlintrc.json is missing', () => {
     const root = tmpRoot()
     mkdirSync(join(root, '.husky'), { recursive: true })
+    writeAt(root, '.husky/commit-msg', '#!/bin/sh\n')
     const entry = probeCommitHygiene(root)
     expect(entry.verdict).toBe('N')
     expect((entry.evidence as { detail: string }).detail).toContain('.commitlintrc.json')
+  })
+
+  it('N when .githooks/ present but no commitlint config', () => {
+    const root = tmpRoot()
+    mkdirSync(join(root, '.githooks'), { recursive: true })
+    writeAt(root, '.githooks/pre-commit', '#!/bin/sh\n')
+    const entry = probeCommitHygiene(root)
+    expect(entry.verdict).toBe('N')
+    expect((entry.evidence as { detail: string }).detail).toContain('.commitlintrc.json')
+  })
+
+  it('N when .githooks/ is empty (dir present, 0 entries) + commitlint config present', () => {
+    const root = tmpRoot()
+    mkdirSync(join(root, '.githooks'), { recursive: true })
+    writeAt(root, 'commitlint.config.js', 'module.exports = {}\n')
+    const entry = probeCommitHygiene(root)
+    expect(entry.verdict).toBe('N')
   })
 
   it('N when both are missing (lists both)', () => {
