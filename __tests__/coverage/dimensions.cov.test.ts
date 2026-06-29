@@ -362,35 +362,56 @@ describe('probeDDoneEvidence', () => {
 // ── probeGateGreen ──────────────────────────────────────────────────────────────
 
 describe('probeGateGreen', () => {
-  it('N when gate result file is absent', () => {
+  // The gate writer (scripts/check-all.mjs) emits the arbiter-gate-v1 shape with a boolean
+  // `pass` field — NO `overall` field. The probe must read `pass`, not `overall` (#1701).
+
+  it('NV when gate result file is absent (fresh-clone — not a spurious T1 fail)', () => {
     const entry = probeGateGreen(tmpRoot())
     expect(entry.id).toBe('D-GATE-GREEN')
     expect(entry.family).toBe('discipline')
-    expect(entry.verdict).toBe('N')
-    expect((entry.evidence as { detail: string }).detail).toContain('not been run')
+    expect(entry.verdict).toBe('NV')
+    expect((entry.evidence as { detail: string }).detail).toContain('not verified')
   })
 
-  it('Y when overall=pass', () => {
+  it('Y when real writer shape has pass=true', () => {
     const root = tmpRoot()
-    writeJson(root, '.arbiter/gate/local-result.json', { overall: 'pass' })
+    writeJson(root, '.arbiter/gate/local-result.json', {
+      schema: 'arbiter-gate-v1',
+      node: 'v22',
+      level: 'L2',
+      gates: [{ name: 'unit', pass: true, durationMs: 10 }],
+      pass: true,
+    })
     const entry = probeGateGreen(root)
     expect(entry.verdict).toBe('Y')
-    expect((entry.evidence as { detail: string }).detail).toBe('overall=pass')
+    expect((entry.evidence as { detail: string }).detail).toContain('pass=true')
   })
 
-  it('N when overall is not pass', () => {
+  it('N when real writer shape has pass=false (gate ran, not green)', () => {
     const root = tmpRoot()
-    writeJson(root, '.arbiter/gate/local-result.json', { overall: 'fail' })
+    writeJson(root, '.arbiter/gate/local-result.json', {
+      schema: 'arbiter-gate-v1',
+      gates: [{ name: 'unit', pass: false, durationMs: 10 }],
+      pass: false,
+    })
     const entry = probeGateGreen(root)
     expect(entry.verdict).toBe('N')
-    expect((entry.evidence as { detail: string }).detail).toContain('not pass')
+    expect((entry.evidence as { detail: string }).detail).toContain('not green')
   })
 
-  it('N on parse error (manifest unreadable)', () => {
+  it('NV on parse error (manifest unreadable — cannot verify)', () => {
     const root = tmpRoot()
     writeAt(root, '.arbiter/gate/local-result.json', 'not json')
     const entry = probeGateGreen(root)
-    expect(entry.verdict).toBe('N')
+    expect(entry.verdict).toBe('NV')
+  })
+
+  it('NV when parseable manifest lacks the pass field (malformed — cannot verify)', () => {
+    const root = tmpRoot()
+    writeJson(root, '.arbiter/gate/local-result.json', { schema: 'arbiter-gate-v1', gates: [] })
+    const entry = probeGateGreen(root)
+    expect(entry.verdict).toBe('NV')
+    expect((entry.evidence as { detail: string }).detail).toContain('not verified')
   })
 })
 

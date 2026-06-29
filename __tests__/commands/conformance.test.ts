@@ -352,13 +352,13 @@ describe('conformance (#1369)', () => {
     expect(ids).toContain('D-COMMIT-HYGIENE')
   })
 
-  it('AC-D2: D-GATE-GREEN is Y when .arbiter/gate/local-result.json has overall=pass', () => {
+  it('AC-D2: D-GATE-GREEN is Y when local-result.json has pass=true (arbiter-gate-v1 shape)', () => {
     const dir = tmpRepo()
     writeArbiter(dir)
     mkdirSync(join(dir, '.arbiter', 'gate'), { recursive: true })
     writeFileSync(
       join(dir, '.arbiter', 'gate', 'local-result.json'),
-      JSON.stringify({ overall: 'pass' }),
+      JSON.stringify({ schema: 'arbiter-gate-v1', level: 'L2', gates: [], pass: true }),
     )
 
     const result = runConformance({ dir })
@@ -367,14 +367,14 @@ describe('conformance (#1369)', () => {
     expect(dim!.verdict).toBe('Y')
   })
 
-  it('AC-D3: D-GATE-GREEN is N when local-result.json is absent', () => {
+  it('AC-D3: D-GATE-GREEN is NV when local-result.json is absent (fresh-clone — not a T1 fail)', () => {
     const dir = tmpRepo()
     writeArbiter(dir)
 
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-GATE-GREEN')
     expect(dim).toBeDefined()
-    expect(dim!.verdict).toBe('N')
+    expect(dim!.verdict).toBe('NV')
   })
 
   it('AC-D4: D-COVERAGE-THRESHOLDS is Y when coverage-summary.json has all pct >= 80', () => {

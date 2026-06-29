@@ -90,11 +90,11 @@ function writeAllPassFrontendFixture(dir: string, readmeBody: string): void {
     'utf-8',
   )
 
-  // D-GATE-GREEN → Y.
+  // D-GATE-GREEN → Y (real arbiter-gate-v1 writer shape: boolean `pass`, no `overall`).
   mkdirSync(join(dir, '.arbiter', 'gate'), { recursive: true })
   writeFileSync(
     join(dir, '.arbiter', 'gate', 'local-result.json'),
-    JSON.stringify({ overall: 'pass' }),
+    JSON.stringify({ schema: 'arbiter-gate-v1', level: 'L2', gates: [], pass: true }),
     'utf-8',
   )
 
