@@ -90,12 +90,19 @@ export function generateApiE2e(
   // The manifest is rendered through an EJS template (not JSON.stringify) so the
   // diff dry-run path — which mocks renderTemplate — treats it like every other
   // generated file (convention parity with optional-emissions.json, #1331).
+  //
+  // #1706 (probe≠writer): emit `suiteCount` so the D-LIVE-E2E conformance probe —
+  // which reads m['suiteCount'] and returns N when absent/0 — scores Y on a fresh
+  // service project. The count reflects what THIS generator just registered: 1
+  // starter suite for a required service archetype, 0 otherwise. A team adding
+  // more suites edits the manifest (skipIfExists protects it on re-init).
   const manifestData = {
     archetype: config.archetype,
     required,
     suiteDir: 'tests/api',
     framework: suite.framework,
     glob: suite.glob,
+    suiteCount: required ? 1 : 0,
   }
   files.push(
     writeFile(

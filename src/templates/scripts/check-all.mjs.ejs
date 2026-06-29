@@ -1136,6 +1136,16 @@ if (_failedCount === 0) {
   const _headSha = _headResult.stdout.trim();
   const _gitUserResult = spawnSync('git', ['config', 'user.name'], { encoding: 'utf-8' });
   const _gitUser = _gitUserResult.status === 0 ? _gitUserResult.stdout.trim() : 'unknown';
+  // #1705/#1212: stamp the branch so the fail-closed Stop hook (stop-evidence-guard.mjs)
+  // can require this gate-pass to belong to the current branch (strict branch+sha match).
+  // Mirrors the live scripts/check-all.mjs gate-pass shape — omitting `branch` here breaks
+  // the generated hook's `gate.branch !== branch` check for every target project.
+  const _branch = (() => {
+    try {
+      const _r = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf-8' });
+      return _r.status === 0 ? _r.stdout.trim() : 'unknown';
+    } catch { return 'unknown'; }
+  })();
   // #1441: stamp the task id so the Stop hook can reject a prior task's gate-pass (anti-replay).
   const _taskId = (() => {
     try {
@@ -1151,7 +1161,7 @@ if (_failedCount === 0) {
     writeFileSync(
       _markerPath,
       JSON.stringify(
-        { head_sha: _headSha, task_id: _taskId, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser },
+        { head_sha: _headSha, branch: _branch, task_id: _taskId, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser },
         null,
         2,
       ) + '\n',

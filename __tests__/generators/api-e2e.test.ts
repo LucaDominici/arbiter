@@ -26,6 +26,7 @@ interface Manifest {
   suiteDir: string
   framework: string
   glob: string
+  suiteCount?: number
 }
 
 function readManifest(d: string): Manifest {
@@ -69,6 +70,44 @@ describe('generateApiE2e required flag (R2)', () => {
       expect(readManifest(dir).required).toBe(false)
     },
   )
+})
+
+describe('generateApiE2e manifest suiteCount (#1706, probe≠writer)', () => {
+  it('emits suiteCount=1 for a required service archetype (starter suite registered)', () => {
+    const config = makeConfig(dir, { language: 'typescript', archetype: 'backend-web-db' })
+    generateApiE2e(config)
+    const m = readManifest(dir)
+    expect(m.suiteCount).toBe(1)
+  })
+
+  it('emits suiteCount=1 for a required service archetype across stacks', () => {
+    for (const language of ['typescript', 'go', 'java', 'kotlin', 'python'] as const) {
+      const d = createTestProject(language)
+      try {
+        const config = makeConfig(d, { language, archetype: 'backend-web-db' })
+        generateApiE2e(config)
+        expect(readManifest(d).suiteCount).toBe(1)
+      } finally {
+        cleanupTestProject(d)
+      }
+    }
+  })
+
+  it('emits suiteCount=0 for a non-service archetype (no suite registered)', () => {
+    const config = makeConfig(dir, { language: 'typescript', archetype: 'library' })
+    generateApiE2e(config)
+    expect(readManifest(dir).suiteCount).toBe(0)
+  })
+
+  it('suiteCount is a number, not a stringified literal (#1706 shape)', () => {
+    const config = makeConfig(dir, { language: 'typescript', archetype: 'backend-web-db' })
+    generateApiE2e(config)
+    const raw = readFileSync(join(dir, 'api-e2e.json'), 'utf-8')
+    // EJS <%- suiteCount %> emits the bare numeric token (no quotes) — a string
+    // would render as quotes and break the probe's typeof === 'number' check.
+    expect(raw).toMatch(/"suiteCount":\s*\d+/)
+    expect(raw).not.toMatch(/"suiteCount":\s*"/)
+  })
 })
 
 describe('generateApiE2e service-archetype scaffolding (R3)', () => {

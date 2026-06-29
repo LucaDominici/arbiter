@@ -38,10 +38,12 @@ describe('api-e2e templates render (INV-48, CANON-04)', () => {
       suiteDir: 'tests/api',
       framework: 'supertest',
       glob: 'tests/api/**/*.test.ts',
+      suiteCount: 1,
     })
     const parsed = JSON.parse(rendered)
     expect(parsed.required).toBe(true)
     expect(parsed.glob).toBe('tests/api/**/*.test.ts')
+    expect(parsed.suiteCount).toBe(1)
   })
 
   it('go run.sh template emits the go build + boot path', () => {
