@@ -64,11 +64,14 @@ const RUNTIME_NON_N: Record<string, Verdict> = {
   'DOC-API-DOCS': 'NV',
 }
 
-function generateAndConform(archetype: string): { dir: string; result: ConformanceScanResult } {
+function generateAndConform(
+  archetype: string,
+  level: 'L1' | 'L2' = 'L2',
+): { dir: string; result: ConformanceScanResult } {
   const dir = mkdtempSync(join(tmpdir(), 'probe-writer-'))
   const config = makeConfig(dir, {
     archetype: archetype as ProjectConfig['archetype'],
-    governanceLevel: 'L2',
+    governanceLevel: level,
     useGitHub: true,
     githubOwner: 'acme',
     githubRepo: 'r',
@@ -167,5 +170,41 @@ describe('probe↔writer alignment guard (#1704) — fresh-generated project', (
       const guard = readFileSync(join(dir, '.claude', 'hooks', 'stop-evidence-guard.mjs'), 'utf-8')
       expect(guard, `${arch}: stop-evidence-guard reads gate.branch`).toContain('gate.branch')
     }
+  })
+})
+
+// Self-contained cell so this drain assertion does not collide with parallel
+// drain PRs that edit the shared beforeAll/afterAll above (#1705/#1706).
+describe('probe↔writer alignment guard (#1699) — L1-essential NA', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'probe-writer-l1-'))
+  let verdicts: Map<string, Verdict>
+
+  beforeAll(() => {
+    const config = makeConfig(dir, {
+      archetype: 'library',
+      governanceLevel: 'L1',
+      useGitHub: true,
+      githubOwner: 'acme',
+      githubRepo: 'r',
+    })
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(buildArbiterConfig(config), null, 2) + '\n',
+    )
+    runGenerators(config)
+    verdicts = verdictMap(runConformance({ dir }))
+  })
+
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('library/L1-essential: D-INVARIANTS-ENFORCED = NA (no optional tiers → catalog not prescribed, #1699)', () => {
+    // L1 defaults to the `essential` preset = [architectural, governance] — no
+    // optional tier (data/security/operational), so the global-invariants
+    // generator deliberately does NOT emit GLOBAL_INVARIANTS.md. Invariants are
+    // not prescribed at this preset, so the verdict is NA — not a spurious NV
+    // that overstates a gap where none is prescribed.
+    expect(verdicts.get('D-INVARIANTS-ENFORCED')).toBe('NA')
   })
 })

@@ -377,6 +377,40 @@ describe('conformance (#1369)', () => {
     expect(dim!.verdict).toBe('NV')
   })
 
+  it('AC-D-INV-NA: D-INVARIANTS-ENFORCED is NA at L1-essential (no optional tiers, no catalog) (#1699)', () => {
+    const dir = tmpRepo()
+    // essential preset = [architectural, governance] — no optional tier, so
+    // GLOBAL_INVARIANTS.md is deliberately not emitted and the catalog is not
+    // prescribed → NA, not a spurious NV.
+    writeArbiter(dir, { invariantTiers: ['architectural', 'governance'] })
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-INVARIANTS-ENFORCED')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('NA')
+  })
+
+  it('AC-D-INV-NV: D-INVARIANTS-ENFORCED is NV when optional tiers ARE configured but no catalog exists (#1699)', () => {
+    const dir = tmpRepo()
+    // standard preset includes `data` (optional) → catalog IS prescribed but
+    // absent → NV (not NA: the project opted into invariants and has none).
+    writeArbiter(dir, { invariantTiers: ['architectural', 'governance', 'data', 'operational'] })
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-INVARIANTS-ENFORCED')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('NV')
+  })
+
+  it('AC-D-INV-ABSENT: D-INVARIANTS-ENFORCED stays NV when invariantTiers is absent from arbiter.json (#1699 conservative)', () => {
+    // A bare/legacy arbiter.json without invariantTiers must NOT flip to NA —
+    // that would overstate conformance. Preserve the pre-#1699 NV verdict.
+    const dir = tmpRepo()
+    writeArbiter(dir)
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-INVARIANTS-ENFORCED')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('NV')
+  })
+
   it('AC-D4: D-COVERAGE-THRESHOLDS is Y when coverage-summary.json has all pct >= 80', () => {
     const dir = tmpRepo()
     writeArbiter(dir)
