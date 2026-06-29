@@ -422,40 +422,68 @@ const GATE_RESULT_PATH = '.arbiter/gate/local-result.json'
 
 /**
  * D-GATE-GREEN: local gate most recently ran green.
- * Reads .arbiter/gate/local-result.json; Y if overall=pass.
+ * Reads the runtime `.arbiter/gate/local-result.json` (arbiter-gate-v1 shape, written by
+ * `scripts/check-all.mjs`): Y when the boolean `pass` field is true, N when it is false.
+ * NV (not-verified, neutral — NOT a Tier-1 fail) when the file is absent (fresh clone / CI,
+ * gate not run here), unparseable, or a parseable object lacking the `pass` field (malformed).
+ * NV is excluded from the T1 fail set and the T2 denominator, so a fresh clone does not get a
+ * spurious NON-CONFORMANT on this dimension (#1701). Note: the gate writer emits `pass`
+ * (boolean), NOT `overall` (string) — the earlier `m['overall'] === 'pass'` check never matched
+ * a real artifact, so every green gate scored N; this reads the real field.
  */
 export function probeGateGreen(root: string): DimensionEntry {
   const resultPath = safeResolve(root, GATE_RESULT_PATH)
-  if (resultPath === null || !fileExists(resultPath)) {
-    return {
-      id: 'D-GATE-GREEN',
-      title: 'Local gate most recently ran green',
-      ...DISC_T1,
-      verdict: 'N',
-      evidence: { file: GATE_RESULT_PATH, detail: 'absent — gate has not been run' },
-    }
-  }
-
-  const manifest = readJson(resultPath)
-  if (manifest !== null && typeof manifest === 'object') {
-    const m = manifest as Record<string, unknown>
-    if (m['overall'] === 'pass') {
+  if (resultPath !== null && fileExists(resultPath)) {
+    const manifest = readJson(resultPath)
+    if (manifest !== null && typeof manifest === 'object') {
+      const m = manifest as Record<string, unknown>
+      if (m['pass'] === true) {
+        return {
+          id: 'D-GATE-GREEN',
+          title: 'Local gate most recently ran green',
+          ...DISC_T1,
+          verdict: 'Y',
+          evidence: { file: GATE_RESULT_PATH, detail: 'pass=true' },
+        }
+      }
+      if (m['pass'] === false) {
+        return {
+          id: 'D-GATE-GREEN',
+          title: 'Local gate most recently ran green',
+          ...DISC_T1,
+          verdict: 'N',
+          evidence: { file: GATE_RESULT_PATH, detail: 'pass=false — gate ran, not green' },
+        }
+      }
+      // Parseable object without a `pass` field → malformed; cannot verify.
       return {
         id: 'D-GATE-GREEN',
         title: 'Local gate most recently ran green',
         ...DISC_T1,
-        verdict: 'Y',
-        evidence: { file: GATE_RESULT_PATH, detail: 'overall=pass' },
+        verdict: 'NV',
+        evidence: {
+          file: GATE_RESULT_PATH,
+          detail: 'gate result missing pass field (not verified)',
+        },
       }
+    }
+    // Present but unparseable → cannot verify.
+    return {
+      id: 'D-GATE-GREEN',
+      title: 'Local gate most recently ran green',
+      ...DISC_T1,
+      verdict: 'NV',
+      evidence: { file: GATE_RESULT_PATH, detail: 'gate result unparseable (not verified)' },
     }
   }
 
+  // Absent (fresh clone / CI — gate not run here) → not-verified, NOT a spurious T1 fail.
   return {
     id: 'D-GATE-GREEN',
     title: 'Local gate most recently ran green',
     ...DISC_T1,
-    verdict: 'N',
-    evidence: { file: GATE_RESULT_PATH, detail: 'overall is not pass' },
+    verdict: 'NV',
+    evidence: { file: GATE_RESULT_PATH, detail: 'gate has not been run (not verified)' },
   }
 }
 
