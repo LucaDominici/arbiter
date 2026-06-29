@@ -27,7 +27,7 @@
 // assertion here AND implements the fix → the guard grows with the drain, stays
 // green, and ends fully covering the class.
 
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -89,18 +89,20 @@ describe('probe↔writer alignment guard (#1704) — fresh-generated project', (
   // Generate each cell ONCE (heavy ~250-file generation + repo walk) and reuse.
   const cells = ['library', 'backend-web-db', 'frontend-spa'] as const
   const verdicts: Record<string, Map<string, Verdict>> = {}
-  const generatedDirs: string[] = []
+  const generatedDirs: Record<string, string> = {}
 
   beforeAll(() => {
     for (const arch of cells) {
       const { dir, result } = generateAndConform(arch)
-      generatedDirs.push(dir)
+      generatedDirs[arch] = dir
       verdicts[arch] = verdictMap(result)
     }
   })
 
   afterAll(() => {
-    for (const d of generatedDirs) rmSync(d, { recursive: true, force: true })
+    for (const arch of cells) {
+      if (generatedDirs[arch]) rmSync(generatedDirs[arch], { recursive: true, force: true })
+    }
   })
 
   for (const arch of cells) {
@@ -138,11 +140,32 @@ describe('probe↔writer alignment guard (#1704) — fresh-generated project', (
     expect(verdicts['frontend-spa'].get('D-LIVE-E2E')).toBe('NA')
   })
 
-  it('backend-web-db/L2: D-LIVE-E2E is NOT a spurious N from a probe≠writer mismatch — currently N because api-e2e.json is emitted without suiteCount (#1706); the generator emits the artifact so the probe must not read a field the writer omits. (When #1706 lands, tighten this to expect Y.)', () => {
-    // Until #1706, D-LIVE-E2E=N on a generated service project is the known mismatch.
-    // This assertion documents the current state so the drain PR flips it to Y and
-    // proves the guard catches the class (a non-N verdict would mean #1706 regressed
-    // back to N, or was never fixed — either way the assertion is the tripwire).
-    expect(verdicts['backend-web-db'].get('D-LIVE-E2E')).toBe('N')
+  it('backend-web-db/L2: D-LIVE-E2E = Y (api-e2e.json emitted with suiteCount≥1, #1706)', () => {
+    // #1706 fix: the api-e2e generator now emits `suiteCount` (1 for a required
+    // service, derived from the starter suite it registers), so the probe reads a
+    // field the writer actually emits and scores Y — no more probe≠writer N by
+    // construction. A regression to N means suiteCount was dropped from the
+    // manifest → this assertion is the tripwire.
+    expect(verdicts['backend-web-db'].get('D-LIVE-E2E')).toBe('Y')
+  })
+
+  it('generated gate-pass marker includes branch + stop-evidence-guard reads gate.branch (#1705, Layer B)', () => {
+    // #1705: the generated scripts/check-all.mjs gate-pass block must emit `branch`
+    // (mirroring live scripts/check-all.mjs) so the generated stop-evidence-guard.mjs
+    // hook's `gate.branch !== branch` check works. A probe≠writer mismatch here breaks
+    // INV-114 fail-closed for every target project by construction.
+    for (const arch of cells) {
+      const dir = generatedDirs[arch]
+      const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+      const markerIdx = checkAll.indexOf("'.arbiter/gate-pass.json'")
+      expect(markerIdx, `${arch}: gate-pass marker block`).toBeGreaterThan(-1)
+      const block = checkAll.slice(markerIdx, markerIdx + 600)
+      expect(block, `${arch}: gate-pass object must include branch`).toContain('branch')
+      expect(block, `${arch}: gate-pass object must include head_sha`).toContain('head_sha')
+      // The branch computation lives above the marker block; assert on the whole file.
+      expect(checkAll, `${arch}: branch computed via --abbrev-ref`).toContain('--abbrev-ref')
+      const guard = readFileSync(join(dir, '.claude', 'hooks', 'stop-evidence-guard.mjs'), 'utf-8')
+      expect(guard, `${arch}: stop-evidence-guard reads gate.branch`).toContain('gate.branch')
+    }
   })
 })

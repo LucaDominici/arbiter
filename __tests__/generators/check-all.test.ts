@@ -231,6 +231,27 @@ describe('generateCheckAll', () => {
     expect(content).toMatch(/^#!/)
   })
 
+  describe('gate-pass marker shape (#1705, probe≠writer)', () => {
+    it('gate-pass object includes branch (mirrors live scripts/check-all.mjs)', () => {
+      generateCheckAll(makeConfig(dir))
+      const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+      // The gate-pass write block...
+      const markerIdx = content.indexOf("'.arbiter/gate-pass.json'")
+      expect(markerIdx).toBeGreaterThan(-1)
+      const block = content.slice(markerIdx, markerIdx + 600)
+      // ...must contain the branch field alongside head_sha/task_id (live shape).
+      expect(block).toContain('head_sha')
+      expect(block).toContain('branch')
+      expect(block).toContain('task_id')
+    })
+
+    it('computes branch via git rev-parse --abbrev-ref HEAD (not an undefined ref)', () => {
+      generateCheckAll(makeConfig(dir))
+      const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+      expect(content).toContain("'rev-parse', '--abbrev-ref', 'HEAD'")
+    })
+  })
+
   it('check-all.mjs contains lint and test commands for TypeScript', () => {
     generateCheckAll(makeConfig(dir, { language: 'typescript' }))
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
