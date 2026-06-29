@@ -544,18 +544,32 @@ export function probeCoverageThresholds(root: string): DimensionEntry {
 // --- D-INVARIANTS-ENFORCED ---
 
 const INVARIANTS_CATALOG_PATH = 'src/invariants/catalog.ts'
+const GLOBAL_INVARIANTS_PATH = 'GLOBAL_INVARIANTS.md'
+/**
+ * A GLOBAL_INVARIANTS.md is "non-trivial" when it contains at least one tier heading
+ * (`## <word>`) or an invariant id (`INV-<digits>`). A 0-byte file or a `# TBD` stub does
+ * not satisfy — the catalog must have substance, not just presence (#1698 red-team RT-01).
+ */
+const NON_TRIVIAL_INV = /##\s\S|INV-\d+/
 
 /**
- * D-INVARIANTS-ENFORCED: project has a machine-readable invariants catalog.
- * Evidence: src/invariants/catalog.ts exists (arbiter self-reference).
- * For generated projects: checks for .arbiter/invariants.json.
+ * D-INVARIANTS-ENFORCED: project has an invariants catalog.
+ * Evidence (in precedence order):
+ *   1. src/invariants/catalog.ts — arbiter self-reference (machine-readable TS catalog).
+ *   2. .arbiter/invariants.json — machine-readable JSON, if `arbiter init` ran locally.
+ *   3. GLOBAL_INVARIANTS.md — the committed, fresh-clone-present catalog the
+ *      `global-invariants` generator actually emits for targets. Accepted only when
+ *      non-trivial (has a `##` heading or an `INV-NN` id); a stub does not satisfy.
+ * The probe verifies catalog *presence* (and, for the markdown fallback, *substance*);
+ * it does not inspect enforcement wiring, so the title says "present" not "enforced"
+ * (#1698 red-team RT-02 overclaim fix). The dimension id D-INVARIANTS-ENFORCED is unchanged.
  */
 export function probeInvariantsEnforced(root: string): DimensionEntry {
   const catalogPath = safeResolve(root, INVARIANTS_CATALOG_PATH)
   if (catalogPath !== null && fileExists(catalogPath)) {
     return {
       id: 'D-INVARIANTS-ENFORCED',
-      title: 'Invariants catalog is machine-readable and enforced',
+      title: 'Invariants catalog is present',
       ...DISC_T1,
       verdict: 'Y',
       evidence: { file: INVARIANTS_CATALOG_PATH },
@@ -566,16 +580,30 @@ export function probeInvariantsEnforced(root: string): DimensionEntry {
   if (arbiterInvPath !== null && fileExists(arbiterInvPath)) {
     return {
       id: 'D-INVARIANTS-ENFORCED',
-      title: 'Invariants catalog is machine-readable and enforced',
+      title: 'Invariants catalog is present',
       ...DISC_T1,
       verdict: 'Y',
       evidence: { file: '.arbiter/invariants.json' },
     }
   }
 
+  const globalInvPath = safeResolve(root, GLOBAL_INVARIANTS_PATH)
+  if (globalInvPath !== null) {
+    const content = readText(globalInvPath)
+    if (content !== null && NON_TRIVIAL_INV.test(content)) {
+      return {
+        id: 'D-INVARIANTS-ENFORCED',
+        title: 'Invariants catalog is present',
+        ...DISC_T1,
+        verdict: 'Y',
+        evidence: { file: GLOBAL_INVARIANTS_PATH },
+      }
+    }
+  }
+
   return {
     id: 'D-INVARIANTS-ENFORCED',
-    title: 'Invariants catalog is machine-readable and enforced',
+    title: 'Invariants catalog is present',
     ...DISC_T1,
     verdict: 'NV',
     evidence: {
@@ -635,29 +663,57 @@ export function probeNoOverclaim(root: string): DimensionEntry {
 // --- D-COMMIT-HYGIENE ---
 
 /**
- * D-COMMIT-HYGIENE: commit message hygiene enforced via Husky + commitlint.
- * Evidence: .husky/ directory and .commitlintrc.json both present.
+ * D-COMMIT-HYGIENE: commit message hygiene enforced via a git hooks dir + commitlint.
+ * Evidence: a non-empty hooks directory (`.githooks/` — the form arbiter's `githooks`
+ * generator emits, or `.husky/` — the industry form) AND a non-empty commitlint config
+ * (`commitlint.config.js` — the form arbiter's `root` generator emits, or
+ * `.commitlintrc.json` / `.commitlintrc.js`). Both must have substance, not just presence:
+ * an empty hooks dir or a 0-byte config does not satisfy (#1698 red-team RT-04).
  */
+const HOOKS_DIRS = ['.githooks', '.husky']
+const COMMITLINT_CONFIGS = ['commitlint.config.js', '.commitlintrc.json', '.commitlintrc.js']
+
+/** A hooks dir qualifies only if it exists AND has at least one entry (not empty). */
+function nonEmptyDir(abs: string): boolean {
+  try {
+    return readdirSync(abs).length > 0
+  } catch {
+    return false
+  }
+}
+
+/** A commitlint config qualifies only if it is a non-empty file. */
+function nonEmptyFile(abs: string): boolean {
+  const txt = readText(abs)
+  return txt !== null && txt.trim().length > 0
+}
+
 export function probeCommitHygiene(root: string): DimensionEntry {
-  const huskyPath = safeResolve(root, '.husky')
-  const commitlintPath = safeResolve(root, '.commitlintrc.json')
+  const hooksDir = HOOKS_DIRS.find((d) => {
+    const p = safeResolve(root, d)
+    return p !== null && fileExists(p) && nonEmptyDir(p)
+  })
+  const commitlintConfig = COMMITLINT_CONFIGS.find((c) => {
+    const p = safeResolve(root, c)
+    return p !== null && nonEmptyFile(p)
+  })
 
-  const huskyExists = huskyPath !== null && fileExists(huskyPath)
-  const commitlintExists = commitlintPath !== null && fileExists(commitlintPath)
-
-  if (huskyExists && commitlintExists) {
+  if (hooksDir && commitlintConfig) {
     return {
       id: 'D-COMMIT-HYGIENE',
       title: 'Commit message hygiene enforced',
       ...DISC_T1,
       verdict: 'Y',
-      evidence: { file: '.commitlintrc.json', detail: '.husky/ and .commitlintrc.json present' },
+      evidence: { file: commitlintConfig, detail: `${hooksDir}/ and ${commitlintConfig} present` },
     }
   }
 
   const missing: string[] = []
-  if (!huskyExists) missing.push('.husky/')
-  if (!commitlintExists) missing.push('.commitlintrc.json')
+  // Representative literals kept (`.husky/`, `.commitlintrc.json`) so existing regression
+  // guards stay green; alternatives named so the message stays accurate for emitted forms.
+  if (!hooksDir) missing.push('.husky/ (or .githooks/)')
+  if (!commitlintConfig)
+    missing.push('.commitlintrc.json (or commitlint.config.js / .commitlintrc.js)')
 
   return {
     id: 'D-COMMIT-HYGIENE',
