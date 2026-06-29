@@ -629,6 +629,28 @@ export function probeInvariantsEnforced(root: string): DimensionEntry {
     }
   }
 
+  // #1699: before returning NV, check whether invariants are even prescribed at
+  // this project's preset. The `global-invariants` generator emits
+  // GLOBAL_INVARIANTS.md only when an OPTIONAL tier (data/security/operational)
+  // is selected; at the `essential` preset (L1 default = architectural +
+  // governance only) it deliberately does NOT emit, so the catalog is not
+  // prescribed → NA, not a spurious NV that overstates a gap where none is
+  // prescribed. Conservative: only NA when `invariantTiers` is an explicit array
+  // with no optional tier — a bare/legacy arbiter.json without the field keeps NV.
+  if (invariantTierStatus(root) === 'none') {
+    return {
+      id: 'D-INVARIANTS-ENFORCED',
+      title: 'Invariants catalog is present',
+      ...DISC_T1,
+      verdict: 'NA',
+      evidence: {
+        file: 'arbiter.json',
+        detail:
+          'no optional invariant tiers (data/security/operational) — catalog not prescribed at this preset',
+      },
+    }
+  }
+
   return {
     id: 'D-INVARIANTS-ENFORCED',
     title: 'Invariants catalog is present',
@@ -639,6 +661,31 @@ export function probeInvariantsEnforced(root: string): DimensionEntry {
       detail: 'no invariants catalog found',
     },
   }
+}
+
+/**
+ * #1699: classify the project's declared invariant tiers so the probe can return
+ * NA when invariants are not prescribed. Extracted to keep probeInvariantsEnforced
+ * under the cyclomatic-complexity ceiling (debt ratchet).
+ *
+ * - `'some'` — arbiter.json declares an optional tier (data/security/operational):
+ *   the catalog IS prescribed (GLOBAL_INVARIANTS.md is emitted) → probe must find
+ *   it (Y) or report NV (absent).
+ * - `'none'` — arbiter.json declares an explicit invariantTiers array with NO
+ *   optional tier (the `essential` preset) → catalog not prescribed → NA.
+ * - `'absent'` — arbiter.json or invariantTiers is missing/legacy → conservative:
+ *   preserve NV (do not overstate conformance by flipping to NA on incomplete
+ *   configs).
+ */
+function invariantTierStatus(root: string): 'some' | 'none' | 'absent' {
+  const OPTIONAL_INV_TIERS = new Set(['data', 'security', 'operational'])
+  const cfgPath = safeResolve(root, 'arbiter.json')
+  if (cfgPath === null) return 'absent'
+  const cfg = readJson(cfgPath)
+  if (cfg === null || typeof cfg !== 'object') return 'absent'
+  const tiers = (cfg as Record<string, unknown>)['invariantTiers']
+  if (!Array.isArray(tiers)) return 'absent'
+  return tiers.some((t) => OPTIONAL_INV_TIERS.has(String(t))) ? 'some' : 'none'
 }
 
 // --- D-NO-OVERCLAIM ---
