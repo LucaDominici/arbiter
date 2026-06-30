@@ -432,3 +432,144 @@ describe('generateEvidenceRetention — policy doc (#718)', () => {
     expect(content).toContain('local-last-N')
   })
 })
+
+// ─── #1703: done-evidence writes reality_contact + no_overclaim (probe≠writer) ──
+// The generated done-evidence.mjs must record reality_contact.{archetype,suite,
+// command,recorded_at,passed} from the ACTUAL exit code of a real reality-contact
+// suite, and no_overclaim=true only when gate green + reality passed + SHAs pinned.
+// Anti-fake-green: a failing suite exits 1 and writes NOTHING.
+
+describe('generateEvidenceRetention — done-evidence reality_contact/no_overclaim (#1703)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  /** Stub gate (scripts/check-all.mjs) that exits 0 — fakes a green L4 gate. */
+  function stubGreenGate(d: string) {
+    writeFileSync(join(d, 'scripts', 'check-all.mjs'), '#!/usr/bin/env node\nprocess.exit(0)\n')
+  }
+
+  /** Write a reality-contact stub script at repo root; returns the command string. */
+  function writeRcStub(d: string, name: string, exitCode: number): string {
+    writeFileSync(join(d, name), `process.exit(${exitCode})\n`)
+    return `node ${name}`
+  }
+
+  /** Overwrite evidence-files.json to point reality_contact at a given command. */
+  function setRcCommand(d: string, command: string, required: boolean) {
+    writeFileSync(
+      join(d, 'evidence-files.json'),
+      JSON.stringify(
+        {
+          version: 1,
+          pin_dirs: ['src'],
+          pin_extensions: ['.ts'],
+          exclude_dirs: ['node_modules', 'dist'],
+          reality_contact: {
+            archetype: 'backend-web-db',
+            required,
+            suite: 'live-api-e2e',
+            command,
+          },
+        },
+        null,
+        2,
+      ),
+    )
+  }
+
+  function runDoneEvidence(d: string): ReturnType<typeof spawnSync> {
+    return spawnSync('node', ['scripts/done-evidence.mjs'], { cwd: d, encoding: 'utf-8' })
+  }
+
+  it('green gate + passing reality-contact → evidence has reality_contact.passed=true + no_overclaim=true', () => {
+    generateEvidenceRetention(
+      makeConfig(dir, { archetype: 'backend-web-db', governanceLevel: 'L4' }),
+    )
+    stubGreenGate(dir)
+    const cmd = writeRcStub(dir, 'rc-pass.mjs', 0)
+    setRcCommand(dir, cmd, true)
+    const res = runDoneEvidence(dir)
+    expect(res.status, `stdout=${res.stdout}\nstderr=${res.stderr}`).toBe(0)
+    const ev = JSON.parse(readFileSync(join(dir, '.claude', '.last-done-evidence.json'), 'utf-8'))
+    expect(ev.reality_contact).toBeDefined()
+    expect(ev.reality_contact.passed).toBe(true)
+    expect(ev.reality_contact.suite).toBe('live-api-e2e')
+    expect(ev.reality_contact.command).toBe(cmd)
+    expect(ev.reality_contact.recorded_at).toBeTruthy()
+    expect(ev.no_overclaim).toBe(true)
+  })
+
+  it('failing reality-contact → done-evidence exits 1 and writes NOTHING (anti-fake-green)', () => {
+    generateEvidenceRetention(
+      makeConfig(dir, { archetype: 'backend-web-db', governanceLevel: 'L4' }),
+    )
+    stubGreenGate(dir)
+    const cmd = writeRcStub(dir, 'rc-fail.mjs', 1)
+    setRcCommand(dir, cmd, true)
+    const res = runDoneEvidence(dir)
+    expect(res.status).toBe(1)
+    expect(existsSync(join(dir, '.claude', '.last-done-evidence.json'))).toBe(false)
+  })
+
+  it('non-service archetype (required:false) → reality_contact.passed=null + no_overclaim=true, no command run', () => {
+    generateEvidenceRetention(makeConfig(dir, { archetype: 'library', governanceLevel: 'L4' }))
+    stubGreenGate(dir)
+    // required:false → done-evidence must NOT execute any command; point at a
+    // script that would FAIL if run, to prove it is not invoked.
+    const cmd = writeRcStub(dir, 'rc-fail.mjs', 1)
+    setRcCommand(dir, cmd, false)
+    const res = runDoneEvidence(dir)
+    expect(res.status, `stdout=${res.stdout}\nstderr=${res.stderr}`).toBe(0)
+    const ev = JSON.parse(readFileSync(join(dir, '.claude', '.last-done-evidence.json'), 'utf-8'))
+    expect(ev.reality_contact).toBeDefined()
+    expect(ev.reality_contact.passed).toBe(null)
+    expect(ev.reality_contact.required).toBe(false)
+    expect(ev.no_overclaim).toBe(true)
+  })
+
+  it('generated done-evidence.mjs contains reality_contact + no_overclaim fields and archetype-aware DEFAULT_RC (#1703 render)', () => {
+    generateEvidenceRetention(
+      makeConfig(dir, { archetype: 'backend-web-db', governanceLevel: 'L2' }),
+    )
+    const src = readFileSync(join(dir, 'scripts', 'done-evidence.mjs'), 'utf-8')
+    expect(src).toContain('reality_contact')
+    expect(src).toContain('no_overclaim')
+    expect(src).toContain('DEFAULT_RC')
+    // Service archetype default is required:true with the live e2e runner.
+    expect(src).toContain('required: true')
+    expect(src).toContain('tests/api/run.sh')
+  })
+
+  it('generated done-evidence.mjs for a non-service archetype defaults required:false (#1703 render)', () => {
+    generateEvidenceRetention(makeConfig(dir, { archetype: 'library', governanceLevel: 'L2' }))
+    const src = readFileSync(join(dir, 'scripts', 'done-evidence.mjs'), 'utf-8')
+    expect(src).toContain('DEFAULT_RC')
+    // Non-service: required:false in the default.
+    expect(src).toMatch(/required:\s*false/)
+  })
+
+  it('generated evidence-files.json (L4, service) declares a reality_contact block (#1703)', () => {
+    generateEvidenceRetention(
+      makeConfig(dir, { archetype: 'backend-web-db', governanceLevel: 'L4' }),
+    )
+    const cfg = JSON.parse(readFileSync(join(dir, 'evidence-files.json'), 'utf-8'))
+    expect(cfg.reality_contact).toBeDefined()
+    expect(cfg.reality_contact.required).toBe(true)
+    expect(cfg.reality_contact.command).toContain('tests/api/run.sh')
+  })
+
+  it('generated evidence-files.json (L4, non-service) declares reality_contact required:false (#1703)', () => {
+    generateEvidenceRetention(makeConfig(dir, { archetype: 'library', governanceLevel: 'L4' }))
+    const cfg = JSON.parse(readFileSync(join(dir, 'evidence-files.json'), 'utf-8'))
+    expect(cfg.reality_contact).toBeDefined()
+    expect(cfg.reality_contact.required).toBe(false)
+  })
+})

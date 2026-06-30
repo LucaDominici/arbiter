@@ -131,9 +131,74 @@ if (gate.status !== 0) {
   process.exit(1);
 }
 
+// ─── Step 1.5: Reality-contact suite (archetype-aware, #1368/#1703, anti-fake-green) ─
+// For archetypes that ship a running artifact, exercise the live binary and record
+// HONEST reality-contact evidence — never fabricate `passed:true`. Configurable via
+// evidence-files.json `reality_contact`: { archetype, required, suite, command }.
+// Default (backend-web-db): the live api-e2e runner (tests/api/run.sh) the api-e2e
+// generator emits for every service language — boots the real binary in-test.
+// Non-service archetypes: required:false (no live artifact to exercise).
+const config = loadConfig();
+const DEFAULT_RC = {
+  archetype: '<%= archetype %>',
+  required: <% if (archetype === 'backend-web-db') { %>true<% } else { %>false<% } %>,
+  suite: 'live-api-e2e',
+  command: <% if (archetype === 'backend-web-db') { %>'./tests/api/run.sh'<% } else { %>''<% } %>,
+};
+const rcConfig = (config && typeof config.reality_contact === 'object')
+  ? { ...DEFAULT_RC, ...config.reality_contact }
+  : DEFAULT_RC;
+
+let realityContact;
+let noOverclaim = false;
+if (rcConfig.required !== true) {
+  // Non-service archetype — no live artifact to exercise; reality contact is N/A.
+  realityContact = {
+    archetype: rcConfig.archetype,
+    required: false,
+    suite: rcConfig.suite,
+    recorded_at: new Date().toISOString(),
+    passed: null,
+    detail: 'not required for this archetype',
+  };
+  noOverclaim = true;
+} else {
+  const rcCmd = String(rcConfig.command || '').trim();
+  if (rcCmd.length === 0) {
+    process.stderr.write(
+      '\n[done-evidence] ERROR: reality_contact.command is empty — cannot exercise live artifact.\n' +
+      '  Set evidence-files.json `reality_contact.command` to a suite that boots the real binary.\n',
+    );
+    process.exit(1);
+  }
+  const rcArgs = rcCmd.split(/\s+/);
+  process.stdout.write(`[done-evidence] Running reality-contact suite: ${rcCmd}\n`);
+  const rc = spawnSync(rcArgs[0], rcArgs.slice(1), {
+    stdio: 'inherit',
+    shell: false,
+  });
+  const rcPassed = rc.status === 0;
+  realityContact = {
+    archetype: rcConfig.archetype,
+    required: true,
+    suite: rcConfig.suite,
+    command: rcCmd,
+    recorded_at: new Date().toISOString(),
+    passed: rcPassed,
+  };
+  if (!rcPassed) {
+    process.stderr.write(
+      `\n[done-evidence] Reality-contact suite FAILED (exit ${rc.status ?? 'signal:' + (rc.signal ?? '?')}) — ` +
+      `fix the failing live e2e before capturing done evidence. No fake green.\n`,
+    );
+    process.exit(1);
+  }
+  // Gate green + reality contact exercised + SHAs pinned below ⇒ no overclaim.
+  noOverclaim = true;
+}
+
 // ─── Step 2: Gather pinned files ─────────────────────────────────────────────
 
-const config = loadConfig();
 const pinDirs = Array.isArray(config.pin_dirs) ? config.pin_dirs : ['src'];
 const pinExts = new Set(Array.isArray(config.pin_extensions) ? config.pin_extensions : ['.ts']);
 const excludeDirs = Array.isArray(config.exclude_dirs) ? config.exclude_dirs : [];
@@ -173,6 +238,8 @@ const evidence = {
   all_green: true,
   gate_level: 'L4',
   pinned_files: pinnedFiles,
+  reality_contact: realityContact,
+  no_overclaim: noOverclaim,
 };
 
 try {
@@ -185,7 +252,9 @@ try {
 
 process.stdout.write(
   `[done-evidence] Evidence captured.\n` +
-  `  task_id:      ${taskId}\n` +
-  `  pinned_files: ${pinnedFiles.length}\n` +
-  `  written to:   ${EVIDENCE_PATH}\n`,
+  `  task_id:           ${taskId}\n` +
+  `  pinned_files:      ${pinnedFiles.length}\n` +
+  `  reality_contact:   ${realityContact.suite} passed=${realityContact.passed}\n` +
+  `  no_overclaim:      ${noOverclaim}\n` +
+  `  written to:        ${EVIDENCE_PATH}\n`,
 );
