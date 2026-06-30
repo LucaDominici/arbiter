@@ -120,3 +120,4 @@ related: []
 | 099 | [Native zero-dependency xlsx writer (drop exceljs)](../ADR/099-native-xlsx-writer.md) | Accepted | 2026-06-30 |
 | 100 | [Companion-plugin awareness in /ship](../ADR/100-companion-plugin-awareness.md) | accepted | 2026-07-01 |
 | 101 | [runnerProfile cadence axis (solo/fleet)](../ADR/101-runner-profile-cadence-axis.md) | Accepted | 2026-07-01 |
+| 102 | [gate the workflow-template-emitted dims at L3](../ADR/102-l3-workflow-dim-gating.md) | Accepted | 2026-07-01 |
