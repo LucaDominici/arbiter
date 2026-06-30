@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { csvCell, neutralizeFormula } from '../kit/csv.js'
+import { csvCell } from '../kit/csv.js'
+import { writeXlsx } from './xlsx-writer.js'
 
 const START_MARKER = '<!-- FEATURE_MATRIX_START -->'
 const END_MARKER = '<!-- FEATURE_MATRIX_END -->'
@@ -109,47 +110,41 @@ export function featureMatrixToCsv(rows: FeatureMatrixRow[]): string {
   return lines.join('\r\n') + '\r\n'
 }
 
-/** Convert parsed rows to xlsx buffer (exceljs, lazy-imported). */
+/** Convert parsed rows to an xlsx buffer (native zero-dependency writer). */
 export async function featureMatrixToXlsx(rows: FeatureMatrixRow[]): Promise<Buffer> {
-  const ExcelJS = (await import('exceljs')).default
-  const wb = new ExcelJS.Workbook()
-  const ws = wb.addWorksheet('Feature Matrix')
-
-  ws.columns = [
-    { header: 'feature_id', key: 'featureId', width: 12 },
-    { header: 'capability', key: 'capability', width: 40 },
-    { header: 'kit_dims', key: 'kitDims', width: 20 },
-    { header: 'level', key: 'level', width: 8 },
-    { header: 'status', key: 'status', width: 12 },
-    { header: 'code_ref', key: 'codeRef', width: 40 },
-    { header: 'test_ref', key: 'testRef', width: 40 },
-    { header: 'doc_ref', key: 'docRef', width: 30 },
-    { header: 'issue_ref', key: 'issueRef', width: 12 },
-    { header: 'note', key: 'note', width: 50 },
+  // The native writer (`src/export/xlsx-writer.ts`) replaces the exceljs runtime
+  // dependency: it produces a valid .xlsx (STORE zip + inline-string OOXML) with
+  // no external supply-chain surface, eliminating the transitive uuid@8
+  // (GHSA-w5hq-g745-h8pq) that npm overrides cannot protect consumers from
+  // (#1670). Formula neutralization (CWE-1236) is applied by the writer to
+  // every cell; values are passed raw and neutralized at emission.
+  const headers = [
+    'feature_id',
+    'capability',
+    'kit_dims',
+    'level',
+    'status',
+    'code_ref',
+    'test_ref',
+    'doc_ref',
+    'issue_ref',
+    'note',
   ]
+  const colWidths = [12, 40, 20, 8, 12, 40, 40, 30, 12, 50]
+  const dataRows = rows.map((row) => [
+    row.featureId,
+    row.capability,
+    row.kitDims.join(','),
+    row.level,
+    row.status,
+    row.codeRef,
+    row.testRef,
+    row.docRef,
+    row.issueRef,
+    row.note,
+  ])
 
-  // Style header row
-  const headerRow = ws.getRow(1)
-  headerRow.font = { bold: true }
-  headerRow.commit()
-
-  for (const row of rows) {
-    // Neutralize formula triggers (CWE-1236): xlsx cells are added raw, so they
-    // do not pass through csvCell. A spreadsheet opens xlsx by definition, so the
-    // injection risk is at its highest here.
-    ws.addRow({
-      featureId: neutralizeFormula(row.featureId),
-      capability: neutralizeFormula(row.capability),
-      kitDims: neutralizeFormula(row.kitDims.join(',')),
-      level: neutralizeFormula(row.level),
-      status: neutralizeFormula(row.status),
-      codeRef: neutralizeFormula(row.codeRef),
-      testRef: neutralizeFormula(row.testRef),
-      docRef: neutralizeFormula(row.docRef),
-      issueRef: neutralizeFormula(row.issueRef),
-      note: neutralizeFormula(row.note),
-    })
-  }
-
-  return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>
+  return Promise.resolve(
+    writeXlsx({ name: 'Feature Matrix', headers, rows: dataRows, colWidths }),
+  )
 }
