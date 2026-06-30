@@ -1,5 +1,5 @@
 ---
-"@arbiter/cli": patch
+'@arbiter/cli': patch
 ---
 
 Replace the `exceljs` runtime dependency with a native zero-dependency xlsx writer,
