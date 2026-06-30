@@ -199,7 +199,13 @@ describe('gen-third-party-licenses.mjs', () => {
       )
       const result = spawnSync(
         'node',
-        [SCRIPT, '--npm-ls-fixture', closureFixture, '--license-overrides-fixture', overridesFixture],
+        [
+          SCRIPT,
+          '--npm-ls-fixture',
+          closureFixture,
+          '--license-overrides-fixture',
+          overridesFixture,
+        ],
         { encoding: 'utf-8', cwd: root },
       )
       expect(result.status).toBe(0)
