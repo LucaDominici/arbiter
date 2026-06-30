@@ -88,3 +88,130 @@ describe('deriveL3MaturityChecks — emission-plan-driven L3 gate (#1678)', () =
     expect(blockedFeatures(checks)).toContain('a11y')
   })
 })
+
+// #1678: the L3 gate must also consult the WORKFLOW-template-emitted dims (the single
+// 'github' registry key emits CI workflows for fuzz/dast/sbom/etc., which are beta for
+// every modelled language). deriveWorkflowCapabilities mirrors the github.ts emission
+// predicates; the 'github' spec routes them through the registry loop (gated by spec.enabled
+// = useGitHub, so no false-block when github is disabled).
+describe('deriveL3MaturityChecks — workflow-template dims (#1678)', () => {
+  // ts service, standard, peer-review, security on, no deploy, github on.
+  const tsSvc = (overrides: Partial<ProjectConfig> = {}) =>
+    checksFor({
+      language: 'typescript',
+      archetype: 'backend-web-db',
+      useGitHub: true,
+      pipelineStyle: 'standard',
+      collaborationMode: 'peer-review',
+      enableSecurityScanning: true,
+      ...overrides,
+    })
+
+  it('gates secret_scan for a typescript service (gitleaks is beta) and unblocks with the flag', () => {
+    const checks = tsSvc()
+    expect(checks).toContainEqual(
+      expect.objectContaining<Partial<L3MaturityCapability>>({
+        feature: 'secret_scan',
+        language: 'typescript',
+      }),
+    )
+    expect(blockedFeatures(checks)).toContain('secret_scan')
+    // --accept-beta-tools unblocks it.
+    const all = checks.every((c) => isL3Allowed(c.language, c.feature, true).allowed)
+    expect(all).toBe(true)
+  })
+
+  it('does NOT gate secret_scan when security scanning is off AND style is starter AND peer-review (no false-block)', () => {
+    const checks = tsSvc({ pipelineStyle: 'starter', enableSecurityScanning: false })
+    expect(checks.map((c) => c.feature)).not.toContain('secret_scan')
+  })
+
+  it('gates license_scan for a typescript service (beta) — always-emitted by 02-pr-extended', () => {
+    const checks = tsSvc()
+    expect(checks).toContainEqual(
+      expect.objectContaining<Partial<L3MaturityCapability>>({
+        feature: 'license_scan',
+        language: 'typescript',
+      }),
+    )
+    expect(blockedFeatures(checks)).toContain('license_scan')
+  })
+
+  it('gates container_scan for a service (Trivy is service-guarded in 02)', () => {
+    const checks = tsSvc()
+    expect(checks).toContainEqual(
+      expect.objectContaining<Partial<L3MaturityCapability>>({
+        feature: 'container_scan',
+        language: 'typescript',
+      }),
+    )
+  })
+
+  it('does NOT gate container_scan for a non-service lib with no deploy (no false-block)', () => {
+    const checks = tsSvc({ archetype: 'library', deployTarget: undefined })
+    expect(checks.map((c) => c.feature)).not.toContain('container_scan')
+  })
+
+  it('gates container_scan for a non-service lib WITH deploy (04-deploy-test Trivy)', () => {
+    const checks = tsSvc({ archetype: 'library', deployTarget: 'gcp-cloud-run' })
+    expect(checks).toContainEqual(
+      expect.objectContaining<Partial<L3MaturityCapability>>({
+        feature: 'container_scan',
+        language: 'typescript',
+      }),
+    )
+  })
+
+  it('gates sbom + binary_signing for standard L3 (05-release) and for deploy', () => {
+    const checks = tsSvc()
+    expect(blockedFeatures(checks)).toEqual(expect.arrayContaining(['sbom', 'binary_signing']))
+  })
+
+  it('does NOT gate sbom/binary_signing for starter L3 with no deploy (05 skipped)', () => {
+    const checks = tsSvc({ pipelineStyle: 'starter', deployTarget: undefined })
+    const feats = checks.map((c) => c.feature)
+    expect(feats).not.toContain('sbom')
+    expect(feats).not.toContain('binary_signing')
+  })
+
+  it('gates provenance for standard L3 (05-release slsa-provenance) but NOT for starter+deploy (04/10 emit SBOM attestation, not provenance)', () => {
+    const checks = tsSvc()
+    expect(blockedFeatures(checks)).toContain('provenance')
+    const starterDeploy = tsSvc({ pipelineStyle: 'starter', deployTarget: 'gcp-cloud-run' })
+    expect(starterDeploy.map((c) => c.feature)).not.toContain('provenance')
+  })
+
+  it('gates fuzz for standard non-trunk-solo L3 (_nightly) but NOT for trunk-solo or starter', () => {
+    const checks = tsSvc()
+    expect(blockedFeatures(checks)).toContain('fuzz')
+    expect(tsSvc({ collaborationMode: 'trunk-solo' }).map((c) => c.feature)).not.toContain('fuzz')
+    expect(tsSvc({ pipelineStyle: 'starter' }).map((c) => c.feature)).not.toContain('fuzz')
+  })
+
+  it('gates dast for a service (scheduled _shared-security) AND for non-service+deploy (04 dast-baseline)', () => {
+    const checks = tsSvc()
+    expect(blockedFeatures(checks)).toContain('dast')
+    const libDeploy = tsSvc({ archetype: 'library', deployTarget: 'gcp-cloud-run' })
+    expect(libDeploy.map((c) => c.feature)).toContain('dast')
+  })
+
+  it('does NOT gate dast for a non-service lib with no deploy (no false-block)', () => {
+    const checks = tsSvc({ archetype: 'library', deployTarget: undefined })
+    expect(checks.map((c) => c.feature)).not.toContain('dast')
+  })
+
+  it('does NOT gate any workflow dim when useGitHub is false (no false-block on un-emitted workflows)', () => {
+    const checks = tsSvc({ useGitHub: false })
+    const wfDims = ['secret_scan', 'license_scan', 'container_scan', 'sbom', 'binary_signing', 'provenance', 'fuzz', 'dast']
+    expect(checks.map((c) => c.feature).filter((f) => wfDims.includes(f))).toEqual([])
+  })
+
+  it('a typescript service at L3 now blocks on the beta workflow dims (previously passed) — unblocked by --accept-beta-tools', () => {
+    // The existing "does NOT block a typescript service" assumption is superseded: the
+    // workflow dims are beta for TS, so a standard L3 service blocks on them without the flag.
+    const checks = tsSvc()
+    expect(blockedFeatures(checks).length).toBeGreaterThan(0)
+    const all = checks.every((c) => isL3Allowed(c.language, c.feature, true).allowed)
+    expect(all).toBe(true)
+  })
+})
