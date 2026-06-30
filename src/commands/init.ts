@@ -33,6 +33,7 @@ import {
   type GeneratorFailure,
   type GeneratorSpec,
 } from '../generators/registry.js'
+import { resolveStyle } from '../generators/github.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../utils/render.js'
@@ -1443,9 +1444,81 @@ function capabilitiesForGenerator(
         { feature: 'a11y', language: 'python' },
         { feature: 'e2e', language: 'python' },
       ]
+    // #1678: the 'github' registry key emits all CI workflow templates. The
+    // workflow-template-emitted dims (fuzz/dast/sbom/etc.) are derived from the emission
+    // plan via deriveWorkflowCapabilities. Routed through this case (not iterated
+    // separately) so the existing spec.enabled check gates it: workflow caps are
+    // consulted only when github is actually emitted (no false-block when disabled).
+    case 'github':
+      return deriveWorkflowCapabilities(config)
     default:
       return []
   }
+}
+
+/**
+ * #1678: the archetype→service bucket mirrors the `_bucket`/`_isService` map in the
+ * workflow EJS (`_nightly.yml.ejs`/`_shared-security.yml.ejs`). A 4th copy of this map
+ * (3 already live in the EJS) — recorded as tech-debt (CANON-22): the root-cause fix is a
+ * shared emission-plan module consumed by both the github generator and the gate, with
+ * the bucket lifted out of EJS; that CANON-04/13/05 refactor is out of scope for this
+ * gate-extension issue (filed as a follow-up).
+ */
+function serviceBucket(archetype: ProjectConfig['archetype']): 'service' | 'cli' | 'batch' | 'lib' {
+  const map: Record<string, 'service' | 'cli' | 'batch' | 'lib'> = {
+    'backend-web-db': 'service',
+    cli: 'cli',
+    embedded: 'cli',
+    'data-pipeline': 'batch',
+  }
+  return map[archetype] ?? 'lib'
+}
+
+/**
+ * #1678: derive the workflow-template-emitted L3 maturity capabilities from the actual
+ * emission plan (the github.ts + EJS predicates), so the L3 gate consults the dims the CI
+ * workflows will really run. Mirrors `src/generators/github.ts` emission predicates + the
+ * EJS job-level `_isService` guards; the drift-detection test
+ * (`init-l3-workflow-drift.test.ts`) verifies the mirror against the rendered workflows.
+ * `hasMatrixCell` skips `multi`/unmodelled (no false-block) — see the #1678 follow-ups for
+ * the kotlin/multi matrix-gap (those languages aren't gated on these dims yet).
+ * Exported for unit + drift tests.
+ */
+export function deriveWorkflowCapabilities(config: ProjectConfig): L3MaturityCapability[] {
+  // The L3 gate only runs at L3; deriveWorkflowCapabilities is reached via case 'github'
+  // which is only consulted at L3, but guard anyway for direct unit-test callers.
+  if (config.governanceLevel !== 'L3') return []
+  const style = resolveStyle(config)
+  const cm = config.collaborationMode ?? 'peer-review'
+  const deployTarget = config.deployTarget ?? 'none'
+  const isService = serviceBucket(config.archetype) === 'service'
+  const isScheduled = style !== 'starter' && cm !== 'trunk-solo' // scheduled suite at L3
+  const lang = config.language
+  const cap = (feature: MaturityFeature): L3MaturityCapability => ({ feature, language: lang })
+
+  const caps: L3MaturityCapability[] = []
+  // secret_scan: 01-pr-fast gitleaks (enableSecurityScanning) OR 05/_nightly (style !==
+  // starter) OR 07-weekly-lite (cm === trunk-solo).
+  if (config.enableSecurityScanning || style !== 'starter' || cm === 'trunk-solo') {
+    caps.push(cap('secret_scan'))
+  }
+  // license_scan: 02-pr-extended license-scan job (always, not service-guarded).
+  caps.push(cap('license_scan'))
+  // container_scan: 02-pr-extended Trivy (service) OR 04-deploy-test Trivy (deploy).
+  if (isService || deployTarget !== 'none') caps.push(cap('container_scan'))
+  // sbom/binary_signing: 05-release (style !== starter) OR 04/10-deploy.
+  if (style !== 'starter' || deployTarget !== 'none') {
+    caps.push(cap('sbom'))
+    caps.push(cap('binary_signing'))
+  }
+  // provenance: 05-release slsa-provenance/attest-build-provenance ONLY (style !== starter).
+  // 04 emits SBOM attestation (sbom dim); 10's provenance gate is cosign verify (consume).
+  if (style !== 'starter') caps.push(cap('provenance'))
+  // fuzz: _nightly fuzz job (scheduled suite).
+  if (isScheduled) caps.push(cap('fuzz'))
+  // dast: _shared-security dast-full (scheduled + service) OR 04-deploy-test dast-baseline (deploy).
+  if ((isScheduled && isService) || deployTarget !== 'none') caps.push(cap('dast'))
+  return caps
 }
 
 /**

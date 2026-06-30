@@ -21,6 +21,17 @@ export type MaturityFeature =
   // #1628: the a11y harness (axe-playwright-python = beta for python) is emitted at L3
   // but was ungated. Gated for the python a11y harness in checkL3MaturityGates.
   | 'a11y'
+  // #1678: workflow-template-emitted dims (the 'github' registry key emits CI workflows
+  // for these). All beta for every modelled language; previously ungated (the gate only
+  // consulted the registry-derivable dims). Now gated via deriveWorkflowCapabilities.
+  | 'fuzz'
+  | 'dast'
+  | 'license_scan'
+  | 'sbom'
+  | 'binary_signing'
+  | 'provenance'
+  | 'container_scan'
+  | 'secret_scan'
 
 interface MaturityEntry {
   tool: string
