@@ -150,6 +150,9 @@ describe('agents-md/AGENTS.md.ejs template rendering', () => {
     // INV-11/12/13 are alwaysActive=true at L2+, so security tier appears even with standard preset
     expect(content).toContain('Tier 3: Security')
     expect(content).toContain('INV-11')
+    // #1635: INV-14/15 are alwaysActive=true security invariants, present at L2 standard
+    expect(content).toContain('INV-14')
+    expect(content).toContain('INV-15')
   })
 
   it('full preset (L3 default) includes security tier', () => {

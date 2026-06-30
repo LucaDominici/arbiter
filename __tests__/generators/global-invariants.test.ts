@@ -77,6 +77,9 @@ describe('generateGlobalInvariants', () => {
     expect(content).toContain('Tier 3: Security')
     expect(content).toContain('Tier 4: Operational Excellence')
     expect(content).toContain('Tier 5: Governance')
+    // #1635: INV-14/15 are alwaysActive=true security invariants, present at L2 standard
+    expect(content).toContain('INV-14')
+    expect(content).toContain('INV-15')
   })
 
   it('content includes invariant descriptions', () => {

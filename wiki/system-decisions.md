@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/SYSTEM/DECISIONS.md'
-source_sha: 'a91fb82b4e4639e39318e83ef7c2910776e241f4'
-last_updated: '2026-06-28'
+source_sha: 'b6ebe33e7ce8c7809e53c7323030088944cf4260'
+last_updated: '2026-06-30'
 ---
 
 # Architectural Decision Records — Generated Digest
@@ -79,7 +79,7 @@ last_updated: '2026-06-28'
 | 057 | [V1 Verification Bridge (#253)](../ADR/057-v1-verification-bridge.md) | Accepted | 2026-05-31 |
 | 058 | [Context-economy rule + knowledge-map + track-aware post-commit (#720, #724)](../ADR/058-context-economy-rule-knowledge-map-track-aware-post-commit.md) | Accepted | 2026-05-31 |
 | 059 | [selfOnly invariant field — filter arbiter-internal rules from generated target AGENTS.md (#682)](../ADR/059-selfonly-invariant-field-filter-arbiter-internal-rules-from.md) | Accepted | 2026-05-31 |
-| 060 | [alwaysActive semantics clarification + INV-29/30 asymmetry rationale (#683)](../ADR/060-alwaysactive-semantics-clarification-inv-29-30-asymmetry-rat.md) | Accepted | 2026-05-31 |
+| 060 | [alwaysActive semantics clarification + INV-29/30 asymmetry rationale (#683)](../ADR/060-alwaysactive-semantics-clarification-inv-29-30-asymmetry-rat.md) | Accepted | 2026-06-30 |
 | 061 | [Batch-execution safety rule for parallel agents (#722, 2026-05-16)](../ADR/061-batch-execution-safety-rule-for-parallel-agents.md) | Accepted | 2026-05-31 |
 | 062 | [CLI catalog docs/COMMANDS.md generation (#728, 2026-05-16)](../ADR/062-cli-catalog-docs-commands-m
 

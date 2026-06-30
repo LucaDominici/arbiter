@@ -924,6 +924,15 @@ describe('cross-product: GLOBAL_INVARIANTS.md — generation by preset', () => {
         expect(content).toContain('Tier 4: Operational Excellence')
         // INV-11/12/13 are alwaysActive=true at L2+ (M24), security tier appears regardless of preset
         expect(content).toContain('Tier 3: Security')
+        // #1635: INV-14/15 alwaysActive security invariants present at L2 standard
+        expect(content).toContain('INV-14')
+        expect(content).toContain('INV-15')
+        // #1635: INV-44 is Java-only — alwaysActive bypasses tier but NOT the language filter
+        if (lang === 'java') {
+          expect(content).toContain('INV-44')
+        } else {
+          expect(content).not.toContain('INV-44')
+        }
       } finally {
         cleanup(d)
       }
