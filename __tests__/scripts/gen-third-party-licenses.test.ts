@@ -111,6 +111,32 @@ function run(args: string[]) {
   return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
 
+/**
+ * Build a throwaway root whose sole dependency `nolicense-pkg@1.0.0` ships no
+ * `license` field — the shared setup for the UNKNOWN-fail-closed test and the
+ * override-positive-path test. Returns the root + the on-disk package dir.
+ * Caller owns cleanup (`rmSync(root, { recursive: true, force: true })`).
+ */
+function makeNoLicensePkgRoot(prefix: string): { root: string; pkgDir: string } {
+  const root = mkdtempSync(join(tmpdir(), prefix))
+  writeFileSync(
+    join(root, 'package.json'),
+    JSON.stringify({
+      name: `${prefix}-fixture`,
+      version: '0.0.0',
+      private: true,
+      dependencies: { 'nolicense-pkg': '1.0.0' },
+    }),
+  )
+  const pkgDir = join(root, 'node_modules', 'nolicense-pkg')
+  mkdirSync(pkgDir, { recursive: true })
+  writeFileSync(
+    join(pkgDir, 'package.json'),
+    JSON.stringify({ name: 'nolicense-pkg', version: '1.0.0' }),
+  )
+  return { root, pkgDir }
+}
+
 describe('gen-third-party-licenses.mjs', () => {
   it('committed THIRD_PARTY_LICENSES.md is up to date (--check passes)', () => {
     const result = run(['--check'])
@@ -164,25 +190,10 @@ describe('gen-third-party-licenses.mjs', () => {
     // attributing it MIT; the generator must emit the section + the `source` audit
     // trail (not fail-closed on UNKNOWN). Uses --license-overrides-fixture so the
     // positive path is covered without depending on a real metadata-less package.
-    const root = mkdtempSync(join(tmpdir(), 'tpl-override-'))
+    const { root, pkgDir } = makeNoLicensePkgRoot('tpl-override')
     const closureFixture = join(tmpdir(), `tpl-override-closure-${process.pid}.json`)
     const overridesFixture = join(tmpdir(), `tpl-override-overrides-${process.pid}.json`)
     try {
-      writeFileSync(
-        join(root, 'package.json'),
-        JSON.stringify({
-          name: 'tpl-override-fixture',
-          version: '0.0.0',
-          private: true,
-          dependencies: { 'nolicense-pkg': '1.0.0' },
-        }),
-      )
-      const pkgDir = join(root, 'node_modules', 'nolicense-pkg')
-      mkdirSync(pkgDir, { recursive: true })
-      writeFileSync(
-        join(pkgDir, 'package.json'),
-        JSON.stringify({ name: 'nolicense-pkg', version: '1.0.0' }),
-      )
       writeFileSync(
         closureFixture,
         JSON.stringify({
@@ -234,23 +245,8 @@ describe('gen-third-party-licenses.mjs', () => {
     // there: it must exit non-zero rather than producing an UNKNOWN section.
     // The fixture is created at runtime (its `node_modules/` is gitignored, so
     // it cannot be committed) and torn down afterwards.
-    const root = mkdtempSync(join(tmpdir(), 'tpl-unknown-'))
+    const { root } = makeNoLicensePkgRoot('tpl-unknown')
     try {
-      writeFileSync(
-        join(root, 'package.json'),
-        JSON.stringify({
-          name: 'tpl-unknown-fixture',
-          version: '0.0.0',
-          private: true,
-          dependencies: { 'nolicense-pkg': '1.0.0' },
-        }),
-      )
-      const pkgDir = join(root, 'node_modules', 'nolicense-pkg')
-      mkdirSync(pkgDir, { recursive: true })
-      writeFileSync(
-        join(pkgDir, 'package.json'),
-        JSON.stringify({ name: 'nolicense-pkg', version: '1.0.0' }),
-      )
       const result = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: root })
       expect(result.status).not.toBe(0)
       expect(result.stderr).toMatch(/UNKNOWN|no resolvable license|unresolved/i)
