@@ -1488,37 +1488,54 @@ export function deriveWorkflowCapabilities(config: ProjectConfig): L3MaturityCap
   // The L3 gate only runs at L3; deriveWorkflowCapabilities is reached via case 'github'
   // which is only consulted at L3, but guard anyway for direct unit-test callers.
   if (config.governanceLevel !== 'L3') return []
-  const style = resolveStyle(config)
-  const cm = config.collaborationMode ?? 'peer-review'
-  const deployTarget = config.deployTarget ?? 'none'
-  const isService = serviceBucket(config.archetype) === 'service'
-  const isScheduled = style !== 'starter' && cm !== 'trunk-solo' // scheduled suite at L3
+  const c = workflowCtx(config)
   const lang = config.language
-  const cap = (feature: MaturityFeature): L3MaturityCapability => ({ feature, language: lang })
-
-  const caps: L3MaturityCapability[] = []
+  const dims: MaturityFeature[] = ['license_scan'] // 02-pr-extended license-scan (always)
   // secret_scan: 01-pr-fast gitleaks (enableSecurityScanning) OR 05/_nightly (style !==
   // starter) OR 07-weekly-lite (cm === trunk-solo).
-  if (config.enableSecurityScanning || style !== 'starter' || cm === 'trunk-solo') {
-    caps.push(cap('secret_scan'))
-  }
-  // license_scan: 02-pr-extended license-scan job (always, not service-guarded).
-  caps.push(cap('license_scan'))
+  if (c.secScanning || c.style !== 'starter' || c.cm === 'trunk-solo') dims.push('secret_scan')
   // container_scan: 02-pr-extended Trivy (service) OR 04-deploy-test Trivy (deploy).
-  if (isService || deployTarget !== 'none') caps.push(cap('container_scan'))
+  if (c.isService || c.deploy) dims.push('container_scan')
   // sbom/binary_signing: 05-release (style !== starter) OR 04/10-deploy.
-  if (style !== 'starter' || deployTarget !== 'none') {
-    caps.push(cap('sbom'))
-    caps.push(cap('binary_signing'))
+  if (c.style !== 'starter' || c.deploy) {
+    dims.push('sbom')
+    dims.push('binary_signing')
   }
   // provenance: 05-release slsa-provenance/attest-build-provenance ONLY (style !== starter).
   // 04 emits SBOM attestation (sbom dim); 10's provenance gate is cosign verify (consume).
-  if (style !== 'starter') caps.push(cap('provenance'))
+  if (c.style !== 'starter') dims.push('provenance')
   // fuzz: _nightly fuzz job (scheduled suite).
-  if (isScheduled) caps.push(cap('fuzz'))
+  if (c.isScheduled) dims.push('fuzz')
   // dast: _shared-security dast-full (scheduled + service) OR 04-deploy-test dast-baseline (deploy).
-  if ((isScheduled && isService) || deployTarget !== 'none') caps.push(cap('dast'))
-  return caps
+  if ((c.isScheduled && c.isService) || c.deploy) dims.push('dast')
+  return dims.map((feature) => ({ feature, language: lang }))
+}
+
+/**
+ * #1678: the workflow-emission context the gate derives from, computed once. Extracted
+ * from deriveWorkflowCapabilities to keep that function under the complexity ceiling
+ * (decision points live here, not in the dim branches).
+ */
+interface WorkflowCtx {
+  style: 'starter' | 'standard' | 'industrial'
+  cm: string
+  deploy: boolean
+  isService: boolean
+  isScheduled: boolean
+  secScanning: boolean
+}
+
+function workflowCtx(config: ProjectConfig): WorkflowCtx {
+  const style = resolveStyle(config)
+  const cm = config.collaborationMode ?? 'peer-review'
+  return {
+    style,
+    cm,
+    deploy: (config.deployTarget ?? 'none') !== 'none',
+    isService: serviceBucket(config.archetype) === 'service',
+    isScheduled: style !== 'starter' && cm !== 'trunk-solo', // scheduled suite at L3
+    secScanning: config.enableSecurityScanning,
+  }
 }
 
 /**
