@@ -137,12 +137,22 @@ describe('deriveWorkflowCapabilities — drift vs the real github generator (#16
     assertMatch('ts-starter', { pipelineStyle: 'starter', deployTarget: undefined })
   })
 
-  it('residual blind spots are documented (honesty): per-language/kotlin/multi guards + renamed jobs are NOT caught', () => {
+  it('residual blind spots are documented (honesty): language + config-space classes NOT caught', () => {
     // The drift test catches predicate + job-level guard drift for the SAMPLED configs
-    // (typescript, service/lib, standard/starter, peer-review/trunk-solo, deploy/no-deploy).
-    // It does NOT catch: per-language guards for unsampled languages (java/go/rust/python),
-    // kotlin/multi matrix gaps (filed as follow-ups), or a renamed job (both the gate +
-    // DIM_TO_TOOL would need updating). This test documents that limitation explicitly.
+    // (typescript; service/lib; standard/starter; peer-review/trunk-solo; deploy/no-deploy;
+    // secScanning=true). It does NOT catch drift in these UNSAMPLED classes:
+    //  - per-language guards for unsampled languages (java/go/rust/python);
+    //  - kotlin/multi matrix gaps (filed as #1724/#1725);
+    //  - non-library/non-service archetypes (cli/embedded/data-pipeline — serviceBucket maps
+    //    them but they're unsampled);
+    //  - gated-review cm (emits like peer-review today, unsampled);
+    //  - industrial style (emits only the license_scan extra path, unsampled);
+    //  - secScanning=false + style=standard (secret_scan claimed via the style arm, unsampled);
+    //  - starter + deploy (binary_signing claimed via deploy, provenance not — correct today,
+    //    unsampled);
+    //  - a renamed job (both the gate + DIM_TO_TOOL would need updating).
+    // The gate is correct TODAY for all these (verified by reading the EJS); the drift test is
+    // a partial net, not exhaustive. The root-cause fix is the SSOT extraction (#1723).
     expect(DIM_TO_TOOL).toBeDefined()
   })
 })
