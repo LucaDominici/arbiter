@@ -75,6 +75,22 @@ const _fixturePath =
     : process.argv[_fixtureIdx].startsWith('--npm-ls-fixture=')
       ? process.argv[_fixtureIdx].slice('--npm-ls-fixture='.length)
       : (process.argv[_fixtureIdx + 1] ?? null)
+
+// --license-overrides-fixture=<path> or space form: substitute a JSON file for the
+// LICENSE_OVERRIDES map (testing only). The override mechanism is a dormant escape
+// hatch (the map is currently empty — see LICENSE_OVERRIDES docstring); this flag
+// lets the positive override path + `source` audit trail be exercised by a
+// synthetic fixture without depending on a real metadata-less package. Supports
+// both `=` and space-separated forms, mirroring `--npm-ls-fixture`.
+const _overridesIdx = process.argv.findIndex(
+  (a) => a === '--license-overrides-fixture' || a.startsWith('--license-overrides-fixture='),
+)
+const _overridesPath =
+  _overridesIdx === -1
+    ? null
+    : process.argv[_overridesIdx].startsWith('--license-overrides-fixture=')
+      ? process.argv[_overridesIdx].slice('--license-overrides-fixture='.length)
+      : (process.argv[_overridesIdx + 1] ?? null)
 const HEADER = `# Third-Party Licenses
 
 arbiter (\`@arbiter/cli\`) is distributed under the Apache License 2.0. This file
@@ -91,19 +107,25 @@ installed production dependency tree; do not edit it by hand.
  * closed on UNKNOWN; this map is the ONLY sanctioned escape hatch, and each
  * entry must carry a `source` documenting how the license was established. Keyed
  * by `name@version` so an override never silently leaks to a future version.
+ *
+ * The map is currently empty: the previous `buffers@0.1.1` override was the only
+ * entry, and it existed solely for `exceljs → unzipper → binary → buffers`. The
+ * exceljs runtime dependency was removed (#1670, replaced by a native zero-dep
+ * xlsx writer), so `buffers` is no longer in the production closure and the
+ * override is inert. The mechanism is retained — a future metadata-less
+ * transitive dep can be attributed here without code changes — and is exercised
+ * by `__tests__/scripts/gen-third-party-licenses.test.ts` via the
+ * `--license-overrides-fixture` flag below.
  */
-const LICENSE_OVERRIDES = {
-  // buffers@0.1.1 (substack, 2012) ships no `license` field and no LICENSE
-  // file. Its author's packages carry a blanket MIT/X11 license, confirmed by
-  // its same-author siblings in the very same dependency chain that DO declare:
-  // `binary@0.3.0` = MIT and `chainsaw@0.1.0` = MIT/X11 (exceljs → unzipper →
-  // binary → buffers). Attributed as MIT on that documented basis.
-  'buffers@0.1.1': {
-    id: 'MIT',
-    source:
-      'No license field upstream; same-author siblings binary@0.3.0 (MIT) and chainsaw (MIT/X11) in the same dependency chain establish the author MIT/X11 convention.',
-  },
-}
+const LICENSE_OVERRIDES = {}
+
+// Effective override map: the fixture (when `--license-overrides-fixture` is
+// passed) replaces the hardcoded map, so the positive override path is testable
+// without a real metadata-less package. Declared AFTER `LICENSE_OVERRIDES` (the
+// fixture falls back to it) to respect the const TDZ.
+const EFFECTIVE_OVERRIDES = _overridesPath
+  ? JSON.parse(readFileSync(_overridesPath, 'utf8'))
+  : LICENSE_OVERRIDES
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'))
@@ -266,7 +288,7 @@ function generate() {
       continue
     }
     let id = licenseId(pkgJson)
-    const override = LICENSE_OVERRIDES[`${name}@${pkgJson.version}`]
+    const override = EFFECTIVE_OVERRIDES[`${name}@${pkgJson.version}`]
     if (id === 'UNKNOWN' && override) {
       id = override.id
     }
