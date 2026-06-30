@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-20'
+last_review: '2026-06-30'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -87,7 +87,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 057 | [V1 Verification Bridge (#253)](057-v1-verification-bridge.md)                                                                                                        | Accepted   | 2026-05-31 | Add arbiter verify plan <file> command implementing 4 rules: VB-INV-EN-UI (Italian stopword check on UI str... |
 | 058 | [Context-economy rule + knowledge-map + track-aware post-commit (#720, #724)](058-context-economy-rule-knowledge-map-track-aware-post-commit.md)                      | Accepted   | 2026-05-31 | - 40-context-economy.md rule (static Markdown, no EJS): generated as .claude/rules/40-context-economy.md vi... |
 | 059 | [selfOnly invariant field — filter arbiter-internal rules from generated target AGENTS.md (#682)](059-selfonly-invariant-field-filter-arbiter-internal-rules-from.md) | Accepted   | 2026-05-31 | Add selfOnly?: boolean to the Invariant interface. Mark 11 arbiter-internal invariants: INV-32 (matrix fixt... |
-| 060 | [alwaysActive semantics clarification + INV-29/30 asymmetry rationale (#683)](060-alwaysactive-semantics-clarification-inv-29-30-asymmetry-rat.md)                    | Accepted   | 2026-05-31 | 1. JSDoc fix — not rename. The alwaysActive field is renamed to tierBypassOnly in the issue suggestion. Aft... |
+| 060 | [alwaysActive semantics clarification + INV-29/30 asymmetry rationale (#683)](060-alwaysactive-semantics-clarification-inv-29-30-asymmetry-rat.md)                    | Accepted   | 2026-06-30 | 1. JSDoc fix — not rename. The alwaysActive field is renamed to tierBypassOnly in the issue suggestion. Aft... |
 | 061 | [Batch-execution safety rule for parallel agents (#722, 2026-05-16)](061-batch-execution-safety-rule-for-parallel-agents.md)                                          | Accepted   | 2026-05-31 | Emit a static Markdown rule file 50-batch-execution.md via generateClaudeRules with skipIfExists: true. The... |
 | 062 | [CLI catalog docs/COMMANDS.md generation (#728, 2026-05-16)](062-cli-catalog-docs-commands-md-generation.md)                                                          | Accepted   | 2026-05-31 | Add src/templates/documentation/cli-catalog.md.ejs rendered as docs/COMMANDS.md by generateDocs at L2+. Sou... |
 | 063 | [check-no-skipped-tests hook (NI-11 enforcement) (#730)](063-check-no-skipped-tests-hook-ni-11-enforcement.md)                                                        | Accepted   | 2026-05-31 | - New static hook template src/templates/claude/hooks/check-no-skipped-tests.mjs added to the staticHooks a... |

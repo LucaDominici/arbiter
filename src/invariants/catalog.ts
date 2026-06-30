@@ -225,7 +225,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       python:
         'No dynamic code evaluation (`eval`/`exec` builtins) or subprocess calls with untrusted input',
     },
-    alwaysActive: false,
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
     enforcement: 'code review / SAST (semgrep / CodeQL)',
   },
 
@@ -237,7 +238,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Every API endpoint, message consumer, and job scheduler must authenticate the caller ' +
       'unless explicitly designated as public. Default-deny authentication; explicit opt-out ' +
       'requires ADR approval.',
-    alwaysActive: false,
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
     enforcement: 'code review / integration tests',
   },
 
@@ -699,7 +701,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'SQL_INJECTION, SQL_INJECTION_SPRING_JDBC, XSS_REQUEST_WRAPPER, XSS_SERVLET, ' +
       'COMMAND_INJECTION, XXE_DOCUMENT, XXE_XMLREADER, LDAP_INJECTION, HARD_CODE_PASSWORD. ' +
       'Non-security findings may be baselined in spotbugs-baseline.json after review.',
-    alwaysActive: false,
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
     enforcement:
       'src/templates/scripts/verify-spotbugs.mjs.ejs (SECURITY_HARD_BLOCK set + exit 1) + ' +
       'src/templates/scripts/check-all.mjs.ejs (spotbugs baseline check at L2, Java)',
@@ -1198,7 +1201,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'three conditions pass: (1) reviewer is not the PR author, (2) reviewer is not a Bot, ' +
       '(3) review state is approved. The 01-pr-fast.yml human-approval-required sentinel job ' +
       'asserts this label is present before merge, blocking bot-only approvals.',
-    alwaysActive: false,
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
     enforcement:
       'generated: 03-human-approval.yml triple-check + 01-pr-fast.yml human-approval-required job',
   },
@@ -1226,7 +1230,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'supply-chain attack vector: the tag can be moved after review. Every uses: reference ' +
       'to a non-local action must resolve to a full 40-character lowercase hex SHA. ' +
       'At L1: violations emit a warning. At L2+: violations are a hard gate failure.',
-    alwaysActive: false,
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
     enforcement:
       'self: scripts/check-action-pins.mjs (L1 — transition warn until W10 #886) + generated gate: check-action-pins.mjs.ejs (target projects: L1=warn, L2+=hard fail)',
   },
@@ -1240,7 +1245,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Workflows without a top-level permissions: block inherit the repository default, which ' +
       'is often write-all. Declaring permissions: at the top of every workflow file enforces ' +
       'the principle of least privilege and satisfies the OSSF Scorecard Token-Permissions check.',
-    alwaysActive: false,
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
     enforcement: 'generated gate: check-workflow-perms.mjs (L1)',
   },
 
@@ -1253,7 +1259,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'to produce SLSA provenance. L2 governance targets SLSA Build L2 (signed provenance). ' +
       'L3 governance targets SLSA Build L3 (hermetic builder). Provenance is attached to the ' +
       'GitHub release as a verifiable attestation alongside the signed artifact.',
-    alwaysActive: false,
+    alwaysActive: true,
     minGovernanceLevel: 'L2',
     enforcement: 'generated: 05-release.yml slsa-github-generator reusable workflow call',
   },
@@ -1267,7 +1273,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'must be signed with cosign sign-blob using keyless OIDC signing via Sigstore. ' +
       'Unsigned release artifacts cannot be verified by downstream consumers and fail ' +
       'supply-chain audits.',
-    alwaysActive: false,
+    alwaysActive: true,
     minGovernanceLevel: 'L2',
     enforcement: 'generated: 05-release.yml cosign sign-blob per archetype publish job',
   },
@@ -1411,7 +1417,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'applied by _label-on-approve.yml (idempotent, rejects bot reviewers and self-reviews). ' +
       '_ai-draft-check.yml asserts the label presence on every label/sync event. ' +
       'Complements INV-74 which enforces the label requirement regardless of PR author type.',
-    alwaysActive: false,
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
     selfOnly: false,
     enforcement: 'generated: _ai-draft-check.yml workflow + _label-on-approve.yml workflow',
   },
@@ -1429,7 +1436,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'A _sigstore-retry-sign reusable workflow is also generated as opt-in scaffolding for ' +
       'retry-on-flake signing; the live 05-release cosign-sign job signs inline and does not ' +
       'yet delegate to it (#1663), so retry-on-flake is available to wire in, not yet active.',
-    alwaysActive: false,
+    alwaysActive: true,
     selfOnly: false,
     minGovernanceLevel: 'L2',
     enforcement: 'generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom-attest jobs)',

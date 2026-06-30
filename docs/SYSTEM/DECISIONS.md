@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-06-20'
+last_review: '2026-06-30'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -78,7 +78,7 @@ related: []
 | 057 | [V1 Verification Bridge (#253)](../ADR/057-v1-verification-bridge.md) | Accepted | 2026-05-31 |
 | 058 | [Context-economy rule + knowledge-map + track-aware post-commit (#720, #724)](../ADR/058-context-economy-rule-knowledge-map-track-aware-post-commit.md) | Accepted | 2026-05-31 |
 | 059 | [selfOnly invariant field — filter arbiter-internal rules from generated target AGENTS.md (#682)](../ADR/059-selfonly-invariant-field-filter-arbiter-internal-rules-from.md) | Accepted | 2026-05-31 |
-| 060 | [alwaysActive semantics clarification + INV-29/30 asymmetry rationale (#683)](../ADR/060-alwaysactive-semantics-clarification-inv-29-30-asymmetry-rat.md) | Accepted | 2026-05-31 |
+| 060 | [alwaysActive semantics clarification + INV-29/30 asymmetry rationale (#683)](../ADR/060-alwaysactive-semantics-clarification-inv-29-30-asymmetry-rat.md) | Accepted | 2026-06-30 |
 | 061 | [Batch-execution safety rule for parallel agents (#722, 2026-05-16)](../ADR/061-batch-execution-safety-rule-for-parallel-agents.md) | Accepted | 2026-05-31 |
 | 062 | [CLI catalog docs/COMMANDS.md generation (#728, 2026-05-16)](../ADR/062-cli-catalog-docs-commands-md-generation.md) | Accepted | 2026-05-31 |
 | 063 | [check-no-skipped-tests hook (NI-11 enforcement) (#730)](../ADR/063-check-no-skipped-tests-hook-ni-11-enforcement.md) | Accepted | 2026-05-31 |

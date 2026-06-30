@@ -126,8 +126,24 @@ describe('INVARIANT_CATALOG', () => {
     }
   })
 
-  it('INV-11/12/13 (security) are alwaysActive with minGovernanceLevel L2 (M24)', () => {
-    for (const id of ['INV-11', 'INV-12', 'INV-13']) {
+  it('security-tier alwaysActive invariants are alwaysActive with minGovernanceLevel L2 (M24, #1635)', () => {
+    // INV-11/12/13 (M24) + INV-14/15/44/74/76/77/78/79/91/92 (#1635): baseline security
+    // hygiene that must hold from L2 up — bypass the tier preset, floored at L2 so L1 stays clean.
+    for (const id of [
+      'INV-11',
+      'INV-12',
+      'INV-13',
+      'INV-14',
+      'INV-15',
+      'INV-44',
+      'INV-74',
+      'INV-76',
+      'INV-77',
+      'INV-78',
+      'INV-79',
+      'INV-91',
+      'INV-92',
+    ]) {
       const inv = INVARIANT_CATALOG.find((i) => i.id === id)
       expect(inv?.alwaysActive, `${id} should be alwaysActive`).toBe(true)
       expect(inv?.minGovernanceLevel, `${id} should require L2`).toBe('L2')
@@ -310,6 +326,9 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-11')
     expect(ids).toContain('INV-12')
     expect(ids).toContain('INV-13')
+    // #1635: INV-14/15 (+ 8 more) are alwaysActive=true security invariants — bypass tier selection
+    expect(ids).toContain('INV-14')
+    expect(ids).toContain('INV-15')
     // Operational tier excluded
     expect(ids).not.toContain('INV-16')
   })
@@ -657,6 +676,12 @@ describe('getFilteredInvariants', () => {
     expect(tiers.has('data')).toBe(false)
     expect(tiers.has('security')).toBe(false)
     expect(tiers.has('operational')).toBe(false)
+    // #1635: the 10 alwaysActive security invariants are floored at L2, so absent at L1 by ID
+    const ids = result.map((inv) => inv.id)
+    expect(ids).not.toContain('INV-14')
+    expect(ids).not.toContain('INV-15')
+    expect(ids).not.toContain('INV-78')
+    expect(ids).not.toContain('INV-92')
   })
 
   // selfOnly filtering (#682)
