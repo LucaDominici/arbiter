@@ -36,7 +36,7 @@
   },
   {
     "file": "commands/init.ts",
-    "line": 780,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') \u2014 no hardcoded English literal remains"
+    "line": 781,
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') \u2014 no hardcoded English literal remains. Line shifted 780\u2192781 by the #1678 resolveStyle import."
   }
 ]
