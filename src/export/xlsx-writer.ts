@@ -65,14 +65,26 @@ function stripControlChars(s: string): string {
   return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
 }
 
-// Escape XML text content: `&` `<` `>` are escaped. `"` and `'` are left LITERAL
-// (they only require escaping inside attribute values; the only attribute this
-// writer emits is `r="<col><row>"`, which is alphanumeric via `colLetter`).
+// Escape XML TEXT content (`<t>` bodies): `&` `<` `>` are escaped; `"` and `'`
+// are left literal (they only require escaping inside attribute values). For
+// ATTRIBUTE values (e.g. the sheet `name="..."` in workbook.xml) use
+// `xmlAttrEscape`, which also escapes `"` and `'` — an unescaped quote in an
+// attribute truncates it and yields malformed XML. The only other attribute
+// this writer emits, `r="<col><row>"`, is alphanumeric via `colLetter` and
+// needs no escaping.
 function xmlEscape(s: string): string {
   return stripControlChars(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+}
+
+// Escape XML ATTRIBUTE values: `&` `<` `>` `"` `'` all escaped. Use for any
+// attribute whose value comes from a caller-provided string (the sheet `name`).
+function xmlAttrEscape(s: string): string {
+  return xmlEscape(s)
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 // 1-based column index → spreadsheet letter (1→A, 26→Z, 27→AA).
@@ -127,7 +139,7 @@ function workbookXml(name: string): string {
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
     'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">\n' +
     '<sheets>\n' +
-    `<sheet name="${xmlEscape(name)}" sheetId="1" r:id="rId1"/>\n` +
+    `<sheet name="${xmlAttrEscape(name)}" sheetId="1" r:id="rId1"/>\n` +
     '</sheets>\n' +
     '</workbook>\n'
   )
@@ -270,6 +282,11 @@ function makeEocd(entryCount: number, cdSize: number, cdOffset: number): Buffer 
  * @returns A ZIP/OOXML buffer loadable by Excel, LibreOffice Calc, and exceljs.
  */
 export function writeXlsx(sheet: XlsxSheet): Buffer {
+  if (sheet.headers.length === 0) {
+    // colLetter(0) would return '' and produce a malformed <dimension ref="A1:1"/>;
+    // a headerless sheet is not a valid workbook. Fail loudly rather than emit corrupt XML.
+    throw new Error('writeXlsx: at least one header column is required')
+  }
   const parts = new Map<string, Buffer>([
     ['[Content_Types].xml', Buffer.from(contentTypesXml(), 'utf8')],
     ['_rels/.rels', Buffer.from(rootRelsXml(), 'utf8')],
@@ -302,6 +319,7 @@ export function writeXlsx(sheet: XlsxSheet): Buffer {
 export const __internal = {
   crc32,
   xmlEscape,
+  xmlAttrEscape,
   colLetter,
   makeLocalHeader,
   makeCentralDirHeader,

