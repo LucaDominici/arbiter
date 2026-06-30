@@ -81,9 +81,9 @@ describe('check-runtime-dep-pins.mjs (#1557)', () => {
     const { dir, cleanup } = makeDir()
     try {
       writePkg(dir, {
-        dependencies: { exceljs: '4.4.0' },
+        dependencies: { 'some-dep': '1.2.3' },
         devDependencies: { typescript: '^6.0.3', madge: '^8.0.0' },
-        overrides: { uuid: '^11.1.1', madge: { typescript: '$typescript' } },
+        overrides: { 'some-transitive': '^2.0.0', madge: { typescript: '$typescript' } },
       })
       expect(run(dir).status).toBe(0)
     } finally {

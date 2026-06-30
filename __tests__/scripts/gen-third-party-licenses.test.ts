@@ -156,16 +156,63 @@ describe('gen-third-party-licenses.mjs', () => {
     expect(missing, `unattributed production deps: ${missing.join(', ')}`).toEqual([])
   })
 
-  it('resolves a metadata-less dependency via a sourced override (no UNKNOWN)', () => {
-    // `buffers@0.1.1` ships no license field; it is attributed MIT via the
-    // curated, sourced override rather than left UNKNOWN or silently dropped.
-    const content = readFileSync(OUT, 'utf8')
-    const idx = content.indexOf('## buffers@0.1.1')
-    expect(idx, 'buffers@0.1.1 must be attributed').toBeGreaterThanOrEqual(0)
-    const section = content.slice(idx, idx + 400)
-    expect(section).toContain('- License: MIT')
-    // The escape hatch must be auditable — it records WHY the license was set.
-    expect(section).toContain('- Attribution source:')
+  it('applies a sourced override to a metadata-less dependency (positive path, #1670)', () => {
+    // After removing exceljs (#1670), the LICENSE_OVERRIDES map is empty — but the
+    // override MECHANISM is retained as a dormant escape hatch and must still work
+    // for a future metadata-less transitive dep. Build a throwaway package with no
+    // license field, a fixture closure pointing at it, and a fixture override
+    // attributing it MIT; the generator must emit the section + the `source` audit
+    // trail (not fail-closed on UNKNOWN). Uses --license-overrides-fixture so the
+    // positive path is covered without depending on a real metadata-less package.
+    const root = mkdtempSync(join(tmpdir(), 'tpl-override-'))
+    const closureFixture = join(tmpdir(), `tpl-override-closure-${process.pid}.json`)
+    const overridesFixture = join(tmpdir(), `tpl-override-overrides-${process.pid}.json`)
+    try {
+      writeFileSync(
+        join(root, 'package.json'),
+        JSON.stringify({
+          name: 'tpl-override-fixture',
+          version: '0.0.0',
+          private: true,
+          dependencies: { 'nolicense-pkg': '1.0.0' },
+        }),
+      )
+      const pkgDir = join(root, 'node_modules', 'nolicense-pkg')
+      mkdirSync(pkgDir, { recursive: true })
+      writeFileSync(
+        join(pkgDir, 'package.json'),
+        JSON.stringify({ name: 'nolicense-pkg', version: '1.0.0' }),
+      )
+      writeFileSync(
+        closureFixture,
+        JSON.stringify({
+          name: 'tpl-override-fixture',
+          version: '0.0.0',
+          dependencies: { 'nolicense-pkg': { version: '1.0.0', path: pkgDir, dependencies: {} } },
+        }),
+      )
+      writeFileSync(
+        overridesFixture,
+        JSON.stringify({
+          'nolicense-pkg@1.0.0': { id: 'MIT', source: 'synthetic test override' },
+        }),
+      )
+      const result = spawnSync(
+        'node',
+        [SCRIPT, '--npm-ls-fixture', closureFixture, '--license-overrides-fixture', overridesFixture],
+        { encoding: 'utf-8', cwd: root },
+      )
+      expect(result.status).toBe(0)
+      const out = readFileSync(join(root, 'THIRD_PARTY_LICENSES.md'), 'utf8')
+      expect(out).toContain('## nolicense-pkg@1.0.0')
+      expect(out).toContain('- License: MIT')
+      // The escape hatch must be auditable — it records WHY the license was set.
+      expect(out).toContain('- Attribution source: synthetic test override')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+      rmSync(closureFixture, { force: true })
+      rmSync(overridesFixture, { force: true })
+    }
   })
 
   it('does NOT attribute local workspace packages (resolved file:)', () => {
