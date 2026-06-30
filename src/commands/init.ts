@@ -1490,26 +1490,42 @@ export function deriveWorkflowCapabilities(config: ProjectConfig): L3MaturityCap
   if (config.governanceLevel !== 'L3') return []
   const c = workflowCtx(config)
   const lang = config.language
-  const dims: MaturityFeature[] = ['license_scan'] // 02-pr-extended license-scan (always)
-  // secret_scan: 01-pr-fast gitleaks (enableSecurityScanning) OR 05/_nightly (style !==
-  // starter) OR 07-weekly-lite (cm === trunk-solo).
-  if (c.secScanning || c.style !== 'starter' || c.cm === 'trunk-solo') dims.push('secret_scan')
-  // container_scan: 02-pr-extended Trivy (service) OR 04-deploy-test Trivy (deploy).
-  if (c.isService || c.deploy) dims.push('container_scan')
-  // sbom/binary_signing: 05-release (style !== starter) OR 04/10-deploy.
-  if (c.style !== 'starter' || c.deploy) {
-    dims.push('sbom')
-    dims.push('binary_signing')
-  }
-  // provenance: 05-release slsa-provenance/attest-build-provenance ONLY (style !== starter).
-  // 04 emits SBOM attestation (sbom dim); 10's provenance gate is cosign verify (consume).
-  if (c.style !== 'starter') dims.push('provenance')
-  // fuzz: _nightly fuzz job (scheduled suite).
-  if (c.isScheduled) dims.push('fuzz')
-  // dast: _shared-security dast-full (scheduled + service) OR 04-deploy-test dast-baseline (deploy).
-  if ((c.isScheduled && c.isService) || c.deploy) dims.push('dast')
-  return dims.map((feature) => ({ feature, language: lang }))
+  return WORKFLOW_DIM_RULES.filter((r) => r.emit(c))
+    .flatMap((r) => r.dims)
+    .map((feature) => ({ feature, language: lang }))
 }
+
+/**
+ * #1678: the workflow-dim emission rules — one row per dim (or dim group sharing a
+ * predicate), mirroring the github.ts + EJS emission predicates. Data-driven so
+ * deriveWorkflowCapabilities stays under the complexity ceiling (the decision points live
+ * in the small per-row predicates, not in a branched function body). See the inline
+ * comments for the emission source of each dim; the drift test verifies the mirror.
+ */
+const WORKFLOW_DIM_RULES: ReadonlyArray<{
+  dims: MaturityFeature[]
+  emit: (c: WorkflowCtx) => boolean
+}> = [
+  // 02-pr-extended license-scan job — always, not service-guarded.
+  { dims: ['license_scan'], emit: () => true },
+  // 01-pr-fast gitleaks (enableSecurityScanning) OR 05/_nightly (style !== starter) OR
+  // 07-weekly-lite (cm === trunk-solo).
+  {
+    dims: ['secret_scan'],
+    emit: (c) => c.secScanning || c.style !== 'starter' || c.cm === 'trunk-solo',
+  },
+  // 02-pr-extended Trivy (service) OR 04-deploy-test Trivy (deploy).
+  { dims: ['container_scan'], emit: (c) => c.isService || c.deploy },
+  // 05-release (style !== starter) OR 04/10-deploy.
+  { dims: ['sbom', 'binary_signing'], emit: (c) => c.style !== 'starter' || c.deploy },
+  // 05-release slsa-provenance/attest-build-provenance ONLY (style !== starter). 04 emits
+  // SBOM attestation (sbom dim); 10's provenance gate is cosign verify (consume).
+  { dims: ['provenance'], emit: (c) => c.style !== 'starter' },
+  // _nightly fuzz job (scheduled suite).
+  { dims: ['fuzz'], emit: (c) => c.isScheduled },
+  // _shared-security dast-full (scheduled + service) OR 04-deploy-test dast-baseline (deploy).
+  { dims: ['dast'], emit: (c) => (c.isScheduled && c.isService) || c.deploy },
+]
 
 /**
  * #1678: the workflow-emission context the gate derives from, computed once. Extracted
