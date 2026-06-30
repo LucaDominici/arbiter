@@ -26,7 +26,7 @@ export interface GithubGeneratorResult {
  * 4. ciTierMode: 'baseline' → 'starter' (deprecated backward-compat)
  * 5. default → 'standard'
  */
-function resolveStyle(config: ProjectConfig): 'starter' | 'standard' | 'industrial' {
+export function resolveStyle(config: ProjectConfig): 'starter' | 'standard' | 'industrial' {
   if (config.pipelineStyle) return config.pipelineStyle
   if (config.collaborationMode) {
     return resolvePipelineStyle(config.collaborationMode, config.governanceLevel)
