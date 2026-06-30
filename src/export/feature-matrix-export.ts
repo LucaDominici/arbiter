@@ -144,7 +144,5 @@ export async function featureMatrixToXlsx(rows: FeatureMatrixRow[]): Promise<Buf
     row.note,
   ])
 
-  return Promise.resolve(
-    writeXlsx({ name: 'Feature Matrix', headers, rows: dataRows, colWidths }),
-  )
+  return Promise.resolve(writeXlsx({ name: 'Feature Matrix', headers, rows: dataRows, colWidths }))
 }
