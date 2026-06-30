@@ -202,7 +202,16 @@ describe('deriveL3MaturityChecks — workflow-template dims (#1678)', () => {
 
   it('does NOT gate any workflow dim when useGitHub is false (no false-block on un-emitted workflows)', () => {
     const checks = tsSvc({ useGitHub: false })
-    const wfDims = ['secret_scan', 'license_scan', 'container_scan', 'sbom', 'binary_signing', 'provenance', 'fuzz', 'dast']
+    const wfDims = [
+      'secret_scan',
+      'license_scan',
+      'container_scan',
+      'sbom',
+      'binary_signing',
+      'provenance',
+      'fuzz',
+      'dast',
+    ]
     expect(checks.map((c) => c.feature).filter((f) => wfDims.includes(f))).toEqual([])
   })
 

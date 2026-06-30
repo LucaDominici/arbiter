@@ -63,7 +63,10 @@ function emittedDims(config: ProjectConfig): Set<string> {
   return out
 }
 
-function runGithub(overrides: Partial<ProjectConfig>): { config: ProjectConfig; dims: Set<string> } {
+function runGithub(overrides: Partial<ProjectConfig>): {
+  config: ProjectConfig
+  dims: Set<string>
+} {
   const dir = mkdtempSync(join(tmpdir(), 'l3-drift-'))
   const config = makeConfig(dir, {
     governanceLevel: 'L3',
@@ -101,10 +104,16 @@ describe('deriveWorkflowCapabilities — drift vs the real github generator (#16
     dirs.push(config.targetDir)
     const gate = gateDims(config)
     for (const d of gate) {
-      expect(dims, `${label}: gate claims ${d} but generator did not emit it (false-block)`).toContain(d)
+      expect(
+        dims,
+        `${label}: gate claims ${d} but generator did not emit it (false-block)`,
+      ).toContain(d)
     }
     for (const d of dims) {
-      expect(gate, `${label}: generator emits ${d} but gate does not claim it (false-pass)`).toContain(d)
+      expect(
+        gate,
+        `${label}: generator emits ${d} but gate does not claim it (false-pass)`,
+      ).toContain(d)
     }
   }
 
