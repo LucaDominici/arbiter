@@ -39,6 +39,9 @@ labels:
   - name: kit-drift
     color: "0075ca"
     description: "KIT self-canary failure detected"
+  - name: probe-writer-drift
+    color: "b60205"
+    description: "probe≠writer alignment mismatch detected by the weekly audit (#1707)"
   - name: nightly-regression
     color: "b60205"
     description: "Nightly (T4) workflow detected a regression"

@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/cicd-developer-reference.md'
-source_sha: '32e8e564ef2e98b5d5e7bf99d86d7621b500ec90'
-last_updated: '2026-06-28'
+source_sha: 'd1d0932b2165c7335ffa192fd68cd3760efe0af5'
+last_updated: '2026-06-30'
 ---
 
 # CI/CD Developer Reference
@@ -18,7 +18,7 @@ This document covers the W4 CI tier baseline: what was built, how it works, and 
 
 W4 is the fourth wave of arbiter's Planning Skeleton Migration. It relights arbiter's own self-CI (nuked to zero in #862) with a minimal 5-workflow baseline that also ships as a generated framework feature for target projects.
 
-**Self-CI baseline (arbiter-self):** 4 canonical + 2 helper workflows under `.github/workflows/` — this is `migrationStatus: 'transition'` per INV-73. W10 completes the remaining 4 canonical workflows. The `kit-self-canary.yml` workflow runs the KIT dry-run audit against a temporary report and files a `kit-drift` issue if generation or validation fails.
+**Self-CI baseline (arbiter-self):** 4 canonical + 2 helper workflows under `.github/workflows/` — this is `migrationStatus: 'transition'` per INV-73. W10 completes the remaining 4 canonical workflows. The `kit-self-canary.yml` workflow runs the KIT dry-run audit against a temporary report and files a `kit-drift` issue if generation or validation fails. The `probe-writer-audit.yml` workflow runs the weekly full-matrix probe↔writer alignment audit (#1707) — for each archetype×level cell it runs `arbiter init` + `arbiter conformance --json` and asserts no dimension scores a spurious N on a fresh-generated project (the probe≠writer class); on mismatch it files a `probe-writer-drift` issue.
 
 **Target project baseline:** `ciTierMode: 'baseline'` emits 6 workflow files (01, 02, 03, 09, \_notify, \_label-sync). `ciTierMode: 'full'` emits all 10 (8 numbered + 2 helpers).
 
