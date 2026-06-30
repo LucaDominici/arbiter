@@ -73,18 +73,13 @@ function stripControlChars(s: string): string {
 // this writer emits, `r="<col><row>"`, is alphanumeric via `colLetter` and
 // needs no escaping.
 function xmlEscape(s: string): string {
-  return stripControlChars(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  return stripControlChars(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 // Escape XML ATTRIBUTE values: `&` `<` `>` `"` `'` all escaped. Use for any
 // attribute whose value comes from a caller-provided string (the sheet `name`).
 function xmlAttrEscape(s: string): string {
-  return xmlEscape(s)
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
+  return xmlEscape(s).replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 }
 
 // 1-based column index → spreadsheet letter (1→A, 26→Z, 27→AA).

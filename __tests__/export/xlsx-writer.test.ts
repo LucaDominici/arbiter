@@ -6,8 +6,15 @@ import { writeXlsx, __internal } from '../../src/export/xlsx-writer.js'
 // consumed here so check-no-unused-exports does not flag it. It also gives direct coverage
 // of the CRC32 / zip-framing / escaping primitives that the end-to-end structural tests only
 // exercise indirectly.
-const { crc32, xmlEscape, xmlAttrEscape, colLetter, makeLocalHeader, makeCentralDirHeader, makeEocd } =
-  __internal
+const {
+  crc32,
+  xmlEscape,
+  xmlAttrEscape,
+  colLetter,
+  makeLocalHeader,
+  makeCentralDirHeader,
+  makeEocd,
+} = __internal
 
 describe('xlsx-writer __internal.crc32', () => {
   it('matches the standard CRC32 check vectors', () => {
