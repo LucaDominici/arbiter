@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-30'
+last_review: '2026-07-01'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -52,7 +52,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 022 | [Universal Baseline-Freeze (MB)](022-universal-baseline-freeze.md)                                                                                                    | Accepted   | 2026-05-20 |  |
 | 023 | [Self-Hosted CI Runner (docker-ci-build)](023-self-hosted-ci-runner.md)                                                                                               | Accepted   | 2026-05-20 |  |
 | 024 | [Suppression Pattern with Mandatory Expiry](024-suppression-expiry-escape-hatch.md)                                                                                   | Accepted   | 2026-05-20 |  |
-| 025 | [Claim-Verified Governance Documents](025-claim-verified-governance-docs.md)                                                                                          | Accepted   | 2026-05-20 |  |
+| 025 | [Claim-Verified Governance Documents](025-claim-verified-governance-docs.md)                                                                                          | Accepted   | 2026-07-01 |  |
 | 026 | [Scaled Thresholds and Practical/Pedantic Strictness Tiers](026-scaled-thresholds.md)                                                                                 | Accepted   | 2026-05-20 |  |
 | 027 | [Real-Project Nightly Matrix](027-real-project-nightly-matrix.md)                                                                                                     | Accepted   | 2026-05-20 |  |
 | 028 | [Grace Period for Level Upgrade + Contract Type Axis](028-level-upgrade-grace-and-contract-type.md)                                                                   | Accepted   | 2026-05-20 |  |
