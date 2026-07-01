@@ -81,6 +81,17 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 }
 // <<< ARG-PARSE-END (#1504)
 
+// #1720 (gap 4): L3/L4 have no dedicated runtime lane in this generated gate — L2
+// ("full") is the strongest tier it implements; every `governanceLevel`-specific
+// check below is compiled in at generation time and runs inside the L2 lane. The
+// guard used to be the literal `level === 'L2'`, so invoking `check-all.mjs L3` or
+// `L4` (both accepted by the parser above) silently ran ONLY the L1 fast-checks —
+// a runtime lie where the strictest requested tier ran the weakest checks. Clamp an
+// explicit L3/L4 request down to L2 so it runs the FULL gate body (never the L1
+// subset) and the `level` stamped into the JSON/evidence below stays honest about
+// what actually ran — it must never claim a tier this gate cannot run standalone.
+if (level === 'L3' || level === 'L4') level = 'L2';
+
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
 // A freshly-upgraded L1→L2 project may run its new L2 gates WARN-only for a
 // bounded settling window (set ONLY by `arbiter upgrade-level`, never by hand).
@@ -536,14 +547,8 @@ runCheck('muted gate test (anti-fake-green)', 'node', ['scripts/check-muted-test
 runCheck('skipped critical e2e (anti-fake-green)', 'node', ['scripts/check-skip-critical-e2e.mjs']);
 runCheck('stub redirect husk (anti-fake-green)', 'node', ['scripts/check-no-stub-redirects.mjs']);
 runCheck('grace window (anti-fake-green)', 'node', ['scripts/check-grace-window.mjs']);
-// ─── L2+: Full checks ─────────────────────────────────────────────────────────
-// #1720 (gap 4): this guard was the literal `level === 'L2'`, so running the
-// generated gate as `check-all.mjs L3` or `check-all.mjs L4` — both accepted as
-// valid by the arg parser above — silently ran ONLY the L1 checks: a runtime lie
-// where the strictest requested tier ran the weakest checks. L2 is the strongest
-// tier this generated gate implements (see _SUBCOMMAND_LEVEL above), so L3/L4 must
-// run the SAME full-gate body as L2, never fall back to L1.
-if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2')) {
+// ─── L2: Full checks ──────────────────────────────────────────────────────────
+if (level === 'L2') {
 <% if (enableSecurityScanning) { %>
   // ─── L2: Security scanning (INV-11/12/13) ──────────────────────────────────
   runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1'], { soft: graceActive });
