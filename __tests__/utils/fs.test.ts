@@ -516,6 +516,22 @@ describe('ENOSPC_MSGS errno translation (#616)', () => {
   it('translates ENOENT (added #1717 — a missing output dir is a CANON-17 code)', () => {
     const msg = _translateFsError('ENOENT', path)
     expect(msg).not.toBeNull()
+    expect(msg).toContain(path)
+    expect(msg).toMatch(/does not exist|create/i)
+  })
+
+  it('translates EBUSY (added #1717) with a busy/locked-file hint', () => {
+    const msg = _translateFsError('EBUSY', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toContain(path)
+    expect(msg).toMatch(/busy|locked/i)
+  })
+
+  it('translates EMFILE (added #1717) with a too-many-open-files hint', () => {
+    const msg = _translateFsError('EMFILE', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toContain(path)
+    expect(msg).toMatch(/too many open files|ulimit/i)
   })
 })
 
