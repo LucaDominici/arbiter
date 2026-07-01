@@ -1,8 +1,8 @@
 ---
 title: 'CI Tier Model — Cadence × Governance'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-06-26'
+last_review: '2026-07-01'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -99,12 +99,27 @@ change which governance level emits which workflow. The level-by-level guarantee
   `09-heartbeat` freshness watchdog. `gated-review` additionally gets `17-ossf-scorecard`.
 - **L4** — keeps everything from L3 **and** the regulated PROD guarantees:
   `03-human-approval` is **mandatory** (INV-74), and the release/deploy path keeps
-  `cosign` signing + SBOM + attestation + provenance verification.
+  `cosign` signing + SBOM + attestation + provenance verification — including the SLSA
+  L3 hermetic provenance job name and the `Verify container signature (L3 strict)` step
+  that L3 carries (not the weaker "L2 signed" label).
+
+This contract is **two-dimensional**: which workflow FILES a level emits (INV-73/INV-72,
+below), and how STRICT a given file's CONTENT is once emitted. #1720 found and closed a
+gap in the second dimension — `05-release.yml`'s SLSA-provenance strictness, `CODEOWNERS`'
+path-owner coverage, `KNOWLEDGE_MAP.md`'s TRACK*ROUTER section, the generated gate's L2+
+runtime clamp, and the fail-closed audit's emission — were hand-rolled as literal
+`governanceLevel === 'L3'` checks that silently excluded L4, so L4 (the strictest tier)
+rendered \_weaker* than L3 in five places while `check-ci-tiers.mjs`'s existence-only check
+stayed green. The fix: `levelAtLeast` (`src/config/levels.ts`, #1516) is now injected into
+every EJS render as `isL2Plus`/`isL3Plus`/`isL4` (`src/utils/render.ts`), and
+`check-ci-tiers.mjs` gained an L3+ CONTENT assertion on `05-release.yml` (INV-72) so a
+future regression in this class fails the gate instead of shipping invisible.
 
 This contract is enforced by `scripts/check-ci-tiers.mjs`: the INV-73 canonical-presence
 floor, the INV-72 collaboration-mode/level-aware required set (the exact inverse of the
-generation predicates), and the cadence-partition self-check. Changing any level's emit set
-without updating both the generator and that gate is a gate failure.
+generation predicates) plus its L3+ content-strictness check, and the cadence-partition
+self-check. Changing any level's emit set or content strictness without updating both the
+generator and that gate is a gate failure.
 
 ## Relationship to the ADRs
 
