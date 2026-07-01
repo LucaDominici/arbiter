@@ -22,9 +22,16 @@ function cfg(overrides: Record<string, unknown> = {}) {
     language: 'typescript',
     archetype: 'backend-web-db',
     buildTool: 'npm',
+    enableDebtGates: true,
+    coverageEnabled: false,
     ...overrides,
   } as Parameters<typeof makeConfig>[1]) as unknown as Record<string, unknown>
 }
+
+// check-all.mjs.ejs stamps the requested governance level verbatim into a literal
+// (`const _projectLevel = 'L3';` vs `'L4'`) — a deliberate, expected difference, not
+// a hand-rolled boundary bug. Excluded so it doesn't false-fail the superset check.
+const KNOWN_LEVEL_STAMP_LINES = [/^const _projectLevel = '(L1|L2|L3|L4)';$/]
 
 /** Non-blank, trimmed lines — whitespace-only diffs are not a cascade violation. */
 function nonBlankLines(content: string): string[] {
@@ -32,6 +39,7 @@ function nonBlankLines(content: string): string[] {
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.length > 0)
+    .filter((l) => !KNOWN_LEVEL_STAMP_LINES.some((re) => re.test(l)))
 }
 
 const FIXED_TEMPLATES = [

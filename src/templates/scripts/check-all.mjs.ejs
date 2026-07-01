@@ -536,8 +536,14 @@ runCheck('muted gate test (anti-fake-green)', 'node', ['scripts/check-muted-test
 runCheck('skipped critical e2e (anti-fake-green)', 'node', ['scripts/check-skip-critical-e2e.mjs']);
 runCheck('stub redirect husk (anti-fake-green)', 'node', ['scripts/check-no-stub-redirects.mjs']);
 runCheck('grace window (anti-fake-green)', 'node', ['scripts/check-grace-window.mjs']);
-// ─── L2: Full checks ──────────────────────────────────────────────────────────
-if (level === 'L2') {
+// ─── L2+: Full checks ─────────────────────────────────────────────────────────
+// #1720 (gap 4): this guard was the literal `level === 'L2'`, so running the
+// generated gate as `check-all.mjs L3` or `check-all.mjs L4` — both accepted as
+// valid by the arg parser above — silently ran ONLY the L1 checks: a runtime lie
+// where the strictest requested tier ran the weakest checks. L2 is the strongest
+// tier this generated gate implements (see _SUBCOMMAND_LEVEL above), so L3/L4 must
+// run the SAME full-gate body as L2, never fall back to L1.
+if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2')) {
 <% if (enableSecurityScanning) { %>
   // ─── L2: Security scanning (INV-11/12/13) ──────────────────────────────────
   runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1'], { soft: graceActive });

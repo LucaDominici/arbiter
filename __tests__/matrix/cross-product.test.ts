@@ -982,7 +982,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
       }
       const content = renderTemplate('scripts/check-all.mjs.ejs', cfg)
       const piiIdx = content.indexOf('pii-scan.mjs')
-      const l2BlockIdx = content.indexOf("if (level === 'L2')")
+      const l2BlockIdx = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
       expect(piiIdx).toBeGreaterThan(-1)
       expect(l2BlockIdx).toBeGreaterThan(-1)
       expect(piiIdx).toBeLessThan(l2BlockIdx)
@@ -998,7 +998,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
         mutationEnabled: thresholds.mutationEnabled,
       }
       const content = renderTemplate('scripts/check-all.mjs.ejs', cfg)
-      const l2BlockIdx = content.indexOf("if (level === 'L2')")
+      const l2BlockIdx = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
       expect(content.indexOf('gitleaks', l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
     })
 
@@ -1014,7 +1014,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
       const content = renderTemplate('scripts/check-all.mjs.ejs', cfg)
       const marker = DEP_AUDIT_MARKERS[lang]
       if (marker) {
-        const l2BlockIdx = content.indexOf("if (level === 'L2')")
+        const l2BlockIdx = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
         expect(content.indexOf(marker, l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
       }
     })
