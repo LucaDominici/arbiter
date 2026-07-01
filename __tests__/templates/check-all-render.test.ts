@@ -874,3 +874,49 @@ describe('check-all.mjs.ejs — run-helper import↔usage parity (#1491, B3)', (
     })
   }
 })
+
+// #1720 — gap 4: the ONLY runtime full-gate guard was the literal `if (level === 'L2')`,
+// so running the GENERATED `check-all.mjs L3` or `check-all.mjs L4` silently ran only the
+// L1 checks — a runtime lie (the arg parser accepts L3/L4 as valid but they are weaker
+// than L2). The fix broadens the runtime clamp so L2/L3/L4 all run the full-gate body.
+// This is level-INDEPENDENT: it changes the rendered check-all.mjs at every governanceLevel
+// (unlike gaps 1/2/3/5, which are gated by governanceLevel at render time).
+describe('check-all.mjs.ejs — gap 4: L2/L3/L4 all run the full-gate body (#1720)', () => {
+  it('does NOT contain the narrow `if (level === \'L2\')` guard', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("if (level === 'L2') {")
+  })
+
+  it('full-gate body is reachable when level is L3 or L4, not just L2', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    // The full-gate body opens with the anti-fake-green L2 section comment and runs
+    // muted-test/skip-critical-e2e checks unconditionally; the broadened runtime guard
+    // must admit L3/L4 alongside L2 (i.e. it is not narrowed to the single string 'L2').
+    const guardMatch = content.match(/if \(([^)]*level[^)]*)\)\s*\{/)
+    expect(guardMatch, 'expected a runtime level guard before the full-gate body').toBeTruthy()
+    const guardExpr = guardMatch![1]
+    expect(guardExpr).not.toBe("level === 'L2'")
+  })
+
+  it('renders identically at governanceLevel L2/L3/L4 for the guard line (level-independent fix)', () => {
+    const contents = (['L2', 'L3', 'L4'] as const).map((governanceLevel) => {
+      const data = makeConfig('/tmp/test', {
+        language: 'typescript',
+        governanceLevel,
+      }) as unknown as Record<string, unknown>
+      return renderTemplate('scripts/check-all.mjs.ejs', data)
+    })
+    const guardLines = contents.map(
+      (c) => c.split('\n').find((l) => /L2:\s*Full checks/.test(l) || /if \(.*level/.test(l)) ?? '',
+    )
+    expect(new Set(guardLines).size).toBe(1)
+  })
+})

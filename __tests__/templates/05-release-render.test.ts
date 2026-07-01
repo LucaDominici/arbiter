@@ -165,6 +165,26 @@ describe('05-release.yml.ejs — governance level branching', () => {
     expect(rendered).toContain('L3 hermetic')
   })
 
+  // #1720 — gap 1: `_slsaL3` was literal `governanceLevel === 'L3'`, so L4 (the
+  // strictest tier) silently fell back to the L2 "signed" provenance and lost the
+  // "Verify container signature (L3 strict)" step. L4 must be a superset of L3.
+  it('L4: slsa-provenance name mentions L3 hermetic (gap 1, not downgraded to L2 signed)', () => {
+    const rendered = renderRelease({ governanceLevel: 'L4' })
+    expect(rendered).toContain('L3 hermetic')
+    expect(rendered).not.toContain('L2 signed')
+  })
+
+  it('L4: cosign verify-blob step present in cosign-sign job (INV-101)', () => {
+    const rendered = renderRelease({ governanceLevel: 'L4' })
+    expect(rendered).toContain('cosign verify-blob')
+    expect(rendered).toContain('token.actions.githubusercontent.com')
+  })
+
+  it('L4: "Verify container signature (L3 strict)" step present (gap 1)', () => {
+    const rendered = renderRelease({ governanceLevel: 'L4', archetype: 'backend-web-db' })
+    expect(rendered).toContain('Verify container signature (L3 strict)')
+  })
+
   // E4 (#1502): the release gate consumes the latest nightly mutation-deep result
   // instead of re-running the full mutation suite synchronously — release latency is
   // decoupled from mutation runtime. A level-gated fallback runs mutation only when

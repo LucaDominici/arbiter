@@ -6,6 +6,7 @@ import {
   renderTemplate,
   renderFromAbsPath,
   withBasePackageDefault,
+  withLevelBooleans,
 } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -78,5 +79,82 @@ describe('#1348 — withBasePackageDefault helper', () => {
     expect(Object.prototype.hasOwnProperty.call(out, 'basePackage')).toBe(true)
     expect(out['basePackage']).toBeUndefined()
     expect(Object.prototype.hasOwnProperty.call(data, 'basePackage')).toBe(false)
+  })
+})
+
+// #1720 — L4 was silently downgraded below L3 because `levelAtLeast` (the ordinal
+// SSOT, src/config/levels.ts, #1516) was never injected into the EJS render
+// context. `withLevelBooleans` mirrors `withBasePackageDefault`'s no-clobber
+// own-key contract so every template can reference bare `isL2Plus`/`isL3Plus`/
+// `isL4` without a ReferenceError under EJS `with(locals)`.
+describe('#1720 — withLevelBooleans helper', () => {
+  it('L4: isL2Plus, isL3Plus, isL4 all true', () => {
+    const out = withLevelBooleans({ governanceLevel: 'L4' }) as Record<string, unknown>
+    expect(out['isL2Plus']).toBe(true)
+    expect(out['isL3Plus']).toBe(true)
+    expect(out['isL4']).toBe(true)
+  })
+
+  it('L3: isL2Plus+isL3Plus true, isL4 false', () => {
+    const out = withLevelBooleans({ governanceLevel: 'L3' }) as Record<string, unknown>
+    expect(out['isL2Plus']).toBe(true)
+    expect(out['isL3Plus']).toBe(true)
+    expect(out['isL4']).toBe(false)
+  })
+
+  it('L2: isL2Plus true, isL3Plus+isL4 false', () => {
+    const out = withLevelBooleans({ governanceLevel: 'L2' }) as Record<string, unknown>
+    expect(out['isL2Plus']).toBe(true)
+    expect(out['isL3Plus']).toBe(false)
+    expect(out['isL4']).toBe(false)
+  })
+
+  it('L1: all three false', () => {
+    const out = withLevelBooleans({ governanceLevel: 'L1' }) as Record<string, unknown>
+    expect(out['isL2Plus']).toBe(false)
+    expect(out['isL3Plus']).toBe(false)
+    expect(out['isL4']).toBe(false)
+  })
+
+  it('absent governanceLevel: all three false, does not throw', () => {
+    let out: Record<string, unknown> = {}
+    expect(() => {
+      out = withLevelBooleans({ other: 1 }) as Record<string, unknown>
+    }).not.toThrow()
+    expect(out['isL2Plus']).toBe(false)
+    expect(out['isL3Plus']).toBe(false)
+    expect(out['isL4']).toBe(false)
+  })
+
+  it('invalid governanceLevel: all three false, does not throw', () => {
+    const out = withLevelBooleans({ governanceLevel: 'bogus' }) as Record<string, unknown>
+    expect(out['isL2Plus']).toBe(false)
+    expect(out['isL3Plus']).toBe(false)
+    expect(out['isL4']).toBe(false)
+  })
+
+  it('does not mutate the input object', () => {
+    const data = { governanceLevel: 'L4' as const }
+    withLevelBooleans(data)
+    expect(Object.prototype.hasOwnProperty.call(data, 'isL2Plus')).toBe(false)
+  })
+
+  it('preserves a caller-provided isL2Plus/isL3Plus/isL4 key (no-clobber)', () => {
+    const data = { governanceLevel: 'L1' as const, isL2Plus: 'custom', isL4: 'custom4' }
+    const out = withLevelBooleans(data) as Record<string, unknown>
+    expect(out['isL2Plus']).toBe('custom')
+    expect(out['isL4']).toBe('custom4')
+    // isL3Plus was absent from the caller data, so it IS computed (from governanceLevel L1 → false).
+    expect(out['isL3Plus']).toBe(false)
+  })
+
+  it('renderTemplate composes withLevelBooleans: a template can reference bare isL4', () => {
+    const data = makeConfig('/tmp/test', { governanceLevel: 'L4' }) as unknown as Record<
+      string,
+      unknown
+    >
+    // CODEOWNERS.ejs is rendered at L4 elsewhere in the suite; here we only assert
+    // that referencing the injected boolean does not throw a ReferenceError.
+    expect(() => renderTemplate('root/CODEOWNERS.ejs', data)).not.toThrow()
   })
 })
