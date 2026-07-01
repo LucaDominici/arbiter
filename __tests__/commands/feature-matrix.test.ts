@@ -124,6 +124,8 @@ describe('runFeatureMatrixExport', () => {
     expect(caught).toBeInstanceOf(ArbiterError)
     expect((caught as InstanceType<typeof ArbiterError>).code).toBe('ENOENT')
     expect((caught as InstanceType<typeof ArbiterError>).message).toContain(outPath)
+    expect((caught as InstanceType<typeof ArbiterError>).message).toMatch(/does not exist/i)
+    expect((caught as InstanceType<typeof ArbiterError>).message).toMatch(/create/i)
     expect(existsSync(outPath)).toBe(false)
   })
 
