@@ -105,4 +105,26 @@ describe('runFeatureMatrixExport', () => {
       }),
     ).rejects.toThrow()
   })
+
+  // #1717 (CANON-17): a nested non-existent output directory is created (mkdir -p) and the
+  // export succeeds for both formats — no raw ENOENT stack leaks to the user.
+  it('creates a nested output directory and exports CSV (mkdir -p, no raw ENOENT)', async () => {
+    const outPath = join(dir, 'nested', 'deep', 'feature-matrix.csv')
+    await runFeatureMatrixExport({
+      format: 'csv',
+      out: outPath,
+      matrixPath: join(dir, 'FEATURE_MATRIX.md'),
+    })
+    expect(existsSync(outPath)).toBe(true)
+  })
+
+  it('creates a nested output directory and exports xlsx (mkdir - p, no raw ENOENT)', async () => {
+    const outPath = join(dir, 'nested', 'deep', 'feature-matrix.xlsx')
+    await runFeatureMatrixExport({
+      format: 'xlsx',
+      out: outPath,
+      matrixPath: join(dir, 'FEATURE_MATRIX.md'),
+    })
+    expect(existsSync(outPath)).toBe(true)
+  })
 })
