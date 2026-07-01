@@ -263,6 +263,12 @@ if (isMain) {
     // under v5, making the gate vacuous on fileset drift (#1286).
     runCheck('duplication', 'node', ['scripts/check-duplication.mjs'])
     runCheck('audit', 'npm', ['audit', '--omit=dev', '--audit-level=high'])
+    // Consumer-resolution audit (#1718, follow-up to #1670 parts 2&3): the dev-tree
+    // `audit` step above sees npm `overrides`, which npm silently drops for anyone
+    // who installs @arbiter/cli as a dependency. This packs the publishable tarball,
+    // installs it into a throwaway root with no repo overrides/devDeps, and audits
+    // THAT tree at a stricter `moderate` floor — closing the structural blind spot.
+    runCheck('consumer audit', 'node', ['scripts/check-consumer-audit.mjs'])
     runCheck('gitleaks', 'gitleaks', [
       'detect',
       '--source',
