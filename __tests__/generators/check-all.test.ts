@@ -410,7 +410,7 @@ describe('generateCheckAll', () => {
     generateCheckAll(makeConfig(dir, { enableDebtGates: true }))
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     // The check appears inside the `if (level === 'L2')` block — verify that
-    const l2BlockStart = content.indexOf("if (level === 'L2')")
+    const l2BlockStart = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
     const strideIdx = content.indexOf('check-stride-traceability.mjs')
     expect(l2BlockStart).toBeGreaterThan(-1)
     expect(strideIdx).toBeGreaterThan(l2BlockStart)
@@ -603,7 +603,7 @@ describe('generateCheckAll', () => {
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     const piiIdx = content.indexOf('pii-scan.mjs')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
     expect(piiIdx).toBeGreaterThan(-1)
     expect(l2BlockIdx).toBeGreaterThan(-1)
     expect(piiIdx).toBeLessThan(l2BlockIdx)
@@ -644,7 +644,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
     const gitleaksIdx = content.indexOf('gitleaks', l2BlockIdx)
     expect(l2BlockIdx).toBeGreaterThan(-1)
     expect(gitleaksIdx).toBeGreaterThan(l2BlockIdx)
@@ -675,7 +675,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
     expect(content.indexOf('dependencyCheckAnalyze', l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
   })
 
@@ -689,7 +689,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
     expect(content.indexOf('dependency-check-maven', l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
   })
 
@@ -703,7 +703,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (_LEVELS.indexOf(level) >= _LEVELS.indexOf('L2'))")
     expect(content.indexOf('govulncheck', l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
   })
 

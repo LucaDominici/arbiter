@@ -882,10 +882,12 @@ describe('check-all.mjs.ejs — run-helper import↔usage parity (#1491, B3)', (
 // This is level-INDEPENDENT: it changes the rendered check-all.mjs at every governanceLevel
 // (unlike gaps 1/2/3/5, which are gated by governanceLevel at render time).
 describe('check-all.mjs.ejs — gap 4: L2/L3/L4 all run the full-gate body (#1720)', () => {
-  it('does NOT contain the narrow `if (level === \'L2\')` guard', () => {
+  it("does NOT contain the narrow `if (level === 'L2')` guard", () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
+      enableDebtGates: true,
+      coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
     expect(content).not.toContain("if (level === 'L2') {")
@@ -895,6 +897,8 @@ describe('check-all.mjs.ejs — gap 4: L2/L3/L4 all run the full-gate body (#172
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
+      enableDebtGates: true,
+      coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
     // The full-gate body opens with the anti-fake-green L2 section comment and runs
@@ -911,6 +915,8 @@ describe('check-all.mjs.ejs — gap 4: L2/L3/L4 all run the full-gate body (#172
       const data = makeConfig('/tmp/test', {
         language: 'typescript',
         governanceLevel,
+        enableDebtGates: true,
+        coverageEnabled: false,
       }) as unknown as Record<string, unknown>
       return renderTemplate('scripts/check-all.mjs.ejs', data)
     })

@@ -144,9 +144,9 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
 })
 
 describe('check-all.mjs wiring (#1446) — cross-stack', () => {
-  // Rendered at L1: the gate lives inside the runtime `if (level === 'L2')` block,
+  // Rendered at L1: the gate lives inside the runtime full-gate guard (L2+, #1720),
   // which is emitted into the script string regardless of the governance level passed
-  // to the template (the L2 scoping is a runtime guard, not an EJS compile-time one).
+  // to the template (the L2+ scoping is a runtime guard, not an EJS compile-time one).
   for (const language of ['typescript', 'go', 'python', 'java'] as const) {
     it(`emits the tdd-evidence gate (L2-scoped) for ${language}`, () => {
       expect(renderCheckAll({ language, governanceLevel: 'L1' })).toContain(
