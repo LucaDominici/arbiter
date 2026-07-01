@@ -106,25 +106,42 @@ describe('runFeatureMatrixExport', () => {
     ).rejects.toThrow()
   })
 
-  // #1717 (CANON-17): a nested non-existent output directory is created (mkdir -p) and the
-  // export succeeds for both formats — no raw ENOENT stack leaks to the user.
-  it('creates a nested output directory and exports CSV (mkdir -p, no raw ENOENT)', async () => {
-    const outPath = join(dir, 'nested', 'deep', 'feature-matrix.csv')
-    await runFeatureMatrixExport({
-      format: 'csv',
-      out: outPath,
-      matrixPath: join(dir, 'FEATURE_MATRIX.md'),
-    })
-    expect(existsSync(outPath)).toBe(true)
+  // #1717 (CANON-17): a non-existent output directory throws a translated ArbiterError
+  // (ENOENT + an actionable hint) instead of a raw Node stack — for both formats.
+  it('csv export to a non-existent output directory throws a translated ArbiterError', async () => {
+    const { ArbiterError } = await import('../../src/utils/errors.js')
+    const outPath = join(dir, 'no-such-subdir', 'feature-matrix.csv')
+    let caught: unknown
+    try {
+      await runFeatureMatrixExport({
+        format: 'csv',
+        out: outPath,
+        matrixPath: join(dir, 'FEATURE_MATRIX.md'),
+      })
+    } catch (err) {
+      caught = err
+    }
+    expect(caught).toBeInstanceOf(ArbiterError)
+    expect((caught as InstanceType<typeof ArbiterError>).code).toBe('ENOENT')
+    expect((caught as InstanceType<typeof ArbiterError>).message).toContain(outPath)
+    expect(existsSync(outPath)).toBe(false)
   })
 
-  it('creates a nested output directory and exports xlsx (mkdir - p, no raw ENOENT)', async () => {
-    const outPath = join(dir, 'nested', 'deep', 'feature-matrix.xlsx')
-    await runFeatureMatrixExport({
-      format: 'xlsx',
-      out: outPath,
-      matrixPath: join(dir, 'FEATURE_MATRIX.md'),
-    })
-    expect(existsSync(outPath)).toBe(true)
+  it('xlsx export to a non-existent output directory throws a translated ArbiterError', async () => {
+    const { ArbiterError } = await import('../../src/utils/errors.js')
+    const outPath = join(dir, 'no-such-subdir', 'feature-matrix.xlsx')
+    let caught: unknown
+    try {
+      await runFeatureMatrixExport({
+        format: 'xlsx',
+        out: outPath,
+        matrixPath: join(dir, 'FEATURE_MATRIX.md'),
+      })
+    } catch (err) {
+      caught = err
+    }
+    expect(caught).toBeInstanceOf(ArbiterError)
+    expect((caught as InstanceType<typeof ArbiterError>).code).toBe('ENOENT')
+    expect(existsSync(outPath)).toBe(false)
   })
 })
