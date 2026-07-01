@@ -224,6 +224,19 @@ jobs:
         uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf  # v12.1347.0
         with:
           directory: .
+<% if (locals.checkovSelfScope) { %>
+          # #1685 (arbiter self-scan): the checkov-action's single `framework`
+          # input can't pass a LIST, and `all` over-scoped THIS repo (github_actions
+          # + secrets policies across dozens of workflows/fixtures) even though
+          # arbiter carries ZERO terraform/kubernetes/dockerfile IaC — redding
+          # self-CI under soft_fail:false. The checkov CONFIG FILE (`config_file`
+          # action input) DOES accept a framework LIST, so `.checkov.yaml` scopes
+          # the self-scan to the three real IaC frameworks: 0 findings — honestly
+          # SCOPED, not soft_fail-suppressed. soft_fail stays false so a real
+          # misconfig would still block (INV-80). Repo-local; consumers (the
+          # shipped template's `else` branch below) are NOT affected.
+          config_file: .checkov.yaml
+<% } else { %>
           # #1685: the checkov-action exposes a single `framework` input passed as one
           # `--framework <value>` arg, so the previous comma-join
           # (`terraform,kubernetes,dockerfile`) crashed checkov with "invalid choice".
@@ -231,6 +244,7 @@ jobs:
           # multi-framework value (it is also checkov's own default scope). soft_fail
           # stays false: a real misconfiguration must block (INV-80).
           framework: all
+<% } %>
           quiet: true
           soft_fail: false
       # #1509 gold-align: Checkov scans for known misconfigurations; tflint is the
