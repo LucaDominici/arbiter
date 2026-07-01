@@ -875,14 +875,23 @@ describe('check-all.mjs.ejs — run-helper import↔usage parity (#1491, B3)', (
   }
 })
 
-// #1720 — gap 4: the ONLY runtime full-gate guard was the literal `if (level === 'L2')`,
-// so running the GENERATED `check-all.mjs L3` or `check-all.mjs L4` silently ran only the
+// #1720 — gap 4: the runtime full-gate guard was the literal `if (level === 'L2')`, so
+// running the GENERATED `check-all.mjs L3` or `check-all.mjs L4` silently ran only the
 // L1 checks — a runtime lie (the arg parser accepts L3/L4 as valid but they are weaker
-// than L2). The fix broadens the runtime clamp so L2/L3/L4 all run the full-gate body.
-// This is level-INDEPENDENT: it changes the rendered check-all.mjs at every governanceLevel
-// (unlike gaps 1/2/3/5, which are gated by governanceLevel at render time).
-describe('check-all.mjs.ejs — gap 4: L2/L3/L4 all run the full-gate body (#1720)', () => {
-  it("does NOT contain the narrow `if (level === 'L2')` guard", () => {
+// than L2). L3/L4 have no dedicated runtime lane in this gate: L2 ("full") is the
+// strongest tier it implements, and every governanceLevel-specific check is compiled in
+// at generation time. The fix is a CLAMP immediately after arg-parse — `if (level ===
+// 'L3' || level === 'L4') level = 'L2';` — so an L3/L4 request runs the full gate body
+// (never the L1 subset) and the `level` stamped into the JSON/evidence artifacts stays
+// honest (never fabricates an L3/L4 conformance label for a lane that only ran L2
+// checks). The line-540 guard itself is intentionally left UNCHANGED — rewriting it to
+// admit L3/L4 directly (e.g. `level !== 'L1'`) would leave `level` at 'L3'/'L4' and
+// stamp that into the persisted gate-pass evidence while only L2 checks ran: a new
+// fake-green surface. This is level-INDEPENDENT: the clamp is rendered at every
+// governanceLevel (unlike gaps 1/2/3/5, which are gated by governanceLevel at render
+// time).
+describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#1720)', () => {
+  it("still contains the unchanged `if (level === 'L2')` full-gate guard", () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
@@ -890,10 +899,10 @@ describe('check-all.mjs.ejs — gap 4: L2/L3/L4 all run the full-gate body (#172
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).not.toContain("if (level === 'L2') {")
+    expect(content).toContain("if (level === 'L2') {")
   })
 
-  it('full-gate body is reachable when level is L3 or L4, not just L2', () => {
+  it("contains the post-parse clamp `level = 'L2'` for an explicit L3/L4 request", () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
@@ -901,16 +910,19 @@ describe('check-all.mjs.ejs — gap 4: L2/L3/L4 all run the full-gate body (#172
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    // The full-gate body opens with the anti-fake-green L2 section comment and runs
-    // muted-test/skip-critical-e2e checks unconditionally; the broadened runtime guard
-    // must admit L3/L4 alongside L2 (i.e. it is not narrowed to the single string 'L2').
-    const guardMatch = content.match(/if \(([^)]*level[^)]*)\)\s*\{/)
-    expect(guardMatch, 'expected a runtime level guard before the full-gate body').toBeTruthy()
-    const guardExpr = guardMatch![1]
-    expect(guardExpr).not.toBe("level === 'L2'")
+    expect(content).toContain("if (level === 'L3' || level === 'L4') level = 'L2';")
+    // The clamp must appear AFTER the arg-parse block closes and BEFORE the full-gate
+    // guard, so `level` is normalized before either the banner log or the L2 branch
+    // reads it.
+    const argParseEndIdx = content.indexOf('<<< ARG-PARSE-END')
+    const clampIdx = content.indexOf("if (level === 'L3' || level === 'L4') level = 'L2';")
+    const guardIdx = content.indexOf("if (level === 'L2') {")
+    expect(argParseEndIdx).toBeGreaterThan(-1)
+    expect(clampIdx).toBeGreaterThan(argParseEndIdx)
+    expect(guardIdx).toBeGreaterThan(clampIdx)
   })
 
-  it('renders identically at governanceLevel L2/L3/L4 for the guard line (level-independent fix)', () => {
+  it('renders the clamp identically at governanceLevel L2/L3/L4 (level-independent fix)', () => {
     const contents = (['L2', 'L3', 'L4'] as const).map((governanceLevel) => {
       const data = makeConfig('/tmp/test', {
         language: 'typescript',
@@ -920,9 +932,9 @@ describe('check-all.mjs.ejs — gap 4: L2/L3/L4 all run the full-gate body (#172
       }) as unknown as Record<string, unknown>
       return renderTemplate('scripts/check-all.mjs.ejs', data)
     })
-    const guardLines = contents.map(
-      (c) => c.split('\n').find((l) => /L2:\s*Full checks/.test(l) || /if \(.*level/.test(l)) ?? '',
-    )
-    expect(new Set(guardLines).size).toBe(1)
+    for (const content of contents) {
+      expect(content).toContain("if (level === 'L3' || level === 'L4') level = 'L2';")
+      expect(content).toContain("if (level === 'L2') {")
+    }
   })
 })
