@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import {
   writeFile,
@@ -12,7 +13,9 @@ import {
   endGenerationSession,
   _registerTmpPath,
   _translateFsError,
+  writeOutput,
 } from '../../src/utils/fs.js'
+import { ArbiterError } from '../../src/utils/errors.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
 describe('writeFile', () => {
@@ -506,7 +509,50 @@ describe('ENOSPC_MSGS errno translation (#616)', () => {
   })
 
   it('returns null for unmapped codes', () => {
-    expect(_translateFsError('ENOENT', path)).toBeNull()
+    // ENOENT is now mapped (#1717 / CANON-17) — only truly-unknown codes return null.
     expect(_translateFsError('UNKNOWN', path)).toBeNull()
+  })
+
+  it('translates ENOENT (added #1717 — a missing output dir is a CANON-17 code)', () => {
+    const msg = _translateFsError('ENOENT', path)
+    expect(msg).not.toBeNull()
+  })
+})
+
+// #1717 (CANON-17): writeOutput is the approved CLI-output write façade — mkdir + write +
+// errno→ArbiterError translation (no raw Node stack leaks for ANY code).
+describe('writeOutput', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'write-output-'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('creates a nested output directory and writes the content (mkdir -p UX win)', () => {
+    const out = join(dir, 'nested', 'deep', 'out.txt')
+    writeOutput(out, 'hello')
+    expect(readFileSync(out, 'utf-8')).toBe('hello')
+  })
+
+  it('writes Buffer content (xlsx path)', () => {
+    const out = join(dir, 'out.bin')
+    const buf = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+    writeOutput(out, buf)
+    expect(readFileSync(out)).toEqual(buf)
+  })
+
+  it('translates a path-under-a-file ENOTDIR into an ArbiterError (no raw stack)', () => {
+    const file = join(dir, 'afile')
+    writeFileSync(file, 'x', 'utf-8')
+    const out = join(file, 'nested', 'out.txt') // a middle component is a file → ENOTDIR
+    try {
+      writeOutput(out, 'x')
+      throw new Error('expected writeOutput to throw')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ArbiterError)
+      expect((err as ArbiterError).code).toBe('ENOTDIR')
+    }
   })
 })
