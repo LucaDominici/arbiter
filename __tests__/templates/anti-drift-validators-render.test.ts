@@ -687,4 +687,77 @@ describe('check-ci-tiers.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
     const req = requiredTiers({ collaborationMode: 'peer-review', governanceLevel: 'L1' })
     expect(req).toEqual(['01-pr-fast.yml', '02-pr-extended.yml', '03-human-approval.yml'])
   })
+
+  // #1720 — INV-72 content strictness: existence alone let gap 1 (05-release.yml.ejs
+  // silently downgrading L4's SLSA provenance to L2 "signed") stay invisible to this
+  // gate. At L3+, when 05-release.yml is required, also assert its CONTENT declares
+  // L3 hermetic SLSA provenance — not merely that the file exists.
+  describe('gap 1 content strictness (#1720, INV-72)', () => {
+    function runRenderedWithContent(
+      overrides: Record<string, unknown>,
+      workflowContents: Record<string, string>,
+    ): { status: number; stdout: string } {
+      const dir = mkdtempSync(join(tmpdir(), 'ci-tiers-content-'))
+      try {
+        const scriptsDir = join(dir, 'scripts')
+        const wfDir = join(dir, '.github', 'workflows')
+        mkdirSync(scriptsDir, { recursive: true })
+        mkdirSync(wfDir, { recursive: true })
+        writeFileSync(
+          join(scriptsDir, 'check-ci-tiers.mjs'),
+          renderTemplate('scripts/check-ci-tiers.mjs.ejs', makeData(overrides)),
+        )
+        for (const [f, content] of Object.entries(workflowContents)) {
+          writeFileSync(join(wfDir, f), content)
+        }
+        const r = spawnSync('node', [join(scriptsDir, 'check-ci-tiers.mjs')], {
+          encoding: 'utf-8',
+          cwd: dir,
+        })
+        return { status: r.status ?? 1, stdout: r.stdout ?? '' }
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    }
+
+    it('L3+: FAILS when 05-release.yml exists but lacks the L3 hermetic marker', () => {
+      const { status, stdout } = runRenderedWithContent(
+        { collaborationMode: 'peer-review', governanceLevel: 'L3' },
+        {
+          '01-pr-fast.yml': '# stub\n',
+          '02-pr-extended.yml': '# stub\n',
+          '03-human-approval.yml': '# stub\n',
+          '05-release.yml': 'name: SLSA provenance (L2 signed)\n',
+        },
+      )
+      expect(status).toBe(1)
+      expect(stdout).toContain('L3 hermetic')
+    })
+
+    it('L3+: PASSES when 05-release.yml declares the L3 hermetic marker', () => {
+      const { status } = runRenderedWithContent(
+        { collaborationMode: 'peer-review', governanceLevel: 'L3' },
+        {
+          '01-pr-fast.yml': '# stub\n',
+          '02-pr-extended.yml': '# stub\n',
+          '03-human-approval.yml': '# stub\n',
+          '05-release.yml': 'name: SLSA provenance (L3 hermetic)\n',
+        },
+      )
+      expect(status).toBe(0)
+    })
+
+    it('L2: existence-only, no content assertion (unaffected by L3+ content gate)', () => {
+      const { status } = runRenderedWithContent(
+        { collaborationMode: 'peer-review', governanceLevel: 'L2' },
+        {
+          '01-pr-fast.yml': '# stub\n',
+          '02-pr-extended.yml': '# stub\n',
+          '03-human-approval.yml': '# stub\n',
+          '05-release.yml': 'name: SLSA provenance (L2 signed)\n',
+        },
+      )
+      expect(status).toBe(0)
+    })
+  })
 })

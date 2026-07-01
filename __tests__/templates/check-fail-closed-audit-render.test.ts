@@ -4,7 +4,7 @@ import { makeConfig } from '../helpers.js'
 
 const TEMPLATE = 'scripts/check-fail-closed-audit.mjs.ejs'
 
-function renderAt(level: 'L1' | 'L2' | 'L3'): string {
+function renderAt(level: 'L1' | 'L2' | 'L3' | 'L4'): string {
   const data = makeConfig('/tmp/test', {
     governanceLevel: level,
     projectName: 'demo-app',
@@ -26,6 +26,14 @@ describe('check-fail-closed-audit.mjs.ejs — INV-96 audit gate scaffold', () =>
 
   it('emits the same shape at L3', () => {
     const out = renderAt('L3')
+    expect(out).toContain('#!/usr/bin/env node')
+    expect(out).toContain('INV-96')
+  })
+
+  // #1720 — gap 5: the guard was literal `=== 'L2' || === 'L3'`, so L4 silently
+  // rendered EMPTY (no-op exits 0), violating INV-96 fail-closed doctrine.
+  it('emits the same shape at L4 (gap 5 — was silently empty)', () => {
+    const out = renderAt('L4')
     expect(out).toContain('#!/usr/bin/env node')
     expect(out).toContain('INV-96')
   })
