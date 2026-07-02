@@ -128,6 +128,18 @@ describe('companion formatters (#1730)', () => {
     expect(companionStatusLine(active)).toMatch(/ponytail \(full\)/)
   })
 
+  it('sanitizes an out-of-union override mode at resolution — ultra falls back to the policy default', () => {
+    // Defense-in-depth below the schema validator: even if a malformed override map reaches
+    // resolution (e.g. a caller bypassing loadConfig), `ultra` must never survive.
+    const active = resolveCompanions({
+      self: false,
+      claudeHome: makeHome(true),
+      overrides: { ponytail: { mode: 'ultra' as unknown as 'lite' } },
+    })
+    expect(active).toHaveLength(1)
+    expect(active[0]?.mode).toBe('full')
+  })
+
   it('formatters render multiple companions in the given (registry) order, deterministically', () => {
     const a = {
       id: 'ponytail:ponytail',
