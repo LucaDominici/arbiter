@@ -747,19 +747,24 @@ function validateCompanions(raw: Record<string, unknown>, errors: string[]): voi
     return
   }
   for (const [name, override] of Object.entries(block)) {
-    if (!isRecord(override)) {
-      errors.push(`companions.${name} must be an object — got ${typeof override}`)
-      continue
-    }
-    if (override['enabled'] !== undefined && typeof override['enabled'] !== 'boolean') {
-      errors.push(`companions.${name}.enabled must be a boolean`)
-    }
-    const mode = override['mode']
-    if (mode !== undefined && mode !== 'lite' && mode !== 'full') {
-      errors.push(
-        `companions.${name}.mode must be one of lite, full — got ${typeof mode === 'string' ? mode : typeof mode}`,
-      )
-    }
+    validateCompanionOverride(name, override, errors)
+  }
+}
+
+/** One entry of the `companions` map: `{ enabled?: boolean; mode?: 'lite' | 'full' }`. */
+function validateCompanionOverride(name: string, override: unknown, errors: string[]): void {
+  if (!isRecord(override)) {
+    errors.push(`companions.${name} must be an object — got ${typeof override}`)
+    return
+  }
+  if (override['enabled'] !== undefined && typeof override['enabled'] !== 'boolean') {
+    errors.push(`companions.${name}.enabled must be a boolean`)
+  }
+  const mode = override['mode']
+  if (mode !== undefined && mode !== 'lite' && mode !== 'full') {
+    errors.push(
+      `companions.${name}.mode must be one of lite, full — got ${typeof mode === 'string' ? mode : typeof mode}`,
+    )
   }
 }
 
