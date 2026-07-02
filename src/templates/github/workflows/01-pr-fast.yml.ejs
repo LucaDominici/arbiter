@@ -225,17 +225,23 @@ jobs:
         with:
           directory: .
 <% if (locals.checkovSelfScope) { %>
-          # #1685 (arbiter self-scan): the checkov-action's single `framework`
-          # input can't pass a LIST, and `all` over-scoped THIS repo (github_actions
+          # #1685 (arbiter self-scan): `all` over-scoped THIS repo (github_actions
           # + secrets policies across dozens of workflows/fixtures) even though
           # arbiter carries ZERO terraform/kubernetes/dockerfile IaC — redding
-          # self-CI under soft_fail:false. The checkov CONFIG FILE (`config_file`
-          # action input) DOES accept a framework LIST, so `.checkov.yaml` scopes
-          # the self-scan to the three real IaC frameworks: 0 findings — honestly
-          # SCOPED, not soft_fail-suppressed. soft_fail stays false so a real
-          # misconfig would still block (INV-80). Repo-local; consumers (the
-          # shipped template's `else` branch below) are NOT affected.
-          config_file: .checkov.yaml
+          # self-CI under soft_fail:false. Scope is passed as a SPACE-separated
+          # list: the action entrypoint expands `--framework $INPUT_FRAMEWORK`
+          # UNQUOTED and checkov's `--framework` is nargs='+', so the value
+          # word-splits into a real multi-framework list (a comma-join crashes
+          # checkov with "invalid choice"). Deliberately NOT a repo-local
+          # checkov config file — docker-container actions on the runner
+          # slots bind-mount the workspace path from the DOCKER HOST, so a
+          # repo-local config file is not reliably visible inside the action
+          # container (ENOENT on CI while green locally). Inline scoping has no
+          # file dependency: 0 findings — honestly SCOPED, not
+          # soft_fail-suppressed. soft_fail stays false so a real misconfig
+          # would still block (INV-80). Self-only; consumers (the shipped
+          # template's `else` branch below) are NOT affected.
+          framework: terraform kubernetes dockerfile
 <% } else { %>
           # #1685: the checkov-action exposes a single `framework` input passed as one
           # `--framework <value>` arg, so the previous comma-join
