@@ -24,10 +24,14 @@
 // resurfaces here even when the dev tree stays green.
 //
 // Exit codes (INV-53):
-//   0 — clean, or a local-only SKIP (registry unreachable, offline; CI always fails closed)
+//   0 — clean (consumer-resolved tree has no unsuppressed vuln >= moderate)
 //   1 — an unsuppressed vulnerability >= moderate was found in the consumer-resolved tree
-//   2 — invocation/IO error (npm pack/install/audit could not run, or produced
-//       unparseable/malformed output) — fail-closed (INV-96)
+//   2 — invocation/IO error (npm pack/install/audit could not run — including a
+//       network-unreachable registry — or produced unparseable/malformed output).
+//       Fail-closed everywhere, local AND CI (INV-96): this is a SECURITY gate, so it
+//       follows the sibling dev-tree `npm audit` step's fail-closed precedent, never
+//       a graceful offline skip. A genuinely offline developer uses the documented
+//       gate-bypass env (conscious, logged) — never a silent PASS.
 //
 // Usage:
 //   node scripts/check-consumer-audit.mjs
@@ -36,6 +40,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parsePinnedNpm } from './check-npm-ci-drift.mjs'
 
 /** Severity floor: MODERATE and above — stricter than the dev-tree audit's `high` floor. */
 export const SEVERITY_FLOOR = new Set(['moderate', 'high', 'critical'])
@@ -131,18 +136,29 @@ export function classifyConsumerAudit(auditJson, allowlist, now) {
 // ─── Impure runner (npm pack -> install -> audit) ─────────────────────────────
 
 const MAX_BUFFER = 10 * 1024 * 1024
-const NETWORK_ERROR_RE = /ENOTFOUND|ETIMEDOUT|ENETUNREACH|ECONNREFUSED|EAI_AGAIN/i
 
-// FAIL-OPEN-INTENT: a network-unreachable registry is a LOCAL-ONLY convenience skip
-// (offline dev machines must not be blocked by a check that cannot possibly run); in
-// CI (CI=true or GITHUB_ACTIONS=true) the same condition is never a skip — the caller
-// treats it as fail-closed (exit 2) so a real CI network fault is never silently green.
-function isLocalOffline() {
-  return process.env.CI !== 'true' && process.env.GITHUB_ACTIONS !== 'true'
-}
-
-function looksLikeNetworkFailure(text) {
-  return NETWORK_ERROR_RE.test(String(text ?? ''))
+/**
+ * Resolve the npm invocation as `[command, ...prefixArgs]` — the pinned npm via
+ * `npx -y npm@<pin>` when package.json declares an exact `npm@X.Y.Z` packageManager
+ * (guarantees the v7+ `auditReportVersion:2` JSON schema this gate parses regardless
+ * of the ambient npm — e.g. the npm 10-CI vs npm 11-local skew already seen in this
+ * repo, #1684) — or the ambient `npm` when no exact pin is declared. Mirrors
+ * check-npm-ci-drift.mjs's pinned-npm invocation form (imports parsePinnedNpm rather
+ * than re-deriving it, per CANON-22).
+ * @param {string} repoRoot
+ * @returns {string[]}
+ */
+function resolveNpmCommand(repoRoot) {
+  try {
+    const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf-8'))
+    const pin = parsePinnedNpm(/** @type {Record<string, unknown>} */ (pkg)?.packageManager)
+    if (pin) return ['npx', '-y', `npm@${pin}`]
+    // FAIL-OPEN-INTENT: no exact `npm@X.Y.Z` pin declared (range/non-npm-manager/absent field) — deliberately falls through to the ambient npm below; an intentional default, not a swallowed error.
+  } catch {
+    // package.json unreadable/malformed here degrades to the ambient npm, never silently: the
+    // pack step below reads the SAME file and will surface (and exit 2) on the identical failure.
+  }
+  return ['npm']
 }
 
 /**
@@ -172,22 +188,21 @@ function loadAllowlist(repoRoot) {
 function main(repoRoot) {
   const packDir = mkdtempSync(join(tmpdir(), 'arbiter-consumer-audit-pack-'))
   const installRoot = mkdtempSync(join(tmpdir(), 'arbiter-consumer-audit-install-'))
+  const npmCmd = resolveNpmCommand(repoRoot)
+  const runNpm = (/** @type {string[]} */ args, /** @type {object} */ opts) =>
+    spawnSync(npmCmd[0], [...npmCmd.slice(1), ...args], opts)
   try {
     // 1. Pack the publishable tarball WITHOUT running lifecycle scripts. A bare `npm
     // pack` triggers `prepack` (`rm -rf dist && tsc && gen-third-party-licenses`),
     // which would delete/rebuild dist/ and rewrite a tracked file MID-GATE — the
     // destructive footgun this gate must never reintroduce. `--pack-destination`
     // keeps the tarball out of the repo tree so the gate leaves the tree clean.
-    const pack = spawnSync(
-      'npm',
-      ['pack', '--json', '--ignore-scripts', '--pack-destination', packDir],
-      { cwd: repoRoot, encoding: 'utf-8', maxBuffer: MAX_BUFFER },
-    )
+    const pack = runNpm(['pack', '--json', '--ignore-scripts', '--pack-destination', packDir], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      maxBuffer: MAX_BUFFER,
+    })
     if (pack.error) {
-      if (looksLikeNetworkFailure(pack.error.message) && isLocalOffline()) {
-        process.stdout.write('check-consumer-audit: SKIP (registry unreachable, offline)\n')
-        return 0
-      }
       process.stderr.write(
         `check-consumer-audit: npm pack failed to invoke — ${pack.error.message}\n`,
       )
@@ -221,16 +236,11 @@ function main(repoRoot) {
       join(installRoot, 'package.json'),
       JSON.stringify({ name: 'consumer-probe', private: true, version: '0.0.0' }, null, 2),
     )
-    const install = spawnSync(
-      'npm',
+    const install = runNpm(
       ['install', tarballPath, '--no-audit', '--no-fund', '--ignore-scripts'],
       { cwd: installRoot, encoding: 'utf-8', maxBuffer: MAX_BUFFER },
     )
     if (install.error) {
-      if (looksLikeNetworkFailure(install.error.message) && isLocalOffline()) {
-        process.stdout.write('check-consumer-audit: SKIP (registry unreachable, offline)\n')
-        return 0
-      }
       process.stderr.write(
         `check-consumer-audit: npm install failed to invoke — ${install.error.message}\n`,
       )
@@ -238,10 +248,6 @@ function main(repoRoot) {
     }
     if (install.status !== 0) {
       const combined = `${install.stderr ?? ''}\n${install.stdout ?? ''}`
-      if (looksLikeNetworkFailure(combined) && isLocalOffline()) {
-        process.stdout.write('check-consumer-audit: SKIP (registry unreachable, offline)\n')
-        return 0
-      }
       process.stderr.write(`check-consumer-audit: npm install failed\n${combined}\n`)
       return 2
     }
@@ -249,16 +255,12 @@ function main(repoRoot) {
     // 3. Audit the resolved consumer tree. Never trust the exit code — `npm audit`
     // exits non-zero whenever ANY vuln exists; this gate's own policy (moderate
     // floor + dated disposition allowlist) decides pass/fail, not npm's default.
-    const audit = spawnSync('npm', ['audit', '--json'], {
+    const audit = runNpm(['audit', '--json'], {
       cwd: installRoot,
       encoding: 'utf-8',
       maxBuffer: MAX_BUFFER,
     })
     if (audit.error) {
-      if (looksLikeNetworkFailure(audit.error.message) && isLocalOffline()) {
-        process.stdout.write('check-consumer-audit: SKIP (registry unreachable, offline)\n')
-        return 0
-      }
       process.stderr.write(
         `check-consumer-audit: npm audit failed to invoke — ${audit.error.message}\n`,
       )
@@ -268,13 +270,6 @@ function main(repoRoot) {
     try {
       auditJson = JSON.parse(audit.stdout)
     } catch (err) {
-      if (
-        looksLikeNetworkFailure(`${audit.stdout ?? ''}${audit.stderr ?? ''}`) &&
-        isLocalOffline()
-      ) {
-        process.stdout.write('check-consumer-audit: SKIP (registry unreachable, offline)\n')
-        return 0
-      }
       process.stderr.write(
         `check-consumer-audit: could not parse npm audit --json output — ${err?.message ?? err}\n`,
       )
