@@ -127,3 +127,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 097 | [Context-rot-management skill (CLI-first 3-layer redundancy)](097-context-rot-management-skill.md)                                                                    | accepted   | 2026-06-19 |  |
 | 098 | [Progressive-adoption tiers (bootstrap on-ramp)](098-progressive-adoption-tiers.md)                                                                                   | Accepted   | 2026-06-20 |  |
 | 099 | [Native zero-dependency xlsx writer (drop exceljs)](099-native-xlsx-writer.md)                                                                                        | Accepted   | 2026-06-30 |  |
+| 100 | [Companion-plugin awareness in /ship](100-companion-plugin-awareness.md)                                                                                              | accepted   | 2026-07-01 |  |

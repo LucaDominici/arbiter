@@ -196,6 +196,13 @@ export interface ArbiterConfigV2 {
   invariantTiers?: InvariantTier[]
   worktree?: WorktreeConfig
   plugins?: string[]
+  /**
+   * #1730 — per-companion overrides for /ship companion-plugin activation, keyed by bare skill
+   * name or full skillId (e.g. "ponytail"). Absent ⇒ any installed companion auto-activates in
+   * its policy-default mode on product repos. `enabled:false` disables without uninstalling;
+   * `mode` forces lite|full. Never activates on arbiter-self regardless of this setting.
+   */
+  companions?: Record<string, { enabled?: boolean; mode?: 'lite' | 'full' }>
   lanes?: Lane[]
   taskTiers?: TaskTiers
   /**
