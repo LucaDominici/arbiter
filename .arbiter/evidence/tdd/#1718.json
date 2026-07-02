@@ -2,7 +2,7 @@
   "$schemaVersion": 1,
   "task_id": "#1718",
   "test_path": "__tests__/scripts/check-consumer-audit.test.ts",
-  "test_commit_sha": "6a60d4808c47ab1b52c9419b6afaa8cf1f8fe6be",
+  "test_commit_sha": "1507de48c6dca3acdb787fc63c508293084413b4",
   "test_run_log": "\n RUN  v4.1.9 /home/luca/work/repos/arbiter/.claude/worktrees/wf_56b4216a-e9f-15\n\n ❯ __tests__/scripts/check-consumer-audit.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  21:24:34\n   Duration  188ms (transform 44ms, setup 27ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-consumer-audit.test.ts [ __tests__/scripts/check-consumer-audit.test.ts ]\nError: Cannot find module '../../scripts/check-consumer-audit.mjs' imported from /home/luca/work/repos/arbiter/.claude/worktrees/wf_56b4216a-e9f-15/__tests__/scripts/check-consumer-audit.test.ts\n ❯ __tests__/scripts/check-consumer-audit.test.ts:24:1\n     22| import { readFileSync } from 'node:fs'\n     23| import { resolve } from 'node:path'\n     24| import { classifyConsumerAudit, SEVERITY_FLOOR } from '../../scripts/c…\n       | ^\n     25|\n     26| function ghsaVuln(overrides: Record<string, unknown> = {}) {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
   "observed_failure": "FAIL  __tests__/scripts/check-consumer-audit.test.ts",
   "recorded_at": "2026-07-01T19:24:34.597Z"
