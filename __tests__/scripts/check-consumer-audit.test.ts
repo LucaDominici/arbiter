@@ -210,6 +210,13 @@ describe('classifyConsumerAudit — pure classifier (#1718)', () => {
 })
 
 describe('consumer-audit gate wiring (#1718)', () => {
+  it('resolves the pinned npm via parsePinnedNpm (imported, not re-derived — CANON-22)', () => {
+    const src = readFileSync(resolve('scripts/check-consumer-audit.mjs'), 'utf-8')
+    expect(src).toMatch(/import\s*\{\s*parsePinnedNpm\s*\}\s*from\s*'\.\/check-npm-ci-drift\.mjs'/)
+    expect(src).toMatch(/npx/)
+    expect(src).toMatch(/`npm@\$\{pin\}`/)
+  })
+
   it('is registered in scripts/check-all.mjs AFTER the L1/L2 boundary (L2-only)', () => {
     const src = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
     const boundaryIdx = src.indexOf("if (subcommand !== 'check')")
@@ -231,6 +238,20 @@ describe('consumer-audit gate wiring (#1718)', () => {
   it('is enumerated by scripts/check-suppression-expiry.mjs', () => {
     const src = readFileSync(resolve('scripts/check-suppression-expiry.mjs'), 'utf-8')
     expect(src).toMatch(/consumer-audit-allowlist\.json/)
+  })
+
+  it('is enumerated by scripts/check-suppression-rationale.mjs', () => {
+    const src = readFileSync(resolve('scripts/check-suppression-rationale.mjs'), 'utf-8')
+    expect(src).toMatch(/consumer-audit-allowlist\.json/)
+  })
+
+  it('has NO offline/network SKIP branch — a security gate fails closed (INV-96)', () => {
+    // Amended per final red-team review: an offline PASS on a supply-chain gate is
+    // exactly the fail-open INV-96 forbids. The sibling `npm audit` step already
+    // hard-fails offline on every pre-push; this gate follows the same precedent.
+    const src = readFileSync(resolve('scripts/check-consumer-audit.mjs'), 'utf-8')
+    expect(src).not.toMatch(/SKIP/)
+    expect(src).not.toMatch(/isLocalOffline|looksLikeNetworkFailure|GITHUB_ACTIONS/)
   })
 
   it('suppressions/consumer-audit-allowlist.json is a structurally valid (possibly empty) array', () => {
