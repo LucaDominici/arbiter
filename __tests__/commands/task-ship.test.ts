@@ -16,6 +16,7 @@ import {
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
+import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
 import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
 
 // Gates that would otherwise require a real repo / model switch
@@ -388,6 +389,16 @@ describe('ship companion composition (#1730)', () => {
     const a = shipStepFor('green', 'Standard', profile({ companions: [testCompanion] })).action
     expect(a).toMatch(/Implement the minimum/)
     expect(a).toContain('DRAFT-LAZY full')
+  })
+
+  it('substitutes {mode} in the REAL registry ponytail instruction (no placeholder survives)', () => {
+    const ponytail = SKILLS_MATRIX.find((e) => e.id === 'ponytail:ponytail')?.companion
+    if (!ponytail) throw new Error('ponytail companion policy missing from SKILLS_MATRIX')
+    const real = { id: 'ponytail:ponytail', label: ponytail.label, mode: 'lite' as const, policy: ponytail }
+    const a = shipStepFor('green', 'Standard', profile({ companions: [real] })).action
+    expect(a).toContain('lite mode')
+    expect(a).not.toContain('{mode}')
+    expect(a).toMatch(/gates remain the safety net/i)
   })
 
   it('green action is byte-identical to the base string when no companion is active', () => {

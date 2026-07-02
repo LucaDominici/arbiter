@@ -13,7 +13,7 @@ import {
   companionGreenInstruction,
   companionStatusLine,
 } from '../../src/integrations/companions.js'
-import { clearSkillCache } from '../../src/integrations/skill-detector.js'
+import { clearSkillCache, detectInstalledSkills } from '../../src/integrations/skill-detector.js'
 
 const homes: string[] = []
 
@@ -80,6 +80,28 @@ describe('resolveCompanions (#1730)', () => {
     expect(resolveCompanions.length).toBeLessThanOrEqual(1)
     expect(resolveCompanions({ self: false, claudeHome: makeHome(false) })).toEqual([])
   })
+
+  it('ignores a spoofed companion committed inside the target repo, even as cwd (red-team HIGH-1)', () => {
+    // Behavioural spoofing guard: cwd IS a hostile repo that commits a ponytail plugin layout
+    // in its own tree. With an empty user home, resolution must still be empty — the repo tree
+    // is never scanned, no matter what the process cwd is.
+    const hostileRepo = mkdtempSync(join(tmpdir(), 'arbiter-hostile-repo-'))
+    homes.push(hostileRepo)
+    const spoof = join(hostileRepo, '.claude', 'plugins', 'cache', 'ponytail', '4.8.4', 'skills', 'ponytail')
+    mkdirSync(spoof, { recursive: true })
+    writeFileSync(join(spoof, 'SKILL.md'), `---\nname: ponytail\nversion: 4.8.4\n---\n# Ponytail\n`)
+    const emptyHome = makeHome(false)
+    const prevCwd = process.cwd()
+    try {
+      process.chdir(hostileRepo)
+      clearSkillCache()
+      expect(resolveCompanions({ self: false, claudeHome: emptyHome })).toEqual([])
+      expect(detectInstalledSkills({ targetDir: '', claudeHome: emptyHome })).toEqual([])
+    } finally {
+      process.chdir(prevCwd)
+      clearSkillCache()
+    }
+  })
 })
 
 describe('companion formatters (#1730)', () => {
@@ -90,15 +112,38 @@ describe('companion formatters (#1730)', () => {
   it('companionGreenInstruction carries the YAGNI ladder, the mode, and the safety-net guardrail', () => {
     const active = resolveCompanions({ self: false, claudeHome: makeHome(true) })
     const instr = companionGreenInstruction(active)
-    expect(instr).toMatch(/YAGNI|ladder|stdlib/i)
-    expect(instr).toMatch(/full/)
-    expect(instr).toMatch(/never\s+.*ultra/i)
-    expect(instr).toMatch(/gate/i)
+    // Conjunctive: every load-bearing element must survive edits to the registry text.
+    expect(instr).toMatch(/YAGNI/i)
+    expect(instr).toMatch(/ladder/i)
+    expect(instr).toMatch(/stdlib/i)
+    expect(instr).toMatch(/full mode/)
+    expect(instr).not.toContain('{mode}')
+    expect(instr).toMatch(/never use ultra/i)
+    expect(instr).toMatch(/gates remain the safety net/i)
   })
 
   it('companionStatusLine renders label (mode); empty for none', () => {
     expect(companionStatusLine([])).toBe('')
     const active = resolveCompanions({ self: false, claudeHome: makeHome(true) })
     expect(companionStatusLine(active)).toMatch(/ponytail \(full\)/)
+  })
+
+  it('formatters render multiple companions in the given (registry) order, deterministically', () => {
+    const a = {
+      id: 'ponytail:ponytail',
+      label: 'ponytail',
+      mode: 'lite' as const,
+      policy: { label: 'ponytail', defaultMode: 'full' as const, greenInstruction: 'A {mode}.' },
+    }
+    const b = {
+      id: 'caveman:caveman',
+      label: 'caveman',
+      mode: 'full' as const,
+      policy: { label: 'caveman', defaultMode: 'full' as const },
+    }
+    expect(companionStatusLine([a, b])).toBe('ponytail (lite), caveman (full)')
+    expect(companionStatusLine([b, a])).toBe('caveman (full), ponytail (lite)')
+    // announce-only companion (no greenInstruction) contributes nothing to the green text
+    expect(companionGreenInstruction([a, b])).toBe('A lite.')
   })
 })
