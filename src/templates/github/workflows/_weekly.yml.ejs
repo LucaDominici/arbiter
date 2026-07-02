@@ -231,9 +231,8 @@ jobs:
       nvd-cache-namespace: weekly
 
 <% if (locals.runnerProfile === 'solo') { -%>
-<%- include('_partials/scheduled-heavy-jobs.ejs') %>
+<%- include('_partials/scheduled-heavy-jobs.ejs') -%>
 <%_ } _%>
-
   weekly-required:
     name: Weekly gate
     needs:
@@ -247,10 +246,10 @@ jobs:
 <% if (_isCli) { %>
       - cross-os-matrix
 <% } %>
-<% if (locals.runnerProfile === 'solo') { %>
+<%_ if (locals.runnerProfile === 'solo') { _%>
       - fuzz
       - soak-e2e
-<% } %>
+<%_ } _%>
     if: always()
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
@@ -280,7 +279,7 @@ jobs:
               --label weekly-regression \
               --repo "$GH_REPO"
           fi
-<% if (locals.runnerProfile === 'solo') { %>
+<%_ if (locals.runnerProfile === 'solo') { _%>
       - name: Assert heavy-sweep jobs did not fail (runnerProfile=solo)
         # #1693 (ADR-101/B1): fuzz + soak-e2e moved here from nightly. This step
         # MUST come after "File issue on hard failures" — that step's bare-expression
@@ -301,4 +300,4 @@ jobs:
             exit 1
           fi
           echo "Solo heavy-sweep gate passed."
-<% } %>
+<%_ } _%>
