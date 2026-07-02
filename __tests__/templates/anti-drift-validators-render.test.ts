@@ -761,5 +761,20 @@ describe('check-ci-tiers.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
       )
       expect(status).toBe(0)
     })
+
+    it('L4 starter (ciTierMode baseline): 05-release.yml not required — content gate inert, no false-fail', () => {
+      const overrides = {
+        collaborationMode: 'peer-review',
+        governanceLevel: 'L4',
+        ciTierMode: 'baseline',
+      }
+      // A starter-style L4 project never generates 05-release.yml; the required
+      // set excludes it, so the L3+ content gate must skip rather than fail.
+      expect(requiredTiers(overrides)).not.toContain('05-release.yml')
+      const stubs: Record<string, string> = {}
+      for (const f of requiredTiers(overrides)) stubs[f] = `# stub ${f}\n`
+      const { status } = runRenderedWithContent(overrides, stubs)
+      expect(status).toBe(0)
+    })
   })
 })

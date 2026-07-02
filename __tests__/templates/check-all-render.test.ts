@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 import { computeMetricsProfile } from '../../src/generators/debt-ratchet.js'
@@ -902,7 +906,7 @@ describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#17
     expect(content).toContain("if (level === 'L2') {")
   })
 
-  it("contains the post-parse clamp `level = 'L2'` for an explicit L3/L4 request", () => {
+  it("contains the post-parse clamp to 'L2' for an explicit L3/L4 request, and warns loudly", () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
@@ -910,12 +914,17 @@ describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#17
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).toContain("if (level === 'L3' || level === 'L4') level = 'L2';")
+    expect(content).toContain("if (level === 'L3' || level === 'L4') {")
+    // The clamp is LOUD (#1720: the bug class is SILENT downgrades — the clamp
+    // itself must never be one): a stderr warn names both the requested and the
+    // effective level before the reassignment.
+    expect(content).toContain('clamps to L2')
+    expect(content).toContain("level = 'L2';")
     // The clamp must appear AFTER the arg-parse block closes and BEFORE the full-gate
     // guard, so `level` is normalized before either the banner log or the L2 branch
     // reads it.
     const argParseEndIdx = content.indexOf('<<< ARG-PARSE-END')
-    const clampIdx = content.indexOf("if (level === 'L3' || level === 'L4') level = 'L2';")
+    const clampIdx = content.indexOf("if (level === 'L3' || level === 'L4') {")
     const guardIdx = content.indexOf("if (level === 'L2') {")
     expect(argParseEndIdx).toBeGreaterThan(-1)
     expect(clampIdx).toBeGreaterThan(argParseEndIdx)
@@ -933,8 +942,72 @@ describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#17
       return renderTemplate('scripts/check-all.mjs.ejs', data)
     })
     for (const content of contents) {
-      expect(content).toContain("if (level === 'L3' || level === 'L4') level = 'L2';")
+      expect(content).toContain("if (level === 'L3' || level === 'L4') {")
+      expect(content).toContain("level = 'L2';")
       expect(content).toContain("if (level === 'L2') {")
     }
+  })
+
+  // Behavioral proof of the runtime path (not just the emitted string): execute the
+  // rendered script's real arg-parse + clamp region — everything up to the Grace
+  // Period Guard, with the run-helpers import satisfied by a no-op stub — and probe
+  // the effective `level`. This is exactly the code a target project runs.
+  describe('behavioral: rendered parse+clamp region executed with node', () => {
+    function runParseAndClamp(args: string[]): {
+      status: number
+      stderr: string
+      level: string | null
+    } {
+      const data = makeConfig('/tmp/test', {
+        language: 'typescript',
+        governanceLevel: 'L2',
+        enableDebtGates: true,
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>
+      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const cutIdx = content.indexOf('Grace Period Guard')
+      expect(cutIdx).toBeGreaterThan(-1)
+      const prefix = content.slice(0, content.lastIndexOf('\n', cutIdx))
+      const probe = `${prefix}\nconsole.log(JSON.stringify({ __probeLevel: level }));\nprocess.exit(0);\n`
+      const dir = mkdtempSync(join(tmpdir(), 'check-all-clamp-'))
+      try {
+        const scriptsDir = join(dir, 'scripts')
+        mkdirSync(join(scriptsDir, 'lib'), { recursive: true })
+        writeFileSync(join(scriptsDir, 'check-all.mjs'), probe)
+        writeFileSync(
+          join(scriptsDir, 'lib', 'run-helpers.mjs'),
+          'export const runCheck = () => {};\nexport const runWarnCheck = () => {};\nexport const runToolCheck = () => {};\nexport const pushResult = () => {};\nexport const getResults = () => [];\nexport const getFailed = () => [];\n',
+        )
+        const r = spawnSync('node', [join(scriptsDir, 'check-all.mjs'), ...args], {
+          encoding: 'utf-8',
+          cwd: dir,
+        })
+        const m = /\{"__probeLevel":"(L\d)"\}/.exec(r.stdout ?? '')
+        return { status: r.status ?? 1, stderr: r.stderr ?? '', level: m ? m[1] : null }
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    }
+
+    it('L4 request clamps to L2 and warns on stderr', () => {
+      const { status, stderr, level } = runParseAndClamp(['L4'])
+      expect(status).toBe(0)
+      expect(level).toBe('L2')
+      expect(stderr).toContain('clamps to L2')
+    })
+
+    it('L3 request clamps to L2 and warns on stderr', () => {
+      const { level, stderr } = runParseAndClamp(['L3'])
+      expect(level).toBe('L2')
+      expect(stderr).toContain('clamps to L2')
+    })
+
+    it('L1/L2 requests pass through unchanged with no clamp warning', () => {
+      for (const requested of ['L1', 'L2'] as const) {
+        const { level, stderr } = runParseAndClamp([requested])
+        expect(level).toBe(requested)
+        expect(stderr).not.toContain('clamps to L2')
+      }
+    })
   })
 })
