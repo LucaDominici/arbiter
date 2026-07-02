@@ -1,0 +1,136 @@
+{
+  "title": "arbiter",
+  "summary": "AI governance that installs itself. A parameterized source of truth (AGENTS.md + invariants + hooks + gates + CI) generated across stacks and tools, enforced mechanically at edit/commit/push/CI. Optional orchestration layer (/ship, /drain, sub-agents) drives issues to merged PRs. Zero telemetry. Expert-only.",
+  "intro": "arbiter tells agents WHAT rules apply, then enforces them mechanically — personas drift, gate scripts don't. Read AGENTS.md first; it is the canonical governance file all tools read. Authority hierarchy: AGENTS.md > ADRs > CANON.md > implementation decisions. Every task runs the gate before commit. Never commit to main; never add `any` (TS) or `.unwrap()` (Rust); never leave orphan TODOs.",
+  "sections": [
+    {
+      "heading": "Core governance",
+      "entries": [
+        {
+          "label": "AGENTS.md",
+          "path": "AGENTS.md",
+          "description": "Canonical governance + invariants (INV-NN). Read first."
+        },
+        {
+          "label": "GLOBAL_INVARIANTS.md",
+          "path": "GLOBAL_INVARIANTS.md",
+          "description": "Hand-maintained invariant mosaic (INV-01..INV-128). Authoritative when present."
+        },
+        {
+          "label": "docs/SYSTEM/CANON.md",
+          "path": "docs/SYSTEM/CANON.md",
+          "description": "Process rules CANON-NN from audit waves #151-#186. Cite on violation."
+        },
+        {
+          "label": "docs/INDEX.md",
+          "path": "docs/INDEX.md",
+          "description": "Generated index of {{docCount}} docs with canonical_id/status/kind. Navigation entry point."
+        },
+        {
+          "label": ".claude/knowledge-map.json",
+          "path": ".claude/knowledge-map.json",
+          "description": "Machine-readable track routing (frontend/backend/docs)."
+        },
+        {
+          "label": ".claude/AGENT_REGISTRY.md",
+          "path": ".claude/AGENT_REGISTRY.md",
+          "description": "Sub-agents (red-team, bridge-reviewer, context-checker, codebase-scanner, ai-pr-gate) + interaction chains."
+        }
+      ]
+    },
+    {
+      "heading": "CLI and gates",
+      "entries": [
+        {
+          "label": "website/reference/cli.md",
+          "path": "website/reference/cli.md",
+          "description": "Generated CLI reference (all subcommands, exit codes 0/1/2/78, --json envelopes). Source of truth: src/cli.ts."
+        },
+        {
+          "label": "scripts/check-all.mjs",
+          "path": "scripts/check-all.mjs",
+          "description": "The gate. `node scripts/check-all.mjs L1` (pre-commit, ~2 min) / `L2` (pre-push, ~10 min) / `full` (~35 min)."
+        },
+        {
+          "label": ".claude/commands/",
+          "path": ".claude/commands/",
+          "description": "Slash-command runbooks for agents — [ship.md](.claude/commands/ship.md) (issue -> merged PR orchestrator), [task.md](.claude/commands/task.md), [drain.md](.claude/commands/drain.md), [review-code.md](.claude/commands/review-code.md), [review-plan.md](.claude/commands/review-plan.md), [impact.md](.claude/commands/impact.md), [gold-audit.md](.claude/commands/gold-audit.md), [gap.md](.claude/commands/gap.md), [status.md](.claude/commands/status.md), [replay.md](.claude/commands/replay.md), [levelup.md](.claude/commands/levelup.md), [close-gold-gap.md](.claude/commands/close-gold-gap.md), [wt-open.md](.claude/commands/wt-open.md), [wt-close.md](.claude/commands/wt-close.md), [wt-list.md](.claude/commands/wt-list.md), [wt-prune.md](.claude/commands/wt-prune.md)."
+        }
+      ]
+    },
+    {
+      "heading": "Method and architecture",
+      "entries": [
+        {
+          "label": "docs/METHOD/PROCESS.md",
+          "path": "docs/METHOD/PROCESS.md",
+          "description": "Track model, post-commit classification, doc semver, RFC process."
+        },
+        {
+          "label": "docs/METHOD/TESTING.md",
+          "path": "docs/METHOD/TESTING.md",
+          "description": "Testing method."
+        },
+        {
+          "label": "docs/architecture/ARCHITECTURE.md",
+          "path": "docs/architecture/ARCHITECTURE.md",
+          "description": "Architecture spine."
+        },
+        {
+          "label": "docs/SYSTEM/HOOK-CONTRACTS.md",
+          "path": "docs/SYSTEM/HOOK-CONTRACTS.md",
+          "description": "Stable hook env-var/stdin/exit shapes."
+        },
+        {
+          "label": "docs/api/README.md",
+          "path": "docs/api/README.md",
+          "description": "Public API surface + generated api-extractor snapshots in api/."
+        },
+        {
+          "label": "docs/PRODUCT/PRD.md",
+          "path": "docs/PRODUCT/PRD.md",
+          "description": "What arbiter is and is not."
+        }
+      ]
+    },
+    {
+      "heading": "Optional",
+      "entries": [
+        {
+          "label": "wiki/",
+          "path": "wiki/",
+          "description": "Generated LLM-wiki (Obsidian-compatible, citation-backed, non-authoritative). Query via `node scripts/gen-wiki.mjs query <terms>`."
+        },
+        {
+          "label": "docs/ADR/",
+          "path": "docs/ADR/",
+          "description": "Architecture decision records. Digest in [docs/SYSTEM/DECISIONS.md](docs/SYSTEM/DECISIONS.md)."
+        },
+        {
+          "label": "docs/PRODUCT/STATUS.md",
+          "path": "docs/PRODUCT/STATUS.md",
+          "description": "Living dashboard. [docs/PRODUCT/GAP.md](docs/PRODUCT/GAP.md): Gap register."
+        },
+        {
+          "label": "docs/runbooks/dependabot-handling.md",
+          "path": "docs/runbooks/dependabot-handling.md",
+          "description": "Runbook sample (agent-native, gh-CLI steps)."
+        },
+        {
+          "label": ".claude/rules/",
+          "path": ".claude/rules/",
+          "description": "Always-loaded rules (canon enforcement, incidental capture, batch execution, exec protocol)."
+        },
+        {
+          "label": "CHANGELOG.md",
+          "path": "CHANGELOG.md",
+          "extraLinks": [
+            ["ROADMAP.md", "ROADMAP.md"],
+            ["CONTRIBUTING.md", "CONTRIBUTING.md"]
+          ],
+          "description": "Standard project metadata."
+        }
+      ]
+    }
+  ]
+}
