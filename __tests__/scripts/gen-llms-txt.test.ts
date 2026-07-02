@@ -8,7 +8,12 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { buildLlmsTxt, readDocCount, findMissingPaths, runCli } from '../../scripts/gen-llms-txt.mjs'
+import {
+  buildLlmsTxt,
+  readDocCount,
+  findMissingPaths,
+  runCli,
+} from '../../scripts/gen-llms-txt.mjs'
 
 const SCRIPT = resolve('scripts/gen-llms-txt.mjs')
 
@@ -322,6 +327,22 @@ describe('runCli()', () => {
       )
       expect(result.status).toBe(1)
       expect(result.stderr).toContain('stale')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('--check: returns 1 when the docs/INDEX.md count drifts after llms.txt was written', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const configPath = join(dir, 'llms-txt.config.json')
+      writeFileSync(configPath, JSON.stringify(minimalConfig(dir)))
+      const indexPath = writeIndex(dir, 3)
+      const outPath = join(dir, 'llms.txt')
+      await runCli(configPath, indexPath, outPath, false)
+      writeIndex(dir, 4) // a doc was added/removed but llms.txt was not regenerated
+      const code = await runCli(configPath, indexPath, outPath, true)
+      expect(code).toBe(1)
     } finally {
       cleanup()
     }
