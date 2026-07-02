@@ -106,3 +106,96 @@ describe('_weekly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).toContain('- shared-security')
   })
 })
+
+// #1693 (ADR-101): runnerProfile axis. 'fleet' (default) never touches weekly
+// (fuzz+soak-e2e stay nightly — see _nightly-render.test.ts). 'solo' moves the
+// two heavy jobs here, and — CRITICAL (B1) — weekly-required must still hard-fail
+// + file an issue when either fails, exactly like nightly-required does today.
+describe('_weekly.yml.ejs — runnerProfile axis (#1693, ADR-101)', () => {
+  const STACKS = [
+    { language: 'typescript', buildTool: 'npm' },
+    { language: 'java', buildTool: 'gradle' },
+    { language: 'go', buildTool: 'go' },
+    { language: 'python', buildTool: 'pip' },
+    { language: 'rust', buildTool: 'cargo' },
+  ] as const
+
+  it.each(STACKS)(
+    '$language: fleet (default) has no fuzz/soak-e2e in weekly',
+    ({ language, buildTool }) => {
+      const rendered = renderWeeklyPartial({ language, buildTool })
+      expect(rendered).not.toContain('fuzz:')
+      expect(rendered).not.toContain('soak-e2e:')
+      expect(rendered).not.toContain('needs.fuzz.result')
+      expect(rendered).not.toContain('needs.soak-e2e.result')
+    },
+  )
+
+  it.each(STACKS)(
+    '$language: runnerProfile=solo adds fuzz + soak-e2e to weekly',
+    ({ language, buildTool }) => {
+      const rendered = renderWeeklyPartial({ language, buildTool, runnerProfile: 'solo' })
+      expect(rendered).toContain('fuzz:')
+      expect(rendered).toContain('soak-e2e:')
+      expect(rendered).toContain('- fuzz')
+      expect(rendered).toContain('- soak-e2e')
+    },
+  )
+
+  it('solo: weekly-required needs includes fuzz + soak-e2e', () => {
+    const rendered = renderWeeklyPartial({
+      language: 'typescript',
+      buildTool: 'npm',
+      runnerProfile: 'solo',
+    })
+    const jobStart = rendered.indexOf('weekly-required:')
+    const jobSlice = rendered.slice(jobStart)
+    const needsMatch = jobSlice.match(/needs:\s*\n((?:\s+-[^\n]*\n?)*)/)
+    expect(needsMatch).not.toBeNull()
+    expect(needsMatch![1]).toContain('- fuzz')
+    expect(needsMatch![1]).toContain('- soak-e2e')
+  })
+
+  // CRITICAL (B1): a failing fuzz/soak-e2e on solo must still hard-fail the
+  // weekly gate (exit 1) — moving cadence must not silently drop enforcement.
+  it('solo: weekly-required hard-fails (exit 1) when fuzz or soak-e2e fails', () => {
+    const rendered = renderWeeklyPartial({
+      language: 'typescript',
+      buildTool: 'npm',
+      runnerProfile: 'solo',
+    })
+    expect(rendered).toContain('needs.fuzz.result')
+    expect(rendered).toContain('needs.soak-e2e.result')
+    expect(rendered).toMatch(/exit 1/)
+  })
+
+  it('solo: "File issue on hard failures" if: is extended with fuzz/soak-e2e OR-terms', () => {
+    const rendered = renderWeeklyPartial({
+      language: 'typescript',
+      buildTool: 'npm',
+      runnerProfile: 'solo',
+    })
+    const fileIssueLine = rendered
+      .split('\n')
+      .find((l) => l.includes('File issue on hard failures'))
+    expect(fileIssueLine).toBeDefined()
+    const idx = rendered.indexOf('File issue on hard failures')
+    const ifLine = rendered.slice(idx, idx + 400)
+    expect(ifLine).toContain("needs.fuzz.result == 'failure'")
+    expect(ifLine).toContain("needs.soak-e2e.result == 'failure'")
+  })
+
+  it('fleet: "File issue on hard failures" if: is NOT extended with fuzz/soak-e2e (unchanged)', () => {
+    const rendered = renderWeeklyPartial({ language: 'typescript', buildTool: 'npm' })
+    const idx = rendered.indexOf('File issue on hard failures')
+    const ifLine = rendered.slice(idx, idx + 400)
+    expect(ifLine).not.toContain('needs.fuzz.result')
+    expect(ifLine).not.toContain('needs.soak-e2e.result')
+  })
+
+  it('runnerProfile=solo leaves no EJS tag leaks', () => {
+    const rendered = renderWeeklyPartial({ runnerProfile: 'solo' })
+    expect(rendered).not.toContain('<%')
+    expect(rendered).not.toContain('%>')
+  })
+})

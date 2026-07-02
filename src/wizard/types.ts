@@ -74,6 +74,12 @@ export interface WizardAnswers {
    * (ask at each ship step — the safe default).
    */
   autonomy?: AutonomyLevel
+  /**
+   * #1693 (ADR-101): runner profile axis. 'solo' moves the fuzz + soak-e2e
+   * heavy jobs from nightly to weekly cadence (single self-hosted runner).
+   * Default 'fleet' — current behavior, jobs stay nightly.
+   */
+  runnerProfile?: 'solo' | 'fleet'
 }
 
 export interface MigrationPlan {
@@ -489,6 +495,17 @@ export interface ProjectConfig {
    * a MAIL_DOMAIN_ALLOWLIST variable (set to `*` to allow all domains).
    */
   enableCodeownersNotify?: boolean
+
+  /**
+   * #1693 (ADR-101): runner profile axis, orthogonal to collaborationMode/pipelineStyle.
+   * 'fleet' (default) = current behavior: fuzz + soak-e2e heavy jobs run at nightly
+   *   cadence, hard-gated by nightly-required.
+   * 'solo' = fuzz + soak-e2e move to weekly cadence instead (single self-hosted
+   *   runner that cannot absorb a nightly heavy sweep), while preserving the same
+   *   hard-gate + issue-filing semantics at weekly cadence.
+   * Absent field treated as 'fleet'.
+   */
+  runnerProfile?: 'solo' | 'fleet'
 }
 
 type PlanDepth = 'minimal' | 'brief' | 'full'

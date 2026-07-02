@@ -119,3 +119,4 @@ related: []
 | 098 | [Progressive-adoption tiers (bootstrap on-ramp)](../ADR/098-progressive-adoption-tiers.md) | Accepted | 2026-06-20 |
 | 099 | [Native zero-dependency xlsx writer (drop exceljs)](../ADR/099-native-xlsx-writer.md) | Accepted | 2026-06-30 |
 | 100 | [Companion-plugin awareness in /ship](../ADR/100-companion-plugin-awareness.md) | accepted | 2026-07-01 |
+| 101 | [runnerProfile cadence axis (solo/fleet)](../ADR/101-runner-profile-cadence-axis.md) | Accepted | 2026-07-01 |

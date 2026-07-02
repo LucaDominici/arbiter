@@ -11,6 +11,7 @@ related:
     'docs/ADR/050-pipeline-complexity-tiers.md',
     'docs/ADR/051-collaboration-mode-workflow-axis.md',
     'docs/ADR/053-ci-gap-closures-and-check-ladder.md',
+    'docs/ADR/101-runner-profile-cadence-axis.md',
     'docs/REFERENCE/ci-tier-workflows.md',
   ]
 ---
@@ -121,6 +122,31 @@ generation predicates) plus its L3+ content-strictness check, and the cadence-pa
 self-check. Changing any level's emit set or content strictness without updating both the
 generator and that gate is a gate failure.
 
+## Runner-profile sub-overlay (`runnerProfile`, ADR-101)
+
+`runnerProfile: 'solo' | 'fleet'` (default `fleet`) is a config-driven sub-overlay
+**within** the cadence axis — it never changes which workflow files are emitted or
+their bucket assignment, only which **jobs** two specific workflows contain:
+
+- **`fleet` (default)** — `fuzz` + `soak-e2e` (the two heaviest scheduled jobs) live in
+  `_nightly.yml`, hard-gated by `nightly-required`. Byte-behavior-identical to the
+  pre-ADR-101 model.
+- **`solo`** — `fuzz` + `soak-e2e` move to `_weekly.yml` instead (a single self-hosted
+  runner that cannot absorb a nightly heavy sweep), with the same hard-fail +
+  issue-filing enforcement re-created on `weekly-required`. A cadence-only trade,
+  never an enforcement-only one.
+
+**The workflow-file → bucket partition is unchanged**: `06-nightly.yml` stays in
+NIGHTLY and `07-weekly.yml` stays in WEEKLY-MONTHLY regardless of `runnerProfile` —
+only the job bodies _inside_ those two files move. This means INV-72 (required-set)
+and INV-73 (canonical-presence floor), both keyed on workflow **file** presence, are
+untouched by this axis; `scripts/check-ci-tiers.mjs` needs no changes.
+
+`runnerProfile` is orthogonal to `collaborationMode`: it governs runner _capacity_,
+not branching/merge ceremony. For `trunk-solo` at L1/L2 — which emits the
+`06-nightly-lite`/`07-weekly-lite` variants that never define `fuzz`/`soak-e2e` at all
+— the axis is an inert no-op (nothing to move). See ADR-101 for the full rationale.
+
 ## Relationship to the ADRs
 
 - **ADR-050** establishes archetype-default pipeline shape + governance floor. This document
@@ -128,3 +154,4 @@ generator and that gate is a gate failure.
 - **ADR-051** introduces the `collaborationMode` axis and `PIPELINE_STYLE_TABLE`.
 - **ADR-053** adds the per-tier nightly (`06-nightly-lite`), CodeQL, OSSF Scorecard, and the
   frontend-quality gap workflows now classified above.
+- **ADR-101** introduces the `runnerProfile` sub-overlay (solo | fleet) — see above.
