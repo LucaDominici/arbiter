@@ -2,7 +2,7 @@
     shared partial so they render identically whether included from _nightly.yml
     (runnerProfile 'fleet', the default) or _weekly.yml (runnerProfile 'solo').
     References bare `language`/`buildTool` — inherited from the parent's locals
-    via EJS include scope (renderTemplate passes { filename }, with(locals) is on). %>
+    via EJS include scope (renderTemplate passes { filename }, with(locals) is on). -%>
   fuzz:
     name: Fuzz testing
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}

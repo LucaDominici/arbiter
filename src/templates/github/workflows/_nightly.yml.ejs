@@ -79,7 +79,7 @@ jobs:
           retention-days: 30
 
 <% if (locals.runnerProfile !== 'solo') { -%>
-<%- include('_partials/scheduled-heavy-jobs.ejs') %>
+<%- include('_partials/scheduled-heavy-jobs.ejs') -%>
 <%_ } _%>
 
 <% if (locals.enableNativeBakeE2E) { %>
@@ -429,10 +429,10 @@ jobs:
     name: Upload nightly evidence artifacts
     needs:
       - shared-security
-<% if (locals.runnerProfile !== 'solo') { %>
+<%_ if (locals.runnerProfile !== 'solo') { _%>
       - fuzz
       - soak-e2e
-<% } %>
+<%_ } _%>
       - gitleaks-history
       - coverage-report
 <% if (language === 'typescript') { %>
@@ -468,10 +468,10 @@ jobs:
     name: Nightly gate
     needs:
       - shared-security
-<% if (locals.runnerProfile !== 'solo') { %>
+<%_ if (locals.runnerProfile !== 'solo') { _%>
       - fuzz
       - soak-e2e
-<% } %>
+<%_ } _%>
       - gitleaks-history
       - coverage-report
 <% if (language === 'typescript') { %>
@@ -495,10 +495,10 @@ jobs:
         run: |
           RESULTS=(
             "${{ needs.shared-security.result }}"
-<% if (locals.runnerProfile !== 'solo') { %>
+<%_ if (locals.runnerProfile !== 'solo') { _%>
             "${{ needs.fuzz.result }}"
             "${{ needs.soak-e2e.result }}"
-<% } %>
+<%_ } _%>
             "${{ needs.gitleaks-history.result }}"
             "${{ needs.coverage-report.result }}"
 <% if (language === 'typescript') { %>
