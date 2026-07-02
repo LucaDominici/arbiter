@@ -84,6 +84,15 @@
       "integrationStatus": "proven",
       "replaces": [],
       "referenceUrl": ""
+    },
+    {
+      "skillId": "ponytail:ponytail",
+      "pluginOwner": "ponytail",
+      "versionRange": ">=4.0.0",
+      "role": "YAGNI drafting persona (/ship green-phase companion, #1730)",
+      "integrationStatus": "beta",
+      "replaces": [],
+      "referenceUrl": "https://github.com/DietrichGebert/ponytail"
     }
   ]
 }

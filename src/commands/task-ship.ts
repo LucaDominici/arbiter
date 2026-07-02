@@ -26,6 +26,7 @@ import {
   SELF_ONLY_GATES,
   resolveShipProfile,
 } from './ship-profile.js'
+import { companionGreenInstruction, companionStatusLine } from '../integrations/companions.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
@@ -124,6 +125,18 @@ function planAction(profile: ShipProfile): string {
   return 'Write the plan, then pass the plan-review gate.'
 }
 
+/**
+ * #1730 — the green (implementation) action, optionally composed with active companion plugins.
+ * When a companion (ponytail) is active on the resolved profile, its YAGNI drafting instruction is
+ * appended; absent ⇒ the base string, byte-identical to a companion-free ship. The self-guard lives
+ * at resolution (profile.companions is empty on arbiter-self), so no leak path exists here.
+ */
+function greenAction(profile: ShipProfile): string {
+  const base = 'Implement the minimum to make the tests pass.'
+  const companion = companionGreenInstruction(profile.companions)
+  return companion ? `${base} ${companion}` : base
+}
+
 function completeAction(profile: ShipProfile): string {
   if (profile.collaborationMode !== 'trunk-solo') {
     return 'Commit, push, open a PR; await required review + checks, then merge. Close the issue, clean up the worktree.'
@@ -189,7 +202,7 @@ function shipStepBody(
     case 'green':
       return {
         phase,
-        action: 'Implement the minimum to make the tests pass.',
+        action: greenAction(profile),
         reviewAgents: 0,
       }
     case 'refactor':
@@ -311,6 +324,15 @@ export function buildShipStepLines(result: ShipResult, size: ResolvedSize): stri
   // header for gates it does not run (RT-06: skipped, not faked).
   const selfOnly = result.step.selfOnlyChecks ?? []
   if (selfOnly.length > 0) lines.push(`Self-only checks: ${selfOnly.join(', ')}`)
+  // #1730 — announce active companion plugins on every step (transparency), read from the
+  // resolved profile. Printed iff non-empty, mirroring self-only checks: a companion-free ship
+  // shows no line at all. arbiter's gates remain the safety net for whatever the companion drafts.
+  const companions = result.profile.companions
+  if (companions.length > 0) {
+    lines.push(
+      `Companion: ${companionStatusLine(companions)} · arbiter gates remain the safety net`,
+    )
+  }
   return lines
 }
 

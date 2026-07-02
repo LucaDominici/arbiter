@@ -478,6 +478,8 @@ Security gates run as L2+ hard requirements. PII scan is HARD (no grace period) 
 
 arbiter uses a detect-and-reference posture with other Claude Code skill suites. See [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) for the legal stance, attribution rules, and how to add a new skill to the matrix.
 
+**Companion plugins (#1730, [ADR-100](./docs/ADR/100-companion-plugin-awareness.md)).** The same posture extends into the ship orchestrator: a companion registered in the skills matrix with a companion policy (first-class: **ponytail**, a YAGNI drafting persona) is detected home-only and composed into the green implementation phase on product repos, with each step announcing the active companions. It stays off on arbiter-self and is capped below the test-skipping ultra mode; when none is installed the orchestrator behaves exactly as before. arbiter detects and composes rather than vendoring companion code, and the gates stay authoritative. Full policy: ADR-100.
+
 ---
 
 ## Process Canon (CANON-01..23)

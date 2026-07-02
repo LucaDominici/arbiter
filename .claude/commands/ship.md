@@ -95,12 +95,37 @@ The tier (XS / S / Standard) sets the number of review agents dispatched per rev
 | `plan` | Write the plan; pass the plan-review gate (`arbiter review plan`) | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
 | `red` | Write failing tests (TDD red); `arbiter task record-red` | — |
-| `green` | Implement the minimum to pass | — |
+| `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
 | `refactor` | Clean up; 1 self-review agent (trunk-solo mode) + 1 adversarial verifier | 1 |
 | `verification` | Run the gate: `npm run test` then `node scripts/check-all.mjs check` | — |
 | `complete` | Commit, push, open/merge PR, close issue, clean up | — |
 
 
+
+---
+
+## Companion plugins (#1730, ADR-100)
+
+`/ship` is **companion-aware**. If a known companion plugin (first-class: **ponytail**, a YAGNI
+drafting persona) is installed in your Claude home, the `green` step composes with it and every step
+announces it:
+
+```
+Companion: ponytail (full) · arbiter gates remain the safety net
+```
+
+Rules — all enforced in the engine, not by convention:
+
+- **Detected HOME-only.** A companion is a per-user tool choice; the target repo is never scanned, so
+  a repo can never spoof activation.
+- **Product repos only, never arbiter-self.** arbiter's own complexity is load-bearing.
+- **`lite` / `full`, never `ultra`.** ultra skips tests — incompatible with TDD (INV-26).
+- **Graceful.** No companion installed ⇒ `/ship` is byte-identical to before (no `Companion:` line).
+- **Gates stay authoritative.** If the persona cuts too much, the gate catches it.
+
+Configure per companion in `arbiter.json` (optional): `companions.ponytail.enabled=false` disables it;
+`companions.ponytail.mode="lite"` downgrades it. arbiter never vendors a companion's code — it detects
+and composes (interoperability).
 
 ---
 
