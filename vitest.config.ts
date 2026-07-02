@@ -45,7 +45,13 @@ export default defineConfig({
         'dist/**',
         '__tests__/**',
         'scripts/**',
-        '.claude/**',
+        // Anchored to the resolved root (#1742): a bare '.claude/**' is matched against the
+        // ABSOLUTE file path, so in an agent worktree under .claude/worktrees/ it swallowed
+        // EVERY file (empty coverage-summary.json → coverage ratchet ERROR). Anchoring via
+        // join(root, …) still excludes the repo-local .claude/ tree (hook libs imported by
+        // sanitize-task-id-parity / hooks-perf-scoping tests) without matching the root's
+        // own ancestry.
+        join(root, '.claude/**'),
         '**/*.config.ts',
       ],
       // Absolute floors (the suite fails below these). The coverage no-regression ratchet
