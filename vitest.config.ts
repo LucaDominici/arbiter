@@ -45,7 +45,12 @@ export default defineConfig({
         'dist/**',
         '__tests__/**',
         'scripts/**',
-        '.claude/**',
+        // Scoped to hooks/ (the only .claude JS tests import in-process) rather than
+        // the broader `.claude/**`: that glob also contains-matches the checkout
+        // PREFIX when the repo is rooted under `.claude/worktrees/wf_*` (Workflow
+        // worktrees), silently zeroing ALL coverage (0/0 "Unknown") and making the
+        // coverage ratchet fail-closed (exit 2) — the L2 gate became unpassable there.
+        '.claude/hooks/**',
         '**/*.config.ts',
       ],
       // Absolute floors (the suite fails below these). The coverage no-regression ratchet
