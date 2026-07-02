@@ -57,11 +57,12 @@ function resolveExtendedInvariants(stored: ArbiterConfigV2): boolean {
 }
 
 /**
- * Map the optional `stored`-only overrides into a Partial<ProjectConfig>, each
- * spread in only when present. Extracted from v2ToProjectConfig to keep its
- * cyclomatic complexity below the 15-branch ceiling (#1254).
+ * Map the collaboration/threshold-axis `stored`-only overrides into a
+ * Partial<ProjectConfig>, each spread in only when present. Split from
+ * {@link storedOptionalFields} (#1693) to keep both halves' cyclomatic
+ * complexity below the 15-branch ceiling (#1254).
  */
-function storedOptionalFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
+function storedAxisFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
   return {
     // Map persisted overrides from arbiter.json into ProjectConfig so resolveCollaborationAxes
     // can honour them when building the template render context.
@@ -74,6 +75,19 @@ function storedOptionalFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
       : {}),
     ...(stored.thresholdProfile !== undefined ? { thresholdProfile: stored.thresholdProfile } : {}),
     ...(stored.strictnessTier !== undefined ? { strictnessTier: stored.strictnessTier } : {}),
+    // #1693: round-trip the runnerProfile axis (ADR-101) so `arbiter update`/`diff`
+    // keep re-emitting the cadence the project opted into instead of silently
+    // coercing back to 'fleet' (the persistence-time default collapse).
+    ...(stored.runnerProfile !== undefined ? { runnerProfile: stored.runnerProfile } : {}),
+  }
+}
+
+/**
+ * Map the compliance/provider/deploy `stored`-only overrides into a
+ * Partial<ProjectConfig>. See {@link storedAxisFields} for the split rationale.
+ */
+function storedProviderFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
+  return {
     // #1254: read the persisted compliance overlay back so re-init/update and
     // doctor see the same cell the wizard wrote. Omitted when none/absent.
     ...(stored.industryOverlay !== undefined && stored.industryOverlay !== 'none'
@@ -93,6 +107,20 @@ function storedOptionalFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
     ...(stored.observability !== undefined ? { observability: stored.observability } : {}),
     ...(stored.auth !== undefined ? { auth: stored.auth } : {}),
     ...(stored.frontend !== undefined ? { frontend: stored.frontend } : {}),
+  }
+}
+
+/**
+ * Map the optional `stored`-only overrides into a Partial<ProjectConfig>.
+ * Extracted from v2ToProjectConfig to keep its cyclomatic complexity below the
+ * 15-branch ceiling (#1254); further split into {@link storedAxisFields} +
+ * {@link storedProviderFields} (#1693) once this combinator itself started
+ * approaching the ceiling.
+ */
+function storedOptionalFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
+  return {
+    ...storedAxisFields(stored),
+    ...storedProviderFields(stored),
   }
 }
 

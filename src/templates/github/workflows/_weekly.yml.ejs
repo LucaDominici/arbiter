@@ -230,6 +230,10 @@ jobs:
     with:
       nvd-cache-namespace: weekly
 
+<% if (locals.runnerProfile === 'solo') { -%>
+<%- include('_partials/scheduled-heavy-jobs.ejs') %>
+<%_ } _%>
+
   weekly-required:
     name: Weekly gate
     needs:
@@ -243,6 +247,10 @@ jobs:
 <% if (_isCli) { %>
       - cross-os-matrix
 <% } %>
+<% if (locals.runnerProfile === 'solo') { %>
+      - fuzz
+      - soak-e2e
+<% } %>
     if: always()
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
@@ -253,7 +261,7 @@ jobs:
           echo "All jobs ran (some informational, failures create issues)."
 
       - name: File issue on hard failures
-        if: needs.dep-freshness.result == 'failure' || needs.action-version-audit.result == 'failure' || needs.shared-security.result == 'failure'
+        if: needs.dep-freshness.result == 'failure' || needs.action-version-audit.result == 'failure' || needs.shared-security.result == 'failure'<% if (locals.runnerProfile === 'solo') { %> || needs.fuzz.result == 'failure' || needs.soak-e2e.result == 'failure'<% } %>
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -272,3 +280,25 @@ jobs:
               --label weekly-regression \
               --repo "$GH_REPO"
           fi
+<% if (locals.runnerProfile === 'solo') { %>
+      - name: Assert heavy-sweep jobs did not fail (runnerProfile=solo)
+        # #1693 (ADR-101/B1): fuzz + soak-e2e moved here from nightly. This step
+        # MUST come after "File issue on hard failures" — that step's bare-expression
+        # `if:` carries an implicit success(), so it is skipped once a prior step in
+        # this job has failed. Placing the hard-fail LAST preserves both the
+        # issue-filing side-effect and the hard gate on a solo heavy-sweep failure.
+        run: |
+          RESULTS=(
+            "${{ needs.fuzz.result }}"
+            "${{ needs.soak-e2e.result }}"
+          )
+          FAILED=0
+          for r in "${RESULTS[@]}"; do
+            if [ "$r" = "failure" ]; then FAILED=1; fi
+          done
+          if [ "$FAILED" = "1" ]; then
+            echo "::error::fuzz/soak-e2e (moved to weekly by runnerProfile=solo) failed."
+            exit 1
+          fi
+          echo "Solo heavy-sweep gate passed."
+<% } %>
