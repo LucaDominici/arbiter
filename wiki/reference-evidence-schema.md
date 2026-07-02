@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/evidence-schema.md'
 source_sha: '07d067c00d234d1d87f80c6d81a2bcef82ab50c3'
-last_updated: '2026-06-28'
+last_updated: '2026-07-02'
 ---
 
 # Reference: Evidence Bundle Schema

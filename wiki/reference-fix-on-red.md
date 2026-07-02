@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/fix-on-red.md'
 source_sha: '283a7aefc12b6e656536cee2e32c05ebb882fec1'
-last_updated: '2026-06-28'
+last_updated: '2026-07-02'
 ---
 
 # Reference: Fix-on-Red Engine

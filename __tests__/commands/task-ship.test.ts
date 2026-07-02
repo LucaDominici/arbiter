@@ -394,7 +394,12 @@ describe('ship companion composition (#1730)', () => {
   it('substitutes {mode} in the REAL registry ponytail instruction (no placeholder survives)', () => {
     const ponytail = SKILLS_MATRIX.find((e) => e.id === 'ponytail:ponytail')?.companion
     if (!ponytail) throw new Error('ponytail companion policy missing from SKILLS_MATRIX')
-    const real = { id: 'ponytail:ponytail', label: ponytail.label, mode: 'lite' as const, policy: ponytail }
+    const real = {
+      id: 'ponytail:ponytail',
+      label: ponytail.label,
+      mode: 'lite' as const,
+      policy: ponytail,
+    }
     const a = shipStepFor('green', 'Standard', profile({ companions: [real] })).action
     expect(a).toContain('lite mode')
     expect(a).not.toContain('{mode}')
