@@ -307,21 +307,29 @@ describe('runCliAsync', () => {
   })
 
   it('runs concurrently: two slow children overlap rather than serialize', async () => {
-    // Each child sleeps ~300ms. Run serially under spawnSync the pair costs
-    // ~2x a single run; genuinely concurrent (spawn + event loop free) it is
-    // ~1x — the core #1514 guarantee. An absolute ceiling flakes on loaded CI
-    // runners (spawn overhead alone exceeded it), so measure a load-adaptive
-    // baseline first and assert the pair stays well below the serialized 2x.
-    const sleeper = ['-e', 'setTimeout(() => process.stdout.write("done"), 300)']
-    const t0 = Date.now()
-    await runCliAsync('node', sleeper)
-    const baseline = Date.now() - t0
-    const start = Date.now()
+    // Each child reports its own start/end wall clock. Genuinely concurrent
+    // children (spawn + event loop free — the core #1514 guarantee) are alive
+    // simultaneously, so their lifetimes overlap: the later start precedes the
+    // earlier end. A serialized regression (spawnSync-style) can never overlap
+    // because the second child only spawns after the first exits. Interval
+    // overlap is load-independent — the previous fixed wall-clock ceiling
+    // (< 500ms for two 300ms sleepers) flaked on busy CI runners where spawn
+    // overhead alone pushed genuinely-concurrent runs past the ceiling.
+    const sleeper = [
+      '-e',
+      'const s = Date.now(); setTimeout(() => process.stdout.write(s + ":" + Date.now()), 300)',
+    ]
     const results = await Promise.all([runCliAsync('node', sleeper), runCliAsync('node', sleeper)])
-    const elapsed = Date.now() - start
-    expect(results.map((r) => r.stdout)).toEqual(['done', 'done'])
-    // Serial cost is ~2x baseline; concurrent is ~1x. 1.7x splits the two
-    // regimes with margin on both sides regardless of machine load.
-    expect(elapsed).toBeLessThan(1.7 * baseline)
+    const spans = results.map((r) => {
+      const [startRaw, endRaw] = r.stdout.split(':')
+      const start = Number(startRaw)
+      const end = Number(endRaw)
+      expect(Number.isFinite(start)).toBe(true)
+      expect(Number.isFinite(end)).toBe(true)
+      return { start, end }
+    })
+    const latestStart = Math.max(...spans.map((s) => s.start))
+    const earliestEnd = Math.min(...spans.map((s) => s.end))
+    expect(latestStart).toBeLessThan(earliestEnd)
   })
 })
