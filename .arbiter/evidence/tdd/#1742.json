@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1742",
+  "test_path": "__tests__/gates/coverage-exclude-anchoring.test.ts",
+  "test_commit_sha": "38cc3fbd51726328da39670cb3502ee9deddba60",
+  "test_run_log": "\n RUN  v4.1.9 /home/luca/work/repos/arbiter/.claude/worktrees/wf_56b4216a-e9f-18\n\n ❯ __tests__/gates/coverage-exclude-anchoring.test.ts (2 tests | 1 failed) 11ms\n     × anchors every .claude exclude to the resolved root — never a bare glob 8ms\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/gates/coverage-exclude-anchoring.test.ts > vitest coverage exclude anchoring (#1742) > anchors every .claude exclude to the resolved root — never a bare glob\nAssertionError: coverage exclude \".claude/**\" must be root-anchored: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/gates/coverage-exclude-anchoring.test.ts:32:90\n     30|       // matched against absolute paths and over-matches any project r…\n     31|       // under a .claude/ directory (agent worktrees).\n     32|       expect(isAbsolute(pattern), `coverage exclude \"${pattern}\" must …\n       |                                                                                          ^\n     33|     }\n     34|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed (2)\n   Start at  22:28:02\n   Duration  398ms (transform 55ms, setup 29ms, import 197ms, tests 11ms, environment 0ms)\n\n",
+  "observed_failure": "FAIL  __tests__/gates/coverage-exclude-anchoring.test.ts",
+  "recorded_at": "2026-07-02T20:28:21.134Z"
+}
