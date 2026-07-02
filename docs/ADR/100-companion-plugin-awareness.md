@@ -4,7 +4,7 @@ doc_version: '1.0.0'
 status: accepted
 last_review: '2026-07-01'
 owner: ''
-canonical_id: '099'
+canonical_id: '100'
 tags: ['audience/dev', 'kind/adr']
 related: ['093-dual-side-ship-orchestrator', '094-project-profile-resolver']
 ---
