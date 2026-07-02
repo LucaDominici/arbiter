@@ -271,17 +271,28 @@ export function resolveShipProfile(
   // config (config === null) contributes no profile value and each falls to
   // override/session/floor — consistent with the whole-profile degrade above (RT-03).
   const prefs = resolveProfilePrefs(root, overrides, config?.automation)
-  // #1730 — companion plugins, resolved HOME-ONLY (never the target repo) and empty on self.
-  // `config` may be null (absent/malformed) → no overrides, still resolves from home.
-  const companions = resolveCompanions({
-    self,
-    claudeHome: opts.claudeHome ?? join(homedir(), '.claude'),
-    ...(config?.companions ? { overrides: config.companions } : {}),
-  })
+  const companions = profileCompanions(self, opts, config)
   if (config === null) {
     return { ...CONSUMER_DEFAULT_PROFILE, isArbiterSelf: self, autonomy, ...prefs, companions }
   }
   return { ...collaborationProfile(config), isArbiterSelf: self, autonomy, ...prefs, companions }
+}
+
+/**
+ * #1730 — companion plugins, resolved HOME-ONLY (never the target repo) and empty on self.
+ * `config` may be null (absent/malformed) → no overrides, still resolves from home. Extracted
+ * from resolveShipProfile to keep it under the complexity ceiling.
+ */
+function profileCompanions(
+  self: boolean,
+  opts: ResolveShipProfileOptions,
+  config: ReturnType<typeof loadConfig>,
+): readonly ActiveCompanion[] {
+  return resolveCompanions({
+    self,
+    claudeHome: opts.claudeHome ?? join(homedir(), '.claude'),
+    ...(config?.companions ? { overrides: config.companions } : {}),
+  })
 }
 
 /**

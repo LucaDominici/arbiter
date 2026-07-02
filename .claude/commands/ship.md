@@ -104,28 +104,24 @@ The tier (XS / S / Standard) sets the number of review agents dispatched per rev
 
 ---
 
-## Companion plugins (#1730, ADR-100)
+## Companion plugins
 
-`/ship` is **companion-aware**. If a known companion plugin (first-class: **ponytail**, a YAGNI
-drafting persona) is installed in your Claude home, the `green` step composes with it and every step
-announces it:
+`arbiter ship` is **companion-aware**. If a known companion plugin (first-class: **ponytail**, a
+YAGNI drafting persona) is installed in your Claude home, the `green` step composes with it and every
+step announces which companions are active:
 
 ```
 Companion: ponytail (full) · arbiter gates remain the safety net
 ```
 
-Rules — all enforced in the engine, not by convention:
+- **Detected HOME-only** — a companion is a per-user tool choice; your repo is never scanned, so a
+  cloned repo can never force a companion on you.
+- **`lite` / `full`, never `ultra`** — ultra skips tests, incompatible with TDD.
+- **Graceful** — no companion installed ⇒ ship is byte-identical to before (no `Companion:` line).
+- **Gates stay authoritative** — if the persona cuts too much, your gate catches it.
 
-- **Detected HOME-only.** A companion is a per-user tool choice; the target repo is never scanned, so
-  a repo can never spoof activation.
-- **Product repos only, never arbiter-self.** arbiter's own complexity is load-bearing.
-- **`lite` / `full`, never `ultra`.** ultra skips tests — incompatible with TDD (INV-26).
-- **Graceful.** No companion installed ⇒ `/ship` is byte-identical to before (no `Companion:` line).
-- **Gates stay authoritative.** If the persona cuts too much, the gate catches it.
-
-Configure per companion in `arbiter.json` (optional): `companions.ponytail.enabled=false` disables it;
-`companions.ponytail.mode="lite"` downgrades it. arbiter never vendors a companion's code — it detects
-and composes (interoperability).
+Configure in `arbiter.json` (optional): `companions.ponytail.enabled=false` disables it;
+`companions.ponytail.mode="lite"` downgrades it. arbiter never vendors a companion's code.
 
 ---
 

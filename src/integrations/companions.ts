@@ -12,10 +12,10 @@
 //     takes primitives (never a ShipProfile) so ship-profile.ts can value-import it freely.
 import { detectInstalledSkills } from './skill-detector.js'
 import { SKILLS_MATRIX, bareName } from './skills-matrix.js'
-import type { CompanionPolicy } from './skills-matrix.js'
+import type { CompanionPolicy, SkillEntry } from './skills-matrix.js'
 
 /** The resolved activation mode. `ultra` is deliberately unrepresentable (it skips tests). */
-export type CompanionMode = 'lite' | 'full'
+type CompanionMode = 'lite' | 'full'
 
 /** A companion that resolution decided is active for this ship run. */
 export interface ActiveCompanion {
@@ -30,7 +30,7 @@ export interface ActiveCompanion {
 }
 
 /** Per-companion override read from `arbiter.json` → `companions`. Keyed by bare name or full id. */
-export interface CompanionOverride {
+interface CompanionOverride {
   /** `false` disables an installed companion without uninstalling it. */
   enabled?: boolean
   /** Force a mode other than the policy default (never `ultra`). */
@@ -61,26 +61,38 @@ export function resolveCompanions(input: ResolveCompanionsInput): ActiveCompanio
 
   const active: ActiveCompanion[] = []
   for (const entry of SKILLS_MATRIX) {
-    const policy = entry.companion
-    if (!policy) continue
-    const detected = installedIds.has(entry.id) || installedBare.has(bareName(entry.id))
-    if (!detected) continue
-    const override = input.overrides?.[bareName(entry.id)] ?? input.overrides?.[entry.id]
-    if (override?.enabled === false) continue
-    // Defense-in-depth below the schema validator: an override mode outside the
-    // lite|full union (e.g. `ultra` from a hand-built map) falls back to the policy
-    // default instead of propagating — ultra stays unrepresentable end-to-end.
-    const overrideMode = override?.mode
-    const mode: CompanionMode =
-      overrideMode === 'lite' || overrideMode === 'full' ? overrideMode : policy.defaultMode
-    active.push({
-      id: entry.id,
-      label: policy.label,
-      mode,
-      policy,
-    })
+    const one = resolveOne(entry, installedIds, installedBare, input.overrides)
+    if (one) active.push(one)
   }
   return active
+}
+
+/** Resolve a single registry entry to an active companion, or null when it does not activate. */
+function resolveOne(
+  entry: SkillEntry,
+  installedIds: ReadonlySet<string>,
+  installedBare: ReadonlySet<string>,
+  overrides: Record<string, CompanionOverride> | undefined,
+): ActiveCompanion | null {
+  const policy = entry.companion
+  if (!policy) return null
+  if (!installedIds.has(entry.id) && !installedBare.has(bareName(entry.id))) return null
+  const override = overrides?.[bareName(entry.id)] ?? overrides?.[entry.id]
+  if (override?.enabled === false) return null
+  return { id: entry.id, label: policy.label, mode: resolveMode(override, policy), policy }
+}
+
+/**
+ * Defense-in-depth below the schema validator: an override mode outside the lite|full
+ * union (e.g. `ultra` from a hand-built map) falls back to the policy default instead
+ * of propagating — ultra stays unrepresentable end-to-end.
+ */
+function resolveMode(
+  override: CompanionOverride | undefined,
+  policy: CompanionPolicy,
+): CompanionMode {
+  const mode = override?.mode
+  return mode === 'lite' || mode === 'full' ? mode : policy.defaultMode
 }
 
 /**
