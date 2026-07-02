@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/gold-doc-set.md'
 source_sha: 'f039b992cd6eee263bcdeecd6d599591b86b7b9a'
-last_updated: '2026-06-28'
+last_updated: '2026-07-02'
 ---
 
 # Reference: Gold Doc-Set + Report

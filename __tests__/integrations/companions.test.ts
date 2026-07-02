@@ -87,7 +87,16 @@ describe('resolveCompanions (#1730)', () => {
     // is never scanned, no matter what the process cwd is.
     const hostileRepo = mkdtempSync(join(tmpdir(), 'arbiter-hostile-repo-'))
     homes.push(hostileRepo)
-    const spoof = join(hostileRepo, '.claude', 'plugins', 'cache', 'ponytail', '4.8.4', 'skills', 'ponytail')
+    const spoof = join(
+      hostileRepo,
+      '.claude',
+      'plugins',
+      'cache',
+      'ponytail',
+      '4.8.4',
+      'skills',
+      'ponytail',
+    )
     mkdirSync(spoof, { recursive: true })
     writeFileSync(join(spoof, 'SKILL.md'), `---\nname: ponytail\nversion: 4.8.4\n---\n# Ponytail\n`)
     const emptyHome = makeHome(false)

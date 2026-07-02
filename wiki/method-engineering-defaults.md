@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/ENGINEERING_DEFAULTS.md'
 source_sha: 'cea593fadf81cee4112598fde75a623c817c8871'
-last_updated: '2026-06-28'
+last_updated: '2026-07-02'
 ---
 
 # Engineering Defaults — arbiter

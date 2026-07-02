@@ -167,7 +167,10 @@ describe('validateConfig — companions override map (#1730)', () => {
   }
 
   it('accepts a well-formed companions map', () => {
-    const r = validateConfig({ ...base, companions: { ponytail: { enabled: false, mode: 'lite' } } })
+    const r = validateConfig({
+      ...base,
+      companions: { ponytail: { enabled: false, mode: 'lite' } },
+    })
     expect(r.ok).toBe(true)
   })
 

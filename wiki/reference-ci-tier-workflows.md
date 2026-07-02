@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/ci-tier-workflows.md'
 source_sha: 'dbb0685a26448df98452a0edd6d8f0c1a9ab893c'
-last_updated: '2026-06-29'
+last_updated: '2026-07-02'
 ---
 
 # CI Tier Workflows — Reference
@@ -91,9 +91,7 @@ readable workflow label instead of the raw `.github/workflows/_*.yml` path.
 | `_label-sync.yml`          | GitHub enabled                             | Reusable: sync `.github/labels.yml` → repo labels on push to main          |
 | `_label-on-approve.yml`    | GitHub enabled                             | Bot: label management on PR review approval                                |
 | `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling                                     |
-| `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                                        |
-| `_sigstore-retry-sign.yml` | with `05-release` (`style !== 'starter'`)  | Reusable: cosign signing with retry/backoff                                |
-| `_post-merge
+| `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                                      
 
 *[content truncated — see source for full text]*
 
