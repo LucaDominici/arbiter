@@ -711,6 +711,9 @@ describe('validateConfig — constrained-union optionals (#1579, #1589)', () => 
     ['contractType', 'rest-owned'],
     ['contractType', 'message-queue'],
     ['contractType', 'none'],
+    // #1693: runnerProfile axis (ADR-101).
+    ['runnerProfile', 'solo'],
+    ['runnerProfile', 'fleet'],
   ])('accepts %s="%s"', (field, value) => {
     const r = validateConfig({ ...BASE_VALID, [field]: value })
     expect(r.ok).toBe(true)
@@ -723,6 +726,8 @@ describe('validateConfig — constrained-union optionals (#1579, #1589)', () => 
     ['strictnessTier', 'practical '],
     ['thresholdProfile', 'scaledd'],
     ['contractType', 'rest'],
+    // #1693: runnerProfile axis (ADR-101).
+    ['runnerProfile', 'sfleet'],
   ])('rejects typo %s="%s" with a precise diagnostic', (field, value) => {
     const r = validateConfig({ ...BASE_VALID, [field]: value })
     expect(r.ok).toBe(false)

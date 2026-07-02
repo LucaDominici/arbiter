@@ -245,6 +245,15 @@ export interface ArbiterConfigV2 {
    * reads + applies it. Absent ⇒ the governance×brownfield default drives the bar.
    */
   conformanceThresholds?: ConformanceThresholds
+  /**
+   * #1693 (ADR-101): runner profile axis, orthogonal to collaborationMode/pipelineStyle.
+   * 'fleet' (default) = current behavior: fuzz + soak-e2e heavy jobs run at nightly
+   *   cadence, hard-gated by nightly-required.
+   * 'solo' = fuzz + soak-e2e move to weekly cadence instead (single self-hosted
+   *   runner), preserving the same hard-gate + issue-filing semantics at weekly
+   *   cadence. Absent field treated as 'fleet'.
+   */
+  runnerProfile?: 'solo' | 'fleet'
 }
 
 interface GovernanceConfig {
@@ -460,6 +469,9 @@ const DATABASE_ENGINE_VALUES: Record<DatabaseEngineUnion, true> = {
   none: true,
 }
 const STRICTNESS_TIER_VALUES: Record<StrictnessTier, true> = { practical: true, pedantic: true }
+// #1693: runnerProfile axis runtime mirror (ADR-101).
+type RunnerProfileUnion = NonNullable<ArbiterConfigV2['runnerProfile']>
+const RUNNER_PROFILE_VALUES: Record<RunnerProfileUnion, true> = { solo: true, fleet: true }
 const THRESHOLD_PROFILE_VALUES: Record<ThresholdProfile, true> = { scaled: true, fixed: true }
 const CONTRACT_TYPE_VALUES: Record<ContractType, true> = {
   'rest-owned': true,
@@ -500,6 +512,7 @@ const OBSERVABILITY_PROVIDER_VALUES: Record<ObservabilityProvider, true> = {
 }
 const DATABASE_ENGINES: ReadonlySet<string> = new Set(Object.keys(DATABASE_ENGINE_VALUES))
 const STRICTNESS_TIERS: ReadonlySet<string> = new Set(Object.keys(STRICTNESS_TIER_VALUES))
+const RUNNER_PROFILES: ReadonlySet<string> = new Set(Object.keys(RUNNER_PROFILE_VALUES))
 const THRESHOLD_PROFILES: ReadonlySet<string> = new Set(Object.keys(THRESHOLD_PROFILE_VALUES))
 const CONTRACT_TYPES: ReadonlySet<string> = new Set(Object.keys(CONTRACT_TYPE_VALUES))
 // #1676: exported so the `arbiter init` CLI cast site (src/cli.ts) can reject an
@@ -687,6 +700,8 @@ function validateOptionalEnums(raw: Record<string, unknown>, errors: string[]): 
     ['strictnessTier', STRICTNESS_TIERS],
     ['thresholdProfile', THRESHOLD_PROFILES],
     ['contractType', CONTRACT_TYPES],
+    // #1693: runnerProfile axis (ADR-101).
+    ['runnerProfile', RUNNER_PROFILES],
   ]
   for (const [field, allowed] of checks) {
     if (field in raw && raw[field] !== undefined) {

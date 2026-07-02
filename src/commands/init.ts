@@ -1174,6 +1174,7 @@ function buildOptionalAxisFields(
   | 'basePackage'
   | 'deployTarget'
   | 'taxonomy'
+  | 'runnerProfile'
 > {
   return {
     ...(config.evidenceRetention !== undefined
@@ -1181,6 +1182,12 @@ function buildOptionalAxisFields(
       : {}),
     ...(config.thresholdProfile !== undefined ? { thresholdProfile: config.thresholdProfile } : {}),
     ...(config.strictnessTier !== undefined ? { strictnessTier: config.strictnessTier } : {}),
+    // #1693: persist runnerProfile only when it opts INTO 'solo' — the 'fleet'
+    // default collapses to absence so a clean round-trip emits byte-identical
+    // output to a config that never mentions the axis (ADR-101).
+    ...(config.runnerProfile !== undefined && config.runnerProfile !== 'fleet'
+      ? { runnerProfile: config.runnerProfile }
+      : {}),
     // #1254: persist the compliance overlay so doctor can flag the cell and
     // `arbiter update` re-emits the overlay. Omitted when none/absent.
     ...(config.industryOverlay !== undefined && config.industryOverlay !== 'none'

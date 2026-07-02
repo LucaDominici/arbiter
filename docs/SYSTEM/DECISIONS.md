@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-06-30'
+last_review: '2026-07-01'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -118,3 +118,4 @@ related: []
 | 097 | [Context-rot-management skill (CLI-first 3-layer redundancy)](../ADR/097-context-rot-management-skill.md) | accepted | 2026-06-19 |
 | 098 | [Progressive-adoption tiers (bootstrap on-ramp)](../ADR/098-progressive-adoption-tiers.md) | Accepted | 2026-06-20 |
 | 099 | [Native zero-dependency xlsx writer (drop exceljs)](../ADR/099-native-xlsx-writer.md) | Accepted | 2026-06-30 |
+| 101 | [runnerProfile cadence axis (solo/fleet)](../ADR/101-runner-profile-cadence-axis.md) | Accepted | 2026-07-01 |

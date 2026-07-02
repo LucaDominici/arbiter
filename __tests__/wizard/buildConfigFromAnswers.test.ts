@@ -172,6 +172,46 @@ describe('buildConfigFromAnswers — industryOverlay axis (#1254)', () => {
   })
 })
 
+describe('buildConfigFromAnswers — runnerProfile axis (#1693, ADR-101)', () => {
+  it('threads the chosen runnerProfile answer into the ProjectConfig', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers({ runnerProfile: 'solo' }))
+    expect(config.runnerProfile).toBe('solo')
+  })
+
+  it('defaults runnerProfile to fleet when the answer is absent', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers())
+    expect(config.runnerProfile).toBe('fleet')
+  })
+
+  it('persists runnerProfile=solo into arbiter.json (buildArbiterConfig passthrough)', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const arbiterJson = buildArbiterConfig(
+      buildConfigFromAnswers(makeInput(), makeAnswers({ runnerProfile: 'solo' })),
+    )
+    expect((arbiterJson as { runnerProfile?: string }).runnerProfile).toBe('solo')
+  })
+
+  it('omits runnerProfile from arbiter.json when fleet (default collapses to absence)', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const arbiterJson = buildArbiterConfig(buildConfigFromAnswers(makeInput(), makeAnswers()))
+    expect('runnerProfile' in arbiterJson).toBe(false)
+  })
+
+  it('round-trips: persisted solo profile is read back into ProjectConfig + validates', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const { validateConfig } = await import('../../src/config/schema.js')
+    const { resolveProjectConfig } = await import('../../src/config/resolve-project-config.js')
+    const arbiterJson = buildArbiterConfig(
+      buildConfigFromAnswers(makeInput(), makeAnswers({ runnerProfile: 'solo' })),
+    )
+    const validated = validateConfig(JSON.parse(JSON.stringify(arbiterJson)))
+    expect(validated.ok).toBe(true)
+    if (!validated.ok) return
+    const { config } = resolveProjectConfig('/tmp/test-project', 'test-project', validated.config)
+    expect(config.runnerProfile).toBe('solo')
+  })
+})
+
 describe('buildConfigFromAnswers — automation.autonomy (#1261)', () => {
   it('threads the chosen autonomy answer into ProjectConfig.automation', () => {
     const config = buildConfigFromAnswers(makeInput(), makeAnswers({ autonomy: 'L2' }))

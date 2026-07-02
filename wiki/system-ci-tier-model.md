@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/SYSTEM/CI-TIER-MODEL.md'
-source_sha: '3f535313ba99b9e868589e318271eddc3697072e'
-last_updated: '2026-06-28'
+source_sha: '926a46257c761106a53a01b4ff9ae7ecc0b568ba'
+last_updated: '2026-07-02'
 ---
 
 # CI Tier Model — Cadence × Governance
@@ -101,10 +101,22 @@ floor, the INV-72 collaboration-mode/level-aware required set (the exact inverse
 generation predicates), and the cadence-partition self-check. Changing any level's emit set
 without updating both the generator and that gate is a gate failure.
 
-## Relationship to the ADRs
+## Runner-profile sub-overlay (`runnerProfile`, ADR-101)
 
-- **ADR-050** establishes archetype-default pipeline shape + governance floor. This document
-  is the spec it references and refines with the cadence overlay.
-- **ADR-051** introduces the `collaborationMode` axis and `PIPELINE_STYLE_TABLE`.
-- **ADR-053** adds the per-tier nightly (`06-nightly-lite`), CodeQL, OSSF Scorecard, and the
-  frontend-quality gap workflows now classified above.
+`runnerProfile: 'solo' | 'fleet'` (default `fleet`) is a config-driven sub-overlay
+**within** the cadence axis — it never changes which workflow files are emitted or
+their bucket assignment, only which **jobs** two specific workflows contain:
+
+- **`fleet` (default)** — `fuzz` + `soak-e2e` (the two heaviest scheduled jobs) live in
+  `_nightly.yml`, hard-gated by `nightly-required`. Byte-behavior-identical to the
+  pre-ADR-101 model.
+- **`solo`** — `fuzz` + `soak-e2e` move to `_weekly.yml` instead (a single self-hosted
+  runner that cannot absorb a nightly heavy sweep), with the same hard-fail +
+  issue-filing enforcement re-created on `weekly-required`. A cadence-only trade,
+  never an enforcement-only one.
+
+**The workflow-file → bucket partition is unchanged**: `06-nightly.yml` stays in
+NIGHTLY and `07-weekly.yml` stays in WEEKLY-MONTHLY regardless of `runnerProfile` —
+only the job bodies _inside_ those two file
+
+*[content truncated — see source for full text]*
