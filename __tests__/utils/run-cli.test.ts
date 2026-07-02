@@ -307,15 +307,21 @@ describe('runCliAsync', () => {
   })
 
   it('runs concurrently: two slow children overlap rather than serialize', async () => {
-    // Each child sleeps ~300ms. Run serially under spawnSync that is ~600ms;
-    // genuinely concurrent (spawn + event loop free) it is ~300ms. Assert the
-    // wall clock is closer to MAX than SUM — the core #1514 guarantee.
+    // Each child sleeps ~300ms. Run serially under spawnSync the pair costs
+    // ~2x a single run; genuinely concurrent (spawn + event loop free) it is
+    // ~1x — the core #1514 guarantee. An absolute ceiling flakes on loaded CI
+    // runners (spawn overhead alone exceeded it), so measure a load-adaptive
+    // baseline first and assert the pair stays well below the serialized 2x.
     const sleeper = ['-e', 'setTimeout(() => process.stdout.write("done"), 300)']
+    const t0 = Date.now()
+    await runCliAsync('node', sleeper)
+    const baseline = Date.now() - t0
     const start = Date.now()
     const results = await Promise.all([runCliAsync('node', sleeper), runCliAsync('node', sleeper)])
     const elapsed = Date.now() - start
     expect(results.map((r) => r.stdout)).toEqual(['done', 'done'])
-    // Generous ceiling well below the ~600ms serial cost to avoid CI flake.
-    expect(elapsed).toBeLessThan(500)
+    // Serial cost is ~2x baseline; concurrent is ~1x. 1.7x splits the two
+    // regimes with margin on both sides regardless of machine load.
+    expect(elapsed).toBeLessThan(1.7 * baseline)
   })
 })
