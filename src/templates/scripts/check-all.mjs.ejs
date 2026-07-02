@@ -90,7 +90,12 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 // explicit L3/L4 request down to L2 so it runs the FULL gate body (never the L1
 // subset) and the `level` stamped into the JSON/evidence below stays honest about
 // what actually ran — it must never claim a tier this gate cannot run standalone.
-if (level === 'L3' || level === 'L4') level = 'L2';
+// The clamp itself is LOUD (stderr): the bug class being fixed here is SILENT
+// downgrades, so the clamp must never become one.
+if (level === 'L3' || level === 'L4') {
+  console.warn(`[GATE] level ${level} clamps to L2 (strongest tier this generated gate implements)`);
+  level = 'L2';
+}
 
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
 // A freshly-upgraded L1→L2 project may run its new L2 gates WARN-only for a

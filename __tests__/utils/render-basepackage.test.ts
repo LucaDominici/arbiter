@@ -84,9 +84,11 @@ describe('#1348 — withBasePackageDefault helper', () => {
 
 // #1720 — L4 was silently downgraded below L3 because `levelAtLeast` (the ordinal
 // SSOT, src/config/levels.ts, #1516) was never injected into the EJS render
-// context. `withLevelBooleans` mirrors `withBasePackageDefault`'s no-clobber
-// own-key contract so every template can reference bare `isL2Plus`/`isL3Plus`/
-// `isL4` without a ReferenceError under EJS `with(locals)`.
+// context. `withLevelBooleans` guarantees `isL2Plus`/`isL3Plus`/`isL4` are own
+// keys (no ReferenceError under EJS `with(locals)`) and ALWAYS recomputes them
+// from `governanceLevel` — unlike `withBasePackageDefault`'s only-if-absent
+// policy, a caller-supplied stale flag must never shadow the SSOT (that would
+// reintroduce the exact hand-rolled-boolean bug class this fix kills).
 describe('#1720 — withLevelBooleans helper', () => {
   it('L4: isL2Plus, isL3Plus, isL4 all true', () => {
     const out = withLevelBooleans({ governanceLevel: 'L4' }) as Record<string, unknown>
@@ -139,13 +141,12 @@ describe('#1720 — withLevelBooleans helper', () => {
     expect(Object.prototype.hasOwnProperty.call(data, 'isL2Plus')).toBe(false)
   })
 
-  it('preserves a caller-provided isL2Plus/isL3Plus/isL4 key (no-clobber)', () => {
-    const data = { governanceLevel: 'L1' as const, isL2Plus: 'custom', isL4: 'custom4' }
+  it('recomputes caller-provided isL2Plus/isL3Plus/isL4 keys (always-overwrite: derived from the SSOT, a stale hand-rolled flag must never win)', () => {
+    const data = { governanceLevel: 'L4' as const, isL2Plus: false, isL3Plus: 'stale', isL4: 0 }
     const out = withLevelBooleans(data) as Record<string, unknown>
-    expect(out['isL2Plus']).toBe('custom')
-    expect(out['isL4']).toBe('custom4')
-    // isL3Plus was absent from the caller data, so it IS computed (from governanceLevel L1 → false).
-    expect(out['isL3Plus']).toBe(false)
+    expect(out['isL2Plus']).toBe(true)
+    expect(out['isL3Plus']).toBe(true)
+    expect(out['isL4']).toBe(true)
   })
 
   it('renderTemplate composes withLevelBooleans: a template can reference bare isL4', () => {

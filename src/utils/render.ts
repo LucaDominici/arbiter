@@ -37,35 +37,31 @@ export function withBasePackageDefault(data: object): object {
  * being hand-rolled per template as `governanceLevel === 'L3'` literals — the exact
  * pattern that silently excluded L4 in 5 places and downgraded L4 *below* L3 (#1720).
  *
- * Mirrors `withBasePackageDefault`'s no-clobber own-key contract: EJS renders with
- * `with(locals)`, so a bare `isL3Plus` reference throws `ReferenceError` when the key
- * is absent. Injecting the keys here — once, at the single render boundary — lets
- * every template reference them safely without a per-template guard.
+ * EJS renders with `with(locals)`, so a bare `isL3Plus` reference throws
+ * `ReferenceError` when the key is absent. Injecting the keys here — once, at the
+ * single render boundary — lets every template reference them safely without a
+ * per-template guard.
  *
- * A key already present on `data` (including an explicit override) is left untouched.
+ * The three keys are ALWAYS recomputed from `governanceLevel` — deliberately
+ * different from `withBasePackageDefault`'s only-if-absent policy. They are purely
+ * derived values of the ordinal SSOT; letting a caller-supplied stale flag shadow
+ * the SSOT would reintroduce the exact hand-rolled-boolean divergence this helper
+ * exists to kill.
+ *
  * An absent or invalid `governanceLevel` yields all three keys `false` rather than
  * throwing — every level-branching template in this repo always supplies a valid
- * `governanceLevel`, so this is a safe (never observed) default, not a silent-downgrade
- * vector.
+ * `governanceLevel`, so this is a safe (never observed) default, not a
+ * silent-downgrade vector.
  *
- * Returns the input unchanged when all three keys are already present (no-op for the
- * common case); otherwise a shallow copy with the missing keys added (never mutates
- * the caller's object).
+ * Always returns a shallow copy (never mutates the caller's object).
  */
 export function withLevelBooleans(data: object): object {
-  const HAS = (key: string): boolean => Object.prototype.hasOwnProperty.call(data, key)
-  if (HAS('isL2Plus') && HAS('isL3Plus') && HAS('isL4')) return data
-
   const level = (data as { governanceLevel?: unknown }).governanceLevel
-  const isL2Plus = isGovernanceLevel(level) && levelAtLeast(level, 'L2')
-  const isL3Plus = isGovernanceLevel(level) && levelAtLeast(level, 'L3')
-  const isL4 = isGovernanceLevel(level) && level === 'L4'
-
   return {
     ...data,
-    ...(HAS('isL2Plus') ? {} : { isL2Plus }),
-    ...(HAS('isL3Plus') ? {} : { isL3Plus }),
-    ...(HAS('isL4') ? {} : { isL4 }),
+    isL2Plus: isGovernanceLevel(level) && levelAtLeast(level, 'L2'),
+    isL3Plus: isGovernanceLevel(level) && levelAtLeast(level, 'L3'),
+    isL4: isGovernanceLevel(level) && level === 'L4',
   }
 }
 
