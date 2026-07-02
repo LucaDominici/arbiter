@@ -9,9 +9,15 @@ const SCRIPT = resolve('scripts/check-coverage-ratchet.mjs')
 
 type RunResult = { status: number; stdout: string; stderr: string }
 
-function run(summary: string, baseline: string, extra: string[] = []): RunResult {
+function run(
+  summary: string,
+  baseline: string,
+  extra: string[] = [],
+  env: Record<string, string | undefined> = {},
+): RunResult {
   const r = spawnSync('node', [SCRIPT, '--summary', summary, '--baseline', baseline, ...extra], {
     encoding: 'utf-8',
+    env: { ...process.env, ...env },
   })
   return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
@@ -31,6 +37,18 @@ function writeSummary(path: string, pcts: Record<string, number>): void {
     Object.entries(pcts).map(([k, pct]) => [k, { total: 100, covered: pct, skipped: 0, pct }]),
   )
   writeFileSync(path, JSON.stringify({ total }))
+}
+
+// #1731: the exact v8 json-summary shape a broken-instrumentation sandbox emits —
+// every metric structurally present but zeroed, pct the STRING 'Unknown' (not a number).
+function writeEmptyInstrumentationSummary(path: string): void {
+  const metric = { total: 0, covered: 0, skipped: 0, pct: 'Unknown' }
+  writeFileSync(
+    path,
+    JSON.stringify({
+      total: { lines: metric, branches: metric, functions: metric, statements: metric },
+    }),
+  )
 }
 
 const BASE = { lines: 89.4, branches: 78.1, functions: 93.4, statements: 87.8 }
@@ -109,5 +127,61 @@ describe('check-coverage-ratchet', () => {
     } finally {
       t.cleanup()
     }
+  })
+
+  // #1731: known local-sandbox defect — some agent-worktree environments' v8 coverage
+  // instrumentation collects 0 files (structurally valid summary, every metric zeroed,
+  // pct the string 'Unknown'). This is a data-collection failure, not a real coverage
+  // result, and must never be conflated with an actual regression (which always reports
+  // genuine, if lower, numeric percentages).
+  describe('empty-instrumentation signature (#1731)', () => {
+    it('degrades to a loud WARN (exit 0) outside CI', () => {
+      const t = makeTemp()
+      try {
+        writeFileSync(t.baseline, JSON.stringify(BASE))
+        writeEmptyInstrumentationSummary(t.summary)
+        const r = run(t.summary, t.baseline, [], { CI: undefined, GITHUB_ACTIONS: undefined })
+        expect(r.status).toBe(0)
+        expect(r.stdout + r.stderr).toMatch(/#1731/)
+      } finally {
+        t.cleanup()
+      }
+    })
+
+    it('fails closed (exit 2) in CI — a genuinely empty summary in CI is a real problem', () => {
+      const t = makeTemp()
+      try {
+        writeFileSync(t.baseline, JSON.stringify(BASE))
+        writeEmptyInstrumentationSummary(t.summary)
+        const r = run(t.summary, t.baseline, [], { CI: 'true' })
+        expect(r.status).toBe(2)
+      } finally {
+        t.cleanup()
+      }
+    })
+
+    it('does NOT degrade a merely-partial/corrupted summary (only the exact all-zero signature qualifies)', () => {
+      const t = makeTemp()
+      try {
+        writeFileSync(t.baseline, JSON.stringify(BASE))
+        // lines has a real numeric pct; the rest are the broken 'Unknown' shape —
+        // NOT the known signature (all four must be zeroed) → stays a hard ERROR.
+        writeFileSync(
+          t.summary,
+          JSON.stringify({
+            total: {
+              lines: { total: 100, covered: 90, skipped: 0, pct: 90 },
+              branches: { total: 0, covered: 0, skipped: 0, pct: 'Unknown' },
+              functions: { total: 0, covered: 0, skipped: 0, pct: 'Unknown' },
+              statements: { total: 0, covered: 0, skipped: 0, pct: 'Unknown' },
+            },
+          }),
+        )
+        const r = run(t.summary, t.baseline, [], { CI: undefined, GITHUB_ACTIONS: undefined })
+        expect(r.status).toBe(2)
+      } finally {
+        t.cleanup()
+      }
+    })
   })
 })
