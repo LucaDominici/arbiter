@@ -34,6 +34,10 @@ afterEach(() => {
   }
 })
 
+// #1730 — a guaranteed-companion-free Claude home so profile-equality assertions stay
+// deterministic regardless of what the test runner happens to have installed in ~/.claude.
+const EMPTY_HOME = join(tmpdir(), 'arbiter-shipprofile-no-companion-home')
+
 const pkg = (name: string): string => JSON.stringify({ name, version: '1.0.0' })
 const cfg = (extra: Record<string, unknown>): string =>
   JSON.stringify({
@@ -51,7 +55,7 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       'package.json': pkg('acme-app'),
       'arbiter.json': cfg({ collaborationMode: 'peer-review' }),
     })
-    expect(resolveShipProfile(dir)).toEqual({
+    expect(resolveShipProfile(dir, { claudeHome: EMPTY_HOME })).toEqual({
       isArbiterSelf: false,
       collaborationMode: 'peer-review',
       mergeMode: 'pr-ff',
@@ -61,6 +65,8 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       maxParallelWorktrees: 1,
       defaultGateLevel: 'L1',
       affinityBatching: false,
+      // #1730 — no companion installed in the injected home.
+      companions: [],
     })
   })
 
@@ -97,13 +103,13 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       'package.json': pkg('acme-app'),
       'arbiter.json': '{ this is not valid json',
     })
-    expect(() => resolveShipProfile(dir)).not.toThrow()
-    expect(resolveShipProfile(dir)).toEqual(CONSUMER_DEFAULT_PROFILE)
+    expect(() => resolveShipProfile(dir, { claudeHome: EMPTY_HOME })).not.toThrow()
+    expect(resolveShipProfile(dir, { claudeHome: EMPTY_HOME })).toEqual(CONSUMER_DEFAULT_PROFILE)
   })
 
   it('absent arbiter.json → consumer-safe defaults (peer-review / pr-ff / L2)', () => {
     const dir = tmpRepo({ 'package.json': pkg('acme-app') })
-    expect(resolveShipProfile(dir)).toEqual(CONSUMER_DEFAULT_PROFILE)
+    expect(resolveShipProfile(dir, { claudeHome: EMPTY_HOME })).toEqual(CONSUMER_DEFAULT_PROFILE)
   })
 
   it('arbiter-self (pkg @arbiter/cli, trunk-solo + pr-ff) → isArbiterSelf true', () => {
@@ -111,7 +117,7 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       'package.json': pkg('@arbiter/cli'),
       'arbiter.json': cfg({ collaborationMode: 'trunk-solo', solo: { mergeMode: 'pr-ff' } }),
     })
-    expect(resolveShipProfile(dir)).toEqual({
+    expect(resolveShipProfile(dir, { claudeHome: EMPTY_HOME })).toEqual({
       isArbiterSelf: true,
       collaborationMode: 'trunk-solo',
       mergeMode: 'pr-ff',
@@ -121,7 +127,44 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       maxParallelWorktrees: 1,
       defaultGateLevel: 'L1',
       affinityBatching: false,
+      // #1730 — arbiter-self never activates a companion (guard at resolution).
+      companions: [],
     })
+  })
+})
+
+// #1730 — companion resolution is threaded onto the ShipProfile: HOME-installed → active on a
+// product repo, never on arbiter-self, and disableable via arbiter.json.
+describe('resolveShipProfile — companion plugins (#1730)', () => {
+  function homeWithPonytail(): string {
+    const home = mkdtempSync(join(tmpdir(), 'arbiter-shipprofile-home-'))
+    dirs.push(home)
+    const skill = join(home, 'plugins', 'cache', 'ponytail', '4.8.4', 'skills', 'ponytail')
+    mkdirSync(skill, { recursive: true })
+    writeFileSync(join(skill, 'SKILL.md'), `---\nname: ponytail\nversion: 4.8.4\n---\n# Ponytail\n`)
+    return home
+  }
+
+  it('product repo + ponytail installed in home → companion active (full)', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme-app') })
+    const p = resolveShipProfile(dir, { claudeHome: homeWithPonytail() })
+    expect(p.companions.map((c) => c.label)).toEqual(['ponytail'])
+    expect(p.companions[0]?.mode).toBe('full')
+  })
+
+  it('arbiter-self + ponytail installed → NO companion (self guard)', () => {
+    const dir = tmpRepo({ 'package.json': pkg('@arbiter/cli') })
+    const p = resolveShipProfile(dir, { claudeHome: homeWithPonytail() })
+    expect(p.companions).toEqual([])
+  })
+
+  it('arbiter.json companions.ponytail.enabled=false disables it', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfg({ companions: { ponytail: { enabled: false } } }),
+    })
+    const p = resolveShipProfile(dir, { claudeHome: homeWithPonytail() })
+    expect(p.companions).toEqual([])
   })
 })
 
