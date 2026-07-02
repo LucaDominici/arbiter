@@ -126,7 +126,7 @@ export interface ShipProfile {
    * empty on arbiter-self. Consumed by the green-phase action (drafting instruction) and the
    * `Companion:` announcement. Empty ⇒ ship behaviour is byte-identical to a companion-free run.
    */
-  companions: ActiveCompanion[]
+  companions: readonly ActiveCompanion[]
 }
 
 /** Ship behaviors gated by the autonomy level (ADR-093 §4). */

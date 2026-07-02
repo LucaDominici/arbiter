@@ -731,6 +731,38 @@ function validateProviders(raw: Record<string, unknown>, errors: string[]): void
   }
 }
 
+/**
+ * #1730: validate the optional per-companion override map
+ * (`companions?: Record<string, { enabled?: boolean; mode?: 'lite' | 'full' }>`).
+ * `ultra` — or any other out-of-union string — is rejected HERE so a malformed
+ * override can never reach resolveCompanions through loadConfig.
+ */
+function validateCompanions(raw: Record<string, unknown>, errors: string[]): void {
+  const block = raw['companions']
+  if (block === undefined) return
+  if (!isRecord(block) || Array.isArray(block)) {
+    errors.push(
+      `companions must be an object map of per-companion overrides — got ${Array.isArray(block) ? 'array' : typeof block}`,
+    )
+    return
+  }
+  for (const [name, override] of Object.entries(block)) {
+    if (!isRecord(override)) {
+      errors.push(`companions.${name} must be an object — got ${typeof override}`)
+      continue
+    }
+    if (override['enabled'] !== undefined && typeof override['enabled'] !== 'boolean') {
+      errors.push(`companions.${name}.enabled must be a boolean`)
+    }
+    const mode = override['mode']
+    if (mode !== undefined && mode !== 'lite' && mode !== 'full') {
+      errors.push(
+        `companions.${name}.mode must be one of lite, full — got ${typeof mode === 'string' ? mode : typeof mode}`,
+      )
+    }
+  }
+}
+
 export function validateConfig(raw: unknown): ValidateResult {
   if (!isRecord(raw)) {
     return { ok: false, errors: ['config must be a non-null object'] }
@@ -751,6 +783,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateOptionalScalars(draft, errors)
   validateOptionalEnums(draft, errors)
   validateProviders(draft, errors)
+  validateCompanions(draft, errors)
 
   const rawLevel = draft['governanceLevel']
   const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
