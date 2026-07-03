@@ -678,6 +678,59 @@ describe('check-all.mjs.ejs — stack-conformity gate wiring (#1312, INV-121)', 
   })
 })
 
+// ─── #1737: consumer-resolution audit gate wiring (CANON-01 Track-B counterpart
+// of arbiter-self's own #1718) ────────────────────────────────────────────────
+
+describe('check-all.mjs.ejs — consumer audit gate wiring (#1737)', () => {
+  it('TS library L2: emits the consumer audit runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'library',
+      governanceLevel: 'L2',
+      // renderTemplate is called directly here (bypassing generateCheckAll), so the
+      // derived coverageEnabled field (normally injected by resolveEffectiveThresholds)
+      // must be supplied manually — mirrors the pre-existing stylelint-gate test above.
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain(
+      "runCheck('consumer audit', 'node', ['scripts/check-consumer-audit.mjs'])",
+    )
+  })
+
+  it('TS cli L2: does NOT emit the consumer audit runCheck (non-library archetype)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'cli',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-consumer-audit.mjs')
+  })
+
+  it('Python library L2: does NOT emit the consumer audit runCheck (TS-only)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'python',
+      archetype: 'library',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-consumer-audit.mjs')
+  })
+
+  it('TS library L1: does NOT emit the consumer audit runCheck (L2-only security block)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'library',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-consumer-audit.mjs')
+  })
+})
+
 describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
   it('renders valid JSON with the governance-scaled threshold + v5 path/format fileset (catches EJS drift)', () => {
     const base = makeConfig('/tmp/test', {
