@@ -21,7 +21,9 @@ related: []
 
 **Consequences:** Future template modifications will be caught at L2 gate if the corresponding materialized file diverges without a documented reason in `.dogfood-divergences.json`. Intentional arbiter-internal extensions remain explicitly documented. The check prevents silent template drift in both directions.
 
-**Amendment (2026-07-03, #1744):** the check is promoted from the L2 extended block to the
+## Amendment (2026-07-03, #1744) — promoted to the L1 anti-drift family
+
+The check is promoted from the L2 extended block to the
 **L1 anti-drift validator family** in `scripts/check-all.mjs`, so template↔materialized drift
 is caught at commit time (pre-commit runs L1) rather than push time. The decision content above
 is otherwise unchanged; "L2 block"/"L2 gate" wording reflects the original wiring. L2 still runs
