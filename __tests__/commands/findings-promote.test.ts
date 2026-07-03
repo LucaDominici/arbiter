@@ -269,4 +269,76 @@ describe('runFindingsPromote()', () => {
     runFindingsPromote({ dir }, deps)
     expect(labelCalls).toBe(1)
   })
+
+  it('drains a promoted finding from its shard (spool file removed once empty)', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const f = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'thing' }
+    writeShard(dir, 'a', [{ ...f, severity: 'low', fingerprint: fp(f) }])
+    const { deps, created } = makeDeps()
+    const r = runFindingsPromote({ dir }, deps)
+    expect(r.ok).toBe(true)
+    expect(created).toHaveLength(1)
+    expect(existsSync(join(dir, '.arbiter', 'findings', 'a.jsonl'))).toBe(false)
+  })
+
+  it('drains a dropped finding from its shard', () => {
+    const dir = tmpRepo()
+    const f = { kind: 'smell', file: 'src/does-not-exist.ts', symbol: 'foo', note: 'dead helper' }
+    writeShard(dir, 's1', [{ ...f, severity: 'low', fingerprint: fp(f) }])
+    const { deps } = makeDeps()
+    const r = runFindingsPromote({ dir }, deps)
+    expect(r.ok).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', 'findings', 's1.jsonl'))).toBe(false)
+  })
+
+  it('drains a skipped (duplicate-of-open-issue) finding from its shard', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const f = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'thing' }
+    const hash = fp(f)
+    writeShard(dir, 'a', [{ ...f, severity: 'low', fingerprint: hash }])
+    const { deps, created } = makeDeps({
+      searchTable: { [hash]: { issueNumber: 42, state: 'open' } },
+    })
+    const r = runFindingsPromote({ dir }, deps)
+    expect(r.ok).toBe(true)
+    expect(created).toHaveLength(0)
+    expect(existsSync(join(dir, '.arbiter', 'findings', 'a.jsonl'))).toBe(false)
+  })
+
+  it('keeps a deferred (young, low-confidence) finding in its shard', () => {
+    const dir = tmpRepo()
+    const f = { kind: 'smell', file: '', symbol: 'helperX', note: 'duplicated logic' }
+    const recent = new Date().toISOString()
+    writeShard(dir, 'a', [{ ...f, severity: 'low', fingerprint: fp(f), ts: recent }])
+    const { deps } = makeDeps({ graphFresh: () => false })
+    const r = runFindingsPromote({ dir, ageSweepDays: 14, now: new Date() }, deps)
+    expect(r.ok).toBe(true)
+    const shardPath = join(dir, '.arbiter', 'findings', 'a.jsonl')
+    expect(existsSync(shardPath)).toBe(true)
+    const remaining = readFileSync(shardPath, 'utf-8')
+    expect(remaining).toContain(fp(f))
+  })
+
+  it('mixed shard: drains the resolved line, keeps the deferred line', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const resolved = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'thing' }
+    const deferredF = { kind: 'smell', file: '', symbol: 'helperX', note: 'duplicated logic' }
+    const recent = new Date().toISOString()
+    writeShard(dir, 'a', [
+      { ...resolved, severity: 'low', fingerprint: fp(resolved) },
+      { ...deferredF, severity: 'low', fingerprint: fp(deferredF), ts: recent },
+    ])
+    const { deps, created } = makeDeps({ graphFresh: () => false })
+    const r = runFindingsPromote({ dir, ageSweepDays: 14, now: new Date() }, deps)
+    expect(r.ok).toBe(true)
+    expect(created).toHaveLength(1)
+    const shardPath = join(dir, '.arbiter', 'findings', 'a.jsonl')
+    expect(existsSync(shardPath)).toBe(true)
+    const remaining = readFileSync(shardPath, 'utf-8')
+    expect(remaining).not.toContain(fp(resolved))
+    expect(remaining).toContain(fp(deferredF))
+  })
 })
