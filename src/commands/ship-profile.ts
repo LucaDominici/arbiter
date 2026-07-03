@@ -44,6 +44,8 @@ const AUTONOMY_PATH = 'automation.autonomy'
 const MAX_PARALLEL_WORKTREES_PATH = 'automation.maxParallelWorktrees'
 const DEFAULT_GATE_LEVEL_PATH = 'automation.defaultGateLevel'
 const AFFINITY_BATCHING_PATH = 'automation.affinityBatching'
+const AUTO_ADVANCE_BEHAVIOR: ShipBehavior = 'auto-advance'
+const AUTO_MERGE_BEHAVIOR: ShipBehavior = 'auto-merge'
 
 export interface BuildShipOverridesInput {
   /** Raw `--set path=value` assignments (repeatable). */
@@ -150,11 +152,11 @@ export type ShipBehavior =
  */
 const AUTONOMY_GRANTS: Record<AutonomyLevel, ReadonlySet<ShipBehavior>> = {
   L0: new Set<ShipBehavior>(),
-  L1: new Set<ShipBehavior>(['auto-advance', 'auto-merge']),
-  L2: new Set<ShipBehavior>(['auto-advance', 'auto-merge', 'fix-on-red-attempt']),
+  L1: new Set<ShipBehavior>([AUTO_ADVANCE_BEHAVIOR, AUTO_MERGE_BEHAVIOR]),
+  L2: new Set<ShipBehavior>([AUTO_ADVANCE_BEHAVIOR, AUTO_MERGE_BEHAVIOR, 'fix-on-red-attempt']),
   L3: new Set<ShipBehavior>([
-    'auto-advance',
-    'auto-merge',
+    AUTO_ADVANCE_BEHAVIOR,
+    AUTO_MERGE_BEHAVIOR,
     'fix-on-red-attempt',
     'wave-batch',
     'fix-on-red-autopush',

@@ -368,6 +368,49 @@ function seedShipState(
   }
 }
 
+function shipProfileFor(root: string, opts: TaskShipOptions): ShipProfile {
+  return (
+    opts.profileOverride ??
+    resolveShipProfile(root, {
+      ...(opts.autonomy !== undefined ? { autonomyOverride: opts.autonomy } : {}),
+      ...(opts.overrides !== undefined ? { overrides: opts.overrides } : {}),
+    })
+  )
+}
+
+function advanceShipPhase(
+  root: string,
+  phase: TaskPhase,
+  opts: TaskShipOptions,
+): { phase: TaskPhase; advanced: boolean } {
+  if (!opts.advance) return { phase, advanced: false }
+  const target = advanceTargetFor(phase)
+  if (target === null) return { phase, advanced: false }
+  runTaskAdvance({ to: target, dir: root, ...(opts.advanceOpts ?? {}) })
+  appendLog(root, `ship → advanced to ${target}`)
+  return { phase: target, advanced: true }
+}
+
+function writeVerificationCompanionEvidence(
+  root: string,
+  phase: TaskPhase,
+  taskId: string | undefined,
+  profile: ShipProfile,
+  opts: TaskShipOptions,
+): void {
+  if (phase !== 'verification' || taskId === undefined) return
+  writeCompanionEvidence({
+    repoDir: root,
+    taskId,
+    isArbiterSelf: profile.isArbiterSelf,
+    companions: profile.companions,
+    ...(opts.gatherCompanionDiffStats !== undefined
+      ? { gatherDiffStats: opts.gatherCompanionDiffStats }
+      : {}),
+    ...(opts.recordedAt !== undefined ? { recordedAt: opts.recordedAt } : {}),
+  })
+}
+
 /**
  * Compute (and optionally advance to) the current ship step. Returns the step descriptor the agent
  * loop should execute next. With `advance`, advances one phase via runTaskAdvance — gate-green is
@@ -383,41 +426,15 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.
-  const profile =
-    opts.profileOverride ??
-    resolveShipProfile(root, {
-      ...(opts.autonomy !== undefined ? { autonomyOverride: opts.autonomy } : {}),
-      ...(opts.overrides !== undefined ? { overrides: opts.overrides } : {}),
-    })
-
-  let advanced = false
-  if (opts.advance) {
-    const target = advanceTargetFor(phase)
-    if (target !== null) {
-      runTaskAdvance({ to: target, dir: root, ...(opts.advanceOpts ?? {}) })
-      phase = target
-      advanced = true
-      appendLog(root, `ship → advanced to ${target}`)
-    }
-  }
-
-  if (phase === 'verification' && state?.taskId !== undefined) {
-    writeCompanionEvidence({
-      repoDir: root,
-      taskId: state.taskId,
-      isArbiterSelf: profile.isArbiterSelf,
-      companions: profile.companions,
-      ...(opts.gatherCompanionDiffStats !== undefined
-        ? { gatherDiffStats: opts.gatherCompanionDiffStats }
-        : {}),
-      ...(opts.recordedAt !== undefined ? { recordedAt: opts.recordedAt } : {}),
-    })
-  }
+  const profile = shipProfileFor(root, opts)
+  const advancedPhase = advanceShipPhase(root, phase, opts)
+  phase = advancedPhase.phase
+  writeVerificationCompanionEvidence(root, phase, state?.taskId, profile, opts)
 
   return {
     phase,
     step: shipStepFor(phase, tier, profile),
-    advanced,
+    advanced: advancedPhase.advanced,
     done: phase === 'complete',
     profile,
   }

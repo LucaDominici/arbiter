@@ -54,7 +54,7 @@ export const CompanionEvidenceV1 = z.object({
     insertions: z.number().int().nonnegative(),
     deletions: z.number().int().nonnegative(),
   }),
-  recordedAt: z.string().datetime(),
+  recordedAt: z.iso.datetime(),
 })
 
 export type CompanionEvidenceV1 = z.infer<typeof CompanionEvidenceV1>
