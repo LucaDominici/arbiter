@@ -394,18 +394,41 @@ const runsOut = spawnSync(
     '--limit',
     '1',
     '--json',
-    'databaseId',
-    '--jq',
-    '.[0].databaseId',
+    'databaseId,headSha',
   ],
   { encoding: 'utf-8', shell: false },
 )
 
-const runIdRaw = (runsOut.stdout ?? '').trim()
-if (runsOut.status !== 0 || !runIdRaw || runIdRaw === 'null') {
+let runs
+try {
+  runs = JSON.parse(runsOut.stdout ?? '[]')
+} catch {
+  runs = []
+}
+if (runsOut.status !== 0 || !Array.isArray(runs) || runs.length === 0) {
   skip('no completed CI run found for this branch')
 }
-const latestRunId = runIdRaw
+const latestRunId = String(runs[0].databaseId)
+const ciHeadSha = runs[0].headSha
+
+// The "latest completed CI run for this branch" is not necessarily for the
+// current local HEAD — if local commits were made after that run started
+// (e.g. a just-applied fix that hasn't been pushed yet), the fetched CI
+// artifact reflects an older, unrelated commit. Comparing against it would
+// report false "drift" for gates the fix already corrected locally. Treat
+// a headSha mismatch as neutral (not yet verified by CI), matching the
+// existing stale-artifact handling below (#1602).
+const localHeadOut = spawnSync('git', ['rev-parse', 'HEAD'], {
+  encoding: 'utf-8',
+  shell: false,
+})
+const localHeadSha = (localHeadOut.stdout ?? '').trim()
+if (localHeadOut.status === 0 && localHeadSha && ciHeadSha && ciHeadSha !== localHeadSha) {
+  skip(
+    `latest completed CI run is for commit ${ciHeadSha.slice(0, 12)}, but local HEAD is ` +
+      `${localHeadSha.slice(0, 12)} — not yet verified by CI (push and re-check after CI completes)`,
+  )
+}
 
 // Download artifact to a temp dir; clean up regardless of outcome
 const tmpDir = mkdtempSync(join(tmpdir(), 'arbiter-parity-'))
