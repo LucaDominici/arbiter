@@ -4,7 +4,7 @@
 // CATALOG:   matcher: `**` crosses directories, `*` stays within one path component.
 // CATALOG:   walkRepo returns repo-relative POSIX paths; SKIP_DIRS prunes vendor trees.
 // Pure module — no process exit, no I/O side effects beyond readdir/stat.
-import { readdirSync, lstatSync, statSync } from 'node:fs'
+import { readdirSync, lstatSync, statSync, existsSync } from 'node:fs'
 import { join, isAbsolute } from 'node:path'
 
 export const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
@@ -105,6 +105,12 @@ export function walkRepo(root) {
         continue
       }
       if (stat.isDirectory()) {
+        // A subdirectory containing its own `.git` entry (file, for a worktree — a worktree's
+        // `.git` is a pointer file — OR directory, for a plain nested clone/submodule) is a
+        // SEPARATE checkout, not part of THIS repo's tree. Descending into it produces false
+        // positives (e.g. thousands of "broken link" hits) from agent worktrees materialized
+        // under `.claude/worktrees/**`. #1734/#1752.
+        if (existsSync(join(full, '.git'))) continue
         visit(full)
       } else {
         files.push(full.slice(base.length + 1).replace(/\\/g, '/'))

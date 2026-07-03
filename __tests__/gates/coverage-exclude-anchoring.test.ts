@@ -8,6 +8,17 @@
 // The exclusion itself must stay: .claude/ hook libs are imported in-process by
 // the sanitize-task-id-parity and hooks-perf-scoping tests and are not product
 // code (INV-25 coverage floor measures src/ only).
+//
+// Same root cause as #1731 ("v8 coverage instrumentation returns 0/0 in
+// agent-sandbox worktrees"): that report's own repro narrowed the defect to
+// files that import src/** directly (ruling out the scripts/** exclusion),
+// which is exactly the over-matching bare '.claude/**' glob above swallowing
+// every file, src included. Empirically verified against a real
+// .claude/worktrees/<id>/ checkout: reverting to the bare '.claude/**'
+// pattern reproduces 0/0 on `__tests__/compatibility/parsers.test.ts`
+// (imports only src/compatibility/parsers.ts); the anchored pattern below
+// instruments it correctly (100% lines / 86.66% branches). No further code
+// change needed for #1731 — this anchoring invariant guards both.
 import { describe, it, expect } from 'vitest'
 import { isAbsolute } from 'node:path'
 import config from '../../vitest.config'
