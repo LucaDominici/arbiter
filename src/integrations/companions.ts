@@ -93,7 +93,7 @@ function resolveOne(
 const CONSERVATIVE_LITE_STACKS = new Set(['java', 'kotlin', 'csharp'])
 
 /** Where a resolved companion mode came from (#1747 — `doctor` surfaces this per entry). */
-export type CompanionModeSource = 'arbiter.json override' | 'stack default' | 'policy default'
+type CompanionModeSource = 'arbiter.json override' | 'stack default' | 'policy default'
 
 /**
  * Defense-in-depth below the schema validator: an override mode outside the lite|full
