@@ -1,49 +1,43 @@
 {
-  "run_id": "task-20260609-1281",
-  "task_id": "#1281",
+  "run_id": "task-20260703-1745",
+  "task_id": "#1745",
   "scope": {
-    "track": "C",
+    "track": "B",
     "paths": [
-      ".github/workflows/kit-self-canary.yml",
-      ".github/workflows/dependabot-actions-sync.yml",
-      ".github/labels.yml",
-      "src/templates/github/labels.yml.ejs",
-      "docs/REFERENCE/cicd-developer-reference.md",
-      "__tests__/docs/delete-disposable-1243.test.ts"
+      "src/integrations/companions.ts",
+      "src/commands/task-ship.ts",
+      "__tests__/integrations/companions.test.ts",
+      "__tests__/commands/task-ship.test.ts",
+      "docs/ADR/100-companion-plugin-awareness.md"
     ]
   },
   "files": [
     {
-      "path": "__tests__/docs/delete-disposable-1243.test.ts",
+      "path": "src/integrations/companions.ts",
       "operation": "modify",
-      "reason": "Add a regression assertion that SELF-KIT-AUDIT.md stays deleted and the KIT self-canary no longer references it."
+      "reason": "Add the companion evidence schema, writer, and branch diff-stat collection."
     },
     {
-      "path": ".github/workflows/kit-self-canary.yml",
+      "path": "src/commands/task-ship.ts",
       "operation": "modify",
-      "reason": "Change the canary from deleted baseline diffing to ephemeral dry-run report validation."
+      "reason": "Invoke companion evidence writing during verification when companions are active."
     },
     {
-      "path": ".github/workflows/dependabot-actions-sync.yml",
+      "path": "__tests__/integrations/companions.test.ts",
       "operation": "modify",
-      "reason": "Add explicit top-level workflow permissions to satisfy INV-77 without changing the job-level write permission."
+      "reason": "Cover evidence writing plus companion-free and arbiter-self no-write states."
     },
     {
-      "path": ".github/labels.yml",
+      "path": "__tests__/commands/task-ship.test.ts",
       "operation": "modify",
-      "reason": "Broaden the kit-drift label description to match the self-canary failure contract."
+      "reason": "Cover verification-phase evidence emission through the ship command path."
     },
     {
-      "path": "src/templates/github/labels.yml.ejs",
+      "path": "docs/ADR/100-companion-plugin-awareness.md",
       "operation": "modify",
-      "reason": "Keep generated label taxonomy aligned with the self-side label wording."
-    },
-    {
-      "path": "docs/REFERENCE/cicd-developer-reference.md",
-      "operation": "modify",
-      "reason": "Document the KIT self-canary as an ephemeral dry-run validation workflow, not a committed audit drift detector."
+      "reason": "Document the measurement contract and the known tension this evidence feeds."
     }
   ],
-  "invariants": ["INV-23", "INV-24", "INV-26", "INV-27", "INV-77", "INV-89", "INV-96", "CANON-09"],
-  "gate": "node scripts/check-all.mjs L1"
+  "invariants": ["INV-04", "INV-08", "INV-17", "INV-24", "INV-26", "INV-27", "INV-63"],
+  "gate": "npx vitest run __tests__/integrations/companions.test.ts __tests__/commands/task-ship.test.ts"
 }

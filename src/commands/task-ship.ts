@@ -26,7 +26,12 @@ import {
   SELF_ONLY_GATES,
   resolveShipProfile,
 } from './ship-profile.js'
-import { companionGreenInstruction, companionStatusLine } from '../integrations/companions.js'
+import {
+  companionGreenInstruction,
+  companionStatusLine,
+  writeCompanionEvidence,
+  type CompanionDiffStats,
+} from '../integrations/companions.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
@@ -285,6 +290,12 @@ export interface TaskShipOptions {
     skipBudget?: boolean
     units?: number
   }
+  /** Test seam for evidence emission without depending on local HOME/plugin state. */
+  profileOverride?: ShipProfile
+  /** Test seam for deterministic companion evidence diff stats. */
+  gatherCompanionDiffStats?: (repoDir: string) => CompanionDiffStats
+  /** Test seam for deterministic companion evidence timestamps. */
+  recordedAt?: string
 }
 
 export interface ShipResult {
@@ -372,10 +383,12 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.
-  const profile = resolveShipProfile(root, {
-    ...(opts.autonomy !== undefined ? { autonomyOverride: opts.autonomy } : {}),
-    ...(opts.overrides !== undefined ? { overrides: opts.overrides } : {}),
-  })
+  const profile =
+    opts.profileOverride ??
+    resolveShipProfile(root, {
+      ...(opts.autonomy !== undefined ? { autonomyOverride: opts.autonomy } : {}),
+      ...(opts.overrides !== undefined ? { overrides: opts.overrides } : {}),
+    })
 
   let advanced = false
   if (opts.advance) {
@@ -386,6 +399,19 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
       advanced = true
       appendLog(root, `ship → advanced to ${target}`)
     }
+  }
+
+  if (phase === 'verification' && state?.taskId !== undefined) {
+    writeCompanionEvidence({
+      repoDir: root,
+      taskId: state.taskId,
+      isArbiterSelf: profile.isArbiterSelf,
+      companions: profile.companions,
+      ...(opts.gatherCompanionDiffStats !== undefined
+        ? { gatherDiffStats: opts.gatherCompanionDiffStats }
+        : {}),
+      ...(opts.recordedAt !== undefined ? { recordedAt: opts.recordedAt } : {}),
+    })
   }
 
   return {

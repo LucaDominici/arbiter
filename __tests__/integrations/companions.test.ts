@@ -5,13 +5,16 @@
 // the green-phase instruction and the `Companion:` announcement. Detection is HOME-ONLY: a
 // hostile target repo can never spoof activation because the resolver has no targetDir input.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  CompanionEvidenceV1,
+  companionEvidencePath,
   resolveCompanions,
   companionGreenInstruction,
   companionStatusLine,
+  writeCompanionEvidence,
 } from '../../src/integrations/companions.js'
 import { clearSkillCache, detectInstalledSkills } from '../../src/integrations/skill-detector.js'
 
@@ -166,5 +169,68 @@ describe('companion formatters (#1730)', () => {
     expect(companionStatusLine([b, a])).toBe('caveman (full), ponytail (lite)')
     // announce-only companion (no greenInstruction) contributes nothing to the green text
     expect(companionGreenInstruction([a, b])).toBe('A lite.')
+  })
+})
+
+describe('companion evidence writer (#1745)', () => {
+  const activeCompanion = {
+    id: 'ponytail:ponytail',
+    label: 'ponytail',
+    mode: 'full' as const,
+    policy: { label: 'ponytail', defaultMode: 'full' as const, greenInstruction: 'DRAFT {mode}' },
+  }
+
+  it('writes a companion evidence file with companions, diffStats, and recordedAt', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-companion-evidence-'))
+    homes.push(dir)
+    const recordedAt = '2026-07-03T00:00:00.000Z'
+    const out = writeCompanionEvidence({
+      repoDir: dir,
+      taskId: '#1745',
+      isArbiterSelf: false,
+      companions: [activeCompanion],
+      recordedAt,
+      gatherDiffStats: () => ({ files: 3, insertions: 12, deletions: 4 }),
+    })
+    expect(out).toBe(companionEvidencePath('#1745', dir))
+    expect(existsSync(out ?? '')).toBe(true)
+    const raw = JSON.parse(readFileSync(out ?? '', 'utf-8')) as unknown
+    expect(CompanionEvidenceV1.safeParse(raw).success).toBe(true)
+    expect(raw).toEqual({
+      $schemaVersion: 1,
+      companions: [{ id: 'ponytail:ponytail', mode: 'full' }],
+      diffStats: { files: 3, insertions: 12, deletions: 4 },
+      recordedAt,
+    })
+  })
+
+  it('writes nothing for a companion-free verification', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-companion-evidence-empty-'))
+    homes.push(dir)
+    expect(
+      writeCompanionEvidence({
+        repoDir: dir,
+        taskId: '#1745',
+        isArbiterSelf: false,
+        companions: [],
+        gatherDiffStats: () => ({ files: 3, insertions: 12, deletions: 4 }),
+      }),
+    ).toBeNull()
+    expect(existsSync(companionEvidencePath('#1745', dir))).toBe(false)
+  })
+
+  it('writes nothing for arbiter-self even when companions are present', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-companion-evidence-self-'))
+    homes.push(dir)
+    expect(
+      writeCompanionEvidence({
+        repoDir: dir,
+        taskId: '#1745',
+        isArbiterSelf: true,
+        companions: [activeCompanion],
+        gatherDiffStats: () => ({ files: 3, insertions: 12, deletions: 4 }),
+      }),
+    ).toBeNull()
+    expect(existsSync(companionEvidencePath('#1745', dir))).toBe(false)
   })
 })

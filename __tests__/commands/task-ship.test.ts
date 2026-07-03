@@ -2,7 +2,7 @@
 //
 // `/ship` orchestrator sequencing (#1206): step computation + auto-advance over the existing engine.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import {
@@ -17,6 +17,7 @@ import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-sta
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
+import { companionEvidencePath } from '../../src/integrations/companions.js'
 import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
 
 // Gates that would otherwise require a real repo / model switch
@@ -391,7 +392,7 @@ describe('ship companion composition (#1730)', () => {
     expect(a).toContain('DRAFT-LAZY full')
   })
 
-  it('substitutes {mode} in the REAL registry ponytail instruction (no placeholder survives)', () => {
+  it('substitutes {mode} in the REAL registry ponytail instruction (no token survives)', () => {
     const ponytail = SKILLS_MATRIX.find((e) => e.id === 'ponytail:ponytail')?.companion
     if (!ponytail) throw new Error('ponytail companion policy missing from SKILLS_MATRIX')
     const real = {
@@ -420,5 +421,59 @@ describe('ship companion composition (#1730)', () => {
   it('prints NO Companion: line for a companion-free ship (surfaced, not faked)', () => {
     const lines = buildShipStepLines(stepFor(profile({ companions: [] })), size)
     expect(lines.join('\n')).not.toMatch(/Companion:/)
+  })
+})
+
+describe('ship companion evidence emission (#1745)', () => {
+  const testCompanion = {
+    id: 'ponytail:ponytail',
+    label: 'ponytail',
+    mode: 'full' as const,
+    policy: {
+      label: 'ponytail',
+      defaultMode: 'full' as const,
+      greenInstruction: 'DRAFT-LAZY {mode}',
+    },
+  }
+
+  let dir: string
+  beforeEach(() => {
+    dir = createTestProject()
+    mkdirSync(join(dir, '.claude'), { recursive: true })
+  })
+  afterEach(() => cleanupTestProject(dir))
+
+  it('writes companion evidence when ship enters verification with an active companion', () => {
+    runTaskShip({ dir, taskId: '#1745', tier: 'S' })
+    writeUnifiedState(dir, { phase: 'verification' })
+
+    runTaskShip({
+      dir,
+      profileOverride: profile({
+        isArbiterSelf: false,
+        companions: [testCompanion],
+      }),
+      gatherCompanionDiffStats: () => ({ files: 2, insertions: 5, deletions: 1 }),
+      recordedAt: '2026-07-03T00:00:00.000Z',
+    })
+
+    const path = companionEvidencePath('#1745', dir)
+    expect(existsSync(path)).toBe(true)
+    expect(JSON.parse(readFileSync(path, 'utf-8'))).toMatchObject({
+      companions: [{ id: 'ponytail:ponytail', mode: 'full' }],
+      diffStats: { files: 2, insertions: 5, deletions: 1 },
+      recordedAt: '2026-07-03T00:00:00.000Z',
+    })
+  })
+
+  it('does not write companion evidence without active companions', () => {
+    runTaskShip({ dir, taskId: '#1745', tier: 'S' })
+    writeUnifiedState(dir, { phase: 'verification' })
+    runTaskShip({
+      dir,
+      profileOverride: profile({ isArbiterSelf: false, companions: [] }),
+      gatherCompanionDiffStats: () => ({ files: 2, insertions: 5, deletions: 1 }),
+    })
+    expect(existsSync(companionEvidencePath('#1745', dir))).toBe(false)
   })
 })

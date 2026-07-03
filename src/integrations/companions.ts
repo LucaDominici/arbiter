@@ -10,6 +10,10 @@
 //     module takes no targetDir at all; a caller structurally cannot point it at a repo tree.
 //   • NO cycle — this leaf imports only from integrations/ (skills-matrix, skill-detector). It
 //     takes primitives (never a ShipProfile) so ship-profile.ts can value-import it freely.
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { z } from 'zod'
+import { runCli } from '../utils/run-cli.js'
 import { detectInstalledSkills } from './skill-detector.js'
 import { SKILLS_MATRIX, bareName } from './skills-matrix.js'
 import type { CompanionPolicy, SkillEntry } from './skills-matrix.js'
@@ -28,6 +32,32 @@ export interface ActiveCompanion {
   /** The registry policy (carries the green-phase instruction template). */
   policy: CompanionPolicy
 }
+
+export interface CompanionDiffStats {
+  files: number
+  insertions: number
+  deletions: number
+}
+
+export const CompanionEvidenceV1 = z.object({
+  $schemaVersion: z.literal(1),
+  companions: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        mode: z.enum(['lite', 'full']),
+      }),
+    )
+    .min(1),
+  diffStats: z.object({
+    files: z.number().int().nonnegative(),
+    insertions: z.number().int().nonnegative(),
+    deletions: z.number().int().nonnegative(),
+  }),
+  recordedAt: z.string().datetime(),
+})
+
+export type CompanionEvidenceV1 = z.infer<typeof CompanionEvidenceV1>
 
 /** Per-companion override read from `arbiter.json` → `companions`. Keyed by bare name or full id. */
 interface CompanionOverride {
@@ -114,4 +144,63 @@ export function companionGreenInstruction(active: readonly ActiveCompanion[]): s
  */
 export function companionStatusLine(active: readonly ActiveCompanion[]): string {
   return active.map((c) => `${c.label} (${c.mode})`).join(', ')
+}
+
+export function companionEvidencePath(taskId: string, repoDir: string): string {
+  return join(repoDir, '.arbiter', 'evidence', 'companions', `${taskId}.json`)
+}
+
+export interface WriteCompanionEvidenceInput {
+  repoDir: string
+  taskId: string
+  isArbiterSelf: boolean
+  companions: readonly ActiveCompanion[]
+  recordedAt?: string
+  gatherDiffStats?: (repoDir: string) => CompanionDiffStats
+}
+
+export function writeCompanionEvidence(input: WriteCompanionEvidenceInput): string | null {
+  if (input.isArbiterSelf || input.companions.length === 0) return null
+  const evidence: CompanionEvidenceV1 = {
+    $schemaVersion: 1,
+    companions: input.companions.map((c) => ({ id: c.id, mode: c.mode })),
+    diffStats: (input.gatherDiffStats ?? gatherCompanionDiffStats)(input.repoDir),
+    recordedAt: input.recordedAt ?? new Date().toISOString(),
+  }
+  const parsed = CompanionEvidenceV1.safeParse(evidence)
+  if (!parsed.success) {
+    throw new Error(`Invalid companion evidence: ${parsed.error.message}`)
+  }
+  const out = companionEvidencePath(input.taskId, input.repoDir)
+  mkdirSync(join(input.repoDir, '.arbiter', 'evidence', 'companions'), { recursive: true })
+  writeFileSync(out, `${JSON.stringify(parsed.data, null, 2)}\n`, 'utf-8')
+  return out
+}
+
+export function gatherCompanionDiffStats(repoDir: string): CompanionDiffStats {
+  const base = diffBase(repoDir)
+  const range = base ? `${base}...HEAD` : 'HEAD'
+  try {
+    return parseShortstat(runCli('git', ['diff', '--shortstat', range], { cwd: repoDir }).stdout)
+  } catch {
+    return { files: 0, insertions: 0, deletions: 0 }
+  }
+}
+
+function diffBase(repoDir: string): string | null {
+  for (const ref of ['origin/main', 'main']) {
+    try {
+      return runCli('git', ['merge-base', 'HEAD', ref], { cwd: repoDir }).stdout.trim()
+    } catch {
+      // Try the next local base ref; evidence remains best-effort when no base exists.
+    }
+  }
+  return null
+}
+
+function parseShortstat(shortstat: string): CompanionDiffStats {
+  const files = Number((shortstat.match(/(\d+) files? changed/) ?? [])[1] ?? 0)
+  const insertions = Number((shortstat.match(/(\d+) insertions?\(\+\)/) ?? [])[1] ?? 0)
+  const deletions = Number((shortstat.match(/(\d+) deletions?\(-\)/) ?? [])[1] ?? 0)
+  return { files, insertions, deletions }
 }

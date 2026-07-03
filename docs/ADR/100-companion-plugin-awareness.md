@@ -55,6 +55,10 @@ Make `/ship` companion-aware through a small, extensible registry — **not** a 
    load-bearing). `lite|full` only, **never `ultra`** (ultra skips tests → violates TDD/INV-26).
    arbiter's gates remain the safety net if the persona cuts too much. Optional `arbiter.json`
    `companions` map disables/downgrades per companion; absent ⇒ auto-activate in policy default.
+5. **Measurement contract.** During `/ship` verification, a product repo with at least one active
+   companion writes `.arbiter/evidence/companions/<task-id>.json` (`CompanionEvidenceV1`) containing
+   the active companion ids/modes, branch diff stats, and `recordedAt`. Companion-free runs and
+   arbiter-self write nothing. The evidence is observational only; no gate consumes it yet.
 
 ## Consequences
 
@@ -72,6 +76,9 @@ Make `/ship` companion-aware through a small, extensible registry — **not** a 
 - Companion behaviour is opaque to arbiter (it is an external persona) — mitigated by keeping the
   gates authoritative and never running `ultra`.
 - Adds ponytail to the `SKILLS_MATRIX`/replacement-matrix SSOTs (kept in parity, `beta` status).
+- Known tension: ponytail may push "remove abstraction" while Architecture/Domain auditors defend
+  load-bearing structure. Both remain advisory; the evidence stream gives future reconciliation work
+  real per-task data instead of a faith-based claim.
 
 ## Links
 
