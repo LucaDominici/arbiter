@@ -861,7 +861,10 @@ function logExistingDetections(existing: ReturnType<typeof detectExisting>): voi
 }
 
 function maybeCaptureBaseline(config: ProjectConfig, targetDir: string, brownfield: boolean): void {
-  if (config.governanceLevel === 'L3' && config.enableDebtGates) {
+  // #1732 Step 3: floor check (not `=== 'L3'`) — the generated debt-report.mjs
+  // is fail-closed at `isL3Plus` (L3 and L4), so init must fatally capture the
+  // baseline at L4 too; a hand-rolled `=== 'L3'` literal silently skipped it.
+  if (levelAtLeast(config.governanceLevel, 'L3') && config.enableDebtGates) {
     runBrownfieldCapture(targetDir, { fatal: true })
   } else if (brownfield && config.enableDebtGates) {
     runBrownfieldCapture(targetDir)

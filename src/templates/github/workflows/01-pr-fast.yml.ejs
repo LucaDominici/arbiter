@@ -153,7 +153,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
       - name: Enforce cross-stack split
         if: needs.classify-changes.outputs.backend_changed == 'true' && needs.classify-changes.outputs.frontend_changed == 'true'
         run: |
@@ -811,7 +811,7 @@ jobs:
       - run: pip install -e ".[dev]"
 <% } %>
       - name: Run debt ratchet
-        run: node scripts/debt-report.mjs<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %> --require-improvement<% } else { %> --gate<% } %>
+        run: node scripts/debt-report.mjs<% if (isL3Plus) { %> --require-improvement<% } else { %> --gate<% } %>
 <% } %>
 <% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>
 

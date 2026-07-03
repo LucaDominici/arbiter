@@ -1,0 +1,12 @@
+{
+  "language": "java",
+  "archetype": "backend-web-db",
+  "buildTool": "maven",
+  "levels": ["L4", "L3", "L2", "L1"],
+  "tier": "bake",
+  "note": "Java Maven Spring Boot service at L4 (#1732 Step F) — mirrors java-spring-L3 but bakes at the strictest governance tier; the documented 5 stacks x 4 tools x 3 levels matrix previously skipped L4 entirely, so no generated-tree snapshot existed to catch an L4 regression across the whole tree",
+  "enableSecurityScanning": true,
+  "architectureStyle": "layered",
+  "basePackage": "com.example",
+  "collaborationMode": "peer-review"
+}
