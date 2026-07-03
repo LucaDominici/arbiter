@@ -2,6 +2,7 @@
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { levelAtLeast } from '../config/levels.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -104,7 +105,9 @@ export function generateDocs(
     ),
   )
 
-  if (config.governanceLevel === 'L3') {
+  // #1732 Step 3: floor check (not `=== 'L3'`) so L4 inherits the compliance
+  // annex instead of silently losing it — same bug class as #1720.
+  if (levelAtLeast(config.governanceLevel, 'L3')) {
     results.push(
       writeFile(
         resolvedPath(base, 'docs', 'SECURITY', 'ISO27001_ANNEX_A.md'),

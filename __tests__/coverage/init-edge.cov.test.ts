@@ -235,6 +235,19 @@ describe('runInit — checkL3MaturityGates blocked branch', () => {
     // Full runInit scaffold + L3 maturity gate + baseline-capture subprocess;
     // the 30s default is too tight for this in the full parallel pool — see #1604.
   }, 60_000)
+
+  // #1732 Step 3: maybeCaptureBaseline used a hand-rolled `=== 'L3'` literal —
+  // the same bug class as #1720 — so a greenfield L4 init (strictest tier)
+  // silently skipped baseline capture entirely (neither fatal nor warn branch
+  // fires, since L4 also fails the `brownfield` disjunct). L4 must inherit the
+  // L3 fatal-capture behavior, not lose it.
+  it('captures the baseline at L4 the same way it does at L3 (#1732)', async () => {
+    tsFixture(dir)
+    await runInit(baseOpts({ language: 'typescript', level: 'L4', dryRun: false }))
+    expect(existsSync(join(dir, 'arbiter.json'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'debt-baseline.json'))).toBe(true)
+    expect(exitSpy).not.toHaveBeenCalled()
+  }, 60_000)
 })
 
 // ---------------------------------------------------------------------------

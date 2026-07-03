@@ -118,6 +118,14 @@ describe('generateDocs — ISO27001_ANNEX_A (#217)', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
     expect(existsSync(join(dir, 'docs', 'SECURITY', 'ISO27001_ANNEX_A.md'))).toBe(false)
   })
+
+  // #1732 Step 3: the L3 boundary was a hand-rolled `=== 'L3'` literal that
+  // silently excluded L4 (the same bug class as #1720). L4 is the strictest
+  // tier and should inherit the L3 compliance annex, not lose it.
+  it('emits docs/SECURITY/ISO27001_ANNEX_A.md at L4 (#1732)', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L4' }))
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'ISO27001_ANNEX_A.md'))).toBe(true)
+  })
 })
 
 describe('generateDocs — POST_MERGE_REVIEW_TEMPLATE (#218)', () => {

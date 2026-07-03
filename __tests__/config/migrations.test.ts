@@ -220,6 +220,32 @@ describe("migrate — v1 (version: '0.1')", () => {
     expect(result.features.evidenceHarness).toBe(true)
   })
 
+  it('L3 v1 with no evidenceRetention field → features.evidenceHarness=true', () => {
+    const v1 = {
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L3',
+      useGitHub: false,
+    }
+    const result = migrate(v1)
+    expect(result.features.evidenceHarness).toBe(true)
+  })
+
+  // #1732 Step 3: deriveEvidenceHarness's implicit default hand-rolled
+  // `level === 'L3'` — the same bug class as #1720 — so an L4 v1 config with
+  // no explicit evidenceRetention silently lost the evidence harness on
+  // migration (L4 got LESS than L3, not a superset).
+  it('L4 v1 with no evidenceRetention field → features.evidenceHarness=true (#1732)', () => {
+    const v1 = {
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L4',
+      useGitHub: false,
+    }
+    const result = migrate(v1)
+    expect(result.features.evidenceHarness).toBe(true)
+  })
+
   it('uses DEFAULT_THRESHOLDS for the target governance level', () => {
     const v1 = {
       version: '0.1',
