@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/STATUS.md'
 source_sha: '0eb3a633a55e1011ce8bd7e02b1ab5620f73b12e'
-last_updated: '2026-07-02'
+last_updated: '2026-07-03'
 ---
 
 # STATUS — arbiter living dashboard

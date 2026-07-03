@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/CANON.md'
 source_sha: 'c7cfcc78b447b12df6d24301eec0f3624e5f7d29'
-last_updated: '2026-07-02'
+last_updated: '2026-07-03'
 ---
 
 # arbiter Canon — Lessons Learned

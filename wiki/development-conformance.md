@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/DEVELOPMENT/CONFORMANCE.md'
 source_sha: '4d841d844c694775200af2710d611fd1f7875118'
-last_updated: '2026-07-02'
+last_updated: '2026-07-03'
 ---
 
 # arbiter — Conformance Scorecard

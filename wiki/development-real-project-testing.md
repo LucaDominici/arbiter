@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/DEVELOPMENT/REAL-PROJECT-TESTING.md'
 source_sha: '2c9ad2472b3757d34bc8ec19d1e51a2b98a9101d'
-last_updated: '2026-07-02'
+last_updated: '2026-07-03'
 ---
 
 # Real-Project Testing
