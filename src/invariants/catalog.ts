@@ -723,7 +723,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'its own governance without an explicit documented reason.',
     alwaysActive: true,
     selfOnly: true,
-    enforcement: 'scripts/check-self-dogfood.mjs (L2 gate check) — exits 1 on unexpected drift',
+    enforcement:
+      'scripts/check-self-dogfood.mjs (L1 gate check, promoted from L2 by #1744) — exits 1 on unexpected drift',
   },
 
   {

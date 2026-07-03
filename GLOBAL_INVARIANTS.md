@@ -517,7 +517,7 @@ Every Claude Code hook template in src/templates/claude/hooks/ must have at leas
 
 Every EJS template under src/templates/claude/ must render (with arbiter's own config) to content that matches the corresponding materialized .claude/ file. Files listed in .dogfood-divergences.json are explicitly exempted (intentional arbiter-internal extensions not appropriate for target projects). Config-gated templates are skipped when the relevant feature flag is disabled in arbiter.json. This invariant prevents arbiter from shipping stale template skeletons that diverge from its own governance without an explicit documented reason.
 
-**Enforcement:** scripts/check-self-dogfood.mjs (L2 gate check) — exits 1 on unexpected drift
+**Enforcement:** scripts/check-self-dogfood.mjs (L1 gate check, promoted from L2 by #1744) — exits 1 on unexpected drift
 
 ---
 

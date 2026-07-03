@@ -17,9 +17,9 @@
 //        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
 //        workflow-runners, workflow-docs-sync, workflow-test-integrity, workflow-parallelism, pr-size-gate,
 //        validator-helptext, tier-coverage, nightly freshness (INV-93),
-//        no passWithNoTests (INV-25, #1039), actionlint (59)
+//        no passWithNoTests (INV-25, #1039), actionlint, dogfood (INV-45, #1744) (60)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
-//       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
+//       self-validation drill + local-ci parity + id stability + anti-telemetry +
 //       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) (69)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
@@ -243,6 +243,8 @@ if (isMain) {
     'scripts/check-workflow-cache-strategy.mjs',
   ])
   runCheck('build-cache strategy (C3)', 'node', ['scripts/check-build-cache-strategy.mjs'])
+  // #1744 (INV-45): template<->materialized drift is caught at COMMIT time, not push time.
+  runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
 
   // Capture L1 boundary for parityContentHash computation (INV-59)
   const l1EndIdx = getResults().length
@@ -280,7 +282,6 @@ if (isMain) {
       '--exit-code',
       '1',
     ])
-    runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
     runCheck('emission coherence (INV-123)', 'node', ['scripts/check-emission-coherence.mjs', '.'])
     runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'])
     runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'])
