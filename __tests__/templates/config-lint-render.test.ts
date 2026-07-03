@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -37,7 +37,7 @@ describe('config-lint lane — yamllint + shellcheck (gold-align #1506/#1507)', 
   it('renders a config-lint job inside a structurally valid workflow', () => {
     for (const language of ['typescript', 'go', 'java', 'python'] as const) {
       const wf = renderWorkflow({ governanceLevel: 'L2', language })
-      const doc = yaml.load(wf) as { jobs?: Record<string, unknown> }
+      const doc = load(wf) as { jobs?: Record<string, unknown> }
       expect(doc.jobs).toBeDefined()
       expect(doc.jobs?.['config-lint']).toBeDefined()
     }

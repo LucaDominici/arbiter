@@ -36,7 +36,7 @@
 import { describe, it, expect } from 'vitest'
 import { globSync } from 'node:fs'
 import { resolve } from 'node:path'
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
@@ -160,7 +160,7 @@ describe('emitted workflows are structurally valid (#1549)', () => {
       const failures: string[] = []
       for (const [file, content] of renderAll(data)) {
         try {
-          yaml.load(content)
+          load(content)
         } catch (err) {
           failures.push(`${file}: ${String(err).split('\n')[0]}`)
         }

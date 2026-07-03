@@ -127,14 +127,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## @napi-rs/wasm-runtime@1.1.4
+## @napi-rs/wasm-runtime@1.1.6
 
 - License: MIT
 - Homepage: https://napi.rs/
 
 _License text not bundled with the package; see MIT._
 
-## @tybys/wasm-util@0.10.2
+## @tybys/wasm-util@0.10.3
 
 - License: MIT
 - Homepage: https://github.com/toyobayashi/wasm-util
