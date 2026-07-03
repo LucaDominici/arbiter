@@ -62,6 +62,16 @@
       "reason": "Document the measurement contract and the known tension this evidence feeds."
     }
   ],
-  "invariants": ["INV-02", "INV-04", "INV-08", "INV-17", "INV-24", "INV-26", "INV-27", "INV-63", "INV-115"],
+  "invariants": [
+    "INV-02",
+    "INV-04",
+    "INV-08",
+    "INV-17",
+    "INV-24",
+    "INV-26",
+    "INV-27",
+    "INV-63",
+    "INV-115"
+  ],
   "gate": "npx vitest run __tests__/integrations/companions.test.ts __tests__/commands/task-ship.test.ts __tests__/commands/ship-profile.test.ts"
 }
