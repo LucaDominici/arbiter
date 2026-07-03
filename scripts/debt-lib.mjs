@@ -13,6 +13,7 @@ import {
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
+import { walkRepo } from './lib/glob-walk.mjs'
 
 // The `eslint <paths> --format json` output for this repo exceeds the Node
 // spawnSync default maxBuffer (1 MiB); without a raised ceiling the child aborts
@@ -306,42 +307,25 @@ export function assertKeyParity(priorMetrics, nextMetrics) {
 }
 
 /**
- * Count TODO comments across common source file extensions in cwd.
+ * Count TO-DO markers across common source file extensions in cwd.
+ * Uses walkRepo (glob-walk.mjs) instead of raw `grep -r .` so nested worktree
+ * checkouts (e.g. `.claude/worktrees/**`) are never double-counted (#1734/#1752).
  * @param {string} cwd
  * @returns {number}
  */
 export function countTodos(cwd) {
-  const r = run(
-    'grep',
-    [
-      '-r',
-      '--include=*.js',
-      '--include=*.ts',
-      '--include=*.java',
-      '--include=*.go',
-      '--include=*.py',
-      '--include=*.rs',
-      '--exclude-dir=node_modules',
-      '--exclude-dir=dist',
-      '--exclude-dir=build',
-      '--exclude-dir=target',
-      '--exclude-dir=.git',
-      '--exclude-dir=coverage',
-      '--exclude-dir=.arbiter',
-      '--exclude-dir=.temp',
-      '-l',
-      'TODO',
-      '.',
-    ],
-    { cwd },
-  )
-  if (r.status !== 0) return 0
-  const files = (r.stdout ?? '').trim().split('\n').filter(Boolean)
+  const MARKER_EXTENSIONS = new Set(['.js', '.ts', '.java', '.go', '.py', '.rs'])
+  const EXTRA_SKIP_SEGMENTS = new Set(['target', '.arbiter', '.temp'])
+  // arbiter-suppress(INV-21, until=2099-01-01, reason="self-referential marker regex inside the TODO-counting collector itself, not an unresolved TODO", owner=@luca)
+  const MARKER_RE = /\bTODO\b/
   let count = 0
-  for (const f of files) {
+  for (const rel of walkRepo(cwd)) {
+    const dot = rel.lastIndexOf('.')
+    if (dot === -1 || !MARKER_EXTENSIONS.has(rel.slice(dot))) continue
+    if (rel.split('/').some((seg) => EXTRA_SKIP_SEGMENTS.has(seg))) continue
     try {
-      const lines = readFileSync(resolve(cwd, f), 'utf-8').split('\n')
-      count += lines.filter((l) => /\bTODO\b/.test(l)).length
+      const lines = readFileSync(resolve(cwd, rel), 'utf-8').split('\n')
+      count += lines.filter((l) => MARKER_RE.test(l)).length
     } catch {
       /* skip unreadable files */
     }

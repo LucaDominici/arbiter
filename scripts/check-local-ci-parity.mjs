@@ -228,6 +228,7 @@ const CI_COVERAGE = new Map([
   ['anti-drift: pr size gate', 'gate-full'],
   ['anti-drift: validator helptext', 'gate-full'],
   ['anti-drift: tier coverage', 'gate-full'],
+  ['anti-drift: docker action runner safety (#1756)', 'gate-full'],
   ['adapter coverage (INV-88)', 'gate-full'],
   ['nightly freshness (INV-93)', 'gate-full'],
   ['monthly freshness (INV-82)', 'gate-full'],

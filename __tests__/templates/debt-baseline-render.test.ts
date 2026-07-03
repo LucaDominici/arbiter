@@ -34,7 +34,7 @@ describe('capture-debt-baseline.mjs.ejs', () => {
   it('debt-lib excludes generated temp directories from task-note counts', () => {
     const data = makeDataWithProfile({ language: 'typescript' })
     const rendered = renderTemplate('scripts/debt-lib.mjs.ejs', data)
-    expect(rendered).toContain('--exclude-dir=.temp')
+    expect(rendered).toContain("EXTRA_SKIP_SEGMENTS = new Set(['target', '.arbiter', '.temp'])")
   })
 
   it('rust debt-lib contains cargo tarpaulin', () => {

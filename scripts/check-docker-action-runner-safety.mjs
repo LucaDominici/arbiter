@@ -170,28 +170,38 @@ function scanFile(file, cwd) {
 const onReadError = (dir, err) => {
   throw new Error(`check-docker-action-runner-safety: cannot read ${dir}: ${err.message}`)
 }
-const yamlFiles = collectYamlFiles(join(CWD, '.github', 'workflows'), { onReadError })
-const templateFiles = collectWorkflowTemplates(join(CWD, 'src', 'templates'), { onReadError })
+// Top-level try/catch (INV-96 fail-closed audit contract): scanFile/collect* already throw
+// non-zero on any unreadable file rather than swallowing, so this wrap changes no behavior —
+// it only turns an uncaught-exception exit(1) into an audited, message-surfacing exit(1).
+try {
+  const yamlFiles = collectYamlFiles(join(CWD, '.github', 'workflows'), { onReadError })
+  const templateFiles = collectWorkflowTemplates(join(CWD, 'src', 'templates'), { onReadError })
 
-const allViolations = [...yamlFiles, ...templateFiles].flatMap((file) => scanFile(file, CWD))
+  const allViolations = [...yamlFiles, ...templateFiles].flatMap((file) => scanFile(file, CWD))
 
-if (allViolations.length > 0) {
-  for (const v of allViolations) {
-    process.stderr.write(
-      `[FAIL] ${v.file}: job "${v.job}" uses docker-container action "${v.ref}" under ` +
-        `expression-based runs-on "${v.runsOn}" — self-hosted runner slots bind-mount the ` +
-        `workspace from the DOCKER HOST, not the slot's own checkout (#1756)\n`,
+  if (allViolations.length > 0) {
+    for (const v of allViolations) {
+      process.stderr.write(
+        `[FAIL] ${v.file}: job "${v.job}" uses docker-container action "${v.ref}" under ` +
+          `expression-based runs-on "${v.runsOn}" — self-hosted runner slots bind-mount the ` +
+          `workspace from the DOCKER HOST, not the slot's own checkout (#1756)\n`,
+      )
+    }
+    process.stdout.write(
+      `check-docker-action-runner-safety: FAIL — ${allViolations.length} docker-container ` +
+        `action(s) paired with a self-hosted-capable runner (#1756)\n`,
     )
+    process.exit(1)
   }
+
   process.stdout.write(
-    `check-docker-action-runner-safety: FAIL — ${allViolations.length} docker-container ` +
-      `action(s) paired with a self-hosted-capable runner (#1756)\n`,
+    `check-docker-action-runner-safety: OK — no docker-container action shares a job with a ` +
+      `self-hosted-capable runner (${yamlFiles.length + templateFiles.length} files scanned, #1756)\n`,
+  )
+  process.exit(0)
+} catch (err) {
+  process.stderr.write(
+    `check-docker-action-runner-safety: ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
   )
   process.exit(1)
 }
-
-process.stdout.write(
-  `check-docker-action-runner-safety: OK — no docker-container action shares a job with a ` +
-    `self-hosted-capable runner (${yamlFiles.length + templateFiles.length} files scanned, #1756)\n`,
-)
-process.exit(0)
