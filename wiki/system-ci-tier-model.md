@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/SYSTEM/CI-TIER-MODEL.md'
-source_sha: '15eb6254d69c149ebee26df308178239a02c2ed0'
+source_sha: '76d1f1d590605b2567243e2b3a578a97089f7d19'
 last_updated: '2026-07-03'
 ---
 
