@@ -29,6 +29,36 @@ describe('runExplain', () => {
     })
   })
 
+  // #1735 (CANON-17): every FS_ERROR_KEYS errno translated by src/utils/fs.ts
+  // must resolve via `arbiter explain <errno>` — otherwise the ArbiterError
+  // footer's "Run `arbiter explain <code>`..." hint is a dead end.
+  describe('FS errno codes (#1735)', () => {
+    const fsErrnoCodes = [
+      'ENOSPC',
+      'EACCES',
+      'EROFS',
+      'EDQUOT',
+      'EPERM',
+      'ENOTDIR',
+      'EISDIR',
+      'ENOENT',
+      'EBUSY',
+      'EMFILE',
+    ]
+
+    it.each(fsErrnoCodes)('returns entry for %s', (code) => {
+      const result = runExplain(code, {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain(code)
+    })
+
+    it('lookup is case-insensitive', () => {
+      const result = runExplain('enoent', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('ENOENT')
+    })
+  })
+
   describe('INV-NN invariant codes', () => {
     it('returns entry for known invariant', () => {
       const result = runExplain('INV-04', {})
