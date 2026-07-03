@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, join, dirname } from 'node:path'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, mkdirSync } from 'node:fs'
 import { buildIntermediate, type AgentRulesIntermediate } from '../agent-rules/intermediate.js'
+import { writeFileTranslated } from '../utils/fs.js'
 import {
   ALL_TARGETS,
   TARGET_SPECS,
@@ -88,7 +89,7 @@ function exportAll(
     const outPath = join(dir, spec.outputPath)
     try {
       mkdirSync(dirname(outPath), { recursive: true })
-      writeFileSync(outPath, content, 'utf-8')
+      writeFileTranslated(outPath, content)
       filesWritten.push(outPath)
     } catch (err) {
       return {

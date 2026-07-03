@@ -12,8 +12,9 @@
  * and `docs/REFERENCE/CLI.md` §Exit codes).
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { writeFileTranslated } from '../utils/fs.js'
 import {
   dispatchClaudeAgent,
   dispatchPlanReview,
@@ -328,7 +329,7 @@ function persistAgentResults(evidenceDir: string, results: AgentResult[]): void 
     const path = join(evidenceDir, `agent-${r.agent}.json`)
     // Skip if dispatcher already wrote this file (real dispatchClaudeAgent does).
     if (existsSync(path)) continue
-    writeFileSync(
+    writeFileTranslated(
       path,
       JSON.stringify(
         {
@@ -340,7 +341,6 @@ function persistAgentResults(evidenceDir: string, results: AgentResult[]): void 
         null,
         2,
       ),
-      'utf-8',
     )
   }
 }

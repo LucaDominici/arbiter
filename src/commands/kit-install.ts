@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { writeFileTranslated } from '../utils/fs.js'
 import { loadConfig, saveConfig, type ArbiterConfig } from '../utils/config.js'
 import { acquireLock, type LockHandle } from '../utils/file-lock.js'
 import type { BrownfieldClass } from '../kit/thresholds.js'
@@ -303,7 +304,7 @@ function writeAuditReport(
     applicabilityReasons,
   )
   mkdirSync(dirname(reportPath), { recursive: true })
-  writeFileSync(reportPath, content, 'utf-8')
+  writeFileTranslated(reportPath, content)
 }
 
 export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstallResult> {

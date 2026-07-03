@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { writeFileTranslated } from '../utils/fs.js'
 import { acquireLock } from '../utils/file-lock.js'
 import type { GovernanceLevel } from '../wizard/types.js'
 import { loadConfig, saveConfig } from '../utils/config.js'
@@ -293,7 +294,7 @@ async function handleExtend(
 
   const lock = await acquireLock(join(arbiterDir, '.lock'))
   try {
-    writeFileSync(logPath, JSON.stringify(log, null, 2) + '\n', 'utf-8')
+    writeFileTranslated(logPath, JSON.stringify(log, null, 2) + '\n')
     await saveConfig(dir, { ...stored, graceEndsAt: newEndsAt })
   } finally {
     await lock.release()
