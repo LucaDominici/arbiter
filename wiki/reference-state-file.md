@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/state-file.md'
 source_sha: '8d73e9900e894836b31e88fbee0de2dcc4cbb82e'
-last_updated: '2026-06-28'
+last_updated: '2026-07-03'
 ---
 
 # `.arbiter-generated.json` State File

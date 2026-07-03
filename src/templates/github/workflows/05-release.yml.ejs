@@ -3,7 +3,10 @@ const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipe
 const _isService = _bucket === 'service';
 const _isCli = _bucket === 'cli';
 const _isBatch = _bucket === 'batch';
-const _slsaL3 = governanceLevel === 'L3';
+// #1720 (gap 1): was literal `governanceLevel === 'L3'`, silently excluding L4 and
+// downgrading L4's release workflow to the weaker "L2 signed" SLSA provenance —
+// contradicts docs/SYSTEM/CI-TIER-MODEL.md:100-102 ("L4 = L3 + SLSA L3 provenance…").
+const _slsaL3 = isL3Plus;
 const _verifyOnSign = governanceLevel !== 'L1';
 %>name: Release (T3)
 

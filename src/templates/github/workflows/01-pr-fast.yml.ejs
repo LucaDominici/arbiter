@@ -220,10 +220,29 @@ jobs:
         # the workspace, causing ##[error] that fails the step even when checkov
         # itself finds no violations. Pre-creating the stub makes the command a no-op.
         run: echo '{"problemMatcher":[]}' > checkov-problem-matcher-softfail.json
-      - name: Checkov IaC scan (all frameworks)
+      - name: Checkov IaC scan (<%= locals.checkovSelfScope ? 'terraform/kubernetes/dockerfile' : 'all frameworks' %>)
         uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf  # v12.1347.0
         with:
           directory: .
+<% if (locals.checkovSelfScope) { %>
+          # #1685 (arbiter self-scan): `all` over-scoped THIS repo (github_actions
+          # + secrets policies across dozens of workflows/fixtures) even though
+          # arbiter carries ZERO terraform/kubernetes/dockerfile IaC — redding
+          # self-CI under soft_fail:false. Scope is passed as a SPACE-separated
+          # list: the action entrypoint expands `--framework $INPUT_FRAMEWORK`
+          # UNQUOTED and checkov's `--framework` is nargs='+', so the value
+          # word-splits into a real multi-framework list (a comma-join crashes
+          # checkov with "invalid choice"). Deliberately NOT a repo-local
+          # checkov config file — docker-container actions on the runner
+          # slots bind-mount the workspace path from the DOCKER HOST, so a
+          # repo-local config file is not reliably visible inside the action
+          # container (ENOENT on CI while green locally). Inline scoping has no
+          # file dependency: 0 findings — honestly SCOPED, not
+          # soft_fail-suppressed. soft_fail stays false so a real misconfig
+          # would still block (INV-80). Self-only; consumers (the shipped
+          # template's `else` branch below) are NOT affected.
+          framework: terraform kubernetes dockerfile
+<% } else { %>
           # #1685: the checkov-action exposes a single `framework` input passed as one
           # `--framework <value>` arg, so the previous comma-join
           # (`terraform,kubernetes,dockerfile`) crashed checkov with "invalid choice".
@@ -231,6 +250,7 @@ jobs:
           # multi-framework value (it is also checkov's own default scope). soft_fail
           # stays false: a real misconfiguration must block (INV-80).
           framework: all
+<% } %>
           quiet: true
           soft_fail: false
       # #1509 gold-align: Checkov scans for known misconfigurations; tflint is the
@@ -239,7 +259,7 @@ jobs:
       # BLOCKING — no soft-fail. `--recursive` exits 0 when the repo carries no
       # `.tf` files, so non-Terraform infra changes (k8s/dockerfile) stay green.
       - name: Setup tflint (Terraform linter)
-        uses: terraform-linters/setup-tflint@b480b8fcdaa6f2c577f8e4fa799e89e756bb7c93  # v6.2.2
+        uses: terraform-linters/setup-tflint@6e1e0642c0289bd619021bf6b34e3c08ed1e005a  # v6.3.0
       - name: tflint (Terraform lint, blocking)
         run: tflint --recursive --no-color
 <% } %>

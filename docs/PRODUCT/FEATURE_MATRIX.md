@@ -116,6 +116,7 @@ Promotion is fail-closed (cannot skip a step).
 | REQ-052    | Living STATUS dashboard (generated, drift-proof)                 |                                 | L1    | Done     | scripts/gen-status.mjs                                                                                                                      | **tests**/scripts/gen-status.test.ts                                                                                                     | docs/PRODUCT/STATUS.md                                                          |           | Drift-proof STATUS.md generated from FEATURE_MATRIX + MILESTONES + PRD; --check gate wired in check-all L1; mirrors gen-doc-index harness                                                                                                                                                                                                                                                                                                    |
 | REQ-053    | /ship orchestration synthesis (single narrative, #1216)          |                                 | L1    | Verified | src/commands/task-ship.ts                                                                                                                   | **tests**/templates/commands-claude.test.ts                                                                                              | .claude/commands/ship.md                                                        | #1216     | /ship is the sole orchestration entrypoint; /task = low-level engine/CLI reference; dual-sided dogfood parity; FEATURE_MATRIX + ADR-088                                                                                                                                                                                                                                                                                                      |
 | REQ-054    | LLM-Wiki generator + lint gate (Karpathy pattern, #1241)         |                                 | L2    | Partial  | scripts/gen-wiki.mjs,scripts/check-wiki-lint.mjs,src/generators/wiki.ts                                                                     | **tests**/gates/wiki-lint-fixture.test.ts,**tests**/generators/wiki.test.ts,**tests**/templates/wiki-gen-render.test.ts                  | docs/ADR/089-collapse-hand-docs-to-ssot-core-plus-generated-wiki.md             | #1241     | Static compiler: docs/ → wiki/ (Obsidian md + wikilinks + citations); 4-dimension lint gate (broken-link, orphan, stale, citation); on-commit incremental hook; dual-sided; INV-116                                                                                                                                                                                                                                                          |
+| REQ-055    | Companion-plugin awareness in /ship (ponytail, #1730)            |                                 | L2    | Done     | src/integrations/companions.ts,src/commands/ship-profile.ts                                                                                 | **tests**/integrations/companions.test.ts,**tests**/commands/task-ship.test.ts                                                           | docs/ADR/100-companion-plugin-awareness.md                                      | #1730     | HOME-only detection; composes green phase on product repos; never arbiter-self; lite\|full only; absent ⇒ byte-identical                                                                                                                                                                                                                                                                                                                     |
 
 <!-- FEATURE_MATRIX_END -->
 
@@ -126,10 +127,10 @@ Promotion is fail-closed (cannot skip a step).
 | Status    | Count  |
 | --------- | ------ |
 | Verified  | 4      |
-| Done      | 3      |
+| Done      | 4      |
 | Partial   | 46     |
 | Missing   | 1      |
-| **Total** | **54** |
+| **Total** | **55** |
 
 ---
 

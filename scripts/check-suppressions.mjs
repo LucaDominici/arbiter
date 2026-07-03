@@ -138,6 +138,7 @@ function checkGitleaksFile(filePath) {
 
 checkJsonFile('suppressions/pii-allowlist.json')
 checkJsonFile('suppressions/archunit-baseline.json')
+checkJsonFile('suppressions/consumer-audit-allowlist.json')
 checkXmlFile('suppressions/dependency-check-suppressions.xml')
 checkGitleaksFile('suppressions/.gitleaksignore')
 

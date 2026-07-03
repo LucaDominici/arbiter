@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-30'
+last_review: '2026-07-01'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 099)
+1. Create `NNN-short-title.md` in this directory (next free number after 102)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -52,7 +52,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 022 | [Universal Baseline-Freeze (MB)](022-universal-baseline-freeze.md)                                                                                                    | Accepted   | 2026-05-20 |  |
 | 023 | [Self-Hosted CI Runner (docker-ci-build)](023-self-hosted-ci-runner.md)                                                                                               | Accepted   | 2026-05-20 |  |
 | 024 | [Suppression Pattern with Mandatory Expiry](024-suppression-expiry-escape-hatch.md)                                                                                   | Accepted   | 2026-05-20 |  |
-| 025 | [Claim-Verified Governance Documents](025-claim-verified-governance-docs.md)                                                                                          | Accepted   | 2026-05-20 |  |
+| 025 | [Claim-Verified Governance Documents](025-claim-verified-governance-docs.md)                                                                                          | Accepted   | 2026-07-01 |  |
 | 026 | [Scaled Thresholds and Practical/Pedantic Strictness Tiers](026-scaled-thresholds.md)                                                                                 | Accepted   | 2026-05-20 |  |
 | 027 | [Real-Project Nightly Matrix](027-real-project-nightly-matrix.md)                                                                                                     | Accepted   | 2026-05-20 |  |
 | 028 | [Grace Period for Level Upgrade + Contract Type Axis](028-level-upgrade-grace-and-contract-type.md)                                                                   | Accepted   | 2026-05-20 |  |
@@ -127,3 +127,6 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 097 | [Context-rot-management skill (CLI-first 3-layer redundancy)](097-context-rot-management-skill.md)                                                                    | accepted   | 2026-06-19 |  |
 | 098 | [Progressive-adoption tiers (bootstrap on-ramp)](098-progressive-adoption-tiers.md)                                                                                   | Accepted   | 2026-06-20 |  |
 | 099 | [Native zero-dependency xlsx writer (drop exceljs)](099-native-xlsx-writer.md)                                                                                        | Accepted   | 2026-06-30 |  |
+| 100 | [Companion-plugin awareness in /ship](100-companion-plugin-awareness.md)                                                                                              | accepted   | 2026-07-01 |  |
+| 101 | [runnerProfile cadence axis (solo/fleet)](101-runner-profile-cadence-axis.md)                                                                                         | Accepted   | 2026-07-01 |  |
+| 102 | [gate the workflow-template-emitted dims at L3](102-l3-workflow-dim-gating.md)                                                                                        | Accepted   | 2026-07-01 |  |

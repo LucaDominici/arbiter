@@ -149,6 +149,56 @@ describe('validateConfig — valid v2', () => {
   })
 })
 
+describe('validateConfig — companions override map (#1730)', () => {
+  const base = {
+    version: '0.2',
+    tools: ['claude'],
+    governanceLevel: 'L2',
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: false,
+      securityScanning: false,
+      evidenceHarness: false,
+      debtGates: false,
+      suppressions: true,
+    },
+    thresholds: DEFAULT_THRESHOLDS.L2,
+  }
+
+  it('accepts a well-formed companions map', () => {
+    const r = validateConfig({
+      ...base,
+      companions: { ponytail: { enabled: false, mode: 'lite' } },
+    })
+    expect(r.ok).toBe(true)
+  })
+
+  it('rejects a non-object companions value', () => {
+    const r = validateConfig({ ...base, companions: 'not-an-object' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('companions'))).toBe(true)
+  })
+
+  it('rejects an array companions value', () => {
+    const r = validateConfig({ ...base, companions: ['ponytail'] })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('companions'))).toBe(true)
+  })
+
+  it('rejects mode outside lite|full — ultra can never enter through config', () => {
+    const r = validateConfig({ ...base, companions: { ponytail: { mode: 'ultra' } } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('companions.ponytail.mode'))).toBe(true)
+  })
+
+  it('rejects non-boolean enabled', () => {
+    const r = validateConfig({ ...base, companions: { ponytail: { enabled: 'yes' } } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('companions.ponytail.enabled'))).toBe(true)
+  })
+})
+
 describe('validateConfig — rejection', () => {
   it('rejects invalid governanceLevel', () => {
     const result = validateConfig({
@@ -711,6 +761,9 @@ describe('validateConfig — constrained-union optionals (#1579, #1589)', () => 
     ['contractType', 'rest-owned'],
     ['contractType', 'message-queue'],
     ['contractType', 'none'],
+    // #1693: runnerProfile axis (ADR-101).
+    ['runnerProfile', 'solo'],
+    ['runnerProfile', 'fleet'],
   ])('accepts %s="%s"', (field, value) => {
     const r = validateConfig({ ...BASE_VALID, [field]: value })
     expect(r.ok).toBe(true)
@@ -723,6 +776,8 @@ describe('validateConfig — constrained-union optionals (#1579, #1589)', () => 
     ['strictnessTier', 'practical '],
     ['thresholdProfile', 'scaledd'],
     ['contractType', 'rest'],
+    // #1693: runnerProfile axis (ADR-101).
+    ['runnerProfile', 'sfleet'],
   ])('rejects typo %s="%s" with a precise diagnostic', (field, value) => {
     const r = validateConfig({ ...BASE_VALID, [field]: value })
     expect(r.ok).toBe(false)

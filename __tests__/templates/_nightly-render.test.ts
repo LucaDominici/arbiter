@@ -111,3 +111,63 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).toContain('releases/download/v2.12.0/toxiproxy-server-linux-amd64')
   })
 })
+
+// #1693 (ADR-101): runnerProfile axis. 'fleet' (default) keeps fuzz+soak-e2e at
+// nightly cadence (byte-behavior-identical to pre-#1693). 'solo' moves them to
+// the weekly partial (see _weekly-render.test.ts) — nightly must drop both the
+// job definitions AND every dangling needs:/RESULTS reference to them.
+describe('_nightly.yml.ejs — runnerProfile axis (#1693, ADR-101)', () => {
+  const STACKS = [
+    { language: 'typescript', buildTool: 'npm' },
+    { language: 'java', buildTool: 'gradle' },
+    { language: 'go', buildTool: 'go' },
+    { language: 'python', buildTool: 'pip' },
+    { language: 'rust', buildTool: 'cargo' },
+  ] as const
+
+  it.each(STACKS)(
+    '$language: fleet (default) keeps fuzz + soak-e2e nightly',
+    ({ language, buildTool }) => {
+      const rendered = renderNightlyPartial({ language, buildTool })
+      expect(rendered).toContain('fuzz:')
+      expect(rendered).toContain('soak-e2e:')
+      expect(rendered).toContain('- fuzz')
+      expect(rendered).toContain('- soak-e2e')
+      expect(rendered).toContain('needs.fuzz.result')
+      expect(rendered).toContain('needs.soak-e2e.result')
+    },
+  )
+
+  it.each(STACKS)(
+    '$language: runnerProfile=solo removes fuzz + soak-e2e from nightly entirely',
+    ({ language, buildTool }) => {
+      const rendered = renderNightlyPartial({ language, buildTool, runnerProfile: 'solo' })
+      expect(rendered).not.toContain('fuzz:')
+      expect(rendered).not.toContain('soak-e2e:')
+      expect(rendered).not.toContain('- fuzz')
+      expect(rendered).not.toContain('- soak-e2e')
+      expect(rendered).not.toContain('needs.fuzz.result')
+      expect(rendered).not.toContain('needs.soak-e2e.result')
+    },
+  )
+
+  it('runnerProfile=solo leaves no EJS tag leaks', () => {
+    const rendered = renderNightlyPartial({ runnerProfile: 'solo' })
+    expect(rendered).not.toContain('<%')
+    expect(rendered).not.toContain('%>')
+  })
+
+  // #1693 INV-48: direct path-string render of the extracted partial (not merely
+  // transitive coverage via the parent) — satisfies check-template-tests.mjs's
+  // literal relPath/stem match without bumping the baseline.
+  it('scheduled-heavy-jobs.ejs partial renders fuzz + soak-e2e directly', () => {
+    const rendered = renderTemplate(
+      'github/workflows/_partials/scheduled-heavy-jobs.ejs',
+      makeConfig('/tmp/test', { language: 'typescript', buildTool: 'npm' }),
+    )
+    expect(rendered).toContain('fuzz:')
+    expect(rendered).toContain('soak-e2e:')
+    expect(rendered).not.toContain('<%')
+    expect(rendered).not.toContain('%>')
+  })
+})

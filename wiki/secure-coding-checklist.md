@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/SECURE_CODING_CHECKLIST.md'
-source_sha: 'ada7cb3cbfeaea9f5201cdb274e536a579551b77'
-last_updated: '2026-06-28'
+source_sha: 'b5954ce6e9a3ae3b3809815a81b0d2354d57322d'
+last_updated: '2026-07-03'
 ---
 
 # Secure Coding Checklist
@@ -38,6 +38,10 @@ _arbiter self-config — TypeScript L3. Review before every PR merge._
 ## Dependency Security
 
 - [ ] `npm audit --omit=dev --audit-level=high` passes
+- [ ] Consumer-resolution audit passes (`node scripts/check-consumer-audit.mjs`, #1718): packs the
+      publishable tarball, installs it into a throwaway root with no repo `overrides`/devDeps, and
+      audits that tree at a stricter `moderate` floor — closes the blind spot where npm silently
+      drops root `overrides` for anyone who installs `@arbiter/cli` as a dependency
 - [ ] No CVEs suppressed without justification + review date
 - [ ] CVSS ≥ 9.0 CVEs must have written ADR before suppression
 - [ ] Dependencies pinned to minor version or have lockfile

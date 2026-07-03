@@ -2,7 +2,7 @@
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { jsonOutput } from '../utils/json-output.js'
-import { SKILLS_MATRIX } from '../integrations/skills-matrix.js'
+import { SKILLS_MATRIX, bareName } from '../integrations/skills-matrix.js'
 import type { SkillEntry } from '../integrations/skills-matrix.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
 
@@ -24,11 +24,6 @@ interface IntegrationStatus extends SkillEntry {
 export interface IntegrationsListResult {
   detected: IntegrationStatus[]
   recommended: IntegrationStatus[]
-}
-
-/** The bare skill name of a (possibly namespaced) id — `superpowers:tdd` → `tdd`. */
-function bareName(id: string): string {
-  return id.includes(':') ? (id.split(':')[1] ?? id) : id
 }
 
 export function runIntegrationsList(opts: IntegrationsListOptions = {}): IntegrationsListResult {

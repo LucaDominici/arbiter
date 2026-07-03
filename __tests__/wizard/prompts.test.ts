@@ -51,6 +51,7 @@ interface ClackAnswers {
   brownfieldClass?: string
   industryOverlay?: string
   autonomy?: string
+  runnerProfile?: string
   /** Final "Proceed?" confirmation. Defaults to true. */
   proceed?: boolean
 }
@@ -84,6 +85,7 @@ function setupClack(answers: ClackAnswers): void {
     if (message.startsWith('Brownfield class')) return answers.brownfieldClass
     if (message.startsWith('Industry compliance overlay')) return answers.industryOverlay
     if (message.startsWith('Ship autonomy level')) return answers.autonomy
+    if (message.startsWith('Runner profile')) return answers.runnerProfile
     return undefined
   })
 }
@@ -484,6 +486,73 @@ describe('runWizard autonomy prompt (#1261)', () => {
     const out = writeSpy.mock.calls.map((c) => String(c[0])).join('')
     writeSpy.mockRestore()
     expect(out).toMatch(/autonomy: L1/)
+  })
+})
+
+// #1693 (ADR-101): runner profile axis — the wizard prompt that chooses whether
+// the fuzz + soak-e2e heavy sweeps run nightly (fleet) or weekly (solo).
+describe('runWizard runnerProfile prompt (#1693)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    process.exitCode = 0
+  })
+
+  afterEach(() => {
+    process.exitCode = 0
+  })
+
+  it('asks the runnerProfile select with safe default fleet (initialValue)', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
+
+    await runWizard(makeWizardInput())
+    const call = vi
+      .mocked(clack.select)
+      .mock.calls.find((c) => (c[0] as { message: string }).message.startsWith('Runner profile'))
+    expect(call).toBeDefined()
+    expect((call![0] as { initialValue?: string }).initialValue).toBe('fleet')
+  })
+
+  it('threads the selected runnerProfile into the resulting config', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      runnerProfile: 'solo',
+      proceed: true,
+    })
+
+    const result = await runWizard(makeWizardInput())
+    expect(result!.runnerProfile).toBe('solo')
+  })
+
+  it('defaults runnerProfile to fleet when left at its default', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
+
+    const result = await runWizard(makeWizardInput())
+    expect(result!.runnerProfile).toBe('fleet')
+  })
+
+  it('cancel at the runnerProfile prompt aborts the wizard with exitCode 130', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+    })
+    cancelSelectWhen((m) => m.startsWith('Runner profile'))
+
+    const result = await runWizard(makeWizardInput())
+    expect(result).toBeNull()
+    expect(process.exitCode).toBe(130)
   })
 })
 

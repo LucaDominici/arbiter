@@ -565,6 +565,15 @@ async function collectRawAnswers(wizardInput: WizardInput): Promise<RawAnswers> 
     }),
   )
 
+  // 18 — #1693 (ADR-101): runner profile axis. Default 'fleet' (current behavior).
+  raw.runnerProfile = await unwrap(
+    select({
+      message: RUNNER_PROFILE_MESSAGE,
+      options: RUNNER_PROFILE_OPTIONS,
+      initialValue: 'fleet',
+    }),
+  )
+
   return raw
 }
 
@@ -710,6 +719,8 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     pipelineStyle: answers.pipelineStyle ?? 'standard',
     brownfieldClass: answers.brownfieldClass ?? 'gold',
     kitEnabled: true,
+    // #1693 (ADR-101): runner profile axis. Default 'fleet' — current behavior.
+    runnerProfile: answers.runnerProfile ?? 'fleet',
     // #1254/#1261: compliance-overlay + ship-autonomy Project-Profile axes.
     ...buildProfileAxes(answers),
   }
@@ -982,4 +993,27 @@ const AUTONOMY_OPTIONS: Opt<AutonomyLevel>[] = [
   { value: 'L1', label: 'L1 — auto-advance + auto-merge on green' },
   { value: 'L2', label: 'L2 — + autonomous fix-on-red attempt' },
   { value: 'L3', label: 'L3 — full auto: wave/batch + fix push + sub-agents' },
+]
+
+// #1693 (ADR-101): runner profile axis — moves the fuzz + soak-e2e heavy
+// scheduled jobs between nightly and weekly cadence. Orthogonal to
+// collaborationMode/pipelineStyle. Message must start with the literal
+// 'Runner profile' so the message-keyed test mock can match it.
+const RUNNER_PROFILE_MESSAGE = [
+  'Runner profile — cadence for the fuzz + soak/E2E heavy scheduled sweeps:',
+  '',
+  '  fleet — heavy sweeps (fuzz, soak/E2E) run nightly  [recommended for CI fleets]',
+  '  solo  — heavy sweeps run weekly instead (single self-hosted runner / solo dev)',
+  '',
+].join('\n')
+
+const RUNNER_PROFILE_OPTIONS: Opt<'solo' | 'fleet'>[] = [
+  {
+    value: 'fleet',
+    label: 'fleet — heavy sweeps run nightly  [recommended for CI fleets]',
+  },
+  {
+    value: 'solo',
+    label: 'solo  — heavy sweeps run weekly instead (single self-hosted runner)',
+  },
 ]

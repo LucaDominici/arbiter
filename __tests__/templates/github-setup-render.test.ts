@@ -133,7 +133,11 @@ describe('check-ci-tiers.mjs.ejs rendering (CANON-04)', () => {
 
   it('gated-review L3 lists the full nightly suite + heartbeat in canonical order', () => {
     const content = renderTiers({ collaborationMode: 'gated-review', governanceLevel: 'L3' })
-    const matches = content.match(/'\d\d-[a-z-]+\.yml'/g) ?? []
+    // Scope the match to the REQUIRED_TIERS array declaration itself (#1720 added an
+    // L3+ content-strictness check later in the file that legitimately references
+    // '05-release.yml' again outside the array — this test is about array order).
+    const arrayBlock = /REQUIRED_TIERS = \[([\s\S]*?)\]/.exec(content)?.[1] ?? ''
+    const matches = arrayBlock.match(/'\d\d-[a-z-]+\.yml'/g) ?? []
     expect(matches).toEqual([
       "'01-pr-fast.yml'",
       "'02-pr-extended.yml'",

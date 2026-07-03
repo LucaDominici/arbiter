@@ -33,6 +33,7 @@ import {
   type GeneratorFailure,
   type GeneratorSpec,
 } from '../generators/registry.js'
+import { resolveStyle } from '../generators/github.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../utils/render.js'
@@ -1157,11 +1158,42 @@ function buildProviderFields(
 }
 
 /**
+ * Build the default-collapsing governance-axis fields. Extracted from
+ * buildOptionalAxisFields when #1693's runnerProfile condition pushed that
+ * function past the 10-branch complexity ceiling. These axes persist only on
+ * an explicit opt-in away from their semantic default ('fleet'/'none'), so a
+ * clean round-trip emits byte-identical output to a config that never
+ * mentions them (ADR-101, #1254, #1616).
+ */
+function buildCollapsedAxisFields(
+  config: ProjectConfig,
+): Pick<ArbiterConfig, 'runnerProfile' | 'industryOverlay' | 'deployTarget'> {
+  return {
+    // #1693: persist runnerProfile only when it opts INTO 'solo' — the 'fleet'
+    // default collapses to absence (ADR-101).
+    ...(config.runnerProfile !== undefined && config.runnerProfile !== 'fleet'
+      ? { runnerProfile: config.runnerProfile }
+      : {}),
+    // #1254: persist the compliance overlay so doctor can flag the cell and
+    // `arbiter update` re-emits the overlay. Omitted when none/absent.
+    ...(config.industryOverlay !== undefined && config.industryOverlay !== 'none'
+      ? { industryOverlay: config.industryOverlay }
+      : {}),
+    // #1616: persist deployTarget so `arbiter update`/`diff` re-emit the deploy
+    // workflows/infra. Without this the round-trip rebuilt ProjectConfig with
+    // deployTarget=undefined→'none', silently disabling it on every update.
+    ...(config.deployTarget !== undefined && config.deployTarget !== 'none'
+      ? { deployTarget: config.deployTarget }
+      : {}),
+  }
+}
+
+/**
  * Build the optional governance-axis portion of the stored config. Extracted from
  * buildArbiterConfig to keep its cyclomatic complexity within the 15-branch ceiling
  * (#1616 added deployTarget + taxonomy, pushing the inline spread block over it).
- * Each field is persisted only when present; industryOverlay/deployTarget also
- * collapse their semantic-'none' to absence so a clean round-trip omits them.
+ * Each field is persisted only when present; the default-collapsing axes
+ * (runnerProfile/industryOverlay/deployTarget) live in buildCollapsedAxisFields.
  */
 function buildOptionalAxisFields(
   config: ProjectConfig,
@@ -1174,6 +1206,7 @@ function buildOptionalAxisFields(
   | 'basePackage'
   | 'deployTarget'
   | 'taxonomy'
+  | 'runnerProfile'
 > {
   return {
     ...(config.evidenceRetention !== undefined
@@ -1181,19 +1214,10 @@ function buildOptionalAxisFields(
       : {}),
     ...(config.thresholdProfile !== undefined ? { thresholdProfile: config.thresholdProfile } : {}),
     ...(config.strictnessTier !== undefined ? { strictnessTier: config.strictnessTier } : {}),
-    // #1254: persist the compliance overlay so doctor can flag the cell and
-    // `arbiter update` re-emits the overlay. Omitted when none/absent.
-    ...(config.industryOverlay !== undefined && config.industryOverlay !== 'none'
-      ? { industryOverlay: config.industryOverlay }
-      : {}),
+    ...buildCollapsedAxisFields(config),
     ...(config.basePackage !== undefined ? { basePackage: config.basePackage } : {}),
-    // #1616: persist deployTarget + taxonomy so `arbiter update`/`diff` re-emit the
-    // deploy workflows/infra and custom test-taxonomy dimensions. Without this the
-    // round-trip rebuilt ProjectConfig with deployTarget=undefined→'none' and
-    // taxonomy=undefined→[], silently disabling both on every update.
-    ...(config.deployTarget !== undefined && config.deployTarget !== 'none'
-      ? { deployTarget: config.deployTarget }
-      : {}),
+    // #1616: persist taxonomy so `arbiter update`/`diff` re-emit the custom
+    // test-taxonomy dimensions (taxonomy=undefined→[] otherwise).
     ...(config.taxonomy !== undefined ? { taxonomy: config.taxonomy } : {}),
   }
 }
@@ -1420,8 +1444,113 @@ function capabilitiesForGenerator(
         { feature: 'a11y', language: 'python' },
         { feature: 'e2e', language: 'python' },
       ]
+    // #1678: the 'github' registry key emits all CI workflow templates. The
+    // workflow-template-emitted dims (fuzz/dast/sbom/etc.) are derived from the emission
+    // plan via deriveWorkflowCapabilities. Routed through this case (not iterated
+    // separately) so the existing spec.enabled check gates it: workflow caps are
+    // consulted only when github is actually emitted (no false-block when disabled).
+    case 'github':
+      return deriveWorkflowCapabilities(config)
     default:
       return []
+  }
+}
+
+/**
+ * #1678: the archetype→service bucket mirrors the `_bucket`/`_isService` map in the
+ * workflow EJS (`_nightly.yml.ejs`/`_shared-security.yml.ejs`). A 4th copy of this map
+ * (3 already live in the EJS) — recorded as tech-debt (CANON-22): the root-cause fix is a
+ * shared emission-plan module consumed by both the github generator and the gate, with
+ * the bucket lifted out of EJS; that CANON-04/13/05 refactor is out of scope for this
+ * gate-extension issue (filed as a follow-up).
+ */
+function serviceBucket(archetype: ProjectConfig['archetype']): 'service' | 'cli' | 'batch' | 'lib' {
+  const map: Record<string, 'service' | 'cli' | 'batch' | 'lib'> = {
+    'backend-web-db': 'service',
+    cli: 'cli',
+    embedded: 'cli',
+    'data-pipeline': 'batch',
+  }
+  return map[archetype] ?? 'lib'
+}
+
+/**
+ * #1678: derive the workflow-template-emitted L3 maturity capabilities from the actual
+ * emission plan (the github.ts + EJS predicates), so the L3 gate consults the dims the CI
+ * workflows will really run. Mirrors `src/generators/github.ts` emission predicates + the
+ * EJS job-level `_isService` guards; the drift-detection test
+ * (`init-l3-workflow-drift.test.ts`) verifies the mirror against the rendered workflows.
+ * `hasMatrixCell` skips `multi`/unmodelled (no false-block) — see the #1678 follow-ups for
+ * the kotlin/multi matrix-gap (those languages aren't gated on these dims yet).
+ * Exported for unit + drift tests.
+ */
+export function deriveWorkflowCapabilities(config: ProjectConfig): L3MaturityCapability[] {
+  // The L3 gate only runs at L3; deriveWorkflowCapabilities is reached via case 'github'
+  // which is only consulted at L3, but guard anyway for direct unit-test callers.
+  if (config.governanceLevel !== 'L3') return []
+  const c = workflowCtx(config)
+  const lang = config.language
+  return WORKFLOW_DIM_RULES.filter((r) => r.emit(c))
+    .flatMap((r) => r.dims)
+    .map((feature) => ({ feature, language: lang }))
+}
+
+/**
+ * #1678: the workflow-dim emission rules — one row per dim (or dim group sharing a
+ * predicate), mirroring the github.ts + EJS emission predicates. Data-driven so
+ * deriveWorkflowCapabilities stays under the complexity ceiling (the decision points live
+ * in the small per-row predicates, not in a branched function body). See the inline
+ * comments for the emission source of each dim; the drift test verifies the mirror.
+ */
+const WORKFLOW_DIM_RULES: ReadonlyArray<{
+  dims: MaturityFeature[]
+  emit: (c: WorkflowCtx) => boolean
+}> = [
+  // 02-pr-extended license-scan job — always, not service-guarded.
+  { dims: ['license_scan'], emit: () => true },
+  // 01-pr-fast gitleaks (enableSecurityScanning) OR 05/_nightly (style !== starter) OR
+  // 07-weekly-lite (cm === trunk-solo).
+  {
+    dims: ['secret_scan'],
+    emit: (c) => c.secScanning || c.style !== 'starter' || c.cm === 'trunk-solo',
+  },
+  // 02-pr-extended Trivy (service) OR 04-deploy-test Trivy (deploy).
+  { dims: ['container_scan'], emit: (c) => c.isService || c.deploy },
+  // 05-release (style !== starter) OR 04/10-deploy.
+  { dims: ['sbom', 'binary_signing'], emit: (c) => c.style !== 'starter' || c.deploy },
+  // 05-release slsa-provenance/attest-build-provenance ONLY (style !== starter). 04 emits
+  // SBOM attestation (sbom dim); 10's provenance gate is cosign verify (consume).
+  { dims: ['provenance'], emit: (c) => c.style !== 'starter' },
+  // _nightly fuzz job (scheduled suite).
+  { dims: ['fuzz'], emit: (c) => c.isScheduled },
+  // _shared-security dast-full (scheduled + service) OR 04-deploy-test dast-baseline (deploy).
+  { dims: ['dast'], emit: (c) => (c.isScheduled && c.isService) || c.deploy },
+]
+
+/**
+ * #1678: the workflow-emission context the gate derives from, computed once. Extracted
+ * from deriveWorkflowCapabilities to keep that function under the complexity ceiling
+ * (decision points live here, not in the dim branches).
+ */
+interface WorkflowCtx {
+  style: 'starter' | 'standard' | 'industrial'
+  cm: string
+  deploy: boolean
+  isService: boolean
+  isScheduled: boolean
+  secScanning: boolean
+}
+
+function workflowCtx(config: ProjectConfig): WorkflowCtx {
+  const style = resolveStyle(config)
+  const cm = config.collaborationMode ?? 'peer-review'
+  return {
+    style,
+    cm,
+    deploy: (config.deployTarget ?? 'none') !== 'none',
+    isService: serviceBucket(config.archetype) === 'service',
+    isScheduled: style !== 'starter' && cm !== 'trunk-solo', // scheduled suite at L3
+    secScanning: config.enableSecurityScanning,
   }
 }
 

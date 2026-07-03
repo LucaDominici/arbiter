@@ -309,6 +309,16 @@ describe('impactedGenerators — scoped regen', () => {
     expect(keys.has('rust-boundaries')).toBe(true)
   })
 
+  // #1693: runnerProfile axis (ADR-101) — a cadence-only change re-emits only
+  // the github workflows (fuzz+soak move between _nightly/_weekly).
+  it('runnerProfile change → github (scoped)', () => {
+    const a = baseV2({ runnerProfile: 'fleet' })
+    const b = baseV2({ runnerProfile: 'solo' })
+    const keys = impactedGenerators(diffConfig(a, b))
+    expect(keys.has('*')).toBe(false)
+    expect(keys.has('github')).toBe(true)
+  })
+
   it('taxonomy change → test-taxonomy + api-e2e (scoped)', () => {
     const a = baseV2({ taxonomy: { domainDims: ['billing'] } })
     const b = baseV2({ taxonomy: { domainDims: ['billing', 'fraud'] } })

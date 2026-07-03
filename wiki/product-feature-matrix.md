@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/PRODUCT/FEATURE_MATRIX.md'
-source_sha: '38d14051e91d4bdbe345d398cdfebe54dd4d30d0'
-last_updated: '2026-06-28'
+source_sha: 'd82fece8de8c492bb1380dbd26f2fda0ccbc1b38'
+last_updated: '2026-07-03'
 ---
 
 # FEATURE_MATRIX — Product Truth RTM

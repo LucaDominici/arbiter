@@ -687,4 +687,94 @@ describe('check-ci-tiers.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
     const req = requiredTiers({ collaborationMode: 'peer-review', governanceLevel: 'L1' })
     expect(req).toEqual(['01-pr-fast.yml', '02-pr-extended.yml', '03-human-approval.yml'])
   })
+
+  // #1720 — INV-72 content strictness: existence alone let gap 1 (05-release.yml.ejs
+  // silently downgrading L4's SLSA provenance to L2 "signed") stay invisible to this
+  // gate. At L3+, when 05-release.yml is required, also assert its CONTENT declares
+  // L3 hermetic SLSA provenance — not merely that the file exists.
+  describe('gap 1 content strictness (#1720, INV-72)', () => {
+    function runRenderedWithContent(
+      overrides: Record<string, unknown>,
+      workflowContents: Record<string, string>,
+    ): { status: number; stdout: string } {
+      const dir = mkdtempSync(join(tmpdir(), 'ci-tiers-content-'))
+      try {
+        const scriptsDir = join(dir, 'scripts')
+        const wfDir = join(dir, '.github', 'workflows')
+        mkdirSync(scriptsDir, { recursive: true })
+        mkdirSync(wfDir, { recursive: true })
+        writeFileSync(
+          join(scriptsDir, 'check-ci-tiers.mjs'),
+          renderTemplate('scripts/check-ci-tiers.mjs.ejs', makeData(overrides)),
+        )
+        for (const [f, content] of Object.entries(workflowContents)) {
+          writeFileSync(join(wfDir, f), content)
+        }
+        const r = spawnSync('node', [join(scriptsDir, 'check-ci-tiers.mjs')], {
+          encoding: 'utf-8',
+          cwd: dir,
+        })
+        return { status: r.status ?? 1, stdout: r.stdout ?? '' }
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    }
+
+    // Build a full set of stub workflow files for `overrides`' required-tier set, with
+    // `05-release.yml` given the caller's content — isolates the content assertion from
+    // the (already separately tested) existence check.
+    function stubWorkflows(
+      overrides: Record<string, unknown>,
+      releaseContent: string,
+    ): Record<string, string> {
+      const out: Record<string, string> = {}
+      for (const f of requiredTiers(overrides)) {
+        out[f] = f === '05-release.yml' ? releaseContent : `# stub ${f}\n`
+      }
+      return out
+    }
+
+    it('L3+: FAILS when 05-release.yml exists but lacks the L3 hermetic marker', () => {
+      const overrides = { collaborationMode: 'peer-review', governanceLevel: 'L3' }
+      const { status, stdout } = runRenderedWithContent(
+        overrides,
+        stubWorkflows(overrides, 'name: SLSA provenance (L2 signed)\n'),
+      )
+      expect(status).toBe(1)
+      expect(stdout).toContain('L3 hermetic')
+    })
+
+    it('L3+: PASSES when 05-release.yml declares the L3 hermetic marker', () => {
+      const overrides = { collaborationMode: 'peer-review', governanceLevel: 'L3' }
+      const { status } = runRenderedWithContent(
+        overrides,
+        stubWorkflows(overrides, 'name: SLSA provenance (L3 hermetic)\n'),
+      )
+      expect(status).toBe(0)
+    })
+
+    it('L2: existence-only, no content assertion (unaffected by L3+ content gate)', () => {
+      const overrides = { collaborationMode: 'peer-review', governanceLevel: 'L2' }
+      const { status } = runRenderedWithContent(
+        overrides,
+        stubWorkflows(overrides, 'name: SLSA provenance (L2 signed)\n'),
+      )
+      expect(status).toBe(0)
+    })
+
+    it('L4 starter (ciTierMode baseline): 05-release.yml not required — content gate inert, no false-fail', () => {
+      const overrides = {
+        collaborationMode: 'peer-review',
+        governanceLevel: 'L4',
+        ciTierMode: 'baseline',
+      }
+      // A starter-style L4 project never generates 05-release.yml; the required
+      // set excludes it, so the L3+ content gate must skip rather than fail.
+      expect(requiredTiers(overrides)).not.toContain('05-release.yml')
+      const stubs: Record<string, string> = {}
+      for (const f of requiredTiers(overrides)) stubs[f] = `# stub ${f}\n`
+      const { status } = runRenderedWithContent(overrides, stubs)
+      expect(status).toBe(0)
+    })
+  })
 })

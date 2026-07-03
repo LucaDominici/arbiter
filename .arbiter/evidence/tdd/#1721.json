@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1721",
+  "test_path": "__tests__/scripts/gen-llms-txt.test.ts",
+  "test_commit_sha": "e219f003b63a1dd093ec61d8e0457fb20da76d13",
+  "test_run_log": "\n RUN  v4.1.9 /home/luca/work/repos/arbiter/.claude/worktrees/wf_56b4216a-e9f-16\n\n ❯ __tests__/scripts/gen-llms-txt.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  21:28:04\n   Duration  334ms (transform 109ms, setup 46ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/gen-llms-txt.test.ts [ __tests__/scripts/gen-llms-txt.test.ts ]\nError: Cannot find module '../../scripts/gen-llms-txt.mjs' imported from /home/luca/work/repos/arbiter/.claude/worktrees/wf_56b4216a-e9f-16/__tests__/scripts/gen-llms-txt.test.ts\n ❯ __tests__/scripts/gen-llms-txt.test.ts:11:1\n      9| import { join, resolve } from 'node:path'\n     10| import { tmpdir } from 'node:os'\n     11| import { buildLlmsTxt, readDocCount, findMissingPaths, runCli } from '…\n       | ^\n     12|\n     13| const SCRIPT = resolve('scripts/gen-llms-txt.mjs')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/gen-llms-txt.test.ts",
+  "recorded_at": "2026-07-01T19:28:05.281Z"
+}
