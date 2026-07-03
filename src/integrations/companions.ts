@@ -72,6 +72,8 @@ export interface ResolveCompanionsInput {
   self: boolean
   /** The user's Claude home (`~/.claude`). The ONLY tree scanned — never a target repo. */
   claudeHome: string
+  /** Optional primitive language hint for conservative per-stack defaulting (`java` → lite). */
+  language?: string
   /** Optional per-companion overrides from arbiter.json, keyed by bare name or full skillId. */
   overrides?: Record<string, CompanionOverride>
 }
@@ -91,7 +93,7 @@ export function resolveCompanions(input: ResolveCompanionsInput): ActiveCompanio
 
   const active: ActiveCompanion[] = []
   for (const entry of SKILLS_MATRIX) {
-    const one = resolveOne(entry, installedIds, installedBare, input.overrides)
+    const one = resolveOne(entry, installedIds, installedBare, input.overrides, input.language)
     if (one) active.push(one)
   }
   return active
@@ -103,26 +105,43 @@ function resolveOne(
   installedIds: ReadonlySet<string>,
   installedBare: ReadonlySet<string>,
   overrides: Record<string, CompanionOverride> | undefined,
+  language: string | undefined,
 ): ActiveCompanion | null {
   const policy = entry.companion
   if (!policy) return null
   if (!installedIds.has(entry.id) && !installedBare.has(bareName(entry.id))) return null
   const override = overrides?.[bareName(entry.id)] ?? overrides?.[entry.id]
   if (override?.enabled === false) return null
-  return { id: entry.id, label: policy.label, mode: resolveMode(override, policy), policy }
+  return {
+    id: entry.id,
+    label: policy.label,
+    mode: resolveMode(override, policy, language),
+    policy,
+  }
 }
+
+const CONSERVATIVE_LITE_STACKS = new Set(['java', 'kotlin', 'csharp'])
 
 /**
  * Defense-in-depth below the schema validator: an override mode outside the lite|full
- * union (e.g. `ultra` from a hand-built map) falls back to the policy default instead
- * of propagating — ultra stays unrepresentable end-to-end.
+ * union (e.g. `ultra` from a hand-built map) falls back to the normal precedence chain
+ * instead of propagating — explicit override > conservative stack default > policy
+ * default — so ultra stays unrepresentable end-to-end.
  */
 function resolveMode(
   override: CompanionOverride | undefined,
   policy: CompanionPolicy,
+  language: string | undefined,
 ): CompanionMode {
   const mode = override?.mode
-  return mode === 'lite' || mode === 'full' ? mode : policy.defaultMode
+  if (mode === 'lite' || mode === 'full') return mode
+  return defaultModeForStack(language, policy)
+}
+
+function defaultModeForStack(language: string | undefined, policy: CompanionPolicy): CompanionMode {
+  return language !== undefined && CONSERVATIVE_LITE_STACKS.has(language)
+    ? 'lite'
+    : policy.defaultMode
 }
 
 /**

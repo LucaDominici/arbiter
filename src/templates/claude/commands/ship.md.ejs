@@ -123,7 +123,10 @@ Companion: ponytail (full) · arbiter gates remain the safety net
 - **Gates stay authoritative** — if the persona cuts too much, your gate catches it.
 
 Configure in `arbiter.json` (optional): `companions.ponytail.enabled=false` disables it;
-`companions.ponytail.mode="lite"` downgrades it. arbiter never vendors a companion's code.
+`companions.ponytail.mode="lite"` or `"full"` wins explicitly. Without an override, arbiter
+uses a conservative stack default: `java`, `kotlin`, and `csharp` resolve companions to `lite`;
+other stacks (including TypeScript/JavaScript/Python) stay on the policy default `full`.
+`ultra` is never representable. arbiter never vendors a companion's code.
 
 ---
 

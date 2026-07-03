@@ -21,6 +21,7 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { loadConfig } from '../utils/config.js'
 import { resolveCompanions, type ActiveCompanion } from '../integrations/companions.js'
+import { resolveLanguage } from '../detectors/language.js'
 import { getLogger } from '../utils/logger.js'
 import {
   resolveCollaborationMode,
@@ -271,7 +272,7 @@ export function resolveShipProfile(
   // config (config === null) contributes no profile value and each falls to
   // override/session/floor — consistent with the whole-profile degrade above (RT-03).
   const prefs = resolveProfilePrefs(root, overrides, config?.automation)
-  const companions = profileCompanions(self, opts, config)
+  const companions = profileCompanions(root, self, opts, config)
   if (config === null) {
     return { ...CONSUMER_DEFAULT_PROFILE, isArbiterSelf: self, autonomy, ...prefs, companions }
   }
@@ -284,6 +285,7 @@ export function resolveShipProfile(
  * from resolveShipProfile to keep it under the complexity ceiling.
  */
 function profileCompanions(
+  root: string,
   self: boolean,
   opts: ResolveShipProfileOptions,
   config: ReturnType<typeof loadConfig>,
@@ -291,6 +293,7 @@ function profileCompanions(
   return resolveCompanions({
     self,
     claudeHome: opts.claudeHome ?? join(homedir(), '.claude'),
+    language: resolveLanguage(root, config ?? undefined),
     ...(config?.companions ? { overrides: config.companions } : {}),
   })
 }

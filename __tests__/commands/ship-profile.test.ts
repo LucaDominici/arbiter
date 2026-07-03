@@ -152,6 +152,35 @@ describe('resolveShipProfile — companion plugins (#1730)', () => {
     expect(p.companions[0]?.mode).toBe('full')
   })
 
+  it('stored java language resolves the companion to lite mode', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'pom.xml': '<project />',
+      'arbiter.json': cfg({ language: 'java' }),
+    })
+    const p = resolveShipProfile(dir, { claudeHome: homeWithPonytail() })
+    expect(p.companions[0]?.mode).toBe('lite')
+  })
+
+  it('falls back to existing stack detection when no language is stored', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'pom.xml': '<project />',
+    })
+    const p = resolveShipProfile(dir, { claudeHome: homeWithPonytail() })
+    expect(p.companions[0]?.mode).toBe('lite')
+  })
+
+  it('explicit companion override still beats the stack default inside ship-profile', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'pom.xml': '<project />',
+      'arbiter.json': cfg({ language: 'java', companions: { ponytail: { mode: 'full' } } }),
+    })
+    const p = resolveShipProfile(dir, { claudeHome: homeWithPonytail() })
+    expect(p.companions[0]?.mode).toBe('full')
+  })
+
   it('arbiter-self + ponytail installed → NO companion (self guard)', () => {
     const dir = tmpRepo({ 'package.json': pkg('@arbiter/cli') })
     const p = resolveShipProfile(dir, { claudeHome: homeWithPonytail() })

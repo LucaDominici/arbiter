@@ -77,6 +77,42 @@ describe('resolveCompanions (#1730)', () => {
     expect(active[0]?.mode).toBe('lite')
   })
 
+  it.each(['java', 'kotlin', 'csharp'])(
+    'defaults %s stacks to lite mode when the companion is installed',
+    (language) => {
+      const active = resolveCompanions({ self: false, claudeHome: makeHome(true), language })
+      expect(active[0]?.mode).toBe('lite')
+    },
+  )
+
+  it.each(['typescript', 'javascript', 'python'])(
+    'keeps %s stacks at full mode by default',
+    (language) => {
+      const active = resolveCompanions({ self: false, claudeHome: makeHome(true), language })
+      expect(active[0]?.mode).toBe('full')
+    },
+  )
+
+  it('explicit override mode:full beats the conservative java lite default', () => {
+    const active = resolveCompanions({
+      self: false,
+      claudeHome: makeHome(true),
+      language: 'java',
+      overrides: { ponytail: { mode: 'full' } },
+    })
+    expect(active[0]?.mode).toBe('full')
+  })
+
+  it('explicit override mode:lite beats the typescript full default', () => {
+    const active = resolveCompanions({
+      self: false,
+      claudeHome: makeHome(true),
+      language: 'typescript',
+      overrides: { ponytail: { mode: 'lite' } },
+    })
+    expect(active[0]?.mode).toBe('lite')
+  })
+
   it('is a HOME-ONLY signal: the resolver takes a single options object and no targetDir', () => {
     // Structural spoofing guard: a hostile repo cannot pass its own tree to this resolver,
     // so a committed .claude/plugins/ponytail in a target repo can never force activation.
@@ -140,16 +176,17 @@ describe('companion formatters (#1730)', () => {
     expect(companionStatusLine(active)).toMatch(/ponytail \(full\)/)
   })
 
-  it('sanitizes an out-of-union override mode at resolution — ultra falls back to the policy default', () => {
+  it('sanitizes an out-of-union override mode at resolution — ultra falls back to stack default before policy default', () => {
     // Defense-in-depth below the schema validator: even if a malformed override map reaches
     // resolution (e.g. a caller bypassing loadConfig), `ultra` must never survive.
     const active = resolveCompanions({
       self: false,
       claudeHome: makeHome(true),
+      language: 'java',
       overrides: { ponytail: { mode: 'ultra' as unknown as 'lite' } },
     })
     expect(active).toHaveLength(1)
-    expect(active[0]?.mode).toBe('full')
+    expect(active[0]?.mode).toBe('lite')
   })
 
   it('formatters render multiple companions in the given (registry) order, deterministically', () => {

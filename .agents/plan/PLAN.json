@@ -1,13 +1,17 @@
 {
-  "run_id": "task-20260703-1745",
+  "run_id": "task-20260703-1745-1746",
   "task_id": "#1745",
   "scope": {
     "track": "B",
     "paths": [
       "src/integrations/companions.ts",
       "src/commands/task-ship.ts",
+      "src/commands/ship-profile.ts",
       "__tests__/integrations/companions.test.ts",
       "__tests__/commands/task-ship.test.ts",
+      "__tests__/commands/ship-profile.test.ts",
+      ".claude/commands/ship.md",
+      "src/templates/claude/commands/ship.md.ejs",
       "docs/ADR/100-companion-plugin-awareness.md"
     ]
   },
@@ -15,7 +19,7 @@
     {
       "path": "src/integrations/companions.ts",
       "operation": "modify",
-      "reason": "Add the companion evidence schema, writer, and branch diff-stat collection."
+      "reason": "Add companion evidence writing and stack-aware companion mode defaults."
     },
     {
       "path": "src/commands/task-ship.ts",
@@ -23,9 +27,14 @@
       "reason": "Invoke companion evidence writing during verification when companions are active."
     },
     {
+      "path": "src/commands/ship-profile.ts",
+      "operation": "modify",
+      "reason": "Thread the resolved project language into companion resolution."
+    },
+    {
       "path": "__tests__/integrations/companions.test.ts",
       "operation": "modify",
-      "reason": "Cover evidence writing plus companion-free and arbiter-self no-write states."
+      "reason": "Cover evidence writing, empty states, conservative stack defaults, and override precedence."
     },
     {
       "path": "__tests__/commands/task-ship.test.ts",
@@ -33,11 +42,26 @@
       "reason": "Cover verification-phase evidence emission through the ship command path."
     },
     {
+      "path": "__tests__/commands/ship-profile.test.ts",
+      "operation": "modify",
+      "reason": "Cover language forwarding from resolveShipProfile into companion resolution."
+    },
+    {
+      "path": ".claude/commands/ship.md",
+      "operation": "modify",
+      "reason": "Document stack-aware companion-mode defaults and explicit override precedence."
+    },
+    {
+      "path": "src/templates/claude/commands/ship.md.ejs",
+      "operation": "modify",
+      "reason": "Keep the generated ship command template aligned with the command SSOT text."
+    },
+    {
       "path": "docs/ADR/100-companion-plugin-awareness.md",
       "operation": "modify",
       "reason": "Document the measurement contract and the known tension this evidence feeds."
     }
   ],
-  "invariants": ["INV-04", "INV-08", "INV-17", "INV-24", "INV-26", "INV-27", "INV-63"],
-  "gate": "npx vitest run __tests__/integrations/companions.test.ts __tests__/commands/task-ship.test.ts"
+  "invariants": ["INV-02", "INV-04", "INV-08", "INV-17", "INV-24", "INV-26", "INV-27", "INV-63", "INV-115"],
+  "gate": "npx vitest run __tests__/integrations/companions.test.ts __tests__/commands/task-ship.test.ts __tests__/commands/ship-profile.test.ts"
 }
