@@ -46,7 +46,7 @@ At **L2**, T0 runs:
 - Unit tests (`<%= testCommand ?? 'npm test' %>`)
 - Build (`<%= buildCommand ?? 'npm run build' %>`)
 <% } %>
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
 At **<%= governanceLevel %>**, T0 runs:
 - Format check
 - Lint
@@ -79,7 +79,7 @@ What runs:
 - Integration tests (subset)
 - SCA (dependency vulnerability scan)
 <% } %>
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
 - Build + lint + unit tests + coverage
 - Integration tests (subset)
 - SCA + SAST baseline
@@ -105,7 +105,7 @@ What runs:
 - Full integration test suite
 - DAST baseline (ZAP/OWASP)
 - SCA deep scan
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
 - Architecture tests (ArchUnit / boundaries)
 - Mutation test sample
 <% } %>
@@ -123,12 +123,12 @@ What runs:
 
 What runs:
 - Full build + test suite
-<% if (governanceLevel === 'L2' || governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL2Plus) { %>
 - SLSA provenance generation
 - Artifact signing (cosign keyless)
 - SBOM generation (CycloneDX)
 <% } %>
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
 - Release notes generation
 - Container image build + push + sign
 <% } %>
@@ -162,7 +162,7 @@ What runs:
 - Gitleaks history scan
 <% } %>
 <% } %>
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
 <% if (collaborationMode === 'trunk-solo') { %>
 - Integration tests (full)
 - Dependency CVE refresh
@@ -187,7 +187,7 @@ What runs:
 
 ---
 
-<% if (collaborationMode === 'trunk-solo' && (governanceLevel === 'L3' || governanceLevel === 'L4')) { %>
+<% if (collaborationMode === 'trunk-solo' && isL3Plus) { %>
 ## Solo Reactivation Check (T4+)
 
 **When:** Runs inside the nightly workflow (T4)
@@ -232,7 +232,7 @@ This check is the technical enforcement of the reactivation trigger declared in
 | Integration tests | T4 (nightly) — alerts; does not block push |
 <% } %>
 | Release artifact signing | T3 (release) — blocks release |
-<% if (collaborationMode === 'trunk-solo' && (governanceLevel === 'L3' || governanceLevel === 'L4')) { %>
+<% if (collaborationMode === 'trunk-solo' && isL3Plus) { %>
 | Reactivation trigger | T4 (nightly) — alerts; requires immediate remediation |
 <% } %>
 | Nightly CVE scan (high+) | T4 (nightly) — alerts via workflow failure |

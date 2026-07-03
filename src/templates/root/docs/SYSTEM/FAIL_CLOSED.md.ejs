@@ -58,7 +58,7 @@ Every gate/hook/check/generator emitted under `scripts/`, `.githooks/`,
    * Bash: `set -euo pipefail` at the top.
    * Node: `try/catch` around the entry block OR `runCheck` family helpers.
    * Exit codes follow the contract: `0 = PASS`, `1 = FAIL`, `2 = ERROR`.
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { -%>
+<% if (isL3Plus) { -%>
 
 ### Additional L3/L4 enforcement
 

@@ -15,7 +15,7 @@ const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json');
 
 // ─── Load baseline ────────────────────────────────────────────────────────────
 if (!existsSync(BASELINE_FILE)) {
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
   process.stderr.write('[arbiter] GATE FAIL: debt-baseline.json not found. Run: node scripts/capture-debt-baseline.mjs\n');
   process.exit(1);
 <% } else { %>

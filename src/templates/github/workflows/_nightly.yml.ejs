@@ -306,7 +306,7 @@ jobs:
 <% } %>
 
 <%# E1 (#1502): heavy tools moved off the PR path land here at nightly cadence. %>
-<% const _covThreshold = (governanceLevel === 'L3' || governanceLevel === 'L4') ? 85 : 80; %>
+<% const _covThreshold = isL3Plus ? 85 : 80; %>
   coverage-report:
     name: Coverage report + threshold (full suite)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}

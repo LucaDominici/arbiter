@@ -290,7 +290,7 @@ When adding a new external call or adapter, verify each item:
 - [ ] **Retry on 5xx only** — verify the retry predicate excludes 4xx explicitly. A broad
       `catch(Exception)` retry predicate is a bug.
 
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
 
 ---
 

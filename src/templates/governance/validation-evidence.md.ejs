@@ -31,7 +31,7 @@ governance_level: '<%= governanceLevel %>'
 |------|--------|----------|-------|
 | L1 (build + lint + unit) | _[ PASS / FAIL ]_ | _[Xs]_ | |
 | L2 (L1 + coverage + integration) | _[ PASS / FAIL ]_ | _[Xs]_ | |
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
 | Mutation testing | _[ PASS / FAIL ]_ | _[Xs]_ | |
 | SAST / CodeQL | _[ PASS / FAIL ]_ | _[Xs]_ | |
 <% } %>
@@ -49,9 +49,9 @@ governance_level: '<%= governanceLevel %>'
 |--------|-------|-----------|--------|
 | Unit test count | _[N]_ | — | |
 | Unit test pass rate | _[N/N (100%)]_ | 100% | _[ PASS / FAIL ]_ |
-| Branch coverage | _[NN%]_ | <%= governanceLevel === 'L3' || governanceLevel === 'L4' ? '85%' : '80%' %> | _[ PASS / FAIL ]_ |
-| Line coverage | _[NN%]_ | <%= governanceLevel === 'L3' || governanceLevel === 'L4' ? '85%' : '80%' %> | _[ PASS / FAIL ]_ |
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+| Branch coverage | _[NN%]_ | <%= isL3Plus ? '85%' : '80%' %> | _[ PASS / FAIL ]_ |
+| Line coverage | _[NN%]_ | <%= isL3Plus ? '85%' : '80%' %> | _[ PASS / FAIL ]_ |
+<% if (isL3Plus) { %>
 | Mutation score | _[NN%]_ | 70% | _[ PASS / FAIL ]_ |
 | Duplication ratio | _[NN%]_ | 3% | _[ PASS / FAIL ]_ |
 <% } %>
@@ -68,7 +68,7 @@ List all artefacts captured in this run (SHA-pinned):
 | L1 gate output | _[sha256:...]_ | `.evidence/run-NNNN/L1.txt` |
 | L2 gate output | _[sha256:...]_ | `.evidence/run-NNNN/L2.txt` |
 | Coverage report | _[sha256:...]_ | `.evidence/run-NNNN/coverage.json` |
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
 | Mutation report | _[sha256:...]_ | `.evidence/run-NNNN/mutation.json` |
 <% } %>
 <% if (governanceLevel === 'L4') { %>
