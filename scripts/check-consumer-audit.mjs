@@ -122,15 +122,31 @@ export function classifyConsumerAudit(auditJson, allowlist, now) {
 
   const unsuppressed = []
   for (const [pkgKey, raw] of Object.entries(vulnerabilities)) {
-    const vuln = /** @type {Record<string, unknown>} */ (raw)
-    const severity = typeof vuln?.severity === 'string' ? vuln.severity : ''
-    if (!SEVERITY_FLOOR.has(severity)) continue
-    const name = typeof vuln?.name === 'string' ? vuln.name : pkgKey
-    const ids = deriveScopeIds(name, vuln?.via)
-    if (isSuppressed(ids, allowlist, now)) continue
-    unsuppressed.push({ package: name, severity, ids: [...ids] })
+    const entry = classifyVulnEntry(pkgKey, raw, allowlist, now)
+    if (entry) unsuppressed.push(entry)
   }
   return { unsuppressed, errored: false }
+}
+
+/**
+ * Classify a single `vulnerabilities` entry: the unsuppressed-finding record
+ * when the vuln meets the severity floor and no allowlist disposition covers
+ * it, or null when it is below the floor / suppressed. Extracted from
+ * classifyConsumerAudit to keep both under the 10-branch complexity ceiling.
+ * @param {string} pkgKey
+ * @param {unknown} raw
+ * @param {Array<Record<string, unknown>>} allowlist
+ * @param {Date} now
+ * @returns {{ package: string, severity: string, ids: string[] } | null}
+ */
+function classifyVulnEntry(pkgKey, raw, allowlist, now) {
+  const vuln = /** @type {Record<string, unknown>} */ (raw)
+  const severity = typeof vuln?.severity === 'string' ? vuln.severity : ''
+  if (!SEVERITY_FLOOR.has(severity)) return null
+  const name = typeof vuln?.name === 'string' ? vuln.name : pkgKey
+  const ids = deriveScopeIds(name, vuln?.via)
+  if (isSuppressed(ids, allowlist, now)) return null
+  return { package: name, severity, ids: [...ids] }
 }
 
 // ─── Impure runner (npm pack -> install -> audit) ─────────────────────────────
@@ -182,6 +198,152 @@ function loadAllowlist(repoRoot) {
 }
 
 /**
+ * Step 1: pack the publishable tarball WITHOUT running lifecycle scripts. A bare
+ * `npm pack` triggers `prepack` (`rm -rf dist && tsc && gen-third-party-licenses`),
+ * which would delete/rebuild dist/ and rewrite a tracked file MID-GATE — the
+ * destructive footgun this gate must never reintroduce. `--pack-destination`
+ * keeps the tarball out of the repo tree so the gate leaves the tree clean.
+ * @param {(args: string[], opts: object) => import('node:child_process').SpawnSyncReturns<string>} runNpm
+ * @param {string} repoRoot
+ * @param {string} packDir
+ * @returns {{ tarballPath: string } | { code: number }}
+ */
+function packTarball(runNpm, repoRoot, packDir) {
+  const pack = runNpm(['pack', '--json', '--ignore-scripts', '--pack-destination', packDir], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+    maxBuffer: MAX_BUFFER,
+  })
+  if (pack.error) {
+    process.stderr.write(
+      `check-consumer-audit: npm pack failed to invoke — ${pack.error.message}\n`,
+    )
+    return { code: 2 }
+  }
+  if (pack.status !== 0) {
+    process.stderr.write(`check-consumer-audit: npm pack failed\n${pack.stderr ?? ''}\n`)
+    return { code: 2 }
+  }
+  const filename = tarballNameFromPackOutput(pack.stdout)
+  if (filename === null) return { code: 2 }
+  return { tarballPath: join(packDir, filename) }
+}
+
+/**
+ * Parse `npm pack --json` stdout down to the packed tarball filename, or null
+ * (with the failure surfaced on stderr) when the payload is unparseable or
+ * missing the filename. Extracted from packTarball for the complexity ceiling.
+ * @param {string} stdout
+ * @returns {string | null}
+ */
+function tarballNameFromPackOutput(stdout) {
+  let packed
+  try {
+    packed = JSON.parse(stdout)
+  } catch (err) {
+    process.stderr.write(
+      `check-consumer-audit: could not parse npm pack --json output — ${err?.message ?? err}\n`,
+    )
+    return null
+  }
+  const filename = packed?.[0]?.filename
+  if (typeof filename !== 'string' || filename.length === 0) {
+    process.stderr.write('check-consumer-audit: npm pack output missing tarball filename\n')
+    return null
+  }
+  return filename
+}
+
+/**
+ * Step 2: install the tarball into a throwaway root: no repo `overrides` apply
+ * (npm only honours overrides for the root project being installed), no devDeps
+ * (never installed for a dependency), and no repo .npmrc (installRoot lives
+ * under os.tmpdir(), outside the repo's cwd-walk) — the actual consumer view.
+ * @param {(args: string[], opts: object) => import('node:child_process').SpawnSyncReturns<string>} runNpm
+ * @param {string} installRoot
+ * @param {string} tarballPath
+ * @returns {number} 0 on success, INV-53 exit code otherwise
+ */
+function installTarball(runNpm, installRoot, tarballPath) {
+  writeFileSync(
+    join(installRoot, 'package.json'),
+    JSON.stringify({ name: 'consumer-probe', private: true, version: '0.0.0' }, null, 2),
+  )
+  const install = runNpm(['install', tarballPath, '--no-audit', '--no-fund', '--ignore-scripts'], {
+    cwd: installRoot,
+    encoding: 'utf-8',
+    maxBuffer: MAX_BUFFER,
+  })
+  if (install.error) {
+    process.stderr.write(
+      `check-consumer-audit: npm install failed to invoke — ${install.error.message}\n`,
+    )
+    return 2
+  }
+  if (install.status !== 0) {
+    const combined = `${install.stderr ?? ''}\n${install.stdout ?? ''}`
+    process.stderr.write(`check-consumer-audit: npm install failed\n${combined}\n`)
+    return 2
+  }
+  return 0
+}
+
+/**
+ * Step 3: audit the resolved consumer tree. Never trust the exit code — `npm audit`
+ * exits non-zero whenever ANY vuln exists; this gate's own policy (moderate
+ * floor + dated disposition allowlist) decides pass/fail, not npm's default.
+ * @param {(args: string[], opts: object) => import('node:child_process').SpawnSyncReturns<string>} runNpm
+ * @param {string} installRoot
+ * @returns {{ auditJson: unknown } | { code: number }}
+ */
+function runConsumerAudit(runNpm, installRoot) {
+  const audit = runNpm(['audit', '--json'], {
+    cwd: installRoot,
+    encoding: 'utf-8',
+    maxBuffer: MAX_BUFFER,
+  })
+  if (audit.error) {
+    process.stderr.write(
+      `check-consumer-audit: npm audit failed to invoke — ${audit.error.message}\n`,
+    )
+    return { code: 2 }
+  }
+  try {
+    return { auditJson: JSON.parse(audit.stdout) }
+  } catch (err) {
+    process.stderr.write(
+      `check-consumer-audit: could not parse npm audit --json output — ${err?.message ?? err}\n`,
+    )
+    return { code: 2 }
+  }
+}
+
+/**
+ * Print the FAIL report for unsuppressed consumer-facing vulns.
+ * @param {Array<{ package: string, severity: string, ids: string[] }>} unsuppressed
+ * @returns {number} 1 (gate FAIL, INV-53)
+ */
+function reportUnsuppressed(unsuppressed) {
+  process.stderr.write(
+    `check-consumer-audit: FAIL — ${unsuppressed.length} unsuppressed consumer-facing vulnerabilit${
+      unsuppressed.length === 1 ? 'y' : 'ies'
+    } >= moderate:\n`,
+  )
+  for (const v of unsuppressed) {
+    process.stderr.write(`  ${v.package}  [${v.severity}]  ids: ${v.ids.join(', ')}\n`)
+  }
+  process.stderr.write(
+    '\nRemediate at source (bump/replace the dependency), or add a dated disposition to\n' +
+      'suppressions/consumer-audit-allowlist.json (reason + owner + expiresAt + scope)\n' +
+      'referencing a tracking issue. Never lower the moderate floor.\n',
+  )
+  return 1
+}
+
+/**
+ * Orchestrate pack -> install -> audit -> classify. Each step lives in its own
+ * helper (packTarball/installTarball/runConsumerAudit/reportUnsuppressed) to
+ * keep every function under the 10-branch complexity ceiling.
  * @param {string} repoRoot
  * @returns {number} exit code (INV-53)
  */
@@ -192,114 +354,28 @@ function main(repoRoot) {
   const runNpm = (/** @type {string[]} */ args, /** @type {object} */ opts) =>
     spawnSync(npmCmd[0], [...npmCmd.slice(1), ...args], opts)
   try {
-    // 1. Pack the publishable tarball WITHOUT running lifecycle scripts. A bare `npm
-    // pack` triggers `prepack` (`rm -rf dist && tsc && gen-third-party-licenses`),
-    // which would delete/rebuild dist/ and rewrite a tracked file MID-GATE — the
-    // destructive footgun this gate must never reintroduce. `--pack-destination`
-    // keeps the tarball out of the repo tree so the gate leaves the tree clean.
-    const pack = runNpm(['pack', '--json', '--ignore-scripts', '--pack-destination', packDir], {
-      cwd: repoRoot,
-      encoding: 'utf-8',
-      maxBuffer: MAX_BUFFER,
-    })
-    if (pack.error) {
-      process.stderr.write(
-        `check-consumer-audit: npm pack failed to invoke — ${pack.error.message}\n`,
-      )
-      return 2
-    }
-    if (pack.status !== 0) {
-      process.stderr.write(`check-consumer-audit: npm pack failed\n${pack.stderr ?? ''}\n`)
-      return 2
-    }
-    let packed
-    try {
-      packed = JSON.parse(pack.stdout)
-    } catch (err) {
-      process.stderr.write(
-        `check-consumer-audit: could not parse npm pack --json output — ${err?.message ?? err}\n`,
-      )
-      return 2
-    }
-    const filename = packed?.[0]?.filename
-    if (typeof filename !== 'string' || filename.length === 0) {
-      process.stderr.write('check-consumer-audit: npm pack output missing tarball filename\n')
-      return 2
-    }
-    const tarballPath = join(packDir, filename)
+    const packResult = packTarball(runNpm, repoRoot, packDir)
+    if ('code' in packResult) return packResult.code
 
-    // 2. Install the tarball into a throwaway root: no repo `overrides` apply (npm
-    // only honours overrides for the root project being installed), no devDeps
-    // (never installed for a dependency), and no repo .npmrc (installRoot lives
-    // under os.tmpdir(), outside the repo's cwd-walk) — the actual consumer view.
-    writeFileSync(
-      join(installRoot, 'package.json'),
-      JSON.stringify({ name: 'consumer-probe', private: true, version: '0.0.0' }, null, 2),
-    )
-    const install = runNpm(
-      ['install', tarballPath, '--no-audit', '--no-fund', '--ignore-scripts'],
-      { cwd: installRoot, encoding: 'utf-8', maxBuffer: MAX_BUFFER },
-    )
-    if (install.error) {
-      process.stderr.write(
-        `check-consumer-audit: npm install failed to invoke — ${install.error.message}\n`,
-      )
-      return 2
-    }
-    if (install.status !== 0) {
-      const combined = `${install.stderr ?? ''}\n${install.stdout ?? ''}`
-      process.stderr.write(`check-consumer-audit: npm install failed\n${combined}\n`)
-      return 2
-    }
+    const installCode = installTarball(runNpm, installRoot, packResult.tarballPath)
+    if (installCode !== 0) return installCode
 
-    // 3. Audit the resolved consumer tree. Never trust the exit code — `npm audit`
-    // exits non-zero whenever ANY vuln exists; this gate's own policy (moderate
-    // floor + dated disposition allowlist) decides pass/fail, not npm's default.
-    const audit = runNpm(['audit', '--json'], {
-      cwd: installRoot,
-      encoding: 'utf-8',
-      maxBuffer: MAX_BUFFER,
-    })
-    if (audit.error) {
-      process.stderr.write(
-        `check-consumer-audit: npm audit failed to invoke — ${audit.error.message}\n`,
-      )
-      return 2
-    }
-    let auditJson
-    try {
-      auditJson = JSON.parse(audit.stdout)
-    } catch (err) {
-      process.stderr.write(
-        `check-consumer-audit: could not parse npm audit --json output — ${err?.message ?? err}\n`,
-      )
-      return 2
-    }
+    const auditResult = runConsumerAudit(runNpm, installRoot)
+    if ('code' in auditResult) return auditResult.code
 
     const allowlist = loadAllowlist(repoRoot)
-    const { unsuppressed, errored } = classifyConsumerAudit(auditJson, allowlist, new Date())
+    const { unsuppressed, errored } = classifyConsumerAudit(
+      auditResult.auditJson,
+      allowlist,
+      new Date(),
+    )
     if (errored) {
       process.stderr.write(
         'check-consumer-audit: malformed npm audit payload (neither vulnerabilities nor metadata present)\n',
       )
       return 2
     }
-    if (unsuppressed.length > 0) {
-      process.stderr.write(
-        `check-consumer-audit: FAIL — ${unsuppressed.length} unsuppressed consumer-facing vulnerabilit${
-          unsuppressed.length === 1 ? 'y' : 'ies'
-        } >= moderate:\n`,
-      )
-      for (const v of unsuppressed) {
-        process.stderr.write(`  ${v.package}  [${v.severity}]  ids: ${v.ids.join(', ')}\n`)
-      }
-      process.stderr.write(
-        '\nRemediate at source (bump/replace the dependency), or add a dated disposition to\n' +
-          'suppressions/consumer-audit-allowlist.json (reason + owner + expiresAt + scope)\n' +
-          'referencing a tracking issue. Never lower the moderate floor.\n',
-      )
-      return 1
-    }
+    if (unsuppressed.length > 0) return reportUnsuppressed(unsuppressed)
 
     process.stdout.write(
       'check-consumer-audit: OK (consumer-resolved tree clean at moderate floor)\n',
