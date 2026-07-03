@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/PRD.md'
 source_sha: 'd9ffb9948f00919cc2d9e8b355982c3941cb336f'
-last_updated: '2026-07-02'
+last_updated: '2026-07-03'
 ---
 
 # Arbiter — Product Requirements Document

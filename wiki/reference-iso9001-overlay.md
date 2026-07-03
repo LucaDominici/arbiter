@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/iso9001-overlay.md'
 source_sha: '593f471b79e89195718dd9d634f79f1a298ea63f'
-last_updated: '2026-07-02'
+last_updated: '2026-07-03'
 ---
 
 # ISO 9001 Overlay — Reference

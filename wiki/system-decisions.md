@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/SYSTEM/DECISIONS.md'
-source_sha: '339983777714cf08ab69425bb56781c1f69d2618'
-last_updated: '2026-07-01'
+source_sha: '94dc465cab67b9165a5fec20ec772783a1beb407'
+last_updated: '2026-07-03'
 ---
 
 # Architectural Decision Records — Generated Digest

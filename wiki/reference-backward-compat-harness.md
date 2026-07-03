@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/backward-compat-harness.md'
 source_sha: 'bd719f5e13674c3071f43b16034b173f83c7e2ab'
-last_updated: '2026-07-02'
+last_updated: '2026-07-03'
 ---
 
 # Backward-Compatibility Test Harness

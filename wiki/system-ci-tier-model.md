@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/CI-TIER-MODEL.md'
 source_sha: '15eb6254d69c149ebee26df308178239a02c2ed0'
-last_updated: '2026-07-01'
+last_updated: '2026-07-03'
 ---
 
 # CI Tier Model — Cadence × Governance
