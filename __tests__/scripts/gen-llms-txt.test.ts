@@ -247,6 +247,61 @@ describe('findMissingPaths()', () => {
     }
   })
 
+  it('validates relative markdown links embedded in description prose', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'commands'))
+      const config = {
+        title: 't',
+        summary: 's',
+        intro: 'i',
+        sections: [
+          {
+            heading: 'H',
+            entries: [
+              {
+                label: 'commands/',
+                path: 'commands',
+                description: 'See [ship.md](.claude/commands/ship.md) for details.',
+              },
+            ],
+          },
+        ],
+      }
+      expect(findMissingPaths(config, dir)).toEqual(['.claude/commands/ship.md'])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('ignores http(s) URLs and anchor-only links inside description prose', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'commands'))
+      const config = {
+        title: 't',
+        summary: 's',
+        intro: 'i',
+        sections: [
+          {
+            heading: 'H',
+            entries: [
+              {
+                label: 'commands/',
+                path: 'commands',
+                description:
+                  'See [llmstxt.org](https://llmstxt.org) and [anchor](#section) for details.',
+              },
+            ],
+          },
+        ],
+      }
+      expect(findMissingPaths(config, dir)).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
   it('validates extraLinks paths too', () => {
     const { dir, cleanup } = makeTemp()
     try {

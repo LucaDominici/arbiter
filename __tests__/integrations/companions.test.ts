@@ -12,6 +12,7 @@ import {
   resolveCompanions,
   companionGreenInstruction,
   companionStatusLine,
+  diagnoseCompanions,
 } from '../../src/integrations/companions.js'
 import { clearSkillCache, detectInstalledSkills } from '../../src/integrations/skill-detector.js'
 
@@ -203,5 +204,59 @@ describe('companion formatters (#1730)', () => {
     expect(companionStatusLine([b, a])).toBe('caveman (full), ponytail (lite)')
     // announce-only companion (no greenInstruction) contributes nothing to the green text
     expect(companionGreenInstruction([a, b])).toBe('A lite.')
+  })
+})
+
+describe('diagnoseCompanions (#1747 — arbiter doctor Companions section)', () => {
+  it('reports installed:true, policy-default mode/source when nothing overrides it', () => {
+    const rows = diagnoseCompanions({ claudeHome: makeHome(true) })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      id: 'ponytail:ponytail',
+      label: 'ponytail',
+      installed: true,
+      disabledByConfig: false,
+      mode: 'full',
+      modeSource: 'policy default',
+    })
+  })
+
+  it('reports installed:false (not an error) when nothing is installed, still resolving a mode', () => {
+    const rows = diagnoseCompanions({ claudeHome: makeHome(false) })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.installed).toBe(false)
+    expect(rows[0]?.mode).toBe('full')
+    expect(rows[0]?.modeSource).toBe('policy default')
+  })
+
+  it('reports disabledByConfig:true for an installed companion disabled via arbiter.json', () => {
+    const rows = diagnoseCompanions({
+      claudeHome: makeHome(true),
+      overrides: { ponytail: { enabled: false } },
+    })
+    expect(rows[0]?.installed).toBe(true)
+    expect(rows[0]?.disabledByConfig).toBe(true)
+  })
+
+  it('sources an explicit mode override as "arbiter.json override"', () => {
+    const rows = diagnoseCompanions({
+      claudeHome: makeHome(true),
+      overrides: { ponytail: { mode: 'lite' } },
+    })
+    expect(rows[0]?.mode).toBe('lite')
+    expect(rows[0]?.modeSource).toBe('arbiter.json override')
+  })
+
+  it('sources a conservative stack default (java) as "stack default" absent any override', () => {
+    const rows = diagnoseCompanions({ claudeHome: makeHome(true), language: 'java' })
+    expect(rows[0]?.mode).toBe('lite')
+    expect(rows[0]?.modeSource).toBe('stack default')
+  })
+
+  it('never diverges from resolveCompanions on the active-mode value (shared precedence chain)', () => {
+    const home = makeHome(true)
+    const active = resolveCompanions({ self: false, claudeHome: home, language: 'java' })
+    const rows = diagnoseCompanions({ claudeHome: home, language: 'java' })
+    expect(rows[0]?.mode).toBe(active[0]?.mode)
   })
 })

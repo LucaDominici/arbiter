@@ -22,6 +22,7 @@ import { resolveChannel } from '../utils/channel.js'
 import { detectLanguage } from '../detectors/language.js'
 import { runProbes } from '../compatibility/probe.js'
 import { isArbiterSelf } from './ship-profile.js'
+import { diagnoseCompanions } from '../integrations/companions.js'
 import { isValidPhase } from './task-state.js'
 import {
   validateCollaborationCoherence,
@@ -73,6 +74,12 @@ export interface DoctorHealthOptions {
   channelFlag?: string
   /** When true, auto-release stale `.arbiter/.lock` files instead of only reporting them. */
   repair?: boolean
+  /**
+   * #1747 — the Claude home scanned for installed companion plugins, mirroring
+   * `ResolveShipProfileOptions.claudeHome` (ship-profile.ts). Defaults to `~/.claude`; tests
+   * inject an isolated dir for determinism. Never the target repo (spoofing guard, #1730).
+   */
+  claudeHome?: string
 }
 
 export interface DoctorHealthResult {
@@ -116,7 +123,7 @@ function checkGitAvailable(dir: string): [HealthCheck, boolean] {
   return [check, gitOk]
 }
 
-function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
+function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): HealthCheck[] {
   const out: HealthCheck[] = []
   if (!existsSync(join(dir, 'arbiter.json'))) return out
 
@@ -166,8 +173,48 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
   out.push(checkOverlayCoherence(dir))
   out.push(checkAutonomyCoherence(dir))
   out.push(checkProfileCoherence(dir))
+  out.push(checkCompanionHealth(dir, claudeHome))
 
   return out
+}
+
+/**
+ * #1747: surface companion-plugin state in `doctor` so "the companion silently vanished
+ * after a machine rebuild" is diagnosable without reading `/ship` output first. Delegates
+ * every precedence decision to {@link diagnoseCompanions} (the same resolver `/ship` itself
+ * uses, via `resolveModeWithSource`), so this can never drift from ship's own resolution
+ * (CANON-22 — one source of truth for the mode chain).
+ *
+ * On arbiter-self, no companion ever activates (arbiter's own complexity is load-bearing —
+ * see companions.ts), so this reports a single self-guard note instead of a per-entry row.
+ * A malformed `arbiter.json` degrades to the registry-default precedence (no overrides)
+ * rather than throwing — doctor's job is to report state, never to crash over a config typo.
+ */
+function checkCompanionHealth(dir: string, claudeHome?: string): HealthCheck {
+  const base = { id: 'companions', label: 'Companions', status: 'PASS' as HealthStatus }
+  if (isArbiterSelf(dir)) {
+    return {
+      ...base,
+      detail: 'companions never activate on arbiter-self (its own complexity is load-bearing)',
+    }
+  }
+  const cfg = readRawCoherenceConfig(dir)
+  const rows = diagnoseCompanions({
+    claudeHome: claudeHome ?? join(os.homedir(), '.claude'),
+    language: detectLanguage(dir),
+    ...(cfg?.companions ? { overrides: cfg.companions } : {}),
+  })
+  if (rows.length === 0) {
+    return { ...base, detail: 'no known companions in the registry' }
+  }
+  const detail = rows
+    .map((r) => {
+      if (!r.installed) return `${r.label}: not installed`
+      if (r.disabledByConfig) return `${r.label}: detected, disabled by config`
+      return `${r.label}: detected, mode=${r.mode} (${r.modeSource})`
+    })
+    .join('; ')
+  return { ...base, detail }
 }
 
 /**
@@ -737,7 +784,7 @@ export async function runDoctorHealth(opts: DoctorHealthOptions = {}): Promise<D
   const checks: HealthCheck[] = [
     checkNodeVersion(),
     gitCheck,
-    ...checkArbiterProject(dir, gitOk),
+    ...checkArbiterProject(dir, gitOk, opts.claudeHome),
     checkChannelSetting(dir, opts.channelFlag),
     checkTaskDocument(dir),
     checkGatePassLog(dir),

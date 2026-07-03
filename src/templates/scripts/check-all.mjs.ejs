@@ -562,6 +562,16 @@ if (level === 'L2') {
 <% if (enableSecurityScanning) { %>
   runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
 <% } %>
+<% if (archetype === 'library' && governanceLevel !== 'L1') { %>
+  // #1737 (Track-B counterpart of arbiter-self's #1718): consumer-resolution audit —
+  // npm silently drops this package's own `overrides` for anyone installing it as a
+  // dependency, so the dev-tree `audit` step above is structurally blind to that class
+  // of exposure. This packs+installs+audits the CONSUMER-resolved tree instead.
+  // check-consumer-audit.mjs is only emitted by emitConsumerAudit (check-all.ts) at
+  // governanceLevel !== 'L1' — reference it only where it is actually emitted (mirrors
+  // the merge-method ff-only precedent immediately above in this same file, #1331).
+  runCheck('consumer audit', 'node', ['scripts/check-consumer-audit.mjs']);
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>

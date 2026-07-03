@@ -60,6 +60,7 @@ if (!existsSync(SUPPRESSIONS_DIR)) {
 
 checkJsonFile(join(SUPPRESSIONS_DIR, 'pii-allowlist.json'));
 checkJsonFile(join(SUPPRESSIONS_DIR, 'inline-suppressions.json'));
+checkJsonFile(join(SUPPRESSIONS_DIR, 'consumer-audit-allowlist.json'));
 
 if (violations > 0) {
   process.stderr.write(

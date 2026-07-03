@@ -43,10 +43,13 @@ describe('generateSuppressions', () => {
     expect(generateSuppressions(config).files).toHaveLength(1)
   })
 
-  it('generates 6 files when enableSuppressions is true for non-Java (#242 #292)', () => {
+  it('generates 7 files when enableSuppressions is true for non-Java (#242 #292 #1737)', () => {
+    // 6 base files + consumer-audit-allowlist.json — makeConfig's defaults
+    // (archetype:'library', language:'typescript', governanceLevel:'L2') satisfy
+    // the #1737 published-library guard.
     const config = makeConfig(dir, { enableSuppressions: true })
     const result = generateSuppressions(config)
-    expect(result.files).toHaveLength(6)
+    expect(result.files).toHaveLength(7)
   })
 
   for (const relPath of EXPECTED_FILES) {
@@ -58,7 +61,11 @@ describe('generateSuppressions', () => {
   }
 
   for (const lang of ['typescript', 'rust', 'go', 'python'] as const) {
-    it(`generates 6 files for ${lang} (#292 — archunit-baseline.json is Java-only)`, () => {
+    // typescript gets a 7th file (consumer-audit-allowlist.json, #1737 — archetype
+    // stays the default 'library' throughout this loop) — every other language is
+    // excluded by the published-library-TypeScript guard and stays at 6.
+    const expectedCount = lang === 'typescript' ? 7 : 6
+    it(`generates ${expectedCount} files for ${lang} (#292 — archunit-baseline.json is Java-only)`, () => {
       const loopDir = createTestProject(lang)
       initGit(loopDir)
       try {
@@ -67,7 +74,7 @@ describe('generateSuppressions', () => {
           enableSuppressions: true,
         })
         const result = generateSuppressions(config)
-        expect(result.files).toHaveLength(6)
+        expect(result.files).toHaveLength(expectedCount)
       } finally {
         cleanupTestProject(loopDir)
       }
@@ -236,6 +243,89 @@ describe('generateSuppressions — owasp + trivyignore (#208)', () => {
     generateSuppressions(
       makeConfig(dir, {
         language: 'java',
+        governanceLevel: 'L2',
+        enableSuppressions: true,
+      }),
+    )
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
+})
+
+describe('generateSuppressions — consumer-audit allowlist (#1737)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('emits consumer-audit-allowlist.json for a published TypeScript library at L2', () => {
+    const config = makeConfig(dir, {
+      archetype: 'library',
+      language: 'typescript',
+      governanceLevel: 'L2',
+      enableSuppressions: true,
+    })
+    const result = generateSuppressions(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('consumer-audit-allowlist.json'))).toBe(true)
+  })
+
+  it('does NOT emit consumer-audit-allowlist.json for a non-library archetype', () => {
+    const config = makeConfig(dir, {
+      archetype: 'cli',
+      language: 'typescript',
+      governanceLevel: 'L2',
+      enableSuppressions: true,
+    })
+    const result = generateSuppressions(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('consumer-audit-allowlist.json'))).toBe(false)
+  })
+
+  it('does NOT emit consumer-audit-allowlist.json at L1 for a TypeScript library', () => {
+    const config = makeConfig(dir, {
+      archetype: 'library',
+      language: 'typescript',
+      governanceLevel: 'L1',
+      enableSuppressions: true,
+    })
+    const result = generateSuppressions(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('consumer-audit-allowlist.json'))).toBe(false)
+  })
+
+  it('does NOT emit consumer-audit-allowlist.json for a non-TypeScript library', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
+    try {
+      const config = makeConfig(pyDir, {
+        archetype: 'library',
+        language: 'python',
+        governanceLevel: 'L2',
+        enableSuppressions: true,
+      })
+      const result = generateSuppressions(config)
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('consumer-audit-allowlist.json'))).toBe(false)
+    } finally {
+      cleanupTestProject(pyDir)
+    }
+  })
+
+  it('skipIfExists on consumer-audit-allowlist.json (CANON-11 — never clobber a live disposition entry)', () => {
+    const suppressionsDir = join(dir, 'suppressions')
+    mkdirSync(suppressionsDir, { recursive: true })
+    const target = join(suppressionsDir, 'consumer-audit-allowlist.json')
+    writeFileSync(target, 'PREEXISTING')
+    generateSuppressions(
+      makeConfig(dir, {
+        archetype: 'library',
+        language: 'typescript',
         governanceLevel: 'L2',
         enableSuppressions: true,
       }),
