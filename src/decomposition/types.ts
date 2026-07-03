@@ -2,13 +2,7 @@
 export type WorkUnitStatus = 'open' | 'in_progress' | 'blocked' | 'done'
 
 export type WorkUnitPhase =
-  | 'preflight'
-  | 'plan'
-  | 'red'
-  | 'green'
-  | 'refactor'
-  | 'verification'
-  | 'complete'
+  'preflight' | 'plan' | 'red' | 'green' | 'refactor' | 'verification' | 'complete'
 
 export interface WorkUnit {
   id: string

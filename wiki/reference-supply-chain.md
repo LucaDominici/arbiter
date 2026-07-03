@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/supply-chain.md'
-source_sha: '574f702edecc18e08abf429d472f98cb0c2a130c'
+source_sha: 'd9ebd7d2c9c7d445a1c21932f1c009bdb496b2fb'
 last_updated: '2026-07-03'
 ---
 
@@ -49,14 +49,14 @@ All stages are declared in `src/templates/github/workflows/05-release.yml.ejs` a
 
 - **Format:** CycloneDX JSON (`sbom.cdx.json`)
 - **Per-stack tooling:**
-  | Stack | Tool |
-  |------------|-----------------------------------------|
-  | TypeScript | `npm sbom --sbom-format cyclonedx` |
-  | Java/Gradle| `./gradlew cyclonedxBom` |
-  | Java/Maven | `mvn cyclonedx:makeAggregateBom` |
-  | Go | `anchore/sbom-action` (syft) |
-  | Python | `cyclonedx-bom` (`cyclonedx_py auto`) |
-  | Rust | `cargo-cyclonedx` |
+  | Stack       | Tool                                  |
+  | ----------- | ------------------------------------- |
+  | TypeScript  | `npm sbom --sbom-format cyclonedx`    |
+  | Java/Gradle | `./gradlew cyclonedxBom`              |
+  | Java/Maven  | `mvn cyclonedx:makeAggregateBom`      |
+  | Go          | `anchore/sbom-action` (syft)          |
+  | Python      | `cyclonedx-bom` (`cyclonedx_py auto`) |
+  | Rust        | `cargo-cyclonedx`                     |
 - **Attestation:** `cosign attest --predicate sbom.cdx.json --type cyclonedx` (keyless OIDC)
 - **Retention:** 90 days as GitHub Actions artifact
 

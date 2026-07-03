@@ -18,8 +18,7 @@ import { readFileSync } from 'node:fs'
 import type { WorkspaceSpec, WorkspaceRepo } from './model.js'
 
 export type ParseWorkspaceOutcome =
-  | { ok: true; spec: WorkspaceSpec }
-  | { ok: false; reason: string }
+  { ok: true; spec: WorkspaceSpec } | { ok: false; reason: string }
 
 /**
  * Parse a workspace YAML file.

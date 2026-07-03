@@ -951,14 +951,7 @@ const INDUSTRY_OVERLAY_MESSAGE = [
 ].join('\n')
 
 type IndustryOverlayValue =
-  | 'none'
-  | 'generic'
-  | 'sox'
-  | 'gdpr'
-  | 'iso9001'
-  | 'iso27001'
-  | 'pharma'
-  | 'regulated'
+  'none' | 'generic' | 'sox' | 'gdpr' | 'iso9001' | 'iso27001' | 'pharma' | 'regulated'
 
 const INDUSTRY_OVERLAY_OPTIONS: Opt<IndustryOverlayValue>[] = [
   { value: 'none', label: 'none      — no compliance overlay  [default]' },

@@ -617,8 +617,7 @@ function evalVersionConsistency(args: Record<string, unknown>, root: string): Ev
 
 /** Resolved glob: a sorted match list, or a verified-N result when the glob is invalid/empty. */
 type GlobResolution =
-  | { ok: true; glob: string; matched: string[] }
-  | { ok: false; result: EvalCheckResult }
+  { ok: true; glob: string; matched: string[] } | { ok: false; result: EvalCheckResult }
 
 /**
  * A lazily-memoized repo file list for one `evaluate()` (#1522). The first glob check walks the
