@@ -558,13 +558,18 @@ describe('dispatchClaudeAgent concurrency (#1514)', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-agent-cc-'))
-    // Fake `claude`: ignores its args, sleeps, then emits a valid agent report.
-    // A spawnSync-based dispatcher would serialize these sleeps; spawn does not.
+    // Fake `claude`: ignores its args, records its own OS-level start time, sleeps, then emits a
+    // valid agent report. A spawnSync-based dispatcher would serialize these sleeps; spawn does
+    // not. Each invocation writes `start-<pid>.txt` immediately (before sleeping) so the test can
+    // measure how far apart the N launches actually landed (#1753 — see assertion below for why).
     fakeCli = join(dir, 'fake-claude.mjs')
     writeFileSync(
       fakeCli,
       [
         '#!/usr/bin/env node',
+        `import { writeFileSync } from 'node:fs'`,
+        `import { join } from 'node:path'`,
+        `writeFileSync(join(${JSON.stringify(dir)}, 'start-' + process.pid + '.txt'), String(Date.now()))`,
         `setTimeout(() => {`,
         `  process.stdout.write(JSON.stringify({ findings: [], passed: true }))`,
         `}, ${SLEEP_MS})`,
@@ -576,16 +581,14 @@ describe('dispatchClaudeAgent concurrency (#1514)', () => {
 
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
-  it('dispatches N agents concurrently — wall clock ≈ MAX(agents), not SUM', async () => {
+  it('dispatches N agents concurrently — launches land within a small window, not staggered by SLEEP_MS', async () => {
     const dispatch = dispatchClaudeAgent({ cmd: fakeCli, timeoutMs: 30_000 })
     const prompts = [
       { name: 'bugs', prompt: '<reviewAgent>a</reviewAgent>' },
       { name: 'type-safety', prompt: '<reviewAgent>b</reviewAgent>' },
       { name: 'silent-failure-hunter', prompt: '<reviewAgent>c</reviewAgent>' },
     ]
-    const start = Date.now()
     const results = await dispatchAgents(prompts, { dispatch })
-    const elapsed = Date.now() - start
 
     // All agents succeeded (no dispatch failures folded into blockers).
     expect(results.map((r) => r.agent).sort()).toEqual([
@@ -595,9 +598,22 @@ describe('dispatchClaudeAgent concurrency (#1514)', () => {
     ])
     expect(results.every((r) => r.passed)).toBe(true)
 
-    // Serial cost would be 3 * SLEEP_MS = 1200ms. Concurrent is ~SLEEP_MS.
-    // Ceiling at 2x a single sleep leaves ample headroom while still failing
-    // hard on the old sequential spawnSync behaviour.
-    expect(elapsed).toBeLessThan(2 * SLEEP_MS)
+    const starts = readdirSync(dir)
+      .filter((f) => f.startsWith('start-'))
+      .map((f) => Number(readFileSync(join(dir, f), 'utf-8')))
+    expect(starts).toHaveLength(prompts.length)
+
+    // A total-wall-clock ceiling (elapsed < 2*SLEEP_MS) flakes under host load: the SAME
+    // scheduling contention that delays the concurrent run also inflates the ceiling's implicit
+    // assumption of near-zero overhead, so a loaded machine can push a genuinely-concurrent run
+    // (e.g. 862ms observed against an 800ms ceiling) past the threshold (#1753). Measuring the
+    // SPREAD between each process's own recorded start time is immune to that: concurrent dispatch
+    // issues all N spawn() calls back-to-back in the same event-loop tick, so their OS-level start
+    // times land within a small scheduling-jitter window no matter how loaded the host is. A
+    // regression to a serializing (spawnSync) dispatcher would space consecutive starts ~SLEEP_MS
+    // apart (the previous agent's full sleep must elapse before the next one launches), ballooning
+    // the spread to ~(N-1)*SLEEP_MS — still comfortably caught below.
+    const spread = Math.max(...starts) - Math.min(...starts)
+    expect(spread).toBeLessThan(SLEEP_MS)
   })
 })
