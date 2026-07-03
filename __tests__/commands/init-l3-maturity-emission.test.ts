@@ -294,3 +294,55 @@ describe('deriveWorkflowCapabilities — multi polyglot resolves to constituent 
     expect(blockedFeatures(workflowChecks).length).toBeGreaterThan(0)
   })
 })
+
+// #1724: kotlin had no matrix cells for the 8 workflow-template-emitted dims
+// (fuzz/dast/license_scan/sbom/binary_signing/provenance/container_scan/secret_scan)
+// even though the underlying CI jobs for several of these (dast, binary_signing,
+// provenance, container_scan, secret_scan) are genuinely language-agnostic tools
+// (OWASP ZAP / cosign / SLSA / Trivy / gitleaks). `hasMatrixCell('kotlin', dim)`
+// returned false for all 8, so `deriveL3MaturityChecks` silently skipped kotlin for
+// every one of them (false-pass, no gating) instead of consulting an explicit
+// (beta) maturity verdict. Fix: add explicit beta cells for kotlin across all 8 dims
+// in cross-language-matrix.json so the L3 gate actually consults them.
+describe('deriveL3MaturityChecks — kotlin workflow-template dims are gated, not silently skipped (#1724)', () => {
+  const ktSvc = (overrides: Partial<ProjectConfig> = {}) =>
+    checksFor({
+      language: 'kotlin',
+      archetype: 'backend-web-db',
+      useGitHub: true,
+      pipelineStyle: 'standard',
+      collaborationMode: 'peer-review',
+      enableSecurityScanning: true,
+      ...overrides,
+    })
+
+  const workflowDims = [
+    'fuzz',
+    'dast',
+    'license_scan',
+    'sbom',
+    'binary_signing',
+    'provenance',
+    'container_scan',
+    'secret_scan',
+  ]
+
+  it('gates every one of the 8 workflow-template dims for a kotlin service — previously silently skipped', () => {
+    const checks = ktSvc()
+    const gatedDims = checks.map((c) => c.feature).filter((f) => workflowDims.includes(f))
+    // Previously ZERO — hasMatrixCell('kotlin', dim) had no cell for any of the 8 dims,
+    // so a kotlin service's workflow dims were never consulted by the L3 gate.
+    expect(gatedDims.length).toBe(workflowDims.length)
+    for (const dim of workflowDims) {
+      expect(gatedDims).toContain(dim)
+    }
+  })
+
+  it('blocks a kotlin service on the beta workflow dims without --accept-beta-tools, and unblocks with it', () => {
+    const checks = ktSvc()
+    const workflowChecks = checks.filter((c) => workflowDims.includes(c.feature))
+    expect(blockedFeatures(workflowChecks).length).toBe(workflowDims.length)
+    const all = workflowChecks.every((c) => isL3Allowed(c.language, c.feature, true).allowed)
+    expect(all).toBe(true)
+  })
+})
