@@ -17,7 +17,6 @@ import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-sta
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
-import { companionEvidencePath } from '../../src/integrations/companions.js'
 import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
 
 // Gates that would otherwise require a real repo / model switch
@@ -45,6 +44,10 @@ function writeTddEvidence(dir: string, taskId: string): void {
     }),
     'utf-8',
   )
+}
+
+function companionEvidencePath(taskId: string, dir: string): string {
+  return join(dir, '.arbiter', 'evidence', 'companions', `${taskId}.json`)
 }
 
 describe('ship sequencing — pure plan', () => {

@@ -8,6 +8,9 @@
 // dispatch review subagents (those need the agent), so `arbiter ship` computes the next concrete
 // step and advances the phase when its gate is green; the `/ship` slash command is the loop that
 // executes the model-requiring steps between calls. Reuses runTaskAdvance + the existing gates.
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { z } from 'zod'
 import {
   type TaskPhase,
   PHASE_ORDER,
@@ -26,12 +29,8 @@ import {
   SELF_ONLY_GATES,
   resolveShipProfile,
 } from './ship-profile.js'
-import {
-  companionGreenInstruction,
-  companionStatusLine,
-  writeCompanionEvidence,
-  type CompanionDiffStats,
-} from '../integrations/companions.js'
+import { companionGreenInstruction, companionStatusLine } from '../integrations/companions.js'
+import { runCli } from '../utils/run-cli.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
@@ -53,6 +52,27 @@ function normalizeShipTaskId(raw: string): string {
 }
 
 type ShipTier = 'XS' | 'S' | 'Standard'
+type CompanionDiffStats = { files: number; insertions: number; deletions: number }
+
+const CompanionEvidenceV1 = z.object({
+  $schemaVersion: z.literal(1),
+  companions: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        mode: z.enum(['lite', 'full']),
+      }),
+    )
+    .min(1),
+  diffStats: z.object({
+    files: z.number().int().nonnegative(),
+    insertions: z.number().int().nonnegative(),
+    deletions: z.number().int().nonnegative(),
+  }),
+  recordedAt: z.iso.datetime(),
+})
+
+type CompanionEvidenceV1 = z.infer<typeof CompanionEvidenceV1>
 
 /** Pre-implementation red-team agents per tier (mirrors /task Phase 3.5). */
 const REDTEAM_AGENTS: Record<ShipTier, number> = { XS: 1, S: 2, Standard: 3 }
@@ -391,6 +411,63 @@ function advanceShipPhase(
   return { phase: target, advanced: true }
 }
 
+function companionEvidencePath(taskId: string, repoDir: string): string {
+  return join(repoDir, '.arbiter', 'evidence', 'companions', `${taskId}.json`)
+}
+
+function writeCompanionEvidence(
+  root: string,
+  taskId: string,
+  profile: ShipProfile,
+  opts: TaskShipOptions,
+): string | null {
+  if (profile.isArbiterSelf || profile.companions.length === 0) return null
+  const evidence: CompanionEvidenceV1 = {
+    $schemaVersion: 1,
+    companions: profile.companions.map((c) => ({ id: c.id, mode: c.mode })),
+    diffStats: (opts.gatherCompanionDiffStats ?? gatherCompanionDiffStats)(root),
+    recordedAt: opts.recordedAt ?? new Date().toISOString(),
+  }
+  const parsed = CompanionEvidenceV1.safeParse(evidence)
+  if (!parsed.success) {
+    throw new Error(`Invalid companion evidence: ${parsed.error.message}`)
+  }
+  const out = companionEvidencePath(taskId, root)
+  mkdirSync(join(root, '.arbiter', 'evidence', 'companions'), { recursive: true })
+  writeFileSync(out, `${JSON.stringify(parsed.data, null, 2)}\n`, 'utf-8')
+  return out
+}
+
+function gatherCompanionDiffStats(repoDir: string): CompanionDiffStats {
+  const base = diffBase(repoDir)
+  const range = base ? `${base}...HEAD` : 'HEAD'
+  try {
+    return parseShortstat(runCli('git', ['diff', '--shortstat', range], { cwd: repoDir }).stdout)
+    // FAIL-OPEN-INTENT: companion diff stats are supplemental evidence; a missing git base must not block /ship.
+  } catch {
+    return { files: 0, insertions: 0, deletions: 0 }
+  }
+}
+
+function diffBase(repoDir: string): string | null {
+  for (const ref of ['origin/main', 'main']) {
+    try {
+      return runCli('git', ['merge-base', 'HEAD', ref], { cwd: repoDir }).stdout.trim()
+      // FAIL-OPEN-INTENT: companion diff base discovery is best-effort; try the next local base ref.
+    } catch {
+      // Try the next local base ref; evidence remains best-effort when no base exists.
+    }
+  }
+  return null
+}
+
+function parseShortstat(shortstat: string): CompanionDiffStats {
+  const files = Number((shortstat.match(/(\d+) files? changed/) ?? [])[1] ?? 0)
+  const insertions = Number((shortstat.match(/(\d+) insertions?\(\+\)/) ?? [])[1] ?? 0)
+  const deletions = Number((shortstat.match(/(\d+) deletions?\(-\)/) ?? [])[1] ?? 0)
+  return { files, insertions, deletions }
+}
+
 function writeVerificationCompanionEvidence(
   root: string,
   phase: TaskPhase,
@@ -399,16 +476,7 @@ function writeVerificationCompanionEvidence(
   opts: TaskShipOptions,
 ): void {
   if (phase !== 'verification' || taskId === undefined) return
-  writeCompanionEvidence({
-    repoDir: root,
-    taskId,
-    isArbiterSelf: profile.isArbiterSelf,
-    companions: profile.companions,
-    ...(opts.gatherCompanionDiffStats !== undefined
-      ? { gatherDiffStats: opts.gatherCompanionDiffStats }
-      : {}),
-    ...(opts.recordedAt !== undefined ? { recordedAt: opts.recordedAt } : {}),
-  })
+  writeCompanionEvidence(root, taskId, profile, opts)
 }
 
 /**
