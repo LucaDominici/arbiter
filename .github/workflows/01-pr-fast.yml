@@ -165,10 +165,9 @@ jobs:
     # PR actually touches infrastructure-as-code, keeping the always-path lean.
     # #1756: pinned to a LITERAL GitHub-hosted runner, not the usual
     # `vars.RUNNER_LABELS_TEST` self-hosted-capable fallback. checkov-action below
-    # is a docker-container action; on arbiter's self-hosted "slot" runners the
-    # runner process itself runs inside a container, so the action's workspace
-    # bind-mount resolves against the DOCKER HOST path, not the slot's own
-    # checkout — the action saw stale/missing content on arbiter-slot-build-4.
+    # is a docker-container action; on a self-hosted runner whose own process runs
+    # inside a container, the action's workspace bind-mount resolves against the
+    # DOCKER HOST path, not the runner's own checkout — content goes stale/missing.
     # GitHub-hosted runners are not containerized this way and are unaffected.
     # Enforced by scripts/check-docker-action-runner-safety.mjs.
     runs-on: ubuntu-latest
