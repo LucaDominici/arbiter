@@ -177,14 +177,7 @@ export interface ArbiterConfigV2 {
    * re-emits the overlay artefacts. Absent = 'none'.
    */
   industryOverlay?:
-    | 'pharma'
-    | 'sox'
-    | 'gdpr'
-    | 'generic'
-    | 'iso27001'
-    | 'iso9001'
-    | 'regulated'
-    | 'none'
+    'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'regulated' | 'none'
   basePackage?: string
   /**
    * #1616: deploy target axis. Consumed by the github (04-deploy-test/10-deploy-prod

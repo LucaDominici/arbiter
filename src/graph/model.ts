@@ -26,15 +26,7 @@
  *  - GATE      — gate / enforcement mechanism (CI job, hook, lint rule)
  */
 export type NodeKind =
-  | 'INV'
-  | 'ADR'
-  | 'REQ'
-  | 'CANON'
-  | 'FILE'
-  | 'SYMBOL'
-  | 'TEST'
-  | 'EVIDENCE'
-  | 'GATE'
+  'INV' | 'ADR' | 'REQ' | 'CANON' | 'FILE' | 'SYMBOL' | 'TEST' | 'EVIDENCE' | 'GATE'
 
 /**
  * The eight edge kinds. Closed set.

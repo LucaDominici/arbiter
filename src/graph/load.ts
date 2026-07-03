@@ -12,8 +12,7 @@ import type { GraphSnapshot } from './model.js'
  */
 
 export type LoadSnapshotOutcome =
-  | { ok: true; snapshot: GraphSnapshot }
-  | { ok: false; reason: string }
+  { ok: true; snapshot: GraphSnapshot } | { ok: false; reason: string }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)

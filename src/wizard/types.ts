@@ -61,14 +61,7 @@ export interface WizardAnswers {
    * (overlay × governanceLevel) coherence advisory.
    */
   industryOverlay?:
-    | 'pharma'
-    | 'sox'
-    | 'gdpr'
-    | 'generic'
-    | 'iso27001'
-    | 'iso9001'
-    | 'regulated'
-    | 'none'
+    'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'regulated' | 'none'
   /**
    * #1261: ship autonomy level chosen in the wizard. Absent = 'L0'
    * (ask at each ship step — the safe default).
@@ -90,14 +83,7 @@ export interface MigrationPlan {
 }
 
 export type Language =
-  | 'typescript'
-  | 'java'
-  | 'kotlin'
-  | 'rust'
-  | 'python'
-  | 'go'
-  | 'multi'
-  | 'unknown'
+  'typescript' | 'java' | 'kotlin' | 'rust' | 'python' | 'go' | 'multi' | 'unknown'
 export type GovernanceLevel = 'L1' | 'L2' | 'L3' | 'L4'
 // AI coding tools arbiter can target. Canonical support policy (read before
 // widening any user-facing surface):
@@ -117,12 +103,7 @@ export type GovernanceLevel = 'L1' | 'L2' | 'L3' | 'L4'
 export type AiTool = 'claude' | 'codex' | 'cursor' | 'copilot' | 'gemini' | 'windsurf' | 'aider'
 
 export type Archetype =
-  | 'backend-web-db'
-  | 'cli'
-  | 'library'
-  | 'data-pipeline'
-  | 'frontend-spa'
-  | 'embedded'
+  'backend-web-db' | 'cli' | 'library' | 'data-pipeline' | 'frontend-spa' | 'embedded'
 
 export type DeployTarget = 'ghcr' | 'azure-container-app' | 'aws-ecs' | 'gcp-cloud-run' | 'none'
 
@@ -471,14 +452,7 @@ export interface ProjectConfig {
    * Absent field is treated as 'none'.
    */
   industryOverlay?:
-    | 'pharma'
-    | 'sox'
-    | 'gdpr'
-    | 'generic'
-    | 'iso27001'
-    | 'iso9001'
-    | 'regulated'
-    | 'none'
+    'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'regulated' | 'none'
 
   /**
    * F6: Emit k6 performance testing ecosystem.
@@ -543,12 +517,7 @@ export type StrictnessTier = 'practical' | 'pedantic'
  * "none"          → No contract testing generated.
  */
 export type ContractType =
-  | 'rest-owned'
-  | 'rest-public'
-  | 'graphql'
-  | 'grpc'
-  | 'message-queue'
-  | 'none'
+  'rest-owned' | 'rest-public' | 'graphql' | 'grpc' | 'message-queue' | 'none'
 
 export type ObservabilityProvider =
   | 'none'

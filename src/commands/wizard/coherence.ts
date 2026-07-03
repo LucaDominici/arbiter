@@ -26,14 +26,7 @@ type CoherenceSeverity = 'OK' | 'WARN' | 'CRITICAL'
  * single name for the compliance axis.
  */
 export type IndustryOverlay =
-  | 'pharma'
-  | 'sox'
-  | 'gdpr'
-  | 'generic'
-  | 'iso27001'
-  | 'iso9001'
-  | 'regulated'
-  | 'none'
+  'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'regulated' | 'none'
 
 export interface CoherenceResult {
   valid: boolean
