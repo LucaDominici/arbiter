@@ -36,7 +36,7 @@ import {
 import { resolveStyle } from '../generators/github.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
-import { renderFromAbsPath } from '../utils/render.js'
+import { renderFromAbsPath, resolveServiceBucket } from '../utils/render.js'
 import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile, beginGenerationSession, endGenerationSession } from '../utils/fs.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
@@ -1457,24 +1457,6 @@ function capabilitiesForGenerator(
 }
 
 /**
- * #1678: the archetype→service bucket mirrors the `_bucket`/`_isService` map in the
- * workflow EJS (`_nightly.yml.ejs`/`_shared-security.yml.ejs`). A 4th copy of this map
- * (3 already live in the EJS) — recorded as tech-debt (CANON-22): the root-cause fix is a
- * shared emission-plan module consumed by both the github generator and the gate, with
- * the bucket lifted out of EJS; that CANON-04/13/05 refactor is out of scope for this
- * gate-extension issue (filed as a follow-up).
- */
-function serviceBucket(archetype: ProjectConfig['archetype']): 'service' | 'cli' | 'batch' | 'lib' {
-  const map: Record<string, 'service' | 'cli' | 'batch' | 'lib'> = {
-    'backend-web-db': 'service',
-    cli: 'cli',
-    embedded: 'cli',
-    'data-pipeline': 'batch',
-  }
-  return map[archetype] ?? 'lib'
-}
-
-/**
  * #1678: derive the workflow-template-emitted L3 maturity capabilities from the actual
  * emission plan (the github.ts + EJS predicates), so the L3 gate consults the dims the CI
  * workflows will really run. Mirrors `src/generators/github.ts` emission predicates + the
@@ -1548,7 +1530,7 @@ function workflowCtx(config: ProjectConfig): WorkflowCtx {
     style,
     cm,
     deploy: (config.deployTarget ?? 'none') !== 'none',
-    isService: serviceBucket(config.archetype) === 'service',
+    isService: resolveServiceBucket(config.archetype) === 'service',
     isScheduled: style !== 'starter' && cm !== 'trunk-solo', // scheduled suite at L3
     secScanning: config.enableSecurityScanning,
   }
