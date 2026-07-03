@@ -150,5 +150,7 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | #1215 | Tech debt #1215 | Open   | low      |
 | #1222 | Tech debt #1222 | Open   | low      |
 | #1740 | Tech debt #1740 | Open   | low      |
+| #1752 | Tech debt #1752 | Open   | low      |
+| #1753 | Tech debt #1753 | Open   | low      |
 
 <!-- GAP_END -->
