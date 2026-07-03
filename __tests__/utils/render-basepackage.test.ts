@@ -7,6 +7,8 @@ import {
   renderFromAbsPath,
   withBasePackageDefault,
   withLevelBooleans,
+  withServiceBucket,
+  resolveServiceBucket,
 } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -157,5 +159,76 @@ describe('#1720 — withLevelBooleans helper', () => {
     // CODEOWNERS.ejs is rendered at L4 elsewhere in the suite; here we only assert
     // that referencing the injected boolean does not throw a ReferenceError.
     expect(() => renderTemplate('root/CODEOWNERS.ejs', data)).not.toThrow()
+  })
+})
+
+// #1723: the archetype→"service bucket" map (service/cli/batch/lib) was hand-duplicated
+// 6 times — inline in 5 workflow EJS templates (_nightly/_shared-security/_weekly/
+// 05-release/02-pr-extended) and again as `serviceBucket()` in commands/init.ts. Root-cause
+// fix: a single resolver (`resolveServiceBucket`) consumed both by the render boundary
+// (`withServiceBucket`, injecting `serviceBucket`/`isService`/`isCli`/`isBatch` so the EJS
+// templates no longer re-declare the map) and by the L3 gate (`workflowCtx` in init.ts).
+describe('#1723 — resolveServiceBucket / withServiceBucket helper', () => {
+  it('resolveServiceBucket: backend-web-db -> service', () => {
+    expect(resolveServiceBucket('backend-web-db')).toBe('service')
+  })
+
+  it('resolveServiceBucket: cli -> cli', () => {
+    expect(resolveServiceBucket('cli')).toBe('cli')
+  })
+
+  it('resolveServiceBucket: embedded -> cli', () => {
+    expect(resolveServiceBucket('embedded')).toBe('cli')
+  })
+
+  it('resolveServiceBucket: data-pipeline -> batch', () => {
+    expect(resolveServiceBucket('data-pipeline')).toBe('batch')
+  })
+
+  it('resolveServiceBucket: library (and any unmodeled archetype) -> lib', () => {
+    expect(resolveServiceBucket('library')).toBe('lib')
+    expect(resolveServiceBucket('unknown-archetype')).toBe('lib')
+  })
+
+  it('resolveServiceBucket: non-string/absent archetype -> lib, does not throw', () => {
+    expect(resolveServiceBucket(undefined)).toBe('lib')
+    expect(resolveServiceBucket(42)).toBe('lib')
+  })
+
+  it('withServiceBucket: injects serviceBucket + isService/isCli/isBatch booleans', () => {
+    const out = withServiceBucket({ archetype: 'backend-web-db' }) as Record<string, unknown>
+    expect(out['serviceBucket']).toBe('service')
+    expect(out['isService']).toBe(true)
+    expect(out['isCli']).toBe(false)
+    expect(out['isBatch']).toBe(false)
+  })
+
+  it('withServiceBucket: cli archetype', () => {
+    const out = withServiceBucket({ archetype: 'cli' }) as Record<string, unknown>
+    expect(out['isService']).toBe(false)
+    expect(out['isCli']).toBe(true)
+    expect(out['isBatch']).toBe(false)
+  })
+
+  it('withServiceBucket: data-pipeline archetype', () => {
+    const out = withServiceBucket({ archetype: 'data-pipeline' }) as Record<string, unknown>
+    expect(out['isService']).toBe(false)
+    expect(out['isCli']).toBe(false)
+    expect(out['isBatch']).toBe(true)
+  })
+
+  it('withServiceBucket: does not mutate the input object', () => {
+    const data = { archetype: 'backend-web-db' }
+    withServiceBucket(data)
+    expect(Object.prototype.hasOwnProperty.call(data, 'serviceBucket')).toBe(false)
+  })
+
+  it('renderTemplate composes withServiceBucket: a template can reference bare serviceBucket/isService', () => {
+    const data = makeConfig('/tmp/test', { archetype: 'backend-web-db' }) as unknown as Record<
+      string,
+      unknown
+    >
+    // _shared-security.yml.ejs references the injected locals; assert no ReferenceError.
+    expect(() => renderTemplate('github/workflows/_shared-security.yml.ejs', data)).not.toThrow()
   })
 })

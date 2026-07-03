@@ -1,6 +1,9 @@
 <%
-const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
-const _isService = _bucket === 'service';
+// #1723: serviceBucket/isService are injected by withServiceBucket
+// (src/utils/render.ts), the single canonical archetype->bucket resolver — do not
+// re-declare the archetype map here.
+const _bucket = serviceBucket;
+const _isService = isService;
 %>on:
   workflow_call:
     inputs:
