@@ -258,4 +258,16 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       docUrl: 'https://arbiter.dev/reference/cli#plugins',
     },
   ],
+  [
+    'E_FEATURE_MATRIX_NOT_FOUND',
+    {
+      code: 'E_FEATURE_MATRIX_NOT_FOUND',
+      summary: 'FEATURE_MATRIX.md not found',
+      detail:
+        'The `arbiter feature-matrix export` command could not find docs/PRODUCT/FEATURE_MATRIX.md (or the path passed via --matrix-path).',
+      recovery:
+        'Generate the matrix first, or pass --matrix-path to point at an existing FEATURE_MATRIX.md.',
+      docUrl: 'https://arbiter.dev/reference/cli#feature-matrix',
+    },
+  ],
 ])
