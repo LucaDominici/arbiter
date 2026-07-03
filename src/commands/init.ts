@@ -1457,13 +1457,29 @@ function capabilitiesForGenerator(
 }
 
 /**
+ * #1725: resolve the effective tool-language(s) the workflow-emitted dims should be
+ * gated against. `hasMatrixCell` has no explicit cell for the unmodeled `'multi'`
+ * pseudo-language, so gating a workflow capability against the raw `'multi'` value
+ * causes the gate to silently skip ALL 8 workflow dims for a polyglot repo — a
+ * false-pass, not a correct "no opinion" skip. A `multi` repo's generated CI workflows
+ * actually emit BOTH the TypeScript and Java/JVM toolchains, so resolve to their union —
+ * mirroring the established `probe.ts` `matrixEntriesFor`/`buildProbesFor` precedent
+ * (`case 'multi': return [...MATRIX.typescript, ...MATRIX.java]`). Every other language
+ * is already a modelled matrix key and resolves to itself.
+ */
+function resolveWorkflowLanguages(language: Language): Language[] {
+  return language === 'multi' ? ['typescript', 'java'] : [language]
+}
+
+/**
  * #1678: derive the workflow-template-emitted L3 maturity capabilities from the actual
  * emission plan (the github.ts + EJS predicates), so the L3 gate consults the dims the CI
  * workflows will really run. Mirrors `src/generators/github.ts` emission predicates + the
  * EJS job-level `_isService` guards; the drift-detection test
  * (`init-l3-workflow-drift.test.ts`) verifies the mirror against the rendered workflows.
- * `hasMatrixCell` skips `multi`/unmodelled (no false-block) — see the #1678 follow-ups for
- * the kotlin/multi matrix-gap (those languages aren't gated on these dims yet).
+ * `hasMatrixCell` skips truly unmodelled cells (no false-block) — see the #1724 follow-up
+ * for the kotlin matrix-gap (kotlin isn't gated on these dims yet); `multi` is resolved to
+ * its modelled constituent languages by `resolveWorkflowLanguages` (#1725).
  * Exported for unit + drift tests.
  */
 export function deriveWorkflowCapabilities(config: ProjectConfig): L3MaturityCapability[] {
@@ -1471,10 +1487,10 @@ export function deriveWorkflowCapabilities(config: ProjectConfig): L3MaturityCap
   // which is only consulted at L3, but guard anyway for direct unit-test callers.
   if (config.governanceLevel !== 'L3') return []
   const c = workflowCtx(config)
-  const lang = config.language
+  const langs = resolveWorkflowLanguages(config.language)
   return WORKFLOW_DIM_RULES.filter((r) => r.emit(c))
     .flatMap((r) => r.dims)
-    .map((feature) => ({ feature, language: lang }))
+    .flatMap((feature) => langs.map((language) => ({ feature, language })))
 }
 
 /**

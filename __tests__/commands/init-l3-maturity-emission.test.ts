@@ -5,7 +5,11 @@
 // — so a still-ungated emitted cell is now consulted, and an unmodeled language×dim is
 // NOT falsely blocked (the #1606 pattern, generalised).
 import { describe, it, expect } from 'vitest'
-import { deriveL3MaturityChecks, type L3MaturityCapability } from '../../src/commands/init.js'
+import {
+  deriveL3MaturityChecks,
+  deriveWorkflowCapabilities,
+  type L3MaturityCapability,
+} from '../../src/commands/init.js'
 import { buildRegistry } from '../../src/generators/registry.js'
 import { isL3Allowed } from '../../src/utils/maturity-check.js'
 import { makeConfig } from '../helpers.js'
@@ -222,5 +226,71 @@ describe('deriveL3MaturityChecks — workflow-template dims (#1678)', () => {
     expect(blockedFeatures(checks).length).toBeGreaterThan(0)
     const all = checks.every((c) => isL3Allowed(c.language, c.feature, true).allowed)
     expect(all).toBe(true)
+  })
+})
+
+// #1725: `hasMatrixCell(multi, dim)` has no explicit cell for the unmodeled 'multi'
+// pseudo-language, so `deriveWorkflowCapabilities` — which previously used the raw
+// `config.language` unresolved — produced capabilities that `deriveL3MaturityChecks`
+// silently skipped for ALL 8 workflow dims on a polyglot repo (false-pass, no gating).
+// Fix: resolve 'multi' to its modelled constituent languages (typescript + java),
+// mirroring the established `probe.ts` `matrixEntriesFor`/`buildProbesFor` 'multi' =
+// union(typescript, java) precedent, so a polyglot service is gated on both toolchains'
+// workflow-emitted dims instead of silently skipping the language dimension entirely.
+describe('deriveWorkflowCapabilities — multi polyglot resolves to constituent languages (#1725)', () => {
+  const multiSvc = (overrides: Partial<ProjectConfig> = {}) =>
+    deriveWorkflowCapabilities(
+      makeConfig('/tmp/maturity-emission-multi', {
+        governanceLevel: 'L3',
+        language: 'multi',
+        archetype: 'backend-web-db',
+        useGitHub: true,
+        pipelineStyle: 'standard',
+        collaborationMode: 'peer-review',
+        enableSecurityScanning: true,
+        ...overrides,
+      }),
+    )
+
+  it('never resolves a workflow capability to the unmodeled multi pseudo-language', () => {
+    const caps = multiSvc()
+    expect(caps.length).toBeGreaterThan(0)
+    expect(caps.every((c) => c.language !== 'multi')).toBe(true)
+  })
+
+  it('resolves license_scan (always-emitted) to BOTH typescript and java', () => {
+    const caps = multiSvc()
+    expect(caps).toContainEqual(
+      expect.objectContaining<Partial<L3MaturityCapability>>({
+        feature: 'license_scan',
+        language: 'typescript',
+      }),
+    )
+    expect(caps).toContainEqual(
+      expect.objectContaining<Partial<L3MaturityCapability>>({
+        feature: 'license_scan',
+        language: 'java',
+      }),
+    )
+  })
+
+  it('gates every resolved multi-constituent capability through the full L3 pipeline (deriveL3MaturityChecks)', () => {
+    const checks = checksFor({
+      language: 'multi',
+      archetype: 'backend-web-db',
+      useGitHub: true,
+      pipelineStyle: 'standard',
+      collaborationMode: 'peer-review',
+      enableSecurityScanning: true,
+    })
+    const workflowChecks = checks.filter((c) =>
+      ['license_scan', 'secret_scan', 'container_scan', 'sbom', 'binary_signing', 'provenance', 'fuzz', 'dast'].includes(
+        c.feature,
+      ),
+    )
+    // Previously ZERO — hasMatrixCell('multi', dim) had no cell, so every workflow dim
+    // was silently skipped for a polyglot repo (false-pass, no gating).
+    expect(workflowChecks.length).toBeGreaterThan(0)
+    expect(blockedFeatures(workflowChecks).length).toBeGreaterThan(0)
   })
 })
