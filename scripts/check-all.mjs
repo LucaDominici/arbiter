@@ -213,6 +213,9 @@ if (isMain) {
   runCheck('anti-drift: secret scan', 'node', ['scripts/check-secret-scan.mjs'])
   runCheck('anti-drift: drift manifest', 'node', ['scripts/check-drift.mjs'])
   runCheck('anti-drift: workflow runners', 'node', ['scripts/check-workflow-runners.mjs'])
+  runCheck('anti-drift: docker action runner safety (#1756)', 'node', [
+    'scripts/check-docker-action-runner-safety.mjs',
+  ])
   runCheck('anti-drift: workflow docs sync', 'node', ['scripts/check-workflow-docs-sync.mjs'])
   runCheck('anti-drift: workflow integrity', 'node', ['scripts/check-workflow-test-integrity.mjs'])
   runCheck('anti-drift: workflow parallelism (INV-120)', 'node', [

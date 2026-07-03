@@ -207,7 +207,14 @@ jobs:
     # A1 (#1502): consume the classify-changes `infra_changed` signal (previously
     # classified but UNUSED) — scan terraform / kubernetes / dockerfile only when the
     # PR actually touches infrastructure-as-code, keeping the always-path lean.
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    # #1756: pinned to a LITERAL GitHub-hosted runner, not the usual
+    # `vars.RUNNER_LABELS_TEST` self-hosted-capable fallback. checkov-action below
+    # is a docker-container action; on a self-hosted runner whose own process runs
+    # inside a container, the action's workspace bind-mount resolves against the
+    # DOCKER HOST path, not the runner's own checkout — content goes stale/missing.
+    # GitHub-hosted runners are not containerized this way and are unaffected.
+    # Enforced by scripts/check-docker-action-runner-safety.mjs.
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [classify-changes]
     if: needs.classify-changes.outputs.infra_changed == 'true'
