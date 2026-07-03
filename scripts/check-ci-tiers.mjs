@@ -76,7 +76,7 @@ const STYLE_TABLE = {
 }
 
 /**
- * #1319.2 (INV-72): when arbiter.json is present, verify the collaboration-mode /
+ * #1319.2 (INV-73): when arbiter.json is present, verify the collaboration-mode /
  * governance-level-aware required tier set — the EXACT inverse of the generation
  * predicates in src/generators/github.ts. Returns a list of missing required files
  * (empty when satisfied), or null when arbiter.json is absent (floor-only mode).
@@ -143,7 +143,7 @@ if (present.length < minPresent) {
 const collabMissing = collabAwareMissing()
 if (collabMissing && collabMissing.length > 0) {
   console.error(
-    `check-ci-tiers: FAIL — ${collabMissing.length} collaboration-mode-required workflow(s) missing (INV-72):`,
+    `check-ci-tiers: FAIL — ${collabMissing.length} collaboration-mode-required workflow(s) missing (INV-73):`,
   )
   for (const f of collabMissing) {
     console.error(`  missing: .github/workflows/${f}`)

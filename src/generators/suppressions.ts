@@ -87,7 +87,11 @@ export function generateSuppressions(
   // #1737 (Track-B counterpart of arbiter-self's #1718): published npm library L2+ only —
   // consumer-resolution audit disposition allowlist. Same predicate as the paired
   // check-consumer-audit.mjs gate in check-all.ts's emitConsumerAudit.
-  if (config.archetype === 'library' && config.language === 'typescript' && config.governanceLevel !== 'L1') {
+  if (
+    config.archetype === 'library' &&
+    config.language === 'typescript' &&
+    config.governanceLevel !== 'L1'
+  ) {
     results.push(
       writeFile(
         resolvedPath(base, 'suppressions', 'consumer-audit-allowlist.json'),

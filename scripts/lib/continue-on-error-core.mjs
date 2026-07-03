@@ -187,8 +187,15 @@ export function findContinueOnErrorViolations(filePath, content) {
     if (/arbiter-allow-continue-on-error:[ \t]*\S/.test(block.text)) continue
     // Step-scoped allowlist parity with the regex sibling.
     if (allowedSteps && block.stepId && allowedSteps.has(block.stepId)) continue
-    // Only a GATING block (one that runs a recognized gate/test/check command) is a fake-green.
-    if (!GATE_COMMAND_RE.test(block.text)) continue
+    // Only a GATING block (one that RUNS a recognized gate/test/check command) is a fake-green.
+    // Strip full-line comments first — a `run:`/`uses:` step is executed; a comment merely
+    // mentioning a script path (e.g. "# Enforced by scripts/check-foo.mjs") is documentation,
+    // not a gate invocation, and must not trip this classification.
+    const executableText = block.text
+      .split('\n')
+      .filter((ln) => !/^\s*#/.test(ln))
+      .join('\n')
+    if (!GATE_COMMAND_RE.test(executableText)) continue
     findings.push(
       `${filePath}:${i + 1}: continue-on-error swallows a GATING ${block.kind} ("${block.label}") — a swallowed gate is a fake-green (#1497)`,
     )

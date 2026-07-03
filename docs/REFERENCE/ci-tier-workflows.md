@@ -108,7 +108,7 @@ from `src/invariants/catalog.ts`; arbiter-self runs at `minPresent: 6` during th
 `migrationStatus: 'transition'` window, target projects require the full set). On top of the
 floor, the gate verifies:
 
-- **INV-72 collaboration-mode/level-aware required set** — the exact inverse of the
+- **INV-73 collaboration-mode/level-aware required set** — the exact inverse of the
   generation predicates (e.g. `trunk-solo` + L3+ requires the nightly slot
   `06-nightly-lite | 06-nightly`, the weekly slot `07-weekly-lite | 07-weekly`, and
   `09-heartbeat`).

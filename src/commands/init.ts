@@ -1486,9 +1486,8 @@ function resolveWorkflowLanguages(language: Language): Language[] {
  * Exported for unit + drift tests.
  */
 export function deriveWorkflowCapabilities(config: ProjectConfig): L3MaturityCapability[] {
-  // The L3 gate only runs at L3; deriveWorkflowCapabilities is reached via case 'github'
-  // which is only consulted at L3, but guard anyway for direct unit-test callers.
-  if (config.governanceLevel !== 'L3') return []
+  // The L3 gate is a floor, not an exact match — L4 must stay gated too (#1732 cascade).
+  if (!levelAtLeast(config.governanceLevel, 'L3')) return []
   const c = workflowCtx(config)
   const langs = resolveWorkflowLanguages(config.language)
   return WORKFLOW_DIM_RULES.filter((r) => r.emit(c))
@@ -1591,7 +1590,7 @@ export function deriveL3MaturityChecks(
  * Exits the process with an actionable error message on violation.
  */
 function checkL3MaturityGates(config: ProjectConfig): void {
-  if (config.governanceLevel !== 'L3') return
+  if (!levelAtLeast(config.governanceLevel, 'L3')) return
 
   const accept = config.acceptBetaTools ?? false
   const blocked: string[] = []

@@ -114,7 +114,7 @@ describe('check-ci-tiers.mjs.ejs rendering (CANON-04)', () => {
     )
   }
 
-  // #1319.2 (INV-72): the required tier set is the collab-mode/level-aware inverse
+  // #1319.2 (INV-73): the required tier set is the collab-mode/level-aware inverse
   // of the github.ts generation predicates — NOT a fixed 8-file list. The default
   // makeConfig is peer-review (no collaborationMode set) + L2 → style 'standard'
   // → required = [01, 02, 03, 05-release].

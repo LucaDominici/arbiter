@@ -60,11 +60,22 @@ const { cwd: CWD } = parseHelpAndDir(args, {
   ].join('\n'),
 })
 
-// Curated denylist of known docker-container actions (`runs: using: docker` in
-// their action.yml) with an evidenced incident in this repo. Extend this list only
-// with actions CONFIRMED docker-container-typed — composite/JS actions run directly
-// in the runner's own process and are not subject to this bind-mount defect.
-const DOCKER_CONTAINER_ACTIONS = ['bridgecrewio/checkov-action']
+// Curated denylist of actions confirmed to trigger the #1756 bind-mount defect —
+// either natively docker-container-typed (`runs: using: docker` in action.yml, e.g.
+// bridgecrewio/checkov-action, dependency-check/Dependency-Check_Action), OR a
+// JS/node action that internally shells out to `docker run` against the workspace
+// (Docker-outside-of-Docker), which hits the identical host-mount defect via a
+// different mechanism (zaproxy/action-full-scan, zaproxy/action-baseline — both
+// `runs.using: node20`, but their README documents an internal `docker run` of the
+// ZAP image against the target workspace). Extend this list only after confirming
+// one of these two mechanisms — a plain composite/JS action that never touches
+// Docker itself is not subject to this bind-mount defect.
+const DOCKER_CONTAINER_ACTIONS = [
+  'bridgecrewio/checkov-action',
+  'dependency-check/Dependency-Check_Action',
+  'zaproxy/action-full-scan',
+  'zaproxy/action-baseline',
+]
 
 const JOB_HEADER_RE = /^ {2}([A-Za-z0-9_-]+):\s*$/
 const RUNS_ON_RE = /^\s*runs-on:\s+(.+)$/
@@ -106,9 +117,19 @@ function splitJobs(content) {
   return jobs
 }
 
+// Fail-closed: only a literal, recognized GitHub-hosted runner label (optionally
+// wrapped in an array/quotes, optionally several comma-separated) is treated as
+// NOT self-hosted-capable. Everything else — a `${{ ... }}` expression, a bare EJS
+// output tag (`<%- _runner %>`, used by workflow .ejs templates before the runner
+// label is known), or a literal custom/self-hosted label — is self-hosted-capable.
+const GITHUB_HOSTED_LABEL_RE = /^["']?(ubuntu|macos|windows)-[\w.]+["']?$/
+
 function isSelfHostedCapable(runsOnValue) {
   const trimmed = runsOnValue.trim()
-  return trimmed.startsWith('${{')
+  const arrayMatch = /^\[\s*(.+?)\s*\]$/.exec(trimmed)
+  const candidate = arrayMatch ? arrayMatch[1] : trimmed
+  const parts = candidate.split(',').map((p) => p.trim())
+  return !parts.every((p) => GITHUB_HOSTED_LABEL_RE.test(p))
 }
 
 function findDockerContainerUse(line) {
@@ -123,12 +144,10 @@ function findDockerContainerUse(line) {
 
 function scanFile(file, cwd) {
   const relPath = relative(cwd, file)
-  let content
-  try {
-    content = readFileSync(file, 'utf-8')
-  } catch {
-    return []
-  }
+  // Fail-closed (not the shared library's swallow-and-continue default): this gate's
+  // whole purpose is to catch the #1756 incident class, so an unreadable workflow file
+  // must crash the check non-zero, never silently report "no violations" for it.
+  const content = readFileSync(file, 'utf-8')
   const violations = []
   const jobs = splitJobs(content)
   for (const [jobId, jobLines] of jobs) {
@@ -146,8 +165,13 @@ function scanFile(file, cwd) {
   return violations
 }
 
-const yamlFiles = collectYamlFiles(join(CWD, '.github', 'workflows'))
-const templateFiles = collectWorkflowTemplates(join(CWD, 'src', 'templates'))
+// Fail-closed: an unreadable workflow directory must crash this gate non-zero, not
+// silently scan zero files and report OK (the shared library's default behavior).
+const onReadError = (dir, err) => {
+  throw new Error(`check-docker-action-runner-safety: cannot read ${dir}: ${err.message}`)
+}
+const yamlFiles = collectYamlFiles(join(CWD, '.github', 'workflows'), { onReadError })
+const templateFiles = collectWorkflowTemplates(join(CWD, 'src', 'templates'), { onReadError })
 
 const allViolations = [...yamlFiles, ...templateFiles].flatMap((file) => scanFile(file, CWD))
 

@@ -229,6 +229,44 @@ describe('deriveL3MaturityChecks — workflow-template dims (#1678)', () => {
   })
 })
 
+// The L3 maturity gate is a FLOOR, not an exact match — L4 must stay gated too. Both
+// checkL3MaturityGates and deriveWorkflowCapabilities previously used `!== 'L3'` as an
+// early-return guard, which meant an L4 init silently skipped the beta/unsafe-tool gate
+// entirely (the exact "L4 ends up less gated than L3" inversion the #1732 cascade cleanup
+// fixed everywhere else — docs.ts, render.ts, v1-to-v2.ts — but missed here).
+describe('deriveL3MaturityChecks — L3 gate is a floor, L4 stays gated too', () => {
+  it('gates a kotlin service at L4 exactly like at L3 (previously silently skipped)', () => {
+    const l3 = checksFor({
+      language: 'kotlin',
+      archetype: 'backend-web-db',
+      basePackage: 'com.example',
+    })
+    const l4 = checksFor({
+      governanceLevel: 'L4',
+      language: 'kotlin',
+      archetype: 'backend-web-db',
+      basePackage: 'com.example',
+    })
+    expect(blockedFeatures(l4).length).toBeGreaterThan(0)
+    expect(blockedFeatures(l4).sort()).toEqual(blockedFeatures(l3).sort())
+  })
+
+  it('resolves workflow-template capabilities at L4 too (deriveWorkflowCapabilities floor check)', () => {
+    const caps = deriveWorkflowCapabilities(
+      makeConfig('/tmp/maturity-emission-l4', {
+        governanceLevel: 'L4',
+        language: 'kotlin',
+        archetype: 'backend-web-db',
+        useGitHub: true,
+        pipelineStyle: 'standard',
+        collaborationMode: 'peer-review',
+        enableSecurityScanning: true,
+      }),
+    )
+    expect(caps.length).toBeGreaterThan(0)
+  })
+})
+
 // #1725: `hasMatrixCell(multi, dim)` has no explicit cell for the unmodeled 'multi'
 // pseudo-language, so `deriveWorkflowCapabilities` — which previously used the raw
 // `config.language` unresolved — produced capabilities that `deriveL3MaturityChecks`
@@ -284,9 +322,16 @@ describe('deriveWorkflowCapabilities — multi polyglot resolves to constituent 
       enableSecurityScanning: true,
     })
     const workflowChecks = checks.filter((c) =>
-      ['license_scan', 'secret_scan', 'container_scan', 'sbom', 'binary_signing', 'provenance', 'fuzz', 'dast'].includes(
-        c.feature,
-      ),
+      [
+        'license_scan',
+        'secret_scan',
+        'container_scan',
+        'sbom',
+        'binary_signing',
+        'provenance',
+        'fuzz',
+        'dast',
+      ].includes(c.feature),
     )
     // Previously ZERO — hasMatrixCell('multi', dim) had no cell, so every workflow dim
     // was silently skipped for a polyglot repo (false-pass, no gating).

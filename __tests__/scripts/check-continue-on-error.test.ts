@@ -176,6 +176,31 @@ jobs:
     }
   })
 
+  it('a non-gating job with a comment mentioning a check-*.mjs script path → PASS (comment is not a command)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeWf(
+        dir,
+        'ci.yml',
+        `name: ci
+on: [push]
+jobs:
+  scan:
+    if: false
+    continue-on-error: true
+    # Enforced by scripts/check-docker-action-runner-safety.mjs.
+    runs-on: ubuntu-latest
+    steps:
+      - name: full scan
+        uses: zaproxy/action-full-scan@d2a07475d467566c9a3e3c700f31f47724aa1060
+`,
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('an audited `# arbiter-allow-continue-on-error` marker → PASS', () => {
     const { dir, cleanup } = makeRepo()
     try {

@@ -20,7 +20,10 @@ import { shipStepFor, buildShipStepLines, type ShipResult } from '../../src/comm
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import { sizeVerticals } from '../../src/sizing/sizing.js'
 import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
-import { companionGreenInstruction, companionStatusLine } from '../../src/integrations/companions.js'
+import {
+  companionGreenInstruction,
+  companionStatusLine,
+} from '../../src/integrations/companions.js'
 
 const dirs: string[] = []
 function tmpRepo(files: Record<string, string>): string {
@@ -76,11 +79,18 @@ const STANDARD_TIER = 'Standard'
  * profile, then render the full step-output lines a human/agent would see. Returns the resolved
  * profile alongside the lines so a scenario can assert on both without a second resolution.
  */
-function renderGreenStep(root: string, claudeHome: string): { lines: string[]; profile: ShipProfile } {
+function renderGreenStep(
+  root: string,
+  claudeHome: string,
+): { lines: string[]; profile: ShipProfile } {
   const phase: TaskPhase = 'green'
   const profile = resolveShipProfile(root, { claudeHome })
   const step = shipStepFor(phase, STANDARD_TIER, profile)
-  const size: ResolvedSize = { tier: STANDARD_TIER, verticals: sizeVerticals(STANDARD_TIER), source: 'default' }
+  const size: ResolvedSize = {
+    tier: STANDARD_TIER,
+    verticals: sizeVerticals(STANDARD_TIER),
+    source: 'default',
+  }
   const result: ShipResult = { phase, step, advanced: false, done: false, profile }
   return { lines: buildShipStepLines(result, size), profile }
 }
@@ -97,7 +107,9 @@ describe('companion contract — e2e (#1748)', () => {
     const instruction = companionGreenInstruction(profile.companions)
     expect(instruction.length).toBeGreaterThan(0)
     expect(lines).toContain(`Action: Implement the minimum to make the tests pass. ${instruction}`)
-    expect(lines).toContain(`Companion: ${companionStatusLine(profile.companions)} · arbiter gates remain the safety net`)
+    expect(lines).toContain(
+      `Companion: ${companionStatusLine(profile.companions)} · arbiter gates remain the safety net`,
+    )
   })
 
   it('absent: no companion anywhere → full output is byte-identical to the pre-companion baseline', () => {

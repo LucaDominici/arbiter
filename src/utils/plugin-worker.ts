@@ -40,7 +40,8 @@ export function withPluginRenderDefaults(data: Record<string, unknown>): Record<
     ? data
     : { ...data, basePackage: undefined }
   const level = (withBasePackage as { governanceLevel?: unknown }).governanceLevel
-  const rank = typeof level === 'string' ? LEVEL_ORDER.indexOf(level as (typeof LEVEL_ORDER)[number]) : -1
+  const rank =
+    typeof level === 'string' ? LEVEL_ORDER.indexOf(level as (typeof LEVEL_ORDER)[number]) : -1
   return {
     ...withBasePackage,
     isL2Plus: rank >= LEVEL_ORDER.indexOf('L2'),

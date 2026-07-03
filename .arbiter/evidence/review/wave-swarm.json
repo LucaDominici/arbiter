@@ -1,0 +1,41 @@
+{
+  "wave": "wave-swarm",
+  "branch": "wave-swarm-integration",
+  "head_sha": "c4f1ebf7118fc2e00c1b732f728e376e0a0493d5",
+  "groups": {
+    "A-worktree-scan": ["#1731", "#1742", "#1753", "#1734", "#1752"],
+    "B-ci-infra": ["#1756", "#1729"],
+    "C-single-dial": ["#1732", "#1741", "#1751"],
+    "D-errors-canon17": ["#1740", "#1735", "#1736", "#1733"],
+    "E-docs-enhancements": ["#1737", "#1747", "#1748", "#1749"],
+    "F-matrix-modeling": ["#1724", "#1725", "#1723"]
+  },
+  "routeAuditors": {
+    "filesChanged": 94,
+    "dimensions": ["bugs", "type-safety", "domain", "test-quality", "security", "data-integrity", "silent-failures"],
+    "criticalPathsFired": ["security-sensitive"],
+    "coverageTier": "full"
+  },
+  "reviewers": [
+    {
+      "lens": "adversarial-verifier (7-lens combined pass)",
+      "verdict": "PASS-after-fix",
+      "critical": 0,
+      "major": 1,
+      "minor": 2,
+      "majorFinding": "check-docker-action-runner-safety.mjs DOCKER_CONTAINER_ACTIONS denylist claimed to omit dependency-check/Dependency-Check_Action",
+      "resolved": true,
+      "resolution": "false positive — verified the denylist already contains 'dependency-check/Dependency-Check_Action' (scripts/check-docker-action-runner-safety.mjs:75) and its dedicated test case (__tests__/scripts/check-docker-action-runner-safety.test.ts:207) passes (12/12 suite green); reviewer read a stale/partial view"
+    }
+  ],
+  "verifiedSound": [
+    "error-catalog.ts 10 new ERROR_CATALOG entries are additive-only, no swallowed errors/exit codes",
+    "render.ts withServiceBucket/resolveServiceBucket replaces 6 duplicated maps, consumed by init.ts + 5 EJS templates",
+    "plugin-worker.ts workerData guard is test-scaffolding only, not a runtime silent-no-op",
+    "check-docker-action-runner-safety.mjs and check-consumer-audit.mjs.ejs correctly wired into check-all.mjs/check-all.ts",
+    "no orphan TODOs, placeholders, or new any types introduced",
+    "wiki lint (INV-116) clean after regeneration of 2 drifted pages",
+    "full local gate GREEN: node scripts/check-all.mjs check, ~90+ checks, gate-pass.json L2 at c4f1ebf7"
+  ],
+  "verdict": "PASS"
+}

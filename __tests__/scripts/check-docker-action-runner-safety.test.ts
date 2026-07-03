@@ -10,7 +10,7 @@
 // silently reading the wrong workspace; this gate fails such a combination closed.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, chmodSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -151,6 +151,104 @@ describe('check-docker-action-runner-safety.mjs (#1756)', () => {
       const result = run(dir)
       expect(result.status).toBe(0)
     } finally {
+      cleanup()
+    }
+  })
+
+  it('fails on the bare EJS output-tag indirection pattern used by workflow templates (<%- _runner %>)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      mkdirSync(join(dir, 'src', 'templates', 'github', 'workflows'), { recursive: true })
+      writeFileSync(
+        join(dir, 'src', 'templates', 'github', 'workflows', '06-nightly-lite.yml.ejs'),
+        [
+          '<%',
+          'const _runner = "${{ fromJSON(vars.RUNNER_LABELS_TEST || \'[\\"ubuntu-latest\\"]\') }}";',
+          '%>jobs:',
+          '  iac-scan:',
+          '    runs-on: <%- _runner %>',
+          '    steps:',
+          '      - uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf',
+          '',
+        ].join('\n'),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('bridgecrewio/checkov-action')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails when a docker-container action runs under a literal, non-GitHub-hosted (custom self-hosted) label', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+      writeFileSync(
+        join(dir, '.github', 'workflows', 'ci.yml'),
+        [
+          'jobs:',
+          '  iac-scan:',
+          '    runs-on: arbiter-slot-build-4',
+          '    steps:',
+          '      - uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf',
+          '',
+        ].join('\n'),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('arbiter-slot-build-4')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it.each([
+    ['dependency-check/Dependency-Check_Action', '1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c'],
+    ['zaproxy/action-full-scan', 'd2a07475d467566c9a3e3c700f31f47724aa1060'],
+    ['zaproxy/action-baseline', '66042c8e7e24680119199a017e5b0e8603bf4dae'],
+  ])(
+    'fails when the Docker-outside-of-Docker action %s runs under a self-hosted-capable runner',
+    (action, sha) => {
+      const { dir, cleanup } = makeDir()
+      try {
+        mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+        writeFileSync(
+          join(dir, '.github', 'workflows', 'ci.yml'),
+          [
+            'jobs:',
+            '  scan:',
+            '    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || \'["ubuntu-latest"]\') }}',
+            '    steps:',
+            `      - uses: ${action}@${sha}`,
+            '',
+          ].join('\n'),
+        )
+        const result = run(dir)
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain(action)
+      } finally {
+        cleanup()
+      }
+    },
+  )
+
+  it('crashes non-zero (fail-closed) rather than reporting OK when a workflow file cannot be read', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const workflowsDir = join(dir, '.github', 'workflows')
+      mkdirSync(workflowsDir, { recursive: true })
+      const unreadable = join(workflowsDir, 'unreadable.yml')
+      writeFileSync(unreadable, 'jobs:\n  build:\n    runs-on: ubuntu-latest\n')
+      // Skip on CI where processes may run as root (root ignores chmod)
+      if (process.getuid?.() === 0) return
+      // 0 permissions makes readFileSync throw EACCES for a non-root process.
+      chmodSync(unreadable, 0o000)
+      const result = run(dir)
+      expect(result.status).not.toBe(0)
+      expect(result.stdout).not.toContain('OK')
+    } finally {
+      chmodSync(join(dir, '.github', 'workflows', 'unreadable.yml'), 0o644)
       cleanup()
     }
   })

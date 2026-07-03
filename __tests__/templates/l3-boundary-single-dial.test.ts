@@ -32,8 +32,7 @@ function walk(dir: string): string[] {
   })
 }
 
-const BOUNDARY_LITERAL_RE =
-  /governanceLevel === 'L[1-3]'( \|\| governanceLevel === 'L[2-4]')+/
+const BOUNDARY_LITERAL_RE = /governanceLevel === 'L[1-3]'( \|\| governanceLevel === 'L[2-4]')+/
 
 describe('#1741 — no hand-rolled L2+/L3+ boundary literals remain in templates', () => {
   it('every *.ejs template is free of the governanceLevel === boundary-OR idiom', () => {
@@ -87,9 +86,7 @@ const KNOWN_LEVEL_STAMP_LINES = [
 ]
 
 function filteredNonBlankLines(content: string): string[] {
-  return nonBlankLines(content).filter(
-    (l) => !KNOWN_LEVEL_STAMP_LINES.some((re) => re.test(l)),
-  )
+  return nonBlankLines(content).filter((l) => !KNOWN_LEVEL_STAMP_LINES.some((re) => re.test(l)))
 }
 
 function renderAgentsMd(governanceLevel: GovernanceLevel): string {
@@ -148,16 +145,19 @@ const CONVERTED_L3_PLUS_TEMPLATES = [
 ] as const
 
 describe('#1741 — L4 render is a superset of L3 render for converted isL3Plus templates', () => {
-  it.each(CONVERTED_L3_PLUS_TEMPLATES)('%s: every non-blank L3 line is present in L4', (template) => {
-    const l3 = renderTemplate(template, cfg({ governanceLevel: 'L3' }))
-    const l4 = renderTemplate(template, cfg({ governanceLevel: 'L4' }))
-    const l4Lines = new Set(filteredNonBlankLines(l4))
-    const missingFromL4 = filteredNonBlankLines(l3).filter((line) => !l4Lines.has(line))
-    expect(
-      missingFromL4,
-      `L3 lines missing from L4 render of ${template} (L4 must be ⊇ L3):\n${missingFromL4.join('\n')}`,
-    ).toEqual([])
-  })
+  it.each(CONVERTED_L3_PLUS_TEMPLATES)(
+    '%s: every non-blank L3 line is present in L4',
+    (template) => {
+      const l3 = renderTemplate(template, cfg({ governanceLevel: 'L3' }))
+      const l4 = renderTemplate(template, cfg({ governanceLevel: 'L4' }))
+      const l4Lines = new Set(filteredNonBlankLines(l4))
+      const missingFromL4 = filteredNonBlankLines(l3).filter((line) => !l4Lines.has(line))
+      expect(
+        missingFromL4,
+        `L3 lines missing from L4 render of ${template} (L4 must be ⊇ L3):\n${missingFromL4.join('\n')}`,
+      ).toEqual([])
+    },
+  )
 })
 
 describe('#1741 — ci-mental-model.md.ejs: converted isL2Plus boundary line', () => {

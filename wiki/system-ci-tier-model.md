@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/SYSTEM/CI-TIER-MODEL.md'
-source_sha: '76d1f1d590605b2567243e2b3a578a97089f7d19'
+source_sha: 'f955f32f587a7dba68187afa79892f742f972593'
 last_updated: '2026-07-03'
 ---
 
@@ -98,7 +98,7 @@ change which governance level emits which workflow. The level-by-level guarantee
   L3 hermetic provenance job name and the `Verify container signature (L3 strict)` step
   that L3 carries (not the weaker "L2 signed" label).
 
-This contract is **two-dimensional**: which workflow FILES a level emits (INV-73/INV-72,
+This contract is **two-dimensional**: which workflow FILES a level emits (INV-73,
 below), and how STRICT a given file's CONTENT is once emitted. #1720 found and closed a
 gap in the second dimension — `05-release.yml`'s SLSA-provenance strictness, `CODEOWNERS`'
 path-owner coverage, `KNOWLEDGE_MAP.md`'s TRACK*ROUTER section, the generated gate's L2+
@@ -107,11 +107,11 @@ runtime clamp, and the fail-closed audit's emission — were hand-rolled as lite
 rendered \_weaker* than L3 in five places while `check-ci-tiers.mjs`'s existence-only check
 stayed green. The fix: `levelAtLeast` (`src/config/levels.ts`, #1516) is now injected into
 every EJS render as `isL2Plus`/`isL3Plus`/`isL4` (`src/utils/render.ts`), and
-`check-ci-tiers.mjs` gained an L3+ CONTENT assertion on `05-release.yml` (INV-72) so a
+`check-ci-tiers.mjs` gained an L3+ CONTENT assertion on `05-release.yml` (INV-73) so a
 future regression in this class fails the gate instead of shipping invisible.
 
-This contract is enforced by `scripts/check-ci-tiers.mjs`: the INV-73 canonical-presence
-floor, the INV-72 collaboration-mode/level-aware required set (the exact inverse of the
-generation predicates) plus i
+This contract is enforced by `scripts/check-ci-tiers.mjs` (INV-73): the canonical-presence
+floor, the collaboration-mode/level-aware required set (the exact inverse of the
+generation predicates) plus its L3+ conte
 
 *[content truncated — see source for full text]*

@@ -565,7 +565,10 @@ describe('runDoctorHealth (#539)', () => {
     function installPonytail(home: string): void {
       const skill = join(home, 'plugins', 'cache', 'ponytail', '4.8.4', 'skills', 'ponytail')
       mkdirSync(skill, { recursive: true })
-      writeFileSync(join(skill, 'SKILL.md'), `---\nname: ponytail\nversion: 4.8.4\n---\n# Ponytail\n`)
+      writeFileSync(
+        join(skill, 'SKILL.md'),
+        `---\nname: ponytail\nversion: 4.8.4\n---\n# Ponytail\n`,
+      )
     }
 
     it('detected: reports installed, resolved mode, and the source of that mode', async () => {

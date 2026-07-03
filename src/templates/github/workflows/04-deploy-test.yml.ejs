@@ -347,7 +347,14 @@ const _dt = ({
   dast-baseline:
     name: DAST Baseline (ZAP — ephemeral TEST env)
     needs: [deploy-test]
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_BUILD || '["ubuntu-latest"]') }}
+    # #1756: pinned to a LITERAL GitHub-hosted runner, not the usual
+    # `vars.RUNNER_LABELS_BUILD` self-hosted-capable fallback. zaproxy/action-baseline
+    # is a Docker-outside-of-Docker action (it internally runs `docker run` against the
+    # ZAP image) — on a self-hosted runner whose own process runs inside a container,
+    # the workspace bind-mount resolves against the DOCKER HOST path, not the runner's
+    # own checkout. GitHub-hosted runners are not containerized this way and are
+    # unaffected. Enforced by scripts/check-docker-action-runner-safety.mjs.
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
