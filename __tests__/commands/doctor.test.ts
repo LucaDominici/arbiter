@@ -551,6 +551,70 @@ describe('runDoctorHealth (#539)', () => {
     expect(result.released).toBe(true)
     expect(existsSync(join(dir, '.arbiter', 'kit.lock'))).toBe(false)
   })
+
+  // #1747 — doctor surfaces companion-plugin detection, resolved mode + source, and the
+  // arbiter-self guard, reusing diagnoseCompanions (companions.ts) so this can never drift
+  // from /ship's own resolution.
+  describe('Companions health (#1747)', () => {
+    let claudeHome: string
+    beforeEach(() => {
+      claudeHome = mkdtempSync(join(tmpdir(), 'arbiter-doctor-companion-home-'))
+    })
+    afterEach(() => rmSync(claudeHome, { recursive: true, force: true }))
+
+    function installPonytail(home: string): void {
+      const skill = join(home, 'plugins', 'cache', 'ponytail', '4.8.4', 'skills', 'ponytail')
+      mkdirSync(skill, { recursive: true })
+      writeFileSync(join(skill, 'SKILL.md'), `---\nname: ponytail\nversion: 4.8.4\n---\n# Ponytail\n`)
+    }
+
+    it('detected: reports installed, resolved mode, and the source of that mode', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+      installPonytail(claudeHome)
+      const result = await runDoctorHealth({ dir, claudeHome, json: true })
+      const check = result.checks.find((c) => c.id === 'companions')
+      expect(check?.status).toBe('PASS')
+      expect(check?.detail).toContain('ponytail: detected, mode=full (policy default)')
+      expect(result.fail).toBe(0)
+    })
+
+    it('not installed: reports absence as PASS — no error, no noise', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+      const result = await runDoctorHealth({ dir, claudeHome, json: true })
+      const check = result.checks.find((c) => c.id === 'companions')
+      // "No error, no noise": absence is PASS, not WARN/FAIL — never treated as a problem.
+      expect(check?.status).toBe('PASS')
+      expect(check?.detail).toContain('ponytail: not installed')
+    })
+
+    it('disabled by config: an installed companion disabled via arbiter.json is called out', async () => {
+      mockGitOk()
+      writeFileSync(
+        join(dir, 'arbiter.json'),
+        JSON.stringify({ tools: ['claude'], companions: { ponytail: { enabled: false } } }),
+        'utf-8',
+      )
+      installPonytail(claudeHome)
+      const result = await runDoctorHealth({ dir, claudeHome, json: true })
+      const check = result.checks.find((c) => c.id === 'companions')
+      expect(check?.status).toBe('PASS')
+      expect(check?.detail).toContain('ponytail: detected, disabled by config')
+    })
+
+    it('arbiter-self: states companions never activate on self, instead of a per-entry row', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@arbiter/cli' }), 'utf-8')
+      installPonytail(claudeHome)
+      const result = await runDoctorHealth({ dir, claudeHome, json: true })
+      const check = result.checks.find((c) => c.id === 'companions')
+      expect(check?.status).toBe('PASS')
+      expect(check?.detail).toMatch(/never activate on arbiter-self/)
+      expect(check?.detail).not.toContain('ponytail')
+    })
+  })
 })
 
 // ── runDoctorRepairState (#619) ───────────────────────────────────────────────
