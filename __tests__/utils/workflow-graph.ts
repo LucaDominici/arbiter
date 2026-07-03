@@ -15,13 +15,16 @@
 // `${{ }}` expression soup in step bodies).
 //
 // #1549: the reusable-workflow contract helpers at the bottom of this file DO
-// fully parse rendered YAML via `js-yaml` (a declared devDependency, ^4.1.0).
+// fully parse rendered YAML via `js-yaml` (a declared devDependency, ^5.2.1).
 // Resolving a caller's `with:` block against a callee's `on.workflow_call.inputs`
 // needs real structural parsing — the line scanner cannot reliably associate a
 // `with:` key with the enclosing job's `uses:`. This is the static guard that
 // would have caught the #1548 `_notify` contract break.
+//
+// js-yaml v5 ships pure ESM with only named exports (no default export) — a
+// default import resolves to `undefined`. Import `load` by name (#1758).
 
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 
 /** A single workflow job parsed from rendered YAML. */
 export interface WorkflowJob {
@@ -317,7 +320,7 @@ function round(n: number): number {
  * an empty map when the document has no `jobs`.
  */
 export function parseJobNeeds(content: string): Map<string, string[]> {
-  const doc = yaml.load(content) as Record<string, unknown> | null
+  const doc = load(content) as Record<string, unknown> | null
   const jobs = doc && typeof doc === 'object' ? (doc as { jobs?: unknown }).jobs : undefined
   const map = new Map<string, string[]>()
   if (!jobs || typeof jobs !== 'object') return map
@@ -342,7 +345,7 @@ export interface ReusableInputSpec {
  * `workflow_call` trigger (i.e. it is not a reusable/callable workflow).
  */
 export function parseWorkflowCallInputs(content: string): Map<string, ReusableInputSpec> | null {
-  const doc = yaml.load(content) as Record<string, unknown> | null
+  const doc = load(content) as Record<string, unknown> | null
   if (!doc || typeof doc !== 'object') return null
   const on = (doc as { on?: unknown }).on
   if (!on || typeof on !== 'object') return null
@@ -377,7 +380,7 @@ export interface ReusableCall {
  * not resolvable from this repo.
  */
 export function parseReusableCalls(content: string): ReusableCall[] {
-  const doc = yaml.load(content) as Record<string, unknown> | null
+  const doc = load(content) as Record<string, unknown> | null
   const jobs = doc && typeof doc === 'object' ? (doc as { jobs?: unknown }).jobs : undefined
   if (!jobs || typeof jobs !== 'object') return []
   const calls: ReusableCall[] = []

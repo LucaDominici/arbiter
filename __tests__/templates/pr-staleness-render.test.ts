@@ -23,14 +23,14 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, chmodSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
 function renderStalenessStep(): string {
   const data = makeConfig('/tmp/arbiter-pr-staleness', {}) as unknown as Record<string, unknown>
   const rendered = renderTemplate('github/workflows/_pr-staleness.yml.ejs', data)
-  const doc = yaml.load(rendered) as {
+  const doc = load(rendered) as {
     jobs: { stale: { steps: Array<{ run?: string }> } }
   }
   const step = doc.jobs.stale.steps.find(
