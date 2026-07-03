@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   parseFeatureMatrixRows,
   featureMatrixToCsv,
   featureMatrixToXlsx,
 } from '../export/feature-matrix-export.js'
+import { writeFileTranslated } from '../utils/fs.js'
 
 export interface FeatureMatrixExportOptions {
   format: 'csv' | 'xlsx'
@@ -31,10 +32,10 @@ export async function runFeatureMatrixExport(opts: FeatureMatrixExportOptions): 
 
   if (opts.format === 'xlsx') {
     const buf = await featureMatrixToXlsx(rows)
-    writeFileSync(opts.out, buf)
+    writeFileTranslated(opts.out, buf)
     return
   }
 
   const csv = featureMatrixToCsv(rows)
-  writeFileSync(opts.out, csv, 'utf-8')
+  writeFileTranslated(opts.out, csv)
 }

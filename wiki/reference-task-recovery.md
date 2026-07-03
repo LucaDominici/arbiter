@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/task-recovery.md'
 source_sha: '6a1e05f91cb1751459fe1871c4457ce24e997394'
-last_updated: '2026-06-28'
+last_updated: '2026-07-03'
 ---
 
 # Task Recovery Reference

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/local-wrapper-contract.md'
 source_sha: 'd742cf00662cef516873b924d7eb4caacf5e106f'
-last_updated: '2026-06-28'
+last_updated: '2026-07-03'
 ---
 
 # Local-Wrapper Contract (INV-87, W3)

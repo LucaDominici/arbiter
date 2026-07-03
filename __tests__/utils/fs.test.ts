@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import {
   writeFile,
@@ -12,7 +13,9 @@ import {
   endGenerationSession,
   _registerTmpPath,
   _translateFsError,
+  writeFileTranslated,
 } from '../../src/utils/fs.js'
+import { ArbiterError } from '../../src/utils/errors.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
 describe('writeFile', () => {
@@ -506,7 +509,82 @@ describe('ENOSPC_MSGS errno translation (#616)', () => {
   })
 
   it('returns null for unmapped codes', () => {
-    expect(_translateFsError('ENOENT', path)).toBeNull()
+    // ENOENT is now mapped (#1717 / CANON-17) — only truly-unknown codes return null.
     expect(_translateFsError('UNKNOWN', path)).toBeNull()
+  })
+
+  it('translates ENOENT (added #1717 — a missing output dir is a CANON-17 code)', () => {
+    const msg = _translateFsError('ENOENT', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toContain(path)
+    expect(msg).toMatch(/does not exist|create/i)
+  })
+
+  it('translates EBUSY (added #1717) with a busy/locked-file hint', () => {
+    const msg = _translateFsError('EBUSY', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toContain(path)
+    expect(msg).toMatch(/busy|locked/i)
+  })
+
+  it('translates EMFILE (added #1717) with a too-many-open-files hint', () => {
+    const msg = _translateFsError('EMFILE', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toContain(path)
+    expect(msg).toMatch(/too many open files|ulimit/i)
+  })
+})
+
+// #1717 (CANON-17): writeFileTranslated is the approved CLI-output write façade — a thin
+// direct write (no mkdir, no manifest/skipIfExists) that translates any fs errno failure
+// into an ArbiterError. Unlike writeFile()/the rejected writeOutput draft, it does NOT
+// create the parent directory: a missing --out dir must surface as a translated ENOENT,
+// not be silently mkdir'd away.
+describe('writeFileTranslated', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'write-file-translated-'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('writes string content to an existing directory', () => {
+    const out = join(dir, 'out.txt')
+    writeFileTranslated(out, 'hello')
+    expect(readFileSync(out, 'utf-8')).toBe('hello')
+  })
+
+  it('writes Buffer content (xlsx path)', () => {
+    const out = join(dir, 'out.bin')
+    const buf = Buffer.from([0x50, 0x4b, 0x03, 0x04])
+    writeFileTranslated(out, buf)
+    expect(readFileSync(out)).toEqual(buf)
+  })
+
+  it('translates ENOENT into an ArbiterError when the parent directory does not exist (no mkdir)', () => {
+    const out = join(dir, 'no-such-subdir', 'out.txt')
+    try {
+      writeFileTranslated(out, 'x')
+      throw new Error('expected writeFileTranslated to throw')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ArbiterError)
+      expect((err as ArbiterError).code).toBe('ENOENT')
+      expect((err as ArbiterError).message).toContain(out)
+      expect(existsSync(out)).toBe(false)
+    }
+  })
+
+  it('re-throws the original, unmapped error unchanged for an unmapped code (ENAMETOOLONG)', () => {
+    // NAME_MAX=255 on Linux is a filesystem limit root cannot bypass — deterministic in CI.
+    const longBasename = 'a'.repeat(300) + '.txt'
+    const out = join(dir, longBasename)
+    try {
+      writeFileTranslated(out, 'x')
+      throw new Error('expected writeFileTranslated to throw')
+    } catch (err) {
+      expect(err).not.toBeInstanceOf(ArbiterError)
+      expect((err as NodeJS.ErrnoException).code).toBe('ENAMETOOLONG')
+    }
   })
 })

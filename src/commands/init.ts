@@ -1157,11 +1157,42 @@ function buildProviderFields(
 }
 
 /**
+ * Build the default-collapsing governance-axis fields. Extracted from
+ * buildOptionalAxisFields when #1693's runnerProfile condition pushed that
+ * function past the 10-branch complexity ceiling. These axes persist only on
+ * an explicit opt-in away from their semantic default ('fleet'/'none'), so a
+ * clean round-trip emits byte-identical output to a config that never
+ * mentions them (ADR-101, #1254, #1616).
+ */
+function buildCollapsedAxisFields(
+  config: ProjectConfig,
+): Pick<ArbiterConfig, 'runnerProfile' | 'industryOverlay' | 'deployTarget'> {
+  return {
+    // #1693: persist runnerProfile only when it opts INTO 'solo' — the 'fleet'
+    // default collapses to absence (ADR-101).
+    ...(config.runnerProfile !== undefined && config.runnerProfile !== 'fleet'
+      ? { runnerProfile: config.runnerProfile }
+      : {}),
+    // #1254: persist the compliance overlay so doctor can flag the cell and
+    // `arbiter update` re-emits the overlay. Omitted when none/absent.
+    ...(config.industryOverlay !== undefined && config.industryOverlay !== 'none'
+      ? { industryOverlay: config.industryOverlay }
+      : {}),
+    // #1616: persist deployTarget so `arbiter update`/`diff` re-emit the deploy
+    // workflows/infra. Without this the round-trip rebuilt ProjectConfig with
+    // deployTarget=undefined→'none', silently disabling it on every update.
+    ...(config.deployTarget !== undefined && config.deployTarget !== 'none'
+      ? { deployTarget: config.deployTarget }
+      : {}),
+  }
+}
+
+/**
  * Build the optional governance-axis portion of the stored config. Extracted from
  * buildArbiterConfig to keep its cyclomatic complexity within the 15-branch ceiling
  * (#1616 added deployTarget + taxonomy, pushing the inline spread block over it).
- * Each field is persisted only when present; industryOverlay/deployTarget also
- * collapse their semantic-'none' to absence so a clean round-trip omits them.
+ * Each field is persisted only when present; the default-collapsing axes
+ * (runnerProfile/industryOverlay/deployTarget) live in buildCollapsedAxisFields.
  */
 function buildOptionalAxisFields(
   config: ProjectConfig,
@@ -1174,6 +1205,7 @@ function buildOptionalAxisFields(
   | 'basePackage'
   | 'deployTarget'
   | 'taxonomy'
+  | 'runnerProfile'
 > {
   return {
     ...(config.evidenceRetention !== undefined
@@ -1181,19 +1213,10 @@ function buildOptionalAxisFields(
       : {}),
     ...(config.thresholdProfile !== undefined ? { thresholdProfile: config.thresholdProfile } : {}),
     ...(config.strictnessTier !== undefined ? { strictnessTier: config.strictnessTier } : {}),
-    // #1254: persist the compliance overlay so doctor can flag the cell and
-    // `arbiter update` re-emits the overlay. Omitted when none/absent.
-    ...(config.industryOverlay !== undefined && config.industryOverlay !== 'none'
-      ? { industryOverlay: config.industryOverlay }
-      : {}),
+    ...buildCollapsedAxisFields(config),
     ...(config.basePackage !== undefined ? { basePackage: config.basePackage } : {}),
-    // #1616: persist deployTarget + taxonomy so `arbiter update`/`diff` re-emit the
-    // deploy workflows/infra and custom test-taxonomy dimensions. Without this the
-    // round-trip rebuilt ProjectConfig with deployTarget=undefined→'none' and
-    // taxonomy=undefined→[], silently disabling both on every update.
-    ...(config.deployTarget !== undefined && config.deployTarget !== 'none'
-      ? { deployTarget: config.deployTarget }
-      : {}),
+    // #1616: persist taxonomy so `arbiter update`/`diff` re-emit the custom
+    // test-taxonomy dimensions (taxonomy=undefined→[] otherwise).
     ...(config.taxonomy !== undefined ? { taxonomy: config.taxonomy } : {}),
   }
 }

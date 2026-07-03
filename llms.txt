@@ -1,0 +1,38 @@
+# arbiter
+
+> AI governance that installs itself. A parameterized source of truth (AGENTS.md + invariants + hooks + gates + CI) generated across stacks and tools, enforced mechanically at edit/commit/push/CI. Optional orchestration layer (/ship, /drain, sub-agents) drives issues to merged PRs. Zero telemetry. Expert-only.
+
+arbiter tells agents WHAT rules apply, then enforces them mechanically — personas drift, gate scripts don't. Read AGENTS.md first; it is the canonical governance file all tools read. Authority hierarchy: AGENTS.md > ADRs > CANON.md > implementation decisions. Every task runs the gate before commit. Never commit to main; never add `any` (TS) or `.unwrap()` (Rust); never leave orphan TODOs.
+
+## Core governance
+
+- [AGENTS.md](AGENTS.md): Canonical governance + invariants (INV-NN). Read first.
+- [GLOBAL_INVARIANTS.md](GLOBAL_INVARIANTS.md): Hand-maintained invariant mosaic (INV-01..INV-128). Authoritative when present.
+- [docs/SYSTEM/CANON.md](docs/SYSTEM/CANON.md): Process rules CANON-NN from audit waves #151-#186. Cite on violation.
+- [docs/INDEX.md](docs/INDEX.md): Generated index of 168 docs with canonical_id/status/kind. Navigation entry point.
+- [.claude/knowledge-map.json](.claude/knowledge-map.json): Machine-readable track routing (frontend/backend/docs).
+- [.claude/AGENT_REGISTRY.md](.claude/AGENT_REGISTRY.md): Sub-agents (red-team, bridge-reviewer, context-checker, codebase-scanner, ai-pr-gate) + interaction chains.
+
+## CLI and gates
+
+- [website/reference/cli.md](website/reference/cli.md): Generated CLI reference (all subcommands, exit codes 0/1/2/78, --json envelopes). Source of truth: src/cli.ts.
+- [scripts/check-all.mjs](scripts/check-all.mjs): The gate. `node scripts/check-all.mjs L1` (pre-commit, ~2 min) / `L2` (pre-push, ~10 min) / `full` (~35 min).
+- [.claude/commands/](.claude/commands/): Slash-command runbooks for agents — [ship.md](.claude/commands/ship.md) (issue -> merged PR orchestrator), [task.md](.claude/commands/task.md), [drain.md](.claude/commands/drain.md), [review-code.md](.claude/commands/review-code.md), [review-plan.md](.claude/commands/review-plan.md), [impact.md](.claude/commands/impact.md), [gold-audit.md](.claude/commands/gold-audit.md), [gap.md](.claude/commands/gap.md), [status.md](.claude/commands/status.md), [replay.md](.claude/commands/replay.md), [levelup.md](.claude/commands/levelup.md), [close-gold-gap.md](.claude/commands/close-gold-gap.md), [wt-open.md](.claude/commands/wt-open.md), [wt-close.md](.claude/commands/wt-close.md), [wt-list.md](.claude/commands/wt-list.md), [wt-prune.md](.claude/commands/wt-prune.md).
+
+## Method and architecture
+
+- [docs/METHOD/PROCESS.md](docs/METHOD/PROCESS.md): Track model, post-commit classification, doc semver, RFC process.
+- [docs/METHOD/TESTING.md](docs/METHOD/TESTING.md): Testing method.
+- [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md): Architecture spine.
+- [docs/SYSTEM/HOOK-CONTRACTS.md](docs/SYSTEM/HOOK-CONTRACTS.md): Stable hook env-var/stdin/exit shapes.
+- [docs/api/README.md](docs/api/README.md): Public API surface + generated api-extractor snapshots in api/.
+- [docs/PRODUCT/PRD.md](docs/PRODUCT/PRD.md): What arbiter is and is not.
+
+## Optional
+
+- [wiki/](wiki/): Generated LLM-wiki (Obsidian-compatible, citation-backed, non-authoritative). Query via `node scripts/gen-wiki.mjs query <terms>`.
+- [docs/ADR/](docs/ADR/): Architecture decision records. Digest in [docs/SYSTEM/DECISIONS.md](docs/SYSTEM/DECISIONS.md).
+- [docs/PRODUCT/STATUS.md](docs/PRODUCT/STATUS.md): Living dashboard. [docs/PRODUCT/GAP.md](docs/PRODUCT/GAP.md): Gap register.
+- [docs/runbooks/dependabot-handling.md](docs/runbooks/dependabot-handling.md): Runbook sample (agent-native, gh-CLI steps).
+- [.claude/rules/](.claude/rules/): Always-loaded rules (canon enforcement, incidental capture, batch execution, exec protocol).
+- [CHANGELOG.md](CHANGELOG.md), [ROADMAP.md](ROADMAP.md), [CONTRIBUTING.md](CONTRIBUTING.md): Standard project metadata.

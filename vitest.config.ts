@@ -45,7 +45,14 @@ export default defineConfig({
         'dist/**',
         '__tests__/**',
         'scripts/**',
-        '.claude/**',
+        // Anchored to the resolved root on purpose: coverage exclude globs are
+        // matched containment-style against ABSOLUTE file paths, so a bare
+        // '.claude/**' running in a git worktree rooted under
+        // .claude/worktrees/<id>/ matched EVERY file (the root's own ancestry
+        // contains '.claude/') and silently zeroed coverage — which then failed
+        // the coverage ratchet with "missing total.lines.pct". The anchored form
+        // excludes only THIS project's .claude directory in both layouts.
+        `${root}/.claude/**`,
         '**/*.config.ts',
       ],
       // Absolute floors (the suite fails below these). The coverage no-regression ratchet

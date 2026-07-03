@@ -59,7 +59,12 @@
 | Complexity Limits | Per-language max cognitive complexity, nesting, parameter counts |
 | Naming Standards | Module, interface, and type naming conventions |
 | Clean Code Rules | Constants, dead code, immutability conventions |
-<% } %><% if (governanceLevel === 'L3') { %>
+<% } %><%# #1720 (gap 3): guard was literal governanceLevel === 'L3', which documented
+    this section at L3 even though TRACK_ROUTER.md is generated ONLY at L4
+    (src/generators/ssot.ts:48-49 — "L4 only, compliance-grade context economy") — an
+    L3 phantom section for a file L3 never generates, while L4 (which DOES generate
+    the file) got no section at all. isL4 aligns the doc section with the L4-only
+    file. %><% if (isL4) { %>
 ---
 
 ## docs/METHOD/TRACK_ROUTER.md

@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-06-30'
+last_review: '2026-07-01'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -43,7 +43,7 @@ related: []
 | 022 | [Universal Baseline-Freeze (MB)](../ADR/022-universal-baseline-freeze.md) | Accepted | 2026-05-20 |
 | 023 | [Self-Hosted CI Runner (docker-ci-build)](../ADR/023-self-hosted-ci-runner.md) | Accepted | 2026-05-20 |
 | 024 | [Suppression Pattern with Mandatory Expiry](../ADR/024-suppression-expiry-escape-hatch.md) | Accepted | 2026-05-20 |
-| 025 | [Claim-Verified Governance Documents](../ADR/025-claim-verified-governance-docs.md) | Accepted | 2026-05-20 |
+| 025 | [Claim-Verified Governance Documents](../ADR/025-claim-verified-governance-docs.md) | Accepted | 2026-07-01 |
 | 026 | [Scaled Thresholds and Practical/Pedantic Strictness Tiers](../ADR/026-scaled-thresholds.md) | Accepted | 2026-05-20 |
 | 027 | [Real-Project Nightly Matrix](../ADR/027-real-project-nightly-matrix.md) | Accepted | 2026-05-20 |
 | 028 | [Grace Period for Level Upgrade + Contract Type Axis](../ADR/028-level-upgrade-grace-and-contract-type.md) | Accepted | 2026-05-20 |
@@ -118,3 +118,5 @@ related: []
 | 097 | [Context-rot-management skill (CLI-first 3-layer redundancy)](../ADR/097-context-rot-management-skill.md) | accepted | 2026-06-19 |
 | 098 | [Progressive-adoption tiers (bootstrap on-ramp)](../ADR/098-progressive-adoption-tiers.md) | Accepted | 2026-06-20 |
 | 099 | [Native zero-dependency xlsx writer (drop exceljs)](../ADR/099-native-xlsx-writer.md) | Accepted | 2026-06-30 |
+| 100 | [Companion-plugin awareness in /ship](../ADR/100-companion-plugin-awareness.md) | accepted | 2026-07-01 |
+| 101 | [runnerProfile cadence axis (solo/fleet)](../ADR/101-runner-profile-cadence-axis.md) | Accepted | 2026-07-01 |

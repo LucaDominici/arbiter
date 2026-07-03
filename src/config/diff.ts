@@ -189,6 +189,9 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
     'contract-testing',
   ],
   strictnessTier: ['root', 'debt-gates', 'rust-boundaries'],
+  // #1693: runnerProfile axis (ADR-101) — cadence-only change; moves fuzz+soak
+  // between the _nightly/_weekly github workflow partials, nothing else.
+  runnerProfile: ['github'],
   thresholdProfile: ['root', 'coverage', 'debt-gates'],
   evidenceRetention: ['evidence-retention', 'baseline-gitignore', 'nightly'],
   // diffConfig emits the bare `taxonomy` path (not dotted) since taxonomy is not

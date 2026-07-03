@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/SYSTEM/DECISIONS.md'
-source_sha: 'f1d26f8f2ec64b6b2ff0c12314e27a24f7c2c11e'
-last_updated: '2026-06-30'
+source_sha: '26f9d707a4520a13e096cd49543e068711715236'
+last_updated: '2026-07-03'
 ---
 
 # Architectural Decision Records — Generated Digest
@@ -44,7 +44,7 @@ last_updated: '2026-06-30'
 | 022 | [Universal Baseline-Freeze (MB)](../ADR/022-universal-baseline-freeze.md) | Accepted | 2026-05-20 |
 | 023 | [Self-Hosted CI Runner (docker-ci-build)](../ADR/023-self-hosted-ci-runner.md) | Accepted | 2026-05-20 |
 | 024 | [Suppression Pattern with Mandatory Expiry](../ADR/024-suppression-expiry-escape-hatch.md) | Accepted | 2026-05-20 |
-| 025 | [Claim-Verified Governance Documents](../ADR/025-claim-verified-governance-docs.md) | Accepted | 2026-05-20 |
+| 025 | [Claim-Verified Governance Documents](../ADR/025-claim-verified-governance-docs.md) | Accepted | 2026-07-01 |
 | 026 | [Scaled Thresholds and Practical/Pedantic Strictness Tiers](../ADR/026-scaled-thresholds.md) | Accepted | 2026-05-20 |
 | 027 | [Real-Project Nightly Matrix](../ADR/027-real-project-nightly-matrix.md) | Accepted | 2026-05-20 |
 | 028 | [Grace Period for Level Upgrade + Contract Type Axis](../ADR/028-level-upgrade-grace-and-contract-type.md) | Accepted | 2026-05-20 |

@@ -54,7 +54,7 @@ if (_isL3Plus) _required.push('09-heartbeat.yml');
 // Exits 1: one or more missing.
 // Part of the anti-drift validator family (W6).
 // Usage: node scripts/check-ci-tiers.mjs [--help]
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
@@ -75,13 +75,37 @@ const REQUIRED_TIERS = [
 
 const missing = REQUIRED_TIERS.filter((f) => !existsSync(join(WORKFLOWS_DIR, f)));
 
-if (missing.length === 0) {
-  console.log(`  check-ci-tiers: all ${REQUIRED_TIERS.length} required CI tier workflow(s) present`);
+<% if (_isL3Plus) { -%>
+// ─── INV-72 content strictness (#1720) ───────────────────────────────────────
+// Existence alone missed a real regression: a hand-rolled template guard bug
+// (05-release.yml.ejs's `_slsaL3` boolean) silently rendered a WEAKER release
+// workflow at L4 than at L3 while the file still existed — this gate stayed
+// green throughout. At L3+, when 05-release.yml is required and present, also
+// assert its CONTENT declares L3 hermetic SLSA provenance, not merely that the
+// file is there.
+let contentViolation = null;
+if (REQUIRED_TIERS.includes('05-release.yml') && !missing.includes('05-release.yml')) {
+  const releaseContent = readFileSync(join(WORKFLOWS_DIR, '05-release.yml'), 'utf-8');
+  if (!releaseContent.includes('L3 hermetic')) {
+    contentViolation = '05-release.yml is present but missing L3 hermetic SLSA provenance (INV-72 content check)';
+  }
+}
+<% } -%>
+
+if (missing.length === 0<% if (_isL3Plus) { %> && !contentViolation<% } %>) {
+  console.log(`  check-ci-tiers: all ${REQUIRED_TIERS.length} required CI tier workflow(s) present<% if (_isL3Plus) { %> and content-verified<% } %>`);
   process.exit(0);
 }
 
-console.log(`  check-ci-tiers: ${missing.length} missing workflow file(s):`);
-for (const f of missing) {
-  console.log(`    missing: .github/workflows/${f}`);
+if (missing.length > 0) {
+  console.log(`  check-ci-tiers: ${missing.length} missing workflow file(s):`);
+  for (const f of missing) {
+    console.log(`    missing: .github/workflows/${f}`);
+  }
 }
+<% if (_isL3Plus) { -%>
+if (contentViolation) {
+  console.log(`  check-ci-tiers: content violation: ${contentViolation}`);
+}
+<% } -%>
 process.exit(1);

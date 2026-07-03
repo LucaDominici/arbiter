@@ -338,6 +338,33 @@ describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
     expect(section).toContain('timeout-minutes: 60')
   })
 
+  it('(b) CONSUMER render keeps the broad `framework: all` scan, no config_file (#1685)', () => {
+    // The shipped template's blocking behavior for consumers must NOT be
+    // weakened by the arbiter self-scan scoping — consumer contexts never set
+    // `checkovSelfScope`, so they always take the unscoped `all` branch.
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    const section = iacSection(rendered)
+    expect(section).not.toContain('config_file:')
+  })
+
+  it('(b) SELF render (arbiter dogfood) scopes checkov via a space-separated framework list, not `all` (#1685, INV-80)', () => {
+    // #1685: arbiter's own repo carries zero terraform/kubernetes/dockerfile
+    // IaC, so an unscoped `framework: all` self-scan flags non-IaC noise
+    // (github_actions/secrets policies) under soft_fail:false and reds main's
+    // CI. The self-render fixture (ci-tier-render-context.json) sets
+    // `checkovSelfScope: true`, taking the scoped branch — honestly SCOPED via
+    // an INLINE space-separated framework list (the action entrypoint expands
+    // `--framework $INPUT_FRAMEWORK` unquoted into checkov's nargs='+' flag).
+    // NOT a `.checkov.yaml` config_file: docker-container actions on the
+    // containerized runner slots bind-mount the workspace from the docker
+    // host, so a repo-local config file is not reliably visible in-container.
+    const self = iacSection(renderSelfHost())
+    expect(self).toMatch(/^ *framework: terraform kubernetes dockerfile *$/m)
+    expect(self).not.toMatch(/^ *framework: all *$/m)
+    expect(self).not.toContain('config_file:')
+    expect(self).toContain('soft_fail: false') // blocking preserved (INV-80)
+  })
+
   it('(b) iac-scan runs a SHA-pinned, blocking tflint Terraform linter (#1509)', () => {
     const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
     const section = iacSection(rendered)

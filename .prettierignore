@@ -18,6 +18,9 @@ docs/REFERENCE/SELF-KIT-AUDIT.md
 docs/INDEX.md
 # Generated slash command file — template system (ship.md.ejs) owns formatting
 .claude/commands/ship.md
+# #1721: generated agent-native root index — gen-llms-txt.mjs owns the bytes; no
+# prettier parser exists for .txt (an explicit path would hard-error)
+llms.txt
 # ADR index (gen-adr-readme.mjs) and DECISIONS digest — generators own table formatting
 docs/ADR/README.md
 docs/SYSTEM/DECISIONS.md

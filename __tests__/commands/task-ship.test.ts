@@ -16,6 +16,7 @@ import {
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
+import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
 import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
 
 // Gates that would otherwise require a real repo / model switch
@@ -211,6 +212,8 @@ const profile = (over: Partial<ShipProfile> = {}): ShipProfile => ({
   maxParallelWorktrees: 1,
   defaultGateLevel: 'L1',
   affinityBatching: false,
+  // #1730 — no companion by default; individual tests inject one.
+  companions: [],
   ...over,
 })
 const SELF_ONLY_GATES = ['template-authoring', 'selfOnly-invariants', 'matrix-fixtures']
@@ -357,5 +360,65 @@ describe('buildShipStepLines — honest self-only + governance render (#1288 RT-
   it('always prints a Governance line (governanceLevel is consumed, not dead — RT-08)', () => {
     const lines = buildShipStepLines(resultFor(profile({ governanceLevel: 'L3' })), size)
     expect(lines.join('\n')).toMatch(/Governance:\s*L3/)
+  })
+})
+
+// #1730 — /ship composes with active companion plugins (green-phase instruction) and announces
+// them (Companion: line). Absent ⇒ byte-identical to a companion-free ship.
+describe('ship companion composition (#1730)', () => {
+  const size: ResolvedSize = { tier: 'Standard', verticals: ['bugs'], source: 'default' }
+  const testCompanion = {
+    id: 'ponytail:ponytail',
+    label: 'ponytail',
+    mode: 'full' as const,
+    policy: {
+      label: 'ponytail',
+      defaultMode: 'full' as const,
+      greenInstruction: 'DRAFT-LAZY {mode}',
+    },
+  }
+  const stepFor = (p: ShipProfile): ShipResult => ({
+    phase: 'green',
+    step: shipStepFor('green', 'Standard', p),
+    advanced: false,
+    done: false,
+    profile: p,
+  })
+
+  it('green action appends the companion instruction (with mode substituted) when one is active', () => {
+    const a = shipStepFor('green', 'Standard', profile({ companions: [testCompanion] })).action
+    expect(a).toMatch(/Implement the minimum/)
+    expect(a).toContain('DRAFT-LAZY full')
+  })
+
+  it('substitutes {mode} in the REAL registry ponytail instruction (no placeholder survives)', () => {
+    const ponytail = SKILLS_MATRIX.find((e) => e.id === 'ponytail:ponytail')?.companion
+    if (!ponytail) throw new Error('ponytail companion policy missing from SKILLS_MATRIX')
+    const real = {
+      id: 'ponytail:ponytail',
+      label: ponytail.label,
+      mode: 'lite' as const,
+      policy: ponytail,
+    }
+    const a = shipStepFor('green', 'Standard', profile({ companions: [real] })).action
+    expect(a).toContain('lite mode')
+    expect(a).not.toContain('{mode}')
+    expect(a).toMatch(/gates remain the safety net/i)
+  })
+
+  it('green action is byte-identical to the base string when no companion is active', () => {
+    expect(shipStepFor('green', 'Standard', profile({ companions: [] })).action).toBe(
+      'Implement the minimum to make the tests pass.',
+    )
+  })
+
+  it('prints a Companion: line naming the active companion and mode', () => {
+    const lines = buildShipStepLines(stepFor(profile({ companions: [testCompanion] })), size)
+    expect(lines.join('\n')).toMatch(/Companion:\s*ponytail \(full\)/)
+  })
+
+  it('prints NO Companion: line for a companion-free ship (surfaced, not faked)', () => {
+    const lines = buildShipStepLines(stepFor(profile({ companions: [] })), size)
+    expect(lines.join('\n')).not.toMatch(/Companion:/)
   })
 })

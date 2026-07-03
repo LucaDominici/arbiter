@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/impact.md'
 source_sha: 'a2b6499838fd22da91b3fdff5ff0f5fb491de286'
-last_updated: '2026-06-28'
+last_updated: '2026-07-03'
 ---
 
 # Reference: Impact (/impact)

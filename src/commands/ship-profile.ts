@@ -18,7 +18,9 @@
 // responsibility (runtime profile) vs task-ship.ts's pure step sequencing.
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { homedir } from 'node:os'
 import { loadConfig } from '../utils/config.js'
+import { resolveCompanions, type ActiveCompanion } from '../integrations/companions.js'
 import { getLogger } from '../utils/logger.js'
 import {
   resolveCollaborationMode,
@@ -119,6 +121,12 @@ export interface ShipProfile {
   maxParallelWorktrees: number
   defaultGateLevel: GateLevel
   affinityBatching: boolean
+  /**
+   * #1730 — companion plugins active for this ship run (ponytail, …), resolved HOME-ONLY and
+   * empty on arbiter-self. Consumed by the green-phase action (drafting instruction) and the
+   * `Companion:` announcement. Empty ⇒ ship behaviour is byte-identical to a companion-free run.
+   */
+  companions: readonly ActiveCompanion[]
 }
 
 /** Ship behaviors gated by the autonomy level (ADR-093 §4). */
@@ -170,6 +178,12 @@ export interface ResolveShipProfileOptions {
    * OVERRIDABLE_PATHS at the CLI boundary. Resolved through the unified precedence resolver.
    */
   overrides?: Record<string, string>
+  /**
+   * #1730 — the Claude home scanned for installed companion plugins. Defaults to `~/.claude`;
+   * tests inject an isolated dir for determinism. This is the ONLY tree read for companions —
+   * the target repo is never scanned (spoofing guard).
+   */
+  claudeHome?: string
 }
 
 function isAutonomyLevel(v: unknown): v is AutonomyLevel {
@@ -192,6 +206,7 @@ export const CONSUMER_DEFAULT_PROFILE: ShipProfile = {
   maxParallelWorktrees: 1,
   defaultGateLevel: 'L1',
   affinityBatching: false,
+  companions: [],
 }
 
 /**
@@ -256,10 +271,28 @@ export function resolveShipProfile(
   // config (config === null) contributes no profile value and each falls to
   // override/session/floor — consistent with the whole-profile degrade above (RT-03).
   const prefs = resolveProfilePrefs(root, overrides, config?.automation)
+  const companions = profileCompanions(self, opts, config)
   if (config === null) {
-    return { ...CONSUMER_DEFAULT_PROFILE, isArbiterSelf: self, autonomy, ...prefs }
+    return { ...CONSUMER_DEFAULT_PROFILE, isArbiterSelf: self, autonomy, ...prefs, companions }
   }
-  return { ...collaborationProfile(config), isArbiterSelf: self, autonomy, ...prefs }
+  return { ...collaborationProfile(config), isArbiterSelf: self, autonomy, ...prefs, companions }
+}
+
+/**
+ * #1730 — companion plugins, resolved HOME-ONLY (never the target repo) and empty on self.
+ * `config` may be null (absent/malformed) → no overrides, still resolves from home. Extracted
+ * from resolveShipProfile to keep it under the complexity ceiling.
+ */
+function profileCompanions(
+  self: boolean,
+  opts: ResolveShipProfileOptions,
+  config: ReturnType<typeof loadConfig>,
+): readonly ActiveCompanion[] {
+  return resolveCompanions({
+    self,
+    claudeHome: opts.claudeHome ?? join(homedir(), '.claude'),
+    ...(config?.companions ? { overrides: config.companions } : {}),
+  })
 }
 
 /**

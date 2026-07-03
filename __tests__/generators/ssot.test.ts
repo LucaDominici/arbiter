@@ -134,6 +134,26 @@ describe('generateSsot', () => {
     expect(content).toContain('AGENTS.md')
   })
 
+  // #1720 — gap 3: the KNOWLEDGE_MAP.md guard was literal `governanceLevel === 'L3'`,
+  // which (a) documented a TRACK_ROUTER.md section at L3 even though TRACK_ROUTER.md
+  // is generated ONLY at L4 (src/generators/ssot.ts:48-49, phantom section) and
+  // (b) omitted the section at L4, where the file actually exists. The fix is
+  // `isL4`, aligning the doc section with the L4-only file — this is a deliberate
+  // behavior change, not a superset-preserving one (L3's section is REMOVED).
+  it('L4: KNOWLEDGE_MAP.md contains the TRACK_ROUTER.md section (gap 3)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
+    generateSsot(config)
+    const content = readFileSync(join(dir, 'docs/METHOD/KNOWLEDGE_MAP.md'), 'utf-8')
+    expect(content).toContain('docs/METHOD/TRACK_ROUTER.md')
+  })
+
+  it('L3: KNOWLEDGE_MAP.md does NOT contain the TRACK_ROUTER.md section (gap 3 — no phantom doc for a file L3 never generates)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L3' })
+    generateSsot(config)
+    const content = readFileSync(join(dir, 'docs/METHOD/KNOWLEDGE_MAP.md'), 'utf-8')
+    expect(content).not.toContain('docs/METHOD/TRACK_ROUTER.md')
+  })
+
   it('KNOWLEDGE_MAP.md is skipIfExists — preserves manual edits on re-run', () => {
     const config = makeConfig(dir, { governanceLevel: 'L1' })
     // First run creates it

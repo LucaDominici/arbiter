@@ -28,6 +28,24 @@ const FS_ERROR_KEYS: Record<string, string> = {
   EPERM: 'errors.E_FS_EPERM',
   ENOTDIR: 'errors.E_FS_ENOTDIR',
   EISDIR: 'errors.E_FS_EISDIR',
+  // #1717 (CANON-17): a missing output directory, a locked/busy file, and too-many-
+  // open-files must also translate — no fs errno leaks a raw Node stack.
+  ENOENT: 'errors.E_FS_ENOENT',
+  EBUSY: 'errors.E_FS_EBUSY',
+  EMFILE: 'errors.E_FS_EMFILE',
+}
+
+/**
+ * Map a raw fs errno failure to an ArbiterError with an actionable i18n hint (CANON-17).
+ * Returns the ORIGINAL error unchanged for codes not in the catalog, so unknown failures
+ * still surface with their real stack/identity (never swallowed, never re-wrapped) and no
+ * ternary arm is left permanently uncovered. Single source shared by `atomicWrite` and
+ * `writeFileTranslated` so the errno→hint mapping is not duplicated (CANON-22).
+ */
+function toFsError(err: unknown, path: string): Error {
+  const e = err as NodeJS.ErrnoException
+  const key = FS_ERROR_KEYS[e.code ?? '']
+  return key ? ArbiterError.fromKey(e.code ?? '', key, { path }) : e
 }
 
 function atomicWrite(filePath: string, content: string): void {
@@ -45,10 +63,7 @@ function atomicWrite(filePath: string, content: string): void {
       // so the signal handler will NOT retry — any stranded file from a read-only
       // or permission-denied filesystem must be removed manually.
     }
-    const code = (err as NodeJS.ErrnoException).code ?? ''
-    const key = FS_ERROR_KEYS[code]
-    if (key) throw ArbiterError.fromKey(code, key, { path: filePath })
-    throw err
+    throw toFsError(err, filePath)
   } finally {
     inFlightTmpPaths.delete(tmpPath)
   }
@@ -353,6 +368,23 @@ export function writeFile(
   // Only attach the flag when true so non-withheld results keep their stable
   // `{ path, action }` shape (snapshot/JSON parity for the common case).
   return withheld ? { path: filePath, action, withheld: true } : { path: filePath, action }
+}
+
+/**
+ * Write a file directly (one-shot, no atomic temp+rename, no skipIfExists / backup /
+ * generation-session semantics), translating fs errno failures into an ArbiterError
+ * (CANON-17). Accepts string OR binary content so text (csv) and binary (xlsx) exports
+ * share one errno-translation path. Unlike {@link writeFile}, this does NOT mkdir the
+ * parent directory — a missing output directory surfaces as a translated ENOENT rather
+ * than being silently created. For a CLI export's `--out` path, not a generator-emitted
+ * repo file.
+ */
+export function writeFileTranslated(path: string, data: string | Uint8Array): void {
+  try {
+    writeFileSync(path, data)
+  } catch (err) {
+    throw toFsError(err, path)
+  }
 }
 
 /**

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/PROCESS.md'
 source_sha: 'eed6563c68ea33cdb8a0c12ab371d877e120ffbb'
-last_updated: '2026-06-28'
+last_updated: '2026-07-03'
 ---
 
 # Process — arbiter

@@ -1,4 +1,8 @@
-<% if (governanceLevel === 'L2' || governanceLevel === 'L3') { -%>
+<%# #1720 (gap 5): guard was literal governanceLevel === 'L2' || === 'L3', silently
+    excluding L4 — the entire INV-96 fail-closed audit rendered EMPTY at L4 (a
+    fail-OPEN outcome for the very script whose job is enforcing fail-closed
+    doctrine). isL2Plus (levelAtLeast SSOT, #1516) keeps L4 a strict superset of L3. -%>
+<% if (isL2Plus) { -%>
 #!/usr/bin/env node
 // <%= projectName %> — fail-closed audit gate (INV-96)
 //

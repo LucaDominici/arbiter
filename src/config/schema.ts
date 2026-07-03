@@ -196,6 +196,13 @@ export interface ArbiterConfigV2 {
   invariantTiers?: InvariantTier[]
   worktree?: WorktreeConfig
   plugins?: string[]
+  /**
+   * #1730 — per-companion overrides for /ship companion-plugin activation, keyed by bare skill
+   * name or full skillId (e.g. "ponytail"). Absent ⇒ any installed companion auto-activates in
+   * its policy-default mode on product repos. `enabled:false` disables without uninstalling;
+   * `mode` forces lite|full. Never activates on arbiter-self regardless of this setting.
+   */
+  companions?: Record<string, { enabled?: boolean; mode?: 'lite' | 'full' }>
   lanes?: Lane[]
   taskTiers?: TaskTiers
   /**
@@ -245,6 +252,15 @@ export interface ArbiterConfigV2 {
    * reads + applies it. Absent ⇒ the governance×brownfield default drives the bar.
    */
   conformanceThresholds?: ConformanceThresholds
+  /**
+   * #1693 (ADR-101): runner profile axis, orthogonal to collaborationMode/pipelineStyle.
+   * 'fleet' (default) = current behavior: fuzz + soak-e2e heavy jobs run at nightly
+   *   cadence, hard-gated by nightly-required.
+   * 'solo' = fuzz + soak-e2e move to weekly cadence instead (single self-hosted
+   *   runner), preserving the same hard-gate + issue-filing semantics at weekly
+   *   cadence. Absent field treated as 'fleet'.
+   */
+  runnerProfile?: 'solo' | 'fleet'
 }
 
 interface GovernanceConfig {
@@ -460,6 +476,9 @@ const DATABASE_ENGINE_VALUES: Record<DatabaseEngineUnion, true> = {
   none: true,
 }
 const STRICTNESS_TIER_VALUES: Record<StrictnessTier, true> = { practical: true, pedantic: true }
+// #1693: runnerProfile axis runtime mirror (ADR-101).
+type RunnerProfileUnion = NonNullable<ArbiterConfigV2['runnerProfile']>
+const RUNNER_PROFILE_VALUES: Record<RunnerProfileUnion, true> = { solo: true, fleet: true }
 const THRESHOLD_PROFILE_VALUES: Record<ThresholdProfile, true> = { scaled: true, fixed: true }
 const CONTRACT_TYPE_VALUES: Record<ContractType, true> = {
   'rest-owned': true,
@@ -500,6 +519,7 @@ const OBSERVABILITY_PROVIDER_VALUES: Record<ObservabilityProvider, true> = {
 }
 const DATABASE_ENGINES: ReadonlySet<string> = new Set(Object.keys(DATABASE_ENGINE_VALUES))
 const STRICTNESS_TIERS: ReadonlySet<string> = new Set(Object.keys(STRICTNESS_TIER_VALUES))
+const RUNNER_PROFILES: ReadonlySet<string> = new Set(Object.keys(RUNNER_PROFILE_VALUES))
 const THRESHOLD_PROFILES: ReadonlySet<string> = new Set(Object.keys(THRESHOLD_PROFILE_VALUES))
 const CONTRACT_TYPES: ReadonlySet<string> = new Set(Object.keys(CONTRACT_TYPE_VALUES))
 // #1676: exported so the `arbiter init` CLI cast site (src/cli.ts) can reject an
@@ -687,6 +707,8 @@ function validateOptionalEnums(raw: Record<string, unknown>, errors: string[]): 
     ['strictnessTier', STRICTNESS_TIERS],
     ['thresholdProfile', THRESHOLD_PROFILES],
     ['contractType', CONTRACT_TYPES],
+    // #1693: runnerProfile axis (ADR-101).
+    ['runnerProfile', RUNNER_PROFILES],
   ]
   for (const [field, allowed] of checks) {
     if (field in raw && raw[field] !== undefined) {
@@ -724,6 +746,43 @@ function validateProviders(raw: Record<string, unknown>, errors: string[]): void
   }
 }
 
+/**
+ * #1730: validate the optional per-companion override map
+ * (`companions?: Record<string, { enabled?: boolean; mode?: 'lite' | 'full' }>`).
+ * `ultra` — or any other out-of-union string — is rejected HERE so a malformed
+ * override can never reach resolveCompanions through loadConfig.
+ */
+function validateCompanions(raw: Record<string, unknown>, errors: string[]): void {
+  const block = raw['companions']
+  if (block === undefined) return
+  if (!isRecord(block) || Array.isArray(block)) {
+    errors.push(
+      `companions must be an object map of per-companion overrides — got ${Array.isArray(block) ? 'array' : typeof block}`,
+    )
+    return
+  }
+  for (const [name, override] of Object.entries(block)) {
+    validateCompanionOverride(name, override, errors)
+  }
+}
+
+/** One entry of the `companions` map: `{ enabled?: boolean; mode?: 'lite' | 'full' }`. */
+function validateCompanionOverride(name: string, override: unknown, errors: string[]): void {
+  if (!isRecord(override)) {
+    errors.push(`companions.${name} must be an object — got ${typeof override}`)
+    return
+  }
+  if (override['enabled'] !== undefined && typeof override['enabled'] !== 'boolean') {
+    errors.push(`companions.${name}.enabled must be a boolean`)
+  }
+  const mode = override['mode']
+  if (mode !== undefined && mode !== 'lite' && mode !== 'full') {
+    errors.push(
+      `companions.${name}.mode must be one of lite, full — got ${typeof mode === 'string' ? mode : typeof mode}`,
+    )
+  }
+}
+
 export function validateConfig(raw: unknown): ValidateResult {
   if (!isRecord(raw)) {
     return { ok: false, errors: ['config must be a non-null object'] }
@@ -744,6 +803,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateOptionalScalars(draft, errors)
   validateOptionalEnums(draft, errors)
   validateProviders(draft, errors)
+  validateCompanions(draft, errors)
 
   const rawLevel = draft['governanceLevel']
   const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel

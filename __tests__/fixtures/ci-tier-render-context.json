@@ -46,5 +46,6 @@
   "ciTierMode": "baseline",
   "ciPreTestBuild": true,
   "enableNativeBakeE2E": true,
-  "collaborationMode": "trunk-solo"
+  "collaborationMode": "trunk-solo",
+  "checkovSelfScope": true
 }
