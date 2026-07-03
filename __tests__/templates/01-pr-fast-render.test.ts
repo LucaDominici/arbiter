@@ -338,6 +338,21 @@ describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
     expect(section).toContain('timeout-minutes: 60')
   })
 
+  it('(b) iac-scan pins runs-on to a literal GitHub-hosted runner, never a self-hosted expression (#1756)', () => {
+    // #1756: docker-container actions (checkov-action) on self-hosted
+    // "arbiter-slot-build-*" runners bind-mount /github/workspace from the
+    // DOCKER HOST path, not the containerized slot's own checkout — the step
+    // sees stale/wrong/missing files. checkov-action is a docker-container
+    // action, so this job must NEVER run on the expression-based
+    // `vars.RUNNER_LABELS_TEST` self-hosted pool; it stays pinned to a literal
+    // GitHub-hosted runner regardless of governance level.
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    const section = iacSection(rendered)
+    expect(section).toMatch(/^\s*runs-on: ubuntu-latest\s*$/m)
+    expect(section).not.toMatch(/^\s*runs-on: \$\{\{/m)
+    expect(section).not.toContain('fromJSON(vars.')
+  })
+
   it('(b) CONSUMER render keeps the broad `framework: all` scan, no config_file (#1685)', () => {
     // The shipped template's blocking behavior for consumers must NOT be
     // weakened by the arbiter self-scan scoping — consumer contexts never set

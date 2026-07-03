@@ -1,5 +1,6 @@
 name: Weekly jobs (reusable)
 
+
 on:
   workflow_call:
 
@@ -68,12 +69,18 @@ jobs:
           done
           echo "Stale pins found: $STALE"
 
+  shared-security:
+    uses: ./.github/workflows/_shared-security.yml
+    with:
+      nvd-cache-namespace: weekly
+
   weekly-required:
     name: Weekly gate
     needs:
       - dep-freshness
       - perf-trend
       - action-version-audit
+      - shared-security
 
 
     if: always()
@@ -86,7 +93,7 @@ jobs:
           echo "All jobs ran (some informational, failures create issues)."
 
       - name: File issue on hard failures
-        if: needs.dep-freshness.result == 'failure' || needs.action-version-audit.result == 'failure'
+        if: needs.dep-freshness.result == 'failure' || needs.action-version-audit.result == 'failure' || needs.shared-security.result == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
