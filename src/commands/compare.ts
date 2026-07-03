@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, dirname, sep } from 'node:path'
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
+import { writeFileTranslated } from '../utils/fs.js'
 import { loadRepoData } from '../compare/load-repo.js'
 import {
   detectDivergentEnforcement,
@@ -103,7 +104,7 @@ export function runCompare(opts: CompareOptions): CompareResult {
     const content = renderCompareReport({ repos: repoDataList, findings, warnings })
     try {
       mkdirSync(dirname(resolvedReport), { recursive: true })
-      writeFileSync(resolvedReport, content, 'utf-8')
+      writeFileTranslated(resolvedReport, content)
       reportPath = resolvedReport
     } catch (err) {
       warnings.push(`Failed to write report: ${err instanceof Error ? err.message : String(err)}`)

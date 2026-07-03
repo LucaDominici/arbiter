@@ -7,6 +7,7 @@ import {
   featureMatrixToXlsx,
 } from '../export/feature-matrix-export.js'
 import { writeFileTranslated } from '../utils/fs.js'
+import { ArbiterError } from '../utils/errors.js'
 
 export interface FeatureMatrixExportOptions {
   format: 'csv' | 'xlsx'
@@ -24,7 +25,9 @@ export async function runFeatureMatrixExport(opts: FeatureMatrixExportOptions): 
     opts.matrixPath ?? resolve(process.cwd(), 'docs', 'PRODUCT', 'FEATURE_MATRIX.md')
 
   if (!existsSync(matrixPath)) {
-    throw new Error(`FEATURE_MATRIX.md not found at ${matrixPath}`)
+    throw ArbiterError.fromKey('E_FEATURE_MATRIX_NOT_FOUND', 'errors.E_FEATURE_MATRIX_NOT_FOUND', {
+      path: matrixPath,
+    })
   }
 
   const text = readFileSync(matrixPath, 'utf-8')

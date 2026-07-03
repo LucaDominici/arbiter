@@ -22,9 +22,10 @@
  *   - New file justified.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
+import { writeFileTranslated } from '../utils/fs.js'
 import { parseSpec, specHash } from '../gauntlet/spec.js'
 import { ipog } from '../gauntlet/ipog.js'
 import { emitTypeScript } from '../gauntlet/emitters/typescript.js'
@@ -117,7 +118,7 @@ export function runGauntletGenerate(opts: GauntletGenerateOptions): GauntletGene
     // confined to outDir — matching the codebase's accept-and-sanitize stance
     // rather than rejecting otherwise-valid names (`#260`, `bug#hot`).
     outFile = join(outDir, `${safeFileStem(spec.name)}-gauntlet.${ext}`)
-    writeFileSync(outFile, content, 'utf-8')
+    writeFileTranslated(outFile, content)
     files.push(outFile)
 
     // Write a manifest hash (#1572): the spec hash PLUS a sha256 of every emitted
@@ -131,7 +132,7 @@ export function runGauntletGenerate(opts: GauntletGenerateOptions): GauntletGene
       spec: newSpecHash,
       files: { ...priorTrackedFiles(outDir, newSpecHash), [basename(outFile)]: sha256(content) },
     }
-    writeFileSync(join(outDir, HASH_FILE), JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
+    writeFileTranslated(join(outDir, HASH_FILE), JSON.stringify(manifest, null, 2) + '\n')
   } catch (err) {
     return generateFsError(err)
   }
@@ -391,6 +392,6 @@ function integrateGraph(
   }
 
   const updatedSnapshot = store.snapshot()
-  writeFileSync(graphPath, JSON.stringify(updatedSnapshot, null, 2) + '\n', 'utf-8')
+  writeFileTranslated(graphPath, JSON.stringify(updatedSnapshot, null, 2) + '\n')
   return edgesAdded
 }

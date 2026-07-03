@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { writeFileTranslated } from '../utils/fs.js'
 import { join, resolve } from 'node:path'
 import { PlanJsonV1, type ReviewJsonV1 } from '../types/plan.js'
 import { runVerify, type RunVerifyResult } from '../verify/run.js'
@@ -60,7 +61,7 @@ function writeErrorReview(
     blocking_reason: message,
   }
   try {
-    writeFileSync(join(pointerDir, 'REVIEW.json'), JSON.stringify(review, null, 2), 'utf-8')
+    writeFileTranslated(join(pointerDir, 'REVIEW.json'), JSON.stringify(review, null, 2))
   } catch {
     // best-effort; don't let write failure mask the original error
   }
@@ -175,8 +176,8 @@ export function runVerifyPlan(opts: VerifyPlanOptions): VerifyPlanResult {
     }
     mkdirSync(pointerDir, { recursive: true })
     const reviewPath = join(pointerDir, 'REVIEW.json')
-    writeFileSync(join(pointerDir, 'PLAN.json'), planSource, 'utf-8')
-    writeFileSync(reviewPath, JSON.stringify(skippedReview, null, 2), 'utf-8')
+    writeFileTranslated(join(pointerDir, 'PLAN.json'), planSource)
+    writeFileTranslated(reviewPath, JSON.stringify(skippedReview, null, 2))
     if (opts.json) {
       jsonOutput('verify plan', 'ok', { status: 'SKIPPED', reviewPath })
     } else {

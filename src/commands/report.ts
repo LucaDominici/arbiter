@@ -14,7 +14,6 @@ import {
   readFileSync,
   readdirSync,
   statSync,
-  writeFileSync,
 } from 'node:fs'
 import { createGzip } from 'node:zlib'
 import { Readable } from 'node:stream'
@@ -22,6 +21,7 @@ import { pipeline } from 'node:stream/promises'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { getLogger } from '../utils/logger.js'
+import { writeFileTranslated } from '../utils/fs.js'
 import { runInteractive } from '../utils/run-cli.js'
 
 export interface ReportOptions {
@@ -115,7 +115,7 @@ function writeManifest(runDir: string, files: string[]): string {
     ...files,
     '',
   ]
-  writeFileSync(manifestPath, lines.join('\n'))
+  writeFileTranslated(manifestPath, lines.join('\n'))
   return manifestPath
 }
 

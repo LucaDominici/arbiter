@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+// #1735: shared doc anchor for the 10 fs-errno entries below (avoids sonarjs/no-duplicate-string).
+const FS_ERRNO_DOC_URL = 'https://arbiter.dev/reference/cli#filesystem-errors'
+
 export interface ErrorEntry {
   code: string
   summary: string
@@ -256,6 +259,122 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       recovery:
         'Check that the plugin package is installed and compatible with the current arbiter version. Run `npm ls` to verify plugin dependencies.',
       docUrl: 'https://arbiter.dev/reference/cli#plugins',
+    },
+  ],
+  [
+    'E_FEATURE_MATRIX_NOT_FOUND',
+    {
+      code: 'E_FEATURE_MATRIX_NOT_FOUND',
+      summary: 'FEATURE_MATRIX.md not found',
+      detail:
+        'The `arbiter feature-matrix export` command could not find docs/PRODUCT/FEATURE_MATRIX.md (or the path passed via --matrix-path).',
+      recovery:
+        'Generate the matrix first, or pass --matrix-path to point at an existing FEATURE_MATRIX.md.',
+      docUrl: 'https://arbiter.dev/reference/cli#feature-matrix',
+    },
+  ],
+  // #1735 (CANON-17): every errno translated by FS_ERROR_KEYS in src/utils/fs.ts
+  // needs a matching entry here — otherwise `arbiter explain <errno>` returns
+  // unknown-code and the ArbiterError footer's hint is a dead end (#1717).
+  [
+    'ENOSPC',
+    {
+      code: 'ENOSPC',
+      summary: 'Disk full',
+      detail: 'A write failed because the filesystem ran out of space.',
+      recovery: 'Free up disk space (check with `df -h`) and retry.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'EACCES',
+    {
+      code: 'EACCES',
+      summary: 'Permission denied',
+      detail: 'A write failed because the process lacks permission to write to the target path.',
+      recovery: 'Check file ownership and directory permissions, then retry.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'EROFS',
+    {
+      code: 'EROFS',
+      summary: 'Read-only filesystem',
+      detail: 'A write failed because the target filesystem is mounted read-only.',
+      recovery: 'Check mount options (e.g. `mount | grep <device>`) and remount read-write.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'EDQUOT',
+    {
+      code: 'EDQUOT',
+      summary: 'Disk quota exceeded',
+      detail: 'A write failed because the user or project disk quota has been exceeded.',
+      recovery: 'Free up space or ask an administrator to raise your disk quota.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'EPERM',
+    {
+      code: 'EPERM',
+      summary: 'Operation not permitted',
+      detail:
+        'A write failed for a reason other than plain permission bits — e.g. an immutable file attribute, SELinux/AppArmor policy, or ACL.',
+      recovery: 'Check the immutable bit (`lsattr`), SELinux/AppArmor context, and ACLs.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'ENOTDIR',
+    {
+      code: 'ENOTDIR',
+      summary: 'Not a directory',
+      detail: 'A write failed because a component of the target path is a file, not a directory.',
+      recovery: 'Check the target path — an intermediate segment exists as a file.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'EISDIR',
+    {
+      code: 'EISDIR',
+      summary: 'Is a directory',
+      detail: 'A write failed because the target path is a directory, not a file.',
+      recovery: 'Point the command at a file path, not a directory.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'ENOENT',
+    {
+      code: 'ENOENT',
+      summary: 'No such file or directory',
+      detail: 'A write failed because the parent directory of the target path does not exist.',
+      recovery: 'Create the parent directory first, e.g. `mkdir -p <dir>`, then retry.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'EBUSY',
+    {
+      code: 'EBUSY',
+      summary: 'Resource busy or locked',
+      detail: 'A write failed because the target file is open or locked by another process.',
+      recovery: 'Close the file in the other process and retry.',
+      docUrl: FS_ERRNO_DOC_URL,
+    },
+  ],
+  [
+    'EMFILE',
+    {
+      code: 'EMFILE',
+      summary: 'Too many open files',
+      detail: 'A write failed because the process hit its open-file-descriptor limit.',
+      recovery: 'Close other open files or raise the limit with `ulimit -n`, then retry.',
+      docUrl: FS_ERRNO_DOC_URL,
     },
   ],
 ])

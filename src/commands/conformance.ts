@@ -12,8 +12,9 @@
 // Design: deterministic, code-computed, never AI-scored. Pure functions in
 // src/conformance/dimensions.ts and src/conformance/doc-probes.ts keep probe logic testable.
 
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { writeFileTranslated } from '../utils/fs.js'
 import {
   probeDTestLevels,
   probeDLiveE2e,
@@ -135,7 +136,7 @@ function writeBaseline(root: string, score: number): void {
   const dir = resolve(root, '.arbiter')
   mkdirSync(dir, { recursive: true })
   const abs = resolve(dir, BASELINE_FILE)
-  writeFileSync(abs, JSON.stringify({ score }, null, 2) + '\n', 'utf-8')
+  writeFileTranslated(abs, JSON.stringify({ score }, null, 2) + '\n')
 }
 
 /** Build the skip result returned when the project has no arbiter.json. */

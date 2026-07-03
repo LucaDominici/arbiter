@@ -96,14 +96,25 @@ describe('runFeatureMatrixExport', () => {
     expect(statSync(outPath).size).toBeGreaterThan(0)
   })
 
-  it('throws when matrix file is missing', async () => {
-    await expect(
-      runFeatureMatrixExport({
+  // #1736 (CANON-17): a missing matrix file throws a translated ArbiterError
+  // (not a raw Error) with an actionable hint, matching the convention used
+  // for the writeFileTranslated call sites below.
+  it('throws a translated ArbiterError when matrix file is missing', async () => {
+    const { ArbiterError } = await import('../../src/utils/errors.js')
+    const matrixPath = join(dir, 'MISSING.md')
+    let caught: unknown
+    try {
+      await runFeatureMatrixExport({
         format: 'csv',
         out: join(dir, 'out.csv'),
-        matrixPath: join(dir, 'MISSING.md'),
-      }),
-    ).rejects.toThrow()
+        matrixPath,
+      })
+    } catch (err) {
+      caught = err
+    }
+    expect(caught).toBeInstanceOf(ArbiterError)
+    expect((caught as InstanceType<typeof ArbiterError>).code).toBe('E_FEATURE_MATRIX_NOT_FOUND')
+    expect((caught as InstanceType<typeof ArbiterError>).message).toContain(matrixPath)
   })
 
   // #1717 (CANON-17): a non-existent output directory throws a translated ArbiterError
