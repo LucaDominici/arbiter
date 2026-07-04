@@ -3,7 +3,7 @@
   "task_id": "#1039",
   "test_path": "__tests__/behavioral/cli-smoke.test.ts",
   "test_commit_sha": "e362c9a4f07d52eaacfcd67cfe1f8f9c6293dc55",
-  "test_run_log": " RUN  v4.1.6 /home/luca/work/repos/arbiter\n\n FAIL  __tests__/behavioral/cli-smoke.test.ts > arbiter CLI — top-level surface > deliberate-fail sentinel\nAssertionError: expected true to be false\n\n Tests  1 failed | 8 passed (9)\n",
+  "test_run_log": " RUN  v4.1.6 /home/user/work/repos/arbiter\n\n FAIL  __tests__/behavioral/cli-smoke.test.ts > arbiter CLI — top-level surface > deliberate-fail sentinel\nAssertionError: expected true to be false\n\n Tests  1 failed | 8 passed (9)\n",
   "observed_failure": "FAIL  __tests__/behavioral/cli-smoke.test.ts",
   "recorded_at": "2026-05-24T12:44:50.000Z"
 }

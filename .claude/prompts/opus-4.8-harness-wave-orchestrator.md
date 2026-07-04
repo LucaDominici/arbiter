@@ -14,7 +14,7 @@ related: []
 # Prompt — Opus 4.8 Harness-Wave Orchestrator (Dynamic Workflows)
 
 > Modello target: **Claude Opus 4.8** (rilasciato 2026-05-28, feature: Dynamic Workflows).
-> Progetto: **arbiter** (`/home/luca/work/repos/arbiter`).
+> Progetto: **arbiter** (`/home/user/work/repos/arbiter`).
 > Pipeline subagent: **`/task #NNN`** (lifecycle ufficiale arbiter: branch → plan → implement → gate → PR).
 > Modalità: **Dynamic Workflow** con parallel subagents.
 

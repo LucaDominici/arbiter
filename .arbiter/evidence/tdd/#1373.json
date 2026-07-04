@@ -3,7 +3,7 @@
   "task_id": "#1373",
   "test_path": "__tests__/scripts/gold-audit.test.ts",
   "test_commit_sha": "84a0f0573d06f967f5d6a4cc432f98e1fa8c1a10",
-  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter\n\n FAIL  __tests__/scripts/gold-audit.test.ts > gold-audit (#1373) > --json emits a scored payload with score, yCount, riskyCount, dimensions, checks\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n Test Files  1 failed (1)\n      Tests  12 failed | 1 passed (13)\n",
+  "test_run_log": "\n RUN  v4.1.8 /home/user/work/repos/arbiter\n\n FAIL  __tests__/scripts/gold-audit.test.ts > gold-audit (#1373) > --json emits a scored payload with score, yCount, riskyCount, dimensions, checks\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n Test Files  1 failed (1)\n      Tests  12 failed | 1 passed (13)\n",
   "observed_failure": "FAIL  __tests__/scripts/gold-audit.test.ts (12 failed) — scripts/gold-audit.mjs did not exist",
   "recorded_at": "2026-06-15T14:45:00.000Z"
 }
