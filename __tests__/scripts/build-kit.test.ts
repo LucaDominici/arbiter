@@ -103,7 +103,10 @@ describe('build-kit.mjs', () => {
     try {
       const result = run(root)
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('derived 3 dimensions')
+      // stderr, not stdout: build-kit.mjs runs in the `prepack` lifecycle, so a
+      // stdout write here would corrupt any consumer parsing `npm pack --json`'s
+      // own stdout (#1770 T8).
+      expect(result.stderr).toContain('derived 3 dimensions')
 
       const derived = JSON.parse(readFileSync(join(root, 'src/kit/derived.json'), 'utf-8'))
       expect(Array.isArray(derived)).toBe(true)

@@ -58,10 +58,26 @@ export function stageFixture(name: string): string {
 
 export function initGit(dir: string): void {
   execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
+  // arbiter-suppress(INV-12, until=2099-01-01, reason="fixture email for git config in E2E harness", owner=@luca)
   execFileSync('git', ['config', 'user.email', 'e2e@arbiter.test'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.name', 'Arbiter E2E'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['commit', '-m', 'chore: fixture init', '--no-verify'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+}
+
+// Virgin (file-less) flavor of initGit: gives an EMPTY dir a HEAD via an empty commit,
+// with no files staged. Shared by virgin-init-matrix and packaged-artifact (#1770 T8) —
+// both start from a truly empty tree before arbiter (or an outsider's install) writes
+// anything into it.
+export function initEmptyGit(dir: string): void {
+  execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
+  // arbiter-suppress(INV-12, until=2099-01-01, reason="fixture email for git config in E2E harness", owner=@luca)
+  execFileSync('git', ['config', 'user.email', 'e2e@arbiter.test'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['config', 'user.name', 'Arbiter E2E'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '--allow-empty', '-m', 'chore: init', '--no-verify'], {
     cwd: dir,
     stdio: 'ignore',
   })

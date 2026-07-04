@@ -59,7 +59,11 @@ if (findings.length > 0) {
   findings.slice(0, 5).forEach((f) => process.stderr.write(`${f}\n`));
   process.stderr.write(
     `If this is a test fixture / known-safe value, add an inline\n` +
-      `  // arbiter-suppress(INV-12, until=YYYY-MM-DD, reason="…", owner=you)\n` +
+      // Built via interpolation, not a literal "// arbiter-suppress(" substring:
+      // this help text renders identically but does not trip THIS generated
+      // project's own check-inline-suppressions.mjs, which scans raw source text
+      // for that exact pattern regardless of string-literal context (#1772).
+      `  ${"//"} arbiter-suppress(INV-12, until=YYYY-MM-DD, reason="known-safe test value", owner=you)\n` +
       `directive on the line above the match.\n`,
   );
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-12\` for details.\n`);

@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/DEVELOPMENT/REAL-PROJECT-TESTING.md'
-source_sha: '2c9ad2472b3757d34bc8ec19d1e51a2b98a9101d'
-last_updated: '2026-07-03'
+source_sha: '5158a42b6ca3448c593320f6eb1b7fb1bbeaf02c'
+last_updated: '2026-07-04'
 ---
 
 # Real-Project Testing
@@ -93,6 +93,21 @@ The `tier` field selects which E2E layer exercises the fixture:
 
 The bake-and-run harness lives in `__tests__/e2e/bake/` and `__tests__/e2e/functional/`. Industry pattern reference: Nx (`create-nx-workspace` Verdaccio), Cookiecutter (`pytest-cookies`), Spring Initializr (`initializr-generator-test`).
 
+#### Packaged-artifact outsider simulation (#1770)
+
+`__tests__/integration/e2e/functional/packaged-artifact.test.ts` goes one layer beyond
+`functional`: instead of running arbiter from the repo's `dist/`, it simulates a true
+outsider install. It runs `npm pack` on the repo, installs the resulting tarball into a
+fresh tmpdir project staged from the `ts-library` fixture, runs `arbiter init` through the
+**installed** package's bin, asserts the generated project's own L1 gate passes, and
+round-trips the task engine (`task init` → real failing test → `record-red` → evidence
+validated → advance to green). This catches packaging-only bug classes invisible to every
+other suite: `prepack` scripts polluting `npm pack --json` stdout, runtime dependencies
+misclassified as devDependencies, and generated content tripping the generated project's
+own scanners (#1772). Gated behind `VITEST_L2=1` like its siblings; it costs a pack plus
+two full npm installs plus a generated-gate run (~1 min), so it runs at L2/nightly depth,
+not in per-PR fast lanes.
+
 ---
 
 ## v1 Fixture Set
@@ -141,25 +156,6 @@ Your fixture must include the appropriate marker file for detection to work.
 
 ## Adding a New Fixture
 
-1. Create `__tests__/fixtures/real-projects/<your-fixture>/`.
-2. Add a valid `manifest.json` (see schema above).
-3. Add a real build config + source + test. The test must pass with `go test ./...` / `cargo test` / `pytest` / `npm test` / `./gradlew test`.
-4. Run `node scripts/check-matrix-fixtures.mjs` locally — it should exit 0.
-5. Run `node scripts/build-matrix.mjs` — confirm your fixture appears in the output.
-6. Dog-food locally (see below).
-
-If you are adding a language that is already listed as "proven" in `src/compatibility/cross-language-matrix.json`, the L1 gate (`check-matrix-fixtures.mjs`) already requires a fixture for that language. Your new fixture satisfies that requirement.
-
-If you are adding a new language to `cross-language-matrix.json` as "proven" for any category, you **must** add a fixture in the same PR. The L1 gate will fail otherwise.
-
----
-
-## Dog-Fooding Locally
-
-Copy a fixture to a temp directory, then run the full pipeline against it:
-
-```bash
-# Example: rust-library at L1
-cp -r __tests__/fixtures/real-projects/rust-library /tmp
+1. Create `__tests__/f
 
 *[content truncated — see source for full text]*

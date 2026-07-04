@@ -101,9 +101,12 @@ function parseSuppressArgs(argsStr) {
 }
 
 /**
- * Checks whether an inline `// arbiter-suppress(INV-NN, until=…, reason=…, owner=…)`
- * directive on the same or previous line covers the given invariant ID. Returns
- * true only for a complete, non-expired directive (valid `until` date in the
+ * Checks whether an inline suppression directive on the same or previous line covers
+ * the given invariant ID. The directive is a line comment of the form
+ * `arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason="...", owner=...)` (two leading
+ * slashes mark it as a comment — kept out of this doc string so this file's own
+ * suppression scanner does not mistake the example for a real directive, #1772).
+ * Returns true only for a complete, non-expired directive (valid `until` date in the
  * future, `reason` >= 10 chars, `owner` present). Mirrors arbiter's own
  * `.claude/hooks/lib.mjs::findInlineSuppression` so generated projects get the
  * SAME honored escape hatch the hook messages advertise (#1553).
