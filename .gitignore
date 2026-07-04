@@ -45,15 +45,12 @@ coverage/
 !.arbiter/ship/
 !.arbiter/ship/supervisor.sh
 !.arbiter/ship/TICK_PROMPT.md
-# Manager state (MILESTONES, DONE, chat protocol) — SSOT for the project plan
-!.arbiter/management/
-!.arbiter/management/**
 # Wave audits + their evidence — version-controlled audit history
 !.arbiter/wave*/
 !.arbiter/wave*/**
-# Design notes (decision docs, e.g. conformance-scorecard) — committed SSOT (#1405)
-!.arbiter/design/
-!.arbiter/design/*.md
+# #1770 (T1): manager state (MILESTONES, DONE, chat-protocol), design notes,
+# redteam evidence, and other internal-only artifacts stay untracked+ignored
+# ahead of the repo going public. Kept on disk, never re-added by `git add -A`.
 
 # Java build artifacts in fixtures
 __tests__/**/.gradle/
