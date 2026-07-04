@@ -250,10 +250,6 @@
       "branch_deleted": "Branch {branch} deleted.",
       "closed": "\nWorktree closed: {path}"
     },
-    "experiments": {
-      "none": "No experiments registered. See docs/reference/experimental-policy for details.",
-      "criteria": "           {criteria}"
-    },
     "wizard": {
       "migration_plan": "\n  Migration plan:",
       "replace_entry": "  ├── Replace (backed up): {entry}",

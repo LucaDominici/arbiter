@@ -1,10 +1,5 @@
 [
   {
-    "pattern": "segment.",
-    "file": "dist/commands/gauntlet.js",
-    "justification": "Compiled output of src/commands/gauntlet.ts — the match is the word 'segment' in a JSDoc comment describing the '.gauntlet-hash' filename sidecar (no '-gauntlet.' filename segment). Not a reference to the Segment analytics SaaS; no network call."
-  },
-  {
     "pattern": "sentry",
     "file": "dist/config/schema.js",
     "justification": "Compiled output of src/config/schema.ts — 'saas-sentry' is a string-literal key in the OBSERVABILITY_PROVIDER_VALUES membership map used by validateConfig to validate observability.provider. Not telemetry from arbiter itself; the value matters only when the user explicitly sets observability.provider='saas-sentry'."
