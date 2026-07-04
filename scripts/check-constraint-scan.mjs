@@ -23,7 +23,7 @@ Extracts hard prohibitions from governance docs and classifies each:
 A map entry naming a non-existent enforcer is MAP-FICTION and always fails.
 
 Options:
-  --docs=<a,b,c>   Comma-separated governance docs (default: AGENTS.md,docs/SYSTEM/CANON.md,.claude/CLAUDE.md)
+  --docs=<a,b,c>   Comma-separated governance docs (default: AGENTS.md,docs/internal/SYSTEM/CANON.md,.claude/CLAUDE.md)
   --src=<dir>      Source root to scan for live hits (default: src)
   --map=<path>     Constraint map JSON (default: scripts/constraint-map.json)
   --enforce[=bool] Hard-fail on ENFORCED-BY-SCAN live hits (default: ${ENFORCE_DEFAULT})
@@ -48,7 +48,7 @@ function parseArgs(argv) {
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean)
-      : ['AGENTS.md', 'docs/SYSTEM/CANON.md', '.claude/CLAUDE.md'],
+      : ['AGENTS.md', 'docs/internal/SYSTEM/CANON.md', '.claude/CLAUDE.md'],
     src: src || 'src',
     map: map || 'scripts/constraint-map.json',
     enforce: enforceRaw === undefined ? ENFORCE_DEFAULT : enforceRaw !== 'false',

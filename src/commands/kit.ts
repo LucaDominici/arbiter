@@ -175,7 +175,7 @@ function runParityCheck(root: string, catalogArr: CatalogArr): string[] {
   let mappingDims: MappingDim[]
   try {
     const raw = JSON.parse(
-      readFileSync(resolve(root, 'docs/audits/kit-canonical-mapping.json'), 'utf-8'),
+      readFileSync(resolve(root, 'docs/internal/audits/kit-canonical-mapping.json'), 'utf-8'),
     ) as { dimensions: MappingDim[] }
     mappingDims = raw.dimensions
   } catch (err) {

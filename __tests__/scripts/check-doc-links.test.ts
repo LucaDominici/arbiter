@@ -25,8 +25,8 @@ function makeDir(): { dir: string; cleanup: () => void } {
 }
 
 function writeCanonicalPaths(dir: string, content: string): void {
-  mkdirSync(join(dir, 'docs', 'METHOD'), { recursive: true })
-  writeFileSync(join(dir, 'docs', 'METHOD', 'CANONICAL_PATHS.md'), content)
+  mkdirSync(join(dir, 'docs', 'internal', 'METHOD'), { recursive: true })
+  writeFileSync(join(dir, 'docs', 'internal', 'METHOD', 'CANONICAL_PATHS.md'), content)
 }
 
 describe('check-doc-links (#255)', () => {

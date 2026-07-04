@@ -282,7 +282,7 @@ This guide covers how to set up a local development environment, run the test su
 
 - **Node.js >= 20** — arbiter uses the native `node:fs`, `node:path`, and `node:child_process` APIs available since Node 18, but Node 20 is the minimum because `tsx` requires it.
 - **npm >= 10** — comes bundled with Node 20.
-- **gh CLI (optional)** — required only for running tests that exercise GitHub provisioning. See [ADR-003](ADR/003-gh-cli-required.md).
+- **gh CLI (optional)** — required only for running tests that exercise GitHub provisioning. See [ADR-003](internal/ADR/003-gh-cli-required.md).
 - **Git** — must be on `PATH` for detector tests that call `git` CLI.
 
 ---
@@ -456,7 +456,7 @@ export async function generateMyTool(config: ProjectConfig): Promise<WriteResult
 }
 ```
 
-**Step 2** — Create the template at `src/templates/my-tool/config.ejs`. Use EJS syntax for dynamic content or write a static file if no `ProjectConfig` variables are needed. See [TEMPLATE-SYSTEM.md](architecture/ARCHITECTURE.md) for the full variable reference.
+**Step 2** — Create the template at `src/templates/my-tool/config.ejs`. Use EJS syntax for dynamic content or write a static file if no `ProjectConfig` variables are needed. See [TEMPLATE-SYSTEM.md](internal/architecture/ARCHITECTURE.md) for the full variable reference.
 
 **Step 3** — Wire the generator into `src/commands/init.ts` inside `runGenerators()`:
 

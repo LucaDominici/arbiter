@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// CATALOG: Enforces docs/ADR/ as the canonical ADR SSOT (INV-107, wave 2 migration).
+// CATALOG: Enforces docs/internal/ADR/ as the canonical ADR SSOT (INV-107, wave 2 migration).
 // CATALOG: Rejected fold-in into check-doc-links.mjs because it enforces structural invariants, not link validity.
 // CATALOG: Rejected fold-in into check-docs.mjs because it requires ADR-specific frontmatter parsing logic.
 //
-// INV-107: Verifies docs/ADR/ is the canonical ADR SSOT:
+// INV-107: Verifies docs/internal/ADR/ is the canonical ADR SSOT:
 //   1. Every numbered ADR file has canonical_id populated and matching its filename number.
 //   2. No duplicate ADR numbers exist.
-//   3. docs/ADR/README.md lists every numbered ADR file.
+//   3. docs/internal/ADR/README.md lists every numbered ADR file.
 // Usage: node scripts/check-adr-index.mjs [--adr-dir=path] [--readme=path]
 // Exits 1 if any violations are found, 0 otherwise.
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
@@ -18,10 +18,10 @@ const adrDirArg = args.find((a) => a.startsWith('--adr-dir='))
 const readmeArg = args.find((a) => a.startsWith('--readme='))
 
 const root = process.cwd()
-const ADR_DIR = adrDirArg ? resolve(adrDirArg.split('=')[1]) : join(root, 'docs', 'ADR')
+const ADR_DIR = adrDirArg ? resolve(adrDirArg.split('=')[1]) : join(root, 'docs', 'internal', 'ADR')
 const README_PATH = readmeArg
   ? resolve(readmeArg.split('=')[1])
-  : join(root, 'docs', 'ADR', 'README.md')
+  : join(root, 'docs', 'internal', 'ADR', 'README.md')
 
 const NUMBERED_FILE_RE = /^(\d{3})-.+\.md$/
 

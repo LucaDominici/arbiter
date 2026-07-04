@@ -8,8 +8,8 @@ arbiter tells agents WHAT rules apply, then enforces them mechanically — perso
 
 - [AGENTS.md](AGENTS.md): Canonical governance + invariants (INV-NN). Read first.
 - [GLOBAL_INVARIANTS.md](GLOBAL_INVARIANTS.md): Hand-maintained invariant mosaic (INV-01..INV-128). Authoritative when present.
-- [docs/SYSTEM/CANON.md](docs/SYSTEM/CANON.md): Process rules CANON-NN from audit waves #151-#186. Cite on violation.
-- [docs/INDEX.md](docs/INDEX.md): Generated index of 169 docs with canonical_id/status/kind. Navigation entry point.
+- [docs/internal/SYSTEM/CANON.md](docs/internal/SYSTEM/CANON.md): Process rules CANON-NN from audit waves #151-#186. Cite on violation.
+- [docs/INDEX.md](docs/INDEX.md): Generated index of 171 docs with canonical_id/status/kind. Navigation entry point.
 - [.claude/knowledge-map.json](.claude/knowledge-map.json): Machine-readable track routing (frontend/backend/docs).
 - [.claude/AGENT_REGISTRY.md](.claude/AGENT_REGISTRY.md): Sub-agents (red-team, bridge-reviewer, context-checker, codebase-scanner, ai-pr-gate) + interaction chains.
 
@@ -21,18 +21,17 @@ arbiter tells agents WHAT rules apply, then enforces them mechanically — perso
 
 ## Method and architecture
 
-- [docs/METHOD/PROCESS.md](docs/METHOD/PROCESS.md): Track model, post-commit classification, doc semver, RFC process.
-- [docs/METHOD/TESTING.md](docs/METHOD/TESTING.md): Testing method.
-- [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md): Architecture spine.
-- [docs/SYSTEM/HOOK-CONTRACTS.md](docs/SYSTEM/HOOK-CONTRACTS.md): Stable hook env-var/stdin/exit shapes.
+- [docs/internal/METHOD/PROCESS.md](docs/internal/METHOD/PROCESS.md): Track model, post-commit classification, doc semver, RFC process.
+- [docs/internal/METHOD/TESTING.md](docs/internal/METHOD/TESTING.md): Testing method.
+- [docs/internal/architecture/ARCHITECTURE.md](docs/internal/architecture/ARCHITECTURE.md): Architecture spine.
+- [docs/internal/SYSTEM/HOOK-CONTRACTS.md](docs/internal/SYSTEM/HOOK-CONTRACTS.md): Stable hook env-var/stdin/exit shapes.
 - [docs/api/README.md](docs/api/README.md): Public API surface + generated api-extractor snapshots in api/.
 - [docs/PRODUCT/PRD.md](docs/PRODUCT/PRD.md): What arbiter is and is not.
 
 ## Optional
 
-- [wiki/](wiki/): Generated LLM-wiki (Obsidian-compatible, citation-backed, non-authoritative). Query via `node scripts/gen-wiki.mjs query <terms>`.
-- [docs/ADR/](docs/ADR/): Architecture decision records. Digest in [docs/SYSTEM/DECISIONS.md](docs/SYSTEM/DECISIONS.md).
-- [docs/PRODUCT/STATUS.md](docs/PRODUCT/STATUS.md): Living dashboard. [docs/PRODUCT/GAP.md](docs/PRODUCT/GAP.md): Gap register.
-- [docs/runbooks/dependabot-handling.md](docs/runbooks/dependabot-handling.md): Runbook sample (agent-native, gh-CLI steps).
+- [docs/internal/ADR/](docs/internal/ADR/): Architecture decision records. Digest in [docs/internal/SYSTEM/DECISIONS.md](docs/internal/SYSTEM/DECISIONS.md).
+- [docs/internal/PRODUCT/STATUS.md](docs/internal/PRODUCT/STATUS.md): Living dashboard. [docs/internal/PRODUCT/GAP.md](docs/internal/PRODUCT/GAP.md): Gap register.
+- [docs/internal/runbooks/dependabot-handling.md](docs/internal/runbooks/dependabot-handling.md): Runbook sample (agent-native, gh-CLI steps).
 - [.claude/rules/](.claude/rules/): Always-loaded rules (canon enforcement, incidental capture, batch execution, exec protocol).
 - [CHANGELOG.md](CHANGELOG.md), [ROADMAP.md](ROADMAP.md), [CONTRIBUTING.md](CONTRIBUTING.md): Standard project metadata.

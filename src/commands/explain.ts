@@ -6,7 +6,7 @@ import { ERROR_CATALOG } from '../utils/error-catalog.js'
 import { loadCanonEntries } from '../utils/canon-loader.js'
 
 const DOCS_ROOT = resolve(fileURLToPath(import.meta.url), '../../..', 'docs')
-const CANON_MD_PATH = join(DOCS_ROOT, 'SYSTEM/CANON.md')
+const CANON_MD_PATH = join(DOCS_ROOT, 'internal/SYSTEM/CANON.md')
 
 export interface ExplainOptions {
   format?: string

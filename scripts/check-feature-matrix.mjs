@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// CATALOG: validates docs/PRODUCT/FEATURE_MATRIX.md status ladder, KIT-dim coverage, and level DoD.
+// CATALOG: validates docs/internal/PRODUCT/FEATURE_MATRIX.md status ladder, KIT-dim coverage, and level DoD.
 // CATALOG: rejected fold-in into check-catalog-agents-parity.mjs (different domain: RTM vs invariant catalog).
 // CATALOG: rejected fold-in into check-kit-catalog-parity.mjs (different concern: matrix gate vs catalog sync).
 /**
@@ -31,7 +31,7 @@ const _levelEqArg = args.find((a) => a.startsWith('--level='))?.split('=')[1] ??
 const _levelIdx = args.indexOf('--level')
 const _levelNextArg = _levelIdx >= 0 ? (args[_levelIdx + 1] ?? null) : null
 const levelArg = _levelEqArg ?? (_levelNextArg?.match(/^L[1-4]$/) ? _levelNextArg : null)
-const MATRIX_PATH = resolve(ROOT, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md')
+const MATRIX_PATH = resolve(ROOT, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md')
 const KIT_CATALOG_PATH = resolve(ROOT, 'src', 'kit', 'catalog.json')
 
 // ─── Sentinel markers ────────────────────────────────────────────────────────

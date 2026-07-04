@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // scripts/gen-status.mjs
-// Generate docs/PRODUCT/STATUS.md — living product dashboard derived from
+// Generate docs/internal/PRODUCT/STATUS.md — living product dashboard derived from
 // FEATURE_MATRIX.md, MILESTONES.md, and PRD.md.
 //
 // Usage:
@@ -73,9 +73,10 @@ function parseMilestones(content) {
  * Throws if any required source file is missing or unreadable.
  */
 export function collectData(root) {
-  const matrixPath = join(root, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md')
+  const matrixPath = join(root, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md')
+  // PRD.md stays public (linked from README as outward-facing positioning)
   const prdPath = join(root, 'docs', 'PRODUCT', 'PRD.md')
-  const milestonesPath = join(root, 'docs', 'PRODUCT', 'MILESTONES.md')
+  const milestonesPath = join(root, 'docs', 'internal', 'PRODUCT', 'MILESTONES.md')
 
   if (!existsSync(matrixPath)) throw new Error(`FEATURE_MATRIX.md not found: ${matrixPath}`)
   if (!existsSync(prdPath)) throw new Error(`PRD.md not found: ${prdPath}`)
@@ -105,7 +106,7 @@ export function collectData(root) {
   const currentMilestone = openMilestones[0] ?? null
 
   // Convergence report: use most recent by name sort (CONVERGENCE-YYYY-MM.md)
-  const convergenceDir = join(root, 'docs', 'PRODUCT')
+  const convergenceDir = join(root, 'docs', 'internal', 'PRODUCT')
   let convergenceFile = null
   if (existsSync(convergenceDir)) {
     const candidates = readdirSafe(convergenceDir).filter((f) =>
@@ -195,7 +196,7 @@ ${partialLine}${missingLine}${milestoneSection}${roadmapSection}
 | Document | Purpose |
 | ---------------------------------------- | ------------------------------------------------------- |
 | [FEATURE_MATRIX.md](FEATURE_MATRIX.md) | Product truth RTM — ${total} requirements with evidence |
-| [INDEX.md](../INDEX.md) | Every governance doc in one inventory |
+| [INDEX.md](../../INDEX.md) | Every governance doc in one inventory |
 | [PRD.md](PRD.md) | Product requirements, personas, and governance levels |
 ${convergenceRow}<!-- STATUS_END -->
 `
@@ -213,11 +214,11 @@ export async function runCli(root, statusPath, check) {
       const current = existsSync(statusPath) ? readFileSync(statusPath, 'utf-8') : ''
       if (current !== generated) {
         process.stderr.write(
-          'docs/PRODUCT/STATUS.md is stale. Run `node scripts/gen-status.mjs --write` and commit the result.\n',
+          'docs/internal/PRODUCT/STATUS.md is stale. Run `node scripts/gen-status.mjs --write` and commit the result.\n',
         )
         return 1
       }
-      process.stdout.write('docs/PRODUCT/STATUS.md is up to date.\n')
+      process.stdout.write('docs/internal/PRODUCT/STATUS.md is up to date.\n')
       return 0
     }
     writeFileSync(statusPath, generated)
@@ -237,7 +238,7 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url)
 
 if (isMain) {
   const repoRoot = resolve('.')
-  const statusPath = join(repoRoot, 'docs', 'PRODUCT', 'STATUS.md')
+  const statusPath = join(repoRoot, 'docs', 'internal', 'PRODUCT', 'STATUS.md')
   const check = process.argv.includes('--check')
   runCli(repoRoot, statusPath, check)
     .then((code) => process.exit(code))

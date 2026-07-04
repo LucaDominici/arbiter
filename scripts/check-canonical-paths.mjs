@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const CWD = process.cwd()
-const CANONICAL_PATHS_FILE = join(CWD, 'docs', 'METHOD', 'CANONICAL_PATHS.md')
+const CANONICAL_PATHS_FILE = join(CWD, 'docs', 'internal', 'METHOD', 'CANONICAL_PATHS.md')
 
 if (!existsSync(CANONICAL_PATHS_FILE)) {
   process.stdout.write('  check-canonical-paths: no CANONICAL_PATHS.md found — skipping\n')

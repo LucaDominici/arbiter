@@ -14,7 +14,7 @@ const has = (p: string): boolean => existsSync(resolve(ROOT, p))
 
 // target → list of [source-path, marker-substring that must survive the merge]
 const MERGES: Record<string, Array<[string, string]>> = {
-  'docs/architecture/ARCHITECTURE.md': [
+  'docs/internal/architecture/ARCHITECTURE.md': [
     ['docs/architecture/OVERVIEW.md', 'Arbiter generates a multi-layer governance stack'],
     [
       'docs/architecture/CANONICAL-SOURCE-MODEL.md',
@@ -36,7 +36,7 @@ const MERGES: Record<string, Array<[string, string]>> = {
     ['docs/architecture/skeleton-governance.md', 'Single SSOT defining the target architecture'],
     ['docs/architecture/README.md', 'Read these in order to understand how arbiter'],
   ],
-  'docs/METHOD/ENGINEERING_DEFAULTS.md': [
+  'docs/internal/METHOD/ENGINEERING_DEFAULTS.md': [
     [
       'docs/SYSTEM/detector-error-policy.md',
       'All file reads in `src/detectors/` MUST go through the shared helpers',
@@ -46,7 +46,7 @@ const MERGES: Record<string, Array<[string, string]>> = {
       'A gate is **fail-closed** when its default reaction to an unrecognised state',
     ],
   ],
-  'docs/METHOD/PROCESS.md': [
+  'docs/internal/METHOD/PROCESS.md': [
     ['docs/METHOD/TRACK_MODEL.md', 'Define the work-scope taxonomy used to delimit a task'],
     [
       'docs/SYSTEM/POST_COMMIT_TRACKS.md',
@@ -58,7 +58,7 @@ const MERGES: Record<string, Array<[string, string]>> = {
     ],
     ['docs/rfc/README.md', 'Arbiter uses a lightweight RFC (Request for Comments) process'],
   ],
-  'docs/METHOD/TESTING.md': [
+  'docs/internal/METHOD/TESTING.md': [
     ['docs/TESTING_POLICY.md', 'Authentication flow (login / token refresh)'],
     ['docs/MASTER_TEST_PLAN.md', "Update to match your project's test strategy"],
     ['docs/TEST_TAXONOMY.md', 'test-pyramid-profile-26d'],
@@ -118,9 +118,16 @@ describe('#1242 KEEP-CORE consolidation — targets exist with merged content', 
   }
 })
 
+// T7 (#1770, docs public/internal split): docs/QUICKSTART.md is intentionally
+// repurposed as a brand-new public quickstart doc, so its #1242 "merged-away
+// original stays deleted" check no longer applies — the path is inhabited by
+// design, not by regression.
+const REPURPOSED_SOURCES = new Set<string>(['docs/QUICKSTART.md'])
+
 describe('#1242 merged-away originals are deleted (no duplicate authority)', () => {
   // ENGINEERING_DEFAULTS.md is an existing target (kept) — exclude it from the delete set.
   for (const src of ALL_SOURCES) {
+    if (REPURPOSED_SOURCES.has(src)) continue
     it(`${src} is deleted`, () => {
       expect(has(src), `${src} must be deleted after merge`).toBe(false)
     })
@@ -129,7 +136,7 @@ describe('#1242 merged-away originals are deleted (no duplicate authority)', () 
 
 describe('#1242 same-PR gate updates (Law 10)', () => {
   it('CANONICAL_PATHS.md has an alias redirect row for every deleted original', () => {
-    const cp = read('docs/METHOD/CANONICAL_PATHS.md')
+    const cp = read('docs/internal/METHOD/CANONICAL_PATHS.md')
     for (const src of ALL_SOURCES) {
       expect(cp.includes(src), `CANONICAL_PATHS.md must alias ${src}`).toBe(true)
     }
@@ -151,9 +158,9 @@ describe('#1242 same-PR gate updates (Law 10)', () => {
 describe('#1242 SSOT-core inventory reflects the consolidation', () => {
   it('the 4 new docs/ targets carry an active backbone kind so they stay in the SSOT set', () => {
     for (const target of [
-      'docs/architecture/ARCHITECTURE.md',
-      'docs/METHOD/PROCESS.md',
-      'docs/METHOD/TESTING.md',
+      'docs/internal/architecture/ARCHITECTURE.md',
+      'docs/internal/METHOD/PROCESS.md',
+      'docs/internal/METHOD/TESTING.md',
       'docs/GOVERNANCE.md',
     ]) {
       const fm = read(target).split('\n---', 2)[0]

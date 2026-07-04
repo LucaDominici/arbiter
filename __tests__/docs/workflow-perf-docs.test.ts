@@ -32,12 +32,14 @@ describe('workflow-pr-fast reference (#1228)', () => {
 })
 
 describe('ADR-090 workflow performance budget (#1233)', () => {
-  it('docs/ADR/090-workflow-performance-budget.md exists', () => {
-    expect(existsSync(join(ROOT, 'docs/ADR/090-workflow-performance-budget.md'))).toBe(true)
+  it('docs/internal/ADR/090-workflow-performance-budget.md exists', () => {
+    expect(existsSync(join(ROOT, 'docs/internal/ADR/090-workflow-performance-budget.md'))).toBe(
+      true,
+    )
   })
 
   it('has required frontmatter fields', () => {
-    const content = readDoc('docs/ADR/090-workflow-performance-budget.md')
+    const content = readDoc('docs/internal/ADR/090-workflow-performance-budget.md')
     expect(content).toMatch(/^---/m)
     expect(content).toMatch(/canonical_id:\s*['"]?090['"]?/m)
     expect(content).toMatch(/status:\s*active/m)
@@ -45,7 +47,7 @@ describe('ADR-090 workflow performance budget (#1233)', () => {
   })
 
   it('documents PR Fast performance budget', () => {
-    const content = readDoc('docs/ADR/090-workflow-performance-budget.md')
+    const content = readDoc('docs/internal/ADR/090-workflow-performance-budget.md')
     expect(content).toMatch(/15\s*min/i)
     expect(content).toMatch(/PR\s*Fast/i)
   })

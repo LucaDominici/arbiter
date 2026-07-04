@@ -161,9 +161,9 @@ function declaresEnforces(region) {
 }
 
 function main() {
-  const adrDir = resolve(CWD, 'docs/ADR')
+  const adrDir = resolve(CWD, 'docs/internal/ADR')
   if (!existsSync(adrDir)) {
-    process.stdout.write('check-adr-enforcement: no docs/ADR — vacuous pass\n')
+    process.stdout.write('check-adr-enforcement: no docs/internal/ADR — vacuous pass\n')
     return 0
   }
   const golds = goldCheckIds()

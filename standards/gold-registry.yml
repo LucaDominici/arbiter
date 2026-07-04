@@ -78,7 +78,7 @@ checks:
     dimension: D-DOCS
     title: ADR governance index present (architecture decisions are recorded)
     type: file_exists
-    args: { path: docs/ADR/README.md }
+    args: { path: docs/internal/ADR/README.md }
     weight: 1
     risk: SAFE
     anchor: INV-107
@@ -86,7 +86,7 @@ checks:
     dimension: D-DOCS
     title: Architecture overview present
     type: file_exists
-    args: { path: docs/architecture/ARCHITECTURE.md }
+    args: { path: docs/internal/architecture/ARCHITECTURE.md }
     weight: 1
     risk: SAFE
   - id: GA-DOC-07

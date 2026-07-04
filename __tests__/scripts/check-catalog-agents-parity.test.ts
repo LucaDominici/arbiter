@@ -380,7 +380,7 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
     const result = run(
       resolve('src/invariants/catalog.ts'),
       resolve('AGENTS.md'),
-      resolve('docs/SYSTEM/CANON.md'),
+      resolve('docs/internal/SYSTEM/CANON.md'),
     )
     expect(result.status).toBe(0)
   })

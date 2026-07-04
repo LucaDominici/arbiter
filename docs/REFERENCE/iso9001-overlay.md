@@ -43,7 +43,7 @@ All docs use `skipIfExists: true` — brownfield re-init never overwrites user c
 
 ## RTM Reuse (FEATURE_MATRIX machinery)
 
-The RTM mirrors the [FEATURE_MATRIX](../PRODUCT/FEATURE_MATRIX.md) RTM schema: a
+The RTM mirrors the [FEATURE_MATRIX](../internal/PRODUCT/FEATURE_MATRIX.md) RTM schema: a
 sentinel-delimited (`<!-- ISO9001_RTM_START -->` … `END`) pipe table with the same
 `status` ladder (`Missing` → `Partial` → `Done`, fail-closed promotion). The gate parses
 the sentinel block and checks ref existence exactly as `check-feature-matrix.mjs` does, so

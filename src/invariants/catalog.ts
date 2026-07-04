@@ -1325,7 +1325,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     tier: 'operational',
     title: 'Kit catalog parity',
     description:
-      'src/kit/catalog.json and docs/audits/kit-canonical-mapping.json must stay in sync: ' +
+      'src/kit/catalog.json and docs/internal/audits/kit-canonical-mapping.json must stay in sync: ' +
       'every canonical_id in mapping must match a catalog id (N01..N77); names, tml_source, and ' +
       'gate_type must match after NFC-normalize and suffix-strip; every BLOCKING dim must have ' +
       'at least one enforcement artifact or a valid disposition exemption (adopt-framework or ' +

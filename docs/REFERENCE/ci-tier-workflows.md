@@ -17,7 +17,7 @@ arbiter generates a CI tier of up to **18 numbered workflow files** (`01`–`18`
 numbered workflow is classified into one of four **cadence buckets** (ALWAYS / NIGHTLY /
 WEEKLY-MONTHLY / PROD) and is emitted only when its governance/emit predicate holds. The
 model — cadence axis × governance axis — is specified in
-[`docs/SYSTEM/CI-TIER-MODEL.md`](../SYSTEM/CI-TIER-MODEL.md); this page is the per-workflow
+[`docs/SYSTEM/CI-TIER-MODEL.md`](../internal/SYSTEM/CI-TIER-MODEL.md); this page is the per-workflow
 inventory.
 
 ### Thin-caller / reusable-partial pattern (#1691)

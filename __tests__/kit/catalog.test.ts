@@ -272,7 +272,7 @@ describe('re-export sanity — Stack/TML/Gate from taxonomy.ts and schema.ts are
 describe('mapping canonical_id', () => {
   it('all mapping entries have canonical_id matching N01..N78', () => {
     const mapping = JSON.parse(
-      readFileSync(join(ROOT, 'docs/audits/kit-canonical-mapping.json'), 'utf-8'),
+      readFileSync(join(ROOT, 'docs/internal/audits/kit-canonical-mapping.json'), 'utf-8'),
     ) as { dimensions: Array<{ canonical_id?: string }> }
     const idPattern = /^N(0[1-9]|[1-6]\d|7[0-8])$/
     for (const dim of mapping.dimensions) {

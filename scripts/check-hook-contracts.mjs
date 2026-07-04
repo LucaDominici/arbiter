@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Gate: verify every .mjs file in .claude/hooks/ is documented in
- * docs/SYSTEM/HOOK-CONTRACTS.md and vice-versa.
+ * docs/internal/SYSTEM/HOOK-CONTRACTS.md and vice-versa.
  *
  * Exits 1 if any hook is undocumented or any doc entry has no matching file.
  */
@@ -11,7 +11,7 @@ import { join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const hooksDir = join(root, '.claude', 'hooks')
-const docPath = join(root, 'docs', 'SYSTEM', 'HOOK-CONTRACTS.md')
+const docPath = join(root, 'docs', 'internal', 'SYSTEM', 'HOOK-CONTRACTS.md')
 
 if (!existsSync(docPath)) {
   process.stderr.write(`check-hook-contracts: HOOK-CONTRACTS.md not found at ${docPath}\n`)

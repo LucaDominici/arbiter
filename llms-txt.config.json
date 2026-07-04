@@ -17,8 +17,8 @@
           "description": "Hand-maintained invariant mosaic (INV-01..INV-128). Authoritative when present."
         },
         {
-          "label": "docs/SYSTEM/CANON.md",
-          "path": "docs/SYSTEM/CANON.md",
+          "label": "docs/internal/SYSTEM/CANON.md",
+          "path": "docs/internal/SYSTEM/CANON.md",
           "description": "Process rules CANON-NN from audit waves #151-#186. Cite on violation."
         },
         {
@@ -62,23 +62,23 @@
       "heading": "Method and architecture",
       "entries": [
         {
-          "label": "docs/METHOD/PROCESS.md",
-          "path": "docs/METHOD/PROCESS.md",
+          "label": "docs/internal/METHOD/PROCESS.md",
+          "path": "docs/internal/METHOD/PROCESS.md",
           "description": "Track model, post-commit classification, doc semver, RFC process."
         },
         {
-          "label": "docs/METHOD/TESTING.md",
-          "path": "docs/METHOD/TESTING.md",
+          "label": "docs/internal/METHOD/TESTING.md",
+          "path": "docs/internal/METHOD/TESTING.md",
           "description": "Testing method."
         },
         {
-          "label": "docs/architecture/ARCHITECTURE.md",
-          "path": "docs/architecture/ARCHITECTURE.md",
+          "label": "docs/internal/architecture/ARCHITECTURE.md",
+          "path": "docs/internal/architecture/ARCHITECTURE.md",
           "description": "Architecture spine."
         },
         {
-          "label": "docs/SYSTEM/HOOK-CONTRACTS.md",
-          "path": "docs/SYSTEM/HOOK-CONTRACTS.md",
+          "label": "docs/internal/SYSTEM/HOOK-CONTRACTS.md",
+          "path": "docs/internal/SYSTEM/HOOK-CONTRACTS.md",
           "description": "Stable hook env-var/stdin/exit shapes."
         },
         {
@@ -97,23 +97,18 @@
       "heading": "Optional",
       "entries": [
         {
-          "label": "wiki/",
-          "path": "wiki/",
-          "description": "Generated LLM-wiki (Obsidian-compatible, citation-backed, non-authoritative). Query via `node scripts/gen-wiki.mjs query <terms>`."
+          "label": "docs/internal/ADR/",
+          "path": "docs/internal/ADR/",
+          "description": "Architecture decision records. Digest in [docs/internal/SYSTEM/DECISIONS.md](docs/internal/SYSTEM/DECISIONS.md)."
         },
         {
-          "label": "docs/ADR/",
-          "path": "docs/ADR/",
-          "description": "Architecture decision records. Digest in [docs/SYSTEM/DECISIONS.md](docs/SYSTEM/DECISIONS.md)."
+          "label": "docs/internal/PRODUCT/STATUS.md",
+          "path": "docs/internal/PRODUCT/STATUS.md",
+          "description": "Living dashboard. [docs/internal/PRODUCT/GAP.md](docs/internal/PRODUCT/GAP.md): Gap register."
         },
         {
-          "label": "docs/PRODUCT/STATUS.md",
-          "path": "docs/PRODUCT/STATUS.md",
-          "description": "Living dashboard. [docs/PRODUCT/GAP.md](docs/PRODUCT/GAP.md): Gap register."
-        },
-        {
-          "label": "docs/runbooks/dependabot-handling.md",
-          "path": "docs/runbooks/dependabot-handling.md",
+          "label": "docs/internal/runbooks/dependabot-handling.md",
+          "path": "docs/internal/runbooks/dependabot-handling.md",
           "description": "Runbook sample (agent-native, gh-CLI steps)."
         },
         {

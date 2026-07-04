@@ -138,13 +138,13 @@ describe('package.json files[] does not ship docs wholesale — whitelist the on
     // re-introduce a leak, and the package stays well under the 5 MB cap.
     expect(pkg.files).not.toContain('docs')
     expect(pkg.files.filter((f) => f.startsWith('docs/') && !f.startsWith('!'))).toEqual([
-      'docs/audits/kit-canonical-mapping.json',
+      'docs/internal/audits/kit-canonical-mapping.json',
     ])
   })
 
   it('ships the one bundled doc the CLI reads at runtime (kit parity check)', () => {
     // kit.js resolves this against the package root; dropping it would break `arbiter kit`.
-    expect(pkg.files).toContain('docs/audits/kit-canonical-mapping.json')
+    expect(pkg.files).toContain('docs/internal/audits/kit-canonical-mapping.json')
   })
 
   it('carries no stale negation entries (whitelist makes them unnecessary)', () => {

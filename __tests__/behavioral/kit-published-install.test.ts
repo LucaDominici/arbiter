@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #1575: the `arbiter kit` family must work in a PUBLISHED install — where `src/`
-// never ships and only the `files[]` allowlist (dist/ + docs/audits/kit-canonical-
-// mapping.json) is present. Earlier, kit resolved its runtime data into
+// never ships and only the `files[]` allowlist (dist/ + docs/internal/audits/kit-
+// canonical-mapping.json) is present. Earlier, kit resolved its runtime data into
 // `../../../src/kit/*.json` and the build never copied the data into `dist/kit/`, so
 // every kit subcommand threw `ENOENT` (or the gate fail-closed at severity 2) in any
 // npm/npx install. The dev checkout masked it because `src/` sits right next to dist.
@@ -37,7 +37,7 @@ beforeAll(() => {
   pkgRoot = mkdtempSync(join(cacheBase, 'arbiter-pkgtest-'))
   // Copy ONLY the published surface: dist/ + the one shipped doc the CLI reads.
   cpSync(DIST, join(pkgRoot, 'dist'), { recursive: true })
-  const mappingRel = 'docs/audits/kit-canonical-mapping.json'
+  const mappingRel = 'docs/internal/audits/kit-canonical-mapping.json'
   mkdirSync(dirname(join(pkgRoot, mappingRel)), { recursive: true })
   cpSync(join(REPO, mappingRel), join(pkgRoot, mappingRel))
 }, 240_000)

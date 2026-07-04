@@ -96,6 +96,7 @@ checks:
     accept_any:
       [
         'docs/architecture/ARCHITECTURE.md',
+        'docs/internal/architecture/ARCHITECTURE.md',
         'docs/architecture/arc42.md',
         'docs/architecture/blueprint.md',
         'docs/ARCHITECTURE.md',
@@ -108,7 +109,14 @@ checks:
     drivers: ['iso12207']
     glob: 'docs/ADR/[0-9]*.md'
     adr: true
-    accept_any: ['docs/ADR/[0-9]*.md', 'docs/adr/[0-9]*.md', 'docs/ADR/README.md']
+    accept_any:
+      [
+        'docs/ADR/[0-9]*.md',
+        'docs/adr/[0-9]*.md',
+        'docs/ADR/README.md',
+        'docs/internal/ADR/[0-9]*.md',
+        'docs/internal/ADR/README.md',
+      ]
     purpose: Architecture Decision Records (at least one; legacy or <PREFIX>-NNN).
   - path: docs/SEMVER.md
     tier: mandatory
