@@ -82,6 +82,18 @@ describe('06-nightly-lite.yml.ejs — action pinning (#1319.5)', () => {
   })
 })
 
+// ─── Runner fallback (#1770, #1756) ──────────────────────────────────────────
+// gated-review + L3Plus must NEVER render a bare self-hosted default: an outsider
+// repo without CI_BUILD_RUNNER_LABEL set would queue forever on docker-ci-build.
+
+describe('06-nightly-lite.yml.ejs — runner fallback (#1770, #1756)', () => {
+  it('gated-review + L3 falls back to ubuntu-latest, not docker-ci-build', () => {
+    const rendered = renderNightlyLite({ collaborationMode: 'gated-review', governanceLevel: 'L3' })
+    expect(rendered).not.toContain("'docker-ci-build'")
+    expect(rendered).toContain("vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest'")
+  })
+})
+
 // ─── Schedule and triggers ────────────────────────────────────────────────────
 
 describe('06-nightly-lite.yml.ejs — schedule', () => {

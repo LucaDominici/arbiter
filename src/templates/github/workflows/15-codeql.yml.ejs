@@ -1,7 +1,7 @@
 <%
 const _cm = (typeof collaborationMode !== 'undefined' ? collaborationMode : 'peer-review');
 const _runner = (_cm === 'gated-review' && isL3Plus)
-  ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}"
+  ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}"
   : "${{ fromJSON(vars.RUNNER_LABELS_TEST || '[\"ubuntu-latest\"]') }}";
 // #1624: a single immutable language string defaulting to 'javascript-typescript' false-greens
 // the entire compiled-language backend of a polyglot (language === 'multi') repo - CodeQL would
