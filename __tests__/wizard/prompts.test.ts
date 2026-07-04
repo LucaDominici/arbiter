@@ -999,20 +999,25 @@ describe('runWizard language confirmation (#1036)', () => {
   })
 })
 
-// #1491 (M2/matrix-coverage): Kotlin is offered in the wizard but has 0 proven
-// matrix cells, only a snapshot-tier fixture, and no L4 — it must be labelled
-// experimental so a user does not assume Java-level parity. The five proven
-// stacks (ts/java/rust/python/go) must NOT carry the experimental marker.
-describe('buildLanguageOptions — Kotlin honesty marker', () => {
-  it('marks Kotlin experimental', () => {
-    const kotlin = buildLanguageOptions().find((o) => o.value === 'kotlin')
-    expect(kotlin).toBeDefined()
-    expect(kotlin!.label.toLowerCase()).toContain('experimental')
+// #1491 (M2/matrix-coverage) + #1770 (T6/release maturity labels): Kotlin is
+// offered in the wizard but has 0 proven matrix cells, only a snapshot-tier
+// fixture, and no L4 — it must be labelled experimental so a user does not
+// assume Java-level parity. #1770 extends the same honesty policy to Java and
+// Rust for the v0.1 public release: only typescript/python/go are dogfooded
+// end-to-end and advertised as supported.
+describe('buildLanguageOptions — experimental honesty markers', () => {
+  it('marks Java, Kotlin, and Rust experimental', () => {
+    const opts = buildLanguageOptions()
+    for (const lang of ['java', 'kotlin', 'rust'] as const) {
+      const opt = opts.find((o) => o.value === lang)
+      expect(opt, `${lang} option present`).toBeDefined()
+      expect(opt!.label.toLowerCase(), `${lang} marked experimental`).toContain('experimental')
+    }
   })
 
-  it('does NOT mark the proven stacks experimental', () => {
+  it('does NOT mark the supported stacks experimental', () => {
     const opts = buildLanguageOptions()
-    for (const lang of ['typescript', 'java', 'rust', 'python', 'go'] as const) {
+    for (const lang of ['typescript', 'python', 'go'] as const) {
       const opt = opts.find((o) => o.value === lang)
       expect(opt, `${lang} option present`).toBeDefined()
       expect(opt!.label.toLowerCase(), `${lang} not marked experimental`).not.toContain(
