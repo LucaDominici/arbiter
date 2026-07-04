@@ -17,9 +17,10 @@
 //   2. `graphNode` present AND graph fresh      → DROP if the node is gone; KEEP if present
 //   3. symbol-only with no graph (low-conf)     → do NOT bare-grep-drop; route to age-sweep
 //   4. age-sweep: unpromoted older than N days  → promote; younger → defer
-import { existsSync, readFileSync, mkdirSync, statSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync, mkdirSync, statSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
+import { writeFileTranslated } from '../utils/fs.js'
 import {
   createGhIssue,
   appendTechDebtIssue,
@@ -155,6 +156,62 @@ export function listSpoolFindings(dir: string): SpoolFinding[] {
   return dedupByFingerprint(readSpool(dir))
 }
 
+/** True when a spool line parses as a finding whose fingerprint is now resolved (safe to drop). */
+function isResolvedLine(line: string, resolvedFingerprints: ReadonlySet<string>): boolean {
+  try {
+    const parsed: unknown = JSON.parse(line)
+    return isSpoolFinding(parsed) && resolvedFingerprints.has(parsed.fingerprint)
+  } catch {
+    // malformed line — preserve rather than risk losing unrelated data
+    return false
+  }
+}
+
+/** Drain one shard file in place: drop resolved lines, delete the file once it's empty. */
+function drainShard(shardPath: string, resolvedFingerprints: ReadonlySet<string>): void {
+  let raw: string
+  try {
+    raw = readFileSync(shardPath, 'utf-8')
+  } catch {
+    return
+  }
+  const lines = raw.split('\n').filter((line) => line.trim().length > 0)
+  const kept = lines
+    .map((line) => line.trim())
+    .filter((line) => !isResolvedLine(line, resolvedFingerprints))
+  if (kept.length === lines.length) return
+  if (kept.length === 0) {
+    try {
+      unlinkSync(shardPath)
+    } catch {
+      // best-effort — a stale empty shard is harmless
+    }
+    return
+  }
+  writeFileTranslated(shardPath, kept.join('\n') + '\n')
+}
+
+/**
+ * Remove resolved findings (promoted, dropped, or skipped-as-already-tracked) from their spool
+ * shards so `collectFindingsMetrics` (debt-lib.mjs) reflects the drain instead of counting
+ * terminal findings forever. Findings NOT yet resolved (deferred by the age-sweep, or skipped
+ * because filing itself failed, e.g. `gh` unavailable) are left in place for the next run.
+ */
+function drainSpool(dir: string, resolvedFingerprints: ReadonlySet<string>): void {
+  if (resolvedFingerprints.size === 0) return
+  const findingsDir = join(dir, '.arbiter', 'findings')
+  if (!existsSync(findingsDir)) return
+  let shards: string[]
+  try {
+    shards = readdirSync(findingsDir).filter((f) => f.endsWith('.jsonl'))
+  } catch {
+    return
+  }
+  for (const shard of shards) {
+    drainShard(join(findingsDir, shard), resolvedFingerprints)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Re-validate-against-HEAD ladder
 // ---------------------------------------------------------------------------
@@ -262,12 +319,17 @@ export function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): Fin
 
   const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
   let evidenceReady = false
+  // Fingerprints of findings that reached a TERMINAL state this run (filed, invalid, or already
+  // tracked elsewhere) — these are drained from the spool. Deferred findings and findings whose
+  // filing itself failed (e.g. `gh` unavailable) are left in the spool for the next run.
+  const resolvedFingerprints = new Set<string>()
 
   for (const f of unique) {
     const verdict = revalidate(dir, f, deps)
 
     if (verdict === 'drop') {
       dropped.push(toOutcome(f))
+      resolvedFingerprints.add(f.fingerprint)
       continue
     }
 
@@ -283,6 +345,7 @@ export function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): Fin
     const hit = deps.searchIssueByFingerprint(dir, f.fingerprint)
     if (hit !== null && (hit.state === 'open' || recentlyClosed(hit, now))) {
       skipped.push(toOutcome(f))
+      resolvedFingerprints.add(f.fingerprint)
       continue
     }
 
@@ -292,7 +355,8 @@ export function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): Fin
       labels: ['finding', 'tech-debt', severityToPriority(f.severity)],
     })
     if (!result.ok) {
-      // Soft-fail this finding (e.g. gh unavailable) but keep going for the rest.
+      // Soft-fail this finding (e.g. gh unavailable) but keep going for the rest — leave it in
+      // the spool so the next `findings promote` run retries it.
       skipped.push(toOutcome(f))
       continue
     }
@@ -303,7 +367,10 @@ export function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): Fin
     }
     appendTechDebtIssue(evidenceDir, result.issueNumber)
     promoted.push(toOutcome(f))
+    resolvedFingerprints.add(f.fingerprint)
   }
+
+  drainSpool(dir, resolvedFingerprints)
 
   return { ok: true, promoted, dropped, skipped, deferred }
 }

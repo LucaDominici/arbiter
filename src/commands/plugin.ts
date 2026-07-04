@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, join } from 'node:path'
-import { mkdirSync, existsSync, writeFileSync } from 'node:fs'
+import { mkdirSync, existsSync } from 'node:fs'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { acquireLock } from '../utils/file-lock.js'
 import { ArbiterError } from '../utils/errors.js'
+import { writeFileTranslated } from '../utils/fs.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { t } from '../i18n/index.js'
 
@@ -35,7 +36,7 @@ export interface PluginInitOptions {
 function writeIfAbsent(filePath: string, content: string): void {
   mkdirSync(join(filePath, '..'), { recursive: true })
   if (!existsSync(filePath)) {
-    writeFileSync(filePath, content, 'utf-8')
+    writeFileTranslated(filePath, content)
   }
 }
 

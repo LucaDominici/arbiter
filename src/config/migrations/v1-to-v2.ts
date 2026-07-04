@@ -20,6 +20,7 @@ import {
   validateConfig,
 } from '../schema.js'
 import { getLogger } from '../../utils/logger.js'
+import { levelAtLeast } from '../levels.js'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,14 +56,17 @@ interface LegacyEvidenceRetention {
   enabled?: boolean
 }
 
-function deriveEvidenceHarness(evidenceRetention: unknown, level: string): boolean {
+function deriveEvidenceHarness(evidenceRetention: unknown, level: GovernanceLevel): boolean {
   if (isRecord(evidenceRetention)) {
     const legacy = evidenceRetention as LegacyEvidenceRetention
     if (typeof legacy.enabled === 'boolean') {
       return legacy.enabled
     }
   }
-  return level === 'L3'
+  // #1732 Step 3: floor check (not `=== 'L3'`) — an L4 v1 config with no
+  // explicit evidenceRetention must inherit the L3 default, not lose it
+  // (same bug class as #1720).
+  return levelAtLeast(level, 'L3')
 }
 
 function deriveFeatureFlags(raw: Record<string, unknown>, level: GovernanceLevel): FeatureFlags {

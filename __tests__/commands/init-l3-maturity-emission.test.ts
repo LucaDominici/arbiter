@@ -5,7 +5,11 @@
 // — so a still-ungated emitted cell is now consulted, and an unmodeled language×dim is
 // NOT falsely blocked (the #1606 pattern, generalised).
 import { describe, it, expect } from 'vitest'
-import { deriveL3MaturityChecks, type L3MaturityCapability } from '../../src/commands/init.js'
+import {
+  deriveL3MaturityChecks,
+  deriveWorkflowCapabilities,
+  type L3MaturityCapability,
+} from '../../src/commands/init.js'
 import { buildRegistry } from '../../src/generators/registry.js'
 import { isL3Allowed } from '../../src/utils/maturity-check.js'
 import { makeConfig } from '../helpers.js'
@@ -221,6 +225,169 @@ describe('deriveL3MaturityChecks — workflow-template dims (#1678)', () => {
     const checks = tsSvc()
     expect(blockedFeatures(checks).length).toBeGreaterThan(0)
     const all = checks.every((c) => isL3Allowed(c.language, c.feature, true).allowed)
+    expect(all).toBe(true)
+  })
+})
+
+// The L3 maturity gate is a FLOOR, not an exact match — L4 must stay gated too. Both
+// checkL3MaturityGates and deriveWorkflowCapabilities previously used `!== 'L3'` as an
+// early-return guard, which meant an L4 init silently skipped the beta/unsafe-tool gate
+// entirely (the exact "L4 ends up less gated than L3" inversion the #1732 cascade cleanup
+// fixed everywhere else — docs.ts, render.ts, v1-to-v2.ts — but missed here).
+describe('deriveL3MaturityChecks — L3 gate is a floor, L4 stays gated too', () => {
+  it('gates a kotlin service at L4 exactly like at L3 (previously silently skipped)', () => {
+    const l3 = checksFor({
+      language: 'kotlin',
+      archetype: 'backend-web-db',
+      basePackage: 'com.example',
+    })
+    const l4 = checksFor({
+      governanceLevel: 'L4',
+      language: 'kotlin',
+      archetype: 'backend-web-db',
+      basePackage: 'com.example',
+    })
+    expect(blockedFeatures(l4).length).toBeGreaterThan(0)
+    expect(blockedFeatures(l4).sort()).toEqual(blockedFeatures(l3).sort())
+  })
+
+  it('resolves workflow-template capabilities at L4 too (deriveWorkflowCapabilities floor check)', () => {
+    const caps = deriveWorkflowCapabilities(
+      makeConfig('/tmp/maturity-emission-l4', {
+        governanceLevel: 'L4',
+        language: 'kotlin',
+        archetype: 'backend-web-db',
+        useGitHub: true,
+        pipelineStyle: 'standard',
+        collaborationMode: 'peer-review',
+        enableSecurityScanning: true,
+      }),
+    )
+    expect(caps.length).toBeGreaterThan(0)
+  })
+})
+
+// #1725: `hasMatrixCell(multi, dim)` has no explicit cell for the unmodeled 'multi'
+// pseudo-language, so `deriveWorkflowCapabilities` — which previously used the raw
+// `config.language` unresolved — produced capabilities that `deriveL3MaturityChecks`
+// silently skipped for ALL 8 workflow dims on a polyglot repo (false-pass, no gating).
+// Fix: resolve 'multi' to its modelled constituent languages (typescript + java),
+// mirroring the established `probe.ts` `matrixEntriesFor`/`buildProbesFor` 'multi' =
+// union(typescript, java) precedent, so a polyglot service is gated on both toolchains'
+// workflow-emitted dims instead of silently skipping the language dimension entirely.
+describe('deriveWorkflowCapabilities — multi polyglot resolves to constituent languages (#1725)', () => {
+  const multiSvc = (overrides: Partial<ProjectConfig> = {}) =>
+    deriveWorkflowCapabilities(
+      makeConfig('/tmp/maturity-emission-multi', {
+        governanceLevel: 'L3',
+        language: 'multi',
+        archetype: 'backend-web-db',
+        useGitHub: true,
+        pipelineStyle: 'standard',
+        collaborationMode: 'peer-review',
+        enableSecurityScanning: true,
+        ...overrides,
+      }),
+    )
+
+  it('never resolves a workflow capability to the unmodeled multi pseudo-language', () => {
+    const caps = multiSvc()
+    expect(caps.length).toBeGreaterThan(0)
+    expect(caps.every((c) => c.language !== 'multi')).toBe(true)
+  })
+
+  it('resolves license_scan (always-emitted) to BOTH typescript and java', () => {
+    const caps = multiSvc()
+    expect(caps).toContainEqual(
+      expect.objectContaining<Partial<L3MaturityCapability>>({
+        feature: 'license_scan',
+        language: 'typescript',
+      }),
+    )
+    expect(caps).toContainEqual(
+      expect.objectContaining<Partial<L3MaturityCapability>>({
+        feature: 'license_scan',
+        language: 'java',
+      }),
+    )
+  })
+
+  it('gates every resolved multi-constituent capability through the full L3 pipeline (deriveL3MaturityChecks)', () => {
+    const checks = checksFor({
+      language: 'multi',
+      archetype: 'backend-web-db',
+      useGitHub: true,
+      pipelineStyle: 'standard',
+      collaborationMode: 'peer-review',
+      enableSecurityScanning: true,
+    })
+    const workflowChecks = checks.filter((c) =>
+      [
+        'license_scan',
+        'secret_scan',
+        'container_scan',
+        'sbom',
+        'binary_signing',
+        'provenance',
+        'fuzz',
+        'dast',
+      ].includes(c.feature),
+    )
+    // Previously ZERO — hasMatrixCell('multi', dim) had no cell, so every workflow dim
+    // was silently skipped for a polyglot repo (false-pass, no gating).
+    expect(workflowChecks.length).toBeGreaterThan(0)
+    expect(blockedFeatures(workflowChecks).length).toBeGreaterThan(0)
+  })
+})
+
+// #1724: kotlin had no matrix cells for the 8 workflow-template-emitted dims
+// (fuzz/dast/license_scan/sbom/binary_signing/provenance/container_scan/secret_scan)
+// even though the underlying CI jobs for several of these (dast, binary_signing,
+// provenance, container_scan, secret_scan) are genuinely language-agnostic tools
+// (OWASP ZAP / cosign / SLSA / Trivy / gitleaks). `hasMatrixCell('kotlin', dim)`
+// returned false for all 8, so `deriveL3MaturityChecks` silently skipped kotlin for
+// every one of them (false-pass, no gating) instead of consulting an explicit
+// (beta) maturity verdict. Fix: add explicit beta cells for kotlin across all 8 dims
+// in cross-language-matrix.json so the L3 gate actually consults them.
+describe('deriveL3MaturityChecks — kotlin workflow-template dims are gated, not silently skipped (#1724)', () => {
+  const ktSvc = (overrides: Partial<ProjectConfig> = {}) =>
+    checksFor({
+      language: 'kotlin',
+      archetype: 'backend-web-db',
+      useGitHub: true,
+      pipelineStyle: 'standard',
+      collaborationMode: 'peer-review',
+      enableSecurityScanning: true,
+      ...overrides,
+    })
+
+  const workflowDims = [
+    'fuzz',
+    'dast',
+    'license_scan',
+    'sbom',
+    'binary_signing',
+    'provenance',
+    'container_scan',
+    'secret_scan',
+  ]
+
+  it('gates every one of the 8 workflow-template dims for a kotlin service — previously silently skipped', () => {
+    const checks = ktSvc()
+    const gatedDims = checks.map((c) => c.feature).filter((f) => workflowDims.includes(f))
+    // Previously ZERO — hasMatrixCell('kotlin', dim) had no cell for any of the 8 dims,
+    // so a kotlin service's workflow dims were never consulted by the L3 gate.
+    expect(gatedDims.length).toBe(workflowDims.length)
+    for (const dim of workflowDims) {
+      expect(gatedDims).toContain(dim)
+    }
+  })
+
+  it('blocks a kotlin service on the beta workflow dims without --accept-beta-tools, and unblocks with it', () => {
+    const checks = ktSvc()
+    const workflowChecks = checks.filter((c) => workflowDims.includes(c.feature))
+    expect(blockedFeatures(workflowChecks).length).toBe(workflowDims.length)
+    const all = workflowChecks.every((c) => isL3Allowed(c.language, c.feature, true).allowed)
     expect(all).toBe(true)
   })
 })

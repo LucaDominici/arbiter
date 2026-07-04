@@ -254,7 +254,7 @@ developer asks "does this already exist?" before building.
 `src/` file if the active plan lacks a valid `## Existing Code Survey`
 block for that file.
 
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { -%>
+<% if (isL3Plus) { -%>
 **L3/L4 note:** Survey decisions are reviewed against `jscpd` duplication
 findings on every PR; near-duplicate functions added with a `new file
 justified` decision MUST be refactored or the decision MUST be revised.
@@ -350,7 +350,7 @@ before file creation.
 outside the baseline lacks a `// CATALOG:` header block; emits a warning
 when the total script count exceeds the baseline by more than 5.
 
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { -%>
+<% if (isL3Plus) { -%>
 **L3/L4 note:** At L3+ the soft cap warning MUST be triaged within the same PR
 that triggers it; opening a tech-debt issue with a refactor plan is
 sufficient triage, but ignoring the warning is not.

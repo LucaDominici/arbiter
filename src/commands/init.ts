@@ -36,7 +36,7 @@ import {
 import { resolveStyle } from '../generators/github.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
-import { renderFromAbsPath } from '../utils/render.js'
+import { renderFromAbsPath, resolveServiceBucket } from '../utils/render.js'
 import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile, beginGenerationSession, endGenerationSession } from '../utils/fs.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
@@ -861,7 +861,10 @@ function logExistingDetections(existing: ReturnType<typeof detectExisting>): voi
 }
 
 function maybeCaptureBaseline(config: ProjectConfig, targetDir: string, brownfield: boolean): void {
-  if (config.governanceLevel === 'L3' && config.enableDebtGates) {
+  // #1732 Step 3: floor check (not `=== 'L3'`) — the generated debt-report.mjs
+  // is fail-closed at `isL3Plus` (L3 and L4), so init must fatally capture the
+  // baseline at L4 too; a hand-rolled `=== 'L3'` literal silently skipped it.
+  if (levelAtLeast(config.governanceLevel, 'L3') && config.enableDebtGates) {
     runBrownfieldCapture(targetDir, { fatal: true })
   } else if (brownfield && config.enableDebtGates) {
     runBrownfieldCapture(targetDir)
@@ -1457,21 +1460,18 @@ function capabilitiesForGenerator(
 }
 
 /**
- * #1678: the archetype→service bucket mirrors the `_bucket`/`_isService` map in the
- * workflow EJS (`_nightly.yml.ejs`/`_shared-security.yml.ejs`). A 4th copy of this map
- * (3 already live in the EJS) — recorded as tech-debt (CANON-22): the root-cause fix is a
- * shared emission-plan module consumed by both the github generator and the gate, with
- * the bucket lifted out of EJS; that CANON-04/13/05 refactor is out of scope for this
- * gate-extension issue (filed as a follow-up).
+ * #1725: resolve the effective tool-language(s) the workflow-emitted dims should be
+ * gated against. `hasMatrixCell` has no explicit cell for the unmodeled `'multi'`
+ * pseudo-language, so gating a workflow capability against the raw `'multi'` value
+ * causes the gate to silently skip ALL 8 workflow dims for a polyglot repo — a
+ * false-pass, not a correct "no opinion" skip. A `multi` repo's generated CI workflows
+ * actually emit BOTH the TypeScript and Java/JVM toolchains, so resolve to their union —
+ * mirroring the established `probe.ts` `matrixEntriesFor`/`buildProbesFor` precedent
+ * (`case 'multi': return [...MATRIX.typescript, ...MATRIX.java]`). Every other language
+ * is already a modelled matrix key and resolves to itself.
  */
-function serviceBucket(archetype: ProjectConfig['archetype']): 'service' | 'cli' | 'batch' | 'lib' {
-  const map: Record<string, 'service' | 'cli' | 'batch' | 'lib'> = {
-    'backend-web-db': 'service',
-    cli: 'cli',
-    embedded: 'cli',
-    'data-pipeline': 'batch',
-  }
-  return map[archetype] ?? 'lib'
+function resolveWorkflowLanguages(language: Language): Language[] {
+  return language === 'multi' ? ['typescript', 'java'] : [language]
 }
 
 /**
@@ -1480,19 +1480,19 @@ function serviceBucket(archetype: ProjectConfig['archetype']): 'service' | 'cli'
  * workflows will really run. Mirrors `src/generators/github.ts` emission predicates + the
  * EJS job-level `_isService` guards; the drift-detection test
  * (`init-l3-workflow-drift.test.ts`) verifies the mirror against the rendered workflows.
- * `hasMatrixCell` skips `multi`/unmodelled (no false-block) — see the #1678 follow-ups for
- * the kotlin/multi matrix-gap (those languages aren't gated on these dims yet).
+ * `hasMatrixCell` skips truly unmodelled cells (no false-block) — see the #1724 follow-up
+ * for the kotlin matrix-gap (kotlin isn't gated on these dims yet); `multi` is resolved to
+ * its modelled constituent languages by `resolveWorkflowLanguages` (#1725).
  * Exported for unit + drift tests.
  */
 export function deriveWorkflowCapabilities(config: ProjectConfig): L3MaturityCapability[] {
-  // The L3 gate only runs at L3; deriveWorkflowCapabilities is reached via case 'github'
-  // which is only consulted at L3, but guard anyway for direct unit-test callers.
-  if (config.governanceLevel !== 'L3') return []
+  // The L3 gate is a floor, not an exact match — L4 must stay gated too (#1732 cascade).
+  if (!levelAtLeast(config.governanceLevel, 'L3')) return []
   const c = workflowCtx(config)
-  const lang = config.language
+  const langs = resolveWorkflowLanguages(config.language)
   return WORKFLOW_DIM_RULES.filter((r) => r.emit(c))
     .flatMap((r) => r.dims)
-    .map((feature) => ({ feature, language: lang }))
+    .flatMap((feature) => langs.map((language) => ({ feature, language })))
 }
 
 /**
@@ -1548,7 +1548,7 @@ function workflowCtx(config: ProjectConfig): WorkflowCtx {
     style,
     cm,
     deploy: (config.deployTarget ?? 'none') !== 'none',
-    isService: serviceBucket(config.archetype) === 'service',
+    isService: resolveServiceBucket(config.archetype) === 'service',
     isScheduled: style !== 'starter' && cm !== 'trunk-solo', // scheduled suite at L3
     secScanning: config.enableSecurityScanning,
   }
@@ -1590,7 +1590,7 @@ export function deriveL3MaturityChecks(
  * Exits the process with an actionable error message on violation.
  */
 function checkL3MaturityGates(config: ProjectConfig): void {
-  if (config.governanceLevel !== 'L3') return
+  if (!levelAtLeast(config.governanceLevel, 'L3')) return
 
   const accept = config.acceptBetaTools ?? false
   const blocked: string[] = []

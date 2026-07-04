@@ -158,12 +158,12 @@ describe('check-ci-tiers.mjs (#903, INV-73 minPresent)', () => {
   })
 })
 
-// ─── #1319.2: collaboration-mode / level-aware required-set layer (INV-72) ────
+// ─── #1319.2: collaboration-mode / level-aware required-set layer (INV-73) ────
 // When arbiter.json is present, the self checker ALSO verifies the collab-aware
 // required tier set (the inverse of the github.ts generation predicates) — on top
 // of the INV-73 minPresent floor. Trunk-solo's nightly slot is satisfied by either
 // 06-nightly-lite.yml OR the full 06-nightly.yml (arbiter dogfoods the full suite).
-describe('check-ci-tiers.mjs — collab/level-aware required set (#1319.2, INV-72)', () => {
+describe('check-ci-tiers.mjs — collab/level-aware required set (#1319.2, INV-73)', () => {
   it('trunk-solo L3 FAILS when 09-heartbeat is missing', () => {
     const { dir, cleanup } = makeDir()
     try {
@@ -178,7 +178,7 @@ describe('check-ci-tiers.mjs — collab/level-aware required set (#1319.2, INV-7
       ])
       const result = run(dir)
       expect(result.status).toBe(1)
-      expect(result.stderr).toContain('INV-72')
+      expect(result.stderr).toContain('INV-73')
       expect(result.stderr).toContain('09-heartbeat.yml')
     } finally {
       cleanup()
@@ -202,7 +202,7 @@ describe('check-ci-tiers.mjs — collab/level-aware required set (#1319.2, INV-7
       ])
       const result = run(dir)
       expect(result.status).toBe(1)
-      expect(result.stderr).toContain('INV-72')
+      expect(result.stderr).toContain('INV-73')
       expect(result.stderr).toContain('07-weekly-lite.yml')
     } finally {
       cleanup()
@@ -238,7 +238,7 @@ describe('check-ci-tiers.mjs — collab/level-aware required set (#1319.2, INV-7
       writeWorkflows(dir, ['01-pr-fast.yml', '02-pr-extended.yml', '03-human-approval.yml'])
       const result = run(dir)
       expect(result.status).toBe(1)
-      expect(result.stderr).toContain('INV-72')
+      expect(result.stderr).toContain('INV-73')
     } finally {
       cleanup()
     }

@@ -1,0 +1,363 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// arbiter (generated) — consumer-resolution audit gate (#1737, Track B
+// counterpart of arbiter-self's own #1718 gate).
+//
+// CATALOG: Audits what a CONSUMER of this published npm package actually
+// CATALOG: resolves — npm pack (lifecycle scripts suppressed) -> install into
+// CATALOG: a throwaway root with no repo overrides/devDeps -> npm audit
+// CATALOG: --json at a moderate floor.
+//
+// WHY a second audit gate: the dev-tree `npm audit` step in check-all.mjs runs
+// against THIS repo's tree, where npm `overrides` (if any) are applied. npm
+// silently drops `overrides` for anyone who installs this package as a
+// dependency, so the dev-tree audit is structurally blind to that class of
+// exposure. This gate audits the CONSUMER view instead: no repo overrides, no
+// devDependencies, and a `moderate` floor — stricter than the dev-tree gate's
+// `high` floor — so a masked transitive vuln in any runtime dependency
+// resurfaces here even when the dev tree stays green.
+//
+// Exit codes (INV-53):
+//   0 — clean (consumer-resolved tree has no unsuppressed vuln >= moderate)
+//   1 — an unsuppressed vulnerability >= moderate was found in the consumer-resolved tree
+//   2 — invocation/IO error (npm pack/install/audit could not run — including a
+//       network-unreachable registry — or produced unparseable/malformed output).
+//       Fail-closed everywhere, local AND CI (INV-96): a genuinely offline
+//       developer uses the documented gate-bypass env (conscious, logged),
+//       never a silent PASS.
+//
+// Usage:
+//   node scripts/check-consumer-audit.mjs
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/** Severity floor: MODERATE and above — stricter than the dev-tree audit's `high` floor. */
+export const SEVERITY_FLOOR = new Set(['moderate', 'high', 'critical'])
+
+const GHSA_URL_RE = /\/advisories\/(GHSA-[A-Za-z0-9-]+)/
+
+/**
+ * Derive every stable suppression-scope id a vulnerability entry can be matched by:
+ * its own package name, every GHSA id / numeric advisory `source` found in a `via[]`
+ * object entry, and every upstream package name named by a `via[]` STRING entry
+ * (npm v7+ schema's representation of "transitive through another vulnerable package").
+ * @param {string} packageName
+ * @param {unknown} via
+ * @returns {Set<string>}
+ */
+function deriveScopeIds(packageName, via) {
+  const ids = new Set([packageName])
+  if (!Array.isArray(via)) return ids
+  for (const entry of via) {
+    if (typeof entry === 'string') {
+      ids.add(entry)
+      continue
+    }
+    if (entry !== null && typeof entry === 'object') {
+      const rec = /** @type {Record<string, unknown>} */ (entry)
+      if (typeof rec.url === 'string') {
+        const m = rec.url.match(GHSA_URL_RE)
+        if (m) ids.add(m[1])
+      }
+      if (typeof rec.source === 'number') ids.add(String(rec.source))
+      if (typeof rec.name === 'string') ids.add(rec.name)
+    }
+  }
+  return ids
+}
+
+/**
+ * True when a non-expired allowlist entry's `scope` matches one of the derived ids.
+ * An EXPIRED entry never suppresses — the vulnerability resurfaces (disposition
+ * allowlists are dated, not permanent, per this repo's suppression model).
+ * @param {Set<string>} ids
+ * @param {Array<Record<string, unknown>>} allowlist
+ * @param {Date} now
+ */
+function isSuppressed(ids, allowlist, now) {
+  for (const entry of allowlist) {
+    if (typeof entry?.scope !== 'string' || !ids.has(entry.scope)) continue
+    const expiry = new Date(/** @type {string} */ (entry.expiresAt))
+    if (!isNaN(expiry.getTime()) && expiry.getTime() > now.getTime()) return true
+  }
+  return false
+}
+
+/**
+ * Pure classifier over an `npm audit --json` payload (npm v7+ schema: `vulnerabilities`
+ * is an OBJECT keyed by package name, not an array) plus a disposition allowlist.
+ * Side-effect-free and unit-testable without spawning npm.
+ *
+ * @param {unknown} auditJson
+ * @param {Array<Record<string, unknown>>} allowlist
+ * @param {Date} now
+ * @returns {{ unsuppressed: Array<{ package: string, severity: string, ids: string[] }>, errored: boolean }}
+ */
+export function classifyConsumerAudit(auditJson, allowlist, now) {
+  if (auditJson === null || typeof auditJson !== 'object') {
+    return { unsuppressed: [], errored: true }
+  }
+  const obj = /** @type {Record<string, unknown>} */ (auditJson)
+  // A valid clean audit is `{ vulnerabilities: {}, metadata: {...} }` — an empty
+  // vulnerabilities object is CLEAN, not errored. Only a payload lacking BOTH keys
+  // (unrecognised schema) is treated as malformed / errored (fail-closed, never silent-pass).
+  if (!('vulnerabilities' in obj) && !('metadata' in obj)) {
+    return { unsuppressed: [], errored: true }
+  }
+  const vulnerabilities =
+    obj.vulnerabilities !== null && typeof obj.vulnerabilities === 'object'
+      ? /** @type {Record<string, unknown>} */ (obj.vulnerabilities)
+      : {}
+
+  const unsuppressed = []
+  for (const [pkgKey, raw] of Object.entries(vulnerabilities)) {
+    const entry = classifyVulnEntry(pkgKey, raw, allowlist, now)
+    if (entry) unsuppressed.push(entry)
+  }
+  return { unsuppressed, errored: false }
+}
+
+/**
+ * Classify a single `vulnerabilities` entry: the unsuppressed-finding record
+ * when the vuln meets the severity floor and no allowlist disposition covers
+ * it, or null when it is below the floor / suppressed. Extracted from
+ * classifyConsumerAudit to keep both under the 10-branch complexity ceiling.
+ * @param {string} pkgKey
+ * @param {unknown} raw
+ * @param {Array<Record<string, unknown>>} allowlist
+ * @param {Date} now
+ * @returns {{ package: string, severity: string, ids: string[] } | null}
+ */
+function classifyVulnEntry(pkgKey, raw, allowlist, now) {
+  const vuln = /** @type {Record<string, unknown>} */ (raw)
+  const severity = typeof vuln?.severity === 'string' ? vuln.severity : ''
+  if (!SEVERITY_FLOOR.has(severity)) return null
+  const name = typeof vuln?.name === 'string' ? vuln.name : pkgKey
+  const ids = deriveScopeIds(name, vuln?.via)
+  if (isSuppressed(ids, allowlist, now)) return null
+  return { package: name, severity, ids: [...ids] }
+}
+
+// ─── Impure runner (npm pack -> install -> audit) ─────────────────────────────
+
+const MAX_BUFFER = 10 * 1024 * 1024
+
+/**
+ * @param {string} repoRoot
+ * @returns {Array<Record<string, unknown>>}
+ */
+function loadAllowlist(repoRoot) {
+  const path = join(repoRoot, 'suppressions', 'consumer-audit-allowlist.json')
+  if (!existsSync(path)) return []
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf-8'))
+    return Array.isArray(parsed) ? parsed : []
+  } catch (err) {
+    // Malformed allowlist degrades to "no suppressions" — the SAFE direction (more
+    // vulns surface, never fewer) — but the parse failure is still surfaced, never silent.
+    process.stderr.write(
+      `check-consumer-audit: WARN — could not parse consumer-audit-allowlist.json (treating as empty): ${err?.message ?? err}\n`,
+    )
+    return []
+  }
+}
+
+/**
+ * Step 1: pack the publishable tarball WITHOUT running lifecycle scripts, so a
+ * `prepack`/`prepare` script can never mutate the working tree mid-gate.
+ * `--pack-destination` keeps the tarball out of the repo tree so the gate
+ * leaves the tree clean.
+ * @param {(args: string[], opts: object) => import('node:child_process').SpawnSyncReturns<string>} runNpm
+ * @param {string} repoRoot
+ * @param {string} packDir
+ * @returns {{ tarballPath: string } | { code: number }}
+ */
+function packTarball(runNpm, repoRoot, packDir) {
+  const pack = runNpm(['pack', '--json', '--ignore-scripts', '--pack-destination', packDir], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+    maxBuffer: MAX_BUFFER,
+  })
+  if (pack.error) {
+    process.stderr.write(
+      `check-consumer-audit: npm pack failed to invoke — ${pack.error.message}\n`,
+    )
+    return { code: 2 }
+  }
+  if (pack.status !== 0) {
+    process.stderr.write(`check-consumer-audit: npm pack failed\n${pack.stderr ?? ''}\n`)
+    return { code: 2 }
+  }
+  const filename = tarballNameFromPackOutput(pack.stdout)
+  if (filename === null) return { code: 2 }
+  return { tarballPath: join(packDir, filename) }
+}
+
+/**
+ * Parse `npm pack --json` stdout down to the packed tarball filename, or null
+ * (with the failure surfaced on stderr) when the payload is unparseable or
+ * missing the filename. Extracted from packTarball for the complexity ceiling.
+ * @param {string} stdout
+ * @returns {string | null}
+ */
+function tarballNameFromPackOutput(stdout) {
+  let packed
+  try {
+    packed = JSON.parse(stdout)
+  } catch (err) {
+    process.stderr.write(
+      `check-consumer-audit: could not parse npm pack --json output — ${err?.message ?? err}\n`,
+    )
+    return null
+  }
+  const filename = packed?.[0]?.filename
+  if (typeof filename !== 'string' || filename.length === 0) {
+    process.stderr.write('check-consumer-audit: npm pack output missing tarball filename\n')
+    return null
+  }
+  return filename
+}
+
+/**
+ * Step 2: install the tarball into a throwaway root: no repo `overrides` apply
+ * (npm only honours overrides for the root project being installed), no devDeps
+ * (never installed for a dependency), and no repo .npmrc (installRoot lives
+ * under os.tmpdir(), outside the repo's cwd-walk) — the actual consumer view.
+ * @param {(args: string[], opts: object) => import('node:child_process').SpawnSyncReturns<string>} runNpm
+ * @param {string} installRoot
+ * @param {string} tarballPath
+ * @returns {number} 0 on success, INV-53 exit code otherwise
+ */
+function installTarball(runNpm, installRoot, tarballPath) {
+  writeFileSync(
+    join(installRoot, 'package.json'),
+    JSON.stringify({ name: 'consumer-probe', private: true, version: '0.0.0' }, null, 2),
+  )
+  const install = runNpm(['install', tarballPath, '--no-audit', '--no-fund', '--ignore-scripts'], {
+    cwd: installRoot,
+    encoding: 'utf-8',
+    maxBuffer: MAX_BUFFER,
+  })
+  if (install.error) {
+    process.stderr.write(
+      `check-consumer-audit: npm install failed to invoke — ${install.error.message}\n`,
+    )
+    return 2
+  }
+  if (install.status !== 0) {
+    const combined = `${install.stderr ?? ''}\n${install.stdout ?? ''}`
+    process.stderr.write(`check-consumer-audit: npm install failed\n${combined}\n`)
+    return 2
+  }
+  return 0
+}
+
+/**
+ * Step 3: audit the resolved consumer tree. Never trust the exit code — `npm audit`
+ * exits non-zero whenever ANY vuln exists; this gate's own policy (moderate
+ * floor + dated disposition allowlist) decides pass/fail, not npm's default.
+ * @param {(args: string[], opts: object) => import('node:child_process').SpawnSyncReturns<string>} runNpm
+ * @param {string} installRoot
+ * @returns {{ auditJson: unknown } | { code: number }}
+ */
+function runConsumerAudit(runNpm, installRoot) {
+  const audit = runNpm(['audit', '--json'], {
+    cwd: installRoot,
+    encoding: 'utf-8',
+    maxBuffer: MAX_BUFFER,
+  })
+  if (audit.error) {
+    process.stderr.write(
+      `check-consumer-audit: npm audit failed to invoke — ${audit.error.message}\n`,
+    )
+    return { code: 2 }
+  }
+  try {
+    return { auditJson: JSON.parse(audit.stdout) }
+  } catch (err) {
+    process.stderr.write(
+      `check-consumer-audit: could not parse npm audit --json output — ${err?.message ?? err}\n`,
+    )
+    return { code: 2 }
+  }
+}
+
+/**
+ * Print the FAIL report for unsuppressed consumer-facing vulns.
+ * @param {Array<{ package: string, severity: string, ids: string[] }>} unsuppressed
+ * @returns {number} 1 (gate FAIL, INV-53)
+ */
+function reportUnsuppressed(unsuppressed) {
+  process.stderr.write(
+    `check-consumer-audit: FAIL — ${unsuppressed.length} unsuppressed consumer-facing vulnerabilit${
+      unsuppressed.length === 1 ? 'y' : 'ies'
+    } >= moderate:\n`,
+  )
+  for (const v of unsuppressed) {
+    process.stderr.write(`  ${v.package}  [${v.severity}]  ids: ${v.ids.join(', ')}\n`)
+  }
+  process.stderr.write(
+    '\nRemediate at source (bump/replace the dependency), or add a dated disposition to\n' +
+      'suppressions/consumer-audit-allowlist.json (reason + owner + expiresAt + scope)\n' +
+      'referencing a tracking issue. Never lower the moderate floor.\n',
+  )
+  return 1
+}
+
+/**
+ * Orchestrate pack -> install -> audit -> classify. Each step lives in its own
+ * helper (packTarball/installTarball/runConsumerAudit/reportUnsuppressed) to
+ * keep every function under the 10-branch complexity ceiling.
+ * @param {string} repoRoot
+ * @returns {number} exit code (INV-53)
+ */
+function main(repoRoot) {
+  const packDir = mkdtempSync(join(tmpdir(), 'consumer-audit-pack-'))
+  const installRoot = mkdtempSync(join(tmpdir(), 'consumer-audit-install-'))
+  const runNpm = (/** @type {string[]} */ args, /** @type {object} */ opts) =>
+    spawnSync('npm', args, opts)
+  try {
+    const packResult = packTarball(runNpm, repoRoot, packDir)
+    if ('code' in packResult) return packResult.code
+
+    const installCode = installTarball(runNpm, installRoot, packResult.tarballPath)
+    if (installCode !== 0) return installCode
+
+    const auditResult = runConsumerAudit(runNpm, installRoot)
+    if ('code' in auditResult) return auditResult.code
+
+    const allowlist = loadAllowlist(repoRoot)
+    const { unsuppressed, errored } = classifyConsumerAudit(
+      auditResult.auditJson,
+      allowlist,
+      new Date(),
+    )
+    if (errored) {
+      process.stderr.write(
+        'check-consumer-audit: malformed npm audit payload (neither vulnerabilities nor metadata present)\n',
+      )
+      return 2
+    }
+    if (unsuppressed.length > 0) return reportUnsuppressed(unsuppressed)
+
+    process.stdout.write(
+      'check-consumer-audit: OK (consumer-resolved tree clean at moderate floor)\n',
+    )
+    return 0
+  } finally {
+    rmSync(packDir, { recursive: true, force: true })
+    rmSync(installRoot, { recursive: true, force: true })
+  }
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  try {
+    process.exit(main(process.cwd()))
+  } catch (err) {
+    process.stderr.write(`check-consumer-audit: ${err?.message ?? err}\n`)
+    process.exit(2)
+  }
+}

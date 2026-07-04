@@ -293,7 +293,44 @@ export function generateCheckAll(
   // #1127 / #1330: frontend gate scripts (boundary purity + per-lane subtree gate).
   results.push(...emitFrontendChecks(base, config, data, opts))
 
+  // #1737 (CANON-01 Track-B counterpart of arbiter-self's #1718): consumer-resolution
+  // audit gate for published npm libraries.
+  results.push(...emitConsumerAudit(base, config, data, opts))
+
   return { files: results }
+}
+
+/**
+ * #1737 — consumer-resolution audit gate (`check-consumer-audit.mjs`), the Track-B
+ * counterpart of arbiter-self's own #1718 `scripts/check-consumer-audit.mjs` gate.
+ * npm silently drops a package's own `overrides` for anyone who installs it as a
+ * dependency, so a published library's dev-tree `npm audit` is structurally blind to
+ * that class of exposure — this gate packs+installs+audits the CONSUMER-resolved tree
+ * instead. Emitted only for a published npm library target (the established
+ * `archetype === 'library' && language === 'typescript'` predicate, see
+ * debt-ratchet.ts's `includePublicApiSurface`), and only at L2+ (mirrors the
+ * suppressions.ts Java/Kotlin/multi owasp-suppressions.xml governance-level guard).
+ */
+function emitConsumerAudit(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  if (
+    config.archetype !== 'library' ||
+    config.language !== 'typescript' ||
+    config.governanceLevel === 'L1'
+  ) {
+    return []
+  }
+  return [
+    writeFile(
+      resolvedPath(base, 'scripts', 'check-consumer-audit.mjs'),
+      renderTemplate('scripts/check-consumer-audit.mjs.ejs', data),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+  ]
 }
 
 /**

@@ -1,9 +1,9 @@
 <%
 const _cm = (typeof collaborationMode !== 'undefined' ? collaborationMode : 'trunk-solo');
-const _runner = (_cm === 'gated-review' && (governanceLevel === 'L3' || governanceLevel === 'L4'))
+const _runner = (_cm === 'gated-review' && isL3Plus)
   ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}"
   : "${{ fromJSON(vars.RUNNER_LABELS_TEST || '[\"ubuntu-latest\"]') }}";
-const _isSoloL3Plus = _cm === 'trunk-solo' && (governanceLevel === 'L3' || governanceLevel === 'L4');
+const _isSoloL3Plus = _cm === 'trunk-solo' && isL3Plus;
 %>name: Nightly Lite (T4-lite)
 
 on:
@@ -64,7 +64,14 @@ jobs:
 
   dep-cve-refresh:
     name: Dependency CVE refresh
-    runs-on: <%- _runner %>
+    # #1756: pinned to a LITERAL GitHub-hosted runner, not the usual _runner
+    # self-hosted-capable fallback. The java branch below uses
+    # dependency-check/Dependency-Check_Action, a docker-container action — on a
+    # self-hosted runner whose own process runs inside a container, the action's
+    # workspace bind-mount resolves against the DOCKER HOST path, not the runner's own
+    # checkout. GitHub-hosted runners are not containerized this way and are
+    # unaffected. Enforced by scripts/check-docker-action-runner-safety.mjs.
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3

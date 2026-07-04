@@ -65,6 +65,55 @@ export function withLevelBooleans(data: object): object {
   }
 }
 
+export type ServiceBucket = 'service' | 'cli' | 'batch' | 'lib'
+
+const ARCHETYPE_TO_BUCKET: Readonly<Record<string, ServiceBucket>> = {
+  'backend-web-db': 'service',
+  cli: 'cli',
+  embedded: 'cli',
+  'data-pipeline': 'batch',
+}
+
+/**
+ * Resolve a project archetype to its CI-emission "service bucket" (service / cli / batch /
+ * lib) — the single canonical mapping now consumed by both the workflow EJS templates (via
+ * `withServiceBucket` below) and the L3 maturity gate (`deriveWorkflowCapabilities` /
+ * `workflowCtx` in `commands/init.ts`).
+ *
+ * Previously this exact map was hand-duplicated 6 times: inline in each of 5 workflow EJS
+ * templates (`_nightly`, `_shared-security`, `_weekly`, `05-release`, `02-pr-extended`) and
+ * again as `serviceBucket()` in `init.ts` — a drift vector flagged as tech debt (CANON-22)
+ * behind #1678 and fixed at the root here (#1723).
+ */
+export function resolveServiceBucket(archetype: unknown): ServiceBucket {
+  return (typeof archetype === 'string' ? ARCHETYPE_TO_BUCKET[archetype] : undefined) ?? 'lib'
+}
+
+/**
+ * Guarantee `serviceBucket`/`isService`/`isCli`/`isBatch` are own keys of the render data,
+ * derived from `archetype` via `resolveServiceBucket` (#1723) — the same single-render-
+ * boundary pattern as `withLevelBooleans`/`withBasePackageDefault` above: EJS renders with
+ * `with(locals)`, so injecting the derived keys here once lets every template reference
+ * them without re-declaring the archetype→bucket map itself.
+ *
+ * Always returns a shallow copy (never mutates the caller's object).
+ */
+export function withServiceBucket(data: object): object {
+  const archetype = (data as { archetype?: unknown }).archetype
+  const bucket = resolveServiceBucket(archetype)
+  return {
+    ...data,
+    serviceBucket: bucket,
+    isService: bucket === 'service',
+    isCli: bucket === 'cli',
+    isBatch: bucket === 'batch',
+  }
+}
+
+function withRenderDefaults(data: object): object {
+  return withServiceBucket(withLevelBooleans(withBasePackageDefault(data)))
+}
+
 /**
  * Render an EJS template file relative to the templates/ directory.
  *
@@ -76,7 +125,7 @@ export function withLevelBooleans(data: object): object {
 export function renderTemplate(templatePath: string, data: object): string {
   const fullPath = join(TEMPLATES_DIR, templatePath)
   const source = readFileSync(fullPath, 'utf-8')
-  return ejs.render(source, withLevelBooleans(withBasePackageDefault(data)), { filename: fullPath })
+  return ejs.render(source, withRenderDefaults(data), { filename: fullPath })
 }
 
 /**
@@ -85,5 +134,5 @@ export function renderTemplate(templatePath: string, data: object): string {
  */
 export function renderFromAbsPath(absPath: string, data: object): string {
   const source = readFileSync(absPath, 'utf-8')
-  return ejs.render(source, withLevelBooleans(withBasePackageDefault(data)), { filename: absPath })
+  return ejs.render(source, withRenderDefaults(data), { filename: absPath })
 }

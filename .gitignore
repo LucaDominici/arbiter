@@ -120,3 +120,6 @@ graphify-out/
 
 # fablize goals discipline — local task-tracking state (transient, never committed)
 .fablize/
+
+# tokensave MCP server local code-graph cache (regenerable, machine-local)
+.tokensave/

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, writeFileSync, readFileSync, renameSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs'
+import { writeFileTranslated } from '../utils/fs.js'
 import { join, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { t } from '../i18n/index.js'
@@ -122,7 +123,7 @@ function readJsonArray(path: string): unknown[] {
 
 function writeJsonArray(path: string, entries: unknown[]): void {
   mkdirSync(resolve(path, '..'), { recursive: true })
-  writeFileSync(path, JSON.stringify(entries, null, 2) + '\n', 'utf-8')
+  writeFileTranslated(path, JSON.stringify(entries, null, 2) + '\n')
 }
 
 function getGitRoot(cwd: string): string {

@@ -9,8 +9,9 @@
  *   - full-graph dot/mermaid format output for `graph build --format dot|mermaid`
  */
 
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { writeFileTranslated } from '../utils/fs.js'
 import { INVARIANT_CATALOG } from '../invariants/catalog.js'
 import { buildInvNodes } from '../graph/builders/inv.js'
 import { buildAdrNodes } from '../graph/builders/adr.js'
@@ -79,7 +80,7 @@ export function runGraphBuild(opts: GraphBuildOptions = {}): GraphBuildResult {
 
   try {
     mkdirSync(dirname(outPath), { recursive: true })
-    writeFileSync(outPath, rendered, 'utf-8')
+    writeFileTranslated(outPath, rendered)
   } catch (err) {
     return {
       status: 'error',

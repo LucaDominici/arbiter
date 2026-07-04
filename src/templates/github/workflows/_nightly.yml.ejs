@@ -1,8 +1,11 @@
 name: Nightly jobs (reusable)
 
 <%
-const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
-const _isService = _bucket === 'service';
+// #1723: serviceBucket/isService are injected by withServiceBucket
+// (src/utils/render.ts), the single canonical archetype->bucket resolver — do not
+// re-declare the archetype map here.
+const _bucket = serviceBucket;
+const _isService = isService;
 %>
 on:
   workflow_call:
@@ -306,7 +309,7 @@ jobs:
 <% } %>
 
 <%# E1 (#1502): heavy tools moved off the PR path land here at nightly cadence. %>
-<% const _covThreshold = (governanceLevel === 'L3' || governanceLevel === 'L4') ? 85 : 80; %>
+<% const _covThreshold = isL3Plus ? 85 : 80; %>
   coverage-report:
     name: Coverage report + threshold (full suite)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}

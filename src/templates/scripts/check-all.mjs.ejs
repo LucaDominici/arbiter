@@ -562,6 +562,16 @@ if (level === 'L2') {
 <% if (enableSecurityScanning) { %>
   runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
 <% } %>
+<% if (archetype === 'library' && governanceLevel !== 'L1') { %>
+  // #1737 (Track-B counterpart of arbiter-self's #1718): consumer-resolution audit —
+  // npm silently drops this package's own `overrides` for anyone installing it as a
+  // dependency, so the dev-tree `audit` step above is structurally blind to that class
+  // of exposure. This packs+installs+audits the CONSUMER-resolved tree instead.
+  // check-consumer-audit.mjs is only emitted by emitConsumerAudit (check-all.ts) at
+  // governanceLevel !== 'L1' — reference it only where it is actually emitted (mirrors
+  // the merge-method ff-only precedent immediately above in this same file, #1331).
+  runCheck('consumer audit', 'node', ['scripts/check-consumer-audit.mjs']);
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
@@ -1024,7 +1034,7 @@ if (level === 'L2') {
 <% } %>
   // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
   // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
-<% const ratchetFlag = (governanceLevel === 'L3' || governanceLevel === 'L4') ? '--require-improvement' : '--gate'; %>
+<% const ratchetFlag = isL3Plus ? '--require-improvement' : '--gate'; %>
   runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '<%= ratchetFlag %>'], { soft: graceActive });
 <% if (governanceLevel !== 'L1') { %>
   // ─── L2+: Commit-footer audit evidence (INV-119, #1249) ──────────────────────
@@ -1072,7 +1082,7 @@ if (level === 'L2') {
   // ago FAILS the gate. Age is derived from the issue created_at only. Graceful-SKIP
   // when gh is missing / token absent / offline (never false-fails).
   runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], { soft: graceActive });
-<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (isL3Plus) { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────
   // Validates nightly evidence produced by evidence-collect.mjs.
   // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.

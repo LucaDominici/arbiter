@@ -17,7 +17,8 @@
 // RUNTIME outcomes, so a scenario declares a real deterministic CLI invocation
 // and expected-outcome assertions. A future LLM-judge backend is left as a
 // documented `backend` seam (`cli` now; `llm` deferred — not wired).
-import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readdirSync, existsSync, readFileSync, mkdirSync } from 'node:fs'
+import { writeFileTranslated } from '../utils/fs.js'
 import { join, resolve, dirname } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { jsonOutput } from '../utils/json-output.js'
@@ -507,7 +508,7 @@ export function runSkillEval(opts: SkillEvalOptions = {}): SkillEvalResult {
   if (opts.htmlFile) {
     const htmlPath = resolve(opts.htmlFile)
     mkdirSync(dirname(htmlPath), { recursive: true })
-    writeFileSync(htmlPath, renderHtmlReport(result))
+    writeFileTranslated(htmlPath, renderHtmlReport(result))
   }
 
   if (opts.json) {

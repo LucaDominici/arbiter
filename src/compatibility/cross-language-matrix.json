@@ -279,6 +279,11 @@
       "tool": "atheris",
       "maturity": "beta",
       "reason": "atheris (Google libFuzzer Python bindings) is the recommended Python fuzzer; nightly"
+    },
+    "kotlin": {
+      "tool": "jqwik",
+      "maturity": "beta",
+      "reason": "jqwik runs on JVM bytecode so it works with Kotlin, same as Java; a dedicated Kotlin branch in _nightly.yml.ejs is not yet wired (#1724 follow-up)"
     }
   },
   "dast": {
@@ -306,6 +311,11 @@
       "tool": "owasp-zap",
       "maturity": "beta",
       "reason": "OWASP ZAP baseline (T2) and full scan (T4 nightly) for service/batch archetypes"
+    },
+    "kotlin": {
+      "tool": "owasp-zap",
+      "maturity": "beta",
+      "reason": "OWASP ZAP scans a running HTTP service; language-agnostic, already wired identically to Java"
     }
   },
   "license_scan": {
@@ -333,6 +343,11 @@
       "tool": "pip-licenses",
       "maturity": "beta",
       "reason": "pip-licenses enumerates installed package licenses; T2 gate"
+    },
+    "kotlin": {
+      "tool": "gradle-license-plugin / license-maven-plugin",
+      "maturity": "beta",
+      "reason": "Same JVM build-tool license reporting as Java (Gradle/Maven); a dedicated Kotlin branch in 02-pr-extended.yml.ejs is not yet wired (#1724 follow-up)"
     }
   },
   "sbom": {
@@ -360,6 +375,11 @@
       "tool": "cyclonedx-py",
       "maturity": "beta",
       "reason": "cyclonedx-bom (Python) generates CycloneDX SBOM from pip environment at T3"
+    },
+    "kotlin": {
+      "tool": "cyclonedx-gradle-plugin / cyclonedx-maven-plugin",
+      "maturity": "beta",
+      "reason": "Same JVM build-tool SBOM generation as Java (Gradle/Maven); a dedicated Kotlin branch in 05-release.yml.ejs is not yet wired (#1724 follow-up)"
     }
   },
   "binary_signing": {
@@ -387,6 +407,11 @@
       "tool": "cosign sign-blob",
       "maturity": "beta",
       "reason": "cosign sign-blob over wheels (twine) and pyinstaller binaries; Sigstore OIDC"
+    },
+    "kotlin": {
+      "tool": "cosign sign-blob",
+      "maturity": "beta",
+      "reason": "cosign keyless sign-blob over JARs at T3; Sigstore OIDC — language-agnostic, already wired identically to Java"
     }
   },
   "provenance": {
@@ -414,6 +439,11 @@
       "tool": "actions/attest-build-provenance + slsa-github-generator",
       "maturity": "beta",
       "reason": "GitHub native provenance (L1/L2) + slsa-github-generator (L3) at T3"
+    },
+    "kotlin": {
+      "tool": "actions/attest-build-provenance + slsa-github-generator",
+      "maturity": "beta",
+      "reason": "GitHub native provenance (L1/L2) + slsa-github-generator (L3) at T3 — language-agnostic, already wired identically to Java"
     }
   },
   "container_scan": {
@@ -441,6 +471,11 @@
       "tool": "trivy",
       "maturity": "beta",
       "reason": "Trivy container scan at T2/T3 for service-archetype Python projects"
+    },
+    "kotlin": {
+      "tool": "trivy",
+      "maturity": "beta",
+      "reason": "Trivy HIGH+CRITICAL container scan against the built Docker image; language-agnostic Dockerfile-based scan, already wired identically to Java"
     }
   },
   "secret_scan": {
@@ -468,6 +503,11 @@
       "tool": "gitleaks",
       "maturity": "beta",
       "reason": "Gitleaks diff-scan at T1; full history scan at T3 and T4 nightly"
+    },
+    "kotlin": {
+      "tool": "gitleaks",
+      "maturity": "beta",
+      "reason": "Gitleaks diff-scan at T1; full history scan at T3 and T4 nightly — language-agnostic, already wired identically to Java"
     }
   },
   "a11y": {

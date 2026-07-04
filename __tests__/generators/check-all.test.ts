@@ -1135,4 +1135,38 @@ describe('generateCheckAll', () => {
       expect(paths.some((p) => p.endsWith('domain-api-surface.json'))).toBe(false)
     })
   })
+
+  describe('consumer audit gate (#1737, CANON-01 Track-B counterpart of arbiter-self #1718)', () => {
+    it('emits scripts/check-consumer-audit.mjs for a published TypeScript library at L2', () => {
+      const result = generateCheckAll(
+        makeConfig(dir, { archetype: 'library', language: 'typescript', governanceLevel: 'L2' }),
+      )
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-consumer-audit.mjs'))).toBe(true)
+    })
+
+    it('does NOT emit the consumer audit gate for a non-library archetype', () => {
+      const result = generateCheckAll(
+        makeConfig(dir, { archetype: 'cli', language: 'typescript', governanceLevel: 'L2' }),
+      )
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-consumer-audit.mjs'))).toBe(false)
+    })
+
+    it('does NOT emit the consumer audit gate for a non-TypeScript library', () => {
+      const result = generateCheckAll(
+        makeConfig(dir, { archetype: 'library', language: 'python', governanceLevel: 'L2' }),
+      )
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-consumer-audit.mjs'))).toBe(false)
+    })
+
+    it('does NOT emit the consumer audit gate at L1 for a TypeScript library', () => {
+      const result = generateCheckAll(
+        makeConfig(dir, { archetype: 'library', language: 'typescript', governanceLevel: 'L1' }),
+      )
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-consumer-audit.mjs'))).toBe(false)
+    })
+  })
 })

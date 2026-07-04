@@ -62,15 +62,36 @@ export function readDocCount(indexPath) {
 }
 
 /**
- * Validate every entry path (+ extraLinks paths) resolves under root, as a file or dir
- * (trailing slash stripped before existsSync). Returns the list of missing raw path
- * strings (empty = all resolve).
+ * Extract relative markdown link targets `[label](target)` from prose (e.g. an entry
+ * description). Skips http(s)/mailto URLs and anchor-only targets (`#foo`) — those
+ * are not filesystem paths and are never existsSync-checked.
+ */
+function extractProseLinkTargets(text) {
+  const targets = []
+  const re = /\[[^\]]*\]\(([^)]+)\)/g
+  let m
+  while ((m = re.exec(text))) {
+    const target = m[1]
+    if (target.startsWith('#') || /^[a-z]+:/i.test(target)) continue
+    targets.push(target)
+  }
+  return targets
+}
+
+/**
+ * Validate every entry path (+ extraLinks paths + relative markdown links embedded in
+ * the description prose) resolves under root, as a file or dir (trailing slash stripped
+ * before existsSync). Returns the list of missing raw path strings (empty = all resolve).
  */
 export function findMissingPaths(config, root) {
   const missing = []
   for (const s of config.sections) {
     for (const e of s.entries) {
-      const paths = [e.path, ...(e.extraLinks ?? []).map(([, p]) => p)]
+      const paths = [
+        e.path,
+        ...(e.extraLinks ?? []).map(([, p]) => p),
+        ...extractProseLinkTargets(e.description ?? ''),
+      ]
       for (const p of paths) {
         const clean = p.replace(/\/$/, '')
         if (!existsSync(resolve(root, clean))) missing.push(p)

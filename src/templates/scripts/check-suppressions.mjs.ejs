@@ -142,6 +142,7 @@ checkJsonFile('suppressions/pii-allowlist.json');
 <% if (language === 'java' || language === 'kotlin' || language === 'multi') { %>
 checkJsonFile('suppressions/archunit-baseline.json');
 <% } %>
+checkJsonFile('suppressions/consumer-audit-allowlist.json');
 checkXmlFile('suppressions/dependency-check-suppressions.xml');
 checkGitleaksFile('suppressions/.gitleaksignore');
 

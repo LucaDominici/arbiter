@@ -1,8 +1,11 @@
 <%
-const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
-const _isService = _bucket === 'service';
-const _isCli = _bucket === 'cli';
-const _isBatch = _bucket === 'batch';
+// #1723: serviceBucket/isService/isCli/isBatch are injected by withServiceBucket
+// (src/utils/render.ts), the single canonical archetype->bucket resolver — do not
+// re-declare the archetype map here.
+const _bucket = serviceBucket;
+const _isService = isService;
+const _isCli = isCli;
+const _isBatch = isBatch;
 // #1720 (gap 1): was literal `governanceLevel === 'L3'`, silently excluding L4 and
 // downgrading L4's release workflow to the weaker "L2 signed" SLSA provenance —
 // contradicts docs/SYSTEM/CI-TIER-MODEL.md:100-102 ("L4 = L3 + SLSA L3 provenance…").

@@ -33,3 +33,5 @@ docs/METHOD/SSOT_CORE_SET.md
 wiki/
 .github/
 graphify-out/
+# tokensave MCP server local code-graph cache (regenerable, machine-local)
+.tokensave/

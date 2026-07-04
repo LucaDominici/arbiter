@@ -152,14 +152,14 @@ describe('build-matrix.mjs', () => {
     }
   })
 
-  it('produces 102 entries for the real fixture set', () => {
-    // Updated in #1177: +3 (kotlin-backend-web-db-gradle fixture × 3 levels L1/L2/L3)
-    // 19 fixtures × 4 levels + rust-embedded × 1 + 5 deployTarget × 4 + zero-gh-invariant × 2 (L1/L2) + kotlin × 3 = 102
+  it('produces 110 entries for the real fixture set', () => {
+    // Updated in #1732: +4 (java-spring-L4 fixture × 4 levels L1/L2/L3/L4, closing the
+    // L4 matrix gap) on top of the prior 106-entry baseline.
     const fixturesDir = resolve('__tests__/fixtures/real-projects')
     const result = run(fixturesDir)
     expect(result.status).toBe(0)
     const line = result.stdout.split('\n').find((l) => l.startsWith('matrix='))
     const json = JSON.parse(line!.replace('matrix=', ''))
-    expect(json.include).toHaveLength(106)
+    expect(json.include).toHaveLength(110)
   })
 })
