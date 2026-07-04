@@ -51,6 +51,11 @@ jobs:
     # workspace bind-mount resolves against the DOCKER HOST path, not the runner's own
     # checkout. GitHub-hosted runners are not containerized this way and are
     # unaffected. Enforced by scripts/check-docker-action-runner-safety.mjs.
+    # #1767: that assumption does not hold in every environment — literal
+    # `ubuntu-latest` has been observed resolving to self-hosted infra. The
+    # typescript branch's osv-scanner step below was switched to a static
+    # binary as a result; other docker-container actions here remain latent
+    # risk, tracked in #1785.
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -59,8 +64,33 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
       - name: npm audit
         run: npm audit --omit=dev --audit-level=high
-      - name: osv-scanner
-        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
-        with:
-          scan-args: '--lockfile=package-lock.json'
+      - name: Install osv-scanner (pinned static binary)
+        # #1767: google/osv-scanner-action is a Docker-outside-of-Docker
+        # action — same defect class as the java branch's
+        # Dependency-Check_Action below. A static binary has no workspace
+        # bind-mount to break, sidestepping the class of bug entirely.
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL -o "$RUNNER_TEMP/bin/osv-scanner" \
+            https://github.com/google/osv-scanner/releases/download/v2.3.8/osv-scanner_linux_amd64
+          echo "bc98e15319ed0d515e3f9235287ba53cdc5535d576d24fd573978ecfe9ab92dc  $RUNNER_TEMP/bin/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/bin/osv-scanner"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: osv-scanner (prod-dependency gate; dev-only findings warn, not block)
+        # #1786: dev-only vulnerable packages are reported but non-blocking,
+        # matching the npm-audit step's --omit=dev prod-only policy.
+        run: |
+          # FAIL-OPEN-INTENT: osv-scanner exits non-zero whenever ANY vuln is found (incl. dev-only); the real gate is the prod-only check below.
+          osv-scanner scan source --lockfile=package-lock.json --format json --output-file osv-results.json || true
+          PROD=$(jq '[.results[]?.packages[]? | select((.vulnerabilities // []) | length > 0) | select((.dependency_groups // []) | index("dev") | not)] | length' osv-results.json)
+          DEV=$(jq '[.results[]?.packages[]? | select((.vulnerabilities // []) | length > 0) | select((.dependency_groups // []) | index("dev"))] | length' osv-results.json)
+          if [ "$DEV" -gt 0 ]; then
+            echo "::warning::osv-scanner: $DEV dev-only vulnerable package(s), not gating"
+            jq -r '.results[]?.packages[]? | select((.vulnerabilities // []) | length > 0) | select((.dependency_groups // []) | index("dev")) | "  - \(.package.name)@\(.package.version)"' osv-results.json
+          fi
+          if [ "$PROD" -gt 0 ]; then
+            echo "::error::osv-scanner: $PROD production-impacting vulnerable package(s)"
+            jq -r '.results[]?.packages[]? | select((.vulnerabilities // []) | length > 0) | select((.dependency_groups // []) | index("dev") | not) | "  - \(.package.name)@\(.package.version)"' osv-results.json
+            exit 1
+          fi
 
