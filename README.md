@@ -159,13 +159,16 @@ See the [CLI Reference](website/reference/cli.md) for full option documentation 
 
 ## Stack Support
 
-| Language   | Detected from              | Build tool   | Lint          | Format   |
-| ---------- | -------------------------- | ------------ | ------------- | -------- |
-| TypeScript | `package.json`             | npm          | eslint        | prettier |
-| Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | —        |
-| Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  |
-| Go         | `go.mod`                   | go           | golangci-lint | gofmt    |
-| Python     | `pyproject.toml`           | pip/uv       | ruff          | ruff     |
+**Supported:** TypeScript, Python, Go · Claude Code, Codex.
+**Experimental:** Java, Kotlin, Rust · Cursor, Aider, Copilot, Gemini, Windsurf.
+
+| Language   | Detected from              | Build tool   | Lint          | Format   | Status       |
+| ---------- | -------------------------- | ------------ | ------------- | -------- | ------------ |
+| TypeScript | `package.json`             | npm          | eslint        | prettier | Supported    |
+| Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | —        | Experimental |
+| Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  | Experimental |
+| Go         | `go.mod`                   | go           | golangci-lint | gofmt    | Supported    |
+| Python     | `pyproject.toml`           | pip/uv       | ruff          | ruff     | Supported    |
 
 ---
 

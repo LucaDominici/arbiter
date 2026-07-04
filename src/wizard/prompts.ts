@@ -736,13 +736,17 @@ type Opt<T extends string | boolean> = { value: T; label: string }
 export function buildLanguageOptions(): Opt<Language>[] {
   return [
     { value: 'typescript', label: 'TypeScript / JavaScript' },
-    { value: 'java', label: 'Java' },
+    // #1770 (T6/release maturity labels): Java is not dogfooded end-to-end at
+    // the same parity as TypeScript/Python/Go. Mark it experimental so a wizard
+    // user does not pick it expecting the same support level.
+    { value: 'java', label: 'Java (experimental)' },
     // #1491 (M2/matrix-coverage): Kotlin has ZERO `proven` matrix cells, only a
     // snapshot-tier fixture (init never executed against it), and no L4 — it is
     // not at runtime-verified parity with the other JVM stack (Java). Mark it
     // experimental so a wizard user does not pick it expecting Java-level support.
     { value: 'kotlin', label: 'Kotlin (experimental — beta tooling, not fixture-verified)' },
-    { value: 'rust', label: 'Rust' },
+    // #1770 (T6/release maturity labels): same rationale as Java above.
+    { value: 'rust', label: 'Rust (experimental)' },
     { value: 'python', label: 'Python' },
     { value: 'go', label: 'Go' },
     { value: 'multi', label: 'Multi-language (polyglot repo)' },
