@@ -24,7 +24,7 @@ orchestration): the `arbiter ship` engine (`src/commands/task-ship.ts`), `ship -
 consumer repo scaffolded by arbiter inherits only the low-level `arbiter task` engine, not
 the orchestration loop, batch, or any fix-on-red capability.
 
-The `haben-redux-pilot.md` live pilot (go-live #1) proves the gap: to run haben unattended
+The `prior-project-redux-pilot.md` live pilot (go-live #1) proves the gap: to run a prior internal project unattended
 under arbiter governance we had to **rebuild ship-batch semantics outside arbiter** — a
 stateless tick supervisor (`.redux/supervisor.sh`), a tick prompt, and failure-signature
 memory (`.redux/attempts.json`, 2-strike escalation). That external rebuild is precisely the
@@ -96,7 +96,7 @@ dual-side boundary.
 ## Links
 
 - Related ADRs: ADR-088 (ship entrypoint), ADR-051 (collaboration-mode axis + coherence matrix)
-- Seed: `.arbiter/management/haben-redux-pilot.md`, `.arbiter/strategy/BRAINSTORM-project-profile-autonomy.md`
+- Seed: `.arbiter/management/prior-project-redux-pilot.md`, `.arbiter/strategy/BRAINSTORM-project-profile-autonomy.md`
 - Design: `.arbiter/design/dual-side-ship.md`
 - Tracking issue: #1287
 - Implementation issues: #1288 (de-self-only `arbiter ship` engine), #1289 (fix-on-red

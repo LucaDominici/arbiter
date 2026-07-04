@@ -22,15 +22,15 @@ related: []
 
 ## Context
 
-Two Phase 7 gaps from haben-parity audit:
+Two Phase 7 gaps from a prior-internal-project-parity audit:
 
-**#360 (Phase 7H):** haben ships `inv-20-no-unwrap.sh` and `inv-04-no-unsafe.sh` shell scripts that use awk to take a context-aware production slice of Rust source (everything before the first `#[cfg(test)]` line), skip `lib.rs`, filter comment lines, and HARD-fail on `.unwrap()`/`.expect(...)`/`unsafe`. arbiter's clippy-only gate caught the keyword but not the production-vs-test context — `unwrap()` inside `#[cfg(test)]` modules was incorrectly flagged.
+**#360 (Phase 7H):** a prior internal project ships `inv-20-no-unwrap.sh` and `inv-04-no-unsafe.sh` shell scripts that use awk to take a context-aware production slice of Rust source (everything before the first `#[cfg(test)]` line), skip `lib.rs`, filter comment lines, and HARD-fail on `.unwrap()`/`.expect(...)`/`unsafe`. arbiter's clippy-only gate caught the keyword but not the production-vs-test context — `unwrap()` inside `#[cfg(test)]` modules was incorrectly flagged.
 
 **#356 (Phase 7D):** the existing `scripts/check-docs.mjs` used a strict-linear `origin/main..HEAD` range that mis-classifies rebased branches and offered no escape hatch for intentional non-doc commits.
 
 ## Decision
 
-**#360 Rust checkers:** Two new templates `src/templates/scripts/checks/check-rust-no-unwrap.mjs.ejs` and `check-rust-no-unsafe.mjs.ejs` — Node.js (not awk) for cross-platform portability. Logic mirrors haben's awk pipeline: walk `src/**/*.rs`, skip `lib.rs`, slice production code before the first `#[cfg(test)]` line, strip comment-only lines, HARD-fail on `.unwrap()`/`.expect(`/bare `unsafe` (with `forbid|deny|allow(unsafe_code)` lint declarations excluded). Emission gated in `generateCheckAll` on `language === 'rust'`. Wired at L1 in `check-all.mjs.ejs` rust block.
+**#360 Rust checkers:** Two new templates `src/templates/scripts/checks/check-rust-no-unwrap.mjs.ejs` and `check-rust-no-unsafe.mjs.ejs` — Node.js (not awk) for cross-platform portability. Logic mirrors that prior internal project's awk pipeline: walk `src/**/*.rs`, skip `lib.rs`, slice production code before the first `#[cfg(test)]` line, strip comment-only lines, HARD-fail on `.unwrap()`/`.expect(`/bare `unsafe` (with `forbid|deny|allow(unsafe_code)` lint declarations excluded). Emission gated in `generateCheckAll` on `language === 'rust'`. Wired at L1 in `check-all.mjs.ejs` rust block.
 
 **#356 docs-check refactor:** New template `src/templates/scripts/check-docs.mjs.ejs` plus refactor of live `scripts/check-docs.mjs` (CANON-01 dual-declination). Diff range now resolved via `git merge-base HEAD origin/main` with fallback to plain refs. Bypass: any commit message in the range containing `[skip-docs]` causes the gate to PASS. CI `docs-check` job in `ci.yml.ejs` updated identically.
 

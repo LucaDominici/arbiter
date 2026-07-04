@@ -128,7 +128,7 @@ export function languageSignalPresent(dir: string, lang: Language): boolean {
  * `language` (persisted by init/wizard) wins over filesystem detection AS LONG AS it
  * is still corroborated on disk (its build-file signal is present). This stops a
  * secondary-lane `package.json` from shadowing a Go-primary project's stored `go`
- * (issue #1343: haben has both `go.mod` and a frontend-lane `package.json`).
+ * (issue #1343: a prior internal project has both `go.mod` and a frontend-lane `package.json`).
  *
  * Corroboration — rather than blind "stored wins" — preserves `update`'s documented
  * language-migration detection (schema.ts): if the stored language's signal is GONE

@@ -24,7 +24,7 @@ agent **preventively, at drafting-time** — nothing that makes it write _less_ 
 External **companion** plugins fill exactly that gap. The motivating case is
 [ponytail](https://github.com/DietrichGebert/ponytail) (MIT): a persistent "lazy senior dev" persona
 that climbs a YAGNI ladder (reuse → stdlib → native → shortest diff) before writing. A trial on the
-`haben` product repo showed ponytail surfaces real, systemic duplication (11 domain packages
+a prior internal product repo showed ponytail surfaces real, systemic duplication (11 domain packages
 reimplementing the same `ValidationError`/`ValidationErrors` pattern, already drifted into two
 inconsistent implementations) that arbiter's _syntactic_ gates miss by construction. The two are
 orthogonal — prevention at prompt-time vs detection at gate-time — hence genuinely complementary.

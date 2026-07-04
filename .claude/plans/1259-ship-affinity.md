@@ -9,7 +9,7 @@ context:
     - 'Affinity computed UNCONDITIONALLY on every ship invocation — never behind a flag/option'
     - 'Low-affinity emits a WARNING only — never blocks the ship'
     - 'No any types (INV-04); all CLI shell-outs via runCli (INV-12)'
-    - 'Port viafera rubric (+2 same domain:* label OR overlapping files; +1 same milestone OR same type:*; threshold 3) — re-derive, do not copy verbatim'
+    - 'Port prior-framework rubric (+2 same domain:* label OR overlapping files; +1 same milestone OR same type:*; threshold 3) — re-derive, do not copy verbatim'
     - 'Keep runTaskShip pure/synchronous; do affinity I/O + reporting in the CLI action wrapper'
     - 'SCOPE FROZEN to #1259: scorer + warning + single-issue wiring only. No batch (#1263), no size→count (#1260), no dispatch matrix (#1267)'
   red_team_warnings:
@@ -24,17 +24,17 @@ context:
 
 ## Scope
 
-Make `arbiter ship` ALWAYS compute an issue-correlation affinity score (ported from viafera's
-`/task` correlation analysis) and emit an obvious low-affinity WARNING when the score is below
+Make `arbiter ship` ALWAYS compute an issue-correlation affinity score (ported from a prior
+internal framework's `/task` correlation analysis) and emit an obvious low-affinity WARNING when the score is below
 threshold. No flag — affinity runs on every `arbiter ship` invocation and is surfaced in the
 step output. This is the reusable scorer + minimal single-issue wiring that #1260/#1263/#1267
 build on. Batch orchestration, size→count, and the dispatch matrix are explicitly OUT of scope.
 
-## Ported rubric (re-derived from viafera `start-task §7.3` correlation analysis)
+## Ported rubric (re-derived from a prior internal framework's `start-task §7.3` correlation analysis)
 
 Pairwise factor scoring between two issues:
 - +2 — same `domain:*` label OR overlapping files
-- +2 — (overlapping files counted once with the domain rule, per viafera: "+2 for same domain:* label or overlapping files")
+- +2 — (overlapping files counted once with the domain rule, per the prior internal framework: "+2 for same domain:* label or overlapping files")
 - +1 — same milestone
 - +1 — same `type:*` label
 - Score ≥ 3 → CORRELATED ; Score < 3 → UNCORRELATED (warn)

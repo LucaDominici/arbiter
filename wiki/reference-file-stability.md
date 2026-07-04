@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/file-stability.md'
-source_sha: '3f68361348784201c3ed1f750c3ede5b8d8c5d32'
-last_updated: '2026-07-03'
+source_sha: '8d3a8345d00ed11c1356d75074d670a722b97e44'
+last_updated: '2026-07-04'
 ---
 
 # Generated File Format Stability Map
@@ -82,7 +82,7 @@ Every file arbiter generates has a declared stability status. This determines th
 | Default path   | `package.json` (`devDependencies` only)                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Status         | **stable**                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | User-editable  | Yes — arbiter only **adds** a missing tool devDependency, never overwrites an existing one.                                                                                                                                                                                                                                                                                                                                                                       |
-| Merge strategy | Tool gates (jscpd, pact, …) inject a **registry-pinned** version via `injectDevDependency`. arbiter itself is **not** injected — governed projects invoke it via `npx` (option C). Volatile install channels (`file:`/`link:`/`portal:`/local `.tgz`) are **rejected at the choke-point** so a machine-specific reference can never be emitted (the haben AF-003 rot). A registry/pinned-tag arbiter dependency is the future A-flip, deferred to public release. |
+| Merge strategy | Tool gates (jscpd, pact, …) inject a **registry-pinned** version via `injectDevDependency`. arbiter itself is **not** injected — governed projects invoke it via `npx` (option C). Volatile install channels (`file:`/`link:`/`portal:`/local `.tgz`) are **rejected at the choke-point** so a machine-specific reference can never be emitted (the AF-003 rot from a prior internal project). A registry/pinned-tag arbiter dependency is the future A-flip, deferred to public release. |
 
 ### Hook scripts (.claude/hooks/\*.mjs)
 

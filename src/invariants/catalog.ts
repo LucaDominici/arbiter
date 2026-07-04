@@ -2162,8 +2162,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: false,
     title: 'Frontend archetypes must carry a render-smoke behavioural test',
     description:
-      'A token-purity pass (no raw hex/px) does not prove the screen renders — haben shipped ' +
-      'green while its UI was broken empty boxes. Any project whose archetype is frontend-spa, ' +
+      'A token-purity pass (no raw hex/px) does not prove the screen renders — a prior internal ' +
+      'project shipped green while its UI was broken empty boxes. Any project whose archetype is frontend-spa, ' +
       'OR that declares a "frontend" lane, MUST carry a render-smoke behavioural test: a ' +
       'headless-browser (Playwright) spec that boots the built SPA and asserts the app shell + ' +
       'key screens mount with real content and ZERO console errors / uncaught page errors. The ' +

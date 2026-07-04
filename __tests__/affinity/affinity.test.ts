@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1259 — pairwise issue-correlation affinity scorer (ported from viafera /task §7.3).
+// #1259 — pairwise issue-correlation affinity scorer (re-derived from a prior internal framework's /task §7.3).
 import { describe, it, expect } from 'vitest'
 import {
   AFFINITY_THRESHOLD,
@@ -14,7 +14,7 @@ function issue(partial: Partial<AffinityIssue> & { id: string }): AffinityIssue 
   return { labels: [], ...partial }
 }
 
-describe('scoreAffinity — viafera rubric weights', () => {
+describe('scoreAffinity — prior-framework rubric weights', () => {
   it('threshold default is 3', () => {
     expect(AFFINITY_THRESHOLD).toBe(3)
   })

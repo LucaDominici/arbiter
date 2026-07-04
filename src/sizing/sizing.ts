@@ -9,7 +9,7 @@
 //   2. an orthogonal VERTICAL floor — larger size widens the *breadth* of review
 //      verticals, not just the count, for max depth AND breadth.
 //
-// Re-derived (NOT copied) from viafera's `/task` size buckets + `plan-review-verticals.sh`.
+// Re-derived (NOT copied) from a prior internal framework's `/task` size buckets + `plan-review-verticals.sh`.
 // Crucially, the vertical vocabulary is arbiter's OWN `auditor-routing.json` auditor names
 // (bugs/type-safety/domain/test-quality/security/data-integrity/silent-failures) so the
 // floor plugs straight into the real scorer (scripts/route-auditors.mjs) and #1267's

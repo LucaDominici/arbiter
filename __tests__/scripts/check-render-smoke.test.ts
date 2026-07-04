@@ -5,7 +5,7 @@
 //
 // Tests the frontend render-smoke presence gate (#1366). The gate fails-closed when a
 // frontend archetype (or a `frontend` lane) ships without a render-smoke behavioural spec —
-// catching the haben failure mode where token-purity passed but the screen rendered broken.
+// catching a known failure mode from a prior internal project where token-purity passed but the screen rendered broken.
 // SKIPs cleanly for non-frontend / ungoverned repos so they never false-fail.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
@@ -37,7 +37,7 @@ function withSpec(dir: string, relPath: string, content = '// render smoke\n'): 
 // ─── R1: frontend-spa archetype, no render-smoke spec → exit 1 (fail-closed) ─────
 
 describe('R1: frontend archetype without a render-smoke spec', () => {
-  it('exits 1 and reports the missing behavioural test (the haben failure mode)', () => {
+  it('exits 1 and reports the missing behavioural test (a known failure mode from a prior internal project)', () => {
     const { dir, cleanup } = stage({ archetype: 'frontend-spa', lanes: [] })
     try {
       const r = run(dir)

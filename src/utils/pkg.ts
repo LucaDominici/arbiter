@@ -7,7 +7,7 @@ import { getLogger } from './logger.js'
  * Reject volatile local install channels (#1314): a `file:`/`link:`/`portal:`
  * specifier or a local `.tgz`/`.tar.gz` path is machine- and time-specific — it
  * resolves on the author's box but breaks `npm install` for anyone else weeks
- * later (the haben AF-003 failure). Governed projects invoke arbiter via `npx`
+ * later (the AF-003 failure from a prior internal project). Governed projects invoke arbiter via `npx`
  * and pin every injected tool to a registry version, so a volatile spec reaching
  * this single choke-point is a generator bug — fail loudly rather than emit a
  * package.json that will rot. (Option C; a registry/pinned-tag channel is the

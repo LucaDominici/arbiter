@@ -95,7 +95,7 @@ jobs:
       - run: npm ci
 
       # Presence gate first: a frontend project with no render-smoke spec FAILs
-      # here (fail-closed) before we build — catches the haben failure mode.
+      # here (fail-closed) before we build — catches a known failure mode from a prior internal project.
       - name: render-smoke presence (INV-127)
         run: node scripts/check-render-smoke.mjs
 
