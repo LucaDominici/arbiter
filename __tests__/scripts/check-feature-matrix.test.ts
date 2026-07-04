@@ -56,9 +56,13 @@ function run(args: string[], matrixContent?: string): RunResult {
   const dir = mkdtempSync(join(tmpdir(), 'check-fm-test-'))
   try {
     if (matrixContent !== undefined) {
-      // gate expects docs/PRODUCT/FEATURE_MATRIX.md relative to cwd
-      mkdirSync(join(dir, 'docs', 'PRODUCT'), { recursive: true })
-      writeFileSync(join(dir, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md'), matrixContent, 'utf-8')
+      // gate expects docs/internal/PRODUCT/FEATURE_MATRIX.md relative to cwd
+      mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md'),
+        matrixContent,
+        'utf-8',
+      )
     }
     // Stub kit catalog for tests
     mkdirSync(join(dir, 'src', 'kit'), { recursive: true })
@@ -200,14 +204,14 @@ describe('check-feature-matrix.mjs --check', () => {
         categoryRef: i === 7 ? 'audit_trail' : 'architecture', // N08 = index 7 = audit_trail
       }))
       mkdirSync(join(dir, 'src', 'kit'), { recursive: true })
-      mkdirSync(join(dir, 'docs', 'PRODUCT'), { recursive: true })
+      mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
       writeFileSync(join(dir, 'src', 'kit', 'catalog.json'), JSON.stringify(dims), 'utf-8')
       // Row covers N08 (audit_trail) but has no code_ref
       const matrix = makeMatrix([
         `| REQ-001 | All non-audit | N01,N02,N03,N04,N05,N06,N07,N09,N10,N11,N12,N13,N14,N15,N16,N17,N18,N19,N20,N21,N22,N23,N24,N25,N26,N27,N28,N29,N30,N31,N32,N33,N34,N35,N36,N37,N38,N39,N40,N41,N42,N43,N44,N45,N46,N47,N48,N49,N50,N51,N52,N53,N54,N55,N56,N57,N58,N59,N60,N61,N62,N63,N64,N65,N66,N67,N68,N69,N70,N71,N72,N73,N74,N75,N76,N77 | L4 | Missing | | | | #1 | |`,
         `| REQ-002 | Audit trail | N08 | L4 | Partial |  | | | | No code_ref at L4 |`,
       ])
-      writeFileSync(join(dir, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md'), matrix, 'utf-8')
+      writeFileSync(join(dir, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md'), matrix, 'utf-8')
       const r = spawnSync('node', [SCRIPT, '--check', '--level', 'L4'], {
         encoding: 'utf-8',
         cwd: dir,
@@ -247,8 +251,12 @@ describe('KIT catalog error handling (#1196)', () => {
   it('exits 2 when KIT catalog exists but contains corrupt JSON', () => {
     const dir = mkdtempSync(join(tmpdir(), 'check-fm-corrupt-'))
     try {
-      mkdirSync(join(dir, 'docs', 'PRODUCT'), { recursive: true })
-      writeFileSync(join(dir, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md'), MINIMAL_MATRIX, 'utf-8')
+      mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md'),
+        MINIMAL_MATRIX,
+        'utf-8',
+      )
       mkdirSync(join(dir, 'src', 'kit'), { recursive: true })
       writeFileSync(join(dir, 'src', 'kit', 'catalog.json'), '{ not valid json', 'utf-8')
       const r = spawnSync('node', [SCRIPT, '--check'], { encoding: 'utf-8', cwd: dir })
@@ -262,8 +270,12 @@ describe('KIT catalog error handling (#1196)', () => {
   it('exits 0 with WARN when KIT catalog is absent (intentional fail-open)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'check-fm-nocatalog-'))
     try {
-      mkdirSync(join(dir, 'docs', 'PRODUCT'), { recursive: true })
-      writeFileSync(join(dir, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md'), MINIMAL_MATRIX, 'utf-8')
+      mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md'),
+        MINIMAL_MATRIX,
+        'utf-8',
+      )
       // no src/kit/catalog.json
       const r = spawnSync('node', [SCRIPT, '--check'], { encoding: 'utf-8', cwd: dir })
       expect(r.status).toBe(0)

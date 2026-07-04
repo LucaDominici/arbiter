@@ -12,7 +12,7 @@ related: []
 # Stack Adapter Contract
 
 **Added:** W5 (#881)
-**ADR:** [ADR-046](../ADR/046-stack-adapter.md)
+**ADR:** [ADR-046](../internal/ADR/046-stack-adapter.md)
 **Invariant:** INV-88
 
 ## Overview

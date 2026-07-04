@@ -15,7 +15,7 @@ related: ['090-workflow-performance-budget']
 > structural principles described here without a corresponding ADR update.
 >
 > Performance budget: critical path ≤ 15 min, ≥ 3 parallel jobs, max `needs:` chain depth ≤ 2.
-> See [ADR-090](../ADR/090-workflow-performance-budget.md).
+> See [ADR-090](../internal/ADR/090-workflow-performance-budget.md).
 
 ---
 
@@ -209,7 +209,7 @@ aggregator (fail-closed). The classify script's error path reports
 
 ## Related
 
-- [ADR-090: Workflow Performance Budget](../ADR/090-workflow-performance-budget.md)
+- [ADR-090: Workflow Performance Budget](../internal/ADR/090-workflow-performance-budget.md)
 - `scripts/check-workflow-parallelism.mjs` — enforces max chain depth
 - `scripts/check-workflow-cache-strategy.mjs` — enforces cache/reactor patterns
 - `__tests__/integration/workflow-perf.test.ts` — integration test

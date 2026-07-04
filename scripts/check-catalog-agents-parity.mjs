@@ -25,7 +25,7 @@ const canonPath =
   canonArg != null
     ? resolve(canonArg.split('=')[1])
     : catalogArg == null && agentsArg == null
-      ? resolve(root, 'docs/SYSTEM/CANON.md')
+      ? resolve(root, 'docs/internal/SYSTEM/CANON.md')
       : null
 
 const catalogSrc = readFileSync(catalogPath, 'utf-8')

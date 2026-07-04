@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Generates docs/ADR/README.md and docs/SYSTEM/DECISIONS.md from docs/ADR/NNN-*.md per-file SSOT.
+// Generates docs/internal/ADR/README.md and docs/internal/SYSTEM/DECISIONS.md from
+// docs/internal/ADR/NNN-*.md per-file SSOT.
 // Usage:
 //   node scripts/gen-adr-readme.mjs          # write both files
 //   node scripts/gen-adr-readme.mjs --check  # exit 1 if either is out of date
@@ -7,9 +8,9 @@ import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const root = resolve('.')
-const ADR_DIR = join(root, 'docs', 'ADR')
+const ADR_DIR = join(root, 'docs', 'internal', 'ADR')
 const README_PATH = join(ADR_DIR, 'README.md')
-const DECISIONS_PATH = join(root, 'docs', 'SYSTEM', 'DECISIONS.md')
+const DECISIONS_PATH = join(root, 'docs', 'internal', 'SYSTEM', 'DECISIONS.md')
 const CHECK = process.argv.includes('--check')
 const NUMBERED = /^(\d{3})-(.+)\.md$/
 

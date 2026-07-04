@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
 
 const CWD = process.cwd()
-const CANONICAL_PATHS_FILE = join(CWD, 'docs', 'METHOD', 'CANONICAL_PATHS.md')
+const CANONICAL_PATHS_FILE = join(CWD, 'docs', 'internal', 'METHOD', 'CANONICAL_PATHS.md')
 const IGNORE_FILE = join(CWD, '.docs-links-ignore')
 
 // Scan roots — extended in P6 to cover every hand-authored markdown tree

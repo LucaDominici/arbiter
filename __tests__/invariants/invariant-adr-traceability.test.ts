@@ -6,7 +6,7 @@ import { readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { INVARIANT_CATALOG } from '../../src/invariants/catalog.js'
 
-const ADR_DIR = fileURLToPath(new URL('../../docs/ADR/', import.meta.url))
+const ADR_DIR = fileURLToPath(new URL('../../docs/internal/ADR/', import.meta.url))
 
 const withAdr = INVARIANT_CATALOG.filter((inv) => inv.adr !== undefined)
 
@@ -21,7 +21,7 @@ describe('invariant↔ADR traceability (#1102)', () => {
     const matches = readdirSync(ADR_DIR).filter((f) => f.startsWith(`${num}-`) && f.endsWith('.md'))
     expect(
       matches.length,
-      `expected exactly one docs/ADR/${num}-*.md for ${inv.id} (${inv.adr})`,
+      `expected exactly one docs/internal/ADR/${num}-*.md for ${inv.id} (${inv.adr})`,
     ).toBe(1)
   })
 })

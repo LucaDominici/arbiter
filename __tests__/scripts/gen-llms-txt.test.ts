@@ -162,11 +162,11 @@ describe('buildLlmsTxt()', () => {
     )
   })
 
-  it('the real committed config renders exactly 21 bullets', () => {
+  it('the real committed config renders exactly 20 bullets', () => {
     const config = JSON.parse(readFileSync(resolve('llms-txt.config.json'), 'utf-8'))
     const out = buildLlmsTxt(config, { docCount: 1 })
     const bulletLines = out.split('\n').filter((l) => l.startsWith('- '))
-    expect(bulletLines).toHaveLength(21)
+    expect(bulletLines).toHaveLength(20)
   })
 })
 

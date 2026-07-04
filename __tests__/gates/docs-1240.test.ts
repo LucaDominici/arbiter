@@ -8,11 +8,12 @@ const root = resolve(import.meta.dirname, '..', '..')
 const ADR_089 = join(
   root,
   'docs',
+  'internal',
   'ADR',
   '089-collapse-hand-docs-to-ssot-core-plus-generated-wiki.md',
 )
-const ADR_README = join(root, 'docs', 'ADR', 'README.md')
-const PRD_FILE = join(root, 'docs', 'PRODUCT', 'PRD-DOCS-EVOLUTION.md')
+const ADR_README = join(root, 'docs', 'internal', 'ADR', 'README.md')
+const PRD_FILE = join(root, 'docs', 'internal', 'PRODUCT', 'PRD-DOCS-EVOLUTION.md')
 
 function parseFrontmatter(text: string): Record<string, string> {
   const m = /^---\n([\s\S]*?)\n---/.exec(text)

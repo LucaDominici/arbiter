@@ -109,8 +109,8 @@ website/.vitepress/.temp/
 .obsidian/plugins/
 .obsidian/themes/
 
-# LLM-Wiki generated log (timestamp churn prevention — wiki/*.md are committed, log is not)
-wiki/.wiki-log.json
+# LLM-Wiki generated output (T7, #1770: generator stays, output no longer committed — public split)
+wiki/
 
 # Graphify AST cache (regenerable)
 graphify-out/

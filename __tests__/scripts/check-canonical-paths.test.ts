@@ -20,12 +20,12 @@ function run(dir: string): { status: number; stdout: string; stderr: string } {
 
 function makeDir(): { dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'canon-paths-test-'))
-  mkdirSync(join(dir, 'docs', 'METHOD'), { recursive: true })
+  mkdirSync(join(dir, 'docs', 'internal', 'METHOD'), { recursive: true })
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
 function writeCanonicalPaths(dir: string, content: string): void {
-  writeFileSync(join(dir, 'docs', 'METHOD', 'CANONICAL_PATHS.md'), content)
+  writeFileSync(join(dir, 'docs', 'internal', 'METHOD', 'CANONICAL_PATHS.md'), content)
 }
 
 describe('check-canonical-paths (#255)', () => {

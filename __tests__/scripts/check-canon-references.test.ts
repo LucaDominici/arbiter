@@ -21,7 +21,7 @@ function run(dir: string): { status: number; stdout: string; stderr: string } {
 
 function makeDir(): { dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'canon-refs-test-'))
-  mkdirSync(join(dir, 'docs', 'SYSTEM'), { recursive: true })
+  mkdirSync(join(dir, 'docs', 'internal', 'SYSTEM'), { recursive: true })
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
@@ -35,7 +35,7 @@ describe('check-canon-references', () => {
     const { dir, cleanup } = makeDir()
     cleanups.push(cleanup)
     writeFileSync(
-      join(dir, 'docs', 'SYSTEM', 'CANON.md'),
+      join(dir, 'docs', 'internal', 'SYSTEM', 'CANON.md'),
       '## CANON-01\n\nSome text.\n\n## CANON-02\n\nReferences CANON-01 here.\n',
     )
     const { status, stdout } = run(dir)
@@ -48,7 +48,7 @@ describe('check-canon-references', () => {
     const { dir, cleanup } = makeDir()
     cleanups.push(cleanup)
     writeFileSync(
-      join(dir, 'docs', 'SYSTEM', 'CANON.md'),
+      join(dir, 'docs', 'internal', 'SYSTEM', 'CANON.md'),
       '## CANON-01\n\nReferences CANON-99 which does not exist.\n',
     )
     const { status } = run(dir)
@@ -58,7 +58,7 @@ describe('check-canon-references', () => {
   it('exits 1 when CANON.md has no CANON-NN headings (empty / corrupt guard)', () => {
     const { dir, cleanup } = makeDir()
     cleanups.push(cleanup)
-    writeFileSync(join(dir, 'docs', 'SYSTEM', 'CANON.md'), 'No headings here.\n')
+    writeFileSync(join(dir, 'docs', 'internal', 'SYSTEM', 'CANON.md'), 'No headings here.\n')
     const { status, stderr } = run(dir)
     expect(status).toBe(1)
     expect(stderr).toContain('no CANON-NN headings found')

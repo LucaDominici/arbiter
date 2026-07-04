@@ -49,8 +49,8 @@ describe('gen-adr-readme.mjs (ADR README and DECISIONS.md generation)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       // Set up a minimal fixture with one ADR.
-      const adrDir = join(dir, 'docs', 'ADR')
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(adrDir, { recursive: true })
       mkdirSync(sysDir, { recursive: true })
 
@@ -91,8 +91,8 @@ last_review: '2026-06-01'
     const { dir, cleanup } = makeTemp()
     try {
       // Set up fixture with one ADR.
-      const adrDir = join(dir, 'docs', 'ADR')
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(adrDir, { recursive: true })
       mkdirSync(sysDir, { recursive: true })
 
@@ -132,7 +132,7 @@ last_review: '2026-06-01'
     const { dir, cleanup } = makeTemp()
     try {
       // Create docs/SYSTEM but NOT docs/ADR; this will cause readdirSync to fail.
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(sysDir, { recursive: true })
       // docs/ADR is intentionally missing → ENOENT on readdirSync
 
@@ -147,8 +147,8 @@ last_review: '2026-06-01'
   it('exits 2 on fatal error (unreadable ADR file)', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      const adrDir = join(dir, 'docs', 'ADR')
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(adrDir, { recursive: true })
       mkdirSync(sysDir, { recursive: true })
 
@@ -169,8 +169,8 @@ last_review: '2026-06-01'
   it('parses ADR frontmatter correctly (title, status, last_review)', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      const adrDir = join(dir, 'docs', 'ADR')
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(adrDir, { recursive: true })
       mkdirSync(sysDir, { recursive: true })
 
@@ -205,8 +205,8 @@ last_review: '2025-12-31'
   it('extracts Decision section summary from ADR body', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      const adrDir = join(dir, 'docs', 'ADR')
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(adrDir, { recursive: true })
       mkdirSync(sysDir, { recursive: true })
 
@@ -238,8 +238,8 @@ last_review: '2026-06-01'
   it('uses latest ADR date as lastReview in digest (deterministic, not new Date())', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      const adrDir = join(dir, 'docs', 'ADR')
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(adrDir, { recursive: true })
       mkdirSync(sysDir, { recursive: true })
 
@@ -283,8 +283,8 @@ last_review: '2026-05-31'
   it('ignores non-NNN-*.md files in ADR directory', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      const adrDir = join(dir, 'docs', 'ADR')
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(adrDir, { recursive: true })
       mkdirSync(sysDir, { recursive: true })
 
@@ -326,8 +326,8 @@ last_review: '2026-06-01'
   it('generates DECISIONS.md digest with correct frontmatter and table', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      const adrDir = join(dir, 'docs', 'ADR')
-      const sysDir = join(dir, 'docs', 'SYSTEM')
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      const sysDir = join(dir, 'docs', 'internal', 'SYSTEM')
       mkdirSync(adrDir, { recursive: true })
       mkdirSync(sysDir, { recursive: true })
 

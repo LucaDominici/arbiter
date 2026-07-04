@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // scripts/gen-ssot-core.mjs
 // #1100: generate the authoritative SSOT inventory region inside
-// docs/METHOD/SSOT_CORE_SET.md from the filesystem + frontmatter, replacing the
+// docs/internal/METHOD/SSOT_CORE_SET.md from the filesystem + frontmatter, replacing the
 // hand-maintained list. The selection rule is the single source of truth for
 // "what is an SSOT doc" and is imported by scripts/check-ssot-core.mjs so the
 // generator (write) and the gate (INV-108 reverse check) can never diverge.
@@ -205,12 +205,12 @@ export async function runCli(repoRoot, ssotPath, check) {
     if (check) {
       if (current !== generated) {
         process.stderr.write(
-          'docs/METHOD/SSOT_CORE_SET.md inventory is stale. ' +
+          'docs/internal/METHOD/SSOT_CORE_SET.md inventory is stale. ' +
             'Run `node scripts/gen-ssot-core.mjs` and commit the result.\n',
         )
         return 1
       }
-      process.stdout.write('docs/METHOD/SSOT_CORE_SET.md inventory is up to date.\n')
+      process.stdout.write('docs/internal/METHOD/SSOT_CORE_SET.md inventory is up to date.\n')
       return 0
     }
     writeFileSync(ssotPath, generated)
@@ -229,7 +229,7 @@ export async function runCli(repoRoot, ssotPath, check) {
 const isMain = process.argv[1] === fileURLToPath(import.meta.url)
 if (isMain) {
   const repoRoot = resolve('.')
-  const ssotPath = join(repoRoot, 'docs', 'METHOD', 'SSOT_CORE_SET.md')
+  const ssotPath = join(repoRoot, 'docs', 'internal', 'METHOD', 'SSOT_CORE_SET.md')
   runCli(repoRoot, ssotPath, process.argv.includes('--check'))
     .then((code) => process.exit(code))
     .catch((err) => {

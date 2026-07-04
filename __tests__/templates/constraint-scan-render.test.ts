@@ -50,16 +50,19 @@ describe('check-constraint-scan.mjs.ejs render (INV-115)', () => {
     }
   })
 
-  it('classification logic matches the self gate token-for-token (modulo comments + ENFORCE_DEFAULT)', () => {
-    // Strongest parity guard: strip comments and the single differing default, then collapse
+  it('classification logic matches the self gate token-for-token (modulo comments + ENFORCE_DEFAULT + CANON path)', () => {
+    // Strongest parity guard: strip comments and the two differing defaults, then collapse
     // whitespace and compare the executable token-stream. Whitespace-tolerant because Prettier
     // formats the self .mjs but not the .ejs twin; still catches any logic/identifier drift
     // inside any function — which a marker-string check cannot.
+    // CANON path diverges by design: the self repo keeps CANON.md under docs/internal/
+    // (public/internal docs split, #1770); generated targets keep docs/SYSTEM/CANON.md.
     const normalise = (s: string): string =>
       s
         .split('\n')
         .map((l) => l.replace(/\s*\/\/.*$/, '')) // strip full-line AND trailing comments
         .map((l) => l.replace(/const ENFORCE_DEFAULT = (true|false)/, 'const ENFORCE_DEFAULT = X'))
+        .map((l) => l.replace(/docs\/internal\/SYSTEM\/CANON\.md/g, 'docs/SYSTEM/CANON.md'))
         .join('\n')
         .replace(/\s+/g, '') // strip ALL whitespace → Prettier line-wrapping insensitive
         .replace(/,(?=[)\]}])/g, '') // drop Prettier trailing commas (semantically insignificant)

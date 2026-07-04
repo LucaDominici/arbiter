@@ -101,7 +101,7 @@ const DELETE_LIST = [
 const MUST_SURVIVE = [
   'docs/SECURITY/STRIDE.md', // INV-90 gate reads it
   'docs/SECURITY/ISO27001_ANNEX_A.md', // KEEP-GENERATED (register conflict → keep wins)
-  'docs/METHOD/PATTERNS_CATALOG.md', // structure test + canonical_id
+  'docs/internal/METHOD/PATTERNS_CATALOG.md', // structure test + canonical_id
   'docs/REFERENCE/api.md', // #807 env-var test asserts existence
   'docs/REFERENCE/gdpr-overlay.md', // #1251 — postdates register
   'docs/REFERENCE/iso27001-overlay.md', // #1252 — postdates register
@@ -109,8 +109,8 @@ const MUST_SURVIVE = [
   'docs/REFERENCE/compliance-menu.md', // #1254 — postdates register
   'docs/REFERENCE/coverage/dim-76-accessibility-a11y-audit-axe-lighthouse-pa11y.md', // INV-112 doc_ref (#1243)
   'docs/REFERENCE/RESILIENCE.md', // FEATURE_MATRIX REQ-051 doc_ref
-  'docs/DEVELOPMENT/REAL-PROJECT-TESTING.md', // FEATURE_MATRIX REQ-026 doc_ref
-  'docs/SYSTEM/CANON.md', // iron law (never touched)
+  'docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md', // FEATURE_MATRIX REQ-026 doc_ref
+  'docs/internal/SYSTEM/CANON.md', // iron law (never touched)
 ] as const
 
 // docs/X/Y.md → wiki/x-y.md (lowercase, '/'→'-', '_'→'-', drop docs/ prefix)

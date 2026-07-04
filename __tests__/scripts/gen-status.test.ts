@@ -24,8 +24,11 @@ function makeFixtures(
     milestones?: Array<{ title: string; done: boolean }>
   } = {},
 ): void {
-  const product = join(dir, 'docs', 'PRODUCT')
-  mkdirSync(product, { recursive: true })
+  // Internal docs (post public/internal split, #1770); PRD.md stays public
+  const internalProduct = join(dir, 'docs', 'internal', 'PRODUCT')
+  const publicProduct = join(dir, 'docs', 'PRODUCT')
+  mkdirSync(internalProduct, { recursive: true })
+  mkdirSync(publicProduct, { recursive: true })
 
   // FEATURE_MATRIX.md
   const matrixRows = opts.matrixRows ?? [
@@ -35,7 +38,7 @@ function makeFixtures(
     '| REQ-004 | Snapshot | N03 | L3 | Missing | | | | #42 | missing |',
   ]
   writeFileSync(
-    join(product, 'FEATURE_MATRIX.md'),
+    join(internalProduct, 'FEATURE_MATRIX.md'),
     `---\ntitle: 'FEATURE_MATRIX'\ndoc_version: '1.0.0'\nstatus: active\nlast_review: '2026-06-04'\nowner: ''\ncanonical_id: ''\ntags: []\nrelated: []\n---\n\n# FEATURE_MATRIX\n\n${matrixRows.join('\n')}\n`,
   )
 
@@ -43,7 +46,7 @@ function makeFixtures(
   const missionText =
     opts.missionText ?? 'Arbiter installs governance in one command. No drift, no duplication.'
   writeFileSync(
-    join(product, 'PRD.md'),
+    join(publicProduct, 'PRD.md'),
     `---\ntitle: 'PRD'\ndoc_version: '1.0.0'\nstatus: active\nlast_review: '2026-06-04'\nowner: ''\ncanonical_id: ''\ntags: []\nrelated: []\n---\n\n# Arbiter PRD\n\n## Vision\n\n${missionText}\n\n## Non-Goals\n\nSome non-goal.\n`,
   )
 
@@ -58,7 +61,7 @@ function makeFixtures(
     .map((m) => `## ${m.title}${m.done ? ' ✅ DONE' : ''}\n\nSome scope.\n`)
     .join('\n')
   writeFileSync(
-    join(product, 'MILESTONES.md'),
+    join(internalProduct, 'MILESTONES.md'),
     `---\ntitle: 'Milestones'\ndoc_version: '1.0.0'\nstatus: active\nlast_review: '2026-06-04'\nowner: ''\ncanonical_id: ''\ntags: []\nrelated: []\n---\n\n# Milestones\n\n${milestoneContent}`,
   )
 }

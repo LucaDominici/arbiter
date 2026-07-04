@@ -69,16 +69,18 @@ describe('docs-evo #1243 — disposable tier deleted (no content loss)', () => {
     },
   )
 
-  it('leaves docs/audits/ holding only the INV-86 parity input (kit-canonical-mapping.json)', () => {
+  it('leaves docs/internal/audits/ holding only the INV-86 parity input (kit-canonical-mapping.json)', () => {
     // The audits dir survives solely for the INV-86 gate input the register §DELETE misclassified.
-    const survivors = has('docs/audits') ? readdirSync(resolve(ROOT, 'docs/audits')).sort() : []
+    const survivors = has('docs/internal/audits')
+      ? readdirSync(resolve(ROOT, 'docs/internal/audits')).sort()
+      : []
     expect(survivors).toEqual(['kit-canonical-mapping.json'])
   })
 })
 
 describe('docs-evo #1243 — same-PR gate updates (no dangling reference)', () => {
   it('preserves the live INV-86 parity input and its gate runs green', () => {
-    expect(has('docs/audits/kit-canonical-mapping.json')).toBe(true)
+    expect(has('docs/internal/audits/kit-canonical-mapping.json')).toBe(true)
     // check-kit-catalog-parity.mjs must still exit 0 (INV-86 unbroken).
     expect(() =>
       execFileSync('node', ['scripts/check-kit-catalog-parity.mjs'], { cwd: ROOT, stdio: 'pipe' }),
@@ -111,8 +113,8 @@ describe('docs-evo #1243 — same-PR gate updates (no dangling reference)', () =
     expect(index).not.toContain('GOOD-FIRST-ISSUE-CURATION')
   })
 
-  it('regenerates docs/METHOD/SSOT_CORE_SET.md without any deleted path', () => {
-    const ssot = read('docs/METHOD/SSOT_CORE_SET.md')
+  it('regenerates docs/internal/METHOD/SSOT_CORE_SET.md without any deleted path', () => {
+    const ssot = read('docs/internal/METHOD/SSOT_CORE_SET.md')
     expect(ssot).not.toContain('REFERENCE/coverage/')
     expect(ssot).not.toContain('GLOBAL_KIT')
     expect(ssot).not.toContain('SELF-KIT-AUDIT')

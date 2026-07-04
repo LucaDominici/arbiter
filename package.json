@@ -10,7 +10,7 @@
   },
   "files": [
     "dist",
-    "docs/audits/kit-canonical-mapping.json",
+    "docs/internal/audits/kit-canonical-mapping.json",
     "README.md",
     "LICENSE",
     "NOTICE",

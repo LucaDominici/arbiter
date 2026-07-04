@@ -88,4 +88,4 @@ Add a `<!-- semver: patch|minor|major: <reason> -->` comment to your PR body, or
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution workflow
 - [docs/REFERENCE/file-stability.md](REFERENCE/file-stability.md) — which generated files are stable vs evolving
-- [docs/SYSTEM/ID-STABILITY.md](SYSTEM/ID-STABILITY.md) — INV-NN ID stability policy
+- [docs/GOVERNANCE.md](GOVERNANCE.md) — INV-NN ID stability policy

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // scripts/gen-gap.mjs
-// Generate docs/PRODUCT/GAP.md — derived view of what is incomplete,
+// Generate docs/internal/PRODUCT/GAP.md — derived view of what is incomplete,
 // unenforced, or parked. Ordered v1-blockers first.
 //
 // Usage:
@@ -134,7 +134,7 @@ function parseConvergenceDebt(content) {
  * @returns {GapData}
  */
 export function collectData(root) {
-  const matrixPath = join(root, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md')
+  const matrixPath = join(root, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md')
   if (!existsSync(matrixPath)) throw new Error(`FEATURE_MATRIX.md not found: ${matrixPath}`)
   const matrixContent = readFileSync(matrixPath, 'utf-8')
 
@@ -202,7 +202,7 @@ export function collectData(root) {
   // Known debt from the latest convergence file (optional)
   /** @type {KnownDebt[]} */
   const knownDebt = []
-  const productDir = join(root, 'docs', 'PRODUCT')
+  const productDir = join(root, 'docs', 'internal', 'PRODUCT')
   if (existsSync(productDir)) {
     const candidates = readdirSafe(productDir).filter((f) =>
       /^CONVERGENCE-\d{4}-\d{2}\.md$/.test(f),
@@ -369,11 +369,11 @@ export async function runCli(root, gapPath, check) {
       const current = existsSync(gapPath) ? readFileSync(gapPath, 'utf-8') : ''
       if (current !== generated) {
         process.stderr.write(
-          'docs/PRODUCT/GAP.md is stale. Run `node scripts/gen-gap.mjs --write` and commit the result.\n',
+          'docs/internal/PRODUCT/GAP.md is stale. Run `node scripts/gen-gap.mjs --write` and commit the result.\n',
         )
         return 1
       }
-      process.stdout.write('docs/PRODUCT/GAP.md is up to date.\n')
+      process.stdout.write('docs/internal/PRODUCT/GAP.md is up to date.\n')
       return 0
     }
     writeFileSync(gapPath, generated)
@@ -393,7 +393,7 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url)
 
 if (isMain) {
   const repoRoot = resolve('.')
-  const gapPath = join(repoRoot, 'docs', 'PRODUCT', 'GAP.md')
+  const gapPath = join(repoRoot, 'docs', 'internal', 'PRODUCT', 'GAP.md')
   const check = process.argv.includes('--check')
   runCli(repoRoot, gapPath, check)
     .then((code) => process.exit(code))

@@ -25,20 +25,20 @@ are applied and enforced.
 
 ## Canonical governance documents
 
-| Document                                  | Purpose                                                                               |
-| ----------------------------------------- | ------------------------------------------------------------------------------------- |
-| [`AGENTS.md`](../AGENTS.md)               | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
-| [`docs/SYSTEM/CANON.md`](SYSTEM/CANON.md) | 15 process-level rules derived from audit waves #151–#186                             |
-| [`docs/GOVERNANCE/RACI.md`](#raci)        | Responsibility matrix for governance decisions                                        |
+| Document                                           | Purpose                                                                               |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [`AGENTS.md`](../AGENTS.md)                        | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
+| [`docs/SYSTEM/CANON.md`](internal/SYSTEM/CANON.md) | 15 process-level rules derived from audit waves #151–#186                             |
+| [`docs/GOVERNANCE/RACI.md`](#raci)                 | Responsibility matrix for governance decisions                                        |
 
 ## Architecture Decision Records
 
-| ADR                                   | Title           | Status   |
-| ------------------------------------- | --------------- | -------- |
-| [ADR-041](ADR/041-task-workflow.md)   | Task workflow   | Accepted |
-| [ADR-042](ADR/042-gate-tiers.md)      | Gate tiers      | Accepted |
-| [ADR-043](ADR/043-docs-site-ia.md)    | Docs site IA    | Accepted |
-| [ADR-044](ADR/044-docs-versioning.md) | Docs versioning | Accepted |
+| ADR                                            | Title           | Status   |
+| ---------------------------------------------- | --------------- | -------- |
+| [ADR-041](internal/ADR/041-task-workflow.md)   | Task workflow   | Accepted |
+| [ADR-042](internal/ADR/042-gate-tiers.md)      | Gate tiers      | Accepted |
+| [ADR-043](internal/ADR/043-docs-site-ia.md)    | Docs site IA    | Accepted |
+| [ADR-044](internal/ADR/044-docs-versioning.md) | Docs versioning | Accepted |
 
 ## Self-governance case studies
 
@@ -54,7 +54,7 @@ Governance changes follow the same path as code changes:
 3. CANON-NN compliance checked at plan phase
 4. Gate must be GREEN before merge (no `--no-verify` exceptions)
 
-See [`docs/SYSTEM/CANON.md`](SYSTEM/CANON.md) for the full decision protocol.
+See [`docs/SYSTEM/CANON.md`](internal/SYSTEM/CANON.md) for the full decision protocol.
 
 ---
 

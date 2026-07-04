@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { join } from 'node:path'
 import { loadCanonEntries } from '../../src/utils/canon-loader.js'
 
-const CANON_PATH = join(import.meta.dirname, '../../docs/SYSTEM/CANON.md')
+const CANON_PATH = join(import.meta.dirname, '../../docs/internal/SYSTEM/CANON.md')
 
 describe('loadCanonEntries', () => {
   it('parses at least 14 entries from CANON.md', () => {

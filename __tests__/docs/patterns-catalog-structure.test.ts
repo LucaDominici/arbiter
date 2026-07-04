@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url))
 const r = (rel: string) => resolve(ROOT, rel)
-const DOC_PATH = r('docs/METHOD/PATTERNS_CATALOG.md')
+const DOC_PATH = r('docs/internal/METHOD/PATTERNS_CATALOG.md')
 
 const REQUIRED_LABELS = [
   '**Use when:**',
@@ -68,7 +68,7 @@ function extractRegistryPath(block: string): string | null {
 }
 
 describe('docs/METHOD/PATTERNS_CATALOG.md structure (#968)', () => {
-  it('the catalog file exists at docs/METHOD/PATTERNS_CATALOG.md', () => {
+  it('the catalog file exists at docs/internal/METHOD/PATTERNS_CATALOG.md', () => {
     expect(existsSync(DOC_PATH)).toBe(true)
   })
 

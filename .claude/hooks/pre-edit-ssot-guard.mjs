@@ -27,10 +27,10 @@ const SSOT_PATTERNS = [
   'AGENTS.md',
   '.claude/CLAUDE.md',
   '.agents/CODEX.md',
-  'docs/METHOD/',
-  'docs/SYSTEM/DECISIONS',
-  'docs/SYSTEM/CANON.md',
-  'docs/ADR/',
+  'docs/internal/METHOD/',
+  'docs/internal/SYSTEM/DECISIONS',
+  'docs/internal/SYSTEM/CANON.md',
+  'docs/internal/ADR/',
 ]
 
 for (const pattern of SSOT_PATTERNS) {

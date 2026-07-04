@@ -25,13 +25,13 @@ function runGate(
 ): { status: number; stdout: string; stderr: string } {
   const dir = mkdtempSync(join(tmpdir(), 'adr-enf-'))
   try {
-    mkdirSync(join(dir, 'docs', 'ADR'), { recursive: true })
+    mkdirSync(join(dir, 'docs', 'internal', 'ADR'), { recursive: true })
     mkdirSync(join(dir, 'standards'), { recursive: true })
     mkdirSync(join(dir, 'src', 'invariants'), { recursive: true })
     writeFileSync(join(dir, 'standards', 'gold-registry.yml'), opts.registry ?? DEFAULT_REGISTRY)
     writeFileSync(join(dir, 'src', 'invariants', 'catalog.ts'), opts.catalog ?? DEFAULT_CATALOG)
     for (const [name, body] of Object.entries(adrs)) {
-      writeFileSync(join(dir, 'docs', 'ADR', name), body)
+      writeFileSync(join(dir, 'docs', 'internal', 'ADR', name), body)
     }
     const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: dir })
     return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }

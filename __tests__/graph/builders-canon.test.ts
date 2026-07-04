@@ -126,7 +126,11 @@ describe('buildCanonNodes (#259-followup)', () => {
   })
 
   it('works with the actual CANON.md in arbiter', () => {
-    const store = buildCanonNodes(new GraphStore(), { canonPath: 'docs/SYSTEM/CANON.md' }, '.')
+    const store = buildCanonNodes(
+      new GraphStore(),
+      { canonPath: 'docs/internal/SYSTEM/CANON.md' },
+      '.',
+    )
     const canons = store.nodesByKind('CANON')
     expect(canons.length).toBeGreaterThan(0)
     // Promoted entries create INV stubs

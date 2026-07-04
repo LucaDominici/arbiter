@@ -24,8 +24,8 @@ function makeDir(): { dir: string; cleanup: () => void } {
 }
 
 function writeCore(dir: string, content: string): void {
-  mkdirSync(join(dir, 'docs', 'METHOD'), { recursive: true })
-  writeFileSync(join(dir, 'docs', 'METHOD', 'SSOT_CORE_SET.md'), content)
+  mkdirSync(join(dir, 'docs', 'internal', 'METHOD'), { recursive: true })
+  writeFileSync(join(dir, 'docs', 'internal', 'METHOD', 'SSOT_CORE_SET.md'), content)
 }
 
 describe('check-ssot-core (#255)', () => {
@@ -46,7 +46,7 @@ describe('check-ssot-core (#255)', () => {
       writeFileSync(join(dir, 'docs', 'SYSTEM', 'ARCH.md'), '# Arch\n')
       writeCore(
         dir,
-        '# SSOT\n\n## Method\n\n- `docs/METHOD/SSOT_CORE_SET.md` — this file\n- `docs/SYSTEM/ARCH.md` — architecture\n',
+        '# SSOT\n\n## Method\n\n- `docs/internal/METHOD/SSOT_CORE_SET.md` — this file\n- `docs/SYSTEM/ARCH.md` — architecture\n',
       )
       const result = run(dir)
       expect(result.status).toBe(0)
@@ -85,7 +85,7 @@ describe('check-ssot-core (#255)', () => {
     try {
       writeCore(
         dir,
-        '# SSOT\n\n- Plain text item without backtick paths\n- `docs/METHOD/SSOT_CORE_SET.md` — this file\n',
+        '# SSOT\n\n- Plain text item without backtick paths\n- `docs/internal/METHOD/SSOT_CORE_SET.md` — this file\n',
       )
       const result = run(dir)
       expect(result.status).toBe(0)
@@ -109,7 +109,7 @@ describe('check-ssot-core (#255)', () => {
   it('handles SSOT_CORE_SET.md self-reference gracefully', () => {
     const { dir, cleanup } = makeDir()
     try {
-      writeCore(dir, '# SSOT\n\n- `docs/METHOD/SSOT_CORE_SET.md` — this file\n')
+      writeCore(dir, '# SSOT\n\n- `docs/internal/METHOD/SSOT_CORE_SET.md` — this file\n')
       const result = run(dir)
       expect(result.status).toBe(0)
     } finally {

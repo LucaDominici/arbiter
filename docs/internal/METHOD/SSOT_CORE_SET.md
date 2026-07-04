@@ -32,13 +32,13 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 
 ### Method
 
-- `docs/DEVELOPMENT/REAL-PROJECT-TESTING.md` — Real-Project Testing
-- `docs/METHOD/ENGINEERING_DEFAULTS.md` — Engineering Defaults — arbiter
-- `docs/METHOD/PATTERNS_CATALOG.md` — arbiter Patterns Catalog
-- `docs/METHOD/PROCESS.md` — Process — arbiter
-- `docs/METHOD/REUSE_REGISTRY.md` — arbiter Reuse Registry
-- `docs/METHOD/TESTING.md` — Testing — arbiter
-- `docs/SYSTEM/HOOK-CONTRACTS.md` — Hook Contracts — `.claude/hooks/*.mjs`
+- `docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md` — Real-Project Testing
+- `docs/internal/METHOD/ENGINEERING_DEFAULTS.md` — Engineering Defaults — arbiter
+- `docs/internal/METHOD/PATTERNS_CATALOG.md` — arbiter Patterns Catalog
+- `docs/internal/METHOD/PROCESS.md` — Process — arbiter
+- `docs/internal/METHOD/REUSE_REGISTRY.md` — arbiter Reuse Registry
+- `docs/internal/METHOD/TESTING.md` — Testing — arbiter
+- `docs/internal/SYSTEM/HOOK-CONTRACTS.md` — Hook Contracts — `.claude/hooks/*.mjs`
 
 ### Entrypoints
 
@@ -47,17 +47,17 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 
 ### Spines
 
-- `docs/architecture/ARCHITECTURE.md` — arbiter Architecture
+- `docs/internal/architecture/ARCHITECTURE.md` — arbiter Architecture
 - `README.md` — Arbiter — AI governance that installs itself.
 
 ### SSOT
 
-- `docs/METHOD/CANONICAL_PATHS.md` — Canonical Paths — arbiter
-- `docs/METHOD/SSOT_CORE_SET.md` — SSOT Core Set — arbiter
+- `docs/internal/METHOD/CANONICAL_PATHS.md` — Canonical Paths — arbiter
+- `docs/internal/METHOD/SSOT_CORE_SET.md` — SSOT Core Set — arbiter
 
 ### Canon
 
-- `docs/SYSTEM/CANON.md` — arbiter Canon — Lessons Learned
+- `docs/internal/SYSTEM/CANON.md` — arbiter Canon — Lessons Learned
 
 ### API
 

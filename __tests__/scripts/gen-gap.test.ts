@@ -32,7 +32,7 @@ function makeFixtures(
     techDebt?: Array<{ subdir: string; issues: number[] }>
   } = {},
 ): void {
-  const product = join(dir, 'docs', 'PRODUCT')
+  const product = join(dir, 'docs', 'internal', 'PRODUCT')
   mkdirSync(product, { recursive: true })
 
   const defaultRows: MatrixRow[] = [
@@ -141,7 +141,7 @@ describe('collectData()', () => {
   it('throws when FEATURE_MATRIX.md is missing (fail-closed INV-96)', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      mkdirSync(join(dir, 'docs', 'PRODUCT'), { recursive: true })
+      mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
       expect(() => collectData(dir)).toThrow(/FEATURE_MATRIX/)
     } finally {
       cleanup()
@@ -364,7 +364,7 @@ describe('runCli()', () => {
     const { dir, cleanup } = makeTemp()
     try {
       makeFixtures(dir)
-      const gapPath = join(dir, 'docs', 'PRODUCT', 'GAP.md')
+      const gapPath = join(dir, 'docs', 'internal', 'PRODUCT', 'GAP.md')
       const code = await runCli(dir, gapPath, false)
       expect(code).toBe(0)
       const content = readFileSync(gapPath, 'utf-8')
@@ -378,7 +378,7 @@ describe('runCli()', () => {
     const { dir, cleanup } = makeTemp()
     try {
       makeFixtures(dir)
-      const gapPath = join(dir, 'docs', 'PRODUCT', 'GAP.md')
+      const gapPath = join(dir, 'docs', 'internal', 'PRODUCT', 'GAP.md')
       const code = await runCli(dir, gapPath, true)
       expect(code).toBe(1)
     } finally {
@@ -390,7 +390,7 @@ describe('runCli()', () => {
     const { dir, cleanup } = makeTemp()
     try {
       makeFixtures(dir)
-      const gapPath = join(dir, 'docs', 'PRODUCT', 'GAP.md')
+      const gapPath = join(dir, 'docs', 'internal', 'PRODUCT', 'GAP.md')
       await runCli(dir, gapPath, false)
       const code = await runCli(dir, gapPath, true)
       expect(code).toBe(0)
@@ -403,7 +403,7 @@ describe('runCli()', () => {
     const { dir, cleanup } = makeTemp()
     try {
       makeFixtures(dir)
-      const gapPath = join(dir, 'docs', 'PRODUCT', 'GAP.md')
+      const gapPath = join(dir, 'docs', 'internal', 'PRODUCT', 'GAP.md')
       writeFileSync(gapPath, '# Stale content\n')
       const code = await runCli(dir, gapPath, true)
       expect(code).toBe(1)

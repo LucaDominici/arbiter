@@ -13,7 +13,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { selectSsotDocs } from './gen-ssot-core.mjs'
 
-const SSOT_FILE = join(process.cwd(), 'docs', 'METHOD', 'SSOT_CORE_SET.md')
+const SSOT_FILE = join(process.cwd(), 'docs', 'internal', 'METHOD', 'SSOT_CORE_SET.md')
 
 if (!existsSync(SSOT_FILE)) {
   process.stdout.write('  check-ssot-core: no SSOT_CORE_SET.md found — skipping (bootstrap mode)\n')
