@@ -1,7 +1,7 @@
 <%
 const _cm = (typeof collaborationMode !== 'undefined' ? collaborationMode : 'trunk-solo');
 const _runner = (_cm === 'gated-review' && isL3Plus)
-  ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}"
+  ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}"
   : "${{ fromJSON(vars.RUNNER_LABELS_TEST || '[\"ubuntu-latest\"]') }}";
 const _isSoloL3Plus = _cm === 'trunk-solo' && isL3Plus;
 %>name: Nightly Lite (T4-lite)

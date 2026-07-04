@@ -67,6 +67,21 @@ describe('17-ossf-scorecard.yml.ejs — structural invariants (CANON-18)', () =>
   })
 })
 
+// ─── Runner fallback (#1770, #1756) ──────────────────────────────────────────
+// gated-review + L3Plus must NEVER render a bare self-hosted default: an outsider
+// repo without CI_BUILD_RUNNER_LABEL set would queue forever on docker-ci-build.
+
+describe('17-ossf-scorecard.yml.ejs — runner fallback (#1770, #1756)', () => {
+  it('gated-review + L3 falls back to ubuntu-latest, not docker-ci-build', () => {
+    const rendered = renderOssfScorecard({
+      collaborationMode: 'gated-review',
+      governanceLevel: 'L3',
+    })
+    expect(rendered).not.toContain("'docker-ci-build'")
+    expect(rendered).toContain("vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest'")
+  })
+})
+
 // ─── Trigger ─────────────────────────────────────────────────────────────────
 
 describe('17-ossf-scorecard.yml.ejs — triggers', () => {

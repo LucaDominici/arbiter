@@ -86,3 +86,14 @@ The `vars.CI_BUILD_RUNNER_LABEL` escape hatch allows overriding to any label (in
 - Future scaffolded projects default to `ubuntu-latest`; users who want self-hosted set the repo variable.
 
 The "Alternatives considered → ubuntu-latest as template fallback" rationale (above) was correct for the closed-stack haben context but wrong for arbiter's framework role. This update overturns that rejection.
+
+---
+
+## 2026-07-04 — Drift closed: 5 templates still defaulted to `docker-ci-build` (#1770, #1756)
+
+The 2026-05-20 flip missed the `gated-review + L3Plus` runner branch in five templates
+(`06-nightly-lite`, `15-codeql`, `16-frontend-quality`, `17-ossf-scorecard`,
+`18-frontend-lane`): their `_runner` ternary still fell back to the bare self-hosted label,
+so an `arbiter init` repo without the `CI_BUILD_RUNNER_LABEL` variable rendered workflows
+that queue forever. All five now fall back to `'ubuntu-latest'`, with per-template render
+tests locking the invariant. Repos that set the variable are unaffected.

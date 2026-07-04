@@ -66,3 +66,24 @@ describe('frontend-lane templates render (#1330, CANON-04)', () => {
     })
   })
 })
+
+// ─── Runner fallback (#1770, #1756) ──────────────────────────────────────────
+// gated-review + L3Plus must NEVER render a bare self-hosted default: an outsider
+// repo without CI_BUILD_RUNNER_LABEL set would queue forever on docker-ci-build.
+
+describe('18-frontend-lane.yml.ejs — runner fallback (#1770, #1756)', () => {
+  it('gated-review + L3 falls back to ubuntu-latest, not docker-ci-build', () => {
+    const wf = renderTemplate(
+      'github/workflows/18-frontend-lane.yml.ejs',
+      makeConfig('/tmp/x', {
+        language: 'go',
+        archetype: 'library',
+        lanes: ['frontend'],
+        collaborationMode: 'gated-review',
+        governanceLevel: 'L3',
+      }) as unknown as Record<string, unknown>,
+    )
+    expect(wf).not.toContain("'docker-ci-build'")
+    expect(wf).toContain("vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest'")
+  })
+})
