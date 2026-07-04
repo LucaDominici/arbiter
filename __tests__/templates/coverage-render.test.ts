@@ -256,7 +256,7 @@ describe('coverage config templates — rendering (CANON-04)', () => {
   })
 
   it('.tarpaulin.toml.ejs emits curated exclude-files with rationale comments (#354)', () => {
-    // Per #354 (haben reference): excludes for Rust entrypoints and generated
+    // Per #354 (prior internal project reference): excludes for Rust entrypoints and generated
     // code, EACH preceded by a rationale comment.
     const content = renderTemplate('coverage/.tarpaulin.toml.ejs', {
       ...makeConfig('/tmp/test', {

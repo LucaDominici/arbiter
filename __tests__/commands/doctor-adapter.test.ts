@@ -92,7 +92,7 @@ describe('doctor stack-adapter health check', () => {
 
   // #1343 R4: on a CLIENT repo (not arbiter-self) the adapter-coverage check (INV-88,
   // selfOnly) must NOT fire — src/adapters/<lang>.ts is an arbiter-internal artifact, so a
-  // Go-primary client (haben) no longer FAILs with a misleading "Create src/adapters/typescript.ts".
+  // Go-primary client (a prior internal project) no longer FAILs with a misleading "Create src/adapters/typescript.ts".
   it('R4: PASS advisory on a client repo even when adapter file is missing', async () => {
     // No @arbiter/cli package.json → not arbiter-self.
     vi.mocked(detectLanguage).mockReturnValue('typescript')

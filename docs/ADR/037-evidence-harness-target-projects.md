@@ -32,7 +32,7 @@ present when the gate ran. An agent could:
 The completion guard saw `phase = verification` and blocked with exit 2, but only until the phase
 was manually advanced. There was no persistent link between "gate green" and "source state".
 
-Reference pattern: `haben` project uses `guard-ui-claim.mjs` + `.last-done-evidence.json` to enforce
+Reference pattern: a prior internal project uses `guard-ui-claim.mjs` + `.last-done-evidence.json` to enforce
 that the specific UI files which passed gate inspection are unchanged before accepting done claims.
 
 ---
@@ -79,7 +79,7 @@ Declares which directories and file extensions are load-bearing for done state:
 
 - Closes the gate-run ↔ done-claim time gap mechanically (INV-38 extended)
 - Evidence file is human-readable JSON — can be committed, audited, or attached to PR
-- Consistent with haben reference pattern (validated in production)
+- Consistent with a prior internal project's reference pattern (validated in production)
 - No external dependencies — Node 20+ built-ins only (`crypto`, `fs`, `child_process`)
 
 **Negative:**
@@ -113,7 +113,7 @@ implementation had drifted: `done-evidence.mjs` and `evidence-files.json` were e
 emitted whenever the evidence harness is enabled (`enableEvidenceHarness !== false`).
 Because `runInit` defaults `enableEvidenceHarness` to `governanceLevel === 'L4'`, the
 three artifacts only co-appeared at L4 — but any project that explicitly enables the
-harness below L4 (e.g. haben at L2) got the **guard hook without the script it tells the
+harness below L4 (e.g. a prior internal project at L2) got the **guard hook without the script it tells the
 user to run**: a completion **deadlock** (the hook hard-blocks and instructs
 `node scripts/done-evidence.mjs`, which was never emitted).
 

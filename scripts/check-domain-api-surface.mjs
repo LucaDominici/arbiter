@@ -4,7 +4,7 @@
 //
 // CATALOG: INV-125 enforcement. Reads domain-api-surface.json at repo root; fails when a
 // CATALOG:   persisted domain field is absent from both request and response schemas
-// CATALOG:   (write-unreachable and read-invisible — the haben bond-400 class of bug).
+// CATALOG:   (write-unreachable and read-invisible — a bond-400 class of bug seen in a prior internal project).
 // CATALOG:   SKIP when manifest absent (non-governed projects never false-fail).
 // CATALOG:   Rejected fold-in into contract-testing/check-provider-states.mjs (different axis).
 //

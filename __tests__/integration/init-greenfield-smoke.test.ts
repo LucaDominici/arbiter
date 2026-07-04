@@ -1,6 +1,6 @@
 // Greenfield smoke test (#1038): verifies the full wizard→config→validator seam.
 // Prevents regressions where unit tests pass but the composed pipeline produces
-// an invalid arbiter.json (the haben init failure class).
+// an invalid arbiter.json (a prior internal project's init failure class).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

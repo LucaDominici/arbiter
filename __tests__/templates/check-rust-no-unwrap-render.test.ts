@@ -36,7 +36,7 @@ describe('Rust context-aware checker templates (#360, CANON-02)', () => {
     })
   }
 
-  it('no-unwrap script skips lib.rs (re-export entrypoint per haben source)', () => {
+  it('no-unwrap script skips lib.rs (re-export entrypoint per a prior internal project source)', () => {
     const out = renderTemplate(NO_UNWRAP, cfg({ language: 'rust' }))
     expect(out).toContain('lib.rs')
   })

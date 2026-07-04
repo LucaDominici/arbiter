@@ -19,7 +19,7 @@
 // intentionally NOT migrated — they remain on their numeric-truthy semantics
 // to preserve the user-facing contract documented in those scripts.
 //
-// Stderr log format (N6 — arbiter-specific, not viafera's):
+// Stderr log format (N6 — arbiter-specific, distinct from a prior internal convention):
 //   arbiter-bypass env=<NAME> branch=<BRANCH> at=<ISO_TS> reason="<REASON>"
 //
 // JSONL append shape:
@@ -80,7 +80,7 @@ function appendJsonl(logPath, record) {
 
 /**
  * Format the loud stderr line. Deliberately key=value with `arbiter-bypass`
- * token — must NOT match viafera's `[BYPASS]` bracketed pattern.
+ * token — must NOT match a prior internal convention's `[BYPASS]` bracketed pattern.
  * @param {{ env: string; branch: string; ts: string; reason: string }} fields
  */
 function formatLine({ env, branch, ts, reason }) {

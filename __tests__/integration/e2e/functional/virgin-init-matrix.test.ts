@@ -261,7 +261,7 @@ describe('virgin multi-lane init — zero double-write noise (#1318.2)', () => {
     'check-inline-suppressions',
   ]
 
-  // Multi-lane shape mirrors the haben repro: fe + be + docs lanes, github on.
+  // Multi-lane shape mirrors a prior internal project's repro: fe + be + docs lanes, github on.
   function multiLaneConfig(level: 'L1' | 'L2' | 'L3'): ReturnType<typeof makeConfig> {
     return makeConfig(dir, {
       language: 'typescript',

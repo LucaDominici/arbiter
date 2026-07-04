@@ -2,7 +2,7 @@
 //
 // #1259 — issue-correlation AFFINITY scorer for `arbiter ship`.
 //
-// Ported (re-derived, not copied) from viafera's `/task` correlation analysis
+// Ported (re-derived, not copied) from a prior internal framework's `/task` correlation analysis
 // (start-task §7.3): a pairwise factor score between two issues —
 //   +2  same `domain:*` label OR overlapping files
 //   +1  same milestone
@@ -19,7 +19,7 @@
 // a cycle with ./gh-issues.ts; the default `gh`-backed fetcher is wired by the
 // caller (the `arbiter ship` CLI action / `renderShipAffinityWithGh`).
 
-/** Default correlation threshold (viafera rubric). At/above → correlated. */
+/** Default correlation threshold (prior-framework rubric). At/above → correlated. */
 export const AFFINITY_THRESHOLD = 3
 
 /** The minimal issue signals the affinity rubric scores over. */
@@ -69,7 +69,7 @@ function filesOverlap(a: string[] | undefined, b: string[] | undefined): boolean
 }
 
 /**
- * Pairwise correlation score between two issues (viafera rubric). Symmetric.
+ * Pairwise correlation score between two issues (prior-framework rubric). Symmetric.
  * The domain/files factor is worth +2 and counted ONCE even if both signals fire
  * or multiple domain labels are shared.
  */

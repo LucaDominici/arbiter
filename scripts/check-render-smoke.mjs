@@ -3,7 +3,7 @@
 // CATALOG: INV-127 enforcement. Frontend archetypes (or a `frontend` lane) MUST carry a
 // CATALOG:   render-smoke behavioural test: a headless-browser spec that boots the built
 // CATALOG:   SPA and asserts the app shell mounts without console errors. Fails-closed when
-// CATALOG:   a frontend project has zero render-smoke specs — catches the haben failure mode
+// CATALOG:   a frontend project has zero render-smoke specs — catches a known failure mode from a prior internal project
 // CATALOG:   (token-purity passed while the screen rendered as broken empty boxes, #1366).
 // CATALOG:   SKIPs for non-frontend / ungoverned repos so they never false-fail.
 // CATALOG:   Boundary: file PRESENCE only — the spec is executed by the CI render-smoke lane.

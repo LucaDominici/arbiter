@@ -251,7 +251,7 @@
     "typescript": {
       "tool": "stylelint",
       "maturity": "proven",
-      "reason": "stylelint 16+ enforces color-no-hex and design-token discipline; widely adopted in ts-frontend-spa stacks (haben pattern, #352)"
+      "reason": "stylelint 16+ enforces color-no-hex and design-token discipline; widely adopted in ts-frontend-spa stacks (a pattern from a prior internal project, #352)"
     }
   },
   "fuzz": {

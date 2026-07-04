@@ -2,7 +2,7 @@
 //
 // #1260 — pure ship-SIZE scorer: change signals → review tier + orthogonal vertical floor.
 // Size is ALWAYS computed (no flag); larger size widens BOTH the review-agent count
-// (via tier) AND the breadth of review verticals. Re-derived from viafera /task size +
+// (via tier) AND the breadth of review verticals. Re-derived from a prior internal framework's /task size +
 // plan-review-verticals (NOT copied; uses arbiter's own auditor-routing vocabulary).
 import { describe, it, expect } from 'vitest'
 import {

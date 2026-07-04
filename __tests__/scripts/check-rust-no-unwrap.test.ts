@@ -109,7 +109,7 @@ describe('check-rust-no-unwrap (#360, awk-context-aware via Node)', () => {
     }
   })
 
-  it('exits 0 when .unwrap appears in lib.rs (re-export entrypoint skipped per haben)', () => {
+  it('exits 0 when .unwrap appears in lib.rs (re-export entrypoint skipped per a prior internal project)', () => {
     const { dir, cleanup } = setup()
     try {
       writeFileSync(

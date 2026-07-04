@@ -10,7 +10,7 @@
 //   - unset env var or '' → { bypassed: false }, silent, NO JSONL append
 //
 // N6 amendment: stderr format is arbiter-specific (key=value with `arbiter-bypass` token).
-// Negative regex test asserts stderr does NOT match viafera's `[BYPASS]` pattern.
+// Negative regex test asserts stderr does NOT match a prior internal convention's `[BYPASS]` pattern.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -190,7 +190,7 @@ describe('loud-bypass — checkBypass contract', () => {
         expect(r.stderr).not.toMatch(/arbiter-bypass\b/)
       }
 
-      // N6: stderr must NEVER match viafera's bracketed pattern
+      // N6: stderr must NEVER match a prior internal convention's bracketed pattern
       expect(r.stderr).not.toMatch(/\[BYPASS\]/)
 
       const lines = readJsonl(logPath)
@@ -227,7 +227,7 @@ describe('loud-bypass — checkBypass contract', () => {
       ts: now,
     })
 
-    // Loud stderr line — arbiter format, not viafera's
+    // Loud stderr line — arbiter format, not a prior internal convention's
     expect(r.stderr).toMatch(
       /arbiter-bypass env=ARBITER_FOO_BYPASS branch=task\/#970-loud-bypass at=2026-05-20T18:30:00\.000Z reason="emergency hotfix"/,
     )

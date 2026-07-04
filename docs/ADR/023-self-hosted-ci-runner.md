@@ -19,9 +19,9 @@ related: []
 
 ## Context
 
-Arbiter's GitHub Actions CI previously ran entirely on GitHub-hosted `ubuntu-latest` runners. The sibling project **haben** already solved this differently: all Linux CI jobs run on a self-hosted runner advertised under the label `docker-ci-build`, with the fallback expression `${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}` (codified as INV-11 in haben's `docs/SYSTEM/GLOBAL_INVARIANTS.md`).
+Arbiter's GitHub Actions CI previously ran entirely on GitHub-hosted `ubuntu-latest` runners. A prior internal project already solved this differently: all Linux CI jobs run on a self-hosted runner advertised under the label `docker-ci-build`, with the fallback expression `${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}` (codified as INV-11 in that prior internal project's `docs/SYSTEM/GLOBAL_INVARIANTS.md`).
 
-Running arbiter on `ubuntu-latest` while haben uses `docker-ci-build` creates two problems:
+Running arbiter on `ubuntu-latest` while the prior internal project uses `docker-ci-build` creates two problems:
 
 1. **Inconsistency** — projects that arbiter initialises inherit `ubuntu-latest` in their generated CI workflow, diverging from the infra standard on Luca's projects.
 2. **Cache miss** — npm and tool caches are never warm on GitHub-hosted ephemeral runners; the self-hosted pool retains these between runs.
@@ -30,7 +30,7 @@ Running arbiter on `ubuntu-latest` while haben uses `docker-ci-build` creates tw
 
 ## Decision
 
-Adopt the haben runner pattern across both surfaces:
+Adopt the runner pattern re-derived from a prior internal project across both surfaces:
 
 ### Surface A — Arbiter's own CI
 
@@ -44,7 +44,7 @@ Add top-level `concurrency:` (cancel-in-progress on non-main branches) and per-j
 
 ### Surface B — Generated CI template
 
-`src/templates/github/workflows/ci.yml.ejs`: same replacement on all 9 `runs-on:` occurrences. Downstream projects initialised by `arbiter init` receive the self-hosted expression by default — strict parity with haben.
+`src/templates/github/workflows/ci.yml.ejs`: same replacement on all 9 `runs-on:` occurrences. Downstream projects initialised by `arbiter init` receive the self-hosted expression by default — strict parity with that prior internal convention.
 
 The `vars.CI_BUILD_RUNNER_LABEL` escape hatch allows overriding to any label (including `ubuntu-latest`) via a repo variable with no file changes.
 
@@ -63,7 +63,7 @@ The `vars.CI_BUILD_RUNNER_LABEL` escape hatch allows overriding to any label (in
 - All Linux CI legs in arbiter's own repo and in generated workflows target `docker-ci-build` by default.
 - Ops can redirect any repo to a different runner (or back to `ubuntu-latest`) by setting `CI_BUILD_RUNNER_LABEL` as a repo variable — no PR required.
 - New invariant **INV-13** added to `AGENTS.md` to enforce this permanently.
-- Prior art: haben INV-11 (`haben/docs/SYSTEM/GLOBAL_INVARIANTS.md:173-181`).
+- Prior art: a prior internal project's INV-11 (`docs/SYSTEM/GLOBAL_INVARIANTS.md:173-181`).
 
 ---
 
@@ -85,7 +85,7 @@ The `vars.CI_BUILD_RUNNER_LABEL` escape hatch allows overriding to any label (in
 - Self-hosted users see no change.
 - Future scaffolded projects default to `ubuntu-latest`; users who want self-hosted set the repo variable.
 
-The "Alternatives considered → ubuntu-latest as template fallback" rationale (above) was correct for the closed-stack haben context but wrong for arbiter's framework role. This update overturns that rejection.
+The "Alternatives considered → ubuntu-latest as template fallback" rationale (above) was correct for the closed-stack context of that prior internal project but wrong for arbiter's framework role. This update overturns that rejection.
 
 ---
 

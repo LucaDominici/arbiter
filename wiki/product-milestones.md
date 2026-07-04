@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/PRODUCT/MILESTONES.md'
-source_sha: '96037e195f6163300ffa556d91b834b5120add64'
-last_updated: '2026-07-03'
+source_sha: 'ea1647dd97897a6e20fe424c4407a0a19a25db37'
+last_updated: '2026-07-04'
 ---
 
 # Arbiter — Milestones
@@ -179,12 +179,12 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 ## M9 — Real Repo Validation ✅ DONE
 
 **Issue:** #18
-**Scope:** Run `arbiter update` on haben and coach-system. Verify output. Fix any regressions.
+**Scope:** Run `arbiter update` on a prior internal project and coach-system. Verify output. Fix any regressions.
 
 **Deliverables:**
 
 - Verified: `arbiter update --dir <path>` succeeds on both repos with no errors
-- Verified: existing customizations in haben preserved
+- Verified: existing customizations in the prior internal project preserved
 - Verified: settings.json merged correctly in coach-system
 - Any regressions found → fixed with tests added
 
