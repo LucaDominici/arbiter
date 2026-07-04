@@ -186,8 +186,7 @@ export function attemptsPath(taskId: string, repoDir: string): string {
 }
 
 export type LoadResult =
-  | { ok: true; data: ShipAttempts; absent: boolean }
-  | { ok: false; reason: string }
+  { ok: true; data: ShipAttempts; absent: boolean } | { ok: false; reason: string }
 
 /**
  * Load the attempts record. An ABSENT file is empty state (count starts 0). A present but

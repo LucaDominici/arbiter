@@ -107,8 +107,7 @@ describe('debt-gates config templates — rendering', () => {
     // Settings are nested under linters.settings, with the gocyclo threshold intact.
     expect(parsed.linters?.settings).toBeDefined()
     const settings = parsed.linters?.settings as
-      | { gocyclo?: { 'min-complexity'?: unknown }; funlen?: { lines?: unknown } }
-      | undefined
+      { gocyclo?: { 'min-complexity'?: unknown }; funlen?: { lines?: unknown } } | undefined
     expect(settings?.gocyclo?.['min-complexity']).toBe(DEFAULT_THRESHOLDS.L2.cyclomaticComplexity)
     expect(settings?.funlen?.lines).toBe(DEFAULT_THRESHOLDS.L2.methodLength)
   })
