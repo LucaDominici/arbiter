@@ -514,21 +514,17 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter adherence`       | —                                                                               |
 | `arbiter agent-rules`     | Export or verify AI agent governance rules (#265)                               |
 | `arbiter anti-fake-green` | Anti-fake-green guard aggregate (#1428, thin wrapper over the engine)           |
-| `arbiter benchmark`       | Performance benchmarks for arbiter                                              |
 | `arbiter blame`           | —                                                                               |
 | `arbiter ci`              | Governance-aware CI planning (#261)                                             |
 | `arbiter close-gold-gap`  | Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close) |
-| `arbiter compare`         | Compare governance postures across multiple repos (#264)                        |
 | `arbiter configure`       | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
 | `arbiter conformance`     | Score a project against the arbiter gold standard (#1369)                       |
 | `arbiter diff`            | Show what arbiter update would change (dry run)                                 |
 | `arbiter doc-set`         | Deterministic doc-set presence audit (#1428, thin wrapper over the engine)      |
 | `arbiter doctor`          | Diagnose and repair arbiter state                                               |
-| `arbiter experiments`     | Inspect registered experimental features                                        |
 | `arbiter explain`         | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
 | `arbiter feature-matrix`  | Feature/RTM matrix commands (INV-112)                                           |
 | `arbiter findings`        | Inspect and promote the incidental-finding spool (#1403)                        |
-| `arbiter gauntlet`        | Pairwise/combinatorial test generation (#260)                                   |
 | `arbiter gold-audit`      | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
 | `arbiter graph`           | —                                                                               |
 | `arbiter harness`         | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)  |
@@ -544,7 +540,6 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter settings`        | List every settable arbiter.json path with its current value (#1121)            |
 | `arbiter ship`            | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
 | `arbiter ship-on-red`     | —                                                                               |
-| `arbiter skill-eval`      | Regression-eval harness for arbiter's own skills/commands (#1264)               |
 | `arbiter task`            | Manage task lifecycle state                                                     |
 | `arbiter trace`           | —                                                                               |
 | `arbiter tui`             | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)  |
@@ -573,14 +568,6 @@ Anti-fake-green guard aggregate (#1428, thin wrapper over the engine).
 
 - `--enforce` — Promote advisory (gh-audit) findings to hard failures
 
-## arbiter benchmark
-
-Performance benchmarks for arbiter.
-
-**Subcommands:**
-
-- `arbiter benchmark hooks` — Measure hook latency (p50/p95/p99 per hook)
-
 ## arbiter blame
 
 **Options:**
@@ -608,18 +595,6 @@ Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close).
 
 - `--repo <repo>` — Repo to audit (default: current directory)
 - `--stack <stack>` — Per-stack registry selector (standards/gold-registry.&lt;stack&gt;.yml)
-- `--json` — Emit machine-readable JSON output
-
-## arbiter compare
-
-Compare governance postures across multiple repos (#264).
-
-**Options:**
-
-- `--workspace <file>` — Path to workspace YAML spec (alternative to positional paths)
-- `--topic <topic>` — Filter findings to those matching this topic
-- `--fail-on <type>` — Exit non-zero when findings of type: contradiction | divergence | any
-- `--format <path>` — Write markdown report to this file path
 - `--json` — Emit machine-readable JSON output
 
 ## arbiter configure
@@ -684,14 +659,6 @@ Diagnose and repair arbiter state.
 - `--repair` — Auto-release stale .arbiter/.lock files detected by the health check (#824)
 - `--interactive` — Guided health check with one-key repair on a TTY (#1168)
 
-## arbiter experiments
-
-Inspect registered experimental features.
-
-**Subcommands:**
-
-- `arbiter experiments list` — List all registered experiments and their status
-
 ## arbiter explain
 
 Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule.
@@ -717,15 +684,6 @@ Inspect and promote the incidental-finding spool (#1403).
 
 - `arbiter findings list` — List the deduped findings currently in the spool
 - `arbiter findings promote` — Re-validate vs HEAD, dedup vs open issues, and file the surviving findings
-
-## arbiter gauntlet
-
-Pairwise/combinatorial test generation (#260).
-
-**Subcommands:**
-
-- `arbiter gauntlet generate` — Read YAML spec, run IPOG, write test files
-- `arbiter gauntlet verify` — Check generated tests are in sync with spec hash
 
 ## arbiter gold-audit
 
@@ -891,14 +849,6 @@ Orchestrate an issue → reviewed, merged PR over the existing engine (#1206).
 - `--id <id>` — Task id (e.g. #1289); defaults to the active task
 - `--autonomy <level>` — Per-run autonomy override (L0|L1|L2|L3) — gates the fix decision (#1291)
 - `--dir <dir>` — Target directory (default: current directory)
-
-## arbiter skill-eval
-
-Regression-eval harness for arbiter's own skills/commands (#1264).
-
-**Subcommands:**
-
-- `arbiter skill-eval run` — Run scenario fixtures, score pass/fail with variance, emit a report
 
 ## arbiter task
 

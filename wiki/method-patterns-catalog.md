@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/METHOD/PATTERNS_CATALOG.md'
-source_sha: '0d04e2bac910b2db2f2a6493fde7528afae4811f'
-last_updated: '2026-07-03'
+source_sha: 'fd59e9985a1c6c8538becfb1a5857192e0497911'
+last_updated: '2026-07-04'
 ---
 
 # arbiter Patterns Catalog
@@ -102,7 +102,7 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 - **Avoid when:** the data is transient (CI cache, build logs). Evidence is durable
   by design and is validated by INV-90.
 - **Registry path:** `scripts/`
-- **Variation axis:** the evidence kind — TDD, mutation, contract, gauntlet — each
+- **Variation axis:** the evidence kind — TDD, mutation, contract — each
   with its own JSON shape under `schemas/`.
 - **Test approach:** every emitter writes through `writeTddEvidence`-style helpers
   that validate against `schemas/evidence-bundle.schema.json`. The gate script
@@ -147,11 +147,13 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
   because each agent runtime has its own loader semantics and file naming
   conventions, and one tree would have forced lowest-common-denominator content.
 
-## 8. Gauntlet emitter
+---
 
-- **Use when:** you need to expand a parametric test specification into deterministic
-  test files across multiple language stacks, with a content hash that proves the
-  emitted tests are still in sync with the spec.
-- **Avoid when:** the test is
+## How to use this catalog
+
+1. Before creating a new file under `src/`, `src/generators/`, `src/templates/`,
+   or `src/commands/`, scan this catalog for an entry that already covers your
+   intent. Extend the existing pattern when possible (CANON-16).
+2. When an entry's pat
 
 *[content truncated — see source for full text]*

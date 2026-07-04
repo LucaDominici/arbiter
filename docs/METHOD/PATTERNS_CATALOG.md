@@ -101,7 +101,7 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 - **Avoid when:** the data is transient (CI cache, build logs). Evidence is durable
   by design and is validated by INV-90.
 - **Registry path:** `scripts/`
-- **Variation axis:** the evidence kind — TDD, mutation, contract, gauntlet — each
+- **Variation axis:** the evidence kind — TDD, mutation, contract — each
   with its own JSON shape under `schemas/`.
 - **Test approach:** every emitter writes through `writeTddEvidence`-style helpers
   that validate against `schemas/evidence-bundle.schema.json`. The gate script
@@ -145,24 +145,6 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 - **Rejected alternatives:** a single shared rules tree across all agents; rejected
   because each agent runtime has its own loader semantics and file naming
   conventions, and one tree would have forced lowest-common-denominator content.
-
-## 8. Gauntlet emitter
-
-- **Use when:** you need to expand a parametric test specification into deterministic
-  test files across multiple language stacks, with a content hash that proves the
-  emitted tests are still in sync with the spec.
-- **Avoid when:** the test is a one-off for a single language. The gauntlet is for
-  cross-stack pairwise / IPOG coverage, not for per-feature unit tests.
-- **Registry path:** `src/gauntlet/emitters/`
-- **Variation axis:** the target language — `typescript.ts`, `java.ts`, with the
-  same `IpogTable` input and per-emitter file conventions (vitest vs JUnit).
-- **Test approach:** emit-then-parse round-trip tests that feed a fixed
-  `IpogTable`, emit per language, and assert the rendered file compiles and
-  produces the expected coverage. The `arbiter gauntlet verify` subcommand audits
-  the on-disk hash against the spec.
-- **Rejected alternatives:** generating tests at runtime from the spec; rejected
-  because tests-as-source are reviewable in PRs, runnable without the generator,
-  and survive generator regressions.
 
 ---
 

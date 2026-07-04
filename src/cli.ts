@@ -63,10 +63,7 @@ import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
 import type { GraphFormat } from './commands/graph.js'
 import { runTrace, type TraceFormat } from './commands/trace.js'
 import { runBlame, type BlameFormat } from './commands/blame.js'
-import { runCompare } from './commands/compare.js'
 import { runAgentRulesExport, runAgentRulesVerify } from './commands/agent-rules.js'
-import { runGauntletGenerate, runGauntletVerify } from './commands/gauntlet.js'
-import type { GauntletStack } from './commands/gauntlet.js'
 import { runCiPlan, runCiVerifyPlan } from './commands/ci.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
 import { confirmChannelDowngrade } from './utils/confirm-downgrade.js'
@@ -98,11 +95,8 @@ import {
 import { SnapshotChecksumError } from './state/envelope.js'
 import { registerCleanupHandlers } from './utils/fs.js'
 import { runExplain } from './commands/explain.js'
-import { runBenchmarkHooks } from './commands/benchmark.js'
-import { runSkillEval } from './commands/skill-eval.js'
 import { getRunId, formatRunIdFooter } from './utils/run-id.js'
-import { parseExperimentalArgv, listExperiments, isEnabled } from './experimental/index.js'
-import { t } from './i18n/index.js'
+import { parseExperimentalArgv, isEnabled } from './experimental/index.js'
 import { applyDeprecatedFlagFilter } from './internal/deprecate.js'
 import { CLI_DEPRECATED_FLAGS } from './internal/cli-deprecation-registry.js'
 import { warnExperimental } from './internal/experimental-warn.js'
@@ -2020,131 +2014,6 @@ program
     })
   })
 
-program
-  .command('compare [paths...]')
-  .description('Compare governance postures across multiple repos (#264)')
-  .option('--workspace <file>', 'Path to workspace YAML spec (alternative to positional paths)')
-  .option('--topic <topic>', 'Filter findings to those matching this topic')
-  .option(
-    '--fail-on <type>',
-    'Exit non-zero when findings of type: contradiction | divergence | any',
-  )
-  .option('--format <path>', 'Write markdown report to this file path')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    (
-      paths: string[],
-      opts: {
-        workspace?: string
-        topic?: string
-        failOn?: string
-        format?: string
-        json: boolean
-      },
-    ) => {
-      const failOn =
-        opts.failOn === 'contradiction' || opts.failOn === 'divergence' || opts.failOn === 'any'
-          ? opts.failOn
-          : undefined
-      const result = runCompare({
-        paths: paths.length > 0 ? paths : undefined,
-        ...(opts.workspace !== undefined ? { workspace: opts.workspace } : {}),
-        ...(opts.topic !== undefined ? { topic: opts.topic } : {}),
-        ...(failOn !== undefined ? { failOn } : {}),
-        ...(opts.format !== undefined ? { format: opts.format } : {}),
-        json: opts.json,
-      })
-      printCompareResult(result, opts.json)
-      process.exit(result.exitCode)
-    },
-  )
-
-// ── gauntlet (#260) ──────────────────────────────────────────────────────────
-
-const gauntlet = program
-  .command('gauntlet')
-  .description('Pairwise/combinatorial test generation (#260)')
-
-gauntlet
-  .command('generate')
-  .description('Read YAML spec, run IPOG, write test files')
-  .requiredOption('--spec <path>', 'Path to gauntlet.yaml spec file')
-  .requiredOption('--out <dir>', 'Output directory for generated test files')
-  .option(
-    '--stack <stack>',
-    'Target stack: typescript | java | rust (default: typescript)',
-    'typescript',
-  )
-  .option('--dir <dir>', 'Project root (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { spec: string; out: string; stack: string; dir?: string; json: boolean }) => {
-    const stackRaw = opts.stack
-    // #1641: reject an unknown --stack instead of silently coercing it to
-    // `typescript`. The old default-coercion ternary swallowed any typo (`go`,
-    // `pyhton`, `Java`) and emitted a wrong-language, never-run suite with exit 0
-    // — undetectable in CI. Validate explicitly and fail-closed with exit 2.
-    if (stackRaw !== 'typescript' && stackRaw !== 'java' && stackRaw !== 'rust') {
-      const reason = `unknown --stack "${stackRaw}" (expected typescript|java|rust)`
-      if (opts.json) {
-        jsonOutput('gauntlet generate', 'error', { exitCode: 2 }, [reason])
-      } else {
-        process.stderr.write(`gauntlet generate: FAIL — ${reason}\n`)
-      }
-      process.exit(2)
-    }
-    const stack: GauntletStack = stackRaw
-    const result = runGauntletGenerate({
-      spec: opts.spec,
-      out: opts.out,
-      stack,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-    if (opts.json) {
-      jsonOutput(
-        'gauntlet generate',
-        result.status,
-        {
-          exitCode: result.exitCode,
-          files: result.files,
-          rows: result.rows,
-          graphEdges: result.graphEdges,
-        },
-        result.reason !== undefined ? [result.reason] : undefined,
-      )
-    } else if (result.status === 'ok') {
-      process.stdout.write(
-        `gauntlet generate: OK (${result.rows} test cases → ${result.files.length} file(s))\n`,
-      )
-      for (const f of result.files) process.stdout.write(`  ${f}\n`)
-    } else {
-      process.stderr.write(`gauntlet generate: FAIL — ${result.reason ?? 'unknown error'}\n`)
-    }
-    process.exit(result.exitCode)
-  })
-
-gauntlet
-  .command('verify')
-  .description('Check generated tests are in sync with spec hash')
-  .requiredOption('--spec <path>', 'Path to gauntlet.yaml spec file')
-  .requiredOption('--out <dir>', 'Directory of generated test files')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { spec: string; out: string; json: boolean }) => {
-    const result = runGauntletVerify({ spec: opts.spec, out: opts.out })
-    if (opts.json) {
-      jsonOutput(
-        'gauntlet verify',
-        result.status,
-        { exitCode: result.exitCode },
-        result.reason !== undefined ? [result.reason] : undefined,
-      )
-    } else if (result.status === 'ok') {
-      process.stdout.write(`gauntlet verify: OK\n`)
-    } else {
-      process.stderr.write(`gauntlet verify: FAIL — ${result.reason ?? 'unknown error'}\n`)
-    }
-    process.exit(result.exitCode)
-  })
-
 // ── ci (#261) ─────────────────────────────────────────────────────────────────
 
 const ci = program.command('ci').description('Governance-aware CI planning (#261)')
@@ -2380,37 +2249,6 @@ review
     },
   )
 
-function printCompareResult(
-  result: import('./commands/compare.js').CompareResult,
-  json: boolean,
-): void {
-  if (json) {
-    jsonOutput('compare', result.status, {
-      reposLoaded: result.reposLoaded,
-      findings: result.findings,
-      warnings: result.warnings,
-      ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
-    })
-    return
-  }
-  for (const w of result.warnings) {
-    process.stderr.write(`  warning: ${w}\n`)
-  }
-  if (result.findings.length === 0) {
-    process.stdout.write(`compare: ${result.reposLoaded} repo(s) checked — no findings\n`)
-  } else {
-    process.stdout.write(
-      `compare: ${result.reposLoaded} repo(s) checked — ${result.findings.length} finding(s)\n`,
-    )
-    for (const f of result.findings) {
-      process.stdout.write(`  [${f.type}] ${f.invId}: ${f.summary}\n`)
-    }
-  }
-  if (result.reportPath !== undefined) {
-    process.stdout.write(`  report written to ${result.reportPath}\n`)
-  }
-}
-
 program
   .command('explain [code]')
   .description('Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule')
@@ -2421,89 +2259,6 @@ program
     if (result.output) process.stdout.write(result.output)
     if (result.error) process.stderr.write(result.error)
     if (result.exitCode !== 0) process.exit(result.exitCode)
-  })
-
-const benchmark = program.command('benchmark').description('Performance benchmarks for arbiter')
-
-benchmark
-  .command('hooks')
-  .description('Measure hook latency (p50/p95/p99 per hook)')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--iterations <n>', 'Iterations per hook (default: 20)', '20')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .option('--baseline <file>', 'Path to baseline JSON file')
-  .action((opts: { dir?: string; iterations?: string; json?: boolean; baseline?: string }) => {
-    const benchOpts: import('./commands/benchmark.js').BenchmarkHooksOptions = {}
-    if (opts.dir !== undefined) benchOpts.dir = opts.dir
-    if (opts.iterations !== undefined) benchOpts.iterations = parseInt(opts.iterations, 10)
-    if (opts.json !== undefined) benchOpts.json = opts.json
-    if (opts.baseline !== undefined) benchOpts.baselineFile = opts.baseline
-    const result = runBenchmarkHooks(benchOpts)
-    if (result.regressions.length > 0 && !opts.json) process.exit(1)
-  })
-
-// ── skill-eval — regression-eval harness for arbiter's skills/commands (#1264) ─
-
-const skillEval = program
-  .command('skill-eval')
-  .description("Regression-eval harness for arbiter's own skills/commands (#1264)")
-
-skillEval
-  .command('run')
-  .description('Run scenario fixtures, score pass/fail with variance, emit a report')
-  .option('--dir <dir>', 'Project root (default: current directory)')
-  .option('--scenarios <dir>', 'Directory of scenario *.json fixtures')
-  .option('--iterations <n>', 'Iterations per scenario (default: 5)', '5')
-  .option('--baseline <file>', 'Baseline JSON file (scenario name → pass rate)')
-  .option('--html <file>', 'Write an HTML report to this path')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    (opts: {
-      dir?: string
-      scenarios?: string
-      iterations?: string
-      baseline?: string
-      html?: string
-      json?: boolean
-    }) => {
-      const evalOpts: import('./commands/skill-eval.js').SkillEvalOptions = {}
-      if (opts.dir !== undefined) evalOpts.dir = opts.dir
-      if (opts.scenarios !== undefined) evalOpts.scenariosDir = opts.scenarios
-      if (opts.iterations !== undefined) evalOpts.iterations = parseInt(opts.iterations, 10)
-      if (opts.baseline !== undefined) evalOpts.baselineFile = opts.baseline
-      if (opts.html !== undefined) evalOpts.htmlFile = opts.html
-      if (opts.json !== undefined) evalOpts.json = opts.json
-      const result = runSkillEval(evalOpts)
-      if (!result.passed || result.regressions.length > 0) process.exit(1)
-    },
-  )
-
-// ── experiments — list and inspect registered experiments (#601) ─────────────
-
-const experiments = program
-  .command('experiments')
-  .description('Inspect registered experimental features')
-
-experiments
-  .command('list')
-  .description('List all registered experiments and their status')
-  .action(() => {
-    const all = listExperiments()
-    if (all.length === 0) {
-      process.stdout.write(`${t('cli.experiments.none')}\n`)
-      return
-    }
-    const activeFlags = getActiveExperimentalFlags()
-    for (const exp of all) {
-      const active = isEnabled(exp.name, activeFlags)
-      const status = active ? '[active]' : '[inactive]'
-      process.stdout.write(
-        `  ${status} --experimental.${exp.name}  (${exp.stabilityTarget}, added ${exp.addedIn})\n`,
-      )
-      process.stdout.write(
-        `${t('cli.experiments.criteria', { criteria: exp.promotionCriteria })}\n`,
-      )
-    }
   })
 
 // ── kit — read-only kit catalog commands (--experimental.kit) ─────────────────
