@@ -3,7 +3,7 @@
   "task_id": "#211",
   "test_path": "__tests__/templates/sonar-render.test.ts",
   "test_commit_sha": "191e6afaa32aad475cc217edd865615783c4012d",
-  "test_run_log": "\n RUN  v4.1.7 /home/luca/work/repos/arbiter/.claude/worktrees/wt-a\n\n FAIL  __tests__/templates/sonar-render.test.ts\n × sonar-project.properties.ejs — SonarCloud integration > Java variant > L2: contains jacoco XML report path\n × sonar-project.properties.ejs — SonarCloud integration > Java variant > L2: organization placeholder is PLACEHOLDER_ORG\n × sonar-project.properties.ejs — SonarCloud integration > TypeScript variant > L2: contains lcov report path\n × sonar-project.properties.ejs — SonarCloud integration > TypeScript variant > L2: projectName is interpolated from config\n\n Test Files  1 failed (1)\n      Tests  4 failed (4)\n",
+  "test_run_log": "\n RUN  v4.1.7 /home/user/work/repos/arbiter/.claude/worktrees/wt-a\n\n FAIL  __tests__/templates/sonar-render.test.ts\n × sonar-project.properties.ejs — SonarCloud integration > Java variant > L2: contains jacoco XML report path\n × sonar-project.properties.ejs — SonarCloud integration > Java variant > L2: organization placeholder is PLACEHOLDER_ORG\n × sonar-project.properties.ejs — SonarCloud integration > TypeScript variant > L2: contains lcov report path\n × sonar-project.properties.ejs — SonarCloud integration > TypeScript variant > L2: projectName is interpolated from config\n\n Test Files  1 failed (1)\n      Tests  4 failed (4)\n",
   "observed_failure": "FAIL  __tests__/templates/sonar-render.test.ts — template not yet created",
   "recorded_at": "2026-05-23T18:00:00.000Z"
 }

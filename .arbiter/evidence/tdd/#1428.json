@@ -3,7 +3,7 @@
   "task_id": "#1428",
   "test_path": "__tests__/commands/doc-set.test.ts",
   "test_commit_sha": "1d8243932e1d5372786c8694d7367d7f928467e6",
-  "test_run_log": " FAIL  __tests__/commands/doc-set.test.ts [ __tests__/commands/doc-set.test.ts ]\nError: Cannot find module '../../src/commands/doc-set.js' imported from /home/luca/work/repos/arbiter.worktrees/1428-downstream-runners/__tests__/commands/doc-set.test.ts\n      Tests  no tests\n",
+  "test_run_log": " FAIL  __tests__/commands/doc-set.test.ts [ __tests__/commands/doc-set.test.ts ]\nError: Cannot find module '../../src/commands/doc-set.js' imported from /home/user/work/repos/arbiter.worktrees/1428-downstream-runners/__tests__/commands/doc-set.test.ts\n      Tests  no tests\n",
   "observed_failure": "FAIL __tests__/commands/doc-set.test.ts — arbiter doc-set command absent (Cannot find module src/commands/doc-set.js)",
   "recorded_at": "2026-06-20T18:08:35.183Z"
 }

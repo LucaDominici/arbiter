@@ -20,9 +20,9 @@ Show all active worktrees managed by arbiter's worktree system. Delegates to `gi
 **Example output:**
 
 ```
-/home/luca/work/repos/arbiter                                 a1b2c3d [main]
-/home/luca/work/repos/arbiter.worktrees/#123-feat       e4f5g6h [task/#123-feat]
-/home/luca/work/repos/arbiter.worktrees/#456-fix        i7j8k9l [task/#456-fix]
+/home/user/work/repos/arbiter                                 a1b2c3d [main]
+/home/user/work/repos/arbiter.worktrees/#123-feat       e4f5g6h [task/#123-feat]
+/home/user/work/repos/arbiter.worktrees/#456-fix        i7j8k9l [task/#456-fix]
 ```
 
 ## Steps

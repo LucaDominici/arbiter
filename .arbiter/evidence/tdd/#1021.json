@@ -3,7 +3,7 @@
   "task_id": "#1021",
   "test_path": "__tests__/utils/seed.test.ts",
   "test_commit_sha": "8296b5ae9a76046d9e60333ed0162ad4213ca4aa",
-  "test_run_log": " RUN  v4.1.6 /home/luca/work/repos/arbiter\n\n FAIL  __tests__/utils/seed.test.ts > xorshift32 seed > distributes across the full decade range (not bunched at start)\nAssertionError: expected 1 to be >= 5\n\n Tests  1 failed | 12 passed (13)\n",
+  "test_run_log": " RUN  v4.1.6 /home/user/work/repos/arbiter\n\n FAIL  __tests__/utils/seed.test.ts > xorshift32 seed > distributes across the full decade range (not bunched at start)\nAssertionError: expected 1 to be >= 5\n\n Tests  1 failed | 12 passed (13)\n",
   "observed_failure": "FAIL  __tests__/utils/seed.test.ts",
   "recorded_at": "2026-05-23T11:10:00.000Z"
 }

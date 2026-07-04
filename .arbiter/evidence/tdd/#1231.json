@@ -3,7 +3,7 @@
   "task_id": "#1231",
   "test_path": "__tests__/scripts/check-workflow-parallelism.test.ts",
   "test_commit_sha": "460b894dbdbdb0373113c439af2ad199c04f4d29",
-  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1231-wave0-6-parallelism-gate\n\n ❯ __tests__/scripts/check-workflow-parallelism.test.ts (15 tests | 15 failed) 202ms\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-workflow-parallelism.test.ts\nError: Cannot find module '/home/luca/work/repos/arbiter.worktrees/1231-wave0-6-parallelism-gate/scripts/check-workflow-parallelism.mjs'\n\n Test Files  1 failed (1)\n      Tests  15 failed (15)\n   Start at  15:19:22\n   Duration  298ms (transform 19ms, setup 13ms, import 13ms, tests 202ms, environment 0ms)\n\n",
+  "test_run_log": "\n RUN  v4.1.8 /home/user/work/repos/arbiter.worktrees/1231-wave0-6-parallelism-gate\n\n ❯ __tests__/scripts/check-workflow-parallelism.test.ts (15 tests | 15 failed) 202ms\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-workflow-parallelism.test.ts\nError: Cannot find module '/home/user/work/repos/arbiter.worktrees/1231-wave0-6-parallelism-gate/scripts/check-workflow-parallelism.mjs'\n\n Test Files  1 failed (1)\n      Tests  15 failed (15)\n   Start at  15:19:22\n   Duration  298ms (transform 19ms, setup 13ms, import 13ms, tests 202ms, environment 0ms)\n\n",
   "observed_failure": "FAIL  __tests__/scripts/check-workflow-parallelism.test.ts — Cannot find module",
   "recorded_at": "2026-06-07T15:19:22.000Z"
 }

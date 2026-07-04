@@ -3,7 +3,7 @@
   "task_id": "#1456",
   "test_path": "__tests__/scripts/check-todo-max-age.test.ts",
   "test_commit_sha": "10055f0f11e0b1a893918b3b4e9c9ba931f1ac01",
-  "test_run_log": " FAIL  __tests__/scripts/check-todo-max-age.test.ts [ __tests__/scripts/check-todo-max-age.test.ts ]\nError: Cannot find module '../../scripts/check-todo-max-age.mjs' imported from /home/luca/work/repos/arbiter.worktrees/1456-todo-max-age/__tests__/scripts/check-todo-max-age.test.ts\n      Tests  no tests\n",
+  "test_run_log": " FAIL  __tests__/scripts/check-todo-max-age.test.ts [ __tests__/scripts/check-todo-max-age.test.ts ]\nError: Cannot find module '../../scripts/check-todo-max-age.mjs' imported from /home/user/work/repos/arbiter.worktrees/1456-todo-max-age/__tests__/scripts/check-todo-max-age.test.ts\n      Tests  no tests\n",
   "observed_failure": "FAIL __tests__/scripts/check-todo-max-age.test.ts — check-todo-max-age.mjs absent (Cannot find module)",
   "recorded_at": "2026-06-20T18:32:15.518Z"
 }

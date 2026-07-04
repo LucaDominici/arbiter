@@ -77,9 +77,9 @@ function ok(stdout: string) {
 
 describe('siblingWorktreePathFor', () => {
   it('places worktree at <parent>/<repoName>.worktrees/<slug>', async () => {
-    const gitRoot = '/home/luca/projects/my-app'
+    const gitRoot = '/home/user/projects/my-app'
     const result = siblingWorktreePathFor(gitRoot, 'feature-x')
-    expect(result).toBe('/home/luca/projects/my-app.worktrees/feature-x')
+    expect(result).toBe('/home/user/projects/my-app.worktrees/feature-x')
   })
 
   it('uses provided slug verbatim (no sanitization at this layer)', async () => {

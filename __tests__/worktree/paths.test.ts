@@ -138,18 +138,18 @@ describe('worktreeDirectoryName', () => {
 
 describe('resolveWorktreeBase', () => {
   it('uses ARBITER_WORKTREES_DIR env override when provided', () => {
-    const result = resolveWorktreeBase('/home/luca/repos/arbiter', null, '/custom/path')
+    const result = resolveWorktreeBase('/home/user/repos/arbiter', null, '/custom/path')
     expect(result).toBe('/custom/path')
   })
 
   it('uses configBase when provided and no env override', () => {
-    const result = resolveWorktreeBase('/home/luca/repos/arbiter', '/explicit/base')
+    const result = resolveWorktreeBase('/home/user/repos/arbiter', '/explicit/base')
     expect(result).toBe('/explicit/base')
   })
 
   it('falls back to sibling <repoName>.worktrees directory', () => {
-    const result = resolveWorktreeBase('/home/luca/repos/arbiter', null)
-    expect(result).toBe('/home/luca/repos/arbiter.worktrees')
+    const result = resolveWorktreeBase('/home/user/repos/arbiter', null)
+    expect(result).toBe('/home/user/repos/arbiter.worktrees')
   })
 
   it('sibling path works for deeply nested repos', () => {

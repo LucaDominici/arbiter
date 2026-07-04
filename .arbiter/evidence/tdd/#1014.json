@@ -3,7 +3,7 @@
   "task_id": "#1014",
   "test_path": "__tests__/utils/plugin-loader.test.ts",
   "test_commit_sha": "8296b5ae9a76046d9e60333ed0162ad4213ca4aa",
-  "test_run_log": " RUN  v4.1.6 /home/luca/work/repos/arbiter\n\n FAIL  __tests__/utils/plugin-loader.test.ts > loadPlugin > plugin add rejects package with no arbiter field\nError: Expected plugin to be rejected but it was accepted\n\n Tests  1 failed | 14 passed (15)\n",
+  "test_run_log": " RUN  v4.1.6 /home/user/work/repos/arbiter\n\n FAIL  __tests__/utils/plugin-loader.test.ts > loadPlugin > plugin add rejects package with no arbiter field\nError: Expected plugin to be rejected but it was accepted\n\n Tests  1 failed | 14 passed (15)\n",
   "observed_failure": "FAIL  __tests__/utils/plugin-loader.test.ts",
   "recorded_at": "2026-05-23T11:10:00.000Z"
 }

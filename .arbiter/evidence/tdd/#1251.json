@@ -3,7 +3,7 @@
   "task_id": "#1251",
   "test_path": "__tests__/generators/gdpr.test.ts",
   "test_commit_sha": "ccd5c464b9250ec9760fc203d1b8de0b4853b6e3",
-  "test_run_log": " RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1251-gdpr-overlay\n\n FAIL  __tests__/generators/gdpr.test.ts [ __tests__/generators/gdpr.test.ts ]\nError: Cannot find module '../../src/generators/gdpr.js' imported from /home/luca/work/repos/arbiter.worktrees/1251-gdpr-overlay/__tests__/generators/gdpr.test.ts\n ❯ __tests__/generators/gdpr.test.ts:9:1\n\n Test Files  1 failed (1)\n      Tests  no tests",
+  "test_run_log": " RUN  v4.1.8 /home/user/work/repos/arbiter.worktrees/1251-gdpr-overlay\n\n FAIL  __tests__/generators/gdpr.test.ts [ __tests__/generators/gdpr.test.ts ]\nError: Cannot find module '../../src/generators/gdpr.js' imported from /home/user/work/repos/arbiter.worktrees/1251-gdpr-overlay/__tests__/generators/gdpr.test.ts\n ❯ __tests__/generators/gdpr.test.ts:9:1\n\n Test Files  1 failed (1)\n      Tests  no tests",
   "observed_failure": "FAIL __tests__/generators/gdpr.test.ts — Cannot find module '../../src/generators/gdpr.js' (generateGdprControls did not exist before implementation; genuine RED captured before src/generators/gdpr.ts was created)",
   "recorded_at": "2026-06-07T22:22:00Z"
 }
