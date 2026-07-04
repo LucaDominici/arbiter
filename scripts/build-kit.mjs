@@ -90,4 +90,8 @@ const derived = catalog.map((dim) => ({
 const outPath = join(ROOT, 'src/kit/derived.json')
 mkdirSync(dirname(outPath), { recursive: true })
 writeFileSync(outPath, JSON.stringify(derived, null, 2) + '\n')
-process.stdout.write(`build-kit: derived ${derived.length} dimensions → src/kit/derived.json\n`)
+// stderr, not stdout: this script runs as part of the `prepack` lifecycle, so a
+// stdout write here corrupts any consumer parsing `npm pack --json`'s stdout
+// (found via #1770 T8's packaged-artifact E2E — the exact class of bug it exists
+// to catch).
+process.stderr.write(`build-kit: derived ${derived.length} dimensions → src/kit/derived.json\n`)

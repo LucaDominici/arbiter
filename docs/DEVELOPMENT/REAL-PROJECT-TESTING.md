@@ -92,6 +92,21 @@ The `tier` field selects which E2E layer exercises the fixture:
 
 The bake-and-run harness lives in `__tests__/e2e/bake/` and `__tests__/e2e/functional/`. Industry pattern reference: Nx (`create-nx-workspace` Verdaccio), Cookiecutter (`pytest-cookies`), Spring Initializr (`initializr-generator-test`).
 
+#### Packaged-artifact outsider simulation (#1770)
+
+`__tests__/integration/e2e/functional/packaged-artifact.test.ts` goes one layer beyond
+`functional`: instead of running arbiter from the repo's `dist/`, it simulates a true
+outsider install. It runs `npm pack` on the repo, installs the resulting tarball into a
+fresh tmpdir project staged from the `ts-library` fixture, runs `arbiter init` through the
+**installed** package's bin, asserts the generated project's own L1 gate passes, and
+round-trips the task engine (`task init` → real failing test → `record-red` → evidence
+validated → advance to green). This catches packaging-only bug classes invisible to every
+other suite: `prepack` scripts polluting `npm pack --json` stdout, runtime dependencies
+misclassified as devDependencies, and generated content tripping the generated project's
+own scanners (#1772). Gated behind `VITEST_L2=1` like its siblings; it costs a pack plus
+two full npm installs plus a generated-gate run (~1 min), so it runs at L2/nightly depth,
+not in per-PR fast lanes.
+
 ---
 
 ## v1 Fixture Set

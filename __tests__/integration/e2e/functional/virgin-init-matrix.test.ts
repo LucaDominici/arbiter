@@ -18,20 +18,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit, runGenerators } from '../../../../src/commands/init.js'
 import { makeConfig } from '../../../helpers.js'
-import { hasBinary, missingBinaries, stageFixture } from '../helpers.js'
-
-// Initialise an EMPTY virgin git repo (the shared initGit assumes pre-existing
-// fixture files; a virgin tmpdir has nothing to stage). An allow-empty initial
-// commit gives the generated gate a HEAD to read for its gate marker.
-function initEmptyGit(dir: string): void {
-  execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
-  execFileSync('git', ['config', 'user.email', 'e2e@arbiter.test'], { cwd: dir, stdio: 'ignore' })
-  execFileSync('git', ['config', 'user.name', 'Arbiter E2E'], { cwd: dir, stdio: 'ignore' })
-  execFileSync('git', ['commit', '--allow-empty', '-m', 'chore: init', '--no-verify'], {
-    cwd: dir,
-    stdio: 'ignore',
-  })
-}
+import { hasBinary, initEmptyGit, missingBinaries, stageFixture } from '../helpers.js'
 
 const L2 = process.env.VITEST_L2 === '1'
 
