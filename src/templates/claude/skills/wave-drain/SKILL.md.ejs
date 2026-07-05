@@ -224,13 +224,20 @@ wave.** The rest of the wave proceeds.
 5. **RED → root-cause structural fix** (never `--no-verify`, never skip). If the culprit is
    one group, **revert that group's merge** → mark its issues `needs-human` → the wave
    continues with the rest.
-6. **One PR per wave.** Body: a table mapping each issue → its commit, and a `Closes #N1,
-#N2, …` line. Merge **only with checks GREEN**:
+6. **One PR per wave.** Body: a table mapping each issue → its commit, and **one `Closes #N`
+   line per issue** — never a comma-separated list (`Closes #N1, #N2, ...`); GitHub's
+   closing-keyword parser only reliably auto-closes the first issue in such a list on
+   admin/rebase-merge (#1766). Merge **only with checks GREEN**:
 
    ```bash
-   gh pr create --title "wave(N): <summary>" --body "<issue→commit table>\n\nCloses #N1, #N2, ..."
+   gh pr create --title "wave(N): <summary>" --body "<issue→commit table>
+
+   Closes #N1
+   Closes #N2
+   ..."
    gh pr checks --watch
    gh pr merge --merge        # only when CI is GREEN
+   node scripts/verify-pr-closes.mjs <PR#>   # post-merge: confirm every ref closed, close stragglers
    ```
 
    CI red → root-cause fix → re-gate (PRs are owned until merged green).

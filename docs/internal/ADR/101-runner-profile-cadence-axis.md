@@ -94,7 +94,7 @@ team sharing one self-hosted runner is `peer-review` × `solo`).
 - The cadence overlay stays layered correctly on top of the CI Tier Model: the
   workflow-file → bucket partition (`06-nightly.yml` / `07-weekly.yml` stay in
   their `CADENCE_BUCKETS`) is unchanged — only _jobs within_ those files move,
-  so INV-72 (required-set) / INV-73 (canonical-presence floor) are untouched.
+  so INV-73 (both the required-set and the canonical-presence floor) is untouched.
 - The `scheduled-heavy-jobs.ejs` partial removes a duplication risk: without
   it, `solo` support would require hand-duplicating two multi-stack job
   bodies into `_weekly.yml`, which would drift from `_nightly.yml` on the next
