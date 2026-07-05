@@ -170,13 +170,13 @@ function checkEnforcement(cid: string, dim: MappingDim): string | null {
   return hasEnf || hasExempt ? null : `${cid} BLOCKING with no enforcement and no valid exemption`
 }
 
-function runParityCheck(root: string, catalogArr: CatalogArr): string[] {
+function runParityCheck(catalogArr: CatalogArr): string[] {
   const fails: string[] = []
   let mappingDims: MappingDim[]
   try {
-    const raw = JSON.parse(
-      readFileSync(resolve(root, 'docs/internal/audits/kit-canonical-mapping.json'), 'utf-8'),
-    ) as { dimensions: MappingDim[] }
+    const raw = JSON.parse(readFileSync(kitDataPath('canonical-mapping.json'), 'utf-8')) as {
+      dimensions: MappingDim[]
+    }
     mappingDims = raw.dimensions
   } catch (err) {
     throw new Error(`failed to load mapping: ${err instanceof Error ? err.message : String(err)}`, {
@@ -280,7 +280,7 @@ function computeKitValidation(): KitValidation {
   // ─── Subcheck 2: parity ───────────────────────────────────────────────────
   if (catalog) {
     try {
-      const fails = runParityCheck(root, catalog)
+      const fails = runParityCheck(catalog)
       if (fails.length > 0) {
         stdout.push('[INV-86] kit catalog parity FAIL')
         for (const f of fails) stdout.push(`  [parity] ${f}`)

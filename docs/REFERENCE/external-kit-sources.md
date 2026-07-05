@@ -20,13 +20,13 @@ All three files are REDACTED-origin: reference their patterns and structure; do 
 
 ## KIT Catalog Source
 
-| Field             | Value                                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
-| File              | `[tools]/KIT_gold-standard_76-dimensions_REDACTED.xlsx`                                                            |
-| Revision          | Rev00 07/05/2026                                                                                                   |
-| Columns           | A=# · B=Categoria · C=Dimensione · D=Dettaglio/Gate · E=TML · F=Gate Type · G=Planning Source · H=Note Adattamento |
-| Rows              | 1-3 empty · 4 header · 5 category separators · 6-95 data (76 dims)                                                 |
-| Arbiter canonical | `docs/audits/kit-canonical-mapping.json` (machine-readable) · `docs/audits/kit-canonical-mapping.md` (rendered)    |
+| Field             | Value                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| File              | `[tools]/KIT_gold-standard_76-dimensions_REDACTED.xlsx`                                                               |
+| Revision          | Rev00 07/05/2026                                                                                                      |
+| Columns           | A=# · B=Categoria · C=Dimensione · D=Dettaglio/Gate · E=TML · F=Gate Type · G=Planning Source · H=Note Adattamento    |
+| Rows              | 1-3 empty · 4 header · 5 category separators · 6-95 data (76 dims)                                                    |
+| Arbiter canonical | `src/kit/canonical-mapping.json` (machine-readable, runtime data) · `docs/audits/kit-canonical-mapping.md` (rendered) |
 
 ### TML Notation
 
@@ -53,7 +53,7 @@ When the KIT is revised:
 
 1. Obtain new XLSX at the canonical path above
 2. Run: `node /tmp/gen-wave1-json.mjs` (or equivalent regeneration script)
-3. Diff `docs/audits/kit-canonical-mapping.json` to identify changed dims
+3. Diff `src/kit/canonical-mapping.json` to identify changed dims
 4. Update arbiter target mappings as needed
 5. Run `node scripts/check-kit-catalog-parity.mjs` to verify (W2 deliverable)
 

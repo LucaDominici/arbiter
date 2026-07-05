@@ -39,7 +39,6 @@ interface LexEntry {
 function makeTemp() {
   const dir = mkdtempSync(join(tmpdir(), 'inv86-'))
   mkdirSync(join(dir, 'src/kit'), { recursive: true })
-  mkdirSync(join(dir, 'docs/internal/audits'), { recursive: true })
   mkdirSync(join(dir, 'scripts/data'), { recursive: true })
   return {
     dir,
@@ -47,7 +46,7 @@ function makeTemp() {
     writeAll(catalog: CatalogDim[], mapping: MappingDim[], lex: LexEntry[]) {
       writeFileSync(join(dir, 'src/kit/catalog.json'), JSON.stringify(catalog))
       writeFileSync(
-        join(dir, 'docs/internal/audits/kit-canonical-mapping.json'),
+        join(dir, 'src/kit/canonical-mapping.json'),
         JSON.stringify({ dimensions: mapping }),
       )
       writeFileSync(join(dir, 'scripts/data/redaction-lexicon.json'), JSON.stringify(lex))
@@ -413,10 +412,7 @@ describe('error handling', () => {
     const { dir, cleanup } = makeTemp()
     try {
       writeFileSync(join(dir, 'src/kit/catalog.json'), 'not json {{{')
-      writeFileSync(
-        join(dir, 'docs/internal/audits/kit-canonical-mapping.json'),
-        JSON.stringify({ dimensions: [] }),
-      )
+      writeFileSync(join(dir, 'src/kit/canonical-mapping.json'), JSON.stringify({ dimensions: [] }))
       writeFileSync(join(dir, 'scripts/data/redaction-lexicon.json'), JSON.stringify([]))
       const r = run(dir)
       expect(r.status).toBe(2)
@@ -430,7 +426,7 @@ describe('error handling', () => {
     const { dir, cleanup } = makeTemp()
     try {
       writeFileSync(join(dir, 'src/kit/catalog.json'), JSON.stringify([]))
-      writeFileSync(join(dir, 'docs/internal/audits/kit-canonical-mapping.json'), '{ broken')
+      writeFileSync(join(dir, 'src/kit/canonical-mapping.json'), '{ broken')
       writeFileSync(join(dir, 'scripts/data/redaction-lexicon.json'), JSON.stringify([]))
       const r = run(dir)
       expect(r.status).toBe(2)
@@ -444,10 +440,7 @@ describe('error handling', () => {
     const { dir, cleanup } = makeTemp()
     try {
       // catalog.json not written
-      writeFileSync(
-        join(dir, 'docs/internal/audits/kit-canonical-mapping.json'),
-        JSON.stringify({ dimensions: [] }),
-      )
+      writeFileSync(join(dir, 'src/kit/canonical-mapping.json'), JSON.stringify({ dimensions: [] }))
       writeFileSync(join(dir, 'scripts/data/redaction-lexicon.json'), JSON.stringify([]))
       const r = run(dir)
       expect(r.status).toBe(2)
@@ -477,7 +470,7 @@ describe('redaction scan', () => {
       const badCatalog = [catDim({ name: 'Uses @Component annotation' })]
       writeFileSync(join(dir, 'src/kit/catalog.json'), JSON.stringify(badCatalog))
       writeFileSync(
-        join(dir, 'docs/internal/audits/kit-canonical-mapping.json'),
+        join(dir, 'src/kit/canonical-mapping.json'),
         JSON.stringify({ dimensions: [mapDim({ name: 'Uses @Component annotation' })] }),
       )
       writeFileSync(
@@ -500,7 +493,7 @@ describe('redaction scan', () => {
       writeFileSync(join(dir, 'src/kit/catalog.json'), JSON.stringify(catalogWithSchema))
       // mapping has $schema line containing the token
       const mappingContent = `{"$schema": "path/@Component.json", "dimensions": [${JSON.stringify(mapDim())}]}`
-      writeFileSync(join(dir, 'docs/internal/audits/kit-canonical-mapping.json'), mappingContent)
+      writeFileSync(join(dir, 'src/kit/canonical-mapping.json'), mappingContent)
       writeFileSync(
         join(dir, 'scripts/data/redaction-lexicon.json'),
         JSON.stringify([{ token: '@Component', allowContext: '$schema' }]),

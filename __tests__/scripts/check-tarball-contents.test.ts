@@ -70,32 +70,38 @@ describe('classifyTarball — forbidden-path detection (#1491 tarball-leak)', ()
   })
 })
 
-describe('findMissingRequired — required runtime-asset presence (#1575)', () => {
-  it('flags a manifest missing dist/kit/catalog.json AND dist/kit/derived.json', () => {
+describe('findMissingRequired — required runtime-asset presence (#1575, #1801)', () => {
+  it('flags a manifest missing dist/kit/catalog.json, derived.json AND canonical-mapping.json', () => {
     const m = findMissingRequired(['dist/cli.js', 'README.md'])
     expect(m).toHaveLength(REQUIRED.length)
     expect(m.map((x) => x.label).join(' ')).toMatch(/catalog\.json/)
     expect(m.map((x) => x.label).join(' ')).toMatch(/derived\.json/)
+    expect(m.map((x) => x.label).join(' ')).toMatch(/canonical-mapping\.json/)
   })
 
   it('flags a manifest that ships only the kit .js but not the runtime JSON', () => {
     // Exactly the #1575 bug: tsc emits dist/kit/*.js but the JSON is never copied.
     const m = findMissingRequired(['dist/kit/catalog.js', 'dist/kit/derived.js', 'dist/cli.js'])
-    expect(m).toHaveLength(2)
+    expect(m).toHaveLength(3)
   })
 
-  it('passes a manifest that ships both kit runtime data files', () => {
+  it('passes a manifest that ships all three kit runtime data files', () => {
     const m = findMissingRequired([
       'dist/cli.js',
       'dist/kit/catalog.js',
       'dist/kit/catalog.json',
       'dist/kit/derived.json',
+      'dist/kit/canonical-mapping.json',
     ])
     expect(m).toEqual([])
   })
 
   it('normalises backslash separators and leading ./ before matching', () => {
-    const m = findMissingRequired(['.\\dist\\kit\\catalog.json', './dist/kit/derived.json'])
+    const m = findMissingRequired([
+      '.\\dist\\kit\\catalog.json',
+      './dist/kit/derived.json',
+      './dist/kit/canonical-mapping.json',
+    ])
     expect(m).toEqual([])
   })
 
@@ -104,18 +110,19 @@ describe('findMissingRequired — required runtime-asset presence (#1575)', () =
   })
 })
 
-describe('package.json build ships kit runtime data into dist/ (#1575)', () => {
+describe('package.json build ships kit runtime data into dist/ (#1575, #1801)', () => {
   const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as {
     files: string[]
     scripts: Record<string, string>
   }
 
-  it('the build script copies the kit catalog + derived JSON next to the emitted dist/kit/*.js', () => {
+  it('the build script copies the kit catalog + derived + canonical-mapping JSON next to the emitted dist/kit/*.js', () => {
     // tsc emits dist/kit/*.js but NOT the data files the code reads at runtime; the
     // build must co-locate them or `arbiter kit` throws ENOENT in a published install.
     expect(pkg.scripts.build).toMatch(/dist\/kit/)
     expect(pkg.scripts.build).toMatch(/catalog\.json/)
     expect(pkg.scripts.build).toMatch(/derived\.json/)
+    expect(pkg.scripts.build).toMatch(/canonical-mapping\.json/)
   })
 
   it('the build derives the kit data (build-kit) before copying it', () => {
@@ -129,22 +136,17 @@ describe('package.json build ships kit runtime data into dist/ (#1575)', () => {
   })
 })
 
-describe('package.json files[] does not ship docs wholesale — whitelist the one runtime file (#1491)', () => {
+describe('package.json files[] does not ship docs wholesale (#1491, #1801)', () => {
   const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as { files: string[] }
 
-  it('does NOT ship the docs/ tree wholesale (so internal/backup cannot leak by construction)', () => {
+  it('does NOT ship any part of the docs/ tree (so internal/backup cannot leak by construction)', () => {
     // The human-only docs tree (ADR/REFERENCE/PRODUCT/METHOD/…, ~1.1 MB) lives on the website +
-    // repo, not in the npm tarball. Whitelisting beats blacklisting: a new docs subdir can never
-    // re-introduce a leak, and the package stays well under the 5 MB cap.
+    // repo, not in the npm tarball. The one file the CLI used to read at runtime from docs/
+    // (kit-canonical-mapping.json) has moved to src/kit/ — runtime data belongs alongside the
+    // other kit runtime data (catalog.json, derived.json), not under docs/ (#1801). Whitelisting
+    // beats blacklisting: a new docs subdir can never re-introduce a leak.
     expect(pkg.files).not.toContain('docs')
-    expect(pkg.files.filter((f) => f.startsWith('docs/') && !f.startsWith('!'))).toEqual([
-      'docs/internal/audits/kit-canonical-mapping.json',
-    ])
-  })
-
-  it('ships the one bundled doc the CLI reads at runtime (kit parity check)', () => {
-    // kit.js resolves this against the package root; dropping it would break `arbiter kit`.
-    expect(pkg.files).toContain('docs/internal/audits/kit-canonical-mapping.json')
+    expect(pkg.files.filter((f) => f.startsWith('docs/') && !f.startsWith('!'))).toEqual([])
   })
 
   it('carries no stale negation entries (whitelist makes them unnecessary)', () => {

@@ -61,6 +61,10 @@ export const REQUIRED = [
     label: 'kit derived runtime data (dist/kit/derived.json)',
     test: (p) => p === 'dist/kit/derived.json',
   },
+  {
+    label: 'kit canonical-mapping runtime data (dist/kit/canonical-mapping.json)',
+    test: (p) => p === 'dist/kit/canonical-mapping.json',
+  },
 ]
 
 /**
