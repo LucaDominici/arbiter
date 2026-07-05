@@ -15,8 +15,10 @@ import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
 
 // Match // TODO or /* TODO or * TODO (in comment context), but NOT TODO(#NNN)
-const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
-const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
+// Exported so .claude/hooks/check-no-orphan-todo.mjs can reuse the same reference
+// semantics rather than drifting to a naive \bTODO\b regex (#1796/#1799).
+export const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
+export const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
 export const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'templates'])
 
 /**

@@ -2,24 +2,21 @@
 // Arbiter hook: block orphan TODO comments (INV-21)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
+import { extname } from 'node:path'
 import { resolveToolInputPath } from './lib.mjs'
+
+// Match // TODO or /* TODO or * TODO (in comment context), but NOT TODO(#NNN).
+// A bare \bTODO\b regex with no comment-context guard false-positives on
+// TODO-as-data/prose (e.g. a description string documenting the TODO(#NNN) format).
+const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
+// Only scan source-file extensions (allowlist, not blocklist) — prose files like
+// .md are out of scope so mentioning "TODO" in docs never trips this hook.
+const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
 
-// Skip binary files and lock files
-const SKIP_EXTENSIONS = [
-  '.lock',
-  '.lockb',
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.svg',
-  '.wasm',
-  '.bin',
-]
-if (SKIP_EXTENSIONS.some((ext) => file.endsWith(ext))) process.exit(0)
+if (!EXTENSIONS.has(extname(file))) process.exit(0)
 
 let content
 try {
@@ -28,12 +25,10 @@ try {
   process.exit(0)
 }
 
-// Find TODOs without task IDs like TODO(#123)
+// Find TODOs without task IDs like TODO(#123), in comment context only.
 const offending = content
   .split('\n')
-  .flatMap((line, i) =>
-    /\bTODO\b/.test(line) && !/\bTODO\b.*\(#\d+\)/.test(line) ? [`${i + 1}: ${line.trim()}`] : [],
-  )
+  .flatMap((line, i) => (ORPHAN_TODO.test(line) ? [`${i + 1}: ${line.trim()}`] : []))
 
 if (offending.length > 0) {
   process.stderr.write(

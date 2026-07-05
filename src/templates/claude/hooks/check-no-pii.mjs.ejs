@@ -2,10 +2,46 @@
 // Arbiter hook: block PII patterns in edited files (INV-12)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from "node:fs";
+import { join, relative } from "node:path";
 import { findInlineSuppression, resolveToolInputPath } from "./lib.mjs";
 
 const file = resolveToolInputPath();
 if (!file || !existsSync(file)) process.exit(0);
+
+// Load suppressions/pii-allowlist.json: the hook pointed users at this file for
+// fixtures but never actually consulted it. Self-contained (no cross-file import,
+// generated projects must not depend on scripts/pii-scan.mjs) — mirrors that
+// script's own specificity-floor semantics (#1669): a suppression must be an exact
+// (file + line) pair or an exact match string, never a bare/substring entry.
+const ROOT = process.cwd();
+const ALLOWLIST_PATH = join(ROOT, "suppressions", "pii-allowlist.json");
+let allowlist = [];
+if (existsSync(ALLOWLIST_PATH)) {
+  try {
+    const parsed = JSON.parse(readFileSync(ALLOWLIST_PATH, "utf-8"));
+    if (Array.isArray(parsed)) allowlist = parsed;
+  } catch {
+    // Malformed allowlist: fail closed (no entries allowed), do not weaken enforcement.
+  }
+}
+
+function isAllowlisted(filePath, lineNum, matchStr) {
+  const rel = relative(ROOT, filePath).split("\\").join("/");
+  return allowlist.some((entry) => {
+    const hasFile = typeof entry.file === "string" && entry.file.length > 0;
+    const hasLine = typeof entry.line === "number";
+    const hasPattern = typeof entry.pattern === "string" && entry.pattern.length > 0;
+    if (!(hasPattern || (hasFile && hasLine))) return false;
+    if (hasFile) {
+      const ef = entry.file.split("\\").join("/");
+      const prefix = ef.endsWith("/") ? ef : ef + "/";
+      if (rel !== ef && !rel.startsWith(prefix)) return false;
+    }
+    if (hasLine && entry.line !== lineNum) return false;
+    if (hasPattern && matchStr !== entry.pattern) return false;
+    return true;
+  });
+}
 
 const SKIP_EXTENSIONS = [
   ".lock",
@@ -46,11 +82,13 @@ const findings = [];
 const lines = content.split("\n");
 for (const { label, re } of PII_PATTERNS) {
   for (let i = 0; i < lines.length; i++) {
-    if (re.test(lines[i]) && !findInlineSuppression(content, i, "INV-12")) {
-      findings.push(
-        `  line ${i + 1} [${label}]: ${lines[i].trim().slice(0, 80)}`,
-      );
-    }
+    const m = lines[i].match(re);
+    if (!m) continue;
+    if (findInlineSuppression(content, i, "INV-12")) continue;
+    if (isAllowlisted(file, i + 1, m[0])) continue;
+    findings.push(
+      `  line ${i + 1} [${label}]: ${lines[i].trim().slice(0, 80)}`,
+    );
   }
 }
 
@@ -64,7 +102,8 @@ if (findings.length > 0) {
       // project's own check-inline-suppressions.mjs, which scans raw source text
       // for that exact pattern regardless of string-literal context (#1772).
       `  ${"//"} arbiter-suppress(INV-12, until=YYYY-MM-DD, reason="known-safe test value", owner=you)\n` +
-      `directive on the line above the match.\n`,
+      `directive on the line above the match, or add an entry to\n` +
+      `suppressions/pii-allowlist.json ({ "file", "line" } or { "pattern" }).\n`,
   );
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-12\` for details.\n`);
   // Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631);

@@ -2,7 +2,13 @@
 // Claude hook: blocks placeholder patterns in files being written/edited.
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
+import { extname } from 'node:path'
 import { resolveToolInputPath } from './lib.mjs'
+
+// Only scan source-file extensions (allowlist, not blocklist) — prose files like
+// .md are out of scope so mentioning "[PLACEHOLDER]" in docs prose never trips this
+// hook (#1778).
+const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
 
 const PATTERNS = [
   { re: /\bPLACEHOLDER\b/i, label: 'PLACEHOLDER' },
@@ -21,6 +27,8 @@ const PATTERNS = [
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
+
+if (!EXTENSIONS.has(extname(file))) process.exit(0)
 
 let content
 try {

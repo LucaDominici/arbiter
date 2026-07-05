@@ -103,6 +103,72 @@ describe('#1553 emitted check-no-pii hook honors the advertised escape hatch', (
   })
 })
 
+describe('#1779/#1780 emitted check-no-pii hook honors suppressions/pii-allowlist.json', () => {
+  it('ALLOWS a PII match covered by an exact {file, line} allowlist entry', () => {
+    const dir = stageHookDir()
+    try {
+      mkdirSync(join(dir, 'suppressions'), { recursive: true })
+      writeFileSync(
+        join(dir, 'suppressions', 'pii-allowlist.json'),
+        JSON.stringify([{ file: 'fixture.ts', line: 1, reason: 'test fixture', owner: 'core' }]),
+      )
+      const f = join(dir, 'fixture.ts')
+      writeFileSync(f, 'export const sample = "alice@example.com"\n')
+      expect(runHook(dir, f)).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('ALLOWS a PII match covered by an exact {pattern} allowlist entry', () => {
+    const dir = stageHookDir()
+    try {
+      mkdirSync(join(dir, 'suppressions'), { recursive: true })
+      writeFileSync(
+        join(dir, 'suppressions', 'pii-allowlist.json'),
+        JSON.stringify([{ pattern: 'alice@example.com', reason: 'test fixture', owner: 'core' }]),
+      )
+      const f = join(dir, 'fixture.ts')
+      writeFileSync(f, 'export const sample = "alice@example.com"\n')
+      expect(runHook(dir, f)).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('BLOCKS: bare file-only allowlist entry (no line, no pattern) is under-specified (#1669 floor)', () => {
+    const dir = stageHookDir()
+    try {
+      mkdirSync(join(dir, 'suppressions'), { recursive: true })
+      writeFileSync(
+        join(dir, 'suppressions', 'pii-allowlist.json'),
+        JSON.stringify([{ file: 'fixture.ts', reason: 'too broad', owner: 'core' }]),
+      )
+      const f = join(dir, 'fixture.ts')
+      writeFileSync(f, 'export const sample = "alice@example.com"\n')
+      expect(runHook(dir, f)).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('BLOCKS: PII in a different file even though an allowlist file is present (no scope leak)', () => {
+    const dir = stageHookDir()
+    try {
+      mkdirSync(join(dir, 'suppressions'), { recursive: true })
+      writeFileSync(
+        join(dir, 'suppressions', 'pii-allowlist.json'),
+        JSON.stringify([{ file: 'fixture.ts', line: 1, reason: 'test fixture', owner: 'core' }]),
+      )
+      const f = join(dir, 'other.ts')
+      writeFileSync(f, 'export const sample = "alice@example.com"\n')
+      expect(runHook(dir, f)).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('#1553 rendered lib exposes findInlineSuppression (dependency-free)', () => {
   const lib = render('claude/hooks/lib.mjs.ejs')
 
