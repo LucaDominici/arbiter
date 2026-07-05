@@ -67,6 +67,10 @@ generator is disabled, so the script is never double-written.
   names; it fails in a target whose gate has a different tier set (#1152).
 - `check-ssot-core.mjs`, `check-suppressions.mjs`, `check-inline-suppressions.mjs` — owned by the
   ssot / suppressions generators, which always run; anti-drift no longer double-emits them (#1318.2).
+- `check-governance-mirror-sync.mjs` — arbiter-self meta-gate (Track A only, L1): asserts
+  `website/governance/AGENTS.md` is a byte-for-byte mirror of root `AGENTS.md`, i.e. that
+  `scripts/sync-public-governance.mjs` was re-run after any AGENTS.md edit (#1805). Targets have
+  no website mirror, so nothing is emitted.
 
 ---
 

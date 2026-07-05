@@ -160,6 +160,7 @@ if (isMain) {
   runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs'])
   runCheck('ssot core', 'node', ['scripts/check-ssot-core.mjs'])
   runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
+  runCheck('governance mirror sync (#1805)', 'node', ['scripts/check-governance-mirror-sync.mjs'])
   runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'])
   runCheck('claude-md lint (#1266)', 'node', ['scripts/check-claude-md-lint.mjs'])
   runCheck('doc index (#1102)', 'node', ['scripts/gen-doc-index.mjs', '--check'])
