@@ -80,9 +80,9 @@ for low-level engine control or recovery (`arbiter task advance`, `record-red`, 
 ## Common next reads
 
 - [`README.md`](../README.md) — feature overview
-- [`SETUP.md`](./SETUP.md) — extended install + per-stack notes
+- [Windows Setup (WSL2)](#windows-setup-wsl2) — extended install + per-stack notes
 - [`GOVERNANCE.md`](./GOVERNANCE.md) — invariants + ADRs
-- [`architecture/README.md`](./architecture/README.md) — system internals
+- [`internal/architecture/ARCHITECTURE.md`](./internal/architecture/ARCHITECTURE.md) — system internals
 - [`api/README.md`](./api/README.md) — public API surface
 - [`OBSIDIAN.md`](../OBSIDIAN.md) — open this repo as an Obsidian vault
 
