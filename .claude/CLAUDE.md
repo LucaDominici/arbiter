@@ -95,12 +95,11 @@ See `../AGENTS.md` §Invariants for the complete list.
 
 **If gate fails:** Fix the root cause. No `--no-verify`. No skipping.
 
-## Iron Law — PRs are owned until merged
+## Iron Laws (Inherited from AGENTS.md)
 
-A PR is done only when it is **merged green**, not when it is opened. Follow every PR you
-open through CI and fix each red by root cause (read the failing job's log, fix the
-underlying cause, push, re-verify) — repeated until all checks pass and it merges. Handing
-back or abandoning a red PR is a process violation.
+See `../AGENTS.md` §Iron Laws for the canonical formulation of: worktree isolation for
+parallel agents, complete-means-merged-to-main, root-cause-first after any failure, and
+verification-before-victory.
 
 ## Iron Law — every problem gets fixed, including pre-existing ones
 

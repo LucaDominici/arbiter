@@ -31,6 +31,45 @@ Level 3:  Source code + tests — implementation truth
 
 ---
 
+## Iron Laws
+
+Behavioral protocol rules that sit above the invariant catalog — process discipline,
+not a checkable gate. Violation protocol: **STOP → REFUSE → cite the law**.
+
+### Worktree Isolation Is Mandatory For Parallel Agents
+
+Concurrent agents must each work in an isolated git worktree. Shared-tree parallel
+editing — two or more agents writing into the same working tree at once — is
+prohibited: git index state, lockfiles, and in-flight diffs corrupt under
+concurrent writers, with no clean recovery path. One agent, one worktree, one
+branch.
+
+### Complete Means Merged To Main
+
+No task, PR, or issue may be reported complete before its PR is merged green on
+`main`. Open is not done. A PR is owned until merged: follow it through CI and fix
+each red by root cause (read the failing job's log, fix the underlying cause,
+push, re-verify), repeated until every check passes and it merges. Handing back or
+abandoning a red PR, or reporting a task complete while its PR is still open, is a
+process violation.
+
+### Root-Cause-First After Any Failure
+
+On an error, stop the patch-spiral. Do not attempt a second fix before performing
+structural analysis: read the actual failure, trace it to its origin, and only
+then apply the fix that addresses the root cause. A patch applied without
+diagnosis is a guess, not a fix, and tends to compound rather than resolve.
+
+### Verification-Before-Victory
+
+Run targeted local verification — an end-to-end exercise of the changed behavior,
+not just a green typecheck or unit-test run — before every push. This is the
+dominant agent failure mode: of observed real agent errors, the majority (5 of 8)
+were claims of success without the change ever having been exercised. Review
+layers do not prevent this; only verification does.
+
+---
+
 ## Invariants
 
 Violation protocol: **STOP → REFUSE → cite INV-XX**.
