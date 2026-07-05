@@ -9,11 +9,42 @@ tags: []
 related: []
 ---
 
-# Stable Releases
-
 ## [Unreleased]
 
 _Nothing yet._
+
+## [0.3.0] — 2026-07-05
+
+**Channel:** stable
+
+### Highlights
+
+- **First public-release prep (epic #1770, T11)** — the tag `v0.2.0` predates 418 commits
+  of internal hardening, so this release ships under a fresh version rather than
+  retagging stale history.
+- **Public CLI surface reduced to 11 commands** — experimental/R&D commands hidden from
+  `--help` (still reachable, unlisted) and dead R&D commands removed outright.
+- **Docs split**: public-facing docs separated from internal governance docs so the
+  published package/README reflects only what an external user needs.
+- **Packaged-artifact E2E**: an outsider-simulation test exercises the packaged tarball
+  the way an external consumer would, catching packaging gaps the source tree hides.
+- **Evidence/redaction hardening**: user paths and private-project attributions redacted
+  from evidence bundles and examples before anything ships externally.
+- **CI resilience**: templates fall back to `ubuntu-latest` when runner-label variables
+  are absent, so generated CI does not silently break for external adopters without the
+  self-hosted runner configured.
+- **Iron Laws** codified in project governance (PR-owned-until-merged; pre-existing
+  failures are fixed at the root cause, not dismissed).
+
+### Changed
+
+- `runnerProfile` config axis (`solo` | `fleet`) for the CI cadence model (ADR-101).
+  `fleet` (default) is byte-identical to previous output; `solo` moves heavy scheduled
+  jobs (fuzz, soak-e2e) to the weekly workflow for single-runner setups, with the weekly
+  gate hard-failing on fuzz/soak regressions. (#1693)
+- `exceljs` runtime dependency replaced with a native zero-dependency xlsx writer,
+  removing transitive `uuid@8` (GHSA-w5hq-g745-h8pq) from the production closure.
+  `arbiter feature-matrix export --format xlsx` output contract unchanged. (#1670)
 
 ## [0.2.0] — 2026-06-21
 
@@ -485,10 +516,6 @@ _Nothing yet._
   - Add `*.bak.*` to `.gitignore` (anti-recurrence for timestamped generated backups).
 
 - feat(worktree): harvest parent-state guardrails (#733) — prevent worktree harvest when parent branch has uncommitted changes or is ahead of remote
-
-All notable changes to this project will be documented in this file.
-
-This project uses [changesets](https://github.com/changesets/changesets) and follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are aligned to [Semantic Versioning](https://semver.org/).
 
 ## [0.1.0] — 2026-05-15
 

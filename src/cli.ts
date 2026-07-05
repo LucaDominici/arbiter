@@ -399,7 +399,7 @@ process.on('exit', (code) => {
 
 const program = new Command()
 
-program.name('arbiter').description('AI development governance framework').version('0.2.0')
+program.name('arbiter').description('AI development governance framework').version('0.3.0')
 
 // #1770 (T5): public 11-command surface. Experimental commands are registered with
 // `{ hidden: true }` — fully functional, omitted from default --help. The built-in
