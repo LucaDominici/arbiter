@@ -2,10 +2,39 @@
 // Arbiter hook: block PII patterns in edited files (INV-12)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { findInlineSuppression, resolveToolInputPath } from './lib.mjs'
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
+
+// Load suppressions/pii-allowlist.json (same semantics as scripts/pii-scan.mjs's
+// isAllowed): the hook told users to add allowlist entries for fixtures but never
+// actually consulted the file (#1779/#1780) — fixed by reusing that check here.
+const ROOT = process.cwd()
+const ALLOWLIST_PATH = join(ROOT, 'suppressions', 'pii-allowlist.json')
+let allowlist = []
+if (existsSync(ALLOWLIST_PATH)) {
+  try {
+    const parsed = JSON.parse(readFileSync(ALLOWLIST_PATH, 'utf-8'))
+    if (Array.isArray(parsed)) allowlist = parsed
+  } catch {
+    // Malformed allowlist: fail closed (no entries allowed), do not weaken enforcement.
+  }
+}
+
+function isAllowlisted(filePath, lineNum, matchStr) {
+  const rel = relative(ROOT, filePath)
+  return allowlist.some((entry) => {
+    if (!entry.file && !entry.line && !entry.pattern) return false
+    // Anchored prefix match: rel must equal entry.file OR start with it — a bare
+    // substring match would let an "__tests__/" entry leak into unrelated paths.
+    if (entry.file && rel !== entry.file && !rel.startsWith(entry.file)) return false
+    if (entry.line && entry.line !== lineNum) return false
+    if (entry.pattern && !matchStr.includes(entry.pattern)) return false
+    return true
+  })
+}
 
 const SKIP_EXTENSIONS = [
   '.lock',
@@ -45,9 +74,11 @@ const findings = []
 const lines = content.split('\n')
 for (const { label, re } of PII_PATTERNS) {
   for (let i = 0; i < lines.length; i++) {
-    if (re.test(lines[i]) && !findInlineSuppression(content, i, 'INV-12')) {
-      findings.push(`  line ${i + 1} [${label}]: ${lines[i].trim().slice(0, 80)}`)
-    }
+    const m = lines[i].match(re)
+    if (!m) continue
+    if (findInlineSuppression(content, i, 'INV-12')) continue
+    if (isAllowlisted(file, i + 1, m[0])) continue
+    findings.push(`  line ${i + 1} [${label}]: ${lines[i].trim().slice(0, 80)}`)
   }
 }
 

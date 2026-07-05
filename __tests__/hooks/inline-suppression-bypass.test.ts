@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -157,6 +157,59 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
         cleanup()
       }
     })
+
+    it('ALLOWS: to-do(#NNN) format description inside a string literal (catalog.ts-style data, #1796/#1799)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        const f = join(dir, 'test.ts')
+        // Marker built by concatenation so this source file adds no countable to-do markers.
+        const word = ['TO', 'DO'].join('')
+        writeFileSync(
+          f,
+          `export const rule = { title: 'Every ${word} comment must reference a task ID: \`${word}(#NNN)\`' }\n`,
+        )
+        expect(runHook('check-no-orphan-todo.mjs', f, dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('ALLOWS: bare to-do word in prose in a non-source file (.md is outside the extension allowlist, #1778)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        const f = join(dir, 'NOTES.md')
+        const word = ['TO', 'DO'].join('')
+        writeFileSync(f, `This section lists ${word} items still open for the release.\n`)
+        expect(runHook('check-no-orphan-todo.mjs', f, dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+  })
+
+  // ── check-no-placeholders.mjs ───────────────────────────────────────────────
+  describe('check-no-placeholders.mjs', () => {
+    it('ALLOWS: [PLACEHOLDER] mentioned in prose in a .md file (extension allowlist, #1778)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        const f = join(dir, 'MILESTONES.md')
+        writeFileSync(f, 'This check flags the literal word [PLACEHOLDER] left in source.\n')
+        expect(runHook('check-no-placeholders.mjs', f, dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('BLOCKS: real PLACEHOLDER left in a .ts source file (adversarial: extension filter must not weaken enforcement)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        const f = join(dir, 'test.ts')
+        writeFileSync(f, 'const x = PLACEHOLDER;\n')
+        expect(runHook('check-no-placeholders.mjs', f, dir).status).toBe(2)
+      } finally {
+        cleanup()
+      }
+    })
   })
 
   // ── check-no-pii.mjs ────────────────────────────────────────────────────────
@@ -220,6 +273,62 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
         const f = join(dir, 'test.ts')
         writeFileSync(f, `${VALID_PII}\nconst email = "user@example.com";\n`)
         expect(runHook('check-no-pii.mjs', f, dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+
+    const ALLOWLIST_ENTRY = [
+      {
+        file: '__tests__/',
+        reason: 'Fixture emails under __tests__/ are fake test data, not real PII.',
+        owner: 'core',
+        expiresAt: '2099-01-01',
+        scope: 'pii-allowlist',
+      },
+    ]
+
+    it('ALLOWS: fixture email under a path covered by suppressions/pii-allowlist.json (#1779/#1780)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        mkdirSync(join(dir, 'suppressions'), { recursive: true })
+        writeFileSync(
+          join(dir, 'suppressions', 'pii-allowlist.json'),
+          JSON.stringify(ALLOWLIST_ENTRY),
+        )
+        mkdirSync(join(dir, '__tests__', 'integration'), { recursive: true })
+        const f = join(dir, '__tests__', 'integration', 'fixture.test.ts')
+        writeFileSync(f, 'const email = "e2e@arbiter.test";\n')
+        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('BLOCKS: PII outside the allowlisted path even with an allowlist file present (adversarial: no scope leak)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        mkdirSync(join(dir, 'suppressions'), { recursive: true })
+        writeFileSync(
+          join(dir, 'suppressions', 'pii-allowlist.json'),
+          JSON.stringify(ALLOWLIST_ENTRY),
+        )
+        mkdirSync(join(dir, 'src'), { recursive: true })
+        const f = join(dir, 'src', 'real.ts')
+        writeFileSync(f, '// contact: real.person@company.com\n')
+        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(2)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('BLOCKS: PII with no allowlist file present at all (adversarial: fail-closed)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        mkdirSync(join(dir, '__tests__'), { recursive: true })
+        const f = join(dir, '__tests__', 'no-allowlist.ts')
+        writeFileSync(f, 'const email = "e2e@arbiter.test";\n')
+        expect(runHook('check-no-pii.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
