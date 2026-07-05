@@ -191,6 +191,7 @@ const CI_COVERAGE = new Map([
   ['pipe/tee hazard', 'gate-full'],
   ['ssot core', 'gate-full'],
   ['doc links', 'gate-full'],
+  ['governance mirror sync (#1805)', 'gate-full'],
   ['doc style', 'gate-full'],
   ['claude-md lint (#1266)', 'gate-full'],
   ['doc index (#1102)', 'gate-full'],
