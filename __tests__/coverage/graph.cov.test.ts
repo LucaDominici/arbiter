@@ -260,15 +260,22 @@ describe('runGraphBuild — output override resolution branch', () => {
     expect(result.path).toBe(output)
   })
 
-  it('uses default dir when opts.dir is omitted but writes via output override', () => {
-    // Covers the `opts.dir ?? '.'` nullish branch without touching cwd files:
-    // we force the write target via output so the default dir is never written.
-    const dir = tmp('graph-default-dir-')
-    const output = join(dir, 'forced.json')
+  it(
+    'uses default dir when opts.dir is omitted but writes via output override',
+    () => {
+      // Covers the `opts.dir ?? '.'` nullish branch without touching cwd files:
+      // we force the write target via output so the default dir is never written.
+      const dir = tmp('graph-default-dir-')
+      const output = join(dir, 'forced.json')
 
-    const result = runGraphBuild({ output })
+      const result = runGraphBuild({ output })
 
-    expect(result.status).toBe('ok')
-    expect(result.path).toBe(output)
-  })
+      expect(result.status).toBe('ok')
+      expect(result.path).toBe(output)
+    },
+    // Omitting dir means the graph is built over the whole repo root (that is
+    // the branch under test) — ~32s alone on a warm dev box, brushing the
+    // global 30s testTimeout and red-ing gates on loaded machines (#1806 drive).
+    120000,
+  )
 })
