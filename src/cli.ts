@@ -401,6 +401,13 @@ const program = new Command()
 
 program.name('arbiter').description('AI development governance framework').version('0.2.0')
 
+// #1770 (T5): public 11-command surface. Experimental commands are registered with
+// `{ hidden: true }` — fully functional, omitted from default --help. The built-in
+// help command is replaced by a hidden `help [command] [--all]` so `arbiter help --all`
+// can list the hidden surface (see registration at the bottom of this file).
+program.helpCommand(false)
+program.addHelpText('after', '\nRun `arbiter help --all` for experimental commands.')
+
 // Global flags. Declared so `--help` documents them; values are consumed pre-parse above.
 program
   .option('--log-level <level>', 'Log level: error|warn|info|debug|trace (default: info)')
@@ -420,7 +427,7 @@ program
   )
 
 program
-  .command('report')
+  .command('report', { hidden: true })
   .description('Bundle a replay run for bug reports')
   .option('--run-id <id>', 'Specific run to bundle (default: most recent in ~/.arbiter/logs/)')
   .option('--auto', 'Skip editor preview; bundle all files', false)
@@ -498,7 +505,7 @@ program
 // `findings promote` re-validates each finding vs HEAD, dedups vs open issues, and files the
 // survivors as tracked issues (recorded to .arbiter/evidence so they surface in GAP.md).
 const findings = program
-  .command('findings')
+  .command('findings', { hidden: true })
   .description('Inspect and promote the incidental-finding spool (#1403)')
 
 findings
@@ -736,7 +743,7 @@ program
   })
 
 program
-  .command('tui')
+  .command('tui', { hidden: true })
   .description('Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action((opts: { dir?: string | undefined }) => {
@@ -752,7 +759,7 @@ program
   })
 
 program
-  .command('settings')
+  .command('settings', { hidden: true })
   .description('List every settable arbiter.json path with its current value (#1121)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -878,7 +885,7 @@ function parsePassSpecs(specs: readonly string[]): SubmittedPass[] | null {
 }
 
 const review = program
-  .command('review')
+  .command('review', { hidden: true })
   .description('Review artefacts (plans, code) against governance invariants')
 
 review
@@ -1050,7 +1057,7 @@ program
   )
 
 program
-  .command('doc-set')
+  .command('doc-set', { hidden: true })
   .description('Deterministic doc-set presence audit (#1428, thin wrapper over the engine)')
   .option('--check', 'Advisory mode for the downstream thin runner (exit 0 unless --strict)', false)
   .option('--strict', 'Exit 1 if any mandatory doc is missing (default: advisory)', false)
@@ -1066,7 +1073,7 @@ program
   })
 
 program
-  .command('anti-fake-green')
+  .command('anti-fake-green', { hidden: true })
   .description('Anti-fake-green guard aggregate (#1428, thin wrapper over the engine)')
   .option('--enforce', 'Promote advisory (gh-audit) findings to hard failures', false)
   .action((opts: { enforce: boolean }) => {
@@ -1075,7 +1082,7 @@ program
   })
 
 program
-  .command('close-gold-gap <gapId>')
+  .command('close-gold-gap <gapId>', { hidden: true })
   .description('Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close)')
   .option('--repo <repo>', 'Repo to audit (default: current directory)')
   .option('--stack <stack>', 'Per-stack registry selector (standards/gold-registry.<stack>.yml)')
@@ -1091,7 +1098,8 @@ program
   })
 
 const verify = program
-  .command('verify')
+  .command('validate')
+  .alias('verify')
   .description('Probe toolchain compatibility for the detected stack')
   .option('--json', 'Emit JSON report', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -1229,7 +1237,9 @@ verify
     process.exit(result.exitCode)
   })
 
-const graph = program.command('graph').description('Manage the provenance graph (#259)')
+const graph = program
+  .command('graph', { hidden: true })
+  .description('Manage the provenance graph (#259)')
 
 graph
   .command('build')
@@ -1267,7 +1277,7 @@ graph
   })
 
 program
-  .command('trace')
+  .command('trace', { hidden: true })
   .description(
     'Trace provenance from a graph node (#259) — render as json|dot|mermaid (default json)',
   )
@@ -1298,7 +1308,7 @@ program
   )
 
 program
-  .command('blame')
+  .command('blame', { hidden: true })
   .description(
     'Time-travel governance — show blame timeline for a graph node (#263). Renders as text|json|mermaid|markdown-audit (default text)',
   )
@@ -1340,7 +1350,7 @@ program
   )
 
 program
-  .command('upgrade-level')
+  .command('upgrade-level', { hidden: true })
   .description('Upgrade governance level with a grace period for new gates')
   .option('--target <level>', 'Target level (L2, L3, or L4)')
   .option('--extend', 'Extend an existing active grace period by --days (default: 30)', false)
@@ -1496,7 +1506,7 @@ doctor
   })
 
 const integrations = program
-  .command('integrations')
+  .command('integrations', { hidden: true })
   .description('Inspect agent-tool integrations (skills, plugins) detected for this project')
 
 integrations
@@ -1654,7 +1664,7 @@ task
   })
 
 program
-  .command('mark')
+  .command('mark', { hidden: true })
   .description('Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206)')
   .option('--next <action>', 'The exact next sub-step to resume on')
   .option('--last <action>', 'The sub-step just completed')
@@ -1830,7 +1840,7 @@ program
   )
 
 program
-  .command('ship-on-red')
+  .command('ship-on-red', { hidden: true })
   .description(
     'Fix-on-red engine surface (#1289): compute the next action for a red gate — ' +
       'fix (with reproduce-before-push) on the first strike, escalate to needs-human on the second',
@@ -1868,7 +1878,7 @@ program
   )
 
 const plugin = program
-  .command('plugin')
+  .command('plugin', { hidden: true })
   .description('[BETA] Manage arbiter plugins (API not yet stable)')
 
 plugin
@@ -1921,7 +1931,9 @@ plugin
     })
   })
 
-const work = program.command('work').description('Manage work units via decomposition backend')
+const work = program
+  .command('work', { hidden: true })
+  .description('Manage work units via decomposition backend')
 
 work
   .command('list')
@@ -1992,7 +2004,7 @@ work
   })
 
 program
-  .command('harness')
+  .command('harness', { hidden: true })
   .description('Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)')
   .option('--fast', 'Stop at first gate failure', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -2005,7 +2017,7 @@ program
   })
 
 program
-  .command('knowledge-map')
+  .command('knowledge-map', { hidden: true })
   .description('Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action((opts: { dir?: string }) => {
@@ -2016,7 +2028,9 @@ program
 
 // ── ci (#261) ─────────────────────────────────────────────────────────────────
 
-const ci = program.command('ci').description('Governance-aware CI planning (#261)')
+const ci = program
+  .command('ci', { hidden: true })
+  .description('Governance-aware CI planning (#261)')
 
 ci.command('plan')
   .description('Compute affected invariants and required gates from changed files')
@@ -2059,7 +2073,7 @@ ci.command('plan')
   )
 
 const agentRules = program
-  .command('agent-rules')
+  .command('agent-rules', { hidden: true })
   .description('Export or verify AI agent governance rules (#265)')
 
 agentRules
@@ -2250,7 +2264,7 @@ review
   )
 
 program
-  .command('explain [code]')
+  .command('explain [code]', { hidden: true })
   .description('Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule')
   .option('--format <format>', 'Output format: text (default) or json')
   .option('--list', 'List all known codes grouped by category')
@@ -2272,7 +2286,7 @@ function getActiveExperimentalFlags(): Record<string, boolean> {
 }
 
 const kit = program
-  .command('kit')
+  .command('kit', { hidden: true })
   .description('Cross-stack governance kit commands (requires --experimental.kit)')
 
 kit.hook('preAction', () => {
@@ -2407,7 +2421,7 @@ kit
 
 // ── feature-matrix — export Product-Truth RTM ─────────────────────────────────
 const featureMatrix = program
-  .command('feature-matrix')
+  .command('feature-matrix', { hidden: true })
   .description('Feature/RTM matrix commands (INV-112)')
 
 featureMatrix
@@ -2465,7 +2479,7 @@ function conformanceAction(opts: {
 }
 
 const conformanceCmd = program
-  .command('conformance')
+  .command('conformance', { hidden: true })
   .description('Score a project against the arbiter gold standard (#1369)')
   .option('--dir <dir>', 'Project root to evaluate (default: current directory)')
   .option('--fail-on <level>', 'Exit 1 on: fail (default) or partial (stricter)', 'fail')
@@ -2478,7 +2492,7 @@ const conformanceCmd = program
 
 // `adherence` is an alias for `conformance`
 program
-  .command('adherence')
+  .command('adherence', { hidden: true })
   .description('Alias for `conformance` — gold-pattern adherence scorecard (#1397)')
   .option('--dir <dir>', 'Project root to evaluate (default: current directory)')
   .option('--fail-on <level>', 'Exit 1 on: fail (default) or partial (stricter)', 'fail')
@@ -2491,6 +2505,42 @@ program
 
 // Suppress unused variable lint warning (conformanceCmd is registered via side effects)
 void conformanceCmd
+
+// ── help (#1770 T5) ───────────────────────────────────────────────────────────
+// Replaces the built-in help command (disabled above via program.helpCommand(false))
+// so `arbiter help --all` can list experimental (hidden) commands. Registered hidden
+// itself so the public surface stays at exactly 11 commands.
+program
+  .command('help [command]', { hidden: true })
+  .description('Display help for a command')
+  .option('--all', 'Also list experimental (hidden) commands', false)
+  .action((commandName: string | undefined, opts: { all: boolean }) => {
+    if (opts.all) {
+      const helpRenderer = program.createHelp()
+      const visibleNames = new Set(helpRenderer.visibleCommands(program).map((c) => c.name()))
+      const hidden = program.commands.filter(
+        (c) => !visibleNames.has(c.name()) && c.name() !== 'help',
+      )
+      process.stdout.write(program.helpInformation())
+      process.stdout.write('\nExperimental commands:\n')
+      const width = Math.max(...hidden.map((c) => c.name().length))
+      for (const cmd of hidden.slice().sort((a, b) => a.name().localeCompare(b.name()))) {
+        process.stdout.write(
+          `  ${cmd.name().padEnd(width + 2)}${cmd.summary() || cmd.description()}\n`,
+        )
+      }
+      return
+    }
+    if (commandName) {
+      const sub = program.commands.find(
+        (c) => c.name() === commandName || c.aliases().includes(commandName),
+      )
+      if (sub) sub.help()
+      process.stderr.write(`error: unknown command '${commandName}'\n`)
+      process.exit(1)
+    }
+    program.help()
+  })
 
 function _writeArbiterError(err: ArbiterError, prefix = 'Error'): void {
   process.stderr.write(`\n${prefix} [${err.code}]: ${err.message}\n`)

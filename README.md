@@ -111,6 +111,10 @@ Options:
   -h, --help             Show help
 ```
 
+The public surface is 11 commands: `init`, `update`, `diff`, `configure`, `doctor`, `validate`,
+`task`, `ship`, `note`, `gold-audit`, `worktree`. Experimental commands are hidden from default
+`--help` but stay fully functional — list them with `arbiter help --all`.
+
 See the [CLI Reference](website/reference/cli.md) for full option documentation and examples.
 
 ---

@@ -57,14 +57,21 @@ function parseCliTs(src) {
   const stripped = src.replace(/\/\/.*/g, '')
 
   // Find top-level commands: `program` (possibly with `const X =` assignment)
-  // followed (within ~50 chars, across potential newlines) by `.command('name')`.
+  // followed (within ~50 chars, across potential newlines) by `.command('name')`
+  // or `.command('name', { hidden: true })` (#1770 T5 — experimental surface).
   // This intentionally does NOT match `varName.command(...)` (sub-commands on variables).
-  const topLevelRe = /\bprogram\s*[\s\S]{0,50}?\.command\('([^'\n]+?)'\)/g
+  const topLevelRe =
+    /\bprogram\s*[\s\S]{0,50}?\.command\('([^'\n]+?)'(,\s*\{\s*hidden:\s*true\s*\})?\)/g
   const topLevelNames = new Set()
+  const hiddenNames = new Set()
   for (const m of stripped.matchAll(topLevelRe)) {
     // Strip argument specs (<required> [optional]) — use only the base command name.
     const baseName = m[1].trim().split(/[\s<[]/)[0]
+    // The `help` meta-command replaces commander's built-in help; it is part of
+    // the help mechanism itself (documented in prose), not a governed command.
+    if (baseName === 'help') continue
     topLevelNames.add(baseName)
+    if (m[2]) hiddenNames.add(baseName)
   }
 
   // Build per-command info: for each top-level command, find description and options.
@@ -75,7 +82,7 @@ function parseCliTs(src) {
     // Look for the `.command('name')` line, then scan forward for .description and .option calls.
     const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const blockRe = new RegExp(
-      `\\.command\\('${escapedName}(?: [^']*)?'\\)([\\s\\S]{0,2000}?)(?=\\.command\\('|const |var |let |\\bprogram\\b|$)`,
+      `\\.command\\('${escapedName}(?: [^']*)?'(?:,\\s*\\{\\s*hidden:\\s*true\\s*\\})?\\)([\\s\\S]{0,2000}?)(?=\\.command\\('|const |var |let |\\bprogram\\b|$)`,
     )
     const blockMatch = blockRe.exec(stripped)
     let description = ''
@@ -104,7 +111,9 @@ function parseCliTs(src) {
     // whose name is assigned from `program.command('name')`.
     // Use strict adjacency (`varName\s*\.command`) to avoid matching the original
     // `const varName = program\n  .command('name')` assignment as a subcommand.
-    const varRe = new RegExp(`const\\s+(\\w+)\\s*=[\\s\\S]{0,30}?\\.command\\('${escapedName}'\\)`)
+    const varRe = new RegExp(
+      `const\\s+(\\w+)\\s*=[\\s\\S]{0,30}?\\.command\\('${escapedName}'(?:,\\s*\\{\\s*hidden:\\s*true\\s*\\})?\\)`,
+    )
     const varMatch = varRe.exec(stripped)
     if (varMatch) {
       const varName = varMatch[1]
@@ -139,7 +148,13 @@ function parseCliTs(src) {
       }
     }
 
-    commands.push({ name, description, options, subcommands: subNames })
+    commands.push({
+      name,
+      description,
+      options,
+      subcommands: subNames,
+      hidden: hiddenNames.has(name),
+    })
   }
 
   return commands
@@ -152,18 +167,16 @@ function escHtml(s) {
   return s.replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-function generateRegion(commands) {
-  const lines = []
-
-  lines.push('## Command Reference')
-  lines.push('')
+function pushCommandTable(lines, commands) {
   lines.push('| Command | Description |')
   lines.push('|---------|-------------|')
   for (const cmd of commands) {
     lines.push(`| \`arbiter ${cmd.name}\` | ${escHtml(cmd.description || '—')} |`)
   }
   lines.push('')
+}
 
+function pushCommandSections(lines, commands) {
   for (const cmd of commands) {
     lines.push(`## arbiter ${cmd.name}`)
     lines.push('')
@@ -191,6 +204,32 @@ function generateRegion(commands) {
       }
       lines.push('')
     }
+  }
+}
+
+function generateRegion(commands) {
+  const lines = []
+  const publicCommands = commands.filter((c) => !c.hidden)
+  const hiddenCommands = commands.filter((c) => c.hidden)
+
+  lines.push('## Command Reference')
+  lines.push('')
+  pushCommandTable(lines, publicCommands)
+  pushCommandSections(lines, publicCommands)
+
+  // #1770 (T5): hidden commands stay documented — moved under an Experimental
+  // section, never deleted — so INV-111 doc/source parity holds for the full surface.
+  if (hiddenCommands.length > 0) {
+    lines.push('## Experimental Commands')
+    lines.push('')
+    lines.push(
+      'These commands are fully functional but hidden from the default `arbiter --help` ' +
+        'listing. They are not part of the stable public surface and may change without ' +
+        'notice. List them from the CLI with `arbiter help --all`.',
+    )
+    lines.push('')
+    pushCommandTable(lines, hiddenCommands)
+    pushCommandSections(lines, hiddenCommands)
   }
 
   // Ensure content ends with newline so END_MARKER appears on its own line.
