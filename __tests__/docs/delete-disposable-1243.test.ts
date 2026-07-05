@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // #1243 — Docs-Evo 4/5: delete the disposable tier (register §DELETE) + same-PR gate updates.
 // These tests assert the deletion result against the ACTUAL repo state: every §DELETE target is
-// gone, the INV-86 parity input (kit-canonical-mapping.json) is preserved (misclassified by the
-// register's §DELETE; flagged), INV-86 still runs green, INDEX/SSOT are regenerated without the
-// deleted paths, and no dangling doc-links remain.
+// gone, INV-86 still runs green, INDEX/SSOT are regenerated without the deleted paths, and no
+// dangling doc-links remain. The INV-86 parity input (kit-canonical-mapping.json) originally
+// lived at docs/internal/audits/ (misclassified by the register's §DELETE; flagged and kept at
+// the time) but has since been relocated to src/kit/canonical-mapping.json — runtime data that
+// ships in the npm tarball cannot live under docs/internal/**, which the tarball guard forbids
+// (#1801). docs/internal/audits/ is now empty.
 import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -69,18 +72,21 @@ describe('docs-evo #1243 — disposable tier deleted (no content loss)', () => {
     },
   )
 
-  it('leaves docs/internal/audits/ holding only the INV-86 parity input (kit-canonical-mapping.json)', () => {
-    // The audits dir survives solely for the INV-86 gate input the register §DELETE misclassified.
+  it('leaves docs/internal/audits/ empty — the INV-86 parity input has relocated to src/kit/ (#1801)', () => {
+    // The audits dir no longer holds runtime data: kit-canonical-mapping.json moved to
+    // src/kit/canonical-mapping.json so it can ship in the npm tarball (docs/internal/**
+    // is tarball-forbidden). Any survivor here would be a regression.
     const survivors = has('docs/internal/audits')
       ? readdirSync(resolve(ROOT, 'docs/internal/audits')).sort()
       : []
-    expect(survivors).toEqual(['kit-canonical-mapping.json'])
+    expect(survivors).toEqual([])
   })
 })
 
 describe('docs-evo #1243 — same-PR gate updates (no dangling reference)', () => {
-  it('preserves the live INV-86 parity input and its gate runs green', () => {
-    expect(has('docs/internal/audits/kit-canonical-mapping.json')).toBe(true)
+  it('preserves the live INV-86 parity input (now at src/kit/canonical-mapping.json) and its gate runs green', () => {
+    expect(has('docs/internal/audits/kit-canonical-mapping.json')).toBe(false)
+    expect(has('src/kit/canonical-mapping.json')).toBe(true)
     // check-kit-catalog-parity.mjs must still exit 0 (INV-86 unbroken).
     expect(() =>
       execFileSync('node', ['scripts/check-kit-catalog-parity.mjs'], { cwd: ROOT, stdio: 'pipe' }),

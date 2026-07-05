@@ -489,7 +489,7 @@ describe('computeKitValidation — parity FAIL and parity ERROR branches', () =>
       return {
         ...actual,
         readFileSync: ((p: string, enc?: unknown): string => {
-          if (typeof p === 'string' && p.endsWith('kit-canonical-mapping.json')) {
+          if (typeof p === 'string' && p.endsWith('canonical-mapping.json')) {
             return JSON.stringify(brokenMapping)
           }
           return actual.readFileSync(p, enc as BufferEncoding) as string
@@ -512,7 +512,7 @@ describe('computeKitValidation — parity FAIL and parity ERROR branches', () =>
       return {
         ...actual,
         readFileSync: ((p: string, enc?: unknown): string => {
-          if (typeof p === 'string' && p.endsWith('kit-canonical-mapping.json')) {
+          if (typeof p === 'string' && p.endsWith('canonical-mapping.json')) {
             throw new Error('mapping unreadable')
           }
           return actual.readFileSync(p, enc as BufferEncoding) as string
@@ -574,7 +574,7 @@ describe('checkEnforcement — exemption acceptance branch (mocked mapping)', ()
       return {
         ...actual,
         readFileSync: ((p: string, enc?: unknown): string => {
-          if (typeof p === 'string' && p.endsWith('kit-canonical-mapping.json')) {
+          if (typeof p === 'string' && p.endsWith('canonical-mapping.json')) {
             return JSON.stringify(mapping)
           }
           return actual.readFileSync(p, enc as BufferEncoding) as string

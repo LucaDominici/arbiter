@@ -20,14 +20,10 @@ try {
 }
 
 try {
-  const raw = JSON.parse(
-    readFileSync(resolve(root, 'docs/internal/audits/kit-canonical-mapping.json'), 'utf-8'),
-  )
+  const raw = JSON.parse(readFileSync(resolve(root, 'src/kit/canonical-mapping.json'), 'utf-8'))
   mapping = raw.dimensions
 } catch (err) {
-  process.stderr.write(
-    `[INV-86] ERROR loading docs/internal/audits/kit-canonical-mapping.json: ${err.message}\n`,
-  )
+  process.stderr.write(`[INV-86] ERROR loading src/kit/canonical-mapping.json: ${err.message}\n`)
   process.exit(2)
 }
 
@@ -48,7 +44,7 @@ if (!Array.isArray(catalog)) {
 }
 if (!Array.isArray(mapping)) {
   process.stderr.write(
-    '[INV-86] ERROR: docs/internal/audits/kit-canonical-mapping.json .dimensions is not an array\n',
+    '[INV-86] ERROR: src/kit/canonical-mapping.json .dimensions is not an array\n',
   )
   process.exit(2)
 }
@@ -167,10 +163,7 @@ function scanText(text, filename) {
 
 // Scan both files (skip $schema header line from mapping)
 const catalogText = readFileSync(resolve(root, 'src/kit/catalog.json'), 'utf-8')
-const mappingText = readFileSync(
-  resolve(root, 'docs/internal/audits/kit-canonical-mapping.json'),
-  'utf-8',
-)
+const mappingText = readFileSync(resolve(root, 'src/kit/canonical-mapping.json'), 'utf-8')
 
 scanText(catalogText, 'src/kit/catalog.json')
 // Skip the $schema header in mapping (first few lines)
@@ -179,7 +172,7 @@ const bodyStart = mappingLines.findIndex(
   (l) => !l.includes('"$schema"') && !l.includes('"source":') && !l.trim().startsWith('{'),
 )
 const mappingBody = mappingLines.slice(bodyStart).join('\n')
-scanText(mappingBody, 'docs/internal/audits/kit-canonical-mapping.json')
+scanText(mappingBody, 'src/kit/canonical-mapping.json')
 
 // ─── Report ───────────────────────────────────────────────────────────────────
 

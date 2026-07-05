@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // #1575: the `arbiter kit` family must work in a PUBLISHED install — where `src/`
-// never ships and only the `files[]` allowlist (dist/ + docs/internal/audits/kit-
-// canonical-mapping.json) is present. Earlier, kit resolved its runtime data into
-// `../../../src/kit/*.json` and the build never copied the data into `dist/kit/`, so
-// every kit subcommand threw `ENOENT` (or the gate fail-closed at severity 2) in any
-// npm/npx install. The dev checkout masked it because `src/` sits right next to dist.
+// never ships and only the `files[]` allowlist (dist/, which now carries dist/kit/
+// catalog.json, derived.json, AND canonical-mapping.json — see #1801) is present.
+// Earlier, kit resolved its runtime data into `../../../src/kit/*.json` and the
+// build never copied the data into `dist/kit/`, so every kit subcommand threw
+// `ENOENT` (or the gate fail-closed at severity 2) in any npm/npx install. The dev
+// checkout masked it because `src/` sits right next to dist.
 //
-// This test reproduces a real install: it copies ONLY the shipped surface into an
-// isolated dir that has no `src/` and no `scripts/`, then runs the compiled CLI from
-// there and asserts the kit subcommands succeed. It is the surface the bug lived on.
+// This test reproduces a real install: it copies ONLY the shipped surface (dist/)
+// into an isolated dir that has no `src/` and no `scripts/`, then runs the compiled
+// CLI from there and asserts the kit subcommands succeed. It is the surface the bug
+// lived on.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 const REPO = resolve(import.meta.dirname, '../..')
@@ -35,11 +37,10 @@ beforeAll(() => {
   const cacheBase = join(REPO, 'node_modules', '.cache')
   mkdirSync(cacheBase, { recursive: true })
   pkgRoot = mkdtempSync(join(cacheBase, 'arbiter-pkgtest-'))
-  // Copy ONLY the published surface: dist/ + the one shipped doc the CLI reads.
+  // Copy ONLY the published surface: dist/ — all kit runtime data (catalog.json,
+  // derived.json, canonical-mapping.json) is co-located under dist/kit/ by the
+  // build step, so a plain dist/ copy is the entire shipped surface (#1801).
   cpSync(DIST, join(pkgRoot, 'dist'), { recursive: true })
-  const mappingRel = 'docs/internal/audits/kit-canonical-mapping.json'
-  mkdirSync(dirname(join(pkgRoot, mappingRel)), { recursive: true })
-  cpSync(join(REPO, mappingRel), join(pkgRoot, mappingRel))
 }, 240_000)
 
 afterAll(() => {
@@ -59,6 +60,7 @@ describe('arbiter kit in a published install (no src/) — #1575', () => {
   it('ships the kit runtime data co-located with the compiled modules', () => {
     expect(existsSync(join(pkgRoot, 'dist', 'kit', 'catalog.json'))).toBe(true)
     expect(existsSync(join(pkgRoot, 'dist', 'kit', 'derived.json'))).toBe(true)
+    expect(existsSync(join(pkgRoot, 'dist', 'kit', 'canonical-mapping.json'))).toBe(true)
     // The install genuinely has no source tree — the old resolve target.
     expect(existsSync(join(pkgRoot, 'src'))).toBe(false)
   })
