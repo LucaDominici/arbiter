@@ -207,4 +207,23 @@ describe('agents-md/AGENTS.md.ejs template rendering', () => {
     expect(rust).toContain('setup-hooks.sh')
     expect(rust).not.toContain('npm install')
   })
+
+  it('renders the Iron Laws section unconditionally (universal cross-repo lessons, #1770 T12)', () => {
+    const content = renderAgentsMd()
+    expect(content).toContain('## Iron Laws')
+    expect(content).toContain('Worktree Isolation Is Mandatory For Parallel Agents')
+    expect(content).toContain('Complete Means Merged To Main')
+    expect(content).toContain('Root-Cause-First After Any Failure')
+    expect(content).toContain('Verification-Before-Victory')
+    // Must appear before the Invariants section, and outside any language/level conditional.
+    expect(content.indexOf('## Iron Laws')).toBeLessThan(content.indexOf('## Invariants'))
+  })
+
+  it('renders the Iron Laws section for every language (universal, not language-gated)', () => {
+    for (const language of ['typescript', 'java', 'rust', 'go', 'python'] as const) {
+      const content = renderAgentsMd({ language })
+      expect(content).toContain('## Iron Laws')
+      expect(content).toContain('Verification-Before-Victory')
+    }
+  })
 })
