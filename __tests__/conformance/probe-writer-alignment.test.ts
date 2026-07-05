@@ -94,13 +94,20 @@ describe('probe↔writer alignment guard (#1704) — fresh-generated project', (
   const verdicts: Record<string, Map<string, Verdict>> = {}
   const generatedDirs: Record<string, string> = {}
 
+  // #1790: this hook runs 3 REAL generator + conformance passes (~250 files + a repo
+  // walk each, per the Performance note above) — already the minimum (one generation
+  // per cell, not per-assertion); the work is irreducible without reintroducing the
+  // hand-synthesised-fixture tautology #1704 exists to guard against. Vitest's
+  // hookTimeout defaults to 10s regardless of testTimeout (30s, set above for the same
+  // CI-contention reason); under loaded CI runners (observed loadavg 60-145/24 cores)
+  // 10s is unattainable for this much real I/O, so raise it explicitly to match.
   beforeAll(() => {
     for (const arch of cells) {
       const { dir, result } = generateAndConform(arch)
       generatedDirs[arch] = dir
       verdicts[arch] = verdictMap(result)
     }
-  })
+  }, 120_000)
 
   afterAll(() => {
     for (const arch of cells) {
@@ -179,6 +186,8 @@ describe('probe↔writer alignment guard (#1699) — L1-essential NA', () => {
   const dir = mkdtempSync(join(tmpdir(), 'probe-writer-l1-'))
   let verdicts: Map<string, Verdict>
 
+  // #1790: same real-generator + conformance-walk cost as the beforeAll above,
+  // scaled down to a single cell; raise hookTimeout for the same contention reason.
   beforeAll(() => {
     const config = makeConfig(dir, {
       archetype: 'library',
@@ -193,7 +202,7 @@ describe('probe↔writer alignment guard (#1699) — L1-essential NA', () => {
     )
     runGenerators(config)
     verdicts = verdictMap(runConformance({ dir }))
-  })
+  }, 120_000)
 
   afterAll(() => {
     rmSync(dir, { recursive: true, force: true })
