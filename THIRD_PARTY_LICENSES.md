@@ -40,7 +40,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-## @emnapi/core@1.10.0
+## @emnapi/core@1.11.1
 
 - License: MIT
 - Homepage: https://github.com/toyobayashi/emnapi#readme
@@ -69,7 +69,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## @emnapi/runtime@1.10.0
+## @emnapi/runtime@1.11.1
 
 - License: MIT
 - Homepage: https://github.com/toyobayashi/emnapi#readme
@@ -98,7 +98,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## @emnapi/wasi-threads@1.2.1
+## @emnapi/wasi-threads@1.2.2
 
 - License: MIT
 - Homepage: https://github.com/toyobayashi/emnapi#readme

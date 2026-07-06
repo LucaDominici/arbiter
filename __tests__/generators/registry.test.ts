@@ -331,3 +331,29 @@ describe('runGeneratorsSelective', () => {
     expect(results[0].path).toBe('/root')
   })
 })
+
+// A1 (#1817): enableFiveLaneCi must be mutually exclusive with the standard
+// 'github'/'ci-tier' generators — a fresh repo opting into the collapsed 5-lane
+// doctrine must never end up with the union of both CI shapes.
+describe('buildRegistry — five-lane CI mutual exclusivity (#1817)', () => {
+  it('github + ci-tier are enabled, ci-five-lane is disabled by default (useGitHub true)', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { useGitHub: true }))
+    expect(specs.find((s) => s.key === 'github')?.enabled).toBe(true)
+    expect(specs.find((s) => s.key === 'ci-tier')?.enabled).toBe(true)
+    expect(specs.find((s) => s.key === 'ci-five-lane')?.enabled).toBe(false)
+  })
+
+  it('github + ci-tier are disabled, ci-five-lane is enabled when enableFiveLaneCi is true', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { useGitHub: true, enableFiveLaneCi: true }))
+    expect(specs.find((s) => s.key === 'github')?.enabled).toBe(false)
+    expect(specs.find((s) => s.key === 'ci-tier')?.enabled).toBe(false)
+    expect(specs.find((s) => s.key === 'ci-five-lane')?.enabled).toBe(true)
+  })
+
+  it('all three stay disabled when GitHub is off entirely', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { useGitHub: false, enableFiveLaneCi: true }))
+    expect(specs.find((s) => s.key === 'github')?.enabled).toBe(false)
+    expect(specs.find((s) => s.key === 'ci-tier')?.enabled).toBe(false)
+    expect(specs.find((s) => s.key === 'ci-five-lane')?.enabled).toBe(false)
+  })
+})
