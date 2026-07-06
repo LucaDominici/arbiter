@@ -2290,12 +2290,22 @@ program
   .description('Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule')
   .option('--format <format>', 'Output format: text (default) or json')
   .option('--list', 'List all known codes grouped by category')
-  .action((code: string | undefined, opts: { format?: string; list?: boolean }) => {
-    const result = runExplain(code ?? '', opts)
-    if (result.output) process.stdout.write(result.output)
-    if (result.error) process.stderr.write(result.error)
-    if (result.exitCode !== 0) process.exit(result.exitCode)
-  })
+  .option(
+    '--handoff <topic>',
+    'Scaffold HANDOFF-<TOPIC>.md from the executable-handoff template (#1817 A7)',
+  )
+  .option('--out <dir>', 'Target directory for --handoff (default: cwd)')
+  .action(
+    (
+      code: string | undefined,
+      opts: { format?: string; list?: boolean; handoff?: string; out?: string },
+    ) => {
+      const result = runExplain(code ?? '', opts)
+      if (result.output) process.stdout.write(result.output)
+      if (result.error) process.stderr.write(result.error)
+      if (result.exitCode !== 0) process.exit(result.exitCode)
+    },
+  )
 
 // ── kit — read-only kit catalog commands (--experimental.kit) ─────────────────
 
