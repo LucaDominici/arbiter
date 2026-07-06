@@ -66,6 +66,7 @@ import { generateRegulated } from './regulated.js'
 import { generateObservability } from './observability.js'
 import { generateAuth } from './auth.js'
 import { generateCiTier } from './ci-tier.js'
+import { generateCiFiveLane } from './ci-five-lane.js'
 import { generateLocalWrapper } from './local-wrapper.js'
 import { generateEnvTemplate } from './env-template.js'
 import { generateInfra } from './infra.js'
@@ -243,7 +244,10 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     {
       key: 'github',
-      enabled: config.permitGitHub ?? config.useGitHub,
+      // A1 (#1817): enableFiveLaneCi is mutually exclusive with the standard
+      // (up to 18-workflow) shape — a fresh repo opting into the collapsed
+      // 5-lane doctrine must never end up with the union of both.
+      enabled: (config.permitGitHub ?? config.useGitHub) && !config.enableFiveLaneCi,
       run: (opts) => generateGithub(config, opts).files,
     },
     {
@@ -483,8 +487,19 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'ci-tier',
-      enabled: config.permitGitHub ?? config.useGitHub,
+      // A1 (#1817): five-lane mode owns its own minimal infra; the standard
+      // notify/label-sync/setup-action bundle stays off so file count holds
+      // at exactly 4 workflows (AC: arbiter init on a fresh repo emits ≤5).
+      enabled: (config.permitGitHub ?? config.useGitHub) && !config.enableFiveLaneCi,
       run: (opts) => generateCiTier(config, opts).files,
+    },
+    {
+      // A1+A6 (#1817): collapsed 5-lane CI doctrine (pre-commit local +
+      // ci/nightly/weekly/release workflows) + shared sticky-failure-issue
+      // script. Opt-in, mutually exclusive with 'github'/'ci-tier' above.
+      key: 'ci-five-lane',
+      enabled: (config.permitGitHub ?? config.useGitHub) && config.enableFiveLaneCi === true,
+      run: (opts) => generateCiFiveLane(config, opts).files,
     },
     {
       key: 'local-wrapper',
