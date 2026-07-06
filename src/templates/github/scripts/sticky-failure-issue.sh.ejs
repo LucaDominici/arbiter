@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# A6 (#1817): sticky failure issue — one open issue per scheduled lane tracks
+# a red streak; each failed run appends a comment + counter instead of filing
+# a new issue (the anti-pattern measured on a real project: ~20 duplicate
+# auto-filed issues, zero action taken). A green run auto-closes it.
+#
+# Usage: sticky-failure-issue.sh <record|close> <lane>
+#   record  — find-or-create the sticky issue for <lane>, append a comment
+#             with the run link and an incremented failure counter.
+#   close   — close the sticky issue for <lane> (if open), commenting the
+#             run link that went green.
+#
+# Requires: GH_TOKEN (or GITHUB_TOKEN) + RUN_URL env vars, `gh` CLI on PATH.
+set -euo pipefail
+
+MODE="${1:?usage: sticky-failure-issue.sh <record|close> <lane>}"
+LANE="${2:?usage: sticky-failure-issue.sh <record|close> <lane>}"
+RUN_URL="${RUN_URL:?RUN_URL env var required}"
+
+TITLE="chore(${LANE}): pipeline red"
+
+find_open_issue() {
+  gh issue list --search "\"${TITLE}\" in:title" --state open \
+    --json number,title --jq ".[] | select(.title == \"${TITLE}\") | .number" | head -1
+}
+
+case "$MODE" in
+  record)
+    ISSUE_NUMBER=$(find_open_issue)
+
+    if [[ -z "$ISSUE_NUMBER" ]]; then
+      BODY_TEXT=$(printf '## %s pipeline red\n\nSticky tracking issue for %s failures. Stays open while %s is red; each failed run appends a comment below with the run link and a failure counter. Auto-closed on the next green run.\n\n**First failure:** %s\n**Run:** %s\n' \
+        "$LANE" "$LANE" "$LANE" "$(date -u +%Y-%m-%d)" "$RUN_URL")
+      ISSUE_URL=$(gh issue create --title "$TITLE" --label "type:chore,scope:ci,status:ready" --body "$BODY_TEXT")
+      ISSUE_NUMBER="${ISSUE_URL##*/}"
+      echo "Created sticky issue #${ISSUE_NUMBER} for lane ${LANE}"
+    else
+      echo "Found existing sticky issue #${ISSUE_NUMBER} for lane ${LANE}"
+    fi
+
+    COUNT=$(gh issue view "$ISSUE_NUMBER" --json comments \
+      --jq '[.comments[].body | select(test("^Run: "))] | length')
+    COUNT=$((COUNT + 1))
+    COMMENT_BODY=$(printf 'Run: %s\nFailure #%s on this red streak (%s).' "$RUN_URL" "$COUNT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+    gh issue comment "$ISSUE_NUMBER" --body "$COMMENT_BODY"
+    ;;
+  close)
+    ISSUE_NUMBER=$(find_open_issue)
+    if [[ -n "$ISSUE_NUMBER" ]]; then
+      gh issue close "$ISSUE_NUMBER" --comment "${LANE} green again: ${RUN_URL}"
+      echo "Closed sticky issue #${ISSUE_NUMBER} for lane ${LANE}"
+    else
+      echo "No open sticky issue for lane ${LANE} to close"
+    fi
+    ;;
+  *)
+    echo "Unknown mode: $MODE (expected 'record' or 'close')" >&2
+    exit 1
+    ;;
+esac
