@@ -38,7 +38,7 @@ rest of the wave.
 2. **One cumulative plan** → `.claude/plans/wave-N.md`, a manifest per group (files,
    invariants, TDD units, conflict risks). Each agent anchors its `arbiter task` to its
    group's section (CANON-16, `pre-edit-plan-anchor`).
-3. **One plan review** — `arbiter review plan` on the cumulative plan + a tier-Standard
+3. **One plan review** — plan review on the cumulative plan + a tier-Standard
    red-team. CRITICAL → rework (max 2 cycles) → else GO for the whole wave.
 4. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`), 4–6
    in parallel. Worktrees run **light checks only** (targeted `vitest` + lint); the full

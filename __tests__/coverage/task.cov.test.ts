@@ -28,7 +28,6 @@ import {
   decideClearStrategy,
   buildHandoffBanner,
   HandoffRequiredError,
-  BudgetBreachError,
   type Runner,
 } from '../../src/commands/task.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
@@ -361,11 +360,11 @@ describe('checkPlanReviewGate (advance --to red)', () => {
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
-  it('gate enabled, no plan-review evidence → throws with "run `arbiter review plan`"', () => {
+  it('gate enabled, no plan-review evidence → throws with "no plan-review evidence"', () => {
     const dir = tmpRepo()
     enableGate(dir)
     seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/plan-review gate.*review plan/s)
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/plan-review gate.*no plan-review evidence/s)
   })
 
   it('gate enabled, verdict PASS → advance proceeds', () => {
@@ -626,9 +625,9 @@ describe('runTaskAdvance structural guards', () => {
   })
 })
 
-// ─── handoff gate + budget (model switch + post-clear) ──────────────────────────────────────────
+// ─── handoff gate (model switch + post-clear) ────────────────────────────────────────────────────
 
-describe('handoff + budget branches (advance --to red)', () => {
+describe('handoff branches (advance --to red)', () => {
   async function withModelSwitch(transcriptPath: string | null = null): Promise<void> {
     const { detectHostCapabilities } = vi.mocked(
       await import('../../src/capabilities/host-probe.js'),
@@ -679,67 +678,11 @@ describe('handoff + budget branches (advance --to red)', () => {
     expect(readUnifiedState(dir)?.postClearResumed).toBe(stamp)
   })
 
-  it('post-clear with no taskId in state → descriptive throw, no cost/unknown.json', () => {
+  it('post-clear with no taskId in state → descriptive throw', () => {
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
     const dir = tmpRepo()
     seed(dir, { phase: 'red-team-review', planningHandoffReady: '2026-05-18T10:00:00.000Z' })
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/taskId|unknown\.json/)
-  })
-
-  it('post-clear over budget → BudgetBreachError, phase un-advanced', async () => {
-    await withModelSwitch()
-    vi.stubEnv('ARBITER_POST_CLEAR', '1')
-    const dir = tmpRepo()
-    seed(dir, { taskId: '#703', phase: 'red-team-review', planningHandoffReady: '2026-05-18T10:00:00.000Z' })
-    const costDir = join(dir, '.arbiter', 'evidence', 'cost')
-    mkdirSync(costDir, { recursive: true })
-    writeFileSync(
-      join(costDir, '#703.json'),
-      JSON.stringify({
-        taskId: '#703',
-        byPhase: { red: { in: 999_999, out: 1_000, samples: 1 } },
-        totals: { in: 999_999, out: 1_000, samples: 1 },
-      }),
-      'utf-8',
-    )
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(BudgetBreachError)
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
-  })
-
-  it('post-clear with non-ENOENT cost-read error (cost path is a directory) → rethrows wrapped error', async () => {
-    await withModelSwitch()
-    vi.stubEnv('ARBITER_POST_CLEAR', '1')
-    const dir = tmpRepo()
-    // postClearCostRecorded set → recordPlanningCostOnce is a no-op, so control reaches
-    // runBudgetCheck which reads the cost file. Making that path a directory yields EISDIR
-    // (a non-ENOENT error → the wrapped-rethrow branch in runBudgetCheck).
-    seed(dir, {
-      taskId: '#703',
-      phase: 'red-team-review',
-      planningHandoffReady: '2026-05-18T10:00:00.000Z',
-      postClearCostRecorded: '2026-05-18T10:30:00.000Z',
-    })
-    const costFileAsDir = join(dir, '.arbiter', 'evidence', 'cost', '#703.json')
-    mkdirSync(costFileAsDir, { recursive: true })
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/unexpected error reading cost evidence/)
-  })
-
-  it('post-clear + ARBITER_COST_BUDGET_SKIP=1 → budget check skipped, advances', async () => {
-    await withModelSwitch()
-    vi.stubEnv('ARBITER_POST_CLEAR', '1')
-    vi.stubEnv('ARBITER_COST_BUDGET_SKIP', '1')
-    const dir = tmpRepo()
-    seed(dir, { taskId: '#703', phase: 'red-team-review', planningHandoffReady: '2026-05-18T10:00:00.000Z' })
-    // Over-budget evidence present, but skip env short-circuits before reading it.
-    const costDir = join(dir, '.arbiter', 'evidence', 'cost')
-    mkdirSync(costDir, { recursive: true })
-    writeFileSync(
-      join(costDir, '#703.json'),
-      JSON.stringify({ totals: { in: 999_999, out: 1, samples: 1 }, byPhase: {} }),
-      'utf-8',
-    )
-    runTaskAdvance({ to: 'red', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red')
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/taskId/)
   })
 
   it('non-planning current → red (refactor → red, reverse) does NOT trigger the handoff gate', async () => {

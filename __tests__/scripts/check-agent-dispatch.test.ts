@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // #1267 — agent-dispatch-verify gate. The gate replays the ACTUAL derivation
-// (matrix tier->verticals vs src/sizing/sizing.ts::sizeVerticals mirror, plus
-// structural validation) and asserts the declared oracle matches. A planted
+// (matrix tier->verticals vs src/commands/task-ship.ts::verticalsForTier mirror,
+// plus structural validation) and asserts the declared oracle matches. A planted
 // mismatch MUST make it exit non-zero (AC4 — catch a dispatch mismatch).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { spawnSync } from 'node:child_process'
@@ -56,9 +56,9 @@ describe('check-agent-dispatch — catches a planted mismatch (AC4)', () => {
     if (tmp && existsSync(tmp)) rmSync(tmp, { recursive: true })
   })
 
-  it('exits non-zero when the matrix tier->verticals is mutated to disagree with the sizing mirror', () => {
+  it('exits non-zero when the matrix tier->verticals is mutated to disagree with the task-ship mirror', () => {
     // Plant a mismatch: drop 'security' from the Standard tier floor so the matrix
-    // disagrees with src/sizing/sizing.ts::sizeVerticals('Standard').
+    // disagrees with src/commands/task-ship.ts::verticalsForTier('Standard').
     const m = JSON.parse(readFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), 'utf-8'))
     m.tier_verticals.Standard = m.tier_verticals.Standard.filter((v: string) => v !== 'security')
     writeFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), JSON.stringify(m, null, 2))
@@ -70,26 +70,6 @@ describe('check-agent-dispatch — catches a planted mismatch (AC4)', () => {
     })
     expect(r.status).not.toBe(0)
     expect(`${r.stdout}${r.stderr}`).toMatch(/mismatch|drift|security|Standard/i)
-  })
-
-  it('exits non-zero when review_pass_count drifts from tier-constants.ts (#1662)', () => {
-    // Start from a clean matrix (a sibling case may have mutated tmp) and plant
-    // ONLY a pass-count mismatch: bump plan.Standard so the matrix disagrees with
-    // src/review/tier-constants.ts::TIER_PASS_COUNT.Standard.
-    cpSync(MATRIX, join(tmp, '.claude/agent-dispatch-matrix.json'))
-    const m = JSON.parse(readFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), 'utf-8'))
-    m.review_pass_count.plan.Standard = m.review_pass_count.plan.Standard + 1
-    writeFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), JSON.stringify(m, null, 2))
-
-    const r = spawnSync(process.execPath, [SCRIPT, '--matrix-root', tmp], {
-      encoding: 'utf-8',
-      cwd: REPO_ROOT,
-      env: { ...process.env, NO_COLOR: '1' },
-    })
-    // Restore so later cases in this block see the clean matrix.
-    cpSync(MATRIX, join(tmp, '.claude/agent-dispatch-matrix.json'))
-    expect(r.status).not.toBe(0)
-    expect(`${r.stdout}${r.stderr}`).toMatch(/review_pass_count|TIER_PASS_COUNT|drift/i)
   })
 
   it('exits non-zero (fail-loud) when the matrix file is absent', () => {

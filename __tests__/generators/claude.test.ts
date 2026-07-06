@@ -269,18 +269,6 @@ describe('generateClaude', () => {
     expect(dispatcherContent).toContain('stop-evidence-guard.mjs')
   })
 
-  describe('review-code.md SSOT (#236, BLOCKER-10)', () => {
-    it('renders TIER_REVIEWER_COUNT values literally — no template drift', async () => {
-      generateClaude(makeConfig(dir))
-      const content = readFileSync(join(dir, '.claude', 'commands', 'review-code.md'), 'utf-8')
-      const { TIER_REVIEWER_COUNT } = await import('../../src/review/tier-constants.js')
-      // The rendered table must contain each tier's SSOT count.
-      expect(content).toMatch(new RegExp(`\\| XS\\s+\\| ${TIER_REVIEWER_COUNT.XS} \\|`))
-      expect(content).toMatch(new RegExp(`\\| S\\s+\\| ${TIER_REVIEWER_COUNT.S} \\|`))
-      expect(content).toMatch(new RegExp(`\\| Standard \\| ${TIER_REVIEWER_COUNT.Standard} \\|`))
-    })
-  })
-
   describe('command template drift guard (#236)', () => {
     it('every .ejs in src/templates/claude/commands/ is materialized', () => {
       generateClaude(makeConfig(dir))
@@ -301,11 +289,6 @@ describe('generateClaude', () => {
           expect(templates).toContain(m)
         }
       }
-    })
-
-    it('review-code.md is materialized (regression: #236 wiring)', () => {
-      generateClaude(makeConfig(dir))
-      expect(existsSync(join(dir, '.claude', 'commands', 'review-code.md'))).toBe(true)
     })
   })
 

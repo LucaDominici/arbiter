@@ -63,19 +63,9 @@ describe('docs/REFERENCE/api.md — environment variables section (#807)', () =>
     expect(content).toContain('ARBITER_SKIP_PLAN_REVIEW')
   })
 
-  it('documents ARBITER_PLAN_REVIEW_OPTIONAL', () => {
-    if (!content) content = readFileSync(API_MD_PATH, 'utf8')
-    expect(content).toContain('ARBITER_PLAN_REVIEW_OPTIONAL')
-  })
-
   it('documents ARBITER_PLAN_BYPASS', () => {
     if (!content) content = readFileSync(API_MD_PATH, 'utf8')
     expect(content).toContain('ARBITER_PLAN_BYPASS')
-  })
-
-  it('documents ARBITER_COST_BUDGET_SKIP', () => {
-    if (!content) content = readFileSync(API_MD_PATH, 'utf8')
-    expect(content).toContain('ARBITER_COST_BUDGET_SKIP')
   })
 
   it('documents ARBITER_POST_CLEAR', () => {

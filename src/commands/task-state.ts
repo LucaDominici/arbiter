@@ -107,11 +107,6 @@ export interface UnifiedTaskState {
   handoffReady: boolean
   planningHandoffReady?: string
   postClearResumed?: string
-  /** ISO timestamp set after the planning transcript window is recorded for the budget gate.
-   *  Separate from postClearResumed so the budget check can re-run on retry without re-counting
-   *  the transcript cost. Set BEFORE runBudgetCheck (safe failure direction: under-count is worse
-   *  than over-count for a budget gate). See #1208. */
-  postClearCostRecorded?: string
   runId: string
   timestamps: Record<string, string>
   gateDecisions: string[]

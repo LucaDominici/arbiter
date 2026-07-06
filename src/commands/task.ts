@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeFileTranslated } from '../utils/fs.js'
-import { sanitizeTaskId } from '../review/dispatch.js'
+import { sanitizeTaskId } from '../utils/task-id.js'
 import { getBoolFlag } from '../config/env-registry.js'
 import {
   type TaskPhase,
@@ -21,21 +21,11 @@ import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
 import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
 import { detectHostCapabilities } from '../capabilities/host-probe.js'
-import { assertImplBudget } from '../cost/budget.js'
-import { recordPhaseCost } from '../cost/recorder.js'
-import { readTranscriptCosts } from '../cost/transcript-reader.js'
 
 export class HandoffRequiredError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'HandoffRequiredError'
-  }
-}
-
-export class BudgetBreachError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'BudgetBreachError'
   }
 }
 
@@ -52,8 +42,6 @@ export interface TaskAdvanceOptions {
   skipPlanReview?: boolean
   /** Signal that this invocation is post-/clear (equivalent to ARBITER_POST_CLEAR=1). */
   postClear?: boolean
-  /** Skip the budget assertion on post-clear re-entry (writes warning). */
-  skipBudget?: boolean
   /** Caller-supplied implementation unit count; drives the clear-strategy decision.
    *  When absent, falls back to the tier's conservative default (→ 'stop'). */
   units?: number
@@ -302,7 +290,7 @@ function requirePlanReviewPass(opts: RequirePlanReviewPassOptions): RequirePlanR
   if (!existsSync(latestPath)) {
     return {
       ok: false,
-      reason: `no plan-review evidence at ${latestPath} — run \`arbiter review plan\` first`,
+      reason: `no plan-review evidence at ${latestPath} — record a PASS verdict there first`,
     }
   }
   let parsed: LatestJson
@@ -322,7 +310,7 @@ function requirePlanReviewPass(opts: RequirePlanReviewPassOptions): RequirePlanR
     if (got !== parsed.planDigest) {
       return {
         ok: false,
-        reason: 'plan changed since last review — re-run `arbiter review plan`',
+        reason: 'plan changed since last review — re-review and update latest.json',
       }
     }
   }
@@ -501,37 +489,6 @@ function checkTddEvidenceGate(dir: string, claudeDir: string): void {
   void claudeDir
 }
 
-function runBudgetCheck(rawId: string, dir: string, opts: TaskAdvanceOptions): void {
-  const skipBudget = opts.skipBudget === true || getBoolFlag('ARBITER_COST_BUDGET_SKIP')
-  if (skipBudget) return
-  const costEvidencePath = join(dir, '.arbiter', 'evidence', 'cost', `${rawId}.json`)
-  try {
-    const report = JSON.parse(readFileSync(costEvidencePath, 'utf-8')) as Parameters<
-      typeof assertImplBudget
-    >[0]
-    const budgetResult = assertImplBudget(report)
-    if (!budgetResult.ok) {
-      throw new BudgetBreachError(
-        budgetResult.reason ??
-          'Budget assertion failed. Use ARBITER_COST_BUDGET_SKIP=1 to override.',
-      )
-    }
-    if (budgetResult.reason) {
-      process.stderr.write(`[arbiter] ${budgetResult.reason}\n`)
-    }
-  } catch (err) {
-    if (err instanceof BudgetBreachError) throw err
-    const code = (err as NodeJS.ErrnoException).code
-    if (code !== 'ENOENT') {
-      throw new Error(
-        `runBudgetCheck: unexpected error reading cost evidence at ${costEvidencePath}: ${err instanceof Error ? err.message : String(err)}`,
-        { cause: err },
-      )
-    }
-    process.stderr.write('[arbiter] warn: cost evidence not found — budget assertion skipped\n')
-  }
-}
-
 // ─── Clear-strategy decision (#1209) ─────────────────────────────────────────────────────────────
 
 /** Max units that fit comfortably in-context without a /clear. */
@@ -594,36 +551,11 @@ export function buildHandoffBanner({
     ``,
     continueHint,
     ``,
-    `Flag: --post-clear signals the re-entry to the budget gate.`,
+    `Flag: --post-clear signals post-/clear re-entry (marks task state resumed).`,
   ].join('\n')
 }
 
-/** Record the planning transcript window into the cost evidence file exactly once (#1208).
- *  The postClearCostRecorded marker guards against double-counting when runBudgetCheck throws
- *  on a budget breach and the caller retries. Marker written AFTER recordPhaseCost: if we
- *  crash between the two writes the worst outcome is a re-count (false breach, recoverable via
- *  ARBITER_COST_BUDGET_SKIP=1) rather than a missed count (false pass). */
-function recordPlanningCostOnce(
-  taskId: string,
-  existing: Partial<UnifiedTaskState>,
-  dir: string,
-): void {
-  if (existing.postClearCostRecorded !== undefined) return
-  const caps = detectHostCapabilities()
-  const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
-  const costs = caps.transcriptPath
-    ? readTranscriptCosts(caps.transcriptPath, sinceISO)
-    : { input: 0, output: 0, samples: 0 }
-  recordPhaseCost(
-    taskId,
-    'red',
-    { in: costs.input, out: costs.output, samples: costs.samples },
-    dir,
-  )
-  writeUnifiedState(dir, { postClearCostRecorded: new Date().toISOString() })
-}
-
-function handlePostClearReEntry(rawId: string, dir: string, opts: TaskAdvanceOptions): void {
+function handlePostClearReEntry(rawId: string, dir: string): void {
   const existing: Partial<UnifiedTaskState> = readUnifiedState(dir) ?? {}
 
   // Fast path: already fully resumed — this call is a no-op.
@@ -634,16 +566,13 @@ function handlePostClearReEntry(rawId: string, dir: string, opts: TaskAdvanceOpt
   const taskId = existing.taskId || (rawId !== 'unknown' ? rawId : undefined)
   if (!taskId) {
     throw new Error(
-      `Post-clear re-entry: task state has no taskId — refusing to record cost under unknown.json. ` +
+      `Post-clear re-entry: task state has no taskId. ` +
         `Re-initialize the task with \`arbiter task init --id #NNN\` before resuming. ` +
         `(rawId="${rawId}", existing.taskId="${existing.taskId ?? ''}")`,
     )
   }
 
-  recordPlanningCostOnce(taskId, existing, dir)
-  runBudgetCheck(taskId, dir, opts)
-  // Metadata only — never the phase. runTaskAdvance writes phase:'red' AFTER this returns,
-  // which is what keeps the `current !== to` budget-gate trigger load-bearing (C1, #1206).
+  // Metadata only — never the phase. runTaskAdvance writes phase:'red' AFTER this returns.
   writeUnifiedState(dir, { postClearResumed: new Date().toISOString() })
 }
 
@@ -654,7 +583,7 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
   const isPostClear = opts.postClear === true || getBoolFlag('ARBITER_POST_CLEAR')
 
   if (isPostClear) {
-    handlePostClearReEntry(rawId, dir, opts)
+    handlePostClearReEntry(rawId, dir)
     return
   }
 

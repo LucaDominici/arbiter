@@ -166,21 +166,20 @@ the legacy files migrates it transparently (seed + delete) on first access.
 }
 ```
 
-| Field                   | Description                                                                                                                                         |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `taskId`                | Active task id (was `.task-id`)                                                                                                                     |
-| `phase`                 | Current lifecycle phase — authoritative, single writer (was `.task-phase`)                                                                          |
-| `tier`                  | Task tier XS/S/Standard (was `.task-tier`)                                                                                                          |
-| `plan`                  | Repo-relative path to the plan file (was `.task-plan`)                                                                                              |
-| `cursor`                | Step-cursor written by `arbiter mark` — drives pinpoint resume                                                                                      |
-| `handoffStrategy`       | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy                                                                           |
-| `handoffReady`          | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)                                                                               |
-| `planningHandoffReady`  | ISO timestamp when the interactive handoff gate was triggered                                                                                       |
-| `postClearCostRecorded` | ISO timestamp set after the planning transcript window is recorded once (#1208); guards against double-counting on retry if `runBudgetCheck` throws |
-| `postClearResumed`      | ISO timestamp set after a successful post-clear re-entry (budget gate passed)                                                                       |
-| `timestamps`            | ISO timestamps per phase entered (accumulated across sessions)                                                                                      |
-| `runId`                 | `<pid>-<epoch-ms>` — unique per process invocation                                                                                                  |
-| `gateDecisions`         | Gate pass/fail records                                                                                                                              |
+| Field                  | Description                                                                |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `taskId`               | Active task id (was `.task-id`)                                            |
+| `phase`                | Current lifecycle phase — authoritative, single writer (was `.task-phase`) |
+| `tier`                 | Task tier XS/S/Standard (was `.task-tier`)                                 |
+| `plan`                 | Repo-relative path to the plan file (was `.task-plan`)                     |
+| `cursor`               | Step-cursor written by `arbiter mark` — drives pinpoint resume             |
+| `handoffStrategy`      | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy  |
+| `handoffReady`         | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)      |
+| `planningHandoffReady` | ISO timestamp when the interactive handoff gate was triggered              |
+| `postClearResumed`     | ISO timestamp set after a successful post-clear re-entry                   |
+| `timestamps`           | ISO timestamps per phase entered (accumulated across sessions)             |
+| `runId`                | `<pid>-<epoch-ms>` — unique per process invocation                         |
+| `gateDecisions`        | Gate pass/fail records                                                     |
 
 Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
 update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file

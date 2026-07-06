@@ -92,25 +92,12 @@ retroactively — legacy marker is the bypass signal.
 
 ## Plan Review Gate (#695)
 
-Every plan ready for implementation must pass an N-pass review:
-
-```bash
-arbiter review plan --file .claude/plans/<slug>.md
-```
-
-The tier is auto-detected from `.claude/.task-tier`. Pass count by tier:
-
-| Tier       | Passes per cycle | Source value         |
-| ---------- | ---------------- | -------------------- |
-| `XS`       | 1                | `XS` or no tier file |
-| `S`        | 3                | `S`                  |
-| `Standard` | 5                | `M`, `L`, `Standard` |
-
-Each pass runs `claude -p <prompt>` and records `pass-<N>.json` under
-`.arbiter/evidence/plan-review/<sanitized-id>/run-<ts>/`. The final verdict + plan SHA-256
-digest is written to `<sanitized-id>/latest.json`. Up to **2 revise cycles** are allowed
-when the aggregator returns WARN; if all cycles still WARN, the verdict becomes FAIL
-(`reason: max revisions exceeded`).
+Every plan ready for implementation must pass review before `arbiter task advance` will
+move it into implementation. The gate itself is tool-agnostic: it only reads a
+`latest.json` verdict file — how that file gets produced (a reviewing agent, a project's
+own review script, a human) is deliberately not `arbiter`'s concern (A8: guidance, not
+review machinery). The final verdict + plan SHA-256 digest belongs at
+`.arbiter/evidence/plan-review/<sanitized-id>/latest.json`.
 
 ### Gate enforcement
 
@@ -144,37 +131,3 @@ user name (never email — INV-12 PII), and timestamp, and emits a `WARNING` to 
 
 Under `CI=true` the env-var bypass is **refused**: only the explicit `--skip-plan-review`
 flag works. This keeps unattended bypass out of pipelines.
-
-### Claude CLI missing
-
-When `claude` is not on `PATH`, each pass returns `verdict: ERROR` and the final verdict
-is FAIL with reason `claude CLI required for plan-review`. Set
-`ARBITER_PLAN_REVIEW_OPTIONAL=1` to convert ERROR → PASS (SKIPPED) for unattended
-environments where plan-review is not feasible.
-
-### Agent-agnostic review (hosted agent / Codex / any model) (#1329)
-
-When the orchestrating agent is itself a capable model but is **not** Claude Code (a hosted
-agent session, Codex, etc.), it can serve as the reviewer directly — no `claude` CLI, no
-SKIPPED degrade. The flow is a two-step emit/submit handshake that writes the **same**
-evidence the dispatch path does, so the gate finalises unchanged:
-
-```bash
-# 1. Emit the per-pass reviewer prompts (one per TIER_PASS_COUNT pass) and exit.
-arbiter review plan .claude/plans/<slug>.md --emit-prompts .arbiter/review-prompts \
-  --tier S
-# → writes pass-1.txt … pass-N.txt + manifest.json; NO latest.json yet.
-
-# 2. The agent reviews each emitted prompt itself, then records its verdicts.
-arbiter review submit .claude/plans/<slug>.md --tier S --reviewer agent-harness \
-  --pass 1:PASS --pass 2:PASS --pass 3:PASS \
-  --manifest .arbiter/review-prompts/manifest.json
-# → folds verdicts (all PASS → PASS, any FAIL → FAIL) and writes latest.json
-#   with source:"submit" + reviewer provenance. The gate then unblocks exactly
-#   as for the claude path.
-```
-
-The `--manifest` cross-check rejects a submit whose plan SHA-256 differs from the emitted
-prompts (a plan edited after emit must be re-emitted). Provenance (`reviewer`, `source`) is
-recorded in `latest.json` and each `pass-<N>.json`, keeping the trail auditable — this is a
-tool-agnostic _path_, not a bypass.

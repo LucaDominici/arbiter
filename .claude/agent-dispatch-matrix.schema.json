@@ -4,13 +4,7 @@
   "title": "Agent Dispatch Matrix (#1267)",
   "description": "Deterministic agent-dispatch oracle: (tier x track x review_mode x pr_type) -> required agents/verticals.",
   "type": "object",
-  "required": [
-    "axes",
-    "tier_verticals",
-    "review_pass_count",
-    "track_modifiers",
-    "pr_type_modifiers"
-  ],
+  "required": ["axes", "tier_verticals", "track_modifiers", "pr_type_modifiers"],
   "properties": {
     "$schema": { "type": "string" },
     "_doc": { "type": "string" },
@@ -28,13 +22,6 @@
     "tier_verticals": {
       "type": "object",
       "additionalProperties": { "type": "array", "items": { "type": "string" } }
-    },
-    "review_pass_count": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": { "type": "integer", "minimum": 0 }
-      }
     },
     "track_modifiers": {
       "type": "object",

@@ -4,8 +4,6 @@ import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, mergeSettingsJson, resolvedPath } from '../utils/fs.js'
 import { DEFAULT_TASK_TIERS } from '../config/schema.js'
-import { TIER_REVIEWER_COUNT, type ReviewTier } from '../review/tier-constants.js'
-import { AGENT_PERSONAS } from '../review/multi-agent.js'
 import { resolveCollaborationAxes } from '../config/collaboration-mode-defaults.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -20,27 +18,18 @@ export interface ClaudeGeneratorResult {
  * We inject SSOT-derived data here so templates never duplicate magic
  * numbers (#235, #236, #237):
  *   - `taskTiers`       → resolved from config or DEFAULT_TASK_TIERS
- *   - `reviewerCount`   → from TIER_REVIEWER_COUNT (review-code SSOT)
- *   - `personasForTier` → AGENT_PERSONAS filtered per tier, for prompt rendering
  *   - `collaborationMode`, `mergeMode`, `worktreeMode`, `branchingStrategy`,
  *     `pipelineStyle`   → from resolveCollaborationAxes (ADR-051 §#1119, wires
  *     the previously dead resolveDefaultMergeMode/resolveDefaultWorktreeMode)
  */
 function buildRenderContext(config: ProjectConfig): Record<string, unknown> {
   const taskTiers = config.taskTiers ?? DEFAULT_TASK_TIERS
-  const personasForTier: Record<ReviewTier, readonly string[]> = {
-    XS: AGENT_PERSONAS.filter((p) => p.tiers.includes('XS')).map((p) => p.name),
-    S: AGENT_PERSONAS.filter((p) => p.tiers.includes('S')).map((p) => p.name),
-    Standard: AGENT_PERSONAS.filter((p) => p.tiers.includes('Standard')).map((p) => p.name),
-  }
   // Resolve the full axis bundle. Explicit spreads beat ...config so the resolved
   // values are always present even if config fields are absent (legacy projects).
   const axes = resolveCollaborationAxes(config)
   return {
     ...config,
     taskTiers,
-    reviewerCount: TIER_REVIEWER_COUNT,
-    personasForTier,
     ...axes,
   }
 }
@@ -381,8 +370,6 @@ function generateClaudeCommands(
     'wt-close.md',
     'wt-list.md',
     'wt-prune.md',
-    'review-plan.md',
-    'review-code.md',
     'close-gold-gap.md',
     'levelup.md',
   ]

@@ -38,7 +38,6 @@ import {
   type ShipProfile,
 } from '../../src/commands/ship-profile.js'
 import { writeUnifiedState } from '../../src/commands/task-state.js'
-import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
 
 let dir: string
 
@@ -53,11 +52,6 @@ afterEach(() => {
 /** Build a full ShipProfile from the consumer default with explicit overrides. */
 function profile(overrides: Partial<ShipProfile> = {}): ShipProfile {
   return { ...CONSUMER_DEFAULT_PROFILE, ...overrides }
-}
-
-/** A concrete ResolvedSize for the line-builder (pure; no git). */
-function size(): ResolvedSize {
-  return { tier: 'Standard', verticals: ['security', 'correctness'], source: 'default' }
 }
 
 describe('shipStepFor — normTier + per-phase bodies', () => {
@@ -198,7 +192,7 @@ describe('buildShipStepLines branch matrix', () => {
   }
 
   it('marks (done), prints Command + Review agents, and omits the self-only header for a consumer', () => {
-    const lines = buildShipStepLines(resultFor('red-team-review', profile(), false), size())
+    const lines = buildShipStepLines(resultFor('red-team-review', profile(), false), 'Standard')
     expect(lines.some((l) => l.startsWith('Phase: red-team-review'))).toBe(true)
     expect(lines.some((l) => l.startsWith('Command:'))).toBe(false) // red-team-review has none
     expect(lines.some((l) => l.startsWith('Review agents: 3'))).toBe(true)
@@ -206,39 +200,39 @@ describe('buildShipStepLines branch matrix', () => {
   })
 
   it('prints the Command line when a phase carries a command', () => {
-    const lines = buildShipStepLines(resultFor('preflight', profile(), false), size())
+    const lines = buildShipStepLines(resultFor('preflight', profile(), false), 'Standard')
     expect(lines.some((l) => l.startsWith('Command: arbiter task init'))).toBe(true)
   })
 
   it('appends " (done)" and prints the self-only header for an arbiter-self verification', () => {
     const prof = profile({ isArbiterSelf: true })
-    const lines = buildShipStepLines(resultFor('verification', prof, true), size())
+    const lines = buildShipStepLines(resultFor('verification', prof, true), 'Standard')
     expect(lines[0]).toBe('Phase: verification (done)')
     expect(lines.some((l) => l.startsWith('Self-only checks: template-authoring'))).toBe(true)
   })
 
   it('omits the Review-agents line for a zero-review phase (green)', () => {
-    const lines = buildShipStepLines(resultFor('green', profile(), false), size())
+    const lines = buildShipStepLines(resultFor('green', profile(), false), 'Standard')
     expect(lines.some((l) => l.startsWith('Review agents:'))).toBe(false)
   })
 
   it('emits the autonomy STOP gate on complete when autonomy denies auto-merge (L0)', () => {
-    const lines = buildShipStepLines(resultFor('complete', profile({ autonomy: 'L0' }), false), size())
+    const lines = buildShipStepLines(resultFor('complete', profile({ autonomy: 'L0' }), false), 'Standard')
     expect(lines.some((l) => l.includes('Autonomy gate: STOP'))).toBe(true)
   })
 
   it('omits the autonomy STOP gate on complete when autonomy permits auto-merge (L1)', () => {
-    const lines = buildShipStepLines(resultFor('complete', profile({ autonomy: 'L1' }), false), size())
+    const lines = buildShipStepLines(resultFor('complete', profile({ autonomy: 'L1' }), false), 'Standard')
     expect(lines.some((l) => l.includes('Autonomy gate: STOP'))).toBe(false)
   })
 
   it('never shows the autonomy STOP gate off the complete phase, even at L0', () => {
-    const lines = buildShipStepLines(resultFor('plan', profile({ autonomy: 'L0' }), false), size())
+    const lines = buildShipStepLines(resultFor('plan', profile({ autonomy: 'L0' }), false), 'Standard')
     expect(lines.some((l) => l.includes('Autonomy gate: STOP'))).toBe(false)
   })
 
   it('always emits Governance + Autonomy lines', () => {
-    const lines = buildShipStepLines(resultFor('plan', profile(), false), size())
+    const lines = buildShipStepLines(resultFor('plan', profile(), false), 'Standard')
     expect(lines.some((l) => l.startsWith('Governance: '))).toBe(true)
     expect(lines.some((l) => l.startsWith('Autonomy: '))).toBe(true)
   })

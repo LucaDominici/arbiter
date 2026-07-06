@@ -20,8 +20,6 @@ import {
   appendLog,
 } from './task-state.js'
 import { runTaskAdvance } from './task.js'
-import { sizeVerticals } from '../sizing/sizing.js'
-import { formatSizeLines, type ResolvedSize } from '../sizing/diff-signals.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
 import {
   autonomyAllows,
@@ -85,6 +83,22 @@ function normTier(tier: string | undefined): ShipTier {
   return 'Standard'
 }
 
+/**
+ * #1260's orthogonal vertical FLOOR, inlined (A8 — guidance, not machinery; the git-diff
+ * auto-tiering `arbiter.sizing` subsystem it used to live in was pruned as 2025-era
+ * machinery). Real `auditor-routing.json` auditor names, in stable widening order: XS is the
+ * always-on triad, S adds test-quality, Standard adds the heavy verticals.
+ */
+const FLOOR_XS = ['bugs', 'type-safety', 'domain'] as const
+const FLOOR_S_ADD = ['test-quality'] as const
+const FLOOR_STD_ADD = ['security', 'data-integrity', 'silent-failures'] as const
+
+export function verticalsForTier(tier: ShipTier): string[] {
+  if (tier === 'XS') return [...FLOOR_XS]
+  if (tier === 'S') return [...FLOOR_XS, ...FLOOR_S_ADD]
+  return [...FLOOR_XS, ...FLOOR_S_ADD, ...FLOOR_STD_ADD]
+}
+
 export interface ShipStep {
   phase: TaskPhase
   /** What the agent must do while in this phase. */
@@ -121,7 +135,7 @@ export function shipStepFor(
   profile: ShipProfile = CONSUMER_DEFAULT_PROFILE,
 ): ShipStep {
   const t = normTier(tier)
-  const verticals = sizeVerticals(t)
+  const verticals = verticalsForTier(t)
   const withVerticals = (step: Omit<ShipStep, 'verticals'>): ShipStep => ({ ...step, verticals })
   return withVerticals(shipStepBody(phase, t, profile))
 }
@@ -325,11 +339,10 @@ export interface TaskShipOptions {
   overrides?: Record<string, string>
   /** Advance to the next phase first (runs that phase's gate; throws if the gate is red). */
   advance?: boolean
-  /** Bubble handoff/budget control-flow to the caller instead of being swallowed. */
+  /** Bubble handoff control-flow to the caller instead of being swallowed. */
   advanceOpts?: {
     skipPlanReview?: boolean
     postClear?: boolean
-    skipBudget?: boolean
     units?: number
   }
   /** Test seam for evidence emission without depending on local HOME/plugin state. */
@@ -351,17 +364,17 @@ export interface ShipResult {
 
 /**
  * Build the human-readable step-output lines for a ship invocation, including the
- * #1260 size summary (tier + source + vertical breadth). Kept here (not inline in the
- * CLI action) so the action stays simple and the formatting is unit-testable.
+ * #1260 tier + vertical-breadth summary. Kept here (not inline in the CLI action) so the
+ * action stays simple and the formatting is unit-testable.
  */
-export function buildShipStepLines(result: ShipResult, size: ResolvedSize): string[] {
+export function buildShipStepLines(result: ShipResult, tier: string): string[] {
   const lines = [
     `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
     `Action: ${result.step.action}`,
   ]
   if (result.step.command) lines.push(`Command: ${result.step.command}`)
   if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
-  lines.push(...formatSizeLines(size))
+  lines.push(`Tier: ${tier} · verticals: ${result.step.verticals.join(', ')}`)
   // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
   // consumer of the field, so the read is honest and not dead config).
   lines.push(`Governance: ${result.profile.governanceLevel}`)
