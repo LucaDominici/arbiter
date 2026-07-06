@@ -62,11 +62,24 @@ describe('probeE2eQuarantine (#1817, A3)', () => {
     expect(entry.evidence).toHaveProperty('file')
   })
 
+  it('NA evidence references the E2E constitution (#1817, A4 — installable standard)', () => {
+    const root = tmpRoot()
+    const entry = probeE2eQuarantine(root)
+    expect((entry.evidence as { detail: string }).detail).toContain('E2E_CONSTITUTION.md')
+  })
+
   it('Y when all entries are complete and unexpired (entries-wrapped form)', () => {
     const root = tmpRoot()
     writeRegistry(root, { entries: [validEntry()] })
     const entry = probeE2eQuarantine(root)
     expect(entry.verdict).toBe('Y')
+  })
+
+  it('Y evidence references the E2E constitution (#1817, A4 — installable standard)', () => {
+    const root = tmpRoot()
+    writeRegistry(root, { entries: [validEntry()] })
+    const entry = probeE2eQuarantine(root)
+    expect((entry.evidence as { detail: string }).detail).toContain('E2E_CONSTITUTION.md')
   })
 
   it('Y when all entries are complete and unexpired (bare-array form)', () => {

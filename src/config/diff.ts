@@ -38,6 +38,7 @@ export type GeneratorKey =
   | 'behavioral-tests'
   | 'playwright-python'
   | 'playwright-ts'
+  | 'e2e-constitution'
   | 'ssot'
   | 'githooks'
   | 'ship-driver'
