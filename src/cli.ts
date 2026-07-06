@@ -112,6 +112,9 @@ import {
   runKitValidate,
   runKitGenerate,
   enforceKitGate,
+  runKitCheckFlyway,
+  runKitCheckTestTaxonomy,
+  runKitCheckTokenHygiene,
 } from './commands/kit.js'
 import type { KitListFormat, KitListFilter } from './commands/kit.js'
 import type { Stack } from './kit/schema.js'
@@ -2416,6 +2419,81 @@ kit
         process.stderr.write(`[kit install] ${result.error ?? 'unknown error'}\n`)
         process.exit(1)
       }
+    },
+  )
+
+// ── A9/A10 (#1817) — opt-in java/fe checks, not part of the install pipeline ──
+
+kit
+  .command('check-flyway')
+  .description(
+    'A9 (opt-in): validate Flyway migrations — naming, destructive-DDL, idempotency, dual-set parity',
+  )
+  .requiredOption('--dir <dir>', 'Primary migration set directory (e.g. db/migration)')
+  .option('--secondary-dir <dir>', 'Secondary dialect migration set directory, for dual-set parity')
+  .action((opts: { dir: string; secondaryDir?: string }) => {
+    runKitCheckFlyway({
+      dir: opts.dir,
+      ...(opts.secondaryDir !== undefined && { secondaryDir: opts.secondaryDir }),
+    })
+  })
+
+kit
+  .command('check-test-taxonomy')
+  .description(
+    'A9 (opt-in): enforce @Tag("unit")/@Tag("integration") test taxonomy (zero untagged tests)',
+  )
+  .requiredOption('--dir <dir>', 'Java test source directory (e.g. src/test/java)')
+  .option('--required-tags <tags>', 'Comma-separated list of required tags', 'unit,integration')
+  .action((opts: { dir: string; requiredTags: string }) => {
+    runKitCheckTestTaxonomy({
+      dir: opts.dir,
+      requiredTags: opts.requiredTags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+    })
+  })
+
+kit
+  .command('check-token-hygiene')
+  .description(
+    'A10 (opt-in): frontend token-hygiene check — semantic tokens only, with baseline + ratchet',
+  )
+  .requiredOption('--dirs <dirs>', 'Comma-separated list of source directories to scan')
+  .option('--extensions <exts>', 'Comma-separated file extensions to scan', '.vue')
+  .option(
+    '--allowed-color-names <names>',
+    'Comma-separated semantic color names allowed with a shade suffix',
+  )
+  .option('--forbid-style-blocks', 'Fail on any <style> block found in scanned files', false)
+  .option('--baseline-path <path>', 'Path to the grandfathered-violations baseline JSON file')
+  .action(
+    (opts: {
+      dirs: string
+      extensions: string
+      allowedColorNames?: string
+      forbidStyleBlocks: boolean
+      baselinePath?: string
+    }) => {
+      runKitCheckTokenHygiene({
+        dirs: opts.dirs
+          .split(',')
+          .map((d) => d.trim())
+          .filter(Boolean),
+        extensions: opts.extensions
+          .split(',')
+          .map((e) => e.trim())
+          .filter(Boolean),
+        ...(opts.allowedColorNames !== undefined && {
+          allowedColorNames: opts.allowedColorNames
+            .split(',')
+            .map((c) => c.trim())
+            .filter(Boolean),
+        }),
+        forbidStyleBlocks: opts.forbidStyleBlocks,
+        ...(opts.baselinePath !== undefined && { baselinePath: opts.baselinePath }),
+      })
     },
   )
 
