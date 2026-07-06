@@ -119,17 +119,17 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:341                                                               | medium   |
 | .arbiter/e2e/quarantine.json                                 | AGENTS.md:342                                                               | medium   |
 | expires                                                      | AGENTS.md:342                                                               | medium   |
-| required                                                     | AGENTS.md:359                                                               | medium   |
-| n/a                                                          | AGENTS.md:359                                                               | medium   |
-| src/templates/scripts/check-test-pyramid.mjs.ejs             | AGENTS.md:359                                                               | medium   |
-| src/generators/test-pyramid-manifest.ts                      | AGENTS.md:359                                                               | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:367                                                               | medium   |
-| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:371                                                               | medium   |
-| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:375                                                               | medium   |
-| unknown                                                      | AGENTS.md:384                                                               | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update`          | Tighte — AGENTS.md:487                                                      | medium   |
-| debt-baseline.json                                           | AGENTS.md:493                                                               | medium   |
-| --update                                                     | AGENTS.md:493                                                               | medium   |
+| required                                                     | AGENTS.md:360                                                               | medium   |
+| n/a                                                          | AGENTS.md:360                                                               | medium   |
+| src/templates/scripts/check-test-pyramid.mjs.ejs             | AGENTS.md:360                                                               | medium   |
+| src/generators/test-pyramid-manifest.ts                      | AGENTS.md:360                                                               | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:368                                                               | medium   |
+| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:372                                                               | medium   |
+| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:376                                                               | medium   |
+| unknown                                                      | AGENTS.md:385                                                               | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update`          | Tighte — AGENTS.md:488                                                      | medium   |
+| debt-baseline.json                                           | AGENTS.md:494                                                               | medium   |
+| --update                                                     | AGENTS.md:494                                                               | medium   |
 | scripts/check-constraint-scan.mjs                            | docs/internal/SYSTEM/CANON.md:160                                           | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must | docs/internal/SYSTEM/CANON.md:252                                           | medium   |
 | **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314                                           | medium   |

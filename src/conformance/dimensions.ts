@@ -951,3 +951,109 @@ export function probeFindingHygiene(root: string): DimensionEntry {
     },
   }
 }
+
+// ─── DISC-e2e-quarantine (#1817, A3 — Viafera-patterns handoff) ───────────────
+const E2E_QUARANTINE_ID = 'DISC-e2e-quarantine'
+const E2E_QUARANTINE_TITLE = 'E2E quarantine registry has no expired entries'
+const E2E_QUARANTINE_PATH = '.arbiter/e2e/quarantine.json'
+const QUARANTINE_REQUIRED_FIELDS = [
+  'id',
+  'fingerprint',
+  'reason',
+  'owner',
+  'added',
+  'expires',
+  'issue',
+]
+
+function quarantineEntries(registry: unknown): unknown[] | null {
+  if (Array.isArray(registry)) return registry as unknown[]
+  if (
+    registry !== null &&
+    typeof registry === 'object' &&
+    Array.isArray((registry as Record<string, unknown>)['entries'])
+  ) {
+    return (registry as Record<string, unknown>)['entries'] as unknown[]
+  }
+  return null
+}
+
+function findExpiredOrInvalid(entries: unknown[], now: number): string | null {
+  for (const [idx, e] of entries.entries()) {
+    if (e === null || typeof e !== 'object') return `entry[${idx}]: not an object`
+    const rec = e as Record<string, unknown>
+    const rawId = rec['id']
+    const rawFp = rec['fingerprint']
+    const label =
+      typeof rawId === 'string' && rawId
+        ? rawId
+        : typeof rawFp === 'string' && rawFp
+          ? rawFp
+          : `entry[${idx}]`
+    for (const f of QUARANTINE_REQUIRED_FIELDS) {
+      if (rec[f] === undefined || rec[f] === null || rec[f] === '') {
+        return `${label}: missing required field '${f}'`
+      }
+    }
+    const expMs = new Date(rec['expires'] as string).getTime()
+    if (Number.isNaN(expMs)) return `${label}: 'expires' is not a valid date`
+    if (expMs < now) return `${label}: quarantine expired on ${String(rec['expires'])}`
+  }
+  return null
+}
+
+/**
+ * DISC-e2e-quarantine (#1817, A3): the E2E quarantine registry (INV-130) must not
+ * ROT. A quarantine annotates a known-unstable test with an owner, a linked issue, and
+ * a TTL — it never suppresses. Verdict semantics mirror the check-e2e-quarantine.mjs
+ * gate exactly (same fail-closed rules), surfaced here as a conformance dimension so
+ * an expired or malformed registry fails `arbiter conformance`, not just CI's own gate:
+ *   - registry absent                        → NA (vacuous pass, INV-130 self-SKIP parity)
+ *   - present, all entries complete+unexpired → Y
+ *   - malformed JSON / wrong shape / any entry expired or missing a required field → N
+ */
+export function probeE2eQuarantine(root: string): DimensionEntry {
+  const base = { id: E2E_QUARANTINE_ID, title: E2E_QUARANTINE_TITLE, ...DISC_T1 }
+  const abs = safeResolve(root, E2E_QUARANTINE_PATH)
+  if (abs === null || !fileExists(abs)) {
+    return {
+      ...base,
+      verdict: 'NA',
+      evidence: {
+        file: E2E_QUARANTINE_PATH,
+        detail: 'no quarantine registry — vacuous pass (INV-130)',
+      },
+    }
+  }
+  const parsed = readJson(abs)
+  if (parsed === null) {
+    return {
+      ...base,
+      verdict: 'N',
+      evidence: { file: E2E_QUARANTINE_PATH, detail: 'registry present but not valid JSON' },
+    }
+  }
+  const entries = quarantineEntries(parsed)
+  if (entries === null) {
+    return {
+      ...base,
+      verdict: 'N',
+      evidence: {
+        file: E2E_QUARANTINE_PATH,
+        detail: 'registry must be an array or { entries: [...] }',
+      },
+    }
+  }
+  const problem = findExpiredOrInvalid(entries, Date.now())
+  if (problem !== null) {
+    return { ...base, verdict: 'N', evidence: { file: E2E_QUARANTINE_PATH, detail: problem } }
+  }
+  return {
+    ...base,
+    verdict: 'Y',
+    evidence: {
+      file: E2E_QUARANTINE_PATH,
+      detail: `${entries.length} quarantine entry(ies), all complete and unexpired`,
+    },
+  }
+}

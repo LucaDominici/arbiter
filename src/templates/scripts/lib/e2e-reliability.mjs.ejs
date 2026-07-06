@@ -96,13 +96,20 @@ export function classify(failure, opts = {}) {
 // after a retry is a FLAKE; an all-INFRA failure short-circuits to INFRA (retrying a
 // dead environment is pointless); an exhausted ladder is a REGRESSION. A runner that
 // throws is fail-closed to REGRESSION — never an implicit pass.
+//
+// A3 (#1817): `opts.tier === 'smoke'` forces the ladder down to a single ['initial']
+// attempt — @smoke tier gets zero retries, full stop. This overrides any caller-supplied
+// `opts.scopes`: retries hide races, and the smoke tier exists specifically to catch
+// them, so the zero-retry rule is not something a caller can opt out of.
 export function retryLadder(runAttempt, opts = {}) {
   const quarantined =
     opts.quarantined instanceof Set ? opts.quarantined : new Set(opts.quarantined || [])
   const ladder =
-    Array.isArray(opts.scopes) && opts.scopes.length
-      ? opts.scopes
-      : ['initial', 'single-test', 'spec']
+    opts.tier === 'smoke'
+      ? ['initial']
+      : Array.isArray(opts.scopes) && opts.scopes.length
+        ? opts.scopes
+        : ['initial', 'single-test', 'spec']
   const attempts = []
   let residual = []
   for (let i = 0; i < ladder.length; i++) {

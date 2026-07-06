@@ -636,4 +636,44 @@ describe('conformance (#1369)', () => {
     expect(result).toHaveProperty('dimensions')
     expect(result).toHaveProperty('exitCode')
   })
+
+  // ── A3 (#1817): literal handoff AC — an expired quarantine entry fails conformance ──
+  it('A3: includes DISC-e2e-quarantine and reports it NA with no registry', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+
+    const result = runConformance({ dir })
+    const ids = result.dimensions.map((d) => d.id)
+    expect(ids).toContain('DISC-e2e-quarantine')
+    const dim = result.dimensions.find((d) => d.id === 'DISC-e2e-quarantine')
+    expect(dim?.verdict).toBe('NA')
+  })
+
+  it('A3 AC: a repo with an EXPIRED quarantine entry fails arbiter conformance', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+    mkdirSync(join(dir, '.arbiter', 'e2e'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'e2e', 'quarantine.json'),
+      JSON.stringify({
+        entries: [
+          {
+            id: 'flaky-checkout-redirect',
+            fingerprint: 'fp_0123456789abcdef',
+            reason: 'intermittent redirect race under load',
+            owner: 'team-payments',
+            added: '2026-01-01',
+            expires: '2000-01-01', // expired
+            issue: '#9999',
+          },
+        ],
+      }),
+    )
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'DISC-e2e-quarantine')
+    expect(dim?.verdict).toBe('N')
+    expect(result.status).toBe('fail')
+    expect(result.exitCode).toBe(1)
+  })
 })
