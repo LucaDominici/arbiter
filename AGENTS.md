@@ -83,6 +83,18 @@ dominant agent failure mode: of observed real agent errors, the majority (5 of 8
 were claims of success without the change ever having been exercised. Review
 layers do not prevent this; only verification does.
 
+### Model-Pyramid: 90/10 Guidance (Not Machinery)
+
+Rule of thumb, validated empirically on real projects (`HANDOFF-VIAFERA-PATTERNS-2026-07.md`,
+pattern A8): roughly 90% of implementation work belongs on a cheap, fast model executing
+a plan someone already worked out; the remaining 10% — root-cause analysis, architecture
+decisions, plan review — is where an expensive model earns its cost. If the expensive
+model spends its turn executing rather than judging, the plan handed to it was the
+actual defect, not the model tier. This is guidance for human or orchestrator judgment
+about model selection, not a runtime feature: arbiter does not measure, select, or gate
+on model tier at any pipeline stage — the tier-assignment machinery this replaces stays
+deprecated, not reintroduced.
+
 ---
 
 ## Invariants
