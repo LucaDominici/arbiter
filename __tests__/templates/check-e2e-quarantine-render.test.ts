@@ -138,6 +138,45 @@ describe('scripts/lib/e2e-reliability.mjs.ejs — reliability library (#1445)', 
     ).toBe('REGRESSION')
   })
 
+  // ── A3 (#1817): @smoke tier = 0 retries, non-bypassable ──────────────────────
+  it('retryLadder: tier "smoke" truncates the ladder to a single attempt on failure', () => {
+    let calls = 0
+    const result = lib.retryLadder(
+      () => {
+        calls++
+        return { passed: false, failures: [{ message: 'expected 1 to equal 2' }] }
+      },
+      { tier: 'smoke', scopes: ['initial', 'single-test', 'spec'] },
+    )
+    expect(calls).toBe(1)
+    expect(result.attempts.length).toBe(1)
+    expect(result.verdict).toBe('REGRESSION')
+  })
+
+  it('retryLadder: tier "smoke" still PASSes on a clean first attempt (no retry needed)', () => {
+    let calls = 0
+    const result = lib.retryLadder(
+      () => {
+        calls++
+        return { passed: true }
+      },
+      { tier: 'smoke', scopes: ['initial', 'single-test', 'spec'] },
+    )
+    expect(calls).toBe(1)
+    expect(result.attempts.length).toBe(1)
+    expect(result.verdict).toBe('PASS')
+  })
+
+  it('retryLadder: tier "smoke" ignores caller-supplied multi-scope opts.scopes (non-bypassable)', () => {
+    const result = lib.retryLadder(() => ({ passed: false, failures: [{ message: 'ETIMEDOUT' }] }), {
+      tier: 'smoke',
+      scopes: ['initial', 'single-test', 'spec', 'full-suite'],
+    })
+    expect(result.attempts.length).toBe(1)
+    // classification still applies on the single attempt (INFRA short-circuit, not a bypass of classify)
+    expect(result.verdict).toBe('INFRA')
+  })
+
   it('exposes the quarantine field contract', () => {
     expect(lib.QUARANTINE_REQUIRED_FIELDS).toEqual(
       expect.arrayContaining(['id', 'fingerprint', 'reason', 'owner', 'added', 'expires', 'issue']),
