@@ -1002,6 +1002,10 @@ function findExpiredOrInvalid(entries: unknown[], now: number): string | null {
   return null
 }
 
+/** #1817 (A4): the installable E2E determinism standard this dimension partially enforces. */
+const E2E_CONSTITUTION_REF =
+  'See docs/GOVERNANCE/E2E_CONSTITUTION.md for the full E2E determinism rule set (#1817, A4).'
+
 /**
  * DISC-e2e-quarantine (#1817, A3): the E2E quarantine registry (INV-130) must not
  * ROT. A quarantine annotates a known-unstable test with an owner, a linked issue, and
@@ -1011,6 +1015,9 @@ function findExpiredOrInvalid(entries: unknown[], now: number): string | null {
  *   - registry absent                        → NA (vacuous pass, INV-130 self-SKIP parity)
  *   - present, all entries complete+unexpired → Y
  *   - malformed JSON / wrong shape / any entry expired or missing a required field → N
+ * NA/Y evidence points to E2E_CONSTITUTION.md (#1817, A4) — the rule 7/8 lineage this
+ * probe mechanically enforces is rules 7 (zero-retry smoke) and 8 (quarantine TTL) of
+ * that installable standard.
  */
 export function probeE2eQuarantine(root: string): DimensionEntry {
   const base = { id: E2E_QUARANTINE_ID, title: E2E_QUARANTINE_TITLE, ...DISC_T1 }
@@ -1021,7 +1028,7 @@ export function probeE2eQuarantine(root: string): DimensionEntry {
       verdict: 'NA',
       evidence: {
         file: E2E_QUARANTINE_PATH,
-        detail: 'no quarantine registry — vacuous pass (INV-130)',
+        detail: `no quarantine registry — vacuous pass (INV-130). ${E2E_CONSTITUTION_REF}`,
       },
     }
   }
@@ -1053,7 +1060,7 @@ export function probeE2eQuarantine(root: string): DimensionEntry {
     verdict: 'Y',
     evidence: {
       file: E2E_QUARANTINE_PATH,
-      detail: `${entries.length} quarantine entry(ies), all complete and unexpired`,
+      detail: `${entries.length} quarantine entry(ies), all complete and unexpired. ${E2E_CONSTITUTION_REF}`,
     },
   }
 }
