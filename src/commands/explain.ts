@@ -1,16 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0
-import { join, resolve } from 'node:path'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { INVARIANT_CATALOG } from '../invariants/catalog.js'
 import { ERROR_CATALOG } from '../utils/error-catalog.js'
 import { loadCanonEntries } from '../utils/canon-loader.js'
+import { writeFileTranslated } from '../utils/fs.js'
+import { slugifyProjectName } from './init.js'
 
 const DOCS_ROOT = resolve(fileURLToPath(import.meta.url), '../../..', 'docs')
 const CANON_MD_PATH = join(DOCS_ROOT, 'internal/SYSTEM/CANON.md')
+// Mirrors src/utils/render.ts's TEMPLATES_DIR: one level up from this file's own dir
+// resolves to src/templates in dev and dist/templates in the built package (the build
+// step copies src/templates -> dist/templates verbatim), unlike DOCS_ROOT above whose
+// `docs/` lives at the true repo root in both modes.
+const TEMPLATES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates')
+const HANDOFF_TEMPLATE_PATH = join(TEMPLATES_DIR, 'HANDOFF.template.md')
 
 export interface ExplainOptions {
   format?: string
   list?: boolean
+  /** #1817 (A7): topic for `arbiter explain --handoff <topic>` scaffold. */
+  handoff?: string
+  /** Target directory for the scaffolded handoff file. Defaults to cwd. */
+  out?: string
 }
 
 /**
@@ -66,6 +79,8 @@ export interface ExplainResult {
 }
 
 export function runExplain(code: string, opts: ExplainOptions): ExplainResult {
+  if (opts.handoff !== undefined) return scaffoldHandoff(opts.handoff, opts.out)
+
   if (opts.list) return listAll(opts.format)
 
   if (!code) {
@@ -99,6 +114,54 @@ export function runExplain(code: string, opts: ExplainOptions): ExplainResult {
     exitCode: 1,
     output: '',
     error: `Unknown code: ${code}\nRun \`arbiter explain --list\` to see all known codes.\n`,
+  }
+}
+
+/**
+ * #1817 (A7) — executable-handoff standard. The cheapest durable memory across
+ * sessions/models is a file a COLD model can execute without re-derivation: context,
+ * evidence pointers, atomic ordered tasks, an AC + verification command per task, and
+ * a suggested model tier. Reference implementations: `HANDOFF-VIAFERA-PATTERNS-2026-07.md`
+ * (arbiter repo root) and the gold-rebaseline plan it was distilled from.
+ *
+ * `arbiter explain --handoff <topic>` scaffolds `HANDOFF-<SLUG>.md` from
+ * `src/templates/HANDOFF.template.md` into `--out` (defaults to cwd). Never overwrites
+ * an existing file for the same topic — same "customizable, arbiter leaves edits alone"
+ * contract as the generator `skipIfExists` convention (A4/#1817), kept here as a plain
+ * fs check since this scaffold is deliberately outside the generator/registry pipeline.
+ */
+function scaffoldHandoff(topic: string, outDir: string | undefined): ExplainResult {
+  if (!topic.trim()) {
+    return {
+      exitCode: 1,
+      output: '',
+      error: 'Usage: arbiter explain --handoff <topic>\n',
+    }
+  }
+
+  const slug = slugifyProjectName(topic).toUpperCase()
+  const targetDir = outDir ?? process.cwd()
+  const filePath = join(targetDir, `HANDOFF-${slug}.md`)
+
+  if (existsSync(filePath)) {
+    return {
+      exitCode: 0,
+      output: `${filePath} already exists — not overwritten (edit it directly).\n`,
+      error: '',
+    }
+  }
+
+  const template = readFileSync(HANDOFF_TEMPLATE_PATH, 'utf-8')
+  const date = new Date().toISOString().slice(0, 10)
+  const content = template.replaceAll('{{TOPIC}}', topic).replaceAll('{{DATE}}', date)
+
+  mkdirSync(targetDir, { recursive: true })
+  writeFileTranslated(filePath, content)
+
+  return {
+    exitCode: 0,
+    output: `Scaffolded ${filePath}\n`,
+    error: '',
   }
 }
 
