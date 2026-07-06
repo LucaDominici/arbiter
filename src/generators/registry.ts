@@ -44,6 +44,7 @@ import { generateAntiDriftValidators } from './anti-drift-validators.js'
 import { generateBehavioralTests } from './behavioral-tests.js'
 import { generatePlaywrightPython } from './playwright-python.js'
 import { generatePlaywrightTs } from './playwright-ts.js'
+import { generateE2eConstitution } from './e2e-constitution.js'
 import { generateGithooks } from './githooks.js'
 import { generateShipDriver } from './ship-driver.js'
 import { generateGithubSetup } from './github-setup.js'
@@ -548,6 +549,13 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
         (config.language === 'typescript' || config.language === 'multi') &&
         (config.archetype === 'frontend-spa' || config.archetype === BACKEND_WEB_DB),
       run: (opts) => generatePlaywrightTs(config, opts).files,
+    },
+    {
+      // #1817 (A4): installable E2E constitution — same applicability as the two
+      // playwright-* entries above combined, independent of language (stack-agnostic).
+      key: 'e2e-constitution',
+      enabled: config.archetype === 'frontend-spa' || config.archetype === BACKEND_WEB_DB,
+      run: (opts) => generateE2eConstitution(config, opts).files,
     },
     { key: 'ssot', enabled: true, run: (opts) => generateSsot(config, opts).files },
     {
