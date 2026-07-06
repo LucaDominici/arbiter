@@ -22,6 +22,7 @@ import {
   runDoctorHealth,
   runDoctorRecoverLock,
   runDoctorClean,
+  runDoctorProveGates,
 } from './commands/doctor.js'
 import { runIntegrationsList } from './commands/integrations.js'
 import { runReviewCode, runReviewPlan, runReviewSubmit } from './commands/review.js'
@@ -1424,33 +1425,51 @@ const doctor = program
     false,
   )
   .option('--interactive', 'Guided health check with one-key repair on a TTY (#1168)', false)
-  .action((opts: { dir?: string; json: boolean; repair: boolean; interactive: boolean }) => {
-    if (opts.interactive && !opts.json && process.stdin.isTTY) {
-      void import('./commands/doctor-interactive.js')
-        .then(({ runInteractiveDoctor }) =>
-          runInteractiveDoctor({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }),
-        )
+  .option(
+    '--prove-gates',
+    'Run negative proofs for every tier-1 conformance gate; report any gate that does not bite (#1817, A5)',
+    false,
+  )
+  .action(
+    (opts: {
+      dir?: string
+      json: boolean
+      repair: boolean
+      interactive: boolean
+      proveGates: boolean
+    }) => {
+      if (opts.proveGates) {
+        const result = runDoctorProveGates({ json: opts.json })
+        if (result.exitCode !== 0) process.exit(result.exitCode)
+        return
+      }
+      if (opts.interactive && !opts.json && process.stdin.isTTY) {
+        void import('./commands/doctor-interactive.js')
+          .then(({ runInteractiveDoctor }) =>
+            runInteractiveDoctor({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }),
+          )
+          .catch((err: unknown) => {
+            process.stderr.write(`  Error: ${err instanceof Error ? err.message : String(err)}\n`)
+            process.exit(1)
+          })
+        return
+      }
+      runDoctorHealth({
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        json: opts.json,
+        repair: opts.repair,
+        ...(_channelFlag !== undefined ? { channelFlag: _channelFlag } : {}),
+      })
+        .then((result) => {
+          if (result.exitCode !== 0) process.exit(result.exitCode)
+        })
         .catch((err: unknown) => {
-          process.stderr.write(`  Error: ${err instanceof Error ? err.message : String(err)}\n`)
+          const msg = err instanceof Error ? err.message : String(err)
+          process.stderr.write(`  Error: ${msg}\n`)
           process.exit(1)
         })
-      return
-    }
-    runDoctorHealth({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      json: opts.json,
-      repair: opts.repair,
-      ...(_channelFlag !== undefined ? { channelFlag: _channelFlag } : {}),
-    })
-      .then((result) => {
-        if (result.exitCode !== 0) process.exit(result.exitCode)
-      })
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err)
-        process.stderr.write(`  Error: ${msg}\n`)
-        process.exit(1)
-      })
-  })
+    },
+  )
 
 doctor
   .command('repair-state')
