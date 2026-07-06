@@ -25,9 +25,6 @@ vi.mock('../../src/wizard/github.js', () => ({
 vi.mock('../../src/plugins/loader.js', () => ({
   runPlugins: vi.fn().mockResolvedValue([]),
 }))
-vi.mock('../../src/decomposition/backend.js', () => ({
-  runBackendSetup: vi.fn().mockReturnValue({ warnings: [] }),
-}))
 vi.mock('../../src/utils/run-cli.js', () => ({
   runCli: vi.fn().mockReturnValue({ exitCode: 0, stdout: '', stderr: '' }),
 }))

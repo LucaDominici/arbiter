@@ -17,7 +17,6 @@ import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-sta
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
-import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
 
 // Gates that would otherwise require a real repo / model switch
 vi.mock('../../src/capabilities/host-probe.js', () => ({
@@ -336,11 +335,7 @@ describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead co
 })
 
 describe('buildShipStepLines — honest self-only + governance render (#1288 RT-06/08)', () => {
-  const size: ResolvedSize = {
-    tier: 'Standard',
-    verticals: ['bugs', 'type-safety', 'domain'],
-    source: 'default',
-  }
+  const size = 'Standard'
   const resultFor = (p: ShipProfile): ShipResult => ({
     phase: 'verification',
     step: shipStepFor('verification', 'Standard', p),
@@ -372,7 +367,7 @@ describe('buildShipStepLines — honest self-only + governance render (#1288 RT-
 // #1730 — /ship composes with active companion plugins (green-phase instruction) and announces
 // them (Companion: line). Absent ⇒ byte-identical to a companion-free ship.
 describe('ship companion composition (#1730)', () => {
-  const size: ResolvedSize = { tier: 'Standard', verticals: ['bugs'], source: 'default' }
+  const size = 'Standard'
   const testCompanion = {
     id: 'ponytail:ponytail',
     label: 'ponytail',

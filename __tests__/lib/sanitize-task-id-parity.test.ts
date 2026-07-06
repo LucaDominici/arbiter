@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
-import { sanitizeTaskId as srcSanitize } from '../../src/review/dispatch.js'
+import { sanitizeTaskId as srcSanitize } from '../../src/utils/task-id.js'
 // Hook lib is plain JS module; importable via ESM relative path
 import { sanitizeTaskId as hookSanitize } from '../../.claude/hooks/lib.mjs'
 

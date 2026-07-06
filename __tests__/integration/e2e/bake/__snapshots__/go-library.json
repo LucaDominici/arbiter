@@ -15,8 +15,6 @@
     ".claude/commands/gold-audit.md",
     ".claude/commands/impact.md",
     ".claude/commands/levelup.md",
-    ".claude/commands/review-code.md",
-    ".claude/commands/review-plan.md",
     ".claude/commands/ship.md",
     ".claude/commands/task.md",
     ".claude/commands/wt-close.md",

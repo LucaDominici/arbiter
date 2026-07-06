@@ -244,24 +244,10 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     isGateBypass: true,
   },
   {
-    name: 'ARBITER_PLAN_REVIEW_OPTIONAL',
-    type: 'boolean',
-    default: false,
-    purpose: 'Treat a missing `claude` CLI binary as a PASS verdict instead of FAIL.',
-    isGateBypass: true,
-  },
-  {
     name: 'ARBITER_PLAN_BYPASS',
     type: 'boolean',
     default: false,
     purpose: 'Bypass the pre-edit plan-anchor hook (CANON-14). Emergency use only; logged.',
-    isGateBypass: true,
-  },
-  {
-    name: 'ARBITER_COST_BUDGET_SKIP',
-    type: 'boolean',
-    default: false,
-    purpose: 'Skip the first-phase token budget assertion.',
     isGateBypass: true,
   },
   {

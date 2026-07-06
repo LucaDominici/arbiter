@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdirSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { sanitizeTaskId } from '../review/dispatch.js'
+import { sanitizeTaskId } from '../utils/task-id.js'
 import { createGhIssue, appendTechDebtIssue } from '../utils/github-issue-helper.js'
 import { readTaskId } from './task-state.js'
 

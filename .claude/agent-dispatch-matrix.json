@@ -1,6 +1,6 @@
 {
   "$schema": "./agent-dispatch-matrix.schema.json",
-  "_doc": "Deterministic agent-dispatch oracle (#1267). Declares the required agent/vertical set for each (tier x track x review_mode x pr_type), INDEPENDENTLY of the selection code, so scripts/check-agent-dispatch.mjs can replay the actual derivation and assert no drift. Stored compressed: a per-tier base + additive track/pr_type modifiers. Resolution is UNION-only (additive; never narrows below the tier floor) — fail-safe toward MORE review. This file is the SSOT for the tier->vertical floor: scripts/route-auditors.mjs reads `tier_verticals` here (replacing its old inlined SIZE_FLOOR_VERTICALS) and src/sizing/sizing.ts::sizeVerticals is asserted equal to it by the gate.",
+  "_doc": "Deterministic agent-dispatch oracle (#1267). Declares the required agent/vertical set for each (tier x track x pr_type), INDEPENDENTLY of the selection code, so scripts/check-agent-dispatch.mjs can replay the actual derivation and assert no drift. Stored compressed: a per-tier base + additive track/pr_type modifiers. Resolution is UNION-only (additive; never narrows below the tier floor) — fail-safe toward MORE review. This file is the SSOT for the tier->vertical floor: scripts/route-auditors.mjs reads `tier_verticals` here (replacing its old inlined SIZE_FLOOR_VERTICALS) and src/commands/task-ship.ts::verticalsForTier is asserted equal to it by the gate. (#1817 — the review_pass_count axis was removed with the multi-pass review dispatch subsystem.)",
   "axes": {
     "tier": ["XS", "S", "Standard"],
     "track": ["default", "governance", "security", "data", "frontend"],
@@ -19,10 +19,6 @@
       "data-integrity",
       "silent-failures"
     ]
-  },
-  "review_pass_count": {
-    "plan": { "XS": 1, "S": 3, "Standard": 5 },
-    "code": { "XS": 3, "S": 3, "Standard": 5 }
   },
   "track_modifiers": {
     "default": [],

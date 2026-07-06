@@ -559,6 +559,7 @@ Diagnose and repair arbiter state.
 - `--json` — Emit machine-readable JSON output
 - `--repair` — Auto-release stale .arbiter/.lock files detected by the health check (#824)
 - `--interactive` — Guided health check with one-key repair on a TTY (#1168)
+- `--prove-gates` — Run negative proofs for every tier-1 conformance gate; report any gate that does not bite (#1817, A5)
 
 ## arbiter gold-audit
 
@@ -610,7 +611,6 @@ Orchestrate an issue → reviewed, merged PR over the existing engine (#1206).
 - `--advance` — Advance to the next phase (runs that phase gate; fails if red)
 - `--skip-plan-review` — Bypass the plan-review gate on advance
 - `--post-clear` — Signal post-/clear re-entry on advance
-- `--skip-budget` — Skip the budget assertion on advance
 - `--units <n>` — Implementation unit count from the plan — drives the size-driven clear decision
 
 ## arbiter task
@@ -680,7 +680,6 @@ These commands are fully functional but hidden from the default `arbiter --help`
 | `arbiter doc-set`         | Deterministic doc-set presence audit (#1428, thin wrapper over the engine)      |
 | `arbiter explain`         | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
 | `arbiter feature-matrix`  | Feature/RTM matrix commands (INV-112)                                           |
-| `arbiter findings`        | Inspect and promote the incidental-finding spool (#1403)                        |
 | `arbiter graph`           | —                                                                               |
 | `arbiter harness`         | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)  |
 | `arbiter integrations`    | Inspect agent-tool integrations (skills, plugins) detected for this project     |
@@ -695,7 +694,6 @@ These commands are fully functional but hidden from the default `arbiter --help`
 | `arbiter trace`           | —                                                                               |
 | `arbiter tui`             | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)  |
 | `arbiter upgrade-level`   | Upgrade governance level with a grace period for new gates                      |
-| `arbiter work`            | Manage work units via decomposition backend                                     |
 
 ## arbiter adherence
 
@@ -790,6 +788,8 @@ Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule.
 
 - `--format <format>` — Output format: text (default) or json
 - `--list` — List all known codes grouped by category
+- `--handoff <topic>` — Scaffold HANDOFF-&lt;TOPIC&gt;.md from the executable-handoff template (#1817 A7)
+- `--out <dir>` — Target directory for --handoff (default: cwd)
 
 ## arbiter feature-matrix
 
@@ -798,15 +798,6 @@ Feature/RTM matrix commands (INV-112).
 **Subcommands:**
 
 - `arbiter feature-matrix export` — Export docs/PRODUCT/FEATURE_MATRIX.md to CSV or xlsx
-
-## arbiter findings
-
-Inspect and promote the incidental-finding spool (#1403).
-
-**Subcommands:**
-
-- `arbiter findings list` — List the deduped findings currently in the spool
-- `arbiter findings promote` — Re-validate vs HEAD, dedup vs open issues, and file the surviving findings
 
 ## arbiter graph
 
@@ -849,6 +840,9 @@ Cross-stack governance kit commands (requires --experimental.kit).
 - `arbiter kit validate` — Validate kit catalog: schema, parity, and redaction (requires --experimental.kit)
 - `arbiter kit generate` — Generate per-dimension reference docs (requires --experimental.kit)
 - `arbiter kit install` — Run the 6-phase kit install lifecycle: DETECT → MEASURE → SCAFFOLD → ASSESS → PLAN → VERIFY
+- `arbiter kit check-flyway` — A9 (opt-in): validate Flyway migrations — naming, destructive-DDL, idempotency, dual-set parity
+- `arbiter kit check-test-taxonomy` — A9 (opt-in): enforce @Tag("unit")/@Tag("integration") test taxonomy (zero untagged tests)
+- `arbiter kit check-token-hygiene` — A10 (opt-in): frontend token-hygiene check — semantic tokens only, with baseline + ratchet
 
 ## arbiter knowledge-map
 
@@ -898,9 +892,6 @@ Review artefacts (plans, code) against governance invariants.
 
 **Subcommands:**
 
-- `arbiter review plan` — Review a plan markdown file via a Claude subagent (#235)
-- `arbiter review submit` — Record agent-produced plan-review verdicts into the gate evidence (agent-agnostic; pairs with `review plan --emit-prompts`) (#1329)
-- `arbiter review code` — Multi-agent code review: dispatch N parallel reviewers based on tier (#236)
 - `arbiter review diff` — Semantic diff between two graph snapshots (#262)
 
 ## arbiter settings
@@ -949,17 +940,5 @@ Upgrade governance level with a grace period for new gates.
 - `--dir <dir>` — Target directory (default: current directory)
 - `--interactive` — Guided level selection on a TTY (#1168)
 - `--json` — Emit machine-readable JSON output
-
-## arbiter work
-
-Manage work units via decomposition backend.
-
-**Subcommands:**
-
-- `arbiter work list` — List work units
-- `arbiter work create` — Create a new work unit
-- `arbiter work show` — Show details of a work unit
-- `arbiter work close` — Mark a work unit as done
-- `arbiter work advance` — Advance a work unit to a new lifecycle phase
 
 <!-- END GENERATED:cli -->

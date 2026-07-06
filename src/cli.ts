@@ -25,10 +25,7 @@ import {
   runDoctorProveGates,
 } from './commands/doctor.js'
 import { runIntegrationsList } from './commands/integrations.js'
-import { runReviewCode, runReviewPlan, runReviewSubmit } from './commands/review.js'
-import type { SubmittedPass } from './review/dispatch.js'
 import { jsonOutput } from './utils/json-output.js'
-import type { ReviewTier } from './review/tier-constants.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
 import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
 import {
@@ -39,24 +36,16 @@ import {
   runTaskGet,
   runTaskMark,
   HandoffRequiredError,
-  BudgetBreachError,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { isTddPhase } from './commands/task-state.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
-import { shipAffinityLines } from './affinity/gh-issues.js'
 import { runShipFixOnRed } from './commands/ship-fix-on-red.js'
 import { resolveShipProfile, autonomyAllows, buildShipOverrides } from './commands/ship-profile.js'
-import { resolveShipTier } from './sizing/diff-signals.js'
 import { parseIssueList, runShipBatch } from './batch/batch-runner.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
-import {
-  runFindingsPromote,
-  listSpoolFindings,
-  defaultPromoteDeps,
-} from './commands/findings-promote.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
@@ -69,14 +58,6 @@ import { runCiPlan, runCiVerifyPlan } from './commands/ci.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
 import { confirmChannelDowngrade } from './utils/confirm-downgrade.js'
 import type { ReleaseChannel } from './utils/channel.js'
-import {
-  runWorkList,
-  runWorkCreate,
-  runWorkShow,
-  runWorkClose,
-  runWorkAdvance,
-} from './commands/work.js'
-import type { WorkUnitPhase, WorkUnitStatus } from './decomposition/types.js'
 import { appendEvidenceLine } from './utils/evidence-log.js'
 import { getBoolFlag } from './config/env-registry.js'
 import {
@@ -505,64 +486,6 @@ program
     },
   )
 
-// #1403 — drain the incidental-finding spool. `findings list` shows the deduped spool;
-// `findings promote` re-validates each finding vs HEAD, dedups vs open issues, and files the
-// survivors as tracked issues (recorded to .arbiter/evidence so they surface in GAP.md).
-const findings = program
-  .command('findings', { hidden: true })
-  .description('Inspect and promote the incidental-finding spool (#1403)')
-
-findings
-  .command('list')
-  .description('List the deduped findings currently in the spool')
-  .option('--dir <path>', 'Project root (default: cwd)')
-  .action((opts: { dir?: string }): void => {
-    const dir = opts.dir ?? process.cwd()
-    const entries = listSpoolFindings(dir)
-    if (entries.length === 0) {
-      process.stdout.write('findings: spool is empty (nothing to promote)\n')
-      return
-    }
-    for (const f of entries) {
-      const loc = f.file.length > 0 ? ` (${f.file}${f.line !== null ? `:${f.line}` : ''})` : ''
-      process.stdout.write(`[${f.severity}] ${f.kind}: ${f.note}${loc}\n`)
-    }
-    process.stdout.write(`\nfindings: ${entries.length} unique finding(s) in spool\n`)
-  })
-
-findings
-  .command('promote')
-  .description('Re-validate vs HEAD, dedup vs open issues, and file the surviving findings')
-  .option('--dir <path>', 'Project root (default: cwd)')
-  .option(
-    '--age-sweep-days <n>',
-    'Force-decide findings unpromoted longer than N days (default: 14)',
-  )
-  .action((opts: { dir?: string; ageSweepDays?: string }): void => {
-    const promoteOpts: import('./commands/findings-promote.js').PromoteOptions = {}
-    if (opts.dir !== undefined) promoteOpts.dir = opts.dir
-    const parsedDays =
-      opts.ageSweepDays !== undefined ? Number.parseInt(opts.ageSweepDays, 10) : NaN
-    if (Number.isInteger(parsedDays) && parsedDays >= 0) promoteOpts.ageSweepDays = parsedDays
-    const result = runFindingsPromote(promoteOpts, defaultPromoteDeps)
-    const logger = getLogger()
-    if (!result.ok) {
-      process.stderr.write(`arbiter findings promote: ${result.reason}\n`)
-      process.exitCode = 1
-      return
-    }
-    logger.info('findings.promoted', {
-      promoted: result.promoted.length,
-      dropped: result.dropped.length,
-      skipped: result.skipped.length,
-      deferred: result.deferred.length,
-    })
-    process.stdout.write(
-      `findings promote: ${result.promoted.length} filed, ${result.dropped.length} dropped (stale), ` +
-        `${result.skipped.length} skipped (existing), ${result.deferred.length} deferred (age-sweep)\n`,
-    )
-  })
-
 program
   .command('init')
   .description('Initialize AI governance in a project')
@@ -871,146 +794,9 @@ worktree
  * Parse repeated `--pass N:VERDICT` specs into structured pass verdicts (#1329).
  * Returns null on any malformed spec so the caller can exit 2.
  */
-function parsePassSpecs(specs: readonly string[]): SubmittedPass[] | null {
-  const out: SubmittedPass[] = []
-  for (const spec of specs) {
-    const idx = spec.indexOf(':')
-    if (idx <= 0) return null
-    const head = spec.slice(0, idx)
-    const v = spec.slice(idx + 1).toUpperCase()
-    // Strict decimal index — reject `1e2`, `0x1f`, surrounding whitespace, etc.
-    if (!/^\d+$/.test(head)) return null
-    const n = Number(head)
-    if (n < 1) return null
-    if (v !== 'PASS' && v !== 'WARN' && v !== 'FAIL') return null
-    out.push({ pass: n, verdict: v })
-  }
-  return out
-}
-
 const review = program
   .command('review', { hidden: true })
   .description('Review artefacts (plans, code) against governance invariants')
-
-review
-  .command('plan <file>')
-  .description('Review a plan markdown file via a Claude subagent (#235)')
-  .option('--dir <dir>', 'Project root (default: current directory)')
-  .option('--tier <tier>', 'Review tier: XS, S, or Standard (default: S)')
-  .option(
-    '--emit-prompts <dir>',
-    'Write per-pass reviewer prompts to <dir> and exit (agent-agnostic; no claude). Review them, then `arbiter review submit` (#1329).',
-  )
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    (file: string, opts: { dir?: string; tier?: string; emitPrompts?: string; json: boolean }) => {
-      const tier: ReviewTier | undefined =
-        opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
-      if (opts.tier !== undefined && tier === undefined) {
-        printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
-        getLogger().error('invalid_tier', { value: opts.tier ?? null })
-        process.exit(1)
-      }
-      const result = runReviewPlan({
-        file,
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-        ...(tier !== undefined ? { tier } : {}),
-        ...(opts.emitPrompts !== undefined ? { emitPrompts: opts.emitPrompts } : {}),
-        json: opts.json,
-      })
-      process.exit(result.exitCode)
-    },
-  )
-
-review
-  .command('submit <file>')
-  .description(
-    'Record agent-produced plan-review verdicts into the gate evidence (agent-agnostic; pairs with `review plan --emit-prompts`) (#1329)',
-  )
-  .option('--dir <dir>', 'Project root (default: current directory)')
-  .option('--tier <tier>', 'Review tier: XS, S, or Standard (default: from task state)')
-  .requiredOption('--reviewer <id>', 'Identity of the agent/human that performed the review')
-  .option(
-    '--pass <N:VERDICT...>',
-    'Per-pass verdict, e.g. --pass 1:PASS --pass 2:WARN (repeatable). VERDICT ∈ PASS|WARN|FAIL.',
-    (val: string, acc: string[]) => [...acc, val],
-    [] as string[],
-  )
-  .option('--manifest <path>', 'Emit manifest.json to cross-check the plan is unchanged')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    (
-      file: string,
-      opts: {
-        dir?: string
-        tier?: string
-        reviewer: string
-        pass: string[]
-        manifest?: string
-        json: boolean
-      },
-    ) => {
-      const tier: ReviewTier | undefined =
-        opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
-      if (opts.tier !== undefined && tier === undefined) {
-        printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
-        getLogger().error('invalid_tier', { value: opts.tier ?? null })
-        process.exit(1)
-      }
-      const passes = parsePassSpecs(opts.pass)
-      if (passes === null) {
-        printCliError('invalid --pass spec. Use N:VERDICT, e.g. 1:PASS (VERDICT ∈ PASS|WARN|FAIL).')
-        process.exit(2)
-      }
-      const result = runReviewSubmit({
-        file,
-        reviewer: opts.reviewer,
-        passes,
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-        ...(tier !== undefined ? { tier } : {}),
-        ...(opts.manifest !== undefined ? { manifestPath: opts.manifest } : {}),
-        json: opts.json,
-      })
-      process.exit(result.exitCode)
-    },
-  )
-
-review
-  .command('code')
-  .description('Multi-agent code review: dispatch N parallel reviewers based on tier (#236)')
-  .option('--dir <dir>', 'Project root (default: current directory)')
-  .option('--tier <tier>', 'Review tier: XS, S, or Standard (default: Standard)')
-  .option('--diff <ref>', 'Git ref to diff against (default: origin/main)')
-  .option(
-    '--evidence-dir <path>',
-    'Override evidence directory (default: .evidence/review-<timestamp>/)',
-  )
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    async (opts: {
-      dir?: string
-      tier?: string
-      diff?: string
-      evidenceDir?: string
-      json: boolean
-    }) => {
-      const tier: ReviewTier | undefined =
-        opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
-      if (opts.tier !== undefined && tier === undefined) {
-        printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
-        getLogger().error('invalid_tier', { value: opts.tier ?? null })
-        process.exit(1)
-      }
-      const result = await runReviewCode({
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-        ...(tier !== undefined ? { tier } : {}),
-        ...(opts.diff !== undefined ? { diffRef: opts.diff } : {}),
-        ...(opts.evidenceDir !== undefined ? { evidenceDir: opts.evidenceDir } : {}),
-        json: opts.json,
-      })
-      process.exit(result.exitCode)
-    },
-  )
 
 program
   .command('gold-audit [repo]')
@@ -1568,11 +1354,6 @@ task
     false,
   )
   .option('--post-clear', 'Signal post-/clear re-entry (equivalent to ARBITER_POST_CLEAR=1)', false)
-  .option(
-    '--skip-budget',
-    'Skip the token budget assertion on post-clear re-entry (writes warning)',
-    false,
-  )
   .action(
     (opts: {
       to: string
@@ -1580,7 +1361,6 @@ task
       dir?: string
       skipPlanReview: boolean
       postClear: boolean
-      skipBudget: boolean
     }) => {
       try {
         runTaskAdvance({
@@ -1588,17 +1368,12 @@ task
           reverse: opts.reverse,
           skipPlanReview: opts.skipPlanReview,
           postClear: opts.postClear,
-          skipBudget: opts.skipBudget,
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         })
       } catch (err) {
         if (err instanceof HandoffRequiredError) {
           process.stderr.write(err.message + '\n')
           process.exit(78)
-        }
-        if (err instanceof BudgetBreachError) {
-          process.stderr.write(err.message + '\n')
-          process.exit(79)
         }
         throw err
       }
@@ -1770,7 +1545,6 @@ program
   .option('--advance', 'Advance to the next phase (runs that phase gate; fails if red)', false)
   .option('--skip-plan-review', 'Bypass the plan-review gate on advance', false)
   .option('--post-clear', 'Signal post-/clear re-entry on advance', false)
-  .option('--skip-budget', 'Skip the budget assertion on advance', false)
   .option(
     '--units <n>',
     'Implementation unit count from the plan — drives the size-driven clear decision',
@@ -1797,7 +1571,6 @@ program
         advance: boolean
         skipPlanReview: boolean
         postClear: boolean
-        skipBudget: boolean
         units?: number
         batch?: string
         dir?: string
@@ -1818,17 +1591,10 @@ program
           runShipBatchCommand(opts.batch, opts.dir, overrides)
           return
         }
-        // #1260 — ALWAYS compute the ship SIZE (no flag). Size auto-selects the
-        // review TIER (which drives the review-agent COUNT + the orthogonal VERTICAL
-        // breadth) whenever `--tier` is absent; `--tier` stays a rare override.
-        // Resolution is fail-safe (explicit > diff > units > widest-default) and
-        // never throws, so it can never block the ship.
-        const size = resolveShipTier({
-          ...(opts.tier !== undefined ? { explicitTier: opts.tier } : {}),
-          ...(opts.units !== undefined ? { units: opts.units } : {}),
-          ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-        })
-        const effectiveTier = opts.tier ?? size.tier
+        // #1260 — the review TIER drives BOTH the review-agent COUNT and the orthogonal
+        // VERTICAL breadth (see A8: guidance, not auto-detected machinery). `--tier`
+        // defaults to the widest ('Standard') fail-safe absent an explicit override.
+        const effectiveTier = opts.tier ?? 'Standard'
         const result = runTaskShip({
           ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
           ...(id !== undefined ? { taskId: id } : {}),
@@ -1837,24 +1603,16 @@ program
           advanceOpts: {
             skipPlanReview: opts.skipPlanReview,
             postClear: opts.postClear,
-            skipBudget: opts.skipBudget,
             ...(opts.units !== undefined ? { units: opts.units } : {}),
           },
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         })
-        const lines = buildShipStepLines(result, size)
-        // #1259 — ALWAYS compute issue affinity (no flag); surface it + a
-        // low-affinity warning in the step output. Never blocks.
-        lines.push(...shipAffinityLines(id, opts.dir))
+        const lines = buildShipStepLines(result, effectiveTier)
         process.stdout.write(lines.join('\n') + '\n')
       } catch (err) {
         if (err instanceof HandoffRequiredError) {
           process.stderr.write(err.message + '\n')
           process.exit(78)
-        }
-        if (err instanceof BudgetBreachError) {
-          process.stderr.write(err.message + '\n')
-          process.exit(79)
         }
         throw err
       }
@@ -1950,78 +1708,6 @@ plugin
     await runPluginInit(name, {
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
-    })
-  })
-
-const work = program
-  .command('work', { hidden: true })
-  .description('Manage work units via decomposition backend')
-
-work
-  .command('list')
-  .description('List work units')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--status <status>', 'Filter by status: open, in_progress, blocked, done')
-  .action(async (opts: { dir?: string; status?: string }) => {
-    await runWorkList({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      ...(opts.status ? { status: opts.status as WorkUnitStatus } : {}),
-    })
-  })
-
-work
-  .command('create')
-  .description('Create a new work unit')
-  .requiredOption('--title <title>', 'Work unit title')
-  .option('--body <body>', 'Work unit body/description')
-  .option('--label <labels>', 'Comma-separated labels')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action(async (opts: { title: string; body?: string; label?: string; dir?: string }) => {
-    await runWorkCreate({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      title: opts.title,
-      ...(opts.body ? { body: opts.body } : {}),
-      ...(opts.label ? { labels: opts.label.split(',').map((l) => l.trim()) } : {}),
-    })
-  })
-
-work
-  .command('show <id>')
-  .description('Show details of a work unit')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action(async (id: string, opts: { dir?: string }) => {
-    await runWorkShow({
-      id,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-  })
-
-work
-  .command('close <id>')
-  .description('Mark a work unit as done')
-  .option('--reason <reason>', 'Reason for closing')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action(async (id: string, opts: { reason?: string; dir?: string }) => {
-    await runWorkClose({
-      id,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      ...(opts.reason !== undefined ? { reason: opts.reason } : {}),
-    })
-  })
-
-work
-  .command('advance <id>')
-  .description('Advance a work unit to a new lifecycle phase')
-  .requiredOption(
-    '--phase <phase>',
-    'Target phase (preflight|plan|implementation|verification|complete)',
-  )
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action(async (id: string, opts: { phase: string; dir?: string }) => {
-    await runWorkAdvance({
-      id,
-      phase: opts.phase as WorkUnitPhase,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
     })
   })
 

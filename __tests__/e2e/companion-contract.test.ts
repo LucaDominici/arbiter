@@ -16,10 +16,13 @@ import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveShipProfile, type ShipProfile } from '../../src/commands/ship-profile.js'
-import { shipStepFor, buildShipStepLines, type ShipResult } from '../../src/commands/task-ship.js'
+import {
+  shipStepFor,
+  buildShipStepLines,
+  verticalsForTier,
+  type ShipResult,
+} from '../../src/commands/task-ship.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
-import { sizeVerticals } from '../../src/sizing/sizing.js'
-import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
 import {
   companionGreenInstruction,
   companionStatusLine,
@@ -86,13 +89,8 @@ function renderGreenStep(
   const phase: TaskPhase = 'green'
   const profile = resolveShipProfile(root, { claudeHome })
   const step = shipStepFor(phase, STANDARD_TIER, profile)
-  const size: ResolvedSize = {
-    tier: STANDARD_TIER,
-    verticals: sizeVerticals(STANDARD_TIER),
-    source: 'default',
-  }
   const result: ShipResult = { phase, step, advanced: false, done: false, profile }
-  return { lines: buildShipStepLines(result, size), profile }
+  return { lines: buildShipStepLines(result, STANDARD_TIER), profile }
 }
 
 describe('companion contract — e2e (#1748)', () => {
@@ -121,7 +119,7 @@ describe('companion contract — e2e (#1748)', () => {
     expect(lines).toEqual([
       'Phase: green',
       'Action: Implement the minimum to make the tests pass.',
-      `Size: ${STANDARD_TIER} (source: default) · verticals: ${sizeVerticals(STANDARD_TIER).join(', ')}`,
+      `Tier: ${STANDARD_TIER} · verticals: ${verticalsForTier(STANDARD_TIER).join(', ')}`,
       'Governance: L2',
       'Autonomy: L0',
     ])
