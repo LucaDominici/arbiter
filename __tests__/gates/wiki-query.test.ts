@@ -4,18 +4,25 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const GEN = join(root, 'scripts', 'gen-wiki.mjs')
 const WIKI = join(root, 'wiki')
 
+function wikiHasPages(): boolean {
+  return existsSync(WIKI) && readdirSync(WIKI).some((f) => f.endsWith('.md'))
+}
+
 describe('gen-wiki.mjs query — Q&A mode (#1241)', () => {
   // wiki/ is generated output, gitignored since the docs/#1770 public split
   // (T7: generator stays, output no longer committed). Build it fresh here
   // instead of assuming a prior commit/checkout already populated it.
+  // #1806: existence alone is not enough — an empty wiki/ dir (interrupted
+  // generator, stale cache restore) passed the old guard but red-ed every
+  // query assertion, so regenerate whenever no .md pages are present.
   beforeAll(() => {
-    if (!existsSync(WIKI)) {
+    if (!wikiHasPages()) {
       spawnSync('node', [GEN], { cwd: root })
     }
   })
