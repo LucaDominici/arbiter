@@ -51,7 +51,7 @@ function companionEvidencePath(taskId: string, dir: string): string {
 }
 
 describe('ship sequencing — pure plan', () => {
-  it('shipSequence covers all eight forward phases in order', () => {
+  it('shipSequence covers all nine forward phases in order', () => {
     const seq = shipSequence('Standard')
     expect(seq.map((s) => s.phase)).toEqual([
       'preflight',
@@ -61,6 +61,7 @@ describe('ship sequencing — pure plan', () => {
       'green',
       'refactor',
       'verification',
+      'close',
       'complete',
     ])
   })
@@ -198,6 +199,7 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
       'green',
       'refactor',
       'verification',
+      'close',
       'complete',
     ])
     expect(readUnifiedState(dir)?.phase).toBe('complete')

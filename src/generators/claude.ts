@@ -156,6 +156,8 @@ const L2_ADVANCED_HOOKS = [
   'skill-forced-eval.mjs',
   'guard-task-completion.mjs',
   'stop-evidence-guard.mjs',
+  // #A11 — CLOSER mode enforcement (PreToolUse:Bash), active only in the `close` phase.
+  'closer-mode-guard.mjs',
   // #1331: registered in hooks.mjs HANDLERS at L2+ (ExitPlanMode banner, #1210)
   // but historically never emitted — dead config (same ghost class as #1318.5).
   'exitplanmode-banner.mjs',
@@ -335,6 +337,12 @@ function generateClaudeRules(
     {
       file: '90-exec-protocol.md',
       template: 'claude/rules/90-exec-protocol.md.ejs',
+    },
+    {
+      // #A11 (handoff §A11) — CLOSER mode: last-mile rule for the task lifecycle's `close`
+      // phase (post-implementation, pre-merge). Always installed like the other core rules.
+      file: '95-closer-mode.md',
+      template: 'claude/rules/95-closer-mode.md',
     },
   ]
   for (const rule of rules) {

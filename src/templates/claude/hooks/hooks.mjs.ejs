@@ -21,6 +21,9 @@ const HANDLERS = {
   'PreToolUse:Bash': [
     'stop-dangerous.mjs',
     'enforce-gate-before-pr.mjs',
+<%  if (governanceLevel !== 'L1') { -%>
+    'closer-mode-guard.mjs',
+<%  } -%>
   ],
   'PreToolUse:Edit|Write': [
     'enforce-read-only.mjs',

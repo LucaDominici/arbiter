@@ -48,6 +48,7 @@
     ".claude/rules/60-incidental-capture.md",
     ".claude/rules/75-impact-vault-reading.md",
     ".claude/rules/90-exec-protocol.md",
+    ".claude/rules/95-closer-mode.md",
     ".claude/settings.json",
     ".claude/skills/architect-review/SKILL.md",
     ".claude/skills/brainstorming/SKILL.md",

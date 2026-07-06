@@ -82,7 +82,9 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
   refactor:
     'Phase: refactor\nAction: Clean up implementation. Tests must stay green.\nNext: Refactor done → arbiter task advance --to verification.',
   verification:
-    'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then commit and push.',
+    'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then arbiter task advance --to close.',
+  close:
+    'Phase: close\nAction: CLOSER mode active — see .claude/rules/95-closer-mode.md. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter task advance --to complete.',
   complete:
     'Phase: complete\nAction: Task is complete. Check if PR was created: gh pr list --head $(git branch --show-current)\nNext: Verify PR merged and issue closed.',
 }

@@ -1536,7 +1536,7 @@ task
   .description('Advance (or reverse) the task lifecycle phase')
   .requiredOption(
     '--to <phase>',
-    'Target phase (preflight|plan|red-team-review|red|green|refactor|verification|complete|red-team-rework)',
+    'Target phase (preflight|plan|red-team-review|red|green|refactor|verification|close|complete|red-team-rework)',
   )
   .option('--reverse', 'Allow backward phase transitions', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')

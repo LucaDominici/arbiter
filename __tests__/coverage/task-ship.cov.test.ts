@@ -164,7 +164,8 @@ describe('verificationSelfOnlyChecks branch', () => {
 describe('nextPhase branch', () => {
   it('returns the forward phase for a mid-sequence phase', () => {
     expect(nextPhase('preflight')).toBe('plan')
-    expect(nextPhase('verification')).toBe('complete')
+    expect(nextPhase('verification')).toBe('close')
+    expect(nextPhase('close')).toBe('complete')
   })
 
   it('returns null at the terminal phase', () => {
