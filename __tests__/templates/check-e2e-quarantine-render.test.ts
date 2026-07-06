@@ -168,10 +168,13 @@ describe('scripts/lib/e2e-reliability.mjs.ejs — reliability library (#1445)', 
   })
 
   it('retryLadder: tier "smoke" ignores caller-supplied multi-scope opts.scopes (non-bypassable)', () => {
-    const result = lib.retryLadder(() => ({ passed: false, failures: [{ message: 'ETIMEDOUT' }] }), {
-      tier: 'smoke',
-      scopes: ['initial', 'single-test', 'spec', 'full-suite'],
-    })
+    const result = lib.retryLadder(
+      () => ({ passed: false, failures: [{ message: 'ETIMEDOUT' }] }),
+      {
+        tier: 'smoke',
+        scopes: ['initial', 'single-test', 'spec', 'full-suite'],
+      },
+    )
     expect(result.attempts.length).toBe(1)
     // classification still applies on the single attempt (INFRA short-circuit, not a bypass of classify)
     expect(result.verdict).toBe('INFRA')

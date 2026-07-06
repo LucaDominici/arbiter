@@ -27,6 +27,7 @@ import {
   probeNoOverclaim,
   probeCommitHygiene,
   probeFindingHygiene,
+  probeE2eQuarantine,
 } from '../conformance/dimensions.js'
 import type { DimensionEntry } from '../conformance/dimensions.js'
 import {
@@ -90,6 +91,7 @@ const ALL_PROBE_IDS = [
   'D-NO-OVERCLAIM',
   'D-COMMIT-HYGIENE',
   'DISC-finding-hygiene',
+  'DISC-e2e-quarantine',
   'DOC-README',
   'DOC-CHANGELOG',
   'DOC-ADR',
@@ -186,9 +188,10 @@ function applyUpdateBaseline(root: string, payload: CorePayload): ConformanceSca
 }
 
 /**
- * Collect all 18 dimension probes for a governed project.
- * (Adding DISC-finding-hygiene rebalances the equal-weight discipline family;
- * the conformance baseline is recaptured at integration — #1405.)
+ * Collect all 19 dimension probes for a governed project.
+ * (Adding DISC-finding-hygiene / DISC-e2e-quarantine rebalances the equal-weight
+ * discipline family; the conformance baseline is recaptured at integration — #1405,
+ * #1817.)
  */
 function collectDimensions(root: string, archetype: string | null): DimensionEntry[] {
   return [
@@ -203,6 +206,7 @@ function collectDimensions(root: string, archetype: string | null): DimensionEnt
     probeNoOverclaim(root),
     probeCommitHygiene(root),
     probeFindingHygiene(root),
+    probeE2eQuarantine(root),
     probeDDocReadme(root),
     probeDDocChangelog(root),
     probeDDocAdr(root),

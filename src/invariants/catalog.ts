@@ -2252,14 +2252,25 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'silent mute: every entry must carry the full required-field set AND a FUTURE expires ' +
       'date; an expired, incomplete, or malformed entry fails closed (exit 1). Self-SKIPs ' +
       '(exit 0) when no registry is present (vacuous pass). This closes the #1 fake-green ' +
-      'source for a prompt-only operator — a flake re-run green that masks a real regression.',
+      'source for a prompt-only operator — a flake re-run green that masks a real regression. ' +
+      '#1817 (A3): retries hide races, so the @smoke tier gets ZERO retries — ' +
+      'retryLadder({ tier: "smoke" }) force-truncates the ladder to a single ["initial"] ' +
+      'attempt, overriding any caller-supplied opts.scopes (non-bypassable). Quarantine rot ' +
+      'is additionally surfaced as a conformance dimension (DISC-e2e-quarantine, tier-1 ' +
+      'must-pass): a registry with an expired, incomplete, or malformed entry fails ' +
+      '`arbiter conformance`, not just the local CI gate.',
     enforcement:
       'scripts/check-e2e-quarantine.mjs — emitted unconditionally for all governed targets ' +
       'via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
       'src/templates/scripts/check-e2e-quarantine.mjs.ejs (CANON-01/04/11), alongside the ' +
       'library src/templates/scripts/lib/e2e-reliability.mjs.ejs it imports; wired HARD ' +
       '(runCheck) at L1 in generated scripts/check-all.mjs. Track-B (not an arbiter ' +
-      'self-gate). Exit codes per INV-53: 0=PASS/absent, 1=FAIL (expired/malformed), 2=ERROR.',
+      'self-gate). Exit codes per INV-53: 0=PASS/absent, 1=FAIL (expired/malformed), 2=ERROR. ' +
+      '#1817 (A3): smoke-tier zero-retry contract lives in retryLadder() (same library, same ' +
+      'template); quarantine-TTL rot is also probed by src/conformance/dimensions.ts ' +
+      'probeE2eQuarantine (DISC-e2e-quarantine), wired in src/commands/conformance.ts ' +
+      'collectDimensions() — an arbiter self-gate (Track-A), distinct from the emitted ' +
+      'Track-B script above.',
   },
   {
     id: 'INV-131',
