@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { readFileSync, existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   DerivedKitSchema,
@@ -14,6 +14,25 @@ import { toCsv } from '../kit/csv.js'
 import { kitDataPath } from '../kit/catalog.js'
 import { scanForRedactedTokens, type LexiconEntry } from '../kit/redaction.js'
 import { generateKitDocs } from '../generators/kit.js'
+import { walkFiles } from '../kit/checks/fs-walk.js'
+import {
+  validateFlywayMigrations,
+  type MigrationFile,
+  type FlywayViolation,
+} from '../kit/checks/flyway-validator.js'
+import {
+  checkJavaTestTaxonomy,
+  isTaxonomyGatePass,
+  type JavaTestFile,
+} from '../kit/checks/java-test-taxonomy.js'
+import {
+  scanTokenHygiene,
+  applyBaseline,
+  findStaleBaselineEntries,
+  isTokenHygieneGatePass,
+  type HygieneFile,
+  type TokenHygieneBaseline,
+} from '../kit/checks/token-hygiene.js'
 
 const STACKS = ['java', 'typescript', 'python', 'go', 'rust'] as const
 
@@ -369,4 +388,132 @@ export function runKitGenerate(opts: KitGenerateOptions): void {
     )
     process.exit(2)
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A9/A10 (#1817): opt-in java/fe kit checks — not wired into `kit install`'s
+// mandatory SCAFFOLD pipeline; available on demand via these subcommands.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function readMigrationSet(dir: string): MigrationFile[] {
+  return walkFiles(dir, { extensions: ['.sql'] }).map((abs) => ({
+    name: basename(abs),
+    content: readFileSync(abs, 'utf-8'),
+  }))
+}
+
+function reportFlywayViolations(violations: FlywayViolation[]): void {
+  for (const v of violations) {
+    process.stdout.write(`  [${v.rule}] ${v.file}: ${v.message}\n`)
+  }
+}
+
+export interface KitCheckFlywayOptions {
+  /** Primary migration set directory (e.g. db/migration). */
+  dir: string
+  /** Secondary dialect's migration set directory, for dual-set parity (opt-in). */
+  secondaryDir?: string
+}
+
+/** A9 (opt-in): Flyway migration validator — naming, destructive-DDL, idempotency, dual-set parity. */
+export function runKitCheckFlyway(opts: KitCheckFlywayOptions): void {
+  const primary = readMigrationSet(opts.dir)
+  const secondarySet = opts.secondaryDir ? readMigrationSet(opts.secondaryDir) : undefined
+  const violations = validateFlywayMigrations(primary, secondarySet ? { secondarySet } : {})
+
+  if (violations.length === 0) {
+    process.stdout.write(
+      `[arbiter kit check-flyway] OK (${primary.length} migration file(s), no violations)\n`,
+    )
+    process.exit(0)
+  }
+
+  process.stdout.write(`[arbiter kit check-flyway] FAIL (${violations.length} violation(s)):\n`)
+  reportFlywayViolations(violations)
+  process.exit(1)
+}
+
+export interface KitCheckTestTaxonomyOptions {
+  dir: string
+  requiredTags?: string[]
+}
+
+/** A9 (opt-in): Java test taxonomy count gate — zero untagged @Test files allowed. */
+export function runKitCheckTestTaxonomy(opts: KitCheckTestTaxonomyOptions): void {
+  const files: JavaTestFile[] = walkFiles(opts.dir, { extensions: ['.java'] })
+    .filter((abs) => /(Test|IT|Spec)\.java$/.test(abs))
+    .map((abs) => ({ path: abs, content: readFileSync(abs, 'utf-8') }))
+
+  const result = checkJavaTestTaxonomy(
+    files,
+    opts.requiredTags ? { requiredTags: opts.requiredTags } : {},
+  )
+
+  if (isTaxonomyGatePass(result)) {
+    process.stdout.write(
+      `[arbiter kit check-test-taxonomy] OK (${result.totalFiles} test file(s), all tagged)\n`,
+    )
+    process.exit(0)
+  }
+
+  process.stdout.write(
+    `[arbiter kit check-test-taxonomy] FAIL (${result.untaggedFiles.length}/${result.totalFiles} untagged — required: ${result.requiredTags.join(', ')}):\n`,
+  )
+  for (const f of result.untaggedFiles) process.stdout.write(`  [untagged] ${f}\n`)
+  process.exit(1)
+}
+
+export interface KitCheckTokenHygieneOptions {
+  dirs: string[]
+  extensions?: string[]
+  allowedColorNames?: string[]
+  forbidStyleBlocks?: boolean
+  baselinePath?: string
+}
+
+function loadHygieneBaseline(baselinePath?: string): TokenHygieneBaseline {
+  if (!baselinePath || !existsSync(baselinePath)) return { grandfathered: [] }
+  return JSON.parse(readFileSync(baselinePath, 'utf-8')) as TokenHygieneBaseline
+}
+
+/** A10 (opt-in): frontend token-hygiene check with baseline + ratchet. */
+export function runKitCheckTokenHygiene(opts: KitCheckTokenHygieneOptions): void {
+  const extensions = opts.extensions ?? ['.vue']
+  const files: HygieneFile[] = opts.dirs
+    .flatMap((dir) => walkFiles(dir, { extensions }))
+    .map((abs) => ({ path: abs, content: readFileSync(abs, 'utf-8') }))
+
+  const violations = scanTokenHygiene(files, {
+    ...(opts.allowedColorNames ? { allowedColorNames: opts.allowedColorNames } : {}),
+    ...(opts.forbidStyleBlocks ? { forbidStyleBlocks: opts.forbidStyleBlocks } : {}),
+  })
+
+  const baseline = loadHygieneBaseline(opts.baselinePath)
+  const { newViolations, tolerated } = applyBaseline(violations, baseline)
+
+  // Ratchet advisory: baseline entries no longer matched by any current violation
+  // are fixed debt — surface them so the baseline can only shrink, never ossify.
+  const staleBaseline = findStaleBaselineEntries(baseline, violations)
+  for (const entry of staleBaseline) {
+    process.stdout.write(
+      `  [ratchet] baseline entry ${entry.file}:${entry.line} (${entry.pattern}) is fixed — prune it\n`,
+    )
+  }
+
+  if (isTokenHygieneGatePass(newViolations)) {
+    const toleratedNote =
+      tolerated.length > 0 ? ` (${tolerated.length} tolerated via baseline)` : ''
+    process.stdout.write(
+      `[arbiter kit check-token-hygiene] OK (${files.length} file(s) scanned)${toleratedNote}\n`,
+    )
+    process.exit(0)
+  }
+
+  process.stdout.write(
+    `[arbiter kit check-token-hygiene] FAIL (${newViolations.length} new violation(s)):\n`,
+  )
+  for (const v of newViolations) {
+    process.stdout.write(`  [${v.rule}] ${v.file}:${v.line}: ${v.snippet}\n`)
+  }
+  process.exit(1)
 }
