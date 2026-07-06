@@ -82,13 +82,7 @@ export function generateCiFiveLane(
     chmodSync(scriptPath, SCRIPT_MODE)
   }
 
-  const files: WriteResult[] = [
-    ciResult,
-    nightlyResult,
-    weeklyResult,
-    releaseResult,
-    scriptResult,
-  ]
+  const files: WriteResult[] = [ciResult, nightlyResult, weeklyResult, releaseResult, scriptResult]
 
   return { files }
 }
