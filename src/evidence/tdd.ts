@@ -34,9 +34,19 @@ export interface ExtractResult {
   match: string
 }
 
+// Strip ANSI SGR colour codes before matching. Test runners (vitest, jest, ...)
+// force colour on even when stdout is piped once `CI` is set in the environment —
+// an escape sequence landing between "FAIL" and the test path (e.g.
+// `FAIL \x1b[22m\x1b[49m src/foo.test.ts`) breaks the plain-text signatures below,
+// so `record-red` reports a false "test appears to pass" under CI (nightly
+// generated-gate-e2e, #1770-class regression).
+// eslint-disable-next-line no-control-regex -- strips ANSI SGR codes (\x1b[...m)
+const ANSI_SGR = /\x1b\[[0-9;]*m/g
+
 export function extractFailureSignature(log: string): ExtractResult | null {
+  const plain = log.replace(ANSI_SGR, '')
   for (const entry of FAILURE_SIGNATURES) {
-    const m = log.match(entry.pattern)
+    const m = plain.match(entry.pattern)
     if (m !== null) {
       return { framework: entry.framework, match: m[0] }
     }
