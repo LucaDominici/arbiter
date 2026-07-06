@@ -57,8 +57,16 @@ export function withBasePackageDefault(data: object): object {
  */
 export function withLevelBooleans(data: object): object {
   const level = (data as { governanceLevel?: unknown }).governanceLevel
+  // #A2: guarantee `enableEvidenceHarness` is an OWN key so templates can gate on it directly
+  // (EJS renders with `with(locals)` and throws on a bare undefined identifier). Only-if-absent,
+  // like `withBasePackageDefault` — an explicitly-provided value (incl. `undefined`, which other
+  // templates read with `!== false` default-on semantics) is preserved untouched.
+  const harnessDefault = Object.prototype.hasOwnProperty.call(data, 'enableEvidenceHarness')
+    ? {}
+    : { enableEvidenceHarness: false }
   return {
     ...data,
+    ...harnessDefault,
     isL2Plus: isGovernanceLevel(level) && levelAtLeast(level, 'L2'),
     isL3Plus: isGovernanceLevel(level) && levelAtLeast(level, 'L3'),
     isL4: isGovernanceLevel(level) && level === 'L4',

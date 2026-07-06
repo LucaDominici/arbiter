@@ -71,6 +71,27 @@ Declares which directories and file extensions are load-bearing for done state:
 - Rust: `src/`, `tests/`, extension `.rs`
 - Go: `.`, extension `.go` (excludes `vendor/`)
 
+### 4. Journey-first Definition-of-Done (#A2, extends INV-114)
+
+The three artifacts above prove the gate was green over unchanged files, but green tests do not
+prove the shipped product works: a prior project shipped built images whose production UI ran in
+fixture mode (dead buttons) while every test passed, because the acceptance journey had only ever
+been exercised against the dev server.
+
+When the evidence harness is enabled (`enableEvidenceHarness === true`, i.e. L4 or any project that
+opts in), `stop-evidence-guard.mjs` requires a **fourth** correlated artifact before it will allow a
+completion claim to stand: `.arbiter/evidence/journey/<taskId>.json`, with
+
+- `branch` / `sha` — correlated to the current branch and an ancestor of HEAD (same anti-stale rule
+  as the other three artifacts);
+- `spec` — the acceptance E2E spec the task declared up front and ran;
+- `target` — **must be `"artifact"`** (the run exercised the built compose image / `dist`), never a
+  dev-server-only run.
+
+A missing, stale, spec-less, or dev-server-only journey artifact blocks the stop (exit 2) with a
+message naming the specific defect. The check is config-gated: projects without the evidence harness
+keep the three-artifact contract unchanged.
+
 ---
 
 ## Consequences
