@@ -54,6 +54,7 @@ Hooks wired in `.claude/settings.json`.
 | `skill-forced-eval.mjs`       | UserPromptSubmit   | \*           | read, stdout-inject    | `.claude/.task-*`                       | SAFE              |
 | `guard-task-completion.mjs`   | UserPromptSubmit   | \*           | read                   | `.claude/.task-*`                       | SAFE              |
 | `stop-evidence-guard.mjs`     | Stop               | \*           | read (transcript, git) | `.arbiter/evidence/*`, `.claude/.task/` | SAFE              |
+| `closer-mode-guard.mjs`       | PreToolUse         | Bash         | read (task state, git) | `.claude/.task/`                        | SAFE              |
 | `debug-state-on-failure.mjs`  | PostToolUseFailure | Bash         | create-or-append-write | `.evidence/<task>/DEBUG_STATE.md`       | SAFE              |
 | `exitplanmode-banner.mjs`     | PostToolUse        | ExitPlanMode | read, stdout-inject    | `.claude/.task/status.json`             | SAFE              |
 | `pre-compact.mjs`             | PreCompact         | \*           | read, stdout-inject    | `.claude/.task-*`                       | SAFE              |
