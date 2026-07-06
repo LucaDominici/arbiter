@@ -163,6 +163,21 @@ function greenAction(profile: ShipProfile): string {
   return companion ? `${base} ${companion}` : base
 }
 
+/**
+ * #A11 — CLOSER mode action for the `close` phase (last mile: merge, red gate, conflict).
+ * Entry into this phase switches the active agent-rule set to `.claude/rules/95-closer-mode.md`:
+ * single named target (no switching), no new issues/refactor beyond the diff (findings → PARKING,
+ * one line, no action), same error twice → 5-line root-cause or declare BLOCKED, foreground waits
+ * only (no background "monitor" for gate/PR checks), never end on a promise.
+ */
+function closeAction(): string {
+  return (
+    'CLOSER mode: single named target, no new issues or refactor beyond the diff ' +
+    '(findings → PARKING list, one line, no action). Same error twice → 5-line root-cause, ' +
+    'else declare BLOCKED. Foreground-wait on the PR/gate checks; never end the turn on a promise.'
+  )
+}
+
 function completeAction(profile: ShipProfile): string {
   if (profile.collaborationMode !== 'trunk-solo') {
     return 'Commit, push, open a PR; await required review + checks, then merge. Close the issue, clean up the worktree.'
@@ -249,6 +264,12 @@ function shipStepBody(
         // Self-only authoring gates run here for arbiter-self only; a consumer repo has no
         // such concern, so the list is empty (skipped, not faked — ADR-093 §5 / INV-115).
         selfOnlyChecks: verificationSelfOnlyChecks(profile),
+      }
+    case 'close':
+      return {
+        phase,
+        action: closeAction(),
+        reviewAgents: 0,
       }
     case 'complete':
       return {

@@ -188,6 +188,16 @@
       "rationale": "Stop event hard block (exit 2) \u2014 a completion claim on a task/ship branch (phase != complete) without correlated plan-review + dispatch + gate-pass evidence (branch + sha) is rejected; empirical coverage in __tests__/hooks/empirical/stop-evidence-guard.test.ts. INV-114."
     },
     {
+      "file": "closer-mode-guard.mjs.ejs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "expectedExitCode": 2,
+      "spawnable": false,
+      "rationale": "PreToolUse:Bash hard block (exit 2) \u2014 only while the task is in its `close` phase (arbiter task advance --to close): blocks branch/target switching, `gh issue create` (discovery), `git clean -f`, and `rm` on an untracked path (gate-appeasement deletions). Inert on every other phase. Not env-only spawnable: the phase gate requires a materialized `.claude/.task/status.json` fixture; empirical coverage in __tests__/hooks/empirical/closer-mode-guard.test.ts (#A11)."
+    },
+    {
       "file": "post-commit-check.mjs.ejs",
       "classification": "ADVISORY",
       "tools": [
