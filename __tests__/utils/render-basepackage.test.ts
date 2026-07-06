@@ -137,6 +137,33 @@ describe('#1720 — withLevelBooleans helper', () => {
     expect(out['isL4']).toBe(false)
   })
 
+  it('#A2: absent enableEvidenceHarness defaults to false (own key, never throws in EJS with-scope)', () => {
+    const out = withLevelBooleans({ governanceLevel: 'L2' }) as Record<string, unknown>
+    expect(Object.prototype.hasOwnProperty.call(out, 'enableEvidenceHarness')).toBe(true)
+    expect(out['enableEvidenceHarness']).toBe(false)
+  })
+
+  it('#A2: an explicitly-provided enableEvidenceHarness value is preserved (only-if-absent default)', () => {
+    expect(
+      (
+        withLevelBooleans({ governanceLevel: 'L4', enableEvidenceHarness: true }) as Record<
+          string,
+          unknown
+        >
+      )['enableEvidenceHarness'],
+    ).toBe(true)
+    // undefined is a real own value some templates read with `!== false` default-on semantics —
+    // it must survive untouched, not be coerced to the default.
+    expect(
+      (
+        withLevelBooleans({ governanceLevel: 'L2', enableEvidenceHarness: undefined }) as Record<
+          string,
+          unknown
+        >
+      )['enableEvidenceHarness'],
+    ).toBeUndefined()
+  })
+
   it('does not mutate the input object', () => {
     const data = { governanceLevel: 'L4' as const }
     withLevelBooleans(data)

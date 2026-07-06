@@ -121,7 +121,7 @@ function main() {
       `gate-pass task_id ${JSON.stringify(gate.task_id)} does not match current task ${taskId} — re-run the gate for this task (anti-replay)`,
     )
 
-  // All three correlated — allow the stop, after a final reflection-sweep nudge (#1402).
+  // All correlated evidence present — allow the stop, after a final reflection-sweep nudge (#1402).
   reflectionSweep(root)
   process.exit(0)
 }
