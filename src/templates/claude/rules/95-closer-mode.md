@@ -1,3 +1,14 @@
+---
+title: 'CLOSER Mode (A11)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-07-06'
+owner: ''
+canonical_id: ''
+tags: ['audience/agent', 'audience/dev', 'kind/internal']
+related: []
+---
+
 # CLOSER Mode (A11)
 
 Empirical failure mode across multiple AI-driven repos (2026-07): agents burn hours
