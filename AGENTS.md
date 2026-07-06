@@ -192,7 +192,7 @@ Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
 - **INV-70:** Reuse before new — canonical registry search precedes creating a new module
 - **INV-71:** Track D task completion — docs-only changes follow the documented completion rules
 
-## GitHub CI Tier Invariants (INV-73..INV-82)
+## GitHub CI Tier Invariants (INV-73..INV-82, INV-136)
 
 Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
@@ -207,6 +207,9 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-80:** No continue-on-error on test or build steps — failures must propagate immediately
 - **INV-81:** Tier-hash local↔CI parity — check-all.mjs subcommand hashes must match CI workflow steps
 - **INV-82:** Monthly (T5b) workflow present + heartbeat asserts ≤32d freshness
+- **INV-136:** Tier-assignment rule — a check lives at the fastest tier where its red changes the developer's immediate next action
+  - _Enforcement:_ `src/generators/ci-five-lane.ts`, opt-in via `enableFiveLaneCi` and mutually exclusive with the standard `github`/`ci-tier` generators above (see `src/generators/registry.ts`). Emits the collapsed 5-lane shape validated on a real project (10 workflows collapsed to 5, one nightly red left standing for 3 weeks, 20 auto-filed issues left unread): pre-commit (<10s, local via githooks, no workflow file) / PR-blocking (`ci.yml`, ≤15min) / nightly (`nightly.yml`, ≤45min) / weekly (`weekly.yml`, unbounded) / release-seal (`release.yml`, on tag push). Each generated workflow states its own tier and time budget in a header comment. Templates: `src/templates/github/workflows/five-lane/{ci,nightly,weekly,release}.yml.ejs`. AC: `arbiter init` with `enableFiveLaneCi: true` emits exactly 4 workflow files, each carrying its tier budget in a header comment. Verified by `__tests__/generators/ci-five-lane.test.ts`, `__tests__/generators/registry.test.ts` (mutual exclusivity), and `__tests__/templates/ci-five-lane-render.test.ts` (red→green).
+  - **#1817 (A6) sticky failure issue:** the scheduled lanes (`nightly.yml`/`weekly.yml`) avoid filing a fresh issue per red run; instead both source one shared script, `.github/scripts/sticky-failure-issue.sh` (rendered from `src/templates/github/scripts/sticky-failure-issue.sh.ejs`), invoked as `record <lane>` on failure and `close <lane>` on success. `record` finds-or-creates a single open issue titled `chore(<lane>): pipeline red` and appends a comment carrying the run link plus an incremented failure counter; `close` closes that issue with a green run-link comment. Proven end to end against a mocked `gh` CLI in `__tests__/templates/sticky-failure-issue-script.test.ts`: two consecutive recorded failures yield one open issue carrying two `Run:`-prefixed comments (not two issues), a third failure appends a third entry to that same issue, and a `close` invocation closes it.
 
 ## Kit Source Leakage (INV-85)
 

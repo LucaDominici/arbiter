@@ -1507,6 +1507,26 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'scripts/check-monthly-freshness.mjs',
   },
 
+  {
+    id: 'INV-136',
+    tier: 'operational',
+    title:
+      "Tier-assignment rule — a check lives at the fastest tier where its red changes the developer's immediate next action",
+    description:
+      'A check lives at the fastest tier where its red changes the developer’s immediate ' +
+      'next action; a red tolerated more than 48h has to be fixed, demoted to a slower tier, or ' +
+      'deleted. Codified as the collapsed 5-lane CI doctrine, emitted opt-in via ' +
+      'enableFiveLaneCi (mutually exclusive with the standard github/ci-tier generators): ' +
+      'pre-commit (<10s, local via githooks) / PR-blocking (ci.yml, ≤15min) / nightly ' +
+      '(nightly.yml, ≤45min) / weekly (weekly.yml, unbounded) / release-seal (release.yml, ' +
+      'on tag push). Each generated workflow states its own tier and time budget in a header ' +
+      'comment. Pairs with the A6 sticky-failure-issue mechanism: nightly.yml/weekly.yml source ' +
+      'one shared .github/scripts/sticky-failure-issue.sh instead of filing a new issue per red ' +
+      'run.',
+    alwaysActive: false,
+    enforcement: 'src/generators/ci-five-lane.ts',
+  },
+
   // ─── Deploy Target Supply Chain (INV-95, INV-97..99, PR-B #1005) ────────────
   {
     id: 'INV-95',

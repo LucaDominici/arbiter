@@ -422,6 +422,17 @@ export interface ProjectConfig {
   pipelineStyle?: 'starter' | 'standard' | 'industrial'
 
   /**
+   * A1 (#1817): opt-in collapsed 5-lane CI doctrine — pre-commit (local, via
+   * `githooks`) + 4 workflows (`ci.yml` PR-blocking / `nightly.yml` /
+   * `weekly.yml` / `release.yml`), each tier-budget-commented (AGENTS.md
+   * INV-136). Mutually exclusive with the standard `github` + `ci-tier`
+   * generators (registry.ts disables both when this is true) so a fresh
+   * repo emits exactly 4 workflow files, never a union of both shapes.
+   * Default: false/undefined (standard `pipelineStyle` shape unaffected).
+   */
+  enableFiveLaneCi?: boolean
+
+  /**
    * Brownfield class: how mature the target repo is.
    * Determines which threshold column to apply for existing code.
    * Auto-detected by brownfield-detect.ts; user can override via wizard prompt.

@@ -59,6 +59,7 @@ export type GeneratorKey =
   | 'observability'
   | 'auth'
   | 'ci-tier'
+  | 'ci-five-lane'
   | 'local-wrapper'
   | 'env-template'
   | 'infra'
