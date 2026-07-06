@@ -109,6 +109,18 @@ describe('extractFailureSignature()', () => {
   it('returns null when log shows passing tests', () => {
     expect(extractFailureSignature('All tests passed.\n✓ 10 tests')).toBeNull()
   })
+
+  it('extracts vitest FAIL line even with ANSI SGR codes injected under CI=true (#1770-class)', () => {
+    // Reproduces vitest 3.x's real CI output: it force-colours the summary line
+    // even when stdout is piped, inserting escape codes between "FAIL" and the
+    // test path.
+    const log =
+      '\x1b[41m\x1b[1m FAIL \x1b[22m\x1b[49m src/e2e-red.test.ts\x1b[2m > \x1b[22mx\x1b[2m > \x1b[22my'
+    const result = extractFailureSignature(log)
+    expect(result).not.toBeNull()
+    expect(result!.framework).toBe('vitest')
+    expect(result!.match).toBe('FAIL  src/e2e-red.test.ts')
+  })
 })
 
 describe('loadTddEvidence()', () => {
