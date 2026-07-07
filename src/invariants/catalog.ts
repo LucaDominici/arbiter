@@ -1891,7 +1891,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '.claude/hooks/stop-evidence-guard.mjs (Claude Code Stop event, exit 2 = block-the-stop ' +
       'and return stderr to the model). Generated for target projects at L2+ by ' +
       "src/generators/claude.ts and dogfooded in arbiter's own .claude/ (CANON-01/14). Evidence " +
-      'writers (src/review/dispatch.ts, scripts/check-all.mjs, the /task dispatch sidecar) stamp ' +
+      'writers (scripts/check-all.mjs for the gate-pass marker; the /task and /ship command ' +
+      'playbooks in .claude/commands/ for the plan-review and agents-dispatched sidecars) stamp ' +
       'branch+sha so correlation is possible. Empirical coverage: ' +
       '__tests__/hooks/empirical/stop-evidence-guard.test.ts.',
   },

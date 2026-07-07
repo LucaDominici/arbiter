@@ -10,6 +10,51 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 _Nothing yet._
 
+## [0.4.0] — 2026-07-07
+
+**Channel:** stable
+
+### Highlights
+
+- **Wave-2 kit (#1817, A1–A11)** — governance features validated against a real
+  100k-LOC adopter project (Viafera) before being absorbed into arbiter:
+  - `arbiter init` generates a **five-lane CI shape** (pre-commit / PR-blocking /
+    nightly / weekly / release-seal) with tier budgets in comments, plus a sticky
+    failure issue for persistently-red nightly/weekly lanes. (A1, A6)
+  - **Journey-first Definition-of-Done**, extending INV-114 completion evidence
+    from unit coverage to user-journey coverage. (A2)
+  - **Zero-retry smoke + quarantine TTL** for E2E suites — a flaky test gets a
+    time-boxed quarantine, not an indefinite retry loop. (A3)
+  - An installable **E2E constitution** (~10 rules) that ships as project
+    governance, not just prose convention. (A4)
+  - **`doctor --prove-gates`**: negative-proof checks that a project's gates
+    actually catch what they claim to (deliberately break an invariant, assert
+    the gate goes red). (A5)
+  - Executable **handoff template** + model-pyramid guidance for right-sizing
+    which model tier runs a given step. (A7, A8)
+  - Cross-stack **kit** gates: Java (Flyway migration hygiene + taxonomy) and
+    frontend (design-token hygiene). (A9, A10)
+  - **Closer mode**: an installable rule + close-phase + guard hook so an agent
+    can drive a task to a verified, merged state autonomously. (A11)
+- **B-prune (#1817, B1+B2)** — removed 2025-era model-tier machinery superseded
+  by A8's model-pyramid guidance and the wave-2 kit. `src/sizing/`,
+  `src/affinity/`, `src/cost/`, `src/decomposition/`, the multi-pass
+  `src/review/` dispatch subsystem, and the `arbiter work` / `findings promote`
+  commands are gone (**-11,423 LOC**). `arbiter review diff` remains the one
+  review entry point; `verticalsForTier` is now the tier→vertical SSOT.
+- **Dependency hygiene**: dependabot alert backlog drained across fixtures,
+  examples, and transitive deps.
+
+### Removed
+
+- `arbiter work` (issue decomposition backend).
+- `arbiter findings promote` / `arbiter findings list` (auto-drain of the
+  finding spool into filed issues) — the spool (`.arbiter/findings/*.jsonl`,
+  written by `arbiter note`) is unaffected; promotion is manual now.
+- `arbiter review code` / `arbiter review plan` (multi-pass review dispatch)
+  and the cost-tracking runtime (`--skip-budget`, transcript-based cost
+  evidence).
+
 ## [0.3.0] — 2026-07-05
 
 **Channel:** stable
