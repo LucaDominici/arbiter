@@ -3,9 +3,11 @@
 // #1406 — Probe downstream generation. The wave-drain SKILL.md emitted to consumer
 // projects must carry the Probe loop's Phase 0.5 — Harvest step and the canonical
 // `FindingEntry` schema (CANON-04 render assertion). This is what lets a freshly
-// `arbiter init`-ed project drain its incidental-finding spool via `arbiter findings
-// promote` in the next wave. It also resolves the W2 `.dogfood-divergences.json`
-// deferral for `skills/wave-drain/SKILL.md` — the rendered template must now match self.
+// `arbiter init`-ed project drain its incidental-finding spool via the manual
+// `.arbiter/findings` spool inspection in the next wave (the `arbiter findings
+// promote`/`list` commands were removed in the B-prune, #1817 B2). It also resolves the
+// W2 `.dogfood-divergences.json` deferral for `skills/wave-drain/SKILL.md` — the
+// rendered template must now match self.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -42,15 +44,15 @@ describe('wave-drain downstream generation — Probe loop (#1406)', () => {
     return readFileSync(join(dir, '.claude', 'skills', 'wave-drain', 'SKILL.md'), 'utf-8')
   }
 
-  it('renders a Phase 0.5 — Harvest step running `arbiter findings promote`', () => {
+  it('renders a Phase 0.5 — Harvest step noting findings promote/list was removed', () => {
     const md = renderWaveDrain()
     expect(md).toMatch(/Phase 0\.5/)
-    expect(md).toMatch(/arbiter findings promote/)
+    expect(md).toMatch(/was removed in the B-prune/)
   })
 
-  it('documents the manual escape hatch (`arbiter findings list`)', () => {
+  it('documents the manual escape hatch (inspect the spool directly)', () => {
     const md = renderWaveDrain()
-    expect(md).toMatch(/arbiter findings list/)
+    expect(md).toMatch(/cat \.arbiter\/findings/)
   })
 
   it('cites task-note.ts FindingEntry as the SSOT for the DONE-report shape', () => {

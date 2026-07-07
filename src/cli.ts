@@ -790,13 +790,9 @@ worktree
     runWorktreeList({ json: opts.json })
   })
 
-/**
- * Parse repeated `--pass N:VERDICT` specs into structured pass verdicts (#1329).
- * Returns null on any malformed spec so the caller can exit 2.
- */
 const review = program
   .command('review', { hidden: true })
-  .description('Review artefacts (plans, code) against governance invariants')
+  .description('Semantic diff between graph snapshots (#262)')
 
 program
   .command('gold-audit [repo]')

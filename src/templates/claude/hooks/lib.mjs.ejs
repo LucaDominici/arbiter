@@ -160,7 +160,7 @@ export function findInlineSuppression(fileContent, lineIndex, invId) {
 
 /**
  * Sanitize a task id into a safe filesystem segment AND safe regex literal.
- * MUST stay in lockstep with `src/review/dispatch.ts::sanitizeTaskId`.
+ * MUST stay in lockstep with `src/utils/task-id.ts::sanitizeTaskId`.
  * Parity enforced by `__tests__/lib/sanitize-task-id-parity.test.ts`.
  */
 export function sanitizeTaskId(raw) {

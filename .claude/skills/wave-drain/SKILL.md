@@ -61,19 +61,18 @@ findings noticed in prior waves become first-class backlog candidates instead of
 `.arbiter/findings/`:
 
 ```bash
-arbiter findings promote        # re-validate vs HEAD, dedup vs open issues, file survivors
-arbiter findings list           # manual escape hatch — inspect the deduped spool without filing
+# arbiter findings promote/list was removed in the B-prune (#1817 B2) — no CLI
+# automation ships for this step anymore. Inspect the spool directly:
+cat .arbiter/findings/*.jsonl 2>/dev/null | jq -s '.'
 ```
 
-`findings promote` reads every `.arbiter/findings/*.jsonl` shard, dedups by fingerprint,
-**re-validates each finding against HEAD** (a finding whose file/graph-node is gone is dropped,
-never filed), dedups against already-open issues via the embedded `<!-- arbiter-fp:FP -->` body
-marker, and files the survivors as `finding`+`tech-debt`+`priority/Pn` issues (recorded under
-`.arbiter/evidence/findings-promote/tech-debt.json` so they surface in `GAP.md`). The spool being
-absent/empty is a clean no-op.
+Each shard entry is a finding recorded via `arbiter note` (fingerprinted by file+kind+text, line
+excluded). Triage manually: drop entries whose file/graph-node no longer exists at HEAD, skip
+anything already tracked by an open issue, and `gh issue create` the survivors yourself
+(`finding`+`tech-debt`+`priority/Pn` labels). The spool being absent/empty is a clean no-op.
 
-**Newly-promoted `severity: low` findings are candidate issues for THIS wave** — fold them into the
-Phase 0 triage roster (subject to the same workability filter). Higher-severity promotions enter
+**Newly-triaged `severity: low` findings are candidate issues for THIS wave** — fold them into the
+Phase 0 triage roster (subject to the same workability filter). Higher-severity findings enter
 the backlog like any other issue.
 
 ### Transactional claim (#1378)
@@ -162,9 +161,10 @@ Then emit a **DONE report**: files touched, tests added, commits, and `findings[
 
 The DONE-report `findings[]` use the **same `FindingEntry` shape as `arbiter note`** — the SSOT is
 `src/commands/task-note.ts` (interface `FindingEntry`). This is what lets a finding flow straight
-into the `.arbiter/findings` spool and get drained by `arbiter findings promote` in the next wave's
-Phase 0.5, with fingerprint dedup using the SAME material as `task-note.ts` `computeFingerprint`
-(so a finding is never double-filed). Do **not** invent a parallel free-prose shape.
+into the `.arbiter/findings` spool and get triaged manually (see "Phase 0.5 — Harvest the finding
+spool" above) in the next wave, with fingerprint dedup using the SAME material as `task-note.ts`
+`computeFingerprint` (so a finding is never double-filed). Do **not** invent a parallel free-prose
+shape.
 
 Each finding is one object with these fields (`graphNode` and `auditorHint` are optional; every
 other field is required):

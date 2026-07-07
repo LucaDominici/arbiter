@@ -688,7 +688,7 @@ These commands are fully functional but hidden from the default `arbiter --help`
 | `arbiter mark`            | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
 | `arbiter plugin`          | [BETA] Manage arbiter plugins (API not yet stable)                              |
 | `arbiter report`          | Bundle a replay run for bug reports                                             |
-| `arbiter review`          | Review artefacts (plans, code) against governance invariants                    |
+| `arbiter review`          | Semantic diff between graph snapshots (#262)                                    |
 | `arbiter settings`        | List every settable arbiter.json path with its current value (#1121)            |
 | `arbiter ship-on-red`     | —                                                                               |
 | `arbiter trace`           | —                                                                               |
@@ -888,7 +888,7 @@ Bundle a replay run for bug reports.
 
 ## arbiter review
 
-Review artefacts (plans, code) against governance invariants.
+Semantic diff between graph snapshots (#262).
 
 **Subcommands:**
 
