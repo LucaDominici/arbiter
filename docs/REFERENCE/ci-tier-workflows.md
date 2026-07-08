@@ -52,10 +52,10 @@ readable workflow label instead of the raw `.github/workflows/_*.yml` path.
 
 ### NIGHTLY — daily schedule (heavy sweep + watchdog)
 
-| File                  | Emitted when                                      | Purpose                                                               |
-| --------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
-| `06-nightly.yml`      | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_nightly.yml` (schedule 02:00 UTC + concurrency group) |
-| `06-nightly-lite.yml` | `trunk-solo` + L2+                                | Lite nightly: integration + CVE refresh (no mutation/SLSA/SBOM)       |
+| File                  | Emitted when                                      | Purpose                                                                                                     |
+| --------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `06-nightly.yml`      | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_nightly.yml` (schedule 02:00 UTC + concurrency group)                                       |
+| `06-nightly-lite.yml` | `trunk-solo` + L2+                                | Lite nightly: integration + CVE refresh (no mutation/SLSA/SBOM)                                             |
 | `09-heartbeat.yml`    | L3+                                               | Daily watchdog: asserts nightly/weekly/monthly ran on schedule (needs `actions: read` to query run history) |
 
 ### WEEKLY-MONTHLY — weekly (Sun/Mon) + monthly schedule (deep audits)
