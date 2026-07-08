@@ -257,6 +257,58 @@ function generateRestPublic(
   data: object,
   dryRun: boolean,
 ): WriteResult[] {
+  const skip = { skipIfExists: true, dryRun } as const
+  // #1837 (F1): wire the exporter alongside the diff test. openapi-diff.ts.ejs
+  // (and its Java/Go/Rust/Python siblings) HARD-fail per INV-43 when
+  // contracts/openapi-current.yaml is missing, and that file is only ever
+  // produced by running this exporter — so the diff test was unusable out of
+  // the box until the exporter was actually emitted. Destination paths mirror
+  // each template's own header comment (its documented invocation command).
+  const extra: WriteResult[] = []
+  if (config.language === 'typescript' || config.language === 'multi') {
+    extra.push(
+      writeFile(
+        resolvedPath(base, 'export-openapi.mjs'),
+        renderTemplate('contract-testing/rest-public/export-openapi.mjs.ejs', data),
+        skip,
+      ),
+    )
+  }
+  if (config.language === 'java' || config.language === 'multi') {
+    extra.push(
+      writeFile(
+        resolvedPath(base, 'config', 'export-openapi-java.gradle'),
+        renderTemplate('contract-testing/rest-public/export-openapi-java.gradle.ejs', data),
+        skip,
+      ),
+    )
+  }
+  if (config.language === 'rust') {
+    extra.push(
+      writeFile(
+        resolvedPath(base, 'src', 'bin', 'export_openapi.rs'),
+        renderTemplate('contract-testing/rest-public/export_openapi.rs.ejs', data),
+        skip,
+      ),
+    )
+  } else if (config.language === 'go') {
+    extra.push(
+      writeFile(
+        resolvedPath(base, 'cmd', 'export-openapi', 'main.go'),
+        renderTemplate('contract-testing/rest-public/export_openapi.go.ejs', data),
+        skip,
+      ),
+    )
+  } else if (config.language === 'python') {
+    extra.push(
+      writeFile(
+        resolvedPath(base, 'export_openapi.py'),
+        renderTemplate('contract-testing/rest-public/export_openapi.py.ejs', data),
+        skip,
+      ),
+    )
+  }
+
   return contractFile({
     base,
     config,
@@ -267,6 +319,7 @@ function generateRestPublic(
     rustFile: 'openapi_diff_test.rs',
     goFile: 'openapi_diff_test.go',
     pyFile: 'test_openapi_diff.py',
+    extraFiles: extra,
     dryRun,
   })
 }

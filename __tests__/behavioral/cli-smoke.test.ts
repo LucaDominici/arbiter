@@ -3,7 +3,7 @@
 // observable output/exit-code invariants. Tests the full composed pipeline,
 // not just individual functions.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -45,6 +45,20 @@ describe('arbiter CLI — top-level surface', () => {
     const { status, stdout } = spawn(['--version'])
     expect(status).toBe(0)
     expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/)
+  })
+
+  // #1837 (F1): --version was hardcoded to '0.3.0' while package.json had already
+  // moved to 0.4.0 — the two silently drifted. A permanent version-parity gate
+  // lands in wave F2; this test is the regression guard until then.
+  it('--version matches package.json version (regression guard for #1837)', () => {
+    const pkg = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, '../../package.json'), 'utf-8'),
+    ) as {
+      version: string
+    }
+    const { status, stdout } = spawn(['--version'])
+    expect(status).toBe(0)
+    expect(stdout.trim()).toBe(pkg.version)
   })
 
   it('--help exits 0 and prints "Usage: arbiter"', () => {

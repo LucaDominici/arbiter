@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
+import { createRequire } from 'node:module'
 import { Command, Option } from 'commander'
 import { runInit } from './commands/init.js'
 import { resolvePresetOption } from './wizard/presets.js'
@@ -384,7 +385,26 @@ process.on('exit', (code) => {
 
 const program = new Command()
 
-program.name('arbiter').description('AI development governance framework').version('0.3.0')
+// #1837 (F1): read the version from package.json at runtime instead of a
+// hardcoded literal that silently drifted from the real release (0.3.0 vs
+// 0.4.0). createRequire resolves '../package.json' relative to this module's
+// own location, which lands on the package root both from src/cli.ts (ts-node/
+// vitest) and from the compiled dist/cli.js (one directory up from dist/) — the
+// same layout npm always ships (package.json is included regardless of the
+// "files" allowlist). Guarded because this runs at module load for every
+// invocation, not just --version: a lookup failure must never crash the CLI's
+// ability to run any command, so it degrades to 'unknown' rather than throwing.
+function readPackageVersion(): string {
+  try {
+    const require = createRequire(import.meta.url)
+    return (require('../package.json') as { version: string }).version
+  } catch {
+    return 'unknown'
+  }
+}
+const packageVersion = readPackageVersion()
+
+program.name('arbiter').description('AI development governance framework').version(packageVersion)
 
 // #1770 (T5): public 11-command surface. Experimental commands are registered with
 // `{ hidden: true }` — fully functional, omitted from default --help. The built-in
@@ -2006,7 +2026,9 @@ const kit = program
 kit.hook('preAction', () => {
   if (!isEnabled('kit', getActiveExperimentalFlags())) {
     process.stderr.write(
-      'arbiter: "kit" requires --experimental.kit. Run `arbiter experiments list` to see available experiments.\n',
+      // #1837 (F1): `arbiter experiments list` does not exist — no command
+      // enumerates experiments. Tell the user the concrete opt-in flag instead.
+      'arbiter: "kit" requires the --experimental.kit flag, e.g. `arbiter --experimental.kit kit <subcommand>`.\n',
     )
     process.exit(1)
   }

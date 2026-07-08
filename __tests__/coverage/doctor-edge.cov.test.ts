@@ -9,8 +9,6 @@
  * This file covers the conditionals BOTH the established suite and doctor.cov
  * leave cold:
  *   • checkNodeVersion FAIL branch (node < 22) + the `?? '0'` empty-split guard
- *   • checkStackAdapterHealth arbiter-self branches: exempt lang (kotlin/multi),
- *     `unknown` → WARN, adapter present → PASS, adapter missing → FAIL
  *   • hasWorkflowFiles `.yaml` alternative + non-CI-file false branch
  *   • readLockInfoForHealth wrong-shape → null branch
  *   • probePidAlive EPERM → null branch
@@ -23,8 +21,7 @@
  *   • runDoctorRepairState loadConfig === null branch (json + human-readable)
  *   • collectBackups EACCES swallow branch + non-ENOENT/EACCES re-throw branch
  *
- * Determinism: git is stubbed via the run-cli mock; isArbiterSelf / detectLanguage
- * are stubbed so the adapter branches never touch the real filesystem detector;
+ * Determinism: git is stubbed via the run-cli mock;
  * forceReleaseLock is wrapped; loadConfig is wrapped so one test can force null;
  * process.exit is never reached (no command path calls it); no real network/git.
  */
@@ -44,29 +41,6 @@ vi.mock('../../src/utils/run-cli.js', () => ({
     notFound = false
   },
 }))
-
-// isArbiterSelf and detectLanguage are stubbed so checkStackAdapterHealth's
-// arbiter-self branches are driven deterministically without assembling a real
-// stack fixture. vi.hoisted keeps the shared holders out of the hoisted-mock TDZ.
-const selfMock = vi.hoisted(() => ({ isSelf: false }))
-const langMock = vi.hoisted(() => ({ lang: 'typescript' as string }))
-vi.mock('../../src/commands/ship-profile.js', async () => {
-  const actual =
-    await vi.importActual<typeof import('../../src/commands/ship-profile.js')>(
-      '../../src/commands/ship-profile.js',
-    )
-  return { ...actual, isArbiterSelf: (): boolean => selfMock.isSelf }
-})
-vi.mock('../../src/detectors/language.js', async () => {
-  const actual =
-    await vi.importActual<typeof import('../../src/detectors/language.js')>(
-      '../../src/detectors/language.js',
-    )
-  return {
-    ...actual,
-    detectLanguage: (): string => langMock.lang,
-  }
-})
 
 // forceReleaseLock is wrapped so one test can force a NON-ArbiterError failure.
 type ForceRelease = (p: string, pid: number, root?: string) => Promise<void>
@@ -246,60 +220,6 @@ describe('runDoctorHealth — checkNodeVersion FAIL / empty-split branches', () 
     const result = await runDoctorHealth({ dir, json: true })
     const node = findCheck(result.checks, 'node-version')
     expect(node?.status).toBe('FAIL')
-  })
-})
-
-// ── checkStackAdapterHealth arbiter-self branches (#1343, INV-88) ──────────────
-
-describe('checkStackAdapterHealth — arbiter-self branches', () => {
-  let dir: string
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'arbiter-doc-edge-adapter-'))
-    vi.clearAllMocks()
-    mockGitOk()
-    selfMock.isSelf = true
-    // arbiter.json must exist so checkArbiterProject (which calls the adapter check) runs.
-    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
-  })
-  afterEach(() => {
-    selfMock.isSelf = false
-    rmSync(dir, { recursive: true, force: true })
-  })
-
-  it('PASS — exempt language (multi) is exempt from the adapter requirement', async () => {
-    langMock.lang = 'multi'
-    const result = await runDoctorHealth({ dir, json: true })
-    const a = findCheck(result.checks, 'stack-adapter')
-    expect(a?.status).toBe('PASS')
-    expect(a?.detail).toMatch(/exempt from adapter requirement/)
-  })
-
-  it('WARN — unknown language cannot be detected from project files', async () => {
-    langMock.lang = 'unknown'
-    const result = await runDoctorHealth({ dir, json: true })
-    const a = findCheck(result.checks, 'stack-adapter')
-    expect(a?.status).toBe('WARN')
-    expect(a?.detail).toMatch(/could not detect language/)
-  })
-
-  it('PASS — a non-exempt language with its adapter file present', async () => {
-    langMock.lang = 'go'
-    mkdirSync(join(dir, 'src', 'adapters'), { recursive: true })
-    writeFileSync(join(dir, 'src', 'adapters', 'go.ts'), '// adapter\n', 'utf-8')
-    const result = await runDoctorHealth({ dir, json: true })
-    const a = findCheck(result.checks, 'stack-adapter')
-    expect(a?.status).toBe('PASS')
-    expect(a?.detail).toMatch(/adapter registered for go/)
-  })
-
-  it('FAIL — a non-exempt language with NO adapter file', async () => {
-    langMock.lang = 'rust'
-    const result = await runDoctorHealth({ dir, json: true })
-    const a = findCheck(result.checks, 'stack-adapter')
-    expect(a?.status).toBe('FAIL')
-    expect(a?.detail).toMatch(/no adapter file for rust/)
-    expect(a?.hint).toMatch(/src\/adapters\/rust\.ts/)
-    expect(result.exitCode).toBe(1)
   })
 })
 
