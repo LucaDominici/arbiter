@@ -250,6 +250,23 @@ describe('02-pr-extended.yml.ejs — license-scan per-language tools', () => {
     expect(rendered).toContain('license:third-party-report')
   })
 
+  // #1803: kotlin fell through every language branch here (a strict-equality
+  // `language === 'java'` check never matches 'kotlin') and got NO license-scan
+  // step at all — the job rendered checkout-only. The Gradle/Maven license-report
+  // plugin task is language-agnostic (it inspects the dependency graph, not
+  // source files), so kotlin now shares the java branch.
+  it('Kotlin Gradle: generateLicenseReport (shares the java/JVM branch, #1803)', () => {
+    const rendered = renderExt({ language: 'kotlin', buildTool: 'gradle' })
+    expect(rendered).toContain('generateLicenseReport')
+    expect(rendered).toContain('./.github/actions/setup-java-maven')
+  })
+
+  it('Kotlin Maven: license:third-party-report (shares the java/JVM branch, #1803)', () => {
+    const rendered = renderExt({ language: 'kotlin', buildTool: 'maven' })
+    expect(rendered).toContain('license:third-party-report')
+    expect(rendered).toContain('./.github/actions/setup-java-maven')
+  })
+
   it('Go: go-licenses check', () => {
     const rendered = renderExt({ language: 'go', buildTool: 'go' })
     expect(rendered).toContain('go-licenses')

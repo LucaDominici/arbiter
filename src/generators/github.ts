@@ -62,17 +62,17 @@ function generateIndustrialWorkflows(
     writeFile(
       join(workflowsDir, '12-mutation-scheduled.yml'),
       renderTemplate('github/workflows/12-mutation-scheduled.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '13-archunit-extended.yml'),
       renderTemplate('github/workflows/13-archunit-extended.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '14-license-scan.yml'),
       renderTemplate('github/workflows/14-license-scan.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
   ]
 }
@@ -145,7 +145,7 @@ function generateCiGapWorkflows(
       writeFile(
         join(workflowsDir, '06-nightly-lite.yml'),
         renderTemplate('github/workflows/06-nightly-lite.yml.ejs', config),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
 
@@ -159,7 +159,7 @@ function generateCiGapWorkflows(
       writeFile(
         join(workflowsDir, '07-weekly-lite.yml'),
         renderTemplate('github/workflows/07-weekly-lite.yml.ejs', config),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
 
@@ -168,7 +168,7 @@ function generateCiGapWorkflows(
       writeFile(
         join(workflowsDir, '15-codeql.yml'),
         renderTemplate('github/workflows/15-codeql.yml.ejs', config),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
 
@@ -177,7 +177,7 @@ function generateCiGapWorkflows(
       writeFile(
         join(workflowsDir, '16-frontend-quality.yml'),
         renderTemplate('github/workflows/16-frontend-quality.yml.ejs', config),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
 
@@ -187,7 +187,7 @@ function generateCiGapWorkflows(
       writeFile(
         join(workflowsDir, '18-frontend-lane.yml'),
         renderTemplate('github/workflows/18-frontend-lane.yml.ejs', config),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
 
@@ -197,7 +197,7 @@ function generateCiGapWorkflows(
       writeFile(
         join(workflowsDir, '17-ossf-scorecard.yml'),
         renderTemplate('github/workflows/17-ossf-scorecard.yml.ejs', config),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
 
@@ -217,37 +217,37 @@ function generateScheduledWorkflows(
     writeFile(
       join(workflowsDir, '_nightly.yml'),
       renderTemplate('github/workflows/_nightly.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '_shared-security.yml'),
       renderTemplate('github/workflows/_shared-security.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '_weekly.yml'),
       renderTemplate('github/workflows/_weekly.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '_monthly.yml'),
       renderTemplate('github/workflows/_monthly.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '06-nightly.yml'),
       renderTemplate('github/workflows/06-nightly.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '07-weekly.yml'),
       renderTemplate('github/workflows/07-weekly.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '08-monthly.yml'),
       renderTemplate('github/workflows/08-monthly.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
   ]
 }
@@ -265,17 +265,17 @@ function generateCiWorkflows(
     writeFile(
       join(workflowsDir, '01-pr-fast.yml'),
       renderTemplate('github/workflows/01-pr-fast.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '02-pr-extended.yml'),
       renderTemplate('github/workflows/02-pr-extended.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       join(workflowsDir, '03-human-approval.yml'),
       renderTemplate('github/workflows/03-human-approval.yml.ejs', data),
-      { dryRun },
+      { skipIfExists: true, dryRun },
     ),
   ]
 
@@ -284,12 +284,12 @@ function generateCiWorkflows(
       writeFile(
         join(workflowsDir, '05-release.yml'),
         renderTemplate('github/workflows/05-release.yml.ejs', data),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
       writeFile(
         join(workflowsDir, '_sigstore-retry-sign.yml'),
         renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
@@ -308,7 +308,7 @@ function generateCiWorkflows(
       writeFile(
         join(workflowsDir, '09-heartbeat.yml'),
         renderTemplate('github/workflows/09-heartbeat.yml.ejs', data),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
@@ -323,7 +323,7 @@ function generateCiWorkflows(
       writeFile(
         join(workflowsDir, 'drift-shadow.yml'),
         renderTemplate('github/workflows/drift-shadow.yml.ejs', data),
-        { dryRun },
+        { skipIfExists: true, dryRun },
       ),
     )
 
@@ -456,7 +456,7 @@ export function generateGithub(
     writeFile(
       join(actionsDir, 'sign-and-attest', 'action.yml'),
       renderTemplate('github/actions/sign-and-attest/action.yml.ejs', data),
-      { dryRun: opts.dryRun },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   ]
 

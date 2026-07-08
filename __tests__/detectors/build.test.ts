@@ -154,6 +154,47 @@ describe('detectBuildCommands', () => {
     })
   })
 
+  // #1803: kotlin fell through to `default` (buildTool: 'unknown') because this
+  // switch had no `case 'kotlin':` — every JVM-shared template's binary
+  // `buildTool === 'gradle' ? … : …` check then silently coerced to its maven
+  // branch, regardless of what was actually on disk. Kotlin shares the identical
+  // JVM build-file markers as java, so it must resolve identically.
+  describe('kotlin (#1803)', () => {
+    beforeEach(() => {
+      dir = createTestProject('unknown')
+    })
+
+    it('uses gradle with wrapper when gradlew exists', () => {
+      writeFileSync(join(dir, 'build.gradle.kts'), 'plugins { kotlin("jvm") }')
+      writeFileSync(join(dir, 'gradlew'), '#!/bin/sh')
+      const result = detectBuildCommands(dir, 'kotlin')
+      expect(result.buildTool).toBe('gradle')
+      expect(result.buildCommand).toBe('./gradlew build -x test')
+      expect(result.testCommand).toBe('./gradlew test')
+    })
+
+    it('uses gradle (no wrapper) on an empty dir — matches the java empty-root default, not "unknown"', () => {
+      const result = detectBuildCommands(dir, 'kotlin')
+      expect(result.buildTool).toBe('gradle')
+      expect(result.buildCommand).toBe('gradle build -x test')
+    })
+
+    it('uses maven when pom.xml exists and no gradle files', () => {
+      writeFileSync(join(dir, 'pom.xml'), '<project/>')
+      const result = detectBuildCommands(dir, 'kotlin')
+      expect(result.buildTool).toBe('maven')
+      expect(result.buildCommand).toBe('mvn package -DskipTests')
+      expect(result.testCommand).toBe('mvn test')
+    })
+
+    it('prefers gradle over maven when both exist', () => {
+      writeFileSync(join(dir, 'pom.xml'), '<project/>')
+      writeFileSync(join(dir, 'build.gradle.kts'), 'plugins { kotlin("jvm") }')
+      const result = detectBuildCommands(dir, 'kotlin')
+      expect(result.buildTool).toBe('gradle')
+    })
+  })
+
   describe('multi (#1567)', () => {
     beforeEach(() => {
       dir = createTestProject('typescript')

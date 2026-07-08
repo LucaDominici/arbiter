@@ -138,7 +138,6 @@
     "gradle/pitest.gradle",
     "pacts/.gitkeep",
     "run.sh",
-    "scripts/audit-toolchain.mjs",
     "scripts/capture-debt-baseline.mjs",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",

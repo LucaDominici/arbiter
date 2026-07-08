@@ -1,23 +1,149 @@
 [
   {
-    "file": "__tests__/",
-    "reason": "All emails under __tests__/ are fixture data (test@arbiter.dev, user@example.com, etc.) — fake addresses required by integration test inputs (init wizard, GitHub board owners, etc.); production source is scanned without exclusion.",
+    "pattern": "test@example.com",
+    "reason": "RFC 2606 reserved documentation domain — generic fixture email used across many test files (e.g. __tests__/coverage/history.cov.test.ts). Not real PII.",
     "owner": "core",
-    "expiresAt": "2027-06-13",
+    "expiresAt": "2027-07-08",
     "scope": "pii-allowlist"
   },
   {
-    "file": "__tests__/templates/_post-merge-notify-render.test.ts",
-    "reason": "noreply@github.com appears in test assertions verifying the _post-merge-notify template renders a valid From/To address — fixture data, not real PII. Already covered by the __tests__/ wildcard but added explicitly due to hook path-match behaviour.",
+    "pattern": "alice@example.com",
+    "reason": "RFC 2606 reserved documentation domain — generic fixture email used in evidence/canary test fixtures. Not real PII.",
     "owner": "core",
-    "expiresAt": "2027-06-13",
+    "expiresAt": "2027-07-08",
     "scope": "pii-allowlist"
   },
   {
-    "file": "src/templates/github/workflows/_post-merge-notify.yml.ejs",
-    "reason": "Generic noreply@github.com fallback address used as msg[From]/msg[To] when MAIL_USERNAME secret is unset — public no-reply convention, not real PII (#943).",
+    "pattern": "user@example.com",
+    "reason": "RFC 2606 reserved documentation domain — generic fixture email used across many test files (e.g. hook empirical tests). Not real PII.",
     "owner": "core",
-    "expiresAt": "2026-08-20",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "t@example.com",
+    "reason": "RFC 2606 reserved documentation domain — short-form fixture email used in test config builders. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "dev@example.com",
+    "reason": "RFC 2606 reserved documentation domain — fixture email used in TDD-evidence test fixtures. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "test@test.com",
+    "reason": "Generic fixture email (test@test.com convention) used across integration test inputs (init wizard, collaboration-mode ceremony, etc.). Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "test@test.local",
+    "reason": "Generic fixture email on the reserved .local TLD, used in a private-paths-ignored test fixture. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "test@arbiter.dev",
+    "reason": "Project-scoped synthetic test fixture domain — used across CLI smoke/behavioral tests as a placeholder git identity. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "test@arbiter.test",
+    "reason": "Project-scoped synthetic test fixture domain (RFC 2606 .test TLD) — used in hook empirical fixtures. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "e2e@arbiter.test",
+    "reason": "Project-scoped synthetic test fixture domain (RFC 2606 .test TLD) — used as a placeholder git identity in inline-suppression-bypass e2e fixtures. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "ci@arbiter.test",
+    "reason": "Project-scoped synthetic test fixture domain (RFC 2606 .test TLD) — used as a placeholder git identity in generated-check-all integration fixtures. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "t@t.dev",
+    "reason": "Project-scoped synthetic test fixture domain — short-form placeholder git identity used in coverage fixtures. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "t@x.dev",
+    "reason": "Project-scoped synthetic test fixture domain — short-form placeholder git identity used in docs-check fixtures. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "noreply@github.com",
+    "reason": "GitHub's own public no-reply convention (used both as a commit-author fixture and as the _post-merge-notify template's fallback From/To address, #943) — not personal PII regardless of where it appears.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "git@github.com",
+    "reason": "GitHub's well-known service-account address, used as a placeholder git identity in kit-install coverage fixtures. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "n@AGENTS.md",
+    "reason": "False-positive email-pattern match on an `@AGENTS.md` markdown file reference inside check-claude-md-lint.test.ts fixture content — not an email address at all.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "privkey@o0.ingest.sentry.io",
+    "reason": "False-positive email-pattern match on a `user:pass@host` Sentry DSN URL used in redactEnv() test fixtures (__tests__/utils/replay.test.ts) — 'privkey' is a credential placeholder, not an email address.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "i@izs.me",
+    "reason": "Public OSS-maintainer attribution email embedded in a REAL npm package-lock.json used as a realistic fixture (__tests__/fixtures/real-projects/ts-library/), not synthetic. Public author metadata, not sensitive PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "baduser@domain.com",
+    "reason": "Positive-detection fixture: __tests__/scripts/pii-scan.test.ts writes this string into an isolated scratch project to assert pii-scan.mjs's OWN scanner correctly flags it. The literal string in the .ts source must stay allowlisted; the scanner's positive-catch behavior is asserted against the scratch copy, not this file.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "real.person@company.com",
+    "reason": "Positive-detection fixture: __tests__/hooks/inline-suppression-bypass.test.ts writes this string into a scratch file to assert the inline-suppression-bypass detector's own behavior. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "+14155552671",
+    "reason": "Positive-detection fixture: __tests__/scripts/pii-scan.test.ts uses the reserved-for-fiction 555 exchange (E.164 form) to assert pii-scan.mjs's OWN phone-pattern detection. Not a real phone number.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
     "scope": "pii-allowlist"
   }
 ]

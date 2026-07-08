@@ -33,10 +33,32 @@ describe('generateAuditToolchain', () => {
     expect(content).toMatch(/^#!/)
   })
 
-  it('emitted script checks CI workflow files', () => {
-    generateAuditToolchain(makeConfig(dir))
+  it('emitted script checks CI workflow files when GitHub is on', () => {
+    generateAuditToolchain(makeConfig(dir, { useGitHub: true }))
     const content = readFileSync(join(dir, 'scripts', 'audit-toolchain.mjs'), 'utf-8')
     expect(content).toContain('.github/workflows')
+  })
+
+  // #1835: the workflow-file assertions are useGitHub-gated — a non-GitHub project
+  // would otherwise false-FAIL on workflow files that were never applicable.
+  it('emitted script omits CI workflow checks when GitHub is off', () => {
+    generateAuditToolchain(makeConfig(dir, { useGitHub: false }))
+    const content = readFileSync(join(dir, 'scripts', 'audit-toolchain.mjs'), 'utf-8')
+    expect(content).not.toContain('.github/workflows')
+  })
+
+  // #1835: check-docs.mjs is only emitted at L2+ (check-all.ts); asserting its
+  // presence at L1 would false-FAIL every L1 project that opts into this audit.
+  it('emitted script omits check-docs.mjs at L1', () => {
+    generateAuditToolchain(makeConfig(dir, { governanceLevel: 'L1' }))
+    const content = readFileSync(join(dir, 'scripts', 'audit-toolchain.mjs'), 'utf-8')
+    expect(content).not.toContain('check-docs.mjs')
+  })
+
+  it('emitted script requires check-docs.mjs at L2+', () => {
+    generateAuditToolchain(makeConfig(dir, { governanceLevel: 'L2' }))
+    const content = readFileSync(join(dir, 'scripts', 'audit-toolchain.mjs'), 'utf-8')
+    expect(content).toContain('check-docs.mjs')
   })
 
   it('emitted script checks gate scripts exist', () => {

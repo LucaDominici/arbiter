@@ -262,11 +262,15 @@ describe('anti-drift × owner exactly-once emission (#1318.2)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  // The 7 scripts that anti-drift used to double-emit with another generator.
+  // The 7 scripts that anti-drift used to double-emit with another generator, plus
+  // #1835's check-pipe-tee-hazard (referenced unguarded in check-all.mjs.ejs like
+  // check-exit-code-contract, but previously had NO anti-drift fallback — a
+  // crash-class ghost, MODULE_NOT_FOUND, whenever selfVal=false).
   const GITHUB_OWNED = ['check-ci-tiers', 'check-action-pins', 'check-workflow-perms'] as const
   const ALWAYS_OWNED = [
     'check-ssot-core',
     'check-exit-code-contract',
+    'check-pipe-tee-hazard',
     'check-suppressions',
     'check-inline-suppressions',
   ] as const

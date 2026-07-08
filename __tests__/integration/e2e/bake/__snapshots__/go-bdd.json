@@ -79,7 +79,6 @@
     "docs/TEST_TAXONOMY.md",
     "internal/example_behavioral_test.go",
     "run.sh",
-    "scripts/audit-toolchain.mjs",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",
     "scripts/check-anti-fake-green.mjs",

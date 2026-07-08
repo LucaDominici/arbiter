@@ -51,7 +51,7 @@ jobs:
           DB_TYPE: ${{ matrix.db }}
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: go.mod
       - name: Run integration tests against ${{ matrix.db }}
@@ -93,7 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 <% if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: go.mod
       - name: Build CLI binary (${{ matrix.os }} / ${{ matrix.arch }})
@@ -163,7 +163,7 @@ jobs:
           mvn versions:display-dependency-updates || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: go.mod
       - name: Check outdated Go modules

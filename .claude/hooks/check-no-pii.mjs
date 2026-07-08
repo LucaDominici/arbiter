@@ -4,6 +4,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { findInlineSuppression, resolveToolInputPath } from './lib.mjs'
+import { isAllowedByEntry } from '../../scripts/lib/suppressions-shared.mjs'
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
@@ -23,17 +24,12 @@ if (existsSync(ALLOWLIST_PATH)) {
   }
 }
 
+// #1809: matching logic lives in scripts/lib/suppressions-shared.mjs, shared
+// verbatim with scripts/pii-scan.mjs — see isAllowedByEntry's docstring for the
+// specificity-floor semantics (kept in lockstep with that gate script).
 function isAllowlisted(filePath, lineNum, matchStr) {
-  const rel = relative(ROOT, filePath)
-  return allowlist.some((entry) => {
-    if (!entry.file && !entry.line && !entry.pattern) return false
-    // Anchored prefix match: rel must equal entry.file OR start with it — a bare
-    // substring match would let an "__tests__/" entry leak into unrelated paths.
-    if (entry.file && rel !== entry.file && !rel.startsWith(entry.file)) return false
-    if (entry.line && entry.line !== lineNum) return false
-    if (entry.pattern && !matchStr.includes(entry.pattern)) return false
-    return true
-  })
+  const rel = relative(ROOT, filePath).split('\\').join('/')
+  return isAllowedByEntry(allowlist, rel, lineNum, matchStr)
 }
 
 const SKIP_EXTENSIONS = [

@@ -283,7 +283,7 @@
     "kotlin": {
       "tool": "jqwik",
       "maturity": "beta",
-      "reason": "jqwik runs on JVM bytecode so it works with Kotlin, same as Java; a dedicated Kotlin branch in _nightly.yml.ejs is not yet wired (#1724 follow-up)"
+      "reason": "jqwik runs on JVM bytecode so it works with Kotlin, same as Java; the shared fuzz partial (_partials/scheduled-heavy-jobs.ejs) now includes kotlin in the java branch, fixture-render-verified (#1803)"
     }
   },
   "dast": {
@@ -347,7 +347,7 @@
     "kotlin": {
       "tool": "gradle-license-plugin / license-maven-plugin",
       "maturity": "beta",
-      "reason": "Same JVM build-tool license reporting as Java (Gradle/Maven); a dedicated Kotlin branch in 02-pr-extended.yml.ejs is not yet wired (#1724 follow-up)"
+      "reason": "Same JVM build-tool license reporting as Java (Gradle/Maven); 02-pr-extended.yml.ejs's license-scan job now includes kotlin in the java branch, fixture-render-verified (#1803)"
     }
   },
   "sbom": {
@@ -379,7 +379,7 @@
     "kotlin": {
       "tool": "cyclonedx-gradle-plugin / cyclonedx-maven-plugin",
       "maturity": "beta",
-      "reason": "Same JVM build-tool SBOM generation as Java (Gradle/Maven); a dedicated Kotlin branch in 05-release.yml.ejs is not yet wired (#1724 follow-up)"
+      "reason": "Same JVM build-tool SBOM generation as Java (Gradle/Maven); 05-release.yml.ejs's build-superset and sbom jobs now include kotlin in the java branch, fixture-render-verified (#1803)"
     }
   },
   "binary_signing": {

@@ -278,9 +278,13 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
       }
     })
 
+    // #1809: a bare directory-only entry (no line/pattern) no longer suppresses
+    // anything — the specificity floor requires an exact (file + line) pair (or
+    // an exact pattern). Matches the fixture below at its exact line.
     const ALLOWLIST_ENTRY = [
       {
-        file: '__tests__/',
+        file: '__tests__/integration/fixture.test.ts',
+        line: 1,
         reason: 'Fixture emails under __tests__/ are fake test data, not real PII.',
         owner: 'core',
         expiresAt: '2099-01-01',

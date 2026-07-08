@@ -26,20 +26,21 @@ export function generateCiTier(
     writeFile(
       join(workflowsDir, '_notify.yml'),
       renderTemplate('github/workflows/_notify.yml.ejs', data),
-      { dryRun: opts.dryRun },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     writeFile(
       join(workflowsDir, '_label-sync.yml'),
       renderTemplate('github/workflows/_label-sync.yml.ejs', data),
-      { dryRun: opts.dryRun },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     writeFile(join(githubDir, 'labels.yml'), renderTemplate('github/labels.yml.ejs', data), {
+      skipIfExists: true,
       dryRun: opts.dryRun,
     }),
     writeFile(
       join(actionsDir, 'setup-node-pnpm', 'action.yml'),
       renderTemplate('github/actions/setup-node-pnpm/action.yml.ejs', data),
-      { dryRun: opts.dryRun },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   ]
 
@@ -50,14 +51,18 @@ export function generateCiTier(
       writeFile(
         join(workflowsDir, '_post-merge-notify.yml'),
         renderTemplate('github/workflows/_post-merge-notify.yml.ejs', data),
-        { dryRun: opts.dryRun },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
 
   // #1226: Java projects emit the setup-java-maven composite action (both maven and gradle).
   // skipIfExists preserves any user customisation on re-init (CANON-11).
-  if (config.language === 'java') {
+  // #1803: kotlin shares this action — it only sets up a JVM (Temurin) + restores
+  // the Maven/Gradle cache, language-agnostic at the build-tool level. Needed by
+  // 02-pr-extended.yml.ejs's license-scan and 05-release.yml.ejs's sbom job, both
+  // of which now also cover kotlin.
+  if (config.language === 'java' || config.language === 'kotlin') {
     files.push(
       writeFile(
         join(actionsDir, 'setup-java-maven', 'action.yml'),
