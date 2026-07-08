@@ -73,6 +73,12 @@ export interface WizardAnswers {
    * Default 'fleet' — current behavior, jobs stay nightly.
    */
   runnerProfile?: 'solo' | 'fleet'
+  /**
+   * #1835 (Task B, #1825): opt-in collapsed 5-lane CI doctrine, asked only when
+   * the decomposition backend is GitHub. Mirrors config.enableFiveLaneCi.
+   * Default false.
+   */
+  enableFiveLaneCi?: boolean
 }
 
 export interface MigrationPlan {

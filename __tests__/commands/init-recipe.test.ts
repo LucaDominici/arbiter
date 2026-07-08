@@ -297,4 +297,46 @@ describe('runInit with --recipe (#546)', () => {
     const config = mockBuild.mock.calls[0]?.[0]
     expect(config?.governanceLevel).toBe('L3')
   })
+
+  // #1835 (Task B, #1825): the recipe is the non-interactive activation path for
+  // the collapsed 5-lane CI doctrine — previously enableFiveLaneCi had NO public
+  // activation path at all (generator existed, unreachable).
+  it('recipe enableFiveLaneCi=true reaches the registry config and persists to arbiter.json (#1835)', async () => {
+    const recipePath = join(dir, 'five-lane-recipe.json')
+    writeFileSync(
+      recipePath,
+      JSON.stringify({
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        language: 'typescript',
+        archetype: 'backend-web-db',
+        useGitHub: true,
+        enableFiveLaneCi: true,
+      }),
+    )
+
+    const { buildRegistry } = await import('../../src/generators/registry.js')
+    const mockBuild = vi.mocked(buildRegistry)
+
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: recipePath })
+
+    const config = mockBuild.mock.calls[0]?.[0]
+    expect(config?.enableFiveLaneCi).toBe(true)
+
+    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      features?: { fiveLaneCi?: unknown }
+    }
+    expect(raw.features?.fiveLaneCi).toBe(true)
+  })
+
+  it('recipe without enableFiveLaneCi persists features.fiveLaneCi=false (#1835)', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: FIXTURE_PATH })
+
+    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      features?: { fiveLaneCi?: unknown }
+    }
+    expect(raw.features?.fiveLaneCi).toBe(false)
+  })
 })
