@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+import { readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { formatContent } from '../utils/prettier-format.js'
@@ -7,6 +9,43 @@ import type { WriteResult } from '../utils/fs.js'
 
 export interface BehavioralTestsResult {
   files: WriteResult[]
+}
+
+/**
+ * #1776: has the project already grown REAL (non-example) `.feature` files?
+ * skipIfExists already protects an EXISTING example scaffold from being
+ * overwritten (CANON-11); the gap is a MISSING one — once a user deletes the
+ * example trio (its undefined steps break the BDD suite once real features
+ * exist), `existsSync` is false and the next `arbiter update` unconditionally
+ * re-creates it, with no memory of "this project outgrew the example."
+ * Checked once per language's features directory before emitting the example
+ * set; recurses so a nested layout (e.g. `tests/bdd/features/`) still counts
+ * a real feature file placed in a subdirectory.
+ */
+function hasRealFeatureFiles(featuresDir: string): boolean {
+  let entries: string[]
+  try {
+    entries = readdirSync(featuresDir)
+    // FAIL-OPEN-INTENT: missing featuresDir (fresh project) — nothing to find, example stays safe to emit.
+  } catch {
+    return false
+  }
+  for (const entry of entries) {
+    const full = join(featuresDir, entry)
+    let isDir: boolean
+    try {
+      isDir = statSync(full).isDirectory()
+      // FAIL-OPEN-INTENT: TOCTOU race (entry removed between readdir and stat) — skip just this entry.
+    } catch {
+      continue
+    }
+    if (isDir) {
+      if (hasRealFeatureFiles(full)) return true
+    } else if (entry.endsWith('.feature') && entry !== 'example.feature') {
+      return true
+    }
+  }
+  return false
 }
 
 function emitJavaBdd(
@@ -21,6 +60,7 @@ function emitJavaBdd(
   const bddPkg = config.basePackage
     ? `src/test/java/${config.basePackage.replace(/\./g, '/')}/bdd`
     : 'src/test/java/com/example/bdd'
+  if (hasRealFeatureFiles(resolvedPath(base, 'src', 'test', 'resources', 'features'))) return []
   return [
     writeFile(
       resolvedPath(base, testPkg, 'ExampleBehavioralTest.java'),
@@ -46,6 +86,7 @@ function emitTypeScriptBdd(base: string, data: object, dryRun: boolean): WriteRe
   // reformat that would desync the generated-manifest). The .feature file is not TS.
   const behPath = resolvedPath(base, 'src', 'test', 'example.behavioral.test.ts')
   const stepsPath = resolvedPath(base, 'features', 'step_definitions', 'example.steps.ts')
+  if (hasRealFeatureFiles(resolvedPath(base, 'features'))) return []
   return [
     writeFile(
       behPath,
@@ -74,6 +115,7 @@ function emitTypeScriptBdd(base: string, data: object, dryRun: boolean): WriteRe
 }
 
 function emitRustBdd(base: string, data: object, dryRun: boolean): WriteResult[] {
+  if (hasRealFeatureFiles(resolvedPath(base, 'tests', 'features'))) return []
   return [
     writeFile(
       resolvedPath(base, 'tests', 'example_behavioral_test.rs'),
@@ -94,6 +136,7 @@ function emitRustBdd(base: string, data: object, dryRun: boolean): WriteResult[]
 }
 
 function emitGoBdd(base: string, data: object, dryRun: boolean): WriteResult[] {
+  if (hasRealFeatureFiles(resolvedPath(base, 'features'))) return []
   return [
     writeFile(
       resolvedPath(base, 'internal', 'example_behavioral_test.go'),
@@ -114,6 +157,7 @@ function emitGoBdd(base: string, data: object, dryRun: boolean): WriteResult[] {
 }
 
 function emitPythonBdd(base: string, data: object, dryRun: boolean): WriteResult[] {
+  if (hasRealFeatureFiles(resolvedPath(base, 'tests', 'bdd', 'features'))) return []
   return [
     writeFile(
       resolvedPath(base, 'tests', 'test_example_behavioral.py'),

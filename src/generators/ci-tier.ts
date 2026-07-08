@@ -26,20 +26,21 @@ export function generateCiTier(
     writeFile(
       join(workflowsDir, '_notify.yml'),
       renderTemplate('github/workflows/_notify.yml.ejs', data),
-      { dryRun: opts.dryRun },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     writeFile(
       join(workflowsDir, '_label-sync.yml'),
       renderTemplate('github/workflows/_label-sync.yml.ejs', data),
-      { dryRun: opts.dryRun },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     writeFile(join(githubDir, 'labels.yml'), renderTemplate('github/labels.yml.ejs', data), {
+      skipIfExists: true,
       dryRun: opts.dryRun,
     }),
     writeFile(
       join(actionsDir, 'setup-node-pnpm', 'action.yml'),
       renderTemplate('github/actions/setup-node-pnpm/action.yml.ejs', data),
-      { dryRun: opts.dryRun },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   ]
 
@@ -50,7 +51,7 @@ export function generateCiTier(
       writeFile(
         join(workflowsDir, '_post-merge-notify.yml'),
         renderTemplate('github/workflows/_post-merge-notify.yml.ejs', data),
-        { dryRun: opts.dryRun },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

@@ -55,27 +55,27 @@ export function generateCiFiveLane(
   const ciResult = writeFile(
     join(workflowsDir, 'ci.yml'),
     renderTemplate('github/workflows/five-lane/ci.yml.ejs', data),
-    { dryRun: opts.dryRun },
+    { skipIfExists: true, dryRun: opts.dryRun },
   )
   const nightlyResult = writeFile(
     join(workflowsDir, 'nightly.yml'),
     renderTemplate('github/workflows/five-lane/nightly.yml.ejs', data),
-    { dryRun: opts.dryRun },
+    { skipIfExists: true, dryRun: opts.dryRun },
   )
   const weeklyResult = writeFile(
     join(workflowsDir, 'weekly.yml'),
     renderTemplate('github/workflows/five-lane/weekly.yml.ejs', data),
-    { dryRun: opts.dryRun },
+    { skipIfExists: true, dryRun: opts.dryRun },
   )
   const releaseResult = writeFile(
     join(workflowsDir, 'release.yml'),
     renderTemplate('github/workflows/five-lane/release.yml.ejs', data),
-    { dryRun: opts.dryRun },
+    { skipIfExists: true, dryRun: opts.dryRun },
   )
   const scriptResult = writeFile(
     scriptPath,
     renderTemplate('github/scripts/sticky-failure-issue.sh.ejs', data),
-    { dryRun: opts.dryRun },
+    { skipIfExists: true, dryRun: opts.dryRun },
   )
 
   if (!opts.dryRun && scriptResult.action !== 'skipped') {
