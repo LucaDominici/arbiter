@@ -68,6 +68,9 @@ export const RecipeSchema = z.object({
   enableNoSkippedTests: z.boolean().optional(),
   // #1835: opt-in toolchain/workflow-inventory audit (scripts/audit-toolchain.mjs).
   enableAuditToolchain: z.boolean().optional(),
+  // #1835 (Task B, #1825): collapsed 5-lane CI doctrine — previously had no public
+  // activation path (no CLI flag, wizard prompt, recipe field, or preset).
+  enableFiveLaneCi: z.boolean().optional(),
   // #1261: ship-autonomy axis (ADR-093 §4) — the non-interactive override for
   // `automation.autonomy` (init --yes/--json never prompts; default is L0).
   // #1306 (ADR-094 §Decision.4): the three orchestration prefs are recipe-settable

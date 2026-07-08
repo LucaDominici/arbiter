@@ -50,3 +50,15 @@ describe('RecipeSchema — new init-quality fields (#1318.4)', () => {
     expect(parsed.decomposition?.backend).toBe('github')
   })
 })
+
+// #1835 (Task B, #1825): recipe activation path for the collapsed 5-lane CI doctrine.
+describe('RecipeSchema — enableFiveLaneCi (#1835)', () => {
+  it('parses enableFiveLaneCi boolean', () => {
+    const parsed = RecipeSchema.parse({ enableFiveLaneCi: true })
+    expect(parsed.enableFiveLaneCi).toBe(true)
+  })
+
+  it('rejects a non-boolean enableFiveLaneCi', () => {
+    expect(() => RecipeSchema.parse({ enableFiveLaneCi: 'yes' })).toThrow()
+  })
+})

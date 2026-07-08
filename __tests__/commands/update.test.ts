@@ -126,4 +126,24 @@ describe('resolveProjectConfig — canonical builder field mapping (#1077)', () 
     expect(config.deployTarget).toBe('azure-container-app')
     expect(config.taxonomy).toEqual({ domainDims: ['billing', 'fraud'] })
   })
+
+  // #1835 (Task B, #1825): features.fiveLaneCi is the arbiter.json persistence of
+  // enableFiveLaneCi. Without this reader mapping, `arbiter update`/`diff` would
+  // resolve enableFiveLaneCi to false for a project that opted in — flipping its
+  // 4-workflow five-lane shape back to the standard github/ci-tier union.
+  it('round-trips stored features.fiveLaneCi into enableFiveLaneCi (#1835)', () => {
+    const on = makeStored()
+    ;(on.features as Record<string, unknown>)['fiveLaneCi'] = true
+    const { config: cfgOn } = resolveProjectConfig(dir, 'x', on)
+    expect(cfgOn.enableFiveLaneCi).toBe(true)
+
+    const { config: cfgOff } = resolveProjectConfig(dir, 'x', makeStored())
+    expect(cfgOff.enableFiveLaneCi).toBe(false)
+
+    // Registry mutual exclusivity holds for the round-tripped config (github on).
+    const registry = buildRegistry({ ...cfgOn, useGitHub: true, permitGitHub: true })
+    expect(registry.find((s) => s.key === 'ci-five-lane')?.enabled).toBe(true)
+    expect(registry.find((s) => s.key === 'github')?.enabled).toBe(false)
+    expect(registry.find((s) => s.key === 'ci-tier')?.enabled).toBe(false)
+  })
 })
