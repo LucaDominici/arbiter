@@ -9,12 +9,19 @@ import { generateGithub } from '../../src/generators/github.js'
 import { makeConfig } from '../helpers.js'
 
 // Simulate the _ai-draft-check workflow logic:
-// Returns true (check passes) if PR is not bot-authored OR has approved-by-human label.
-// Returns false (check fails) if PR is bot-authored AND lacks approved-by-human label.
-function simulateAiDraftCheck(prAuthorType: 'Bot' | 'User', labels: string[]): boolean {
+// Returns true (check passes) if PR is not bot-authored, is the exempt
+// dependabot[bot] account, OR has the approved-by-human label.
+// Returns false (check fails) if PR is bot-authored (non-exempt) AND lacks
+// the approved-by-human label.
+function simulateAiDraftCheck(
+  prAuthorType: 'Bot' | 'User',
+  labels: string[],
+  prAuthorLogin = 'some-ai-agent[bot]',
+): boolean {
   const isBot = prAuthorType === 'Bot'
+  const isDependabot = prAuthorLogin === 'dependabot[bot]'
   const hasApproval = labels.includes('approved-by-human')
-  if (isBot && !hasApproval) {
+  if (isBot && !isDependabot && !hasApproval) {
     return false // check fails
   }
   return true // check passes
@@ -57,6 +64,16 @@ describe('AI-PR gate — bot author detection (F3, #890)', () => {
   it('human-authored PR with approved-by-human label also passes', () => {
     const passes = simulateAiDraftCheck('User', ['approved-by-human'])
     expect(passes).toBe(true)
+  })
+
+  it('dependabot[bot] PR passes without the approved-by-human label (exempt, not security-relevant noise)', () => {
+    const passes = simulateAiDraftCheck('Bot', [], 'dependabot[bot]')
+    expect(passes).toBe(true)
+  })
+
+  it('non-dependabot bot-authored PR still fails without the label (INV-91 semantics intact for AI agents)', () => {
+    const passes = simulateAiDraftCheck('Bot', [], 'some-ai-agent[bot]')
+    expect(passes).toBe(false)
   })
 })
 
