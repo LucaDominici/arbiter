@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #1817 (A7): `arbiter explain --handoff <topic>` scaffolds an executable-handoff
 // doc from src/templates/HANDOFF.template.md — the cheapest durable cross-session/
-// cross-model memory (see HANDOFF-VIAFERA-PATTERNS-2026-07.md, pattern A7).
+// cross-model memory (see the #1817 gold-rebaseline handoff, pattern A7).
 import { describe, it, expect, afterEach } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'

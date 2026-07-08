@@ -22,6 +22,14 @@ const FORBIDDEN = [
   /\bcmms\b/i,
   /\bcowork\b/i,
   /ci-fleet/i,
+  /\bviafera\b/i,
+  // Word-boundary guarded: "haben" is also a common German verb ("to have"). A
+  // bare substring match would false-positive on legitimate German prose; \b
+  // still matches the private-repo codename since it's always used as a
+  // whole word (identifier/proper-noun) in this codebase, never as a prefix/
+  // suffix inside another word (verified empirically — 2026-07 privacy scrub).
+  /\bhaben\b/i,
+  /coach-system/i,
 ]
 
 const SCAN_EXTENSIONS = new Set([
@@ -48,6 +56,10 @@ const SKIP_PATHS = [
   'scripts/check-no-work-refs.mjs',
   'scripts/data/redaction-lexicon.json',
   '__tests__/kit/redaction.test.ts',
+  // Negative assertion (`expect(...).not.toContain('haben')`) guarding rendered
+  // ship templates against pilot-project provenance leaks — legitimately
+  // contains the forbidden token as the string it asserts is ABSENT, not a leak.
+  '__tests__/templates/ship-driver-render.test.ts',
   '.claude/',
 ]
 

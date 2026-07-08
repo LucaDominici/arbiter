@@ -121,8 +121,8 @@ export function runExplain(code: string, opts: ExplainOptions): ExplainResult {
  * #1817 (A7) — executable-handoff standard. The cheapest durable memory across
  * sessions/models is a file a COLD model can execute without re-derivation: context,
  * evidence pointers, atomic ordered tasks, an AC + verification command per task, and
- * a suggested model tier. Reference implementations: `HANDOFF-VIAFERA-PATTERNS-2026-07.md`
- * (arbiter repo root) and the gold-rebaseline plan it was distilled from.
+ * a suggested model tier. Reference implementation: the #1817 gold-rebaseline plan
+ * this pattern was distilled from.
  *
  * `arbiter explain --handoff <topic>` scaffolds `HANDOFF-<SLUG>.md` from
  * `src/templates/HANDOFF.template.md` into `--out` (defaults to cwd). Never overwrites
