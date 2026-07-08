@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: read
 
 concurrency:
   group: heartbeat
@@ -51,6 +52,18 @@ jobs:
           fi
 
           echo "Nightly freshness OK — last run ${AGE_HOURS}h ago."
+
+      - name: Ensure heartbeat-nightly-missed label exists
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create heartbeat-nightly-missed \
+            --description "Nightly workflow freshness check failed" \
+            --color "d73a4a" \
+            --repo "$GH_REPO" \
+            --force
 
       - name: Open or close heartbeat issue
         if: always()
@@ -124,6 +137,18 @@ jobs:
 
           echo "Weekly freshness OK — last run ${AGE_DAYS}d ago."
 
+      - name: Ensure heartbeat-weekly-missed label exists
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create heartbeat-weekly-missed \
+            --description "Weekly workflow freshness check failed" \
+            --color "d73a4a" \
+            --repo "$GH_REPO" \
+            --force
+
       - name: Open or close heartbeat issue
         if: always()
         env:
@@ -195,6 +220,18 @@ jobs:
           fi
 
           echo "Monthly freshness OK — last run ${AGE_DAYS}d ago."
+
+      - name: Ensure heartbeat-monthly-missed label exists
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create heartbeat-monthly-missed \
+            --description "Monthly workflow freshness check failed" \
+            --color "d73a4a" \
+            --repo "$GH_REPO" \
+            --force
 
       - name: Open or close heartbeat issue
         if: always()
