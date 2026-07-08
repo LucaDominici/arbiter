@@ -199,3 +199,41 @@ describe('_weekly.yml.ejs — runnerProfile axis (#1693, ADR-101)', () => {
     expect(rendered).not.toContain('%>')
   })
 })
+
+// Weekly (T5) was red on 5 consecutive scheduled runs (run 28730540157 et al.):
+// (a) `date: invalid option -- 'j'` — the BSD/macOS `date -j` fallback is
+//     unconditionally invalid on our GNU/Linux runners (#1785: even a literal
+//     `ubuntu-latest` label routes to self-hosted Linux here), and is reached
+//     whenever the primary GNU `date -d` parse fails (e.g. an odd commit-date
+//     API response) — crashing the whole audit job under `set -e`.
+// (b) `could not add label: 'weekly-regression' not found` — labels.yml/
+//     _label-sync.yml own the canonical label, but a not-yet-synced repo has
+//     no such label, and `gh issue create --label` hard-fails.
+describe('_weekly.yml.ejs — stale-pin-audit portability + label self-heal (weekly red streak)', () => {
+  it('does not use the BSD/macOS-only `date -j` fallback anywhere', () => {
+    const rendered = renderWeeklyPartial({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).not.toContain('date -j')
+    expect(rendered).not.toContain('date -v')
+  })
+
+  it('a failed commit-date parse is skipped (continue), not left to crash the job', () => {
+    const rendered = renderWeeklyPartial({ language: 'typescript', buildTool: 'npm' })
+    const idx = rendered.indexOf('PUSHED_EPOCH=')
+    expect(idx).toBeGreaterThan(-1)
+    const slice = rendered.slice(idx, idx + 300)
+    expect(slice).toContain('continue')
+  })
+
+  it('"File issue on hard failures" idempotently creates the weekly-regression label before use', () => {
+    const rendered = renderWeeklyPartial({ language: 'typescript', buildTool: 'npm' })
+    const idx = rendered.indexOf('File issue on hard failures')
+    expect(idx).toBeGreaterThan(-1)
+    const slice = rendered.slice(idx, idx + 1100)
+    const labelCreateIdx = slice.indexOf('gh label create weekly-regression')
+    const issueCreateIdx = slice.indexOf('gh issue create')
+    expect(labelCreateIdx).toBeGreaterThan(-1)
+    expect(issueCreateIdx).toBeGreaterThan(labelCreateIdx)
+    // Must never crash the step when the label already exists.
+    expect(slice.slice(labelCreateIdx, labelCreateIdx + 200)).toContain('|| true')
+  })
+})
