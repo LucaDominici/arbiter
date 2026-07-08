@@ -59,7 +59,7 @@ jobs:
         env:
           DB_TYPE: ${{ matrix.db }}
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]"
@@ -115,7 +115,7 @@ jobs:
           npm run build
           node dist/index.js --version || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]" pyinstaller
@@ -169,7 +169,7 @@ jobs:
       - name: Check outdated Go modules
         run: go list -u -m all 2>/dev/null | grep '\[' || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version-file: .python-version
       - run: pip install pip-review
