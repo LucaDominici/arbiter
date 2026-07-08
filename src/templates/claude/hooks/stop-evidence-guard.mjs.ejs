@@ -108,7 +108,7 @@ function main() {
 
   // 4. journey evidence (#A2, extends INV-114) — a completion claim must reference a run of the
   // task's declared acceptance E2E spec AGAINST THE BUILT ARTIFACT (compose image / dist), not the
-  // dev server. Viafera shipped green-tested images whose prod UI ran in fixture mode (buttons
+  // dev server. One downstream project shipped green-tested images whose prod UI ran in fixture mode (buttons
   // dead) because the acceptance journey was only ever exercised against the dev server.
   const journey = readJson(join(root, '.arbiter', 'evidence', 'journey', sanitizeTaskId(taskId) + '.json'));
   if (journey === null) fail('journey evidence missing or unreadable (.arbiter/evidence/journey/<taskId>.json) — declare the acceptance E2E spec up front and run it before claiming completion');

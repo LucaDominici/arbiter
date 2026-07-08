@@ -203,7 +203,7 @@ export interface ConformanceThresholds {
 export interface ProjectConfig {
   /** Directory being initialized */
   targetDir: string
-  /** e.g. "coach-system" */
+  /** e.g. "my-app" */
   projectName: string
   /** Short description (user-provided or inferred) */
   description: string

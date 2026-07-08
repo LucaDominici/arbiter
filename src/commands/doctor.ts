@@ -1060,8 +1060,8 @@ export function runDoctorClean(opts: DoctorCleanOptions = {}): DoctorCleanResult
 
 // ── doctor --prove-gates (#1817, A5) ────────────────────────────────────────
 //
-// Viafera anti-pattern (handoff A5): ~40 `test-*.sh` scripts unit-testing the gate SCRIPTS
-// themselves. Viafera pattern that WORKED: `ArchNegativeProofTest` — one intentional-violation
+// Anti-pattern observed on a reference project (handoff A5): ~40 `test-*.sh` scripts unit-testing
+// the gate SCRIPTS themselves. Pattern that WORKED: `ArchNegativeProofTest` — one intentional-violation
 // fixture per rule, proving the rule actually fails when violated. `--prove-gates` runs that
 // pattern against every tier-1 (must-pass) conformance dimension arbiter installs: seed an
 // isolated fixture that violates the rule, run the real probe, and report any gate whose

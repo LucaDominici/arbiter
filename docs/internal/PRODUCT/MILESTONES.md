@@ -178,13 +178,13 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 ## M9 — Real Repo Validation ✅ DONE
 
 **Issue:** #18
-**Scope:** Run `arbiter update` on a prior internal project and coach-system. Verify output. Fix any regressions.
+**Scope:** Run `arbiter update` on two prior internal reference projects. Verify output. Fix any regressions.
 
 **Deliverables:**
 
 - Verified: `arbiter update --dir <path>` succeeds on both repos with no errors
-- Verified: existing customizations in the prior internal project preserved
-- Verified: settings.json merged correctly in coach-system
+- Verified: existing customizations in the first reference project preserved
+- Verified: settings.json merged correctly in the second reference project
 - Any regressions found → fixed with tests added
 
 **Exit criteria:** Both repos updated without errors. Existing customizations preserved. No regressions.
