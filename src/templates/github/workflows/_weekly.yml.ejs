@@ -209,7 +209,9 @@ jobs:
         run: |
           WORKFLOWS=$(find .github/workflows -name '*.yml' | head -20)
           STALE=0
-          CUTOFF=$(date -d '180 days ago' +%s 2>/dev/null || date -v-180d +%s)
+          # Runners here are always GNU/Linux regardless of the runs-on label (#1785) —
+          # no BSD/macOS `date` fallback is ever reachable in this environment.
+          CUTOFF=$(date -d '180 days ago' +%s)
           for wf in $WORKFLOWS; do
             # FAIL-OPEN-INTENT: grep exits 1 on no matches; empty REFS is valid
             REFS=$(grep -oP 'uses: \S+@[a-f0-9]{40}' "$wf" | sed 's/uses: //' || true)
@@ -218,7 +220,12 @@ jobs:
               SHA=$(echo "$ref" | cut -d@ -f2)
               PUSHED=$(gh api "repos/$ACTION/git/commits/$SHA" --jq '.committer.date' 2>/dev/null || echo "")
               if [ -n "$PUSHED" ]; then
-                PUSHED_EPOCH=$(date -d "$PUSHED" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$PUSHED" +%s)
+                # FAIL-OPEN-INTENT: an unparseable committer date (e.g. a null/odd API
+                # response) must not crash the whole audit — skip just this ref.
+                if ! PUSHED_EPOCH=$(date -d "$PUSHED" +%s 2>/dev/null); then
+                  echo "::warning::Could not parse commit date '$PUSHED' for $ref in $wf — skipping"
+                  continue
+                fi
                 if [ "$PUSHED_EPOCH" -lt "$CUTOFF" ]; then
                   echo "::warning::Stale pin in $wf: $ref (pushed $PUSHED)"
                   STALE=$((STALE + 1))
@@ -268,6 +275,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # FAIL-OPEN-INTENT: idempotent create — label may already exist (labels.yml/_label-sync.yml own the canonical definition); self-heals an unsynced repo instead of crashing this step.
+          gh label create weekly-regression --color b60205 --description "Weekly (T5) workflow detected a regression" --repo "$GH_REPO" 2>/dev/null || true
           EXISTING=$(gh issue list \
             --label weekly-regression \
             --state open \
