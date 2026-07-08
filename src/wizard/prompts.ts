@@ -445,6 +445,24 @@ async function collectDecompositionBackend(
 }
 
 /**
+ * Prompt 14.5 — #1835 (Task B, #1825): collapsed 5-lane CI doctrine, GitHub-only
+ * opt-in. Asked only when the decomposition backend is GitHub (the generator
+ * mutually excludes the standard github/ci-tier shape when this is on —
+ * registry.ts). Skipped entirely for markdown-backend projects so the default
+ * interactive flow is unaffected. Extracted to keep collectRawAnswers under the
+ * max-lines-per-function ceiling.
+ */
+async function collectFiveLaneCiAnswer(raw: RawAnswers): Promise<void> {
+  if (raw.decompositionBackend !== 'github') return
+  raw.enableFiveLaneCi = await unwrap(
+    confirm({
+      message: FIVE_LANE_CI_MESSAGE,
+      initialValue: false,
+    }),
+  )
+}
+
+/**
  * Collect the wizard answers via sequential @clack/prompts calls. Returns the
  * raw answer object in the same shape inquirer produced; conditional prompts
  * (`when:` in the old inquirer model) are expressed as imperative `if`s here,
@@ -533,6 +551,9 @@ async function collectRawAnswers(wizardInput: WizardInput): Promise<RawAnswers> 
       initialValue: 'standard',
     }),
   )
+
+  // 14.5 — #1835 (Task B, #1825): collapsed 5-lane CI doctrine, GitHub-only opt-in.
+  await collectFiveLaneCiAnswer(raw)
 
   // 15 — brownfield class (default auto-detected).
   const brownfieldDetect = detectBrownfieldClass(wizardInput.targetDir, wizardInput.language)
@@ -717,6 +738,8 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     lanes: input.detectedLanes ?? [],
     deployTarget,
     pipelineStyle: answers.pipelineStyle ?? 'standard',
+    // #1835 (Task B, #1825): only ever asked (and thus only ever true) for a GitHub backend.
+    enableFiveLaneCi: answers.enableFiveLaneCi === true,
     brownfieldClass: answers.brownfieldClass ?? 'gold',
     kitEnabled: true,
     // #1693 (ADR-101): runner profile axis. Default 'fleet' — current behavior.
@@ -912,6 +935,16 @@ const PIPELINE_STYLE_OPTIONS: Opt<'starter' | 'standard' | 'industrial'>[] = [
   { value: 'standard', label: 'standard   — recommended team CI (8 workflows)  [recommended]' },
   { value: 'industrial', label: 'industrial — enterprise-grade CI (18 workflows)' },
 ]
+
+// #1835 (Task B, #1825): opt-in collapsed 5-lane CI doctrine — replaces the
+// pipeline-style workflow set above with exactly 4 workflows (ci/nightly/weekly/
+// release) + local pre-commit. Advanced/opinionated shape (validated on a
+// 100k-LOC reference project — see src/generators/ci-five-lane.ts) — default No
+// so the standard flow is unaffected.
+const FIVE_LANE_CI_MESSAGE = [
+  'Use the collapsed 5-lane CI doctrine instead of the pipeline style above?',
+  '(advanced — pre-commit + ci/nightly/weekly/release, replaces the standard github + ci-tier shape)',
+].join('\n')
 
 function buildBrownfieldClassMessage(
   detected: 'gold' | 'light' | 'medium' | 'heavy',

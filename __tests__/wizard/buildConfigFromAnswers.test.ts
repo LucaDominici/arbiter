@@ -298,3 +298,40 @@ describe('buildConfigFromAnswers — language override (#1036)', () => {
     expect(config.language).toBe('rust')
   })
 })
+
+// #1835 (Task B, #1825): enableFiveLaneCi previously had NO public activation
+// path — the ci-five-lane generator existed but was unreachable from the wizard,
+// any CLI flag, recipes, or presets. These pin the wizard-answer mapping and the
+// arbiter.json persistence round-trip (features.fiveLaneCi) so `arbiter update`
+// cannot silently drop the axis.
+describe('buildConfigFromAnswers — enableFiveLaneCi activation (#1835)', () => {
+  it('threads enableFiveLaneCi: true into the ProjectConfig', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers({ enableFiveLaneCi: true }))
+    expect(config.enableFiveLaneCi).toBe(true)
+  })
+
+  it('defaults enableFiveLaneCi to false when the answer is absent', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers())
+    expect(config.enableFiveLaneCi).toBe(false)
+  })
+
+  it('persists features.fiveLaneCi into arbiter.json (buildArbiterConfig passthrough)', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const on = buildArbiterConfig(
+      buildConfigFromAnswers(makeInput(), makeAnswers({ enableFiveLaneCi: true })),
+    )
+    const off = buildArbiterConfig(buildConfigFromAnswers(makeInput(), makeAnswers()))
+    expect(on.features.fiveLaneCi).toBe(true)
+    expect(off.features.fiveLaneCi).toBe(false)
+  })
+
+  it('round-trips: persisted fiveLaneCi validates ok', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const { validateConfig } = await import('../../src/config/schema.js')
+    const arbiterJson = buildArbiterConfig(
+      buildConfigFromAnswers(makeInput(), makeAnswers({ enableFiveLaneCi: true })),
+    )
+    const validated = validateConfig(JSON.parse(JSON.stringify(arbiterJson)))
+    expect(validated.ok).toBe(true)
+  })
+})
