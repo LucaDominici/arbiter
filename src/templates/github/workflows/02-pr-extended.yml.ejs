@@ -311,7 +311,11 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
       - name: License check
         run: npx license-checker --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;Python-2.0' --excludePackages 'buffers@0.1.1'
-<% } else if (language === 'java') { %>
+<%# #1803: kotlin shares this branch — the license-report Gradle/Maven plugin
+    task is language-agnostic (it inspects the dependency graph, not source
+    files), so it reports identically for a Kotlin-sourced build (confirmed
+    during the #1724 cross-language-matrix audit). -%>
+<% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3

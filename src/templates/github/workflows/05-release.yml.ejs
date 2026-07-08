@@ -45,7 +45,13 @@ jobs:
       - run: npm run build
       - name: Package artifact
         run: zip -r release-artifact.zip dist/
-<% } else if (language === 'java') { %>
+<%# #1803: kotlin shares this branch — `gradlew build`/`mvn package` compile
+    Kotlin sources identically to Java in the same reactor (confirmed during
+    the #1724 cross-language-matrix audit). The sbom job below `needs:
+    build-superset`, so kotlin coverage here is a prerequisite for its own
+    kotlin coverage to actually run (a build-superset that never emits
+    release-artifact.zip would fail the hash step and skip sbom entirely). -%>
+<% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
@@ -251,7 +257,11 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
       - name: Generate CycloneDX SBOM
         run: npm sbom --omit dev --package-lock-only --sbom-format cyclonedx > sbom.cdx.json
-<% } else if (language === 'java') { %>
+<%# #1803: kotlin shares this branch — the cyclonedx Gradle/Maven plugin task
+    inspects the dependency graph, not source files, so it generates
+    identically for a Kotlin-sourced build (confirmed during the #1724
+    cross-language-matrix audit). -%>
+<% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
