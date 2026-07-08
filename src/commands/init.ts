@@ -1090,13 +1090,16 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
 }
 
 /**
- * #1835 — apply the CI-gate opt-in flag(s) a recipe may declare
- * (`enableAuditToolchain`). Extracted to keep applyRecipeOverrides under the
- * complexity-15 ceiling.
+ * #1835 — apply the CI-gate opt-in flags a recipe may declare
+ * (`enableAuditToolchain`, `enableFiveLaneCi` — Task B, #1825). Extracted to keep
+ * applyRecipeOverrides under the complexity-15 ceiling.
  */
 function applyRecipeCiOverrides(config: ProjectConfig, recipe: Recipe): void {
   if (recipe.enableAuditToolchain !== undefined) {
     config.enableAuditToolchain = recipe.enableAuditToolchain
+  }
+  if (recipe.enableFiveLaneCi !== undefined) {
+    config.enableFiveLaneCi = recipe.enableFiveLaneCi
   }
 }
 
@@ -1286,6 +1289,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       evidenceHarness: config.enableEvidenceHarness === true,
       selfValidationHarness: config.enableSelfValidationHarness !== false,
       auditToolchain: config.enableAuditToolchain === true,
+      fiveLaneCi: config.enableFiveLaneCi === true,
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       soloDevMode: config.enableSoloDevMode === true,
     },

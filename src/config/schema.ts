@@ -39,6 +39,8 @@ export interface FeatureFlags {
   selfValidationHarness?: boolean
   /** #1835: opt-in toolchain/workflow-inventory audit (scripts/audit-toolchain.mjs). */
   auditToolchain?: boolean
+  /** #1835 (Task B, #1825): opt-in collapsed 5-lane CI doctrine (see enableFiveLaneCi). */
+  fiveLaneCi?: boolean
   debtGates: boolean
   suppressions: boolean
   soloDevMode?: boolean
@@ -621,6 +623,10 @@ function validateFeatures(raw: unknown, errors: string[]): void {
   // auditToolchain is optional (#1835); validate only if present
   if ('auditToolchain' in raw && typeof raw['auditToolchain'] !== 'boolean') {
     errors.push('features.auditToolchain must be a boolean')
+  }
+  // fiveLaneCi is optional (#1835 Task B); validate only if present
+  if ('fiveLaneCi' in raw && typeof raw['fiveLaneCi'] !== 'boolean') {
+    errors.push('features.fiveLaneCi must be a boolean')
   }
   // soloDevMode is optional; validate only if present
   if ('soloDevMode' in raw && typeof raw['soloDevMode'] !== 'boolean') {

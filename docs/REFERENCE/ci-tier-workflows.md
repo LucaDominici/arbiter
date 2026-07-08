@@ -156,6 +156,24 @@ The `scripts/check-action-pins.mjs` gate enforces this at L2.
 Every generated workflow declares explicit top-level `permissions:` with least-privilege
 defaults. The `scripts/check-workflow-perms.mjs` gate enforces this at L1.
 
+## Alternative shape: collapsed 5-lane CI doctrine (#1825, opt-in)
+
+`enableFiveLaneCi: true` replaces the entire numbered-workflow inventory above with the
+collapsed 5-lane shape: **pre-commit** (local, via `.githooks` — no workflow file) plus
+exactly **4 workflow files** — `ci.yml` (PR-blocking), `nightly.yml`, `weekly.yml`, and
+`release.yml` (release-seal on tag push) — each carrying its tier + time budget in a header
+comment. It is **mutually exclusive** with the standard `github`/`ci-tier` generators
+(`src/generators/registry.ts`), so a project never receives the union of both shapes.
+
+**Activation (#1835 Task B):**
+
+- **Wizard**: an opt-in confirm prompt (step 14.5, default No) shown only when the
+  decomposition backend is GitHub.
+- **Recipe**: `"enableFiveLaneCi": true` in a `--recipe` JSON file — the non-interactive
+  path.
+- **Persistence**: stored as `features.fiveLaneCi` in `arbiter.json`, read back on every
+  `arbiter update` / `arbiter diff`, so the opt-in survives regeneration.
+
 ## Worktree pre-commit skip (#1695)
 
 `.githooks/pre-commit` detects when it is running inside a git worktree (`[ -f ".git" ]` —
