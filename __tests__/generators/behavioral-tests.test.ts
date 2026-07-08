@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateBehavioralTests } from '../../src/generators/behavioral-tests.js'
@@ -673,5 +673,86 @@ describe('generateBehavioralTests', () => {
     })
     generateBehavioralTests(config)
     expect(existsSync(join(dir, 'tests', 'test_example_behavioral.py'))).toBe(false)
+  })
+})
+
+// ─── #1776: example scaffold must not resurrect after deletion ─────────────
+//
+// Found supervising `arbiter update` on haben (2026-07-04): a project that has
+// grown 13 real feature files still has `features/example.feature` +
+// `internal/bdd/example_test.go` (a Go project) re-created on the next update
+// after the user deletes them — the example's undefined steps break the BDD
+// suite until deleted again. skipIfExists already protects an EXISTING example
+// file (CANON-11); the gap is a MISSING one: `existsSync` is false so
+// `resolveWriteAction` unconditionally re-creates it, with no memory of "this
+// project outgrew the example." Fix: skip emitting the example set entirely
+// once real (non-example) feature content already exists.
+describe('generateBehavioralTests — #1776 example scaffold vs real BDD content', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('TypeScript: does not recreate the deleted example once a real feature file exists', () => {
+    const config = makeConfig(dir, { language: 'typescript', archetype: 'library' })
+    generateBehavioralTests(config)
+
+    const examplePath = join(dir, 'features', 'example.feature')
+    const stepsPath = join(dir, 'features', 'step_definitions', 'example.steps.ts')
+    const behavioralPath = join(dir, 'src', 'test', 'example.behavioral.test.ts')
+    expect(existsSync(examplePath)).toBe(true)
+
+    // The project outgrew the example: real feature files exist, the example
+    // trio was deleted (its undefined steps broke the BDD suite).
+    writeFileSync(join(dir, 'features', 'checkout.feature'), 'Feature: Checkout\n')
+    rmSync(examplePath)
+    rmSync(stepsPath)
+    rmSync(behavioralPath)
+
+    generateBehavioralTests(config)
+
+    expect(existsSync(examplePath)).toBe(false)
+    expect(existsSync(stepsPath)).toBe(false)
+    expect(existsSync(behavioralPath)).toBe(false)
+  })
+
+  it('Go: does not recreate the deleted example once a real feature file exists', () => {
+    const goDir = createTestProject('go')
+    initGit(goDir)
+    try {
+      const config = makeConfig(goDir, { language: 'go', archetype: 'library' })
+      generateBehavioralTests(config)
+
+      const examplePath = join(goDir, 'features', 'example.feature')
+      const bddPath = join(goDir, 'internal', 'bdd', 'example_test.go')
+      const behavioralPath = join(goDir, 'internal', 'example_behavioral_test.go')
+      expect(existsSync(examplePath)).toBe(true)
+
+      mkdirSync(join(goDir, 'features'), { recursive: true })
+      writeFileSync(join(goDir, 'features', 'checkout.feature'), 'Feature: Checkout\n')
+      rmSync(examplePath)
+      rmSync(bddPath)
+      rmSync(behavioralPath)
+
+      generateBehavioralTests(config)
+
+      expect(existsSync(examplePath)).toBe(false)
+      expect(existsSync(bddPath)).toBe(false)
+      expect(existsSync(behavioralPath)).toBe(false)
+    } finally {
+      cleanupTestProject(goDir)
+    }
+  })
+
+  it('TypeScript: still generates the example on a fresh project (no real content yet)', () => {
+    const config = makeConfig(dir, { language: 'typescript', archetype: 'library' })
+    expect(generateBehavioralTests(config).files).toHaveLength(5)
+    expect(existsSync(join(dir, 'features', 'example.feature'))).toBe(true)
   })
 })
