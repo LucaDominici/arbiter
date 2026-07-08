@@ -171,3 +171,30 @@ describe('_nightly.yml.ejs — runnerProfile axis (#1693, ADR-101)', () => {
     expect(rendered).not.toContain('%>')
   })
 })
+
+// #1803: kotlin fell through every language branch in the fuzz job (no
+// dedicated kotlin arm, and `language === 'java'` is a strict-equality check
+// that never matches 'kotlin') — the job rendered checkout-only, silently
+// running no fuzzer at all despite the cross-language-matrix claiming
+// coverage. jqwik operates on JVM bytecode, so kotlin now shares the java arm.
+describe('_nightly.yml.ejs — kotlin fuzz coverage (#1803)', () => {
+  it.each(['gradle', 'maven'] as const)(
+    'kotlin/%s: fuzz job runs jqwik via the java/JVM branch, not checkout-only',
+    (buildTool) => {
+      const rendered = renderNightlyPartial({ language: 'kotlin', buildTool })
+      const jobStart = rendered.indexOf('fuzz:')
+      const jobEnd = rendered.indexOf('soak-e2e:')
+      const fuzzSection = rendered.slice(jobStart, jobEnd)
+      expect(fuzzSection).toContain('actions/setup-java')
+      expect(fuzzSection).toContain('jqwik property-based tests')
+      expect(fuzzSection).toContain(buildTool === 'gradle' ? './gradlew test' : 'mvn test')
+      expect(fuzzSection).toContain('-Djqwik.database=false')
+    },
+  )
+
+  it('kotlin leaves no EJS tag leaks', () => {
+    const rendered = renderNightlyPartial({ language: 'kotlin', buildTool: 'gradle' })
+    expect(rendered).not.toContain('<%')
+    expect(rendered).not.toContain('%>')
+  })
+})

@@ -13,7 +13,11 @@
       - uses: ./.github/actions/setup-node-pnpm
       - name: fast-check fuzz (property-based)
         run: npm run test:fuzz
-<% } else if (language === 'java') { %>
+<%# #1803: kotlin shares the java branch below — jqwik runs on JVM bytecode
+    so it works identically for a Kotlin-sourced Gradle/Maven build (confirmed
+    during the #1724 cross-language-matrix audit); no separate invocation
+    needed. -%>
+<% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
