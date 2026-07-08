@@ -263,7 +263,16 @@ if (isMain) {
     // When running from rsync'd temp dir on behalf of a '#'-path worktree,
     // VitePress cannot resolve workspace paths; degrade to warn (CI validates).
     const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck
-    docsCheck('docs:build', 'npm', ['run', 'docs:build'])
+    // #1807: this gate only needs to know the website BUILDS — it must never
+    // write into the working tree to find out. Plain `docs:build` starts with
+    // `sync-public-governance.mjs`, an unconditional copyFileSync(AGENTS.md ->
+    // website/governance/AGENTS.md) with no --check mode, so running it here
+    // mutated a tracked file mid-gate in a worktree whose mirror had drifted
+    // (uncommitted side effect the operator had to `git checkout --` away).
+    // `docs:build:verify` (build only) is read-only; drift in the mirror is
+    // already caught by the dedicated 'governance mirror sync (#1805)' check
+    // above (line ~163) — that hard-fails BEFORE this one ever needs to run.
+    docsCheck('docs:build', 'npm', ['run', 'docs:build:verify'])
     runCheck('dead code', 'npx', ['knip'])
     // Fail-closed wrapper: bare `npx jscpd --silent` exits 0 on a 0-file scan
     // under v5, making the gate vacuous on fileset drift (#1286).
