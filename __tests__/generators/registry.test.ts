@@ -357,3 +357,17 @@ describe('buildRegistry — five-lane CI mutual exclusivity (#1817)', () => {
     expect(specs.find((s) => s.key === 'ci-five-lane')?.enabled).toBe(false)
   })
 })
+
+// #1835: audit-toolchain was always-on (enabled: true) but never wired into
+// check-all.mjs — a dead emission on every project. Made explicit opt-in.
+describe('buildRegistry — audit-toolchain opt-in (#1835)', () => {
+  it('is disabled by default', () => {
+    const specs = buildRegistry(makeConfig('/tmp'))
+    expect(specs.find((s) => s.key === 'audit-toolchain')?.enabled).toBe(false)
+  })
+
+  it('is enabled when enableAuditToolchain is true', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { enableAuditToolchain: true }))
+    expect(specs.find((s) => s.key === 'audit-toolchain')?.enabled).toBe(true)
+  })
+})

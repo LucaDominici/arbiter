@@ -15,16 +15,18 @@ related: []
 
 # Anti-Drift Validator Family Reference (INV-89)
 
-The anti-drift validator family is a set of up to 20 `check-*.mjs` scripts that detect
+The anti-drift validator family is a set of up to 21 `check-*.mjs` scripts that detect
 configuration drift, secret leakage, suppression quality issues, and workflow structural problems
 in arbiter-generated projects.
 
 These scripts are emitted by `src/generators/anti-drift-validators.ts` (Track B); the dual-track
 ones are also wired directly in arbiter's own `scripts/check-all.mjs` L1 gate (Track A — see the
 Track column). The exact per-target count depends on configuration: **16** for a github-enabled
-L2/L3 target, **19** at L1 or github-off (the github-trio fallback is added), and **20** at
-L1/github-off + self-validation-off (the exit-code-contract fallback is added too). The generator
-emit arrays are the SSOT; this table is diffed against them by the `#1674` prose-parity self-gate.
+L2/L3 target, **19** at L1 or github-off (the github-trio fallback is added), and **21** at
+L1/github-off + self-validation-off (the exit-code-contract + pipe-tee-hazard fallbacks are added
+too — #1835, closing a crash-class ghost where check-pipe-tee-hazard.mjs was referenced unguarded
+in check-all.mjs.ejs with no fallback emitter). The generator emit arrays are the SSOT; this table
+is diffed against them by the `#1674` prose-parity self-gate.
 
 ---
 
@@ -55,6 +57,7 @@ emitted only when the dedicated owner generator is disabled.
 | `check-workflow-perms.mjs`          | F4   | B only (fb) | —          | github-setup off (L1 or github-off) | Workflows declare top-level permissions                     |
 | `check-ci-tiers.mjs`                | F4   | B only (fb) | —          | github-setup off (L1 or github-off) | All required CI tier workflows exist                        |
 | `check-exit-code-contract.mjs`      | F4   | B only (fb) | —          | self-validation off                 | Scripts use 0=PASS/1=FAIL/2=ERROR only                      |
+| `check-pipe-tee-hazard.mjs`         | F4   | B only (fb) | —          | self-validation off                 | Pipe/tee hazard advisory scan (#1835)                       |
 
 `(fb)` = conditional **fallback**: anti-drift emits the script only when its dedicated owner
 generator is disabled, so the script is never double-written.

@@ -1084,6 +1084,20 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
   // #1317/#1318.4: the database engine + axis fields are merged by a helper to
   // keep applyRecipeOverrides within the complexity-15 limit.
   applyRecipeAxisOverrides(config, recipe)
+  // #1835: the CI-gate opt-in is merged by a helper to keep
+  // applyRecipeOverrides within the complexity-15 limit.
+  applyRecipeCiOverrides(config, recipe)
+}
+
+/**
+ * #1835 — apply the CI-gate opt-in flag(s) a recipe may declare
+ * (`enableAuditToolchain`). Extracted to keep applyRecipeOverrides under the
+ * complexity-15 ceiling.
+ */
+function applyRecipeCiOverrides(config: ProjectConfig, recipe: Recipe): void {
+  if (recipe.enableAuditToolchain !== undefined) {
+    config.enableAuditToolchain = recipe.enableAuditToolchain
+  }
 }
 
 /**
@@ -1271,6 +1285,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       contractTesting: config.enableContractTesting !== false,
       evidenceHarness: config.enableEvidenceHarness === true,
       selfValidationHarness: config.enableSelfValidationHarness !== false,
+      auditToolchain: config.enableAuditToolchain === true,
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       soloDevMode: config.enableSoloDevMode === true,
     },

@@ -82,7 +82,6 @@
     "requirements-dev.txt",
     "ruff.toml",
     "run.sh",
-    "scripts/audit-toolchain.mjs",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",
     "scripts/check-anti-fake-green.mjs",

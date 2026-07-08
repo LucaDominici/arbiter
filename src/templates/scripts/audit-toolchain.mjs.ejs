@@ -44,19 +44,23 @@ function checkExists(label, relPath) {
 }
 
 // ─── 1. Required CI workflow files ───────────────────────────────────────────
-
+// #1835: only the two workflows unconditional whenever GitHub is on are asserted
+// here. 05-release.yml (skipped for pipelineStyle 'starter') and a nightly
+// workflow (06-nightly.yml full vs 06-nightly-lite.yml for trunk-solo, L3+ only)
+// depend on a style/collaborationMode/governanceLevel derivation this generic
+// audit does not replicate — asserting them caused false FAILs for real configs.
+<% if (useGitHub) { %>
 process.stdout.write('\n=== Check: CI workflow files ===\n')
 
 const REQUIRED_WORKFLOWS = [
   '.github/workflows/01-pr-fast.yml',
   '.github/workflows/02-pr-extended.yml',
-  '.github/workflows/05-release.yml',
-  '.github/workflows/06-nightly.yml',
 ]
 
 for (const wf of REQUIRED_WORKFLOWS) {
   checkExists(`workflow ${wf}`, wf)
 }
+<% } %>
 
 // ─── 2. Required gate scripts ─────────────────────────────────────────────────
 
@@ -65,7 +69,9 @@ process.stdout.write('\n=== Check: Gate scripts ===\n')
 const REQUIRED_SCRIPTS = [
   'scripts/check-all.mjs',
   'scripts/check-drift.mjs',
+<% if (governanceLevel !== 'L1') { %>
   'scripts/check-docs.mjs',
+<% } %>
   'scripts/check-doc-links.mjs',
 ]
 

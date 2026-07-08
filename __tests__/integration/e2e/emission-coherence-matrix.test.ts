@@ -29,6 +29,13 @@ interface Cell {
   // drop their references in lockstep, or the widened scanner (Makefile +
   // commands) flags an unguarded ghost.
   evidenceHarness?: boolean
+  // #1835: when the self-validation harness is off, scripts/check-pipe-tee-hazard.mjs
+  // must NOT be referenced by check-all.mjs (it has no other emitter) — proves the
+  // crash-class ghost (MODULE_NOT_FOUND) fixed by the anti-drift fallback stays fixed.
+  selfValidationHarness?: boolean
+  // #1835: audit-toolchain.mjs is opt-in (config.enableAuditToolchain) — proves the
+  // opt-in wiring is coherent (emitted iff referenced) when a project turns it on.
+  auditToolchain?: boolean
 }
 
 // PoC's 5 languages × {L1,L2,L3} × {trunk-solo, peer-review}, plus a frontend-spa
@@ -57,10 +64,31 @@ CELLS.push({
   mode: 'trunk-solo',
   evidenceHarness: false,
 })
+// #1835: self-validation-harness-off cell. check-pipe-tee-hazard.mjs is referenced
+// unguarded in check-all.mjs.ejs; without an anti-drift fallback emitter it is a
+// crash-class ghost (MODULE_NOT_FOUND) whenever a project disables the harness.
+CELLS.push({
+  language: 'typescript',
+  archetype: 'library',
+  level: 'L1',
+  mode: 'trunk-solo',
+  selfValidationHarness: false,
+})
+// #1835: audit-toolchain opt-in cell. Proves the explicit opt-in flag emits AND
+// wires the script together (never one without the other).
+CELLS.push({
+  language: 'typescript',
+  archetype: 'library',
+  level: 'L2',
+  mode: 'trunk-solo',
+  auditToolchain: true,
+})
 
 function cellName(c: Cell): string {
   const ev = c.evidenceHarness === false ? '/evidence-off' : ''
-  return `${c.language}/${c.archetype}/${c.level}/${c.mode}${ev}`
+  const sv = c.selfValidationHarness === false ? '/self-validation-off' : ''
+  const at = c.auditToolchain === true ? '/audit-toolchain-on' : ''
+  return `${c.language}/${c.archetype}/${c.level}/${c.mode}${ev}${sv}${at}`
 }
 
 describe('emission-coherence matrix — generated tree is reference-coherent (#1331)', () => {
@@ -85,6 +113,12 @@ describe('emission-coherence matrix — generated tree is reference-coherent (#1
           ...(cell.evidenceHarness === undefined
             ? {}
             : { enableEvidenceHarness: cell.evidenceHarness }),
+          ...(cell.selfValidationHarness === undefined
+            ? {}
+            : { enableSelfValidationHarness: cell.selfValidationHarness }),
+          ...(cell.auditToolchain === undefined
+            ? {}
+            : { enableAuditToolchain: cell.auditToolchain }),
           useGitHub: true,
           permitGitHub: true,
           githubOwner: 'acme',
