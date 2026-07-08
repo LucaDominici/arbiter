@@ -207,13 +207,16 @@ jobs:
     # A1 (#1502): consume the classify-changes `infra_changed` signal (previously
     # classified but UNUSED) — scan terraform / kubernetes / dockerfile only when the
     # PR actually touches infrastructure-as-code, keeping the always-path lean.
-    # #1756: pinned to a LITERAL GitHub-hosted runner, not the usual
-    # `vars.RUNNER_LABELS_TEST` self-hosted-capable fallback. checkov-action below
-    # is a docker-container action; on a self-hosted runner whose own process runs
-    # inside a container, the action's workspace bind-mount resolves against the
-    # DOCKER HOST path, not the runner's own checkout — content goes stale/missing.
-    # GitHub-hosted runners are not containerized this way and are unaffected.
-    # Enforced by scripts/check-docker-action-runner-safety.mjs.
+    # #1785: was pinned to a LITERAL `runs-on: ubuntu-latest` on the (disproven)
+    # assumption that GitHub-hosted runners are never containerized (#1756).
+    # Evidence (run 28693108584) showed a job pinned to literal `ubuntu-latest`
+    # actually serviced by self-hosted `arbiter-slot-build-3` — the label alone
+    # never guaranteed real GitHub-hosted infra here. Rather than keep trusting
+    # an unverified runner label, Checkov now runs as a plain pip-installed CLI
+    # (bridgecrewio/checkov-action was only a Docker convenience wrapper around
+    # it) — no docker-container action, no workspace bind-mount, the whole
+    # defect class sidestepped entirely (same pattern as the osv-scanner static-
+    # binary fix, #1767). Enforced by scripts/check-docker-action-runner-safety.mjs.
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [classify-changes]
@@ -222,44 +225,30 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - name: Create Checkov problem-matcher stub
-        # checkov-action@99bb2caf runs ::add-matcher:: before copying the file into
-        # the workspace, causing ##[error] that fails the step even when checkov
-        # itself finds no violations. Pre-creating the stub makes the command a no-op.
-        run: echo '{"problemMatcher":[]}' > checkov-problem-matcher-softfail.json
-      - name: Checkov IaC scan (<%= locals.checkovSelfScope ? 'terraform/kubernetes/dockerfile' : 'all frameworks' %>)
-        uses: bridgecrewio/checkov-action@d9d1e5cdc53e3a91f0c4c58db7bc19ee31cac7e5  # v12.3113.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
-          directory: .
-<% if (locals.checkovSelfScope) { %>
+          python-version: '3.12'
+      - name: Install Checkov (pinned, no Docker — #1785)
+        run: pip install checkov==3.3.7
+      - name: Checkov IaC scan (<%= locals.checkovSelfScope ? 'terraform/kubernetes/dockerfile' : 'all frameworks' %>)
+        run: |
+<% if (locals.checkovSelfScope) { -%>
           # #1685 (arbiter self-scan): `all` over-scoped THIS repo (github_actions
           # + secrets policies across dozens of workflows/fixtures) even though
           # arbiter carries ZERO terraform/kubernetes/dockerfile IaC — redding
-          # self-CI under soft_fail:false. Scope is passed as a SPACE-separated
-          # list: the action entrypoint expands `--framework $INPUT_FRAMEWORK`
-          # UNQUOTED and checkov's `--framework` is nargs='+', so the value
-          # word-splits into a real multi-framework list (a comma-join crashes
-          # checkov with "invalid choice"). Deliberately NOT a repo-local
-          # checkov config file — docker-container actions on the runner
-          # slots bind-mount the workspace path from the DOCKER HOST, so a
-          # repo-local config file is not reliably visible inside the action
-          # container (ENOENT on CI while green locally). Inline scoping has no
-          # file dependency: 0 findings — honestly SCOPED, not
-          # soft_fail-suppressed. soft_fail stays false so a real misconfig
-          # would still block (INV-80). Self-only; consumers (the shipped
-          # template's `else` branch below) are NOT affected.
-          framework: terraform kubernetes dockerfile
-<% } else { %>
-          # #1685: the checkov-action exposes a single `framework` input passed as one
-          # `--framework <value>` arg, so the previous comma-join
-          # (`terraform,kubernetes,dockerfile`) crashed checkov with "invalid choice".
-          # The action cannot emit repeated flags, so `all` is the documented-valid
-          # multi-framework value (it is also checkov's own default scope). soft_fail
-          # stays false: a real misconfiguration must block (INV-80).
-          framework: all
-<% } %>
-          quiet: true
-          soft_fail: false
+          # self-CI. `--framework` takes repeated values (checkov's own nargs='+'
+          # CLI, no word-splitting footgun now that the docker-action wrapper is
+          # gone, #1785): 0 findings — honestly SCOPED, not soft-fail-suppressed.
+          # Hard-fail stays checkov's default (no soft-fail flag passed): a real
+          # misconfig would still block (INV-80). Self-only; consumers (the
+          # shipped template's `else` branch below) are NOT affected.
+          checkov --directory . --framework terraform kubernetes dockerfile --quiet --compact
+<% } else { -%>
+          # #1685: `all` is checkov's documented-valid multi-framework value (also
+          # its own default scope). Hard-fail stays the default (no soft-fail
+          # flag passed): a real misconfiguration must block (INV-80).
+          checkov --directory . --framework all --quiet --compact
+<% } -%>
       # #1509 gold-align: Checkov scans for known misconfigurations; tflint is the
       # Terraform-specific *linter* (provider-aware deprecations, invalid arg
       # combinations, unused declarations). Reference-grade IaC pipelines run it
