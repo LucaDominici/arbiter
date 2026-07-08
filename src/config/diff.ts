@@ -160,7 +160,12 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   'features.mutationTesting': ['mutation', 'check-all', 'nightly'],
   'features.contractTesting': ['contract-testing', 'integration-testing', 'github'],
   'features.evidenceHarness': ['evidence-retention', 'nightly'],
-  'features.selfValidationHarness': ['self-validation'],
+  // #1835: toggling the harness also flips the anti-drift fallback emitter
+  // (check-exit-code-contract.mjs / check-pipe-tee-hazard.mjs) and the
+  // check-all.mjs wiring of self-validation.mjs — both must re-run in lockstep.
+  'features.selfValidationHarness': ['self-validation', 'anti-drift-validators', 'check-all'],
+  // #1835: audit-toolchain.mjs is opt-in; toggling it flips both emission and wiring.
+  'features.auditToolchain': ['audit-toolchain', 'check-all'],
   'features.suppressions': ['suppressions'],
   'features.soloDevMode': ['github', 'githooks'],
   // ADR-051 (#1119): collaborationMode drives claude template ceremony (task.md / CLAUDE.md),

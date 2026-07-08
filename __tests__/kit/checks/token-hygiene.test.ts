@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // A10 (#1817): frontend token-hygiene check — semantic-token-only styling, opt-in fe-kit
 // check, with baseline + ratchet mechanics for grandfathered violations.
-// Algorithm generalized from viafera scripts/verify-primitives-tokens.mjs (not copy-pasted).
+// Algorithm generalized from a reference project's scripts/verify-primitives-tokens.mjs (not copy-pasted).
 
 import { describe, it, expect } from 'vitest'
 import {

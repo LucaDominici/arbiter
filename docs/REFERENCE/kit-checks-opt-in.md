@@ -83,7 +83,7 @@ does not fail the gate. Anything not in the baseline is a new violation and fail
 ratchet: `findStaleBaselineEntries` identifies entries with no matching current violation, so a
 project can prune fixed debt over time — the file is meant to shrink, not grow.
 
-This algorithm generalizes the approach used by viafera's own `verify-primitives-tokens.mjs` gate
+This algorithm generalizes the approach used by a 100k-LOC reference project's own `verify-primitives-tokens.mjs` gate
 (five checks, baseline + literal-exception file); the arbiter implementation here is a from-scratch,
 project-agnostic rewrite with no external palette or token names baked in.
 

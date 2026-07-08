@@ -17,7 +17,7 @@ _Nothing yet._
 ### Highlights
 
 - **Wave-2 kit (#1817, A1–A11)** — governance features validated against a real
-  100k-LOC adopter project (Viafera) before being absorbed into arbiter:
+  100k-LOC adopter project before being absorbed into arbiter:
   - `arbiter init` generates a **five-lane CI shape** (pre-commit / PR-blocking /
     nightly / weekly / release-seal) with tier budgets in comments, plus a sticky
     failure issue for persistently-red nightly/weekly lanes. (A1, A6)

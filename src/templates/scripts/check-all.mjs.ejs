@@ -272,9 +272,23 @@ runCheck('min test execution (INV-25)', 'node', ['scripts/check-min-test-executi
 runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs']);
 // ─── L1: Pipe/tee hazard (advisory — always exits 0) ─────────────────────────
 runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
+<% if (typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false) { %>
+// ─── L1: Self-validation A/B/C drill — proves the two gates above actually
+// distinguish PASS/FAIL/ERROR (#1835). Reference only where emitted: the
+// self-validation generator owns scripts/self-validation.mjs and is gated by
+// this same flag (registry.ts), so emission and wiring can never diverge.
+runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs']);
+<% } %>
 // ─── L1: Anti-drift validators (INV-89, #1152) ───────────────────────────────
 runCheck('config drift', 'node', ['scripts/check-drift.mjs']);
 runCheck('validator help text', 'node', ['scripts/check-validator-helptext.mjs']);
+<% if (typeof enableAuditToolchain !== 'undefined' && enableAuditToolchain) { %>
+// ─── L1: Toolchain/workflow inventory audit (opt-in, #1835) ──────────────────
+// Explicit opt-in (config.enableAuditToolchain) — its required-file lists are a
+// coarse fleet-wide inventory, not derived per-project, so it is advisory
+// (never blocks the gate) even for a project that turns it on.
+runWarnCheck('audit toolchain', 'node', ['scripts/audit-toolchain.mjs']);
+<% } %>
 <%
 // #1330: subtree frontend lane — a `frontend` lane on a non-frontend-spa archetype
 // (the FE app lives in `frontend/` beside a non-FE primary language). Wired here,
@@ -1041,6 +1055,12 @@ if (level === 'L2') {
   // Hard-blocks if suppression/override/bypass commits lack required footer trailers.
   // Fails open (exit 0 with WARN) when origin/main is unavailable.
   runCheck('commit-footer rationale (INV-119)', 'node', ['scripts/check-commit-footer-rationale.mjs'], { soft: graceActive });
+  // ─── L2+: Docs updated alongside code changes (#356, #1835) ──────────────────
+  // Emitted at this same governance gate (check-all.ts) but was never referenced
+  // anywhere — a dead emission on every L2+ project. Advisory (never blocks a
+  // fresh `arbiter update` consumer that has never had this enforced before);
+  // [skip-docs] in a commit message bypasses.
+  runWarnCheck('docs updated with code (#356)', 'node', ['scripts/check-docs.mjs']);
 <% } %>
   // Advisory (#1398/C6, INV-128): conformance scorecard ratchet — informational, never blocks gate.
   if (existsSync('scripts/conformance.mjs')) {

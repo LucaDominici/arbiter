@@ -417,6 +417,26 @@ describe('05-release.yml.ejs — per-language SBOM', () => {
     expect(rendered).toContain('cyclonedx:makeAggregateBom')
   })
 
+  // #1803: kotlin fell through every language branch in BOTH build-superset
+  // (which packages release-artifact.zip) and sbom (`sbom` needs:
+  // build-superset, so a kotlin build-superset that never emits the artifact
+  // would fail the hash step and skip sbom entirely) — a strict-equality
+  // `language === 'java'` check never matches 'kotlin'. Gradle/Maven compile
+  // Kotlin sources in the same reactor as Java, so kotlin now shares both
+  // java branches.
+  it('Kotlin Gradle: build-superset packages the jar, sbom job runs cyclonedxBom (#1803)', () => {
+    const rendered = renderRelease({ language: 'kotlin', buildTool: 'gradle' })
+    expect(rendered).toContain('./gradlew build -x test')
+    expect(rendered).toContain('zip -r release-artifact.zip build/libs/')
+    expect(rendered).toContain('cyclonedxBom')
+  })
+
+  it('Kotlin Maven: build-superset packages the jar, sbom job runs cyclonedx:makeAggregateBom (#1803)', () => {
+    const rendered = renderRelease({ language: 'kotlin', buildTool: 'maven' })
+    expect(rendered).toContain('mvn -B package -DskipTests')
+    expect(rendered).toContain('cyclonedx:makeAggregateBom')
+  })
+
   it('Go: syft/sbom-action', () => {
     const rendered = renderRelease({ language: 'go', buildTool: 'go' })
     expect(rendered).toContain('sbom-action')

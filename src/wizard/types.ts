@@ -203,7 +203,7 @@ export interface ConformanceThresholds {
 export interface ProjectConfig {
   /** Directory being initialized */
   targetDir: string
-  /** e.g. "coach-system" */
+  /** e.g. "my-app" */
   projectName: string
   /** Short description (user-provided or inferred) */
   description: string
@@ -282,6 +282,13 @@ export interface ProjectConfig {
   enableEvidenceHarness?: boolean
   /** Whether to generate the A/B/C self-validation drill harness. Default true. */
   enableSelfValidationHarness?: boolean
+  /**
+   * #1835: opt-in toolchain/workflow-inventory audit (`scripts/audit-toolchain.mjs`).
+   * Explicit opt-in (default false/undefined) — the script's required-file lists are
+   * a coarse fleet-wide inventory, not derived per-project, so it is wired ADVISORY
+   * (never blocks the gate) only when a project deliberately turns it on.
+   */
+  enableAuditToolchain?: boolean
   /**
    * ADR-051: collaboration mode axis. Primary driver for branching, CI shape, merge method.
    * Absent = legacy mode (falls back to enableSoloDevMode → peer-review).

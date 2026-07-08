@@ -13,7 +13,11 @@
       - uses: ./.github/actions/setup-node-pnpm
       - name: fast-check fuzz (property-based)
         run: npm run test:fuzz
-<% } else if (language === 'java') { %>
+<%# #1803: kotlin shares the java branch below — jqwik runs on JVM bytecode
+    so it works identically for a Kotlin-sourced Gradle/Maven build (confirmed
+    during the #1724 cross-language-matrix audit); no separate invocation
+    needed. -%>
+<% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
@@ -26,7 +30,7 @@
           mvn test -Djqwik.database=false
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: go.mod
       - name: Go native fuzz (30 min budget)
@@ -93,7 +97,7 @@
           mvn test -Dgroups='soak,e2e' || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: go.mod
       - name: Go soak tests (60 min budget)

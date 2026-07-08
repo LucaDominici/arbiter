@@ -7,9 +7,9 @@
  * in SFCs. Grandfathered violations live in a baseline; the baseline can only shrink
  * (ratchet): any violation not present in the baseline fails the gate.
  *
- * Algorithm generalized from viafera's scripts/verify-primitives-tokens.mjs (73% adoption,
- * 0 ad-hoc CSS) — rewritten idiomatically here, not copy-pasted, and with no viafera-specific
- * palette/token names baked in.
+ * Algorithm generalized from a 100k-LOC reference project's scripts/verify-primitives-tokens.mjs
+ * (73% adoption, 0 ad-hoc CSS) — rewritten idiomatically here, not copy-pasted, and with no
+ * source-project-specific palette/token names baked in.
  *
  * Pure text-based validation — callers own file I/O (see src/commands/kit.ts).
  */

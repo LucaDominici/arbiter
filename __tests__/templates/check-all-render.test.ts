@@ -1064,3 +1064,81 @@ describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#17
     })
   })
 })
+
+// #1835: self-validation.mjs (the A/B/C "prove the gate bites" drill) was emitted
+// by every project (enableSelfValidationHarness !== false ⇒ default true) but never
+// referenced anywhere — a config flag implying an active drill that never runs.
+describe('check-all.mjs.ejs rendering — self-validation drill wiring (#1835)', () => {
+  it('references self-validation.mjs when the harness is on (default)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/self-validation.mjs')
+  })
+
+  it('does not reference self-validation.mjs when the harness is explicitly off', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+      enableSelfValidationHarness: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('scripts/self-validation.mjs')
+  })
+})
+
+// #1835: audit-toolchain.mjs was emitted unconditionally for every project and never
+// referenced anywhere. Made explicit opt-in (config.enableAuditToolchain); wiring
+// must track emission exactly (never emitted-without-wired, never wired-without-emitted).
+describe('check-all.mjs.ejs rendering — audit-toolchain opt-in wiring (#1835)', () => {
+  it('does not reference audit-toolchain.mjs by default', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('audit-toolchain.mjs')
+  })
+
+  it('references audit-toolchain.mjs when explicitly opted in', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableAuditToolchain: true,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/audit-toolchain.mjs')
+  })
+})
+
+// #1835: discovered while fixing audit-toolchain's opt-in wiring — audit-toolchain.mjs
+// was ALWAYS emitted before this fix and its content happened to mention
+// "check-docs.mjs" (one of its hardcoded REQUIRED_SCRIPTS), which incidentally
+// satisfied the emission-coherence reverse-check's naive string-match scan. Once
+// audit-toolchain became opt-in (off by default), that accidental "cover" went away
+// and revealed check-docs.mjs itself was a SEPARATE, real, pre-existing dead
+// emission at L2+ (never referenced by check-all.mjs or anywhere else).
+describe('check-all.mjs.ejs rendering — check-docs.mjs wiring (#356, #1835)', () => {
+  it('references check-docs.mjs at L2+ (matches its own emission gate)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/check-docs.mjs')
+  })
+
+  it('does not reference check-docs.mjs at L1 (never emitted there)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-docs.mjs')
+  })
+})

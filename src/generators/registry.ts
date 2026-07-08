@@ -473,11 +473,12 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     ...buildBoundarySpecs(config),
     {
-      // Audit toolchain (audit.json + helper scripts). Always-on quality scaffolding;
-      // relocated here from buildInfraSpecs (#1319.1) to keep that function under the
-      // line ceiling after wiring the anti-proforma/commit-footer gate scripts.
+      // Audit toolchain (audit.json + helper scripts). #1835: was always-on but never
+      // wired into check-all.mjs (a dead emission on every project) — made explicit
+      // opt-in. Relocated here from buildInfraSpecs (#1319.1) to keep that function
+      // under the line ceiling after wiring the anti-proforma/commit-footer gate scripts.
       key: 'audit-toolchain',
-      enabled: true,
+      enabled: config.enableAuditToolchain === true,
       run: (opts) => generateAuditToolchain(config, opts).files,
     },
     {

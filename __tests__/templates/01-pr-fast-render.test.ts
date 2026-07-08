@@ -321,31 +321,31 @@ describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
     expect(rendered).toContain('needs.dependency-review.result')
   })
 
-  it('(b) iac-scan consumes infra_changed and is a SHA-pinned checkov scan', () => {
+  it('(b) iac-scan consumes infra_changed and runs a pip-installed, pinned checkov CLI scan (#1785)', () => {
     const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
     expect(rendered).toContain('  iac-scan:')
     const section = iacSection(rendered)
     expect(section).toContain('needs: [classify-changes]')
     expect(section).toContain("if: needs.classify-changes.outputs.infra_changed == 'true'")
-    // checkov, SHA-pinned. #1685: the action exposes a SINGLE `framework` input
-    // passed as one `--framework <value>` arg, so the prior comma-join crashed
-    // checkov with "invalid choice". `all` is the documented-valid multi-framework
-    // value; the broken comma-join form must be gone and soft_fail stays false.
-    expect(rendered).toMatch(/uses: bridgecrewio\/checkov-action@[0-9a-f]{40}\s+# v\d/)
-    expect(section).toMatch(/^ *framework: all *$/m)
-    expect(section).not.toContain('framework: terraform,kubernetes,dockerfile')
-    expect(section).toContain('soft_fail: false')
+    // #1785: checkov is a plain pip-installed CLI (pinned version), not the
+    // bridgecrewio/checkov-action docker-container action — sidesteps the
+    // bind-mount defect class entirely rather than trusting an unverified
+    // runner label. `all` is checkov's documented-valid multi-framework value;
+    // hard-fail stays the default (no soft-fail flag passed).
+    expect(section).not.toMatch(/uses:\s*bridgecrewio\/checkov-action/)
+    expect(section).toMatch(/pip install checkov==\d+\.\d+\.\d+/)
+    expect(section).toMatch(/checkov --directory \. --framework all/)
+    expect(section).not.toContain('--framework terraform,kubernetes,dockerfile')
+    expect(section).not.toContain('--soft-fail')
     expect(section).toContain('timeout-minutes: 60')
   })
 
-  it('(b) iac-scan pins runs-on to a literal GitHub-hosted runner, never a self-hosted expression (#1756)', () => {
-    // #1756: docker-container actions (checkov-action) on self-hosted
-    // "arbiter-slot-build-*" runners bind-mount /github/workspace from the
-    // DOCKER HOST path, not the containerized slot's own checkout — the step
-    // sees stale/wrong/missing files. checkov-action is a docker-container
-    // action, so this job must NEVER run on the expression-based
-    // `vars.RUNNER_LABELS_TEST` self-hosted pool; it stays pinned to a literal
-    // GitHub-hosted runner regardless of governance level.
+  it('(b) iac-scan pins runs-on to a literal GitHub-hosted runner label (#1756, #1785)', () => {
+    // #1756/#1785: whatever the runner-label story, checkov itself is no
+    // longer a docker-container action at all (a plain pip-installed CLI), so
+    // the bind-mount defect class cannot occur here regardless of which pool
+    // services this job. The literal label is kept for other reasons
+    // (cost/consistency), not as this defect's safety mechanism anymore.
     const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
     const section = iacSection(rendered)
     expect(section).toMatch(/^\s*runs-on: ubuntu-latest\s*$/m)
@@ -353,31 +353,29 @@ describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
     expect(section).not.toContain('fromJSON(vars.')
   })
 
-  it('(b) CONSUMER render keeps the broad `framework: all` scan, no config_file (#1685)', () => {
+  it('(b) CONSUMER render keeps the broad `--framework all` scan, no config file (#1685)', () => {
     // The shipped template's blocking behavior for consumers must NOT be
     // weakened by the arbiter self-scan scoping — consumer contexts never set
     // `checkovSelfScope`, so they always take the unscoped `all` branch.
     const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
     const section = iacSection(rendered)
-    expect(section).not.toContain('config_file:')
+    expect(section).not.toContain('--config-file')
   })
 
-  it('(b) SELF render (arbiter dogfood) scopes checkov via a space-separated framework list, not `all` (#1685, INV-80)', () => {
+  it('(b) SELF render (arbiter dogfood) scopes checkov via --framework flags, not `all` (#1685, INV-80, #1785)', () => {
     // #1685: arbiter's own repo carries zero terraform/kubernetes/dockerfile
-    // IaC, so an unscoped `framework: all` self-scan flags non-IaC noise
-    // (github_actions/secrets policies) under soft_fail:false and reds main's
-    // CI. The self-render fixture (ci-tier-render-context.json) sets
-    // `checkovSelfScope: true`, taking the scoped branch — honestly SCOPED via
-    // an INLINE space-separated framework list (the action entrypoint expands
-    // `--framework $INPUT_FRAMEWORK` unquoted into checkov's nargs='+' flag).
-    // NOT a `.checkov.yaml` config_file: docker-container actions on the
-    // containerized runner slots bind-mount the workspace from the docker
-    // host, so a repo-local config file is not reliably visible in-container.
+    // IaC, so an unscoped `--framework all` self-scan flags non-IaC noise
+    // (github_actions/secrets policies) and reds main's CI. The self-render
+    // fixture (ci-tier-render-context.json) sets `checkovSelfScope: true`,
+    // taking the scoped branch — honestly SCOPED via repeated `--framework`
+    // CLI arguments (#1785: no docker-action entrypoint word-splitting
+    // footgun anymore — the flags are typed directly on the command line).
+    // No config file: keeps the scoping self-contained, no extra artifact.
     const self = iacSection(renderSelfHost())
-    expect(self).toMatch(/^ *framework: terraform kubernetes dockerfile *$/m)
-    expect(self).not.toMatch(/^ *framework: all *$/m)
-    expect(self).not.toContain('config_file:')
-    expect(self).toContain('soft_fail: false') // blocking preserved (INV-80)
+    expect(self).toMatch(/checkov --directory \. --framework terraform kubernetes dockerfile/)
+    expect(self).not.toMatch(/--framework all\b/)
+    expect(self).not.toContain('--config-file')
+    expect(self).not.toContain('--soft-fail') // blocking preserved (INV-80)
   })
 
   it('(b) iac-scan runs a SHA-pinned, blocking tflint Terraform linter (#1509)', () => {

@@ -2,7 +2,7 @@
 /**
  * A9 (#1817): Flyway migration validator — opt-in java-kit check.
  *
- * Generalizes the Viafera INV-09 migration-validator pattern: naming convention,
+ * Generalizes a reference project's INV-09-style migration-validator pattern: naming convention,
  * destructive-DDL guard, idempotency (repeatable migrations), and dual-migration-set
  * parity (e.g. a Postgres set + a SQLite set for an embedded-DB test profile).
  *

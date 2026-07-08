@@ -77,7 +77,6 @@
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
     "run.sh",
-    "scripts/audit-toolchain.mjs",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",
     "scripts/check-anti-fake-green.mjs",

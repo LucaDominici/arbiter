@@ -24,6 +24,7 @@ import { detectLanguage } from '../detectors/language.js'
 import { runProbes } from '../compatibility/probe.js'
 import { isArbiterSelf } from './ship-profile.js'
 import { diagnoseCompanions } from '../integrations/companions.js'
+import { checkScaffoldWiring } from '../detectors/scaffold-wiring.js'
 import { isValidPhase } from './task-state.js'
 import {
   validateCollaborationCoherence,
@@ -169,6 +170,7 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
 
   out.push(checkGateScript(dir))
   out.push(checkGateToolchain(dir))
+  out.push(checkScaffoldWiringHealth(dir))
   out.push(...checkLockfiles(dir))
   out.push(checkStackAdapterHealth(dir))
   out.push(checkCollaborationCoherence(dir))
@@ -282,6 +284,38 @@ function checkGateToolchain(dir: string): HealthCheck {
     'Install the gate toolchain (e.g. `npm install` for the declared devDependencies) ' +
     'before running `node scripts/check-all.mjs L1`.'
   return check
+}
+
+/**
+ * #1835: surface "scaffolded ceremony" — a scripts/check-*.mjs gate script present
+ * on disk but never referenced by check-all.mjs, run.sh, or the Makefile. Field
+ * evidence: 11 such orphaned scripts (~1133 LOC) in a real arbiter-generated
+ * project, several predating a since-landed wiring fix upstream. Runs the
+ * permanent, ships-in-the-CLI counterpart to arbiter's self-only
+ * check-emission-coherence.mjs (INV-123) against WHATEVER project `doctor` is
+ * pointed at — including ones generated long ago by an older arbiter version.
+ * Advisory (WARN, never FAIL): a script's absence from these three surfaces does
+ * not prove it is dead (a workflow or githook may reference it instead) — it is
+ * a prompt to verify, not a hard gate.
+ */
+function checkScaffoldWiringHealth(dir: string): HealthCheck {
+  const { unwired } = checkScaffoldWiring(dir)
+  if (unwired.length === 0) {
+    return {
+      id: 'scaffold-wiring',
+      label: 'gate scripts referenced by check-all.mjs/run.sh/Makefile',
+      status: 'PASS',
+      detail: 'every scripts/check-*.mjs is referenced by at least one of the three',
+    }
+  }
+  const names = unwired.map((u) => u.path).join(', ')
+  return {
+    id: 'scaffold-wiring',
+    label: 'gate scripts referenced by check-all.mjs/run.sh/Makefile',
+    status: 'WARN',
+    detail: `${unwired.length} script(s) not referenced by check-all.mjs, run.sh, or Makefile: ${names}`,
+    hint: 'Wire each into check-all.mjs (or run.sh/Makefile) if it should run, or remove it if dead.',
+  }
 }
 
 /**
@@ -1060,8 +1094,8 @@ export function runDoctorClean(opts: DoctorCleanOptions = {}): DoctorCleanResult
 
 // ── doctor --prove-gates (#1817, A5) ────────────────────────────────────────
 //
-// Viafera anti-pattern (handoff A5): ~40 `test-*.sh` scripts unit-testing the gate SCRIPTS
-// themselves. Viafera pattern that WORKED: `ArchNegativeProofTest` — one intentional-violation
+// Anti-pattern observed on a reference project (handoff A5): ~40 `test-*.sh` scripts unit-testing
+// the gate SCRIPTS themselves. Pattern that WORKED: `ArchNegativeProofTest` — one intentional-violation
 // fixture per rule, proving the rule actually fails when violated. `--prove-gates` runs that
 // pattern against every tier-1 (must-pass) conformance dimension arbiter installs: seed an
 // isolated fixture that violates the rule, run the real probe, and report any gate whose

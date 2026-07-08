@@ -161,7 +161,7 @@ jobs:
 <% } %>
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: 'go.mod'
       - run: go test -tags integration ./...
@@ -235,7 +235,7 @@ jobs:
         run: <%= buildTool === 'gradle' ? './gradlew test --tests *.grpc.*' : 'mvn test -Dtest=*Grpc*' %>
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: 'go.mod'
       - name: Contract tests
@@ -311,7 +311,11 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
       - name: License check
         run: npx license-checker --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;Python-2.0' --excludePackages 'buffers@0.1.1'
-<% } else if (language === 'java') { %>
+<%# #1803: kotlin shares this branch — the license-report Gradle/Maven plugin
+    task is language-agnostic (it inspects the dependency graph, not source
+    files), so it reports identically for a Kotlin-sourced build (confirmed
+    during the #1724 cross-language-matrix audit). -%>
+<% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
@@ -322,7 +326,7 @@ jobs:
         run: mvn license:third-party-report -Dlicense.excludedScopes=test
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: 'go.mod'
       - name: Install go-licenses
@@ -373,7 +377,7 @@ jobs:
       - run: mvn test -Pbehavioral
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: 'go.mod'
       - run: go test -tags behavioral ./...
