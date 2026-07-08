@@ -67,18 +67,36 @@ fetch_runner_token() {
   gh api -X POST repos/LucaDominici/arbiter/actions/runners/registration-token --jq '.token'
 }
 
-# `compose up -d` with a freshly minted RUNNER_TOKEN in the environment.
-# The token is passed only via the process environment — never echoed, never
-# written to disk. Already-configured runners (registration persisted in the
-# per-slot -state volume) ignore it and reuse their existing registration.
+# Start only the expected services that are not already running, minting a
+# fresh RUNNER_TOKEN just for them. Running containers are NEVER touched:
+# the token differs on every mint, so passing it through `compose up` on a
+# running service changes the compose config hash and triggers a mid-job
+# container recreate (observed on viafera 2026-07-09: an hourly ensure timer
+# recreated runners and killed an in-flight CI job). `ensure`/`start`
+# therefore guarantee presence, not config sync; to roll out compose config
+# changes, run `farm.sh stop && farm.sh start` at a CI-idle window. The
+# token is passed only via the process environment — never echoed, never
+# written to disk. Already-configured runners (registration persisted in
+# the per-slot -state volume) ignore it and reuse their existing
+# registration.
 compose_up_registered() {
-  local runner_token
+  local running to_start=() svc runner_token
+  running="$(compose ps --status running --services 2>/dev/null || true)"
+  for svc in "${EXPECTED_SERVICES[@]}"; do
+    grep -qx "${svc}" <<<"${running}" || to_start+=("${svc}")
+  done
+
+  if [[ ${#to_start[@]} -eq 0 ]]; then
+    echo "All runner containers already running — leaving them untouched."
+    return 0
+  fi
+
   if ! runner_token=$(fetch_runner_token) || [[ -z "${runner_token}" ]]; then
     echo "ERROR: could not mint a runner registration token from the GitHub API." >&2
     echo "Check: gh auth status — the host gh CLI must be authenticated with admin access to the repo." >&2
     return 1
   fi
-  RUNNER_TOKEN="${runner_token}" compose up -d "${EXPECTED_SERVICES[@]}"
+  RUNNER_TOKEN="${runner_token}" compose up -d "${to_start[@]}"
 }
 
 compose() {
