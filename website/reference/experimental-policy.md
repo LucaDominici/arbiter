@@ -48,7 +48,11 @@ Graduation is tracked in the experiment's `plannedReviewDate` field. The arbiter
 
 ## Active Experiments
 
-No experiments are currently active. When experiments are added, they appear here automatically via the registry in `src/experimental/registry.ts`.
+The authoritative list is the registry in `src/experimental/registry.ts` (`arbiter experiments list`). Currently active:
+
+| Experiment | Stability target | Added in | Planned review | Promotion criteria                                            |
+| ---------- | ---------------- | -------- | -------------- | ------------------------------------------------------------- |
+| `kit`      | beta             | 0.1.0    | 2026-11-18     | ≥6 months active + ≥3 user reports + zero P0 issues + Phase F |
 
 ## Adding a New Experiment
 
