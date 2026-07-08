@@ -550,6 +550,12 @@ describe('generateGithub — AI-PR gate workflows (#884)', () => {
     expect(content).toContain('approved-by-human')
   })
 
+  it('_ai-draft-check.yml exempts dependabot[bot] from the INV-91 gate', () => {
+    generateGithub(makeConfig(dir))
+    const content = readFileSync(join(dir, '.github', 'workflows', '_ai-draft-check.yml'), 'utf-8')
+    expect(content).toContain("user.login != 'dependabot[bot]'")
+  })
+
   it('_label-on-approve.yml contains human reviewer guards', () => {
     generateGithub(makeConfig(dir))
     const content = readFileSync(
