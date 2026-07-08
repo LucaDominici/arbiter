@@ -26,39 +26,15 @@ module.exports = {
       },
       to: {},
     },
-    {
-      name: 'no-cross-layer',
-      severity: 'error',
-      comment: 'Domain must not import from services, repositories, or api layers (INV-03)',
-      from: {
-        path: '^(src/)?domain/',
-      },
-      to: {
-        path: '^(src/)?(services|repositories|api|infrastructure)/',
-      },
-    },
-    {
-      name: 'no-domain-to-infra',
-      severity: 'error',
-      comment: 'Domain layer must not import infrastructure adapters',
-      from: {
-        path: '^(src/)?domain/',
-      },
-      to: {
-        path: '^(src/)?infrastructure/',
-      },
-    },
-    {
-      name: 'no-repositories-to-api',
-      severity: 'error',
-      comment: 'Repository layer must not import from api layer',
-      from: {
-        path: '^(src/)?repositories?/',
-      },
-      to: {
-        path: '^(src/)?api/',
-      },
-    },
+    // #1837 (F1): the three path-based layer rules previously here
+    // (no-cross-layer, no-domain-to-infra, no-repositories-to-api) targeted
+    // src/domain/, src/services/, src/repositories/, src/api/, src/infrastructure/ —
+    // none of which exist in this repo (arbiter is a CLI + generator tool, not a
+    // hexagonal-layered app; see `find src -maxdepth 1 -type d` for the real
+    // tree). They were inert boilerplate that could never match, not enforced
+    // architecture. Removed rather than forced onto a tree they don't fit.
+    // INV-03 (layer boundaries) is enforced per-language in *generated* target
+    // projects via their own arch-linter template/gate wiring, not here.
   ],
   options: {
     doNotFollow: {

@@ -1354,15 +1354,24 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
+    // Retired (#1837) per ID-STABILITY: the ID is preserved as a tombstone (never
+    // deleted/reused). src/adapters/ was a test-only scaffold — its own registry
+    // comment admitted "no runtime generator or command calls resolveAdapter/
+    // listAdapters" — so the file-presence gate enforced coverage of a directory
+    // with zero runtime callers. Deleted along with its gate script and the
+    // doctor.ts `stack-adapter` health check. No replacement invariant.
     id: 'INV-88',
     tier: 'operational',
     selfOnly: true,
     alwaysActive: false,
     title: 'Stack adapter coverage',
     description:
-      'Every language with a non-exempt archetype must have a registered StackAdapter file in src/adapters/. ' +
-      'Exempt: kotlin (JVM), multi, unknown. Before adding a Language value, add a corresponding adapter file.',
-    enforcement: 'scripts/check-adapter-coverage.mjs',
+      'RETIRED (#1837): src/adapters/ (8 files, self-admitted test-only, zero runtime callers) ' +
+      'and its file-presence gate were removed. No successor invariant.',
+    status: 'retired',
+    retiredReason:
+      'src/adapters/ was a test-only scaffold with zero runtime callers (self-admitted in ' +
+      'its registry module); deleted in #1837 along with its gate script. No replacement.',
   },
 
   {

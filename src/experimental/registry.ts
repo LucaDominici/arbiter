@@ -31,9 +31,10 @@ export function listExperiments(): ExperimentRecord[] {
 export function getExperiment(name: string): ExperimentRecord {
   const record = experimentMap.get(name)
   if (record === undefined) {
-    throw new Error(
-      `[arbiter] Unknown experiment: "${name}". Run \`arbiter experiments list\` to see available experiments.`,
-    )
+    // #1837 (F1): `arbiter experiments list` does not exist — list the known
+    // names straight from this registry so the message can never drift.
+    const known = EXPERIMENTS.map((e) => e.name).join(', ') || 'none registered'
+    throw new Error(`[arbiter] Unknown experiment: "${name}". Known experiments: ${known}.`)
   }
   return record
 }

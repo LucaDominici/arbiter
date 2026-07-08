@@ -17,26 +17,19 @@ are applied and enforced.
 
 ## Canonical documents
 
-| Document                                                                             | Purpose                                                                               |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| [AGENTS.md](https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md)             | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
-| [CANON.md](https://github.com/LucaDominici/arbiter/blob/main/docs/SYSTEM/CANON.md)   | 15 process-level rules derived from audit waves #151–#186                             |
-| [RACI.md](https://github.com/LucaDominici/arbiter/blob/main/docs/GOVERNANCE/RACI.md) | Responsibility matrix for governance decisions                                        |
+| Document                                                                                    | Purpose                                                                               |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [AGENTS.md](https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md)                    | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
+| [CANON.md](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/SYSTEM/CANON.md) | 23 process-level rules (CANON-01..23) derived from audit waves #151–#186              |
 
 ## Architecture Decision Records
 
-| ADR                                                                                          | Title           | Status   |
-| -------------------------------------------------------------------------------------------- | --------------- | -------- |
-| [ADR-041](https://github.com/LucaDominici/arbiter/blob/main/docs/ADR/041-task-workflow.md)   | Task workflow   | Accepted |
-| [ADR-042](https://github.com/LucaDominici/arbiter/blob/main/docs/ADR/042-gate-tiers.md)      | Gate tiers      | Accepted |
-| [ADR-043](https://github.com/LucaDominici/arbiter/blob/main/docs/ADR/043-docs-site-ia.md)    | Docs site IA    | Accepted |
-| [ADR-044](https://github.com/LucaDominici/arbiter/blob/main/docs/ADR/044-docs-versioning.md) | Docs versioning | Accepted |
-
-## Self-governance case studies
-
-- [arbiter governs arbiter](https://github.com/LucaDominici/arbiter/blob/main/docs/case-studies/arbiter-itself.md) — the recursive case
-- [Evidence trail](https://github.com/LucaDominici/arbiter/blob/main/docs/case-studies/arbiter-itself-evidence.md) — public knowledge map snapshot
-- [Nightly canary](https://github.com/LucaDominici/arbiter/blob/main/docs/case-studies/arbiter-itself-canary.md) — drift detection
+| ADR                                                                                                   | Title           | Status   |
+| ----------------------------------------------------------------------------------------------------- | --------------- | -------- |
+| [ADR-041](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/041-task-workflow.md)   | Task workflow   | Accepted |
+| [ADR-042](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/042-gate-tiers.md)      | Gate tiers      | Accepted |
+| [ADR-043](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/043-docs-site-ia.md)    | Docs site IA    | Accepted |
+| [ADR-044](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/044-docs-versioning.md) | Docs versioning | Accepted |
 
 ## How decisions are made
 

@@ -225,7 +225,6 @@ if (isMain) {
   runCheck('anti-drift: pr size gate', 'node', ['scripts/check-pr-size-gate.mjs'])
   runCheck('anti-drift: validator helptext', 'node', ['scripts/check-validator-helptext.mjs'])
   runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'])
-  runCheck('adapter coverage (INV-88)', 'node', ['scripts/check-adapter-coverage.mjs'])
   runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])
   runCheck('monthly freshness (INV-82)', 'node', ['scripts/check-monthly-freshness.mjs'])
   runCheck('deploy cosign supply-chain (INV-95/97/98)', 'node', [
