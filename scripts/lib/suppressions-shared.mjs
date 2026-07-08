@@ -111,3 +111,36 @@ export function parseMetaComment(commentText) {
   }
   return result
 }
+
+/**
+ * #1809: specificity-floor allowlist matcher — shared by scripts/pii-scan.mjs
+ * and .claude/hooks/check-no-pii.mjs so the two consumers of
+ * suppressions/pii-allowlist.json can never drift back apart (both previously
+ * carried their own copy of this exact logic). A suppression entry must be
+ * NARROW: either an exact (file + line) pair, or an exact `pattern` string —
+ * a bare file-only / line-only entry, a substring file match, or a substring
+ * pattern match is rejected so one under-specified entry cannot blanket-
+ * disable this HARD gate. File matching is path-segment-aware (exact file, or
+ * a `/`-anchored directory prefix), never substring.
+ * @param {{file?: string, line?: number, pattern?: string}[]} allowlist
+ * @param {string} rel - relative path of the scanned file (forward-slash normalized)
+ * @param {number} lineNum - 1-based line number of the match
+ * @param {string} matchStr - the exact matched PII substring
+ * @returns {boolean}
+ */
+export function isAllowedByEntry(allowlist, rel, lineNum, matchStr) {
+  return allowlist.some((entry) => {
+    const hasFile = typeof entry.file === 'string' && entry.file.length > 0
+    const hasLine = typeof entry.line === 'number'
+    const hasPattern = typeof entry.pattern === 'string' && entry.pattern.length > 0
+    if (!(hasPattern || (hasFile && hasLine))) return false
+    if (hasFile) {
+      const ef = entry.file.split('\\').join('/')
+      const prefix = ef.endsWith('/') ? ef : ef + '/'
+      if (rel !== ef && !rel.startsWith(prefix)) return false
+    }
+    if (hasLine && entry.line !== lineNum) return false
+    if (hasPattern && matchStr !== entry.pattern) return false
+    return true
+  })
+}
