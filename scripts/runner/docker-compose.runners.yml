@@ -1,0 +1,147 @@
+services:
+  runner-build:
+    image: myoung34/github-runner:latest
+    restart: unless-stopped
+    hostname: arbiter-slot-build
+    # .env holds non-secret config only. The registration credential is a
+    # short-lived RUNNER_TOKEN minted by farm.sh via the GitHub API
+    # (POST /repos/{owner}/{repo}/actions/runners/registration-token) and
+    # injected at `compose up` time — no long-lived token on disk (pattern:
+    # coach-system#434).
+    env_file:
+      - .env
+    environment:
+      RUNNER_SCOPE: repo
+      REPO_URL: ${REPO_URL}
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: arbiter-slot-build
+      RANDOM_RUNNER_SUFFIX: "false"
+      LABELS: ${LABELS:-self-hosted,linux,x64,docker-ci-build}
+      RUNNER_WORKDIR: /tmp/runner/work
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner-state
+      DISABLE_AUTO_UPDATE: ${DISABLE_AUTO_UPDATE:-true}
+      DISABLE_AUTOMATIC_DEREGISTRATION: ${DISABLE_AUTOMATIC_DEREGISTRATION:-true}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKERD_IN_RUNNER: "false"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    network_mode: host
+    volumes:
+      - /var/run/docker-ci/docker.sock:/var/run/docker.sock
+      - /var/run/docker-ci/docker.sock:/var/run/docker-ci/docker.sock
+      - build-work:/tmp/runner/work
+      - build-state:/runner-state
+      - build-npm-cache:/root/.npm
+      - ${HOME}/.cache/ms-playwright:/root/.cache/ms-playwright
+
+  runner-build-2:
+    image: myoung34/github-runner:latest
+    restart: unless-stopped
+    hostname: arbiter-slot-build-2
+    env_file:
+      - .env
+    environment:
+      RUNNER_SCOPE: repo
+      REPO_URL: ${REPO_URL}
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: arbiter-slot-build-2
+      RANDOM_RUNNER_SUFFIX: "false"
+      LABELS: ${LABELS:-self-hosted,linux,x64,docker-ci-build}
+      RUNNER_WORKDIR: /tmp/runner/work
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner-state
+      DISABLE_AUTO_UPDATE: ${DISABLE_AUTO_UPDATE:-true}
+      DISABLE_AUTOMATIC_DEREGISTRATION: ${DISABLE_AUTOMATIC_DEREGISTRATION:-true}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKERD_IN_RUNNER: "false"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    network_mode: host
+    volumes:
+      - /var/run/docker-ci/docker.sock:/var/run/docker.sock
+      - /var/run/docker-ci/docker.sock:/var/run/docker-ci/docker.sock
+      - build-2-work:/tmp/runner/work
+      - build-2-state:/runner-state
+      - build-2-npm-cache:/root/.npm
+      - ${HOME}/.cache/ms-playwright:/root/.cache/ms-playwright
+
+  runner-build-3:
+    image: myoung34/github-runner:latest
+    restart: unless-stopped
+    hostname: arbiter-slot-build-3
+    env_file:
+      - .env
+    environment:
+      RUNNER_SCOPE: repo
+      REPO_URL: ${REPO_URL}
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: arbiter-slot-build-3
+      RANDOM_RUNNER_SUFFIX: "false"
+      LABELS: ${LABELS:-self-hosted,linux,x64,docker-ci-build}
+      RUNNER_WORKDIR: /tmp/runner/work
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner-state
+      DISABLE_AUTO_UPDATE: ${DISABLE_AUTO_UPDATE:-true}
+      DISABLE_AUTOMATIC_DEREGISTRATION: ${DISABLE_AUTOMATIC_DEREGISTRATION:-true}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKERD_IN_RUNNER: "false"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    network_mode: host
+    volumes:
+      - /var/run/docker-ci/docker.sock:/var/run/docker.sock
+      - /var/run/docker-ci/docker.sock:/var/run/docker-ci/docker.sock
+      - build-3-work:/tmp/runner/work
+      - build-3-state:/runner-state
+      - build-3-npm-cache:/root/.npm
+      - ${HOME}/.cache/ms-playwright:/root/.cache/ms-playwright
+
+  runner-build-4:
+    image: myoung34/github-runner:latest
+    restart: unless-stopped
+    hostname: arbiter-slot-build-4
+    env_file:
+      - .env
+    environment:
+      RUNNER_SCOPE: repo
+      REPO_URL: ${REPO_URL}
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: arbiter-slot-build-4
+      RANDOM_RUNNER_SUFFIX: "false"
+      LABELS: ${LABELS:-self-hosted,linux,x64,docker-ci-build}
+      RUNNER_WORKDIR: /tmp/runner/work
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner-state
+      DISABLE_AUTO_UPDATE: ${DISABLE_AUTO_UPDATE:-true}
+      DISABLE_AUTOMATIC_DEREGISTRATION: ${DISABLE_AUTOMATIC_DEREGISTRATION:-true}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKERD_IN_RUNNER: "false"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    network_mode: host
+    volumes:
+      - /var/run/docker-ci/docker.sock:/var/run/docker.sock
+      - /var/run/docker-ci/docker.sock:/var/run/docker-ci/docker.sock
+      - build-4-work:/tmp/runner/work
+      - build-4-state:/runner-state
+      - build-4-npm-cache:/root/.npm
+      - ${HOME}/.cache/ms-playwright:/root/.cache/ms-playwright
+
+volumes:
+  build-work:
+    name: runner-arbiter-build-work
+  build-state:
+    name: runner-arbiter-build-state
+  build-npm-cache:
+    name: runner-arbiter-build-npm-cache
+  build-2-work:
+    name: runner-arbiter-build-2-work
+  build-2-state:
+    name: runner-arbiter-build-2-state
+  build-2-npm-cache:
+    name: runner-arbiter-build-2-npm-cache
+  build-3-work:
+    name: runner-arbiter-build-3-work
+  build-3-state:
+    name: runner-arbiter-build-3-state
+  build-3-npm-cache:
+    name: runner-arbiter-build-3-npm-cache
+  build-4-work:
+    name: runner-arbiter-build-4-work
+  build-4-state:
+    name: runner-arbiter-build-4-state
+  build-4-npm-cache:
+    name: runner-arbiter-build-4-npm-cache
