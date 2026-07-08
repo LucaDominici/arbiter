@@ -113,12 +113,12 @@
     "fast-check": "4.8.0",
     "jscpd": "5.0.11",
     "js-yaml": "^5.2.1",
-    "knip": "^6.24.0",
+    "knip": "^6.25.0",
     "madge": "^8.0.0",
     "smol-toml": "^1.7.0",
     "tsx": "^4.22.5",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.62.1",
+    "typescript-eslint": "^8.63.0",
     "vitest": "^4.1.9"
   },
   "engines": {

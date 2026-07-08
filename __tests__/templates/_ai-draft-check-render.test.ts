@@ -31,4 +31,9 @@ describe('_ai-draft-check.yml.ejs rendering (CANON-04, INV-91, #1076)', () => {
     expect(rendered).toContain('labeled')
     expect(rendered).toContain('unlabeled')
   })
+
+  it('exempts dependabot[bot] from the gate (noise, not a security gap)', () => {
+    const rendered = renderTemplate('github/workflows/_ai-draft-check.yml.ejs', data)
+    expect(rendered).toContain("user.login != 'dependabot[bot]'")
+  })
 })
