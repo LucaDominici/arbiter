@@ -125,3 +125,34 @@ describe('07-weekly-lite.yml.ejs — per-language dep-freshness', () => {
     expect(renderWeeklyLite({ language: 'rust', buildTool: 'cargo' })).toContain('cargo outdated')
   })
 })
+
+// Same class of bug as _weekly.yml.ejs (weekly's red streak, run 28730540157 et
+// al.): the identical BSD-only `date -j` fallback and the same unsynced-label
+// crash risk are duplicated in this reusable partial's own stale-pin audit.
+describe('07-weekly-lite.yml.ejs — stale-pin-audit portability + label self-heal', () => {
+  it('does not use the BSD/macOS-only `date -j` fallback anywhere', () => {
+    const rendered = renderWeeklyLite({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).not.toContain('date -j')
+    expect(rendered).not.toContain('date -v')
+  })
+
+  it('a failed commit-date parse is skipped (continue), not left to crash the job', () => {
+    const rendered = renderWeeklyLite({ language: 'typescript', buildTool: 'npm' })
+    const idx = rendered.indexOf('PUSHED_EPOCH=')
+    expect(idx).toBeGreaterThan(-1)
+    const slice = rendered.slice(idx, idx + 300)
+    expect(slice).toContain('continue')
+  })
+
+  it('"File issue on failure" idempotently creates the weekly-regression label before use', () => {
+    const rendered = renderWeeklyLite({ language: 'typescript', buildTool: 'npm' })
+    const idx = rendered.indexOf('File issue on failure')
+    expect(idx).toBeGreaterThan(-1)
+    const slice = rendered.slice(idx, idx + 1100)
+    const labelCreateIdx = slice.indexOf('gh label create weekly-regression')
+    const issueCreateIdx = slice.indexOf('gh issue create')
+    expect(labelCreateIdx).toBeGreaterThan(-1)
+    expect(issueCreateIdx).toBeGreaterThan(labelCreateIdx)
+    expect(slice.slice(labelCreateIdx, labelCreateIdx + 200)).toContain('|| true')
+  })
+})
