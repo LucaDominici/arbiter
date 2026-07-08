@@ -56,7 +56,7 @@ readable workflow label instead of the raw `.github/workflows/_*.yml` path.
 | --------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
 | `06-nightly.yml`      | `style !== 'starter'` + L3+ + mode ≠ `trunk-solo` | Thin caller → `_nightly.yml` (schedule 02:00 UTC + concurrency group) |
 | `06-nightly-lite.yml` | `trunk-solo` + L2+                                | Lite nightly: integration + CVE refresh (no mutation/SLSA/SBOM)       |
-| `09-heartbeat.yml`    | L3+                                               | Daily watchdog: asserts nightly/weekly/monthly ran on schedule        |
+| `09-heartbeat.yml`    | L3+                                               | Daily watchdog: asserts nightly/weekly/monthly ran on schedule (needs `actions: read` to query run history) |
 
 ### WEEKLY-MONTHLY — weekly (Sun/Mon) + monthly schedule (deep audits)
 
@@ -89,7 +89,7 @@ readable workflow label instead of the raw `.github/workflows/_*.yml` path.
 | `_notify.yml`              | GitHub enabled                             | Reusable: idempotent GitHub Issue notification                             |
 | `_label-sync.yml`          | GitHub enabled                             | Reusable: sync `.github/labels.yml` → repo labels on push to main          |
 | `_label-on-approve.yml`    | GitHub enabled                             | Bot: label management on PR review approval                                |
-| `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling                                     |
+| `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling (INV-91; `dependabot[bot]` exempt)  |
 | `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                                        |
 | `_sigstore-retry-sign.yml` | with `05-release` (`style !== 'starter'`)  | Reusable: cosign signing with retry/backoff                                |
 | `_post-merge-notify.yml`   | L2+ **and** `enableCodeownersNotify: true` | Optional: email CODEOWNERS after each merged PR (#943, opt-in)             |
