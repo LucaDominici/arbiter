@@ -137,4 +137,112 @@ describe('pii-scan.mjs (INV-12 — PII detection gate)', () => {
       cleanup()
     }
   })
+
+  // #1809: isAllowed() specificity floor. A suppression must be NARROW — either
+  // an exact (file + line) pair, or an exact `pattern` string match — mirroring
+  // src/templates/scripts/pii-scan.mjs.ejs's stricter #1669 semantics. A bare
+  // file-only / line-only entry, a substring file match, or a substring pattern
+  // match can no longer blanket-disable this HARD gate.
+  describe('specificity floor (#1809)', () => {
+    function allowlistOnly(dir: string, entries: unknown[]): void {
+      mkdirSync(join(dir, 'suppressions'), { recursive: true })
+      writeFileSync(join(dir, 'suppressions', 'pii-allowlist.json'), JSON.stringify(entries))
+    }
+
+    it('rejects a file-only entry (no line, no pattern) — no longer suppresses', () => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        mkdirSync(join(dir, '__tests__'))
+        allowlistOnly(dir, [{ file: '__tests__/bad.test.ts', reason: 'fixture' }])
+        writeFileSync(join(dir, '__tests__', 'bad.test.ts'), 'const email = "user@example.com"')
+        const result = run(dir)
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain('email')
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('rejects a line-only entry (no file, no pattern) — no longer suppresses', () => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        mkdirSync(join(dir, '__tests__'))
+        allowlistOnly(dir, [{ line: 1, reason: 'fixture' }])
+        writeFileSync(join(dir, '__tests__', 'bad.test.ts'), 'const email = "user@example.com"')
+        const result = run(dir)
+        expect(result.status).toBe(1)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('rejects a substring pattern match — pattern must equal the match exactly', () => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        mkdirSync(join(dir, '__tests__'))
+        // "@" would substring-match every email under the old (loose) semantics.
+        allowlistOnly(dir, [{ pattern: '@', reason: 'fixture' }])
+        writeFileSync(join(dir, '__tests__', 'bad.test.ts'), 'const email = "user@example.com"')
+        const result = run(dir)
+        expect(result.status).toBe(1)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('rejects a substring file match — "foo.ts" must not match "foo.tsx"', () => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        mkdirSync(join(dir, '__tests__'))
+        allowlistOnly(dir, [{ file: '__tests__/foo.ts', line: 1, reason: 'fixture' }])
+        writeFileSync(join(dir, '__tests__', 'foo.tsx'), 'const email = "user@example.com"')
+        const result = run(dir)
+        expect(result.status).toBe(1)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('accepts an exact (file + line) pair — still suppresses', () => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        mkdirSync(join(dir, '__tests__'))
+        allowlistOnly(dir, [{ file: '__tests__/allowed.test.ts', line: 1, reason: 'fixture' }])
+        writeFileSync(join(dir, '__tests__', 'allowed.test.ts'), 'const email = "user@example.com"')
+        expect(run(dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('accepts an exact pattern-only entry (no file/line needed) — still suppresses anywhere', () => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        mkdirSync(join(dir, '__tests__'))
+        allowlistOnly(dir, [{ pattern: 'user@example.com', reason: 'fixture' }])
+        writeFileSync(join(dir, '__tests__', 'allowed.test.ts'), 'const email = "user@example.com"')
+        expect(run(dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('a directory-prefix file entry still requires an exact line — a mismatched line still fails', () => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        mkdirSync(join(dir, '__tests__'))
+        // Old semantics: a bare "__tests__/" file entry (with no line at all)
+        // suppressed every match anywhere under the directory. New semantics:
+        // file+line is still a per-file, per-line pair — a directory prefix
+        // narrows WHICH files are eligible, but line 99 (this fixture's PII is
+        // on line 1) still does not match, so this is NOT a blanket suppression.
+        allowlistOnly(dir, [{ file: '__tests__/', line: 99, reason: 'fixture' }])
+        writeFileSync(join(dir, '__tests__', 'other.test.ts'), 'const email = "user@example.com"')
+        const result = run(dir)
+        expect(result.status).toBe(1)
+      } finally {
+        cleanup()
+      }
+    })
+  })
 })

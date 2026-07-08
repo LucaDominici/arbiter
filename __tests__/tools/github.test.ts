@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateGithub } from '../../src/generators/github.js'
+import { beginGenerationSession, endGenerationSession } from '../../src/utils/fs.js'
+
+const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex')
 
 describe('tool output: github', () => {
   let dir: string
@@ -58,13 +62,45 @@ describe('tool output: github', () => {
     }
   })
 
-  it('CI workflow is always regenerated on re-run (soloDevMode toggle requires immediate apply)', () => {
+  // #1776: CI workflow files (01-pr-fast.yml et al.) now carry the same
+  // skipIfExists + hash-baseline protection as deploy workflows (CANON-11,
+  // #899) — `arbiter update` was unconditionally overwriting them, silently
+  // reverting dependabot-bumped SHA pins and deliberately-deleted CI steps.
+  it('does NOT clobber a foreign/customized CI workflow with unknown provenance (#1776)', () => {
     const workflowsDir = join(dir, '.github', 'workflows')
     mkdirSync(workflowsDir, { recursive: true })
     writeFileSync(join(workflowsDir, '01-pr-fast.yml'), '# custom ci')
     const config = githubConfig()
     const result = generateGithub(config)
     const ci = result.files.find((f) => f.path.endsWith('01-pr-fast.yml'))
-    expect(ci?.action).toBe('replaced')
+    expect(ci?.action).toBe('skipped')
+    expect(readFileSync(join(workflowsDir, '01-pr-fast.yml'), 'utf-8')).toBe('# custom ci')
+  })
+
+  // A config change (e.g. a soloDevMode toggle) must still reach a PRISTINE CI
+  // workflow (unmodified since arbiter last wrote it) — the #1328 generation-
+  // session hash baseline is what tells "arbiter's own prior render" apart
+  // from "dependabot/user touched this since", so propagation still works
+  // exactly like every other skipIfExists-protected file in this codebase.
+  it('DOES propagate a config change to a pristine CI workflow inside a generation session (#1776)', () => {
+    const ciPath = join(dir, '.github', 'workflows', '01-pr-fast.yml')
+
+    // First run (mirrors `arbiter init`): nothing on disk yet, file is created.
+    beginGenerationSession({ targetDir: dir, prevHashes: {} })
+    const first = generateGithub(githubConfig())
+    const firstHashes = endGenerationSession()
+    expect(first.files.find((f) => f.path.endsWith('01-pr-fast.yml'))?.action).toBe('created')
+
+    // Second run (mirrors `arbiter update` after a config change): the manifest
+    // baseline is the hash `arbiter` itself just recorded — pristine, so the
+    // new config's render is safe to propagate.
+    beginGenerationSession({ targetDir: dir, prevHashes: firstHashes })
+    const second = generateGithub(githubConfig({ enableSoloDevMode: true }))
+    endGenerationSession()
+    const secondCi = second.files.find((f) => f.path.endsWith('01-pr-fast.yml'))
+    expect(secondCi?.action).toBe('replaced')
+    expect(sha256(readFileSync(ciPath, 'utf-8'))).not.toBe(
+      firstHashes['.github/workflows/01-pr-fast.yml'],
+    )
   })
 })

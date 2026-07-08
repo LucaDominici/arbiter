@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // conformance/gate-proofs.ts — negative proofs for `arbiter doctor --prove-gates` (#1817, A5).
 //
-// Handoff A5 (Viafera-patterns): Viafera's anti-pattern was ~40 `test-*.sh` scripts that
-// unit-tested the gate SCRIPTS themselves (meta-tax, no reality-contact). The pattern that
+// Handoff A5 (#1817 gold-rebaseline patterns): the anti-pattern observed on a 100k-LOC
+// reference project was ~40 `test-*.sh` scripts that unit-tested the gate SCRIPTS
+// themselves (meta-tax, no reality-contact). The pattern that
 // WORKED was `ArchNegativeProofTest` — one intentional-violation fixture per rule, proving
 // the rule actually fails when violated. This module is arbiter's generalisation of that
 // pattern to its own must-pass (tier-1) conformance dimensions: every tier-1 dimension in

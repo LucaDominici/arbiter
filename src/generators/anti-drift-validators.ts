@@ -129,14 +129,17 @@ function emitF4Validators(
     scripts.push('check-action-pins.mjs', 'check-workflow-perms.mjs', 'check-ci-tiers.mjs')
   }
 
-  // #1318: check-exit-code-contract is a conditional FALLBACK — emit only when
-  // self-validation is disabled (enableSelfValidationHarness:false). When
-  // self-validation IS enabled it owns the script and anti-drift stays out (no
-  // double-write); when disabled, check-all.mjs:137 still calls the script
-  // unconditionally, so anti-drift must be the sole emitter or the generated
-  // gate fails with MODULE_NOT_FOUND (RT-CRITICAL — must not drop).
+  // #1318/#1835: check-exit-code-contract and check-pipe-tee-hazard are conditional
+  // FALLBACKs — emit only when self-validation is disabled
+  // (enableSelfValidationHarness:false). When self-validation IS enabled it owns
+  // both scripts and anti-drift stays out (no double-write); when disabled,
+  // check-all.mjs still calls both unconditionally (unguarded references), so
+  // anti-drift must be the sole emitter of each or the generated gate fails with
+  // MODULE_NOT_FOUND (RT-CRITICAL — must not drop). check-pipe-tee-hazard had no
+  // fallback until #1835 — a crash-class ghost whenever a project disabled the
+  // harness.
   if (!selfValidationEnabled(config)) {
-    scripts.push('check-exit-code-contract.mjs')
+    scripts.push('check-exit-code-contract.mjs', 'check-pipe-tee-hazard.mjs')
   }
 
   return scripts.map((name) =>

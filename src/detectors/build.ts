@@ -20,11 +20,16 @@ export function detectBuildCommands(dir: string, language: Language): BuildComma
     case 'rust':
       return detectRustCommands(dir)
     case 'java':
+    case 'kotlin':
     case 'multi':
       // For `multi` the JVM build lives under backend/, not the root (#1378); resolve
       // it via jvmRoot so a Maven backend gets Maven commands instead of falling
       // through to the Gradle default for an empty root (#1567). For `java` jvmRoot
-      // is the root itself, so behaviour is unchanged.
+      // is the root itself, so behaviour is unchanged. `kotlin` shares the identical
+      // JVM build-file markers (gradlew/build.gradle(.kts)/pom.xml) — before this
+      // case existed, kotlin fell through to `default` (buildTool: 'unknown'), which
+      // silently coerced every `buildTool === 'gradle' ? … : …` template check to its
+      // maven branch regardless of what was actually on disk (#1803 end-to-end repro).
       return detectJavaCommands(jvmRoot(dir) ?? dir)
     case 'go':
       return {

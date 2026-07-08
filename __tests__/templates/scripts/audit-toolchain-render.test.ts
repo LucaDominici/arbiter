@@ -27,8 +27,10 @@ describe('audit-toolchain.mjs.ejs', () => {
     expect(out).toContain('my-project')
   })
 
-  it('checks .github/workflows directory', () => {
-    const out = renderTemplate('scripts/audit-toolchain.mjs.ejs', cfg())
+  // #1835: workflow-file checks are useGitHub-gated (a non-GitHub project would
+  // otherwise false-FAIL on workflow files that were never applicable).
+  it('checks .github/workflows directory when GitHub is on', () => {
+    const out = renderTemplate('scripts/audit-toolchain.mjs.ejs', cfg({ useGitHub: true }))
     expect(out).toContain('.github/workflows')
   })
 

@@ -952,7 +952,7 @@ export function probeFindingHygiene(root: string): DimensionEntry {
   }
 }
 
-// ─── DISC-e2e-quarantine (#1817, A3 — Viafera-patterns handoff) ───────────────
+// ─── DISC-e2e-quarantine (#1817, A3 — gold-rebaseline handoff) ───────────────
 const E2E_QUARANTINE_ID = 'DISC-e2e-quarantine'
 const E2E_QUARANTINE_TITLE = 'E2E quarantine registry has no expired entries'
 const E2E_QUARANTINE_PATH = '.arbiter/e2e/quarantine.json'

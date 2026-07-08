@@ -136,6 +136,64 @@ describe('runDoctorHealth (#539)', () => {
     expect(c?.status).toBe('PASS')
   })
 
+  // #1835: field evidence — 11 scripts/check-*.mjs scripts orphaned in a real
+  // arbiter-generated project (0 consumers, ~1133 LOC). doctor must catch this
+  // for ANY project it is pointed at, including ones generated long ago.
+  describe('scaffold-wiring (#1835)', () => {
+    it('PASS when arbiter.json is absent (no check to run)', async () => {
+      mockGitOk()
+      const result = await runDoctorHealth({ dir, json: true })
+      expect(result.checks.find((x) => x.id === 'scaffold-wiring')).toBeUndefined()
+    })
+
+    it('PASS when scripts/ has no check-*.mjs files', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      const result = await runDoctorHealth({ dir, json: true })
+      const c = result.checks.find((x) => x.id === 'scaffold-wiring')
+      expect(c?.status).toBe('PASS')
+    })
+
+    it('WARN when a check-*.mjs script is not referenced by check-all.mjs/run.sh/Makefile', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(join(dir, 'scripts', 'check-all.mjs'), '// gate — references nothing')
+      writeFileSync(join(dir, 'scripts', 'check-orphan.mjs'), '// never invoked')
+      const result = await runDoctorHealth({ dir, json: true })
+      const c = result.checks.find((x) => x.id === 'scaffold-wiring')
+      expect(c?.status).toBe('WARN')
+      expect(c?.detail).toContain('scripts/check-orphan.mjs')
+      expect(c?.hint).toMatch(/wire|remove/i)
+    })
+
+    it('PASS when the script is referenced by check-all.mjs', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(
+        join(dir, 'scripts', 'check-all.mjs'),
+        "runCheck('wired', 'node', ['scripts/check-wired.mjs']);",
+      )
+      writeFileSync(join(dir, 'scripts', 'check-wired.mjs'), '// invoked from check-all.mjs')
+      const result = await runDoctorHealth({ dir, json: true })
+      const c = result.checks.find((x) => x.id === 'scaffold-wiring')
+      expect(c?.status).toBe('PASS')
+    })
+
+    it('PASS when the script is referenced only by Makefile', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(join(dir, 'scripts', 'check-all.mjs'), '// gate')
+      writeFileSync(join(dir, 'scripts', 'check-via-make.mjs'), '// invoked from Makefile')
+      writeFileSync(join(dir, 'Makefile'), 'audit:\n\tnode scripts/check-via-make.mjs\n')
+      const result = await runDoctorHealth({ dir, json: true })
+      const c = result.checks.find((x) => x.id === 'scaffold-wiring')
+      expect(c?.status).toBe('PASS')
+    })
+  })
+
   it('emits a gate-toolchain check (PASS for an uncovered stack — nothing to probe)', async () => {
     mockGitOk()
     // No language signal → detectLanguage='unknown' → empty matrix → no missing tools.

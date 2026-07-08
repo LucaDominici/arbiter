@@ -149,6 +149,8 @@ function v2ToProjectConfig(stored: ArbiterConfigV2, detectorFields: DetectorFiel
     enableContractTesting: stored.features.contractTesting,
     enableEvidenceHarness: stored.features.evidenceHarness,
     enableSelfValidationHarness: stored.features.selfValidationHarness ?? true,
+    enableAuditToolchain: stored.features.auditToolchain ?? false,
+    enableFiveLaneCi: stored.features.fiveLaneCi ?? false,
     enableSoloDevMode: stored.features.soloDevMode ?? false,
     // ADR-051 (#1119): use canonical resolver — honours stored.collaborationMode first,
     // then soloDevMode alias, then defaults to 'peer-review'. Replaces inline derivation.
