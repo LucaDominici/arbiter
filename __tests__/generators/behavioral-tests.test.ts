@@ -678,7 +678,7 @@ describe('generateBehavioralTests', () => {
 
 // ─── #1776: example scaffold must not resurrect after deletion ─────────────
 //
-// Found supervising `arbiter update` on haben (2026-07-04): a project that has
+// Found supervising `arbiter update` on a downstream Go project (2026-07-04) that has
 // grown 13 real feature files still has `features/example.feature` +
 // `internal/bdd/example_test.go` (a Go project) re-created on the next update
 // after the user deletes them — the example's undefined steps break the BDD

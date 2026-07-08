@@ -161,7 +161,7 @@ jobs:
 <% } %>
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: 'go.mod'
       - run: go test -tags integration ./...
@@ -235,7 +235,7 @@ jobs:
         run: <%= buildTool === 'gradle' ? './gradlew test --tests *.grpc.*' : 'mvn test -Dtest=*Grpc*' %>
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: 'go.mod'
       - name: Contract tests
@@ -326,7 +326,7 @@ jobs:
         run: mvn license:third-party-report -Dlicense.excludedScopes=test
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: 'go.mod'
       - name: Install go-licenses
@@ -377,7 +377,7 @@ jobs:
       - run: mvn test -Pbehavioral
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
         with:
           go-version-file: 'go.mod'
       - run: go test -tags behavioral ./...
