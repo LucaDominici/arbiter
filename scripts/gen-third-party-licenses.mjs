@@ -14,6 +14,16 @@
 //   node scripts/gen-third-party-licenses.mjs            # write THIRD_PARTY_LICENSES.md
 //   node scripts/gen-third-party-licenses.mjs --check    # fail if the file is stale/missing
 //
+// #1807: `prepack` invokes this with `--check`, NOT the write form. `npm pack`
+// (even `--dry-run`) always runs `prepack`, so a write-mode prepack silently
+// regenerated (mutated) this tracked file mid-gate whenever ANY script shelled
+// out to `npm pack`/`npm pack --dry-run` without `--ignore-scripts` — the exact
+// footgun `check-consumer-audit.mjs` already guards against for its own `npm
+// pack` call (see its `packTarball` docstring). `--check` makes `prepack`
+// verify-only, matching the ALREADY-mandatory 'third-party licenses' gate
+// check below; drift must be fixed and committed via the write form BEFORE a
+// publish, never silently patched over by one.
+//
 // Determinism: dependencies are sorted; only production deps are included —
 // devDependencies never ship in the tarball. The set is the FULL production
 // dependency closure a consumer installs (every transitive registry package
