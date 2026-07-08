@@ -147,7 +147,7 @@ describe('_contract-postman.yml.ejs — structural invariants (CANON-04, CANON-1
   // the stale v4.2.2 pin (cross-MAJOR divergence) is gone.
   it('pins actions/checkout to the canonical v6.0.3 sha, not stale v4.2.2 (#1666)', () => {
     const rendered = renderContractWorkflow()
-    expect(rendered).toContain('actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10')
+    expect(rendered).toContain('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0')
     expect(rendered).not.toContain('11bd71901bbe5b1630ceea73d27597364c9af683')
   })
 
