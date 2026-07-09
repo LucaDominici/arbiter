@@ -201,19 +201,27 @@ describe('_nightly.yml.ejs — kotlin fuzz coverage (#1803)', () => {
   })
 })
 
-// #1854 — the `generated-gate-e2e` job (arbiter-self-render only) installs a
-// globally pinned golangci-lint onto whatever Go toolchain `go-version-file`
-// resolves from the go-library fixture's own go.mod. actions/setup-go v6 pins
-// GOTOOLCHAIN=local right after installing that toolchain (v5 never touched
-// GOTOOLCHAIN at all), so the `go` tool can no longer silently self-upgrade to
-// satisfy a newer requirement the way it used to under GOTOOLCHAIN=auto.
-// Regression: the fixture pinned `go 1.22`; golangci-lint v2.5.0 requires
-// go >= 1.24.0 → `go install .../golangci-lint@v2.5.0` failed hard in nightly
-// CI (run 28991350328). This guard fails the same way the next time the
-// golangci-lint pin is bumped without bumping the fixture's go directive.
-describe('_nightly.yml.ejs — generated-gate-e2e Go toolchain satisfies golangci-lint pin (#1854)', () => {
-  // Bump this map alongside any golangci-lint pin bump in the template.
-  const MIN_GO_FOR_GOLANGCI_LINT: Record<string, string> = { '2.5.0': '1.24.0' }
+// #1854/#1856 — the `generated-gate-e2e` job (arbiter-self-render only)
+// installs globally pinned Go tools onto whatever Go toolchain
+// `go-version-file` resolves from the go-library fixture's own go.mod.
+// actions/setup-go v6 pins GOTOOLCHAIN=local right after installing that
+// toolchain (v5 never touched GOTOOLCHAIN at all), so the `go` tool can no
+// longer silently self-upgrade to satisfy a newer requirement the way it used
+// to under GOTOOLCHAIN=auto. That makes EVERY pinned tool's minimum-go a hard
+// constraint on the fixture's go directive, not just golangci-lint's:
+// round 1 (#1854, run 28991350328) golangci-lint v2.5.0 needed go >= 1.24 vs
+// fixture 1.22; round 2 (#1856, run 29002271128) govulncheck v1.5.0 needed
+// go >= 1.25 vs fixture 1.24. This guard enumerates all pinned `go install`
+// lines and fails when any pin outgrows the fixture.
+describe('_nightly.yml.ejs — generated-gate-e2e Go toolchain satisfies every pinned tool (#1854/#1856)', () => {
+  // Bump this table alongside any tool pin bump in the template. Minimums come
+  // from each module's own `go` directive (proxy.golang.org/<module>/@v/<version>.mod).
+  const MIN_GO_FOR_PINNED_TOOL: Record<string, Record<string, string>> = {
+    'github.com/golangci/golangci-lint/v2/cmd/golangci-lint': { '2.5.0': '1.24.0' },
+    // staticcheck's 2025.1.1 release tag aliases module version v0.6.1
+    'honnef.co/go/tools/cmd/staticcheck': { '2025.1.1': '1.23.0' },
+    'golang.org/x/vuln/cmd/govulncheck': { '1.5.0': '1.25.0' },
+  }
 
   function renderSelfProfile() {
     // Mirrors __tests__/fixtures/ci-tier-render-context.json's shape: this job
@@ -225,24 +233,13 @@ describe('_nightly.yml.ejs — generated-gate-e2e Go toolchain satisfies golangc
     } as Record<string, unknown>)
   }
 
-  it('go-version-file fixture declares a go directive >= the pinned golangci-lint minimum', () => {
+  it('go-version-file fixture declares a go directive >= every pinned tool minimum', () => {
     const rendered = renderSelfProfile()
 
-    const pinMatch = rendered.match(
-      /go install github\.com\/golangci\/golangci-lint\/v2\/cmd\/golangci-lint@v(\d+\.\d+\.\d+)/,
+    const pins = [...rendered.matchAll(/go install ([^\s@]+)@v?(\d+\.\d+(?:\.\d+)?)/g)].map(
+      (m) => ({ tool: m[1], version: m[2] }),
     )
-    expect(
-      pinMatch,
-      'expected a pinned golangci-lint v2 install line in generated-gate-e2e',
-    ).not.toBeNull()
-    const pinnedVersion = pinMatch![1]
-
-    const minGo = MIN_GO_FOR_GOLANGCI_LINT[pinnedVersion]
-    expect(
-      minGo,
-      `no known minimum Go version recorded for golangci-lint@${pinnedVersion} — ` +
-        'add it to MIN_GO_FOR_GOLANGCI_LINT in this test',
-    ).toBeDefined()
+    expect(pins.length, 'expected pinned go install lines in generated-gate-e2e').toBeGreaterThan(0)
 
     const fileMatch = rendered.match(/go-version-file:\s*(\S+go-library\/go\.mod)/)
     expect(fileMatch, 'expected go-version-file to point at the go-library fixture').not.toBeNull()
@@ -250,16 +247,26 @@ describe('_nightly.yml.ejs — generated-gate-e2e Go toolchain satisfies golangc
     const goModContent = readFileSync(goModPath, 'utf-8')
     const directiveMatch = goModContent.match(/^go (\d+\.\d+)/m)
     expect(directiveMatch, `expected a \`go X.Y\` directive in ${goModPath}`).not.toBeNull()
-
     const [fixMajor, fixMinor] = directiveMatch![1].split('.').map(Number)
-    const [minMajor, minMinor] = (minGo as string).split('.').map(Number)
-    const satisfies = fixMajor > minMajor || (fixMajor === minMajor && fixMinor >= minMinor)
 
-    expect(
-      satisfies,
-      `go-library fixture pins go ${directiveMatch![1]} but golangci-lint@${pinnedVersion} requires ` +
-        `go >= ${minGo} — actions/setup-go v6 pins GOTOOLCHAIN=local so this fails hard in CI (#1854)`,
-    ).toBe(true)
+    for (const { tool, version } of pins) {
+      const minGo = MIN_GO_FOR_PINNED_TOOL[tool]?.[version]
+      expect(
+        minGo,
+        `no known minimum Go version recorded for ${tool}@${version} — ` +
+          'add it to MIN_GO_FOR_PINNED_TOOL in this test (read the module go directive from ' +
+          'proxy.golang.org)',
+      ).toBeDefined()
+
+      const [minMajor, minMinor] = (minGo as string).split('.').map(Number)
+      const satisfies = fixMajor > minMajor || (fixMajor === minMajor && fixMinor >= minMinor)
+      expect(
+        satisfies,
+        `go-library fixture pins go ${directiveMatch![1]} but ${tool}@${version} requires ` +
+          `go >= ${minGo} — actions/setup-go v6 pins GOTOOLCHAIN=local so this fails hard in CI ` +
+          '(#1854/#1856)',
+      ).toBe(true)
+    }
   })
 
   it('go setup steps set cache-dependency-path for the go-library fixture (not at repo root)', () => {

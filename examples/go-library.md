@@ -19,7 +19,7 @@ A minimal Go module with a utility package and table-driven tests. Arbiter detec
 
 ```
 go-library/
-├── go.mod                 # module github.com/example/go-library-fixture; go 1.24
+├── go.mod                 # module github.com/example/go-library-fixture; go 1.25
 ├── manifest.json          # { language: "go", archetype: "library", levels: ["L1","L2","L3"] }
 ├── math.go
 └── math_test.go
@@ -30,7 +30,7 @@ go-library/
 ```
 module github.com/example/go-library-fixture
 
-go 1.24
+go 1.25
 ```
 
 ## 2. Run `arbiter init`
@@ -83,7 +83,7 @@ node scripts/check-all.mjs L1     # go vet + golangci-lint + go test
 node scripts/check-all.mjs L2     # L1 + govulncheck + gitleaks
 ```
 
-Requires Go ≥ 1.24 and `golangci-lint` in PATH. Install golangci-lint via the [official binary installer](https://golangci-lint.run/usage/install/).
+Requires Go ≥ 1.25 and `golangci-lint` in PATH. Install golangci-lint via the [official binary installer](https://golangci-lint.run/usage/install/).
 
 ## 5. See the enforcement chain fire
 
