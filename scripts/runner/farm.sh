@@ -40,7 +40,7 @@ Environment:
   Non-secret runner config lives in scripts/runner/.env (copy from .env.example).
   No long-lived credential is stored: start/ensure mint a short-lived RUNNER_TOKEN
   via the GitHub API (requires an authenticated gh CLI on the host with repo
-  admin access). Pattern: coach-system#434.
+  admin access). Pattern: a sibling repo#434.
 EOF
 }
 
@@ -62,7 +62,7 @@ require_env() {
 
 # Mint a short-lived (60-min) runner registration token via the GitHub API.
 # One mint is valid for ~60 minutes and can register multiple runners, so a
-# single token covers all 4 slots for one `compose up` (pattern: coach-system#434).
+# single token covers all 4 slots for one `compose up` (pattern: sibling-repo runner farm).
 fetch_runner_token() {
   gh api -X POST repos/LucaDominici/arbiter/actions/runners/registration-token --jq '.token'
 }
@@ -71,7 +71,7 @@ fetch_runner_token() {
 # fresh RUNNER_TOKEN just for them. Running containers are NEVER touched:
 # the token differs on every mint, so passing it through `compose up` on a
 # running service changes the compose config hash and triggers a mid-job
-# container recreate (observed on viafera 2026-07-09: an hourly ensure timer
+# container recreate (observed on a sibling repo's farm 2026-07-09: an hourly ensure timer
 # recreated runners and killed an in-flight CI job). `ensure`/`start`
 # therefore guarantee presence, not config sync; to roll out compose config
 # changes, run `farm.sh stop && farm.sh start` at a CI-idle window. The

@@ -1,6 +1,6 @@
 # Explicit project name: the default would be "runner" (directory basename),
-# which COLLIDES with viafera's runner farm project on the same docker-ci
-# daemon — compose would adopt/replace viafera's runner-build container.
+# which COLLIDES with a sibling repo's runner farm project on the same docker-ci
+# daemon — compose would adopt/replace that farm's runner-build container.
 name: arbiter-runner-farm
 
 services:
@@ -12,7 +12,7 @@ services:
     # short-lived RUNNER_TOKEN minted by farm.sh via the GitHub API
     # (POST /repos/{owner}/{repo}/actions/runners/registration-token) and
     # injected at `compose up` time — no long-lived token on disk (pattern:
-    # coach-system#434).
+    # sibling-repo runner farm).
     env_file:
       - .env
     environment:

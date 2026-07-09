@@ -10,7 +10,7 @@ daemon (socket: `/var/run/docker-ci/docker.sock`), registered under the
 | Runner image | `myoung34/github-runner:latest` |
 | Slot identities | `arbiter-slot-build`, `arbiter-slot-build-2/3/4` |
 | Caches | Per-slot named volumes: `runner-arbiter-build[-N]-{state,work,npm-cache}` |
-| Credential | Short-lived `RUNNER_TOKEN` minted via `gh api` at `compose up` time — no long-lived PAT on disk (pattern: coach-system#434) |
+| Credential | Short-lived `RUNNER_TOKEN` minted via `gh api` at `compose up` time — no long-lived PAT on disk (pattern: sibling-repo runner farm) |
 
 ### Quick start
 
