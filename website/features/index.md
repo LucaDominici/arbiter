@@ -31,12 +31,19 @@ workflows scaled to your chosen governance level.
 The canonical, always-current list (every invariant ID, its enforcement script, and activation
 level) is [`AGENTS.md`](https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md) §Invariants.
 
+<!-- BEGIN GENERATED:kit-count -->
+
 ## Coverage matrix (78 dimensions)
 
 Beyond the named invariants, arbiter tracks a machine-generated catalogue of **78 security and
 quality dimensions** — each with its gate tier (L1/L2/L3), BLOCKING/ADVISORY status, and per-stack
 coverage. `arbiter kit generate` renders it into an adopting project's `docs/REFERENCE/GLOBAL_KIT.md`
 from the same source arbiter uses for itself.
+<!-- END GENERATED:kit-count -->
+
+<!-- The region above is emitted by scripts/gen-derived-pages.mjs from
+     src/kit/catalog.json and gate-checked at L1 (#1838) — the dimension
+     count can never drift from the catalog again. -->
 
 Browse the source of truth:
 [`src/kit/catalog.json`](https://github.com/LucaDominici/arbiter/blob/main/src/kit/catalog.json)

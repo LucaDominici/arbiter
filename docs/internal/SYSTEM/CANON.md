@@ -215,9 +215,9 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** Arbiter is a governance framework. If it generates advanced hook categories (`PostToolUseFailure`, `PreCompact`, `UserPromptSubmit`) for L2 projects but does not apply them to itself (also L2+), the dogfooding guarantee is broken.
 
-**Enforcement:** Prose — diff `src/templates/claude/settings.json.ejs` against `.claude/settings.json` on every hook addition.
+**Enforcement:** `scripts/check-self-dogfood.mjs` diff-pinning (#1838): every `.dogfood-divergences.json` entry pins the sha256 of its exact approved template-vs-materialized diff (`diffHash`); new drift inside an allowlisted file (including `settings.json` — hook set changes surface in its pinned diff), a healed entry, or a dead entry fails the L1 gate. Re-pin after review with `--update-divergences`. Was prose-only ("diff on every hook addition") until F2.
 
-**Source issues:** #176, #183
+**Source issues:** #176, #183, #1838
 
 ---
 

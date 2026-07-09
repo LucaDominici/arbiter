@@ -167,6 +167,9 @@ if (isMain) {
   runCheck('doc index (#1102)', 'node', ['scripts/gen-doc-index.mjs', '--check'])
   runCheck('llms.txt drift (#1721)', 'node', ['scripts/gen-llms-txt.mjs', '--check'])
   runCheck('status dashboard', 'node', ['scripts/gen-status.mjs', '--check'])
+  // F2 (#1838, item 6): derived website pages (experiments table, kit count)
+  // are generator-emitted; hand-edits or registry drift fail here.
+  runCheck('derived pages (#1838)', 'node', ['scripts/gen-derived-pages.mjs', '--check'])
   runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check'])
   runCheck('ssot core index (#1100)', 'node', ['scripts/gen-ssot-core.mjs', '--check'])
   runCheck('adr index (INV-107)', 'node', ['scripts/check-adr-index.mjs'])

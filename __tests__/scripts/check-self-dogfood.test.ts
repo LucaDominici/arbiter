@@ -10,6 +10,8 @@ import {
   isConfigGated,
   normalizeLines,
   computeDiff,
+  hashDiff,
+  classifyDivergence,
 } from '../../scripts/check-self-dogfood.mjs'
 
 // ─── buildRenderContext ───────────────────────────────────────────────────────
@@ -253,7 +255,11 @@ describe('computeDiff', () => {
 describe('.dogfood-divergences.json — anchored rationales (#1092)', () => {
   const ANCHOR = /#\d+|INV-\d+|CANON-\d+|ADR-\d+|\d{4}-\d{2}-\d{2}|RT-[A-Z]+-\d+/
   const path = fileURLToPath(new URL('../../.dogfood-divergences.json', import.meta.url))
-  const entries = JSON.parse(readFileSync(path, 'utf-8')) as Array<{ path: string; reason: string }>
+  const entries = JSON.parse(readFileSync(path, 'utf-8')) as Array<{
+    path: string
+    reason: string
+    diffHash?: string
+  }>
 
   it('every entry has path + reason', () => {
     for (const e of entries) {
@@ -265,6 +271,96 @@ describe('.dogfood-divergences.json — anchored rationales (#1092)', () => {
   it('every divergence reason carries a traceability anchor (#NNN, INV/CANON/ADR-NN, date, or RT-XX)', () => {
     const unanchored = entries.filter((e) => !ANCHOR.test(e.reason)).map((e) => e.path)
     expect(unanchored, `unanchored divergence rationale(s): ${unanchored.join(', ')}`).toEqual([])
+  })
+
+  // CANON-14 (#1838): the manifest is an approved-diff registry, not a skip list.
+  it('every entry pins its approved diff (diffHash, CANON-14 #1838)', () => {
+    const unpinned = entries.filter((e) => !e.diffHash).map((e) => e.path)
+    expect(unpinned, `unpinned divergence entr(ies): ${unpinned.join(', ')}`).toEqual([])
+  })
+})
+
+// ─── CANON-14 auto-diff (#1838): hashDiff + classifyDivergence ────────────────
+
+describe('hashDiff (CANON-14, #1838)', () => {
+  it('is deterministic and order-independent across added/removed line ordering', () => {
+    const a = { added: ['x', 'y'], removed: ['z'] }
+    const b = { added: ['y', 'x'], removed: ['z'] }
+    expect(hashDiff(a)).toBe(hashDiff(b))
+  })
+
+  it('distinguishes different diffs', () => {
+    expect(hashDiff({ added: ['x'], removed: [] })).not.toBe(
+      hashDiff({ added: ['y'], removed: [] }),
+    )
+  })
+
+  it('hashes a null diff to a distinct sentinel (healed divergence can never collide)', () => {
+    expect(hashDiff(null)).toBe('no-diff')
+    expect(hashDiff({ added: [], removed: [] })).not.toBe('no-diff')
+  })
+})
+
+describe('classifyDivergence (CANON-14, #1838)', () => {
+  const diff = { added: ['self-hardening line'], removed: [] }
+
+  it('returns null when the recomputed diff matches the pinned hash (approved divergence)', () => {
+    const entry = { path: 'hooks/x.mjs', reason: 'r', diffHash: hashDiff(diff) }
+    expect(classifyDivergence(entry, diff)).toBeNull()
+  })
+
+  it('FAILS a stale entry whose divergence healed (diff now null)', () => {
+    const entry = { path: 'hooks/x.mjs', reason: 'r', diffHash: hashDiff(diff) }
+    const violation = classifyDivergence(entry, null)
+    expect(violation).not.toBeNull()
+    expect(violation?.reason).toContain('stale divergence entry')
+  })
+
+  it('FAILS an entry with no pinned diffHash (migration fail-closed)', () => {
+    const entry = { path: 'hooks/x.mjs', reason: 'r' }
+    const violation = classifyDivergence(entry, diff)
+    expect(violation).not.toBeNull()
+    expect(violation?.reason).toContain('no pinned diffHash')
+  })
+
+  it('FAILS when the diff changed beyond the approved pin (the guard-done-evidence class, #1836 F2)', () => {
+    const entry = { path: 'hooks/x.mjs', reason: 'r', diffHash: hashDiff(diff) }
+    const grown = { added: [...diff.added, 'NEW unreviewed drift'], removed: [] }
+    const violation = classifyDivergence(entry, grown)
+    expect(violation).not.toBeNull()
+    expect(violation?.reason).toContain('CHANGED beyond the approved pin')
+    expect(violation?.added).toContain('NEW unreviewed drift')
+  })
+})
+
+// ─── CANON-14 non-vacuity proof: drift INSIDE an allowlisted file goes red ────
+// Before #1838 an allowlist entry skipped the whole file — new drift inside it
+// was invisible (the class that let guard-done-evidence vs stop-evidence-guard
+// slip, per epic #1836). This mutates an ALLOWLISTED materialized file, runs
+// the real checker, and requires red; restores the original bytes.
+
+describe('allowlisted-file drift detection is non-vacuous (CANON-14, #1838)', () => {
+  it('a mutated .claude/rules/90-exec-protocol.md (allowlisted) turns the gate red', () => {
+    const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
+    const target = `${repoRoot}.claude/rules/90-exec-protocol.md`
+    const original = readFileSync(target, 'utf-8')
+    try {
+      writeFileSync(
+        target,
+        original + '\nsynthetic drift beyond the approved divergence\n',
+        'utf-8',
+      )
+      const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
+        cwd: repoRoot,
+        encoding: 'utf-8',
+        timeout: 120_000,
+      })
+      expect(r.status).not.toBe(0)
+      expect(r.stdout + r.stderr).toContain('90-exec-protocol.md')
+      expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
+    } finally {
+      writeFileSync(target, original, 'utf-8')
+    }
   })
 })
 

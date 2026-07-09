@@ -48,17 +48,21 @@ Graduation is tracked in the experiment's `plannedReviewDate` field. The arbiter
 
 ## Active Experiments
 
-<!-- TODO(#1838): this section is hand-maintained and can drift from
-     src/experimental/registry.ts — wire a generator or a freshness gate that
-     diffs this table against the registry, then drop this TODO. -->
+<!-- BEGIN GENERATED:experiments -->
 
 The authoritative list is the registry in `src/experimental/registry.ts`;
 experiments are opted in per-invocation via the `--experimental.<name>` flag
 (e.g. `arbiter --experimental.kit kit list`). Currently active:
 
-| Experiment | Stability target | Added in | Planned review | Promotion criteria                                            |
-| ---------- | ---------------- | -------- | -------------- | ------------------------------------------------------------- |
-| `kit`      | beta             | 0.1.0    | 2026-11-18     | ≥6 months active + ≥3 user reports + zero P0 issues + Phase F |
+| Experiment | Stability target | Added in | Planned review | Promotion criteria                                                     |
+| ---------- | ---------------- | -------- | -------------- | ---------------------------------------------------------------------- |
+| `kit`      | beta             | 0.1.0    | 2026-11-18     | ≥6 months active + ≥3 user reports + zero P0 issues + Phase F complete |
+
+<!-- END GENERATED:experiments -->
+
+<!-- The region above is emitted by scripts/gen-derived-pages.mjs from
+     src/experimental/registry.ts and gate-checked at L1 (#1838) — edit the
+     registry, not this table. -->
 
 ## Adding a New Experiment
 
