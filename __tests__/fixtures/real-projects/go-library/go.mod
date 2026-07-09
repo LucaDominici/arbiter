@@ -1,3 +1,3 @@
 module github.com/example/go-library-fixture
 
-go 1.22
+go 1.24
