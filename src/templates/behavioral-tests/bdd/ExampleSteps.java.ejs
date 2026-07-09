@@ -1,0 +1,54 @@
+package <%= locals.basePackage || 'com.example' %>.bdd;
+
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Step definitions for example.feature — glue code for ExampleBddIT's Cucumber
+ * suite. Without these, the scenarios resolve as UNDEFINED and Cucumber-JVM
+ * fails the run (strict-by-default), so this file is load-bearing for the
+ * generated project's default `test` task, not just documentation.
+ */
+public class ExampleSteps {
+
+    private String input;
+    private String result;
+    private String error;
+
+    @Given("a valid input")
+    public void aValidInput() {
+        input = "valid";
+        error = null;
+    }
+
+    @Given("an invalid input")
+    public void anInvalidInput() {
+        input = "invalid";
+        error = null;
+    }
+
+    @When("the operation is executed")
+    public void theOperationIsExecuted() {
+        if ("valid".equals(input)) {
+            result = "success";
+            error = null;
+        } else {
+            result = "";
+            error = "invalid input";
+        }
+    }
+
+    @Then("the result is successful")
+    public void theResultIsSuccessful() {
+        assertThat(result).isEqualTo("success");
+        assertThat(error).isNull();
+    }
+
+    @Then("an error is returned")
+    public void anErrorIsReturned() {
+        assertThat(error).isNotNull();
+    }
+}

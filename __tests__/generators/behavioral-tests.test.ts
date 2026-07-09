@@ -123,9 +123,9 @@ describe('generateBehavioralTests', () => {
     expect(lower.includes('given') || lower.includes('when') || lower.includes('then')).toBe(true)
   })
 
-  // ─── Java: 5 files (+ BDD feature + BDD suite) ────────────────────────────────────────────────────
+  // ─── Java: 6 files (+ BDD feature + BDD suite + BDD steps) ────────────────────────────────────────
 
-  it('returns 5 files for java', () => {
+  it('returns 6 files for java', () => {
     const javaDir = createTestProject('java')
     initGit(javaDir)
     try {
@@ -134,7 +134,7 @@ describe('generateBehavioralTests', () => {
         archetype: 'backend-web-db',
         buildTool: 'gradle',
       })
-      expect(generateBehavioralTests(config).files).toHaveLength(5)
+      expect(generateBehavioralTests(config).files).toHaveLength(6)
     } finally {
       cleanupTestProject(javaDir)
     }
@@ -174,6 +174,50 @@ describe('generateBehavioralTests', () => {
           join(javaDir, 'src', 'test', 'java', 'com', 'example', 'bdd', 'ExampleBddIT.java'),
         ),
       ).toBe(true)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
+  it('generates BDD step definitions class for java (#1042)', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        language: 'java',
+        archetype: 'backend-web-db',
+        buildTool: 'gradle',
+        basePackage: 'com.example',
+      })
+      generateBehavioralTests(config)
+      expect(
+        existsSync(
+          join(javaDir, 'src', 'test', 'java', 'com', 'example', 'bdd', 'ExampleSteps.java'),
+        ),
+      ).toBe(true)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
+  it('java BDD step definitions contain @Given/@When/@Then glue matching example.feature', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        language: 'java',
+        archetype: 'backend-web-db',
+        buildTool: 'gradle',
+        basePackage: 'com.example',
+      })
+      generateBehavioralTests(config)
+      const content = readFileSync(
+        join(javaDir, 'src', 'test', 'java', 'com', 'example', 'bdd', 'ExampleSteps.java'),
+        'utf-8',
+      )
+      expect(content).toContain('@Given("a valid input")')
+      expect(content).toContain('@When("the operation is executed")')
+      expect(content).toContain('@Then("the result is successful")')
     } finally {
       cleanupTestProject(javaDir)
     }

@@ -144,6 +144,7 @@
     "src/test/java/com/example/architecture/NoMockMvcTest.java",
     "src/test/java/com/example/architecture/RestAssuredArchTest.java",
     "src/test/java/com/example/bdd/ExampleBddIT.java",
+    "src/test/java/com/example/bdd/ExampleSteps.java",
     "src/test/java/com/example/example/ExampleBehavioralTest.java",
     "src/test/java/com/example/modulith/ApplicationModulesTest.java",
     "src/test/java/com/example/support/RestAssuredBaseIT.java",

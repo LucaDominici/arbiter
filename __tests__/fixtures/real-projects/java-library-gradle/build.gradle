@@ -31,6 +31,13 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testImplementation 'org.assertj:assertj-core:3.25.3'
     testImplementation 'com.tngtech.archunit:archunit-junit5:1.2.1'
+    // #1042: cucumber/junit-platform-suite for src/test/java/.../bdd/ExampleBddIT.java
+    // (arbiter's generated BDD example) — without these the default `test` task
+    // fails to compile, since Java has no build-tag/feature-flag mechanism to
+    // isolate a BDD suite the way Go/Rust do.
+    testImplementation 'io.cucumber:cucumber-java:7.18.0'
+    testImplementation 'io.cucumber:cucumber-junit-platform-engine:7.18.0'
+    testImplementation 'org.junit.platform:junit-platform-suite:1.10.3'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
