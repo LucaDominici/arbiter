@@ -1,8 +1,10 @@
 {
   "language": "python",
   "archetype": "backend-web-db",
+  "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
-  "tier": "bake",
-  "note": "Python backend with pytest-playwright E2E tests",
+  "tier": "functional",
+  "note": "Minimal real FastAPI + SQLAlchemy(sqlite, in-memory) backend — /health + a DB-backed /items resource, unit tests (app/crud.py against a throwaway session) and an integration test (full HTTP->DB round trip via TestClient). Promoted to functional tier (#1840 F4 tranche-3, 2026-07-09): previously this fixture shipped only a pytest-playwright E2E test requiring a live server (E2E_BASE_URL) with no unit-testable application module at all — replaced so the generated L1 gate (ruff + pytest) actually executes for real. pyproject.toml testpaths scopes L1 `pytest` to tests/unit/ only; tests/integration/ is the L2 `pytest tests/integration/` target; the arbiter-generated tests/api/ live-server suite (INV-126) is untouched by either.",
+  "enableSecurityScanning": true,
   "collaborationMode": "peer-review"
 }

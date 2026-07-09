@@ -624,9 +624,13 @@ describe('generateDebtGates', () => {
     >
     // #1324: framework-aligned (mirror arbiter's own scripts) — path-based, never
     // `vitest --project <tier>` (the generated vitest.config.ts defines no projects,
-    // so --project crashes the gate). test:unit runs all tests; optional tiers add
-    // --passWithNoTests so a greenfield project without those tiers stays green.
-    expect(pkg.scripts?.['test:unit']).toBe('vitest run')
+    // so --project crashes the gate). #1840 F4 tranche-3: test:unit is scoped to
+    // `src` (same substring-filter mechanism as the other three tiers below) so it
+    // never sweeps in tests/api (INV-126 live-server suite) or tests/e2e (a11y) —
+    // neither ships `supertest`/`@playwright/test` as a devDependency, and neither
+    // is meant to run via `vitest run`. Optional tiers add --passWithNoTests so a
+    // greenfield project without those tiers stays green.
+    expect(pkg.scripts?.['test:unit']).toBe('vitest run src')
     expect(pkg.scripts?.['test:contract']).toBe('vitest run --passWithNoTests __tests__/contract')
     expect(pkg.scripts?.['test:integration']).toBe(
       'vitest run --passWithNoTests __tests__/integrations',

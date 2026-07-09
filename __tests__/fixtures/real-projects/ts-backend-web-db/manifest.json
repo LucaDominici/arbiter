@@ -3,8 +3,8 @@
   "archetype": "backend-web-db",
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
-  "tier": "bake",
-  "note": "TypeScript with fastify dep → detects as backend-web-db archetype",
+  "tier": "functional",
+  "note": "TypeScript with fastify dep → detects as backend-web-db archetype. Promoted to functional tier (#1840 F4 tranche-3, 2026-07-09): src/index.ts + unit test were already real, but the generated L1 gate itself did not run green out-of-the-box until three arbiter-side fixes landed (surfaced only by actually executing this archetype for the first time): (1) an unscoped `vitest run` for `test:unit` also swept in tests/api (INV-126 live-server suite, `supertest`) and tests/e2e (a11y, `@playwright/test`) — scoped to `vitest run src`; (2) arbiter's own generated middleware/api-e2e/a11y templates are hand-authored in arbiter's internal prettier style, which fails the target project's OWN `format` gate whenever its .prettierrc differs — now reformatted via formatContent (#933 F13) before write, and this fixture's own atypical .prettierrc was aligned to arbiter's default (single-quote/no-semi); (3) generated middleware's `_next`/`console.error` tripped the generated eslint configs' own no-unused-vars/no-console rules — fixed at the template level.",
   "enableSecurityScanning": true,
   "collaborationMode": "peer-review"
 }

@@ -12,7 +12,11 @@ jobs:
   drift-check:
     name: Gate Result Drift Check
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    # Job-level permissions REPLACE workflow-level (GitHub never merges them):
+    # contents: read must be restated here or the checkout below runs with
+    # contents: none and fails "Repository not found" on a private repo (#1865).
     permissions:
+      contents: read
       issues: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0

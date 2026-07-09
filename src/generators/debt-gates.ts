@@ -17,8 +17,17 @@ function injectTestScripts(targetDir: string, dryRun: boolean): void {
     // `vitest run --project <tier>` crashed every generated TS project's gate
     // (#1324). The optional tiers add --passWithNoTests so a greenfield project
     // that has not yet added contract/integration/behavioral tests stays green.
+    // #1840 F4 tranche-3: `test:unit` is scoped to `src` (a vitest CLI path
+    // filter, same substring-match mechanism the other three tiers already use)
+    // — an unscoped `vitest run` also swept up tests/api/**  (api-e2e.ts,
+    // INV-126) and tests/e2e/** (playwright-ts.ts a11y), which need `supertest`/
+    // `@playwright/test` and a live server. Those never ship as devDependencies
+    // (they run via tests/api/run.sh / a dedicated e2e job, not `vitest run`),
+    // so a fresh `backend-web-db` init RED'd on `Cannot find package 'supertest'`
+    // before any team code was added — surfaced while promoting that archetype's
+    // TS fixture to the functional bake-and-run tier.
     const testScripts: Record<string, string> = {
-      'test:unit': 'vitest run',
+      'test:unit': 'vitest run src',
       'test:contract': 'vitest run --passWithNoTests __tests__/contract',
       'test:integration': 'vitest run --passWithNoTests __tests__/integrations',
       'test:behavioral': 'vitest run --passWithNoTests __tests__/behavioral',

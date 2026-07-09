@@ -88,7 +88,7 @@ The `tier` field selects which E2E layer exercises the fixture:
 | ------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | `snapshot`   | Manifest validation only — no `arbiter init`, no exec                           | Pure data/docs fixtures (`markdown-only`); also a non-GA stack declassified pre-publish (`kotlin-backend-web-db-gradle`, #1840 F4 tranche-2, 2026-07-09 — re-promotion path: #1803) |
 | `bake`       | `arbiter init` → structural snapshot diff → parse generated manifests (no exec) | Most fixtures (`backend-*`, `bdd`, `frontend-spa` …) |
-| `functional` | `bake` + execute the generated project's own L1 gate inside a clean tmpdir copy | Smallest cheapest fixture per stack (`*-library`); promoted to the dedicated `generator-matrix.yml` workflow (dispatchable + weekly + pre-release, #1840 F4 tranche-2) |
+| `functional` | `bake` + execute the generated project's own L1 gate inside a clean tmpdir copy | Cheapest fixture per stack (`*-library`); promoted to the dedicated `generator-matrix.yml` workflow (dispatchable + weekly + pre-release, #1840 F4 tranche-2). Also the `backend-web-db` archetype's 3 GA fixtures (`ts-backend-web-db`, `python-backend-web`, `go-backend-web-gcr`) as of #1840 F4 tranche-3 — see below |
 
 The bake-and-run harness lives in `__tests__/e2e/bake/` and `__tests__/e2e/functional/`. Industry pattern reference: Nx (`create-nx-workspace` Verdaccio), Cookiecutter (`pytest-cookies`), Spring Initializr (`initializr-generator-test`).
 
@@ -130,6 +130,66 @@ Kotlin is excluded — see the `snapshot` tier row above. Toolchain-pin coherenc
 #1854/#1856 incident class) is locked by
 `__tests__/scripts/generator-matrix-workflow.test.ts`, sharing the `MIN_GO_FOR_PINNED_TOOL`
 registry in `__tests__/helpers/go-pinned-tool-minimums.ts` with the `_nightly.yml.ejs` guard.
+
+#### `backend-web-db` GA promotion (#1840 F4 tranche 3, 2026-07-09)
+
+Tranche 2 parked the `backend-web-db` archetype's fixture promotion for TS/Python/Go
+(the README's "3 GA stacks") with an honest reason: `python-backend-web`'s only test was a
+`pytest-playwright` suite requiring a live server, and `go-backend-web-gcr` had no source at
+all — neither was a real project. This tranche authors both as minimal-but-real apps
+(`python-backend-web`: FastAPI + SQLAlchemy over an in-memory sqlite DB, unit + integration
+tests; `go-backend-web-gcr`: net/http + an in-memory `ItemStore` behind an interface, unit +
+integration tests; `ts-backend-web-db` already had real content) and flips all three to
+`tier: functional`.
+
+Actually *executing* the generated L1 gate for `backend-web-db` for the first time (bake tier
+never runs it) surfaced several arbiter-side gaps that were never observable before — fixed in
+the same tranche because a fixture promotion that doesn't survive its own gate is not a
+promotion:
+
+- **TS `test:unit` swept in the live-server/browser suites.** `vitest run` (unscoped) also
+  collected `tests/api/**` (INV-126, needs `supertest` + a live server) and `tests/e2e/**`
+  (a11y, needs `@playwright/test`) — neither ships as a devDependency, so a fresh
+  `backend-web-db` init RED'd on `Cannot find package 'supertest'` before any team code was
+  added. Fixed by scoping `test:unit` to `vitest run src` (`src/generators/debt-gates.ts`),
+  mirroring the substring-filter mechanism the `test:contract`/`test:integration`/
+  `test:behavioral` scripts already used. `check-min-test-execution.mjs.ejs`'s `vitest list`
+  needed the same `src` scope to count the same surface the gate actually runs.
+- **Arbiter's own generated TS templates ignore the target project's prettier style.**
+  `api-middleware.ts`, `api-e2e.ts` (TS suite), and `playwright-ts.ts` are hand-authored in
+  arbiter's internal style (single-quote, no semicolons) and were written straight to disk —
+  any project whose `.prettierrc` differs (the common case) fails its own generated `format`
+  gate on arbiter's OWN files. Fixed by running each through `formatContent` (`src/utils/
+  prettier-format.ts`, #933 F13 — the same post-emit reformat `commitlint.config.js` already
+  used, #1325) before `writeFile`.
+- **Generated middleware tripped the generated lint gates.** `error-handler.ts`'s
+  Express-required `_next` param tripped `@typescript-eslint/no-unused-vars` (no
+  `argsIgnorePattern: '^_'` in the generated `eslint.config.mjs`); its `console.error` tripped
+  the static-analysis gate's `no-console`. Both fixed at the template/config level.
+- **Python's own generated a11y helper failed its own naming-convention gate.**
+  `check-test-naming.mjs.ejs`'s python branch flagged `tests/e2e/a11y/run_axe.py` (a non-test
+  helper module) for not matching `test_*.py`. Fixed with the same content-based exemption
+  (`def test_` sniff) the Go/Java branches already use for glue/support files.
+- **A Python fixture's own venv poisoned the generic repo-wide scanners.** `sqlalchemy`/
+  `uvicorn` pull in `greenlet`, which ships its OWN `@unittest.skipIf`-decorated test suite
+  inside `site-packages` — `check-muted-test.mjs.ejs` (and its `check-skip-critical-e2e.mjs.ejs`
+  / `check-no-stub-redirects.mjs.ejs` siblings) walked into `.venv/` and flagged a dependency's
+  bundled tests as if they were the project's own. Fixed by adding `.venv`/`venv`/`__pycache__`
+  to the shared `SKIP_DIRS` (`src/templates/scripts/lib/glob-walk.mjs.ejs` + the three literal
+  duplicates) — `post-edit-dispatch.mjs.ejs` already excluded these paths; the walk-based
+  checks had not caught up.
+
+None of this required touching L2+ (the functional harness always runs the generated gate at
+L1) — the pre-existing TS `testcontainers` note above and the equivalent Go
+`testcontainers-go` gap in the generated `tests/main_test.go` (L2-only integration test) are
+untouched, same as every other `backend-web-db` fixture today.
+
+`examples/` viventi (generated projects committed under `examples/`, regenerated by a
+drift-checking job, linked from the README) — the other half of #1836's F4 design line — is
+**parked, not started**: today's `examples/` are hand-written Markdown walkthroughs, not
+generated/committed projects, and there is no regeneration/drift-detection mechanism at all.
+Building one is a new feature (a regenerate script + a CI drift check + README wiring), not a
+tier flip; estimated 0.5–1 day once scoped as its own PR.
 
 ---
 

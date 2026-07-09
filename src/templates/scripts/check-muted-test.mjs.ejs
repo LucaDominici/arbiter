@@ -34,7 +34,20 @@ if (args.includes('--help') || args.includes('-h')) {
 const dirArgIdx = args.indexOf('--dir')
 const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]) : process.cwd()
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
+// #1840 F4 tranche-3: '.venv'/'venv'/'__pycache__' — a Python dependency's
+// bundled test suite inside site-packages (e.g. greenlet) must never be
+// scanned as if it were project code (mirrors lib/glob-walk.mjs's SKIP_DIRS).
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.coverage',
+  '.venv',
+  'venv',
+  '__pycache__',
+])
 
 // A file is a gate test if its name matches one of these (JS/TS/JVM/Rust/Python/Go conventions).
 // JS/TS/Rust/Python/Go tests are identified by filename; bare `.java`/`.kt` files are dir-gated to

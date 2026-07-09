@@ -605,6 +605,11 @@ jobs:
 <% if (enableSecurityScanning) { %>
       - name: Dep audit govulncheck (INV-13)
         uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee  # v1
+        with:
+          # The action re-checkouts by default; after the explicit checkout above the
+          # second internal checkout adds a duplicate Authorization extraheader and
+          # git fails with 400 "Duplicate header" on private repos (#1865).
+          repo-checkout: false
 <% } %>
 <% } %><% if (language === 'python') { %>
   gate:

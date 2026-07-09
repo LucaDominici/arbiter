@@ -28,7 +28,20 @@ const dirArgIdx = args.indexOf('--dir')
 const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]) : process.cwd()
 const ALLOWLIST = '.stub-redirects-allowlist'
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
+// #1840 F4 tranche-3: '.venv'/'venv'/'__pycache__' — a Python dependency's
+// bundled test suite inside site-packages must never be scanned as project
+// code (mirrors lib/glob-walk.mjs's SKIP_DIRS).
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.coverage',
+  '.venv',
+  'venv',
+  '__pycache__',
+])
 
 // A redirect VERB anchoring a stub. Matched against the leading non-empty lines of the doc.
 const REDIRECT_VERB_RE =

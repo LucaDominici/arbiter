@@ -56,6 +56,11 @@ export function errorHandler(
     return;
   }
 
+  // Internal server-side error log, never sent to the client; swap for your
+  // project's logger (#1840 F4 tranche-3: the static-analysis gate's no-console
+  // rule flagged arbiter's OWN middleware — the disable directive below must be
+  // the LINE IMMEDIATELY BEFORE the call, not preceded by more comment lines.
+  // eslint-disable-next-line no-console
   console.error("[errorHandler] unhandled error:", err);
   const body: ProblemDetails = {
     type: "about:blank",

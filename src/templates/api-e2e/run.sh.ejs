@@ -47,7 +47,9 @@ done
 
 echo "[api-e2e] running the live suite..."
 <% if (language === 'go') { -%>
-API_BASE_URL="${API_BASE_URL}" go test ./tests/api/...
+# `apie2e` build tag (#1840 F4 tranche-3) keeps this suite out of the default
+# `go test ./...` — required here to actually compile+run it.
+API_BASE_URL="${API_BASE_URL}" go test -tags apie2e ./tests/api/...
 <% } else if (language === 'java' || language === 'kotlin') { -%>
 API_BASE_URL="${API_BASE_URL}" ./gradlew test --tests '*ApiE2ETest'
 <% } else if (language === 'python') { -%>

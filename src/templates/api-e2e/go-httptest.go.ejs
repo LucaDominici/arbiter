@@ -1,6 +1,14 @@
+//go:build apie2e
+// +build apie2e
+
 // SPDX-License-Identifier: Apache-2.0
 // Live-API e2e (INV-126): runs against the REAL booted server, no mocks.
 // API_BASE_URL points at the running binary (tests/api/run.sh boots it).
+// Tagged `apie2e` (#1840 F4 tranche-3) so it is excluded from the default
+// `go test ./...` / `go vet ./...` — the generated L1 gate's unit-test step
+// must never require a live server on :8080. tests/api/run.sh passes
+// `-tags apie2e` to run it for real, after booting the binary. Mirrors the
+// `bdd`-tagged suite's isolation pattern (internal/bdd/example_test.go).
 package api_test
 
 import (
