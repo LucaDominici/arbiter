@@ -1,0 +1,20 @@
+# python-library — Gitleaks suppression list
+# Managed by arbiter. Do not remove this file.
+#
+# MANDATORY FORMAT: every suppression fingerprint MUST be immediately preceded by
+# a metadata comment in this exact format (pipe-separated, single line):
+#
+#   # reason: <10+ chars — include a tracking issue URL> | owner: @github-handle | expiresAt: YYYY-MM-DD | scope: commit-hash-or-all
+#   <fingerprint-or-commit-hash>
+#
+# Rules enforced by scripts/check-suppressions.mjs on every L1 commit:
+# - All four fields (reason, owner, expiresAt, scope) are mandatory
+# - expiresAt must be a future date — expired entries block the gate
+# - Warnings appear for entries expiring within 30 days
+# - There are no permanent suppressions — max recommended expiry: 12 months
+#
+# To add a suppression:
+# 1. Run: gitleaks detect --report-format json | jq '.[].Fingerprint'
+# 2. Add the metadata comment immediately before the fingerprint
+# 3. Set expiresAt to when the fixture/test secret will be removed (≤12 months)
+# 4. Reference the tracking issue in reason

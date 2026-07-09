@@ -1,0 +1,13 @@
+# shellcheck configuration (gold-align #1507)
+#
+# Auto-discovered by shellcheck for every *.sh file in the repo. The CI
+# `config-lint` lane and the pre-commit hook both run
+# `shellcheck --severity=warning`, blocking on warning-or-worse findings
+# (unquoted expansions, unsafe word-splitting, useless `cat`, etc.).
+
+# Treat all generated scripts as bash (they ship a bash shebang).
+shell=bash
+
+# Follow `source`d / `.`-included files when the path is statically resolvable
+# (honours `# shellcheck source=...` directives) so cross-file checks work.
+external-sources=true

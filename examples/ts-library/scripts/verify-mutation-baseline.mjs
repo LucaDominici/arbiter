@@ -1,0 +1,209 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// ts-library — mutation-score non-regression ratchet (#1508).
+//
+// The absolute `mutationThreshold` (enforced by the mutator itself — stryker
+// `thresholds.break`, pitest `mutationThreshold`) catches a CATASTROPHIC drop, but
+// the killed-mutant ratio can still erode run-over-run toward that floor without ever
+// tripping. This ratchet backstops it: once a score is committed to
+// mutation-baseline.json, the score may only go UP (within a small ±SLACK tolerance
+// for mutator non-determinism). A real improvement advances the baseline; a regression
+// fails the gate and must be root-caused — not allowed to silently drift floor-ward.
+//
+// Greenfield-/SKIP-aware: no mutation report on disk → SKIP (exit 0); first run with a
+// report and no baseline → seed the baseline and pass. The ratchet only ever fails on a
+// genuine regression after a baseline is committed, so it is safe to wire blocking.
+//
+// Per-stack dispatch: TypeScript/JavaScript (Stryker `reports/mutation/mutation.json`)
+// is implemented; Java (pitest), Rust (cargo-mutants) and Python (mutmut) SKIP
+// gracefully until implemented — NEVER a false-fail.
+//
+// The compare is factored into a PURE, exported `compareMutationScore` so the decision
+// logic is unit-testable in isolation (see __tests__/generators/mutation-baseline-ratchet.test.ts).
+
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+export const SLACK = 0.5 // tolerated score wobble (pp) for mutator non-determinism
+const ROOT = process.cwd()
+const BASELINE_FILE = join(ROOT, 'mutation-baseline.json')
+
+/**
+ * Pure ratchet compare. Both are mutation scores in [0, 100].
+ *   - current dropped MORE than slack below baseline → violation
+ *   - current within slack (or higher)               → no violation
+ *   - baseline null/undefined (first run)            → no violation (seed elsewhere)
+ *
+ * @param {number|null|undefined} baselineScore  last committed mutation score
+ * @param {number} currentScore                   achieved mutation score this run
+ * @param {number} slack                          tolerated drop in pp (default SLACK)
+ * @returns {{ violations: Array<{ reason: string }> }}
+ */
+export function compareMutationScore(baselineScore, currentScore, slack = SLACK) {
+  const violations = []
+  if (typeof baselineScore !== 'number') return { violations }
+  if (typeof currentScore !== 'number' || Number.isNaN(currentScore)) {
+    violations.push({ reason: `current mutation score is not a number` })
+    return { violations }
+  }
+  if (currentScore + 1e-9 < baselineScore - slack) {
+    violations.push({
+      reason: `mutation score dropped: ${currentScore.toFixed(2)}% < ${baselineScore}% (slack: ${slack}pp)`,
+    })
+  }
+  return { violations }
+}
+
+// ─── Per-stack extraction ───────────────────────────────────────────────────
+// Each extractor returns either a number (achieved score 0..100) or null when this
+// stack's report is absent/unsupported → caller SKIPs (no false-fail).
+
+/**
+ * Compute the Stryker mutation score from reports/mutation/mutation.json.
+ * Score = detected / (detected + undetected) * 100, where
+ *   detected   = Killed + Timeout
+ *   undetected = Survived + NoCoverage
+ * (CompileError / RuntimeError / Ignored are excluded from the denominator, matching
+ * Stryker's own `mutationScore`.) Returns null on absent/unparseable report or when
+ * there are no covered mutants to score.
+ */
+export function strykerScoreFromReport(report) {
+  if (report == null || typeof report !== 'object' || report.files == null) return null
+  let detected = 0
+  let undetected = 0
+  for (const file of Object.values(report.files)) {
+    const mutants = file?.mutants
+    if (!Array.isArray(mutants)) continue
+    for (const m of mutants) {
+      switch (m?.status) {
+        case 'Killed':
+        case 'Timeout':
+          detected++
+          break
+        case 'Survived':
+        case 'NoCoverage':
+          undetected++
+          break
+        default:
+          break // CompileError / RuntimeError / Ignored — not scored
+      }
+    }
+  }
+  const total = detected + undetected
+  if (total <= 0) return null
+  return Math.round((detected / total) * 100 * 100) / 100
+}
+
+function extractStrykerScore() {
+  const file = join(ROOT, 'reports', 'mutation', 'mutation.json')
+  if (!existsSync(file)) return null
+  try {
+    return strykerScoreFromReport(JSON.parse(readFileSync(file, 'utf-8')))
+  } catch (err) {
+    process.stderr.write(`[verify-mutation-baseline] failed to parse mutation.json: ${err.message}\n`)
+    return null
+  }
+}
+
+// Scaffolds — graceful SKIP until each is implemented (never a false-fail).
+function extractPitestScore() {
+  // pitest emits target/pit-reports/mutations.xml (<mutation detected=.. status=..>).
+  // TODO(#1508): aggregate detected/total from mutations.xml. Skip until implemented.
+  return null
+}
+function extractCargoMutantsScore() {
+  // cargo-mutants emits mutants.out/outcomes.json (caught/missed/unviable/timeout).
+  // TODO(#1508): compute caught/(caught+missed) from outcomes.json. Skip until implemented.
+  return null
+}
+function extractMutmutScore() {
+  // mutmut tracks results in .mutmut-cache / `mutmut results`.
+  // TODO(#1508): parse killed/total from the mutmut cache. Skip until implemented.
+  return null
+}
+
+const LANGUAGE = 'typescript'
+
+function extractScore() {
+  switch (LANGUAGE) {
+    case 'typescript':
+    case 'javascript':
+      return extractStrykerScore()
+    case 'java':
+    case 'kotlin':
+      return extractPitestScore()
+    case 'rust':
+      return extractCargoMutantsScore()
+    case 'python':
+      return extractMutmutScore()
+    default:
+      return extractStrykerScore()
+  }
+}
+
+// ─── Main (skipped under test import — only runs when executed directly) ─────
+function main() {
+  const UPDATE_BASELINE = process.argv.includes('--update-baseline')
+
+  const current = extractScore()
+  if (current == null) {
+    process.stdout.write(
+      `[verify-mutation-baseline] SKIP — no mutation report for "${LANGUAGE}" (run mutation testing first, or stack not yet supported)\n`,
+    )
+    return 0
+  }
+
+  if (UPDATE_BASELINE) {
+    writeFileSync(BASELINE_FILE, JSON.stringify({ mutationScore: current }, null, 2) + '\n')
+    process.stdout.write(`[verify-mutation-baseline] baseline updated → ${current}%\n`)
+    return 0
+  }
+
+  if (!existsSync(BASELINE_FILE)) {
+    writeFileSync(BASELINE_FILE, JSON.stringify({ mutationScore: current }, null, 2) + '\n')
+    process.stdout.write(
+      `[verify-mutation-baseline] seeded mutation-baseline.json → ${current}% — re-run to ratchet\n`,
+    )
+    return 0
+  }
+
+  let baseline
+  try {
+    baseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'))
+  } catch (err) {
+    process.stderr.write(`[verify-mutation-baseline] failed to parse mutation-baseline.json: ${err.message}\n`)
+    return 1
+  }
+  const baselineScore = typeof baseline?.mutationScore === 'number' ? baseline.mutationScore : null
+
+  const { violations } = compareMutationScore(baselineScore, current, SLACK)
+  if (violations.length > 0) {
+    for (const v of violations) process.stderr.write(`[verify-mutation-baseline] ${v.reason}\n`)
+    process.stderr.write(
+      `\n[verify-mutation-baseline] mutation-score regression.\n` +
+        `  Ratchet is upward-only — the score must not drop > ${SLACK}pp below mutation-baseline.json.\n` +
+        `  To advance the baseline after a real improvement: node scripts/verify-mutation-baseline.mjs --update-baseline\n`,
+    )
+    return 1
+  }
+
+  // A real improvement silently advances the baseline so the floor only climbs.
+  if (baselineScore != null && current > baselineScore + SLACK) {
+    writeFileSync(BASELINE_FILE, JSON.stringify({ mutationScore: current }, null, 2) + '\n')
+    process.stdout.write(
+      `[verify-mutation-baseline] OK — score improved ${baselineScore}% → ${current}%, baseline ratcheted up\n`,
+    )
+    return 0
+  }
+
+  process.stdout.write(
+    `[verify-mutation-baseline] OK — ${current}% within baseline ${baselineScore}% (slack: ${SLACK}pp)\n`,
+  )
+  return 0
+}
+
+// Only execute when run as a script — importing for unit tests must have no side effects.
+import { fileURLToPath } from 'node:url'
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  process.exit(main())
+}

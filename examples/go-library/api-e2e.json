@@ -1,0 +1,8 @@
+{
+  "archetype": "library",
+  "required": false,
+  "suiteDir": "tests/api",
+  "framework": "httptest",
+  "glob": "tests/api/**/*_test.go",
+  "suiteCount": 0
+}

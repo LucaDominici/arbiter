@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# pre-push: checks clean working tree, evidence freshness, and runs gate (T1+T2) before push
+set -e
+
+
+if [ ! -d "node_modules" ]; then
+  echo "Skipping pre-push: node_modules not installed. Run npm install."
+  exit 0
+fi
+
+
+# Assert Node version matches .nvmrc (INV-53)
+if [ -f ".nvmrc" ]; then
+  NVMRC_MAJOR=$(cut -d. -f1 .nvmrc)
+  RUNTIME_MAJOR=$(node -e "process.stdout.write(process.version.slice(1).split('.')[0])")
+  if [ "$RUNTIME_MAJOR" != "$NVMRC_MAJOR" ]; then
+    echo "Error: Node major mismatch — runtime v${RUNTIME_MAJOR}.x, .nvmrc requires v${NVMRC_MAJOR}.x. Run: nvm use"
+    exit 1
+  fi
+fi
+
+# Unset git hook env vars so nested git calls in scripts work correctly.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
+
+if [ -n "$(git status --porcelain | grep -v '^??')" ]; then
+  echo "Error: working tree has uncommitted changes. Commit or stash before pushing."
+  exit 1
+fi
+
+# ─── arbiter pre-push evidence-freshness gate (Port #4) ──────────────────────
+# Reject pushes whose .arbiter/evidence/ is older than the budget. Bypassable
+# via ARBITER_PREPUSH_BYPASS=true (exact match — loudly logged). Soften to
+# warn-only when the diff vs upstream is docs-only or low-risk.
+#
+# Env contract (TODO: parametrise prefix once `projectEnvPrefix` template var
+# lands; for now scaffolded projects inherit the ARBITER_ prefix):
+#   ARBITER_PREPUSH_MAX_AGE_MIN   integer minutes (default 240 = 4 h)
+#   ARBITER_PREPUSH_BYPASS        exact string 'true' bypasses; other truthy
+#                                 values warn and the gate still runs
+#   ARBITER_PREPUSH_BYPASS_REASON free-form string, recorded in bypass log
+#   ARBITER_PREPUSH_SKIP          exact string 'true' skips the freshness gate
+#                                 entirely (for nested hook invocations + tests)
+ARBITER_PREPUSH_EVIDENCE_DIR="${ARBITER_PREPUSH_EVIDENCE_DIR:-.arbiter/evidence}"
+ARBITER_PREPUSH_MAX_AGE_MIN="${ARBITER_PREPUSH_MAX_AGE_MIN:-240}"
+
+if [ "${ARBITER_PREPUSH_SKIP:-}" = "true" ]; then
+  : # explicit skip — no warning; used by nested hook recursion
+elif [ -d "$ARBITER_PREPUSH_EVIDENCE_DIR" ]; then
+  # bypass-log.jsonl excluded so a successful bypass doesn't self-reset the freshness window.
+  NEWEST_EPOCH=$(find "$ARBITER_PREPUSH_EVIDENCE_DIR" -type f \
+    -not -name 'bypass-log.jsonl' \
+    -printf '%T@\n' 2>/dev/null \
+    | sort -nr | head -n1 | cut -d. -f1)
+
+  if [ -z "$NEWEST_EPOCH" ]; then
+    : # empty evidence tree → treat as missing, skip the gate
+  else
+    NOW_EPOCH=$(date +%s)
+    AGE_MIN=$(( (NOW_EPOCH - NEWEST_EPOCH) / 60 ))
+
+    if [ "$AGE_MIN" -gt "$ARBITER_PREPUSH_MAX_AGE_MIN" ]; then
+      BYPASS_RAW="${ARBITER_PREPUSH_BYPASS:-}"
+      BYPASSED=false
+      if [ "$BYPASS_RAW" = "true" ]; then
+        # Loud bypass — exact 'true' only (mirrors scripts/lib/loud-bypass.mjs).
+        BR="$(git branch --show-current 2>/dev/null || echo unknown)"
+        TS="$(date -u +%FT%TZ)"
+        REASON="${ARBITER_PREPUSH_BYPASS_REASON:-unspecified}"
+        echo "arbiter-bypass env=ARBITER_PREPUSH_BYPASS branch=${BR} at=${TS} reason=\"${REASON}\"" >&2
+        mkdir -p "$ARBITER_PREPUSH_EVIDENCE_DIR"
+        BR="$BR" TS="$TS" REASON="$REASON" AGE_MIN="$AGE_MIN" BUDGET="$ARBITER_PREPUSH_MAX_AGE_MIN" \
+          node -e 'const e=process.env;process.stdout.write(JSON.stringify({env:"ARBITER_PREPUSH_BYPASS",branch:e.BR,ts:e.TS,value:"true",bypassed:true,reason:e.REASON,age_min:Number(e.AGE_MIN),budget_min:Number(e.BUDGET)})+"\n")' \
+          >> "$ARBITER_PREPUSH_EVIDENCE_DIR/bypass-log.jsonl"
+        BYPASSED=true
+      elif [ -n "$BYPASS_RAW" ]; then
+        echo "Warning: ARBITER_PREPUSH_BYPASS='${BYPASS_RAW}' is ambiguous; only the exact string 'true' bypasses. Proceeding with gate." >&2
+      fi
+
+      if [ "$BYPASSED" = "false" ]; then
+        UPSTREAM="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo '')"
+        if [ -z "$UPSTREAM" ]; then
+          if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+            UPSTREAM="origin/main"
+          fi
+        fi
+
+        DOCS_ONLY=false
+        BACKEND_CHANGED=true
+        HIGH_RISK=true
+        if [ -n "$UPSTREAM" ] && [ -x "$(command -v node)" ] && [ -f "scripts/ci-classify-changes.mjs" ]; then
+          CLASSIFY_OUT=$(BASE_SHA="$UPSTREAM" HEAD_SHA=HEAD node scripts/ci-classify-changes.mjs 2>/dev/null || echo '')
+          if echo "$CLASSIFY_OUT" | grep -q '^  classify: docs_only=true'; then DOCS_ONLY=true; fi
+          if echo "$CLASSIFY_OUT" | grep -q '^  classify: backend_changed=false'; then BACKEND_CHANGED=false; fi
+          if echo "$CLASSIFY_OUT" | grep -q '^  classify: high_risk=false'; then HIGH_RISK=false; fi
+        fi
+
+        if [ "$DOCS_ONLY" = "true" ] || { [ "$BACKEND_CHANGED" = "false" ] && [ "$HIGH_RISK" = "false" ]; }; then
+          echo "Warning: .arbiter/evidence/ is ${AGE_MIN} min old (budget ${ARBITER_PREPUSH_MAX_AGE_MIN}). Low-risk change set → proceeding." >&2
+        else
+          echo "Error: .arbiter/evidence/ is ${AGE_MIN} min old (budget ${ARBITER_PREPUSH_MAX_AGE_MIN} min). Re-run the gate to refresh evidence, or set ARBITER_PREPUSH_BYPASS=true with ARBITER_PREPUSH_BYPASS_REASON='…' to force-push." >&2
+          exit 1
+        fi
+      fi
+    fi
+  fi
+fi
+# ─── end evidence-freshness gate ─────────────────────────────────────────────
+
+
+
+# Vite/vitest (v5+) cannot handle '#' in the project root path.
+# Use pwd -P (physical path) to detect symlink-based worktrees where $PWD
+# may not contain '#' even though the real path does.
+# Rsync to a '#'-free temp dir and run the gate from there.
+ORIG_DIR="$(pwd -P)"
+if [[ "$ORIG_DIR" == *"#"* ]]; then
+  TMP_DIR=$(mktemp -d /tmp/arbiter-hook-XXXXXX)
+  trap 'rm -rf "$TMP_DIR"' EXIT
+  rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
+  ln -sfn "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
+  cd "$TMP_DIR"
+  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs gate --json "$ORIG_DIR/.arbiter/gate/local-result.json"
+  exit $?
+fi
+
+
+node scripts/check-all.mjs gate --json .arbiter/gate/local-result.json

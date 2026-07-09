@@ -1,0 +1,86 @@
+# Brownfield-class threshold SSOT (#1413) — the per-class bars that gold-audit value-op checks
+# resolve via `threshold_ref`. The registries (standards/gold-registry.<stack>.yml) carry NO literal
+# numbers: every numeric bar lives here, keyed by threshold_ref, so a check's strictness scales by
+# the repo's brownfield class (gold|light|medium|heavy) without duplicating the check.
+#
+# scripts/gold-audit.mjs --class <C> selects the column; a value check resolves its bar to
+# thresholds.<ref>.<C>. The bars are RATCHET-MONOTONIC per row:
+#   * higher-is-better metrics (coverage %, mutation score): gold ≥ light ≥ medium ≥ heavy
+#   * lower-is-better  metrics (violation/error counts):     gold ≤ light ≤ medium ≤ heavy
+# A heavy legacy repo clears a given check at a more lenient bar than a greenfield gold repo — the
+# realistic target differs by starting condition (mirrors the #1414 level-band design).
+#
+# Classes:
+#   gold   — greenfield / already-mature (strictest)
+#   light  — small brownfield, decent coverage
+#   medium — mid-size brownfield, thin coverage
+#   heavy  — large legacy, near-zero coverage (most lenient)
+#
+# Determinism: same report + same class ⇒ same verdict. No wall-clock, no spawn — value checks read
+# PRE-GENERATED tool reports only.
+version: '1.0.0'
+
+thresholds:
+  # ── Coverage (higher-is-better): minimum line / branch coverage % a value `gte` check must clear.
+  coverage.line:
+    gold: 90
+    light: 80
+    medium: 60
+    heavy: 40
+  coverage.branch:
+    gold: 85
+    light: 70
+    medium: 50
+    heavy: 30
+
+  # ── Mutation testing (higher-is-better): minimum surviving-mutant kill rate %.
+  mutation.score:
+    gold: 80
+    light: 65
+    medium: 45
+    heavy: 25
+
+  # ── Checkstyle / PMD (lower-is-better): maximum tolerated violation count (`lte`).
+  checkstyle.errors:
+    gold: 0
+    light: 25
+    medium: 100
+    heavy: 500
+  pmd.violations:
+    gold: 0
+    light: 50
+    medium: 200
+    heavy: 1000
+
+  # ── ArchUnit (lower-is-better): maximum tolerated architecture-rule violations (`lte`).
+  archunit.violations:
+    gold: 0
+    light: 5
+    medium: 20
+    heavy: 100
+
+  # ── SpotBugs (lower-is-better): maximum tolerated bug-instance count (`lte`).
+  spotbugs.bugs:
+    gold: 0
+    light: 20
+    medium: 80
+    heavy: 400
+
+  # ── TypeScript / JS coverage (higher-is-better) — same metric family, separate ref for clarity.
+  ts.coverage.line:
+    gold: 90
+    light: 80
+    medium: 60
+    heavy: 40
+  ts.coverage.branch:
+    gold: 85
+    light: 70
+    medium: 50
+    heavy: 30
+
+  # ── ESLint (lower-is-better): maximum tolerated error count from a JSON report (`lte`).
+  eslint.errors:
+    gold: 0
+    light: 25
+    medium: 100
+    heavy: 500

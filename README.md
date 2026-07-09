@@ -2,7 +2,7 @@
 title: 'Arbiter — AI governance that installs itself.'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-05'
+last_review: '2026-07-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/spine']
@@ -97,6 +97,19 @@ what lands in your repo, uninstalling — see [docs/QUICKSTART.md](docs/QUICKSTA
 | Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  | Experimental |
 | Go         | `go.mod`                   | go           | golangci-lint | gofmt    | Supported    |
 | Python     | `pyproject.toml`           | pip/uv       | ruff          | ruff     | Supported    |
+
+---
+
+## See it for real
+
+[`examples/ts-library/`](examples/ts-library/), [`examples/python-library/`](examples/python-library/),
+and [`examples/go-library/`](examples/go-library/) are exactly what `arbiter init` generates today for
+each of the three supported stacks above — not a hand-curated demo. A dedicated CI cell in the
+[Generator Matrix workflow](.github/workflows/generator-matrix.yml) regenerates all three on every
+run and fails the build on any drift, so these directories can't go stale. See
+[`examples/README.md`](examples/README.md) for how to regenerate them yourself and for the
+hand-written walkthroughs covering the other archetypes (frontend-spa, backend-web-db, cli,
+data-pipeline).
 
 ---
 

@@ -35,3 +35,11 @@ wiki/
 graphify-out/
 # tokensave MCP server local code-graph cache (regenerable, machine-local)
 .tokensave/
+# #1840 F4 (examples/ viventi): generated `arbiter init` OUTPUT for a downstream
+# project, regenerated verbatim by scripts/regenerate-examples.mjs. Formatted
+# under the TARGET project's own (copied) .prettierrc/.prettierignore, not
+# arbiter's — checking it against arbiter's root config is a false positive,
+# the same reasoning __tests__/fixtures/real-projects/**/target/ already gets.
+examples/ts-library/
+examples/python-library/
+examples/go-library/

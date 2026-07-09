@@ -1,0 +1,8 @@
+{
+  "archetype": "library",
+  "required": false,
+  "suiteDir": "tests/api",
+  "framework": "supertest",
+  "glob": "tests/api/**/*.test.ts",
+  "suiteCount": 0
+}
