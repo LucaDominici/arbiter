@@ -154,3 +154,70 @@ describe('real-project fixture regressions', () => {
     ).toBe(true)
   })
 })
+
+// #1859 — CI enables the corepack npm shim (`corepack enable npm`). For any
+// project directory WITHOUT a `packageManager` pin, the shim resolves npm@latest
+// at run time: when npm 12.0.0 shipped (requires node ^22.22.2 || ^24.15.0 ||
+// >=26.0.0) every unpinned npm fixture started running the generated gate under
+// an npm that refuses the CI node from .nvmrc (22.21.1) — `npm pack` died with
+// "could not determine executable to run" and consumer-audit fail-closed exit 2
+// (nightly run 29006188001). Same failure class as the Go toolchain pins
+// (#1854/#1856): an unpinned tool resolved "latest" drifts out from under the
+// pinned runtime. This guard requires every npm fixture to pin packageManager
+// and requires the pinned npm major to support the .nvmrc node version.
+describe('npm fixtures pin packageManager compatible with CI node (#1859)', () => {
+  // Minimum node per npm major — from each npm major's own engines.node.
+  // Extend this table when bumping a fixture's npm pin to a newer major.
+  const MIN_NODE_FOR_NPM_MAJOR: Record<string, [number, number, number]> = {
+    '10': [18, 17, 0],
+    '11': [20, 17, 0],
+    '12': [22, 22, 2],
+  }
+
+  const nvmrcNode = readFixture('.nvmrc').trim()
+  const [ciMajor, ciMinor, ciPatch] = nvmrcNode.split('.').map(Number)
+
+  const npmFixtures = [
+    'multi-lane-fe-be',
+    'ts-backend-web-db',
+    'ts-bdd',
+    'ts-frontend-spa',
+    'ts-library',
+    'vue-frontend-spa',
+  ]
+
+  it.each(npmFixtures)('%s pins packageManager to an npm the CI node supports', (fixture) => {
+    const pkg = JSON.parse(
+      readFixture(`__tests__/fixtures/real-projects/${fixture}/package.json`),
+    ) as { packageManager?: string }
+
+    const pin = pkg.packageManager
+    expect(
+      pin,
+      `${fixture}/package.json has no packageManager pin — under the corepack shim an ` +
+        'unpinned directory resolves npm@latest, which can refuse the CI node (#1859)',
+    ).toBeDefined()
+
+    const match = /^npm@(\d+)\.\d+\.\d+$/.exec(pin as string)
+    expect(match, `${fixture} packageManager "${pin}" is not an exact npm@X.Y.Z pin`).not.toBeNull()
+
+    const npmMajor = match![1]
+    const minNode = MIN_NODE_FOR_NPM_MAJOR[npmMajor]
+    expect(
+      minNode,
+      `no known minimum node version recorded for npm major ${npmMajor} — ` +
+        'add it to MIN_NODE_FOR_NPM_MAJOR in this test (read engines.node from the npm release)',
+    ).toBeDefined()
+
+    const [minMajor, minMinor, minPatch] = minNode
+    const satisfies =
+      ciMajor > minMajor ||
+      (ciMajor === minMajor &&
+        (ciMinor > minMinor || (ciMinor === minMinor && ciPatch >= minPatch)))
+    expect(
+      satisfies,
+      `.nvmrc node ${nvmrcNode} does not satisfy npm@${npmMajor}'s minimum ` +
+        `${minNode.join('.')} — bump .nvmrc or lower the fixture's npm pin (#1859)`,
+    ).toBe(true)
+  })
+})
