@@ -118,6 +118,7 @@ jobs:
         if: matrix.stack == 'go'
         with:
           go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
+          cache-dependency-path: __tests__/fixtures/real-projects/go-library/go.mod
 
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         if: matrix.stack == 'java'
@@ -164,6 +165,7 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
+          cache-dependency-path: __tests__/fixtures/real-projects/go-library/go.mod
 
       - name: Install Go lint toolchain (golangci-lint, staticcheck, govulncheck)
         run: |

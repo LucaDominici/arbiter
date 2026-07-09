@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -196,5 +198,82 @@ describe('_nightly.yml.ejs — kotlin fuzz coverage (#1803)', () => {
     const rendered = renderNightlyPartial({ language: 'kotlin', buildTool: 'gradle' })
     expect(rendered).not.toContain('<%')
     expect(rendered).not.toContain('%>')
+  })
+})
+
+// #1854 — the `generated-gate-e2e` job (arbiter-self-render only) installs a
+// globally pinned golangci-lint onto whatever Go toolchain `go-version-file`
+// resolves from the go-library fixture's own go.mod. actions/setup-go v6 pins
+// GOTOOLCHAIN=local right after installing that toolchain (v5 never touched
+// GOTOOLCHAIN at all), so the `go` tool can no longer silently self-upgrade to
+// satisfy a newer requirement the way it used to under GOTOOLCHAIN=auto.
+// Regression: the fixture pinned `go 1.22`; golangci-lint v2.5.0 requires
+// go >= 1.24.0 → `go install .../golangci-lint@v2.5.0` failed hard in nightly
+// CI (run 28991350328). This guard fails the same way the next time the
+// golangci-lint pin is bumped without bumping the fixture's go directive.
+describe('_nightly.yml.ejs — generated-gate-e2e Go toolchain satisfies golangci-lint pin (#1854)', () => {
+  // Bump this map alongside any golangci-lint pin bump in the template.
+  const MIN_GO_FOR_GOLANGCI_LINT: Record<string, string> = { '2.5.0': '1.24.0' }
+
+  function renderSelfProfile() {
+    // Mirrors __tests__/fixtures/ci-tier-render-context.json's shape: this job
+    // block only renders for arbiter's own typescript self-render.
+    return renderNightlyPartial({
+      language: 'typescript',
+      buildTool: 'npm',
+      enableNativeBakeE2E: true,
+    } as Record<string, unknown>)
+  }
+
+  it('go-version-file fixture declares a go directive >= the pinned golangci-lint minimum', () => {
+    const rendered = renderSelfProfile()
+
+    const pinMatch = rendered.match(
+      /go install github\.com\/golangci\/golangci-lint\/v2\/cmd\/golangci-lint@v(\d+\.\d+\.\d+)/,
+    )
+    expect(
+      pinMatch,
+      'expected a pinned golangci-lint v2 install line in generated-gate-e2e',
+    ).not.toBeNull()
+    const pinnedVersion = pinMatch![1]
+
+    const minGo = MIN_GO_FOR_GOLANGCI_LINT[pinnedVersion]
+    expect(
+      minGo,
+      `no known minimum Go version recorded for golangci-lint@${pinnedVersion} — ` +
+        'add it to MIN_GO_FOR_GOLANGCI_LINT in this test',
+    ).toBeDefined()
+
+    const fileMatch = rendered.match(/go-version-file:\s*(\S+go-library\/go\.mod)/)
+    expect(fileMatch, 'expected go-version-file to point at the go-library fixture').not.toBeNull()
+    const goModPath = resolve(fileMatch![1])
+    const goModContent = readFileSync(goModPath, 'utf-8')
+    const directiveMatch = goModContent.match(/^go (\d+\.\d+)/m)
+    expect(directiveMatch, `expected a \`go X.Y\` directive in ${goModPath}`).not.toBeNull()
+
+    const [fixMajor, fixMinor] = directiveMatch![1].split('.').map(Number)
+    const [minMajor, minMinor] = (minGo as string).split('.').map(Number)
+    const satisfies = fixMajor > minMajor || (fixMajor === minMajor && fixMinor >= minMinor)
+
+    expect(
+      satisfies,
+      `go-library fixture pins go ${directiveMatch![1]} but golangci-lint@${pinnedVersion} requires ` +
+        `go >= ${minGo} — actions/setup-go v6 pins GOTOOLCHAIN=local so this fails hard in CI (#1854)`,
+    ).toBe(true)
+  })
+
+  it('go setup steps set cache-dependency-path for the go-library fixture (not at repo root)', () => {
+    const rendered = renderSelfProfile()
+    const goVersionFileCount = (
+      rendered.match(/go-version-file: __tests__\/fixtures\/real-projects\/go-library\/go\.mod/g) ??
+      []
+    ).length
+    const cacheDepCount = (
+      rendered.match(
+        /cache-dependency-path: __tests__\/fixtures\/real-projects\/go-library\/go\.mod/g,
+      ) ?? []
+    ).length
+    expect(goVersionFileCount).toBeGreaterThan(0)
+    expect(cacheDepCount).toBe(goVersionFileCount)
   })
 })
