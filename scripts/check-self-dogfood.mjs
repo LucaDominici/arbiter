@@ -3,14 +3,29 @@
 // INV-45: Every EJS template under src/templates/claude/ must render (with
 // arbiter's own config) to content that matches its materialized .claude/ file.
 //
-// Exits 1 if unexpected drift is found. Files listed in .dogfood-divergences.json
-// are skipped (intentional arbiter-internal extensions).
+// Exits 1 if unexpected drift is found.
+//
+// CANON-14 auto-diff (F2 #1838, item 2): .dogfood-divergences.json is NOT a
+// whole-file skip list. Each entry pins the sha256 of the exact approved diff
+// (diffHash over the sorted added/removed normalized-line multiset). At every
+// run the real template-vs-materialized diff is recomputed and compared:
+//   - diff matches the pinned hash  → approved divergence, skipped
+//   - diff CHANGED beyond the pin   → FAIL (new drift inside an allowlisted
+//     file was previously invisible — the guard-done-evidence vs
+//     stop-evidence-guard class of drift, per #1836 F2)
+//   - diff is now EMPTY             → FAIL (stale entry: the divergence healed,
+//     the entry must be removed or it suppresses all future drift)
+//   - entry path never visited      → FAIL (dead entry: nothing pins it)
+// Regenerate pins after a human-approved change with:
+//   node scripts/check-self-dogfood.mjs --update-divergences
 //
 // Exports for unit tests:
 //   buildRenderContext, templateToMaterialized, isAllowlisted,
-//   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS
+//   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS,
+//   hashDiff, classifyDivergence
 
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join, relative, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
@@ -264,16 +279,75 @@ export function computeDiff(expected, actual) {
   return { added, removed }
 }
 
-// ─── divergences manifest ────────────────────────────────────────────────────
+// ─── divergences manifest (CANON-14 auto-diff, #1838) ───────────────────────
 
+/**
+ * Stable fingerprint of a computeDiff result. Sorting both line arrays makes
+ * the hash independent of map-iteration order; normalizeLines has already
+ * stripped environment-specific content (absolute paths, repo tokens), so the
+ * hash is machine-independent. `null` (no diff) hashes to a distinct sentinel
+ * so a healed divergence can never collide with a real one.
+ */
+export function hashDiff(diff) {
+  if (diff === null) return 'no-diff'
+  const canonical = JSON.stringify({
+    added: [...diff.added].sort(),
+    removed: [...diff.removed].sort(),
+  })
+  return createHash('sha256').update(canonical).digest('hex')
+}
+
+/**
+ * Classify a recomputed diff against a divergence entry's pinned diffHash.
+ * Returns null when the divergence is still exactly the approved one, or a
+ * violation object {reason} otherwise. Exported for unit tests.
+ */
+export function classifyDivergence(entry, diff) {
+  const actualHash = hashDiff(diff)
+  if (diff === null) {
+    return {
+      reason:
+        'stale divergence entry — template and materialized file now match; ' +
+        'remove the entry from .dogfood-divergences.json (a stale entry suppresses all future drift)',
+    }
+  }
+  if (!entry.diffHash) {
+    return {
+      reason:
+        'divergence entry has no pinned diffHash (CANON-14, #1838) — run ' +
+        '`node scripts/check-self-dogfood.mjs --update-divergences` and review+commit the result',
+    }
+  }
+  if (entry.diffHash !== actualHash) {
+    return {
+      reason:
+        'divergence CHANGED beyond the approved pin — the template/materialized pair drifted ' +
+        'further (or healed partially) since the diff was approved. Review the new diff; if ' +
+        'intentional, re-pin with `node scripts/check-self-dogfood.mjs --update-divergences`',
+      added: diff.added.slice(0, 5),
+      removed: diff.removed.slice(0, 5),
+    }
+  }
+  return null
+}
+
+const MANIFEST_PATH = join(repoRoot, '.dogfood-divergences.json')
+
+// Sentinel "removed line" representing a not-yet-materialized file, so an
+// allowlisted missing-materialization state is pinned exactly like any diff.
+export const MISSING_SENTINEL = '«materialized file missing»'
+
+const UPDATE_DIVERGENCES = process.argv.includes('--update-divergences')
+
+/**
+ * Load .dogfood-divergences.json as a Map<absoluteMaterializedPath, entry>.
+ * Entries may carry an explicit `dest` root for non-claude template families
+ * (e.g. '.arbiter/ship'); default stays '.claude' for backward compatibility (#1290).
+ */
 function loadDivergences() {
-  const manifestPath = join(repoRoot, '.dogfood-divergences.json')
-  if (!existsSync(manifestPath)) return new Set()
-  const entries = JSON.parse(readFileSync(manifestPath, 'utf-8'))
-  // Convert relative paths like "hooks/lib.mjs" to absolute .claude/ paths
-  // Entries may carry an explicit `dest` root for non-claude template families
-  // (e.g. '.arbiter/ship'); default stays '.claude' for backward compatibility (#1290).
-  return new Set(entries.map((e) => join(repoRoot, e.dest ?? '.claude', e.path)))
+  if (!existsSync(MANIFEST_PATH)) return new Map()
+  const entries = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8'))
+  return new Map(entries.map((e) => [join(repoRoot, e.dest ?? '.claude', e.path), e]))
 }
 
 // ─── raw .mjs hook corpus (#1090) ─────────────────────────────────────────────
@@ -285,15 +359,21 @@ function loadDivergences() {
  * Hooks whose materialized path is listed in .dogfood-divergences.json are
  * intentional arbiter-internal self-hardening (e.g. enforce-read-only drops
  * AGENTS.md from the read-only set because arbiter authors its own AGENTS.md,
- * whereas a target's AGENTS.md is generated and must stay read-only) — those
- * are skipped but still counted. Any UNDOCUMENTED drift fails the gate
- * (fail-closed, INV-45/INV-96), which is what makes shipping a silently-weaker
- * hook to targets impossible without an explicit, dated rationale.
+ * whereas a target's AGENTS.md is generated and must stay read-only). Since
+ * CANON-14's auto-diff promotion (#1838) the allowlist entry no longer skips
+ * the comparison: the ACTUAL diff is recomputed and must hash-match the
+ * entry's pinned diffHash — new drift inside an allowlisted hook fails the
+ * gate exactly like drift in an unlisted one. Any UNDOCUMENTED drift fails
+ * the gate (fail-closed, INV-45/INV-96), which is what makes shipping a
+ * silently-weaker hook to targets impossible without an explicit, pinned diff.
  *
- * Returns { checked, skipped, drifted }.
+ * Returns { checked, skipped, drifted, visited: Map<absPath, diff> } — visited
+ * records every allowlisted path this corpus touched (for dead-entry detection
+ * and --update-divergences re-pinning).
  */
 export async function checkRawHooks(root = repoRoot, divergences = loadDivergences()) {
   const drifted = []
+  const visited = new Map()
   let checked = 0
   let skipped = 0
   for (const name of REQUIRED_RAW_HOOKS) {
@@ -307,20 +387,29 @@ export async function checkRawHooks(root = repoRoot, divergences = loadDivergenc
       drifted.push({ name, reason: 'materialized .claude/hooks copy missing' })
       continue
     }
-    if (divergences.has(materialized)) {
-      skipped++
-      continue
-    }
     const expected = await normalizeLines(readFileSync(template, 'utf-8'), template)
     const actual = await normalizeLines(readFileSync(materialized, 'utf-8'), materialized)
     const diff = computeDiff(expected, actual)
+
+    const entry = divergences.get(materialized)
+    if (entry) {
+      visited.set(materialized, diff)
+      const violation = classifyDivergence(entry, diff)
+      if (violation) {
+        drifted.push({ name, ...violation })
+      } else {
+        skipped++
+      }
+      continue
+    }
+
     if (diff) {
       drifted.push({ name, added: diff.added.slice(0, 5), removed: diff.removed.slice(0, 5) })
     } else {
       checked++
     }
   }
-  return { checked, skipped, drifted }
+  return { checked, skipped, drifted, visited }
 }
 
 // ─── main ────────────────────────────────────────────────────────────────────
@@ -376,9 +465,13 @@ async function main() {
   let skipped = 0
   let checked = 0
   const drifted = []
+  // CANON-14 (#1838): every allowlisted path this run recomputed a diff for,
+  // with that diff — feeds dead-entry detection and --update-divergences.
+  const visited = new Map()
 
   for (const templatePath of templates) {
     const materialized = templateToMaterialized(templatePath)
+    const entry = divergences.get(materialized)
 
     // Skip config-gated templates
     if (isConfigGated(templatePath, ctx)) {
@@ -392,24 +485,36 @@ async function main() {
       continue
     }
 
-    // Skip templates whose materialized files are known divergences
-    if (divergences.has(materialized)) {
-      skipped++
-      continue
-    }
-
-    // Check if materialized file exists
+    // Check if materialized file exists. An allowlisted entry may legitimately
+    // pin a not-yet-materialized template (e.g. hooks.mjs before its
+    // regenerate pass) — MISSING_SENTINEL makes that state hashable so it is
+    // still an EXACT pin, not a blanket skip.
     if (!existsSync(materialized)) {
-      const relMat = relative(repoRoot, materialized)
+      if (entry) {
+        const diff = { added: [], removed: [MISSING_SENTINEL] }
+        visited.set(materialized, diff)
+        const violation = classifyDivergence(entry, diff)
+        if (violation) {
+          drifted.push({
+            template: relative(repoRoot, templatePath),
+            materialized: relative(repoRoot, materialized),
+            ...violation,
+          })
+        } else {
+          skipped++
+        }
+        continue
+      }
       drifted.push({
         template: relative(repoRoot, templatePath),
-        materialized: relMat,
+        materialized: relative(repoRoot, materialized),
         reason: 'materialized file does not exist',
       })
       continue
     }
 
-    // Render template
+    // Render template. A render error is a template bug, never an approvable
+    // divergence — hard drift regardless of allowlist.
     let rendered
     try {
       const source = readFileSync(templatePath, 'utf-8')
@@ -430,6 +535,23 @@ async function main() {
     const actualLines = await normalizeLines(materializedContent, materialized)
     const diff = computeDiff(expectedLines, actualLines)
 
+    // CANON-14 auto-diff: an allowlisted file is not skipped — its ACTUAL diff
+    // must hash-match the approved pin. New drift inside it fails like any other.
+    if (entry) {
+      visited.set(materialized, diff)
+      const violation = classifyDivergence(entry, diff)
+      if (violation) {
+        drifted.push({
+          template: relative(repoRoot, templatePath),
+          materialized: relative(repoRoot, materialized),
+          ...violation,
+        })
+      } else {
+        skipped++
+      }
+      continue
+    }
+
     if (diff) {
       drifted.push({
         template: relative(repoRoot, templatePath),
@@ -444,9 +566,48 @@ async function main() {
 
   // #1090: also verify the raw .mjs hook corpus (copied verbatim, no EJS render).
   const raw = await checkRawHooks(repoRoot, divergences)
+  for (const [p, d] of raw.visited) visited.set(p, d)
+
+  // CANON-14 (#1838): a divergence entry whose path no corpus ever visits pins
+  // nothing — it is either a typo or a leftover from a removed template family.
+  // Dead entries fail closed instead of silently rotting in the manifest.
+  for (const [absPath, entry] of divergences) {
+    if (!visited.has(absPath)) {
+      drifted.push({
+        template: '(none — no template maps to this path)',
+        materialized: relative(repoRoot, absPath),
+        reason:
+          `dead divergence entry "${entry.path}" — no template corpus visits this path; ` +
+          'remove it from .dogfood-divergences.json (its rationale survives in git history)',
+      })
+    }
+  }
+
+  // --update-divergences: re-pin diffHash for every LIVE entry, preserving
+  // path/dest/reason. Stale (no-diff) and dead entries are NOT auto-deleted —
+  // deleting a reasoned allowlist line is a human decision; they keep failing
+  // the gate until removed by hand.
+  if (UPDATE_DIVERGENCES) {
+    const entries = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8'))
+    let pinned = 0
+    for (const e of entries) {
+      const absPath = join(repoRoot, e.dest ?? '.claude', e.path)
+      if (visited.has(absPath)) {
+        const diff = visited.get(absPath)
+        if (diff !== null) {
+          e.diffHash = hashDiff(diff)
+          pinned++
+        }
+      }
+    }
+    writeFileSync(MANIFEST_PATH, JSON.stringify(entries, null, 2) + '\n')
+    process.stdout.write(
+      `[dogfood] --update-divergences: pinned diffHash for ${pinned}/${entries.length} entr(ies) in .dogfood-divergences.json\n`,
+    )
+  }
 
   process.stdout.write(
-    `[dogfood] ${skipped} template(s) + ${raw.skipped} raw hook(s) skipped (config-gated or diverged).\n`,
+    `[dogfood] ${skipped} template(s) + ${raw.skipped} raw hook(s) skipped (config-gated or approved divergence).\n`,
   )
 
   if (drifted.length > 0 || raw.drifted.length > 0) {
@@ -489,7 +650,11 @@ async function main() {
         }
       }
     }
-    console.error(`\n  To suppress a known divergence, add an entry to .dogfood-divergences.json`)
+    console.error(
+      `\n  To approve a known divergence: add {path, reason} to .dogfood-divergences.json, then` +
+        `\n  pin its exact diff with: node scripts/check-self-dogfood.mjs --update-divergences` +
+        `\n  (CANON-14, #1838 — an entry approves ONE reviewed diff, not the file wholesale)`,
+    )
     process.exit(1)
   }
 

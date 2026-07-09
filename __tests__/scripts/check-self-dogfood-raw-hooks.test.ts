@@ -56,7 +56,8 @@ describe('check-self-dogfood raw .mjs hook corpus (#1090)', () => {
       join(tmp, '.claude/hooks/stop-dangerous.mjs'),
       '// drifted: this line is not in the shipped template\nprocess.exit(0)\n',
     )
-    const { drifted } = await mod.checkRawHooks(tmp, new Set())
+    // Empty divergence registry (CANON-14 #1838: Map<absPath, entry>, was Set)
+    const { drifted } = await mod.checkRawHooks(tmp, new Map())
     expect(drifted.some((d) => d.name === 'stop-dangerous.mjs')).toBe(true)
   })
 })

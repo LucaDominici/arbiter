@@ -1,98 +1,102 @@
 [
   {
     "path": "CLAUDE.md",
-    "reason": "Arbiter self-dogfood: hooks table contains additional rows for check-no-any.mjs, check-no-placeholders.mjs, check-no-unused-exports.mjs, check-circular-deps.mjs, pre-edit-plan-anchor.mjs, check-no-direct-spawn.mjs, check-no-pii.mjs, post-edit-dispatch.mjs, skill-forced-eval.mjs, debug-state-on-failure.mjs, pre-compact.mjs and slash commands /status and /replay phase. These arbiter-internal extensions are not shipped to target projects. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: hooks table contains additional rows for check-no-any.mjs, check-no-placeholders.mjs, check-no-unused-exports.mjs, check-circular-deps.mjs, pre-edit-plan-anchor.mjs, check-no-direct-spawn.mjs, check-no-pii.mjs, post-edit-dispatch.mjs, skill-forced-eval.mjs, debug-state-on-failure.mjs, pre-compact.mjs and slash commands /status and /replay phase. These arbiter-internal extensions are not shipped to target projects. (Confirmed intentional 2026-05-29, #1092.)",
+    "diffHash": "53ce4eebb1d98cbaada8e8f1d37d20ef0dbaa171e856fd6087b8ad6edceaf1ad"
   },
   {
     "path": "commands/wt-close.md",
-    "reason": "Arbiter self-dogfood: extended with improved descriptions referencing .arbiter/worktree-open.log.json and condensed flag documentation. Template ships a simpler description. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: extended with improved descriptions referencing .arbiter/worktree-open.log.json and condensed flag documentation. Template ships a simpler description. (Confirmed intentional 2026-05-29, #1092.)",
+    "diffHash": "f192faad566c84f7cc1d0d8abcc9c98474c85eeebd0c1a0d4d5d32efea88e1d1"
   },
   {
     "path": "commands/wt-list.md",
-    "reason": "Arbiter self-dogfood: extended with cross-reference to .arbiter/worktree-open.log.json for task ID mapping. Template ships a simpler description. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: extended with cross-reference to .arbiter/worktree-open.log.json for task ID mapping. Template ships a simpler description. (Confirmed intentional 2026-05-29, #1092.)",
+    "diffHash": "53a1f4e7c777e6941d975d5de7c024505ffbfe57eb57daefac3603049604a6e0"
   },
   {
     "path": "commands/wt-open.md",
-    "reason": "Arbiter self-dogfood: extended with condensed argument parsing style. Template ships verbose style. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: extended with condensed argument parsing style. Template ships verbose style. (Confirmed intentional 2026-05-29, #1092.)",
+    "diffHash": "6a3739ead2db9835f9f78aa44aebd3b19a8a363938c74d89b5fb68ad8bfba437"
   },
   {
     "path": "commands/wt-prune.md",
-    "reason": "Arbiter self-dogfood: extended with .arbiter/worktree-open.log.json cleanup step and additional Read/Write tool permissions. Template ships a simpler version. (Confirmed intentional 2026-05-29, #1092.)"
-  },
-  {
-    "path": "hooks/check-circular-deps.mjs",
-    "reason": "Arbiter self-dogfood: materialized file has been auto-formatted by Prettier into a different but semantically-equivalent spawnSync argument style (compact object literal vs expanded). Prettier produces different stable outputs from these two equivalent forms; divergence is purely cosmetic. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: extended with .arbiter/worktree-open.log.json cleanup step and additional Read/Write tool permissions. Template ships a simpler version. (Confirmed intentional 2026-05-29, #1092.)",
+    "diffHash": "cb2888dacf0532f534bb46d456484181d48411395278f40dbec33b6d3fbd3599"
   },
   {
     "path": "hooks/check-no-pii.mjs",
-    "reason": "Arbiter self-dogfood: uses findInlineSuppression() from lib.mjs for INV-12 inline suppression support. Target template does not have this dependency yet."
+    "reason": "Arbiter self-dogfood: uses findInlineSuppression() from lib.mjs for INV-12 inline suppression support. Target template does not have this dependency yet.",
+    "diffHash": "2b226ddf77f1ccce3f829db73c84eb580c365f78322d0140e42932a96e0bc0ff"
   },
   {
     "path": "hooks/guard-task-completion.mjs",
-    "reason": "Arbiter self-dogfood: inlines getRepoRoot() and readTaskState() instead of importing from lib.mjs, making it self-contained for the arbiter repo's own task-lifecycle enforcement. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: inlines getRepoRoot() and readTaskState() instead of importing from lib.mjs, making it self-contained for the arbiter repo's own task-lifecycle enforcement. (Confirmed intentional 2026-05-29, #1092.)",
+    "diffHash": "ea3f916c0636437a8048e59f3d0f2385b63a8f8997b5546e444d88df18122e99"
   },
   {
     "path": "hooks/lib.mjs",
-    "reason": "Arbiter self-dogfood: imports suppressions-shared.mjs and exports findInlineSuppression for inline-suppression directive support (INV-31). These arbiter-internal imports must not be back-ported to the template shipped to target projects."
+    "reason": "Arbiter self-dogfood: imports suppressions-shared.mjs and exports findInlineSuppression for inline-suppression directive support (INV-31). These arbiter-internal imports must not be back-ported to the template shipped to target projects.",
+    "diffHash": "7d88a9e4474ba3674be79f48a0dd7fff923761bd528d8838e2d9fc4487de9f78"
   },
   {
     "path": "hooks/post-edit-dispatch.mjs",
-    "reason": "Arbiter self-dogfood: hardcodes 'npx prettier --check .' (validate, not auto-fix, to avoid silent file changes) and 'npx eslint src __tests__' as the scopeCommandToFile inputs, whereas the template feeds the formatCommand/lintCommand config variables. Both scope to the single edited file via scopeCommandToFile (#1515); the divergence is only the hardcoded vs config-driven command source. (Confirmed intentional 2026-05-29, #1092; updated #1515.)"
+    "reason": "Arbiter self-dogfood: hardcodes 'npx prettier --check .' (validate, not auto-fix, to avoid silent file changes) and 'npx eslint src __tests__' as the scopeCommandToFile inputs, whereas the template feeds the formatCommand/lintCommand config variables. Both scope to the single edited file via scopeCommandToFile (#1515); the divergence is only the hardcoded vs config-driven command source. (Confirmed intentional 2026-05-29, #1092; updated #1515.)",
+    "diffHash": "80076b76b73ae9c92951b19e859cfe1276ed73e512f774e924a225ab48130f2e"
   },
   {
     "path": "rules/90-exec-protocol.md",
-    "reason": "Arbiter self-dogfood: contains CI Linux runner note specific to arbiter repo: 'CI Linux jobs run on self-hosted runner docker-ci-build via repo variable CI_BUILD_RUNNER_LABEL'. This is arbiter-specific infrastructure context, not appropriate for target project templates. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: contains CI Linux runner note specific to arbiter repo: 'CI Linux jobs run on self-hosted runner docker-ci-build via repo variable CI_BUILD_RUNNER_LABEL'. This is arbiter-specific infrastructure context, not appropriate for target project templates. (Confirmed intentional 2026-05-29, #1092.)",
+    "diffHash": "ccafecc82dc35b93488d3ba705786fd9148be8d5e360372967d261b28d238f4b"
   },
   {
     "path": "settings.json",
-    "reason": "Arbiter self-dogfood: includes check-no-direct-spawn.mjs (arbiter-internal hook with no .ejs template yet) and check-no-any.mjs (generated from languageHook body not .ejs template), and a different UserPromptSubmit structure with matcher:* group. These were added directly to arbiter's .claude/settings.json without being back-ported to the template. (Materialization tracked in #1090; whole-file exemption to be narrowed there.)"
+    "reason": "Arbiter self-dogfood: includes check-no-direct-spawn.mjs (arbiter-internal hook with no .ejs template yet) and check-no-any.mjs (generated from languageHook body not .ejs template), and a different UserPromptSubmit structure with matcher:* group. These were added directly to arbiter's .claude/settings.json without being back-ported to the template. (Materialization tracked in #1090; whole-file exemption to be narrowed there.)",
+    "diffHash": "ec8c0b75a6d8c4ecb8d887ec0f14f05453cc4c23cc7854b0d4c7062cf7e62482"
   },
   {
     "path": "hooks/pre-edit-plan-anchor.mjs",
-    "reason": "Arbiter self-dogfood: CANON-16 Survey gate (#458) is implemented in both arbiter's materialized hook and the EJS template; the logic is identical. Cosmetic divergence only: Prettier formats the materialized hook with double quotes and the EJS template with single quotes. Functionally equivalent."
+    "reason": "Arbiter self-dogfood: CANON-16 Survey gate (#458) is implemented in both arbiter's materialized hook and the EJS template; the logic is identical. Cosmetic divergence only: Prettier formats the materialized hook with double quotes and the EJS template with single quotes. Functionally equivalent.",
+    "diffHash": "383f64b7557a6338c420fe24c31f376ed0b6fefea7cdadb53bd01e8b7795575a"
   },
   {
     "path": "hooks/hooks.mjs",
-    "reason": "Arbiter self-dogfood: hooks.mjs dispatcher (#248) not yet materialized in arbiter's own .claude/hooks/ \u2014 arbiter's settings.json continues to use individual hook wiring (see existing settings.json divergence). Materialization deferred to a dedicated regenerate pass after all Wave-1 issues land."
+    "reason": "Arbiter self-dogfood: hooks.mjs dispatcher (#248) not yet materialized in arbiter's own .claude/hooks/ \u2014 arbiter's settings.json continues to use individual hook wiring (see existing settings.json divergence). Materialization deferred to a dedicated regenerate pass after all Wave-1 issues land.",
+    "diffHash": "3203493315e22de1e3662195028afef5d37b523046c225d93cbe78ea2b06e9b6"
   },
   {
     "path": "hooks/post-commit-check.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 \u2014 static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) \u2014 intentional: arbiter's self-config is more conservative than generated target advice."
-  },
-  {
-    "path": "commands/review-code.md",
-    "reason": "Arbiter self-dogfood: materialized file includes an Auditor Routing section (auditor-routing.json + route-auditors.mjs) specific to arbiter's own code-review infrastructure. This section is arbiter-internal and not emitted by the target-project template. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 \u2014 static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) \u2014 intentional: arbiter's self-config is more conservative than generated target advice.",
+    "diffHash": "7317b295f76df445a1de70d0e5da5b2cf2e9fbb351a2ccd12971465fa48a0e7a"
   },
   {
     "path": "hooks/enforce-gate-before-pr.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook carries one extra FAIL-OPEN-INTENT documentation comment clarifying the exit-code contract (0 for non-PR commands, 2 on explicit gate-fail). Comment-only divergence, no behavioural difference. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry that was dropped from the merged commit.)"
+    "reason": "Arbiter self-dogfood: materialized hook carries one extra FAIL-OPEN-INTENT documentation comment clarifying the exit-code contract (0 for non-PR commands, 2 on explicit gate-fail). Comment-only divergence, no behavioural difference. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry that was dropped from the merged commit.)",
+    "diffHash": "cf01ba0c8bb2846420a3c87ebe959ae2091cc07961db3dbc51c48933e67a1ecf"
   },
   {
     "path": "hooks/check-no-orphan-todo.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook adds repo-root scoping and inline-suppression support via findInlineSuppression() from lib.mjs (INV-21 directive). The shipped template omits the lib.mjs dependency, so the suppression branch cannot be back-ported without shipping arbiter-internal lib.mjs changes. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)"
+    "reason": "Arbiter self-dogfood: materialized hook adds repo-root scoping and inline-suppression support via findInlineSuppression() from lib.mjs (INV-21 directive). The shipped template omits the lib.mjs dependency, so the suppression branch cannot be back-ported without shipping arbiter-internal lib.mjs changes. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)",
+    "diffHash": "67b70d82a098aeda8dd64c3e69fc21194e665a11321fc6a4fd421de27fc3b724"
   },
   {
     "path": "hooks/enforce-read-only.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook scopes enforcement to the repo root and drops AGENTS.md from READ_ONLY_PATTERNS because arbiter AUTHORS its own AGENTS.md (it is the source), whereas a target project's AGENTS.md is generated and must stay read-only. Back-porting the repo-root bypass was empirically proven to break the INV-36 HARD-hook contract. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)"
+    "reason": "Arbiter self-dogfood: materialized hook scopes enforcement to the repo root and drops AGENTS.md from READ_ONLY_PATTERNS because arbiter AUTHORS its own AGENTS.md (it is the source), whereas a target project's AGENTS.md is generated and must stay read-only. Back-porting the repo-root bypass was empirically proven to break the INV-36 HARD-hook contract. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)",
+    "diffHash": "53440c660dfa5e9711f93c26b5d8026031125e40e004c9f21be6ab16e9da9d05"
   },
   {
     "path": "hooks/check-no-unused-exports.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook scopes the unused-export check to the single edited file for fast per-edit execution in arbiter's own repo; the shipped template runs the broader project-wide check. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)"
-  },
-  {
-    "path": "scripts/gen-wiki.mjs",
-    "reason": "Arbiter self-dogfood: the arbiter-self gen-wiki.mjs is hand-maintained for arbiter's own complex docs/ corpus; the template (src/templates/scripts/gen-wiki.mjs.ejs) generates an equivalent script for target projects. Both share the same algorithm but the self version was written first and the template derived from it. Divergence intentional (#1241, 2026-06-06)."
-  },
-  {
-    "path": "scripts/check-wiki-lint.mjs",
-    "reason": "Arbiter self-dogfood: the arbiter-self check-wiki-lint.mjs is hand-maintained; the template (src/templates/scripts/check-wiki-lint.mjs.ejs) generates an equivalent gate for target projects. Same four-dimension logic, minor stylistic differences. Divergence intentional (#1241, 2026-06-06)."
+    "reason": "Arbiter self-dogfood: materialized hook scopes the unused-export check to the single edited file for fast per-edit execution in arbiter's own repo; the shipped template runs the broader project-wide check. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)",
+    "diffHash": "3c1bc1015fba407d15f3b295fe32d4e6ef696727aab9b107e0eb126a3c9fce8b"
   },
   {
     "path": "hooks/wiki-on-commit.mjs",
-    "reason": "Arbiter self-dogfood: the arbiter-self wiki-on-commit.mjs is a direct copy of the template (no EJS expressions). Divergence is zero but the dogfood check compares against the rendered template output which may differ in whitespace. Divergence intentional (#1241, 2026-06-06)."
+    "reason": "Arbiter self-dogfood: the arbiter-self wiki-on-commit.mjs is a direct copy of the template (no EJS expressions). Divergence is zero but the dogfood check compares against the rendered template output which may differ in whitespace. Divergence intentional (#1241, 2026-06-06).",
+    "diffHash": "9d0315121425048aa54fbbd4002fa76717730e05031a4626acc6ba4bd2ea2b66"
   },
   {
     "path": "hooks/pre-edit-ssot-guard.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook protects docs/internal/METHOD/, docs/internal/SYSTEM/DECISIONS, docs/internal/SYSTEM/CANON.md, and docs/internal/ADR/ — arbiter's own self-governance docs moved under docs/internal/ (T7, #1770, docs/public-internal split). The shipped template still protects the generic docs/METHOD/, docs/SYSTEM/DECISIONS, docs/SYSTEM/CANON.md, docs/ADR/ paths, since target projects generated by arbiter do not adopt this internal/ split. Divergence is by design (2026-07-04, #1770)."
+    "reason": "Arbiter self-dogfood: materialized hook protects docs/internal/METHOD/, docs/internal/SYSTEM/DECISIONS, docs/internal/SYSTEM/CANON.md, and docs/internal/ADR/ \u2014 arbiter's own self-governance docs moved under docs/internal/ (T7, #1770, docs/public-internal split). The shipped template still protects the generic docs/METHOD/, docs/SYSTEM/DECISIONS, docs/SYSTEM/CANON.md, docs/ADR/ paths, since target projects generated by arbiter do not adopt this internal/ split. Divergence is by design (2026-07-04, #1770).",
+    "diffHash": "3f74218af810b161837385f767d43b517bf9f1066b561c1a020739cf579ee611"
   }
 ]
