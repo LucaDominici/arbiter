@@ -81,6 +81,7 @@ fetch_runner_token() {
 # registration.
 compose_up_registered() {
   local running to_start=() svc runner_token
+  # FAIL-OPEN-INTENT: empty running-list just means "start every service" below.
   running="$(compose ps --status running --services 2>/dev/null || true)"
   for svc in "${EXPECTED_SERVICES[@]}"; do
     grep -qx "${svc}" <<<"${running}" || to_start+=("${svc}")

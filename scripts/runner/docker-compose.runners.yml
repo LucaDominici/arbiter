@@ -20,15 +20,15 @@ services:
       REPO_URL: ${REPO_URL}
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
       RUNNER_NAME: arbiter-slot-build
-      RANDOM_RUNNER_SUFFIX: "false"
+      RANDOM_RUNNER_SUFFIX: 'false'
       LABELS: ${LABELS:-self-hosted,linux,x64,docker-ci-build}
       RUNNER_WORKDIR: /tmp/runner/work
       CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner-state
       DISABLE_AUTO_UPDATE: ${DISABLE_AUTO_UPDATE:-true}
       DISABLE_AUTOMATIC_DEREGISTRATION: ${DISABLE_AUTOMATIC_DEREGISTRATION:-true}
       DOCKER_HOST: unix:///var/run/docker.sock
-      DOCKERD_IN_RUNNER: "false"
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      DOCKERD_IN_RUNNER: 'false'
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     network_mode: host
     volumes:
       - /var/run/docker-ci/docker.sock:/var/run/docker.sock
@@ -49,15 +49,15 @@ services:
       REPO_URL: ${REPO_URL}
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
       RUNNER_NAME: arbiter-slot-build-2
-      RANDOM_RUNNER_SUFFIX: "false"
+      RANDOM_RUNNER_SUFFIX: 'false'
       LABELS: ${LABELS:-self-hosted,linux,x64,docker-ci-build}
       RUNNER_WORKDIR: /tmp/runner/work
       CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner-state
       DISABLE_AUTO_UPDATE: ${DISABLE_AUTO_UPDATE:-true}
       DISABLE_AUTOMATIC_DEREGISTRATION: ${DISABLE_AUTOMATIC_DEREGISTRATION:-true}
       DOCKER_HOST: unix:///var/run/docker.sock
-      DOCKERD_IN_RUNNER: "false"
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      DOCKERD_IN_RUNNER: 'false'
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     network_mode: host
     volumes:
       - /var/run/docker-ci/docker.sock:/var/run/docker.sock
@@ -78,15 +78,15 @@ services:
       REPO_URL: ${REPO_URL}
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
       RUNNER_NAME: arbiter-slot-build-3
-      RANDOM_RUNNER_SUFFIX: "false"
+      RANDOM_RUNNER_SUFFIX: 'false'
       LABELS: ${LABELS:-self-hosted,linux,x64,docker-ci-build}
       RUNNER_WORKDIR: /tmp/runner/work
       CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner-state
       DISABLE_AUTO_UPDATE: ${DISABLE_AUTO_UPDATE:-true}
       DISABLE_AUTOMATIC_DEREGISTRATION: ${DISABLE_AUTOMATIC_DEREGISTRATION:-true}
       DOCKER_HOST: unix:///var/run/docker.sock
-      DOCKERD_IN_RUNNER: "false"
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      DOCKERD_IN_RUNNER: 'false'
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     network_mode: host
     volumes:
       - /var/run/docker-ci/docker.sock:/var/run/docker.sock
@@ -107,15 +107,15 @@ services:
       REPO_URL: ${REPO_URL}
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
       RUNNER_NAME: arbiter-slot-build-4
-      RANDOM_RUNNER_SUFFIX: "false"
+      RANDOM_RUNNER_SUFFIX: 'false'
       LABELS: ${LABELS:-self-hosted,linux,x64,docker-ci-build}
       RUNNER_WORKDIR: /tmp/runner/work
       CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner-state
       DISABLE_AUTO_UPDATE: ${DISABLE_AUTO_UPDATE:-true}
       DISABLE_AUTOMATIC_DEREGISTRATION: ${DISABLE_AUTOMATIC_DEREGISTRATION:-true}
       DOCKER_HOST: unix:///var/run/docker.sock
-      DOCKERD_IN_RUNNER: "false"
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      DOCKERD_IN_RUNNER: 'false'
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     network_mode: host
     volumes:
       - /var/run/docker-ci/docker.sock:/var/run/docker.sock
