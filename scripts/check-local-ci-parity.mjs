@@ -237,6 +237,10 @@ const CI_COVERAGE = new Map([
   ['collab mode wired (INV-100)', 'gate-full'],
   ['merge method ff-only (INV-101)', 'gate-full'],
   ['settings coverage (#1121)', 'gate-full'],
+  // F2 ceremony gates (#1838): all three run inside check-all L1, so gate-full covers them.
+  ['hook doc parity (CANON-10, #1838)', 'gate-full'],
+  ['phantom command scan (INV-111 ext, #1838)', 'gate-full'],
+  ['version parity (#1838)', 'gate-full'],
   ['feature matrix (INV-112)', 'gate-full'],
   ['anti-proforma (INV-118)', 'gate-full'],
   ['anti-fake-green (#1412)', 'gate-full'],

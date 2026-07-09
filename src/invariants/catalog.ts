@@ -1827,10 +1827,14 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'src/cli.ts must have a section in that region, and every section must correspond to ' +
       'a registered command (bidirectional, no phantom). Drift is caught at L1 by the gate; ' +
       'the hand-written prose outside the markers is preserved on every regeneration. ' +
+      'Extended by F2 (#1838): the no-phantom rule also covers hand-authored prose — every ' +
+      '`arbiter <cmd>` cited in PRIVACY.md/docs/website (minus internal/ and changelog/ ' +
+      'historical prose) must exist in cli.ts routing, aliases included. ' +
       "selfOnly: this guards arbiter's own CLI reference doc, not generated target projects.",
     enforcement:
-      'scripts/gen-cli-ref.mjs --check verifies bidirectional parity (registered<->documented). ' +
-      'Wired into scripts/check-all.mjs L1.',
+      'scripts/gen-cli-ref.mjs --check verifies bidirectional parity (registered<->documented); ' +
+      'scripts/check-phantom-command-scan.mjs verifies prose citations (#1838). ' +
+      'Both wired into scripts/check-all.mjs L1.',
   },
 
   {

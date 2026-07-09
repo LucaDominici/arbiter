@@ -43,4 +43,4 @@ Or use the CLI flag for a single invocation:
 arbiter --channel beta doctor
 ```
 
-See [CHANNELS.md](https://github.com/LucaDominici/arbiter/blob/main/docs/CHANNELS.md) for the full downgrade-warn matrix.
+Channel labels are computed by [`scripts/changeset-channel-tag.mjs`](https://github.com/LucaDominici/arbiter/blob/main/scripts/changeset-channel-tag.mjs), which tags each `CHANGELOG.md` entry from its version string (plain semver → stable, `-beta.`/`-rc.`/`-alpha.` → beta, `-canary.` → canary) — there is no separate CHANNELS.md reference doc.

@@ -17,7 +17,8 @@
 //        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
 //        workflow-runners, workflow-docs-sync, workflow-test-integrity, workflow-parallelism, pr-size-gate,
 //        validator-helptext, tier-coverage, nightly freshness (INV-93),
-//        no passWithNoTests (INV-25, #1039), actionlint, dogfood (INV-45, #1744) (60)
+//        no passWithNoTests (INV-25, #1039), actionlint, dogfood (INV-45, #1744),
+//        phantom command scan (INV-111 ext), version parity, hook doc parity (CANON-10) (60)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       self-validation drill + local-ci parity + id stability + anti-telemetry +
 //       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) (69)
@@ -172,6 +173,15 @@ if (isMain) {
   runCheck('adr digest (INV-107)', 'node', ['scripts/gen-adr-readme.mjs', '--check'])
   runCheck('adr enforcement linkage (#1473)', 'node', ['scripts/check-adr-enforcement.mjs'])
   runCheck('cli ref parity (INV-111)', 'node', ['scripts/gen-cli-ref.mjs', '--check'])
+  // F2 (#1838, item 4): extends INV-111 beyond the generated cli.md region —
+  // hand-authored prose (PRIVACY.md, docs/, website/) can cite a phantom
+  // command without ever touching that region.
+  runCheck('phantom command scan (INV-111 ext, #1838)', 'node', [
+    'scripts/check-phantom-command-scan.mjs',
+  ])
+  // F2 (#1838, item 5): package.json / --version / CHANGELOG.md three-way
+  // agreement — the permanent gate promised in the F1 fix for #1837.
+  runCheck('version parity (#1838)', 'node', ['scripts/check-version-parity.mjs'])
   runCheck('phase doc consistency (INV-113)', 'node', ['scripts/check-phase-doc-consistency.mjs'])
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
   runCheck('canon references', 'node', ['scripts/check-canon-references.mjs'])
@@ -234,6 +244,10 @@ if (isMain) {
   runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs'])
   runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs'])
   runCheck('settings coverage (#1121)', 'node', ['scripts/check-settings-coverage.mjs'])
+  // F2 (#1838, item 1): CANON-10 promoted from "prose — checked at PR review"
+  // to a wired gate — every hook in .claude/settings.json must be documented
+  // in .claude/CLAUDE.md's hooks table, and vice versa.
+  runCheck('hook doc parity (CANON-10, #1838)', 'node', ['scripts/check-hook-doc-parity.mjs'])
   runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs', '--check'])
   runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs'])
   runCheck('anti-fake-green (#1412)', 'node', ['scripts/check-anti-fake-green.mjs'])

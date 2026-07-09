@@ -127,11 +127,11 @@ export default defineConfig({
           },
           {
             text: 'ADR Ledger',
-            link: 'https://github.com/LucaDominici/arbiter/tree/main/docs/ADR',
+            link: 'https://github.com/LucaDominici/arbiter/tree/main/docs/internal/ADR',
           },
           {
             text: 'Decisions',
-            link: 'https://github.com/LucaDominici/arbiter/blob/main/docs/SYSTEM/DECISIONS.md',
+            link: 'https://github.com/LucaDominici/arbiter/blob/main/docs/internal/SYSTEM/DECISIONS.md',
           },
           {
             text: 'Comparisons',

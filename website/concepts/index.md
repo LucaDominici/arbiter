@@ -48,8 +48,8 @@ Running `arbiter init` twice on the same repo is safe. All generated files use d
 ## Further Reading
 
 - [AGENTS.md — canonical governance contract](https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md)
-- [Browse all ADR decisions →](https://github.com/LucaDominici/arbiter/tree/main/docs/ADR)
-- [DECISIONS ledger](https://github.com/LucaDominici/arbiter/blob/main/docs/SYSTEM/DECISIONS.md)
+- [Browse all ADR decisions →](https://github.com/LucaDominici/arbiter/tree/main/docs/internal/ADR)
+- [DECISIONS ledger](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/SYSTEM/DECISIONS.md)
 - [What Gets Generated](/reference/templates)
 - [Stack Support](/reference/stacks)
 - [CLI Reference](/reference/cli)
