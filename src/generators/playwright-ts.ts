@@ -12,6 +12,7 @@
 
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { formatContent } from '../utils/prettier-format.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -35,16 +36,26 @@ export function generatePlaywrightTs(
 
   const base = config.targetDir
 
+  // #1840 F4 tranche-3: formatContent (#933 F13) reformats these hand-authored
+  // (single-quote/no-semi) templates to the TARGET project's own .prettierrc
+  // before writing — see api-middleware.ts for the same fix + rationale.
+  const runAxePath = resolvedPath(base, 'tests', 'e2e', 'a11y', 'run-axe.ts')
+  const a11ySpecPath = resolvedPath(base, 'tests', 'e2e', 'a11y.spec.ts')
+
   return {
     files: [
       writeFile(
-        resolvedPath(base, 'tests', 'e2e', 'a11y', 'run-axe.ts'),
-        renderTemplate('e2e/playwright-ts/run-axe.ts.ejs', config),
+        runAxePath,
+        formatContent(renderTemplate('e2e/playwright-ts/run-axe.ts.ejs', config), runAxePath, base),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
-        resolvedPath(base, 'tests', 'e2e', 'a11y.spec.ts'),
-        renderTemplate('e2e/playwright-ts/a11y.spec.ts.ejs', config),
+        a11ySpecPath,
+        formatContent(
+          renderTemplate('e2e/playwright-ts/a11y.spec.ts.ejs', config),
+          a11ySpecPath,
+          base,
+        ),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],

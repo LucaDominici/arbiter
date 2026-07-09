@@ -26,7 +26,20 @@ if (args.includes('--help') || args.includes('-h')) {
 const dirArgIdx = args.indexOf('--dir')
 const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]) : process.cwd()
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
+// #1840 F4 tranche-3: '.venv'/'venv'/'__pycache__' — a Python dependency's
+// bundled test suite inside site-packages must never be scanned as project
+// code (mirrors lib/glob-walk.mjs's SKIP_DIRS).
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.coverage',
+  '.venv',
+  'venv',
+  '__pycache__',
+])
 
 // e2e config signals — if none exists, there is no e2e surface to skip (verdict NA).
 const E2E_CONFIG_FILES = [

@@ -22,6 +22,11 @@ export default tseslint.config(
       'no-var': 'error',
       'prefer-const': 'error',
       eqeqeq: ['error', 'always'],
+      // #1840 F4 tranche-3: respect the underscore-prefix "intentionally unused"
+      // convention (e.g. Express's required-but-unused `_next` error-handler
+      // param — arbiter's own middleware/error-handler.ts.ejs uses it) — without
+      // this, tseslint's recommended no-unused-vars flags it on every fresh init.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
 )

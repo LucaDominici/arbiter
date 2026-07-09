@@ -10,6 +10,7 @@
 import { chmodSync, unlinkSync } from 'node:fs'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { renderTemplate } from '../utils/render.js'
+import { formatContent } from '../utils/prettier-format.js'
 import type { Archetype, Language, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -118,11 +119,17 @@ export function generateApiE2e(
 
   const data = config as unknown as Record<string, unknown>
 
-  // Starter suite file.
+  // Starter suite file. #1840 F4 tranche-3: for the TS/JS suite, formatContent
+  // (#933 F13) reformats the hand-authored (single-quote/no-semi) template to
+  // the TARGET project's own .prettierrc before writing — see api-middleware.ts
+  // for the same fix + rationale. Other-language suites (.go/.java/.kt/.py) and
+  // the Postman JSON fallback are not prettier's concern.
+  const suitePath = resolvedPath(base, 'tests', 'api', suite.filename)
+  const suiteContent = renderTemplate(suite.template, data)
   files.push(
     writeFile(
-      resolvedPath(base, 'tests', 'api', suite.filename),
-      renderTemplate(suite.template, data),
+      suitePath,
+      suite.filename.endsWith('.ts') ? formatContent(suiteContent, suitePath, base) : suiteContent,
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )

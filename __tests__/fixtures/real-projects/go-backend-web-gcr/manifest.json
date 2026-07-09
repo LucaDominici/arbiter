@@ -3,9 +3,9 @@
   "archetype": "backend-web-db",
   "buildTool": "go",
   "levels": ["L1", "L2", "L3", "L4"],
-  "tier": "bake",
+  "tier": "functional",
   "deployTarget": "gcp-cloud-run",
-  "note": "Go + GCP Cloud Run deployTarget — Workload Identity Federation, GAR cosign copy, gcloud run services update",
+  "note": "Go + GCP Cloud Run deployTarget — Workload Identity Federation, GAR cosign copy, gcloud run services update. Promoted to functional tier (#1840 F4 tranche-3, 2026-07-09): previously only manifest.json existed (zero source/test content). Now a real net/http server (main.go + internal/api, internal/store) with an in-memory ItemStore behind an interface (no CGO/network dep — chosen because the generated L1 gate only verifies vet/lint/test, not a specific storage engine), unit tests (internal/store) and an integration test (internal/api, full HTTP round trip via httptest). go.mod pins go 1.25 (MIN_GO_FOR_PINNED_TOOL floor). deployTarget generation is inert at L1/functional-tier (GitHub scaffolding, incl. deploy workflows, is only emitted with useGitHub — never enabled by this harness).",
   "enableSecurityScanning": true,
   "collaborationMode": "peer-review"
 }

@@ -108,7 +108,11 @@ function detectRunner() {
     const pkg = readJson(pkgPath)
     const usesVitest =
       hasAnyDep(pkg, ['vitest']) || hasConfig(['vitest.config'], ['.ts', '.js', '.mjs', '.cts', '.mts'])
-    if (usesVitest) return { runner: 'vitest', bin: localBin('vitest'), args: ['list'] }
+    // 'src' scope mirrors the generated `test:unit` script (#1840 F4 tranche-3):
+    // an unscoped `vitest list` also collects tests/api and tests/e2e (live-server
+    // / browser suites with their OWN runner, never `vitest run`), so this guard
+    // must count the SAME scope the unit-test gate step actually executes.
+    if (usesVitest) return { runner: 'vitest', bin: localBin('vitest'), args: ['list', 'src'] }
     const usesJest =
       hasAnyDep(pkg, ['jest']) ||
       pkg?.jest != null ||

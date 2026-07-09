@@ -163,14 +163,31 @@ describe('real-project fixture regressions', () => {
     ).toBe(true)
   })
 
-  it('python-backend-web fixture has pytest-playwright dep and e2e test', () => {
+  // #1840 F4 tranche-3: promoted to `tier: functional` — replaced the old
+  // pytest-playwright-only fixture (a live-server E2E test with no unit-testable
+  // app module at all) with a real FastAPI + SQLAlchemy(sqlite) app, so the
+  // generated L1 gate (ruff + pytest) actually executes. testpaths scopes L1
+  // `pytest` to tests/unit/; tests/integration/ is the L2 target.
+  it('python-backend-web fixture has a real FastAPI+SQLAlchemy app with unit + integration tests', () => {
     const pyproject = readFixture(
       '__tests__/fixtures/real-projects/python-backend-web/pyproject.toml',
     )
-    expect(pyproject).toContain('pytest-playwright')
+    expect(pyproject).toContain('fastapi')
+    expect(pyproject).toContain('sqlalchemy')
+    expect(pyproject).toContain('testpaths = ["tests/unit"]')
+    expect(
+      existsSync(resolve('__tests__/fixtures/real-projects/python-backend-web/app/main.py')),
+    ).toBe(true)
     expect(
       existsSync(
-        resolve('__tests__/fixtures/real-projects/python-backend-web/tests/e2e/test_smoke.py'),
+        resolve('__tests__/fixtures/real-projects/python-backend-web/tests/unit/test_crud.py'),
+      ),
+    ).toBe(true)
+    expect(
+      existsSync(
+        resolve(
+          '__tests__/fixtures/real-projects/python-backend-web/tests/integration/test_items_api.py',
+        ),
       ),
     ).toBe(true)
   })
