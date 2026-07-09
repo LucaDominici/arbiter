@@ -350,6 +350,42 @@ describe('BDD templates — real Gherkin + framework bindings', () => {
     expect(out).toContain('@SelectClasspathResource')
   })
 
+  it('ExampleSteps.java.ejs: renders without error for java', () => {
+    expect(() =>
+      renderBehavioral('behavioral-tests/bdd/ExampleSteps.java.ejs', {
+        language: 'java',
+      }),
+    ).not.toThrow()
+  })
+
+  it("ExampleSteps.java.ejs: provides glue matching example.feature's Given/When/Then steps (#1042)", () => {
+    // Load-bearing: ExampleBddIT's @Suite discovers example.feature via Cucumber's
+    // JUnit Platform engine, which fails UNDEFINED steps by default. This file is
+    // the glue arbiter must ship alongside the suite/runner, mirroring Go
+    // (InitializeScenario), Rust (#[given]/#[when]/#[then]) and TS (example.steps.ts).
+    const out = renderBehavioral('behavioral-tests/bdd/ExampleSteps.java.ejs', {
+      language: 'java',
+    })
+    expect(out).toContain('@Given("a valid input")')
+    expect(out).toContain('@Given("an invalid input")')
+    expect(out).toContain('@When("the operation is executed")')
+    expect(out).toContain('@Then("the result is successful")')
+    expect(out).toContain('@Then("an error is returned")')
+  })
+
+  it('ExampleSteps.java.ejs: uses the same basePackage as ExampleBddIT.java.ejs', () => {
+    const suite = renderBehavioral('behavioral-tests/bdd/ExampleBddIT.java.ejs', {
+      language: 'java',
+      basePackage: 'com.acme',
+    })
+    const steps = renderBehavioral('behavioral-tests/bdd/ExampleSteps.java.ejs', {
+      language: 'java',
+      basePackage: 'com.acme',
+    })
+    expect(suite).toContain('package com.acme.bdd;')
+    expect(steps).toContain('package com.acme.bdd;')
+  })
+
   it('example_bdd_test.rs.ejs: uses cucumber::World derive', () => {
     const out = renderBehavioral('behavioral-tests/bdd/example_bdd_test.rs.ejs', {
       language: 'rust',
@@ -379,6 +415,7 @@ describe('BDD templates — real Gherkin + framework bindings', () => {
       'behavioral-tests/bdd/test_example_bdd.py.ejs',
       'behavioral-tests/bdd/example_test.go.ejs',
       'behavioral-tests/bdd/ExampleBddIT.java.ejs',
+      'behavioral-tests/bdd/ExampleSteps.java.ejs',
       'behavioral-tests/bdd/example_bdd_test.rs.ejs',
     ]
     for (const tpl of templates) {

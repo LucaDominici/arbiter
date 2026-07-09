@@ -76,14 +76,35 @@ describe('real-project fixture regressions', () => {
     const buildGradle = readFixture(
       '__tests__/fixtures/real-projects/java-library-gradle/build.gradle',
     )
-    const checkstyle = readFixture(
-      '__tests__/fixtures/real-projects/java-library-gradle/config/checkstyle/checkstyle.xml',
-    )
 
     expect(buildGradle).toContain('com.diffplug.spotless')
     expect(buildGradle).toContain('org.assertj:assertj-core')
     expect(buildGradle).toContain('archunit-junit5')
-    expect(checkstyle).not.toContain('<!DOCTYPE')
+    // #1042: BDD test deps, required for `./gradlew test` to compile arbiter's
+    // generated ExampleBddIT.java (this is the "functional" tier fixture whose
+    // generated L1 gate is actually EXECUTED by fixture-functional.test.ts, not
+    // just rendered — see that file for the un-skip history).
+    expect(buildGradle).toContain('io.cucumber:cucumber-java')
+    expect(buildGradle).toContain('io.cucumber:cucumber-junit-platform-engine')
+    expect(buildGradle).toContain('org.junit.platform:junit-platform-suite')
+  })
+
+  it('java-library-gradle checkstyle.xml declares a DOCTYPE (#1042)', () => {
+    // Unlike java-backend-web-db-gradle (bake tier — never executed), this fixture's
+    // `checkstyleMain` IS actually run by fixture-functional.test.ts. Verified
+    // empirically: checkstyle-gradle-plugin's Ant bridge (any toolVersion, any rule
+    // content) throws "Document root element must match DOCTYPE root" without a
+    // DOCTYPE — the config simply does not parse. The DOCTYPE's PUBLIC ID resolves
+    // to a DTD BUNDLED inside checkstyle's own jar
+    // (com/puppycrawl/tools/checkstyle/configuration_1_3.dtd) — no network fetch,
+    // so this does not reintroduce the DTD-network-resolution risk that motivated
+    // omitting it from arbiter's OWN generated config/checkstyle.xml (M29, a
+    // different file consumed by a different, non-Gradle-checkstyle-plugin path).
+    const checkstyle = readFixture(
+      '__tests__/fixtures/real-projects/java-library-gradle/config/checkstyle/checkstyle.xml',
+    )
+    expect(checkstyle).toContain('<!DOCTYPE module PUBLIC')
+    expect(checkstyle).toContain('-//Checkstyle//DTD Checkstyle Configuration 1.3//EN')
   })
 
   it('rust-library keeps must_use on the public API used by clippy pedantic', () => {

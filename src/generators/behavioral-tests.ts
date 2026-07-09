@@ -72,6 +72,15 @@ function emitJavaBdd(
       renderTemplate('behavioral-tests/bdd/ExampleBddIT.java.ejs', data),
       { skipIfExists: true, dryRun },
     ),
+    // #1042 follow-up: glue code for ExampleBddIT's @Suite. Without it Cucumber
+    // resolves the feature's steps as UNDEFINED and fails the run (strict by
+    // default) — the Go/Rust/TS BDD examples all ship their step defs alongside
+    // the suite/runner for the same reason.
+    writeFile(
+      resolvedPath(base, bddPkg, 'ExampleSteps.java'),
+      renderTemplate('behavioral-tests/bdd/ExampleSteps.java.ejs', data),
+      { skipIfExists: true, dryRun },
+    ),
     writeFile(
       resolvedPath(base, 'src', 'test', 'resources', 'features', 'example.feature'),
       renderTemplate('behavioral-tests/bdd/example.feature.ejs', data),

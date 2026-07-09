@@ -139,6 +139,7 @@
     "scripts/verify-mutation-baseline.mjs",
     "src/test/java/com/example/architecture/NoMockMvcTest.java",
     "src/test/java/com/example/bdd/ExampleBddIT.java",
+    "src/test/java/com/example/bdd/ExampleSteps.java",
     "src/test/java/com/example/example/ExampleBehavioralTest.java",
     "src/test/resources/features/example.feature",
     "standards/doc-profile",

@@ -66,10 +66,24 @@ checkTs('src');
 checkTs('__tests__');
 
 <% } else if (language === 'java') { %>
-// Java: unit tests → *Test.java, integration tests → *IT.java
+// Java: unit tests → *Test.java, integration tests → *IT.java. Support/glue
+// classes (e.g. Cucumber step definitions — no @Test/@Suite entry point, never
+// discovered directly by `useJUnitPlatform()`) legitimately live under
+// src/test/java without matching that convention, same as Go's content-based
+// exemption below: only flag a file that actually LOOKS like a JUnit/suite
+// entry point (#1042).
 walk('src/test', (file, name) => {
   if (!name.endsWith('.java')) return;
-  if (!name.endsWith('Test.java') && !name.endsWith('IT.java') && !name.endsWith('ArchTest.java')) {
+  if (name.endsWith('Test.java') || name.endsWith('IT.java') || name.endsWith('ArchTest.java')) return;
+  let content = '';
+  try {
+    content = readFileSync(file, 'utf-8');
+  } catch {
+    return;
+  }
+  const looksLikeTestEntryPoint =
+    /@(Test|ParameterizedTest|RepeatedTest|TestFactory|Suite)\b/.test(content);
+  if (looksLikeTestEntryPoint) {
     flag(file, 'test file must match *Test.java, *IT.java, or *ArchTest.java');
   }
 });
