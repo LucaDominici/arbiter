@@ -1,3 +1,8 @@
+# Explicit project name: the default would be "runner" (directory basename),
+# which COLLIDES with viafera's runner farm project on the same docker-ci
+# daemon — compose would adopt/replace viafera's runner-build container.
+name: arbiter-runner-farm
+
 services:
   runner-build:
     image: myoung34/github-runner:latest
