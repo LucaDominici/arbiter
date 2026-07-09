@@ -11,7 +11,11 @@ concurrency:
   group: label-sync-${{ github.ref }}
   cancel-in-progress: true
 
+# contents: read is required by the checkout in the sync job below — an explicit
+# permissions block without it means contents: none, which fails "Repository not
+# found" on a private repo (#1865).
 permissions:
+  contents: read
   issues: write
 
 jobs:
