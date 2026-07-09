@@ -78,6 +78,7 @@ const SKIP_FILES = new Set([
   'scripts/lib/anti-fake-green-guards.mjs', // #1497 pure guard roster data; no entry point
   'scripts/lib/guard-flip-registry.mjs', // #1497 pure flip-proof registry; no entry point
   'scripts/lib/ci-cadence.mjs', // #1502 pure cadence-bucket SSOT/partition helper; no entry point
+  'scripts/lib/cli-command-names.mjs', // #1838 pure cli.ts command-name parser; consumers (gen-cli-ref, phantom-command-scan) own the exit contract and fail closed on zero-extraction
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

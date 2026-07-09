@@ -9,6 +9,7 @@
 // Exit codes (INV-53): 0 = OK / 1 = drift / 2 = invocation error
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { extractTopLevelCommandNames } from './lib/cli-command-names.mjs'
 
 const CHECK = process.argv.includes('--check')
 
@@ -56,23 +57,10 @@ function parseCliTs(src) {
   // Strip single-line comments to avoid matching commented-out code.
   const stripped = src.replace(/\/\/.*/g, '')
 
-  // Find top-level commands: `program` (possibly with `const X =` assignment)
-  // followed (within ~50 chars, across potential newlines) by `.command('name')`
-  // or `.command('name', { hidden: true })` (#1770 T5 — experimental surface).
-  // This intentionally does NOT match `varName.command(...)` (sub-commands on variables).
-  const topLevelRe =
-    /\bprogram\s*[\s\S]{0,50}?\.command\('([^'\n]+?)'(,\s*\{\s*hidden:\s*true\s*\})?\)/g
-  const topLevelNames = new Set()
-  const hiddenNames = new Set()
-  for (const m of stripped.matchAll(topLevelRe)) {
-    // Strip argument specs (<required> [optional]) — use only the base command name.
-    const baseName = m[1].trim().split(/[\s<[]/)[0]
-    // The `help` meta-command replaces commander's built-in help; it is part of
-    // the help mechanism itself (documented in prose), not a governed command.
-    if (baseName === 'help') continue
-    topLevelNames.add(baseName)
-    if (m[2]) hiddenNames.add(baseName)
-  }
+  // Top-level name extraction is shared with check-phantom-command-scan.mjs
+  // (F2 #1838) via scripts/lib/cli-command-names.mjs — same SSOT parser, no
+  // second divergent regex for "does this command exist in cli.ts".
+  const { topLevelNames, hiddenNames } = extractTopLevelCommandNames(src)
 
   // Build per-command info: for each top-level command, find description and options.
   // We do a second pass to find command registration blocks.

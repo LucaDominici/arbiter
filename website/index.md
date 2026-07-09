@@ -26,7 +26,7 @@ features:
   - title: Zero telemetry
     details: >
       Arbiter collects nothing and phones home to nobody.
-      See the [Privacy Policy](/privacy) for details.
+      See the [Privacy Policy](https://github.com/LucaDominici/arbiter/blob/main/PRIVACY.md) for details.
   - title: Gate or fail
     details: >
       L1 / L2 / L3 / L4 gate tiers enforce governance at commit, push,

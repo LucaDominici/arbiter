@@ -167,9 +167,9 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** CLAUDE.md is the first file AI agents load. An undocumented hook is invisible governance — agents cannot reason about constraints they cannot see.
 
-**Enforcement:** Prose — checked at PR review when `settings.json` changes.
+**Enforcement:** `scripts/check-hook-doc-parity.mjs` (wired into `scripts/check-all.mjs` L1, #1838) — symmetric event+matcher+filename parity between `.claude/settings.json` and the `.claude/CLAUDE.md` hooks table; fails closed on zero-extraction from either side. Was prose-only ("checked at PR review") until F2 (#1838).
 
-**Source issues:** #177
+**Source issues:** #177, #1838
 
 ---
 
