@@ -1,6 +1,7 @@
 {
   "name": "ts-bdd-fixture",
   "version": "1.0.0",
+  "packageManager": "npm@10.9.8",
   "private": true,
   "type": "module",
   "scripts": {
