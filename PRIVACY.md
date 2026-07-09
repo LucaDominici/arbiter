@@ -35,7 +35,7 @@ In every case, the network call is a direct consequence of a command (and, for r
 
 **Offline use:**
 
-Arbiter's core commands (`init`, `check`, `generate`) work without any network access. You can run them with your firewall fully blocking outbound connections.
+Arbiter's core commands (`init`, `update`, `diff`, `doctor`, `validate`) work without any network access. You can run them with your firewall fully blocking outbound connections.
 
 **Packet capture:**
 

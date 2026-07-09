@@ -48,7 +48,13 @@ Graduation is tracked in the experiment's `plannedReviewDate` field. The arbiter
 
 ## Active Experiments
 
-The authoritative list is the registry in `src/experimental/registry.ts` (`arbiter experiments list`). Currently active:
+<!-- TODO(#1838): this section is hand-maintained and can drift from
+     src/experimental/registry.ts — wire a generator or a freshness gate that
+     diffs this table against the registry, then drop this TODO. -->
+
+The authoritative list is the registry in `src/experimental/registry.ts`;
+experiments are opted in per-invocation via the `--experimental.<name>` flag
+(e.g. `arbiter --experimental.kit kit list`). Currently active:
 
 | Experiment | Stability target | Added in | Planned review | Promotion criteria                                            |
 | ---------- | ---------------- | -------- | -------------- | ------------------------------------------------------------- |

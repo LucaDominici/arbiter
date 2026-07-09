@@ -172,7 +172,6 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
   out.push(checkGateToolchain(dir))
   out.push(checkScaffoldWiringHealth(dir))
   out.push(...checkLockfiles(dir))
-  out.push(checkStackAdapterHealth(dir))
   out.push(checkCollaborationCoherence(dir))
   out.push(checkLanguageArchetypeCoherence(dir))
   out.push(checkOverlayCoherence(dir))
@@ -540,68 +539,6 @@ function checkAutonomyCoherence(dir: string): HealthCheck {
   }
   check.detail = `autonomy ${autonomy} @ ${cfg.governanceLevel} (CI: ${hasCi ? 'yes' : 'no'}) — coherent`
   return check
-}
-
-const ADAPTER_EXEMPT_LANGUAGES = ['kotlin', 'multi', 'unknown'] as const
-
-/**
- * INV-88: Checks that a StackAdapter file exists for the detected language.
- * Exempt languages: kotlin (JVM), multi, unknown.
- * Exported for unit testing.
- *
- * #1343: INV-88 is `selfOnly` — `src/adapters/<lang>.ts` is an arbiter-INTERNAL
- * artifact. Running this check against a CLIENT repo (e.g. a Go-primary project with a
- * frontend-lane package.json) produced a misleading FAIL with a hint pointing at an
- * arbiter-internal path. When `dir` is not arbiter-self, the check is a PASS advisory.
- */
-export function checkStackAdapterHealth(dir: string): HealthCheck {
-  if (!isArbiterSelf(dir)) {
-    return {
-      id: 'stack-adapter',
-      label: 'Stack adapter registered',
-      status: 'PASS',
-      detail: 'not arbiter-self — INV-88 adapter coverage is an arbiter-internal check (skipped)',
-    }
-  }
-
-  const lang = detectLanguage(dir)
-
-  if ((ADAPTER_EXEMPT_LANGUAGES as readonly string[]).includes(lang)) {
-    if (lang === 'unknown') {
-      return {
-        id: 'stack-adapter',
-        label: 'Stack adapter registered',
-        status: 'WARN',
-        detail: 'could not detect language from project files',
-      }
-    }
-    return {
-      id: 'stack-adapter',
-      label: 'Stack adapter registered',
-      status: 'PASS',
-      detail: `${lang} is exempt from adapter requirement`,
-    }
-  }
-
-  const adapterFile = join(dir, 'src', 'adapters', `${lang}.ts`)
-  const adapterExists = existsSync(adapterFile)
-
-  if (adapterExists) {
-    return {
-      id: 'stack-adapter',
-      label: 'Stack adapter registered',
-      status: 'PASS',
-      detail: `adapter registered for ${lang}`,
-    }
-  }
-
-  return {
-    id: 'stack-adapter',
-    label: 'Stack adapter registered',
-    status: 'FAIL',
-    detail: `no adapter file for ${lang} — run \`arbiter doctor repair-state\``,
-    hint: `Create src/adapters/${lang}.ts implementing StackAdapter`,
-  }
 }
 
 /**

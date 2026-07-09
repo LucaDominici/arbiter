@@ -41,6 +41,11 @@ beforeAll(() => {
   // derived.json, canonical-mapping.json) is co-located under dist/kit/ by the
   // build step, so a plain dist/ copy is the entire shipped surface (#1801).
   cpSync(DIST, join(pkgRoot, 'dist'), { recursive: true })
+  // package.json is always present at the package root in a real npm install —
+  // npm includes it regardless of the "files" allowlist — so the CLI reading
+  // its own version from '../package.json' (#1837) is safe in production. Copy
+  // it here so this simulated install matches that real layout.
+  cpSync(join(REPO, 'package.json'), join(pkgRoot, 'package.json'))
 }, 240_000)
 
 afterAll(() => {

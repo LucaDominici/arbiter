@@ -535,17 +535,17 @@ describe('generateContractTesting', () => {
 
   // ─── rest-public × all languages ─────────────────────────────────────────
 
-  it('returns 2 files for rest-public + typescript', () => {
+  it('returns 3 files for rest-public + typescript (diff test + exporter + policy)', () => {
     const config = makeConfig(dir, {
       contractType: 'rest-public',
       governanceLevel: 'L2',
       language: 'typescript',
       hasPublicApi: true,
     })
-    expect(generateContractTesting(config).files).toHaveLength(2)
+    expect(generateContractTesting(config).files).toHaveLength(3)
   })
 
-  it('generates src/test/contracts/openapi-diff.ts for rest-public + typescript', () => {
+  it('generates src/test/contracts/openapi-diff.ts + export-openapi.mjs for rest-public + typescript', () => {
     const config = makeConfig(dir, {
       contractType: 'rest-public',
       governanceLevel: 'L2',
@@ -554,9 +554,13 @@ describe('generateContractTesting', () => {
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'src', 'test', 'contracts', 'openapi-diff.ts'))).toBe(true)
+    // #1837: the exporter must be emitted alongside the diff test — the diff
+    // test HARD-fails (INV-43) without contracts/openapi-current.yaml, which
+    // only this script produces.
+    expect(existsSync(join(dir, 'export-openapi.mjs'))).toBe(true)
   })
 
-  it('returns 2 files for rest-public + java', () => {
+  it('returns 3 files for rest-public + java (diff test + gradle exporter + policy)', () => {
     const javaDir = createTestProject('java')
     initGit(javaDir)
     try {
@@ -567,13 +571,13 @@ describe('generateContractTesting', () => {
         buildTool: 'gradle',
         hasPublicApi: true,
       })
-      expect(generateContractTesting(config).files).toHaveLength(2)
+      expect(generateContractTesting(config).files).toHaveLength(3)
     } finally {
       cleanupTestProject(javaDir)
     }
   })
 
-  it('generates OpenApiDiffIT.java for rest-public + java (no basePackage)', () => {
+  it('generates OpenApiDiffIT.java + config/export-openapi-java.gradle for rest-public + java (no basePackage)', () => {
     const javaDir = createTestProject('java')
     initGit(javaDir)
     try {
@@ -588,12 +592,13 @@ describe('generateContractTesting', () => {
       expect(
         existsSync(join(javaDir, 'src', 'test', 'java', 'contracts', 'OpenApiDiffIT.java')),
       ).toBe(true)
+      expect(existsSync(join(javaDir, 'config', 'export-openapi-java.gradle'))).toBe(true)
     } finally {
       cleanupTestProject(javaDir)
     }
   })
 
-  it('returns 2 files for rest-public + rust', () => {
+  it('returns 3 files for rest-public + rust (diff test + exporter binary + policy)', () => {
     const rustDir = createTestProject('rust')
     initGit(rustDir)
     try {
@@ -606,15 +611,16 @@ describe('generateContractTesting', () => {
         acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
-      expect(result.files).toHaveLength(2)
+      expect(result.files).toHaveLength(3)
       expect(existsSync(join(rustDir, 'tests', 'openapi_diff_test.rs'))).toBe(true)
+      expect(existsSync(join(rustDir, 'src', 'bin', 'export_openapi.rs'))).toBe(true)
       expect(existsSync(join(rustDir, 'CONTRACTS_POLICY.md'))).toBe(true)
     } finally {
       cleanupTestProject(rustDir)
     }
   })
 
-  it('returns 2 files for rest-public + go', () => {
+  it('returns 3 files for rest-public + go (diff test + exporter binary + policy)', () => {
     const goDir = createTestProject('go')
     initGit(goDir)
     try {
@@ -627,15 +633,16 @@ describe('generateContractTesting', () => {
         acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
-      expect(result.files).toHaveLength(2)
+      expect(result.files).toHaveLength(3)
       expect(existsSync(join(goDir, 'tests', 'openapi_diff_test.go'))).toBe(true)
+      expect(existsSync(join(goDir, 'cmd', 'export-openapi', 'main.go'))).toBe(true)
       expect(existsSync(join(goDir, 'CONTRACTS_POLICY.md'))).toBe(true)
     } finally {
       cleanupTestProject(goDir)
     }
   })
 
-  it('returns 2 files for rest-public + python', () => {
+  it('returns 3 files for rest-public + python (diff test + exporter + policy)', () => {
     const pyDir = createTestProject('python')
     initGit(pyDir)
     try {
@@ -648,8 +655,9 @@ describe('generateContractTesting', () => {
         acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
-      expect(result.files).toHaveLength(2)
+      expect(result.files).toHaveLength(3)
       expect(existsSync(join(pyDir, 'tests', 'contract', 'test_openapi_diff.py'))).toBe(true)
+      expect(existsSync(join(pyDir, 'export_openapi.py'))).toBe(true)
       expect(existsSync(join(pyDir, 'CONTRACTS_POLICY.md'))).toBe(true)
     } finally {
       cleanupTestProject(pyDir)
@@ -668,7 +676,7 @@ describe('generateContractTesting', () => {
         hasPublicApi: true,
       })
       const result = generateContractTesting(config)
-      expect(result.files).toHaveLength(2)
+      expect(result.files).toHaveLength(3)
       expect(
         existsSync(join(javaDir, 'src', 'test', 'java', 'contracts', 'OpenApiDiffIT.java')),
       ).toBe(true)
