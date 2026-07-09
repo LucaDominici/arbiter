@@ -51,6 +51,9 @@ labels:
   - name: monthly-regression
     color: "b60205"
     description: "Monthly (T5b) workflow detected a regression"
+  - name: generator-matrix-regression
+    color: "b60205"
+    description: "Generator Matrix workflow detected a regression (#1840 F4 tranche 2)"
   # Tracks (TRACK_MODEL.md)
   - name: "track: core"
     color: "cccccc"

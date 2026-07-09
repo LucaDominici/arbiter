@@ -86,9 +86,9 @@ The `tier` field selects which E2E layer exercises the fixture:
 
 | Tier         | What runs against the fixture                                                   | Use when                                             |
 | ------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `snapshot`   | Manifest validation only — no `arbiter init`, no exec                           | Pure data/docs fixtures (`markdown-only`)            |
+| `snapshot`   | Manifest validation only — no `arbiter init`, no exec                           | Pure data/docs fixtures (`markdown-only`); also a non-GA stack declassified pre-publish (`kotlin-backend-web-db-gradle`, #1840 F4 tranche-2, 2026-07-09 — re-promotion path: #1803) |
 | `bake`       | `arbiter init` → structural snapshot diff → parse generated manifests (no exec) | Most fixtures (`backend-*`, `bdd`, `frontend-spa` …) |
-| `functional` | `bake` + execute the generated project's own L1 gate inside a clean tmpdir copy | Smallest cheapest fixture per stack (`*-library`)    |
+| `functional` | `bake` + execute the generated project's own L1 gate inside a clean tmpdir copy | Smallest cheapest fixture per stack (`*-library`); promoted to the dedicated `generator-matrix.yml` workflow (dispatchable + weekly + pre-release, #1840 F4 tranche-2) |
 
 The bake-and-run harness lives in `__tests__/e2e/bake/` and `__tests__/e2e/functional/`. Industry pattern reference: Nx (`create-nx-workspace` Verdaccio), Cookiecutter (`pytest-cookies`), Spring Initializr (`initializr-generator-test`).
 
@@ -106,6 +106,30 @@ misclassified as devDependencies, and generated content tripping the generated p
 own scanners (#1772). Gated behind `VITEST_L2=1` like its siblings; it costs a pack plus
 two full npm installs plus a generated-gate run (~1 min), so it runs at L2/nightly depth,
 not in per-PR fast lanes.
+
+#### Generator Matrix workflow (#1840 F4 tranche 2)
+
+`.github/workflows/generator-matrix.yml` gives the DEEP `functional`-tier cells their own
+dispatchable + weekly (Sun 05:00 UTC) + pre-release (`release: types: [prereleased]`) surface,
+independent of the broad nightly sweep that already runs them bundled inside
+`_nightly.yml`'s `generated-gate-e2e` job. It is hand-authored, not `.ejs`-rendered — it tests
+arbiter's own generator against arbiter's own fixtures, which has no meaning in a downstream
+project (same category as `kit-self-canary.yml` / `probe-writer-audit.yml`).
+
+Cells (closed list, per the #1840 tranche-2 decision comment, 2026-07-09):
+
+| Stack      | Test                                                          |
+| ---------- | -------------------------------------------------------------- |
+| TypeScript | `packaged-artifact.test.ts` (#1770 T8, outsider npm-pack install) |
+| Python     | `fixture-functional.test.ts -t python`                          |
+| Go         | `fixture-functional.test.ts -t go`                               |
+| Rust       | `fixture-functional.test.ts -t rust`                              |
+| Java       | `fixture-functional.test.ts -t java` (post-#1858 un-skip)         |
+
+Kotlin is excluded — see the `snapshot` tier row above. Toolchain-pin coherence (the
+#1854/#1856 incident class) is locked by
+`__tests__/scripts/generator-matrix-workflow.test.ts`, sharing the `MIN_GO_FOR_PINNED_TOOL`
+registry in `__tests__/helpers/go-pinned-tool-minimums.ts` with the `_nightly.yml.ejs` guard.
 
 ---
 

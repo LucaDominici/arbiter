@@ -1,0 +1,147 @@
+# F4 / #1840 tranche 2 — dedicated, isolated entry point for arbiter's DEEP
+# generator E2E cells (the "vetrina" the epic #1836 F4 line asks for). These
+# cells already exist and already run nightly bundled inside
+# `_nightly.yml`'s `generated-gate-e2e` job (VITEST_L2=1 over the whole
+# functional/ dir); this workflow does NOT replace that broad nightly sweep —
+# it gives the 5 decided DEEP cells (orchestrator decision on #1840,
+# 2026-07-09) their own dispatchable + weekly + pre-release surface, each
+# with ONLY its own toolchain installed (mirrors `bake-e2e-native`'s
+# per-stack matrix pattern in `_nightly.yml`), so a maintainer/user can run
+# "does arbiter's generator actually work end-to-end for language X" without
+# invoking the whole nightly suite.
+#
+# Cells (closed list per decision — Kotlin excluded, declassified to
+# snapshot-only): TS packaged-artifact (#1770 T8, outsider npm-pack install);
+# Python/Go/Rust fixture-functional (init → bake → execute generated L1 gate
+# green); Java fixture-functional (post-#1858 un-skip).
+#
+# Hand-authored (not `arbiter update`-generated): this file tests arbiter's
+# OWN generator source against arbiter's OWN fixtures — meaningless in a
+# downstream project, so it is not a `src/templates/github/workflows/*.ejs`
+# template. Same category as `kit-self-canary.yml` / `probe-writer-audit.yml`.
+name: Generator Matrix
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Sunday 05:00 UTC — weekly cadence, offset from the 04:00 UTC weekly/
+    # probe-writer-audit slot to avoid a scheduling pile-up.
+    - cron: '0 5 * * 0'
+  release:
+    types: [prereleased]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: generator-matrix
+  cancel-in-progress: false
+
+jobs:
+  generator-matrix:
+    name: Generator DEEP cell (${{ matrix.stack }})
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack: typescript
+            vitestArgs: __tests__/integration/e2e/functional/packaged-artifact.test.ts
+          - stack: python
+            vitestArgs: __tests__/integration/e2e/functional/fixture-functional.test.ts -t python
+          - stack: go
+            vitestArgs: __tests__/integration/e2e/functional/fixture-functional.test.ts -t go
+          - stack: rust
+            vitestArgs: __tests__/integration/e2e/functional/fixture-functional.test.ts -t rust
+          - stack: java
+            vitestArgs: __tests__/integration/e2e/functional/fixture-functional.test.ts -t java
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        if: matrix.stack == 'python'
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        if: matrix.stack == 'go'
+        with:
+          go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
+          cache-dependency-path: __tests__/fixtures/real-projects/go-library/go.mod
+
+      # golangci-lint is the only pinned Go tool the L1 gate this cell exercises
+      # invokes (staticcheck/govulncheck are L2-only — not reached by
+      # fixture-functional.test.ts, which always runs the generated gate at L1).
+      # Pin kept identical to _nightly.yml's generated-gate-e2e job; coherence
+      # against the go-library fixture's `go` directive is asserted by
+      # __tests__/scripts/generator-matrix-workflow.test.ts (#1854/#1856 class).
+      - name: Install Go lint toolchain (golangci-lint — L1 gate dependency)
+        if: matrix.stack == 'go'
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        if: matrix.stack == 'java'
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        if: matrix.stack == 'java'
+
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        if: matrix.stack == 'rust'
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Build
+        run: npm run build
+
+      - name: Generator DEEP cell (VITEST_L2=1)
+        env:
+          VITEST_L2: '1'
+        run: npx vitest run --config vitest.integration.config.ts ${{ matrix.vitestArgs }}
+
+  generator-matrix-required:
+    name: Generator Matrix gate
+    needs: [generator-matrix]
+    if: always()
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 10
+    steps:
+      - name: Assert no failing cell
+        run: |
+          if [ "${{ needs.generator-matrix.result }}" = "failure" ]; then
+            echo "::error::One or more Generator Matrix cells failed."
+            exit 1
+          fi
+          echo "Generator Matrix gate passed."
+
+      - name: File issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # FAIL-OPEN-INTENT: label may already exist; creation failure is harmless
+          gh label create generator-matrix-regression --color b60205 --description "Generator Matrix workflow detected a regression" --repo "$GH_REPO" 2>/dev/null || true
+          EXISTING=$(gh issue list \
+            --label generator-matrix-regression \
+            --state open \
+            --limit 1 \
+            --json number \
+            --repo "$GH_REPO" \
+            --jq '.[0].number // empty')
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "[generator-matrix] regression detected (run ${{ github.run_id }})" \
+              --body "Generator Matrix workflow failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              --label generator-matrix-regression \
+              --repo "$GH_REPO"
+          fi

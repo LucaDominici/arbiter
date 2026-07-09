@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+import { extractGoInstallPins, MIN_GO_FOR_PINNED_TOOL } from '../helpers/go-pinned-tool-minimums.js'
 
 function renderNightlyPartial(overrides: Record<string, unknown> = {}) {
   return renderTemplate(
@@ -214,14 +215,10 @@ describe('_nightly.yml.ejs — kotlin fuzz coverage (#1803)', () => {
 // go >= 1.25 vs fixture 1.24. This guard enumerates all pinned `go install`
 // lines and fails when any pin outgrows the fixture.
 describe('_nightly.yml.ejs — generated-gate-e2e Go toolchain satisfies every pinned tool (#1854/#1856)', () => {
-  // Bump this table alongside any tool pin bump in the template. Minimums come
-  // from each module's own `go` directive (proxy.golang.org/<module>/@v/<version>.mod).
-  const MIN_GO_FOR_PINNED_TOOL: Record<string, Record<string, string>> = {
-    'github.com/golangci/golangci-lint/v2/cmd/golangci-lint': { '2.5.0': '1.24.0' },
-    // staticcheck's 2025.1.1 release tag aliases module version v0.6.1
-    'honnef.co/go/tools/cmd/staticcheck': { '2025.1.1': '1.23.0' },
-    'golang.org/x/vuln/cmd/govulncheck': { '1.5.0': '1.25.0' },
-  }
+  // MIN_GO_FOR_PINNED_TOOL is now shared with the generator-matrix.yml literal-file
+  // guard (__tests__/scripts/generator-matrix-workflow.test.ts) — see
+  // __tests__/helpers/go-pinned-tool-minimums.ts. Bump it there alongside any tool
+  // pin bump in either surface.
 
   function renderSelfProfile() {
     // Mirrors __tests__/fixtures/ci-tier-render-context.json's shape: this job
@@ -236,9 +233,7 @@ describe('_nightly.yml.ejs — generated-gate-e2e Go toolchain satisfies every p
   it('go-version-file fixture declares a go directive >= every pinned tool minimum', () => {
     const rendered = renderSelfProfile()
 
-    const pins = [...rendered.matchAll(/go install ([^\s@]+)@v?(\d+\.\d+(?:\.\d+)?)/g)].map(
-      (m) => ({ tool: m[1], version: m[2] }),
-    )
+    const pins = extractGoInstallPins(rendered)
     expect(pins.length, 'expected pinned go install lines in generated-gate-e2e').toBeGreaterThan(0)
 
     const fileMatch = rendered.match(/go-version-file:\s*(\S+go-library\/go\.mod)/)
