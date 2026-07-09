@@ -226,6 +226,7 @@
     "spotbugs.gradle",
     "spotless.gradle",
     "src/test/java/com/example/bdd/ExampleBddIT.java",
+    "src/test/java/com/example/bdd/ExampleSteps.java",
     "src/test/java/contracts/PactVerificationIT.java",
     "src/test/java/example/ExampleBehavioralTest.java",
     "src/test/java/support/AbstractIntegrationTest.java",

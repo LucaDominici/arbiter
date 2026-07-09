@@ -14,6 +14,12 @@
 // the gate (no missing-module / exit 127 — the load-bearing #1041 guarantee), and
 // must run GREEN where its dependencies are installable in the harness. A stack
 // whose toolchain or deps are unavailable SKIPs WITH A REASON, never a false RED.
+// Java un-skip (F4 / #1840): the last unconditional gap was cucumber/junit
+// glue for the generated ExampleBddIT.java suite — closed by shipping an
+// ExampleSteps.java step-definitions class alongside it (generators/behavioral-
+// tests.ts) plus wiring the matching test deps into the java-library-gradle
+// fixture's build.gradle (arbiter does not own/author a project's build.gradle,
+// so this is fixture-owned, same as the fixture's other pre-existing test deps).
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -42,18 +48,6 @@ function toolchainSkipReason(language: string): string | null {
   const required = CELL_BINARIES[language] ?? ['node']
   const missing = required.filter((b) => !hasBinary(b))
   if (missing.length > 0) return `toolchain missing: ${missing.join(', ')}`
-  // KNOWN GAP (tracked, #1042 follow-up): the generated Java BDD suite
-  // (ExampleBddIT.java) imports io.cucumber / org.junit.platform.suite.api, but
-  // arbiter does NOT own a greenfield build.gradle/pom.xml, so it cannot wire
-  // those test dependencies onto the classpath. Unlike Go (`//go:build bdd`) and
-  // Rust (`#![cfg(feature = "bdd")]`), a Java source file under src/test/java has
-  // no language-level mechanism to exclude itself from `compileTestJava` without
-  // a build-file change the project owns. Until the Java build-file generator
-  // declares the cucumber/junit-platform-suite test deps (or the BDD test is made
-  // skip-clean), this cell SKIPs WITH A REASON rather than a false RED.
-  if (language === 'java') {
-    return 'java BDD deps (cucumber/junit-platform-suite) not wired by greenfield init — see #1042 follow-up'
-  }
   return null
 }
 

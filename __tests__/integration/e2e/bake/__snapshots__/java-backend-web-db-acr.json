@@ -142,6 +142,7 @@
     "scripts/verify-module-coverage.mjs",
     "scripts/verify-mutation-baseline.mjs",
     "src/test/java/com/example/bdd/ExampleBddIT.java",
+    "src/test/java/com/example/bdd/ExampleSteps.java",
     "src/test/java/example/ExampleBehavioralTest.java",
     "src/test/resources/features/example.feature",
     "standards/doc-profile",

@@ -141,6 +141,7 @@
     "scripts/setup-hooks.sh",
     "scripts/verify-module-coverage.mjs",
     "scripts/verify-mutation-baseline.mjs",
+    "src/test/java/com/example/bdd/ExampleSteps.java",
     "src/test/java/example/ExampleBehavioralTest.java",
     "standards/doc-profile",
     "standards/gold-doc-set.yml",
