@@ -101,3 +101,30 @@ describe('.github/workflows/generator-matrix.yml — Go toolchain satisfies pinn
     expect(cachePathCount).toBe(versionFileCount)
   })
 })
+
+describe('.github/workflows/generator-matrix.yml — living examples drift step (#1840 F4 tranche 4)', () => {
+  it('runs the examples drift check scoped to the cell stack', () => {
+    const rendered = readWorkflow()
+    expect(rendered).toContain(
+      'node scripts/regenerate-examples.mjs --check --stack=${{ matrix.stack }}',
+    )
+  })
+
+  it('gates the drift step to exactly the 3 README-supported (GA) stacks', () => {
+    const rendered = readWorkflow()
+    const stepMatch = rendered.match(/- name: Living examples drift[^\n]*\n\s*if: ([^\n]+)\n/)
+    expect(
+      stepMatch,
+      'expected a "Living examples drift" step with an if: condition',
+    ).not.toBeNull()
+    const condition = stepMatch?.[1] ?? ''
+    for (const stack of ['typescript', 'python', 'go']) {
+      expect(condition).toContain(`matrix.stack == '${stack}'`)
+    }
+    // Rust/Java have no living example (declared "Experimental" in README §Stack
+    // support) — the condition must not silently widen to cover them.
+    for (const stack of ['rust', 'java']) {
+      expect(condition).not.toContain(`matrix.stack == '${stack}'`)
+    }
+  })
+})

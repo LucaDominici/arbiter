@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+// ts-library — generated content drift detector (INV-89)
+// Validates that committed generated files match what the generator would produce.
+// Uses a manifest of generated files with expected content hashes.
+// Exits 0 when no drift found; exits 1 when generated content has drifted.
+// Part of the anti-drift validator family (W6).
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write([
+    'Usage: node scripts/check-drift.mjs [options]',
+    '',
+    'Validates that committed generated files match expected content hashes.',
+    'Exits 0 when no drift found; exits 1 when generated content has drifted.',
+    '',
+    'Manifest format: JSON array of { path, hash, generator } entries.',
+    '',
+    'Options:',
+    '  --manifest <path>   Path to drift manifest (default: .arbiter/drift-manifest.json)',
+    '  --dir <path>        Root directory (default: cwd)',
+    '  --help, -h          Show this help and exit',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+const manifestArg = args.indexOf('--manifest');
+const dirArg = args.indexOf('--dir');
+const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd();
+const MANIFEST_PATH = manifestArg >= 0 && args[manifestArg + 1]
+  ? resolve(args[manifestArg + 1])
+  : join(CWD, '.arbiter', 'drift-manifest.json');
+
+if (!existsSync(MANIFEST_PATH)) {
+  process.stdout.write('check-drift: SKIP — no drift manifest found (.arbiter/drift-manifest.json)\n');
+  process.exit(0);
+}
+
+let manifest;
+try {
+  manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8'));
+} catch (err) {
+  if (err instanceof SyntaxError) {
+    process.stderr.write(`check-drift: FAIL — invalid JSON in manifest: ${err.message}\n`);
+    process.exit(1);
+  }
+  throw err;
+}
+
+if (!Array.isArray(manifest)) {
+  process.stderr.write('check-drift: FAIL — drift manifest must be a JSON array\n');
+  process.exit(1);
+}
+
+let violations = 0;
+let checked = 0;
+
+for (const entry of manifest) {
+  if (!entry || typeof entry.path !== 'string' || typeof entry.hash !== 'string') {
+    process.stderr.write(`[FAIL] invalid manifest entry: ${JSON.stringify(entry)}\n`);
+    violations++;
+    continue;
+  }
+  const filePath = join(CWD, entry.path);
+  if (!existsSync(filePath)) {
+    process.stderr.write(`[FAIL] generated file missing: ${entry.path} (expected hash: ${entry.hash})\n`);
+    violations++;
+    continue;
+  }
+  checked++;
+  const content = readFileSync(filePath, 'utf-8');
+  const actual = createHash('sha256').update(content).digest('hex');
+  if (actual !== entry.hash) {
+    const generator = entry.generator ? ` (generator: ${entry.generator})` : '';
+    process.stderr.write(
+      `[FAIL] drift detected in ${entry.path}${generator}\n  expected: ${entry.hash}\n  actual:   ${actual}\n`,
+    );
+    violations++;
+  }
+}
+
+if (violations > 0) {
+  process.stderr.write(
+    `check-drift: FAIL — ${violations}/${manifest.length} generated file(s) have drifted (INV-89)\n`,
+  );
+  process.exit(1);
+}
+process.stdout.write(`check-drift: OK — all ${checked} generated file(s) match manifest hashes (INV-89)\n`);
+process.exit(0);

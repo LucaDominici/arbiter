@@ -1,0 +1,23 @@
+{
+  "archetype": "library",
+  "levels": [
+    {
+      "id": "L1",
+      "name": "L1 Unit",
+      "globs": [
+        "tests/**/*.py",
+        "test/**/*.py"
+      ],
+      "status": "required"
+    },
+    {
+      "id": "L2",
+      "name": "L2 Property-Based",
+      "globs": [
+        "tests/integration/**/*.py"
+      ],
+      "status": "n/a",
+      "rationale": "Greenfield scaffold: arbiter init does not fabricate tests for this tier — add real tests for it, then set status to \"required\" so the gate enforces it."
+    }
+  ]
+}

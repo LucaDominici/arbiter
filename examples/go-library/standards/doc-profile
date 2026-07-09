@@ -1,0 +1,19 @@
+# Overlays enabled for THIS repo. Conditional checks (in standards/gold-doc-set.yml) only apply
+# when their overlay is listed here. Tune to your project's shape — adding an overlay turns on the
+# doc families it gates (and the matching conditional checks in the gold registries).
+#
+# Available overlays (gate conditional doc families in standards/gold-doc-set.yml):
+#   has-plugin-api  — project exposes a public plugin/extension API
+#   has-api         — project ships an HTTP/RPC API (docs/api reference)
+#   customer-data   — project stores/processes customer or personal data
+#                     → data + security families (ER, classification, retention, PII,
+#                       threat-model, encryption, vuln-mgmt, risk-register)  [GDPR/ISO 27001]
+#   deploys         — project is deployed/operated (not a library)
+#                     → operations + legal/supply-chain + delivery + anti-falso-green families
+#                       (observability, SLO, DR-BCP, backup, incidents, SBOM, release notes)
+#   gxp             — regulated GxP context → GAMP 5 / 21 CFR Part 11 (CSV, audit-trail)
+#   has-ai          — ships AI/ML features → model card + AI risk assessment
+#   has-mobile      — ships a mobile app → store compliance + Playwright coverage
+overlays: []
+# allow: extra doc paths intentionally present that the audit should NOT flag (derogations).
+allow: []

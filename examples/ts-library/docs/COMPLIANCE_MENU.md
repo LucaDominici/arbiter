@@ -1,0 +1,89 @@
+# Compliance & Collaboration Menu — ts-library
+
+<!-- arbiter-managed: compliance-menu (#1254) -->
+
+> The (team × compliance) menu. arbiter declines three orthogonal axes onto your
+> project: **who merges** (collaborationMode), **how strict the gates are**
+> (governanceLevel), and **which compliance overlay** scaffolds domain controls
+> (industryOverlay). This document presents every cell with its rationale so you
+> can pick a coherent combination — then `arbiter doctor` flags incoherent ones.
+
+---
+
+## Axis 1 — Team (collaborationMode)
+
+Controls branching strategy, CI shape, and merge ceremony.
+
+| Mode           | Branching                  | Merge ceremony                         | Use when                                  |
+| -------------- | -------------------------- | -------------------------------------- | ----------------------------------------- |
+| `trunk-solo`   | `trunk-direct`             | direct push or opt-in PR fast-forward  | one author, minimal ceremony              |
+| `peer-review`  | `github-flow`              | mandatory PR, ff-only merge            | small team, shared trust (recommended)    |
+| `gated-review` | `github-flow-with-develop` | required approvals, merge queue, attestation | regulated / enterprise, audit trail |
+
+## Axis 2 — Compliance (industryOverlay)
+
+Emits domain-specific compliance scaffolding + enforceable gates. Single-valued;
+`none` = no overlay. Weight tiers drive the coherence check below.
+
+| Overlay    | Weight | What it emits                                                        |
+| ---------- | ------ | ------------------------------------------------------------------- |
+| `none`     | —      | nothing                                                             |
+| `generic`  | light  | language-neutral audit-trail policy + gate rules                    |
+| `sox`      | medium | SOX audit-trail docs + gate rules                                   |
+| `gdpr`     | medium | GDPR controls→gates traceability overlay                           |
+| `iso9001`  | medium | quality-process overlay: requirement→test RTM + doc-control + CAPA + gate |
+| `iso27001` | heavy  | ISO 27001:2022 Annex-A security controls→gate traceability         |
+| `pharma`   | heavy  | 21 CFR Part 11 audit-trail overlay (Java JPA/ArchUnit scaffolding)  |
+| `regulated`| heavy  | high-assurance bundle: separation-of-duties + retention + suppression-expiry + signing/SBOM + mutation floor |
+
+---
+
+## The menu — (team × compliance) cells
+
+Each cell pairs a team mode with a compliance overlay. The **rationale** column
+explains the intended fit; pick the row that matches your delivery context.
+
+| Team           | Compliance | Rationale                                                                        |
+| -------------- | ---------- | -------------------------------------------------------------------------------- |
+| `trunk-solo`   | `none`     | fastest path; ship-and-iterate solo project, no compliance obligation            |
+| `trunk-solo`   | `iso9001`  | solo product with a quality-management obligation; RTM + CAPA without team ceremony |
+| `peer-review`  | `generic`  | small team that wants an audit-trail policy without a named regulation           |
+| `peer-review`  | `gdpr`     | small team handling personal data; GDPR controls backed by L2 gates              |
+| `peer-review`  | `iso9001`  | small team under a quality-management system (ISO 9001)                          |
+| `gated-review` | `iso27001` | regulated team; security controls + approvals + attestation chain                |
+| `gated-review` | `pharma`   | life-sciences team under 21 CFR Part 11; full audit trail + gated review         |
+
+> The menu is illustrative, not exhaustive — any (team × overlay) pair is valid;
+> coherence is governed by the governanceLevel axis below, not by the team axis.
+
+---
+
+## Coherence — (overlay × governanceLevel)
+
+`arbiter doctor` runs this check and the wizard surfaces it after the overlay
+choice. **Heavy** overlays expect **L3+** rigour (mutation, evidence harness,
+human-approval gates); **medium** overlays expect **L2+** (debt + security
+scans). A heavy overlay at L1 scaffolds controls the gate set never enforces —
+flagged as a `WARN` (advisory, never blocking).
+
+| Overlay weight        | L1     | L2     | L3   | L4   |
+| --------------------- | ------ | ------ | ---- | ---- |
+| light (`generic`)     | OK     | OK     | OK   | OK   |
+| medium (`sox`, `gdpr`, `iso9001`) | WARN   | OK     | OK   | OK   |
+| heavy (`iso27001`, `pharma`, `regulated`) | WARN   | WARN   | OK   | OK   |
+
+**Recommended pairings:** `pharma`/`iso27001` → L3 or L4; `gdpr`/`sox`/`iso9001`
+→ L2+; `generic` → any level.
+
+---
+
+## How to choose
+
+1. Pick your **team** mode (who merges) — it sets branching + merge ceremony.
+2. Pick your **governanceLevel** (how strict) — L1 lightweight … L4 audit-grade.
+3. Pick your **compliance overlay** (which controls) — keep it coherent with the
+   level using the table above.
+4. Run `arbiter doctor` to confirm the chosen cell is coherent.
+
+Re-run `arbiter init` (or `arbiter configure`) to change any axis; overlays are
+brownfield-safe — re-init never overwrites your customised compliance documents.

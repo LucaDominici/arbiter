@@ -69,7 +69,9 @@
     "docs:preview": "npm run preview -w @arbiter/website",
     "check:doc-set": "node scripts/check-doc-set.mjs",
     "gold:audit": "node scripts/gold-audit.mjs",
-    "gold:report": "node scripts/gold-report.mjs"
+    "gold:report": "node scripts/gold-report.mjs",
+    "examples:regenerate": "node scripts/regenerate-examples.mjs",
+    "examples:check": "node scripts/regenerate-examples.mjs --check"
   },
   "dependencies": {
     "@clack/prompts": "1.7.0",

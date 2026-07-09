@@ -1,0 +1,41 @@
+# yamllint configuration (gold-align #1506)
+#
+# Lints non-workflow YAML (compose files, k8s manifests, generic config) for
+# structure and style: indentation, duplicate keys, trailing spaces, document
+# structure. actionlint owns .github/workflows *semantics*; this config is
+# auto-discovered by `yamllint` for everything else.
+#
+# Policy: ERRORS block the gate; WARNINGS are advisory and tunable here. The CI
+# `config-lint` lane and the pre-commit hook both run `yamllint`, which exits
+# non-zero only on error-level problems by default.
+---
+extends: default
+
+rules:
+  # Long lines are common in config (URLs, base64, annotations) — warn, do not block.
+  line-length:
+    max: 120
+    level: warning
+  # `---` document markers are optional for single-document config files.
+  document-start: disable
+  # `yes`/`no`/`on`/`off` truthy coercion is a style smell, not an error.
+  truthy:
+    level: warning
+  comments:
+    min-spaces-from-content: 1
+  # Permit the formatter/flow-mapping inner-space style (`{ a: 1 }`, `[ a, b ]`).
+  # prettier and most YAML formatters emit it, so the strict default (max 0) would
+  # error on already-formatted config — allow up to one inner space, forbid more.
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+# Skip generated/vendored trees and the workflow files actionlint already checks.
+ignore: |
+  .github/workflows/
+  node_modules/
+  dist/
+  build/

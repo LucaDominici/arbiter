@@ -1,0 +1,70 @@
+---
+name: architect-review
+description: Use when introducing new modules, adding external dependencies, or making structural changes that cross module boundaries. On-demand architecture review.
+title: "Architect Review"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: ['audience/agent', 'audience/dev', 'kind/internal']
+related: []
+---
+
+# Architect Review
+
+## Use When
+
+- New module / component creation
+- External dependency added
+- Cross-module communication change
+
+## Skip When
+
+- Bug fixes within existing patterns
+- Test-only changes
+- Documentation-only changes
+- UI/style-only changes with no domain impact
+
+When skipping, output:
+```
+[architect-review — SKIPPED]
+Skip criterion applied: <criterion>
+```
+
+## Review Checklist
+
+### Structure
+- Is the change backwards-compatible?
+- Does it introduce any circular dependencies?
+
+### Dependencies
+- Is the new dependency necessary?
+- Is it actively maintained?
+- Does it overlap with an existing dependency?
+
+### Testability
+- Can the new module be tested in isolation?
+- Does it require a running external system to test?
+
+### Observability
+- Does it log at appropriate levels?
+- Are errors surfaced with enough context?
+
+## Output Format
+
+```markdown
+## Architect Review
+
+**Change:** <brief description>
+**Classification:** Breaking / Non-breaking / Additive
+
+**Structure:** Strong / Adequate / Needs Attention
+**Dependencies:** Strong / Adequate / Needs Attention
+**Testability:** Strong / Adequate / Needs Attention
+
+**Concerns:**
+- <concern 1>
+
+**Recommendation:** Proceed / Proceed with conditions / Redesign
+```

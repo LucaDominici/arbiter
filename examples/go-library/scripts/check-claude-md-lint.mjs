@@ -1,0 +1,140 @@
+#!/usr/bin/env node
+// go-library — claude-md-lint: thin context-file linter (INV-89)
+// Lints AI context files (CLAUDE.md / AGENTS.md, incl. nested .claude/CLAUDE.md) for
+// hardcoded absolute paths, a required @import of the shared layer in delegating files,
+// a soft line budget, and verbatim duplication of imported shared-layer content.
+// Part of the anti-drift validator family (W6). Exits 0 when no hard violations; 1 otherwise.
+import { existsSync, readFileSync } from 'node:fs';
+import { join, basename, dirname } from 'node:path';
+
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write([
+    'Usage: node scripts/check-claude-md-lint.mjs [options]',
+    '',
+    'Lints AI context files (CLAUDE.md / AGENTS.md) for hardcoded paths, a required',
+    '@import of the shared layer in delegating files, a line budget (soft), and',
+    'verbatim duplication of imported shared-layer content.',
+    'Exits 0 when no hard violations; exits 1 otherwise. (INV-89)',
+    '',
+    'Options:',
+    '  --help, -h      Show this help and exit',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+const CWD = process.cwd();
+const LINE_BUDGET = 600;
+const DUP_BLOCK_LINES = 12;
+
+const ABS_POSIX = /(^|[\s"'`(=])(\/(home|Users|root|etc|var|opt|tmp|usr\/local)\/)/;
+const ABS_WINDOWS = /(^|[\s"'`(=])([A-Za-z]:[\\/])/;
+
+function discover() {
+  const out = [];
+  for (const f of ['AGENTS.md', 'CLAUDE.md']) {
+    const p = join(CWD, f);
+    if (existsSync(p)) out.push(p);
+  }
+  const dotClaude = join(CWD, '.claude');
+  if (existsSync(dotClaude)) {
+    const p = join(dotClaude, 'CLAUDE.md');
+    if (existsSync(p)) out.push(p);
+  }
+  return out;
+}
+
+function isDelegating(absPath) {
+  return basename(absPath) === 'CLAUDE.md' && dirname(absPath) !== CWD;
+}
+
+function sharedLayerPath() {
+  const p = join(CWD, 'AGENTS.md');
+  return existsSync(p) ? p : null;
+}
+
+function significantLines(content) {
+  return content
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !/^#{1,6}\s/.test(l) && !/^[-=*_]{3,}$/.test(l) && !/^```/.test(l));
+}
+
+function hasVerbatimBlock(childContent, parentContent) {
+  const child = significantLines(childContent);
+  const parentSet = new Set(significantLines(parentContent));
+  let run = 0;
+  for (const line of child) {
+    run = parentSet.has(line) ? run + 1 : 0;
+    if (run >= DUP_BLOCK_LINES) return true;
+  }
+  return false;
+}
+
+function main() {
+  const files = discover();
+  if (files.length === 0) {
+    process.stdout.write('check-claude-md-lint: SKIP — no context files found (INV-89)\n');
+    return 0;
+  }
+
+  const errors = [];
+  const warnings = [];
+  const layerPath = sharedLayerPath();
+  const layerContent = layerPath ? readFileSync(layerPath, 'utf-8') : null;
+
+  for (const file of files) {
+    const rel = file.slice(CWD.length + 1);
+    const content = readFileSync(file, 'utf-8');
+    const lines = content.split('\n');
+
+    lines.forEach((line, i) => {
+      if (ABS_POSIX.test(line) || ABS_WINDOWS.test(line)) {
+        errors.push(`${rel}:${i + 1}: hardcoded absolute path — context files must be portable`);
+      }
+    });
+
+    if (isDelegating(file)) {
+      const hasImport = /^@[\w./-]+/m.test(content);
+      if (!hasImport) {
+        errors.push(`${rel}: delegating context file must @import its shared layer (e.g. @AGENTS.md)`);
+      } else if (layerContent && file !== layerPath && hasVerbatimBlock(content, layerContent)) {
+        errors.push(
+          `${rel}: duplicates a verbatim >=${DUP_BLOCK_LINES}-line block from the imported shared layer — delegate via @import instead of copying`,
+        );
+      }
+    }
+
+    if (lines.length > LINE_BUDGET) {
+      warnings.push(`${rel}: ${lines.length} lines exceeds soft line budget (${LINE_BUDGET})`);
+    }
+  }
+
+  if (errors.length === 0) {
+    if (warnings.length > 0) {
+      process.stdout.write(
+        `check-claude-md-lint: ${files.length} file(s) OK; ${warnings.length} soft warning(s) (INV-89)\n`,
+      );
+      for (const w of warnings) process.stdout.write(`    [warn] ${w}\n`);
+    } else {
+      process.stdout.write(`check-claude-md-lint: all ${files.length} context file(s) OK (INV-89)\n`);
+    }
+    return 0;
+  }
+
+  process.stdout.write(
+    `check-claude-md-lint: ${errors.length} hard error(s) across ${files.length} file(s) (INV-89)\n`,
+  );
+  for (const e of errors) process.stdout.write(`    ${e}\n`);
+  for (const w of warnings) process.stdout.write(`    [warn] ${w}\n`);
+  return 1;
+}
+
+// Fail-closed (INV-96): any unexpected error exits 1 rather than passing silently.
+try {
+  process.exit(main());
+} catch (err) {
+  process.stderr.write(`check-claude-md-lint: unexpected error — ${err?.message ?? err} (INV-89)\n`);
+  process.exit(1);
+}

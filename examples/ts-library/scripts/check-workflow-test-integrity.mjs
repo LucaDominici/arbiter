@@ -1,0 +1,136 @@
+#!/usr/bin/env node
+// ts-library — workflow test integrity checker (INV-89)
+// Validates that workflow files do not have syntax issues or missing required fields.
+// Exits 0 when all workflows pass integrity checks; exits 1 when issues found.
+// Part of the anti-drift validator family (W6).
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write([
+    'Usage: node scripts/check-workflow-test-integrity.mjs [options]',
+    '',
+    'Validates workflow file integrity: required fields, non-empty jobs, no continue-on-error on test steps.',
+    'Exits 0 when all workflows pass; exits 1 when issues found.',
+    '',
+    'Options:',
+    '  --dir <path>    Root directory to scan (default: cwd)',
+    '  --help, -h      Show this help and exit',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+const dirArg = args.indexOf('--dir');
+const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd();
+const WORKFLOWS_DIR = join(CWD, '.github', 'workflows');
+const INFORMATIONAL_PATTERNS = ['heartbeat', 'nightly', 'weekly', 'monthly'];
+
+// #1319.3 (INV-80): STEP-SCOPED allowlist. drift-shadow.yml is NOT a file-wide
+// informational workflow — only its `parity` step is permitted a continue-on-error
+// (the local/CI parity comparison must not fail the nightly run; a mismatch opens
+// a drift issue instead). Any OTHER continue-on-error step in drift-shadow.yml FAILS.
+const STEP_SCOPED_ALLOWLIST = {
+  'drift-shadow.yml': new Set(['parity']),
+};
+
+// #1491 — fake-green-via-`|| true`: a gate/test/check command whose exit code is swallowed by a
+// trailing `|| true` / `|| exit 0` / `|| :` turns a red gate green. Distinct from legitimate
+// `|| true` idioms (best-effort cleanup `find … -delete || true`, capture `LOG=$(git log … || true)`,
+// `grep … || true`, `cp … 2>/dev/null || true`) — so it flags `|| true` ONLY when the same line
+// invokes a recognized GATE command. Conservative: a false-negative (novel runner) beats a
+// false-positive on a cleanup idiom.
+const GATE_COMMAND_RE =
+  /\b(?:check-all(?:\.mjs)?|scripts\/check-[\w.-]+\.mjs|arbiter\s+(?:verify|gold-audit|anti-fake-green)|npm\s+(?:run\s+)?test|npm\s+run\s+(?:lint|gate|check[\w:-]*)|npx\s+(?:vitest|jest|eslint|tsc|playwright)\b|pnpm\s+(?:run\s+)?test|yarn\s+test|vitest\b|jest\b|pytest\b|cargo\s+(?:test|clippy)|go\s+test\b|(?:\.\/)?gradlew\s+\w*(?:test|check|verify)|mvn\s+\w*(?:test|verify))\b/;
+const EXIT_SWALLOW_RE = /\|\|\s*(?:true|exit\s+0|:)\s*(?:#.*)?$/;
+
+// Resolve the id: of the step enclosing line index `i` (step begins at an 8-space
+// `- ` list item). Returns the step's id:, or null when the step has no id.
+function enclosingStepId(lines, i) {
+  let stepId = null;
+  for (let j = i; j >= 0; j--) {
+    const line = lines[j];
+    const idMatch = /^\s{8,}id:\s*(\S+)/.exec(line);
+    if (idMatch && stepId === null) stepId = idMatch[1];
+    if (/^\s{6}-\s/.test(line)) return stepId;
+  }
+  return stepId;
+}
+
+function collectYamlFiles(dir) {
+  if (!existsSync(dir)) return [];
+  const results = [];
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+  for (const entry of entries) {
+    if (entry.isSymbolicLink()) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectYamlFiles(full));
+    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+const yamlFiles = collectYamlFiles(WORKFLOWS_DIR);
+let violations = 0;
+
+for (const file of yamlFiles) {
+  let content;
+  try {
+    content = readFileSync(file, 'utf-8');
+  } catch {
+    continue;
+  }
+  const fileName = file.split('/').pop() ?? '';
+  const isInformational = INFORMATIONAL_PATTERNS.some((p) => fileName.includes(p));
+
+  if (!content.includes('\non:') && !content.startsWith('on:')) {
+    process.stderr.write(`[FAIL] ${file}: missing 'on:' trigger section\n`);
+    violations++;
+  }
+  if (!content.includes('\njobs:') && !content.startsWith('jobs:')) {
+    process.stderr.write(`[FAIL] ${file}: missing 'jobs:' section\n`);
+    violations++;
+  }
+  if (!isInformational) {
+    const allowedSteps = STEP_SCOPED_ALLOWLIST[fileName];
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\s{6,}continue-on-error:\s*true/.test(lines[i])) {
+        if (allowedSteps && allowedSteps.has(enclosingStepId(lines, i))) continue;
+        process.stderr.write(`[FAIL] ${file}:${i + 1}: step-level continue-on-error: true found (INV-80)\n`);
+        violations++;
+      }
+    }
+  }
+
+  // #1491: a GATE command whose non-zero exit is swallowed by `|| true` / `|| exit 0` / `|| :`.
+  // Applies to ALL workflows — a gate must fail the run wherever it runs. GATE_COMMAND_RE is narrow
+  // so best-effort non-gate `|| true` (mutation/fuzz/dep-report) is not flagged.
+  {
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (EXIT_SWALLOW_RE.test(lines[i]) && GATE_COMMAND_RE.test(lines[i])) {
+        process.stderr.write(`[FAIL] ${file}:${i + 1}: gate command exit code swallowed by '|| true' (fake-green, #1491): ${lines[i].trim()}\n`);
+        violations++;
+      }
+    }
+  }
+}
+
+if (violations > 0) {
+  process.stderr.write(`check-workflow-test-integrity: FAIL — ${violations} integrity issue(s) in workflows (INV-89)\n`);
+  process.exit(1);
+}
+process.stdout.write(
+  `check-workflow-test-integrity: OK — all ${yamlFiles.length} workflow(s) pass integrity checks (INV-89)\n`,
+);
+process.exit(0);

@@ -1,0 +1,26 @@
+{
+  "archetype": "library",
+  "levels": [
+    {
+      "id": "L1",
+      "name": "L1 Unit",
+      "globs": [
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts",
+        "__tests__/**/*.test.ts",
+        "__tests__/**/*.spec.ts"
+      ],
+      "status": "required"
+    },
+    {
+      "id": "L2",
+      "name": "L2 Property-Based",
+      "globs": [
+        "__tests__/property/**/*.property.test.ts",
+        "__tests__/**/*.spec.ts"
+      ],
+      "status": "n/a",
+      "rationale": "Greenfield scaffold: arbiter init does not fabricate tests for this tier — add real tests for it, then set status to \"required\" so the gate enforces it."
+    }
+  ]
+}

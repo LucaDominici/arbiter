@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+// go-library — SSOT core set gate (INV-47)
+// Gate: verify every file listed in SSOT_CORE_SET.md exists on disk.
+// Exits 0: all entries exist or no SSOT_CORE_SET.md found (bootstrap mode).
+// Exits 1: one or more listed files are missing.
+// Part of the anti-drift validator family (W6).
+// Usage: node scripts/check-ssot-core.mjs [--help]
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  process.stdout.write('Usage: node scripts/check-ssot-core.mjs [--help]\nVerify every file listed in SSOT_CORE_SET.md exists on disk.\n');
+  process.exit(0);
+}
+
+const SSOT_FILE = join(process.cwd(), 'docs', 'METHOD', 'SSOT_CORE_SET.md');
+
+if (!existsSync(SSOT_FILE)) {
+  console.log('  check-ssot-core: no SSOT_CORE_SET.md found — skipping (bootstrap mode)');
+  process.exit(0);
+}
+
+const content = readFileSync(SSOT_FILE, 'utf-8');
+
+const PATH_ITEM = /^[ \t]*-[ \t]+`([^`]+)`/gm;
+
+const missing = [];
+for (const match of content.matchAll(PATH_ITEM)) {
+  const filePath = match[1];
+  const abs = join(process.cwd(), filePath);
+  if (!existsSync(abs)) {
+    missing.push(filePath);
+  }
+}
+
+if (missing.length === 0) {
+  console.log('  check-ssot-core: all SSOT_CORE_SET entries exist');
+  process.exit(0);
+}
+
+console.log(`  check-ssot-core: ${missing.length} missing file(s) listed in SSOT_CORE_SET.md:`);
+for (const f of missing) {
+  console.log(`    missing: ${f}`);
+}
+process.exit(1);

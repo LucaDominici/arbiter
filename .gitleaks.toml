@@ -17,6 +17,13 @@ paths = [
   # by path so the project-wide history scan does not re-flag the test's own bait.
   '''__tests__/scripts/gate-fail-closed\.scan-family\.test\.ts''',
   '''__tests__/scripts/publish-evidence-snapshot\.test\.ts''',
+  # #1840 F4 tranche 4 (examples/ viventi): `.arbiter-generated-manifest.json` is
+  # `arbiter init`'s OWN render-hash manifest (SHA256 per emitted file, #1328) —
+  # committed verbatim inside the 3 generated living examples
+  # (examples/{ts,python,go}-library/). The default `generic-api-key` rule
+  # false-positives on the hex hash values (matches the same
+  # `"<key>": "<hex>"` shape as a real key); these are hashes, not secrets.
+  '''examples/(ts|python|go)-library/\.arbiter-generated-manifest\.json''',
 ]
 
 # Paths that gitleaks scans are controlled via .gitleaksignore

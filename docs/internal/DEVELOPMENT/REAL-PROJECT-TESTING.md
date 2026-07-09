@@ -2,7 +2,7 @@
 title: 'Real-Project Testing'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-07-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/method']
@@ -190,6 +190,60 @@ drift-checking job, linked from the README) — the other half of #1836's F4 des
 generated/committed projects, and there is no regeneration/drift-detection mechanism at all.
 Building one is a new feature (a regenerate script + a CI drift check + README wiring), not a
 tier flip; estimated 0.5–1 day once scoped as its own PR.
+
+#### `examples/` viventi (#1840 F4 tranche 4, 2026-07-09) — DONE, closes #1840
+
+Built exactly as parked above: `scripts/regenerate-examples.mjs` stages each of the 3 GA
+`*-library` fixtures (TypeScript/Python/Go — same `library` archetype the Generator Matrix's
+DEEP cells actually exercise, see the workflow's own header comment) into an isolated tmpdir
+git repo, runs a REAL `arbiter init` through the BUILT `dist/cli.js` (a child process — proves
+the packaged CLI path, not just the in-process generator), and either writes the result into
+`examples/<lang>-library/` (`npm run examples:regenerate`) or diffs it against what's committed
+(`npm run examples:check` / `--check`), failing on any divergence.
+
+Reproducibility required two fixes, both reusing an existing determinism mechanism rather than
+inventing a new one:
+
+- `arbiter init` appends `.evidence/cmd-log.jsonl` (timestamp + duration + git HEAD sha) as a
+  side effect of the invocation itself — a runtime audit log, not generator output. Suppressed
+  at the source with `--no-evidence` (the flag already existed) rather than post-hoc-excluded.
+- `.arbiter/detected-integrations.json` is written only when the CALLING MACHINE's `$HOME/
+  .claude` has skills installed — present on a dev host, absent in CI. No CLI flag suppresses
+  the detection itself, so `regenerate-examples.mjs` deletes it post-generation, reusing the
+  SAME exclusion the bake harness already applies to this exact file
+  (`__tests__/integration/e2e/helpers.ts` `EXCLUDE_RELS`, #1685).
+- The staging directory's basename leaks into rendered docs (derived project name) — pinned by
+  always staging under a directory named after the fixture (e.g. `ts-library`), never a
+  tmp-prefixed name.
+
+Committing full generated output into the repo (rather than staging it into an ephemeral tmpdir
+the way every other E2E harness here does) surfaced two repo-wide gates that had never seen
+generated content before: `format` (`prettier --check .`, walks the whole repo) and `doc style`
+(`check-doc-style.mjs`, frontmatter-checks every `.md` under `docs/`, `.claude/`, `examples/`,
+…) both flagged the generated subtrees, because arbiter's OWN templates don't uniformly run
+through `formatContent` (the tranche-3 finding — see above — fixed it for 3 `backend-web-db`
+templates, not the whole corpus) and don't emit arbiter's OWN doc frontmatter convention (nor
+should they — they're output for a DOWNSTREAM project). Fixed the same way
+`__tests__/fixtures/real-projects/**/target/` is already excluded from `.prettierignore`:
+added `examples/{ts,python,go}-library/` to `.prettierignore` and to
+`check-doc-style.mjs`'s `SKIP_PATH_SEGMENTS` — narrowly, so the hand-written walkthroughs
+directly under `examples/` (which DO carry arbiter's frontmatter convention) stay checked.
+
+Wired into `.github/workflows/generator-matrix.yml`: a "Living examples drift" step runs
+`node scripts/regenerate-examples.mjs --check --stack=${{ matrix.stack }}` in the typescript/
+python/go cells only (Rust/Java have no living example — README §Stack support declares them
+Experimental, not GA). TDD proof: tampering with a committed example file turns the check red
+(`FAIL drift detected`); regenerating turns it green — see `__tests__/scripts/
+regenerate-examples.test.ts` (pure `diffDirs`/`parseArgs` logic, offline/L1) and the
+`generator-matrix-workflow.test.ts` addition locking the step's wiring and stack scope.
+
+`examples/README.md` now documents the split explicitly (generated vs. hand-written), and
+`examples/go-library.md` cross-links to the generated `examples/go-library/` since both cover
+the same archetype — the walkthrough narrates the fuller `--level L2` tour by hand, the
+generated directory is the literal, CI-verified `--level L1` output. Root `README.md` gained a
+"See it for real" section linking all three.
+
+This was the last open item under #1836's F4 line — closes #1840.
 
 ---
 

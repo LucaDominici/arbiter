@@ -1,0 +1,46 @@
+{
+  "version": "0.2",
+  "tools": [
+    "claude"
+  ],
+  "governanceLevel": "L1",
+  "permitGitHub": false,
+  "decomposition": {
+    "backend": "markdown"
+  },
+  "language": "typescript",
+  "features": {
+    "debtGates": false,
+    "suppressions": true,
+    "securityScanning": false,
+    "mutationTesting": false,
+    "contractTesting": false,
+    "evidenceHarness": false,
+    "selfValidationHarness": true,
+    "auditToolchain": false,
+    "fiveLaneCi": false,
+    "soloDevMode": false
+  },
+  "collaborationMode": "peer-review",
+  "automation": {
+    "autonomy": "L0"
+  },
+  "thresholds": {
+    "lineCoverage": 60,
+    "branchCoverage": 50,
+    "mutationScore": 70,
+    "cyclomaticComplexity": 20,
+    "methodLength": 100,
+    "maxParams": 8
+  },
+  "invariantTiers": [
+    "architectural",
+    "governance"
+  ],
+  "archetype": "library",
+  "architectureStyle": "none",
+  "isMultiTenant": false,
+  "hasDatabase": false,
+  "hasPublicApi": false,
+  "contractType": "none"
+}

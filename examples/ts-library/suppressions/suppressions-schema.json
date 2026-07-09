@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "suppressions-schema.json",
+  "title": "ts-library Suppression Entry",
+  "description": "Schema for entries in pii-allowlist.json and archunit-baseline.json. All fields are mandatory. Expiry is enforced by check-suppressions.mjs on every L1 commit.",
+  "definitions": {
+    "SuppressionEntry": {
+      "type": "object",
+      "required": ["reason", "owner", "expiresAt", "scope"],
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Why this suppression exists. Include a tracking issue URL."
+        },
+        "owner": {
+          "type": "string",
+          "pattern": "^@[a-zA-Z0-9-]+$",
+          "description": "GitHub handle of the person responsible for this suppression."
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO 8601 date (YYYY-MM-DD) after which this suppression must be removed or renewed."
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What this suppression covers (package name, CVE ID, class pattern, or 'all')."
+        }
+      }
+    }
+  },
+  "$ref": "#/definitions/SuppressionEntry"
+}

@@ -1,0 +1,74 @@
+#!/usr/bin/env node
+// python-library — suppression rationale quality check (INV-89)
+// Validates that all suppression entries have meaningful rationale (reason field).
+// Exits 0 when all rationales are meaningful; exits 1 when thin rationales found.
+// Part of the anti-drift validator family (W6).
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write([
+    'Usage: node scripts/check-suppression-rationale.mjs [options]',
+    '',
+    'Validates that all suppression entries have meaningful rationale (reason field >= 20 chars).',
+    'Exits 0 when all rationales are meaningful; exits 1 when thin rationales found.',
+    '',
+    'Options:',
+    '  --help, -h      Show this help and exit',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+const CWD = process.cwd();
+const SUPPRESSIONS_DIR = join(CWD, 'suppressions');
+const REASON_MIN_LEN = 20;
+let violations = 0;
+let checked = 0;
+
+function checkJsonFile(filePath) {
+  if (!existsSync(filePath)) return;
+  let data;
+  try {
+    data = JSON.parse(readFileSync(filePath, 'utf-8'));
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      process.stderr.write(`[FAIL] ${filePath}: invalid JSON — ${err.message}\n`);
+      violations++;
+      return;
+    }
+    return;
+  }
+  if (!Array.isArray(data)) return;
+  for (const entry of data) {
+    checked++;
+    const reason = typeof entry.reason === 'string' ? entry.reason : '';
+    if (reason.trim().length < REASON_MIN_LEN) {
+      process.stderr.write(
+        `[FAIL] ${filePath}: entry "${JSON.stringify(entry).slice(0, 60)}..." has thin reason: "${reason}" (min ${REASON_MIN_LEN} chars)\n`,
+      );
+      violations++;
+    }
+  }
+}
+
+if (!existsSync(SUPPRESSIONS_DIR)) {
+  process.stdout.write('check-suppression-rationale: SKIP — no suppressions/ directory\n');
+  process.exit(0);
+}
+
+checkJsonFile(join(SUPPRESSIONS_DIR, 'pii-allowlist.json'));
+checkJsonFile(join(SUPPRESSIONS_DIR, 'inline-suppressions.json'));
+checkJsonFile(join(SUPPRESSIONS_DIR, 'consumer-audit-allowlist.json'));
+
+if (violations > 0) {
+  process.stderr.write(
+    `check-suppression-rationale: FAIL — ${violations}/${checked} suppression(s) have thin rationale (INV-89)\n`,
+  );
+  process.exit(1);
+}
+process.stdout.write(
+  `check-suppression-rationale: OK — all ${checked} suppression(s) have adequate rationale (INV-89)\n`,
+);
+process.exit(0);

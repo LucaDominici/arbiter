@@ -1,0 +1,162 @@
+#!/usr/bin/env node
+// Arbiter hook: hard-block edits in implementation phase when no plan is anchored
+// Hook type: PreToolUse (Edit|Write)
+// Phase-aware: blocks during "implementation" phase with no valid plan
+// Injects plan context (stdout) when plan is valid — model sees it before the edit
+// CANON-16: blocks Write to new src/ files lacking a valid Existing Code Survey
+// Exit 2: block — stderr returned to Claude as error context; user is NOT prompted
+// Bypass: ARBITER_PLAN_BYPASS=1 (session-scoped — see CONTRIBUTING.md)
+import { readTaskState, getRepoRoot, resolveToolInputPath } from './lib.mjs';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, basename, resolve, relative } from 'node:path';
+
+if (process.env.ARBITER_PLAN_BYPASS === '1') process.exit(0);
+
+// Resolve the edit target once (stdin-JSON tool_input.file_path, env-var fallback) — the
+// stdin payload (fd 0) is consumed at most once, so capture it before any later use.
+const targetRaw = resolveToolInputPath();
+
+const root = getRepoRoot();
+const { phase, plan } = readTaskState(root);
+
+const IMPL_PHASES = new Set(['red', 'green', 'refactor']);
+if (!IMPL_PHASES.has(phase)) process.exit(0);
+
+// During implementation phases (red/green/refactor), plan is required
+const planPath = (!plan || plan === 'unknown')
+  ? null
+  : (plan.startsWith('/') ? plan : join(root, plan));
+
+if (!planPath || !existsSync(planPath)) {
+  process.stderr.write(
+    `[arbiter] PLAN ANCHOR: ${phase} phase requires a plan pointer to an existing plan file.\n` +
+    `Set via: arbiter task init --plan <path> (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
+  );
+  process.stderr.write(`[arbiter] Run \`arbiter explain CANON-14\` for details.\n`);
+  process.exit(2);
+}
+
+const planBody = readFileSync(planPath, 'utf-8');
+const preview = planBody.split('\n').slice(0, 20).join('\n');
+
+process.stdout.write(
+  `=== ACTIVE PLAN (${basename(planPath)}) ===\n` +
+  `${preview}\n` +
+  `===\n`,
+);
+
+// ─── #1402: out-of-scope SOFT redirect ────────────────────────────────────────
+// When the edit targets a file outside the plan's machine-parseable `files:` manifest, emit an
+// advisory nudge (stdout, exit 0 — NEVER a hard block). Skips silently when no `files:` manifest
+// exists. Excludes __tests__/ (mirrors the CANON-16 survey exclusion). Multi-file edits stay free.
+if (targetRaw) {
+  const absForRedirect = resolve(targetRaw);
+  const relForRedirect = relative(root, absForRedirect).split('\\').join('/');
+  const isTestPath =
+    /(?:^|\/)__tests__(?:\/|$)/.test(relForRedirect) ||
+    /\.(test|spec)\.[cm]?[jt]s$/.test(relForRedirect);
+  if (!isTestPath) {
+    const manifest = parsePlanFilesManifest(planBody);
+    if (manifest !== null && manifest.length > 0 && !manifest.includes(relForRedirect)) {
+      const issueRef = (planBody.match(/^\s*issues?\s*:\s*\[?\s*["']?(#?\d+)/m) ?? [])[1] ?? 'this task';
+      process.stdout.write(
+        `[arbiter] OUT OF SCOPE for ${issueRef}: \`${relForRedirect}\` is not in the plan's files: manifest.\n` +
+        `Run \`arbiter note "<finding>" --file ${relForRedirect}\` to capture it — do not fix it here.\n` +
+        `See .claude/rules/60-incidental-capture.md (advisory only; this edit is NOT blocked).\n`,
+      );
+    }
+  }
+}
+
+// ─── CANON-16: Survey gate for new src/ files ─────────────────────────────────
+if (targetRaw) {
+  const absTarget = resolve(targetRaw);
+  const rel = relative(root, absTarget);
+
+  const inScope =
+    !existsSync(absTarget) &&
+    rel.startsWith('src/') &&
+    !rel.startsWith('src/..') &&
+    !/(?:^|\/)__tests__(?:\/|$)/.test(rel) &&
+    !/\.(test|spec)\.[cm]?[jt]s$/.test(rel) &&
+    !/^docs\//.test(rel);
+
+  if (inScope) {
+    const VALID_DECISIONS = new Set([
+      'refactor-applied', 'refactor-rejected', 'extend', 'extract',
+      'new file justified', 'no-similar-code',
+    ]);
+
+    const targetLine = `- **Target:** \`${rel}\``;
+    const h2Sections = planBody.split(/\n(?=## )/);
+    const surveySection = h2Sections.find(
+      (s) => /^## Existing Code Survey\b/.test(s) && s.includes(targetLine),
+    );
+
+    if (!surveySection) {
+      process.stderr.write(
+        `[arbiter] STOP — CANON-16 violation: no Existing Code Survey for \`${rel}\`.\n` +
+        `Plan must contain a section:\n` +
+        `  ## Existing Code Survey\n` +
+        `  - **Target:** \`${rel}\`\n` +
+        `  - **Decision:** \`<keyword>\`\n` +
+        `  ### Evidence  (≥3 grep/ls rows)\n` +
+        `  ### Rationale (≥200 chars)\n` +
+        `Run /senior-survey or set ARBITER_PLAN_BYPASS=1 to bypass.\n`,
+      );
+      process.exit(2);
+    }
+
+    const decisionMatch = surveySection.match(/[-*]\s+\*\*Decision:\*\*\s+`([^`]+)`/i);
+    const decision = decisionMatch?.[1]?.toLowerCase().trim() ?? '';
+    if (!VALID_DECISIONS.has(decision)) {
+      process.stderr.write(
+        `[arbiter] STOP — CANON-16 violation: Survey for \`${rel}\` has invalid or missing Decision keyword.\n` +
+        `Valid values: ${[...VALID_DECISIONS].join(' | ')}\n` +
+        `Found: ${decisionMatch ? `"${decisionMatch[1]}"` : '(none)'}\n`,
+      );
+      process.exit(2);
+    }
+
+    const h3Sections = surveySection.split(/\n(?=### )/);
+    const evidencePart = h3Sections.find((s) => /^### Evidence\b/.test(s)) ?? '';
+    const evidenceRows = evidencePart.split('\n').filter((l) => /^- `(?:grep|ls)\b/.test(l.trim()));
+    if (evidenceRows.length < 3) {
+      process.stderr.write(
+        `[arbiter] STOP — CANON-16 violation: Survey for \`${rel}\` needs ≥3 evidence rows (grep/ls), found ${evidenceRows.length}.\n`,
+      );
+      process.exit(2);
+    }
+
+    const rationalePart = h3Sections.find((s) => /^### Rationale\b/.test(s)) ?? '';
+    const rationaleLen = rationalePart.replace(/\s+/g, '').length;
+    if (rationaleLen < 200) {
+      process.stderr.write(
+        `[arbiter] STOP — CANON-16 violation: Survey Rationale for \`${rel}\` is too thin (${rationaleLen} non-whitespace chars, need ≥200).\n` +
+        `Explain: what exists, why refactor was/wasn't viable, what new responsibility justifies this file.\n`,
+      );
+      process.exit(2);
+    }
+  }
+}
+
+/**
+ * #1402 — parse the plan front-matter's `files:` manifest into repo-relative POSIX paths, or null
+ * when the plan has no parseable manifest (→ the redirect skips silently). Reads only a simple YAML
+ * list (`files:` followed by `  - path` lines) to stay dependency-free in the hook.
+ */
+function parsePlanFilesManifest(body) {
+  const fmMatch = /^---\r?\n([\s\S]*?)\r?\n---/m.exec(body);
+  if (!fmMatch) return null;
+  const fm = fmMatch[1];
+  const lines = fm.split('\n');
+  const startIdx = lines.findIndex((l) => /^\s*files\s*:\s*$/.test(l));
+  if (startIdx === -1) return null;
+  const out = [];
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    const m = lines[i].match(/^\s+-\s+(.+?)\s*$/);
+    if (!m) break;
+    out.push(m[1].replace(/^["']|["']$/g, '').split('\\').join('/'));
+  }
+  return out.length > 0 ? out : null;
+}

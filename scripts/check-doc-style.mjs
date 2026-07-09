@@ -43,6 +43,15 @@ export const SKIP_PATH_SEGMENTS = [
   `${sep}internal${sep}`,
   `${sep}.claude${sep}plans${sep}`,
   `${sep}.claude${sep}.task${sep}`,
+  // #1840 F4 (examples/ viventi): `examples/<name>/` directories are `arbiter
+  // init` OUTPUT for a downstream project, regenerated verbatim by
+  // scripts/regenerate-examples.mjs — their .md files are governed by the
+  // TARGET project's own doc conventions, not arbiter's. The hand-authored
+  // walkthroughs directly under examples/ (examples/README.md,
+  // examples/go-library.md, …) are NOT skipped — only the generated subtrees.
+  `${sep}examples${sep}ts-library${sep}`,
+  `${sep}examples${sep}python-library${sep}`,
+  `${sep}examples${sep}go-library${sep}`,
 ]
 // Auto-generated files that bypass frontmatter requirements
 export const SKIP_FILENAMES = new Set([

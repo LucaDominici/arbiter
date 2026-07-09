@@ -1,0 +1,104 @@
+# Gold-Audit registry — TypeScript stack (#1413). Selected with `gold-audit --stack typescript`.
+#
+# A small per-stack subset mirroring the Java registry's two families (config-presence + report-metric
+# value op). Every check SAFE: anchored, deterministic, report-grounded. The numeric bars live in
+# standards/thresholds.yml keyed by threshold_ref + brownfield class — NO literals in this registry.
+#
+# applies_if: has-ts gates the report checks behind the TypeScript overlay, so auditing a non-TS repo
+# with this registry yields NA (no false gaps). A value check whose report file is ABSENT also scores
+# NA — never a false-N. Enable via the profile:  overlays: [has-ts]
+#
+# Verdicts: Y verified-true · P partial · N verified-false · NA not-applicable · NV manual.
+version: '1.0.0'
+profile: typescript
+
+dimensions:
+  - id: D-CONFIG
+    title: Compiler + lint configuration (strictness wired)
+  - id: D-LINT
+    title: Static lint (ESLint)
+  - id: D-COVERAGE
+    title: Test coverage (Vitest / Jest / nyc)
+
+checks:
+  # ── D-CONFIG: strict TypeScript is configured (not aspirational). ─────────────────────────────
+  - id: TS-CFG-01
+    dimension: D-CONFIG
+    title: TypeScript config present
+    type: file_exists
+    args: { path: tsconfig.json }
+    weight: 1
+    risk: SAFE
+    applies_if: has-ts
+  - id: TS-CFG-02
+    dimension: D-CONFIG
+    title: strict mode enabled in tsconfig
+    type: file_contains
+    args: { path: tsconfig.json, pattern: '"strict": true' }
+    weight: 2
+    risk: SAFE
+    applies_if: has-ts
+    anchor: INV-04
+  - id: TS-CFG-03
+    dimension: D-CONFIG
+    title: ESLint config present (lint gate wired)
+    # #1491 (M5): arbiter emits the flat config as `eslint.config.mjs`, never
+    # `eslint.config.js` — the old path made this check fail-N on every real
+    # arbiter-generated TS project, falsely reporting the lint gate as unwired.
+    type: file_exists
+    args: { path: eslint.config.mjs }
+    weight: 1
+    risk: SAFE
+    applies_if: has-ts
+
+  # ── D-LINT: ESLint errors under the per-class ceiling (read from a JSON report). ──────────────
+  - id: TS-LINT-01
+    dimension: D-LINT
+    title: ESLint error count under the per-class ceiling (eslint-report.json)
+    type: value
+    args:
+      path: eslint-report.json
+      format: json
+      select: 'errorCount'
+      op: lte
+    threshold_ref: eslint.errors
+    weight: 2
+    risk: SAFE
+    applies_if: has-ts
+
+  # ── D-COVERAGE: line/branch coverage meet the per-class floor (coverage-summary.json). ────────
+  - id: TS-COV-01
+    dimension: D-COVERAGE
+    title: Coverage report present (coverage measured)
+    type: file_exists
+    args: { path: coverage/coverage-summary.json }
+    weight: 1
+    risk: SAFE
+    applies_if: has-ts
+  - id: TS-COV-02
+    dimension: D-COVERAGE
+    title: Line coverage % meets the per-class floor
+    type: value
+    args:
+      path: coverage/coverage-summary.json
+      format: json
+      select: 'total.lines.pct'
+      op: gte
+    threshold_ref: ts.coverage.line
+    weight: 2
+    risk: SAFE
+    applies_if: has-ts
+    anchor: INV-25
+  - id: TS-COV-03
+    dimension: D-COVERAGE
+    title: Branch coverage % meets the per-class floor
+    type: value
+    args:
+      path: coverage/coverage-summary.json
+      format: json
+      select: 'total.branches.pct'
+      op: gte
+    threshold_ref: ts.coverage.branch
+    weight: 1
+    risk: SAFE
+    applies_if: has-ts
