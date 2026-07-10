@@ -315,7 +315,7 @@ Bot-authored PRs (github.event.pull_request.user.type == "Bot") must be reviewed
 
 Release artifacts must be signed with cosign keyless (OIDC via Sigstore) and attested with a CycloneDX SBOM via cosign attest --predicate. Trivy must scan the filesystem for CRITICAL vulnerabilities (exit-code: 1) before the signing step runs. HIGH vulnerabilities are reported but do not block (target projects may have legacy deps). A \_sigstore-retry-sign reusable workflow is also generated as opt-in scaffolding for retry-on-flake signing; the live 05-release cosign-sign job signs inline and does not yet delegate to it (#1663), so retry-on-flake is available to wire in, not yet active.
 
-**Enforcement:** generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom-attest jobs)
+**Enforcement:** generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom jobs)
 
 **Minimum governance level:** L2+
 

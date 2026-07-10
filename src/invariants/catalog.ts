@@ -1450,7 +1450,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: true,
     selfOnly: false,
     minGovernanceLevel: 'L2',
-    enforcement: 'generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom-attest jobs)',
+    enforcement: 'generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom jobs)',
   },
 
   {
