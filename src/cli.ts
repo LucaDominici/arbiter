@@ -10,6 +10,7 @@ import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
 import { runTui } from './commands/tui.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
+import { runWorktreePrune } from './commands/worktree-prune.js'
 import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runGoldAudit } from './commands/gold-audit.js'
@@ -809,6 +810,40 @@ worktree
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { json: boolean }) => {
     runWorktreeList({ json: opts.json })
+  })
+
+worktree
+  .command('prune')
+  .description(
+    'Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive ' +
+      'beyond --stale hours. Dry-run by default; dirty trees are never touched (INV-96); ' +
+      'inactive-unmerged candidates keep their branch.',
+  )
+  .option(
+    '--stale <hours>',
+    'Inactivity threshold in hours for unmerged worktrees',
+    (v: string) => {
+      const n = parseInt(v, 10)
+      if (isNaN(n) || n <= 0) throw new Error('--stale must be a positive integer (hours)')
+      return n
+    },
+  )
+  .option('--execute', 'Close the candidates (default: dry-run report)', false)
+  .option('--no-fetch', 'Skip git fetch before the merge check', false)
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { stale?: number; execute: boolean; fetch: boolean; json: boolean }) => {
+    try {
+      runWorktreePrune({
+        ...(opts.stale !== undefined ? { staleHours: opts.stale } : {}),
+        execute: opts.execute,
+        noFetch: !opts.fetch,
+        json: opts.json,
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    }
   })
 
 program
