@@ -1142,3 +1142,36 @@ describe('check-all.mjs.ejs rendering — check-docs.mjs wiring (#356, #1835)', 
     expect(content).not.toContain('check-docs.mjs')
   })
 })
+
+// #1835 (scaffold-not-wired audit): check-domain-api-surface.mjs (INV-125) is emitted
+// by emitDomainApiSurface (check-all.ts) whenever hasPublicApi is true, but the target
+// check-all.mjs.ejs never referenced it — a dead gate (cost paid, zero enforcement),
+// exactly the class #1835 tracks. Its sibling conditional gate check-consumer-audit.mjs
+// IS wired (existsSync-guarded); this one was not. Fix mirrors that precedent.
+describe('check-all.mjs.ejs rendering — domain-api-surface wiring (INV-125, #1835)', () => {
+  it('references check-domain-api-surface.mjs when hasPublicApi=true (matches its emission gate)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      hasPublicApi: true,
+      coverageEnabled: true,
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/check-domain-api-surface.mjs')
+  })
+
+  it('references check-domain-api-surface.mjs guarded so absence is safe (never crash-class)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      hasPublicApi: true,
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    // The reference must be existsSync-guarded (mirrors check-consumer-audit /
+    // check-fe-boundaries / iso9001 precedent), so a tree where the script was not
+    // emitted never hits MODULE_NOT_FOUND (the pre-fix check-pipe-tee-hazard bug class).
+    expect(content).toContain("existsSync('scripts/check-domain-api-surface.mjs')")
+  })
+})
