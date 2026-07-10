@@ -19,6 +19,10 @@ import {
 
 function initGitRepo(dir: string): void {
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: dir })
+  // CI runners have no global git identity — configure a local one so the
+  // worktree-derivation test can create a commit.
+  execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: dir })
+  execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: dir })
 }
 
 describe('gate-exec (#1873 T3)', () => {
