@@ -193,6 +193,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-muted-test.mjs'],
     tpl: 'scripts/check-muted-test.mjs.ejs',
   },
+  // Brownfield companion to check-muted-test (#1835 follow-through): pre-existing
+  // muted tests (e.g. a legacy repo's @Disabled suites) are grandfathered via
+  // `--update-baseline`; NEW muted gate tests always fail. Emitted empty (strict
+  // default) so the mechanism is discoverable and manifest-owned.
+  {
+    rel: ['muted-tests-baseline.json'],
+    tpl: 'scripts/muted-tests-baseline.json.ejs',
+  },
   {
     rel: ['scripts', 'check-skip-critical-e2e.mjs'],
     tpl: 'scripts/check-skip-critical-e2e.mjs.ejs',

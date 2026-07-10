@@ -44,10 +44,11 @@ describe('generateCheckAll', () => {
     // + verify-mutation-baseline.mjs (#1508)
     // + check-muted-test.mjs + check-skip-critical-e2e.mjs + check-no-stub-redirects.mjs
     //   + check-grace-window.mjs (anti-fake-green file-scan guards, A5, #1497)
+    // + muted-tests-baseline.json (brownfield grandfathering for check-muted-test, #1835-class)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(23)
+    expect(result.files).toHaveLength(24)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-todo-max-age.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/verify-module-coverage.mjs'))).toBe(
       true,
