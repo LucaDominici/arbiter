@@ -146,7 +146,12 @@ describe('debt-gates config templates — rendering', () => {
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('static-analysis/checkstyle.xml.ejs', data)
-    expect(content).not.toContain('<!DOCTYPE')
+    // #1884: the DOCTYPE is MANDATORY — checkstyle refuses to load a config
+    // without it ('Unable to create Root Module … must match DOCTYPE root
+    // "null"', verified on 10.21.4). The old "avoid network DTD resolution"
+    // rationale was unfounded: checkstyle resolves its public DTD IDs from a
+    // local entity resolver bundled in its jar.
+    expect(content).toContain('<!DOCTYPE module PUBLIC')
     expect(content).toContain('CyclomaticComplexity')
     expect(content).toContain('MethodLength')
     expect(content).toContain('65')
@@ -267,17 +272,20 @@ describe('debt-gates config templates — rendering', () => {
   })
 
   // spotbugs.gradle.ejs (CANON-04 coverage)
-  it('spotbugs.gradle.ejs renders SpotBugs plugin with effort, excludeFilter, and XML report', () => {
+  it('spotbugs.gradle.ejs renders task report config only (no plugins block)', () => {
+    // #1884: the plugin declaration + enum-typed extension config moved to the
+    // injected root-build block — a plugins {} block is ILLEGAL in an applied
+    // script, and the plugin classpath (Effort/Confidence) is invisible from it
+    // (script-plugin classloader isolation). This file keeps only the
+    // classpath-safe task report config.
     const data = makeConfig('/tmp/test', {
       language: 'java',
       buildTool: 'gradle',
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('static-analysis/spotbugs.gradle.ejs', data)
-    expect(content).toContain('com.github.spotbugs')
-    expect(content).toContain('effort')
-    expect(content).toContain('excludeFilter')
-    expect(content).toContain('spotbugs-exclude.xml')
+    expect(content).not.toMatch(/(?:^|\n)[ \t]*plugins\s*\{/)
+    expect(content).toContain('spotbugsMain')
     expect(content).toContain('main.xml')
   })
 

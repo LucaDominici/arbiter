@@ -1,15 +1,15 @@
-package example;
+package <%= basePackage ? basePackage + '.example' : 'example' %>;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
  * Example of Given/When/Then behavioral test structure using JUnit5.
  *
- * Pattern: @Nested classes group by context; @DisplayName provides readable descriptions.
+ * <p>Pattern: @Nested classes group by context; @DisplayName provides readable descriptions.
  * Replace 'ExampleSubject' with the class or behaviour under test.
  */
 @DisplayName("ExampleSubject")

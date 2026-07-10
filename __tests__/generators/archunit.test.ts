@@ -294,12 +294,16 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
     expect(content).toContain('every_controller_must_have_integration_test')
   })
 
-  it('arch-test-deps.gradle contains ArchUnit + RestAssured + Testcontainers deps', () => {
+  it('arch-test-deps.gradle contains ArchUnit + RestAssured + Testcontainers deps (spring)', () => {
+    // RestAssured/Testcontainers/spring-boot-testcontainers are spring-gated as
+    // of the #1835-class fix — a plain-Java project only needs archunit-junit5
+    // (see java-gold-tooling-wiring.test.ts for the non-spring variant).
     const config = makeConfig(dir, {
       language: 'java',
       buildTool: 'gradle',
       architectureStyle: 'hexagonal',
       basePackage: 'com.example.myapp',
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const file = result.files.find((f) => f.path.endsWith('arch-test-deps.gradle'))
@@ -307,7 +311,11 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
     expect(content).toContain('archunit-junit5')
     expect(content).toContain('rest-assured')
     expect(content).toContain('postgresql')
-    expect(content).toContain('apply from:')
+    // Wired automatically as of the #1835-class fix: the apply(from=...) line
+    // lands in the ROOT build, not as a manual instruction in the header.
+    expect(readFileSync(join(dir, 'build.gradle'), 'utf-8')).toContain(
+      "apply from: 'gradle/arch-test-deps.gradle'",
+    )
   })
 
   it('emits Maven .md doc instead of .gradle when buildTool is maven', () => {
@@ -449,7 +457,9 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('DomainPurityTest.java'))).toBe(false)
     expect(paths.some((p) => p.endsWith('DependencyFlowTest.java'))).toBe(false)
-    expect(paths.some((p) => p.endsWith('arch-test-deps.gradle'))).toBe(false)
+    // arch-test-deps.gradle is emitted for ANY archunit output as of the
+    // #1835-class fix — ArchitectureTest.java imports com.tngtech.archunit too.
+    expect(paths.some((p) => p.endsWith('arch-test-deps.gradle'))).toBe(true)
     expect(paths.some((p) => p.endsWith('ArchitectureTest.java'))).toBe(true)
   })
 

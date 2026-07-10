@@ -136,6 +136,7 @@
     "evidence-files.json",
     "gradle/jacoco.gradle",
     "gradle/pitest.gradle",
+    "muted-tests-baseline.json",
     "pacts/.gitkeep",
     "run.sh",
     "scripts/capture-debt-baseline.mjs",

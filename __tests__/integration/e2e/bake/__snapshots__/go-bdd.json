@@ -78,6 +78,7 @@
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
     "internal/example_behavioral_test.go",
+    "muted-tests-baseline.json",
     "run.sh",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",
