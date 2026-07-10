@@ -181,22 +181,95 @@ describe('file-lock (#614 #618)', () => {
     await expect(acquireLock(lockPath)).rejects.toThrow()
   })
 
-  it('treats lock as stale when age exceeds 1h', async () => {
-    const oldPid = 7777
-    const stale: LockInfo = {
-      pid: oldPid,
+  // ── Staleness is liveness-first (#1873 T2) ────────────────────────────────
+  // Age alone must NEVER steal a lock from a LIVE same-boot process: a gate
+  // legitimately running >1h would otherwise be taken over → two concurrent
+  // holders (the hop-2 double-gate finding on issue #1873).
+
+  it('does NOT steal a live same-boot lock older than 1h (liveness-first)', async () => {
+    const alivePid = 4242
+    const longRunning: LockInfo = {
+      pid: alivePid,
       hostname: os.hostname(),
-      bootId: 'same-boot-id',
-      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      bootId: realBootId(),
+      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // age 2h
+      cmd: 'arbiter gate-exec -- npm test',
+      nonce: 'live-holder',
+    }
+    writeFileSync(lockPath, JSON.stringify(longRunning))
+
+    vi.spyOn(process, 'kill').mockImplementation((pid, sig) => {
+      if (pid === alivePid && sig === 0) return true // pid is ALIVE
+      return true
+    })
+
+    await expect(acquireLock(lockPath)).rejects.toThrow(/already running|PID/i)
+    // The live holder's lock is untouched.
+    const after = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
+    expect(after.nonce).toBe('live-holder')
+  })
+
+  it('treats a dead same-boot pid as stale regardless of age', async () => {
+    const deadPid = 9999998
+    const fresh: LockInfo = {
+      pid: deadPid,
+      hostname: os.hostname(),
+      bootId: realBootId(),
+      startedAt: new Date(Date.now() - 5_000).toISOString(), // age 5s only
       cmd: 'arbiter update',
-      nonce: 'old',
+      nonce: 'dead-holder',
+    }
+    writeFileSync(lockPath, JSON.stringify(fresh))
+
+    vi.spyOn(process, 'kill').mockImplementation((pid, sig) => {
+      if (pid === deadPid && sig === 0) throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' })
+      return true
+    })
+
+    const handle = await acquireLock(lockPath)
+    const info = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
+    expect(info.pid).toBe(process.pid)
+    await handle.release()
+  })
+
+  it('treats a different-boot lock as stale (pid namespace reset)', async () => {
+    const stale: LockInfo = {
+      pid: process.pid, // "alive" pid — irrelevant: boot differs
+      hostname: os.hostname(),
+      bootId: 'a-previous-boot-id',
+      startedAt: new Date().toISOString(),
+      cmd: 'arbiter update',
+      nonce: 'pre-reboot',
     }
     writeFileSync(lockPath, JSON.stringify(stale))
 
-    vi.spyOn(process, 'kill').mockReturnValue(true)
+    const handle = await acquireLock(lockPath)
+    const info = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
+    expect(info.pid).toBe(process.pid)
+    await handle.release()
+  })
+
+  it('unknown-user pid (EPERM): age backstop applies — stale after threshold', async () => {
+    const foreignPid = 1234
+    const old: LockInfo = {
+      pid: foreignPid,
+      hostname: os.hostname(),
+      bootId: realBootId(),
+      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // age 2h > 1h default
+      cmd: 'arbiter update',
+      nonce: 'foreign-user',
+    }
+    writeFileSync(lockPath, JSON.stringify(old))
+
+    vi.spyOn(process, 'kill').mockImplementation((pid, sig) => {
+      if (pid === foreignPid && sig === 0)
+        throw Object.assign(new Error('EPERM'), { code: 'EPERM' })
+      return true
+    })
 
     const handle = await acquireLock(lockPath)
-    expect(existsSync(lockPath)).toBe(true)
+    const info = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
+    expect(info.pid).toBe(process.pid)
     await handle.release()
   })
 

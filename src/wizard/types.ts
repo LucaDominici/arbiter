@@ -166,7 +166,11 @@ export type SoloMergeMode = 'direct' | 'pr-ff'
 /** ADR-051: whether /task auto-opens a worktree. */
 export type WorktreeAutoMode = 'always' | 'optional' | 'never'
 
-type WorktreeLinkStrategy = 'symlink' | 'copy'
+// 'symlink-children' (#1873 T4): dest is a REAL directory; each top-level
+// child of the source is symlinked EXCEPT shared cache dirs (.vite, .cache),
+// which every worktree creates locally — N concurrent builds no longer
+// corrupt one shared cache through a whole-dir node_modules symlink.
+type WorktreeLinkStrategy = 'symlink' | 'copy' | 'symlink-children'
 
 export interface WorktreeLinkSpec {
   /** Relative path inside the repo (e.g. ".env", ".claude/settings.local.json") */

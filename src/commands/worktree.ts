@@ -28,7 +28,10 @@ import type { WorktreeConfig, WorktreeLinkSpec } from '../wizard/types.js'
 const DEFAULT_LINKS: WorktreeLinkSpec[] = [
   { path: '.claude/settings.local.json', required: false },
   { path: '.env', template: '.env.example', required: false },
-  { path: 'node_modules', required: false, type: 'directory' },
+  // #1873 T4 (M1): symlink-children instead of a whole-dir symlink, so
+  // node_modules/.vite + node_modules/.cache stay per-worktree — N parallel
+  // builds no longer corrupt one shared cache.
+  { path: 'node_modules', required: false, type: 'directory', strategy: 'symlink-children' },
 ]
 
 function defaultWorktreeConfig(): WorktreeConfig {
@@ -184,6 +187,7 @@ export interface WorktreeListOptions {
 interface LinkSummary {
   linked: number
   linkedDir: number
+  linkedChildren: number
   copied: number
   copiedDir: number
   missing: number
@@ -197,6 +201,7 @@ function materializeLinks(
   const summary: LinkSummary = {
     linked: 0,
     linkedDir: 0,
+    linkedChildren: 0,
     copied: 0,
     copiedDir: 0,
     missing: 0,
@@ -205,6 +210,7 @@ function materializeLinks(
     const result = materializeLink(spec, gitRoot, worktreePath)
     if (result.result === 'LINKED') summary.linked++
     else if (result.result === 'LINKED_DIR') summary.linkedDir++
+    else if (result.result === 'LINKED_CHILDREN') summary.linkedChildren++
     else if (result.result === 'COPIED_TEMPLATE') summary.copied++
     else if (result.result === 'COPIED_DIR') summary.copiedDir++
     else summary.missing++
@@ -214,7 +220,7 @@ function materializeLinks(
 
 function printLinkSummary(summary: LinkSummary): void {
   process.stdout.write(
-    `Links:          ${summary.linked} linked, ${summary.linkedDir} linked-dir, ${summary.copied} copied-from-template, ${summary.copiedDir} copied-dir, ${summary.missing} missing\n`,
+    `Links:          ${summary.linked} linked, ${summary.linkedDir} linked-dir, ${summary.linkedChildren} linked-children, ${summary.copied} copied-from-template, ${summary.copiedDir} copied-dir, ${summary.missing} missing\n`,
   )
 }
 

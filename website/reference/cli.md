@@ -663,6 +663,7 @@ Manage git worktrees for parallel task development.
 - `arbiter worktree open` — Create a sibling worktree with a task branch and symlinked local files
 - `arbiter worktree close` — Tear down a task worktree after its branch is merged
 - `arbiter worktree list` — List open task worktrees
+- `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive
 
 ## Experimental Commands
 
@@ -680,6 +681,7 @@ These commands are fully functional but hidden from the default `arbiter --help`
 | `arbiter doc-set`         | Deterministic doc-set presence audit (#1428, thin wrapper over the engine)      |
 | `arbiter explain`         | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
 | `arbiter feature-matrix`  | Feature/RTM matrix commands (INV-112)                                           |
+| `arbiter gate-exec`       | —                                                                               |
 | `arbiter graph`           | —                                                                               |
 | `arbiter harness`         | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)  |
 | `arbiter integrations`    | Inspect agent-tool integrations (skills, plugins) detected for this project     |
@@ -798,6 +800,13 @@ Feature/RTM matrix commands (INV-112).
 **Subcommands:**
 
 - `arbiter feature-matrix export` — Export docs/PRODUCT/FEATURE_MATRIX.md to CSV or xlsx
+
+## arbiter gate-exec
+
+**Options:**
+
+- `--key <key>` — Explicit mutex key (overrides per-repo derivation)
+- `--dir <dir>` — Target directory (default: current directory)
 
 ## arbiter graph
 
