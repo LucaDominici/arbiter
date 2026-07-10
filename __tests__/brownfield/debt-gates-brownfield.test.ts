@@ -161,4 +161,65 @@ describe('brownfield: debt-gates generator (CANON-11)', () => {
       cleanupTestProject(javaDir)
     }
   })
+
+  // #1898: confirmed on a real brownfield repo (onboarded before #1890) — the
+  // root build already configures checkstyle/pmd/spotless/spotbugs INLINE
+  // (its own authoring). Re-running `arbiter update` must not inject
+  // apply(from = "spotless.gradle") / apply(from = "spotbugs.gradle"): doing
+  // so duplicated the config and, when a pre-#1890 relic script was still on
+  // disk, broke the build outright (script-plugin classloader isolation could
+  // not resolve `com.github.spotbugs.snom.Effort`, imported by the relic).
+  it('does not apply(from=...) spotless/spotbugs when already configured inline (#1898)', () => {
+    const javaDir = createTestProject('unknown')
+    initGit(javaDir)
+    try {
+      const buildFile = join(javaDir, 'build.gradle.kts')
+      const original = [
+        'plugins {',
+        '    id("java")',
+        '    id("checkstyle")',
+        '    id("pmd")',
+        '    id("com.diffplug.spotless") version "7.0.3"',
+        '    id("com.github.spotbugs") version "6.0.18"',
+        '}',
+        '',
+        'checkstyle {',
+        '    toolVersion = "10.12.4"',
+        '    config = resources.text.fromFile(file("config/checkstyle.xml"))',
+        '}',
+        'pmd {',
+        '    toolVersion = "7.0.0"',
+        '    ruleSetFiles = files("config/pmd-ruleset.xml")',
+        '}',
+        'spotless {',
+        '    ratchetFrom("refs/remotes/origin/main")',
+        '    java { googleJavaFormat("1.22.0").aosp() }',
+        '}',
+        'spotbugs {',
+        '    effort = com.github.spotbugs.snom.Effort.MAX',
+        '    ignoreFailures = true',
+        '    excludeFilter = file("config/spotbugs-exclude.xml")',
+        '}',
+        '',
+      ].join('\n')
+      writeFileSync(buildFile, original)
+
+      const config = makeConfig(javaDir, {
+        language: 'java',
+        buildTool: 'gradle',
+        enableDebtGates: true,
+      })
+      generateDebtGates(config)
+
+      const out = readFileSync(buildFile, 'utf-8')
+      expect(out).not.toContain('apply(from = "spotless.gradle")')
+      expect(out).not.toContain('apply(from = "spotbugs.gradle")')
+      // Fully idempotent: every plugin/config signature already matched, so
+      // the injector made no change at all — the brownfield-authored
+      // `ignoreFailures = true` ratchet is untouched.
+      expect(out).toBe(original)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
 })

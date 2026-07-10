@@ -207,7 +207,13 @@ function emitAndWireGradleArchDeps(
     renderTemplate('archunit/arch-test-deps.gradle.ejs', data),
     { skipIfExists: true, dryRun },
   )
-  const apply = safeApplyFromSnippet(base, 'gradle/arch-test-deps.gradle')
+  // Withhold apply(from=...) when the archunit coordinate is already declared
+  // inline (brownfield, or a pre-#1890 arbiter run) — Gradle tolerates a
+  // duplicate `testImplementation` declaration, but doubling it via a second
+  // source is still redundant drift the injector should not introduce (#1898).
+  const apply = safeApplyFromSnippet(base, 'gradle/arch-test-deps.gradle', {
+    rootBuildSignatures: [/com\.tngtech\.archunit:archunit-junit5/],
+  })
   if (apply) injectGradleWiring(base, dryRun, { snippets: [apply] })
   return [result]
 }

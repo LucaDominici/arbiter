@@ -210,7 +210,13 @@ function pushJavaGateEssentials(
       groovy: `checkstyle {\n    toolVersion = '${CHECKSTYLE_TOOL_VERSION}'\n    configFile = file('config/checkstyle.xml')\n}`,
     },
   ]
-  const applySpotless = safeApplyFromSnippet(base, 'spotless.gradle')
+  // Spotless has no inline-config counterpart above — its config lives entirely
+  // in the applied script. A brownfield build may configure `spotless {}`
+  // inline directly anyway (or a pre-#1890 arbiter run did), so withhold the
+  // apply(from=...) when that's the case rather than duplicate it (#1898).
+  const applySpotless = safeApplyFromSnippet(base, 'spotless.gradle', {
+    rootBuildSignatures: [/(?:^|\n)[ \t]*spotless\s*\{/],
+  })
   if (applySpotless) snippets.push(applySpotless)
   injectGradleWiring(base, dryRun, {
     plugins: [
@@ -249,6 +255,7 @@ function pushJavaDebtGates(
   // wiring (pom.xml injection) is a separate concern — the maven gate invokes
   // plugin goals by full coordinates instead.
   if (config.buildTool !== 'gradle') return
+  const spotbugsInlineSignature = /(?:^|\n)[ \t]*spotbugs\s*\{/
   const snippets: GradleSnippet[] = [
     {
       signature: /(?:^|\n)[ \t]*pmd\s*\{/,
@@ -256,7 +263,7 @@ function pushJavaDebtGates(
       groovy: `pmd {\n    toolVersion = '${PMD_TOOL_VERSION}'\n    ruleSetFiles = files('config/pmd-ruleset.xml')\n    ruleSets = []\n}`,
     },
     {
-      signature: /(?:^|\n)[ \t]*spotbugs\s*\{/,
+      signature: spotbugsInlineSignature,
       kts: `spotbugs {\n    effort.set(com.github.spotbugs.snom.Effort.MAX)\n    reportLevel.set(com.github.spotbugs.snom.Confidence.MEDIUM)\n    excludeFilter.set(file("config/spotbugs-exclude.xml"))\n}`,
       // Groovy needs valueOf(): direct `Confidence.MEDIUM` resolves to the enum
       // constant's INNER CLASS (constants with bodies compile to Confidence$MEDIUM,
@@ -266,7 +273,13 @@ function pushJavaDebtGates(
       groovy: `spotbugs {\n    effort = com.github.spotbugs.snom.Effort.valueOf('MAX')\n    reportLevel = com.github.spotbugs.snom.Confidence.valueOf('MEDIUM')\n    excludeFilter = file('config/spotbugs-exclude.xml')\n}`,
     },
   ]
-  const applySpotbugs = safeApplyFromSnippet(base, 'spotbugs.gradle')
+  // Withhold apply(from=...) when the root build already configures `spotbugs {}`
+  // inline (brownfield, or a pre-#1890 arbiter run) — reuses the SAME signature
+  // the inline snippet above is gated on, so both checks agree on what "already
+  // configured" means (#1898).
+  const applySpotbugs = safeApplyFromSnippet(base, 'spotbugs.gradle', {
+    rootBuildSignatures: [spotbugsInlineSignature],
+  })
   if (applySpotbugs) snippets.push(applySpotbugs)
   injectGradleWiring(base, dryRun, {
     plugins: [{ id: 'pmd' }, { id: 'com.github.spotbugs', version: SPOTBUGS_PLUGIN_VERSION }],
