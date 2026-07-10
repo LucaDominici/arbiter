@@ -470,8 +470,13 @@ function listBasenames(absDir, suffix) {
  * filtered by `family.include` when set. Sorted for determinism.
  */
 export function matchedFamilyBasenames(rootDir, family) {
-  const templateBasenames = new Set(listBasenames(join(rootDir, family.templateDir), family.templateSuffix))
-  const materializedBasenames = listBasenames(join(rootDir, family.materializedDir), family.materializedSuffix)
+  const templateBasenames = new Set(
+    listBasenames(join(rootDir, family.templateDir), family.templateSuffix),
+  )
+  const materializedBasenames = listBasenames(
+    join(rootDir, family.materializedDir),
+    family.materializedSuffix,
+  )
   return materializedBasenames
     .filter((b) => templateBasenames.has(b))
     .filter((b) => !family.include || family.include(b))
@@ -497,7 +502,11 @@ export async function checkExternalCiSurfaceParity(rootDir, divergences, render)
   for (const family of EXTERNAL_CI_FAMILIES) {
     for (const base of matchedFamilyBasenames(rootDir, family)) {
       const templateRelPath = family.renderPath(base)
-      const materialized = join(rootDir, family.materializedDir, `${base}${family.materializedSuffix}`)
+      const materialized = join(
+        rootDir,
+        family.materializedDir,
+        `${base}${family.materializedSuffix}`,
+      )
       const entry = divergences.get(materialized)
 
       let rendered

@@ -715,7 +715,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     title:
       'Self-dogfood check — every EJS template must render to match its materialized self-repo file',
     description:
-      "Every EJS template under src/templates/claude/ or src/templates/ship/ must render (with " +
+      'Every EJS template under src/templates/claude/ or src/templates/ship/ must render (with ' +
       "arbiter's own config) to content that matches the corresponding materialized .claude/ or " +
       '.arbiter/ship file (fail-closed: a template with no materialized counterpart is drift, not a ' +
       'skip). Additionally, for src/templates/github/workflows/*.ejs vs .github/workflows/*.yml and ' +

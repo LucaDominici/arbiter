@@ -110,9 +110,7 @@ describe('matchedFamilyBasenames', () => {
   })
 
   it('real repo: github-workflows family has at least one matched pair (03-human-approval)', () => {
-    const family = EXTERNAL_CI_FAMILIES.find(
-      (f: { key: string }) => f.key === 'github-workflows',
-    )
+    const family = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'github-workflows')
     expect(matchedFamilyBasenames(repoRoot, family)).toContain('03-human-approval')
   })
 })

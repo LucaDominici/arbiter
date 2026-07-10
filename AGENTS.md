@@ -160,7 +160,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-37:** Generated githooks
 - **INV-38:** Phase-tracked lifecycle enforcement
 - **INV-39:** Hook templates require empirical fire-tests
-- **INV-45:** Self-dogfood check — every EJS template must render to match its materialized .claude/ file
+- **INV-45:** Self-dogfood check — every EJS template must render to match its materialized self-repo file
 - **INV-47:** Matrix proven cell requires a gate invocation in check-all.mjs.ejs
 - **INV-48:** EJS template render-test coverage must not regress
 - **INV-49:** Every generator in src/generators/ must have a unit test
