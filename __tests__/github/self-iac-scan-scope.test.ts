@@ -65,16 +65,21 @@ describe('self iac-scan scope (#1685, INV-80, #1785)', () => {
     expect(jobBody).toContain('pip install checkov==')
   })
 
-  it('iac-scan job pins runs-on to a literal GitHub-hosted runner, not the self-hosted expression', () => {
-    // #1785: literal `ubuntu-latest` does NOT guarantee real GitHub-hosted
-    // infra in this environment (evidenced: run 28693108584 serviced by
-    // self-hosted arbiter-slot-build-3) — the real safety fix is that checkov
-    // is no longer a docker-container action at all, so the runner label is
-    // moot for THIS defect class. The literal pin is kept for other reasons
-    // (cost/consistency), not as the safety mechanism.
+  it('iac-scan job routes runs-on through the shared RUNNER_LABELS_TEST expression, like every other job', () => {
+    // #1894: the former literal `ubuntu-latest` pin used to be intercepted by
+    // the self-hosted fleet (#1785 evidence: run 28693108584 serviced by
+    // arbiter-slot-build-3), but the fleet later dropped the `ubuntu-latest`
+    // label, so the literal pin fell through to real GitHub-hosted infra and
+    // failed on a spending-limit block. iac-scan now uses the same
+    // `${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}`
+    // expression as every other job: it defaults to ubuntu-latest when the var
+    // is unset (consumers unaffected) and honors the self-hosted labels arbiter
+    // sets for its own repo. Runner class stays moot for the #1785 safety class
+    // because checkov/tflint are plain CLIs, not docker-container actions.
     const jobBody = iacJobBody(workflow)
-    expect(jobBody).toMatch(/^\s*runs-on: ubuntu-latest\s*$/m)
-    expect(jobBody).not.toMatch(/^\s*runs-on: \$\{\{/m)
-    expect(jobBody).not.toContain('fromJSON(vars.')
+    expect(jobBody).toMatch(
+      /^\s*runs-on: \$\{\{ fromJSON\(vars\.RUNNER_LABELS_TEST \|\| '\["ubuntu-latest"\]'\) \}\}\s*$/m,
+    )
+    expect(jobBody).not.toMatch(/^\s*runs-on: ubuntu-latest\s*$/m)
   })
 })

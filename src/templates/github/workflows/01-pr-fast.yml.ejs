@@ -217,7 +217,15 @@ jobs:
     # it) — no docker-container action, no workspace bind-mount, the whole
     # defect class sidestepped entirely (same pattern as the osv-scanner static-
     # binary fix, #1767). Enforced by scripts/check-docker-action-runner-safety.mjs.
-    runs-on: ubuntu-latest
+    # #1894: routed through the same `RUNNER_LABELS_TEST` expression as every other
+    # job. The former literal `ubuntu-latest` used to be intercepted by the self-
+    # hosted fleet (#1785 evidence), but the fleet dropped the `ubuntu-latest`
+    # label, so the literal pin fell through to real GitHub-hosted infra and failed
+    # (spending-limit block). The expression defaults to `["ubuntu-latest"]` when
+    # the var is unset (consumers unaffected); arbiter's own repo sets it to the
+    # self-hosted labels. Checkov/tflint are plain CLIs (no docker-action), so the
+    # runner class remains moot for the #1785 safety class either way.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [classify-changes]
     if: needs.classify-changes.outputs.infra_changed == 'true'

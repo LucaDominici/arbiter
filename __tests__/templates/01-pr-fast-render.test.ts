@@ -342,17 +342,22 @@ describe('01-pr-fast.yml.ejs — PR supply-chain + IaC (A1, #1502)', () => {
     expect(section).toContain('timeout-minutes: 60')
   })
 
-  it('(b) iac-scan pins runs-on to a literal GitHub-hosted runner label (#1756, #1785)', () => {
-    // #1756/#1785: whatever the runner-label story, checkov itself is no
-    // longer a docker-container action at all (a plain pip-installed CLI), so
-    // the bind-mount defect class cannot occur here regardless of which pool
-    // services this job. The literal label is kept for other reasons
-    // (cost/consistency), not as this defect's safety mechanism anymore.
+  it('(b) iac-scan routes runs-on through the shared RUNNER_LABELS_TEST expression (#1756, #1785, #1894)', () => {
+    // #1894: iac-scan now uses the same runs-on expression as every other job
+    // instead of a literal `ubuntu-latest`. The former literal pin used to be
+    // intercepted by arbiter's self-hosted fleet, but the fleet dropped the
+    // `ubuntu-latest` label, so the pin fell through to real GitHub-hosted infra
+    // and failed on a spending-limit block. The expression defaults to
+    // ubuntu-latest when the var is unset (consumers unaffected); arbiter's repo
+    // sets it to the self-hosted labels. #1756/#1785: runner class stays moot for
+    // the bind-mount defect class because checkov is a plain pip-installed CLI,
+    // not a docker-container action, regardless of which pool services the job.
     const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
     const section = iacSection(rendered)
-    expect(section).toMatch(/^\s*runs-on: ubuntu-latest\s*$/m)
-    expect(section).not.toMatch(/^\s*runs-on: \$\{\{/m)
-    expect(section).not.toContain('fromJSON(vars.')
+    expect(section).toMatch(
+      /^\s*runs-on: \$\{\{ fromJSON\(vars\.RUNNER_LABELS_TEST \|\| '\["ubuntu-latest"\]'\) \}\}\s*$/m,
+    )
+    expect(section).not.toMatch(/^\s*runs-on: ubuntu-latest\s*$/m)
   })
 
   it('(b) CONSUMER render keeps the broad `--framework all` scan, no config file (#1685)', () => {
