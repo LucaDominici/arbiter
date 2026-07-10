@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -49,15 +50,7 @@ function emitHexagonalSuite(
     }
   }
 
-  if (config.buildTool === 'gradle') {
-    files.push(
-      writeFile(
-        resolvedPath(base, 'gradle', 'arch-test-deps.gradle'),
-        renderTemplate('archunit/arch-test-deps.gradle.ejs', data),
-        { skipIfExists: true, dryRun },
-      ),
-    )
-  } else if (config.buildTool === 'maven') {
+  if (config.buildTool === 'maven') {
     files.push(
       writeFile(
         resolvedPath(base, 'docs', 'arch-test-deps-maven.md'),
@@ -190,6 +183,23 @@ export function generateArchUnit(
 
   // RestAssured scaffolding — see emitRestAssuredScaffolding for guard logic (#491).
   files.push(...emitRestAssuredScaffolding(config, base, packagePath, data, opts.dryRun))
+
+  // #1835-class fix: EVERY emitted ArchUnit test imports com.tngtech.archunit —
+  // previously the deps file was only emitted for the hexagonal suite (and never
+  // wired), so a plain `NoMockMvcTest` init produced tests that could not
+  // compile. Emit the test-deps script whenever ANY archunit test landed on a
+  // Gradle build, and wire it into the root build via a guarded apply(from=...).
+  if (config.buildTool === 'gradle' && files.length > 0) {
+    files.push(
+      writeFile(
+        resolvedPath(base, 'gradle', 'arch-test-deps.gradle'),
+        renderTemplate('archunit/arch-test-deps.gradle.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+    const apply = safeApplyFromSnippet(base, 'gradle/arch-test-deps.gradle')
+    if (apply) injectGradleWiring(base, opts.dryRun, { snippets: [apply] })
+  }
 
   return { files }
 }

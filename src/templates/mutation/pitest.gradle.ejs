@@ -1,10 +1,9 @@
 // PIT mutation testing — L3 hard gate (INV-30)
-// Apply from root build.gradle: apply from: 'gradle/pitest.gradle'
+// Wired automatically: arbiter declares the info.solidsoft.pitest plugin in the
+// root build's plugins block and applies this script from the arbiter-managed
+// block (a plugins {} block here would be ILLEGAL — Gradle forbids the plugins
+// DSL inside applied scripts).
 // Run: ./gradlew pitest
-
-plugins {
-    id 'info.solidsoft.pitest' version '1.15.0'
-}
 
 pitest {
     targetClasses = [

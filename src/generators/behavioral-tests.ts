@@ -4,8 +4,28 @@ import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { formatContent } from '../utils/prettier-format.js'
+import { injectGradleWiring } from '../utils/gradle.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+
+// What the emitted Java example suite actually imports (#1835-class fix: the
+// tests were scaffolded WITHOUT their dependencies, so a fresh init could not
+// compile — `error: package org.assertj.core.api does not exist`):
+//   ExampleBehavioralTest → org.assertj + org.junit.jupiter
+//   ExampleBddIT          → io.cucumber junit-platform engine + junit suite
+//   ExampleSteps          → io.cucumber java + org.assertj
+// junit-platform-launcher is what `test { useJUnitPlatform() }` needs on the
+// runtime classpath (required explicitly from Gradle 9). Versions are pinned;
+// the injector skips any group:artifact the build already declares, so a
+// brownfield project's own versions are never overwritten.
+const JAVA_BDD_TEST_DEPS: { coordinate: string; configuration?: string }[] = [
+  { coordinate: 'org.assertj:assertj-core:3.26.3' },
+  { coordinate: 'org.junit.jupiter:junit-jupiter:5.10.2' },
+  { coordinate: 'org.junit.platform:junit-platform-suite:1.10.2' },
+  { coordinate: 'io.cucumber:cucumber-java:7.18.0' },
+  { coordinate: 'io.cucumber:cucumber-junit-platform-engine:7.18.0' },
+  { coordinate: 'org.junit.platform:junit-platform-launcher:1.10.2', configuration: 'testRuntimeOnly' },
+]
 
 export interface BehavioralTestsResult {
   files: WriteResult[]
@@ -194,8 +214,15 @@ export function generateBehavioralTests(
   const data = config
   const results: WriteResult[] = []
 
-  if (config.language === 'java' || config.language === 'multi')
-    results.push(...emitJavaBdd(base, data, config, opts.dryRun))
+  if (config.language === 'java' || config.language === 'multi') {
+    const javaFiles = emitJavaBdd(base, data, config, opts.dryRun)
+    results.push(...javaFiles)
+    // Wire the deps the emitted suite imports into the root Gradle build —
+    // fill-gaps-only, so existing declarations win (#1835-class fix).
+    if (javaFiles.length > 0 && config.buildTool === 'gradle') {
+      injectGradleWiring(base, opts.dryRun, { dependencies: JAVA_BDD_TEST_DEPS })
+    }
+  }
   if (config.language === 'typescript' || config.language === 'multi') {
     results.push(...emitTypeScriptBdd(base, data, opts.dryRun))
   }
