@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { renderTemplate } from '../utils/render.js'
+import { renderTemplate, resolveServiceBucket } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -28,11 +28,6 @@ export function generateSuppressions(
 
   results.push(
     // User-edited data stores — skip on update to preserve live suppression entries
-    writeFile(
-      resolvedPath(base, 'suppressions', 'dependency-check-suppressions.xml'),
-      renderTemplate('suppressions/dependency-check-suppressions.xml.ejs', data),
-      { skipIfExists: true, dryRun: opts.dryRun },
-    ),
     writeFile(
       resolvedPath(base, 'suppressions', '.gitleaksignore'),
       renderTemplate('suppressions/gitleaksignore.ejs', data),
@@ -65,19 +60,19 @@ export function generateSuppressions(
     ),
   )
 
-  // Java/Kotlin L2+ only: OWASP dependency-check and Trivy suppression files
-  if (
-    (config.language === 'java' || config.language === 'kotlin' || config.language === 'multi') &&
-    config.governanceLevel !== 'L1'
-  ) {
+  // Trivy fs suppression file, at ROOT (R-04 — every trivy step across the generated
+  // workflows references `trivyignores: .trivyignore`, root-relative). Emitted for:
+  //   - JVM (java/kotlin/multi): Trivy fs is the dependency-audit tool (INV-13).
+  //   - any service archetype: the container-scan trivy steps (02-pr-extended,
+  //     04-deploy-test, 05-release trivy-strict-release) reference this file for
+  //     EVERY language, not just JVM, and run regardless of governance level.
+  const isJvm =
+    config.language === 'java' || config.language === 'kotlin' || config.language === 'multi'
+  const isService = resolveServiceBucket(config.archetype) === 'service'
+  if (isJvm || isService) {
     results.push(
       writeFile(
-        resolvedPath(base, 'suppressions', 'owasp-suppressions.xml'),
-        renderTemplate('suppressions/owasp-suppressions.xml.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-      writeFile(
-        resolvedPath(base, 'suppressions', '.trivyignore'),
+        resolvedPath(base, '.trivyignore'),
         renderTemplate('suppressions/trivyignore.ejs', data),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),

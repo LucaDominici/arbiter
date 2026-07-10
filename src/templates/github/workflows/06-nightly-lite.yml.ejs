@@ -70,9 +70,9 @@ jobs:
     # workspace-bind-mount defect that docker-container actions hit on a
     # self-hosted runner whose own process runs inside a container. Enforced by
     # scripts/check-docker-action-runner-safety.mjs.
-    # #1785: the java branch below used to run dependency-check/Dependency-Check_Action,
-    # a docker-container action — switched to a pinned static CLI (checksum-verified),
-    # sidestepping the defect class entirely (same pattern as _shared-security.yml.ejs).
+    # ADR-104: the java branch below runs Trivy fs (aquasecurity/trivy-action), a
+    # composite action with no workspace bind-mount — not subject to that defect
+    # class in the first place (same pattern as _shared-security.yml.ejs).
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -82,11 +82,7 @@ jobs:
       - name: npm audit
         run: npm audit --omit=dev --audit-level=high
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: '21'
-<%- include('_partials/owasp-dependency-check-java.ejs') %>
+<%- include('_partials/trivy-fs-java.ejs') %>
 <% } else if (language === 'go') { %>
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:

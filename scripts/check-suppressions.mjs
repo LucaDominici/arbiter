@@ -84,34 +84,29 @@ function checkJsonFile(filePath) {
   }
 }
 
-function checkXmlFile(filePath) {
+// .trivyignore entries are single lines (no preceding metadata comment, unlike the XML
+// suppress-block format): `<CVE-ID> exp:<YYYY-MM-DD> # reason=<text> owner=@<handle>`.
+// Blank lines and full-line `#` comments (the file's own header/policy block) are skipped.
+const TRIVYIGNORE_ENTRY_RE =
+  /^(\S+)\s+exp:(\d{4}-\d{2}-\d{2})(?:\s*#\s*reason=(.*?)\s+owner=(@\S+))?\s*$/
+
+function parseTrivyignoreLine(line) {
+  const match = TRIVYIGNORE_ENTRY_RE.exec(line)
+  if (!match) return { scope: line.split(/\s+/)[0] }
+  const [, scope, expiresAt, reason, owner] = match
+  return { scope, expiresAt, reason, owner }
+}
+
+function checkTrivyignoreFile(filePath) {
   if (!existsSync(filePath)) return
-  const raw = readFileSync(filePath, 'utf-8')
-  // Tokenize: scan for comment blocks and suppress elements in document order.
-  // Non-greedy comment matching ensures comment bodies that contain "<suppress"
-  // text are consumed as part of the comment token and not re-matched.
-  const tokenPattern = /<!--([\s\S]*?)-->|<suppress[\s>]/g
-  const tokens = []
-  let match
-  while ((match = tokenPattern.exec(raw)) !== null) {
-    if (match[1] !== undefined) {
-      tokens.push({ type: 'comment', content: match[1] })
-    } else {
-      tokens.push({ type: 'suppress' })
-    }
-  }
-  // For each suppress token, the immediately preceding token must be a single-line comment.
-  // Multi-line comments (containing newlines) are header/documentation blocks — not metadata.
+  const lines = readFileSync(filePath, 'utf-8').split('\n')
   let idx = 0
-  for (let i = 0; i < tokens.length; i++) {
-    if (tokens[i].type === 'suppress') {
-      const candidate = i > 0 && tokens[i - 1].type === 'comment' ? tokens[i - 1] : null
-      const isSingleLine = candidate && !candidate.content.includes('\n')
-      const prev = isSingleLine ? candidate : null
-      const meta = prev ? parseMetaComment(prev.content) : {}
-      validateEntry(meta, `<suppress>[${idx}]`, filePath)
-      idx++
-    }
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (line === '' || line.startsWith('#')) continue
+    const entry = parseTrivyignoreLine(line)
+    validateEntry(entry, `entry[${idx}] (${entry.scope})`, filePath)
+    idx++
   }
 }
 
@@ -139,7 +134,7 @@ function checkGitleaksFile(filePath) {
 checkJsonFile('suppressions/pii-allowlist.json')
 checkJsonFile('suppressions/archunit-baseline.json')
 checkJsonFile('suppressions/consumer-audit-allowlist.json')
-checkXmlFile('suppressions/dependency-check-suppressions.xml')
+checkTrivyignoreFile('.trivyignore')
 checkGitleaksFile('suppressions/.gitleaksignore')
 
 if (failed > 0) {

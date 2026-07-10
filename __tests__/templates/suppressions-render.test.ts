@@ -69,21 +69,18 @@ describe('suppressions template rendering (#166)', () => {
     })
   })
 
-  describe('dependency-check-suppressions.xml.ejs', () => {
+  describe('trivyignore.ejs', () => {
     it('renders without EJS leaks', () => {
-      const out = renderTemplate('suppressions/dependency-check-suppressions.xml.ejs', cfg())
+      const out = renderTemplate('suppressions/trivyignore.ejs', cfg())
       expect(out).not.toContain('<%')
       expect(out).not.toContain('%>')
     })
 
-    it('interpolates projectName', () => {
-      const out = renderTemplate('suppressions/dependency-check-suppressions.xml.ejs', cfg())
-      expect(out).toContain('test-project')
-    })
-
-    it('contains suppressions XML root element', () => {
-      const out = renderTemplate('suppressions/dependency-check-suppressions.xml.ejs', cfg())
-      expect(out).toContain('<suppressions')
+    it('documents the mandatory exp:/reason=/owner= format (INV-31)', () => {
+      const out = renderTemplate('suppressions/trivyignore.ejs', cfg())
+      expect(out).toContain('exp:')
+      expect(out).toContain('reason=')
+      expect(out).toContain('owner=')
     })
   })
 })

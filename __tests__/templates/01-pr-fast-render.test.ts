@@ -202,11 +202,13 @@ describe('01-pr-fast.yml.ejs — PR-path slimming (E1, #1502)', () => {
     expect(javaGradle).toContain('spotbugsMain')
   })
 
-  it('(d) the slow OWASP Dependency-Check is off the PR java gate (moved to nightly)', () => {
+  it('(d) the slow dependency scan (trivy fs, ADR-104) is off the PR java gate (moved to nightly)', () => {
     const gradle = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L2' })
     expect(gradle).not.toContain('dependencyCheckAnalyze')
+    expect(gradle).not.toMatch(/scan-type:\s*fs/)
     const maven = render({ language: 'java', buildTool: 'maven', governanceLevel: 'L2' })
     expect(maven).not.toContain('org.owasp:dependency-check-maven')
+    expect(maven).not.toMatch(/scan-type:\s*fs/)
   })
 
   it('(d) fast PR dep audits remain on PR for the languages that have one', () => {

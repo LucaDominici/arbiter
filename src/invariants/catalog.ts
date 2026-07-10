@@ -202,7 +202,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement:
       'CI dep-audit step per stack — TypeScript: `npm audit --audit-level=high`; ' +
       'Rust: rustsec/audit-check action; ' +
-      'Java: OWASP Dependency-Check (failBuildOnCVSS=7.0, apply config/owasp-dependency-check.gradle); ' +
+      'Java/Kotlin: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 ' +
+      '(suppressions: .trivyignore); ' +
       'Go: golang/govulncheck-action; ' +
       'Python: pip-audit. ' +
       'Local gate (L2 block): same commands, soft: graceActive',
@@ -461,7 +462,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     tier: 'governance',
     title: 'Suppressions must have mandatory expiry',
     description:
-      'Every suppression entry — both file-based (dependency-check-suppressions.xml, .gitleaksignore, ' +
+      'Every suppression entry — both file-based (.trivyignore, .gitleaksignore, ' +
       'pii-allowlist.json, archunit-baseline.json) and inline comment directives ' +
       '(arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason=..., owner=@handle)) — must carry ' +
       'mandatory metadata: reason (≥10 chars), owner (@github-handle), and expiresAt/until (ISO date). ' +

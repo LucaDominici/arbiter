@@ -673,7 +673,7 @@ if (level === 'L2') {
   runCheck('architecture tests', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: graceActive });
 <% } %>
 <% if (enableSecurityScanning) { %>
-  runCheck('dep audit (OWASP)', './gradlew', ['dependencyCheckAnalyze', '-q'], { soft: graceActive });
+  runCheck('dep audit (trivy fs)', 'trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
@@ -683,7 +683,7 @@ if (level === 'L2') {
   runCheck('architecture tests', 'mvn', ['test', '-Dtest=*.architecture.*', '-q'], { soft: graceActive });
 <% } %>
 <% if (enableSecurityScanning) { %>
-  runCheck('dep audit (OWASP)', 'mvn', ['org.owasp:dependency-check-maven:check', '-q'], { soft: graceActive });
+  runCheck('dep audit (trivy fs)', 'trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'go') { %>
   runCheck('staticcheck', 'staticcheck', ['./...'], { soft: graceActive });
@@ -731,6 +731,10 @@ if (level === 'L2') {
   //   sourceSets { test { java { srcDirs += 'src/test/java' } } }
   // CANON-02 is proven⇒gated (one-directional); beta tools may be soft-gated.
   runCheck('architecture tests (beta)', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: true });
+<% } %>
+<% if (enableSecurityScanning) { %>
+  // ─── L2: Dep audit (trivy fs, R-15 — kotlin previously had no local dep audit) ──
+  runCheck('dep audit (trivy fs)', 'trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.'], { soft: graceActive });
 <% } %>
 <% } %>
 <% if (enableDebtGates) { %>

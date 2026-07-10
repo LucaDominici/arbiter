@@ -5,7 +5,6 @@ import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../h
 import { generateSuppressions } from '../../src/generators/suppressions.js'
 
 const EXPECTED_FILES = [
-  join('suppressions', 'dependency-check-suppressions.xml'),
   join('suppressions', '.gitleaksignore'),
   join('suppressions', 'pii-allowlist.json'),
   join('suppressions', 'suppressions-schema.json'),
@@ -43,13 +42,14 @@ describe('generateSuppressions', () => {
     expect(generateSuppressions(config).files).toHaveLength(1)
   })
 
-  it('generates 7 files when enableSuppressions is true for non-Java (#242 #292 #1737)', () => {
-    // 6 base files + consumer-audit-allowlist.json — makeConfig's defaults
-    // (archetype:'library', language:'typescript', governanceLevel:'L2') satisfy
-    // the #1737 published-library guard.
+  it('generates 6 files when enableSuppressions is true for non-Java (#242 #292 #1737, ADR-104)', () => {
+    // 5 base files (dependency-check-suppressions.xml removed, ADR-104/R-06) +
+    // consumer-audit-allowlist.json — makeConfig's defaults (archetype:'library',
+    // language:'typescript', governanceLevel:'L2') satisfy the #1737
+    // published-library guard.
     const config = makeConfig(dir, { enableSuppressions: true })
     const result = generateSuppressions(config)
-    expect(result.files).toHaveLength(7)
+    expect(result.files).toHaveLength(6)
   })
 
   for (const relPath of EXPECTED_FILES) {
@@ -60,11 +60,17 @@ describe('generateSuppressions', () => {
     })
   }
 
+  it('does NOT generate suppressions/dependency-check-suppressions.xml (ADR-104, R-06)', () => {
+    const config = makeConfig(dir, { enableSuppressions: true })
+    generateSuppressions(config)
+    expect(existsSync(join(dir, 'suppressions', 'dependency-check-suppressions.xml'))).toBe(false)
+  })
+
   for (const lang of ['typescript', 'rust', 'go', 'python'] as const) {
-    // typescript gets a 7th file (consumer-audit-allowlist.json, #1737 — archetype
+    // typescript gets a 6th file (consumer-audit-allowlist.json, #1737 — archetype
     // stays the default 'library' throughout this loop) — every other language is
-    // excluded by the published-library-TypeScript guard and stays at 6.
-    const expectedCount = lang === 'typescript' ? 7 : 6
+    // excluded by the published-library-TypeScript guard and stays at 5.
+    const expectedCount = lang === 'typescript' ? 6 : 5
     it(`generates ${expectedCount} files for ${lang} (#292 — archunit-baseline.json is Java-only)`, () => {
       const loopDir = createTestProject(lang)
       initGit(loopDir)
@@ -81,7 +87,7 @@ describe('generateSuppressions', () => {
     })
   }
 
-  it('generates 9 files for java (#292 — archunit-baseline.json included)', () => {
+  it('generates 7 files for java (#292 — archunit-baseline.json + .trivyignore, ADR-104)', () => {
     const javaDir = createTestProject('java')
     initGit(javaDir)
     try {
@@ -90,7 +96,7 @@ describe('generateSuppressions', () => {
         enableSuppressions: true,
       })
       const result = generateSuppressions(config)
-      expect(result.files).toHaveLength(9)
+      expect(result.files).toHaveLength(7)
     } finally {
       cleanupTestProject(javaDir)
     }
@@ -123,7 +129,7 @@ describe('generateSuppressions', () => {
   })
 })
 
-describe('generateSuppressions — owasp + trivyignore (#208)', () => {
+describe('generateSuppressions — .trivyignore at root (#208, ADR-104)', () => {
   let dir: string
 
   beforeEach(() => {
@@ -135,7 +141,7 @@ describe('generateSuppressions — owasp + trivyignore (#208)', () => {
     cleanupTestProject(dir)
   })
 
-  it('emits owasp-suppressions.xml + .trivyignore for Java L2', () => {
+  it('emits .trivyignore at ROOT for Java L2 (R-04) and NOT owasp-suppressions.xml (R-05)', () => {
     const config = makeConfig(dir, {
       language: 'java',
       governanceLevel: 'L2',
@@ -143,11 +149,11 @@ describe('generateSuppressions — owasp + trivyignore (#208)', () => {
     })
     const result = generateSuppressions(config)
     const paths = result.files.map((f) => f.path)
-    expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(true)
-    expect(paths.some((p) => p.endsWith('.trivyignore'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(false)
+    expect(paths.some((p) => p === join(dir, '.trivyignore'))).toBe(true)
   })
 
-  it('emits owasp-suppressions.xml + .trivyignore for Kotlin L2', () => {
+  it('emits .trivyignore at ROOT for Kotlin L2', () => {
     const kotlinDir = createTestProject('kotlin')
     initGit(kotlinDir)
     try {
@@ -158,36 +164,19 @@ describe('generateSuppressions — owasp + trivyignore (#208)', () => {
       })
       const result = generateSuppressions(config)
       const paths = result.files.map((f) => f.path)
-      expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(true)
-      expect(paths.some((p) => p.endsWith('.trivyignore'))).toBe(true)
+      expect(paths.some((p) => p === join(kotlinDir, '.trivyignore'))).toBe(true)
     } finally {
       cleanupTestProject(kotlinDir)
     }
   })
 
-  it('does NOT emit owasp-suppressions.xml for TypeScript L2', () => {
+  it('does NOT emit .trivyignore for a non-service TypeScript library at L2', () => {
     const tsDir = createTestProject('typescript')
     initGit(tsDir)
     try {
       const config = makeConfig(tsDir, {
         language: 'typescript',
-        governanceLevel: 'L2',
-        enableSuppressions: true,
-      })
-      const result = generateSuppressions(config)
-      const paths = result.files.map((f) => f.path)
-      expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(false)
-    } finally {
-      cleanupTestProject(tsDir)
-    }
-  })
-
-  it('does NOT emit .trivyignore for TypeScript L2', () => {
-    const tsDir = createTestProject('typescript')
-    initGit(tsDir)
-    try {
-      const config = makeConfig(tsDir, {
-        language: 'typescript',
+        archetype: 'library',
         governanceLevel: 'L2',
         enableSuppressions: true,
       })
@@ -199,7 +188,25 @@ describe('generateSuppressions — owasp + trivyignore (#208)', () => {
     }
   })
 
-  it('does NOT emit owasp-suppressions.xml at L1 for Java', () => {
+  it('emits .trivyignore for a TypeScript SERVICE archetype (R-04 — container-scan steps reference it for every language)', () => {
+    const tsDir = createTestProject('typescript')
+    initGit(tsDir)
+    try {
+      const config = makeConfig(tsDir, {
+        language: 'typescript',
+        archetype: 'backend-web-db',
+        governanceLevel: 'L2',
+        enableSuppressions: true,
+      })
+      const result = generateSuppressions(config)
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p === join(tsDir, '.trivyignore'))).toBe(true)
+    } finally {
+      cleanupTestProject(tsDir)
+    }
+  })
+
+  it('emits .trivyignore at L1 for Java too (R-04 — scope no longer L2+-gated)', () => {
     const config = makeConfig(dir, {
       language: 'java',
       governanceLevel: 'L1',
@@ -207,38 +214,21 @@ describe('generateSuppressions — owasp + trivyignore (#208)', () => {
     })
     const result = generateSuppressions(config)
     const paths = result.files.map((f) => f.path)
-    expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(false)
+    expect(paths.some((p) => p === join(dir, '.trivyignore'))).toBe(true)
   })
 
-  it('total files = 9 for Java L2 with enableSuppressions', () => {
+  it('total files = 7 for Java L2 with enableSuppressions (ADR-104)', () => {
     const config = makeConfig(dir, {
       language: 'java',
       governanceLevel: 'L2',
       enableSuppressions: true,
     })
     const result = generateSuppressions(config)
-    expect(result.files).toHaveLength(9)
-  })
-
-  it('skipIfExists on owasp-suppressions.xml (CANON-11)', () => {
-    const suppressionsDir = join(dir, 'suppressions')
-    mkdirSync(suppressionsDir, { recursive: true })
-    const target = join(suppressionsDir, 'owasp-suppressions.xml')
-    writeFileSync(target, 'PREEXISTING')
-    generateSuppressions(
-      makeConfig(dir, {
-        language: 'java',
-        governanceLevel: 'L2',
-        enableSuppressions: true,
-      }),
-    )
-    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+    expect(result.files).toHaveLength(7)
   })
 
   it('skipIfExists on .trivyignore (CANON-11)', () => {
-    const suppressionsDir = join(dir, 'suppressions')
-    mkdirSync(suppressionsDir, { recursive: true })
-    const target = join(suppressionsDir, '.trivyignore')
+    const target = join(dir, '.trivyignore')
     writeFileSync(target, 'PREEXISTING')
     generateSuppressions(
       makeConfig(dir, {

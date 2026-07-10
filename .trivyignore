@@ -1,11 +1,15 @@
 # .trivyignore — Trivy vulnerability suppressions for arbiter
 # Generated: #885 (W9 Supply Chain, INV-92)
 #
-# POLICY — Suppressions MUST include both a rationale comment and an expiry date.
-# Format: CVE-YYYY-NNNNN exp:YYYY-MM-DD
+# MANDATORY FORMAT (INV-31): every suppression entry MUST be a single line —
+#   <CVE-ID> exp:<YYYY-MM-DD> # reason=<10+ chars, reference a tracking issue> owner=@<github-handle>
+#
+# The check-suppressions.mjs gate validates every entry on every L1 commit.
+# Entries with a past exp: date fail the gate — there are no permanent
+# suppressions. Entries missing reason/owner fail the gate too.
+#
 # Example:
-#   # CVE-2023-12345: only affects containerized deployments; arbiter is a CLI tool.
-#   CVE-2023-12345 exp:2026-12-31
+# CVE-2023-XXXXX exp:2026-12-31 # reason=False positive, only affects containerized deployments (#1234) owner=@yourhandle
 #
 # NEVER suppress vulnerabilities in categories: SQL_INJECTION, XSS, COMMAND_INJECTION,
 # LDAP_INJECTION, HARD_CODE_PASSWORD — these require a documented security exception.

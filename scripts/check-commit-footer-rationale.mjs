@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: INV-119 enforcement. Scans `origin/main..HEAD` commit range for commits that touch
-// CATALOG:   suppression/bypass files (trivyignore, owasp-suppressions, pitest-override). Verifies
+// CATALOG:   suppression/bypass files (trivyignore, pitest-override). Verifies
 // CATALOG:   each such commit carries a well-formed immutable commit-footer trailer from the set:
 // CATALOG:   Suppression-Rationale, Pitest-Override-Rationale, Trivy-Expiry-Extension, Sigstore-Bypass.
 // CATALOG: Rejected fold-in into check-suppression-rationale.mjs (that gate checks file content, not
@@ -37,7 +37,7 @@ Recognized footer trailers:
   Sigstore-Bypass: <reason> | retry-after:<YYYY-MM-DD>
 
 Suppression-touching files (patterns):
-  *.trivyignore  *owasp-suppressions*  *pitest*override*  suppressions/**
+  *.trivyignore  *pitest*override*  suppressions/**
   (excludes EJS templates under src/templates/ — schema templates, not active waivers)`
 
 // Recognized trailer keys
@@ -51,7 +51,6 @@ const RECOGNIZED_TRAILERS = [
 // Files whose presence in a commit requires a footer trailer
 const SUPPRESSION_FILE_PATTERNS = [
   /\.trivyignore$/,
-  /owasp.suppressions/i,
   /pitest.*override/i,
   /sigstore.*bypass/i,
   /^suppressions\//,

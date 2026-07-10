@@ -1,0 +1,27 @@
+<%# Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning (ADR-104):
+    the OWASP DC CLI downloads the full NVD database on every run (an NVD API key is
+    required to avoid multi-minute/flaky downloads — an experience independently hit
+    running the equivalent OWASP DC step in another downstream project) and
+    dependency-check/Dependency-Check_Action was additionally a Docker-outside-of-Docker
+    action — same defect class as bridgecrewio/checkov-action (fixed) and
+    google/osv-scanner-action (fixed, #1767): on a self-hosted runner whose own process runs
+    inside a container, the action's workspace bind-mount resolves against the DOCKER HOST
+    path, not the runner's own checkout — and literal `ubuntu-latest` is no guarantee of real
+    GitHub-hosted infra in this fleet (#1767). `trivy-action` is a composite action (no
+    workspace bind-mount, no docker-container defect class) that queries the GitHub Advisory
+    Database / OSV instead of NVD — no API key, no slow/flaky download — and reuses the same
+    trivy-db-cached scanner arbiter already ships for container scanning (02-pr-extended,
+    04-deploy-test, 05-release trivy-strict-release). failOnCVSS 7 (INV-13) maps to
+    `--severity HIGH,CRITICAL --exit-code 1`, with `.trivyignore` as the suppression file
+    (INV-31). Shared partial: included from both _shared-security.yml.ejs (dep-cve-refresh)
+    and 06-nightly-lite.yml.ejs (dep-cve-refresh) so the two java branches cannot drift
+    apart. -%>
+      - name: Trivy fs — dependency CVE scan (HIGH/CRITICAL, INV-13)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          trivyignores: .trivyignore

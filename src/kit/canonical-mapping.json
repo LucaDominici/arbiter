@@ -1384,7 +1384,7 @@
     {
       "id": 56,
       "category": "Security",
-      "name": "Dependency audit (npm audit / OWASP dependency-check / cargo audit)",
+      "name": "Dependency audit (npm audit / trivy fs / cargo audit)",
       "detail": "anyRequest().authenticated(), CORS restrictive, CSRF",
       "tml": "M3",
       "tml_source": "L2",

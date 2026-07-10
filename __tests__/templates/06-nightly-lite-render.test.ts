@@ -82,20 +82,21 @@ describe('06-nightly-lite.yml.ejs — action pinning (#1319.5)', () => {
   })
 })
 
-// ─── Dependency-Check docker-container action (#1785) ────────────────────────
+// ─── Trivy fs dependency scan (ADR-104, formerly OWASP Dependency-Check #1785) ─
 
-describe('06-nightly-lite.yml.ejs — OWASP Dependency-Check (#1785)', () => {
-  it('java: OWASP Dependency-Check is a pinned static CLI, not the docker-container action', () => {
-    // #1785: dependency-check/Dependency-Check_Action is a Docker-outside-of-Docker
-    // action — same defect class as bridgecrewio/checkov-action (fixed) and
-    // google/osv-scanner-action (fixed, #1767). Sidestep it with the pinned CLI
-    // zip (checksum-verified), same pattern as those two fixes.
+describe('06-nightly-lite.yml.ejs — Trivy fs dependency scan (ADR-104)', () => {
+  it('java: Trivy fs is a composite action, not the docker-container OWASP DC action', () => {
+    // ADR-104: OWASP Dependency-Check (and its docker-container
+    // dependency-check/Dependency-Check_Action wrapper, #1785) was replaced by Trivy
+    // fs (aquasecurity/trivy-action) — a composite action with no workspace
+    // bind-mount, never subject to the #1785 defect class in the first place.
     const rendered = renderNightlyLite({ language: 'java', buildTool: 'gradle' })
-    expect(rendered).toContain('OWASP Dependency-Check')
+    expect(rendered).toContain('Trivy fs')
+    expect(rendered).not.toContain('OWASP Dependency-Check')
     expect(rendered).not.toMatch(/uses:\s*dependency-check\/Dependency-Check_Action/)
-    expect(rendered).toMatch(/dependency-check-12\.1\.0-release\.zip/)
-    expect(rendered).toMatch(/sha256sum -c/)
-    expect(rendered).toMatch(/dependency-check\.sh --project/)
+    expect(rendered).toMatch(/uses:\s*aquasecurity\/trivy-action@/)
+    expect(rendered).toMatch(/scan-type:\s*fs/)
+    expect(rendered).toMatch(/trivyignores:\s*\.trivyignore/)
   })
 })
 

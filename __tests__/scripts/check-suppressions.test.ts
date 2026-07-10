@@ -26,8 +26,20 @@ function writeJson(dir: string, relPath: string, data: unknown): void {
   writeFileSync(full, JSON.stringify(data, null, 2))
 }
 
-function writeXml(dir: string, content: string): void {
-  writeFileSync(join(dir, 'suppressions', 'dependency-check-suppressions.xml'), content)
+function writeTrivyignore(dir: string, content: string): void {
+  writeFileSync(join(dir, '.trivyignore'), content)
+}
+
+function setupJvmDir(): string {
+  const javaDir = createTestProject('java')
+  initGit(javaDir)
+  const javaConfig = makeConfig(javaDir, {
+    language: 'java',
+    buildTool: 'gradle',
+    enableSuppressions: true,
+  })
+  generateSuppressions(javaConfig)
+  return javaDir
 }
 
 function writeGitleaks(dir: string, content: string): void {
@@ -134,52 +146,57 @@ describe('check-suppressions.mjs', () => {
     expect(stderr).toMatch(/expired/i)
   })
 
-  // ─── XML file ─────────────────────────────────────────────────────────────
+  // ─── .trivyignore file (ADR-104 — replaces the OWASP DC XML suppress format) ──
 
-  it('exits 1 when XML has a suppress element with expired metadata comment', () => {
-    writeXml(
-      dir,
-      `<?xml version="1.0" encoding="UTF-8"?>
-<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-<!-- reason: CVE has no fix available upstream yet see issue 456 | owner: @luca | expiresAt: 2020-01-01 | scope: log4j -->
-<suppress>
-  <cve>CVE-2020-9999</cve>
-</suppress>
-</suppressions>`,
-    )
-    const { status, stderr } = runScript(dir)
-    expect(status).toBe(1)
-    expect(stderr).toMatch(/expired/i)
+  it('exits 1 when .trivyignore has an entry with expired metadata', () => {
+    const javaDir = setupJvmDir()
+    try {
+      writeTrivyignore(
+        javaDir,
+        'CVE-2020-9999 exp:2020-01-01 # reason=CVE has no fix available upstream yet owner=@luca\n',
+      )
+      const { status, stderr } = runScript(javaDir)
+      expect(status).toBe(1)
+      expect(stderr).toMatch(/expired/i)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
   })
 
-  it('exits 0 when XML has a suppress element with future metadata comment', () => {
-    writeXml(
-      dir,
-      `<?xml version="1.0" encoding="UTF-8"?>
-<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-<!-- reason: CVE has no fix available upstream yet see issue 456 | owner: @luca | expiresAt: 2099-01-01 | scope: log4j -->
-<suppress>
-  <cve>CVE-2020-9999</cve>
-</suppress>
-</suppressions>`,
-    )
-    const { status } = runScript(dir)
-    expect(status).toBe(0)
+  it('exits 0 when .trivyignore has an entry with future metadata', () => {
+    const javaDir = setupJvmDir()
+    try {
+      writeTrivyignore(
+        javaDir,
+        'CVE-2020-9999 exp:2099-01-01 # reason=CVE has no fix available upstream yet owner=@luca\n',
+      )
+      const { status } = runScript(javaDir)
+      expect(status).toBe(0)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
   })
 
-  it('exits 1 when XML suppress element has no metadata comment', () => {
-    writeXml(
-      dir,
-      `<?xml version="1.0" encoding="UTF-8"?>
-<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-<suppress>
-  <cve>CVE-2020-9999</cve>
-</suppress>
-</suppressions>`,
-    )
-    const { status, stderr } = runScript(dir)
-    expect(status).toBe(1)
-    expect(stderr).toMatch(/missing required field/i)
+  it('exits 1 when .trivyignore entry has no reason=/owner= metadata trailer', () => {
+    const javaDir = setupJvmDir()
+    try {
+      writeTrivyignore(javaDir, 'CVE-2020-9999 exp:2099-01-01\n')
+      const { status, stderr } = runScript(javaDir)
+      expect(status).toBe(1)
+      expect(stderr).toMatch(/missing required field/i)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
+  it('exits 0 when .trivyignore has no entries (header/policy comments only)', () => {
+    const javaDir = setupJvmDir()
+    try {
+      const { status } = runScript(javaDir)
+      expect(status).toBe(0)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
   })
 
   // ─── Gitleaks file ────────────────────────────────────────────────────────
@@ -252,23 +269,24 @@ abc123def456789`,
     expect(stderr).toMatch(/expected a JSON array/i)
   })
 
-  it('exits 1 when XML suppress element follows only a multi-line header comment (no metadata)', () => {
-    writeXml(
-      dir,
-      `<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Project header comment spanning multiple lines
-  reason: example | owner: @example | expiresAt: 2099-01-01 | scope: all
--->
-<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-<suppress>
-  <cve>CVE-2020-9999</cve>
-</suppress>
-</suppressions>`,
-    )
-    const { status, stderr } = runScript(dir)
-    expect(status).toBe(1)
-    expect(stderr).toMatch(/missing required field/i)
+  it('exits 1 when .trivyignore entry has a multi-line-style header comment but no inline metadata', () => {
+    // The .trivyignore format has no "preceding comment" concept (unlike the old XML
+    // suppress-block format) — metadata is inline on the entry's own line. A header
+    // comment block above an entry is never consulted as metadata.
+    const javaDir = setupJvmDir()
+    try {
+      writeTrivyignore(
+        javaDir,
+        `# Project header comment spanning multiple lines
+# reason: example | owner: @example | expiresAt: 2099-01-01 | scope: all
+CVE-2020-9999 exp:2099-01-01\n`,
+      )
+      const { status, stderr } = runScript(javaDir)
+      expect(status).toBe(1)
+      expect(stderr).toMatch(/missing required field/i)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
   })
 
   // ─── mkdirSync guard ──────────────────────────────────────────────────────

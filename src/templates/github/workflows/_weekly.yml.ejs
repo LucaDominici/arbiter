@@ -237,8 +237,6 @@ jobs:
 
   shared-security:
     uses: ./.github/workflows/_shared-security.yml
-    with:
-      nvd-cache-namespace: weekly
 
 <% if (locals.runnerProfile === 'solo') { -%>
 <%- include('_partials/scheduled-heavy-jobs.ejs') -%>

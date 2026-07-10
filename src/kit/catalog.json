@@ -573,7 +573,7 @@
   },
   {
     "id": "N56",
-    "name": "Dependency audit (npm audit / OWASP dependency-check / cargo audit)",
+    "name": "Dependency audit (npm audit / trivy fs / cargo audit)",
     "tml": "L2",
     "gate": "BLOCKING",
     "categoryRef": "security",

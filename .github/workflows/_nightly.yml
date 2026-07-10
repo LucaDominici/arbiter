@@ -11,8 +11,6 @@ permissions:
 jobs:
   shared-security:
     uses: ./.github/workflows/_shared-security.yml
-    with:
-      nvd-cache-namespace: nightly
 
 
   semgrep-sast:

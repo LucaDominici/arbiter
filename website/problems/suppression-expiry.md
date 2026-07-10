@@ -26,7 +26,7 @@ permanent holes. The reason is lost, the owner has left, and the suppressed risk
 ## How arbiter enforces it
 
 `arbiter init` generates suppression handling under **INV-31** (always-active): every suppression —
-whether file-based (`dependency-check-suppressions.xml`, `.gitleaksignore`, `pii-allowlist.json`,
+whether file-based (`.trivyignore`, `.gitleaksignore`, `pii-allowlist.json`,
 `archunit-baseline.json`) or inline
 (`arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason=…, owner=@handle)`) — **must** carry a reason
 (≥10 chars), an owner (`@handle`), and an ISO expiry date.

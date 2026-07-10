@@ -6,11 +6,6 @@ const _bucket = serviceBucket;
 const _isService = isService;
 %>on:
   workflow_call:
-    inputs:
-      nvd-cache-namespace:
-        description: Cache namespace for NVD data (e.g. nightly, weekly)
-        type: string
-        required: true
 
 permissions:
   contents: read
@@ -57,10 +52,11 @@ jobs:
     # docker-container actions hit on a self-hosted runner whose own process
     # runs inside a container. Enforced by scripts/check-docker-action-runner-safety.mjs.
     # #1767/#1785: that assumption does not hold in every environment — literal
-    # `ubuntu-latest` has been observed resolving to self-hosted infra. Both the
-    # typescript branch's osv-scanner step (#1767) and the java branch's
-    # OWASP Dependency-Check step (#1785) were switched to pinned static
-    # CLIs/binaries as a result, sidestepping the defect class entirely.
+    # `ubuntu-latest` has been observed resolving to self-hosted infra. The
+    # typescript branch's osv-scanner step (#1767) was switched to a pinned static
+    # binary as a result, sidestepping the defect class entirely; the java branch's
+    # Trivy fs step (ADR-104) is a composite action with no workspace bind-mount,
+    # so it was never subject to the defect class in the first place.
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -71,9 +67,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Install osv-scanner (pinned static binary)
         # #1767: google/osv-scanner-action is a Docker-outside-of-Docker
-        # action — same defect class as the java branch's
-        # Dependency-Check_Action below. A static binary has no workspace
-        # bind-mount to break, sidestepping the class of bug entirely.
+        # action. A static binary has no workspace bind-mount to break,
+        # sidestepping the class of bug entirely.
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
           curl -sSfL -o "$RUNNER_TEMP/bin/osv-scanner" \
@@ -99,11 +94,7 @@ jobs:
             exit 1
           fi
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: '21'
-<%- include('_partials/owasp-dependency-check-java.ejs') %>
+<%- include('_partials/trivy-fs-java.ejs') %>
 <% } else if (language === 'go') { %>
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:

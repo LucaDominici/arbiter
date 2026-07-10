@@ -204,7 +204,6 @@ describe('check-docker-action-runner-safety.mjs (#1756)', () => {
   })
 
   it.each([
-    ['dependency-check/Dependency-Check_Action', '1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c'],
     ['zaproxy/action-full-scan', 'd2a07475d467566c9a3e3c700f31f47724aa1060'],
     ['zaproxy/action-baseline', '66042c8e7e24680119199a017e5b0e8603bf4dae'],
   ])(
