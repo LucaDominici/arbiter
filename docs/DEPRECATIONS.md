@@ -1,8 +1,8 @@
 ---
 title: 'Active Deprecations'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-07-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -19,9 +19,9 @@ Override: `ALLOW_REMOVE_DEPRECATED=1 node scripts/check-all.mjs` (document the e
 
 ## Format
 
-| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement | Status | Stage |
-| ------------------------ | ------------- | --------- | ----------- | ------ | ----- |
-| _(none yet)_             | —             | —         | —           | —      | —     |
+| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement                          | Status     | Stage |
+| ------------------------ | ------------- | --------- | ------------------------------------ | ---------- | ----- |
+| ship --batch             | 0.4.0         | 0.6.0     | `/drain` (wave-drain skill), ADR-103 | deprecated | warn  |
 
 ## Closed / Removed Deprecations
 

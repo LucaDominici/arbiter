@@ -4,7 +4,10 @@ import {
   applyDeprecatedFlagFilter,
   type DeprecatedFlagFilterResult,
 } from '../../src/internal/deprecate.js'
-import type { DeprecatedFlagRecord } from '../../src/internal/cli-deprecation-registry.js'
+import {
+  CLI_DEPRECATED_FLAGS,
+  type DeprecatedFlagRecord,
+} from '../../src/internal/cli-deprecation-registry.js'
 
 // Synthetic registry entries used for behavioral testing.
 // Tests must not depend on CLI_DEPRECATED_FLAGS (currently empty) to avoid vacuous passes.
@@ -101,5 +104,15 @@ describe('applyDeprecatedFlagFilter contract (#606)', () => {
     ])
     expect(result.exitCode).toBeUndefined()
     expect(result.remaining).toContain('--unknown-flag')
+  })
+})
+
+describe('CLI_DEPRECATED_FLAGS registry (ADR-103, #1873)', () => {
+  it('ship --batch is registered at warn stage pointing to /drain', () => {
+    const batch = CLI_DEPRECATED_FLAGS.find((r) => r.flag === '--batch')
+    expect(batch).toBeDefined()
+    expect(batch!.stage).toBe('warn')
+    expect(batch!.replacement).toContain('/drain')
+    expect(batch!.deprecatedIn).not.toBe(batch!.removeIn)
   })
 })

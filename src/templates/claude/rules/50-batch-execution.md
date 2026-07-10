@@ -29,6 +29,31 @@ Never spawn parallel agents that:
 - **Create branches or tags** — race conditions in git ref creation
 - **Delete files or directories** — no recovery from concurrent deletes
 
+## Carve-out: Worktree-Isolated Parallel Execution (ADR-103)
+
+The prohibitions above target parallel agents sharing ONE working tree. A parallel
+agent is exempt from the edit/commit/branch prohibitions only when ALL of the following
+conditions hold — each is necessary, and any miss voids the exemption:
+
+1. **Dedicated worktree** — the agent operates in its own git worktree opened via
+   `arbiter worktree open` (or `/wt-open`). Branch creation is serialized by the
+   worktree open lock, so there is no race on git ref creation.
+2. **Distinct branch per agent** — no two parallel agents ever share a branch.
+3. **Disjoint file-sets** — the file-sets the agents will touch are declared disjoint
+   in a plan manifest (wave-drain Phase 1) before dispatch.
+
+Still prohibited even under the carve-out:
+
+- **Installing or modifying dependencies** (`package.json` / lockfiles) — a solo,
+  serial lane only; lockfile divergence across worktrees is unrecoverable.
+- **Editing the main working tree** — workers write only inside their own worktree.
+- **Creating tags** — tags are repo-global refs; no worktree isolation applies.
+
+Lock discipline under the carve-out (anti-deadlock, ADR-103): a process never holds
+two arbiter locks at once. `arbiter gate-exec` is a **leaf** operation — it acquires
+only the gate flock and is never invoked while `.arbiter/.lock` is held. Total
+acquisition order: gate-lock ≺ worktree-lock ≺ wave-claim.
+
 ## Anti-Rot Checklist
 
 Before spawning parallel agents, verify:

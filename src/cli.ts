@@ -1572,9 +1572,10 @@ program
   )
   .option(
     '--batch <issues>',
-    'Overnight multi-issue mode (#1263): comma-separated issue numbers to ship ' +
-      'unattended, one fresh clean-context sub-agent per issue, with per-issue STOP ' +
-      'isolation; aggregates a batch-report-<date>.json',
+    '[DEPRECATED, ADR-103 — use /drain (wave-drain skill)] Overnight multi-issue ' +
+      'mode (#1263): comma-separated issue numbers to ship unattended, one fresh ' +
+      'clean-context sub-agent per issue, with per-issue STOP isolation; ' +
+      'aggregates a batch-report-<date>.json',
   )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
