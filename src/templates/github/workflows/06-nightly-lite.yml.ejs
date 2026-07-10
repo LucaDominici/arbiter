@@ -65,12 +65,14 @@ jobs:
   dep-cve-refresh:
     name: Dependency CVE refresh
     # #1756: pinned to a LITERAL GitHub-hosted runner, not the usual _runner
-    # self-hosted-capable fallback. The java branch below uses
-    # dependency-check/Dependency-Check_Action, a docker-container action — on a
-    # self-hosted runner whose own process runs inside a container, the action's
-    # workspace bind-mount resolves against the DOCKER HOST path, not the runner's own
-    # checkout. GitHub-hosted runners are not containerized this way and are
-    # unaffected. Enforced by scripts/check-docker-action-runner-safety.mjs.
+    # self-hosted-capable fallback, on the assumption that GitHub-hosted runners
+    # are not containerized and therefore immune to the Docker-outside-of-Docker
+    # workspace-bind-mount defect that docker-container actions hit on a
+    # self-hosted runner whose own process runs inside a container. Enforced by
+    # scripts/check-docker-action-runner-safety.mjs.
+    # #1785: the java branch below used to run dependency-check/Dependency-Check_Action,
+    # a docker-container action — switched to a pinned static CLI (checksum-verified),
+    # sidestepping the defect class entirely (same pattern as _shared-security.yml.ejs).
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -84,13 +86,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c  # main @ 2026-05-28
-        with:
-          project: '${{ github.repository }}'
-          path: '.'
-          format: HTML
-          args: '--failOnCVSS 7'
+<%- include('_partials/owasp-dependency-check-java.ejs') %>
 <% } else if (language === 'go') { %>
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
