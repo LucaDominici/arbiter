@@ -22,7 +22,7 @@ the evidence of conformity.
 | ------- | ------- | -------------------------------- | ----------------- |
 | A.8.25 | Secure development life cycle | `node scripts/check-all.mjs` (L1/L2/L3 tiers) + module-boundary rules (dependency-cruiser / ArchUnit) | Gate pass record per merge; architecture conformance report |
 | A.8.26 | Application security requirements | OWASP / ZAP dynamic application security testing (DAST) + STRIDE threat model | DAST scan report; documented threat model |
-| A.8.28 | Secure coding | Static application security testing (SAST: eslint-security / semgrep) + dependency vulnerability scan (`npm audit` / OWASP dependency-check) | SAST findings = 0 high; dependency-check report |
+| A.8.28 | Secure coding | Static application security testing (SAST: eslint-security / semgrep) + dependency vulnerability scan (`npm audit` / trivy fs) | SAST findings = 0 high; dependency scan report |
 | A.8.29 | Security testing in development and acceptance | Secret scanning (`gitleaks`) + PII scan (`pii-scan`) + the security test suite | gitleaks clean; pii-scan clean; security tests green |
 | A.8.32 | Change management | Commit-footer rationale audit (**INV-119**, change-management evidence) + ff-only PR/gate process (INV-101) | Per-commit rationale trailer; gated PR history |
 
@@ -42,7 +42,7 @@ security in the ICT supply chain*) is produced by the release pipeline:
 
 - **SBOM** generation + **cosign** signing + **SLSA** provenance attestation on
   release artifacts.
-- **Dependency vulnerability scan** (`npm audit` / OWASP dependency-check) gates
+- **Dependency vulnerability scan** (`npm audit` / trivy fs) gates
   on known-vulnerable transitive dependencies.
 
 ## How to use this matrix

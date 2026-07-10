@@ -53,7 +53,7 @@ The overlay maps the **technological** Annex-A controls that arbiter can mechani
 | -------------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
 | A.8.25         | Secure development life cycle          | `check-all.mjs` (L1/L2/L3) + module-boundary rules (dependency-cruiser / ArchUnit) |
 | A.8.26         | Application security requirements      | OWASP / ZAP DAST + STRIDE threat model                                             |
-| A.8.28         | Secure coding                          | SAST (eslint-security / semgrep) + dependency-check (`npm audit` / OWASP)          |
+| A.8.28         | Secure coding                          | SAST (eslint-security / semgrep) + dependency scan (`npm audit` / trivy fs)        |
 | A.8.29         | Security testing                       | `gitleaks` + `pii-scan` + the security test suite                                  |
 | A.8.32         | Change management                      | Commit-footer rationale audit (**INV-119**) + ff-only PR/gate process (INV-101)    |
 | A.5.15 / A.8.4 | Access control / access to source code | Branch protection + CODEOWNERS + INV-23 (no direct push to `main`)                 |

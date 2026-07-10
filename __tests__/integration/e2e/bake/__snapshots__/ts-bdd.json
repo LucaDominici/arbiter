@@ -151,7 +151,6 @@
     "standards/gold-registry.yml",
     "standards/thresholds.yml",
     "suppressions/.gitleaksignore",
-    "suppressions/dependency-check-suppressions.xml",
     "suppressions/pii-allowlist.json",
     "suppressions/suppressions-schema.json",
     "test-pyramid.json",

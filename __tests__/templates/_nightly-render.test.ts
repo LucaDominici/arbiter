@@ -58,10 +58,10 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).not.toContain('mutation-deep')
   })
 
-  it('nightly delegates to shared-security partial (#1694)', () => {
+  it('nightly delegates to shared-security partial with no inputs (#1694, R-07)', () => {
     const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
     expect(rendered).toContain('shared-security:')
-    expect(rendered).toContain('nvd-cache-namespace: nightly')
+    expect(rendered).not.toContain('nvd-cache-namespace')
   })
 
   it('nightly does NOT define inline dep-cve-refresh job (#1694)', () => {

@@ -58,17 +58,6 @@ export function generateSecurity(
     )
   }
 
-  // Java/multi: OWASP Dependency-Check Gradle snippet
-  if (config.language === 'java' || config.language === 'multi') {
-    results.push(
-      writeFile(
-        resolvedPath(base, 'config', 'owasp-dependency-check.gradle'),
-        renderSecurityTemplate('security/owasp-dependency-check.gradle.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
-  }
-
   // ZAP DAST files — service archetype only (backend-web-db runs a live server)
   // M3 advisory: rules.tsv, baseline-auth.context, ingest-zap-report.mjs (#898)
   if (config.archetype === 'backend-web-db') {

@@ -45,21 +45,22 @@ describe('_shared-security.yml.ejs — structural invariants (#1694, CANON-18)',
     expect(count).toBe(1)
   })
 
-  it('Java: renders OWASP Dependency-Check in dep-cve-refresh', () => {
+  it('Java: renders Trivy fs dependency scan in dep-cve-refresh (ADR-104)', () => {
     const rendered = renderSharedSecurity({ language: 'java', buildTool: 'gradle' })
-    expect(rendered).toContain('OWASP Dependency-Check')
+    expect(rendered).toContain('Trivy fs')
   })
 
-  it('Java: OWASP Dependency-Check is a pinned static CLI, not the docker-container action (#1785)', () => {
-    // #1785: dependency-check/Dependency-Check_Action is a Docker-outside-of-Docker
-    // action — same defect class as bridgecrewio/checkov-action (fixed) and
-    // google/osv-scanner-action (fixed, #1767). Sidestep it with the pinned CLI
-    // zip (checksum-verified), same pattern as those two fixes.
+  it('Java: Trivy fs is a composite action, not the docker-container OWASP DC action (ADR-104, #1785)', () => {
+    // ADR-104: OWASP Dependency-Check (and its docker-container
+    // dependency-check/Dependency-Check_Action wrapper, #1785) was replaced by Trivy
+    // fs (aquasecurity/trivy-action) — a composite action with no workspace
+    // bind-mount, never subject to the #1785 defect class in the first place.
     const rendered = renderSharedSecurity({ language: 'java', buildTool: 'gradle' })
     expect(rendered).not.toMatch(/uses:\s*dependency-check\/Dependency-Check_Action/)
-    expect(rendered).toMatch(/dependency-check-12\.1\.0-release\.zip/)
-    expect(rendered).toMatch(/sha256sum -c/)
-    expect(rendered).toMatch(/dependency-check\.sh --project/)
+    expect(rendered).not.toContain('OWASP Dependency-Check')
+    expect(rendered).toMatch(/uses:\s*aquasecurity\/trivy-action@/)
+    expect(rendered).toMatch(/scan-type:\s*fs/)
+    expect(rendered).toMatch(/trivyignores:\s*\.trivyignore/)
   })
 
   it('TypeScript: renders npm audit in dep-cve-refresh', () => {
@@ -81,9 +82,9 @@ describe('_shared-security.yml.ejs — structural invariants (#1694, CANON-18)',
     expect(dastSection).not.toContain('if: false')
   })
 
-  it('has workflow_call trigger with nvd-cache-namespace input', () => {
+  it('has workflow_call trigger with no inputs (R-07 — nvd-cache-namespace was dead)', () => {
     const rendered = renderSharedSecurity({ language: 'typescript' })
     expect(rendered).toContain('workflow_call:')
-    expect(rendered).toContain('nvd-cache-namespace:')
+    expect(rendered).not.toContain('nvd-cache-namespace')
   })
 })

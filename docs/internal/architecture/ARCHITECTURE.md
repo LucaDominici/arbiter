@@ -921,7 +921,7 @@ Every artifact in the engineering skeleton belongs to exactly one category.
 | `test-harness`          | Test taxonomy, test runners, test types, evidence schema            | `docs/TEST_TAXONOMY.md`, `schemas/evidence-bundle.schema.json`      |
 | `contract-verification` | API schema, pact, OpenAPI, Newman contract tests                    | `src/templates/contract/` (framework only)                          |
 | `static-analysis`       | Lint, format, type-check, dead code, architectural rule enforcement | `scripts/check-*.mjs` (agnostic) + stack adapter (stack-specific)   |
-| `supply-chain-check`    | Signing, SBOM, Trivy, OWASP dependency check, secret scanning       | `.github/workflows/05-release.yml`, `scripts/check-secret-scan.mjs` |
+| `supply-chain-check`    | Signing, SBOM, Trivy (fs + container scan), secret scanning         | `.github/workflows/05-release.yml`, `scripts/check-secret-scan.mjs` |
 | `evidence-capture`      | Commands + outputs captured in machine-readable bundles             | `.evidence/*/`, `scripts/evidence-*.mjs`                            |
 | `docs-governance`       | Docs that are required by protocol (AGENTS.md, ADRs, runbooks)      | `AGENTS.md`, `docs/ADR/`, `docs/SYSTEM/`                            |
 | `agent-instruction`     | Directives for AI agents (AGENTS.md, .claude/agents/\*.md)          | `.claude/agents/*.md`, `AGENTS.md`                                  |

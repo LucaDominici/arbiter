@@ -37,7 +37,7 @@ describe('generateSecurity', () => {
     expect(result.files).toHaveLength(3)
   })
 
-  it('generates 4 files for Java (includes OWASP DC snippet)', () => {
+  it('generates 3 files for Java too (ADR-104 — no more OWASP DC gradle snippet)', () => {
     const javaDir = createTestProject('java')
     initGit(javaDir)
     try {
@@ -47,7 +47,7 @@ describe('generateSecurity', () => {
         buildTool: 'gradle',
       })
       const result = generateSecurity(config)
-      expect(result.files).toHaveLength(4)
+      expect(result.files).toHaveLength(3)
     } finally {
       cleanupTestProject(javaDir)
     }
@@ -61,30 +61,15 @@ describe('generateSecurity', () => {
     })
   }
 
-  it('generates config/owasp-dependency-check.gradle for Java', () => {
-    const javaDir = createTestProject('java')
-    initGit(javaDir)
-    try {
-      const config = makeConfig(javaDir, {
-        enableSecurityScanning: true,
-        language: 'java',
-        buildTool: 'gradle',
-      })
-      generateSecurity(config)
-      expect(existsSync(join(javaDir, 'config', 'owasp-dependency-check.gradle'))).toBe(true)
-    } finally {
-      cleanupTestProject(javaDir)
-    }
-  })
-
-  for (const lang of ['typescript', 'rust', 'go', 'python'] as const) {
-    it(`does not generate OWASP DC snippet for ${lang}`, () => {
+  for (const lang of ['typescript', 'rust', 'go', 'python', 'java'] as const) {
+    it(`does not generate config/owasp-dependency-check.gradle for ${lang} (ADR-104, deleted)`, () => {
       const langDir = createTestProject(lang)
       initGit(langDir)
       try {
         const config = makeConfig(langDir, {
           enableSecurityScanning: true,
           language: lang,
+          ...(lang === 'java' ? { buildTool: 'gradle' as const } : {}),
         })
         generateSecurity(config)
         expect(existsSync(join(langDir, 'config', 'owasp-dependency-check.gradle'))).toBe(false)

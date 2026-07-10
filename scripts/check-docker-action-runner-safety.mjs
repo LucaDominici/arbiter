@@ -62,17 +62,19 @@ const { cwd: CWD } = parseHelpAndDir(args, {
 
 // Curated denylist of actions confirmed to trigger the #1756 bind-mount defect —
 // either natively docker-container-typed (`runs: using: docker` in action.yml, e.g.
-// bridgecrewio/checkov-action, dependency-check/Dependency-Check_Action), OR a
-// JS/node action that internally shells out to `docker run` against the workspace
-// (Docker-outside-of-Docker), which hits the identical host-mount defect via a
-// different mechanism (zaproxy/action-full-scan, zaproxy/action-baseline — both
-// `runs.using: node20`, but their README documents an internal `docker run` of the
-// ZAP image against the target workspace). Extend this list only after confirming
-// one of these two mechanisms — a plain composite/JS action that never touches
-// Docker itself is not subject to this bind-mount defect.
+// bridgecrewio/checkov-action), OR a JS/node action that internally shells out to
+// `docker run` against the workspace (Docker-outside-of-Docker), which hits the
+// identical host-mount defect via a different mechanism (zaproxy/action-full-scan,
+// zaproxy/action-baseline — both `runs.using: node20`, but their README documents
+// an internal `docker run` of the ZAP image against the target workspace). Extend
+// this list only after confirming one of these two mechanisms — a plain
+// composite/JS action that never touches Docker itself is not subject to this
+// bind-mount defect.
+// R-11 (ADR-104): dependency-check/Dependency-Check_Action removed — no workflow or
+// template uses it post-#1877/ADR-104 (OWASP DC → Trivy fs, a composite action with
+// no docker-container defect class).
 const DOCKER_CONTAINER_ACTIONS = [
   'bridgecrewio/checkov-action',
-  'dependency-check/Dependency-Check_Action',
   'zaproxy/action-full-scan',
   'zaproxy/action-baseline',
 ]

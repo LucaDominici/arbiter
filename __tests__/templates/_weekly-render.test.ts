@@ -94,10 +94,10 @@ describe('_weekly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).not.toContain('cross-os-matrix:')
   })
 
-  it('weekly delegates to shared-security partial (#1694)', () => {
+  it('weekly delegates to shared-security partial with no inputs (#1694, R-07)', () => {
     const rendered = renderWeeklyPartial({ language: 'typescript', buildTool: 'npm' })
     expect(rendered).toContain('shared-security:')
-    expect(rendered).toContain('nvd-cache-namespace: weekly')
+    expect(rendered).not.toContain('nvd-cache-namespace')
   })
 
   it('weekly-required needs list contains shared-security (#1694)', () => {

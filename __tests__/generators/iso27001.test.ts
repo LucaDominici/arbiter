@@ -100,7 +100,7 @@ describe('generateIso27001 (#1252)', () => {
     const mapFile = result.files.find((f) => f.path.endsWith('iso27001-controls-gate-map.md'))
     const content = readFileSync(mapFile!.path, 'utf-8')
     expect(content).toContain('check-all')
-    expect(content).toMatch(/npm audit|dep-check|dependency-check/i)
+    expect(content).toMatch(/npm audit|dep-check|dependency-check|trivy/i)
     expect(content).toMatch(/gitleaks|pii-scan/i)
   })
 
