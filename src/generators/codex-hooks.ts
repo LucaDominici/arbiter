@@ -14,6 +14,21 @@ export interface CodexHooksGeneratorResult {
   files: WriteResult[]
 }
 
+// #1885: the 6 guard hooks that codex/config.toml.ejs wires unconditionally through
+// codex-adapter.mjs. These live under .claude/hooks/ — tool-agnostic scripts (they
+// already branch on stdin-JSON vs env var via lib.mjs's resolveToolInput{Path,Command},
+// #1565). Before this fix, codex-only projects (no `claude` in tools) never got these
+// files: generateClaudeHooks (claude.ts) is the only emitter and only runs when `claude`
+// is selected, so config.toml pointed at 6 nonexistent scripts and codex-adapter.mjs's
+// execFileSync crashed on every PreToolUse/PostToolUse call, blocking all bash/apply_patch.
+const SHARED_GUARD_HOOKS = [
+  'stop-dangerous.mjs',
+  'enforce-read-only.mjs',
+  'pre-edit-ssot-guard.mjs',
+  'check-no-orphan-todo.mjs',
+  'check-no-placeholders.mjs',
+] as const
+
 export function generateCodexHooks(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -21,6 +36,46 @@ export function generateCodexHooks(
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = config
+  const hooksDir = resolvedPath(base, '.claude', 'hooks')
+
+  // Sole-emitter contract (#1578/INV-128): a path may be emitted by exactly one
+  // enabled registry generator. When `claude` is ALSO selected, generateClaudeHooks
+  // (claude.ts) already emits these same files — codex-hooks.ts must defer to it
+  // rather than duplicate-emit, or `arbiter diff`/the generated-manifest would see
+  // the same path claimed by two generators (the #1318.2 double-write class). Only
+  // take ownership when codex is the ONLY AI tool selected, i.e. claude.ts will not run.
+  if (!config.tools.includes('claude')) {
+    // .claude/hooks/lib.mjs — shared utility module the guard hooks below import from.
+    results.push(
+      writeFile(join(hooksDir, 'lib.mjs'), renderTemplate('claude/hooks/lib.mjs.ejs', data), {
+        skipIfExists: true,
+        dryRun: opts.dryRun,
+      }),
+    )
+
+    for (const hookFile of SHARED_GUARD_HOOKS) {
+      results.push(
+        writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}`, data), {
+          skipIfExists: true,
+          dryRun: opts.dryRun,
+        }),
+      )
+    }
+
+    // check-no-skipped-tests.mjs — same opt-out flag as generateClaudeHooks (claude.ts).
+    // Secondary bug fixed alongside the crash: config.toml.ejs referenced this hook
+    // unconditionally even when enableNoSkippedTests:false, leaving one dangling
+    // reference for a codex-only project with the flag off.
+    if (config.enableNoSkippedTests !== false) {
+      results.push(
+        writeFile(
+          join(hooksDir, 'check-no-skipped-tests.mjs'),
+          renderTemplate('claude/hooks/check-no-skipped-tests.mjs', data),
+          { skipIfExists: true, dryRun: opts.dryRun },
+        ),
+      )
+    }
+  }
 
   // .codex/config.toml — always rewrite so hook wiring stays current; backup preserves customizations
   results.push(

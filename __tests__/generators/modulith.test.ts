@@ -36,9 +36,12 @@ describe('generateModulith — Spring Boot project (kitEnabled=true)', () => {
   it('emits ApplicationModulesTest.java for java language', () => {
     const config = makeConfig({ targetDir: tmpDir })
     const result = generateModulith(config)
-    expect(result.files.length).toBe(1)
-    expect(result.files[0]?.path).toContain('ApplicationModulesTest.java')
-    expect(result.files[0]?.path).toContain('modulith')
+    // #1886: ApplicationModulesTest.java + the Maven dependency-setup doc (default
+    // buildTool here is 'maven') — the test alone would not compile otherwise.
+    expect(result.files.length).toBe(2)
+    const testFile = result.files.find((f) => f.path.endsWith('ApplicationModulesTest.java'))
+    expect(testFile).toBeDefined()
+    expect(testFile!.path).toContain('modulith')
   })
 
   it('uses basePackage in file path', () => {
@@ -65,7 +68,7 @@ describe('generateModulith — Spring Boot detected via pom.xml', () => {
     )
     const config = makeConfig({ targetDir: tmpDir, kitEnabled: false })
     const result = generateModulith(config)
-    expect(result.files.length).toBe(1)
+    expect(result.files.length).toBe(2) // ApplicationModulesTest.java + Maven setup doc (#1886)
   })
 
   it('skips for java project without spring-boot in pom.xml and kitEnabled=false', () => {
@@ -95,6 +98,56 @@ describe('generateModulith — multi-language project', () => {
     mkdirSync(join(tmpDir, 'backend'))
     const config = makeConfig({ targetDir: tmpDir, language: 'multi', kitEnabled: true })
     const result = generateModulith(config)
-    expect(result.files.length).toBe(1)
+    expect(result.files.length).toBe(2) // ApplicationModulesTest.java + Maven setup doc (#1886)
+  })
+})
+
+// #1886: the emitted ApplicationModulesTest.java imports
+// org.springframework.modulith.core.ApplicationModules, which nothing put on the
+// classpath — `mvn test` / `./gradlew test` failed to compile for EVERY detected
+// Spring Boot Java/Kotlin project. Verify the dependency is actually wired (Gradle)
+// or at minimum documented (Maven), mirroring archunit.ts's proven pattern.
+describe('generateModulith — dependency wiring (#1886)', () => {
+  it('Gradle: emits gradle/modulith-deps.gradle with the spring-modulith test dependency', () => {
+    writeFileSync(join(tmpDir, 'build.gradle'), 'plugins { id "java" }')
+    const config = makeConfig({ targetDir: tmpDir, buildTool: 'gradle' })
+    const result = generateModulith(config)
+    const depsFile = result.files.find((f) => f.path.endsWith('modulith-deps.gradle'))
+    expect(depsFile).toBeDefined()
+    const content = readFileSync(depsFile!.path, 'utf8')
+    expect(content).toContain('org.springframework.modulith:spring-modulith-starter-test')
+  })
+
+  it('Gradle: wires modulith-deps.gradle into the root build via apply(from=...)', () => {
+    writeFileSync(join(tmpDir, 'build.gradle'), 'plugins { id "java" }')
+    const config = makeConfig({ targetDir: tmpDir, buildTool: 'gradle' })
+    generateModulith(config)
+    const buildContent = readFileSync(join(tmpDir, 'build.gradle'), 'utf8')
+    expect(buildContent).toContain("apply from: 'gradle/modulith-deps.gradle'")
+  })
+
+  it('Gradle Kotlin DSL: wires via build.gradle.kts', () => {
+    writeFileSync(join(tmpDir, 'build.gradle.kts'), 'plugins { java }')
+    const config = makeConfig({ targetDir: tmpDir, buildTool: 'gradle' })
+    generateModulith(config)
+    const buildContent = readFileSync(join(tmpDir, 'build.gradle.kts'), 'utf8')
+    expect(buildContent).toContain('apply(from = "gradle/modulith-deps.gradle")')
+  })
+
+  it('Maven: emits docs/modulith-maven-setup.md instead of a .gradle file', () => {
+    const config = makeConfig({ targetDir: tmpDir, buildTool: 'maven' })
+    const result = generateModulith(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('modulith-deps.gradle'))).toBe(false)
+    expect(paths.some((p) => p.endsWith('modulith-maven-setup.md'))).toBe(true)
+    const doc = result.files.find((f) => f.path.endsWith('modulith-maven-setup.md'))
+    const content = readFileSync(doc!.path, 'utf8')
+    expect(content).toContain('org.springframework.modulith')
+    expect(content).toContain('spring-modulith-starter-test')
+  })
+
+  it('does not wire a Gradle build script when none exists yet (no crash)', () => {
+    const config = makeConfig({ targetDir: tmpDir, buildTool: 'gradle' })
+    expect(() => generateModulith(config)).not.toThrow()
   })
 })
