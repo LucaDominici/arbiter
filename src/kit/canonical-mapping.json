@@ -1,7 +1,7 @@
 {
   "$schema": "arbiter-kit-v1",
   "source": "[tools]/KIT_gold-standard_76-dimensions_REDACTED.xlsx",
-  "revision": "Rev00 07/05/2026",
+  "revision": "Rev01 (R-08 remap)",
   "generated_at": "2026-05-19T00:00:00Z",
   "total_dims": 78,
   "tml_alias_note": "tml field uses arbiter canonical M1/M2/M3; tml_source preserves XLSX L1/L2/L3; ADR-045 records the alias",
@@ -16,220 +16,263 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["ArchitectureTests.java"],
+      "planning_evidence_paths": [
+        "ArchitectureTests.java"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/architecture/archunit-rules-compile-time.ejs",
+        "template": "planned:src/templates/java/architecture/archunit-rules-compile-time.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-001-archunit-rules-compile-time.md"
       },
       "planning_notes": "Graduale: 1 regola alla volta, partire da conformi",
-      "canonical_id": "N01"
+      "canonical_id": "N01",
+      "import_source": {
+        "import_id": 1,
+        "import_name": "ArchUnit rules compile-time"
+      },
+      "origin": "import"
     },
     {
       "id": 2,
       "category": "Architecture",
-      "name": "Package dependency rules (no domain\u2192infra leakage)",
+      "name": "Package dependency rules (no domain→infra leakage)",
+      "detail": "",
+      "tml": "M2",
+      "tml_source": "L2",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java_spring",
+      "conditional": "always",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F2",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/package-dependency-rules-no-domain-infra-leakage.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N02",
+      "import_source": null,
+      "origin": "arbiter-native"
+    },
+    {
+      "id": 3,
+      "category": "Architecture",
+      "name": "Interface + implementation separation rule",
       "detail": "Ogni service: XxxService (interface) + XxxServiceImpl",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["service/*Service.java"],
+      "planning_evidence_paths": [
+        "service/*Service.java"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/architecture/interface-impl-pattern-p5.ejs",
+        "template": "planned:src/templates/java/architecture/interface-impl-pattern-p5.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-002-interface-impl-pattern-p5.md"
       },
       "planning_notes": "Instance: 26 service da splittare",
-      "canonical_id": "N02"
-    },
-    {
-      "id": 3,
-      "category": "Architecture",
-      "name": "Interface + implementation separation rule",
-      "detail": "@Valid su ogni @RequestBody DTO. JSR-380 annotations",
-      "tml": "M2",
-      "tml_source": "L2",
-      "gate_type": "BLOCKING",
-      "stack_tag": "java_spring",
-      "conditional": "always",
-      "planning_evidence_paths": ["controller/*.java + dto/*Request.java"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F2",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/java/architecture/bean-validation-valid-p8.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-003-bean-validation-valid-p8.md"
+      "canonical_id": "N03",
+      "import_source": {
+        "import_id": 2,
+        "import_name": "Interface + Impl pattern (P5)"
       },
-      "planning_notes": "Validazione manuale if/throw -> Bean Validation",
-      "canonical_id": "N03"
+      "origin": "import"
     },
     {
       "id": 4,
       "category": "Architecture",
       "name": "No Spring annotations in domain layer",
-      "detail": "context-path=/{servizio}, controller=/v1/{risorsa}",
+      "detail": "",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["application.yml + controller"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/architecture/api-versioning-v1-p12.ejs",
+        "template": "planned:src/templates/no-spring-annotations-in-domain-layer.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-004-api-versioning-v1-p12.md"
+        "docs": null
       },
-      "planning_notes": "MAI /api come context-path",
-      "canonical_id": "N04"
+      "planning_notes": null,
+      "canonical_id": "N04",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 5,
       "category": "Architecture",
       "name": "@Async annotation only in service layer",
-      "detail": "DTO separati Request/Response, MAI in Commons/model",
-      "tml": "M2",
-      "tml_source": "L2",
-      "gate_type": "BLOCKING",
-      "stack_tag": "java_spring",
-      "conditional": "always",
-      "planning_evidence_paths": ["dto/*Request.java, dto/*Response.java"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F2",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/java/architecture/dto-in-package-dto-p17-p19.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-005-dto-in-package-dto-p17-p19.md"
-      },
-      "planning_notes": "Migrazione progressiva da Commons",
-      "canonical_id": "N05"
-    },
-    {
-      "id": 6,
-      "category": "Architecture",
-      "name": "Bean Validation constraints in domain entities only",
-      "detail": "@RequiredArgsConstructor. MAI @Autowired su campi",
-      "tml": "M2",
-      "tml_source": "L2",
-      "gate_type": "BLOCKING",
-      "stack_tag": "java_spring",
-      "conditional": "always",
-      "planning_evidence_paths": ["Tutti i @Service/@Controller"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F2",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/java/architecture/constructor-injection-p7.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-006-constructor-injection-p7.md"
-      },
-      "planning_notes": "Controllare anche @Component",
-      "canonical_id": "N06"
-    },
-    {
-      "id": 7,
-      "category": "Architecture",
-      "name": "No circular dependencies between modules",
-      "detail": "{Service}Exception + ProblemDetail. MAI raw RuntimeException",
-      "tml": "M2",
-      "tml_source": "L2",
-      "gate_type": "BLOCKING",
-      "stack_tag": "java_spring",
-      "conditional": "always",
-      "planning_evidence_paths": ["exception/{Service}Exception.java"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F2",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/java/architecture/exception-hierarchy-rfc-7807-p15.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-007-exception-hierarchy-rfc-7807-p15.md"
-      },
-      "planning_notes": "Use domain-scoped exception hierarchy; never leak internal class names",
-      "canonical_id": "N07"
-    },
-    {
-      "id": 8,
-      "category": "Architecture",
-      "name": "Tamper-evident audit log insert-only rule (R-audit-insert-only)",
       "detail": "AsyncConfig + tenant-aware task decorator in config/. MAI raw Thread",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["config/AsyncConfig.java"],
+      "planning_evidence_paths": [
+        "config/AsyncConfig.java"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/architecture/-async-tenantawaretaskdecorator-p20.ejs",
+        "template": "planned:src/templates/java/architecture/-async-tenantawaretaskdecorator-p20.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-008--async-tenantawaretaskdecorator-p20.md"
       },
       "planning_notes": "ADR-024 icebox. Audit first, fix later",
-      "canonical_id": "N08"
+      "canonical_id": "N05",
+      "import_source": {
+        "import_id": 8,
+        "import_name": "@Async + tenant-aware task decorator (P20)"
+      },
+      "origin": "import"
     },
     {
-      "id": 9,
-      "category": "Static Analysis",
-      "name": "Static analysis: linting (checkstyle/eslint/ruff/golangci-lint/clippy)",
-      "detail": "L1: report only. L2: >=20% o new-code >=70%. L3: >=60%",
-      "tml": "M1",
-      "tml_source": "L1",
+      "id": 6,
+      "category": "Architecture",
+      "name": "Bean Validation constraints in domain entities only",
+      "detail": "@Valid su ogni @RequestBody DTO. JSR-380 annotations",
+      "tml": "M2",
+      "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml jacoco-maven-plugin"],
+      "planning_evidence_paths": [
+        "controller/*.java + dto/*Request.java"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/static-analysis/jacoco-coverage-gate.ejs",
+        "template": "planned:src/templates/java/architecture/bean-validation-valid-p8.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-009-jacoco-coverage-gate.md"
+        "docs": "docs/REFERENCE/dim-003-bean-validation-valid-p8.md"
       },
-      "planning_notes": "Soglia progressiva: +5%/2sett",
-      "canonical_id": "N09"
+      "planning_notes": "Validazione manuale if/throw -> Bean Validation",
+      "canonical_id": "N06",
+      "import_source": {
+        "import_id": 3,
+        "import_name": "Bean Validation @Valid (P8)"
+      },
+      "origin": "import"
+    },
+    {
+      "id": 7,
+      "category": "Architecture",
+      "name": "No circular dependencies between modules",
+      "detail": "",
+      "tml": "M2",
+      "tml_source": "L2",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java_spring",
+      "conditional": "always",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F2",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/no-circular-dependencies-between-modules.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N07",
+      "import_source": null,
+      "origin": "arbiter-native"
+    },
+    {
+      "id": 8,
+      "category": "Architecture",
+      "name": "Tamper-evident audit log insert-only rule (R-audit-insert-only)",
+      "detail": "Write service -> AuditEventService field. Mapper insert-only. record() call",
+      "tml": "M2",
+      "tml_source": "L2",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java_spring",
+      "conditional": "always",
+      "planning_evidence_paths": [
+        "ArchitectureTests.java rules 36-39"
+      ],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F2",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/audit-trail/archunit-r-36-r-38-r-39.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-075-archunit-r-36-r-38-r-39.md"
+      },
+      "planning_notes": "* Condizionale: se audit_event attivo",
+      "canonical_id": "N08",
+      "import_source": {
+        "import_id": 75,
+        "import_name": "ArchUnit R-36/R-38/R-39"
+      },
+      "origin": "import"
+    },
+    {
+      "id": 9,
+      "category": "Static Analysis",
+      "name": "Static analysis: linting (checkstyle/eslint/ruff/golangci-lint/clippy)",
+      "detail": "",
+      "tml": "M1",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java_spring",
+      "conditional": "always",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F2",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/static-analysis-linting-checkstyle-eslint-ruff-golangci-lint-clippy.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N09",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 10,
@@ -241,70 +284,91 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml spotless-maven-plugin"],
+      "planning_evidence_paths": [
+        "pom.xml spotless-maven-plugin"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/static-analysis/spotless-formatting.ejs",
+        "template": "planned:src/templates/java/static-analysis/spotless-formatting.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-010-spotless-formatting.md"
       },
       "planning_notes": "Universale, nessun adattamento",
-      "canonical_id": "N10"
+      "canonical_id": "N10",
+      "import_source": {
+        "import_id": 10,
+        "import_name": "Spotless formatting"
+      },
+      "origin": "import"
     },
     {
       "id": 11,
       "category": "Static Analysis",
       "name": "PMD / Semgrep rules (complexity, security anti-patterns)",
-      "detail": "Effort=Max, Threshold=Medium, baseline diff",
-      "tml": "M2",
-      "tml_source": "L2",
-      "gate_type": "ADVISORY",
-      "stack_tag": "java_spring",
-      "conditional": "always",
-      "planning_evidence_paths": ["pom.xml spotbugs-maven-plugin"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F2",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/java/static-analysis/spotbugs-bug-detection.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-011-spotbugs-bug-detection.md"
-      },
-      "planning_notes": "Generare baseline XML prima di attivare gate",
-      "canonical_id": "N11"
-    },
-    {
-      "id": 12,
-      "category": "Static Analysis",
-      "name": "SpotBugs / null-safety analysis",
       "detail": "CognitiveComplexity&#8804;15, failOnViolation=true",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml + pmd-ruleset.xml"],
+      "planning_evidence_paths": [
+        "pom.xml + pmd-ruleset.xml"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/static-analysis/pmd-code-quality.ejs",
+        "template": "planned:src/templates/java/static-analysis/pmd-code-quality.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-012-pmd-code-quality.md"
       },
       "planning_notes": "Adattare ruleset se troppe violazioni iniziali",
-      "canonical_id": "N12"
+      "canonical_id": "N11",
+      "import_source": {
+        "import_id": 12,
+        "import_name": "PMD code quality"
+      },
+      "origin": "import"
+    },
+    {
+      "id": 12,
+      "category": "Static Analysis",
+      "name": "SpotBugs / null-safety analysis",
+      "detail": "Effort=Max, Threshold=Medium, baseline diff",
+      "tml": "M2",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
+      "stack_tag": "java_spring",
+      "conditional": "always",
+      "planning_evidence_paths": [
+        "pom.xml spotbugs-maven-plugin"
+      ],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F2",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/java/static-analysis/spotbugs-bug-detection.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-011-spotbugs-bug-detection.md"
+      },
+      "planning_notes": "Generare baseline XML prima di attivare gate",
+      "canonical_id": "N12",
+      "import_source": {
+        "import_id": 11,
+        "import_name": "SpotBugs bug detection"
+      },
+      "origin": "import"
     },
     {
       "id": 13,
@@ -316,57 +380,66 @@
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml + checkstyle.xml"],
+      "planning_evidence_paths": [
+        "pom.xml + checkstyle.xml"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/static-analysis/checkstyle-style-enforcement.ejs",
+        "template": "planned:src/templates/java/static-analysis/checkstyle-style-enforcement.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-013-checkstyle-style-enforcement.md"
       },
       "planning_notes": null,
-      "canonical_id": "N13"
+      "canonical_id": "N13",
+      "import_source": {
+        "import_id": 13,
+        "import_name": "Checkstyle style enforcement"
+      },
+      "origin": "import"
     },
     {
       "id": 14,
       "category": "Static Analysis",
       "name": "Dead code detection",
-      "detail": "STRONGER mutators, target >=50%. Nightly only",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml pitest-maven-plugin"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/static-analysis/pitest-mutation-testing.ejs",
+        "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-014-pitest-mutation-testing.md"
+        "docs": null
       },
-      "planning_notes": "Non in PR gate (troppo lento)",
-      "canonical_id": "N14"
+      "planning_notes": null,
+      "canonical_id": "N14",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 15,
       "category": "Static Analysis",
       "name": "Code duplication ratchet (jscpd / equivalent)",
-      "detail": "failBuildOnCVSS=7.0. Nightly (rate limits NVD)",
+      "detail": "",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml dependency-check-maven"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": ".github/workflows/06-nightly.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -376,22 +449,24 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-015-owasp-dependency-check.md"
+        "docs": null
       },
-      "planning_notes": "Tollerare rate limits con continue-on-error SOLO su download",
-      "canonical_id": "N15"
+      "planning_notes": null,
+      "canonical_id": "N15",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 16,
       "category": "Static Analysis",
       "name": "Style token enforcement (design tokens / style guide)",
-      "detail": "JSON output. Supply chain tracking",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml cyclonedx-maven-plugin"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": ".github/workflows/05-release.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -401,10 +476,12 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-016-cyclonedx-sbom.md"
+        "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N16"
+      "canonical_id": "N16",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 17,
@@ -416,170 +493,199 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml spring-boot-starter-test"],
+      "planning_evidence_paths": [
+        "pom.xml spring-boot-starter-test"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/test-framework/junit-5-spring-boot-test.ejs",
+        "template": "planned:src/templates/java/test-framework/junit-5-spring-boot-test.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-017-junit-5-spring-boot-test.md"
       },
       "planning_notes": ">=1 test per proof-of-life a L1",
-      "canonical_id": "N17"
+      "canonical_id": "N17",
+      "import_source": {
+        "import_id": 17,
+        "import_name": "JUnit 5 + Spring Boot Test"
+      },
+      "origin": "import"
     },
     {
       "id": 18,
       "category": "Test Framework",
       "name": "Code coverage gate (JaCoCo/V8/coverage.py/go cover/cargo-tarpaulin)",
-      "detail": "Controller test con DB reale. >=60 test file a L3",
+      "detail": "L1: report only. L2: >=20% o new-code >=70%. L3: >=60%",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml rest-assured + BaseIntegrationTest"],
+      "planning_evidence_paths": [
+        "pom.xml jacoco-maven-plugin"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/test-framework/rest-assured-integration-tests.ejs",
+        "template": "planned:src/templates/java/static-analysis/jacoco-coverage-gate.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-018-rest-assured-integration-tests.md"
+        "docs": "docs/REFERENCE/dim-009-jacoco-coverage-gate.md"
       },
-      "planning_notes": "Iniziare dai top 5 endpoint",
-      "canonical_id": "N18"
+      "planning_notes": "Soglia progressiva: +5%/2sett",
+      "canonical_id": "N18",
+      "import_source": {
+        "import_id": 9,
+        "import_name": "JaCoCo coverage gate"
+      },
+      "origin": "import"
     },
     {
       "id": 19,
       "category": "Test Framework",
       "name": "Coverage trend ratchet (no regression allowed)",
-      "detail": "DB reale in test. Sostituisce H2/mock",
+      "detail": "",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml testcontainers + TestcontainersConfig"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/test-framework/testcontainers-postgresql.ejs",
+        "template": "planned:src/templates/coverage-trend-ratchet-no-regression-allowed.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-019-testcontainers-postgresql.md"
+        "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N19"
+      "canonical_id": "N19",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 20,
       "category": "Test Framework",
       "name": "Mutation testing (pitest/stryker/mutmut/go-mutesting/cargo-mutants)",
-      "detail": "Cross-DB compatibility. Profili dedicati",
+      "detail": "STRONGER mutators, target >=50%. Nightly only",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "crossdb",
-      "planning_evidence_paths": ["pom.xml testcontainers + profili"],
+      "planning_evidence_paths": [
+        "pom.xml pitest-maven-plugin"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/test-framework/testcontainers-mariadb-mssql.ejs",
+        "template": "planned:src/templates/java/static-analysis/pitest-mutation-testing.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-020-testcontainers-mariadb-mssql.md"
+        "docs": "docs/REFERENCE/dim-014-pitest-mutation-testing.md"
       },
-      "planning_notes": "Solo se servizio supporta multi-DB",
-      "canonical_id": "N20"
+      "planning_notes": "Non in PR gate (troppo lento)",
+      "canonical_id": "N20",
+      "import_source": {
+        "import_id": 14,
+        "import_name": "PITest mutation testing"
+      },
+      "origin": "import"
     },
     {
       "id": 21,
       "category": "Test Framework",
-      "name": "Test isolation \u2014 no shared mutable state between tests",
-      "detail": "Resilience test: DB stall, latency injection",
+      "name": "Test isolation — no shared mutable state between tests",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "concurrent",
-      "planning_evidence_paths": ["DbStallResilienceTest.java"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/test-framework/testcontainers-toxiproxy.ejs",
+        "template": "planned:src/templates/test-isolation-no-shared-mutable-state-between-tests.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-021-testcontainers-toxiproxy.md"
+        "docs": null
       },
-      "planning_notes": "Non tutti i servizi necessitano",
-      "canonical_id": "N21"
+      "planning_notes": null,
+      "canonical_id": "N21",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 22,
       "category": "Test Framework",
       "name": "Test naming convention enforced",
-      "detail": "Contract test: validazione runtime vs OpenAPI spec",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml swagger-request-validator-restassured"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/test-framework/swagger-request-validator.ejs",
+        "template": "planned:src/templates/test-naming-convention-enforced.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-022-swagger-request-validator.md"
+        "docs": null
       },
-      "planning_notes": "Richiede OpenAPI spec aggiornata",
-      "canonical_id": "N22"
+      "planning_notes": null,
+      "canonical_id": "N22",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 23,
       "category": "Test Framework",
       "name": "Test TDD evidence captured (W4 protocol)",
-      "detail": "BaseIntegrationTest + TestDataFactory + JwtTestHelper + MockServicesConfig",
+      "detail": "",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["src/test/.../config/, factory/"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/test-framework/base-test-infrastructure.ejs",
+        "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-023-base-test-infrastructure.md"
+        "docs": null
       },
-      "planning_notes": "Domain-specific, non copiare 1:1",
-      "canonical_id": "N23"
+      "planning_notes": null,
+      "canonical_id": "N23",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 24,
@@ -591,32 +697,39 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml <profiles>"],
+      "planning_evidence_paths": [
+        "pom.xml <profiles>"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/java/build-profiles/surefire-profiles-maven.ejs",
+        "template": "planned:src/templates/java/build-profiles/surefire-profiles-maven.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-024-surefire-profiles-maven.md"
       },
       "planning_notes": "Attivare progressivamente",
-      "canonical_id": "N24"
+      "canonical_id": "N24",
+      "import_source": {
+        "import_id": 24,
+        "import_name": "Surefire profiles Maven"
+      },
+      "origin": "import"
     },
     {
       "id": 25,
       "category": "Test Profiles",
       "name": "Extended test profile (L2: unit + integration)",
-      "detail": "unit, integration, behavioral, edge-case, contract, etc. ArchUnit enforcement",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["ArchitectureTests.java tag rules"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": "docs/TEST_TAXONOMY.md",
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -626,10 +739,12 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-025--tag-taxonomy-25-tags.md"
+        "docs": null
       },
-      "planning_notes": "Iniziare con 10 tag base a L2",
-      "canonical_id": "N25"
+      "planning_notes": null,
+      "canonical_id": "N25",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 26,
@@ -641,7 +756,9 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["run.sh"],
+      "planning_evidence_paths": [
+        "run.sh"
+      ],
       "arbiter_target_path": "run.sh",
       "arbiter_target_kind": "script",
       "invariant_id": null,
@@ -650,48 +767,94 @@
       "framework_realization": {
         "template": null,
         "generator": null,
-        "validator": "scripts/run-sh-orchestrator.mjs",
+        "validator": "planned:scripts/run-sh-orchestrator.mjs",
         "docs": "docs/REFERENCE/dim-026-run-sh-orchestrator.md"
       },
       "planning_notes": "L1: solo check. L2: +gate. L3: +full",
-      "canonical_id": "N26"
+      "canonical_id": "N26",
+      "import_source": {
+        "import_id": 26,
+        "import_name": "run.sh orchestrator"
+      },
+      "origin": "import"
     },
     {
       "id": 27,
       "category": "Test Types",
       "name": "Integration tests (Spring IT / testcontainers / real-project fixtures)",
-      "detail": "L1: >=1 test. L2: >=20% coverage. L3: >=60%",
+      "detail": "Controller test con DB reale. >=60 test file a L3",
       "tml": "M1",
       "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["src/test/.../service/"],
+      "planning_evidence_paths": [
+        "pom.xml rest-assured + BaseIntegrationTest"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
       "implementing_wave": "W7",
       "disposition": "adopt-framework",
       "framework_realization": {
-        "template": null,
+        "template": "planned:src/templates/java/test-framework/rest-assured-integration-tests.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-027-unit-tests.md"
+        "docs": "docs/REFERENCE/dim-018-rest-assured-integration-tests.md"
       },
-      "planning_notes": "Coverage-first brownfield: documentare prima",
-      "canonical_id": "N27"
+      "planning_notes": "Iniziare dai top 5 endpoint",
+      "canonical_id": "N27",
+      "import_source": {
+        "import_id": 18,
+        "import_name": "REST Assured integration tests"
+      },
+      "origin": "import"
     },
     {
       "id": 28,
       "category": "Test Types",
       "name": "Contract tests (Spring Cloud Contract / Pact)",
+      "detail": "Contract test: validazione runtime vs OpenAPI spec",
+      "tml": "M3",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
+      "stack_tag": "agnostic",
+      "conditional": "always",
+      "planning_evidence_paths": [
+        "pom.xml swagger-request-validator-restassured"
+      ],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "doc",
+      "invariant_id": null,
+      "implementing_wave": "W7",
+      "disposition": "adopt-framework",
+      "framework_realization": {
+        "template": "planned:src/templates/java/test-framework/swagger-request-validator.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-022-swagger-request-validator.md"
+      },
+      "planning_notes": "Richiede OpenAPI spec aggiornata",
+      "canonical_id": "N28",
+      "import_source": {
+        "import_id": 22,
+        "import_name": "Swagger Request Validator"
+      },
+      "origin": "import"
+    },
+    {
+      "id": 29,
+      "category": "Test Types",
+      "name": "BDD / behavioural tests (Cucumber / pytest-bdd / godog)",
       "detail": "REST Assured end-to-end business flow. >=15 scenarios L3",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["src/test/.../behavior/"],
+      "planning_evidence_paths": [
+        "src/test/.../behavior/"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -704,69 +867,51 @@
         "docs": "docs/REFERENCE/dim-028-behavioral-tests-happy-path.md"
       },
       "planning_notes": "Flussi P0 business-critical",
-      "canonical_id": "N28"
-    },
-    {
-      "id": 29,
-      "category": "Test Types",
-      "name": "BDD / behavioural tests (Cucumber / pytest-bdd / godog)",
-      "detail": "Null, overflow, boundary conditions",
-      "tml": "M3",
-      "tml_source": "L2",
-      "gate_type": "ADVISORY",
-      "stack_tag": "agnostic",
-      "conditional": "always",
-      "planning_evidence_paths": ["src/test/.../boundary/"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "doc",
-      "invariant_id": null,
-      "implementing_wave": "W7",
-      "disposition": "adopt-framework",
-      "framework_realization": {
-        "template": null,
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-029-edge-case-tests-boundary.md"
+      "canonical_id": "N29",
+      "import_source": {
+        "import_id": 28,
+        "import_name": "Behavioral tests (happy path)"
       },
-      "planning_notes": null,
-      "canonical_id": "N29"
+      "origin": "import"
     },
     {
       "id": 30,
       "category": "Test Types",
       "name": "Architectural tests (ArchUnit / structure rules)",
-      "detail": "Swagger Request Validator runtime. OpenApiRuntimeValidationTest",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "template",
       "conditional": "contract",
-      "planning_evidence_paths": ["src/test/.../contract/"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
       "implementing_wave": "F7",
       "disposition": "adopt-framework",
       "framework_realization": {
-        "template": "src/templates/testing/contract-tests-openapi.ejs",
-        "generator": "src/generators/contract-tests-openapi.ts",
+        "template": "planned:src/templates/architectural-tests-archunit-structure-rules.ejs",
+        "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-030-contract-tests-openapi.md"
+        "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N30"
+      "canonical_id": "N30",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 31,
       "category": "Test Types",
       "name": "Fuzz testing (Jazzer / go-fuzz / cargo-fuzz)",
-      "detail": "Thread safety, race condition, burst. @Tag('concurrency')",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["ConcurrentBookingTest, BatchStressTest"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -776,47 +921,51 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-031-concurrent-stress-tests.md"
+        "docs": null
       },
-      "planning_notes": "Solo servizi con logica concorrente",
-      "canonical_id": "N31"
+      "planning_notes": null,
+      "canonical_id": "N31",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 32,
       "category": "Test Types",
       "name": "Property-based testing (QuickCheck / Hypothesis / proptest)",
-      "detail": "Rollback changeset, cross-DB. >=5 classi",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "crossdb",
-      "planning_evidence_paths": ["src/test/.../migration/"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/testing/migration-tests-liquibase-rollback.ejs",
+        "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-032-migration-tests-liquibase-rollback.md"
+        "docs": null
       },
-      "planning_notes": "Testcontainers PG+MariaDB+MSSQL",
-      "canonical_id": "N32"
+      "planning_notes": null,
+      "canonical_id": "N32",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 33,
       "category": "Test Types",
       "name": "Snapshot / golden-file tests",
-      "detail": "@Tag('performance'). Stress unit test. >=2 classi",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["src/test/.../stress/"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -826,22 +975,26 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-033-performance-surefire-tests.md"
+        "docs": null
       },
-      "planning_notes": "Diverso da k6 (Surefire, non HTTP)",
-      "canonical_id": "N33"
+      "planning_notes": null,
+      "canonical_id": "N33",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 34,
       "category": "CI/CD",
-      "name": "Multi-tier CI pipeline (fast \u2192 extended \u2192 release \u2192 nightly \u2192 weekly)",
+      "name": "Multi-tier CI pipeline (fast → extended → release → nightly → weekly)",
       "detail": "5 stage: lint->build->fast-test->slow-test->ship",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".github/workflows/build.yml"],
+      "planning_evidence_paths": [
+        ".github/workflows/build.yml"
+      ],
       "arbiter_target_path": ".github/workflows/01-pr-fast.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -854,7 +1007,12 @@
         "docs": "docs/REFERENCE/dim-034-build-yml-multi-stage.md"
       },
       "planning_notes": "L2: 4 stage (no ship). L3: 5 stage",
-      "canonical_id": "N34"
+      "canonical_id": "N34",
+      "import_source": {
+        "import_id": 34,
+        "import_name": "build.yml multi-stage"
+      },
+      "origin": "import"
     },
     {
       "id": 35,
@@ -866,7 +1024,9 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["build.yml quality-gates job"],
+      "planning_evidence_paths": [
+        "build.yml quality-gates job"
+      ],
       "arbiter_target_path": ".github/workflows/01-pr-fast.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -879,19 +1039,26 @@
         "docs": "docs/REFERENCE/dim-035-quality-gates-job-bash-scripts.md"
       },
       "planning_notes": "Aggiungere script man mano che disponibili",
-      "canonical_id": "N35"
+      "canonical_id": "N35",
+      "import_source": {
+        "import_id": 35,
+        "import_name": "Quality gates job (bash scripts)"
+      },
+      "origin": "import"
     },
     {
       "id": 36,
       "category": "CI/CD",
       "name": "Release pipeline (tag-triggered, artifact signing)",
-      "detail": ">=6 jobs: OWASP, PITest, SBOM, ZAP, Toxiproxy, k6",
+      "detail": "Docker build, Trivy CRITICAL fail, {{CONTAINER_REGISTRY}} push, Azure deploy",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".github/workflows/nightly.yml"],
+      "planning_evidence_paths": [
+        "build.yml ship stage"
+      ],
       "arbiter_target_path": ".github/workflows/06-nightly.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -901,22 +1068,29 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-036-nightly-pipeline.md"
+        "docs": "docs/REFERENCE/dim-037-ship-stage-docker-trivy-container-r.md"
       },
-      "planning_notes": "Aggiungere job incrementalmente",
-      "canonical_id": "N36"
+      "planning_notes": "Solo servizi con deploy containerizzato",
+      "canonical_id": "N36",
+      "import_source": {
+        "import_id": 37,
+        "import_name": "Ship stage (Docker+Trivy+{{CONTAINER_REGISTRY}}+deploy)"
+      },
+      "origin": "import"
     },
     {
       "id": 37,
       "category": "CI/CD",
       "name": "Nightly extended checks (mutation, DAST, performance baseline)",
-      "detail": "Docker build, Trivy CRITICAL fail, {{CONTAINER_REGISTRY}} push, Azure deploy",
+      "detail": ">=6 jobs: OWASP, PITest, SBOM, ZAP, Toxiproxy, k6",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["build.yml ship stage"],
+      "planning_evidence_paths": [
+        ".github/workflows/nightly.yml"
+      ],
       "arbiter_target_path": ".github/workflows/05-release.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -926,22 +1100,27 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-037-ship-stage-docker-trivy-container-r.md"
+        "docs": "docs/REFERENCE/dim-036-nightly-pipeline.md"
       },
-      "planning_notes": "Solo servizi con deploy containerizzato",
-      "canonical_id": "N37"
+      "planning_notes": "Aggiungere job incrementalmente",
+      "canonical_id": "N37",
+      "import_source": {
+        "import_id": 36,
+        "import_name": "Nightly pipeline"
+      },
+      "origin": "import"
     },
     {
       "id": 38,
       "category": "CI/CD",
       "name": "Weekly audit pipeline (dependency audit, license scan, SBOM refresh)",
-      "detail": "Lifecycle issue: In Progress->In Review->Staged->Done",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".github/workflows/issue-state.yml"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": ".github/workflows/zz-issue-state.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -951,22 +1130,24 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-038-issue-state-yml-automation.md"
+        "docs": null
       },
-      "planning_notes": "Copiare 1:1 da Planning",
-      "canonical_id": "N38"
+      "planning_notes": null,
+      "canonical_id": "N38",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 39,
       "category": "CI/CD",
       "name": "CI runner label SSOT (no hardcoded runner strings)",
-      "detail": "Manual trigger per singoli k6 test + weekly scheduled",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".github/workflows/load-*.yml"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": ".github/workflows/10-k6-on-demand.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -976,22 +1157,24 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-039-load-test-workflows.md"
+        "docs": null
       },
-      "planning_notes": "Solo se k6 configurato",
-      "canonical_id": "N39"
+      "planning_notes": null,
+      "canonical_id": "N39",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 40,
       "category": "CI/CD",
       "name": "Artifact provenance (SLSA / sigstore)",
-      "detail": "Run Postman collection in CI. Gate su assertion",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["build.yml / nightly.yml"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": ".github/workflows/_newman-runner.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -1001,10 +1184,12 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-040-newman-ci-integration.md"
+        "docs": null
       },
-      "planning_notes": "Richiede collection Postman",
-      "canonical_id": "N40"
+      "planning_notes": null,
+      "canonical_id": "N40",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 41,
@@ -1016,20 +1201,27 @@
       "gate_type": "BLOCKING",
       "stack_tag": "template",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/api/{service}.postman_collection.json"],
+      "planning_evidence_paths": [
+        "docs/api/{service}.postman_collection.json"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
       "implementing_wave": "F7",
       "disposition": "adopt-framework",
       "framework_realization": {
-        "template": "src/templates/test-tooling/newman-postman-e2e-collection.ejs",
-        "generator": "src/generators/newman-postman-e2e-collection.ts",
+        "template": "planned:src/templates/test-tooling/newman-postman-e2e-collection.ejs",
+        "generator": "planned:src/generators/newman-postman-e2e-collection.ts",
         "validator": null,
         "docs": "docs/REFERENCE/dim-041-newman-postman-e2e-collection.md"
       },
       "planning_notes": "Servizio-specifico",
-      "canonical_id": "N41"
+      "canonical_id": "N41",
+      "import_source": {
+        "import_id": 41,
+        "import_name": "Newman/Postman E2E collection"
+      },
+      "origin": "import"
     },
     {
       "id": 42,
@@ -1041,207 +1233,233 @@
       "gate_type": "ADVISORY",
       "stack_tag": "template",
       "conditional": "always",
-      "planning_evidence_paths": ["tests/load/*.js"],
+      "planning_evidence_paths": [
+        "tests/load/*.js"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
       "implementing_wave": "F6",
       "disposition": "adopt-framework",
       "framework_realization": {
-        "template": "src/templates/test-tooling/k6-load-test-suite.ejs",
-        "generator": "src/generators/k6-load-test-suite.ts",
+        "template": "planned:src/templates/test-tooling/k6-load-test-suite.ejs",
+        "generator": "planned:src/generators/k6-load-test-suite.ts",
         "validator": null,
         "docs": "docs/REFERENCE/dim-042-k6-load-test-suite.md"
       },
       "planning_notes": "Servizio-specifico",
-      "canonical_id": "N42"
+      "canonical_id": "N42",
+      "import_source": {
+        "import_id": 42,
+        "import_name": "k6 load test suite"
+      },
+      "origin": "import"
     },
     {
       "id": 43,
       "category": "E2E & Perf",
       "name": "DAST scan (OWASP ZAP / Nuclei)",
-      "detail": "Memory/thread leak detection. LT-11 pattern",
-      "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "ADVISORY",
-      "stack_tag": "template",
-      "conditional": "always",
-      "planning_evidence_paths": ["tests/load/endurance.js"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "template",
-      "invariant_id": null,
-      "implementing_wave": "F6",
-      "disposition": "adopt-framework",
-      "framework_realization": {
-        "template": "src/templates/test-tooling/k6-endurance-test-30min.ejs",
-        "generator": "src/generators/k6-endurance-test-30min.ts",
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-043-k6-endurance-test-30min.md"
-      },
-      "planning_notes": null,
-      "canonical_id": "N43"
-    },
-    {
-      "id": 44,
-      "category": "E2E & Perf",
-      "name": "Auth flow E2E (Keycloak-compatible IdP integration test)",
       "detail": "OWASP ZAP scan autenticato. Nightly",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "template",
       "conditional": "always",
-      "planning_evidence_paths": ["nightly.yml zap-dast job"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "template",
-      "invariant_id": null,
-      "implementing_wave": "F8",
-      "disposition": "adopt-framework",
-      "framework_realization": {
-        "template": "src/templates/test-tooling/dast-zap-authenticated.ejs",
-        "generator": "src/generators/dast-zap-authenticated.ts",
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-044-dast-zap-authenticated.md"
-      },
-      "planning_notes": "Richiede auth config ZAP",
-      "canonical_id": "N44"
-    },
-    {
-      "id": 45,
-      "category": "Scripts Validation",
-      "name": "Format validation script (check-format.sh equivalent)",
-      "detail": "#{param} check (no ${param} SQL injection). P16",
-      "tml": "M1",
-      "tml_source": "L1",
-      "gate_type": "BLOCKING",
-      "stack_tag": "java_spring",
-      "conditional": "always",
-      "planning_evidence_paths": ["scripts/validate-mybatis-xml-crud.sh"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F2",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/scripts/validators/validate-mybatis-xml-crud-sh.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-045-validate-mybatis-xml-crud-sh.md"
-      },
-      "planning_notes": "Universale",
-      "canonical_id": "N45"
-    },
-    {
-      "id": 46,
-      "category": "Scripts Validation",
-      "name": "SPDX license header check",
-      "detail": "No cross-tenant access. P23/ADR-019",
-      "tml": "M1",
-      "tml_source": "L1",
-      "gate_type": "BLOCKING",
-      "stack_tag": "java_spring",
-      "conditional": "always",
-      "planning_evidence_paths": ["scripts/validate-schema-isolation.sh"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F2",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/scripts/validators/validate-schema-isolation-sh.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-046-validate-schema-isolation-sh.md"
-      },
-      "planning_notes": "Universale",
-      "canonical_id": "N46"
-    },
-    {
-      "id": 47,
-      "category": "Scripts Validation",
-      "name": "Orphan TODO check (no bare TODOs without task IDs)",
-      "detail": "Naming convention + no PG-specific SQL",
-      "tml": "M2",
-      "tml_source": "L1",
-      "gate_type": "BLOCKING",
-      "stack_tag": "java_spring",
-      "conditional": "always",
-      "planning_evidence_paths": ["scripts/validate-liquibase-*.sh"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F2",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/scripts/validators/validate-liquibase-naming-sh-crossd.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-047-validate-liquibase-naming-sh-crossd.md"
-      },
-      "planning_notes": "Calibrare naming per servizio",
-      "canonical_id": "N47"
-    },
-    {
-      "id": 48,
-      "category": "Scripts Validation",
-      "name": "Placeholder check (no template placeholders committed)",
-      "detail": "Integrit&#224; collection Postman",
-      "tml": "M3",
-      "tml_source": "L1",
-      "gate_type": "BLOCKING",
-      "stack_tag": "template",
-      "conditional": "contract",
-      "planning_evidence_paths": ["scripts/validate-postman-collection.sh"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "template",
-      "invariant_id": null,
-      "implementing_wave": "F7",
-      "disposition": "adopt-framework",
-      "framework_realization": {
-        "template": "src/templates/scripts/validators/validate-postman-collection-sh.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-048-validate-postman-collection-sh.md"
-      },
-      "planning_notes": "Solo se Postman collection",
-      "canonical_id": "N48"
-    },
-    {
-      "id": 49,
-      "category": "Scripts Validation",
-      "name": "Dead link / doc link integrity check",
-      "detail": "k6 threshold, DB post-assertions, CI integrity",
-      "tml": "M3",
-      "tml_source": "L2",
-      "gate_type": "ADVISORY",
-      "stack_tag": "template",
-      "conditional": "always",
-      "planning_evidence_paths": ["scripts/validate-*.sh (5 script)"],
+      "planning_evidence_paths": [
+        "nightly.yml zap-dast job"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
       "implementing_wave": "F6",
       "disposition": "adopt-framework",
       "framework_realization": {
-        "template": "src/templates/scripts/validators/validate-nightly-k6-sh-post-run-wor.ejs",
+        "template": "planned:src/templates/test-tooling/dast-zap-authenticated.ejs",
+        "generator": "planned:src/generators/dast-zap-authenticated.ts",
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-044-dast-zap-authenticated.md"
+      },
+      "planning_notes": "Richiede auth config ZAP",
+      "canonical_id": "N43",
+      "import_source": {
+        "import_id": 44,
+        "import_name": "DAST (ZAP authenticated)"
+      },
+      "origin": "import"
+    },
+    {
+      "id": 44,
+      "category": "E2E & Perf",
+      "name": "Auth flow E2E (Keycloak-compatible IdP integration test)",
+      "detail": "",
+      "tml": "M3",
+      "tml_source": "L3",
+      "gate_type": "ADVISORY",
+      "stack_tag": "template",
+      "conditional": "always",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "template",
+      "invariant_id": null,
+      "implementing_wave": "F8",
+      "disposition": "adopt-framework",
+      "framework_realization": {
+        "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-049-validate-nightly-k6-sh-post-run-wor.md"
+        "docs": null
       },
-      "planning_notes": "Solo se k6/nightly attivi",
-      "canonical_id": "N49"
+      "planning_notes": null,
+      "canonical_id": "N44",
+      "import_source": null,
+      "origin": "arbiter-native"
+    },
+    {
+      "id": 45,
+      "category": "Scripts Validation",
+      "name": "Format validation script (check-format.sh equivalent)",
+      "detail": "",
+      "tml": "M1",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java_spring",
+      "conditional": "always",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F2",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/format-validation-script-check-format-sh-equivalent.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N45",
+      "import_source": null,
+      "origin": "arbiter-native"
+    },
+    {
+      "id": 46,
+      "category": "Scripts Validation",
+      "name": "SPDX license header check",
+      "detail": "",
+      "tml": "M1",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java_spring",
+      "conditional": "always",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F2",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/spdx-license-header-check.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N46",
+      "import_source": null,
+      "origin": "arbiter-native"
+    },
+    {
+      "id": 47,
+      "category": "Scripts Validation",
+      "name": "Orphan TODO check (no bare TODOs without task IDs)",
+      "detail": "",
+      "tml": "M2",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java_spring",
+      "conditional": "always",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F2",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/orphan-todo-check-no-bare-todos-without-task-ids.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N47",
+      "import_source": null,
+      "origin": "arbiter-native"
+    },
+    {
+      "id": 48,
+      "category": "Scripts Validation",
+      "name": "Placeholder check (no template placeholders committed)",
+      "detail": "",
+      "tml": "M3",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
+      "stack_tag": "template",
+      "conditional": "contract",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "template",
+      "invariant_id": null,
+      "implementing_wave": "F7",
+      "disposition": "adopt-framework",
+      "framework_realization": {
+        "template": "planned:src/templates/placeholder-check-no-template-placeholders-committed.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N48",
+      "import_source": null,
+      "origin": "arbiter-native"
+    },
+    {
+      "id": 49,
+      "category": "Scripts Validation",
+      "name": "Dead link / doc link integrity check",
+      "detail": "",
+      "tml": "M3",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
+      "stack_tag": "template",
+      "conditional": "always",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "template",
+      "invariant_id": null,
+      "implementing_wave": "F6",
+      "disposition": "adopt-framework",
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N49",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 50,
       "category": "Scripts Validation",
       "name": "Bloat ratchet (bundle size / generated artifact size)",
-      "detail": "Configuration drift detection cross-service",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["scripts/check-drift.py"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": "scripts/check-drift.mjs",
       "arbiter_target_kind": "script",
       "invariant_id": null,
@@ -1250,23 +1468,25 @@
       "framework_realization": {
         "template": null,
         "generator": null,
-        "validator": "scripts/check-drift-py.mjs",
-        "docs": "docs/REFERENCE/dim-050-check-drift-py.md"
+        "validator": null,
+        "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N50"
+      "canonical_id": "N50",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 51,
       "category": "Scripts Quality",
       "name": "Debt ratchet (tech-debt score gate)",
-      "detail": "Quality gate aggregato: spotless+test+jacoco+spotbugs",
+      "detail": "",
       "tml": "M2",
       "tml_source": "L1",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["scripts/quality-check.sh"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": "scripts/debt-report.mjs",
       "arbiter_target_kind": "script",
       "invariant_id": null,
@@ -1275,86 +1495,94 @@
       "framework_realization": {
         "template": null,
         "generator": null,
-        "validator": "scripts/quality-check-sh-aggregated.mjs",
-        "docs": "docs/REFERENCE/dim-051-quality-check-sh-aggregated.md"
+        "validator": null,
+        "docs": null
       },
-      "planning_notes": "Crescita incrementale",
-      "canonical_id": "N51"
+      "planning_notes": null,
+      "canonical_id": "N51",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 52,
       "category": "Scripts Quality",
       "name": "Self-dogfood check (arbiter validates itself)",
-      "detail": "JaCoCo HTML report + ArchUnit standalone",
+      "detail": "",
       "tml": "M2",
       "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["scripts/coverage-report.sh, arch-verify.sh"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": "scripts/check-self-dogfood.mjs",
       "arbiter_target_kind": "script",
       "invariant_id": null,
       "implementing_wave": "W6",
       "disposition": "adopt-self",
       "framework_realization": {
-        "template": null,
+        "template": "planned:src/templates/self-dogfood-check-arbiter-validates-itself.ejs",
         "generator": null,
-        "validator": "scripts/coverage-report-sh-arch-verify-sh.mjs",
-        "docs": "docs/REFERENCE/dim-052-coverage-report-sh-arch-verify-sh.md"
+        "validator": null,
+        "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N52"
+      "canonical_id": "N52",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 53,
       "category": "Scripts Quality",
       "name": "API snapshot test (no unintended public surface changes)",
-      "detail": "Spotless auto-fix + Gitleaks+OWASP+SpotBugs security",
+      "detail": "",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["scripts/format-fix.sh, security-scan.sh"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": "scripts/check-api-snapshot.mjs",
       "arbiter_target_kind": "script",
       "invariant_id": null,
       "implementing_wave": "W6",
       "disposition": "adopt-self",
       "framework_realization": {
-        "template": null,
+        "template": "planned:src/templates/api-snapshot-test-no-unintended-public-surface-changes.ejs",
         "generator": null,
-        "validator": "scripts/format-fix-sh-security-scan-sh.mjs",
-        "docs": "docs/REFERENCE/dim-053-format-fix-sh-security-scan-sh.md"
+        "validator": null,
+        "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N53"
+      "canonical_id": "N53",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 54,
       "category": "Scripts Quality",
       "name": "Circular dependency detection",
-      "detail": "PII pattern detection (email, phone, SSN, CF, IBAN)",
+      "detail": "",
       "tml": "M1",
       "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["scripts/security/pii-scan.sh"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": "scripts/check-pii-scan.mjs",
       "arbiter_target_kind": "script",
       "invariant_id": null,
       "implementing_wave": "W6",
       "disposition": "adopt-self",
       "framework_realization": {
-        "template": null,
+        "template": "planned:src/templates/circular-dependency-detection.ejs",
         "generator": null,
-        "validator": "scripts/pii-scan-sh.mjs",
-        "docs": "docs/REFERENCE/dim-054-pii-scan-sh.md"
+        "validator": null,
+        "docs": null
       },
-      "planning_notes": "Universale",
-      "canonical_id": "N54"
+      "planning_notes": null,
+      "canonical_id": "N54",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 55,
@@ -1366,7 +1594,9 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".githooks/pre-commit"],
+      "planning_evidence_paths": [
+        ".githooks/pre-commit"
+      ],
       "arbiter_target_path": ".githooks/pre-commit",
       "arbiter_target_kind": "hook",
       "invariant_id": null,
@@ -1379,32 +1609,44 @@
         "docs": "docs/REFERENCE/dim-055-gitleaks-pre-commit-hook.md"
       },
       "planning_notes": "Universale",
-      "canonical_id": "N55"
+      "canonical_id": "N55",
+      "import_source": {
+        "import_id": 55,
+        "import_name": "Gitleaks pre-commit hook"
+      },
+      "origin": "import"
     },
     {
       "id": 56,
       "category": "Security",
       "name": "Dependency audit (npm audit / trivy fs / cargo audit)",
-      "detail": "anyRequest().authenticated(), CORS restrictive, CSRF",
+      "detail": "failBuildOnCVSS=7.0. Nightly (rate limits NVD)",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["config/SecurityConfig.java"],
+      "planning_evidence_paths": [
+        "pom.xml dependency-check-maven"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/security/securityconfig-hardening.ejs",
+        "template": "planned:src/templates/dependency-audit-npm-audit-trivy-fs-cargo-audit.ejs",
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-056-securityconfig-hardening.md"
+        "docs": "docs/REFERENCE/dim-015-owasp-dependency-check.md"
       },
-      "planning_notes": "Servizio-specifico",
-      "canonical_id": "N56"
+      "planning_notes": "Tollerare rate limits con continue-on-error SOLO su download",
+      "canonical_id": "N56",
+      "import_source": {
+        "import_id": 15,
+        "import_name": "OWASP dependency-check"
+      },
+      "origin": "import"
     },
     {
       "id": 57,
@@ -1416,7 +1658,9 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".trivyignore, .zap/rules.tsv"],
+      "planning_evidence_paths": [
+        ".trivyignore, .zap/rules.tsv"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1429,19 +1673,24 @@
         "docs": "docs/REFERENCE/dim-057--trivyignore-zap-rules-tsv.md"
       },
       "planning_notes": "Solo se Trivy/ZAP attivi",
-      "canonical_id": "N57"
+      "canonical_id": "N57",
+      "import_source": {
+        "import_id": 57,
+        "import_name": ".trivyignore + .zap/rules.tsv"
+      },
+      "origin": "import"
     },
     {
       "id": 58,
       "category": "Security",
       "name": "License scan (FOSSA / ORT / licensee)",
-      "detail": "No secrets in image history. Multi-stage build",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["Dockerfile"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1451,10 +1700,12 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-058-docker-build-args-safety.md"
+        "docs": null
       },
-      "planning_notes": "Solo servizi containerizzati",
-      "canonical_id": "N58"
+      "planning_notes": null,
+      "canonical_id": "N58",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 59,
@@ -1466,7 +1717,9 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".githooks/ + scripts/setup-hooks.sh"],
+      "planning_evidence_paths": [
+        ".githooks/ + scripts/setup-hooks.sh"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1479,19 +1732,24 @@
         "docs": "docs/REFERENCE/dim-059-git-hooks-githooks-3-hooks.md"
       },
       "planning_notes": "Opt-in via setup-hooks.sh",
-      "canonical_id": "N59"
+      "canonical_id": "N59",
+      "import_source": {
+        "import_id": 59,
+        "import_name": "Git hooks (.githooks/ 3 hooks)"
+      },
+      "origin": "import"
     },
     {
       "id": 60,
       "category": "Git & GitHub",
       "name": "Branch naming convention enforced",
-      "detail": "bug-report.yml, feature-request.yml, compliance-item.yml + config",
+      "detail": "",
       "tml": "M1",
       "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".github/ISSUE_TEMPLATE/"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1501,10 +1759,12 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-060-github-issue-templates-3-types.md"
+        "docs": null
       },
-      "planning_notes": "Copiare 1:1",
-      "canonical_id": "N60"
+      "planning_notes": null,
+      "canonical_id": "N60",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 61,
@@ -1516,7 +1776,9 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".github/pull_request_template.md"],
+      "planning_evidence_paths": [
+        ".github/pull_request_template.md"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1529,19 +1791,26 @@
         "docs": "docs/REFERENCE/dim-061-github-pr-template.md"
       },
       "planning_notes": "Copiare 1:1",
-      "canonical_id": "N61"
+      "canonical_id": "N61",
+      "import_source": {
+        "import_id": 61,
+        "import_name": "GitHub PR template"
+      },
+      "origin": "import"
     },
     {
       "id": 62,
       "category": "Git & GitHub",
       "name": "Issue templates (bug, feature, tech-debt)",
-      "detail": "Indentation/encoding consistency",
+      "detail": "bug-report.yml, feature-request.yml, compliance-item.yml + config",
       "tml": "M1",
       "tml_source": "L1",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".editorconfig"],
+      "planning_evidence_paths": [
+        ".github/ISSUE_TEMPLATE/"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1551,22 +1820,29 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-062--editorconfig.md"
+        "docs": "docs/REFERENCE/dim-060-github-issue-templates-3-types.md"
       },
       "planning_notes": "Copiare 1:1",
-      "canonical_id": "N62"
+      "canonical_id": "N62",
+      "import_source": {
+        "import_id": 60,
+        "import_name": "GitHub issue templates (3 types)"
+      },
+      "origin": "import"
     },
     {
       "id": 63,
       "category": "Documentation",
       "name": "AGENTS.md / CLAUDE.md governance document",
-      "detail": "Regole codice, naming, pattern. Servizio-specifico",
+      "detail": "Regole gold standard + contesto servizio",
       "tml": "M2",
       "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/coding-standards.md"],
+      "planning_evidence_paths": [
+        "CLAUDE.md"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1576,22 +1852,29 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-063-docs-coding-standards-md.md"
+        "docs": "docs/REFERENCE/dim-069-claude-md-with-p1-p28.md"
       },
-      "planning_notes": "Adattare package names ed esempi",
-      "canonical_id": "N63"
+      "planning_notes": "Personalizzare contesto servizio",
+      "canonical_id": "N63",
+      "import_source": {
+        "import_id": 69,
+        "import_name": "CLAUDE.md with P1-P28"
+      },
+      "origin": "import"
     },
     {
       "id": 64,
       "category": "Documentation",
       "name": "CI/CD developer reference card",
-      "detail": "master-test-plan, test-taxonomy, rtm",
+      "detail": "Reference card: workflow attivi/passivi, PR lifecycle, run.sh mapping, troubleshooting. Template: TPL_cicd-developer-reference",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/testing/*.md"],
+      "planning_evidence_paths": [
+        "docs/ci/README.md"
+      ],
       "arbiter_target_path": "docs/TEST_TAXONOMY.md",
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1601,10 +1884,15 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-064-docs-testing-3-file.md"
+        "docs": "docs/REFERENCE/dim-076-docs-ci-readme-md-ci-cd-developer-r.md"
       },
-      "planning_notes": "Domain-specific test mapping",
-      "canonical_id": "N64"
+      "planning_notes": null,
+      "canonical_id": "N64",
+      "import_source": {
+        "import_id": 76,
+        "import_name": "docs/ci/README.md -- CI/CD Developer Reference"
+      },
+      "origin": "import"
     },
     {
       "id": 65,
@@ -1616,7 +1904,9 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/adr/ADR-*.md"],
+      "planning_evidence_paths": [
+        "docs/adr/ADR-*.md"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1629,19 +1919,26 @@
         "docs": "docs/REFERENCE/dim-065-docs-adr-5-adr.md"
       },
       "planning_notes": "Almeno ADR-016/017/018/019",
-      "canonical_id": "N65"
+      "canonical_id": "N65",
+      "import_source": {
+        "import_id": 65,
+        "import_name": "docs/adr/ (>=5 ADR)"
+      },
+      "origin": "import"
     },
     {
       "id": 66,
       "category": "Documentation",
       "name": "API / OpenAPI specification",
-      "detail": "risk-assessment, stride-threat-model",
+      "detail": "openapi-v1.json + collection + environment",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/security/*.md"],
+      "planning_evidence_paths": [
+        "docs/api/"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1651,22 +1948,29 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-066-docs-security-2-file.md"
+        "docs": "docs/REFERENCE/dim-067-docs-api-openapi-postman-env.md"
       },
-      "planning_notes": "Servizio-specifico, metodologia standard",
-      "canonical_id": "N66"
+      "planning_notes": "JSON generato da springdoc-openapi",
+      "canonical_id": "N66",
+      "import_source": {
+        "import_id": 67,
+        "import_name": "docs/api/ (OpenAPI + Postman + env)"
+      },
+      "origin": "import"
     },
     {
       "id": 67,
       "category": "Documentation",
       "name": "Runbook (operational playbook for oncall)",
-      "detail": "openapi-v1.json + collection + environment",
+      "detail": "rollback, troubleshooting, error-codes, faq, known-issues",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/api/"],
+      "planning_evidence_paths": [
+        "docs/runbooks/, docs/support/"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1676,22 +1980,27 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-067-docs-api-openapi-postman-env.md"
+        "docs": "docs/REFERENCE/dim-068-runbooks-support-docs.md"
       },
-      "planning_notes": "JSON generato da springdoc-openapi",
-      "canonical_id": "N67"
+      "planning_notes": null,
+      "canonical_id": "N67",
+      "import_source": {
+        "import_id": 68,
+        "import_name": "Runbooks + support docs"
+      },
+      "origin": "import"
     },
     {
       "id": 68,
       "category": "Documentation",
       "name": "Knowledge map (cross-repo canonical paths and signal sources)",
-      "detail": "rollback, troubleshooting, error-codes, faq, known-issues",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/runbooks/, docs/support/"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1701,22 +2010,24 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-068-runbooks-support-docs.md"
+        "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N68"
+      "canonical_id": "N68",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 69,
       "category": "Configuration",
       "name": "Runtime version SSOT (node version pinned, .nvmrc aligned)",
-      "detail": "Regole gold standard + contesto servizio",
+      "detail": "",
       "tml": "M1",
       "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["CLAUDE.md"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1726,10 +2037,12 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-069-claude-md-with-p1-p28.md"
+        "docs": null
       },
-      "planning_notes": "Personalizzare contesto servizio",
-      "canonical_id": "N69"
+      "planning_notes": null,
+      "canonical_id": "N69",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 70,
@@ -1741,7 +2054,9 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [".env.*.example"],
+      "planning_evidence_paths": [
+        ".env.*.example"
+      ],
       "arbiter_target_path": "src/templates/env/.env.example.ejs",
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1749,62 +2064,71 @@
       "disposition": "adopt-framework",
       "framework_realization": {
         "template": null,
-        "generator": "src/generators/-env-example-files.ts",
+        "generator": "planned:src/generators/-env-example-files.ts",
         "validator": null,
         "docs": "docs/REFERENCE/dim-070--env-example-files.md"
       },
       "planning_notes": "MAI committare .env reali",
-      "canonical_id": "N70"
+      "canonical_id": "N70",
+      "import_source": {
+        "import_id": 70,
+        "import_name": ".env example files"
+      },
+      "origin": "import"
     },
     {
       "id": 71,
       "category": "Configuration",
       "name": "Feature flag / experiment registry (no undocumented flags)",
-      "detail": "seed-{service}-k6.sql, seed-test-data.sh",
+      "detail": "",
       "tml": "M3",
       "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["scripts/seed-*.sql"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/bootstrap/seed-data-scripts.ejs",
+        "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-071-seed-data-scripts.md"
+        "docs": null
       },
-      "planning_notes": "Per k6 e E2E test",
-      "canonical_id": "N71"
+      "planning_notes": null,
+      "canonical_id": "N71",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 72,
       "category": "Configuration",
       "name": "Multi-environment config (dev/staging/prod parity)",
-      "detail": "Tutti i moduli stessa versione parent",
+      "detail": "",
       "tml": "M1",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": ["pom.xml parent version"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F2",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/bootstrap/spring-boot-version-alignment.ejs",
+        "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-072-spring-boot-version-alignment.md"
+        "docs": null
       },
-      "planning_notes": "Verificare skew tra moduli",
-      "canonical_id": "N72"
+      "planning_notes": null,
+      "canonical_id": "N72",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
       "id": 73,
@@ -1816,82 +2140,98 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "pharma",
-      "planning_evidence_paths": ["Liquibase changeset + trigger SQL"],
+      "planning_evidence_paths": [
+        "Liquibase changeset + trigger SQL"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F5",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/audit-trail/audit-event-table-db-triggers.ejs",
+        "template": "planned:src/templates/audit-trail/audit-event-table-db-triggers.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-073-audit-event-table-db-triggers.md"
       },
       "planning_notes": "* Solo servizi con write su dati. Raccomandata non-pharma",
-      "canonical_id": "N73"
+      "canonical_id": "N73",
+      "import_source": {
+        "import_id": 73,
+        "import_name": "audit_event table + DB triggers"
+      },
+      "origin": "import"
     },
     {
       "id": 74,
       "category": "Audit Trail *",
       "name": "Audit trigger presence (DB-level audit trigger enforced)",
+      "detail": "",
+      "tml": "M3",
+      "tml_source": "L3",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java_spring",
+      "conditional": "pharma",
+      "planning_evidence_paths": [],
+      "arbiter_target_path": null,
+      "arbiter_target_kind": "adapter",
+      "invariant_id": null,
+      "implementing_wave": "F5",
+      "disposition": "stack-adapter",
+      "framework_realization": {
+        "template": "planned:src/templates/audit-trigger-presence-db-level-audit-trigger-enforced.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N74",
+      "import_source": null,
+      "origin": "arbiter-native"
+    },
+    {
+      "id": 75,
+      "category": "Audit Trail *",
+      "name": "Audit log service interface (AuditEventService / append-only repository pattern)",
       "detail": "record() in ogni write @Transactional. Mapper insert-only",
       "tml": "M3",
       "tml_source": "L3",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "pharma",
-      "planning_evidence_paths": ["service/AuditEventServiceImpl.java + mapper"],
+      "planning_evidence_paths": [
+        "service/AuditEventServiceImpl.java + mapper"
+      ],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
       "implementing_wave": "F5",
       "disposition": "stack-adapter",
       "framework_realization": {
-        "template": "src/templates/audit-trail/auditeventservice-auditeventmapper.ejs",
+        "template": "planned:src/templates/audit-trail/auditeventservice-auditeventmapper.ejs",
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-074-auditeventservice-auditeventmapper.md"
       },
       "planning_notes": "* Condizionale: se audit_event attivo",
-      "canonical_id": "N74"
-    },
-    {
-      "id": 75,
-      "category": "Audit Trail *",
-      "name": "Audit log service interface (AuditEventService / append-only repository pattern)",
-      "detail": "Write service -> AuditEventService field. Mapper insert-only. record() call",
-      "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "BLOCKING",
-      "stack_tag": "java_spring",
-      "conditional": "pharma",
-      "planning_evidence_paths": ["ArchitectureTests.java rules 36-39"],
-      "arbiter_target_path": null,
-      "arbiter_target_kind": "adapter",
-      "invariant_id": null,
-      "implementing_wave": "F5",
-      "disposition": "stack-adapter",
-      "framework_realization": {
-        "template": "src/templates/audit-trail/archunit-r-36-r-38-r-39.ejs",
-        "generator": null,
-        "validator": null,
-        "docs": "docs/REFERENCE/dim-075-archunit-r-36-r-38-r-39.md"
+      "canonical_id": "N75",
+      "import_source": {
+        "import_id": 74,
+        "import_name": "AuditEventService + AuditEventMapper"
       },
-      "planning_notes": "* Condizionale: se audit_event attivo",
-      "canonical_id": "N75"
+      "origin": "import"
     },
     {
       "id": 76,
       "category": "Documentation",
       "name": "Accessibility (a11y) audit (Axe / Lighthouse / pa11y)",
-      "detail": "Reference card: workflow attivi/passivi, PR lifecycle, run.sh mapping, troubleshooting. Template: TPL_cicd-developer-reference",
+      "detail": "",
       "tml": "M2",
       "tml_source": "L3",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/ci/README.md"],
+      "planning_evidence_paths": [],
       "arbiter_target_path": "docs/REFERENCE/cicd-developer-reference.md",
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1901,13 +2241,15 @@
         "template": null,
         "generator": null,
         "validator": null,
-        "docs": "docs/REFERENCE/dim-076-docs-ci-readme-md-ci-cd-developer-r.md"
+        "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N76"
+      "canonical_id": "N76",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
-      "id": "N77",
+      "id": 77,
       "name": "Spring Modulith structural verification (ApplicationModules.verify())",
       "detail": "Emits ApplicationModulesTest.java that calls ApplicationModules.of(...).verify() to detect illegal cross-module dependencies at test time.",
       "tml": "L2",
@@ -1915,23 +2257,27 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java",
       "conditional": "spring-boot",
-      "planning_evidence_paths": ["src/test/java"],
+      "planning_evidence_paths": [
+        "src/test/java"
+      ],
       "arbiter_target_path": "src/test/java/{basePackage}/modulith/ApplicationModulesTest.java",
       "arbiter_target_kind": "test",
       "invariant_id": null,
       "implementing_wave": "W2",
       "disposition": "generated",
       "framework_realization": {
-        "template": "java/modulith/ApplicationModulesTest.java.ejs",
+        "template": "planned:java/modulith/ApplicationModulesTest.java.ejs",
         "generator": "src/generators/modulith.ts",
         "validator": null,
         "docs": null
       },
       "planning_notes": null,
-      "canonical_id": "N77"
+      "canonical_id": "N77",
+      "import_source": null,
+      "origin": "arbiter-native"
     },
     {
-      "id": "N78",
+      "id": 78,
       "name": "Resilience patterns guide (circuit-breaker/retry/rate-limiter/timeout)",
       "detail": "Emits docs/GOVERNANCE/RESILIENCE.md with circuit-breaker/retry/rate-limiter/timeout defaults and external-call checklist for backend archetypes.",
       "tml": "L2",
@@ -1939,20 +2285,597 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": ["docs/GOVERNANCE/RESILIENCE.md"],
+      "planning_evidence_paths": [
+        "docs/GOVERNANCE/RESILIENCE.md"
+      ],
       "arbiter_target_path": "docs/GOVERNANCE/RESILIENCE.md",
       "arbiter_target_kind": "doc",
       "invariant_id": "INV-19",
       "implementing_wave": "W4",
       "disposition": "done",
       "framework_realization": {
-        "template": "resilience/RESILIENCE.md.ejs",
+        "template": "planned:resilience/RESILIENCE.md.ejs",
         "generator": "src/generators/resilience.ts",
         "validator": null,
         "docs": "docs/REFERENCE/RESILIENCE.md"
       },
       "planning_notes": null,
-      "canonical_id": "N78"
+      "canonical_id": "N78",
+      "import_source": null,
+      "origin": "arbiter-native"
     }
-  ]
+  ],
+  "unmapped_import_dims": [
+    {
+      "import_id": 4,
+      "import_name": "API versioning /v1/ (P12)",
+      "detail": "context-path=/{servizio}, controller=/v1/{risorsa}",
+      "planning_evidence_paths": [
+        "application.yml + controller"
+      ],
+      "framework_realization": {
+        "template": "src/templates/java/architecture/api-versioning-v1-p12.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-004-api-versioning-v1-p12.md"
+      },
+      "planning_notes": "MAI /api come context-path"
+    },
+    {
+      "import_id": 5,
+      "import_name": "DTO in package dto/ (P17-P19)",
+      "detail": "DTO separati Request/Response, MAI in Commons/model",
+      "planning_evidence_paths": [
+        "dto/*Request.java, dto/*Response.java"
+      ],
+      "framework_realization": {
+        "template": "src/templates/java/architecture/dto-in-package-dto-p17-p19.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-005-dto-in-package-dto-p17-p19.md"
+      },
+      "planning_notes": "Migrazione progressiva da Commons"
+    },
+    {
+      "import_id": 6,
+      "import_name": "Constructor injection (P7)",
+      "detail": "@RequiredArgsConstructor. MAI @Autowired su campi",
+      "planning_evidence_paths": [
+        "Tutti i @Service/@Controller"
+      ],
+      "framework_realization": {
+        "template": "src/templates/java/architecture/constructor-injection-p7.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-006-constructor-injection-p7.md"
+      },
+      "planning_notes": "Controllare anche @Component"
+    },
+    {
+      "import_id": 7,
+      "import_name": "Exception hierarchy RFC 7807 (P15)",
+      "detail": "{Service}Exception + ProblemDetail. MAI raw RuntimeException",
+      "planning_evidence_paths": [
+        "exception/{Service}Exception.java"
+      ],
+      "framework_realization": {
+        "template": "src/templates/java/architecture/exception-hierarchy-rfc-7807-p15.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-007-exception-hierarchy-rfc-7807-p15.md"
+      },
+      "planning_notes": "Planning: dedicated exception type extends common base exception"
+    },
+    {
+      "import_id": 16,
+      "import_name": "CycloneDX SBOM",
+      "detail": "JSON output. Supply chain tracking",
+      "planning_evidence_paths": [
+        "pom.xml cyclonedx-maven-plugin"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-016-cyclonedx-sbom.md"
+      },
+      "planning_notes": null
+    },
+    {
+      "import_id": 19,
+      "import_name": "Testcontainers PostgreSQL",
+      "detail": "DB reale in test. Sostituisce H2/mock",
+      "planning_evidence_paths": [
+        "pom.xml testcontainers + TestcontainersConfig"
+      ],
+      "framework_realization": {
+        "template": "src/templates/java/test-framework/testcontainers-postgresql.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-019-testcontainers-postgresql.md"
+      },
+      "planning_notes": null
+    },
+    {
+      "import_id": 20,
+      "import_name": "Testcontainers MariaDB + MSSQL",
+      "detail": "Cross-DB compatibility. Profili dedicati",
+      "planning_evidence_paths": [
+        "pom.xml testcontainers + profili"
+      ],
+      "framework_realization": {
+        "template": "src/templates/java/test-framework/testcontainers-mariadb-mssql.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-020-testcontainers-mariadb-mssql.md"
+      },
+      "planning_notes": "Solo se servizio supporta multi-DB"
+    },
+    {
+      "import_id": 21,
+      "import_name": "Testcontainers Toxiproxy",
+      "detail": "Resilience test: DB stall, latency injection",
+      "planning_evidence_paths": [
+        "DbStallResilienceTest.java"
+      ],
+      "framework_realization": {
+        "template": "src/templates/java/test-framework/testcontainers-toxiproxy.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-021-testcontainers-toxiproxy.md"
+      },
+      "planning_notes": "Non tutti i servizi necessitano"
+    },
+    {
+      "import_id": 23,
+      "import_name": "Base test infrastructure",
+      "detail": "BaseIntegrationTest + TestDataFactory + JwtTestHelper + MockServicesConfig",
+      "planning_evidence_paths": [
+        "src/test/.../config/, factory/"
+      ],
+      "framework_realization": {
+        "template": "src/templates/java/test-framework/base-test-infrastructure.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-023-base-test-infrastructure.md"
+      },
+      "planning_notes": "Domain-specific, non copiare 1:1"
+    },
+    {
+      "import_id": 25,
+      "import_name": "@Tag taxonomy (25 tags)",
+      "detail": "unit, integration, behavioral, edge-case, contract, etc. ArchUnit enforcement",
+      "planning_evidence_paths": [
+        "ArchitectureTests.java tag rules"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-025--tag-taxonomy-25-tags.md"
+      },
+      "planning_notes": "Iniziare con 10 tag base a L2"
+    },
+    {
+      "import_id": 27,
+      "import_name": "Unit tests",
+      "detail": "L1: >=1 test. L2: >=20% coverage. L3: >=60%",
+      "planning_evidence_paths": [
+        "src/test/.../service/"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-027-unit-tests.md"
+      },
+      "planning_notes": "Coverage-first brownfield: documentare prima"
+    },
+    {
+      "import_id": 29,
+      "import_name": "Edge-case tests (boundary)",
+      "detail": "Null, overflow, boundary conditions",
+      "planning_evidence_paths": [
+        "src/test/.../boundary/"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-029-edge-case-tests-boundary.md"
+      },
+      "planning_notes": null
+    },
+    {
+      "import_id": 30,
+      "import_name": "Contract tests (OpenAPI)",
+      "detail": "Swagger Request Validator runtime. OpenApiRuntimeValidationTest",
+      "planning_evidence_paths": [
+        "src/test/.../contract/"
+      ],
+      "framework_realization": {
+        "template": "src/templates/testing/contract-tests-openapi.ejs",
+        "generator": "src/generators/contract-tests-openapi.ts",
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-030-contract-tests-openapi.md"
+      },
+      "planning_notes": null
+    },
+    {
+      "import_id": 31,
+      "import_name": "Concurrent/stress tests",
+      "detail": "Thread safety, race condition, burst. @Tag('concurrency')",
+      "planning_evidence_paths": [
+        "ConcurrentBookingTest, BatchStressTest"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-031-concurrent-stress-tests.md"
+      },
+      "planning_notes": "Solo servizi con logica concorrente"
+    },
+    {
+      "import_id": 32,
+      "import_name": "Migration tests (Liquibase rollback)",
+      "detail": "Rollback changeset, cross-DB. >=5 classi",
+      "planning_evidence_paths": [
+        "src/test/.../migration/"
+      ],
+      "framework_realization": {
+        "template": "src/templates/testing/migration-tests-liquibase-rollback.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-032-migration-tests-liquibase-rollback.md"
+      },
+      "planning_notes": "Testcontainers PG+MariaDB+MSSQL"
+    },
+    {
+      "import_id": 33,
+      "import_name": "Performance Surefire tests",
+      "detail": "@Tag('performance'). Stress unit test. >=2 classi",
+      "planning_evidence_paths": [
+        "src/test/.../stress/"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-033-performance-surefire-tests.md"
+      },
+      "planning_notes": "Diverso da k6 (Surefire, non HTTP)"
+    },
+    {
+      "import_id": 38,
+      "import_name": "issue-state.yml automation",
+      "detail": "Lifecycle issue: In Progress->In Review->Staged->Done",
+      "planning_evidence_paths": [
+        ".github/workflows/issue-state.yml"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-038-issue-state-yml-automation.md"
+      },
+      "planning_notes": "Copiare 1:1 da Planning"
+    },
+    {
+      "import_id": 39,
+      "import_name": "Load test workflows",
+      "detail": "Manual trigger per singoli k6 test + weekly scheduled",
+      "planning_evidence_paths": [
+        ".github/workflows/load-*.yml"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-039-load-test-workflows.md"
+      },
+      "planning_notes": "Solo se k6 configurato"
+    },
+    {
+      "import_id": 40,
+      "import_name": "Newman CI integration",
+      "detail": "Run Postman collection in CI. Gate su assertion",
+      "planning_evidence_paths": [
+        "build.yml / nightly.yml"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-040-newman-ci-integration.md"
+      },
+      "planning_notes": "Richiede collection Postman"
+    },
+    {
+      "import_id": 43,
+      "import_name": "k6 endurance test (30min)",
+      "detail": "Memory/thread leak detection. LT-11 pattern",
+      "planning_evidence_paths": [
+        "tests/load/endurance.js"
+      ],
+      "framework_realization": {
+        "template": "src/templates/test-tooling/k6-endurance-test-30min.ejs",
+        "generator": "src/generators/k6-endurance-test-30min.ts",
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-043-k6-endurance-test-30min.md"
+      },
+      "planning_notes": null
+    },
+    {
+      "import_id": 45,
+      "import_name": "validate-mybatis-xml-crud.sh",
+      "detail": "#{param} check (no ${param} SQL injection). P16",
+      "planning_evidence_paths": [
+        "scripts/validate-mybatis-xml-crud.sh"
+      ],
+      "framework_realization": {
+        "template": "src/templates/scripts/validators/validate-mybatis-xml-crud-sh.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-045-validate-mybatis-xml-crud-sh.md"
+      },
+      "planning_notes": "Universale"
+    },
+    {
+      "import_id": 46,
+      "import_name": "validate-schema-isolation.sh",
+      "detail": "No cross-tenant access. P23/ADR-019",
+      "planning_evidence_paths": [
+        "scripts/validate-schema-isolation.sh"
+      ],
+      "framework_realization": {
+        "template": "src/templates/scripts/validators/validate-schema-isolation-sh.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-046-validate-schema-isolation-sh.md"
+      },
+      "planning_notes": "Universale"
+    },
+    {
+      "import_id": 47,
+      "import_name": "validate-liquibase-naming.sh + crossdb.sh",
+      "detail": "Naming convention + no PG-specific SQL",
+      "planning_evidence_paths": [
+        "scripts/validate-liquibase-*.sh"
+      ],
+      "framework_realization": {
+        "template": "src/templates/scripts/validators/validate-liquibase-naming-sh-crossd.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-047-validate-liquibase-naming-sh-crossd.md"
+      },
+      "planning_notes": "Calibrare naming per servizio"
+    },
+    {
+      "import_id": 48,
+      "import_name": "validate-postman-collection.sh",
+      "detail": "Integrit&#224; collection Postman",
+      "planning_evidence_paths": [
+        "scripts/validate-postman-collection.sh"
+      ],
+      "framework_realization": {
+        "template": "src/templates/scripts/validators/validate-postman-collection-sh.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-048-validate-postman-collection-sh.md"
+      },
+      "planning_notes": "Solo se Postman collection"
+    },
+    {
+      "import_id": 49,
+      "import_name": "validate-nightly-k6.sh + post-run + workflow",
+      "detail": "k6 threshold, DB post-assertions, CI integrity",
+      "planning_evidence_paths": [
+        "scripts/validate-*.sh (5 script)"
+      ],
+      "framework_realization": {
+        "template": "src/templates/scripts/validators/validate-nightly-k6-sh-post-run-wor.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-049-validate-nightly-k6-sh-post-run-wor.md"
+      },
+      "planning_notes": "Solo se k6/nightly attivi"
+    },
+    {
+      "import_id": 50,
+      "import_name": "check-drift.py",
+      "detail": "Configuration drift detection cross-service",
+      "planning_evidence_paths": [
+        "scripts/check-drift.py"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": "scripts/check-drift-py.mjs",
+        "docs": "docs/REFERENCE/dim-050-check-drift-py.md"
+      },
+      "planning_notes": null
+    },
+    {
+      "import_id": 51,
+      "import_name": "quality-check.sh (aggregated)",
+      "detail": "Quality gate aggregato: spotless+test+jacoco+spotbugs",
+      "planning_evidence_paths": [
+        "scripts/quality-check.sh"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": "scripts/quality-check-sh-aggregated.mjs",
+        "docs": "docs/REFERENCE/dim-051-quality-check-sh-aggregated.md"
+      },
+      "planning_notes": "Crescita incrementale"
+    },
+    {
+      "import_id": 52,
+      "import_name": "coverage-report.sh + arch-verify.sh",
+      "detail": "JaCoCo HTML report + ArchUnit standalone",
+      "planning_evidence_paths": [
+        "scripts/coverage-report.sh, arch-verify.sh"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": "scripts/coverage-report-sh-arch-verify-sh.mjs",
+        "docs": "docs/REFERENCE/dim-052-coverage-report-sh-arch-verify-sh.md"
+      },
+      "planning_notes": null
+    },
+    {
+      "import_id": 53,
+      "import_name": "format-fix.sh + security-scan.sh",
+      "detail": "Spotless auto-fix + Gitleaks+OWASP+SpotBugs security",
+      "planning_evidence_paths": [
+        "scripts/format-fix.sh, security-scan.sh"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": "scripts/format-fix-sh-security-scan-sh.mjs",
+        "docs": "docs/REFERENCE/dim-053-format-fix-sh-security-scan-sh.md"
+      },
+      "planning_notes": null
+    },
+    {
+      "import_id": 54,
+      "import_name": "pii-scan.sh",
+      "detail": "PII pattern detection (email, phone, SSN, CF, IBAN)",
+      "planning_evidence_paths": [
+        "scripts/security/pii-scan.sh"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": "scripts/pii-scan-sh.mjs",
+        "docs": "docs/REFERENCE/dim-054-pii-scan-sh.md"
+      },
+      "planning_notes": "Universale"
+    },
+    {
+      "import_id": 56,
+      "import_name": "SecurityConfig hardening",
+      "detail": "anyRequest().authenticated(), CORS restrictive, CSRF",
+      "planning_evidence_paths": [
+        "config/SecurityConfig.java"
+      ],
+      "framework_realization": {
+        "template": "src/templates/security/securityconfig-hardening.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-056-securityconfig-hardening.md"
+      },
+      "planning_notes": "Servizio-specifico"
+    },
+    {
+      "import_id": 58,
+      "import_name": "Docker build-args safety",
+      "detail": "No secrets in image history. Multi-stage build",
+      "planning_evidence_paths": [
+        "Dockerfile"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-058-docker-build-args-safety.md"
+      },
+      "planning_notes": "Solo servizi containerizzati"
+    },
+    {
+      "import_id": 62,
+      "import_name": ".editorconfig",
+      "detail": "Indentation/encoding consistency",
+      "planning_evidence_paths": [
+        ".editorconfig"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-062--editorconfig.md"
+      },
+      "planning_notes": "Copiare 1:1"
+    },
+    {
+      "import_id": 63,
+      "import_name": "docs/coding-standards.md",
+      "detail": "Regole codice, naming, pattern. Servizio-specifico",
+      "planning_evidence_paths": [
+        "docs/coding-standards.md"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-063-docs-coding-standards-md.md"
+      },
+      "planning_notes": "Adattare package names ed esempi"
+    },
+    {
+      "import_id": 64,
+      "import_name": "docs/testing/ (3 file)",
+      "detail": "master-test-plan, test-taxonomy, rtm",
+      "planning_evidence_paths": [
+        "docs/testing/*.md"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-064-docs-testing-3-file.md"
+      },
+      "planning_notes": "Domain-specific test mapping"
+    },
+    {
+      "import_id": 66,
+      "import_name": "docs/security/ (2 file)",
+      "detail": "risk-assessment, stride-threat-model",
+      "planning_evidence_paths": [
+        "docs/security/*.md"
+      ],
+      "framework_realization": {
+        "template": null,
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-066-docs-security-2-file.md"
+      },
+      "planning_notes": "Servizio-specifico, metodologia standard"
+    },
+    {
+      "import_id": 71,
+      "import_name": "Seed data scripts",
+      "detail": "seed-{service}-k6.sql, seed-test-data.sh",
+      "planning_evidence_paths": [
+        "scripts/seed-*.sql"
+      ],
+      "framework_realization": {
+        "template": "src/templates/bootstrap/seed-data-scripts.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-071-seed-data-scripts.md"
+      },
+      "planning_notes": "Per k6 e E2E test"
+    },
+    {
+      "import_id": 72,
+      "import_name": "Spring Boot version alignment",
+      "detail": "Tutti i moduli stessa versione parent",
+      "planning_evidence_paths": [
+        "pom.xml parent version"
+      ],
+      "framework_realization": {
+        "template": "src/templates/bootstrap/spring-boot-version-alignment.ejs",
+        "generator": null,
+        "validator": null,
+        "docs": "docs/REFERENCE/dim-072-spring-boot-version-alignment.md"
+      },
+      "planning_notes": "Verificare skew tra moduli"
+    }
+  ],
+  "import_total": 76
 }

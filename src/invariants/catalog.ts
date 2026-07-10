@@ -1327,11 +1327,16 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     title: 'Kit catalog parity',
     description:
       'src/kit/catalog.json and src/kit/canonical-mapping.json must stay in sync: ' +
-      'every canonical_id in mapping must match a catalog id (N01..N77); names, tml_source, and ' +
+      'every canonical_id in mapping must match a catalog id (N01..N78); names, tml_source, and ' +
       'gate_type must match after NFC-normalize and suffix-strip; every BLOCKING dim must have ' +
       'at least one enforcement artifact or a valid disposition exemption (adopt-framework or ' +
       'stack-adapter with implementing_wave in W3-W11, or disposition=done). ' +
-      'Neither file may contain tokens from scripts/data/redaction-lexicon.json.',
+      'Neither file may contain tokens from scripts/data/redaction-lexicon.json. ' +
+      '(R-08 hardening) Rows carrying import_source must have an import_name that alnum-prefix-matches ' +
+      'their framework_realization.docs pointer; every framework_realization.{template,generator,' +
+      'validator} path must be prefixed "planned:" or exist on disk; every original import dim ' +
+      '(1..76) must appear exactly once across mapping.dimensions[].import_source and ' +
+      'unmapped_import_dims — no import payload may be silently dropped or double-attached.',
     alwaysActive: false,
     selfOnly: true,
     enforcement: 'scripts/check-kit-catalog-parity.mjs (L1 gate)',

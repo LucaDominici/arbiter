@@ -102,6 +102,19 @@ describe('arbiter kit install --dry-run (dogfood)', () => {
     const out = firstRun.stdout + firstRun.stderr
     expect(out).toContain('[VERIFY]')
   })
+
+  // ─── R-08 remap regression guard (P5) ─────────────────────────────────────
+  // canonical-mapping.json is documentation/provenance metadata — no consumer
+  // in this pipeline reads import_source/unmapped_import_dims/detail/
+  // planning_notes. The self-assessment score must be byte-identical to the
+  // pre-remap baseline (captured against commit 9b749141, before the R-08
+  // crosswalk landed).
+  it('[MEASURE]/[ASSESS]/[VERIFY] counts match the pre-remap baseline', () => {
+    const out = firstRun.stdout + firstRun.stderr
+    expect(out).toMatch(/\[MEASURE\].*63 dims measured.*present:44 partial:2 missing:17 na:15/)
+    expect(out).toMatch(/\[ASSESS\].*78 dims.*Y:41 P:15 N:7 NA:15/)
+    expect(out).toMatch(/\[VERIFY\].*coverage 65% \(41\/63 dims\)/)
+  })
 })
 
 // ─── No arbiter.json mutation (C1) ───────────────────────────────────────────

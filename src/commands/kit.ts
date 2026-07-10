@@ -156,8 +156,54 @@ export function runKitExplain(id: string): void {
 type CatalogArr = Array<{ id: string; name: string; tml: string; gate: string }>
 type MappingDim = Record<string, unknown>
 type CatalogEntry = { id: string; name: string; tml: string; gate: string }
+type ImportSource = { import_id: number; import_name: string }
+type UnmappedImportDim = { import_id: number; import_name: string }
 
 const VALIDATE_ACCEPTED_WAVES = new Set(['W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W9', 'W10', 'W11'])
+
+function alnumKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function docsSlugPortion(docsPath: string): string {
+  return docsPath.replace(/^.*\/dim-\d+-/, '').replace(/\.md$/, '')
+}
+
+/** Rule 5 (R-08): import_source.import_name must recognizably match the
+ * framework_realization.docs pointer it moved in with. Docs slugs are
+ * truncated, so this is an alnum-normalized prefix check, not equality. */
+function checkProvenance(cid: string, dim: MappingDim): string | null {
+  const src = dim['import_source'] as ImportSource | null | undefined
+  if (!src) return null
+  const fr = dim['framework_realization'] as Record<string, unknown> | undefined
+  const docs = fr?.['docs'] as string | null | undefined
+  if (docs == null) return null
+  const nameKey = alnumKey(src.import_name)
+  const docsKey = alnumKey(docsSlugPortion(docs))
+  if (nameKey.startsWith(docsKey) || docsKey.startsWith(nameKey)) return null
+  return `${cid} import_source.import_name="${src.import_name}" does not match framework_realization.docs="${docs}"`
+}
+
+/** Rule 6 (R-13): every non-null template/generator/validator path must
+ * either be prefixed "planned:" or exist on disk relative to the arbiter
+ * package root. Inapplicable in a published install (#1575) — those paths
+ * point into the dev source tree (src/...), which never ships; the caller
+ * skips this check entirely when root has no src/ directory. */
+function checkPhantomPaths(cid: string, dim: MappingDim, root: string): string[] {
+  const fails: string[] = []
+  const fr = dim['framework_realization'] as Record<string, unknown> | undefined
+  if (!fr) return fails
+  for (const key of ['template', 'generator', 'validator'] as const) {
+    const val = fr[key] as string | null | undefined
+    if (val == null || val.startsWith('planned:')) continue
+    if (!existsSync(resolve(root, val))) {
+      fails.push(
+        `${cid} framework_realization.${key}="${val}" does not exist on disk (prefix with "planned:" or build it)`,
+      )
+    }
+  }
+  return fails
+}
 
 function checkFieldParity(cid: string, dim: MappingDim, cat: CatalogEntry): string[] {
   const fails: string[] = []
@@ -189,14 +235,57 @@ function checkEnforcement(cid: string, dim: MappingDim): string | null {
   return hasEnf || hasExempt ? null : `${cid} BLOCKING with no enforcement and no valid exemption`
 }
 
-function runParityCheck(catalogArr: CatalogArr): string[] {
+/** Rule 7: every original import dim (1..importTotal) appears exactly once —
+ * either attached to a canonical row via import_source, or recorded in
+ * unmapped_import_dims. Gated on import_total (from canonical-mapping.json
+ * metadata) so mapping files without the R-08 crosswalk skip this rule. */
+function checkCrosswalkIntegrity(
+  mappingDims: MappingDim[],
+  unmappedImportDims: UnmappedImportDim[],
+  importTotal: number | null,
+): string[] {
+  const fails: string[] = []
+  if (importTotal == null || importTotal <= 0) return fails
+  const seen = new Map<number, string>()
+  for (const dim of mappingDims) {
+    const src = dim['import_source'] as ImportSource | null | undefined
+    if (!src) continue
+    const existing = seen.get(src.import_id)
+    const cid = dim['canonical_id'] as string
+    if (existing) {
+      fails.push(`import_id ${src.import_id} attached to both ${existing} and ${cid}`)
+    } else {
+      seen.set(src.import_id, cid)
+    }
+  }
+  for (const u of unmappedImportDims) {
+    const existing = seen.get(u.import_id)
+    if (existing) {
+      fails.push(`import_id ${u.import_id} in unmapped_import_dims AND attached to ${existing}`)
+    } else {
+      seen.set(u.import_id, 'unmapped_import_dims')
+    }
+  }
+  for (let id = 1; id <= importTotal; id++) {
+    if (!seen.has(id)) fails.push(`import_id ${id} missing from crosswalk entirely`)
+  }
+  return fails
+}
+
+function runParityCheck(catalogArr: CatalogArr, root: string): string[] {
   const fails: string[] = []
   let mappingDims: MappingDim[]
+  let unmappedImportDims: UnmappedImportDim[]
+  let importTotal: number | null
   try {
     const raw = JSON.parse(readFileSync(kitDataPath('canonical-mapping.json'), 'utf-8')) as {
       dimensions: MappingDim[]
+      unmapped_import_dims?: UnmappedImportDim[]
+      import_total?: number
     }
     mappingDims = raw.dimensions
+    unmappedImportDims = raw.unmapped_import_dims ?? []
+    importTotal = raw.import_total ?? null
   } catch (err) {
     throw new Error(`failed to load mapping: ${err instanceof Error ? err.message : String(err)}`, {
       cause: err,
@@ -205,6 +294,10 @@ function runParityCheck(catalogArr: CatalogArr): string[] {
 
   const catalogIds = new Set(catalogArr.map((d) => d.id))
   const mappingIds = new Set<string>()
+  // Rule 6 points into the dev source tree (src/...), which never ships in a
+  // published install (#1575) — skip it there rather than fail-closed on an
+  // absence-by-design.
+  const hasSrcTree = existsSync(resolve(root, 'src'))
 
   for (const dim of mappingDims) {
     const cid = dim['canonical_id'] as string | undefined
@@ -227,10 +320,14 @@ function runParityCheck(catalogArr: CatalogArr): string[] {
       const enfFail = checkEnforcement(cid, dim)
       if (enfFail) fails.push(enfFail)
     }
+    const provFail = checkProvenance(cid, dim)
+    if (provFail) fails.push(provFail)
+    if (hasSrcTree) fails.push(...checkPhantomPaths(cid, dim, root))
   }
   for (const id of catalogIds) {
     if (!mappingIds.has(id)) fails.push(`catalog ${id} missing from mapping`)
   }
+  fails.push(...checkCrosswalkIntegrity(mappingDims, unmappedImportDims, importTotal))
   return fails
 }
 
@@ -299,7 +396,7 @@ function computeKitValidation(): KitValidation {
   // ─── Subcheck 2: parity ───────────────────────────────────────────────────
   if (catalog) {
     try {
-      const fails = runParityCheck(catalog)
+      const fails = runParityCheck(catalog, root)
       if (fails.length > 0) {
         stdout.push('[INV-86] kit catalog parity FAIL')
         for (const f of fails) stdout.push(`  [parity] ${f}`)
