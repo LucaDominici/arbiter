@@ -63,7 +63,7 @@ related: []
 | 042 | [Three-Tier Gate System (L1/L2/L3)](../ADR/042-gate-tiers.md) | Accepted | 2026-05-20 |
 | 043 | [Docs Site Information Architecture](../ADR/043-docs-site-ia.md) | Accepted | 2026-05-20 |
 | 044 | [Docs Site Versioning Strategy](../ADR/044-docs-versioning.md) | Accepted | 2026-05-20 |
-| 045 | [KIT Taxonomy — Wrap-Not-Replace, Field Cross-Walk, and Parity Contract](../ADR/045-kit-taxonomy.md) | Accepted | 2026-05-20 |
+| 045 | [KIT Taxonomy — Wrap-Not-Replace, Field Cross-Walk, and Parity Contract](../ADR/045-kit-taxonomy.md) | Accepted | 2026-07-10 |
 | 046 | [Stack Adapter Model](../ADR/046-stack-adapter.md) | Accepted | 2026-05-20 |
 | 047 | [Security Scanning Suite (M24)](../ADR/047-security-scanning.md) | Accepted | 2026-05-20 |
 | 048 | [Plugin API v1.1 — Scaffolder and Memory Interface](../ADR/048-plugin-api-v1.1-scaffolder.md) | Accepted | 2026-05-20 |
