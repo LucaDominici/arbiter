@@ -301,7 +301,13 @@ describe('generateDebtGates', () => {
     expect(content).toContain('7')
   })
 
-  it('checkstyle.xml does not contain DOCTYPE declaration (avoids DTD network resolution on CI)', () => {
+  it('checkstyle.xml carries the mandatory DOCTYPE (config cannot load without it)', () => {
+    // Reversal of the old "no DOCTYPE (avoids DTD network resolution)" rule
+    // (#1835-class fix): empirically, checkstyle REQUIRES the DOCTYPE — without
+    // it every checkstyleMain run dies with `Unable to create Root Module …
+    // Document root element "module", must match DOCTYPE root "null"` (verified
+    // on checkstyle 10.21.4). No network concern applies: checkstyle resolves
+    // its public DTD IDs from a LOCAL entity resolver bundled in its jar.
     cleanupTestProject(dir)
     dir = createTestProject('java')
     const config = makeConfig(dir, {
@@ -311,8 +317,8 @@ describe('generateDebtGates', () => {
     })
     generateDebtGates(config)
     const content = readFileSync(join(dir, 'config', 'checkstyle.xml'), 'utf-8')
-    expect(content).not.toContain('<!DOCTYPE')
-    expect(content).not.toContain('checkstyle.org/dtds')
+    expect(content).toContain('<!DOCTYPE module PUBLIC')
+    expect(content).toContain('-//Checkstyle//DTD Checkstyle Configuration 1.3//EN')
   })
 
   it('generates config/spotbugs-exclude.xml for Java projects (M29)', () => {
@@ -380,8 +386,16 @@ describe('generateDebtGates', () => {
     expect(result.files.some((f) => f.path.endsWith('spotbugs.gradle'))).toBe(true)
     expect(existsSync(join(dir, 'spotbugs.gradle'))).toBe(true)
     const content = readFileSync(join(dir, 'spotbugs.gradle'), 'utf-8')
-    expect(content).toContain('com.github.spotbugs')
-    expect(content).toContain('excludeFilter')
+    // #1835-class fix: the applied script now carries TASK REPORT config only.
+    // The plugin declaration + enum-typed extension config (effort/reportLevel/
+    // excludeFilter) live in the injected root-build block — a plugins {} block
+    // here is illegal, and the plugin classpath is invisible to applied scripts.
+    expect(content).toContain('spotbugsMain')
+    expect(content).toContain('reports/spotbugs/main.xml')
+    expect(content).not.toMatch(/(?:^|\n)[ \t]*plugins\s*\{/)
+    const build = readFileSync(join(dir, 'build.gradle'), 'utf-8')
+    expect(build).toContain('com.github.spotbugs')
+    expect(build).toContain('excludeFilter')
   })
 
   it('does not generate pmd-ruleset.xml for non-Java projects', () => {
