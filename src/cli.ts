@@ -10,6 +10,7 @@ import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
 import { runTui } from './commands/tui.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
+import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runGoldAudit } from './commands/gold-audit.js'
 import { runDocSet } from './commands/doc-set.js'
@@ -808,6 +809,32 @@ worktree
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { json: boolean }) => {
     runWorktreeList({ json: opts.json })
+  })
+
+program
+  .command('gate-exec <cmd...>')
+  .description(
+    'Run a command under the per-repo gate mutex (#1873, ADR-103): every worktree of ' +
+      'the same repo converges on ONE flock(1) lock, the wait is kernel-side (blocking), ' +
+      'and the lock releases even on SIGKILL/OOM of the holder. Usage: ' +
+      'arbiter gate-exec [--key K] -- <cmd> [args...]. Exit code: passthrough of the ' +
+      'command; 2 on gate-exec errors (e.g. flock missing — fail-closed).',
+  )
+  .option('--key <key>', 'Explicit mutex key (overrides per-repo derivation)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((cmdArgs: string[], opts: { key?: string; dir?: string }) => {
+    try {
+      const code = runGateExec({
+        cmdArgs,
+        ...(opts.key !== undefined ? { key: opts.key } : {}),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+      process.exit(code)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(2)
+    }
   })
 
 const review = program
