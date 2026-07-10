@@ -93,34 +93,49 @@ export function materializeLink(
   const sourceExists = existsSync(sourcePath)
 
   if (linkType === 'directory') {
-    // --- Directory handling ---
-    if (sourceExists) {
-      const sourceStat = statSync(sourcePath)
-      if (!sourceStat.isDirectory()) {
-        throw new Error(`Expected directory but found file at: ${spec.path} in ${mainRepoPath}`)
-      }
-      mkdirSync(dirname(destPath), { recursive: true })
-      if (strategy === 'symlink') {
-        return { spec, result: symlinkSafe(sourcePath, destPath, 'LINKED_DIR') }
-      }
-      if (strategy === 'symlink-children') {
-        return { spec, result: materializeChildren(sourcePath, destPath, spec.path) }
-      }
-      // strategy === "copy"
-      cpSync(sourcePath, destPath, { recursive: true })
-      return { spec, result: 'COPIED_DIR' }
-    }
-
-    if (spec.required === true) {
-      throw new Error(`Required directory missing: ${spec.path} in ${mainRepoPath}`)
-    }
-    return { spec, result: 'MISSING' }
+    const result = sourceExists
+      ? materializeDirectory(spec, strategy, sourcePath, destPath, mainRepoPath)
+      : missingOrThrow(spec, `Required directory missing: ${spec.path} in ${mainRepoPath}`)
+    return { spec, result }
   }
 
-  // --- File handling ---
-  if (sourceExists) {
+  return { spec, result: materializeFile(spec, sourcePath, destPath, mainRepoPath) }
+}
+
+/** Directory branch of materializeLink — source exists; dispatch on strategy. */
+function materializeDirectory(
+  spec: WorktreeLinkSpec,
+  strategy: NonNullable<WorktreeLinkSpec['strategy']>,
+  sourcePath: string,
+  destPath: string,
+  mainRepoPath: string,
+): LinkResult {
+  const sourceStat = statSync(sourcePath)
+  if (!sourceStat.isDirectory()) {
+    throw new Error(`Expected directory but found file at: ${spec.path} in ${mainRepoPath}`)
+  }
+  mkdirSync(dirname(destPath), { recursive: true })
+  if (strategy === 'symlink') {
+    return symlinkSafe(sourcePath, destPath, 'LINKED_DIR')
+  }
+  if (strategy === 'symlink-children') {
+    return materializeChildren(sourcePath, destPath, spec.path)
+  }
+  // strategy === "copy"
+  cpSync(sourcePath, destPath, { recursive: true })
+  return 'COPIED_DIR'
+}
+
+/** File branch of materializeLink: symlink → template copy → missing/throw. */
+function materializeFile(
+  spec: WorktreeLinkSpec,
+  sourcePath: string,
+  destPath: string,
+  mainRepoPath: string,
+): LinkResult {
+  if (existsSync(sourcePath)) {
     mkdirSync(dirname(destPath), { recursive: true })
-    return { spec, result: symlinkSafe(sourcePath, destPath, 'LINKED') }
+    return symlinkSafe(sourcePath, destPath, 'LINKED')
   }
 
   if (spec.template) {
@@ -128,15 +143,19 @@ export function materializeLink(
     if (existsSync(templatePath)) {
       mkdirSync(dirname(destPath), { recursive: true })
       copyFileSync(templatePath, destPath)
-      return { spec, result: 'COPIED_TEMPLATE' }
+      return 'COPIED_TEMPLATE'
     }
   }
 
-  if (spec.required === true) {
-    throw new Error(`Required link source missing: ${spec.path} in ${mainRepoPath}`)
-  }
+  return missingOrThrow(spec, `Required link source missing: ${spec.path} in ${mainRepoPath}`)
+}
 
-  return { spec, result: 'MISSING' }
+/** MISSING for optional specs; throws the given message for required ones. */
+function missingOrThrow(spec: WorktreeLinkSpec, message: string): LinkResult {
+  if (spec.required === true) {
+    throw new Error(message)
+  }
+  return 'MISSING'
 }
 
 /**
@@ -193,14 +212,7 @@ export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: stri
       if (stat.isSymbolicLink()) {
         pushIfDangling(linkPath, spec.path, dangling)
       } else if (stat.isDirectory() && spec.strategy === 'symlink-children') {
-        // #1873 T4: the dest itself is a real dir — the links live one level
-        // down. Check each top-level child symlink for a missing target.
-        for (const child of readdirSync(linkPath)) {
-          const childPath = join(linkPath, child)
-          if (lstatSync(childPath).isSymbolicLink()) {
-            pushIfDangling(childPath, `${spec.path}/${child}`, dangling)
-          }
-        }
+        checkChildLinks(linkPath, spec.path, dangling)
       }
     } catch (e: unknown) {
       if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
@@ -208,6 +220,19 @@ export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: stri
     }
   }
   return dangling
+}
+
+/**
+ * #1873 T4: under 'symlink-children' the dest itself is a real dir — the links
+ * live one level down. Check each top-level child symlink for a missing target.
+ */
+function checkChildLinks(dirPath: string, specPath: string, dangling: string[]): void {
+  for (const child of readdirSync(dirPath)) {
+    const childPath = join(dirPath, child)
+    if (lstatSync(childPath).isSymbolicLink()) {
+      pushIfDangling(childPath, `${specPath}/${child}`, dangling)
+    }
+  }
 }
 
 /** Append a `path → target (target missing)` entry when the symlink dangles. */

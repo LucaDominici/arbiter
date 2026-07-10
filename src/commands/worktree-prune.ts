@@ -103,59 +103,85 @@ export function detectPruneCandidates(opts: DetectPruneOptions): {
   }
 
   for (const entry of readOpenLog(opts.gitRoot)) {
-    if (!existsSync(entry.worktreePath)) {
-      skipped.push({ taskId: entry.taskId, reason: 'missing-dir' })
-      continue
+    const verdict = classifyEntry(entry, opts.gitRoot, now, thresholdMs)
+    if (verdict.kind === 'candidate') {
+      candidates.push(verdict.candidate)
+    } else {
+      skipped.push(verdict.skip)
     }
-    if (workingTreeDirty(entry.worktreePath)) {
-      skipped.push({ taskId: entry.taskId, reason: 'dirty' })
-      continue
-    }
+  }
 
-    let merged = false
-    try {
-      merged = branchFullyMerged(entry.branch, entry.baseBranch, opts.gitRoot, false)
-      // FAIL-OPEN-INTENT: merged-check failed (unknown ref) — surfaced as a 'branch-missing' skip, never a candidate
-    } catch {
-      skipped.push({ taskId: entry.taskId, reason: 'branch-missing' })
-      continue
-    }
-    if (merged) {
-      candidates.push({
+  return { candidates, skipped }
+}
+
+/** True when the branch is fully merged; null when the ref is unreadable. */
+function mergedOrNull(entry: OpenLogEntry, gitRoot: string): boolean | null {
+  try {
+    return branchFullyMerged(entry.branch, entry.baseBranch, gitRoot, false)
+    // FAIL-OPEN-INTENT: merged-check failed (unknown ref) — surfaced as a 'branch-missing' skip, never a candidate
+  } catch {
+    return null
+  }
+}
+
+type EntryVerdict =
+  { kind: 'candidate'; candidate: PruneCandidate } | { kind: 'skip'; skip: PruneSkip }
+
+function skip(taskId: string, reason: PruneSkip['reason']): EntryVerdict {
+  return { kind: 'skip', skip: { taskId, reason } }
+}
+
+/** Classify one open-log entry as a prune candidate or a skip (pure read). */
+function classifyEntry(
+  entry: OpenLogEntry,
+  gitRoot: string,
+  now: Date,
+  thresholdMs: number,
+): EntryVerdict {
+  if (!existsSync(entry.worktreePath)) {
+    return skip(entry.taskId, 'missing-dir')
+  }
+  if (workingTreeDirty(entry.worktreePath)) {
+    return skip(entry.taskId, 'dirty')
+  }
+
+  const merged = mergedOrNull(entry, gitRoot)
+  if (merged === null) {
+    return skip(entry.taskId, 'branch-missing')
+  }
+  if (merged) {
+    return {
+      kind: 'candidate',
+      candidate: {
         taskId: entry.taskId,
         worktreePath: entry.worktreePath,
         branch: entry.branch,
         reason: 'merged',
         lastActivity: entry.openedAt,
-      })
-      continue
+      },
     }
+  }
 
-    const commitIso = lastCommitIso(entry.branch, opts.gitRoot)
-    if (commitIso === null) {
-      skipped.push({ taskId: entry.taskId, reason: 'branch-missing' })
-      continue
-    }
-    // Activity floor: a fresh branch with zero own commits reports the BASE
-    // commit date (old) — openedAt keeps a just-opened worktree alive.
-    const lastActivityMs = Math.max(
-      new Date(entry.openedAt).getTime(),
-      new Date(commitIso).getTime(),
-    )
-    if (now.getTime() - lastActivityMs > thresholdMs) {
-      candidates.push({
+  const commitIso = lastCommitIso(entry.branch, gitRoot)
+  if (commitIso === null) {
+    return skip(entry.taskId, 'branch-missing')
+  }
+  // Activity floor: a fresh branch with zero own commits reports the BASE
+  // commit date (old) — openedAt keeps a just-opened worktree alive.
+  const lastActivityMs = Math.max(new Date(entry.openedAt).getTime(), new Date(commitIso).getTime())
+  if (now.getTime() - lastActivityMs > thresholdMs) {
+    return {
+      kind: 'candidate',
+      candidate: {
         taskId: entry.taskId,
         worktreePath: entry.worktreePath,
         branch: entry.branch,
         reason: 'inactive',
         lastActivity: new Date(lastActivityMs).toISOString(),
-      })
-    } else {
-      skipped.push({ taskId: entry.taskId, reason: 'active' })
+      },
     }
   }
-
-  return { candidates, skipped }
+  return skip(entry.taskId, 'active')
 }
 
 export interface WorktreePruneOptions {
@@ -171,6 +197,73 @@ export interface WorktreePruneOptions {
   onLine?: (line: string) => void
   /** Close implementation (tests) — defaults to runWorktreeClose. */
   closeFn?: (opts: WorktreeCloseOptions) => void
+}
+
+interface PruneExecution {
+  closedIds: string[]
+  failed: Array<{ taskId: string; error: string }>
+}
+
+/** Close every candidate with per-candidate failure isolation. */
+function executeCandidates(
+  candidates: PruneCandidate[],
+  noFetch: boolean,
+  closeFn: (opts: WorktreeCloseOptions) => void,
+): PruneExecution {
+  const closedIds: string[] = []
+  const failed: PruneExecution['failed'] = []
+  for (const c of candidates) {
+    // Belt-and-braces INV-96 re-check: the inactive path closes with
+    // force (skips the merge check), which also skips the dirty guard —
+    // so re-verify cleanliness right before teardown.
+    if (workingTreeDirty(c.worktreePath)) {
+      failed.push({ taskId: c.taskId, error: 'tree became dirty between detect and close' })
+      continue
+    }
+    try {
+      closeFn({
+        taskId: c.taskId,
+        noFetch,
+        ...(c.reason === 'inactive' ? { force: true, keepBranch: true } : {}),
+      })
+      closedIds.push(c.taskId)
+      // FAIL-OPEN-INTENT: per-candidate isolation — error surfaced in failed[] (printed + rethrown after the loop)
+    } catch (err) {
+      failed.push({ taskId: c.taskId, error: err instanceof Error ? err.message : String(err) })
+    }
+  }
+  return { closedIds, failed }
+}
+
+/** Human-readable prune report; throws when any close failed (exit 1 at CLI). */
+function emitPruneReport(
+  emit: (line: string) => void,
+  detected: { candidates: PruneCandidate[]; skipped: PruneSkip[] },
+  execution: PruneExecution,
+  staleHours: number,
+  execute: boolean,
+): void {
+  emit(`Prune candidates (${detected.candidates.length}), threshold ${staleHours}h:`)
+  for (const c of detected.candidates) {
+    emit(`  ${c.reason.padEnd(8)}  ${c.taskId}  ${c.branch}  ${c.worktreePath}`)
+  }
+  if (detected.skipped.length > 0) {
+    emit(`Skipped (${detected.skipped.length}):`)
+    for (const s of detected.skipped) {
+      emit(`  ${s.reason.padEnd(13)}  ${s.taskId}`)
+    }
+  }
+  if (!execute) {
+    emit('Dry-run — nothing closed. Re-run with --execute to close these worktrees.')
+    return
+  }
+  emit(`Closed ${execution.closedIds.length} worktree(s).`)
+  for (const f of execution.failed) {
+    emit(`Failed to close ${f.taskId}: ${f.error}`)
+  }
+  if (execution.failed.length > 0) {
+    throw new Error(`worktree prune: ${execution.failed.length} candidate(s) failed to close`)
+  }
 }
 
 export function runWorktreePrune(opts: WorktreePruneOptions = {}): void {
@@ -197,63 +290,21 @@ export function runWorktreePrune(opts: WorktreePruneOptions = {}): void {
     ...(opts.now !== undefined ? { now: opts.now } : {}),
   })
 
-  const closedIds: string[] = []
-  const failed: Array<{ taskId: string; error: string }> = []
-
-  if (execute) {
-    for (const c of detected.candidates) {
-      // Belt-and-braces INV-96 re-check: the inactive path closes with
-      // force (skips the merge check), which also skips the dirty guard —
-      // so re-verify cleanliness right before teardown.
-      if (workingTreeDirty(c.worktreePath)) {
-        failed.push({ taskId: c.taskId, error: 'tree became dirty between detect and close' })
-        continue
-      }
-      try {
-        closeFn({
-          taskId: c.taskId,
-          noFetch,
-          ...(c.reason === 'inactive' ? { force: true, keepBranch: true } : {}),
-        })
-        closedIds.push(c.taskId)
-        // FAIL-OPEN-INTENT: per-candidate isolation — error surfaced in failed[] (printed + rethrown after the loop)
-      } catch (err) {
-        failed.push({ taskId: c.taskId, error: err instanceof Error ? err.message : String(err) })
-      }
-    }
-  }
+  const execution = execute
+    ? executeCandidates(detected.candidates, noFetch, closeFn)
+    : { closedIds: [], failed: [] }
 
   if (opts.json) {
-    jsonOutput('worktree-prune', failed.length === 0 ? 'ok' : 'error', {
+    jsonOutput('worktree-prune', execution.failed.length === 0 ? 'ok' : 'error', {
       dryRun: !execute,
       staleHours,
       candidates: detected.candidates,
       skipped: detected.skipped,
-      closed: closedIds,
-      failed,
+      closed: execution.closedIds,
+      failed: execution.failed,
     })
     return
   }
 
-  emit(`Prune candidates (${detected.candidates.length}), threshold ${staleHours}h:`)
-  for (const c of detected.candidates) {
-    emit(`  ${c.reason.padEnd(8)}  ${c.taskId}  ${c.branch}  ${c.worktreePath}`)
-  }
-  if (detected.skipped.length > 0) {
-    emit(`Skipped (${detected.skipped.length}):`)
-    for (const s of detected.skipped) {
-      emit(`  ${s.reason.padEnd(13)}  ${s.taskId}`)
-    }
-  }
-  if (!execute) {
-    emit('Dry-run — nothing closed. Re-run with --execute to close these worktrees.')
-    return
-  }
-  emit(`Closed ${closedIds.length} worktree(s).`)
-  for (const f of failed) {
-    emit(`Failed to close ${f.taskId}: ${f.error}`)
-  }
-  if (failed.length > 0) {
-    throw new Error(`worktree prune: ${failed.length} candidate(s) failed to close`)
-  }
+  emitPruneReport(emit, detected, execution, staleHours, execute)
 }
