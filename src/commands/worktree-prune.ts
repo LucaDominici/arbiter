@@ -29,7 +29,7 @@ import { isRunningFromMainRepo, workingTreeDirty, branchFullyMerged } from '../w
 import { isOpenLogEntry, runWorktreeClose } from './worktree.js'
 import type { OpenLogEntry, WorktreeCloseOptions } from './worktree.js'
 
-export const DEFAULT_STALE_HOURS = 24
+const DEFAULT_STALE_HOURS = 24
 
 export interface PruneCandidate {
   taskId: string
