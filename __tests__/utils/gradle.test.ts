@@ -220,7 +220,7 @@ describe('safeApplyFromSnippet', () => {
     // instant it is applied: "unable to resolve class ...Effort".
     writeFileSync(
       join(dir, 'spotbugs.gradle'),
-      "import com.github.spotbugs.snom.Effort\n\nspotbugs {\n    effort = Effort.MAX\n}\n",
+      'import com.github.spotbugs.snom.Effort\n\nspotbugs {\n    effort = Effort.MAX\n}\n',
     )
     expect(safeApplyFromSnippet(dir, 'spotbugs.gradle')).toBeNull()
   })
@@ -228,7 +228,7 @@ describe('safeApplyFromSnippet', () => {
   it('withholds a com.diffplug import the same way', () => {
     writeFileSync(
       join(dir, 'spotless.gradle'),
-      "import com.diffplug.spotless.FormatterStep\n\nspotless { }\n",
+      'import com.diffplug.spotless.FormatterStep\n\nspotless { }\n',
     )
     expect(safeApplyFromSnippet(dir, 'spotless.gradle')).toBeNull()
   })

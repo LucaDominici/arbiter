@@ -74,6 +74,7 @@ function escapeRegExp(s: string): string {
 function readFileOrNull(path: string): string | null {
   try {
     return readFileSync(path, 'utf-8')
+    // FAIL-OPEN-INTENT: caller treats null as "signature absent" (a soft, advisory check) — an unreadable path must not throw out of the read-only apply-from guard.
   } catch {
     return null
   }

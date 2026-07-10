@@ -135,7 +135,7 @@ describe('java gold tooling wiring (#1835-class)', () => {
       // applied script ("unable to resolve class ...Effort").
       writeFileSync(
         join(dir, 'spotbugs.gradle'),
-        "import com.github.spotbugs.snom.Effort\n\nspotbugs {\n    effort = Effort.MAX\n}\n",
+        'import com.github.spotbugs.snom.Effort\n\nspotbugs {\n    effort = Effort.MAX\n}\n',
       )
       generateDebtGates(javaGradleConfig(dir))
       const build = readFileSync(join(dir, 'build.gradle'), 'utf-8')
