@@ -10,7 +10,7 @@
     "suppressions": true,
     "securityScanning": true,
     "mutationTesting": true,
-    "contractTesting": false,
+    "contractTesting": true,
     "evidenceHarness": false,
     "soloDevMode": true
   },
