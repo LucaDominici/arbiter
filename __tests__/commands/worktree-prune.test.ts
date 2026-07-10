@@ -156,6 +156,57 @@ describe('detectPruneCandidates (#1873 T5)', () => {
     expect(candidates).toHaveLength(0)
     expect(skipped.some((s) => s.taskId === '107' && s.reason === 'branch-missing')).toBe(true)
   })
+
+  it('a throwing merged-check is a branch-missing skip (fail-closed), never a candidate', async () => {
+    writeOpenLog([{ taskId: '108', branch: 'task/108', openedAt: '2026-07-01T00:00:00.000Z' }])
+    mockBranchFullyMerged.mockImplementation(() => {
+      throw new Error('unknown ref')
+    })
+
+    const { candidates, skipped } = await detect()
+    expect(candidates).toHaveLength(0)
+    expect(skipped.some((s) => s.taskId === '108' && s.reason === 'branch-missing')).toBe(true)
+  })
+
+  it('a corrupt open log yields an EMPTY candidate set (fail-closed)', async () => {
+    mkdirSync(join(gitRoot, '.arbiter'), { recursive: true })
+    writeFileSync(join(gitRoot, '.arbiter', 'worktree-open.log.json'), '{not-json')
+
+    const { candidates, skipped } = await detect()
+    expect(candidates).toHaveLength(0)
+    expect(skipped).toHaveLength(0)
+  })
+
+  it('a non-array open log yields an EMPTY candidate set (fail-closed)', async () => {
+    mkdirSync(join(gitRoot, '.arbiter'), { recursive: true })
+    writeFileSync(join(gitRoot, '.arbiter', 'worktree-open.log.json'), '{"not":"an array"}')
+
+    const { candidates } = await detect()
+    expect(candidates).toHaveLength(0)
+  })
+
+  it('fetches origin ONCE up front when noFetch is false; a failed fetch only warns', async () => {
+    writeOpenLog([{ taskId: '109', branch: 'task/109', openedAt: '2026-07-01T00:00:00.000Z' }])
+    const fetchCalls: string[][] = []
+    mockRunCli.mockImplementation((_cmd, args) => {
+      if (args[0] === 'fetch') {
+        fetchCalls.push([...args])
+        throw new Error('network down')
+      }
+      return ok('2026-07-01T00:00:00.000Z')
+    })
+
+    const { detectPruneCandidates } = await import('../../src/commands/worktree-prune.js')
+    const { candidates } = detectPruneCandidates({
+      gitRoot,
+      staleHours: HOURS,
+      noFetch: false,
+      now: NOW,
+    })
+    expect(fetchCalls).toHaveLength(1)
+    // fetch failure did not abort detection — the inactive candidate is still found
+    expect(candidates).toHaveLength(1)
+  })
 })
 
 describe('runWorktreePrune (#1873 T5)', () => {
@@ -257,5 +308,87 @@ describe('runWorktreePrune (#1873 T5)', () => {
     expect(closeCalls).toHaveLength(1)
     expect(closeCalls[0]!.keepBranch).toBe(true)
     expect(closeCalls[0]!.force).toBe(true) // skip merge check — tree is clean, branch survives
+  })
+
+  it('--execute re-checks cleanliness right before teardown (INV-96 belt-and-braces)', async () => {
+    seedOne('204')
+    // Clean at detect time, dirty at close time.
+    mockWorkingTreeDirty.mockReturnValueOnce(false).mockReturnValueOnce(true)
+    const { runWorktreePrune } = await import('../../src/commands/worktree-prune.js')
+    const closeCalls: string[] = []
+    const lines: string[] = []
+    expect(() =>
+      runWorktreePrune({
+        cwd: gitRoot,
+        staleHours: HOURS,
+        noFetch: true,
+        now: NOW,
+        execute: true,
+        onLine: (l) => lines.push(l),
+        closeFn: (opts) => closeCalls.push(opts.taskId),
+      }),
+    ).toThrow(/failed to close/)
+    expect(closeCalls).toHaveLength(0)
+    expect(lines.some((l) => l.includes('dirty'))).toBe(true)
+  })
+
+  it('--execute isolates a throwing close: reports it and throws at the end', async () => {
+    seedOne('205')
+    const { runWorktreePrune } = await import('../../src/commands/worktree-prune.js')
+    const lines: string[] = []
+    expect(() =>
+      runWorktreePrune({
+        cwd: gitRoot,
+        staleHours: HOURS,
+        noFetch: true,
+        now: NOW,
+        execute: true,
+        onLine: (l) => lines.push(l),
+        closeFn: () => {
+          throw new Error('close hook exploded')
+        },
+      }),
+    ).toThrow(/1 candidate\(s\) failed to close/)
+    expect(lines.some((l) => l.includes('close hook exploded'))).toBe(true)
+  })
+
+  it('--json emits a machine-readable report and closes nothing on dry-run', async () => {
+    seedOne('206')
+    const { runWorktreePrune } = await import('../../src/commands/worktree-prune.js')
+    const writes: string[] = []
+    const orig = process.stdout.write.bind(process.stdout)
+    process.stdout.write = (chunk: string | Uint8Array): boolean => {
+      writes.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString())
+      return true
+    }
+    try {
+      runWorktreePrune({
+        cwd: gitRoot,
+        staleHours: HOURS,
+        noFetch: true,
+        now: NOW,
+        json: true,
+        closeFn: () => {
+          throw new Error('must not be called on dry-run')
+        },
+      })
+    } finally {
+      process.stdout.write = orig
+    }
+    const payload = JSON.parse(writes.join('')) as {
+      data: { dryRun: boolean; candidates: unknown[]; closed: unknown[] }
+    }
+    expect(payload.data.dryRun).toBe(true)
+    expect(payload.data.candidates).toHaveLength(1)
+    expect(payload.data.closed).toHaveLength(0)
+  })
+
+  it('refuses to run from a worktree (main repo only)', async () => {
+    const { isRunningFromMainRepo } = await import('../../src/worktree/validate.js')
+    vi.mocked(isRunningFromMainRepo).mockReturnValueOnce(false)
+    const { runWorktreePrune } = await import('../../src/commands/worktree-prune.js')
+    expect(() => runWorktreePrune({ cwd: gitRoot, noFetch: true, onLine: () => {} })).toThrow(
+      /main repository/,
+    )
   })
 })

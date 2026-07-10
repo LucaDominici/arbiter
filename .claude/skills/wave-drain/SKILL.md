@@ -3,9 +3,9 @@ name: wave-drain
 description: Use when draining the open backlog at maximum throughput. Batch up to ~10 workable issues into a WAVE, plan and review the wave once cumulatively, dispatch parallel TDD agents in isolated worktrees, then integrate into a SINGLE wave PR merged GREEN. Issues that cannot proceed become needs-human with a blocker report. The orchestrator directs parallel agents — it never implements.
 argument-hint: '[--wave-size N] [--max-parallel N]'
 title: 'Wave Drain'
-doc_version: '1.0.0'
+doc_version: '2.0.0'
 status: active
-last_review: '2026-06-13'
+last_review: '2026-07-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal', 'kind/orchestration']
@@ -25,6 +25,15 @@ skipping phases.
 > `/ship` drives **one issue → one PR**. Wave Drain is its multi-issue sibling: **N issues →
 > one wave PR**, reusing the same engine and the same gates.
 
+**Legality (ADR-103):** parallel write-agents are in-contract ONLY under the rule-50
+carve-out — every agent in a **dedicated worktree** (`/wt-open`), on a **distinct branch**,
+with **plan-manifest-disjoint file-sets**. Dependency changes (`package.json`/lockfiles),
+main-tree edits and tags stay serial-only. **Convergence model (owner-ratified
+2026-07-10):** on arbiter-governed repos every wave converges into **ONE wave PR** — the
+parallelism is in HOW the wave is built, never in N PRs racing to `main`. For repos
+WITHOUT arbiter governance, see the **cross-repo appendix** at the end (N-PR +
+merge-train).
+
 ## Primitives
 
 | Primitive                                                  | Role here                                                                                             |
@@ -32,6 +41,8 @@ skipping phases.
 | `/ship`                                                    | Pipeline reference for the per-issue phase contract (plan → red-team → TDD → review → verify → merge) |
 | `arbiter task init / advance / record-red / recover / get` | The state engine each agent anchors its work to                                                       |
 | `/wt-open`, `/wt-close`, `/wt-prune`, `/wt-list`           | Isolated git worktrees, one per group                                                                 |
+| `arbiter gate-exec -- <cmd>`                               | Per-repo gate mutex (flock(1)): serializes expensive gates across parallel agents (ADR-103)           |
+| `arbiter worktree prune --stale [h]`                       | Zombie reaper: merged/inactive clean worktrees, dry-run default (ADR-103)                             |
 | Skill `epic-decompose`                                     | Only if an entangled issue must be split before batching                                              |
 | Skill `understand-code`                                    | Per-agent code comprehension before editing                                                           |
 | Skill `tdd`                                                | The red → green → refactor loop every agent runs per unit                                             |
@@ -52,7 +63,14 @@ skipping phases.
    conflict-risk ordering you will use at integration.
 
 A group is the unit of parallelism. Keep groups module-coherent so two agents never edit the
-same file concurrently (see `.claude/rules/50-batch-execution.md`).
+same file concurrently (see `.claude/rules/50-batch-execution.md` — the ADR-103 carve-out is
+what makes parallel write-agents legal, and its disjoint-file-set condition is satisfied
+HERE, at composition time).
+
+**Declared conflicts:** an issue labelled/marked `conflicts-with:#N` goes in the **same
+group as #N** (serial lane, same worktree, sequential) — never in a parallel group. This is
+declarative and cheap; the integration merge + single gate remain the safety net for
+conflicts nobody declared.
 
 ## Phase 0.5 — Harvest the finding spool (#1404)
 
@@ -112,7 +130,8 @@ done
 Write **a single cumulative plan** for the whole wave to `.claude/plans/wave-N.md`. For each
 group include a **manifest**:
 
-- **Files** the group will touch
+- **Files** the group will touch — file-sets MUST be disjoint across parallel groups
+  (ADR-103 carve-out condition; overlap → same group, serial)
 - **Invariants** in scope (from `GLOBAL_INVARIANTS.md` + `AGENTS.md` — cite INV-IDs)
 - **TDD units** (the red → green slices)
 - **Conflict risks** vs other groups (which files / interfaces overlap)
@@ -135,16 +154,56 @@ In parallel, dispatch a **tier-Standard red-team** (3 agents) against the cumula
 - **CRITICAL** → rework the plan (**max 2 cycles**, then escalate to a human).
 - **PASS** = **GO for the entire wave**.
 
+## Phase 2.5 — Optional 3-hop plan gate (label `needs-plan`)
+
+Issues labelled `needs-plan` (architectural / ambiguous scope) get a **per-issue 3-hop plan
+trail as issue comments BEFORE any code**:
+
+1. **hop 1/3** — draft plan (comment headed `## Piano hop 1/3` or `## Plan hop 1/3`)
+2. **hop 2/3** — adversarial red-team: every finding with `file:line` evidence and a verdict
+3. **hop 3/3** — final plan incorporating every finding (or refuting it with evidence)
+
+The orchestrator verifies the trail **deterministically via `gh`**: three hop-header
+comments, each carrying at least one `file:line` evidence marker and a non-trivial body.
+The QUALITY of the hops is model-side — this check catches absence, not proforma. The cost
+is explicit and paid up front: **3 agent-runs per gated issue**; that is why the gate is
+label-scoped, not default-on.
+
 ---
 
 ## Phase 3 — Parallel execution (scale out)
 
-Spawn **one agent per group** in an **isolated worktree** (`/wt-open`, a branch per group),
-**4–6 agents in parallel**.
+Spawn **one agent per group** in an **isolated worktree** (`/wt-open`, a branch per group).
+Effective cap: **`min(--max-parallel, nproc - 2, wave size)`** — the mutex serializes the
+GATE, not the workers' implicit builds, so leave the box headroom.
 
 **Worktree discipline (speed):** inside a worktree run **only light checks** — targeted
 `vitest` + the lint from `post-edit-dispatch`. The **full gate is forbidden in worktrees**; it
 runs **once**, on integration.
+
+**Gate mutex (ADR-103):** any expensive gate that could run concurrently with another
+agent's gate on the same repo (parallel waves, ship agents, overnight batches) goes through
+`arbiter gate-exec -- <gate-cmd>`. The wait is kernel-side (`flock(1)`, blocking) and the
+lock releases even if the holder is SIGKILL/OOM-killed — no 1h stale stall, no poll loop.
+Where `flock(1)` does not exist (macOS base system, Windows) `gate-exec` fails closed:
+degrade the wave to serial (`--max-parallel 1`).
+
+**Cache isolation:** `arbiter worktree open` links `node_modules` with the
+`symlink-children` strategy — `.vite`/`.cache` stay per-worktree, so parallel builds cannot
+corrupt one shared cache into spurious reds. Belt-and-braces in each worker brief:
+`export VITE_CACHE_DIR="$PWD/.cache/vite"`.
+
+**Anti-stall (two DIFFERENT problems — never conflate them):**
+
+- **Gate-wait** is deterministic: `gate-exec` blocks in the foreground — issue **ONE** wait
+  and let the kernel queue you. Never poll for the lock, never close a turn "checking back
+  later" on a mutex.
+- **Turn-stall** (an agent idling mid-task) is only **bounded**, never prevented, by the
+  **watchdog sweep**: at every orchestrator turn boundary, reconcile REAL state — `gh pr
+checks`, `gh issue view`, `arbiter worktree list`, DONE reports — and re-dispatch, mark
+  `needs-human`, or reap what stalled beyond its budget. Never rely on memory of what
+  agents "should" be doing; never close an orchestrator turn passively waiting on a PR —
+  arm auto-merge and let the NEXT sweep observe it.
 
 Each agent's loop:
 
@@ -203,8 +262,10 @@ wave.** The rest of the wave proceeds.
 
 1. Create a local integration branch `wave-N-integration` **from `main`** (never commit to
    `main`).
-2. **Merge the DONE worktrees sequentially**, in the conflict-risk order from the plan.
-   Conflicts → hand to a dedicated conflict agent with the relevant DONE reports.
+2. **Merge the DONE worktrees sequentially**, minimum-overlap first, with the order computed
+   from the REAL branches — `git diff --name-only main...<branch>` per branch, fewest shared
+   files first — not from the plan's estimates. Conflicts → hand to a dedicated conflict
+   agent with the relevant DONE reports.
 3. **On the cumulative branch, once only — multiagent code review:**
    - Route auditors: `node scripts/route-auditors.mjs --size-floor Standard`
    - Self-review pass + **Adversarial Verifier**: trace each feature end-to-end, hunt dead
@@ -216,7 +277,9 @@ wave.** The rest of the wave proceeds.
 
    ```bash
    # skill: verification — claim-based pass on the cumulative branch first
-   npm run test && node scripts/check-all.mjs check     # FULL GATE → writes gate-pass.json
+   # FULL GATE → writes gate-pass.json; under the per-repo mutex (ADR-103) so a
+   # concurrent agent's gate never interleaves with this one:
+   arbiter gate-exec -- sh -c 'npm run test && node scripts/check-all.mjs check'
    ```
 
    `gate-pass.json` is required by the `enforce-gate-before-pr` hook.
@@ -242,7 +305,10 @@ wave.** The rest of the wave proceeds.
 
    CI red → root-cause fix → re-gate (PRs are owned until merged green).
 
-7. `/wt-close` (harvest) + `/wt-prune` → `/clear` → **next wave**, until the backlog is empty.
+7. `/wt-close` (harvest) + `arbiter worktree prune --stale 24` (review the dry-run report,
+   then re-run with `--execute`) → `/clear` → **next wave**, until the backlog is empty. The
+   reaper also runs inside the watchdog sweep, so a crashed worker's zombie worktree never
+   outlives the wave (dirty trees are never touched — INV-96).
 
 ---
 
@@ -270,3 +336,42 @@ A stop never halts the whole wave — it removes one group/issue and the wave pr
 
 Done **only when the backlog is empty** — every issue is either **merged** or **needs-human
 with a stated reason**. Emit a final report: **issue → outcome + PR**.
+
+---
+
+## Appendix — Cross-repo manual protocol (repos WITHOUT arbiter governance)
+
+On a repo with no `arbiter.json` (no `/drain`, no engine) the wave technique still applies,
+but the convergence model flips: **N PRs + auto-merge armed + merge-train** (this is where
+the train is native — PRs are the only integration unit). Field-proven 2026-07-09/10.
+
+1. **Worktrees + branches:** one `git worktree add` per issue, one branch per agent, disjoint
+   file-sets — the ADR-103 conditions apply verbatim even without the engine.
+2. **Gate mutex (one-liner):** no `arbiter gate-exec` here — use flock directly,
+   parameterized on the repo's own gate:
+
+   ```bash
+   flock /tmp/<repo>-gate.lock -c '<gate-cmd>'   # e.g. 'make gate' or './run.sh ci'
+   ```
+
+   Same semantics: kernel wait, kernel release on SIGKILL/OOM, one foreground wait.
+
+3. **Per-PR convergence:** each finished issue → its own PR with auto-merge armed. Never
+   watch-loop a PR; the sweep observes.
+4. **Merge-train (integration net):** when **≥3 PRs** are green-and-armed, build a local
+   train branch from `main`, merge the PR branches sequentially (minimum-overlap order from
+   the REAL `git diff --name-only`), run the full gate ONCE on the train under the flock
+   one-liner, and only then let the train land. The train catches integration defects that
+   are invisible to each green PR alone.
+
+**Caveats (explicit — these are the failure modes the governed wave-PR model eliminates
+structurally):**
+
+- **Crash mid-train (#4):** recovery is stateless — recompute from `gh pr list` +
+  `git branch`/`worktree list`; never from memory. Do not close issues/PRs until the train
+  itself is merged.
+- **Branch protection (#6):** verify the target repo's required checks BEFORE relying on
+  train-only CI — if required checks are per-PR, each PR still needs its own green CI.
+- **Exclusion instability (#7):** when a branch is EXCLUDED from the train (conflict/red),
+  recompute the train order from scratch and re-examine branches that assumed the excluded
+  content — the minimum-overlap order is NOT stable under exclusions.
