@@ -73,6 +73,22 @@ repo only. Downstream consumer-project generation (the `.ejs` templates that emi
 initialised projects) is **deferred to #1419 (LU-1)**, which consolidates the #1412 / #1413 / #1374
 downstream generation in one pass.
 
+## Muted-tests baseline
+
+The **consumer-side** `check-muted-test.mjs` (the `.ejs`-generated guard shipped into initialised
+projects) supports brownfield grandfathering (#1884): a legacy repo can carry dozens of
+pre-existing `@Disabled` tests (dead remote fixtures) that are not fixable in one adoption step,
+and a guard that fails closed on all of them blocks gold adoption entirely.
+
+`node scripts/check-muted-test.mjs --update-baseline` records the CURRENT per-file /
+per-marker-kind **counts** into `muted-tests-baseline.json` (counts, not line numbers — they
+survive unrelated edits). From then on only **new** muted tests fail: a marker in a new file, a
+new marker kind, or a count above the grandfathered one. Removing muted tests never fails; an
+unparseable baseline **fails closed at exit 2** (it can never silently disable the guard). The
+empty baseline emitted at init is equivalent to no baseline — strict by default. Same policy
+shape as `spotbugs-baseline.json` (security findings there are never baselined; here the analog
+is: NEW mutes are never grandfathered implicitly).
+
 ## Exit-code contract (INV-53)
 
 `0` = PASS / advisory · `1` = FAIL (`--enforce` + violations, or a hard/broken child) · `2` =

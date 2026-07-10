@@ -35,14 +35,13 @@ import { getLogger } from './logger.js'
  * script, the worst file to leave half-written after package.json.
  */
 
-export type GradleDsl = 'kts' | 'groovy'
+type GradleDsl = 'kts' | 'groovy'
 
-export interface GradlePluginSpec {
-  /** Plugin id — core (`checkstyle`, `pmd`) or marketplace (`com.diffplug.spotless`). */
-  id: string
-  /** Marketplace plugin version. Omit for Gradle core plugins. */
-  version?: string
-}
+/** Plugin id — core (`checkstyle`, `pmd`) or marketplace (with `version`). */
+type GradlePluginSpec = { id: string; version?: string }
+
+/** Maven coordinate `group:artifact:version` (presence-checked on `group:artifact`). */
+type GradleDependencySpec = { coordinate: string; configuration?: string }
 
 export interface GradleSnippet {
   /** When this matches the build file, the snippet is considered already wired. */
@@ -51,17 +50,11 @@ export interface GradleSnippet {
   groovy: string
 }
 
-export interface GradleDependencySpec {
-  /** Maven coordinate `group:artifact:version` (presence-checked on `group:artifact`). */
-  coordinate: string
-  /** Dependency configuration (default `testImplementation`). */
-  configuration?: string
-}
-
 export interface GradleWiringRequest {
-  plugins?: GradlePluginSpec[]
+  plugins?: { id: string; version?: string }[]
   snippets?: GradleSnippet[]
-  dependencies?: GradleDependencySpec[]
+  /** Dependency `configuration` defaults to `testImplementation`. */
+  dependencies?: { coordinate: string; configuration?: string }[]
 }
 
 export interface GradleWiringResult {
@@ -234,6 +227,7 @@ export function safeApplyFromSnippet(targetDir: string, relPath: string): Gradle
   let script: string
   try {
     script = readFileSync(scriptPath, 'utf-8')
+    // FAIL-OPEN-INTENT: unreadable applied script — safer to leave it UNWIRED than to point the root build at a file we could not vet for the illegal plugins {} shape.
   } catch {
     return null
   }
@@ -277,6 +271,7 @@ export function injectGradleWiring(
   let content: string
   try {
     content = readFileSync(buildFile, 'utf-8')
+    // FAIL-OPEN-INTENT: unreadable root build script — surfaced via logger warn below; injecting into a file we cannot read would risk destroying the user's build.
   } catch (err) {
     getLogger().warn(
       'gradle.read_failed',

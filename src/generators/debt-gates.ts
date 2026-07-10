@@ -149,8 +149,9 @@ function detectSpotlessRatchetRef(targetDir: string): string | null {
         },
       )
       return ref
+      // FAIL-OPEN-INTENT: ref absent (or no git binary) — try the next candidate; no candidate means greenfield, i.e. full spotless enforcement (the strict default).
     } catch {
-      // ref absent (or no git) — try the next candidate.
+      // try next ref
     }
   }
   return null
@@ -169,11 +170,17 @@ function detectSpotlessRatchetRef(targetDir: string): string | null {
 //     still carrying the pre-fix plugins {} shape is NOT applied (see
 //     safeApplyFromSnippet).
 
+/** Java applies to `java` and the backend lane of `multi`. */
+function isJavaLike(config: ProjectConfig): boolean {
+  return config.language === 'java' || config.language === 'multi'
+}
+
 /**
  * Gate-essential Java scaffold — emitted on EVERY Java+Gradle init (even L1,
  * where enableDebtGates is false) because the generated L1 gate already runs
  * `./gradlew checkstyleMain spotlessCheck test` (#1835-class fix; same B4/#1491
  * rule that moved the TS/python gate-essential scaffold above the guard).
+ * No-op for other languages (guard lives here to keep generateDebtGates simple).
  */
 function pushJavaGateEssentials(
   results: WriteResult[],
@@ -181,6 +188,7 @@ function pushJavaGateEssentials(
   data: object,
   dryRun: boolean,
 ): void {
+  if (!isJavaLike(config)) return
   const base = config.targetDir
   // Ratchet resolved at scaffold time from the target's actual git state, then
   // baked into spotless.gradle — a brownfield repo (existing origin default
@@ -220,6 +228,7 @@ function pushJavaDebtGates(
   data: object,
   dryRun: boolean,
 ): void {
+  if (!isJavaLike(config)) return
   const base = config.targetDir
   const files: [string, string][] = [
     [resolvedPath(base, 'config', 'pmd-ruleset.xml'), 'static-analysis/pmd-ruleset.xml.ejs'],
@@ -260,10 +269,7 @@ function pushJavaDebtGates(
   const applySpotbugs = safeApplyFromSnippet(base, 'spotbugs.gradle')
   if (applySpotbugs) snippets.push(applySpotbugs)
   injectGradleWiring(base, dryRun, {
-    plugins: [
-      { id: 'pmd' },
-      { id: 'com.github.spotbugs', version: SPOTBUGS_PLUGIN_VERSION },
-    ],
+    plugins: [{ id: 'pmd' }, { id: 'com.github.spotbugs', version: SPOTBUGS_PLUGIN_VERSION }],
     snippets,
   })
 }
@@ -305,10 +311,9 @@ export function generateDebtGates(
     injectTsGateToolchain(base, opts.dryRun)
   }
 
-  if (config.language === 'java' || config.language === 'multi') {
-    // Gate-essential Java scaffold — even L1 runs checkstyleMain + spotlessCheck.
-    pushJavaGateEssentials(results, config, data, opts.dryRun)
-  }
+  // Gate-essential Java scaffold — even L1 runs checkstyleMain + spotlessCheck.
+  // (No-op for non-Java languages; guard inside.)
+  pushJavaGateEssentials(results, config, data, opts.dryRun)
 
   if (config.language === 'python') {
     // Gate-essential Python scaffold — emitted on EVERY Python init (even L1, where
@@ -371,9 +376,7 @@ export function generateDebtGates(
     )
   }
 
-  if (config.language === 'java' || config.language === 'multi') {
-    pushJavaDebtGates(results, config, data, opts.dryRun)
-  }
+  pushJavaDebtGates(results, config, data, opts.dryRun)
 
   // NOTE: ruff.toml + requirements-dev.txt for Python are emitted above, before the
   // enableDebtGates guard, so the L1 gate (ruff/pytest) has its config on first run.

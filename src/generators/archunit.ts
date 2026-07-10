@@ -189,17 +189,25 @@ export function generateArchUnit(
   // wired), so a plain `NoMockMvcTest` init produced tests that could not
   // compile. Emit the test-deps script whenever ANY archunit test landed on a
   // Gradle build, and wire it into the root build via a guarded apply(from=...).
-  if (config.buildTool === 'gradle' && files.length > 0) {
-    files.push(
-      writeFile(
-        resolvedPath(base, 'gradle', 'arch-test-deps.gradle'),
-        renderTemplate('archunit/arch-test-deps.gradle.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
-    const apply = safeApplyFromSnippet(base, 'gradle/arch-test-deps.gradle')
-    if (apply) injectGradleWiring(base, opts.dryRun, { snippets: [apply] })
-  }
+  files.push(...emitAndWireGradleArchDeps(config, files.length, data, opts.dryRun))
 
   return { files }
+}
+
+function emitAndWireGradleArchDeps(
+  config: ProjectConfig,
+  emittedTestCount: number,
+  data: ProjectConfig,
+  dryRun: boolean,
+): WriteResult[] {
+  if (config.buildTool !== 'gradle' || emittedTestCount === 0) return []
+  const base = config.targetDir
+  const result = writeFile(
+    resolvedPath(base, 'gradle', 'arch-test-deps.gradle'),
+    renderTemplate('archunit/arch-test-deps.gradle.ejs', data),
+    { skipIfExists: true, dryRun },
+  )
+  const apply = safeApplyFromSnippet(base, 'gradle/arch-test-deps.gradle')
+  if (apply) injectGradleWiring(base, dryRun, { snippets: [apply] })
+  return [result]
 }
