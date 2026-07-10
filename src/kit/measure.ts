@@ -704,7 +704,7 @@ const DIM_HANDLERS: Partial<Record<string, (repoRoot: string) => MeasureResult>>
     return { status: 'missing', evidence: [] }
   },
   N56: (r) => {
-    const fromConfig = checkAny(r, ['owasp-suppressions.xml', '.audit-ci.json'])
+    const fromConfig = checkAny(r, ['.trivyignore', 'owasp-suppressions.xml', '.audit-ci.json'])
     if (fromConfig.status === 'present') return fromConfig
     const wfs = workflowsMatchingPattern(r, 'npm audit')
     if (wfs.length > 0) return { status: 'partial', evidence: wfs.slice(0, EVIDENCE_CAP) }

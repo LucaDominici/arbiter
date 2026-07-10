@@ -27,7 +27,14 @@ import { parse as parseYaml } from 'yaml'
 const DIM_TO_TOOL: Record<string, RegExp> = {
   secret_scan: /gitleaks/i,
   license_scan: /license-scan|license-audit/i,
-  container_scan: /trivy/i,
+  // Trivy is used for BOTH container/image scanning (container_scan dim) and
+  // filesystem dependency scanning (ADR-104, INV-13/92 — not a workflow-maturity
+  // dim at all). Distinguish by the actual scan target: image scans set
+  // `image-ref:`/`input:` (a built image or exported tar); the fs dependency scan
+  // sets `scan-type: fs` with no image reference. A bare `/trivy/i` would
+  // misclassify the fs scan as container_scan (false-pass on every archetype,
+  // since 05-release's trivy-fs-scan now renders unconditionally).
+  container_scan: /(?=.*trivy)(?=.*(?:image-ref|"input"))/i,
   sbom: /"sbom"|syft|cyclonedx/i,
   binary_signing: /cosign sign/i, // sign (not cosign verify = provenance consume)
   provenance: /slsa-provenance|attest-build-provenance|slsa-github/i,

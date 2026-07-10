@@ -299,6 +299,44 @@ describe('05-release.yml.ejs — archetype gating', () => {
   })
 })
 
+// ─── Trivy filesystem scan (INV-92, R-01/R-09) ────────────────────────────────
+// arbiter-self's own .github/workflows/05-release.yml carries a trivy-fs-scan job
+// (INV-92) that the generic template never emitted — a broken enforcement promise
+// (INV-92's `enforcement` text claimed it regardless). The job now renders for
+// EVERY archetype, not just services (container image scanning, trivy-strict-release,
+// is the separate service-only concern).
+
+describe('05-release.yml.ejs — Trivy filesystem scan parity (INV-92, R-01/R-09)', () => {
+  const ARCHETYPES = ['library', 'backend-web-db', 'cli', 'data-pipeline'] as const
+
+  it.each(ARCHETYPES)('%s archetype: trivy-fs-scan job present', (archetype) => {
+    const rendered = renderRelease({ archetype })
+    expect(rendered).toContain('trivy-fs-scan:')
+    expect(rendered).toMatch(/uses:\s*aquasecurity\/trivy-action@/)
+    expect(rendered).toMatch(/scan-type:\s*fs/)
+    expect(rendered).toMatch(/severity:\s*CRITICAL/)
+    expect(rendered).toMatch(/trivyignores:\s*\.trivyignore/)
+  })
+
+  it('trivy-fs-scan needs build-superset', () => {
+    const rendered = renderRelease({ archetype: 'library' })
+    const jobSection = rendered.split('trivy-fs-scan:')[1]?.split(/\n {2}\S/)[0] ?? ''
+    expect(jobSection).toContain('needs: [build-superset]')
+  })
+
+  it('cosign-sign needs trivy-fs-scan', () => {
+    const rendered = renderRelease({ archetype: 'library' })
+    const jobSection = rendered.split('cosign-sign:')[1]?.split(/\n {2}\S/)[0] ?? ''
+    expect(jobSection).toContain('trivy-fs-scan')
+  })
+
+  it('release-required needs trivy-fs-scan', () => {
+    const rendered = renderRelease({ archetype: 'library' })
+    const aggregator = rendered.split('release-required:')[1] ?? ''
+    expect(aggregator).toContain('trivy-fs-scan')
+  })
+})
+
 // ─── Per-language mutation tools ──────────────────────────────────────────────
 
 describe('05-release.yml.ejs — per-language mutation tools', () => {

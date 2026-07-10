@@ -666,7 +666,7 @@ describe('generateCheckAll', () => {
     expect(callLine).toContain('graceActive')
   })
 
-  it('Java Gradle: dependencyCheckAnalyze in L2 when enableSecurityScanning', () => {
+  it('Java Gradle: trivy fs dep audit in L2 when enableSecurityScanning (ADR-104)', () => {
     generateCheckAll(
       makeConfig(dir, {
         language: 'java',
@@ -677,10 +677,10 @@ describe('generateCheckAll', () => {
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     const l2BlockIdx = content.indexOf("if (level === 'L2')")
-    expect(content.indexOf('dependencyCheckAnalyze', l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
+    expect(content.indexOf("'dep audit (trivy fs)'", l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
   })
 
-  it('Java Maven: dependency-check-maven in L2 when enableSecurityScanning', () => {
+  it('Java Maven: trivy fs dep audit in L2 when enableSecurityScanning (ADR-104)', () => {
     generateCheckAll(
       makeConfig(dir, {
         language: 'java',
@@ -691,7 +691,20 @@ describe('generateCheckAll', () => {
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     const l2BlockIdx = content.indexOf("if (level === 'L2')")
-    expect(content.indexOf('dependency-check-maven', l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
+    expect(content.indexOf("'dep audit (trivy fs)'", l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
+  })
+
+  it('Kotlin Gradle: trivy fs dep audit present when enableSecurityScanning (R-15, ADR-104)', () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: 'kotlin',
+        buildTool: 'gradle',
+        enableSecurityScanning: true,
+        governanceLevel: 'L2',
+      }),
+    )
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).toContain("'dep audit (trivy fs)'")
   })
 
   it('Go: govulncheck in L2 when enableSecurityScanning', () => {
@@ -734,7 +747,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain('.eslintrc-frontend-spa.cjs')
   })
 
-  it('enableSecurityScanning=false: no gitleaks, govulncheck, or OWASP DC step', () => {
+  it('enableSecurityScanning=false: no gitleaks, govulncheck, or trivy fs dep-audit step', () => {
     generateCheckAll(
       makeConfig(dir, {
         language: 'java',
@@ -745,7 +758,7 @@ describe('generateCheckAll', () => {
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     expect(content).not.toContain('gitleaks')
-    expect(content).not.toContain('dependencyCheckAnalyze')
+    expect(content).not.toContain("'dep audit (trivy fs)'")
     expect(content).not.toContain('pii-scan.mjs')
   })
 

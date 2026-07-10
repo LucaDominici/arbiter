@@ -189,7 +189,7 @@ Personally identifiable information (emails, phone numbers, credit card numbers)
 
 All third-party dependencies must be scanned for CVEs before each release. High-severity vulnerabilities (CVSS ≥ 7.0) block deployment. Dependency updates must be reviewed for breaking changes.
 
-**Enforcement:** CI dep-audit step per stack — TypeScript: `npm audit --audit-level=high`; Rust: rustsec/audit-check action; Java: OWASP Dependency-Check (failBuildOnCVSS=7.0, apply config/owasp-dependency-check.gradle); Go: golang/govulncheck-action; Python: pip-audit. Local gate (L2 block): same commands, soft: graceActive
+**Enforcement:** CI dep-audit step per stack — TypeScript: `npm audit --audit-level=high`; Rust: rustsec/audit-check action; Java/Kotlin: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 (suppressions: .trivyignore); Go: golang/govulncheck-action; Python: pip-audit. Local gate (L2 block): same commands, soft: graceActive
 
 **Minimum governance level:** L2+
 
@@ -315,7 +315,7 @@ Bot-authored PRs (github.event.pull_request.user.type == "Bot") must be reviewed
 
 Release artifacts must be signed with cosign keyless (OIDC via Sigstore) and attested with a CycloneDX SBOM via cosign attest --predicate. Trivy must scan the filesystem for CRITICAL vulnerabilities (exit-code: 1) before the signing step runs. HIGH vulnerabilities are reported but do not block (target projects may have legacy deps). A \_sigstore-retry-sign reusable workflow is also generated as opt-in scaffolding for retry-on-flake signing; the live 05-release cosign-sign job signs inline and does not yet delegate to it (#1663), so retry-on-flake is available to wire in, not yet active.
 
-**Enforcement:** generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom-attest jobs)
+**Enforcement:** generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom jobs)
 
 **Minimum governance level:** L2+
 
@@ -467,7 +467,7 @@ Test-driven development forces explicit design thinking before coding and produc
 
 ### INV-31: Suppressions must have mandatory expiry
 
-Every suppression entry — both file-based (dependency-check-suppressions.xml, .gitleaksignore, pii-allowlist.json, archunit-baseline.json) and inline comment directives (arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason=..., owner=@handle)) — must carry mandatory metadata: reason (≥10 chars), owner (@github-handle), and expiresAt/until (ISO date). Entries with a past expiry block the L1 gate. There are no permanent suppressions — waivers must be renewed or removed when the underlying issue is resolved.
+Every suppression entry — both file-based (.trivyignore, .gitleaksignore, pii-allowlist.json, archunit-baseline.json) and inline comment directives (arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason=..., owner=@handle)) — must carry mandatory metadata: reason (≥10 chars), owner (@github-handle), and expiresAt/until (ISO date). Entries with a past expiry block the L1 gate. There are no permanent suppressions — waivers must be renewed or removed when the underlying issue is resolved.
 
 **Enforcement:** CI gate (scripts/check-suppressions.mjs + scripts/check-inline-suppressions.mjs — L1) + pre-commit hook
 

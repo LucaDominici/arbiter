@@ -29,7 +29,7 @@ At **L2**, `arbiter init` generates a per-stack dependency-audit gate (INV-13) t
 on CVSS ≥ 7.0**:
 
 - npm: `npm audit --audit-level=high`
-- Java: OWASP Dependency-Check with `failBuildOnCVSS=7.0`
+- Java/Kotlin: `trivy fs --severity HIGH,CRITICAL --exit-code 1`
 - Go: `govulncheck` · Python: `pip-audit` · Rust: `cargo audit` (rustsec)
 
 It runs in CI and in the local L2 gate as a HARD check.

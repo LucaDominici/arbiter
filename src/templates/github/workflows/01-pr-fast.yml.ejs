@@ -217,7 +217,15 @@ jobs:
     # it) — no docker-container action, no workspace bind-mount, the whole
     # defect class sidestepped entirely (same pattern as the osv-scanner static-
     # binary fix, #1767). Enforced by scripts/check-docker-action-runner-safety.mjs.
-    runs-on: ubuntu-latest
+    # #1894: routed through the same `RUNNER_LABELS_TEST` expression as every other
+    # job. The former literal `ubuntu-latest` used to be intercepted by the self-
+    # hosted fleet (#1785 evidence), but the fleet dropped the `ubuntu-latest`
+    # label, so the literal pin fell through to real GitHub-hosted infra and failed
+    # (spending-limit block). The expression defaults to `["ubuntu-latest"]` when
+    # the var is unset (consumers unaffected); arbiter's own repo sets it to the
+    # self-hosted labels. Checkov/tflint are plain CLIs (no docker-action), so the
+    # runner class remains moot for the #1785 safety class either way.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [classify-changes]
     if: needs.classify-changes.outputs.infra_changed == 'true'
@@ -445,16 +453,16 @@ jobs:
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew checkstyleMain
-<%# E1 (#1502): OWASP Dependency-Check (full NVD download, slow/flaky) is off the
-    PR gate — it runs at nightly cadence in 06-nightly `dep-cve-refresh`. The INV-13
-    dep-audit floor for java is preserved there. -%>
+<%# E1 (#1502): Trivy fs (dep CVE) runs at nightly cadence in 06-nightly
+    `dep-cve-refresh`, not on the PR gate. The INV-13 dep-audit floor for java is
+    preserved there. -%>
 <% } else { %>      - name: Download reactor M2 artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: reactor-m2-${{ github.run_id }}
           path: ${{ runner.temp }}/.m2-reactor
       - run: mvn checkstyle:check --offline
-<%# E1 (#1502): OWASP Dependency-Check moved to 06-nightly `dep-cve-refresh`. -%>
+<%# E1 (#1502): Trivy fs (dep CVE) runs at nightly cadence in 06-nightly `dep-cve-refresh`. -%>
 <% } %>
 
   unit-tests:

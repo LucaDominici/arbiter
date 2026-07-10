@@ -382,19 +382,15 @@ Security gates run as L2+ hard requirements. PII scan is HARD (no grace period) 
 | PII scan | pii-scan.mjs | L2 HARD (no grace) | `node scripts/pii-scan.mjs` |
 <% if (language === 'typescript') { %>| Dep audit | npm audit | L2 HARD | `npm audit --omit=dev --audit-level=high` |
 <% } %><% if (language === 'rust') { %>| Dep audit | cargo audit | L2 HARD | `cargo audit` |
-<% } %><% if (language === 'java') { %>| Dep audit | OWASP Dependency-Check | L2 HARD | `./gradlew dependencyCheckAnalyze` (Gradle) / `mvn org.owasp:dependency-check-maven:check` (Maven) |
+<% } %><% if (language === 'java' || language === 'kotlin') { %>| Dep audit | Trivy fs | L2 HARD | `trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --ignorefile .trivyignore .` |
 <% } %><% if (language === 'go') { %>| Dep audit | govulncheck | L2 HARD | `govulncheck ./...` |
 <% } %><% if (language === 'python') { %>| Dep audit | pip-audit | L2 HARD | `pip-audit` |
 <% } %>
 **Suppression files** (user-edited, not overwritten):
 - `suppressions/.gitleaksignore` — allowlisted gitleaks findings
 - `suppressions/pii-allowlist.json` — allowlisted PII patterns (format: `[{"pattern": "...", "reason": "..."}]`)
-<% if (language === 'java') { %>
-**Java OWASP DC setup**: Apply the generated snippet in your `build.gradle`:
-```groovy
-apply from: 'config/owasp-dependency-check.gradle'
-```
-Suppression file: `suppressions/dependency-check-suppressions.xml`
+<% if (language === 'java' || language === 'kotlin') { %>
+**Java/Kotlin dep audit**: Trivy fs suppression file: `.trivyignore` (root; format `CVE-ID exp:YYYY-MM-DD # reason=... owner=@handle`, INV-31).
 <% } %>
 **Claude hook**: `check-no-pii.mjs` (PostToolUse, Edit|Write) blocks PII from being written to source files.
 

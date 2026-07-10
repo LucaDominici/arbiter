@@ -961,8 +961,9 @@ describe('cross-product: GLOBAL_INVARIANTS.md — generation by preset', () => {
 // ─── M24: Security scanning cross-product ─────────────────────────────────────
 
 // New M24 dep-audit additions per stack (TS/Rust/Python already had audit steps pre-M24)
+// java: trivy fs replaces OWASP Dependency-Check (ADR-104)
 const DEP_AUDIT_MARKERS: Partial<Record<Language, string>> = {
-  java: 'dependencyCheckAnalyze',
+  java: "'dep audit (trivy fs)'",
   typescript: 'audit-level=high',
   rust: "'cargo', ['audit']",
   go: 'govulncheck',
@@ -1031,7 +1032,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
       const content = renderTemplate('scripts/check-all.mjs.ejs', cfg)
       expect(content).not.toContain('gitleaks')
       expect(content).not.toContain('govulncheck')
-      expect(content).not.toContain('dependencyCheckAnalyze')
+      expect(content).not.toContain("'dep audit (trivy fs)'")
       expect(content).not.toContain('pii-scan.mjs')
     })
   }

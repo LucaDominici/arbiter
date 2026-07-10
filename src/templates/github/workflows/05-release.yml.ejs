@@ -98,6 +98,23 @@ jobs:
             sha256sums.txt
           retention-days: 30
 
+  trivy-fs-scan:
+    name: Trivy filesystem scan (CRITICAL block, INV-92)
+    needs: [build-superset]
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Scan filesystem for CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: '1'
+          severity: CRITICAL
+          trivyignores: .trivyignore
+
   mutation-blocking:
     name: Mutation tests (consume nightly, fallback run)
     needs: [build-superset]
@@ -307,7 +324,7 @@ jobs:
 
   cosign-sign:
     name: Sign artifact (cosign keyless)
-    needs: [build-superset, mutation-blocking, secret-scan-history]
+    needs: [build-superset, mutation-blocking, secret-scan-history, trivy-fs-scan]
     if: github.event_name != 'pull_request'
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
@@ -684,6 +701,7 @@ jobs:
     needs:
       - mutation-blocking
       - secret-scan-history
+      - trivy-fs-scan
       - sbom
       - cosign-sign
       - slsa-provenance

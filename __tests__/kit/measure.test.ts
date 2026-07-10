@@ -599,11 +599,25 @@ describe('security — N55: gitleaks (compound)', () => {
   })
 })
 
-describe('security — N56: OWASP dep scan (compound)', () => {
-  it('returns present when owasp-suppressions.xml exists', () => {
+describe('security — N56: dependency audit (compound)', () => {
+  it('returns present when owasp-suppressions.xml exists (legacy)', () => {
     const result = measureDim(dim('N56', 'security'), fixtureRoot)
     expect(result.status).toBe('present')
     expect(result.evidence).toContain('owasp-suppressions.xml')
+  })
+
+  it('returns present when .trivyignore exists (post-OWASP DC→trivy swap)', () => {
+    const wfRoot = join(tmpdir(), `arbiter-n56-trivy-${process.pid}`)
+    mkdirSync(wfRoot, { recursive: true })
+    writeFileSync(join(wfRoot, '.trivyignore'), '# empty\n')
+    try {
+      clearMeasureCache()
+      const result = measureDim(dim('N56', 'security'), wfRoot)
+      expect(result.status).toBe('present')
+      expect(result.evidence).toContain('.trivyignore')
+    } finally {
+      rmSync(wfRoot, { recursive: true, force: true })
+    }
   })
 
   it('returns partial when npm audit only in workflow (no config file)', () => {

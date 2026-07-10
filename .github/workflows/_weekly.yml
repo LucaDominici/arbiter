@@ -78,8 +78,6 @@ jobs:
 
   shared-security:
     uses: ./.github/workflows/_shared-security.yml
-    with:
-      nvd-cache-namespace: weekly
 
   weekly-required:
     name: Weekly gate
