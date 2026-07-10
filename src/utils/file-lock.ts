@@ -149,14 +149,24 @@ function isPidAlive(pid: number): boolean | 'unknown-user' {
   }
 }
 
+/**
+ * Liveness-first staleness (#1873 T2). The pre-fix order checked age BEFORE
+ * pid liveness, so a LIVE same-boot holder older than `staleAgeMs` (default
+ * 1h — e.g. a legitimately long gate) was stolen by `tryTakeover` → two
+ * concurrent holders. Now:
+ *   - live same-boot pid  → NEVER stale, regardless of age;
+ *   - dead pid            → stale immediately, regardless of age;
+ *   - EPERM (another user's pid — liveness unknowable) → age backstop only.
+ */
 function isStale(info: LockInfo, staleAgeMs: number): boolean {
   if (info.hostname !== os.hostname()) return false
   if (info.bootId !== currentBootId()) return true
-  const age = Date.now() - new Date(info.startedAt).getTime()
-  if (age > staleAgeMs) return true
   const alive = isPidAlive(info.pid)
-  if (alive === 'unknown-user') return false
-  return !alive
+  if (alive === true) return false
+  if (alive === false) return true
+  // 'unknown-user': cannot probe liveness — fall back to the age backstop.
+  const age = Date.now() - new Date(info.startedAt).getTime()
+  return age > staleAgeMs
 }
 
 function writeLockExclusive(path: string, info: LockInfo): void {
