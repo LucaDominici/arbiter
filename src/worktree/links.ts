@@ -14,12 +14,7 @@ import { dirname, join, resolve } from 'node:path'
 import type { WorktreeLinkSpec } from '../wizard/types.js'
 
 type LinkResult =
-  | 'LINKED'
-  | 'LINKED_DIR'
-  | 'LINKED_CHILDREN'
-  | 'COPIED_TEMPLATE'
-  | 'COPIED_DIR'
-  | 'MISSING'
+  'LINKED' | 'LINKED_DIR' | 'LINKED_CHILDREN' | 'COPIED_TEMPLATE' | 'COPIED_DIR' | 'MISSING'
 
 /**
  * Children NEVER symlinked by the 'symlink-children' strategy (#1873 T4, M1):

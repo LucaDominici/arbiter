@@ -25,11 +25,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 import { jsonOutput } from '../utils/json-output.js'
-import {
-  isRunningFromMainRepo,
-  workingTreeDirty,
-  branchFullyMerged,
-} from '../worktree/validate.js'
+import { isRunningFromMainRepo, workingTreeDirty, branchFullyMerged } from '../worktree/validate.js'
 import { isOpenLogEntry, runWorktreeClose } from './worktree.js'
 import type { OpenLogEntry, WorktreeCloseOptions } from './worktree.js'
 

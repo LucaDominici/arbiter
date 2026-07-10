@@ -288,9 +288,9 @@ describe('materializeLink — symlink-children strategy (#1873 T4)', () => {
 
   it('returns MISSING when source absent and required falsy; throws when required', () => {
     expect(materializeLink(spec, mainRepo, worktree).result).toBe('MISSING')
-    expect(() =>
-      materializeLink({ ...spec, required: true }, mainRepo, worktree),
-    ).toThrow(/required directory missing/i)
+    expect(() => materializeLink({ ...spec, required: true }, mainRepo, worktree)).toThrow(
+      /required directory missing/i,
+    )
   })
 
   it('checkLinkIntegrity flags dangling CHILD symlinks under symlink-children', () => {
