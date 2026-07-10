@@ -64,6 +64,16 @@ For **machine-readable evidence in your own project**, the evidence harness (INV
 arbiter verify evidence           # in a generated L4 project
 ```
 
+**Why arbiter itself runs without the evidence harness:** arbiter governs itself at L2, and the
+harness defaults to L4 (ADR-037) — consistent, not an oversight. Contract testing is enabled on
+self (`features.contractTesting: true`); it is a structural no-op here (no owned/consumed API,
+ADR-028), verified via `arbiter diff` before flipping the flag. Activating the evidence harness
+for real is deferred and tracked (#1872): arbiter's `.claude/settings.json` carries
+hand-adapted, self-only hooks (`.dogfood-divergences.json`) that a mechanical `arbiter update`
+would silently collapse into the generic template shape — enabling it safely needs the same
+hand-adaptation those hooks already got, not a blind regenerate. See ADR-037's 2026-07-10
+amendment for the full trail.
+
 ## What it does NOT do
 
 - It is **not a compliance certification** — the evidence artifacts are not ISO 27001 / SOC 2 / GDPR

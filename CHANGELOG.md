@@ -8,7 +8,23 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- `#1839` (F3 friction cut): `--preset` is now a self-sufficient non-interactive fast
+  path for `arbiter init` — it no longer additionally requires `--yes`. `resolveConfig`
+  only checked `options.yes || recipe !== undefined` before deciding whether to run the
+  interactive wizard, so a bare `--preset industrial-grade` still blocked on stdin. This
+  restores the "No wizard prompts" behavior documented in ADR-066.
+
+### Changed
+
+- `#1839`: `src/commands/init.ts` (~1734 LOC, 6 mixed responsibilities) split into
+  `src/commands/init/{resolve-config,build-arbiter-config,generate,github-setup,maturity-gates}.ts`.
+  Pure extraction — `init.ts` stays the thin orchestrator + public barrel (every
+  previously-exported symbol is re-exported), no behavior change.
+- `#1839`: arbiter's own `arbiter.json` now enables `features.contractTesting` (a
+  verified no-op for arbiter's own config — no public API — see ADR-037's 2026-07-10
+  amendment), closing part of a self-dogfood gap flagged in the F3 audit.
 
 ## [0.4.0] — 2026-07-07
 
