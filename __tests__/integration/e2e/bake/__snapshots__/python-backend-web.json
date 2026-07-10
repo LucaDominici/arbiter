@@ -78,6 +78,7 @@
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
     "domain-api-surface.json",
+    "muted-tests-baseline.json",
     "requirements-dev.txt",
     "ruff.toml",
     "run.sh",

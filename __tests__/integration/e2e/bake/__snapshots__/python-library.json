@@ -76,6 +76,7 @@
     "docs/METHOD/SSOT_CORE_SET.md",
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
+    "muted-tests-baseline.json",
     "requirements-dev.txt",
     "ruff.toml",
     "run.sh",

@@ -514,6 +514,15 @@ runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mj
 // Service archetypes (api-e2e.json required:true) must ship a non-mocked suite that
 // boots the real binary; required:false / absent manifest ⇒ runtime SKIP.
 runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs']);
+// ─── L1: domain<->API surface-completeness gate (INV-125, #1367) ─────────────
+<% if (hasPublicApi) { %>
+// #1835/#1331: check-domain-api-surface.mjs is emitted by emitDomainApiSurface
+// (check-all.ts) only when config.hasPublicApi is true — reference it only where
+// it is actually emitted (mirrors the consumer-audit precedent above in this
+// same file, #1737), so the emission-coherence gate stays consistent for
+// archetypes without a public API (e.g. typescript/library).
+runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs']);
+<% } %>
 // ─── L1: frontend render-smoke presence gate (INV-127, #1366) ────────────────
 // Fails-closed when a frontend archetype (or `frontend` lane) ships without a
 // render-smoke behavioural spec. Self-SKIPs for non-frontend / ungoverned repos.

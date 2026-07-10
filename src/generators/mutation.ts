@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
 import { resolveEffectiveThresholds } from '../config/thresholds.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import { levelAtLeast } from '../config/levels.js'
 import { releaseEnforcesMutation } from './github.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+
+// Pinned in the injected root-build wiring; the template no longer carries a
+// plugins {} block (illegal inside an applied script — #1835-class fix).
+const PITEST_PLUGIN_VERSION = '1.15.0'
 
 export interface MutationGeneratorResult {
   files: WriteResult[]
@@ -31,11 +36,21 @@ function emitJavaMutation(
       { skipIfExists: true, dryRun },
     )
   }
-  return writeFile(
+  const result = writeFile(
     resolvedPath(targetDir, 'gradle', 'pitest.gradle'),
     renderTemplate('mutation/pitest.gradle.ejs', data),
     { skipIfExists: true, dryRun },
   )
+  // #1835-class fix: the gate runs `./gradlew pitest`, which only exists once
+  // the plugin is declared in the ROOT plugins block (illegal in the applied
+  // script). The apply(from=...) is guarded — a pre-fix pitest.gradle that
+  // still carries a plugins {} block is left unwired rather than breaking the build.
+  const apply = safeApplyFromSnippet(targetDir, 'gradle/pitest.gradle')
+  injectGradleWiring(targetDir, dryRun, {
+    plugins: [{ id: 'info.solidsoft.pitest', version: PITEST_PLUGIN_VERSION }],
+    snippets: apply ? [apply] : [],
+  })
+  return result
 }
 
 export function generateMutation(

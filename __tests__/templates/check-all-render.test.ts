@@ -1142,3 +1142,38 @@ describe('check-all.mjs.ejs rendering — check-docs.mjs wiring (#356, #1835)', 
     expect(content).not.toContain('check-docs.mjs')
   })
 })
+
+// #1835 (scaffold-not-wired audit): check-domain-api-surface.mjs (INV-125) is emitted
+// by emitDomainApiSurface (check-all.ts) whenever hasPublicApi is true, but the target
+// check-all.mjs.ejs never referenced it — a dead gate (cost paid, zero enforcement),
+// exactly the class #1835 tracks. Its sibling conditional gate check-consumer-audit.mjs
+// IS wired (EJS-conditional on its own emission predicate); this one was not. Fix
+// mirrors that precedent — the reference is gated by the SAME `hasPublicApi` predicate
+// emitDomainApiSurface uses, not an existsSync runtime guard, so the static
+// emission-coherence check (#1331) sees a reference iff the script is emitted for
+// that same config (e.g. typescript/library without a public API never gets either).
+describe('check-all.mjs.ejs rendering — domain-api-surface wiring (INV-125, #1835)', () => {
+  it('references check-domain-api-surface.mjs when hasPublicApi=true (matches its emission gate)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      hasPublicApi: true,
+      coverageEnabled: true,
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/check-domain-api-surface.mjs')
+  })
+
+  it('does not reference check-domain-api-surface.mjs when hasPublicApi=false (never emitted there)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'library',
+      hasPublicApi: false,
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-domain-api-surface.mjs')
+  })
+})

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+import { execFileSync } from 'node:child_process'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { mutatePackageJson } from '../utils/pkg.js'
+import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
+import type { GradleSnippet } from '../utils/gradle.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -121,20 +124,118 @@ function emitTsGateScaffold(base: string, data: object, dryRun: boolean): WriteR
   )
 }
 
-function pushJavaDebtGates(
+// Tool/plugin versions the injected root-build wiring pins. Single source —
+// the templates no longer carry plugin versions (their plugins {} blocks were
+// ILLEGAL inside applied scripts and are gone, #1835-class fix).
+const CHECKSTYLE_TOOL_VERSION = '10.21.4' // Java 21 sources need checkstyle 10.12+
+const PMD_TOOL_VERSION = '7.10.0' // Java 21 sources need PMD 7
+const SPOTBUGS_PLUGIN_VERSION = '6.0.18'
+const SPOTLESS_PLUGIN_VERSION = '7.0.3'
+
+/**
+ * Spotless brownfield ratchet ref: prefer the remote default branch so a legacy
+ * repo passes `spotlessCheck` without reformatting its history — spotless then
+ * enforces formatting ONLY on files changed since this ref. `null` (greenfield /
+ * no remote) means full enforcement, which is what a fresh repo wants.
+ */
+function detectSpotlessRatchetRef(targetDir: string): string | null {
+  for (const ref of ['origin/main', 'origin/master']) {
+    try {
+      execFileSync(
+        'git',
+        ['-C', targetDir, 'rev-parse', '--verify', '--quiet', `refs/remotes/${ref}`],
+        {
+          stdio: 'ignore',
+        },
+      )
+      return ref
+      // FAIL-OPEN-INTENT: ref absent (or no git binary) — try the next candidate; no candidate means greenfield, i.e. full spotless enforcement (the strict default).
+    } catch {
+      // try next ref
+    }
+  }
+  return null
+}
+
+// Wiring split rationale (empirically verified, Gradle 8.8):
+//   - plugins MUST be declared in the root plugins {} block (plugins DSL is
+//     illegal in applied scripts);
+//   - the SpotBugs extension config uses plugin enum types (Effort/Confidence)
+//     that applied scripts cannot even reference (classloader isolation), so it
+//     lives in the injected block too;
+//   - checkstyle/pmd extension blocks point the core plugins at the emitted
+//     config files;
+//   - spotless.gradle / spotbugs.gradle remain applied scripts (string-only
+//     config is classpath-safe), wired via guarded apply(from=...) — a script
+//     still carrying the pre-fix plugins {} shape is NOT applied (see
+//     safeApplyFromSnippet).
+
+/** Java applies to `java` and the backend lane of `multi`. */
+function isJavaLike(config: ProjectConfig): boolean {
+  return config.language === 'java' || config.language === 'multi'
+}
+
+/**
+ * Gate-essential Java scaffold — emitted on EVERY Java+Gradle init (even L1,
+ * where enableDebtGates is false) because the generated L1 gate already runs
+ * `./gradlew checkstyleMain spotlessCheck test` (#1835-class fix; same B4/#1491
+ * rule that moved the TS/python gate-essential scaffold above the guard).
+ * No-op for other languages (guard lives here to keep generateDebtGates simple).
+ */
+function pushJavaGateEssentials(
   results: WriteResult[],
-  base: string,
+  config: ProjectConfig,
   data: object,
   dryRun: boolean,
 ): void {
+  if (!isJavaLike(config)) return
+  const base = config.targetDir
+  // Ratchet resolved at scaffold time from the target's actual git state, then
+  // baked into spotless.gradle — a brownfield repo (existing origin default
+  // branch) gets changed-files-only enforcement, a greenfield repo gets full
+  // enforcement.
+  const javaData = { ...data, spotlessRatchetFrom: detectSpotlessRatchetRef(base) }
+  const files: [string, string][] = [
+    [resolvedPath(base, 'config', 'checkstyle.xml'), 'static-analysis/checkstyle.xml.ejs'],
+    [resolvedPath(base, 'spotless.gradle'), 'static-analysis/spotless.gradle.ejs'],
+  ]
+  for (const [path, tmpl] of files) {
+    results.push(writeFile(path, renderTemplate(tmpl, javaData), { skipIfExists: true, dryRun }))
+  }
+  if (config.buildTool !== 'gradle') return
+  const snippets: GradleSnippet[] = [
+    {
+      signature: /(?:^|\n)[ \t]*checkstyle\s*\{/,
+      kts: `checkstyle {\n    toolVersion = "${CHECKSTYLE_TOOL_VERSION}"\n    configFile = file("config/checkstyle.xml")\n}`,
+      groovy: `checkstyle {\n    toolVersion = '${CHECKSTYLE_TOOL_VERSION}'\n    configFile = file('config/checkstyle.xml')\n}`,
+    },
+  ]
+  const applySpotless = safeApplyFromSnippet(base, 'spotless.gradle')
+  if (applySpotless) snippets.push(applySpotless)
+  injectGradleWiring(base, dryRun, {
+    plugins: [
+      { id: 'checkstyle' },
+      { id: 'com.diffplug.spotless', version: SPOTLESS_PLUGIN_VERSION },
+    ],
+    snippets,
+  })
+}
+
+/** Debt-tier Java scaffold (L2+): pmd + spotbugs configs, wired into the build. */
+function pushJavaDebtGates(
+  results: WriteResult[],
+  config: ProjectConfig,
+  data: object,
+  dryRun: boolean,
+): void {
+  if (!isJavaLike(config)) return
+  const base = config.targetDir
   const files: [string, string][] = [
     [resolvedPath(base, 'config', 'pmd-ruleset.xml'), 'static-analysis/pmd-ruleset.xml.ejs'],
-    [resolvedPath(base, 'config', 'checkstyle.xml'), 'static-analysis/checkstyle.xml.ejs'],
     [
       resolvedPath(base, 'config', 'spotbugs-exclude.xml'),
       'static-analysis/spotbugs-exclude.xml.ejs',
     ],
-    [resolvedPath(base, 'spotless.gradle'), 'static-analysis/spotless.gradle.ejs'],
     [resolvedPath(base, 'config', 'pitest-setup.md'), 'mutation/pitest-l2-setup.md.ejs'],
     [resolvedPath(base, 'spotbugs.gradle'), 'static-analysis/spotbugs.gradle.ejs'],
     [resolvedPath(base, 'scripts', 'verify-spotbugs.mjs'), 'scripts/verify-spotbugs.mjs.ejs'],
@@ -143,6 +244,34 @@ function pushJavaDebtGates(
   for (const [path, tmpl] of files) {
     results.push(writeFile(path, renderTemplate(tmpl, data), { skipIfExists: true, dryRun }))
   }
+  // Wire the configs into the build — the L2 gate calls ./gradlew pmdMain /
+  // spotbugsMain, which only exist once the plugins are actually applied. Maven
+  // wiring (pom.xml injection) is a separate concern — the maven gate invokes
+  // plugin goals by full coordinates instead.
+  if (config.buildTool !== 'gradle') return
+  const snippets: GradleSnippet[] = [
+    {
+      signature: /(?:^|\n)[ \t]*pmd\s*\{/,
+      kts: `pmd {\n    toolVersion = "${PMD_TOOL_VERSION}"\n    ruleSetFiles = files("config/pmd-ruleset.xml")\n    ruleSets = listOf()\n}`,
+      groovy: `pmd {\n    toolVersion = '${PMD_TOOL_VERSION}'\n    ruleSetFiles = files('config/pmd-ruleset.xml')\n    ruleSets = []\n}`,
+    },
+    {
+      signature: /(?:^|\n)[ \t]*spotbugs\s*\{/,
+      kts: `spotbugs {\n    effort.set(com.github.spotbugs.snom.Effort.MAX)\n    reportLevel.set(com.github.spotbugs.snom.Confidence.MEDIUM)\n    excludeFilter.set(file("config/spotbugs-exclude.xml"))\n}`,
+      // Groovy needs valueOf(): direct `Confidence.MEDIUM` resolves to the enum
+      // constant's INNER CLASS (constants with bodies compile to Confidence$MEDIUM,
+      // and Groovy property access on a Class checks inner classes first) —
+      // "Cannot set … using an instance of type java.lang.Class". Verified
+      // empirically on Gradle 8.8 + spotbugs plugin 6.0.18.
+      groovy: `spotbugs {\n    effort = com.github.spotbugs.snom.Effort.valueOf('MAX')\n    reportLevel = com.github.spotbugs.snom.Confidence.valueOf('MEDIUM')\n    excludeFilter = file('config/spotbugs-exclude.xml')\n}`,
+    },
+  ]
+  const applySpotbugs = safeApplyFromSnippet(base, 'spotbugs.gradle')
+  if (applySpotbugs) snippets.push(applySpotbugs)
+  injectGradleWiring(base, dryRun, {
+    plugins: [{ id: 'pmd' }, { id: 'com.github.spotbugs', version: SPOTBUGS_PLUGIN_VERSION }],
+    snippets,
+  })
 }
 
 export function generateDebtGates(
@@ -181,6 +310,10 @@ export function generateDebtGates(
     results.push(...emitTsGateScaffold(base, data, opts.dryRun))
     injectTsGateToolchain(base, opts.dryRun)
   }
+
+  // Gate-essential Java scaffold — even L1 runs checkstyleMain + spotlessCheck.
+  // (No-op for non-Java languages; guard inside.)
+  pushJavaGateEssentials(results, config, data, opts.dryRun)
 
   if (config.language === 'python') {
     // Gate-essential Python scaffold — emitted on EVERY Python init (even L1, where
@@ -243,9 +376,7 @@ export function generateDebtGates(
     )
   }
 
-  if (config.language === 'java' || config.language === 'multi') {
-    pushJavaDebtGates(results, base, data, opts.dryRun)
-  }
+  pushJavaDebtGates(results, config, data, opts.dryRun)
 
   // NOTE: ruff.toml + requirements-dev.txt for Python are emitted above, before the
   // enableDebtGates guard, so the L1 gate (ruff/pytest) has its config on first run.

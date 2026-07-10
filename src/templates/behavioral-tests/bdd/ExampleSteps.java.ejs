@@ -1,16 +1,16 @@
 package <%= locals.basePackage || 'com.example' %>.bdd;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /**
- * Step definitions for example.feature — glue code for ExampleBddIT's Cucumber
- * suite. Without these, the scenarios resolve as UNDEFINED and Cucumber-JVM
- * fails the run (strict-by-default), so this file is load-bearing for the
- * generated project's default `test` task, not just documentation.
+ * Step definitions for example.feature — glue code for ExampleBddIT's Cucumber suite. Without
+ * these, the scenarios resolve as UNDEFINED and Cucumber-JVM fails the run (strict-by-default), so
+ * this file is load-bearing for the generated project's default `test` task, not just
+ * documentation.
  */
 public class ExampleSteps {
 

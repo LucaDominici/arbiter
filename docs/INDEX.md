@@ -189,6 +189,7 @@
 | [Reference: Impact (/impact)](REFERENCE/impact.md) | — | active | kind/reference |
 | [ISO 27001 Overlay — Reference](REFERENCE/iso27001-overlay.md) | — | active | kind/reference |
 | [ISO 9001 Overlay — Reference](REFERENCE/iso9001-overlay.md) | — | active | kind/reference |
+| [Reference: Java gold tooling wiring](REFERENCE/java-gold-tooling.md) | — | active | kind/reference |
 | [Kit Opt-In Checks (A9/A10)](REFERENCE/kit-checks-opt-in.md) | — | active | kind/reference |
 | [Local-Wrapper Contract (INV-87, W3)](REFERENCE/local-wrapper-contract.md) | — | active | kind/reference |
 | [Plan Template — Context Block](REFERENCE/plan-template.md) | — | active | kind/reference |

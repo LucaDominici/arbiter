@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-10'
+last_review: '2026-07-01'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 103)
+1. Create `NNN-short-title.md` in this directory (next free number after 102)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -130,4 +130,3 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 100 | [Companion-plugin awareness in /ship](100-companion-plugin-awareness.md)                                                                                              | accepted   | 2026-07-01 |  |
 | 101 | [runnerProfile cadence axis (solo/fleet)](101-runner-profile-cadence-axis.md)                                                                                         | Accepted   | 2026-07-01 |  |
 | 102 | [gate the workflow-template-emitted dims at L3](102-l3-workflow-dim-gating.md)                                                                                        | Accepted   | 2026-07-01 |  |
-| 103 | [worktree-isolated parallel execution carve-out (wavedrain)](103-worktree-parallel-carveout.md)                                                                       | Accepted   | 2026-07-10 |  |
