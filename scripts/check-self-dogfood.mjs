@@ -22,12 +22,13 @@
 // Exports for unit tests:
 //   buildRenderContext, templateToMaterialized, isAllowlisted,
 //   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS,
-//   hashDiff, classifyDivergence
+//   hashDiff, classifyDivergence, EXTERNAL_CI_FAMILIES, matchedFamilyBasenames,
+//   checkExternalCiSurfaceParity
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join, relative, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -412,6 +413,140 @@ export async function checkRawHooks(root = repoRoot, divergences = loadDivergenc
   return { checked, skipped, drifted, visited }
 }
 
+// ─── external CI-surface parity (R-02) ───────────────────────────────────────
+//
+// #1877/#1894 showed a drift class TEMPLATE_ROOTS cannot see: arbiter swapped its
+// OWN CI's dependency scanner (OWASP Dependency-Check → Trivy) in `.github/workflows/`
+// and `scripts/check-*.mjs` without the shipped `src/templates/github/workflows/*.ejs` /
+// `src/templates/scripts/*.ejs` counterparts moving in lockstep (or vice versa) — invisible
+// because no gate ever diffed self against template for these two families.
+//
+// TEMPLATE_ROOTS' fail-closed "every template must materialize" contract does NOT fit
+// here: workflow/script templates are emitted CONDITIONALLY (archetype × governanceLevel ×
+// collaborationMode — see src/generators/github.ts), so most have no self counterpart at
+// all (e.g. 04-deploy-test.yml.ejs — arbiter is a library, it never deploys), and arbiter's
+// own topology deliberately runs RICHER than its declared config would generate (e.g. the
+// full 06-nightly/07-weekly/08-monthly cadence despite collaborationMode: trunk-solo — see
+// check-ci-tiers.mjs.ejs's "arbiter dogfoods the full suite while remaining trunk-solo").
+// Scope is therefore BASENAME-INTERSECTION driven: only a file that exists on BOTH sides is
+// compared — exactly the shape of the #1877/#1894 class (a file that exists in both places
+// moved on one side without the other), without false-failing on archetype-conditional
+// asymmetry that was never wired to exist on both sides in the first place.
+//
+// check-all.mjs.ejs is excluded: it needs an extra `coverageEnabled` field computed from a
+// real lines-of-code count (src/config/thresholds.ts), not a generic ProjectConfig, and
+// arbiter's own check-all.mjs is by design a full orchestrator (100+ checks) against a
+// starter-stub template — parity at the whole-file level is not a meaningful signal there.
+export const EXTERNAL_CI_FAMILIES = [
+  {
+    key: 'github-workflows',
+    templateDir: 'src/templates/github/workflows',
+    templateSuffix: '.yml.ejs',
+    materializedDir: '.github/workflows',
+    materializedSuffix: '.yml',
+    renderPath: (base) => `github/workflows/${base}.yml.ejs`,
+  },
+  {
+    key: 'check-scripts',
+    templateDir: 'src/templates/scripts',
+    templateSuffix: '.mjs.ejs',
+    materializedDir: 'scripts',
+    materializedSuffix: '.mjs',
+    renderPath: (base) => `scripts/${base}.mjs.ejs`,
+    include: (base) => base.startsWith('check-') && base !== 'check-all',
+  },
+]
+
+/** Non-recursive: only direct-child files matching `suffix`. Returns basenames (suffix stripped). */
+function listBasenames(absDir, suffix) {
+  if (!existsSync(absDir)) return []
+  return readdirSync(absDir, { withFileTypes: true })
+    .filter((d) => d.isFile() && d.name.endsWith(suffix))
+    .map((d) => d.name.slice(0, -suffix.length))
+}
+
+/**
+ * Basenames present on BOTH the template dir and the materialized dir for `family`,
+ * filtered by `family.include` when set. Sorted for determinism.
+ */
+export function matchedFamilyBasenames(rootDir, family) {
+  const templateBasenames = new Set(listBasenames(join(rootDir, family.templateDir), family.templateSuffix))
+  const materializedBasenames = listBasenames(join(rootDir, family.materializedDir), family.materializedSuffix)
+  return materializedBasenames
+    .filter((b) => templateBasenames.has(b))
+    .filter((b) => !family.include || family.include(b))
+    .sort()
+}
+
+/**
+ * Compare every basename-matched pair across EXTERNAL_CI_FAMILIES. `render(relPath)` renders
+ * the named template (e.g. `github/workflows/01-pr-fast.yml.ejs`) with arbiter's OWN resolved
+ * config and returns the output string, or throws.
+ *
+ * Same CANON-14 shape as checkRawHooks/main(): an allowlisted materialized path is not
+ * skipped wholesale — its ACTUAL diff must hash-match the entry's pinned diffHash.
+ *
+ * Returns { checked, skipped, drifted, visited: Map<absPath, diff> }.
+ */
+export async function checkExternalCiSurfaceParity(rootDir, divergences, render) {
+  const drifted = []
+  const visited = new Map()
+  let checked = 0
+  let skipped = 0
+
+  for (const family of EXTERNAL_CI_FAMILIES) {
+    for (const base of matchedFamilyBasenames(rootDir, family)) {
+      const templateRelPath = family.renderPath(base)
+      const materialized = join(rootDir, family.materializedDir, `${base}${family.materializedSuffix}`)
+      const entry = divergences.get(materialized)
+
+      let rendered
+      try {
+        rendered = render(templateRelPath)
+      } catch (err) {
+        drifted.push({
+          template: templateRelPath,
+          materialized: relative(rootDir, materialized),
+          reason: `render error: ${err.message}`,
+        })
+        continue
+      }
+
+      const actualContent = readFileSync(materialized, 'utf-8')
+      const expectedLines = await normalizeLines(rendered, materialized)
+      const actualLines = await normalizeLines(actualContent, materialized)
+      const diff = computeDiff(expectedLines, actualLines)
+
+      if (entry) {
+        visited.set(materialized, diff)
+        const violation = classifyDivergence(entry, diff)
+        if (violation) {
+          drifted.push({
+            template: templateRelPath,
+            materialized: relative(rootDir, materialized),
+            ...violation,
+          })
+        } else {
+          skipped++
+        }
+        continue
+      }
+
+      if (diff) {
+        drifted.push({
+          template: templateRelPath,
+          materialized: relative(rootDir, materialized),
+          added: diff.added.slice(0, 5),
+          removed: diff.removed.slice(0, 5),
+        })
+      } else {
+        checked++
+      }
+    }
+  }
+  return { checked, skipped, drifted, visited }
+}
+
 // ─── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -568,10 +703,49 @@ async function main() {
   const raw = await checkRawHooks(repoRoot, divergences)
   for (const [p, d] of raw.visited) visited.set(p, d)
 
+  // R-02: workflow/check-script external CI-surface parity (#1877/#1894 drift class).
+  // Needs arbiter's OWN resolved ProjectConfig + the real renderTemplate — scripts/
+  // cannot import .ts directly (mirrors check-agent-dispatch.mjs, #1267), so this reads
+  // the COMPILED dist. A missing/stale build fails the gate closed (one drift entry)
+  // rather than crashing main() before the .claude-family results above are reported.
+  let external = { checked: 0, skipped: 0, drifted: [], visited: new Map() }
+  let externalCheckFailed = false
+  try {
+    const distUrl = (p) => pathToFileURL(join(repoRoot, 'dist', p)).href
+    const { loadConfig } = await import(distUrl('utils/config.js'))
+    const { resolveProjectConfig } = await import(distUrl('config/resolve-project-config.js'))
+    const { renderTemplate } = await import(distUrl('utils/render.js'))
+    const stored = loadConfig(repoRoot)
+    if (!stored) throw new Error('arbiter.json not found')
+    const { config: projectConfig } = resolveProjectConfig(repoRoot, 'arbiter', stored)
+    external = await checkExternalCiSurfaceParity(repoRoot, divergences, (relPath) =>
+      renderTemplate(relPath, projectConfig),
+    )
+  } catch (err) {
+    externalCheckFailed = true
+    drifted.push({
+      template: '(none — R-02 external CI-surface parity)',
+      materialized: '(dist/ compiled modules)',
+      reason:
+        `cannot verify workflow/check-script parity: ${err.message}. Run "npm run build" ` +
+        'first — scripts/ cannot import .ts directly (#1267).',
+    })
+  }
+  checked += external.checked
+  skipped += external.skipped
+  drifted.push(...external.drifted)
+  for (const [p, d] of external.visited) visited.set(p, d)
+
+  // Materialized dirs of EXTERNAL_CI_FAMILIES — used below to suppress cascading
+  // "dead entry" noise for this family when the check above hard-failed (one clear
+  // fatal reason already reported; 52 duplicate "dead entry" lines would bury it).
+  const externalDests = new Set(EXTERNAL_CI_FAMILIES.map((f) => f.materializedDir))
+
   // CANON-14 (#1838): a divergence entry whose path no corpus ever visits pins
   // nothing — it is either a typo or a leftover from a removed template family.
   // Dead entries fail closed instead of silently rotting in the manifest.
   for (const [absPath, entry] of divergences) {
+    if (externalCheckFailed && externalDests.has(entry.dest)) continue
     if (!visited.has(absPath)) {
       drifted.push({
         template: '(none — no template maps to this path)',

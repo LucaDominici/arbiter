@@ -713,15 +713,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     id: 'INV-45',
     tier: 'governance',
     title:
-      'Self-dogfood check — every EJS template must render to match its materialized .claude/ file',
+      'Self-dogfood check — every EJS template must render to match its materialized self-repo file',
     description:
-      "Every EJS template under src/templates/claude/ must render (with arbiter's own config) " +
-      'to content that matches the corresponding materialized .claude/ file. ' +
+      "Every EJS template under src/templates/claude/ or src/templates/ship/ must render (with " +
+      "arbiter's own config) to content that matches the corresponding materialized .claude/ or " +
+      '.arbiter/ship file (fail-closed: a template with no materialized counterpart is drift, not a ' +
+      'skip). Additionally, for src/templates/github/workflows/*.ejs vs .github/workflows/*.yml and ' +
+      'src/templates/scripts/check-*.mjs.ejs vs scripts/check-*.mjs (R-02, #1900), every basename ' +
+      'present on BOTH sides is diffed — these two families are emitted conditionally (archetype × ' +
+      'governanceLevel × collaborationMode) so basename presence on only one side is not drift. ' +
       'Files listed in .dogfood-divergences.json are explicitly exempted (intentional arbiter-internal ' +
-      'extensions not appropriate for target projects). Config-gated templates are skipped when ' +
-      'the relevant feature flag is disabled in arbiter.json. ' +
-      'This invariant prevents arbiter from shipping stale template skeletons that diverge from ' +
-      'its own governance without an explicit documented reason.',
+      'extensions not appropriate for target projects) — CANON-14: the entry pins the exact approved ' +
+      'diff hash, so NEW drift inside an allowlisted file still fails. Config-gated templates are ' +
+      'skipped when the relevant feature flag is disabled in arbiter.json. ' +
+      'This invariant prevents arbiter from shipping stale template skeletons — or a stale self-CI — ' +
+      'that diverge from its own governance without an explicit documented reason (the #1877/#1894 ' +
+      'drift class).',
     alwaysActive: true,
     selfOnly: true,
     enforcement:
