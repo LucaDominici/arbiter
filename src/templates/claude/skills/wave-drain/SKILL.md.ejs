@@ -351,7 +351,7 @@ the train is native — PRs are the only integration unit). Field-proven 2026-07
    parameterized on the repo's own gate:
 
    ```bash
-   flock /tmp/<repo>-gate.lock -c '<gate-cmd>'   # e.g. './viafera.sh ci' or 'make gate'
+   flock /tmp/<repo>-gate.lock -c '<gate-cmd>'   # e.g. 'make gate' or './run.sh ci'
    ```
 
    Same semantics: kernel wait, kernel release on SIGKILL/OOM, one foreground wait.
