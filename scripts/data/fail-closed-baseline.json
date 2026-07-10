@@ -140,6 +140,8 @@
     "src/commands/ci.ts",
     "src/commands/conformance.ts",
     "src/commands/doctor.ts",
+    "src/commands/doctor/clean.ts",
+    "src/commands/doctor/health.ts",
     "src/commands/findings-promote.ts",
     "src/commands/gold-audit.ts",
     "src/commands/graph.ts",
