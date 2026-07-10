@@ -113,11 +113,13 @@ describe('tool output: codex', () => {
     expect(readme).toContain('PLAN.json')
   })
 
-  it('result lists exactly 9 files all with created action', () => {
+  it('result lists exactly 16 files all with created action', () => {
     const config = codexConfig()
     const result = generateCodex(config)
-    // CODEX.md (1) + 5 rule files + plan README (1) + codex hooks (2) = 9.
-    expect(result.files).toHaveLength(9)
+    // CODEX.md (1) + 5 rule files + plan README (1) + codex hooks (9: config.toml +
+    // codex-adapter.mjs + lib.mjs + 5 shared guard hooks + check-no-skipped-tests.mjs,
+    // #1885) = 16.
+    expect(result.files).toHaveLength(16)
     for (const f of result.files) {
       expect(f.action).toBe('created')
     }

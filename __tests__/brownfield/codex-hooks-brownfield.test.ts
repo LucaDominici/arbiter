@@ -45,10 +45,23 @@ describe('brownfield: generateCodexHooks on existing .codex/', () => {
   })
 
   it('creates both files when .codex/ does not exist yet', () => {
+    // Default makeConfig has tools: ['claude', 'codex'] — claude.ts owns the shared
+    // guard hooks in that combination (#1578 sole-emitter), so only these two.
     const result = generateCodexHooks(makeConfig(dir))
     const actions = result.files.map((f) => f.action)
     expect(actions).toEqual(['created', 'created'])
     expect(existsSync(join(dir, '.codex', 'config.toml'))).toBe(true)
     expect(existsSync(join(dir, '.codex', 'codex-adapter.mjs'))).toBe(true)
+  })
+
+  it('creates all files (hook parity + codex adapter) when codex is the only tool selected (#1885)', () => {
+    const result = generateCodexHooks(makeConfig(dir, { tools: ['codex'] }))
+    const actions = result.files.map((f) => f.action)
+    // lib.mjs + 5 shared guard hooks + check-no-skipped-tests.mjs + config.toml +
+    // codex-adapter.mjs = 9, all freshly created.
+    expect(actions).toEqual(Array(9).fill('created'))
+    expect(existsSync(join(dir, '.codex', 'config.toml'))).toBe(true)
+    expect(existsSync(join(dir, '.codex', 'codex-adapter.mjs'))).toBe(true)
+    expect(existsSync(join(dir, '.claude', 'hooks', 'stop-dangerous.mjs'))).toBe(true)
   })
 })

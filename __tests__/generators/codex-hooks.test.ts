@@ -92,6 +92,9 @@ describe('generateCodexHooks', () => {
   })
 
   it("returns 'created' action for new files", () => {
+    // Default makeConfig has tools: ['claude', 'codex'] — with claude also selected,
+    // generateClaudeHooks (claude.ts) owns the shared guard hooks (#1578 sole-emitter),
+    // so this generator only produces config.toml + codex-adapter.mjs here.
     const result = generateCodexHooks(makeConfig(dir))
     const created = result.files.filter((f) => f.action === 'created')
     expect(created.length).toBe(2)
@@ -125,5 +128,86 @@ describe('generateCodexHooks', () => {
     const toml = result2.files.find((f) => f.path.endsWith('config.toml'))
     expect(toml?.action).toBe('skipped')
     expect(existsSync(`${tomlPath}.arbiter-backup`)).toBe(false)
+  })
+
+  // #1885: codex-only init (claude deselected) previously left every path config.toml
+  // references unwritten — generateClaudeHooks (the only emitter of these 6 scripts)
+  // only runs when `claude` is in config.tools. codex-adapter.mjs's execFileSync then
+  // crashes on a missing module (MODULE_NOT_FOUND, exit 1), and for a PreToolUse hook
+  // that non-zero exit BLOCKS the tool — every bash/apply_patch call on a codex-only
+  // project was unusable. generateCodexHooks must be fully self-sufficient: it must
+  // emit every file its own config.toml points at, independent of what else is selected.
+  describe('codex-only hook parity (#1885)', () => {
+    const ALL_REFERENCED_HOOKS = [
+      'lib.mjs',
+      'stop-dangerous.mjs',
+      'enforce-read-only.mjs',
+      'pre-edit-ssot-guard.mjs',
+      'check-no-orphan-todo.mjs',
+      'check-no-placeholders.mjs',
+      'check-no-skipped-tests.mjs',
+    ]
+
+    it('emits every .claude/hooks/*.mjs referenced by config.toml, even with claude deselected', () => {
+      generateCodexHooks(makeConfig(dir, { tools: ['codex'] }))
+      for (const hookFile of ALL_REFERENCED_HOOKS) {
+        const path = join(dir, '.claude', 'hooks', hookFile)
+        expect(existsSync(path), `expected ${hookFile} to be emitted for codex-only init`).toBe(
+          true,
+        )
+      }
+    })
+
+    it('every hook path referenced in the rendered config.toml exists on disk (codex-only)', () => {
+      generateCodexHooks(makeConfig(dir, { tools: ['codex'] }))
+      const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')
+      // check-no-pii.mjs is excluded: it's emitted by generateSecurity (security.ts),
+      // gated only on enableSecurityScanning (tools-independent) — already correct
+      // pre-#1885 and out of scope for generateCodexHooks itself.
+      const referenced = [...content.matchAll(/\.claude\/hooks\/([\w.-]+\.mjs)/g)]
+        .map((m) => m[1])
+        .filter((h) => h !== 'check-no-pii.mjs')
+      expect(referenced.length).toBeGreaterThan(0)
+      for (const hookFile of referenced) {
+        expect(
+          existsSync(join(dir, '.claude', 'hooks', hookFile)),
+          `config.toml references .claude/hooks/${hookFile} but it was not emitted`,
+        ).toBe(true)
+      }
+    })
+
+    it('omits check-no-skipped-tests.mjs (file and reference) when enableNoSkippedTests is false', () => {
+      generateCodexHooks(makeConfig(dir, { tools: ['codex'], enableNoSkippedTests: false }))
+      expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-skipped-tests.mjs'))).toBe(false)
+      const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')
+      expect(content).not.toContain('check-no-skipped-tests.mjs')
+    })
+
+    it('emitted stop-dangerous.mjs and lib.mjs are the same content generateClaudeHooks would produce', () => {
+      generateCodexHooks(makeConfig(dir, { tools: ['codex'] }))
+      const stopDangerous = readFileSync(
+        join(dir, '.claude', 'hooks', 'stop-dangerous.mjs'),
+        'utf-8',
+      )
+      expect(stopDangerous).toContain("from './lib.mjs'")
+      const lib = readFileSync(join(dir, '.claude', 'hooks', 'lib.mjs'), 'utf-8')
+      expect(lib).toContain('export const logInfo')
+    })
+
+    // #1578 sole-emitter (INV-128): when `claude` is ALSO selected, generateClaudeHooks
+    // (claude.ts) owns these paths — generateCodexHooks must defer entirely, not
+    // duplicate-emit (even a safe, byte-identical duplicate breaks the "each path has
+    // exactly one owning registry generator" contract that arbiter diff / the
+    // generated-manifest relies on).
+    it('does not emit the shared guard hooks when claude is also selected (defers to claude.ts)', () => {
+      const result = generateCodexHooks(makeConfig(dir, { tools: ['claude', 'codex'] }))
+      for (const hookFile of ALL_REFERENCED_HOOKS) {
+        const entry = result.files.find((f) => f.path.endsWith(`/${hookFile}`))
+        expect(entry, `${hookFile} must not be emitted by generateCodexHooks here`).toBeUndefined()
+      }
+      // Still owns its own two files regardless of what else is selected.
+      expect(result.files.some((f) => f.path.endsWith('config.toml'))).toBe(true)
+      expect(result.files.some((f) => f.path.endsWith('codex-adapter.mjs'))).toBe(true)
+    })
   })
 })
