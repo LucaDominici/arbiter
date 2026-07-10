@@ -50,6 +50,18 @@ describe('_shared-security.yml.ejs — structural invariants (#1694, CANON-18)',
     expect(rendered).toContain('OWASP Dependency-Check')
   })
 
+  it('Java: OWASP Dependency-Check is a pinned static CLI, not the docker-container action (#1785)', () => {
+    // #1785: dependency-check/Dependency-Check_Action is a Docker-outside-of-Docker
+    // action — same defect class as bridgecrewio/checkov-action (fixed) and
+    // google/osv-scanner-action (fixed, #1767). Sidestep it with the pinned CLI
+    // zip (checksum-verified), same pattern as those two fixes.
+    const rendered = renderSharedSecurity({ language: 'java', buildTool: 'gradle' })
+    expect(rendered).not.toMatch(/uses:\s*dependency-check\/Dependency-Check_Action/)
+    expect(rendered).toMatch(/dependency-check-12\.1\.0-release\.zip/)
+    expect(rendered).toMatch(/sha256sum -c/)
+    expect(rendered).toMatch(/dependency-check\.sh --project/)
+  })
+
   it('TypeScript: renders npm audit in dep-cve-refresh', () => {
     const rendered = renderSharedSecurity({ language: 'typescript', buildTool: 'npm' })
     expect(rendered).toContain('npm audit')
