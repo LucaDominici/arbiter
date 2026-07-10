@@ -28,8 +28,8 @@ are applied and enforced.
 | Document                                           | Purpose                                                                               |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | [`AGENTS.md`](../AGENTS.md)                        | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
-| [`docs/SYSTEM/CANON.md`](internal/SYSTEM/CANON.md) | 15 process-level rules derived from audit waves #151–#186                             |
-| [`docs/GOVERNANCE/RACI.md`](#raci)                 | Responsibility matrix for governance decisions                                        |
+| [`docs/SYSTEM/CANON.md`](internal/SYSTEM/CANON.md) | 23 process-level rules (CANON-01..23) derived from audit waves #151–#186              |
+| [RACI Matrix](#raci-matrix--arbiter)               | Responsibility matrix for governance decisions                                        |
 
 ## Architecture Decision Records
 
