@@ -128,6 +128,24 @@ describe('java gold tooling wiring (#1835-class)', () => {
       generateDebtGates(javaGradleConfig(dir, { buildTool: 'maven' }))
       expect(readFileSync(join(dir, 'build.gradle'), 'utf-8')).toBe(before)
     })
+
+    it('wires the gate-essential pair (checkstyle + spotless) even at L1 (B4 rule)', () => {
+      // The generated L1 gate already runs `./gradlew checkstyleMain
+      // spotlessCheck test` — without this wiring an L1 Java init is RED on
+      // first run with "Task 'checkstyleMain' not found" (same B4/#1491 rule
+      // that emits the TS/python gate-essential scaffold below enableDebtGates).
+      generateDebtGates(javaGradleConfig(dir, { governanceLevel: 'L1', enableDebtGates: false }))
+      const build = readFileSync(join(dir, 'build.gradle'), 'utf-8')
+      expect(build).toContain("id 'checkstyle'")
+      expect(build).toMatch(/id 'com\.diffplug\.spotless' version '\d/)
+      expect(build).toContain("apply from: 'spotless.gradle'")
+      expect(existsSync(join(dir, 'config', 'checkstyle.xml'))).toBe(true)
+      expect(existsSync(join(dir, 'spotless.gradle'))).toBe(true)
+      // Debt-tier tooling stays behind the guard at L1.
+      expect(build).not.toContain("id 'pmd'")
+      expect(build).not.toContain('spotbugs')
+      expect(existsSync(join(dir, 'config', 'pmd-ruleset.xml'))).toBe(false)
+    })
   })
 
   describe('generateArchUnit → test deps wiring', () => {
