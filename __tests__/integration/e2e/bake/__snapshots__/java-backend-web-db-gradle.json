@@ -79,6 +79,8 @@
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
     "domain-api-surface.json",
+    "gradle/arch-test-deps.gradle",
+    "muted-tests-baseline.json",
     "run.sh",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",

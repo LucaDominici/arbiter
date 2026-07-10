@@ -76,6 +76,7 @@
     "docs/METHOD/SSOT_CORE_SET.md",
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
+    "muted-tests-baseline.json",
     "run.sh",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",

@@ -84,6 +84,7 @@
     "eslint.config.static.mjs",
     "features/example.feature",
     "features/step_definitions/example.steps.ts",
+    "muted-tests-baseline.json",
     "run.sh",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",
