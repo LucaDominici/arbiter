@@ -1,10 +1,10 @@
 ---
 title: Prompt — Opus 4.8 Harness-Wave Orchestrator (Dynamic Workflows)
 type: prompt
-status: active
+status: deprecated
 date: 2026-05-29
-doc_version: '1.0.0'
-last_review: '2026-05-29'
+doc_version: '1.1.0'
+last_review: '2026-07-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/prompt']
@@ -12,6 +12,12 @@ related: []
 ---
 
 # Prompt — Opus 4.8 Harness-Wave Orchestrator (Dynamic Workflows)
+
+> **SUPERSEDED (#1873, ADR-103):** this prompt-form is superseded by the **`wave-drain`
+> skill v2** + **`/drain`** command (`.claude/skills/wave-drain/SKILL.md`), which absorb
+> its technique — worktree parallelism, gate mutex (`arbiter gate-exec`), anti-stall,
+> watchdog sweep, zombie reaper — as the maintained, dual-side-generated protocol.
+> Kept for historical reference only; do not run it as-is.
 
 > Modello target: **Claude Opus 4.8** (rilasciato 2026-05-28, feature: Dynamic Workflows).
 > Progetto: **arbiter** (`/home/user/work/repos/arbiter`).
