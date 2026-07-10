@@ -151,9 +151,39 @@ Resolution:
   `.claude/commands/*.md`, the two source kinds that previously hid this dangling
   reference.
 
+## Amendment (2026-07-10, #1839) — self-dogfood status (F3 friction cut)
+
+The F3 wave audit (#1839) flagged arbiter's own `arbiter.json` (`features.evidenceHarness:
+false`, `features.contractTesting: false`) as a possible dogfood gap: arbiter sells both
+features to target projects but does not run them on itself. Investigated and resolved as
+follows, per CANON's self-dogfood rule (`docs/internal/SYSTEM/CANON.md`), which requires
+dogfooding "where arbiter's governance level qualifies" — not unconditionally:
+
+- **`contractTesting` — closed, no-op-verified.** `generateContractTesting` short-circuits
+  whenever `contractType === 'none'` or `hasPublicApi === false` (ADR-028), both true for
+  arbiter's own config (a CLI library with no owned/consumed API). Confirmed via `arbiter
+  diff` in an isolated sandbox: flipping the flag to `true` produces **zero** file changes.
+  Flag flipped to `true` in this amendment's PR — matches the tool-wide default
+  (`enableContractTesting !== false`) at zero risk.
+- **`evidenceHarness` — deliberately deferred, not neglected.** This ADR's own Decision
+  defaults the harness to L4 (arbiter self runs at `governanceLevel: L2`, a considered choice
+  for a trunk-solo CLI library — see `website/problems/dogfooding-trust.md`), so the flag being
+  off is consistent with the documented default, not an oversight. A sandboxed `arbiter update`
+  dry-run (flag flipped true) was run to check whether activation is safe to bundle here: it is
+  not — arbiter's `.claude/settings.json` carries a hand-tuned, per-hook structure with several
+  self-only hooks confirmed intentional in `.dogfood-divergences.json` (tracked for narrowing in
+  #1090); a mechanical `arbiter update` collapses that structure into the generic template's
+  consolidated `hooks.mjs <EventName>` dispatcher, silently dropping the arbiter-internal-only
+  hooks. Activating the harness for real requires the same hand-adaptation given to
+  `guard-task-completion.mjs` and the other self-only hooks (#1092), not a blind regenerate.
+  Tracked as #1872.
+
 ## Related
 
 - ADR-034: Phase-lifecycle hard enforcement (#406)
 - ADR-032: Hook hardness manifest (#410)
+- ADR-028: Level-upgrade grace and contract-type axis (`hasPublicApi` gate)
 - INV-38: Phase-tracked lifecycle enforcement (extended by this ADR)
 - #407: Implementation issue
+- #1839: F3 friction cut (self-dogfood status audit)
+- #1872: Follow-up — hand-adapt evidenceHarness into arbiter's own hook chain
