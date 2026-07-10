@@ -43,6 +43,15 @@ Two Gradle facts force injection into the **root build script** rather than `app
 - **guarded apply**: a target script still carrying the pre-fix `plugins {}` shape (possible
   when a user-modified file is withheld from template fixes, #1344) is NOT applied — wiring it
   would turn a dormant scaffold into a hard build failure. A logger warning explains the skip.
+- **guarded apply — brownfield-inline (#1898)**: `safeApplyFromSnippet` also withholds when
+  either (a) the root build already configures the same tooling **inline** (`rootBuildSignatures`
+  option — brownfield authored `spotless {}`/`spotbugs {}`/the archunit dependency directly, or a
+  pre-#1884 arbiter run did before config moved into the root managed block), or (b) the
+  standalone script still `import`s a plugin-provided class (`com.github.spotbugs.*` /
+  `com.diffplug.*` — the pre-#1884 shape, which can never resolve under classloader isolation
+  regardless of inline config). Confirmed on a real brownfield repo: a relic `spotbugs.gradle`
+  importing `com.github.spotbugs.snom.Effort` crashed the build the instant it was applied
+  (`unable to resolve class ...Effort`) — both guards are logged (`gradle.apply_from_withheld`).
 
 ## What is wired, when
 
