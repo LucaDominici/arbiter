@@ -82,6 +82,23 @@ describe('06-nightly-lite.yml.ejs — action pinning (#1319.5)', () => {
   })
 })
 
+// ─── Dependency-Check docker-container action (#1785) ────────────────────────
+
+describe('06-nightly-lite.yml.ejs — OWASP Dependency-Check (#1785)', () => {
+  it('java: OWASP Dependency-Check is a pinned static CLI, not the docker-container action', () => {
+    // #1785: dependency-check/Dependency-Check_Action is a Docker-outside-of-Docker
+    // action — same defect class as bridgecrewio/checkov-action (fixed) and
+    // google/osv-scanner-action (fixed, #1767). Sidestep it with the pinned CLI
+    // zip (checksum-verified), same pattern as those two fixes.
+    const rendered = renderNightlyLite({ language: 'java', buildTool: 'gradle' })
+    expect(rendered).toContain('OWASP Dependency-Check')
+    expect(rendered).not.toMatch(/uses:\s*dependency-check\/Dependency-Check_Action/)
+    expect(rendered).toMatch(/dependency-check-12\.1\.0-release\.zip/)
+    expect(rendered).toMatch(/sha256sum -c/)
+    expect(rendered).toMatch(/dependency-check\.sh --project/)
+  })
+})
+
 // ─── Runner fallback (#1770, #1756) ──────────────────────────────────────────
 // gated-review + L3Plus must NEVER render a bare self-hosted default: an outsider
 // repo without CI_BUILD_RUNNER_LABEL set would queue forever on docker-ci-build.
