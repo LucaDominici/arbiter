@@ -847,7 +847,9 @@ worktree
   })
 
 program
-  .command('gate-exec <cmd...>')
+  // Hidden (#1770 T5 public-surface policy): gate-exec is an agent-facing leaf
+  // primitive invoked by the wave-drain skill, not a headline human command.
+  .command('gate-exec <cmd...>', { hidden: true })
   .description(
     'Run a command under the per-repo gate mutex (#1873, ADR-103): every worktree of ' +
       'the same repo converges on ONE flock(1) lock, the wait is kernel-side (blocking), ' +
