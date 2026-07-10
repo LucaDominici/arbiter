@@ -377,4 +377,19 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       docUrl: FS_ERRNO_DOC_URL,
     },
   ],
+  [
+    'E_GATE_MUTEX_UNSUPPORTED',
+    {
+      code: 'E_GATE_MUTEX_UNSUPPORTED',
+      summary: 'flock(1) unavailable — gate mutex unsupported on this platform',
+      detail:
+        '`arbiter gate-exec` delegates the per-repo gate mutex to util-linux flock(1) because ' +
+        'only the kernel releases the lock when the holder dies from SIGKILL/OOM. On platforms ' +
+        'without flock (macOS base system, Windows) the mutex cannot be provided safely, and a ' +
+        'lockfile emulation would reintroduce the SIGKILL hole — so gate-exec fails closed (ADR-103).',
+      recovery:
+        'Run the wave serially (`--max-parallel 1` — no mutex needed), or install flock ' +
+        '(util-linux) and retry.',
+    },
+  ],
 ])

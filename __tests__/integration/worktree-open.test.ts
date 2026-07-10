@@ -227,9 +227,14 @@ describe('runWorktreeList', () => {
 })
 
 describe('runWorktreeOpen — node_modules handling', () => {
-  it('symlinks node_modules when it exists in the main repo', async () => {
+  // #1873 T4 (ADR-103): the default strategy is symlink-children — the dest is
+  // a REAL directory with per-child symlinks, and the shared caches
+  // (.vite/.cache) are NOT linked, so N parallel worktrees cannot corrupt one
+  // shared cache through a whole-dir symlink.
+  it('links node_modules CHILDREN when it exists in the main repo (cache-isolated)', async () => {
     mkdirSync(join(repoRoot, 'node_modules', 'some-pkg'), { recursive: true })
     writeFileSync(join(repoRoot, 'node_modules', 'some-pkg', 'index.js'), 'module.exports = {}')
+    mkdirSync(join(repoRoot, 'node_modules', '.vite'), { recursive: true })
 
     await runWorktreeOpen({
       taskId: '#777',
@@ -238,10 +243,15 @@ describe('runWorktreeOpen — node_modules handling', () => {
       worktreesDir,
     })
 
-    const nmLink = join(worktreesDir, '777-nodelink', 'node_modules')
-    expect(existsSync(nmLink)).toBe(true)
-    expect(lstatSync(nmLink).isSymbolicLink()).toBe(true)
-    expect(readlinkSync(nmLink)).toBe(resolve(repoRoot, 'node_modules'))
+    const nmDir = join(worktreesDir, '777-nodelink', 'node_modules')
+    expect(existsSync(nmDir)).toBe(true)
+    expect(lstatSync(nmDir).isSymbolicLink()).toBe(false)
+    expect(lstatSync(nmDir).isDirectory()).toBe(true)
+    const childLink = join(nmDir, 'some-pkg')
+    expect(lstatSync(childLink).isSymbolicLink()).toBe(true)
+    expect(readlinkSync(childLink)).toBe(resolve(repoRoot, 'node_modules', 'some-pkg'))
+    // Shared caches are NOT linked into the worktree.
+    expect(existsSync(join(nmDir, '.vite'))).toBe(false)
   })
 
   it('succeeds when node_modules does not exist (MISSING, not error)', async () => {

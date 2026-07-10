@@ -10,6 +10,8 @@ import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
 import { runTui } from './commands/tui.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
+import { runWorktreePrune } from './commands/worktree-prune.js'
+import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runGoldAudit } from './commands/gold-audit.js'
 import { runDocSet } from './commands/doc-set.js'
@@ -808,6 +810,68 @@ worktree
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { json: boolean }) => {
     runWorktreeList({ json: opts.json })
+  })
+
+worktree
+  .command('prune')
+  .description(
+    'Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive ' +
+      'beyond --stale hours. Dry-run by default; dirty trees are never touched (INV-96); ' +
+      'inactive-unmerged candidates keep their branch.',
+  )
+  .option(
+    '--stale <hours>',
+    'Inactivity threshold in hours for unmerged worktrees',
+    (v: string) => {
+      const n = parseInt(v, 10)
+      if (isNaN(n) || n <= 0) throw new Error('--stale must be a positive integer (hours)')
+      return n
+    },
+  )
+  .option('--execute', 'Close the candidates (default: dry-run report)', false)
+  .option('--no-fetch', 'Skip git fetch before the merge check', false)
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { stale?: number; execute: boolean; fetch: boolean; json: boolean }) => {
+    try {
+      runWorktreePrune({
+        ...(opts.stale !== undefined ? { staleHours: opts.stale } : {}),
+        execute: opts.execute,
+        noFetch: !opts.fetch,
+        json: opts.json,
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    }
+  })
+
+program
+  // Hidden (#1770 T5 public-surface policy): gate-exec is an agent-facing leaf
+  // primitive invoked by the wave-drain skill, not a headline human command.
+  .command('gate-exec <cmd...>', { hidden: true })
+  .description(
+    'Run a command under the per-repo gate mutex (#1873, ADR-103): every worktree of ' +
+      'the same repo converges on ONE flock(1) lock, the wait is kernel-side (blocking), ' +
+      'and the lock releases even on SIGKILL/OOM of the holder. Usage: ' +
+      'arbiter gate-exec [--key K] -- <cmd> [args...]. Exit code: passthrough of the ' +
+      'command; 2 on gate-exec errors (e.g. flock missing — fail-closed).',
+  )
+  .option('--key <key>', 'Explicit mutex key (overrides per-repo derivation)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((cmdArgs: string[], opts: { key?: string; dir?: string }) => {
+    try {
+      const code = runGateExec({
+        cmdArgs,
+        ...(opts.key !== undefined ? { key: opts.key } : {}),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+      process.exit(code)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(2)
+    }
   })
 
 const review = program

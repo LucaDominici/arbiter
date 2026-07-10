@@ -10,6 +10,7 @@
   "ignoreBinaries": [
     "stryker",
     "gh",
+    "flock",
     "cosign",
     "which",
     "java",
