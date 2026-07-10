@@ -49,7 +49,7 @@ describe('java gold tooling wiring (#1835-class)', () => {
     it('points the config blocks at the emitted config files and applies the scripts', () => {
       generateDebtGates(javaGradleConfig(dir))
       const build = readFileSync(join(dir, 'build.gradle'), 'utf-8')
-      expect(build).toContain(">>> arbiter:java-tooling")
+      expect(build).toContain('>>> arbiter:java-tooling')
       expect(build).toContain("configFile = file('config/checkstyle.xml')")
       expect(build).toContain("ruleSetFiles = files('config/pmd-ruleset.xml')")
       // SpotBugs enum config MUST live here — applied scripts cannot see the

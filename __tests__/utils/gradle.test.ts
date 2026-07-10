@@ -59,7 +59,9 @@ describe('injectGradleWiring', () => {
     expect(out).toContain('>>> arbiter:java-tooling')
     expect(out).toContain('configFile = file("config/checkstyle.xml")')
     // kts deps use the string-invoke form (typed accessor may not exist).
-    expect(out).toContain('dependencies { "testImplementation"("org.assertj:assertj-core:3.26.3") }')
+    expect(out).toContain(
+      'dependencies { "testImplementation"("org.assertj:assertj-core:3.26.3") }',
+    )
     expect(out).toContain('<<< arbiter:java-tooling')
     // plugins remain BEFORE other build logic (Gradle requirement).
     expect(out.indexOf('id("checkstyle")')).toBeLessThan(out.indexOf('repositories'))
@@ -75,9 +77,7 @@ describe('injectGradleWiring', () => {
   })
 
   it('respects a pre-existing plugin declaration (brownfield — no duplicate)', () => {
-    const p = ktsBuild(
-      'plugins {\n    java\n    id("com.diffplug.spotless") version "6.25.0"\n}\n',
-    )
+    const p = ktsBuild('plugins {\n    java\n    id("com.diffplug.spotless") version "6.25.0"\n}\n')
     injectGradleWiring(dir, false, WIRING)
     const out = readFileSync(p, 'utf-8')
     expect(out.match(/com\.diffplug\.spotless/g)).toHaveLength(1)
@@ -162,7 +162,7 @@ describe('safeApplyFromSnippet', () => {
   })
 
   it('returns an apply(from=...) snippet for a compatible script', () => {
-    writeFileSync(join(dir, 'spotless.gradle'), "spotless {\n    java { }\n}\n")
+    writeFileSync(join(dir, 'spotless.gradle'), 'spotless {\n    java { }\n}\n')
     const s = safeApplyFromSnippet(dir, 'spotless.gradle')
     expect(s).not.toBeNull()
     expect(s?.kts).toBe('apply(from = "spotless.gradle")')

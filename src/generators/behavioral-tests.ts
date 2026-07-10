@@ -24,7 +24,10 @@ const JAVA_BDD_TEST_DEPS: { coordinate: string; configuration?: string }[] = [
   { coordinate: 'org.junit.platform:junit-platform-suite:1.10.2' },
   { coordinate: 'io.cucumber:cucumber-java:7.18.0' },
   { coordinate: 'io.cucumber:cucumber-junit-platform-engine:7.18.0' },
-  { coordinate: 'org.junit.platform:junit-platform-launcher:1.10.2', configuration: 'testRuntimeOnly' },
+  {
+    coordinate: 'org.junit.platform:junit-platform-launcher:1.10.2',
+    configuration: 'testRuntimeOnly',
+  },
 ]
 
 export interface BehavioralTestsResult {

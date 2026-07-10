@@ -69,7 +69,8 @@ export interface GradleWiringResult {
   buildFile: string | null
 }
 
-const MARKER_BEGIN = '// >>> arbiter:java-tooling (managed — `arbiter update` re-adds missing lines)'
+const MARKER_BEGIN =
+  '// >>> arbiter:java-tooling (managed — `arbiter update` re-adds missing lines)'
 const MARKER_END = '// <<< arbiter:java-tooling'
 
 function escapeRegExp(s: string): string {
@@ -288,10 +289,7 @@ export function injectGradleWiring(
   const dsl: GradleDsl = buildFile.endsWith('.kts') ? 'kts' : 'groovy'
 
   content = ensurePlugins(content, dsl, req.plugins ?? [])
-  const snippets = [
-    ...(req.snippets ?? []),
-    ...(req.dependencies ?? []).map(dependencyAsSnippet),
-  ]
+  const snippets = [...(req.snippets ?? []), ...(req.dependencies ?? []).map(dependencyAsSnippet)]
   content = ensureSnippets(content, dsl, snippets)
 
   if (content === original) return { changed: false, buildFile }

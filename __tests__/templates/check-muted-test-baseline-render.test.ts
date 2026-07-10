@@ -46,7 +46,8 @@ describe('check-muted-test template — brownfield baseline', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  const legacyPath = (): string => join(dir, 'src', 'test', 'java', 'com', 'example', 'LegacyTest.java')
+  const legacyPath = (): string =>
+    join(dir, 'src', 'test', 'java', 'com', 'example', 'LegacyTest.java')
 
   it('without a baseline, pre-existing @Disabled tests fail closed (strict default)', () => {
     writeFileSync(legacyPath(), DISABLED_TEST(2))

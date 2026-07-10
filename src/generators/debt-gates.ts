@@ -141,9 +141,13 @@ const SPOTLESS_PLUGIN_VERSION = '7.0.3'
 function detectSpotlessRatchetRef(targetDir: string): string | null {
   for (const ref of ['origin/main', 'origin/master']) {
     try {
-      execFileSync('git', ['-C', targetDir, 'rev-parse', '--verify', '--quiet', `refs/remotes/${ref}`], {
-        stdio: 'ignore',
-      })
+      execFileSync(
+        'git',
+        ['-C', targetDir, 'rev-parse', '--verify', '--quiet', `refs/remotes/${ref}`],
+        {
+          stdio: 'ignore',
+        },
+      )
       return ref
     } catch {
       // ref absent (or no git) — try the next candidate.
