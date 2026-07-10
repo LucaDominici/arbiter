@@ -191,4 +191,45 @@ describe('safeApplyFromSnippet', () => {
     const s = safeApplyFromSnippet(dir, 'gradle/pitest.gradle')
     expect(s?.kts).toBe('apply(from = "gradle/pitest.gradle")')
   })
+
+  // #1898: brownfield-inline idempotency — a project may already configure
+  // spotless/spotbugs directly in its root build (its own authoring, or a
+  // pre-#1890 arbiter run before config moved into the root managed block).
+  it('withholds wiring when the root build already configures the tooling inline (#1898)', () => {
+    writeFileSync(join(dir, 'build.gradle.kts'), 'spotless {\n    java { }\n}\n')
+    writeFileSync(join(dir, 'spotless.gradle'), 'spotless {\n    java { }\n}\n')
+    const s = safeApplyFromSnippet(dir, 'spotless.gradle', {
+      rootBuildSignatures: [/(?:^|\n)[ \t]*spotless\s*\{/],
+    })
+    expect(s).toBeNull()
+  })
+
+  it('still wires the script when rootBuildSignatures are given but none match', () => {
+    writeFileSync(join(dir, 'build.gradle.kts'), 'plugins {\n    java\n}\n')
+    writeFileSync(join(dir, 'spotless.gradle'), 'spotless {\n    java { }\n}\n')
+    const s = safeApplyFromSnippet(dir, 'spotless.gradle', {
+      rootBuildSignatures: [/(?:^|\n)[ \t]*spotless\s*\{/],
+    })
+    expect(s).not.toBeNull()
+  })
+
+  it('withholds wiring when the script imports a plugin-provided class (pre-#1890 shape, #1898)', () => {
+    // Verified empirically on a real brownfield repo: an applied Groovy script
+    // cannot resolve com.github.spotbugs.snom.Effort — script-plugin classloader
+    // isolation — so a relic file from before #1890 crashes the build the
+    // instant it is applied: "unable to resolve class ...Effort".
+    writeFileSync(
+      join(dir, 'spotbugs.gradle'),
+      'import com.github.spotbugs.snom.Effort\n\nspotbugs {\n    effort = Effort.MAX\n}\n',
+    )
+    expect(safeApplyFromSnippet(dir, 'spotbugs.gradle')).toBeNull()
+  })
+
+  it('withholds a com.diffplug import the same way', () => {
+    writeFileSync(
+      join(dir, 'spotless.gradle'),
+      'import com.diffplug.spotless.FormatterStep\n\nspotless { }\n',
+    )
+    expect(safeApplyFromSnippet(dir, 'spotless.gradle')).toBeNull()
+  })
 })

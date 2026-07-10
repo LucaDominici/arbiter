@@ -70,6 +70,16 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+/** `readFileSync` that returns `null` instead of throwing (absent/unreadable path). */
+function readFileOrNull(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf-8')
+    // FAIL-OPEN-INTENT: caller treats null as "signature absent" (a soft, advisory check) — an unreadable path must not throw out of the read-only apply-from guard.
+  } catch {
+    return null
+  }
+}
+
 /** Root build script: prefer Kotlin DSL when both exist (rare; single-file expected). */
 export function findRootBuildFile(targetDir: string): string | null {
   for (const name of ['build.gradle.kts', 'build.gradle']) {
@@ -213,15 +223,35 @@ function ensureSnippets(content: string, dsl: GradleDsl, snippets: GradleSnippet
   return `${content.replace(/\n*$/, '')}\n\n${MARKER_BEGIN}\n${body}\n${MARKER_END}\n`
 }
 
+export interface SafeApplyFromOptions {
+  /**
+   * When ANY of these match the ROOT build's on-disk content, the standalone
+   * script is withheld: the tooling it would wire is already configured
+   * INLINE (brownfield authored it directly, or a pre-#1890 arbiter run did
+   * before config blocks moved into the root managed block). Applying the
+   * standalone script on top would duplicate that config at best — and, if the
+   * on-disk script still carries the pre-#1890 shape (see the import guard
+   * below), turn a dormant relic into a hard build failure at worst (#1898).
+   */
+  rootBuildSignatures?: RegExp[]
+}
+
 /**
  * `apply(from = <relPath>)` snippet, or `null` when wiring would BREAK the build:
- * the applied script is absent, or still carries a `plugins {}` block (the
- * pre-fix template shape — Gradle rejects the plugins DSL in applied scripts, so
- * pointing the root build at such a file turns a dormant scaffold into a hard
- * build failure). A user-modified script is withheld from template fixes
- * (#1344), so this guard re-checks the ON-DISK content, not the template.
+ * the applied script is absent, still carries a `plugins {}` block, still
+ * imports a plugin-provided class, or the root build already configures the
+ * same tooling inline (see `SafeApplyFromOptions`) — all pre-fix template
+ * shapes or brownfield states Gradle cannot reconcile with `apply from:`
+ * (script-plugin classloader isolation forbids the plugins DSL AND import of
+ * plugin classes in applied scripts). A user-modified script is withheld from
+ * template fixes (#1344), so this guard re-checks the ON-DISK content, not the
+ * template.
  */
-export function safeApplyFromSnippet(targetDir: string, relPath: string): GradleSnippet | null {
+export function safeApplyFromSnippet(
+  targetDir: string,
+  relPath: string,
+  opts: SafeApplyFromOptions = {},
+): GradleSnippet | null {
   const scriptPath = join(targetDir, relPath)
   if (!existsSync(scriptPath)) return null
   let script: string
@@ -239,6 +269,38 @@ export function safeApplyFromSnippet(targetDir: string, relPath: string): Gradle
         `forbids in applied scripts. Remove the block (or re-generate via arbiter update) and re-run.`,
     )
     return null
+  }
+  // Pre-#1890 template shape: extension config (SpotBugs Effort/Confidence,
+  // e.g.) lived in the applied script and imported its enum types directly.
+  // Script-plugin classloader isolation means such an import can NEVER resolve
+  // in an applied script (verified empirically, Gradle 8.8) — a relic file
+  // from before #1890 crashes the build the instant it is applied:
+  // "unable to resolve class ...Effort" (confirmed on a real brownfield repo,
+  // #1898).
+  if (/(?:^|\n)[ \t]*import[ \t]+(?:com\.github\.spotbugs|com\.diffplug)\b/.test(script)) {
+    getLogger().warn(
+      'gradle.apply_from_withheld',
+      { path: scriptPath },
+      `gradle wiring: NOT applying ${relPath} — it still imports a plugin-provided class, which ` +
+        `Gradle cannot resolve inside an applied script (classloader isolation). Delete the file ` +
+        `(its config now lives inline in the root build via arbiter update) or remove the import.`,
+    )
+    return null
+  }
+  if (opts.rootBuildSignatures?.length) {
+    const rootBuildFile = findRootBuildFile(targetDir)
+    // FAIL-OPEN-INTENT: root build absent/unreadable — cannot confirm inline config is present, but the plugins{}/import guards above already covered the known-unsafe shapes, so fall through rather than withhold on an unrelated read error.
+    const rootContent = rootBuildFile ? readFileOrNull(rootBuildFile) : null
+    if (rootContent !== null && opts.rootBuildSignatures.some((sig) => sig.test(rootContent))) {
+      getLogger().warn(
+        'gradle.apply_from_withheld',
+        { path: scriptPath },
+        `gradle wiring: NOT applying ${relPath} — the root build already configures this tooling ` +
+          `inline (brownfield). Remove the inline block first if you want arbiter to manage it via ` +
+          `${relPath} instead, then re-run arbiter update.`,
+      )
+      return null
+    }
   }
   return {
     signature: new RegExp(`apply[^\\n]*["']${escapeRegExp(relPath)}["']`),

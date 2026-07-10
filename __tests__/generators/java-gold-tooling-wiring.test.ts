@@ -95,6 +95,55 @@ describe('java gold tooling wiring (#1835-class)', () => {
       expect(build).toContain("id 'checkstyle'")
     })
 
+    // #1898: confirmed on a real brownfield repo (onboarded before #1890) — the
+    // root build already authored spotless {} / spotbugs {} directly (its own
+    // brownfield wiring, predating the managed-block redesign). Re-wiring via
+    // apply(from=...) on top duplicated that config and, whenever a pre-#1890
+    // relic script was still on disk (see the next test), broke the build
+    // outright.
+    it('withholds apply(from=...) for spotless/spotbugs when already configured inline', () => {
+      writeFileSync(
+        join(dir, 'build.gradle'),
+        [
+          "plugins { id 'java' }",
+          '',
+          'spotless {',
+          "    java { googleJavaFormat('1.22.0').aosp() }",
+          '}',
+          '',
+          'spotbugs {',
+          '    ignoreFailures = true', // brownfield ratchet — must survive untouched
+          '}',
+          '',
+        ].join('\n'),
+      )
+      generateDebtGates(javaGradleConfig(dir))
+      const build = readFileSync(join(dir, 'build.gradle'), 'utf-8')
+      expect(build).not.toContain("apply from: 'spotless.gradle'")
+      expect(build).not.toContain("apply from: 'spotbugs.gradle'")
+      expect(build.match(/ignoreFailures = true/g)).toHaveLength(1)
+      // Everything NOT already configured inline (checkstyle/pmd plugins +
+      // config, which this fixture omits) is still filled in.
+      expect(build).toContain("id 'checkstyle'")
+      expect(build).toContain("id 'pmd'")
+    })
+
+    it('withholds apply(from=...) for a pre-#1890 relic script even without inline config', () => {
+      // The exact crash confirmed on ripme: a relic spotbugs.gradle from
+      // before #1890 still imports the plugin's enum type directly — script-
+      // plugin classloader isolation means that import can never resolve in an
+      // applied script ("unable to resolve class ...Effort").
+      writeFileSync(
+        join(dir, 'spotbugs.gradle'),
+        'import com.github.spotbugs.snom.Effort\n\nspotbugs {\n    effort = Effort.MAX\n}\n',
+      )
+      generateDebtGates(javaGradleConfig(dir))
+      const build = readFileSync(join(dir, 'build.gradle'), 'utf-8')
+      expect(build).not.toContain("apply from: 'spotbugs.gradle'")
+      // spotless.gradle is untouched by this fixture, so it still wires normally.
+      expect(build).toContain("apply from: 'spotless.gradle'")
+    })
+
     it('emits checkstyle.xml with the mandatory DOCTYPE (checkstyle rejects it otherwise)', () => {
       generateDebtGates(javaGradleConfig(dir))
       const xml = readFileSync(join(dir, 'config', 'checkstyle.xml'), 'utf-8')
@@ -177,6 +226,20 @@ describe('java gold tooling wiring (#1835-class)', () => {
       } finally {
         cleanupTestProject(springDir)
       }
+    })
+
+    // #1898: brownfield may already declare the archunit coordinate directly
+    // (its own wiring, predating arbiter's generated deps file). Gradle
+    // tolerates the duplicate, but the injector should not introduce it.
+    it('withholds apply(from=...) when the archunit coordinate is already declared inline', () => {
+      writeFileSync(
+        join(dir, 'build.gradle'),
+        "plugins { id 'java' }\n\ndependencies {\n    testImplementation 'com.tngtech.archunit:archunit-junit5:1.3.0'\n}\n",
+      )
+      generateArchUnit(javaGradleConfig(dir, { architectureStyle: 'none' }))
+      const build = readFileSync(join(dir, 'build.gradle'), 'utf-8')
+      expect(build).not.toContain("apply from: 'gradle/arch-test-deps.gradle'")
+      expect(build.match(/com\.tngtech\.archunit:archunit-junit5/g)).toHaveLength(1)
     })
   })
 
