@@ -61,8 +61,8 @@ function readOpenLog(gitRoot: string): OpenLogEntry[] {
     const raw: unknown = JSON.parse(readFileSync(logPath, 'utf-8'))
     if (!Array.isArray(raw)) return []
     return raw.filter(isOpenLogEntry)
+    // FAIL-OPEN-INTENT: corrupt open-log yields an EMPTY candidate set (reaper closes nothing it cannot prove)
   } catch {
-    // Corrupt log: nothing provable to prune — fail-closed empty set.
     return []
   }
 }
@@ -74,6 +74,7 @@ function lastCommitIso(branch: string, gitRoot: string): string | null {
       cwd: gitRoot,
     }).stdout.trim()
     return out.length > 0 ? out : null
+    // FAIL-OPEN-INTENT: unreadable ref → null → caller surfaces a 'branch-missing' skip; guessing a date would risk reaping
   } catch {
     return null
   }
@@ -114,6 +115,7 @@ export function detectPruneCandidates(opts: DetectPruneOptions): {
     let merged = false
     try {
       merged = branchFullyMerged(entry.branch, entry.baseBranch, opts.gitRoot, false)
+      // FAIL-OPEN-INTENT: merged-check failed (unknown ref) — surfaced as a 'branch-missing' skip, never a candidate
     } catch {
       skipped.push({ taskId: entry.taskId, reason: 'branch-missing' })
       continue
@@ -214,6 +216,7 @@ export function runWorktreePrune(opts: WorktreePruneOptions = {}): void {
           ...(c.reason === 'inactive' ? { force: true, keepBranch: true } : {}),
         })
         closedIds.push(c.taskId)
+        // FAIL-OPEN-INTENT: per-candidate isolation — error surfaced in failed[] (printed + rethrown after the loop)
       } catch (err) {
         failed.push({ taskId: c.taskId, error: err instanceof Error ? err.message : String(err) })
       }

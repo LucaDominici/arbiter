@@ -173,6 +173,7 @@ function materializeChildren(sourcePath: string, destPath: string, specPath: str
 function lstatSync2IsLink(path: string): boolean {
   try {
     return lstatSync(path).isSymbolicLink()
+    // FAIL-OPEN-INTENT: ENOENT probe — an absent entry is not a symlink; caller creates the missing child link
   } catch {
     return false
   }
