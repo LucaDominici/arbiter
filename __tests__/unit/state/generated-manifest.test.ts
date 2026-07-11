@@ -8,6 +8,7 @@ import {
   loadGeneratedManifest,
   saveGeneratedManifest,
   loadUnwiredGuards,
+  loadWithheldSafety,
   manifestKey,
 } from '../../../src/state/generated-manifest.js'
 import { FatalError } from '../../../src/utils/errors.js'
@@ -132,6 +133,67 @@ describe('generated-manifest', () => {
       saveGeneratedManifest(dir, files, ['scripts/check-anti-fake-green.mjs'])
       // The files map still loads cleanly (the honest section does not break it).
       expect(loadGeneratedManifest(dir)).toEqual(files)
+    })
+  })
+
+  describe('withheldSafety honest-status section (T1, mirrors unwiredGuards)', () => {
+    const files = { '.claude/hooks/stop-dangerous.mjs': 'a'.repeat(64) }
+
+    it('records withheld safety-class files as a distinct honest section, sorted+deduped', () => {
+      saveGeneratedManifest(
+        dir,
+        files,
+        [],
+        [
+          '.claude/hooks/stop-dangerous.mjs',
+          '.claude/hooks/enforce-read-only.mjs',
+          '.claude/hooks/enforce-read-only.mjs', // dup
+        ],
+      )
+      expect(loadWithheldSafety(dir)).toEqual([
+        '.claude/hooks/enforce-read-only.mjs',
+        '.claude/hooks/stop-dangerous.mjs',
+      ])
+      expect(loadGeneratedManifest(dir)['.claude/hooks/stop-dangerous.mjs']).toBeDefined()
+    })
+
+    it('omits the section entirely when there is no gap (clean manifest stays byte-identical)', () => {
+      saveGeneratedManifest(dir, files)
+      const raw = readFileSync(join(dir, GENERATED_MANIFEST_FILE), 'utf-8')
+      expect(raw).not.toContain('withheldSafety')
+      expect(loadWithheldSafety(dir)).toEqual([])
+    })
+
+    it('clears a previously-recorded gap once the file is re-adopted (empty list omits the section)', () => {
+      saveGeneratedManifest(dir, files, [], ['.claude/hooks/stop-dangerous.mjs'])
+      expect(loadWithheldSafety(dir)).toHaveLength(1)
+      saveGeneratedManifest(dir, files, [], [])
+      expect(loadWithheldSafety(dir)).toEqual([])
+    })
+
+    it('missing manifest → empty withheldSafety list (no false positive)', () => {
+      expect(loadWithheldSafety(dir)).toEqual([])
+    })
+
+    it('malformed withheldSafety (non-string array) fails CLOSED, never silently dropped', () => {
+      writeFileSync(
+        join(dir, GENERATED_MANIFEST_FILE),
+        JSON.stringify({ $schemaVersion: 1, files: {}, withheldSafety: [42] }),
+        'utf-8',
+      )
+      expect(() => loadWithheldSafety(dir)).toThrow(FatalError)
+      expect(() => loadGeneratedManifest(dir)).toThrow(FatalError)
+    })
+
+    it('unwiredGuards and withheldSafety coexist independently in the same manifest', () => {
+      saveGeneratedManifest(
+        dir,
+        files,
+        ['scripts/check-anti-fake-green.mjs'],
+        ['.claude/hooks/stop-dangerous.mjs'],
+      )
+      expect(loadUnwiredGuards(dir)).toEqual(['scripts/check-anti-fake-green.mjs'])
+      expect(loadWithheldSafety(dir)).toEqual(['.claude/hooks/stop-dangerous.mjs'])
     })
   })
 

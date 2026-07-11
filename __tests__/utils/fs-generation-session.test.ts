@@ -139,4 +139,93 @@ describe('fs generation session (#1328 hash-aware skipIfExists)', () => {
   it('endGenerationSession with no active session returns empty and does not throw', () => {
     expect(endGenerationSession()).toEqual({})
   })
+
+  describe('T1: force-adopt (adoptPredicate/onAdopt)', () => {
+    it('adoptPredicate matches → force-writes over user-modified content (adopted:true)', () => {
+      const p = join(dir, 'hook.mjs')
+      writeFileSync(p, 'USER-EDITED')
+      const onAdopt = vi.fn()
+      beginGenerationSession({
+        targetDir: dir,
+        prevHashes: { 'hook.mjs': sha('ARBITER-OLD-RENDER') },
+        adoptPredicate: () => true,
+        onAdopt,
+      })
+      const r = writeFile(p, 'ARBITER-NEW-RENDER', { skipIfExists: true })
+      expect(r.action).toBe('replaced')
+      expect(r.withheld).toBe(true)
+      expect(r.adopted).toBe(true)
+      expect(readFileSync(p, 'utf-8')).toBe('ARBITER-NEW-RENDER')
+      expect(onAdopt).toHaveBeenCalledWith('hook.mjs', 'USER-EDITED', 'ARBITER-NEW-RENDER')
+      endGenerationSession()
+    })
+
+    it('adoptPredicate returns false → falls back to the normal withheld/preserve path', () => {
+      const p = join(dir, 'hook.mjs')
+      writeFileSync(p, 'USER-EDITED')
+      const onAdopt = vi.fn()
+      const warn = vi.fn()
+      beginGenerationSession({
+        targetDir: dir,
+        prevHashes: { 'hook.mjs': sha('ARBITER-OLD-RENDER') },
+        adoptPredicate: () => false,
+        onAdopt,
+        onWithheld: warn,
+      })
+      const r = writeFile(p, 'ARBITER-NEW-RENDER', { skipIfExists: true })
+      expect(r.action).toBe('skipped')
+      expect(r.adopted).toBeUndefined()
+      expect(readFileSync(p, 'utf-8')).toBe('USER-EDITED')
+      expect(onAdopt).not.toHaveBeenCalled()
+      expect(warn).toHaveBeenCalledOnce()
+      endGenerationSession()
+    })
+
+    it('force-adopt re-baselines the manifest hash to the newly-adopted content', () => {
+      const p = join(dir, 'hook.mjs')
+      writeFileSync(p, 'USER-EDITED')
+      beginGenerationSession({
+        targetDir: dir,
+        prevHashes: { 'hook.mjs': sha('ARBITER-OLD-RENDER') },
+        adoptPredicate: () => true,
+      })
+      writeFile(p, 'ARBITER-NEW-RENDER', { skipIfExists: true })
+      const recorded = endGenerationSession()
+      expect(recorded['hook.mjs']).toBe(sha('ARBITER-NEW-RENDER'))
+    })
+
+    it('adoptPredicate never fires on a pristine file (no adoption needed, no false onAdopt)', () => {
+      const p = join(dir, 'scripts', 'check-all.mjs')
+      writeFile(p, 'OLD-RENDER')
+      const onAdopt = vi.fn()
+      beginGenerationSession({
+        targetDir: dir,
+        prevHashes: { 'scripts/check-all.mjs': sha('OLD-RENDER') },
+        adoptPredicate: () => true,
+        onAdopt,
+      })
+      const r = writeFile(p, 'NEW-RENDER', { skipIfExists: true })
+      expect(r.action).toBe('replaced')
+      expect(r.adopted).toBeUndefined() // pristine propagation, not an adoption
+      expect(onAdopt).not.toHaveBeenCalled()
+      endGenerationSession()
+    })
+
+    it('dryRun + adopt: classifies as adopted but writes nothing (plan mode)', () => {
+      const p = join(dir, 'hook.mjs')
+      writeFileSync(p, 'USER-EDITED')
+      const onAdopt = vi.fn()
+      beginGenerationSession({
+        targetDir: dir,
+        prevHashes: { 'hook.mjs': sha('ARBITER-OLD-RENDER') },
+        adoptPredicate: () => true,
+        onAdopt,
+      })
+      const r = writeFile(p, 'ARBITER-NEW-RENDER', { skipIfExists: true, dryRun: true })
+      expect(r.adopted).toBe(true)
+      expect(readFileSync(p, 'utf-8')).toBe('USER-EDITED') // untouched
+      expect(onAdopt).toHaveBeenCalledOnce() // still reported, for the plan preview
+      endGenerationSession()
+    })
+  })
 })

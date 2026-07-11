@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { resolve, basename, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, FatalError } from '../utils/errors.js'
-import { beginGenerationSession, endGenerationSession, type WriteResult } from '../utils/fs.js'
+import {
+  beginGenerationSession,
+  endGenerationSession,
+  writeFileTranslated,
+  type WriteResult,
+} from '../utils/fs.js'
 import {
   loadGeneratedManifest,
   saveGeneratedManifest,
   manifestKey,
 } from '../state/generated-manifest.js'
+import { isSafetyClassKey } from '../generators/safety-class.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
@@ -39,6 +46,111 @@ export interface UpdateOptions {
   json?: boolean | undefined
   /** Override adverse git state check (detached HEAD, rebase, merge, etc.). Emits warning then continues. */
   force?: boolean
+  /**
+   * T1 (anti-erosion): force-adopt ALL currently-withheld `skipIfExists` files
+   * (not only safety-class ones), each recorded as a reversible local-override.
+   * Safety-class files (`.claude/hooks/*.mjs`) are adopted by default already
+   * (see `noAdoptSafety`) — this flag broadens adoption to every other
+   * withheld file too.
+   */
+  adopt?: boolean
+  /**
+   * T1: opt OUT of the default-on safety-class adoption. Safety-class files
+   * normally adopt regardless of `adopt` — this is the explicit escape hatch
+   * for a user who deliberately wants even a safety hook frozen. Named
+   * negatively (mirrors commander's `--no-*` convention) so the SAFE default
+   * (adopt) requires no flag at all.
+   */
+  noAdoptSafety?: boolean
+  /**
+   * T1 (two-phase plan/apply): compute and print what `--adopt`/the default
+   * safety-class adoption WOULD change — file list + diff — without writing
+   * anything (config, manifest, generated files all untouched). Read-only.
+   */
+  adoptPlan?: boolean
+}
+
+/** One captured adopt decision: a withheld file that the adopt predicate matched. */
+export interface AdoptRecord {
+  /** targetDir-relative, posix-normalized path. */
+  key: string
+  /** The user-modified content that was on disk before adoption. */
+  priorContent: string
+  /** The shipped template content that replaced it (or would, in plan mode). */
+  newContent: string
+}
+
+function sha256(content: string): string {
+  return createHash('sha256').update(content).digest('hex')
+}
+
+/**
+ * Build the T1 adopt predicate from CLI flags. Safety-class files
+ * (`.claude/hooks/*.mjs`) adopt by default — `noAdoptSafety` is the only way
+ * to freeze one deliberately. `adopt` broadens to every withheld file.
+ * Exported for unit testing independent of the filesystem.
+ */
+export function buildAdoptPredicate(options: UpdateOptions): (key: string) => boolean {
+  const adoptAll = options.adopt === true
+  const adoptSafety = options.noAdoptSafety !== true
+  return (key: string): boolean => adoptAll || (adoptSafety && isSafetyClassKey(key))
+}
+
+/**
+ * Persist an explicit, reversible local-override record for a force-adopted
+ * file (T1). Deliberately human-inspectable JSON, not a stray `.arbiter-
+ * backup` sibling: both the prior (user-modified) and new (shipped) content
+ * are stored verbatim so the adoption is fully reversible without re-running
+ * arbiter or digging through git history.
+ */
+function localOverrideSlug(key: string): string {
+  return key.replace(/^\.+/, '').replace(/[/\\]+/g, '__')
+}
+
+export function recordLocalOverride(
+  targetDir: string,
+  record: AdoptRecord,
+  now: () => Date = () => new Date(),
+): string {
+  const dir = join(targetDir, '.arbiter', 'evidence', 'local-overrides')
+  mkdirSync(dir, { recursive: true })
+  const envelope = {
+    path: record.key,
+    adoptedAt: now().toISOString(),
+    reason:
+      'update --adopt: template fix force-adopted over user-modified content ' +
+      '(safety-class files adopt by default; see --no-adopt-safety)',
+    priorContent: record.priorContent,
+    priorContentSha256: sha256(record.priorContent),
+    newContent: record.newContent,
+    newContentSha256: sha256(record.newContent),
+  }
+  const file = join(dir, `${localOverrideSlug(record.key)}.json`)
+  writeFileTranslated(file, JSON.stringify(envelope, null, 2) + '\n')
+  return file
+}
+
+/**
+ * The targetDir-relative, posix-normalized keys of safety-class files that
+ * are STILL withheld (user-modified, not adopted) after this run. Normally
+ * empty (safety-class adopts by default); non-empty only when adoption was
+ * explicitly disabled (`--no-adopt-safety`) or could not be recorded. This is
+ * exactly the list `check-safety-adopt-ratchet.mjs` fails on. Exported for
+ * unit testing the pure decision.
+ */
+export function withheldSafetyKeys(results: WriteResult[], targetDir: string): string[] {
+  return results
+    .filter((r) => r.withheld === true && r.adopted !== true)
+    .map((r) => manifestKey(targetDir, r.path))
+    .filter((k): k is string => k !== null && isSafetyClassKey(k))
+}
+
+/** targetDir-relative keys of files force-adopted during this run (reporting). */
+export function adoptedKeys(results: WriteResult[], targetDir: string): string[] {
+  return results
+    .filter((r) => r.withheld === true && r.adopted === true)
+    .map((r) => manifestKey(targetDir, r.path))
+    .filter((k): k is string => k !== null)
 }
 
 export interface UpdateResult {
@@ -51,7 +163,9 @@ function printStats(results: WriteResult[]): void {
   const skipped = results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length
   // #1344: withheld files ARE skipped (preserved), but surface them separately so
   // the operator sees template fixes that did not land, not just a "skipped" lump.
-  const withheld = results.filter((r) => r.withheld === true).length
+  // T1: a force-adopted file (`adopted: true`) is NOT still withheld — it landed —
+  // so it is excluded here (reported instead via the separate adoption notice).
+  const withheld = results.filter((r) => r.withheld === true && r.adopted !== true).length
   process.stdout.write(`${t('cli.update.done', { created, replaced, skipped, withheld })}\n`)
 }
 
@@ -153,6 +267,7 @@ function selectAndRun(
   specs: ReturnType<typeof buildRegistry>,
   snapshot: ArbiterConfigV2 | null,
   stored: ArbiterConfigV2,
+  dryRun: boolean,
 ): {
   results: WriteResult[]
   keysRun: Set<GeneratorKey | '*'> | null
@@ -161,7 +276,7 @@ function selectAndRun(
   const errors: GeneratorFailure[] = []
   if (!snapshot) {
     return {
-      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun }),
       keysRun: null,
       errors,
     }
@@ -170,7 +285,7 @@ function selectAndRun(
   if (diff.paths.length === 0) {
     process.stdout.write(`${t('cli.update.no_config_changes')}\n`)
     return {
-      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun }),
       keysRun: null,
       errors,
     }
@@ -180,17 +295,23 @@ function selectAndRun(
     const reason = keys.size === 0 ? 'Unknown config change' : 'Governance/axis change'
     process.stdout.write(`${t('cli.update.reason_regen', { reason })}\n`)
     return {
-      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun }),
       keysRun: keys,
       errors,
     }
   }
   process.stdout.write(`${t('cli.update.selective', { count: keys.size })}\n`)
   return {
-    results: runGeneratorsSelective(specs, keys, errors, { dryRun: false }),
+    results: runGeneratorsSelective(specs, keys, errors, { dryRun }),
     keysRun: keys,
     errors,
   }
+}
+
+/** T1: the adopt-policy hooks threaded into a generation session. */
+interface AdoptOpts {
+  adoptPredicate: (key: string) => boolean
+  onAdopt: (key: string, priorContent: string, newContent: string) => void
 }
 
 /**
@@ -200,16 +321,28 @@ function selectAndRun(
  * warned), then persist the merged manifest. Persistence happens HERE — before
  * `saveConfigAndSnapshot`/`runPlugins` — so `arbiter.json`/`.arbiter-generated.json`
  * and plugin-written files never become manifest keys (A1/A6).
+ *
+ * T1: also threads the adopt policy (`adoptOpts`) into the session, so a
+ * withheld safety-class (or, with `--adopt`, any) file is force-adopted
+ * rather than preserved, and records the still-withheld safety-class set into
+ * the manifest's honest `withheldSafety` section (mirrors #1504's
+ * `unwiredGuards` pattern) for `check-safety-adopt-ratchet.mjs` to read.
  */
 function selectAndRunWithManifest(
   specs: ReturnType<typeof buildRegistry>,
   snapshot: ArbiterConfigV2 | null,
   stored: ArbiterConfigV2,
   targetDir: string,
+  adoptOpts: AdoptOpts,
 ): ReturnType<typeof selectAndRun> {
   const prevManifest = loadGeneratedManifest(targetDir)
-  beginGenerationSession({ targetDir, prevHashes: prevManifest })
-  const out = selectAndRun(specs, snapshot, stored)
+  beginGenerationSession({
+    targetDir,
+    prevHashes: prevManifest,
+    adoptPredicate: adoptOpts.adoptPredicate,
+    onAdopt: adoptOpts.onAdopt,
+  })
+  const out = selectAndRun(specs, snapshot, stored, false)
   const generatedHashes = endGenerationSession()
   // #1504 (M1): record any delivered-but-unwired guard scripts (check-all withheld)
   // as an HONEST status in the manifest — re-derived every update so wiring the
@@ -217,8 +350,88 @@ function selectAndRunWithManifest(
   // guard that never runs as "delivered protection" (the exact fake-green this wave
   // exists to kill). Mirrors the post-update warning surfaced in runUpdate.
   const unwired = unwiredGuardKeys(out.results, targetDir)
-  saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes }, unwired)
+  const stillWithheldSafety = withheldSafetyKeys(out.results, targetDir)
+  saveGeneratedManifest(
+    targetDir,
+    { ...prevManifest, ...generatedHashes },
+    unwired,
+    stillWithheldSafety,
+  )
   return out
+}
+
+/**
+ * T1 (two-phase plan/apply — `update --adopt-plan`): compute what adoption
+ * WOULD change, with zero mutation. Reuses the exact same decision path as
+ * the real run (dryRun:true means `resolveWriteAction` still classifies and
+ * invokes `onAdopt`, but `writeFile`'s side-effect block never touches disk),
+ * so plan and apply can never independently drift on "what would be adopted".
+ */
+function runAdoptPlan(
+  specs: ReturnType<typeof buildRegistry>,
+  snapshot: ArbiterConfigV2 | null,
+  stored: ArbiterConfigV2,
+  targetDir: string,
+  adoptPredicate: (key: string) => boolean,
+): AdoptRecord[] {
+  const prevManifest = loadGeneratedManifest(targetDir)
+  const collected: AdoptRecord[] = []
+  beginGenerationSession({
+    targetDir,
+    prevHashes: prevManifest,
+    adoptPredicate,
+    onAdopt: (key, priorContent, newContent) => collected.push({ key, priorContent, newContent }),
+  })
+  try {
+    selectAndRun(specs, snapshot, stored, true)
+  } finally {
+    endGenerationSession()
+  }
+  return collected
+}
+
+/** Minimal built-in line diff (no dependency): lines present only on one side. */
+function summarizeDiff(
+  priorContent: string,
+  newContent: string,
+): { removed: number; added: number } {
+  const oldLines = priorContent.split('\n')
+  const newLines = newContent.split('\n')
+  const oldSet = new Map<string, number>()
+  for (const l of oldLines) oldSet.set(l, (oldSet.get(l) ?? 0) + 1)
+  const newSet = new Map<string, number>()
+  for (const l of newLines) newSet.set(l, (newSet.get(l) ?? 0) + 1)
+  let removed = 0
+  for (const [line, count] of oldSet) removed += Math.max(0, count - (newSet.get(line) ?? 0))
+  let added = 0
+  for (const [line, count] of newSet) added += Math.max(0, count - (oldSet.get(line) ?? 0))
+  return { removed, added }
+}
+
+function printAdoptPlan(records: AdoptRecord[], json: boolean | undefined): void {
+  if (json) {
+    jsonOutput('update', 'ok', {
+      adoptPlan: records.map((r) => ({
+        path: r.key,
+        ...summarizeDiff(r.priorContent, r.newContent),
+      })),
+    })
+    return
+  }
+  if (records.length === 0) {
+    process.stdout.write(
+      '\n  adopt-plan: nothing to adopt (no withheld file matches the adopt policy).\n',
+    )
+    return
+  }
+  process.stdout.write(`\n  adopt-plan: ${records.length} file(s) would be adopted:\n`)
+  for (const r of records) {
+    const { removed, added } = summarizeDiff(r.priorContent, r.newContent)
+    process.stdout.write(
+      `    - ${r.key}  (-${removed} +${added} lines vs. current on-disk content)\n`,
+    )
+  }
+  process.stdout.write('  Re-run without --adopt-plan to apply. Nothing was written.\n')
 }
 
 /**
@@ -311,6 +524,10 @@ interface UpdateSummary extends Record<string, unknown> {
   skipped: number
   /** #1344: skipIfExists files whose template fix was withheld (user-modified). */
   withheld: number
+  /** T1: withheld files force-adopted this run (template fix landed anyway). */
+  adopted: number
+  /** T1: safety-class files still withheld (adoption disabled) — the ratchet fails on this. */
+  withheldSafety: number
 }
 
 /**
@@ -368,6 +585,74 @@ function emitUpdateOutcome(
   process.stdout.write(`${t('cli.update.verify_hint')}\n`)
 }
 
+/**
+ * T1: compute + (in text mode) print the adoption outcome. Adoption is loud,
+ * never buried in a generic "skipped" count — an erosion fix that lands over
+ * user-modified content is exactly the event this tranche exists to make
+ * visible. Extracted from {@link runUpdate} to keep it within the lint budget
+ * (max-lines-per-function 100, complexity 15, CANON-22).
+ */
+function reportAdoption(
+  results: WriteResult[],
+  targetDir: string,
+  json: boolean | undefined,
+): { adopted: string[]; stillWithheldSafety: string[] } {
+  const adopted = adoptedKeys(results, targetDir)
+  if (!json && adopted.length > 0) {
+    process.stdout.write(
+      `\n  Adopted ${adopted.length} safety-class/withheld file(s) (template fix landed over ` +
+        `user-modified content; prior content preserved in .arbiter/evidence/local-overrides/):\n` +
+        adopted.map((k) => `    - ${k}\n`).join(''),
+    )
+  }
+  const stillWithheldSafety = withheldSafetyKeys(results, targetDir)
+  if (!json && stillWithheldSafety.length > 0) {
+    process.stderr.write(
+      `\n  Warning: ${stillWithheldSafety.length} safety-class file(s) remain withheld ` +
+        `(user-modified, adoption disabled via --no-adopt-safety): ${stillWithheldSafety.join(', ')}\n` +
+        `  \`scripts/check-safety-adopt-ratchet.mjs\` will FAIL until these are re-adopted.\n`,
+    )
+  }
+  return { adopted, stillWithheldSafety }
+}
+
+/**
+ * Resolve the project info + next-config for an update run (project
+ * detection, axis fields, the soloDevMode migration, the merged nextConfig).
+ * Extracted from {@link runUpdate} to keep it within the lint budget
+ * (max-lines-per-function 100, CANON-22).
+ */
+function prepareUpdateConfig(
+  targetDir: string,
+  projectName: string,
+  stored: ArbiterConfigV2,
+  options: UpdateOptions,
+  log: (msg: string) => void,
+): {
+  config: ProjectConfig
+  specs: ReturnType<typeof buildRegistry>
+  snapshot: ArbiterConfigV2 | null
+  nextConfig: ArbiterConfigV2
+} {
+  const { config, specs, axisFields } = detectProjectInfo(
+    targetDir,
+    projectName,
+    stored,
+    options,
+    log,
+  )
+  const snapshot = loadSnapshot(targetDir)
+  log('\n  Updating...')
+
+  // ADR-051: migrate soloDevMode → collaborationMode on first update after upgrade.
+  const needsMigration = stored.features.soloDevMode === true && !stored.collaborationMode
+  if (needsMigration) {
+    log("  Migrating soloDevMode=true → collaborationMode='trunk-solo' (ADR-051)")
+  }
+  const nextConfig = buildNextConfig(stored, axisFields, config.language, needsMigration)
+  return { config, specs, snapshot, nextConfig }
+}
+
 function handleAdverseState(
   adverseState: ReturnType<typeof detectAdverseGitState>,
   force: boolean | undefined,
@@ -415,7 +700,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
     handleAdverseState(detectAdverseGitState(targetDir), options.force)
 
-    const { config, specs, axisFields } = detectProjectInfo(
+    const { config, specs, snapshot, nextConfig } = prepareUpdateConfig(
       targetDir,
       projectName,
       stored,
@@ -423,15 +708,22 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       log,
     )
 
-    const snapshot = loadSnapshot(targetDir)
-    log('\n  Updating...')
-
-    // ADR-051: migrate soloDevMode → collaborationMode on first update after upgrade.
-    const needsMigration = stored.features.soloDevMode === true && !stored.collaborationMode
-    if (needsMigration) {
-      log("  Migrating soloDevMode=true → collaborationMode='trunk-solo' (ADR-051)")
+    // T1 (two-phase plan/apply): --adopt-plan is fully read-only — compute what
+    // would be adopted and stop before ANY write (config, manifest, generated
+    // files, plugins, GitHub calls). Never reaches saveConfigAndSnapshot.
+    const adoptPredicate = buildAdoptPredicate(options)
+    if (options.adoptPlan) {
+      const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, adoptPredicate)
+      printAdoptPlan(plan, options.json)
+      return { keysRun: null }
     }
-    const nextConfig = buildNextConfig(stored, axisFields, config.language, needsMigration)
+
+    // T1: force-adopt matches (safety-class by default, or --adopt for all)
+    // land here over user-modified content; each is recorded as an explicit,
+    // reversible local-override BEFORE it can be reported as adopted.
+    const onAdopt = (key: string, priorContent: string, newContent: string): void => {
+      recordLocalOverride(targetDir, { key, priorContent, newContent })
+    }
 
     // #1328: registry run bracketed by a generation session (manifest persisted
     // BEFORE saveConfigAndSnapshot/runPlugins — A1/A6). See selectAndRunWithManifest.
@@ -439,7 +731,10 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       results,
       keysRun,
       errors: generatorErrors,
-    } = selectAndRunWithManifest(specs, snapshot, nextConfig, targetDir)
+    } = selectAndRunWithManifest(specs, snapshot, nextConfig, targetDir, {
+      adoptPredicate,
+      onAdopt,
+    })
     const pluginResults = await runPlugins(
       targetDir,
       Array.isArray(stored.plugins) ? stored.plugins : [],
@@ -451,6 +746,8 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       printResults(results, targetDir)
       printStats(results)
     }
+
+    const { adopted, stillWithheldSafety } = reportAdoption(results, targetDir, options.json)
 
     const backendResult = runGithubSetup(config, log)
 
@@ -490,7 +787,9 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       created: results.filter((r) => r.action === 'created').length,
       updated: results.filter((r) => r.action === 'backed-up-and-replaced').length,
       skipped: results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length,
-      withheld: results.filter((r) => r.withheld === true).length,
+      withheld: results.filter((r) => r.withheld === true && r.adopted !== true).length,
+      adopted: adopted.length,
+      withheldSafety: stillWithheldSafety.length,
     }
     emitUpdateOutcome(options, summary, generatorErrors, allWarnings)
 

@@ -43,6 +43,21 @@ interface GeneratedManifestV1 {
    * manifests stay byte-identical — no fleet-wide churn).
    */
   unwiredGuards?: string[]
+  /**
+   * T1 (convergence playbook): targetDir-relative paths of safety-class files
+   * (`.claude/hooks/*.mjs`) that are CURRENTLY WITHHELD — user-modified, so
+   * the last `update` preserved them rather than landing the shipped fix.
+   *
+   * Recorded on every `update`/`init` run, mirroring {@link unwiredGuards}'s
+   * honest-status shape: with `--adopt-safety` on (the default) this list is
+   * normally empty because the divergence is closed at write-time; it is
+   * non-empty only when adoption was explicitly disabled
+   * (`--no-adopt-safety`) or the file could not be adopted. The ratchet gate
+   * (`check-safety-adopt-ratchet.mjs`) reads this list and FAILS when it is
+   * non-empty — the erosion this section exists to make visible can no
+   * longer hide behind a silent "skipped".
+   */
+  withheldSafety?: string[]
 }
 
 /**
@@ -122,6 +137,34 @@ export function loadUnwiredGuards(dir: string): string[] {
   return parsed.unwiredGuards ?? []
 }
 
+/**
+ * Read the honest currently-withheld-safety-class list (T1). Same fail-closed
+ * load path as {@link loadGeneratedManifest} / {@link loadUnwiredGuards}: a
+ * corrupt/wrong-shape manifest THROWS rather than masking the gap. This is
+ * what `check-safety-adopt-ratchet.mjs` calls.
+ */
+export function loadWithheldSafety(dir: string): string[] {
+  const path = join(dir, GENERATED_MANIFEST_FILE)
+  if (!existsSync(path)) return []
+  const raw = readFileSync(path, 'utf-8')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    throw new FatalError(
+      'E_MANIFEST_CORRUPT',
+      `${GENERATED_MANIFEST_FILE} is present but unparseable (${err instanceof Error ? err.message : String(err)}).`,
+    )
+  }
+  if (!isManifestShape(parsed)) {
+    throw new FatalError(
+      'E_MANIFEST_SHAPE',
+      `${GENERATED_MANIFEST_FILE} has an invalid shape or unsupported $schemaVersion.`,
+    )
+  }
+  return parsed.withheldSafety ?? []
+}
+
 function isManifestShape(v: unknown): v is GeneratedManifestV1 {
   if (typeof v !== 'object' || v === null) return false
   const obj = v as Record<string, unknown>
@@ -139,6 +182,13 @@ function isManifestShape(v: unknown): v is GeneratedManifestV1 {
   if (unwired !== undefined) {
     if (!Array.isArray(unwired) || !unwired.every((s) => typeof s === 'string')) return false
   }
+  // T1: same malformed-fails-closed contract as unwiredGuards — a bad
+  // withheldSafety must not be silently dropped (that would re-hide erosion).
+  const withheldSafety = obj['withheldSafety']
+  if (withheldSafety !== undefined) {
+    if (!Array.isArray(withheldSafety) || !withheldSafety.every((s) => typeof s === 'string'))
+      return false
+  }
   return true
 }
 
@@ -153,6 +203,7 @@ export function saveGeneratedManifest(
   dir: string,
   files: Record<string, string>,
   unwiredGuards: string[] = [],
+  withheldSafety: string[] = [],
 ): void {
   const path = join(dir, GENERATED_MANIFEST_FILE)
   // Codepoint order, NOT `localeCompare`: the manifest is a committed, deterministically
@@ -166,6 +217,12 @@ export function saveGeneratedManifest(
   // list is re-derived every update, so wiring the gate later clears it.
   if (unwiredGuards.length > 0) {
     envelope.unwiredGuards = [...new Set(unwiredGuards)].sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    )
+  }
+  // T1: same re-derived-every-update, omit-when-empty contract as unwiredGuards.
+  if (withheldSafety.length > 0) {
+    envelope.withheldSafety = [...new Set(withheldSafety)].sort((a, b) =>
       a < b ? -1 : a > b ? 1 : 0,
     )
   }

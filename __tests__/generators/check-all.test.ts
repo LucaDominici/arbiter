@@ -26,7 +26,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 23 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + 4 file-scan guards) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
+  it('emits exactly 25 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + safety-adopt-ratchet (T1) + 4 file-scan guards) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -45,10 +45,14 @@ describe('generateCheckAll', () => {
     // + check-muted-test.mjs + check-skip-critical-e2e.mjs + check-no-stub-redirects.mjs
     //   + check-grace-window.mjs (anti-fake-green file-scan guards, A5, #1497)
     // + muted-tests-baseline.json (brownfield grandfathering for check-muted-test, #1835-class)
+    // + check-safety-adopt-ratchet.mjs (T1, anti-erosion ratchet — convergence playbook)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(24)
+    expect(result.files).toHaveLength(25)
+    expect(
+      result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
+    ).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-todo-max-age.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/verify-module-coverage.mjs'))).toBe(
       true,

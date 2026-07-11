@@ -151,6 +151,15 @@ export interface WriteResult {
    * to land.
    */
   reason?: 'not-applicable'
+  /**
+   * T1 (convergence playbook, `update --adopt`): true when a would-be-withheld
+   * `skipIfExists` file was FORCE-ADOPTED instead — the session's
+   * `adoptPredicate` matched, so the shipped fix was written over the
+   * user-modified content rather than preserved. `withheld` stays `true`
+   * alongside this flag (the file WAS diverged) so callers can tell "diverged
+   * and now re-adopted" from "never diverged" without inspecting two runs.
+   */
+  adopted?: boolean
 }
 
 export type GeneratorRunOpts = { dryRun: boolean }
@@ -171,6 +180,22 @@ interface GenerationSession {
   newHashes: Map<string, string>
   /** Test/observability seam: invoked when a fix is withheld from a file. */
   onWithheld?: (key: string) => void
+  /**
+   * T1: when a `skipIfExists` file would be withheld (user-modified), this
+   * predicate decides whether to force-adopt it instead (write the shipped
+   * content over the user-modified one) rather than preserve it. Domain-
+   * agnostic on purpose — `fs.ts` has no notion of "safety-class"; the caller
+   * (`update.ts`) supplies the policy so this shared, heavily-depended-on
+   * module stays a generic file-write primitive.
+   */
+  adoptPredicate?: (key: string) => boolean
+  /**
+   * T1: invoked AFTER a force-adopt actually lands on disk, with the prior
+   * (user-modified) content and the newly-written (shipped) content. The
+   * caller uses this to persist an explicit, reversible local-override record
+   * — adoption must never silently discard what the user had.
+   */
+  onAdopt?: (key: string, priorContent: string, newContent: string) => void
 }
 
 let generationSession: GenerationSession | null = null
@@ -192,6 +217,8 @@ export function beginGenerationSession(opts: {
   targetDir: string
   prevHashes: Record<string, string>
   onWithheld?: (key: string) => void
+  adoptPredicate?: (key: string) => boolean
+  onAdopt?: (key: string, priorContent: string, newContent: string) => void
 }): void {
   if (generationSession !== null) {
     throw new Error(
@@ -206,6 +233,8 @@ export function beginGenerationSession(opts: {
     prevHashes: new Map(Object.entries(opts.prevHashes)),
     newHashes: new Map(),
     ...(opts.onWithheld ? { onWithheld: opts.onWithheld } : {}),
+    ...(opts.adoptPredicate ? { adoptPredicate: opts.adoptPredicate } : {}),
+    ...(opts.onAdopt ? { onAdopt: opts.onAdopt } : {}),
   }
 }
 
@@ -253,6 +282,8 @@ interface ResolvedWrite {
   baselineMatches: boolean
   /** #1344: true when a skipIfExists template fix is withheld from a user-modified file. */
   withheld: boolean
+  /** T1: true when a would-be-withheld file was force-adopted instead. */
+  adopted: boolean
 }
 
 /**
@@ -264,19 +295,66 @@ interface ResolvedWrite {
  *   2. exists + byte-identical content          → skipped (baselineMatches; idempotent)
  *   3. exists + skipIfExists + session + pristine (sha256(disk)==prevHash) + differs
  *                                               → replaced (propagate fix, #1328; baselineMatches)
- *   4. exists + skipIfExists (no session | unknown | user-modified)
+ *   4. exists + skipIfExists + session + user-modified/unknown + adoptPredicate matches
+ *                                               → replaced/backed-up-and-replaced (T1
+ *                                                  force-adopt; baselineMatches; withheld+adopted)
+ *   5. exists + skipIfExists (no session | unknown | user-modified, no adopt)
  *                                               → skipped, NOT baselineMatches (+ withheld warn
  *                                                  when a session knows)
- *   5. exists + backup                          → backed-up-and-replaced (baselineMatches)
- *   6. exists                                   → replaced (baselineMatches)
+ *   6. exists + backup                          → backed-up-and-replaced (baselineMatches)
+ *   7. exists                                   → replaced (baselineMatches)
  */
+/**
+ * The `skipIfExists` branch of {@link resolveWriteAction} when a generation
+ * session is active and the on-disk content is readable — extracted to keep
+ * the parent function's cyclomatic complexity within the lint ceiling
+ * (CANON-22). Handles cases 3/4/5 of the precedence table above.
+ */
+function resolveSessionSkip(
+  session: GenerationSession,
+  filePath: string,
+  content: string,
+  disk: string,
+  backup: boolean,
+): ResolvedWrite {
+  const key = manifestKey(session.targetDir, filePath)
+  const prev = key === null ? undefined : session.prevHashes.get(key)
+  if (prev !== undefined && sha256(disk) === prev) {
+    // Pristine: unmodified since arbiter generated it → safe to rewrite.
+    return {
+      action: backup ? 'backed-up-and-replaced' : 'replaced',
+      baselineMatches: true,
+      withheld: false,
+      adopted: false,
+    }
+  }
+  // User-modified or unknown provenance.
+  const withheldKey = key ?? filePath
+  if (session.adoptPredicate?.(withheldKey)) {
+    // T1: force-adopt — the shipped fix lands over the user-modified
+    // content. The caller (update.ts) is responsible for persisting a
+    // reversible local-override record with `disk` (prior content).
+    session.onAdopt?.(withheldKey, disk, content)
+    return {
+      action: backup ? 'backed-up-and-replaced' : 'replaced',
+      baselineMatches: true,
+      withheld: true,
+      adopted: true,
+    }
+  }
+  // Not adopted → preserve + surface the withheld fix (unchanged #1344 path).
+  ;(session.onWithheld ?? defaultWithheldWarn)(withheldKey)
+  return { action: 'skipped', baselineMatches: false, withheld: true, adopted: false }
+}
+
 function resolveWriteAction(
   filePath: string,
   content: string,
   skipIfExists: boolean,
   backup: boolean,
 ): ResolvedWrite {
-  if (!existsSync(filePath)) return { action: 'created', baselineMatches: true, withheld: false }
+  if (!existsSync(filePath))
+    return { action: 'created', baselineMatches: true, withheld: false, adopted: false }
   // Single read: null = unreadable (treat as exists-but-unknown → legacy-safe).
   let disk: string | null
   try {
@@ -285,34 +363,20 @@ function resolveWriteAction(
     disk = null
   }
   if (disk !== null && disk === content)
-    return { action: 'skipped', baselineMatches: true, withheld: false }
+    return { action: 'skipped', baselineMatches: true, withheld: false, adopted: false }
 
   if (skipIfExists) {
-    let withheld = false
     const session = generationSession
-    if (session && disk !== null) {
-      const key = manifestKey(session.targetDir, filePath)
-      const prev = key === null ? undefined : session.prevHashes.get(key)
-      if (prev !== undefined && sha256(disk) === prev) {
-        // Pristine: unmodified since arbiter generated it → safe to rewrite.
-        return {
-          action: backup ? 'backed-up-and-replaced' : 'replaced',
-          baselineMatches: true,
-          withheld: false,
-        }
-      }
-      // User-modified or unknown provenance → preserve + surface the withheld fix.
-      withheld = true
-      const withheldKey = key ?? filePath
-      ;(session.onWithheld ?? defaultWithheldWarn)(withheldKey)
-    }
-    return { action: 'skipped', baselineMatches: false, withheld }
+    if (session && disk !== null)
+      return resolveSessionSkip(session, filePath, content, disk, backup)
+    return { action: 'skipped', baselineMatches: false, withheld: false, adopted: false }
   }
 
   return {
     action: backup ? 'backed-up-and-replaced' : 'replaced',
     baselineMatches: true,
     withheld: false,
+    adopted: false,
   }
 }
 
@@ -343,7 +407,7 @@ export function writeFile(
   opts: { skipIfExists?: boolean; backup?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
   const { skipIfExists = false, backup = false, dryRun = false } = opts
-  const { action, baselineMatches, withheld } = resolveWriteAction(
+  const { action, baselineMatches, withheld, adopted } = resolveWriteAction(
     filePath,
     content,
     skipIfExists,
@@ -363,8 +427,11 @@ export function writeFile(
   // Record the baseline ONLY when disk == content (created/replaced/byte-identical)
   // and the side effect actually ran (never on dryRun — diff must not record a hash
   // for content that did not land — and never on a withheld skip, which would poison
-  // the baseline; see recordGeneratedHash).
+  // the baseline; see recordGeneratedHash). An adopted write DOES land (baselineMatches
+  // is true for it, dryRun permitting), so a force-adopt re-baselines the manifest to
+  // the newly-adopted content — the next update sees it as pristine again.
   if (!dryRun && baselineMatches) recordGeneratedHash(filePath, content)
+  if (withheld && adopted) return { path: filePath, action, withheld: true, adopted: true }
   // Only attach the flag when true so non-withheld results keep their stable
   // `{ path, action }` shape (snapshot/JSON parity for the common case).
   return withheld ? { path: filePath, action, withheld: true } : { path: filePath, action }

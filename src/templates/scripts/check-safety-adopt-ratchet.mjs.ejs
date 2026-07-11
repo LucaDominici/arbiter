@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// T1 (convergence playbook, anti-erosion ratchet): a safety-class file
+// (`.claude/hooks/*.mjs`) that is STILL withheld — user-modified, and NOT
+// re-adopted — is exactly the silent-erosion case this gate exists to catch
+// (e.g. a `stop-dangerous.mjs` fix shipped upstream while the target repo's
+// modified copy never received it). `arbiter update` adopts safety-class
+// files by default (see --no-adopt-safety); this gate is the monotonic
+// backstop for the escape hatch — a divergence can never hide, it can only be
+// re-adopted or explicitly accepted (gate stays red until then).
+// Usage: node scripts/check-safety-adopt-ratchet.mjs [--manifest=<path>]
+
+import { readFileSync, existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+function resolveManifestPath(args) {
+  const flag = args.find((a) => a.startsWith('--manifest='))
+  if (flag) return resolve(flag.slice('--manifest='.length))
+  return resolve(process.cwd(), '.arbiter-generated-manifest.json')
+}
+
+try {
+  const manifestPath = resolveManifestPath(process.argv.slice(2))
+
+  if (!existsSync(manifestPath)) {
+    // No manifest yet (pre-first-update project) — nothing to ratchet against.
+    process.stdout.write('[safety-adopt-ratchet] no generated manifest yet — SKIP\n')
+    process.exit(0)
+  }
+
+  let manifest
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  } catch {
+    process.stderr.write(`[safety-adopt-ratchet] Failed to parse ${manifestPath}\n`)
+    process.exit(1)
+  }
+
+  const withheldSafety = Array.isArray(manifest.withheldSafety) ? manifest.withheldSafety : []
+
+  if (withheldSafety.length === 0) {
+    process.stdout.write('[safety-adopt-ratchet] no withheld safety-class files — OK\n')
+    process.exit(0)
+  }
+
+  process.stderr.write(
+    `[safety-adopt-ratchet] ${withheldSafety.length} safety-class file(s) are withheld ` +
+      `(user-modified, template fix did NOT land):\n`,
+  )
+  for (const key of withheldSafety) {
+    process.stderr.write(`  - ${key}\n`)
+  }
+  process.stderr.write(
+    `  Erosion detected: a governance/safety hook has silently diverged from the shipped\n` +
+      `  template. Run \`arbiter update --adopt-safety\` (the default) to re-adopt it, or\n` +
+      `  \`arbiter update --adopt-plan\` to preview the diff first. If this divergence is\n` +
+      `  intentional, it must be a documented, dated exception — not a silent skip.\n`,
+  )
+  process.exit(1)
+} catch (err) {
+  process.stderr.write(
+    `[safety-adopt-ratchet] Unexpected error: ${err instanceof Error ? err.message : String(err)}\n`,
+  )
+  process.exit(1)
+}

@@ -651,18 +651,48 @@ program
   )
   .option('--json', 'Emit machine-readable JSON output', false)
   .option('--force', 'Override adverse git state check (detached HEAD, rebase, etc.)', false)
-  .action(async (opts: { dir?: string; github: boolean; json: boolean; force: boolean }) => {
-    if (_channelFlag !== undefined) {
-      const config = loadConfig(opts.dir ?? '.')
-      await confirmChannelDowngrade(_channelFlag as ReleaseChannel, config?.channel)
-    }
-    await runUpdate({
-      dir: opts.dir,
-      github: opts.github,
-      json: opts.json,
-      force: opts.force,
-    })
-  })
+  .option(
+    '--adopt',
+    'Force-adopt ALL currently-withheld files (not just safety-class), recording a ' +
+      'reversible local-override for each. Safety-class files adopt by default already.',
+    false,
+  )
+  .option(
+    '--no-adopt-safety',
+    'Opt OUT of the default-on safety-class adoption (.claude/hooks/*.mjs). Leaves a ' +
+      'user-modified safety hook frozen even if the shipped template fixed it — dangerous.',
+  )
+  .option(
+    '--adopt-plan',
+    'Two-phase preview: print what --adopt/the default safety adoption WOULD change ' +
+      '(file list + line diff), without writing anything.',
+    false,
+  )
+  .action(
+    async (opts: {
+      dir?: string
+      github: boolean
+      json: boolean
+      force: boolean
+      adopt: boolean
+      adoptSafety: boolean
+      adoptPlan: boolean
+    }) => {
+      if (_channelFlag !== undefined) {
+        const config = loadConfig(opts.dir ?? '.')
+        await confirmChannelDowngrade(_channelFlag as ReleaseChannel, config?.channel)
+      }
+      await runUpdate({
+        dir: opts.dir,
+        github: opts.github,
+        json: opts.json,
+        force: opts.force,
+        adopt: opts.adopt,
+        noAdoptSafety: !opts.adoptSafety,
+        adoptPlan: opts.adoptPlan,
+      })
+    },
+  )
 
 program
   .command('configure')

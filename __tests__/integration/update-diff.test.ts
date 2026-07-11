@@ -77,7 +77,12 @@ describe('arbiter update', () => {
     expect(readFileSync(agentsPath + '.arbiter-backup', 'utf-8')).toBe('user-edited AGENTS.md\n')
   })
 
-  it('update preserves existing hooks', async () => {
+  // T1 (convergence playbook, anti-erosion): `.claude/hooks/*.mjs` are safety-
+  // class — they now ADOPT by default instead of freezing a customization
+  // forever (the exact erosion case this tranche exists to kill). See the
+  // full red-path coverage in `__tests__/integration/update-adopt.test.ts`.
+  // This supersedes the old "update preserves existing hooks" expectation.
+  it('update ADOPTS a customized safety-class hook by default (T1 anti-erosion)', async () => {
     const hookPath = join(dir, '.claude', 'hooks', 'stop-dangerous.mjs')
     const original = readFileSync(hookPath, 'utf-8')
 
@@ -87,7 +92,20 @@ describe('arbiter update', () => {
     await runUpdate({ dir, github: false })
 
     const after = readFileSync(hookPath, 'utf-8')
-    expect(after).toContain('# Custom modification')
+    expect(after).not.toContain('# Custom modification')
+    expect(after).toBe(original)
+  })
+
+  it('update preserves an existing customization on a NON-safety-class skipIfExists file', async () => {
+    const filePath = join(dir, 'scripts', 'check-collab-mode-wired.mjs')
+    const original = readFileSync(filePath, 'utf-8')
+
+    writeFileSync(filePath, original + '\n// Custom modification', 'utf-8')
+
+    await runUpdate({ dir, github: false })
+
+    const after = readFileSync(filePath, 'utf-8')
+    expect(after).toContain('// Custom modification')
   })
 
   it('update regenerates experimental tool files when present in config (cursor/copilot)', async () => {

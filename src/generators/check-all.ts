@@ -213,6 +213,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-grace-window.mjs'],
     tpl: 'scripts/check-grace-window.mjs.ejs',
   },
+  // T1 (convergence playbook): anti-erosion ratchet — fails when a safety-class
+  // file (.claude/hooks/*.mjs) is still withheld (user-modified, not re-adopted).
+  // Reads .arbiter-generated-manifest.json's withheldSafety section (update.ts).
+  // Wired at L1 in check-all.mjs.ejs (safety hooks exist from L1 upward).
+  {
+    rel: ['scripts', 'check-safety-adopt-ratchet.mjs'],
+    tpl: 'scripts/check-safety-adopt-ratchet.mjs.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

@@ -31,8 +31,8 @@
   },
   {
     "file": "commands/update.ts",
-    "line": 378,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') \u2014 no hardcoded English literal remains"
+    "line": 663,
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') \u2014 no hardcoded English literal remains. Line shifted 378\u2192663 by the T1 adopt/ratchet additions (convergence playbook)."
   },
   {
     "file": "commands/init.ts",
