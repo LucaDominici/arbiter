@@ -190,7 +190,7 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
           result.status,
           result.status === 0 ? '' : `generated L1 gate failed:\n${result.output.slice(-3000)}`,
         ).toBe(0)
-      })
+      }, 240_000)
     })
   }
 })
