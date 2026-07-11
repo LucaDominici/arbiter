@@ -30,5 +30,15 @@ export function generateFeatureMatrix(
     { skipIfExists: true, dryRun: opts.dryRun },
   )
 
-  return { files: [result] }
+  // #1887-B: the emitted doc's own comment promises "The gate
+  // (check-feature-matrix.mjs) validates the committed matrix on every gate
+  // run" — but that gate was never emitted into the target project (only
+  // arbiter's own internal copy existed). Fulfill the promise.
+  const gate = writeFile(
+    resolvedPath(base, 'scripts', 'check-feature-matrix.mjs'),
+    renderTemplate('scripts/check-feature-matrix.mjs.ejs', data),
+    { skipIfExists: true, dryRun: opts.dryRun },
+  )
+
+  return { files: [result, gate] }
 }

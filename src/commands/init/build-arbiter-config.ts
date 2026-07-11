@@ -163,6 +163,25 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       fiveLaneCi: config.enableFiveLaneCi === true,
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       soloDevMode: config.enableSoloDevMode === true,
+      // #1887-A: pure round-trip-drop bugs — the recipe schema + generators already
+      // honour these ProjectConfig fields on fresh init; persisting them here is what
+      // lets `arbiter update`/`diff` keep honouring the same choice instead of
+      // silently reverting to the default on the next re-resolution.
+      mcpFallback: config.enableMcpFallback === true,
+      noSkippedTests: config.enableNoSkippedTests !== false,
+      // #1887-A: compliance doc-pack — set only by applyPreset('industrial-grade');
+      // persisting them here is what lets `arbiter update`/`diff` keep the
+      // risk-register/compliance/operations generators enabled post-preset.
+      riskRegister: config.enableRiskRegister === true,
+      operationsHandbook: config.enableOperationsHandbook === true,
+      iso27001Mapping: config.enableIso27001Mapping === true,
+      nis2Mapping: config.enableNis2Mapping === true,
+      gdprMapping: config.enableGdprMapping === true,
+      // #1887-A: same round-trip-drop class — generators built, gated on the
+      // ProjectConfig field, but no public activation path until now.
+      codeownersNotify: config.enableCodeownersNotify === true,
+      taxonomy25d: config.enableTaxonomy25d === true,
+      perfTesting: config.enablePerfTesting === true,
     },
     ...buildCollaborationOverrides(config),
     thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],

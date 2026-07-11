@@ -64,6 +64,10 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
       { path: 'features.contractTesting', label: 'Contract testing' },
       { path: 'features.evidenceHarness', label: 'Evidence harness' },
       { path: 'features.soloDevMode', label: 'Solo dev mode (deprecated)' },
+      // #1887-A: activation path for 3 previously-unreachable opt-in generators.
+      { path: 'features.codeownersNotify', label: 'CODEOWNERS post-merge email notify (L2+)' },
+      { path: 'features.taxonomy25d', label: '26-dimension compliance test taxonomy' },
+      { path: 'features.perfTesting', label: 'k6 performance testing ecosystem' },
     ],
   },
   {

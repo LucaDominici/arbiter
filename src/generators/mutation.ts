@@ -83,7 +83,14 @@ export function generateMutation(
     modulePath: config.projectName.replace(/-/g, '_'),
   }
 
-  const files: WriteResult[] = []
+  const files: WriteResult[] = [
+    // #1887-C: the per-stack setup doc — written already, never rendered.
+    writeFile(
+      resolvedPath(targetDir, 'docs', 'mutation', 'README.md'),
+      renderTemplate('mutation/README.md.ejs', data),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+  ]
 
   if (shouldEmit('java', language, acceptBetaTools)) {
     files.push(emitJavaMutation(targetDir, config.buildTool, data, opts.dryRun))

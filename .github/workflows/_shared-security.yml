@@ -33,6 +33,7 @@ jobs:
           target: 'http://localhost:8080'
           fail_action: false
           artifact_name: zap-full-report
+          cmd_options: '-J zap-report.json'
       - name: Stop application
         if: always()
         run: docker compose down

@@ -152,14 +152,16 @@ describe('build-matrix.mjs', () => {
     }
   })
 
-  it('produces 110 entries for the real fixture set', () => {
+  it('produces 111 entries for the real fixture set', () => {
     // Updated in #1732: +4 (java-spring-L4 fixture × 4 levels L1/L2/L3/L4, closing the
     // L4 matrix gap) on top of the prior 106-entry baseline.
+    // Updated in #1885: +1 (ts-codex-only fixture × 1 level L1 — the codex-only
+    // materialization bake cell) on top of the 110-entry baseline.
     const fixturesDir = resolve('__tests__/fixtures/real-projects')
     const result = run(fixturesDir)
     expect(result.status).toBe(0)
     const line = result.stdout.split('\n').find((l) => l.startsWith('matrix='))
     const json = JSON.parse(line!.replace('matrix=', ''))
-    expect(json.include).toHaveLength(110)
+    expect(json.include).toHaveLength(111)
   })
 })

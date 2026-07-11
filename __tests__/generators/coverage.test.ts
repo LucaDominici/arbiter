@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateCoverage } from '../../src/generators/coverage.js'
@@ -130,6 +130,104 @@ describe('generateCoverage', () => {
     expect(result.files.some((f) => f.path.endsWith('jacoco-maven-setup.md'))).toBe(true)
     expect(existsSync(join(javaDir, 'docs', 'coverage', 'jacoco-maven-setup.md'))).toBe(true)
     cleanupTestProject(javaDir)
+  })
+
+  // #1887-F: gradle/jacoco.gradle was emitted but never wired into the root
+  // build — the same class of ghost as #1886 (modulith-deps.gradle). Mirrors
+  // modulith.test.ts's "dependency wiring (#1886)" describe block.
+  describe('gradle/jacoco.gradle wiring (#1887-F)', () => {
+    it('wires gradle/jacoco.gradle into the root build via apply(from=...)', () => {
+      const javaDir = createTestProject('java')
+      initGit(javaDir)
+      const config = makeConfig(javaDir, {
+        language: 'java',
+        buildTool: 'gradle',
+        enableDebtGates: true,
+      })
+      generateCoverage(config)
+      const build = readFileSync(join(javaDir, 'build.gradle'), 'utf-8')
+      expect(build).toContain("apply from: 'gradle/jacoco.gradle'")
+      cleanupTestProject(javaDir)
+    })
+
+    it('withholds the apply-from when the root build already configures jacoco {} inline', () => {
+      const javaDir = createTestProject('java')
+      initGit(javaDir)
+      writeFileSync(
+        join(javaDir, 'build.gradle'),
+        'plugins { id "java" }\n\njacoco {\n    toolVersion = \'0.8.7\'\n}\n',
+      )
+      const config = makeConfig(javaDir, {
+        language: 'java',
+        buildTool: 'gradle',
+        enableDebtGates: true,
+      })
+      generateCoverage(config)
+      const build = readFileSync(join(javaDir, 'build.gradle'), 'utf-8')
+      expect(build).not.toContain("apply from: 'gradle/jacoco.gradle'")
+      cleanupTestProject(javaDir)
+    })
+
+    it('does not crash when no Gradle build script exists yet', () => {
+      const javaDir = createTestProject('typescript')
+      initGit(javaDir)
+      const config = makeConfig(javaDir, {
+        language: 'java',
+        buildTool: 'gradle',
+        enableDebtGates: true,
+      })
+      expect(() => generateCoverage(config)).not.toThrow()
+      cleanupTestProject(javaDir)
+    })
+  })
+
+  // ── Kotlin ─────────────────────────────────────────────────────────────────
+
+  describe('kover.gradle wiring (#1887-F)', () => {
+    it('declares the kover plugin in the root plugins block and wires kover.gradle', () => {
+      const kotlinDir = createTestProject('java')
+      initGit(kotlinDir)
+      const config = makeConfig(kotlinDir, {
+        language: 'kotlin',
+        buildTool: 'gradle',
+        enableDebtGates: true,
+      })
+      generateCoverage(config)
+      const build = readFileSync(join(kotlinDir, 'build.gradle'), 'utf-8')
+      expect(build).toMatch(/id 'org\.jetbrains\.kotlinx\.kover' version '\d/)
+      expect(build).toContain("apply from: 'kover.gradle'")
+      cleanupTestProject(kotlinDir)
+    })
+
+    it('withholds the apply-from when the root build already configures kover {} inline', () => {
+      const kotlinDir = createTestProject('java')
+      initGit(kotlinDir)
+      writeFileSync(
+        join(kotlinDir, 'build.gradle'),
+        'plugins { id "java" }\n\nkover {\n    reports {}\n}\n',
+      )
+      const config = makeConfig(kotlinDir, {
+        language: 'kotlin',
+        buildTool: 'gradle',
+        enableDebtGates: true,
+      })
+      generateCoverage(config)
+      const build = readFileSync(join(kotlinDir, 'build.gradle'), 'utf-8')
+      expect(build).not.toContain("apply from: 'kover.gradle'")
+      cleanupTestProject(kotlinDir)
+    })
+
+    it('does not crash when no Gradle build script exists yet', () => {
+      const kotlinDir = createTestProject('typescript')
+      initGit(kotlinDir)
+      const config = makeConfig(kotlinDir, {
+        language: 'kotlin',
+        buildTool: 'gradle',
+        enableDebtGates: true,
+      })
+      expect(() => generateCoverage(config)).not.toThrow()
+      cleanupTestProject(kotlinDir)
+    })
   })
 
   // ── Rust ───────────────────────────────────────────────────────────────────

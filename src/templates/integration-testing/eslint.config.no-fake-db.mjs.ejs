@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0
+// Flat ESLint config for the `no-fake-db imports` gate (INV-34, #1887-D). Run in
+// isolation by check-all.mjs via `eslint --config eslint.config.no-fake-db.mjs
+// --no-config-lookup` so it enforces ONLY this prohibition, independent of your
+// main eslint.config.mjs — mirrors eslint.config.static.mjs's precedent. ESLint
+// v9+ flat config: the legacy `.eslintrc-no-fake-db.json` cannot be loaded this
+// way (eslintrc support was removed in v9, deleted in v10) and is retained only
+// for tooling that still reads it.
+import tseslint from 'typescript-eslint'
+
+export default [
+  {
+    files: [
+      '**/*.test.ts',
+      '**/*.spec.ts',
+      '**/*.test.tsx',
+      '**/*.spec.tsx',
+      'src/test/**/*.ts',
+      '__tests__/**/*.ts',
+    ],
+    languageOptions: {
+      parser: tseslint.parser,
+      ecmaVersion: 2022,
+      sourceType: 'module',
+    },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'sqlite3',
+              message:
+                'Use Testcontainers + PostgreSQL for integration tests (INV-34). sqlite3 is banned in test files.',
+            },
+            {
+              name: 'better-sqlite3',
+              message:
+                'Use Testcontainers + PostgreSQL for integration tests (INV-34). better-sqlite3 is banned in test files.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+]
