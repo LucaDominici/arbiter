@@ -673,9 +673,9 @@ Any `.arbiter/` mutator must take a process-bound exclusive lock keyed by bootId
 
 ---
 
-### INV-107: docs/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync
+### INV-107: docs/internal/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync
 
-Every numbered ADR file in `docs/ADR/` must have a unique number and a populated `canonical_id`, and the README index must list it. `docs/ADR/` is the single source for architectural decisions.
+Every numbered ADR file in `docs/internal/ADR/` must have a unique number and a populated `canonical_id`, and the README index must list it. `docs/internal/ADR/` is the single source for architectural decisions.
 
 **Enforcement:** scripts/check-adr-index.mjs (unique numbers, canonical_id match, README in sync)
 

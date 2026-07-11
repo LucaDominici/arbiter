@@ -36,7 +36,7 @@ When documents conflict, higher level wins. No debate.
 
 ```
 Level 1:  AGENTS.md — invariants + governance (this file)
-Level 2:  ADRs (docs/ADR/) — architectural decisions
+Level 2:  ADRs (docs/internal/ADR/) — architectural decisions
 Level 3:  docs/SYSTEM/CANON.md — process constraints
 Level 4:  Active task plan (.claude/plans/*.md) — task-level guidance
 Level 5:  AI judgment — last resort
@@ -216,7 +216,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-85:** No kit source leakage — committed kit files must not contain employer-specific tokens
 - **INV-86:** Kit catalog parity
   - Enforced by `scripts/check-kit-catalog-parity.mjs` (L1 gate)
-  - Architecture: see `docs/ADR/045-kit-taxonomy.md` (ADR-045)
+  - Architecture: see `docs/internal/ADR/045-kit-taxonomy.md` (ADR-045)
 
 ## Local-Wrapper Parity (INV-87)
 
@@ -294,7 +294,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ Generated `scripts/verify-i18n-parity.mjs` + `scripts/i18n-literal-scanner.mjs` (L2, frontend-spa and frontend-lane projects)
   - In FE projects, all locale JSON files must contain the same set of translation keys. Raw UI text literals in component source are also flagged. Mirrors P6 of FE_DESIGN_PRINCIPLES.
 
-- **INV-107:** docs/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync
+- **INV-107:** docs/internal/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync
   - _Enforcement:_ `scripts/check-adr-index.mjs` (L1, selfOnly — arbiter self-governance only)
 
 - **INV-108:** SSOT core set exhaustiveness — every qualifying doc must be listed
@@ -529,7 +529,7 @@ Security gates run as L2+ hard requirements. PII scan is HARD (no grace period) 
 
 arbiter uses a detect-and-reference posture with other Claude Code skill suites. See [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) for the legal stance, attribution rules, and how to add a new skill to the matrix.
 
-**Companion plugins (#1730, ADR-100 — `docs/ADR/100-companion-plugin-awareness.md`).** The same posture extends into the ship orchestrator: a companion registered in the skills matrix with a companion policy (first-class: **ponytail**, a YAGNI drafting persona) is detected home-only and composed into the green implementation phase on product repos, with each step announcing the active companions. It stays off on arbiter-self and is capped below the test-skipping ultra mode; when none is installed the orchestrator behaves exactly as before. arbiter detects and composes rather than vendoring companion code, and the gates stay authoritative. Full policy: ADR-100.
+**Companion plugins (#1730, ADR-100 — `docs/internal/ADR/100-companion-plugin-awareness.md`).** The same posture extends into the ship orchestrator: a companion registered in the skills matrix with a companion policy (first-class: **ponytail**, a YAGNI drafting persona) is detected home-only and composed into the green implementation phase on product repos, with each step announcing the active companions. It stays off on arbiter-self and is capped below the test-skipping ultra mode; when none is installed the orchestrator behaves exactly as before. arbiter detects and composes rather than vendoring companion code, and the gates stay authoritative. Full policy: ADR-100.
 
 ---
 

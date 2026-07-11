@@ -38,7 +38,7 @@ export interface Invariant {
   enforcement?: string
   /**
    * Optional ADR id this invariant traces to, e.g. "ADR-051". When set, the
-   * referenced ADR file MUST exist under docs/ADR/ — enforced by the
+   * referenced ADR file MUST exist under docs/internal/ADR/ — enforced by the
    * invariant↔ADR traceability test (#1102), giving a machine-checked
    * catalog→ADR cross-reference.
    */

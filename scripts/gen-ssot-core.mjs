@@ -10,7 +10,7 @@
 // Selection rule ("canonical, no dupes", #1100): a doc qualifies iff
 //   status: active
 //   AND (first kind/* tag is a backbone kind OR canonical_id is non-empty)
-//   AND kind is not 'adr'            (ADRs are owned by INV-107 / docs/ADR/)
+//   AND kind is not 'adr'            (ADRs are owned by INV-107 / docs/internal/ADR/)
 //   AND it is not a generated dim-NN coverage stub (regenerated from src/kit/catalog on demand)
 // Distinct from docs/INDEX.md (#1102), which is the FULL map of every doc; this
 // is the curated canonical spine.

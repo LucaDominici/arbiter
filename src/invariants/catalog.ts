@@ -1757,11 +1757,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     selfOnly: true,
     alwaysActive: true,
     title:
-      'docs/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync',
+      'docs/internal/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync',
     description:
-      'Every numbered ADR file in docs/ADR/ must have canonical_id set to its 3-digit ' +
-      'filename prefix, ADR numbers must be unique across all files, and docs/ADR/README.md ' +
-      'must list every numbered ADR file. docs/SYSTEM/DECISIONS.md is frozen legacy and ' +
+      'Every numbered ADR file in docs/internal/ADR/ must have canonical_id set to its 3-digit ' +
+      'filename prefix, ADR numbers must be unique across all files, and docs/internal/ADR/README.md ' +
+      'must list every numbered ADR file. docs/internal/SYSTEM/DECISIONS.md is frozen legacy and ' +
       'must not receive new entries. Enforced at L1 to catch drift before commit.',
     adr: 'ADR-073',
     enforcement:
