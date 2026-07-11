@@ -11,16 +11,24 @@
 // the gate never hard-fails on conformance result alone.
 import { spawnSync } from 'node:child_process'
 
-const args = process.argv.slice(2)
+try {
+  const args = process.argv.slice(2)
 
-const result = spawnSync('npx', ['--no-install', 'arbiter', 'conformance', ...args], {
-  stdio: 'inherit',
-  encoding: 'utf-8',
-})
+  const result = spawnSync('npx', ['--no-install', 'arbiter', 'conformance', ...args], {
+    stdio: 'inherit',
+    encoding: 'utf-8',
+  })
 
-if (result.error) {
-  process.stderr.write(`[conformance] spawn error: ${result.error.message}\n`)
-  process.exit(2)
+  if (result.error) {
+    process.stderr.write(`[conformance] spawn error: ${result.error.message}\n`)
+    process.exit(2)
+  }
+
+  process.exit(result.status ?? 1)
+} catch (err) {
+  // Fail-closed (INV-96): an unexpected error must block, never silently pass.
+  process.stderr.write(
+    `[conformance] unexpected error: ${err instanceof Error ? err.stack : String(err)}\n`,
+  )
+  process.exit(1)
 }
-
-process.exit(result.status ?? 1)
