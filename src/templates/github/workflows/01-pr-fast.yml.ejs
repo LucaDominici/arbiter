@@ -113,9 +113,18 @@ jobs:
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: Gitleaks secrets scan (INV-11)
+        # --log-opts="HEAD" (#1908): without it, gitleaks defaults to scanning
+        # ALL refs reachable in the checkout's object DB (fetch-depth: 0 above
+        # fetches every remote branch, not just this one). That let an unrelated,
+        # unmerged branch's commit cross-contaminate every other PR's scan.
+        # Scoping to HEAD still walks this ref's FULL history (no depth lost) —
+        # it just stops other branches' commits from being scanned here. The
+        # nightly `gitleaks-history` job intentionally keeps `--all --full-history`
+        # as the deep, cross-branch safety net.
         run: |
           gitleaks detect --source . --config .gitleaks.toml \
             --gitleaks-ignore-path suppressions/.gitleaksignore \
+            --log-opts="HEAD" \
             --exit-code 1 --redact
 <% } %>
 <% if (governanceLevel !== 'L1' || _multiLane) { %>
