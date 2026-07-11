@@ -48,6 +48,25 @@ async function waitUntilHeld(lockPath: string, timeoutMs: number): Promise<boole
   return false
 }
 
+/**
+ * Poll until `path` exists or timeout. `flock(1)` acquires the lock and THEN
+ * fork+execs the guarded command (`sh -c '...'`) — so `waitUntilHeld` going
+ * true only proves the OUTER flock has the lock, not that the INNER shell
+ * has started running yet. Under CPU contention that fork+exec gap widens
+ * enough to lose a bare `existsSync` race (confirmed empirically: flaky under
+ * synthetic load though 3/3 clean on an idle box — the same load-sensitive-
+ * assumption class as #1891's acquisition-wait budget, but a second, distinct
+ * window in this same test). Poll instead of assuming instant.
+ */
+async function waitUntilExists(path: string, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (existsSync(path)) return true
+    await sleep(50)
+  }
+  return existsSync(path)
+}
+
 describe('gate-exec mutex contract (#1873 T3)', () => {
   let dir: string
   let lockPath: string
@@ -97,7 +116,7 @@ describe('gate-exec mutex contract (#1873 T3)', () => {
       detached: true,
     })
     expect(await waitUntilHeld(lockPath, 15_000)).toBe(true)
-    expect(existsSync(join(dir, 'held'))).toBe(true)
+    expect(await waitUntilExists(join(dir, 'held'), 5_000)).toBe(true)
 
     process.kill(-(holder.pid as number), 'SIGKILL')
 
