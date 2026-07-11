@@ -10,9 +10,9 @@
  *             genuinely uncoercible fixture (deliberately outside the
  *             coercible set — a broken `features` block) still throws
  *             E_CONFIG_INVALID, proving the fallback is not a swallow-everything.
- *   WORKING — dogfooded separately against the real /home/luca/work/repos/viafera
- *             showcase via `arbiter diff` / `arbiter doctor` (see task report);
- *             this file proves the mechanism in isolation with disposable fixtures.
+ *   WORKING — dogfooded separately against a real downstream showcase repo via
+ *             `arbiter diff` / `arbiter doctor` (see task report); this file
+ *             proves the mechanism in isolation with disposable fixtures.
  *
  * Root cause (docs/EXECUTION-PLAYBOOK.md §T0): a v0.2 `arbiter.json` with a
  * stale/removed enum value (flagship case: `contractType: 'pact'`, the pre-#T0
@@ -53,7 +53,7 @@ const BASELINE = {
 }
 
 describe('sanitizeCoercibleFields', () => {
-  it('drops an unknown contractType (the viafera-shaped pact regression) and reports it', () => {
+  it('drops an unknown contractType (the field-observed pact regression) and reports it', () => {
     const { draft, report } = sanitizeCoercibleFields({
       ...BASELINE,
       contractType: 'pact',
@@ -175,7 +175,7 @@ describe('loadConfig — never-brick corpus (T0)', () => {
     expect(config?.$schemaVersion).toBe(4)
   })
 
-  it('v0.2 with contractType:"pact" (the exact viafera-shaped regression) flips throw→green', () => {
+  it('v0.2 with contractType:"pact" (the exact field-observed regression) flips throw→green', () => {
     writeConfig(dir, {
       version: '0.2',
       tools: ['claude', 'codex'],
