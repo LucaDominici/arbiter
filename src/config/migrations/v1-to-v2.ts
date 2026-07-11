@@ -109,7 +109,21 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
       const migrated = migratePermitGitHub(result.config)
       return { ...applyDecompositionAlias(migrated), $schemaVersion: 2 }
     }
-    throw new Error(`arbiter.json v0.2 is invalid: ${result.errors.join('; ')}`)
+    // Never-brick (T0): a v0.2 config that fails STRICT validation here (e.g. a
+    // removed/renamed enum value such as `contractType: 'pact'`, or any other
+    // stale field) is NOT fatal at the migration layer. Migration's job is to
+    // reshape, not gate-keep — throwing here would brick every historical config
+    // before loadConfig's coercible-field fallback (sanitizeCoercibleFields)
+    // ever gets a chance to run. Pass the raw shape through un-normalized; the
+    // one authoritative validate-then-coerce-then-validate pass happens once,
+    // at the end of the chain, in loadConfig().
+    getLogger().warn(
+      'config.v2_passthrough_invalid',
+      { errors: result.errors.join('; ') },
+      `arbiter.json (v0.2) failed strict validation (${result.errors.join('; ')}) — deferring to the migration fallback`,
+    )
+    const migrated = migratePermitGitHub(raw as unknown as ArbiterConfigV2)
+    return { ...applyDecompositionAlias(migrated), $schemaVersion: 2 }
   }
 
   // ── v1 ("0.1") → v2 ("0.2") ──────────────────────────────────────────────

@@ -398,7 +398,14 @@ describe('migrate — error handling', () => {
     expect(() => migrate(null)).toThrow()
   })
 
-  it('throws when v0.2 input is structurally invalid', () => {
+  // T0 (never-brick, docs/EXECUTION-PLAYBOOK.md §T0): migrate() is a reshape
+  // step, not a gate. It used to throw here — before loadConfig's own
+  // validate-then-coerce-then-validate fallback ever got a chance to run,
+  // bricking every legacy config with so much as one stale field. It now
+  // passes the shape through un-normalized (with a WARN) and defers the
+  // authoritative validation + coercible-field fallback to loadConfig(),
+  // exercised end-to-end in __tests__/config/never-brick-migration.test.ts.
+  it('no longer throws on a v0.2 input with a coercible field (tools) — deferred to loadConfig', () => {
     expect(() =>
       migrate({
         version: '0.2',
@@ -415,6 +422,6 @@ describe('migrate — error handling', () => {
         },
         thresholds: DEFAULT_THRESHOLDS.L2,
       }),
-    ).toThrow()
+    ).not.toThrow()
   })
 })

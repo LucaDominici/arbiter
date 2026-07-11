@@ -440,9 +440,9 @@ export function resolveConformanceThresholds(
   return base
 }
 
-const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3', 'L4'])
+export const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3', 'L4'])
 // #1254 — valid industryOverlay values (mirrors ProjectConfig.industryOverlay).
-const INDUSTRY_OVERLAYS: ReadonlySet<string> = new Set([
+export const INDUSTRY_OVERLAYS: ReadonlySet<string> = new Set([
   'pharma',
   'sox',
   'gdpr',
@@ -536,11 +536,17 @@ const OBSERVABILITY_PROVIDER_VALUES: Record<ObservabilityProvider, true> = {
   'saas-axiom': true,
   'saas-betterstack': true,
 }
-const DATABASE_ENGINES: ReadonlySet<string> = new Set(Object.keys(DATABASE_ENGINE_VALUES))
-const STRICTNESS_TIERS: ReadonlySet<string> = new Set(Object.keys(STRICTNESS_TIER_VALUES))
-const RUNNER_PROFILES: ReadonlySet<string> = new Set(Object.keys(RUNNER_PROFILE_VALUES))
-const THRESHOLD_PROFILES: ReadonlySet<string> = new Set(Object.keys(THRESHOLD_PROFILE_VALUES))
-const CONTRACT_TYPES: ReadonlySet<string> = new Set(Object.keys(CONTRACT_TYPE_VALUES))
+// #<T0>: exported (in addition to being used internally by validateOptionalEnums)
+// so the never-brick coercion pass (sanitizeCoercibleFields, below) can classify
+// a value against the exact same allow-list the strict validator uses — one
+// source of truth, no risk of the two drifting apart.
+export const DATABASE_ENGINES: ReadonlySet<string> = new Set(Object.keys(DATABASE_ENGINE_VALUES))
+export const STRICTNESS_TIERS: ReadonlySet<string> = new Set(Object.keys(STRICTNESS_TIER_VALUES))
+export const RUNNER_PROFILES: ReadonlySet<string> = new Set(Object.keys(RUNNER_PROFILE_VALUES))
+export const THRESHOLD_PROFILES: ReadonlySet<string> = new Set(
+  Object.keys(THRESHOLD_PROFILE_VALUES),
+)
+export const CONTRACT_TYPES: ReadonlySet<string> = new Set(Object.keys(CONTRACT_TYPE_VALUES))
 // #1676: exported so the `arbiter init` CLI cast site (src/cli.ts) can reject an
 // unknown --auth-provider/--observability-provider value at parse time, instead of
 // blind-casting it and emitting a content-less AUTH_SETUP.md/OBSERVABILITY.md once
@@ -894,6 +900,114 @@ export function validateConfig(raw: unknown): ValidateResult {
   return { ok: true, config }
 }
 
+/** One field sanitizeCoercibleFields rewrote because its value failed validateConfig. */
+export interface CoercedField {
+  /** Top-level field name that was coerced (e.g. "contractType"). */
+  field: string
+  /** The original (invalid) value that was present. */
+  from: unknown
+  /**
+   * The value substituted in its place. `undefined` means the field was
+   * dropped entirely — it becomes absent, which validateConfig already
+   * treats as "not configured" for every field in the coercible set.
+   */
+  to: unknown
+}
+
+export interface SanitizeResult {
+  draft: Record<string, unknown>
+  report: CoercedField[]
+}
+
+/**
+ * Never-brick fallback (T0 — total config migration).
+ *
+ * `loadConfig` calls this ONLY after a strict `validateConfig()` pass has
+ * already failed — a config that validates cleanly never reaches this
+ * function, so the happy path is byte-for-byte unchanged.
+ *
+ * Deliberately narrow: this repairs only the closed set of "axis/identity"
+ * fields that steer template/generator SELECTION. It does NOT touch
+ * `features`, `thresholds`, `decomposition`, `frontend`, `automation`,
+ * `contextPack`, `taskTiers`, `kit`, `companions`, `governance`,
+ * `conformanceThresholds` or `channel` — a bad shape in any of those
+ * controls gate strictness or CI composition directly, so silently
+ * defaulting it could mask a real misconfiguration instead of a stale
+ * migration. Those stay FATAL (loadConfig still throws E_CONFIG_INVALID).
+ *
+ * Coercible set, each with a safe, already-precedented default:
+ *   - `contractType`, `databaseEngine`, `strictnessTier`, `thresholdProfile`,
+ *     `runnerProfile`, `industryOverlay` — unknown/removed enum value → the
+ *     field is dropped (becomes absent/"not configured").
+ *   - `lanes` — invalid entries are filtered out; valid entries are kept.
+ *   - `governanceLevel` — missing/unrecognized → defaults to `'L2'` (the
+ *     same default `migrateV1ToV2` already applies).
+ *   - `tools` — unknown entries filtered to the known `AI_TOOLS` set;
+ *     falls back to `['claude', 'codex']` if that would empty the array.
+ *   - `useGitHub`/`permitGitHub` — neither present as a boolean → defaults
+ *     `permitGitHub: false`.
+ *
+ * Never mutates its input; returns a fresh draft plus a `report` of every
+ * field it touched. An empty report means nothing here was coercible — the
+ * caller should treat the original validation failure as fatal.
+ */
+export function sanitizeCoercibleFields(raw: Record<string, unknown>): SanitizeResult {
+  const draft = structuredClone(raw)
+  const report: CoercedField[] = []
+
+  const dropIfInvalidEnum = (field: string, allowed: ReadonlySet<string>): void => {
+    const v = draft[field]
+    if (v === undefined) return
+    if (typeof v === 'string' && allowed.has(v)) return
+    report.push({ field, from: v, to: undefined })
+    Reflect.deleteProperty(draft, field)
+  }
+
+  dropIfInvalidEnum('contractType', CONTRACT_TYPES)
+  dropIfInvalidEnum('databaseEngine', DATABASE_ENGINES)
+  dropIfInvalidEnum('strictnessTier', STRICTNESS_TIERS)
+  dropIfInvalidEnum('thresholdProfile', THRESHOLD_PROFILES)
+  dropIfInvalidEnum('runnerProfile', RUNNER_PROFILES)
+  dropIfInvalidEnum('industryOverlay', INDUSTRY_OVERLAYS)
+
+  if (Array.isArray(draft['lanes'])) {
+    const original = draft['lanes'] as unknown[]
+    const filtered = original.filter((v) => VALID_LANES.has(v as string))
+    if (filtered.length !== original.length) {
+      report.push({ field: 'lanes', from: original, to: filtered })
+      draft['lanes'] = filtered
+    }
+  }
+
+  const rawLevel = draft['governanceLevel']
+  const upperLevel = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
+  if (typeof upperLevel !== 'string' || !GOVERNANCE_LEVELS.has(upperLevel)) {
+    report.push({ field: 'governanceLevel', from: rawLevel, to: 'L2' })
+    draft['governanceLevel'] = 'L2'
+  }
+
+  const rawTools = draft['tools']
+  const toolsInvalid =
+    !Array.isArray(rawTools) || (rawTools as unknown[]).some((t) => !AI_TOOLS.has(t as string))
+  if (toolsInvalid) {
+    const filtered = Array.isArray(rawTools)
+      ? (rawTools as unknown[]).filter((t) => AI_TOOLS.has(t as string))
+      : []
+    const fallback = filtered.length > 0 ? filtered : ['claude', 'codex']
+    report.push({ field: 'tools', from: rawTools, to: fallback })
+    draft['tools'] = fallback
+  }
+
+  const hasUseGitHub = typeof draft['useGitHub'] === 'boolean'
+  const hasPermitGitHub = typeof draft['permitGitHub'] === 'boolean'
+  if (!hasUseGitHub && !hasPermitGitHub) {
+    report.push({ field: 'permitGitHub', from: draft['permitGitHub'], to: false })
+    draft['permitGitHub'] = false
+  }
+
+  return { draft, report }
+}
+
 const VALID_FRONTEND_FRAMEWORKS: ReadonlySet<string> = new Set(['vue', 'react', 'svelte'])
 const FRONTEND_IDENT_RE = /^[@a-zA-Z0-9][a-zA-Z0-9@/._-]{0,59}$/
 
@@ -922,7 +1036,7 @@ function validateFrontend(raw: unknown, errors: string[]): void {
 }
 
 const DECOMPOSITION_BACKENDS = new Set(['github', 'markdown'])
-const VALID_LANES: ReadonlySet<string> = new Set(['frontend', 'backend', 'docs'])
+export const VALID_LANES: ReadonlySet<string> = new Set(['frontend', 'backend', 'docs'])
 
 function validateLanes(raw: unknown, errors: string[]): void {
   if (raw === undefined || raw === null) return
