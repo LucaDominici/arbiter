@@ -219,6 +219,16 @@ plugins {
 ```groovy
 apply from: 'config/export-openapi-java.gradle'
 ```
+<% } %><% if (hasDatabase && governanceLevel !== 'L1' && buildTool === 'gradle') { %>
+
+### Integration Testing (Testcontainers)
+
+Generated `config/testcontainers-deps.gradle` wires the Testcontainers + PostgreSQL test dependencies (M26, #1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+apply from: 'config/testcontainers-deps.gradle'
+```
 <% } %><% } %><% if (language === 'kotlin' && enableDebtGates && buildTool === 'gradle') { %>### Coverage Gate (Kover)
 
 Generated `kover.gradle` wires `koverVerify`/`koverXmlReport` as a hard gate (#1887-F).

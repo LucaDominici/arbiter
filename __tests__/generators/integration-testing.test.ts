@@ -214,6 +214,43 @@ describe('generateIntegrationTesting', () => {
     }
   })
 
+  // #1887-F: config/testcontainers-deps.gradle was emitted but never wired into
+  // the root build — same ghost class as #1886. No plugins{} block (pure deps),
+  // so only apply(from=...) is needed.
+  it('wires config/testcontainers-deps.gradle into the root build via apply(from=...)', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        hasDatabase: true,
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      generateIntegrationTesting(config)
+      const build = readFileSync(join(javaDir, 'build.gradle'), 'utf-8')
+      expect(build).toContain("apply from: 'config/testcontainers-deps.gradle'")
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
+  it('does not crash when no Gradle build script exists yet', () => {
+    const javaDir = createTestProject('typescript')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        hasDatabase: true,
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      expect(() => generateIntegrationTesting(config)).not.toThrow()
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
   it('AbstractIntegrationTest.java contains @Testcontainers and PostgreSQLContainer', () => {
     const javaDir = createTestProject('java')
     initGit(javaDir)

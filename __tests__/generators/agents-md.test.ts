@@ -205,6 +205,33 @@ describe('generateAgentsMd', () => {
     expect(content).not.toContain('Contract Testing (OpenAPI exporter)')
   })
 
+  it('includes Testcontainers row for a java gradle project with a database at L2+', () => {
+    generateAgentsMd(
+      makeConfig(dir, {
+        language: 'java',
+        buildTool: 'gradle',
+        hasDatabase: true,
+        governanceLevel: 'L2',
+      }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('Integration Testing (Testcontainers)')
+    expect(content).toContain("apply from: 'config/testcontainers-deps.gradle'")
+  })
+
+  it('omits the Testcontainers row without a database', () => {
+    generateAgentsMd(
+      makeConfig(dir, {
+        language: 'java',
+        buildTool: 'gradle',
+        hasDatabase: false,
+        governanceLevel: 'L2',
+      }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).not.toContain('Integration Testing (Testcontainers)')
+  })
+
   it('includes Kover setup row for a kotlin gradle project with debt gates enabled', () => {
     generateAgentsMd(
       makeConfig(dir, { language: 'kotlin', buildTool: 'gradle', enableDebtGates: true }),
