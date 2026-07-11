@@ -15,6 +15,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
+import { withRealRepoMutationLock } from '../helpers.js'
 import {
   EXTERNAL_CI_FAMILIES,
   matchedFamilyBasenames,
@@ -206,48 +207,51 @@ describe('checkExternalCiSurfaceParity', () => {
 // running the test suite.
 
 describe('external CI-surface parity is non-vacuous against the real repo (#1900)', () => {
-  it('a mutated pinned workflow (.github/workflows/01-pr-fast.yml) turns the gate red', () => {
-    const target = join(repoRoot, '.github/workflows/01-pr-fast.yml')
-    const original = readFileSync(target, 'utf-8')
-    try {
-      writeFileSync(target, `${original}      - run: echo synthetic-drift-sentinel\n`, 'utf-8')
+  it('a mutated pinned workflow (.github/workflows/01-pr-fast.yml) turns the gate red', () =>
+    withRealRepoMutationLock(() => {
+      const target = join(repoRoot, '.github/workflows/01-pr-fast.yml')
+      const original = readFileSync(target, 'utf-8')
+      try {
+        writeFileSync(target, `${original}      - run: echo synthetic-drift-sentinel\n`, 'utf-8')
+        const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          timeout: 120_000,
+        })
+        expect(r.status).not.toBe(0)
+        expect(r.stdout + r.stderr).toContain('01-pr-fast.yml')
+        expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
+      } finally {
+        writeFileSync(target, original, 'utf-8')
+      }
+    }))
+
+  it('a mutated pinned check-script (scripts/check-drift.mjs) turns the gate red', () =>
+    withRealRepoMutationLock(() => {
+      const target = join(repoRoot, 'scripts/check-drift.mjs')
+      const original = readFileSync(target, 'utf-8')
+      try {
+        writeFileSync(target, `${original}// synthetic-drift-sentinel\n`, 'utf-8')
+        const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          timeout: 120_000,
+        })
+        expect(r.status).not.toBe(0)
+        expect(r.stdout + r.stderr).toContain('check-drift.mjs')
+        expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
+      } finally {
+        writeFileSync(target, original, 'utf-8')
+      }
+    }))
+
+  it('passes cleanly against the real, unmutated repo', () =>
+    withRealRepoMutationLock(() => {
       const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
         cwd: repoRoot,
         encoding: 'utf-8',
         timeout: 120_000,
       })
-      expect(r.status).not.toBe(0)
-      expect(r.stdout + r.stderr).toContain('01-pr-fast.yml')
-      expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
-    } finally {
-      writeFileSync(target, original, 'utf-8')
-    }
-  })
-
-  it('a mutated pinned check-script (scripts/check-drift.mjs) turns the gate red', () => {
-    const target = join(repoRoot, 'scripts/check-drift.mjs')
-    const original = readFileSync(target, 'utf-8')
-    try {
-      writeFileSync(target, `${original}// synthetic-drift-sentinel\n`, 'utf-8')
-      const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-        cwd: repoRoot,
-        encoding: 'utf-8',
-        timeout: 120_000,
-      })
-      expect(r.status).not.toBe(0)
-      expect(r.stdout + r.stderr).toContain('check-drift.mjs')
-      expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
-    } finally {
-      writeFileSync(target, original, 'utf-8')
-    }
-  })
-
-  it('passes cleanly against the real, unmutated repo', () => {
-    const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-      cwd: repoRoot,
-      encoding: 'utf-8',
-      timeout: 120_000,
-    })
-    expect(r.status).toBe(0)
-  })
+      expect(r.status).toBe(0)
+    }))
 })
