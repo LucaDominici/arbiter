@@ -159,7 +159,7 @@ M22 (architecture verification suite) shipped. M23-M24 (mutation, security) and 
 
 - Configuration skill (`/arbiter configure`): post-init feature toggle, threshold override, arbiter.json v2 (M31)
 - Extended AI tool support: Gemini CLI, Windsurf, Aider generators + brownfield detection (M32)
-- Plugin API v1: `ArbiterPlugin` interface + `arbiter plugin add/remove/list` CLI; organizations ship framework generators without forking arbiter (M32)
+- Plugin API v1 (M32, shipped — see `docs/PLUGIN-API.md`): `ArbiterPlugin` interface; plugins are `npm install`-ed by the user and loaded automatically by `arbiter init`/`update` (no dedicated CLI subcommand); organizations ship framework generators without forking arbiter
 - CLI-first policy: consolidate `spawnSync` sites into `src/utils/run-cli.ts`, enforce as architectural invariant (M33)
 
 ---

@@ -43,9 +43,9 @@ arbiter follows [Semantic Versioning 2.0.0](https://semver.org/). This document 
 
 **Active experimental features:**
 
-| Feature flag | Gate                                  | Commands                          | Status notes                                                                          |
-| ------------ | ------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------- |
-| `kit`        | `ARBITER_EXPERIMENTAL='{"kit":true}'` | `arbiter kit list\|show\|explain` | Read-only catalog browser (Phase A). Mutating commands (`assess`, `wave`) in Phase F. |
+| Feature flag | Gate                                  | Commands | Status notes                                                                                                                                                                                                                                                      |
+| ------------ | ------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kit`        | `ARBITER_EXPERIMENTAL='{"kit":true}'` | _(none)_ | Registered in `src/experimental/registry.ts` but inert — the `kit` command surface (list/show/explain/assess/wave) was removed in the T2 cathedral cut; `src/kit/` core survives internally (gold-audit, generators, wizard) but nothing reads this flag anymore. |
 
 ## What Is Non-Breaking (MINOR)
 

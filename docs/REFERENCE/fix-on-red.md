@@ -12,19 +12,30 @@ related: ['088-ship-as-orchestration-entrypoint']
 # Reference: Fix-on-Red Engine
 
 > **Target:** arbiter engine (deterministic half of the dual-side ship loop, ADR-093)
-> **Module:** `src/ship/fix-on-red.ts`
-> **Command:** `arbiter ship-on-red`
+> **Module:** `src/ship/fix-on-red.ts` — **removed** in the T2 command-surface cut
+> **Command:** "arbiter ship-on-red" — **removed**; no longer registered in `src/cli.ts`
 > **Invariant:** INV-96 — fail-closed on uncertainty
 
 ---
 
-## Purpose
+## Status
 
-When a gate goes red during a ship, the **fix-on-red** engine decides the next action
+The deterministic CLI engine described below (the "arbiter ship-on-red" binary, its
+`src/ship/fix-on-red.ts` implementation, and the persisted `attempts.json` it owned) was
+cut wholesale in the T2 command-surface reduction. **The policy design is preserved here**
+because `.arbiter/ship/TICK_PROMPT.md` (emitted by `src/generators/ship-driver.ts`) still
+directs the ship-driver agent to apply it — but there is no longer a helper binary to
+compute the signature or track strikes; the driver agent must reason through the algorithm
+itself and keep its own count for the life of a task. This is a known gap left by the T2
+cut, not a design decision — treat any doc/template still invoking "arbiter ship-on-red"
+literally as a bug pending a follow-up (re-implement the engine, or fold the policy into
+driver prose only).
+
+When a gate goes red during a ship, the **fix-on-red policy** decides the next action
 deterministically. The model (driver, #1290) diagnoses the log and writes the fix; the
-engine owns the policy: compute a stable failure signature, remember how many times it has
-been seen, and either ask for one root-cause fix or escalate to a human. It never retries
-blindly.
+policy below governs the decision: compute a stable failure signature, remember how many
+times it has been seen, and either ask for one root-cause fix or escalate to a human. It
+never retries blindly.
 
 ## Failure signature
 
@@ -72,13 +83,11 @@ empty state (count starts at 0).
 
 ## CLI
 
-```bash
-arbiter ship-on-red --check unit-test --log-file /tmp/red.log --id '#1289'
-```
-
-Prints the decision (`fix` / `escalate` / `escalate-uncertain`), the signature, the attempt
-count, and the next action. Any _computed_ decision exits 0; only an IO/usage error
-(unreadable log, missing task id) exits 1.
+**Removed.** There is no "arbiter ship-on-red" binary anymore — the helper that printed
+the decision (`fix` / `escalate` / `escalate-uncertain`) given a check name, log file, and
+task id was deleted with `src/ship/`. The driver agent must derive the same decision
+itself: compute the failure signature per the rule above, read/update
+`.arbiter/ship/<task-id>/attempts.json` directly, and apply the strike table below.
 
 ## Autonomy gating (#1291)
 

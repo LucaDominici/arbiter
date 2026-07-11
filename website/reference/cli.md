@@ -397,15 +397,12 @@ arbiter worktree list
 
 ---
 
-## `arbiter plugin`
+## Plugins
 
-Manage third-party generator plugins.
-
-```
-arbiter plugin add <pkg>
-arbiter plugin remove <pkg>
-arbiter plugin list
-```
+There is no `plugin` CLI command (removed in the T2 command-surface cut). Third-party generator
+plugins are `npm install`-ed by the user and loaded automatically by `arbiter init` / `arbiter update`
+from the `plugins` field in `arbiter.json` — see [Plugin API Reference](../../docs/PLUGIN-API.md) for
+the full authoring and loading contract.
 
 ---
 
@@ -440,30 +437,13 @@ If a write fails with a recognizable OS error, a user-readable message is emitte
 
 ## Feature-Gated Commands
 
-Feature-gated commands are gated behind the `ARBITER_EXPERIMENTAL` environment variable and carry no stability guarantee. They may change or be removed without a semver bump. (For the full list of commands hidden from default `--help`, see [Experimental Commands](#experimental-commands) in the generated reference below.)
+Feature-gated commands are gated behind the `ARBITER_EXPERIMENTAL` environment variable and carry no stability guarantee. They may change or be removed without a semver bump.
 
-### `arbiter kit` (experimental)
-
-Read-only catalog browser for the cross-stack quality governance dimensions.
-
-**Enable:**
-
-```bash
-ARBITER_EXPERIMENTAL='{"kit":true}' arbiter kit list
-```
-
-**Subcommands:**
-
-| Subcommand                  | Description                                        |
-| --------------------------- | -------------------------------------------------- |
-| `kit list`                  | List all 76 governance dimensions                  |
-| `kit list --filter=gaps`    | Show only dimensions with coverage gaps            |
-| `kit list --format=json`    | Output as JSON array                               |
-| `kit list --format=csv`     | Output as RFC 4180 CSV (header + 76 data rows)     |
-| `kit list --stack=<lang>`   | Filter to dimensions covered for a specific stack  |
-| `kit list --tml=L1\|L2\|L3` | Filter by Test Maturity Level                      |
-| `kit show <id>`             | Show full JSON for a single dimension (e.g. `N01`) |
-| `kit explain <id>`          | Human-readable summary with per-stack projection   |
+There are currently none: the `kit` catalog-browser command surface (list/show/explain — 78 governance
+dimensions) was removed in the T2 command-surface cut. `kit` is still registered as an experiment in
+`src/experimental/registry.ts`, but the flag is inert — no command reads it anymore. The underlying
+`src/kit/` core (thresholds, brownfield detection) survives internally for `gold-audit`, the wizard,
+and generators.
 
 ---
 
@@ -506,24 +486,25 @@ arbiter update  # regenerate canonical files, preserve customizations
 ```
 
 <!-- BEGIN GENERATED:cli -->
+
 ## Command Reference
 
-| Command | Description |
-|---------|-------------|
-| `arbiter configure` | Modify arbiter.json configuration (interactive on TTY, or use --set) |
-| `arbiter diff` | Show what arbiter update would change (dry run) |
-| `arbiter doctor` | Diagnose and repair arbiter state |
-| `arbiter explain` | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
-| `arbiter gate-exec` | — |
-| `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine) |
-| `arbiter init` | Initialise / update the unified task document (#1206) |
-| `arbiter note` | Capture an out-of-scope finding to the per-agent JSONL spool (#1401) |
-| `arbiter review` | Semantic diff between graph snapshots (#262) |
-| `arbiter ship` | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206) |
-| `arbiter task` | Manage task lifecycle state |
-| `arbiter update` | Re-generate governance files using stored config (arbiter.json) |
-| `arbiter validate` | Probe toolchain compatibility for the detected stack |
-| `arbiter worktree` | Manage git worktrees for parallel task development |
+| Command              | Description                                                                     |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `arbiter configure`  | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
+| `arbiter diff`       | Show what arbiter update would change (dry run)                                 |
+| `arbiter doctor`     | Diagnose and repair arbiter state                                               |
+| `arbiter explain`    | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
+| `arbiter gate-exec`  | —                                                                               |
+| `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
+| `arbiter init`       | Initialise / update the unified task document (#1206)                           |
+| `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
+| `arbiter review`     | Semantic diff between graph snapshots (#262)                                    |
+| `arbiter ship`       | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
+| `arbiter task`       | Manage task lifecycle state                                                     |
+| `arbiter update`     | Re-generate governance files using stored config (arbiter.json)                 |
+| `arbiter validate`   | Probe toolchain compatibility for the detected stack                            |
+| `arbiter worktree`   | Manage git worktrees for parallel task development                              |
 
 ## arbiter configure
 
@@ -553,7 +534,7 @@ Diagnose and repair arbiter state.
 
 - `arbiter doctor repair-state` — Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)
 - `arbiter doctor recover-lock` — Force-release a stale .arbiter/.lock file left by a crashed process
-- `arbiter doctor clean` — Remove arbiter backup files (*.arbiter-backup, .arbiter-generated.json.bak.*)
+- `arbiter doctor clean` — Remove arbiter backup files (_.arbiter-backup, .arbiter-generated.json.bak._)
 
 **Options:**
 
@@ -635,7 +616,7 @@ Orchestrate an issue → reviewed, merged PR over the existing engine (#1206).
 
 - `--tier <tier>` — Task tier (XS|S|Standard)
 - `--autonomy <level>` — Per-run autonomy override (L0|L1|L2|L3) — beats arbiter.json automation.autonomy (#1291)
-- `--set <path=value>` — Per-run override of an overridable config path (repeatable, ADR-094). 
+- `--set <path=value>` — Per-run override of an overridable config path (repeatable, ADR-094).
 - `--advance` — Advance to the next phase (runs that phase gate; fails if red)
 - `--skip-plan-review` — Bypass the plan-review gate on advance
 - `--post-clear` — Signal post-/clear re-entry on advance
@@ -665,9 +646,9 @@ Re-generate governance files using stored config (arbiter.json).
 - `--github` — Activate live GitHub API calls (opt-in; ARBITER_GITHUB=1 also activates)
 - `--json` — Emit machine-readable JSON output
 - `--force` — Override adverse git state check (detached HEAD, rebase, etc.)
-- `--adopt` — Force-adopt ALL currently-withheld files (not just safety-class), recording a 
-- `--no-adopt-safety` — Opt OUT of the default-on safety-class adoption (.claude/hooks/*.mjs). Leaves a 
-- `--adopt-plan` — Two-phase preview: print what --adopt/the default safety adoption WOULD change 
+- `--adopt` — Force-adopt ALL currently-withheld files (not just safety-class), recording a
+- `--no-adopt-safety` — Opt OUT of the default-on safety-class adoption (.claude/hooks/*.mjs). Leaves a
+- `--adopt-plan` — Two-phase preview: print what --adopt/the default safety adoption WOULD change
 
 ## arbiter validate
 
@@ -694,16 +675,16 @@ Manage git worktrees for parallel task development.
 - `arbiter worktree open` — Create a sibling worktree with a task branch and symlinked local files
 - `arbiter worktree close` — Tear down a task worktree after its branch is merged
 - `arbiter worktree list` — List open task worktrees
-- `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive 
+- `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive
 
 ## Experimental Commands
 
 These commands are fully functional but hidden from the default `arbiter --help` listing. They are not part of the stable public surface and may change without notice. List them from the CLI with `arbiter help --all`.
 
-| Command | Description |
-|---------|-------------|
-| `arbiter settings` | List every settable arbiter.json path with its current value (#1121) |
-| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates |
+| Command                 | Description                                                          |
+| ----------------------- | -------------------------------------------------------------------- |
+| `arbiter settings`      | List every settable arbiter.json path with its current value (#1121) |
+| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates           |
 
 ## arbiter settings
 
@@ -726,4 +707,5 @@ Upgrade governance level with a grace period for new gates.
 - `--dir <dir>` — Target directory (default: current directory)
 - `--interactive` — Guided level selection on a TTY (#1168)
 - `--json` — Emit machine-readable JSON output
+
 <!-- END GENERATED:cli -->

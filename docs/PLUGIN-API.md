@@ -35,7 +35,7 @@ When `apiVersion` does bump (`"1"` → `"2"`):
 
 1. The previous version stays loadable for **at least one major arbiter release** (overlap window).
 2. A migration tool ships in the same PR that bumps the version (or in a sibling PR landing the same week).
-3. The deprecation timeline is documented in CHANGELOG and surfaced as a runtime warning on `arbiter plugin add` for plugins still on the old version.
+3. The deprecation timeline is documented in CHANGELOG and surfaced as a runtime warning when a plugin on the old version is loaded (during `arbiter init` / `arbiter update`).
 
 The CI gate `scripts/check-plugin-api-stability.mjs` enforces this: any change to `src/types/plugin.ts` requires `apiVersion` to be bumped in the same commit, or the gate fails.
 
@@ -112,13 +112,13 @@ const plugin: ArbiterPlugin = {
 export default plugin
 ```
 
-See `src/templates/plugin-init/` for the scaffold emitted by `arbiter plugin init`.
+There is no scaffold command; author a plugin package by hand following the shape above and the `ArbiterPlugin` contract in `src/types/plugin.ts`.
 
 ---
 
 ## Naming and discovery convention
 
-Plugins published to npm must follow this convention to appear in `arbiter integrations list --recommended` and in the [plugin registry](https://arbiter.dev/plugins):
+Plugins published to npm must follow this convention to be discoverable via the `arbiter-plugin` npm keyword and to appear in the [plugin registry](https://arbiter.dev/plugins):
 
 | Requirement     | Value                                                     |
 | --------------- | --------------------------------------------------------- |
@@ -126,7 +126,7 @@ Plugins published to npm must follow this convention to appear in `arbiter integ
 | Package name    | `arbiter-plugin-<name>` or `@scope/arbiter-plugin-<name>` |
 | Peer dependency | `"@arbiter/cli": "*"`                                     |
 
-`arbiter plugin list --validate` checks installed plugin `package.json` files against this schema (schema-only; no plugin code is executed).
+`src/utils/plugin-loader.ts::loadPlugin` validates an installed plugin's `package.json` against this schema before its code ever runs — automatically, on every `arbiter init` / `update` that loads the plugin (schema-only at that stage; no plugin code is executed until validation passes).
 
 ---
 

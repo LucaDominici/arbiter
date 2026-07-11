@@ -33,10 +33,13 @@ universal).
   `.arbiter/ship/HALT` or a confirmed empty backlog. Knobs: `MAX_TICKS`,
   `TICK_TIMEOUT`, `SHIP_TICK_SLEEP`.
 - **`.arbiter/ship/TICK_PROMPT.md`** — the tick algorithm. Sequencing via
-  `arbiter ship`; red-gate decisions via `arbiter ship-on-red` (engine-owned 2-strike
-  memory — see [fix-on-red](fix-on-red.md)). Hard rules include: never `--no-verify`,
-  never commit to main, never `--admin` or any branch-protection bypass, never modify
-  the driver files.
+  `arbiter ship`; red-gate decisions per the fix-on-red policy (2-strike memory — see
+  [fix-on-red](fix-on-red.md)). **Known gap:** the template text still instructs the
+  driver to invoke "arbiter ship-on-red", a command removed in the T2 command-surface
+  cut (`src/ship/` deleted) — the driver must apply the policy manually until this is
+  reconciled (re-implement the engine, or rewrite the template to prose-only judgment).
+  Hard rules include: never `--no-verify`, never commit to main, never `--admin` or any
+  branch-protection bypass, never modify the driver files.
 - **`.claude/commands/ship.md`** — already emitted by the claude commands generator;
   unchanged by this generator (skipIfExists).
 
@@ -50,9 +53,11 @@ value can inject shell.
 
 ## State separation
 
-The driver owns `supervisor.sh`, `TICK_PROMPT.md`, and `HALT`. The engine owns
-`.arbiter/ship/<task-id>/attempts.json` (gitignored runtime state) — the driver never
-reads or writes it.
+The driver owns `supervisor.sh`, `TICK_PROMPT.md`, and `HALT`. `.arbiter/ship/<task-id>/attempts.json`
+(gitignored runtime state) was designed as engine-owned, but with the engine removed
+(see the known gap above) the driver is currently the only thing left that could read or
+write it — do so manually per [fix-on-red](fix-on-red.md) until the engine question is
+resolved.
 
 ## Self-only boundary
 

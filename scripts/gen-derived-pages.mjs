@@ -108,8 +108,7 @@ export function buildKitCountRegion(count) {
     '',
     `Beyond the named invariants, arbiter tracks a machine-generated catalogue of **${count} security and`,
     'quality dimensions** — each with its gate tier (L1/L2/L3), BLOCKING/ADVISORY status, and per-stack',
-    "coverage. `arbiter kit generate` renders it into an adopting project's `docs/REFERENCE/GLOBAL_KIT.md`",
-    'from the same source arbiter uses for itself.',
+    'coverage, rendered into `docs/REFERENCE/GLOBAL_KIT.md` from the same source arbiter uses for itself.',
   ].join('\n')
 }
 

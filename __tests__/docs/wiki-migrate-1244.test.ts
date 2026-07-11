@@ -183,12 +183,19 @@ describe('#1244 — over-delete guard (HARD RULE: only register §WIKI deleted)'
   })
 })
 
-describe('#1244 — DoD: INV-108 core-set surface ≤ 20', () => {
-  it('selectSsotDocs returns at most 20 canonical core docs', () => {
+describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
+  // #1244's original budget was 20 (the wiki-migration DoD, at the time). Convergence T3
+  // (commit 69828e59, 2026-07-11) legitimately added 3 GOLD `kind/spine` docs —
+  // docs/architecture/{arc42,c4-model,README}.md — that this doc's own SSOT set now lists
+  // (`adr-index.md` stays excluded: its first kind/* tag is `adr`, per the selection rule).
+  // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
+  // the pre-growth ceiling. Bound updated to the current real count so the budget still
+  // catches future unbounded growth.
+  it('selectSsotDocs returns at most 23 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(20)
+    ).toBeLessThanOrEqual(23)
   })
 })
