@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateMutation } from '../../src/generators/mutation.js'
 
@@ -271,5 +272,65 @@ describe('generateMutation — Go L3 (blocked)', () => {
       acceptBetaTools: true,
     })
     expect(generateMutation(config).files).toHaveLength(0)
+  })
+})
+
+// #1887-C: mutation/README.md.ejs was a fully-written template with zero
+// consumer — no generator ever rendered it into docs/mutation/README.md, so
+// every project got the per-stack pitest/stryker/cargo-mutants/mutmut configs
+// with no single doc explaining setup + the threshold + how to opt out.
+describe('generateMutation — docs/mutation/README.md (#1887-C)', () => {
+  beforeEach(() => {
+    cleanupTestProject(dir)
+    dir = createTestProject('java')
+  })
+
+  it('emits docs/mutation/README.md at L3 for a Java Gradle project', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      governanceLevel: 'L3',
+      buildTool: 'gradle',
+    })
+    const result = generateMutation(config)
+    const readme = result.files.find((f) => f.path.endsWith(join('mutation', 'README.md')))
+    expect(readme, 'docs/mutation/README.md not emitted').toBeDefined()
+    expect(existsSync(readme!.path)).toBe(true)
+  })
+
+  it('README.md points at gradle/pitest.gradle and the mutation threshold', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      governanceLevel: 'L3',
+      buildTool: 'gradle',
+    })
+    const result = generateMutation(config)
+    const readme = result.files.find((f) => f.path.endsWith(join('mutation', 'README.md')))
+    const content = readFileSync(readme!.path, 'utf-8')
+    expect(content).toContain("apply from: 'gradle/pitest.gradle'")
+    expect(content).toContain('85% mutation score')
+  })
+
+  it('README.md points at TypeScript Stryker setup for a typescript project', () => {
+    cleanupTestProject(dir)
+    dir = createTestProject('unknown')
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      governanceLevel: 'L3',
+    })
+    const result = generateMutation(config)
+    const readme = result.files.find((f) => f.path.endsWith(join('mutation', 'README.md')))
+    const content = readFileSync(readme!.path, 'utf-8')
+    expect(content).toContain('@stryker-mutator/core')
+  })
+
+  it('does NOT emit docs/mutation/README.md at L2 for a starter pipeline', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      governanceLevel: 'L2',
+      buildTool: 'gradle',
+      collaborationMode: 'trunk-solo',
+    })
+    const result = generateMutation(config)
+    expect(result.files).toHaveLength(0)
   })
 })

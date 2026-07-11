@@ -123,6 +123,7 @@
     "docs/bugs/bug-analysis.md",
     "docs/bugs/bug-report.md",
     "docs/bugs/bug-verification.md",
+    "docs/mutation/README.md",
     "docs/runbooks/deployment.md",
     "docs/runbooks/prod-checklist.md",
     "docs/runbooks/rollback.md",
