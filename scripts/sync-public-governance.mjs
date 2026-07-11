@@ -21,7 +21,7 @@ mkdirSync(WEBSITE_GOVERNANCE_DIR, { recursive: true })
 copyFileSync(join(ROOT, 'AGENTS.md'), join(WEBSITE_GOVERNANCE_DIR, 'AGENTS.md'))
 
 // Count ADR files for diagnostic output
-const ADR_DIR = join(ROOT, 'docs', 'adr')
+const ADR_DIR = join(ROOT, 'docs', 'internal', 'ADR')
 let adrCount = 0
 try {
   adrCount = readdirSync(ADR_DIR).filter((f) => extname(f) === '.md' && f !== 'README.md').length

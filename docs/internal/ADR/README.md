@@ -13,8 +13,8 @@ related: []
 
 This directory contains the Architectural Decision Records (ADRs) for the Arbiter project. Each ADR captures a significant design decision, its context, rationale, and consequences.
 
-> **SSOT:** `docs/ADR/` is the canonical ADR source (since Wave 2, 2026-05-31).
-> `docs/SYSTEM/DECISIONS.md` is a generated digest — do not edit it directly.
+> **SSOT:** `docs/internal/ADR/` is the canonical ADR source (since Wave 2, 2026-05-31).
+> `docs/internal/SYSTEM/DECISIONS.md` is a generated digest — do not edit it directly.
 
 ## Process
 

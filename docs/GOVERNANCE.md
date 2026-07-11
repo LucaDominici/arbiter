@@ -155,7 +155,7 @@ Until then, every `tags:` field reads `[]`.
 
 | Tag               | Purpose                                                        |
 | ----------------- | -------------------------------------------------------------- |
-| `kind/adr`        | Architecture Decision Record under `docs/ADR/`                 |
+| `kind/adr`        | Architecture Decision Record under `docs/internal/ADR/`        |
 | `kind/runbook`    | Operational runbook (incident response, maintenance procedure) |
 | `kind/spine`      | Directory index / spine README pointing at sibling docs        |
 | `kind/ssot`       | Canonical source of truth governed by SSOT_CORE_SET            |

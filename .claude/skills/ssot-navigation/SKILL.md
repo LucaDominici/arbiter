@@ -20,7 +20,7 @@ When documents conflict, higher level wins.
 | Level | Authority                        | Path                      |
 | ----- | -------------------------------- | ------------------------- |
 | 1     | Invariants + governance contract | `AGENTS.md`               |
-| 2     | Architecture decision records    | `docs/ADR/`               |
+| 2     | Architecture decision records    | `docs/internal/ADR/`      |
 | 3     | Process rules                    | `docs/SYSTEM/CANON.md`    |
 | 4     | Active task plan                 | `.claude/plans/<task>.md` |
 | 5     | AI judgment                      | (last resort)             |
@@ -31,7 +31,7 @@ When documents conflict, higher level wins.
 | -------------------- | ------------------------------ | -------------------------------------------- | ---------------------------------------- |
 | Governance contract  | `AGENTS.md`                    | Invariants, authority hierarchy, tool config | Every task, first                        |
 | Process rules        | `docs/SYSTEM/CANON.md`         | 15 CANON-NN constraints from audit waves     | Before adding hook/gate/template/command |
-| Decision records     | `docs/ADR/`                    | Architectural decisions with rationale       | Before changing existing abstractions    |
+| Decision records     | `docs/internal/ADR/`           | Architectural decisions with rationale       | Before changing existing abstractions    |
 | Doc index            | `docs/INDEX.md`                | Generated index of all docs + the wiki       | When orientation is slow                 |
 | SSOT core set        | `docs/METHOD/SSOT_CORE_SET.md` | Minimal reading list per task type           | When uncertain which docs apply          |
 | Invariant catalog    | `src/invariants/catalog.ts`    | Machine-readable INV-NN entries              | Before adding a new invariant            |
@@ -67,6 +67,6 @@ arbiter invariants list
 ## Anti-Patterns
 
 - Starting implementation without reading `AGENTS.md §Invariants` — risks INV violation on first edit
-- Assuming an ADR exists without opening `docs/ADR/` — ADRs are sparse; verify before citing
+- Assuming an ADR exists without opening `docs/internal/ADR/` — ADRs are sparse; verify before citing
 - Adding a hook, gate, or template without checking CANON before CANON-01/04/07/10/11/15
 - Editing `AGENTS.md` without `ARBITER_SSOT_BYPASS=1` — `pre-edit-ssot-guard.mjs` hard-blocks

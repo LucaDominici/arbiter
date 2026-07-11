@@ -291,7 +291,7 @@ if (anyFail) {
       }
     }
   }
-  process.stdout.write('Fix: see docs/ADR/045-kit-taxonomy.md §Parity Contract\n')
+  process.stdout.write('Fix: see docs/internal/ADR/045-kit-taxonomy.md §Parity Contract\n')
   process.exit(1)
 }
 

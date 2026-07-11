@@ -12,7 +12,7 @@ related: []
 # Architectural Decision Records — Generated Digest
 
 > **GENERATED — do not edit.** Run `node scripts/gen-adr-readme.mjs` to regenerate.
-> Canonical ADR source: `docs/ADR/` — see [docs/ADR/README.md](../ADR/README.md) for the full index.
+> Canonical ADR source: `docs/internal/ADR/` — see [docs/internal/ADR/README.md](../ADR/README.md) for the full index.
 > Historical prose log preserved in git history prior to consolidation (2026-06-02).
 
 ## ADR Index

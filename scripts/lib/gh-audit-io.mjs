@@ -47,7 +47,7 @@ export function detectSoloExempt(cwd = process.cwd()) {
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'))
     if (cfg.collaborationMode !== 'trunk-solo') return false
     const attestations = [
-      'docs/ADR/091-single-dev-exception-attestation.md',
+      'docs/internal/ADR/091-single-dev-exception-attestation.md',
       'docs/governance/SOLO_DEV_EXCEPTION.md',
     ]
     return attestations.some((p) => existsSync(join(cwd, p)))

@@ -98,8 +98,8 @@ related: []
 
 This directory contains the Architectural Decision Records (ADRs) for the Arbiter project. Each ADR captures a significant design decision, its context, rationale, and consequences.
 
-> **SSOT:** \`docs/ADR/\` is the canonical ADR source (since Wave 2, 2026-05-31).
-> \`docs/SYSTEM/DECISIONS.md\` is a generated digest — do not edit it directly.
+> **SSOT:** \`docs/internal/ADR/\` is the canonical ADR source (since Wave 2, 2026-05-31).
+> \`docs/internal/SYSTEM/DECISIONS.md\` is a generated digest — do not edit it directly.
 
 ## Process
 
@@ -135,7 +135,7 @@ related: []
 # Architectural Decision Records — Generated Digest
 
 > **GENERATED — do not edit.** Run \`node scripts/gen-adr-readme.mjs\` to regenerate.
-> Canonical ADR source: \`docs/ADR/\` — see [docs/ADR/README.md](../ADR/README.md) for the full index.
+> Canonical ADR source: \`docs/internal/ADR/\` — see [docs/internal/ADR/README.md](../ADR/README.md) for the full index.
 > Historical prose log preserved in git history prior to consolidation (2026-06-02).
 
 ## ADR Index
