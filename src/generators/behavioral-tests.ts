@@ -256,6 +256,13 @@ export function generateBehavioralTests(
         renderTemplate('behavioral-tests/eslint-playwright.json.ejs', data),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
+      // The gate runs the flat config — ESLint v9 removed the legacy --no-eslintrc/-c
+      // loader the .json file needs (#1491-class fix, mirrors eslint.config.static.mjs).
+      writeFile(
+        resolvedPath(base, 'eslint.config.playwright.mjs'),
+        renderTemplate('behavioral-tests/eslint.config.playwright.mjs.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
     )
   }
 

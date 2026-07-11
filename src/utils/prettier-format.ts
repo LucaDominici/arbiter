@@ -25,6 +25,19 @@ function resolveOwnPrettierBin(): string | null {
   }
 }
 
+// Arbiter's own scaffolded default (src/templates/static-analysis/prettierrc.json.ejs)
+// expressed as CLI flags. Fallback ONLY: several generators call formatContent()
+// before the debt-gates generator (which emits .prettierrc.json) has run in the same
+// init session — generator order is not format-config-aware — so `configFile` below
+// can be legitimately absent even though the target IS about to get this exact
+// config (#1491-class fix: a generator formatting against prettier's built-in
+// defaults instead of the project's real style bakes in a render that the L1 gate's
+// later `prettier --check .` — which DOES see the config by then — flags as dirty on
+// Day 1). Every field in the template that already equals prettier's own default
+// (tabWidth, trailingComma, bracketSpacing, arrowParens, endOfLine) is omitted here;
+// keep this in sync with the template if that file's values change.
+const ARBITER_DEFAULT_PRETTIER_ARGS = ['--single-quote', '--no-semi', '--print-width', '100']
+
 // Resolve the prettier invocation (binary + base args + config args) for targetDir.
 // Prefers arbiter's own dependency-tree prettier (deterministic — it ships as a runtime
 // dependency, and a fresh target scaffold has no node_modules yet); falls back to the
@@ -41,7 +54,7 @@ function resolvePrettierInvocation(targetDir: string): {
     : existsSync(prettierRcJson)
       ? prettierRcJson
       : null
-  const configArgs: string[] = configFile ? ['--config', configFile] : []
+  const configArgs: string[] = configFile ? ['--config', configFile] : ARBITER_DEFAULT_PRETTIER_ARGS
   const ownBin = resolveOwnPrettierBin()
   const [cmd, baseArgs]: [string, string[]] = ownBin
     ? ['node', [ownBin]]

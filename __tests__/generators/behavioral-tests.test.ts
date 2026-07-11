@@ -71,14 +71,14 @@ describe('generateBehavioralTests', () => {
     expect(existsSync(join(dir, 'scripts', 'check-test-naming.mjs'))).toBe(true)
   })
 
-  // ─── TypeScript frontend-spa: 6 files (+ playwright config + BDD) ──────────────
+  // ─── TypeScript frontend-spa: 7 files (+ playwright config + flat config + BDD) ─
 
-  it('returns 6 files for typescript frontend-spa', () => {
+  it('returns 7 files for typescript frontend-spa', () => {
     const config = makeConfig(dir, {
       language: 'typescript',
       archetype: 'frontend-spa',
     })
-    expect(generateBehavioralTests(config).files).toHaveLength(6)
+    expect(generateBehavioralTests(config).files).toHaveLength(7)
   })
 
   it('generates eslint-playwright.json for frontend-spa', () => {
@@ -88,6 +88,17 @@ describe('generateBehavioralTests', () => {
     })
     generateBehavioralTests(config)
     expect(existsSync(join(dir, '.eslintrc-playwright.json'))).toBe(true)
+  })
+
+  it('generates eslint.config.playwright.mjs for frontend-spa (#1491-class fix)', () => {
+    // The gate runs the flat config — ESLint v9 removed the legacy
+    // --no-eslintrc/-c loader the .json file needs.
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+    })
+    generateBehavioralTests(config)
+    expect(existsSync(join(dir, 'eslint.config.playwright.mjs'))).toBe(true)
   })
 
   it('does NOT generate eslint-playwright.json for non-frontend-spa typescript', () => {

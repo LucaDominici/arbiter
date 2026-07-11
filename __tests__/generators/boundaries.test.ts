@@ -132,15 +132,20 @@ describe('generateEslintBoundaries', () => {
 
   // ── frontend-spa (#158) ─────────────────────────────────────────────────────
 
-  it('emits .eslintrc-frontend-spa.cjs for typescript + frontend-spa (#158)', () => {
+  it('emits .eslintrc-frontend-spa.cjs + eslint.config.frontend-spa.mjs for typescript + frontend-spa (#158)', () => {
     const config = makeConfig(dir, {
       language: 'typescript',
       archetype: 'frontend-spa',
     })
     const result = generateEslintBoundaries(config)
-    expect(result.files).toHaveLength(1)
+    // #1491-class fix: the gate runs the flat config (ESLint v9 removed the
+    // legacy --no-eslintrc/-c loader) — the .cjs file is retained alongside it
+    // for tooling that still reads eslintrc-format config.
+    expect(result.files).toHaveLength(2)
     expect(result.files[0].path).toContain('.eslintrc-frontend-spa.cjs')
     expect(existsSync(join(dir, '.eslintrc-frontend-spa.cjs'))).toBe(true)
+    expect(result.files[1].path).toContain('eslint.config.frontend-spa.mjs')
+    expect(existsSync(join(dir, 'eslint.config.frontend-spa.mjs'))).toBe(true)
   })
 
   it('.eslintrc-frontend-spa.cjs contains FSD layers (#158)', () => {

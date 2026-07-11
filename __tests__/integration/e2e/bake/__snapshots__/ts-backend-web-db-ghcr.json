@@ -174,7 +174,7 @@
     "tsconfig.json"
   ],
   "contentHashes": {
-    ".arbiter-generated-manifest.json": "cb0b3a3482a7a50b04db0119392a2d53af227a72f310f177978cb9c6477c8edc",
+    ".arbiter-generated-manifest.json": "63902be9d9f7b3710abf074acd30edbb6ee5ff2ae89aa9dcab3a9d7dc26e6518",
     ".arbiter/ship/TICK_PROMPT.md": "03a8b78da1ba474a13866a38cb71e36cf364af78f8b2994b4951e29f33718cd0",
     ".arbiter/ship/supervisor.sh": "44b50dd34c1807153c34812ff487f7961e78dbeec6d567502df7d2a27da6e01c",
     ".claude/CLAUDE.md": "43bba181aa0122cc7e180d50cf3a086e7c6ef89eac4bd774db979377d63986b2",
@@ -240,7 +240,7 @@
     ".githooks/pre-commit": "f2dd3ea950c0d0085adf08ae9dae205645b172fd26d0166ed8268d1ad79e9516",
     ".githooks/pre-push": "9acd06fa5078d0b0f35192338b45dfac770cdb40944ca4f91fd487ef90e5544c",
     ".gitignore": "1bc692cc49f2e2cfc397644c2d1467db6f80bc276dca8d4ccc87d1dddc085866",
-    ".prettierignore": "7aeb672072be48f6a62b95a7b80bf844e7e09cb6e0ffffc256f040e6ffee8b94",
+    ".prettierignore": "a6c0e5861dbb42660145825cdaa2dd4195a205bcc9bec512011044660d586757",
     ".prettierrc.json": "2ba158185b0ad7f72c160eb17eaf3ea0cfadfffdf6ebc0377a25f8d5a21eb1ae",
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".trivyignore": "4b1e090b79bedce32e59a6362370898dcec94c35330244d1af0d7b3f8cc9adfa",
@@ -339,7 +339,7 @@
     "suppressions/suppressions-schema.json": "ef1e0b3d8dfbf075b57d1ebe54b87f5cf70cd8a9405cb6c39505a7bc3f37e9aa",
     "test-pyramid.json": "84ae8478c191c9047f1184db52993ce63acc3b458912bb5e6c747cc180c1e7a4",
     "tests/api/README.md": "6a31a91689f354df478a9d3aac65b13327a40d739e657bcdb5f048ff73db5011",
-    "tests/api/api.e2e.test.ts": "e9a2884c6cbcfb1c92466e3634cc54a0c7dfd6868a186db7a320249f93dba3d3",
+    "tests/api/api.e2e.test.ts": "76a87795aedd52a22a11199f48180f894de89bfc94e733c476b9649780681004",
     "tests/api/run.sh": "65b7c072d08db4ac92370e743cb7ccbb79624981872a15494620a8acd5555377",
     "tests/e2e/a11y.spec.ts": "f65c35bc4b69c48715c88fb37803bd314497bfb9d577fef00919ea2642857770",
     "tests/e2e/a11y/run-axe.ts": "5f7d10678e724d9a22e87d08e4e328bbafd4be41e78c9c3fa863f7fbbd944022",

@@ -334,17 +334,27 @@ const _feGlob = _feFramework === 'vue'
 // of the fsd-boundaries check below.
 // HARD rules enforced: color-no-hex, length-zero-no-unit,
 // custom-property-no-missing-var-function (var(--color-*) from src/styles/theme.css).
+// --allow-empty-input: a fresh scaffold has authored zero .css files yet — without
+// this flag stylelint throws NoFilesFoundError and RED's the gate on Day 1 (#1491-class).
 if (existsSync('.stylelintrc.json') || existsSync('.stylelintrc')) {
-  runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']);
+  runToolCheck('lint:css', 'npx', ['stylelint', '--allow-empty-input', 'src/**/*.css']);
 }
 // ─── L1: FSD layer boundaries (eslint-plugin-boundaries) — framework-aware (#1127) ───
-if (existsSync('.eslintrc-frontend-spa.cjs')) {
-  runCheck('fsd boundaries', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-frontend-spa.cjs', '<%- _feGlob %>']);
+// Flat config: ESLint v9 removed --no-eslintrc/-c (#1491-class fix, mirrors the
+// eslint.config.static.mjs isolation pattern above).
+if (existsSync('eslint.config.frontend-spa.mjs')) {
+  runCheck('fsd boundaries', 'npx', ['eslint', '--config', 'eslint.config.frontend-spa.mjs', '--no-config-lookup', '<%- _feGlob %>']);
 }
 // ─── L1: Playwright quality rules (M27) ──────────────────────────────────────
 // Requires: npm install -D eslint-plugin-playwright
+// Flat config: ESLint v9 removed --no-eslintrc/-c (#1491-class fix, mirrors the
+// eslint.config.static.mjs isolation pattern above).
 if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
-  runCheck('playwright rules', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-playwright.json', 'src/**/*.spec.ts']);
+  // --no-error-on-unmatched-pattern: the glob is source-co-located-spec-oriented;
+  // a project whose specs live only under tests/e2e/ (arbiter's own scaffold
+  // convention) legitimately matches zero files here — that must stay a PASS,
+  // not a Day-1 RED (#1491-class fix).
+  runCheck('playwright rules', 'npx', ['eslint', '--config', 'eslint.config.playwright.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src/**/*.spec.ts']);
 } else {
   console.log('[CHECK] playwright rules ... SKIP (run: npm install -D eslint-plugin-playwright)');
 }

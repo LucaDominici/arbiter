@@ -755,7 +755,9 @@ describe('generateCheckAll', () => {
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     expect(content).toContain('fsd boundaries')
-    expect(content).toContain('.eslintrc-frontend-spa.cjs')
+    // Flat config — ESLint v9 removed the legacy --no-eslintrc/-c loader the
+    // .cjs file needs (#1491-class fix, mirrors eslint.config.static.mjs above).
+    expect(content).toContain('eslint.config.frontend-spa.mjs')
   })
 
   it('enableSecurityScanning=false: no gitleaks, govulncheck, or trivy fs dep-audit step', () => {

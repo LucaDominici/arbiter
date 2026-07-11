@@ -37,8 +37,10 @@ describe('prettier-format production resolution (#1651)', () => {
     it('formats unformatted content via arbiter own bundled prettier', () => {
       const unformatted = 'const x = {a:1,b:2}\n'
       const out = formatContent(unformatted, join(target, 'sample.ts'), target)
-      // prettier normalises spacing/quotes/semicolons deterministically.
-      expect(out).toBe('const x = { a: 1, b: 2 };\n')
+      // No .prettierrc/.prettierrc.json in `target` ⇒ falls back to arbiter's own
+      // scaffolded default (ARBITER_DEFAULT_PRETTIER_ARGS, #1491-class fix) rather
+      // than prettier's built-in defaults — no-semi/single-quote, not semi/double.
+      expect(out).toBe('const x = { a: 1, b: 2 }\n')
       expect(out).not.toBe(unformatted)
     })
 
