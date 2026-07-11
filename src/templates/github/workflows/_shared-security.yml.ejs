@@ -39,7 +39,14 @@ jobs:
           target: 'http://localhost:8080'
           fail_action: false
           artifact_name: zap-full-report
-      - name: Stop application
+          cmd_options: '-J zap-report.json'
+<% if (archetype === 'backend-web-db' && enableSecurityScanning) { %>      # #898/#1887-E: scripts/ingest-zap-report.mjs is emitted by generateSecurity
+      # (security.ts) under this same (archetype === 'backend-web-db' &&
+      # enableSecurityScanning) gate — its own header comment already documents
+      # zap-full-report as one of its two supported producers.
+      - name: Ingest ZAP report (HIGH/MEDIUM threshold gate)
+        run: node scripts/ingest-zap-report.mjs --report zap-report.json
+<% } %>      - name: Stop application
         if: always()
         run: docker compose down
 
