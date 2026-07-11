@@ -21,7 +21,7 @@
 // fixture's build.gradle (arbiter does not own/author a project's build.gradle,
 // so this is fixture-owned, same as the fixture's other pre-existing test deps).
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit } from '../../../../src/commands/init.js'
@@ -202,3 +202,74 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
     })
   }
 })
+
+// B5 (arbiter audit, gate-thesis reliability) — red-path proof. Every cell
+// above only proves the CLEAN fixture is green: green-only, the exact
+// Beyoncé/broken-warnings gap the audit flags — a gate proven to pass never
+// proves it can also FAIL. This reuses the SAME init -> bake -> install chain
+// as the green cells above (the "catena intera generata"), then seeds one
+// real violation and asserts the generated L1 gate's exit code goes non-zero
+// — proof that the generated gate actually BLOCKS, not just that it runs.
+describe.skipIf(!L2)(
+  'functional harness — seeded violation turns the gate red (#1041/#1042, B5)',
+  () => {
+    const language = 'typescript'
+    const skipReason = toolchainSkipReason(language)
+    let dir: string
+
+    beforeEach(() => {
+      dir = stageFixture('ts-library')
+    })
+
+    afterEach(() => {
+      if (dir != null) rmSync(dirname(dir), { recursive: true, force: true })
+    })
+
+    it.skipIf(skipReason != null)(
+      'ts-library (typescript): a seeded type error makes the generated L1 gate exit non-zero',
+      async () => {
+        await runInit({
+          yes: true,
+          tools: 'claude',
+          level: 'L1',
+          dir,
+          dryRun: false,
+          brownfield: false,
+          noVerify: true,
+          language: 'typescript',
+          archetype: 'library',
+        })
+        execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+        execFileSync('git', ['commit', '-m', 'chore: post-init', '--no-verify'], {
+          cwd: dir,
+          stdio: 'ignore',
+        })
+
+        const dep = installDeps(dir, language)
+        if ('skip' in dep) {
+          expect(dep.skip, 'deps unavailable (offline) — skipping gate exec').toBeTruthy()
+          return
+        }
+
+        // Seed the violation AFTER the clean init+install the green cell above
+        // already proves passes: a deliberate type error (string assigned to a
+        // number-typed const) that `tsc --noEmit` must reject regardless of
+        // TypeScript version — no syntax breakage, so lint/format still parse
+        // the file; only the typecheck check fires.
+        writeFileSync(
+          join(dir, 'src', 'index.ts'),
+          readFileSync(join(dir, 'src', 'index.ts'), 'utf-8') +
+            '\nconst _b5RedPathSeededViolation: number = "not-a-number"\n',
+        )
+
+        const result = runGeneratedGate(dir, dep.pathPrefix)
+        expect(
+          result.status,
+          `seeded violation did not turn the gate red:\n${result.output.slice(-2000)}`,
+        ).not.toBe(0)
+        expect(result.output).toContain('[CHECK] typecheck ... FAIL')
+      },
+      240_000,
+    )
+  },
+)
