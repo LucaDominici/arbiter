@@ -70,15 +70,17 @@ describe('generateIntegrationTesting', () => {
     }
   })
 
-  // ─── TypeScript: 2 files at L2 ───────────────────────────────────────────────
+  // ─── TypeScript: 3 files at L2 ───────────────────────────────────────────────
 
-  it('returns 2 files for typescript at L2 with hasDatabase=true', () => {
+  // #1887-D: 3 files — test-setup.ts + the legacy .eslintrc-no-fake-db.json +
+  // its flat-config sibling eslint.config.no-fake-db.mjs (was 2 before).
+  it('returns 3 files for typescript at L2 with hasDatabase=true', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
       governanceLevel: 'L2',
       language: 'typescript',
     })
-    expect(generateIntegrationTesting(config).files).toHaveLength(2)
+    expect(generateIntegrationTesting(config).files).toHaveLength(3)
   })
 
   it('generates test-setup.ts for typescript', () => {
@@ -101,6 +103,44 @@ describe('generateIntegrationTesting', () => {
     expect(existsSync(join(dir, '.eslintrc-no-fake-db.json'))).toBe(true)
   })
 
+  // #1887-D: INV-34 was inert — the legacy .eslintrc-no-fake-db.json cannot be
+  // loaded by ESLint v9 flat config (eslintrc support was removed), and nothing
+  // ever wired it into the lint lane anyway. eslint.config.no-fake-db.mjs is the
+  // flat-config sibling (mirrors eslint.config.static.mjs's precedent), kept
+  // alongside the legacy .json for any tooling that still reads it.
+  it('generates eslint.config.no-fake-db.mjs (flat config) for typescript', () => {
+    const config = makeConfig(dir, {
+      hasDatabase: true,
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    generateIntegrationTesting(config)
+    expect(existsSync(join(dir, 'eslint.config.no-fake-db.mjs'))).toBe(true)
+  })
+
+  it('eslint.config.no-fake-db.mjs restricts sqlite3/better-sqlite3 imports', () => {
+    const config = makeConfig(dir, {
+      hasDatabase: true,
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    generateIntegrationTesting(config)
+    const content = readFileSync(join(dir, 'eslint.config.no-fake-db.mjs'), 'utf-8')
+    expect(content).toContain('sqlite3')
+    expect(content).toContain('better-sqlite3')
+    expect(content).toContain('no-restricted-imports')
+  })
+
+  it('does not generate eslint.config.no-fake-db.mjs without a database', () => {
+    const config = makeConfig(dir, {
+      hasDatabase: false,
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    generateIntegrationTesting(config)
+    expect(existsSync(join(dir, 'eslint.config.no-fake-db.mjs'))).toBe(false)
+  })
+
   it('test-setup.ts contains PostgreSqlContainer', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
@@ -114,13 +154,13 @@ describe('generateIntegrationTesting', () => {
 
   // ─── TypeScript: also passes at L3 ───────────────────────────────────────────
 
-  it('returns 2 files for typescript at L3 with hasDatabase=true', () => {
+  it('returns 3 files for typescript at L3 with hasDatabase=true', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
       governanceLevel: 'L3',
       language: 'typescript',
     })
-    expect(generateIntegrationTesting(config).files).toHaveLength(2)
+    expect(generateIntegrationTesting(config).files).toHaveLength(3)
   })
 
   // ─── Java: 3 files at L3 ─────────────────────────────────────────────────────

@@ -136,6 +136,16 @@ export function generateIntegrationTesting(
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
+    // #1887-D: flat-config sibling (INV-34) — ESLint v9 cannot load the legacy
+    // .eslintrc-no-fake-db.json above (eslintrc support removed), so it was
+    // inert. Mirrors eslint.config.static.mjs's precedent.
+    results.push(
+      writeFile(
+        resolvedPath(base, 'eslint.config.no-fake-db.mjs'),
+        renderTemplate('integration-testing/eslint.config.no-fake-db.mjs.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
   }
   if (config.language === 'rust') {
     results.push(
