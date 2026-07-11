@@ -208,3 +208,33 @@ describe('generateTestTaxonomy — reads taxonomy.domainDims from config (#1524)
     }
   })
 })
+
+// #1887-A: enableTaxonomy25d previously had NO public activation path — this
+// pins the generator-level branch itself (config.enableTaxonomy25d selects
+// testing/test-taxonomy.md.ejs, the 26-dimension compliance template, over the
+// default root/TEST_TAXONOMY.md.ejs pyramid-only doc), which had zero coverage.
+describe('generateTestTaxonomy — enableTaxonomy25d template selection (#719, #1887-A)', () => {
+  it('renders the 26-dimension compliance template when enableTaxonomy25d is true', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'arbiter-taxonomy-'))
+    try {
+      const config = makeConfig(tmp, { enableTaxonomy25d: true })
+      generateTestTaxonomy(config)
+      const content = readFileSync(join(tmp, 'docs', 'TEST_TAXONOMY.md'), 'utf8')
+      expect(content).toContain('test-pyramid-profile-26d')
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+
+  it('renders the default pyramid-only doc when enableTaxonomy25d is absent', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'arbiter-taxonomy-'))
+    try {
+      const config = makeConfig(tmp, {})
+      generateTestTaxonomy(config)
+      const content = readFileSync(join(tmp, 'docs', 'TEST_TAXONOMY.md'), 'utf8')
+      expect(content).not.toContain('test-pyramid-profile-26d')
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+})

@@ -245,6 +245,12 @@
   },
   {
     "dest": "scripts",
+    "path": "check-feature-matrix.mjs",
+    "reason": "#1887-B: self's own scripts/check-feature-matrix.mjs validates arbiter's OWN docs/internal/PRODUCT/FEATURE_MATRIX.md against arbiter's OWN src/kit/catalog.json (KIT-dimension coverage + L4 audit_trail DoD) — the shipped template (src/templates/scripts/check-feature-matrix.mjs.ejs) is a deliberately SCOPED-DOWN port for target projects, which have no docs/internal/PRODUCT/ tree or KIT catalog equivalent. The two files validate structurally different documents at different paths by design; this is not staleness to reconcile.",
+    "diffHash": "157a9f5b4a13a1905c4485e6d4e6ac4866c5ef40da7a32f201d5211da416a659"
+  },
+  {
+    "dest": "scripts",
     "path": "check-grace-window.mjs",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "diffHash": "c9ae0b74bf1dc7f8f441cc479fb7e7fa00f8c6b76817039e85dcf6dc79a2c61f"

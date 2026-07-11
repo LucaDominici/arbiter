@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { getLogger } from './logger.js'
 
 export interface RunCliOptions {
@@ -65,15 +65,6 @@ export class CliError extends Error {
 const DEFAULT_TIMEOUT_MS = 60_000
 
 /**
- * Grace period after SIGTERM before the async runner escalates to SIGKILL.
- * A child that traps or ignores SIGTERM (graceful-shutdown handlers are common
- * in CLIs) would otherwise never exit, never emit `'close'`, and leave the
- * runCliAsync Promise unsettled — defeating the timeout entirely (#1581). The
- * sync runner does not need this: `spawnSync({ timeout })` escalates natively.
- */
-const KILL_GRACE_MS = 2_000
-
-/**
  * Default cap on bytes buffered from a child's stdout/stderr. Node's own
  * default is 1 MB, which truncates ordinary large output (a few-thousand-line
  * `git diff`, a big `gh` JSON payload) and surfaces as an opaque `exit -1`.
@@ -109,9 +100,8 @@ interface AttemptObservation {
 }
 
 /**
- * Classify a finished child run into a retry-loop {@link Attempt}. Shared by the
- * sync (`spawnSync`) and async (`spawn`) runners so their error taxonomy —
- * not-found, output-overflow, timeout, non-zero exit — stays byte-identical.
+ * Classify a finished `spawnSync` run into a retry-loop {@link Attempt} —
+ * not-found, output-overflow, timeout, non-zero exit.
  */
 function classifyAttempt(obs: AttemptObservation): Attempt {
   const { cmd, args, stdout, stderr, errorCode } = obs
@@ -219,125 +209,7 @@ function runOnce(cmd: string, args: readonly string[], opts: RunOnceOptions): At
   })
 }
 
-/**
- * Non-blocking sibling of {@link runOnce}, backed by `child_process.spawn`.
- * Accumulates stdout/stderr, enforces the same byte cap (`spawn` has no native
- * `maxBuffer`), and applies the timeout via a watchdog timer. Resolves to an
- * {@link Attempt} on `'close'` and never rejects — spawn-time errors (ENOENT)
- * arrive on `'error'` and are folded into the same classifier as the sync path.
- */
-function runOnceAsync(
-  cmd: string,
-  args: readonly string[],
-  opts: RunOnceOptions,
-): Promise<Attempt> {
-  return new Promise<Attempt>((resolve) => {
-    const start = Date.now()
-    const child = spawn(cmd, [...args], { cwd: opts.cwd, env: opts.env, shell: false })
-
-    let stdout = ''
-    let stderr = ''
-    let stdoutBytes = 0
-    let stderrBytes = 0
-    let overflow = false
-    let timedOut = false
-    let settled = false
-    let killTimer: ReturnType<typeof setTimeout> | undefined
-
-    const settle = (
-      obs: Omit<AttemptObservation, 'cmd' | 'args' | 'timeoutMs' | 'maxBufferBytes'>,
-    ): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      // A clean 'close' cancels any pending SIGKILL escalation.
-      if (killTimer !== undefined) clearTimeout(killTimer)
-      resolve(
-        classifyAttempt({
-          ...obs,
-          cmd,
-          args,
-          timeoutMs: opts.timeoutMs,
-          maxBufferBytes: opts.maxBufferBytes,
-        }),
-      )
-    }
-
-    // SIGTERM, then escalate to SIGKILL after a grace period if the child does
-    // not exit — a child that traps/ignores SIGTERM would otherwise never emit
-    // 'close' and hang this Promise forever, defeating the timeout (#1581). The
-    // grace timer is armed at most once and unref'd so it never holds the event
-    // loop open on its own.
-    const terminate = (): void => {
-      child.kill('SIGTERM')
-      if (killTimer !== undefined) return
-      killTimer = setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS)
-      if (typeof killTimer.unref === 'function') killTimer.unref()
-    }
-
-    const timer = setTimeout(() => {
-      timedOut = true
-      terminate()
-    }, opts.timeoutMs)
-    // Do not let the watchdog keep the event loop alive on its own.
-    if (typeof timer.unref === 'function') timer.unref()
-
-    // With default 'pipe' stdio, stdout/stderr/stdin are always present.
-    child.stdout.setEncoding('utf-8')
-    child.stderr.setEncoding('utf-8')
-    child.stdout.on('data', (chunk: string) => {
-      stdoutBytes += Buffer.byteLength(chunk)
-      if (stdoutBytes > opts.maxBufferBytes) {
-        overflow = true
-        terminate()
-        return
-      }
-      stdout += chunk
-    })
-    child.stderr.on('data', (chunk: string) => {
-      stderrBytes += Buffer.byteLength(chunk)
-      if (stderrBytes > opts.maxBufferBytes) {
-        overflow = true
-        terminate()
-        return
-      }
-      stderr += chunk
-    })
-
-    if (opts.input !== undefined) {
-      // Ignore EPIPE if the child exits before consuming all input.
-      child.stdin.on('error', () => {})
-      child.stdin.end(opts.input)
-    }
-
-    child.on('error', (err: NodeJS.ErrnoException) => {
-      settle({
-        stdout,
-        stderr,
-        errorCode: err.code ?? 'ESPAWN',
-        status: null,
-        signal: null,
-        durationMs: Date.now() - start,
-      })
-    })
-
-    child.on('close', (code, signal) => {
-      // Map self-inflicted kills onto the errno codes the classifier expects so
-      // overflow/timeout are reported identically to the sync path.
-      const errorCode = overflow ? 'ENOBUFS' : timedOut ? 'ETIMEDOUT' : undefined
-      settle({
-        stdout,
-        stderr,
-        errorCode,
-        status: code,
-        signal,
-        durationMs: Date.now() - start,
-      })
-    })
-  })
-}
-
-/** Resolved per-invocation config shared by the sync and async runners. */
+/** Resolved per-invocation config for {@link runCli}. */
 interface NormalizedRunOpts {
   runOpts: RunOnceOptions
   retries: number
@@ -393,30 +265,6 @@ export function runCli(
     const result = settleAttempt(cmd, runOnce(cmd, args, runOpts), attemptErrors)
     if (result) return result
     if (attempt < retries) sleepSync(retryDelayMs)
-  }
-  throw finalRetryError(cmd, args, attemptErrors)
-}
-
-/**
- * Async sibling of {@link runCli}, backed by `child_process.spawn` instead of
- * the event-loop-blocking `spawnSync`. Identical timeout/retry/CliError
- * semantics, but the child runs without stalling the event loop — so N calls
- * launched together (e.g. `Promise.allSettled(prompts.map(...))`) are genuinely
- * concurrent rather than serialized. Use this for fan-out workloads such as the
- * multi-agent reviewer (#1514); keep the sync `runCli` for paths that must
- * block (sequential plan-review, simple one-shot shell-outs).
- */
-export async function runCliAsync(
-  cmd: string,
-  args: readonly string[],
-  opts: RunCliOptions = {},
-): Promise<RunCliResult> {
-  const { runOpts, retries, retryDelayMs } = normalizeOpts(opts)
-  const attemptErrors: CliError[] = []
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const result = settleAttempt(cmd, await runOnceAsync(cmd, args, runOpts), attemptErrors)
-    if (result) return result
-    if (attempt < retries) await sleepAsync(retryDelayMs)
   }
   throw finalRetryError(cmd, args, attemptErrors)
 }
@@ -549,8 +397,4 @@ function sleepSync(ms: number): void {
   if (ms <= 0) return
   const buf = new Int32Array(new SharedArrayBuffer(4))
   Atomics.wait(buf, 0, 0, ms)
-}
-
-function sleepAsync(ms: number): Promise<void> {
-  return ms <= 0 ? Promise.resolve() : new Promise<void>((resolve) => setTimeout(resolve, ms))
 }

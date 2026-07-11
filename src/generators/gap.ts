@@ -30,5 +30,14 @@ export function generateGap(
     { skipIfExists: true, dryRun: opts.dryRun },
   )
 
-  return { files: [result] }
+  // #1887-B: the emitted doc's own comment promises "The gate (gen-gap.mjs
+  // --check) validates the committed register on every gate run" — but that
+  // gate was never emitted into the target project. Fulfill the promise.
+  const gate = writeFile(
+    resolvedPath(base, 'scripts', 'gen-gap.mjs'),
+    renderTemplate('scripts/gen-gap.mjs.ejs', data),
+    { skipIfExists: true, dryRun: opts.dryRun },
+  )
+
+  return { files: [result, gate] }
 }

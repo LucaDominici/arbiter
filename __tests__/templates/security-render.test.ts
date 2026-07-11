@@ -124,6 +124,49 @@ describe('ZAP DAST template rendering (#898)', () => {
       expect(out).toContain('[ZAP]')
     })
   })
+
+  // #1887-E: the script's own header comment documents zap-full-report and
+  // action-baseline-scan as its two producers — neither workflow actually
+  // wired the ingest step (or a JSON report filename for the scanner to write
+  // to), so the "gate" it advertises was dead on every project. This is the
+  // workflow-side half: step exists, path matches the emission gate
+  // (archetype === 'backend-web-db' && enableSecurityScanning) generateSecurity
+  // uses for scripts/ingest-zap-report.mjs itself.
+  describe('workflow wiring — ingest-zap-report.mjs step (#1887-E)', () => {
+    const zapConfig = () => cfg({ archetype: 'backend-web-db', enableSecurityScanning: true })
+
+    it('_shared-security.yml.ejs: dast-full wires cmd_options + the ingest step', () => {
+      const out = renderTemplate('github/workflows/_shared-security.yml.ejs', zapConfig())
+      expect(out).toContain("cmd_options: '-J zap-report.json'")
+      expect(out).toContain('node scripts/ingest-zap-report.mjs --report zap-report.json')
+    })
+
+    it('_shared-security.yml.ejs: omits the ingest step when enableSecurityScanning is false (never emitted there)', () => {
+      const out = renderTemplate(
+        'github/workflows/_shared-security.yml.ejs',
+        cfg({ archetype: 'backend-web-db', enableSecurityScanning: false }),
+      )
+      expect(out).not.toContain('ingest-zap-report.mjs')
+    })
+
+    it('04-deploy-test.yml.ejs: dast-baseline wires context_file + cmd_options + the ingest step', () => {
+      const out = renderTemplate('github/workflows/04-deploy-test.yml.ejs', {
+        ...zapConfig(),
+        deployTarget: 'azure-container-app',
+      })
+      expect(out).toContain("context_file: '.zap/baseline-auth.context'")
+      expect(out).toContain("cmd_options: '-J zap-report.json'")
+      expect(out).toContain('node scripts/ingest-zap-report.mjs --report zap-report.json')
+    })
+
+    it('04-deploy-test.yml.ejs: omits the ingest step when enableSecurityScanning is false (never emitted there)', () => {
+      const out = renderTemplate('github/workflows/04-deploy-test.yml.ejs', {
+        ...cfg({ archetype: 'backend-web-db', enableSecurityScanning: false }),
+        deployTarget: 'azure-container-app',
+      })
+      expect(out).not.toContain('ingest-zap-report.mjs')
+    })
+  })
 })
 
 describe('security template rendering (#166)', () => {

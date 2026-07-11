@@ -172,7 +172,77 @@ apply from: 'gradle/arch-test-deps.gradle'
 | `RestAssuredArchTest` | All `*ControllerIT` must extend `RestAssuredBaseIT` |<% } %>
 
 **Suppressions**: add exemptions to `suppressions/archunit-baseline.json` with `scope` (class-pattern glob) + `expiresAt` (wave-migration date).
-<% } %><% } %><% if (language === 'go') { %>### Go
+<% } %><% if (basePackage) { %>
+
+### Module Boundaries (Spring Modulith)
+
+If this is a Spring Boot project, the generated `ApplicationModulesTest` (`src/test/java/<%= basePackage.replace(/\./g, '/') %>/modulith/`) verifies module boundaries via `ApplicationModules.of(...).verify()` (#1886).
+
+**Setup** (Gradle): add to `build.gradle`:
+```groovy
+apply from: 'gradle/modulith-deps.gradle'
+```
+
+**Setup** (Maven): see `docs/modulith-maven-setup.md` for the `<dependency>` snippet.
+<% } %><% if (enableDebtGates && buildTool === 'gradle') { %>
+
+### Coverage Gate (JaCoCo)
+
+Generated `gradle/jacoco.gradle` wires `jacocoTestCoverageVerification` as a hard gate on `check` (#1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+apply from: 'gradle/jacoco.gradle'
+```
+<% } %><% if (contractType === 'rest-owned' && buildTool === 'gradle') { %>
+
+### Contract Testing (Pact provider verification)
+
+Generated `config/pact-deps.gradle` wires the Pact provider-verification dependencies + broker system properties (#1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+apply from: 'config/pact-deps.gradle'
+```
+<% } %><% if (contractType === 'rest-public' && buildTool === 'gradle') { %>
+
+### Contract Testing (OpenAPI exporter)
+
+Generated `config/export-openapi-java.gradle` wires the `org.springdoc.openapi-gradle-plugin` + `generateOpenApiDocs` task, producing `contracts/openapi-current.yaml` for the diff test (INV-43, #1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+plugins {
+    id 'org.springdoc.openapi-gradle-plugin' version '1.8.0'
+}
+```
+```groovy
+apply from: 'config/export-openapi-java.gradle'
+```
+<% } %><% if (hasDatabase && governanceLevel !== 'L1' && buildTool === 'gradle') { %>
+
+### Integration Testing (Testcontainers)
+
+Generated `config/testcontainers-deps.gradle` wires the Testcontainers + PostgreSQL test dependencies (M26, #1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+apply from: 'config/testcontainers-deps.gradle'
+```
+<% } %><% } %><% if (language === 'kotlin' && enableDebtGates && buildTool === 'gradle') { %>### Coverage Gate (Kover)
+
+Generated `kover.gradle` wires `koverVerify`/`koverXmlReport` as a hard gate (#1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+plugins {
+    id 'org.jetbrains.kotlinx.kover' version '0.9.8'
+}
+```
+```groovy
+apply from: 'kover.gradle'
+```
+<% } %><% if (language === 'go') { %>### Go
 
 - All exported functions must have documentation comments
 - Error handling: check every returned error — no `_ = err` patterns

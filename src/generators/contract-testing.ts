@@ -4,8 +4,15 @@ import { writeFile, resolvedPath } from '../utils/fs.js'
 import { mutatePackageJson } from '../utils/pkg.js'
 import { getLogger } from '../utils/logger.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
+import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+
+// #1887-F: org.springdoc.openapi-gradle-plugin is a marketplace plugin whose
+// applied-script config (openApi {}) requires the plugin declared in the root
+// plugins block — the template's own `plugins {}` block (removed) could never
+// be applied via apply(from=...); Gradle forbids the plugins DSL there.
+const SPRINGDOC_OPENAPI_PLUGIN_VERSION = '1.8.0'
 
 export interface ContractTestingGeneratorResult {
   files: WriteResult[]
@@ -200,6 +207,13 @@ function generateRestOwned(
         { skipIfExists: true, dryRun },
       ),
     )
+    // #1887-F: config/pact-deps.gradle was emitted but never wired into the
+    // root build — same ghost class as #1886. No plugins{} block in the
+    // snippet (pure deps + test{} config), so only apply(from=...) is needed.
+    if (config.buildTool === 'gradle') {
+      const applyPactDeps = safeApplyFromSnippet(base, 'config/pact-deps.gradle')
+      if (applyPactDeps) injectGradleWiring(base, dryRun, { snippets: [applyPactDeps] })
+    }
   }
 
   // F7: Postman/Newman contract test scripts — Java only (#894)
@@ -282,6 +296,25 @@ function generateRestPublic(
         skip,
       ),
     )
+    // #1887-F: config/export-openapi-java.gradle was emitted but never wired —
+    // AND its `plugins {}` block is exactly what safeApplyFromSnippet's guard
+    // withholds (Gradle forbids the plugins DSL in applied scripts). The
+    // plugin now lives in the root plugins block via injectGradleWiring; the
+    // template keeps only the openApi {} extension config (no typed imports).
+    if (config.buildTool === 'gradle') {
+      const applyExportOpenapi = safeApplyFromSnippet(base, 'config/export-openapi-java.gradle')
+      if (applyExportOpenapi) {
+        injectGradleWiring(base, dryRun, {
+          plugins: [
+            {
+              id: 'org.springdoc.openapi-gradle-plugin',
+              version: SPRINGDOC_OPENAPI_PLUGIN_VERSION,
+            },
+          ],
+          snippets: [applyExportOpenapi],
+        })
+      }
+    }
   }
   if (config.language === 'rust') {
     extra.push(

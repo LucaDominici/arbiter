@@ -71,6 +71,11 @@ export const RecipeSchema = z.object({
   // #1835 (Task B, #1825): collapsed 5-lane CI doctrine — previously had no public
   // activation path (no CLI flag, wizard prompt, recipe field, or preset).
   enableFiveLaneCi: z.boolean().optional(),
+  // #1887-A: same class of bug — generators built, gated on the ProjectConfig
+  // field, but no public activation path at all until this recipe field.
+  enableCodeownersNotify: z.boolean().optional(),
+  enableTaxonomy25d: z.boolean().optional(),
+  enablePerfTesting: z.boolean().optional(),
   // #1261: ship-autonomy axis (ADR-093 §4) — the non-interactive override for
   // `automation.autonomy` (init --yes/--json never prompts; default is L0).
   // #1306 (ADR-094 §Decision.4): the three orchestration prefs are recipe-settable

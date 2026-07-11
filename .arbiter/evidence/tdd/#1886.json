@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1886",
+  "test_path": "__tests__/matrix/java.test.ts",
+  "test_commit_sha": "0327b723b2e73753bfdabb20b58be38bc37eec28",
+  "test_run_log": "\n RUN  v4.1.10 /tmp/arbiter-tdd-scratch\n\n ❯ __tests__/matrix/java.test.ts (30 tests | 1 failed | 29 skipped) 199ms\n     × AGENTS.md includes Spring Modulith setup row for any java project with basePackage 198ms\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/matrix/java.test.ts > matrix: Java project — hexagonal architecture suite (M22) > AGENTS.md includes Spring Modulith setup row for any java project with basePackage\nAssertionError: expected '# test-project — AGENTS.md\\n\\n> **Can…' to contain 'Spring Modulith'\n\n- Expected\n+ Received\n\n- Spring Modulith\n... [received: full generated AGENTS.md content, omitted for evidence-file brevity — 350 lines] ...\n    377|     runGenerators(config)\n    378|     const content = readFileSync(join(hexDir, 'AGENTS.md'), 'utf-8')\n    379|     expect(content).toContain('Spring Modulith')\n       |                     ^\n    380|     expect(content).toContain(\"apply from: 'gradle/modulith-deps.gradl…\n    381|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n\n Test Files  1 failed (1)\n      Tests  1 failed | 29 skipped (30)\n   Start at  10:38:29\n   Duration  667ms (transform 297ms, setup 13ms, import 384ms, tests 199ms, environment 0ms)\n\n",
+  "observed_failure": "FAIL  __tests__/matrix/java.test.ts > matrix: Java project — hexagonal architecture suite (M22) > AGENTS.md includes Spring Modulith setup row for any java project with basePackage",
+  "recorded_at": "2026-07-11T08:38:51.996Z"
+}

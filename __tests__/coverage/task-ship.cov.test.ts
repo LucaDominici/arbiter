@@ -27,7 +27,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   shipStepFor,
-  shipSequence,
   nextPhase,
   buildShipStepLines,
   runTaskShip,
@@ -168,21 +167,6 @@ describe('nextPhase branch', () => {
 
   it('returns null for a lateral phase not in PHASE_ORDER (idx === -1)', () => {
     expect(nextPhase('red-team-rework')).toBeNull()
-  })
-})
-
-describe('shipSequence', () => {
-  it('previews the forward plan and never includes the lateral rework phase', () => {
-    const seq = shipSequence('Standard')
-    expect(seq.map((s) => s.phase)).not.toContain('red-team-rework')
-    expect(seq[0]?.phase).toBe('preflight')
-    expect(seq.at(-1)?.phase).toBe('complete')
-  })
-
-  it('threads a custom profile into the preview', () => {
-    const seq = shipSequence('Standard', profile({ isArbiterSelf: true }))
-    const verification = seq.find((s) => s.phase === 'verification')
-    expect(verification?.selfOnlyChecks?.length).toBe(3)
   })
 })
 

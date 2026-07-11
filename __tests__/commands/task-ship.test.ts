@@ -7,7 +7,6 @@ import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import {
   runTaskShip,
-  shipSequence,
   shipStepFor,
   nextPhase,
   buildShipStepLines,
@@ -50,21 +49,6 @@ function companionEvidencePath(taskId: string, dir: string): string {
 }
 
 describe('ship sequencing — pure plan', () => {
-  it('shipSequence covers all nine forward phases in order', () => {
-    const seq = shipSequence('Standard')
-    expect(seq.map((s) => s.phase)).toEqual([
-      'preflight',
-      'plan',
-      'red-team-review',
-      'red',
-      'green',
-      'refactor',
-      'verification',
-      'close',
-      'complete',
-    ])
-  })
-
   it('dispatches tier-N red-team agents at red-team-review', () => {
     expect(shipStepFor('red-team-review', 'XS').reviewAgents).toBe(1)
     expect(shipStepFor('red-team-review', 'S').reviewAgents).toBe(2)
@@ -285,12 +269,6 @@ describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)
   it('consumer → verification selfOnlyChecks is empty (skipped, not faked)', () => {
     const step = shipStepFor('verification', 'Standard', profile({ isArbiterSelf: false }))
     expect(step.selfOnlyChecks ?? []).toEqual([])
-  })
-
-  it('omitted profile defaults consumer-safe: no self-only gates leak in the generic preview (RT-07)', () => {
-    const seq = shipSequence('Standard') // no profile
-    const verification = seq.find((s) => s.phase === 'verification')
-    expect(verification?.selfOnlyChecks ?? []).toEqual([])
   })
 })
 

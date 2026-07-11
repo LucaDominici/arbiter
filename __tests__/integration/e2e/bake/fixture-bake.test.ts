@@ -9,6 +9,7 @@ import { dirname, join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit } from '../../../../src/commands/init.js'
 import { validateConfig } from '../../../../src/config/schema.js'
+import { checkEmissionCoherence } from '../../../../scripts/check-emission-coherence.mjs'
 import {
   computeFileDelta,
   listFixtures,
@@ -85,7 +86,7 @@ describe.each(fixtures)('bake — %s', (fixture) => {
     const before = listProjectFiles(dir)
     await runInit({
       yes: true,
-      tools: 'claude',
+      tools: manifest.tools ?? 'claude',
       level,
       dir,
       dryRun: false,
@@ -101,6 +102,21 @@ describe.each(fixtures)('bake — %s', (fixture) => {
       validate.ok,
       validate.ok ? '' : `arbiter.json invalid: ${JSON.stringify(validate)}`,
     ).toBe(true)
+
+    // #1885: on the codex-only cell, every .codex/config.toml hook-path reference
+    // must resolve to an emitted file — this is the exact ghost that crashed every
+    // bash/apply_patch call before generateCodexHooks became self-sufficient.
+    // Scoped to this one cell (not the whole matrix): the broader emission-coherence
+    // gate surfaces pre-existing, unrelated dead-emission findings on other fixtures
+    // (out of scope here — see #1887-B/#1887-F for the check-all wiring gaps).
+    if (fixture === 'ts-codex-only') {
+      const { problems } = checkEmissionCoherence(dir)
+      const codexProblems = problems.filter((p) => p.includes('.codex/config.toml'))
+      expect(
+        codexProblems,
+        `emission-coherence .codex/config.toml problems for ${fixture}:\n${codexProblems.join('\n')}`,
+      ).toEqual([])
+    }
 
     const after = listProjectFiles(dir)
     const generated = computeFileDelta(before, after).sort()

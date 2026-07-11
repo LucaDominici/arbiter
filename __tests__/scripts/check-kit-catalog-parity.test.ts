@@ -704,7 +704,11 @@ describe('crosswalk referential integrity (import_total-gated)', () => {
   it('exits 0 (rule skipped) when import_total is absent, even with gaps', () => {
     const { dir, cleanup, writeAll } = makeTemp()
     try {
-      writeAll([catDim()], [mapDim({ import_source: { import_id: 1, import_name: 'x' } })], emptyLex)
+      writeAll(
+        [catDim()],
+        [mapDim({ import_source: { import_id: 1, import_name: 'x' } })],
+        emptyLex,
+      )
       // import_id 2 is never mentioned anywhere — would fail Rule 7 if it ran.
       expect(run(dir).status).toBe(0)
     } finally {

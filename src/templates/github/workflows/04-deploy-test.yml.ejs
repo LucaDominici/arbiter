@@ -389,8 +389,20 @@ const _dt = ({
           target: ${{ secrets.TEST_BASE_URL }}
           fail_action: true
           rules_file_name: '.zap/rules.tsv'
+          # #1887-E: authenticated-scan context — baseline-auth.context is emitted by
+          # generateSecurity (security.ts) for the user to fill in login URL/credentials.
+          context_file: '.zap/baseline-auth.context'
+          cmd_options: '-J zap-report.json'
           allow_issue_writing: false
-
+<% if (archetype === 'backend-web-db' && enableSecurityScanning) { %>
+      # #898/#1887-E: scripts/ingest-zap-report.mjs is emitted by generateSecurity
+      # under this same (archetype === 'backend-web-db' && enableSecurityScanning)
+      # gate — its own header comment already documents action-baseline-scan as one
+      # of its two supported producers. Only runs when the scan itself ran.
+      - name: Ingest ZAP report (HIGH/MEDIUM threshold gate)
+        if: steps.target.outputs.run == 'true'
+        run: node scripts/ingest-zap-report.mjs --report zap-report.json
+<% } %>
   # === GROUP: notify ===
 
   notify:

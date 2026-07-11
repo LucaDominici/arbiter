@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1887",
+  "test_path": "__tests__/generators/agents-md.test.ts",
+  "test_commit_sha": "6618c33ef7eb370a3c3a52a3735acaa9190c8f01",
+  "test_run_log": "\n RUN  v4.1.10 /tmp/arbiter-tdd-scratch\n\n ❯ __tests__/generators/agents-md.test.ts (18 tests | 2 failed | 14 skipped) 18ms\n     × includes JaCoCo setup row for a java gradle project with debt gates enabled 10ms\n     × includes Kover setup row for a kotlin gradle project with debt gates enabled 5ms\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/generators/agents-md.test.ts > generateAgentsMd > includes JaCoCo setup row for a java gradle project with debt gates enabled\nAssertionError: expected '# test-project — AGENTS.md\\n\\n> **Can…' to contain 'Coverage Gate (JaCoCo)'\n\n- Expected\n+ Received\n\n... [received: full generated AGENTS.md content, omitted for evidence-file brevity] ...\n+ All governance rules are in **this file**.\n+\n\n ❯ __tests__/generators/agents-md.test.ts:185:21\n    183|     )\n    184|     const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')\n    185|     expect(content).toContain('Coverage Gate (Kover)')\n       |                     ^\n    186|     expect(content).toContain(\"id 'org.jetbrains.kotlinx.kover' versio…\n    187|     expect(content).toContain(\"apply from: 'kover.gradle'\")\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n\n Test Files  1 failed (1)\n      Tests  2 failed | 2 passed | 14 skipped (18)\n   Start at  10:39:57\n   Duration  178ms (transform 67ms, setup 12ms, import 74ms, tests 18ms, environment 0ms)\n\n",
+  "observed_failure": "FAIL  __tests__/generators/agents-md.test.ts > generateAgentsMd > includes JaCoCo setup row for a java gradle project with debt gates enabled",
+  "recorded_at": "2026-07-11T08:40:11.646Z"
+}

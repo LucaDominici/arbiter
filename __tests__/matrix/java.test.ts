@@ -369,6 +369,17 @@ describe('matrix: Java project — hexagonal architecture suite (M22)', () => {
     expect(content).toContain('DependencyFlowTest')
   })
 
+  // #1886: AGENTS.md documents the Spring Modulith gradle-snippet setup — the
+  // sibling row to the ArchUnit section above, gated on basePackage alone
+  // (Modulith isn't hexagonal-specific, unlike the ArchUnit suite).
+  it('AGENTS.md includes Spring Modulith setup row for any java project with basePackage', () => {
+    const config = hexConfig()
+    runGenerators(config)
+    const content = readFileSync(join(hexDir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('Spring Modulith')
+    expect(content).toContain("apply from: 'gradle/modulith-deps.gradle'")
+  })
+
   it('check-all.mjs includes architecture tests step for hexagonal Gradle', () => {
     const config = hexConfig()
     runGenerators(config)

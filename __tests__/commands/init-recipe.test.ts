@@ -339,4 +339,57 @@ describe('runInit with --recipe (#546)', () => {
     }
     expect(raw.features?.fiveLaneCi).toBe(false)
   })
+
+  // #1887-A: enableCodeownersNotify / enableTaxonomy25d / enablePerfTesting had
+  // generators built and gated on the ProjectConfig field, but NO public
+  // activation path (no CLI flag, wizard prompt, recipe field, or preset) — the
+  // exact #1835 fiveLaneCi precedent, mirrored here for all three.
+  it.each([
+    ['enableCodeownersNotify', 'codeownersNotify'],
+    ['enableTaxonomy25d', 'taxonomy25d'],
+    ['enablePerfTesting', 'perfTesting'],
+  ] as const)(
+    'recipe %s=true reaches the registry config and persists features.%s (#1887-A)',
+    async (configField, featureKey) => {
+      const recipePath = join(dir, `${featureKey}-recipe.json`)
+      writeFileSync(
+        recipePath,
+        JSON.stringify({
+          tools: ['claude'],
+          governanceLevel: 'L2',
+          language: 'typescript',
+          archetype: 'backend-web-db',
+          useGitHub: true,
+          [configField]: true,
+        }),
+      )
+
+      const { buildRegistry } = await import('../../src/generators/registry.js')
+      const mockBuild = vi.mocked(buildRegistry)
+
+      const { runInit } = await import('../../src/commands/init.js')
+      await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: recipePath })
+
+      const config = mockBuild.mock.calls[0]?.[0] as Record<string, unknown> | undefined
+      expect(config?.[configField]).toBe(true)
+
+      const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+        features?: Record<string, unknown>
+      }
+      expect(raw.features?.[featureKey]).toBe(true)
+    },
+  )
+
+  it.each([['codeownersNotify'], ['taxonomy25d'], ['perfTesting']] as const)(
+    'recipe without the flag persists features.%s=false (#1887-A)',
+    async (featureKey) => {
+      const { runInit } = await import('../../src/commands/init.js')
+      await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: FIXTURE_PATH })
+
+      const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+        features?: Record<string, unknown>
+      }
+      expect(raw.features?.[featureKey]).toBe(false)
+    },
+  )
 })

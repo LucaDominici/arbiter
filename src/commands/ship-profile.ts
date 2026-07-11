@@ -195,7 +195,7 @@ function isAutonomyLevel(v: unknown): v is AutonomyLevel {
 
 /**
  * The consumer-safe default profile. Used when no arbiter.json is present/readable AND as the
- * omitted-profile default for the generic `shipSequence` preview, so a profile-blind caller
+ * omitted-profile default for the generic `shipStepFor` preview, so a profile-blind caller
  * NEVER leaks a self-only authoring gate (RT-07). Mirrors the resolver defaults: a repo with
  * no collaboration config defaults to peer-review (ADR-051), whose default mergeMode is pr-ff.
  */

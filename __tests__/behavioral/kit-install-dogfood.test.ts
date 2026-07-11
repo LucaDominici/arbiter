@@ -15,18 +15,17 @@ const REPO_ROOT = resolve(import.meta.dirname, '../..')
 // Pre-commit hook rsyncs to a temp dir without .git; use the original worktree for git ops.
 const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD ?? REPO_ROOT
 
-// Snapshot pre-existing untracked files before the dry-run runs, so the stray-writes
-// check can detect only files created by the CLI (not pre-existing working-tree noise).
-let initialUntrackedFiles: Set<string>
-beforeAll(() => {
+// Set of repo-relative untracked paths (excluding node_modules), read from the shared
+// working tree. Used by the stray-writes check to detect files created by the CLI.
+function untrackedFiles(): Set<string> {
   const result = spawnSync('git', ['status', '--porcelain'], { cwd: GIT_CWD, encoding: 'utf-8' })
-  initialUntrackedFiles = new Set(
+  return new Set(
     (result.stdout ?? '')
       .split('\n')
       .filter((l) => l.match(/^\?\?/))
       .filter((l) => !l.includes('node_modules')),
   )
-})
+}
 
 function spawn(
   args: string[],
@@ -138,18 +137,33 @@ describe('arbiter.json immutability under --dry-run (C1)', () => {
 
 describe('no stray file writes under --dry-run', () => {
   it('does not create files in repo root during dry-run', () => {
-    // Rely on git to detect untracked/modified files (excludes node_modules via .gitignore).
-    // Compare against initialUntrackedFiles snapshot to ignore pre-existing working-tree noise.
-    const result = spawnSync('git', ['status', '--porcelain'], {
-      cwd: GIT_CWD,
-      encoding: 'utf-8',
-    })
-    const newFiles = (result.stdout ?? '')
-      .split('\n')
-      .filter((l) => l.match(/^\?\?/))
-      .filter((l) => !l.includes('node_modules'))
-      .filter((l) => !initialUntrackedFiles.has(l))
-    expect(newFiles).toHaveLength(0)
+    // Detect only files created by THIS dry-run: snapshot untracked files immediately
+    // before the spawn and re-read immediately after, so the detection window is the
+    // spawn's own duration rather than the whole test file.
+    //
+    // Race hardening (#1907): the previous form snapshotted once in a file-level beforeAll
+    // and compared in this (much later) test, so the window spanned the entire suite. Under
+    // full-suite parallelism other test files legitimately write transient untracked
+    // artifacts into the shared working tree, producing a false "the dry-run created a stray
+    // file" positive in CI under load (green locally, red in CI). A real dry-run write would
+    // recur on every attempt; a transient artifact from another parallel file will not — so
+    // retry a few times and accept the first clean window. If the CLI genuinely wrote a stray
+    // file, every attempt reports it and the test still fails.
+    let newFiles: string[] = []
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const before = untrackedFiles()
+      spawn([
+        'kit',
+        'install',
+        '--experimental.kit',
+        '--dry-run',
+        '--report-path',
+        join(tmpdir(), `arbiter-dogfood-stray-${process.pid}-${attempt}.md`),
+      ])
+      newFiles = [...untrackedFiles()].filter((l) => !before.has(l))
+      if (newFiles.length === 0) break
+    }
+    expect(newFiles, `stray untracked files after dry-run:\n${newFiles.join('\n')}`).toHaveLength(0)
   })
 })
 

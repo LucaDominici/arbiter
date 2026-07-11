@@ -273,6 +273,17 @@ describe('generateCheckAll', () => {
     expect(content).not.toContain("'--ext', '.ts,.js'")
   })
 
+  // #1887-D: INV-34 (no-fake-db) was inert — the legacy .eslintrc-no-fake-db.json
+  // cannot be loaded by ESLint v9 flat config, and check-all.mjs never referenced
+  // it anyway. Same isolated-flat-config pattern as the static-analysis gate.
+  it('no-fake-db eslint check uses the flat config in isolation (INV-34, #1887-D)', () => {
+    generateCheckAll(makeConfig(dir, { language: 'typescript' }))
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).toContain("'--config', 'eslint.config.no-fake-db.mjs'")
+    expect(content).toContain("'--no-config-lookup'")
+    expect(content).not.toContain("'--no-eslintrc' -c .eslintrc-no-fake-db.json")
+  })
+
   it('rendered GRACE_MAX_DAYS matches the CLI upgrade-level bound (no drift)', async () => {
     // The generated gate caps the honored grace window at GRACE_MAX_DAYS and the
     // `arbiter upgrade-level` CLI clamps the persisted window to the SAME value.

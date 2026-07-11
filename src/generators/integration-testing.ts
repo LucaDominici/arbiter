@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -52,6 +53,53 @@ export interface IntegrationTestingGeneratorResult {
  *  - `mysql` / `mongodb` / `other` / legacy-unset ⇒ currently fall back to the
  *    Postgres testcontainers scaffolding (dedicated templates tracked under #1317).
  */
+/**
+ * Emit the Java/multi Testcontainers scaffold + wire config/testcontainers-deps.gradle
+ * into the root build. Extracted from generateIntegrationTesting to keep it under
+ * the complexity-15 ceiling (#1887-F added the wiring call on top of the
+ * pre-existing 3-file emission).
+ */
+function emitJavaIntegrationTesting(
+  config: ProjectConfig,
+  base: string,
+  data: object,
+  dryRun: boolean,
+): WriteResult[] {
+  const supportPkg = config.basePackage
+    ? `src/test/java/${config.basePackage.replace(/\./g, '/')}/support`
+    : 'src/test/java/support'
+
+  const results: WriteResult[] = [
+    writeFile(
+      resolvedPath(base, supportPkg, 'AbstractIntegrationTest.java'),
+      renderTemplate('integration-testing/AbstractIntegrationTest.java.ejs', data),
+      { skipIfExists: true, dryRun },
+    ),
+    writeFile(
+      resolvedPath(base, supportPkg, 'NoH2ArchTest.java'),
+      renderTemplate('integration-testing/NoH2ArchTest.java.ejs', data),
+      { skipIfExists: true, dryRun },
+    ),
+    writeFile(
+      resolvedPath(base, 'config', 'testcontainers-deps.gradle'),
+      renderTemplate('integration-testing/testcontainers-deps.gradle.ejs', data),
+      { skipIfExists: true, dryRun },
+    ),
+  ]
+
+  // #1887-F: config/testcontainers-deps.gradle was emitted but never wired
+  // into the root build — same ghost class as #1886. No plugins{} block in
+  // the snippet (pure deps), so only apply(from=...) is needed.
+  if (config.buildTool === 'gradle') {
+    const applyTestcontainers = safeApplyFromSnippet(base, 'config/testcontainers-deps.gradle')
+    if (applyTestcontainers) {
+      injectGradleWiring(base, dryRun, { snippets: [applyTestcontainers] })
+    }
+  }
+
+  return results
+}
+
 export function generateIntegrationTesting(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -71,31 +119,7 @@ export function generateIntegrationTesting(
   const results: WriteResult[] = []
 
   if (config.language === 'java' || config.language === 'multi') {
-    const supportPkg = config.basePackage
-      ? `src/test/java/${config.basePackage.replace(/\./g, '/')}/support`
-      : 'src/test/java/support'
-
-    results.push(
-      writeFile(
-        resolvedPath(base, supportPkg, 'AbstractIntegrationTest.java'),
-        renderTemplate('integration-testing/AbstractIntegrationTest.java.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
-    results.push(
-      writeFile(
-        resolvedPath(base, supportPkg, 'NoH2ArchTest.java'),
-        renderTemplate('integration-testing/NoH2ArchTest.java.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
-    results.push(
-      writeFile(
-        resolvedPath(base, 'config', 'testcontainers-deps.gradle'),
-        renderTemplate('integration-testing/testcontainers-deps.gradle.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
+    results.push(...emitJavaIntegrationTesting(config, base, data, opts.dryRun))
   }
   if (config.language === 'typescript' || config.language === 'multi') {
     results.push(
@@ -109,6 +133,16 @@ export function generateIntegrationTesting(
       writeFile(
         resolvedPath(base, '.eslintrc-no-fake-db.json'),
         renderTemplate('integration-testing/eslint-no-fake-db.json.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+    // #1887-D: flat-config sibling (INV-34) — ESLint v9 cannot load the legacy
+    // .eslintrc-no-fake-db.json above (eslintrc support removed), so it was
+    // inert. Mirrors eslint.config.static.mjs's precedent.
+    results.push(
+      writeFile(
+        resolvedPath(base, 'eslint.config.no-fake-db.mjs'),
+        renderTemplate('integration-testing/eslint.config.no-fake-db.mjs.ejs', data),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )

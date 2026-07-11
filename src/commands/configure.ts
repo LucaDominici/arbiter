@@ -34,6 +34,11 @@ export const ALLOWED_PATHS = new Set([
   'features.debtGates',
   'features.suppressions',
   'features.soloDevMode',
+  // #1887-A: these 3 had generators built + gated on the ProjectConfig field
+  // but no public activation path at all (recipe field added alongside).
+  'features.codeownersNotify',
+  'features.taxonomy25d',
+  'features.perfTesting',
   'collaborationMode',
   'solo.mergeMode',
   'branchingStrategy',

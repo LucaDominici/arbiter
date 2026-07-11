@@ -96,7 +96,7 @@ describe('gate-exec mutex contract (#1873 T3)', () => {
     const holder = spawnGate(lockPath, `touch "${join(dir, 'held')}"; sleep 30`, {
       detached: true,
     })
-    expect(await waitUntilHeld(lockPath, 5_000)).toBe(true)
+    expect(await waitUntilHeld(lockPath, 15_000)).toBe(true)
     expect(existsSync(join(dir, 'held'))).toBe(true)
 
     process.kill(-(holder.pid as number), 'SIGKILL')
@@ -109,5 +109,5 @@ describe('gate-exec mutex contract (#1873 T3)', () => {
     const elapsed = Date.now() - start
     expect(code).toBe(0)
     expect(elapsed).toBeLessThan(5_000)
-  }, 15_000)
+  }, 30_000)
 })

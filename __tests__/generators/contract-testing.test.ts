@@ -416,6 +416,28 @@ describe('generateContractTesting', () => {
     }
   })
 
+  // #1887-F: config/pact-deps.gradle was emitted but never wired into the root
+  // build — same ghost class as #1886. No plugins{} block in the snippet (pure
+  // deps + test{} config), so only the apply(from=...) line is needed.
+  it('wires config/pact-deps.gradle into the root build via apply(from=...)', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+        hasPublicApi: true,
+      })
+      generateContractTesting(config)
+      const build = readFileSync(join(javaDir, 'build.gradle'), 'utf-8')
+      expect(build).toContain("apply from: 'config/pact-deps.gradle'")
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
   // ─── rest-owned × rust: 2 files ──────────────────────────────────────────
 
   it('returns 4 files for rest-owned + rust (.env.pact + pacts/.gitkeep added)', () => {
@@ -593,6 +615,51 @@ describe('generateContractTesting', () => {
         existsSync(join(javaDir, 'src', 'test', 'java', 'contracts', 'OpenApiDiffIT.java')),
       ).toBe(true)
       expect(existsSync(join(javaDir, 'config', 'export-openapi-java.gradle'))).toBe(true)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
+  // #1887-F: config/export-openapi-java.gradle was emitted but never wired —
+  // AND its template shape (a `plugins {}` block) is exactly what
+  // safeApplyFromSnippet's load-bearing guard withholds (Gradle forbids the
+  // plugins DSL in applied scripts). The plugin must move to the root build's
+  // plugins block via injectGradleWiring; only the `openApi {}` extension
+  // config (no typed imports) stays in the applied script.
+  it('declares the springdoc plugin in the root plugins block and wires the export-openapi-java.gradle apply-from', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        contractType: 'rest-public',
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+        hasPublicApi: true,
+      })
+      generateContractTesting(config)
+      const build = readFileSync(join(javaDir, 'build.gradle'), 'utf-8')
+      expect(build).toMatch(/id 'org\.springdoc\.openapi-gradle-plugin' version '\d/)
+      expect(build).toContain("apply from: 'config/export-openapi-java.gradle'")
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
+  it('export-openapi-java.gradle no longer contains a plugins {} block (apply-from would be withheld otherwise)', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        contractType: 'rest-public',
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+        hasPublicApi: true,
+      })
+      generateContractTesting(config)
+      const snippet = readFileSync(join(javaDir, 'config', 'export-openapi-java.gradle'), 'utf-8')
+      expect(snippet).not.toMatch(/(?:^|\n)[ \t]*plugins\s*\{/)
     } finally {
       cleanupTestProject(javaDir)
     }

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
@@ -181,6 +182,23 @@ describe('generateCodexHooks', () => {
       expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-skipped-tests.mjs'))).toBe(false)
       const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')
       expect(content).not.toContain('check-no-skipped-tests.mjs')
+    })
+
+    // Runtime smoke test (not just file-presence): proves codex-adapter.mjs can
+    // actually `execFileSync` the guard hook and that the hook's `./lib.mjs`
+    // import resolves — the crash class was a MODULE_NOT_FOUND at runtime, not
+    // just a missing file, so a static existsSync check alone would not have
+    // caught a materialized project where lib.mjs failed to import correctly.
+    it('codex-adapter.mjs runs stop-dangerous.mjs end-to-end on a benign bash payload (exit 0)', () => {
+      generateCodexHooks(makeConfig(dir, { tools: ['codex'] }))
+      const payload = JSON.stringify({ tool_name: 'bash', tool_input: { command: 'echo hi' } })
+      expect(() =>
+        execFileSync('node', ['.codex/codex-adapter.mjs', '.claude/hooks/stop-dangerous.mjs'], {
+          cwd: dir,
+          input: payload,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }),
+      ).not.toThrow()
     })
 
     it('emitted stop-dangerous.mjs and lib.mjs are the same content generateClaudeHooks would produce', () => {
