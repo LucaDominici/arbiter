@@ -32,7 +32,6 @@ export class HandoffRequiredError extends Error {
 // Task-state vocabulary and the unified-document I/O live in `./task-state.ts`.
 // Re-export the phase types here so existing importers (e.g. src/cli.ts) keep their import path.
 export type { TaskPhase } from './task-state.js'
-export { runTaskMark } from './task-mark.js'
 
 export interface TaskAdvanceOptions {
   to: TaskPhase

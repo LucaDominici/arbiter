@@ -67,7 +67,7 @@ describe('arbiter --help — public 11-command surface (#1770 T5)', () => {
     expect(status).toBe(0)
     expect(stdout).toContain('Experimental commands:')
     const experimentalSection = stdout.slice(stdout.indexOf('Experimental commands:'))
-    for (const hidden of ['graph', 'review', 'ci', 'plugin', 'explain']) {
+    for (const hidden of ['graph', 'review', 'explain']) {
       expect(experimentalSection).toMatch(new RegExp(`^ {2}${hidden}\\s`, 'm'))
     }
   })

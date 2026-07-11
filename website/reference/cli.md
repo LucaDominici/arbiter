@@ -506,22 +506,21 @@ arbiter update  # regenerate canonical files, preserve customizations
 ```
 
 <!-- BEGIN GENERATED:cli -->
-
 ## Command Reference
 
-| Command              | Description                                                                    |
-| -------------------- | ------------------------------------------------------------------------------ |
-| `arbiter configure`  | Modify arbiter.json configuration (interactive on TTY, or use --set)           |
-| `arbiter diff`       | Show what arbiter update would change (dry run)                                |
-| `arbiter doctor`     | Diagnose and repair arbiter state                                              |
+| Command | Description |
+|---------|-------------|
+| `arbiter configure` | Modify arbiter.json configuration (interactive on TTY, or use --set) |
+| `arbiter diff` | Show what arbiter update would change (dry run) |
+| `arbiter doctor` | Diagnose and repair arbiter state |
 | `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine) |
-| `arbiter init`       | Initialise / update the unified task document (#1206)                          |
-| `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)           |
-| `arbiter ship`       | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)    |
-| `arbiter task`       | Manage task lifecycle state                                                    |
-| `arbiter update`     | Re-generate governance files using stored config (arbiter.json)                |
-| `arbiter validate`   | Probe toolchain compatibility for the detected stack                           |
-| `arbiter worktree`   | Manage git worktrees for parallel task development                             |
+| `arbiter init` | Initialise / update the unified task document (#1206) |
+| `arbiter note` | Capture an out-of-scope finding to the per-agent JSONL spool (#1401) |
+| `arbiter ship` | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206) |
+| `arbiter task` | Manage task lifecycle state |
+| `arbiter update` | Re-generate governance files using stored config (arbiter.json) |
+| `arbiter validate` | Probe toolchain compatibility for the detected stack |
+| `arbiter worktree` | Manage git worktrees for parallel task development |
 
 ## arbiter configure
 
@@ -551,7 +550,7 @@ Diagnose and repair arbiter state.
 
 - `arbiter doctor repair-state` — Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)
 - `arbiter doctor recover-lock` — Force-release a stale .arbiter/.lock file left by a crashed process
-- `arbiter doctor clean` — Remove arbiter backup files (_.arbiter-backup, .arbiter-generated.json.bak._)
+- `arbiter doctor clean` — Remove arbiter backup files (*.arbiter-backup, .arbiter-generated.json.bak.*)
 
 **Options:**
 
@@ -607,7 +606,7 @@ Orchestrate an issue → reviewed, merged PR over the existing engine (#1206).
 
 - `--tier <tier>` — Task tier (XS|S|Standard)
 - `--autonomy <level>` — Per-run autonomy override (L0|L1|L2|L3) — beats arbiter.json automation.autonomy (#1291)
-- `--set <path=value>` — Per-run override of an overridable config path (repeatable, ADR-094).
+- `--set <path=value>` — Per-run override of an overridable config path (repeatable, ADR-094). 
 - `--advance` — Advance to the next phase (runs that phase gate; fails if red)
 - `--skip-plan-review` — Bypass the plan-review gate on advance
 - `--post-clear` — Signal post-/clear re-entry on advance
@@ -637,6 +636,9 @@ Re-generate governance files using stored config (arbiter.json).
 - `--github` — Activate live GitHub API calls (opt-in; ARBITER_GITHUB=1 also activates)
 - `--json` — Emit machine-readable JSON output
 - `--force` — Override adverse git state check (detached HEAD, rebase, etc.)
+- `--adopt` — Force-adopt ALL currently-withheld files (not just safety-class), recording a 
+- `--no-adopt-safety` — Opt OUT of the default-on safety-class adoption (.claude/hooks/*.mjs). Leaves a 
+- `--adopt-plan` — Two-phase preview: print what --adopt/the default safety adoption WOULD change 
 
 ## arbiter validate
 
@@ -663,124 +665,21 @@ Manage git worktrees for parallel task development.
 - `arbiter worktree open` — Create a sibling worktree with a task branch and symlinked local files
 - `arbiter worktree close` — Tear down a task worktree after its branch is merged
 - `arbiter worktree list` — List open task worktrees
-- `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive
+- `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive 
 
 ## Experimental Commands
 
 These commands are fully functional but hidden from the default `arbiter --help` listing. They are not part of the stable public surface and may change without notice. List them from the CLI with `arbiter help --all`.
 
-| Command                   | Description                                                                     |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| `arbiter adherence`       | Alias for `conformance` — gold-pattern adherence scorecard (#1397)              |
-| `arbiter agent-rules`     | Export or verify AI agent governance rules (#265)                               |
-| `arbiter anti-fake-green` | Anti-fake-green guard aggregate (#1428, thin wrapper over the engine)           |
-| `arbiter blame`           | —                                                                               |
-| `arbiter ci`              | Governance-aware CI planning (#261)                                             |
-| `arbiter close-gold-gap`  | Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close) |
-| `arbiter conformance`     | Score a project against the arbiter gold standard (#1369)                       |
-| `arbiter doc-set`         | Deterministic doc-set presence audit (#1428, thin wrapper over the engine)      |
-| `arbiter explain`         | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
-| `arbiter feature-matrix`  | Feature/RTM matrix commands (INV-112)                                           |
-| `arbiter gate-exec`       | —                                                                               |
-| `arbiter graph`           | —                                                                               |
-| `arbiter harness`         | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)  |
-| `arbiter integrations`    | Inspect agent-tool integrations (skills, plugins) detected for this project     |
-| `arbiter kit`             | Cross-stack governance kit commands (requires --experimental.kit)               |
-| `arbiter knowledge-map`   | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                  |
-| `arbiter mark`            | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
-| `arbiter plugin`          | [BETA] Manage arbiter plugins (API not yet stable)                              |
-| `arbiter report`          | Bundle a replay run for bug reports                                             |
-| `arbiter review`          | Semantic diff between graph snapshots (#262)                                    |
-| `arbiter settings`        | List every settable arbiter.json path with its current value (#1121)            |
-| `arbiter ship-on-red`     | —                                                                               |
-| `arbiter trace`           | —                                                                               |
-| `arbiter tui`             | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)  |
-| `arbiter upgrade-level`   | Upgrade governance level with a grace period for new gates                      |
-
-## arbiter adherence
-
-Alias for `conformance` — gold-pattern adherence scorecard (#1397).
-
-**Options:**
-
-- `--dir <dir>` — Project root to evaluate (default: current directory)
-- `--fail-on <level>` — Exit 1 on: fail (default) or partial (stricter)
-- `--json` — Emit machine-readable JSON output
-- `--strict` — Exit 1 if any NV (not-verified) dimensions exist
-- `--check` — Ratchet check: exit 1 if score dropped vs baseline
-- `--update-baseline` — Update baseline when score rises; no-op when equal
-- `--markdown` — Emit GFM markdown table output
-
-## arbiter agent-rules
-
-Export or verify AI agent governance rules (#265).
-
-**Subcommands:**
-
-- `arbiter agent-rules export` — Export governance rules to a target AI agent format
-- `arbiter agent-rules verify` — Verify that agent rule files match the current graph (drift detection)
-
-## arbiter anti-fake-green
-
-Anti-fake-green guard aggregate (#1428, thin wrapper over the engine).
-
-**Options:**
-
-- `--enforce` — Promote advisory (gh-audit) findings to hard failures
-
-## arbiter blame
-
-**Options:**
-
-- `--format <fmt>` — Output format: text | json | mermaid | markdown-audit (default: text)
-- `--dir <dir>` — Target directory (default: current directory)
-- `--input <path>` — Override graph snapshot path (default: &lt;dir&gt;/.arbiter/graph.json)
-- `--git-dir <path>` — Git repository directory for log harvesting (default: --dir)
-- `--since <duration>` — Informational: time window for violation query (e.g. 90d)
-
-## arbiter ci
-
-Governance-aware CI planning (#261).
-
-**Subcommands:**
-
-- `arbiter ci plan` — Compute affected invariants and required gates from changed files
-- `arbiter ci verify-plan` — Verify that all required gates from a ci plan actually ran
-
-## arbiter close-gold-gap
-
-Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close).
-
-**Options:**
-
-- `--repo <repo>` — Repo to audit (default: current directory)
-- `--stack <stack>` — Per-stack registry selector (standards/gold-registry.&lt;stack&gt;.yml)
-- `--json` — Emit machine-readable JSON output
-
-## arbiter conformance
-
-Score a project against the arbiter gold standard (#1369).
-
-**Options:**
-
-- `--dir <dir>` — Project root to evaluate (default: current directory)
-- `--fail-on <level>` — Exit 1 on: fail (default) or partial (stricter)
-- `--json` — Emit machine-readable JSON output
-- `--strict` — Exit 1 if any NV (not-verified) dimensions exist
-- `--check` — Ratchet check: exit 1 if score dropped vs baseline
-- `--update-baseline` — Update baseline when score rises; no-op when equal
-- `--markdown` — Emit GFM markdown table output
-
-## arbiter doc-set
-
-Deterministic doc-set presence audit (#1428, thin wrapper over the engine).
-
-**Options:**
-
-- `--check` — Advisory mode for the downstream thin runner (exit 0 unless --strict)
-- `--strict` — Exit 1 if any mandatory doc is missing (default: advisory)
-- `--json` — Emit machine-readable JSON output
-- `--generate` — Scaffold stubs for missing mandatory+recommended .md docs
+| Command | Description |
+|---------|-------------|
+| `arbiter explain` | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
+| `arbiter gate-exec` | — |
+| `arbiter graph` | — |
+| `arbiter kit` | Cross-stack governance kit commands (requires --experimental.kit) |
+| `arbiter review` | Semantic diff between graph snapshots (#262) |
+| `arbiter settings` | List every settable arbiter.json path with its current value (#1121) |
+| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates |
 
 ## arbiter explain
 
@@ -792,14 +691,6 @@ Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule.
 - `--list` — List all known codes grouped by category
 - `--handoff <topic>` — Scaffold HANDOFF-&lt;TOPIC&gt;.md from the executable-handoff template (#1817 A7)
 - `--out <dir>` — Target directory for --handoff (default: cwd)
-
-## arbiter feature-matrix
-
-Feature/RTM matrix commands (INV-112).
-
-**Subcommands:**
-
-- `arbiter feature-matrix export` — Export docs/PRODUCT/FEATURE_MATRIX.md to CSV or xlsx
 
 ## arbiter gate-exec
 
@@ -820,23 +711,6 @@ Feature/RTM matrix commands (INV-112).
 - `--input <path>` — Override graph snapshot path (default: &lt;dir&gt;/.arbiter/graph.json)
 - `--json` — Emit machine-readable JSON output
 
-## arbiter harness
-
-Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths).
-
-**Options:**
-
-- `--fast` — Stop at first gate failure
-- `--dir <dir>` — Target directory (default: current directory)
-
-## arbiter integrations
-
-Inspect agent-tool integrations (skills, plugins) detected for this project.
-
-**Subcommands:**
-
-- `arbiter integrations list` — List detected integrations and recommend missing ones (doctor advisory target)
-
 ## arbiter kit
 
 Cross-stack governance kit commands (requires --experimental.kit).
@@ -852,48 +726,6 @@ Cross-stack governance kit commands (requires --experimental.kit).
 - `arbiter kit check-flyway` — A9 (opt-in): validate Flyway migrations — naming, destructive-DDL, idempotency, dual-set parity
 - `arbiter kit check-test-taxonomy` — A9 (opt-in): enforce @Tag("unit")/@Tag("integration") test taxonomy (zero untagged tests)
 - `arbiter kit check-token-hygiene` — A10 (opt-in): frontend token-hygiene check — semantic tokens only, with baseline + ratchet
-
-## arbiter knowledge-map
-
-Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes.
-
-**Options:**
-
-- `--dir <dir>` — Target directory (default: current directory)
-
-## arbiter mark
-
-Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206).
-
-**Options:**
-
-- `--next <action>` — The exact next sub-step to resume on
-- `--last <action>` — The sub-step just completed
-- `--tdd <phase>` — TDD sub-phase (RED|GREEN|REFACTOR)
-- `--task <id>` — Set/override the active task id
-- `--digest <line>` — One-line progress digest for log.md
-- `--dir <dir>` — Target directory (default: current directory)
-
-## arbiter plugin
-
-[BETA] Manage arbiter plugins (API not yet stable).
-
-**Subcommands:**
-
-- `arbiter plugin add` — Add a plugin to this project (validates it is resolvable first)
-- `arbiter plugin remove` — Remove a plugin from this project
-- `arbiter plugin list` — List plugins configured for this project
-- `arbiter plugin init` — Scaffold a new plugin package at ./arbiter-plugin-&lt;name&gt;/ (API v1.1)
-
-## arbiter report
-
-Bundle a replay run for bug reports.
-
-**Options:**
-
-- `--run-id <id>` — Specific run to bundle (default: most recent in ~/.arbiter/logs/)
-- `--auto` — Skip editor preview; bundle all files
-- `--print-only` — Print manifest path without producing a tarball
 
 ## arbiter review
 
@@ -912,31 +744,6 @@ List every settable arbiter.json path with its current value (#1121).
 - `--dir <dir>` — Target directory (default: current directory)
 - `--json` — Emit machine-readable JSON output
 
-## arbiter ship-on-red
-
-**Options:**
-
-- `--id <id>` — Task id (e.g. #1289); defaults to the active task
-- `--autonomy <level>` — Per-run autonomy override (L0|L1|L2|L3) — gates the fix decision (#1291)
-- `--dir <dir>` — Target directory (default: current directory)
-
-## arbiter trace
-
-**Options:**
-
-- `--depth <n>` — Maximum BFS depth (default: unlimited)
-- `--format <fmt>` — Output format: json | dot | mermaid (default: json)
-- `--dir <dir>` — Target directory (default: current directory)
-- `--input <path>` — Override graph snapshot path (default: &lt;dir&gt;/.arbiter/graph.json)
-
-## arbiter tui
-
-Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122).
-
-**Options:**
-
-- `--dir <dir>` — Target directory (default: current directory)
-
 ## arbiter upgrade-level
 
 Upgrade governance level with a grace period for new gates.
@@ -949,5 +756,4 @@ Upgrade governance level with a grace period for new gates.
 - `--dir <dir>` — Target directory (default: current directory)
 - `--interactive` — Guided level selection on a TTY (#1168)
 - `--json` — Emit machine-readable JSON output
-
 <!-- END GENERATED:cli -->

@@ -8,15 +8,11 @@ import { runUpdate } from './commands/update.js'
 import { runDiff } from './commands/diff.js'
 import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
-import { runTui } from './commands/tui.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
 import { runWorktreePrune } from './commands/worktree-prune.js'
 import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runGoldAudit } from './commands/gold-audit.js'
-import { runDocSet } from './commands/doc-set.js'
-import { runAntiFakeGreen } from './commands/anti-fake-green.js'
-import { runCloseGoldGap } from './commands/close-gold-gap.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
@@ -27,36 +23,25 @@ import {
   runDoctorClean,
   runDoctorProveGates,
 } from './commands/doctor.js'
-import { runIntegrationsList } from './commands/integrations.js'
 import { jsonOutput } from './utils/json-output.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
-import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
 import {
   runTaskAdvance,
   runTaskRecover,
   runTaskResume,
   runTaskInit,
   runTaskGet,
-  runTaskMark,
   HandoffRequiredError,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
-import { isTddPhase } from './commands/task-state.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
-import { runShipFixOnRed } from './commands/ship-fix-on-red.js'
 import { buildShipOverrides } from './commands/ship-profile.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
-import { runHarness } from './commands/harness.js'
-import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
 import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
 import type { GraphFormat } from './commands/graph.js'
-import { runTrace, type TraceFormat } from './commands/trace.js'
-import { runBlame, type BlameFormat } from './commands/blame.js'
-import { runAgentRulesExport, runAgentRulesVerify } from './commands/agent-rules.js'
-import { runCiPlan, runCiVerifyPlan } from './commands/ci.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
 import { confirmChannelDowngrade } from './utils/confirm-downgrade.js'
 import type { ReleaseChannel } from './utils/channel.js'
@@ -88,7 +73,6 @@ import { setRootLogger, getLogger, type LogLevel } from './utils/logger.js'
 import { resolveFromProcess } from './utils/logger-config.js'
 import { startReplay, rotateReplayLogs, type ReplayHandle } from './utils/replay.js'
 import { startProfiler, type ProfilerHandle } from './utils/profiler.js'
-import { runReport } from './commands/report.js'
 import {
   runKitList,
   runKitShow,
@@ -104,13 +88,6 @@ import type { KitListFormat, KitListFilter } from './commands/kit.js'
 import type { Stack } from './kit/schema.js'
 import { runKitInstall } from './commands/kit-install.js'
 import type { BrownfieldClass } from './kit/thresholds.js'
-import { runFeatureMatrixExport } from './commands/feature-matrix.js'
-import { runConformance } from './commands/conformance.js'
-import {
-  renderText as renderConformanceText,
-  renderConformanceMd,
-  computeSummary,
-} from './conformance/render.js'
 
 registerCleanupHandlers()
 
@@ -432,32 +409,6 @@ program
     'Channel for this invocation: latest|beta|canary — gates downgrade warnings and shown in `doctor health` (default: arbiter.json channel or latest)',
   )
 
-program
-  .command('report', { hidden: true })
-  .description('Bundle a replay run for bug reports')
-  .option('--run-id <id>', 'Specific run to bundle (default: most recent in ~/.arbiter/logs/)')
-  .option('--auto', 'Skip editor preview; bundle all files', false)
-  .option('--print-only', 'Print manifest path without producing a tarball', false)
-  .action(async (opts: { runId?: string; auto: boolean; printOnly: boolean }): Promise<void> => {
-    const reportOpts: import('./commands/report.js').ReportOptions = {
-      auto: opts.auto,
-      printOnly: opts.printOnly,
-    }
-    if (opts.runId !== undefined) reportOpts.runId = opts.runId
-    const result = await runReport(reportOpts)
-    const logger = getLogger()
-    if (result.bundlePath !== null) {
-      logger.info('report.bundle_ready', { path: result.bundlePath, files: result.files.length })
-      process.stdout.write(`Bundle ready: ${result.bundlePath}\n`)
-      process.stdout.write('Attach to GH issue (never uploaded automatically).\n')
-    } else {
-      process.stdout.write(`Manifest: ${result.manifestPath}\n`)
-    }
-    if (result.rejected.length > 0) {
-      logger.warn('report.rejected_entries', { count: result.rejected.length })
-    }
-  })
-
 // #1401 — zero-friction incidental-finding capture. Appends ONE line to a per-shard JSONL spool
 // under .arbiter/findings/<shard>.jsonl. Non-blocking, no network. See rule 60-incidental-capture.
 program
@@ -721,22 +672,6 @@ program
   })
 
 program
-  .command('tui', { hidden: true })
-  .description('Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { dir?: string | undefined }) => {
-    if (!process.stdin.isTTY) {
-      process.stderr.write('arbiter tui requires an interactive terminal (TTY).\n')
-      process.exit(1)
-    }
-    runTui({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err)
-      process.stderr.write(`  Error: ${msg}\n`)
-      process.exit(1)
-    })
-  })
-
-program
   .command('settings', { hidden: true })
   .description('List every settable arbiter.json path with its current value (#1121)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -955,47 +890,6 @@ program
     },
   )
 
-program
-  .command('doc-set', { hidden: true })
-  .description('Deterministic doc-set presence audit (#1428, thin wrapper over the engine)')
-  .option('--check', 'Advisory mode for the downstream thin runner (exit 0 unless --strict)', false)
-  .option('--strict', 'Exit 1 if any mandatory doc is missing (default: advisory)', false)
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .option('--generate', 'Scaffold stubs for missing mandatory+recommended .md docs', false)
-  .action((opts: { check: boolean; strict: boolean; json: boolean; generate: boolean }) => {
-    const args: string[] = []
-    if (opts.strict) args.push('--strict')
-    if (opts.json) args.push('--json')
-    if (opts.generate) args.push('--generate')
-    const result = runDocSet({ check: opts.check, args })
-    process.exit(result.exitCode)
-  })
-
-program
-  .command('anti-fake-green', { hidden: true })
-  .description('Anti-fake-green guard aggregate (#1428, thin wrapper over the engine)')
-  .option('--enforce', 'Promote advisory (gh-audit) findings to hard failures', false)
-  .action((opts: { enforce: boolean }) => {
-    const result = runAntiFakeGreen({ enforce: opts.enforce })
-    process.exit(result.exitCode)
-  })
-
-program
-  .command('close-gold-gap <gapId>', { hidden: true })
-  .description('Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close)')
-  .option('--repo <repo>', 'Repo to audit (default: current directory)')
-  .option('--stack <stack>', 'Per-stack registry selector (standards/gold-registry.<stack>.yml)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action((gapId: string, opts: { repo?: string; stack?: string; json: boolean }) => {
-    const result = runCloseGoldGap({
-      gapId,
-      ...(opts.repo !== undefined ? { repo: opts.repo } : {}),
-      ...(opts.stack !== undefined ? { stack: opts.stack } : {}),
-      json: opts.json,
-    })
-    process.exit(result.exitCode)
-  })
-
 const verify = program
   .command('validate')
   .alias('verify')
@@ -1176,79 +1070,6 @@ graph
   })
 
 program
-  .command('trace', { hidden: true })
-  .description(
-    'Trace provenance from a graph node (#259) — render as json|dot|mermaid (default json)',
-  )
-  .requiredOption('--from <id>', 'Origin node id (e.g. INV-04)')
-  .option('--depth <n>', 'Maximum BFS depth (default: unlimited)', (v: string) =>
-    Number.parseInt(v, 10),
-  )
-  .option('--format <fmt>', 'Output format: json | dot | mermaid (default: json)', 'json')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--input <path>', 'Override graph snapshot path (default: <dir>/.arbiter/graph.json)')
-  .action(
-    (opts: { from: string; depth?: number; format: string; dir?: string; input?: string }) => {
-      const traceOpts: import('./commands/trace.js').TraceOptions = {
-        from: opts.from,
-        format: opts.format as TraceFormat,
-      }
-      if (opts.depth !== undefined && !Number.isNaN(opts.depth)) traceOpts.depth = opts.depth
-      if (opts.dir !== undefined) traceOpts.dir = opts.dir
-      if (opts.input !== undefined) traceOpts.input = opts.input
-      const result = runTrace(traceOpts)
-      if (result.status === 'ok') {
-        process.stdout.write(result.output + '\n')
-      } else {
-        process.stderr.write(`trace: FAIL — ${result.reason ?? 'unknown error'}\n`)
-      }
-      process.exit(result.exitCode)
-    },
-  )
-
-program
-  .command('blame', { hidden: true })
-  .description(
-    'Time-travel governance — show blame timeline for a graph node (#263). Renders as text|json|mermaid|markdown-audit (default text)',
-  )
-  .requiredOption('--from <id>', 'Node id to blame (e.g. INV-05, FILE:src/auth/service.ts)')
-  .option(
-    '--format <fmt>',
-    'Output format: text | json | mermaid | markdown-audit (default: text)',
-    'text',
-  )
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--input <path>', 'Override graph snapshot path (default: <dir>/.arbiter/graph.json)')
-  .option('--git-dir <path>', 'Git repository directory for log harvesting (default: --dir)')
-  .option('--since <duration>', 'Informational: time window for violation query (e.g. 90d)')
-  .action(
-    (opts: {
-      from: string
-      format: string
-      dir?: string
-      input?: string
-      gitDir?: string
-      since?: string
-    }) => {
-      const blameOpts: import('./commands/blame.js').BlameOptions = {
-        from: opts.from,
-        format: opts.format as BlameFormat,
-      }
-      if (opts.dir !== undefined) blameOpts.dir = opts.dir
-      if (opts.input !== undefined) blameOpts.input = opts.input
-      if (opts.gitDir !== undefined) blameOpts.gitDir = opts.gitDir
-      if (opts.since !== undefined) blameOpts.since = opts.since
-      const result = runBlame(blameOpts)
-      if (result.status === 'ok') {
-        process.stdout.write(result.output + '\n')
-      } else {
-        process.stderr.write(`blame: FAIL — ${result.reason ?? 'unknown error'}\n`)
-      }
-      process.exit(result.exitCode)
-    },
-  )
-
-program
   .command('upgrade-level', { hidden: true })
   .description('Upgrade governance level with a grace period for new gates')
   .option('--target <level>', 'Target level (L2, L3, or L4)')
@@ -1422,22 +1243,6 @@ doctor
     }
   })
 
-const integrations = program
-  .command('integrations', { hidden: true })
-  .description('Inspect agent-tool integrations (skills, plugins) detected for this project')
-
-integrations
-  .command('list')
-  .description('List detected integrations and recommend missing ones (doctor advisory target)')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; json: boolean }) => {
-    runIntegrationsList({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      json: opts.json,
-    })
-  })
-
 const task = program.command('task').description('Manage task lifecycle state')
 
 task
@@ -1570,44 +1375,6 @@ task
   })
 
 program
-  .command('mark', { hidden: true })
-  .description('Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206)')
-  .option('--next <action>', 'The exact next sub-step to resume on')
-  .option('--last <action>', 'The sub-step just completed')
-  .option('--tdd <phase>', 'TDD sub-phase (RED|GREEN|REFACTOR)')
-  .option('--task <id>', 'Set/override the active task id')
-  .option('--digest <line>', 'One-line progress digest for log.md')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action(
-    (opts: {
-      next?: string
-      last?: string
-      tdd?: string
-      task?: string
-      digest?: string
-      dir?: string
-    }) => {
-      let tddPhase: 'RED' | 'GREEN' | 'REFACTOR' | undefined
-      if (opts.tdd !== undefined) {
-        const upper = opts.tdd.toUpperCase()
-        if (!isTddPhase(upper)) {
-          process.stderr.write(`Invalid --tdd value "${opts.tdd}". Valid: RED, GREEN, REFACTOR\n`)
-          process.exit(2)
-        }
-        tddPhase = upper
-      }
-      runTaskMark({
-        ...(opts.next !== undefined ? { next: opts.next } : {}),
-        ...(opts.last !== undefined ? { last: opts.last } : {}),
-        ...(tddPhase !== undefined ? { tddPhase } : {}),
-        ...(opts.task !== undefined ? { taskId: opts.task } : {}),
-        ...(opts.digest !== undefined ? { digest: opts.digest } : {}),
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      })
-    },
-  )
-
-program
   .command('ship [id]')
   .description('Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
@@ -1690,263 +1457,6 @@ program
       }
     },
   )
-
-program
-  .command('ship-on-red', { hidden: true })
-  .description(
-    'Fix-on-red engine surface (#1289): compute the next action for a red gate — ' +
-      'fix (with reproduce-before-push) on the first strike, escalate to needs-human on the second',
-  )
-  .requiredOption('--check <name>', 'The gate/check that went red (slug, e.g. unit-test)')
-  .requiredOption('--log-file <path>', 'Path to the captured failed-gate log')
-  .option('--id <id>', 'Task id (e.g. #1289); defaults to the active task')
-  .option(
-    '--autonomy <level>',
-    'Per-run autonomy override (L0|L1|L2|L3) — gates the fix decision (#1291)',
-    (v: string) => {
-      if (!['L0', 'L1', 'L2', 'L3'].includes(v)) {
-        throw new Error('--autonomy must be one of L0|L1|L2|L3')
-      }
-      return v
-    },
-  )
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action(
-    (opts: { check: string; logFile: string; id?: string; autonomy?: string; dir?: string }) => {
-      const result = runShipFixOnRed({
-        check: opts.check,
-        logFile: opts.logFile,
-        ...(opts.id !== undefined ? { id: opts.id } : {}),
-        ...(opts.autonomy !== undefined ? { autonomy: opts.autonomy } : {}),
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      })
-      if (result.ok) {
-        process.stdout.write(result.lines.join('\n') + '\n')
-      } else {
-        process.stderr.write(`ship-on-red: FAIL — ${result.reason}\n`)
-        process.exit(1)
-      }
-    },
-  )
-
-const plugin = program
-  .command('plugin', { hidden: true })
-  .description('[BETA] Manage arbiter plugins (API not yet stable)')
-
-plugin
-  .command('add <pkg>')
-  .description('Add a plugin to this project (validates it is resolvable first)')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (pkg: string, opts: { dir?: string; json: boolean }) => {
-    await runPluginAdd({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      pkg,
-      json: opts.json,
-    })
-  })
-
-plugin
-  .command('remove <pkg>')
-  .description('Remove a plugin from this project')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (pkg: string, opts: { dir?: string; json: boolean }) => {
-    await runPluginRemove({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      pkg,
-      json: opts.json,
-    })
-  })
-
-plugin
-  .command('list')
-  .description('List plugins configured for this project')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (opts: { dir?: string; json: boolean }) => {
-    await runPluginList({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      json: opts.json,
-    })
-  })
-
-plugin
-  .command('init <name>')
-  .description('Scaffold a new plugin package at ./arbiter-plugin-<name>/ (API v1.1)')
-  .option('--dir <dir>', 'Parent directory for the new package (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (name: string, opts: { dir?: string; json: boolean }) => {
-    await runPluginInit(name, {
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      json: opts.json,
-    })
-  })
-
-program
-  .command('harness', { hidden: true })
-  .description('Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)')
-  .option('--fast', 'Stop at first gate failure', false)
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { fast: boolean; dir?: string }) => {
-    const result = runHarness({
-      fast: opts.fast,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-    process.exit(result.exitCode)
-  })
-
-program
-  .command('knowledge-map', { hidden: true })
-  .description('Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { dir?: string }) => {
-    runKnowledgeMapUpdate({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-  })
-
-// ── ci (#261) ─────────────────────────────────────────────────────────────────
-
-const ci = program
-  .command('ci', { hidden: true })
-  .description('Governance-aware CI planning (#261)')
-
-ci.command('plan')
-  .description('Compute affected invariants and required gates from changed files')
-  .option('--diff <ref>', 'Git ref to diff against (informational; use --files for testability)')
-  .option('--files <paths>', 'Comma-separated list of changed file paths')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--format <fmt>', 'Output format: json | mermaid (default: json)', 'json')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    (opts: { diff?: string; files?: string; dir?: string; format: string; json: boolean }) => {
-      const changedFiles = opts.files
-        ? opts.files
-            .split(',')
-            .map((f) => f.trim())
-            .filter(Boolean)
-        : []
-      const format = opts.format === 'mermaid' ? 'mermaid' : 'json'
-      const result = runCiPlan({
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-        ...(opts.diff !== undefined ? { diff: opts.diff } : {}),
-        changedFiles,
-        format,
-      })
-      if (opts.json || format === 'json') {
-        jsonOutput(
-          'ci plan',
-          result.status,
-          {
-            exitCode: result.exitCode,
-            plan: result.plan,
-            ...(result.mermaid !== undefined ? { mermaid: result.mermaid } : {}),
-          },
-          result.reason !== undefined ? [result.reason] : undefined,
-        )
-      } else if (result.mermaid !== undefined) {
-        process.stdout.write(result.mermaid)
-      }
-      process.exit(result.exitCode)
-    },
-  )
-
-const agentRules = program
-  .command('agent-rules', { hidden: true })
-  .description('Export or verify AI agent governance rules (#265)')
-
-agentRules
-  .command('export')
-  .description('Export governance rules to a target AI agent format')
-  .option('--target <target>', 'Target agent format: claude (others experimental)', 'claude')
-  .option('--all', 'Emit all targets to their standard paths', false)
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (opts: { target: string; all: boolean; dir?: string; json: boolean }) => {
-    const result = runAgentRulesExport({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      target: opts.target,
-      all: opts.all,
-      json: opts.json,
-    })
-    if (opts.json) {
-      const { jsonOutput } = await import('./utils/json-output.js')
-      jsonOutput('agent-rules export', result.status, {
-        exitCode: result.exitCode,
-        target: opts.target,
-        fallbackUsed: result.fallbackUsed ?? false,
-        ...(result.filesWritten !== undefined ? { filesWritten: result.filesWritten } : {}),
-        ...(result.reason !== undefined ? { reason: result.reason } : {}),
-      })
-    } else if (result.status === 'ok') {
-      if (result.filesWritten !== undefined) {
-        for (const p of result.filesWritten) {
-          process.stdout.write(`  wrote ${p}\n`)
-        }
-      } else {
-        process.stdout.write(result.content)
-      }
-    } else {
-      process.stderr.write(`agent-rules export: FAIL — ${result.reason ?? 'unknown error'}\n`)
-    }
-    process.exit(result.exitCode)
-  })
-
-agentRules
-  .command('verify')
-  .description('Verify that agent rule files match the current graph (drift detection)')
-  .option('--target <target>', 'Target agent format: claude (others experimental)', 'claude')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (opts: { target: string; dir?: string; json: boolean }) => {
-    const result = runAgentRulesVerify({
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      target: opts.target,
-      json: opts.json,
-    })
-    if (opts.json) {
-      const { jsonOutput } = await import('./utils/json-output.js')
-      jsonOutput('agent-rules verify', result.status, {
-        exitCode: result.exitCode,
-        target: result.target,
-        drift: result.drift ?? false,
-        missing: result.missing ?? false,
-        ...(result.reason !== undefined ? { reason: result.reason } : {}),
-      })
-    } else if (result.status === 'ok') {
-      const msg = result.missing === true ? 'OK (not yet exported)' : 'OK (no drift)'
-      process.stdout.write(`agent-rules verify: ${msg}\n`)
-    } else {
-      process.stderr.write(`agent-rules verify: DRIFT — ${result.reason ?? 'unknown error'}\n`)
-    }
-    process.exit(result.exitCode)
-  })
-
-ci.command('verify-plan')
-  .description('Verify that all required gates from a ci plan actually ran')
-  .requiredOption('--plan <path>', 'Path to ci plan JSON file')
-  .requiredOption('--ci-result <path>', 'Path to CI result JSON file ({"gates":[...]})')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (opts: { plan: string; ciResult: string; json: boolean }) => {
-    const { readFileSync: rfs } = await import('node:fs')
-    const plan = JSON.parse(rfs(opts.plan, 'utf-8')) as import('./commands/ci.js').CiPlan
-    const ciResult = JSON.parse(rfs(opts.ciResult, 'utf-8')) as { gates: string[] }
-    const result = runCiVerifyPlan({ plan, ciResult })
-    if (opts.json) {
-      jsonOutput(
-        'ci verify-plan',
-        result.status,
-        { exitCode: result.exitCode, missingGates: result.missingGates },
-        result.reason !== undefined ? [result.reason] : undefined,
-      )
-    } else if (result.status === 'ok') {
-      process.stdout.write(`ci verify-plan: OK\n`)
-    } else {
-      process.stderr.write(`ci verify-plan: FAIL — ${result.reason ?? 'unknown error'}\n`)
-    }
-    process.exit(result.exitCode)
-  })
 
 // ── review diff (#262) ───────────────────────────────────────────────────────
 
@@ -2285,93 +1795,6 @@ kit
       })
     },
   )
-
-// ── feature-matrix — export Product-Truth RTM ─────────────────────────────────
-const featureMatrix = program
-  .command('feature-matrix', { hidden: true })
-  .description('Feature/RTM matrix commands (INV-112)')
-
-featureMatrix
-  .command('export')
-  .description('Export docs/PRODUCT/FEATURE_MATRIX.md to CSV or xlsx')
-  .option('--format <fmt>', 'Output format: csv or xlsx', 'csv')
-  .option('--out <path>', 'Output file path', 'feature-matrix.csv')
-  .option('--matrix <path>', 'Path to FEATURE_MATRIX.md (default: docs/PRODUCT/FEATURE_MATRIX.md)')
-  .action(async (opts: { format: string; out: string; matrix?: string }) => {
-    const fmt = opts.format
-    if (fmt !== 'csv' && fmt !== 'xlsx') {
-      process.stderr.write(`Error: --format must be csv or xlsx (got "${fmt}")\n`)
-      process.exit(2)
-    }
-    await runFeatureMatrixExport({
-      format: fmt,
-      out: opts.out,
-      ...(opts.matrix !== undefined ? { matrixPath: opts.matrix } : {}),
-    })
-    process.stdout.write(`  feature-matrix: exported to ${opts.out}\n`)
-  })
-
-// ── conformance — gold-pattern adherence scorecard ────────────────────────────
-/** Shared action for both `conformance` and its alias `adherence`. */
-function conformanceAction(opts: {
-  dir?: string
-  failOn?: string
-  json?: boolean
-  strict?: boolean
-  check?: boolean
-  updateBaseline?: boolean
-  markdown?: boolean
-}): void {
-  const failOn = opts.failOn === 'partial' ? 'partial' : 'fail'
-  const result = runConformance({
-    ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    failOn,
-    strict: opts.strict ?? false,
-    check: opts.check ?? false,
-    updateBaseline: opts.updateBaseline ?? false,
-  })
-
-  if (opts.json) {
-    process.stdout.write(JSON.stringify(result, null, 2) + '\n')
-  } else if (opts.markdown) {
-    process.stdout.write(renderConformanceMd(result, result.dimensions) + '\n')
-  } else {
-    const summary = computeSummary(result.dimensions)
-    process.stdout.write(renderConformanceText(result.dimensions, summary) + '\n')
-  }
-  if (!opts.json && !opts.markdown) {
-    process.stdout.write('See CONFORMANCE.md for full scorecard\n')
-  }
-  process.exit(result.exitCode)
-}
-
-const conformanceCmd = program
-  .command('conformance', { hidden: true })
-  .description('Score a project against the arbiter gold standard (#1369)')
-  .option('--dir <dir>', 'Project root to evaluate (default: current directory)')
-  .option('--fail-on <level>', 'Exit 1 on: fail (default) or partial (stricter)', 'fail')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .option('--strict', 'Exit 1 if any NV (not-verified) dimensions exist', false)
-  .option('--check', 'Ratchet check: exit 1 if score dropped vs baseline', false)
-  .option('--update-baseline', 'Update baseline when score rises; no-op when equal', false)
-  .option('--markdown', 'Emit GFM markdown table output', false)
-  .action(conformanceAction)
-
-// `adherence` is an alias for `conformance`
-program
-  .command('adherence', { hidden: true })
-  .description('Alias for `conformance` — gold-pattern adherence scorecard (#1397)')
-  .option('--dir <dir>', 'Project root to evaluate (default: current directory)')
-  .option('--fail-on <level>', 'Exit 1 on: fail (default) or partial (stricter)', 'fail')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .option('--strict', 'Exit 1 if any NV (not-verified) dimensions exist', false)
-  .option('--check', 'Ratchet check: exit 1 if score dropped vs baseline', false)
-  .option('--update-baseline', 'Update baseline when score rises; no-op when equal', false)
-  .option('--markdown', 'Emit GFM markdown table output', false)
-  .action(conformanceAction)
-
-// Suppress unused variable lint warning (conformanceCmd is registered via side effects)
-void conformanceCmd
 
 // ── help (#1770 T5) ───────────────────────────────────────────────────────────
 // Replaces the built-in help command (disabled above via program.helpCommand(false))

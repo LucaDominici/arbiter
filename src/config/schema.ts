@@ -420,26 +420,6 @@ export function autoFillConformanceThresholds(
   return base
 }
 
-/**
- * #1623: resolve the conformance thresholds that actually drive the verdict —
- * level default + brownfield overlay, with a present-and-VALID stored override
- * merged on top. Pure (no IO); the caller resolves the brownfield class. Before
- * this both halves of the #1394 two-tier SSOT were inert: the overlay was never
- * reached (runConformance passed no class) and the `conformanceThresholds` config
- * field validated yet was read by no one.
- */
-export function resolveConformanceThresholds(
-  level: GovernanceLevel,
-  cls: BrownfieldClass,
-  storedOverride?: unknown,
-): ConformanceThresholds {
-  const base = autoFillConformanceThresholds(level, cls)
-  if (storedOverride !== undefined && validateConformanceThresholds(storedOverride).length === 0) {
-    return { ...base, ...(storedOverride as ConformanceThresholds) }
-  }
-  return base
-}
-
 export const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3', 'L4'])
 // #1254 — valid industryOverlay values (mirrors ProjectConfig.industryOverlay).
 export const INDUSTRY_OVERLAYS: ReadonlySet<string> = new Set([
