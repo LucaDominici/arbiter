@@ -36,6 +36,16 @@ interface LexEntry {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+interface UnmappedImportDim {
+  import_id: number
+  [k: string]: unknown
+}
+
+interface MappingExtras {
+  unmapped_import_dims?: UnmappedImportDim[]
+  import_total?: number
+}
+
 function makeTemp() {
   const dir = mkdtempSync(join(tmpdir(), 'inv86-'))
   mkdirSync(join(dir, 'src/kit'), { recursive: true })
@@ -43,13 +53,23 @@ function makeTemp() {
   return {
     dir,
     cleanup: () => rmSync(dir, { recursive: true, force: true }),
-    writeAll(catalog: CatalogDim[], mapping: MappingDim[], lex: LexEntry[]) {
+    writeAll(
+      catalog: CatalogDim[],
+      mapping: MappingDim[],
+      lex: LexEntry[],
+      extras: MappingExtras = {},
+    ) {
       writeFileSync(join(dir, 'src/kit/catalog.json'), JSON.stringify(catalog))
       writeFileSync(
         join(dir, 'src/kit/canonical-mapping.json'),
-        JSON.stringify({ dimensions: mapping }),
+        JSON.stringify({ dimensions: mapping, ...extras }),
       )
       writeFileSync(join(dir, 'scripts/data/redaction-lexicon.json'), JSON.stringify(lex))
+    },
+    touchFile(relPath: string) {
+      const abs = join(dir, relPath)
+      mkdirSync(resolve(abs, '..'), { recursive: true })
+      writeFileSync(abs, '// fixture file\n')
     },
   }
 }
@@ -299,7 +319,7 @@ describe('enforcement coverage (BLOCKING dims)', () => {
             gate_type: 'BLOCKING',
             disposition: 'adopt-self',
             implementing_wave: null,
-            framework_realization: { generator: 'kit.ts' },
+            framework_realization: { generator: 'planned:kit.ts' },
           }),
         ],
         emptyLex,
@@ -499,6 +519,253 @@ describe('redaction scan', () => {
         JSON.stringify([{ token: '@Component', allowContext: '$schema' }]),
       )
       expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// ─── Rule 5: provenance integrity (R-08) ──────────────────────────────────────
+
+describe('provenance integrity (import_source vs framework_realization.docs)', () => {
+  it('exits 0 when no row carries import_source (rule inapplicable)', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll([catDim()], [mapDim()], emptyLex)
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when import_name slug matches the docs pointer', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim()],
+        [
+          mapDim({
+            import_source: { import_id: 1, import_name: 'OWASP dependency-check' },
+            framework_realization: { docs: 'docs/REFERENCE/dim-015-owasp-dependency-check.md' },
+          }),
+        ],
+        emptyLex,
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when the docs slug is a truncated prefix of the full name slug', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim()],
+        [
+          mapDim({
+            import_source: {
+              import_id: 1,
+              import_name: 'Ship stage (Docker+Trivy+deploy)',
+            },
+            framework_realization: { docs: 'docs/REFERENCE/dim-037-ship-stage-docker-tri.md' },
+          }),
+        ],
+        emptyLex,
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when import_name does not match the docs pointer (positional-join regression)', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim()],
+        [
+          mapDim({
+            import_source: { import_id: 1, import_name: 'SecurityConfig hardening' },
+            framework_realization: { docs: 'docs/REFERENCE/dim-015-owasp-dependency-check.md' },
+          }),
+        ],
+        emptyLex,
+      )
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[provenance]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when framework_realization.docs is null (rule inapplicable)', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim()],
+        [
+          mapDim({
+            import_source: { import_id: 1, import_name: 'Anything at all' },
+            framework_realization: { docs: null },
+          }),
+        ],
+        emptyLex,
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// ─── Rule 6: phantom-path existence (R-13) ────────────────────────────────────
+
+describe('phantom-path existence (framework_realization template/generator/validator)', () => {
+  it('exits 0 when template is null', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim({ gate: 'ADVISORY' })],
+        [mapDim({ gate_type: 'ADVISORY', framework_realization: {} })],
+        emptyLex,
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when template is "planned:"-prefixed even though the path does not exist', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim({ gate: 'ADVISORY' })],
+        [
+          mapDim({
+            gate_type: 'ADVISORY',
+            framework_realization: { template: 'planned:src/templates/ghost.ejs' },
+          }),
+        ],
+        emptyLex,
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when template path has no "planned:" prefix and does not exist on disk', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim({ gate: 'ADVISORY' })],
+        [
+          mapDim({
+            gate_type: 'ADVISORY',
+            framework_realization: { template: 'src/templates/ghost.ejs' },
+          }),
+        ],
+        emptyLex,
+      )
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[phantom]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when template path exists on disk relative to the run root', () => {
+    const { dir, cleanup, writeAll, touchFile } = makeTemp()
+    try {
+      touchFile('src/templates/real.ejs')
+      writeAll(
+        [catDim({ gate: 'ADVISORY' })],
+        [
+          mapDim({
+            gate_type: 'ADVISORY',
+            framework_realization: { template: 'src/templates/real.ejs' },
+          }),
+        ],
+        emptyLex,
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// ─── Rule 7: crosswalk referential integrity ─────────────────────────────────
+
+describe('crosswalk referential integrity (import_total-gated)', () => {
+  it('exits 0 (rule skipped) when import_total is absent, even with gaps', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll([catDim()], [mapDim({ import_source: { import_id: 1, import_name: 'x' } })], emptyLex)
+      // import_id 2 is never mentioned anywhere — would fail Rule 7 if it ran.
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when every import_id 1..N is covered via import_source + unmapped_import_dims', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim()],
+        [mapDim({ import_source: { import_id: 1, import_name: 'x' } })],
+        emptyLex,
+        { unmapped_import_dims: [{ import_id: 2 }, { import_id: 3 }], import_total: 3 },
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when an import_id is missing from both import_source and unmapped_import_dims', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim()],
+        [mapDim({ import_source: { import_id: 1, import_name: 'x' } })],
+        emptyLex,
+        { unmapped_import_dims: [{ import_id: 2 }], import_total: 3 },
+      )
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[crosswalk]')
+      expect(r.stdout).toContain('import_id 3 missing')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when an import_id is attached to two different canonical rows', () => {
+    const { dir, cleanup, writeAll } = makeTemp()
+    try {
+      writeAll(
+        [catDim(), catDim({ id: 'N02', name: 'Extra' })],
+        [
+          mapDim({ import_source: { import_id: 1, import_name: 'x' } }),
+          mapDim({
+            id: 2,
+            canonical_id: 'N02',
+            name: 'Extra',
+            import_source: { import_id: 1, import_name: 'x' },
+          }),
+        ],
+        emptyLex,
+        { import_total: 1 },
+      )
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[crosswalk]')
+      expect(r.stdout).toContain('attached to both')
     } finally {
       cleanup()
     }
