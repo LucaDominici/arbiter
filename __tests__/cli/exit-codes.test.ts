@@ -293,17 +293,3 @@ describe('exit-code contract — update command (unit)', () => {
     expect(exitSpy).not.toHaveBeenCalled()
   })
 })
-
-// #1291 — wave/batch is an L3 behavior; below it the CLI must refuse with exit 1.
-describe('exit-code contract — ship --batch autonomy gate (#1291)', () => {
-  it('refuses --batch with exit 1 when autonomy resolves below L3', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'arbiter-batch-gate-'))
-    try {
-      const r = spawn(['ship', '--batch', '1,2', '--dir', dir], dir)
-      expect(r.status).toBe(1)
-      expect(r.stderr).toContain('requires automation.autonomy L3')
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-})

@@ -19,15 +19,15 @@ Override: `ALLOW_REMOVE_DEPRECATED=1 node scripts/check-all.mjs` (document the e
 
 ## Format
 
-| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement                          | Status     | Stage |
-| ------------------------ | ------------- | --------- | ------------------------------------ | ---------- | ----- |
-| ship --batch             | 0.4.0         | 0.6.0     | `/drain` (wave-drain skill), ADR-103 | deprecated | warn  |
+| Symbol / Flag / Behavior  | Deprecated in | Remove in | Replacement | Status | Stage |
+| ------------------------- | ------------- | --------- | ----------- | ------ | ----- |
+| _(none currently active)_ | —             | —         | —           | —      | —     |
 
 ## Closed / Removed Deprecations
 
-| Symbol / Flag / Behavior | Was deprecated in | Removed in | Replacement |
-| ------------------------ | ----------------- | ---------- | ----------- |
-| _(none yet)_             | —                 | —          | —           |
+| Symbol / Flag / Behavior | Was deprecated in | Removed in | Replacement                          |
+| ------------------------ | ----------------- | ---------- | ------------------------------------ |
+| ship --batch             | 0.4.0             | 0.6.0      | `/drain` (wave-drain skill), ADR-103 |
 
 ---
 

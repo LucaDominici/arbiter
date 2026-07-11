@@ -82,7 +82,6 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 | `check-no-skipped-tests.mjs` | Available for opt-in by generated projects; not self-applied to arbiter (arbiter uses `.skip` in `vitest.config.ts` exclusions, not inline skip markers) |
 | `enforce-gate-before-pr.mjs` | PreToolUse gate-marker guard (R1.S5): blocks `gh pr create` unless gate marker is fresh. Pending registration after full gate-marker infra lands.        |
 | `hooks.mjs`                  | Arbiter-generated hook dispatcher for target projects. Present here as dogfood; not registered as Claude Code hook in arbiter's own settings.json.       |
-| `pre-task-track-detect.mjs`  | Experimental — wired as UserPromptSubmit in development branches; not yet stable for main settings                                                       |
 
 ---
 

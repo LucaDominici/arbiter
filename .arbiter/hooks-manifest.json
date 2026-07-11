@@ -207,15 +207,6 @@
       "rationale": "PostToolUse conventional-commit check (INV-22) + track-aware checklist (#724) \u2014 non-blocking informational output"
     },
     {
-      "file": "pre-task-track-detect.mjs.ejs",
-      "classification": "ADVISORY",
-      "tools": [
-        "claude"
-      ],
-      "spawnable": false,
-      "rationale": "UserPromptSubmit context-economy hint \u2014 detects task track from changed files + prompt keywords and injects knowledge-map routing guidance (#720). Always exits 0."
-    },
-    {
       "file": "post-edit-dispatch.mjs.ejs",
       "classification": "ADVISORY",
       "tools": [

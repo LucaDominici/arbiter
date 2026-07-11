@@ -19,9 +19,7 @@ const result = spawnSync('npx', ['--no-install', 'arbiter', 'conformance', ...ar
 })
 
 if (result.error) {
-  process.stderr.write(
-    `[conformance] spawn error: ${result.error.message}\n`,
-  )
+  process.stderr.write(`[conformance] spawn error: ${result.error.message}\n`)
   process.exit(2)
 }
 

@@ -222,7 +222,7 @@ function generateClaudeHooks(
     )
   }
 
-  const baseEjsHooks = ['lib.mjs', 'post-commit-check.mjs', 'pre-task-track-detect.mjs']
+  const baseEjsHooks = ['lib.mjs', 'post-commit-check.mjs']
   for (const hookFile of baseEjsHooks) {
     results.push(
       writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {

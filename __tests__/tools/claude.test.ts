@@ -381,29 +381,6 @@ describe('generateClaude — context-economy + track-aware post-commit (#720 #72
     expect(file?.action).toBe('skipped')
   })
 
-  it('generates .claude/hooks/pre-task-track-detect.mjs (#720)', () => {
-    generateClaude(claudeConfig())
-    expect(existsSync(join(dir, '.claude', 'hooks', 'pre-task-track-detect.mjs'))).toBe(true)
-  })
-
-  it('pre-task-track-detect.mjs has shebang', () => {
-    generateClaude(claudeConfig())
-    const content = readFileSync(
-      join(dir, '.claude', 'hooks', 'pre-task-track-detect.mjs'),
-      'utf-8',
-    )
-    expect(content).toMatch(/^#!/)
-  })
-
-  it('pre-task-track-detect.mjs references knowledge-map.json', () => {
-    generateClaude(claudeConfig())
-    const content = readFileSync(
-      join(dir, '.claude', 'hooks', 'pre-task-track-detect.mjs'),
-      'utf-8',
-    )
-    expect(content).toContain('knowledge-map.json')
-  })
-
   it('post-commit-check.mjs contains track detection routing (#724)', () => {
     generateClaude(claudeConfig())
     const content = readFileSync(join(dir, '.claude', 'hooks', 'post-commit-check.mjs'), 'utf-8')

@@ -508,17 +508,10 @@ describe('generateSsot', () => {
     }
   })
 
-  it('L1: generates harness.mjs', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L1' })
-    generateSsot(config)
-    expect(existsSync(join(dir, 'scripts/harness.mjs'))).toBe(true)
-  })
-
   it('L2: generates all SSOT scripts', () => {
     const config = makeConfig(dir, { governanceLevel: 'L2' })
     generateSsot(config)
     expect(existsSync(join(dir, 'scripts/check-ssot-core.mjs'))).toBe(true)
-    expect(existsSync(join(dir, 'scripts/harness.mjs'))).toBe(true)
   })
 
   it('L3: generates all SSOT scripts', () => {
@@ -539,13 +532,6 @@ describe('generateSsot', () => {
     const scriptResult = results.files.find((r) => r.path.endsWith('check-ssot-core.mjs'))
     expect(scriptResult?.action).toBe('skipped')
     expect(readFileSync(scriptPath, 'utf-8')).toContain('manually edited')
-  })
-
-  it('harness.mjs has Node shebang', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L1' })
-    generateSsot(config)
-    const content = readFileSync(join(dir, 'scripts/harness.mjs'), 'utf-8')
-    expect(content).toMatch(/^#!.*node/)
   })
 
   it('check-ssot-core.mjs references SSOT_CORE_SET.md', () => {

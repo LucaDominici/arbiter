@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// go-library — CI tier presence gate (INV-72)
+// go-library — CI tier presence gate (INV-73)
 // Gate: verify the required CI workflow files exist in .github/workflows/.
 // The required set is fixed at generation time as the inverse of the workflow
 // generation predicates (collaboration mode peer-review × governance L1).
@@ -19,7 +19,7 @@ const CWD = process.cwd();
 const WORKFLOWS_DIR = join(CWD, '.github', 'workflows');
 
 // Required CI-tier files for this project (collaboration mode + governance level
-// resolved at generation time — INV-72).
+// resolved at generation time — INV-73).
 const REQUIRED_TIERS = [
   '01-pr-fast.yml',
   '02-pr-extended.yml',

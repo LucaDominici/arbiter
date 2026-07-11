@@ -44,8 +44,7 @@ import type { TaskPhase } from './commands/task.js'
 import { isTddPhase } from './commands/task-state.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
 import { runShipFixOnRed } from './commands/ship-fix-on-red.js'
-import { resolveShipProfile, autonomyAllows, buildShipOverrides } from './commands/ship-profile.js'
-import { parseIssueList, runShipBatch } from './batch/batch-runner.js'
+import { buildShipOverrides } from './commands/ship-profile.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
@@ -1578,28 +1577,6 @@ program
     },
   )
 
-/**
- * #1263/#1291 — overnight multi-issue mode with the wave/batch autonomy gate:
- * wave-batch is an L3 behavior (ADR-093 §4), refused below it.
- */
-function runShipBatchCommand(
-  batch: string,
-  dir: string | undefined,
-  overrides: Record<string, string>,
-): void {
-  const root = dir ?? process.cwd()
-  const profile = resolveShipProfile(root, Object.keys(overrides).length > 0 ? { overrides } : {})
-  if (!autonomyAllows(profile.autonomy, 'wave-batch')) {
-    process.stderr.write(
-      `ship --batch refused: wave/batch requires automation.autonomy L3 (or --autonomy L3); resolved ${profile.autonomy}\n`,
-    )
-    process.exit(1)
-  }
-  const issueIds = parseIssueList(batch)
-  const { lines } = runShipBatch(issueIds, { dir: root })
-  process.stdout.write(lines.join('\n') + '\n')
-}
-
 program
   .command('ship [id]')
   .description('Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)')
@@ -1634,13 +1611,6 @@ program
       return n
     },
   )
-  .option(
-    '--batch <issues>',
-    '[DEPRECATED, ADR-103 — use /drain (wave-drain skill)] Overnight multi-issue ' +
-      'mode (#1263): comma-separated issue numbers to ship unattended, one fresh ' +
-      'clean-context sub-agent per issue, with per-issue STOP isolation; ' +
-      'aggregates a batch-report-<date>.json',
-  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
@@ -1653,7 +1623,6 @@ program
         skipPlanReview: boolean
         postClear: boolean
         units?: number
-        batch?: string
         dir?: string
       },
     ) => {
@@ -1664,14 +1633,6 @@ program
           sets: opts.set,
           ...(opts.autonomy !== undefined ? { autonomy: opts.autonomy } : {}),
         })
-        // #1263 — overnight multi-issue mode. When --batch is present, ship every
-        // listed issue with per-issue STOP isolation (one issue's failure never
-        // aborts the batch) and write a date-stamped batch report. The single-id
-        // path below is left UNTOUCHED when --batch is absent (regression discipline).
-        if (opts.batch !== undefined) {
-          runShipBatchCommand(opts.batch, opts.dir, overrides)
-          return
-        }
         // #1260 — the review TIER drives BOTH the review-agent COUNT and the orthogonal
         // VERTICAL breadth (see A8: guidance, not auto-detected machinery). `--tier`
         // defaults to the widest ('Standard') fail-safe absent an explicit override.

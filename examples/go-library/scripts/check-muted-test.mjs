@@ -15,24 +15,35 @@
 // (no test dir / no test files) is a SKIP at exit 0 — an explicit no-data signal, NEVER a
 // manufactured pass.
 //
+// BROWNFIELD BASELINE (same policy shape as spotbugs-baseline.json): a legacy repo can carry
+// dozens of pre-existing @Disabled tests that are not fixable in one adoption step. Running
+// `--update-baseline` grandfathers the CURRENT counts (per file, per marker kind) into
+// muted-tests-baseline.json; from then on the gate fails ONLY on NEW muted tests — a new marker
+// in a new file, or a count above the baselined count in a grandfathered file. Removing muted
+// tests never fails; re-run --update-baseline to ratchet the baseline down.
+//
 // Exit codes (INV-53): 0=PASS / NO-DATA-skip, 1=FAIL (muted gate test found), 2=ERROR.
-// Usage: node scripts/check-muted-test.mjs [--dir <path>] [--help]
-import { readdirSync, statSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+// Usage: node scripts/check-muted-test.mjs [--dir <path>] [--update-baseline] [--help]
+import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { join, resolve, relative } from 'node:path'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write(
-    'Usage: node scripts/check-muted-test.mjs [--dir <path>]\n' +
+    'Usage: node scripts/check-muted-test.mjs [--dir <path>] [--update-baseline]\n' +
       '  Fails closed when a gate test is silenced by a skip/disable marker (incl. JVM assume-\n' +
       '  style aborts: assumeTrue/assumeFalse/abort). Add `// arbiter-allow-skip: <reason>` on\n' +
       '  the marker line or the line above to audit-exempt a legitimate skip. NO-DATA (no test\n' +
-      '  dir / no test files) is a SKIP at exit 0, never a pass.\n',
+      '  dir / no test files) is a SKIP at exit 0, never a pass.\n' +
+      '  --update-baseline grandfathers CURRENT muted tests into muted-tests-baseline.json\n' +
+      '  (brownfield adoption); afterwards only NEW muted tests fail the gate.\n',
   )
   process.exit(0)
 }
 const dirArgIdx = args.indexOf('--dir')
 const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]) : process.cwd()
+const UPDATE_BASELINE = args.includes('--update-baseline')
+const BASELINE_PATH = join(ROOT, 'muted-tests-baseline.json')
 
 // #1840 F4 tranche-3: '.venv'/'venv'/'__pycache__' — a Python dependency's
 // bundled test suite inside site-packages (e.g. greenlet) must never be
@@ -121,6 +132,45 @@ function collectTestFiles(dir, acc, inJvmTestTree) {
   }
 }
 
+// ── Brownfield baseline (grandfathered muted tests) ─────────────────────────
+// Shape: { policy, baselined: { "<repo-relative file>": { "<marker label>": count } } }.
+// Line numbers are deliberately NOT part of the fingerprint — they drift on every
+// edit; per-file per-label COUNTS are stable and still catch every NEW mute
+// (new file, new marker kind, or count above the grandfathered count).
+
+function loadBaseline() {
+  if (!existsSync(BASELINE_PATH)) return {}
+  let parsed
+  try {
+    parsed = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'))
+  } catch (e) {
+    // Fail CLOSED: an unparseable baseline must never silently disable the gate.
+    throw new Error(`muted-tests-baseline.json is invalid JSON: ${e?.message ?? e}`)
+  }
+  const baselined = parsed?.baselined
+  if (baselined === undefined || baselined === null) return {}
+  if (typeof baselined !== 'object' || Array.isArray(baselined)) {
+    throw new Error('muted-tests-baseline.json: "baselined" must be an object map')
+  }
+  return baselined
+}
+
+function writeBaseline(counts) {
+  const sorted = {}
+  for (const file of Object.keys(counts).sort()) {
+    sorted[file] = {}
+    for (const label of Object.keys(counts[file]).sort()) {
+      sorted[file][label] = counts[file][label]
+    }
+  }
+  const doc = {
+    policy:
+      'pre-existing muted tests grandfathered via --update-baseline; NEW muted gate tests always fail',
+    baselined: sorted,
+  }
+  writeFileSync(BASELINE_PATH, JSON.stringify(doc, null, 2) + '\n')
+}
+
 function main() {
   const files = []
   collectTestFiles(ROOT, files, false)
@@ -131,7 +181,8 @@ function main() {
     return 0
   }
 
-  const violations = []
+  /** @type {{ file: string; rel: string; line: number; label: string; text: string }[]} */
+  const findings = []
   for (const file of files) {
     let content
     try {
@@ -139,6 +190,7 @@ function main() {
     } catch {
       continue
     }
+    const rel = relative(ROOT, file).split('\\').join('/')
     const lines = content.split('\n')
     for (let i = 0; i < lines.length; i++) {
       const trimmed = lines[i].trim()
@@ -146,20 +198,67 @@ function main() {
       if (EXEMPT_RE.test(lines[i]) || EXEMPT_RE.test(prev)) continue
       for (const { re, label } of MUTE_PATTERNS) {
         if (re.test(trimmed)) {
-          violations.push(`  ${file}:${i + 1}: ${label} — ${trimmed}`)
+          findings.push({ file, rel, line: i + 1, label, text: trimmed })
         }
       }
     }
   }
 
+  // Group by file+label — the baseline unit.
+  /** @type {Record<string, Record<string, number>>} */
+  const counts = {}
+  for (const f of findings) {
+    counts[f.rel] = counts[f.rel] ?? {}
+    counts[f.rel][f.label] = (counts[f.rel][f.label] ?? 0) + 1
+  }
+
+  if (UPDATE_BASELINE) {
+    writeBaseline(counts)
+    process.stdout.write(
+      `check-muted-test: baseline updated — ${findings.length} muted test(s) grandfathered ` +
+        `across ${Object.keys(counts).length} file(s) → ${BASELINE_PATH}\n`,
+    )
+    return 0
+  }
+
+  const baseline = loadBaseline()
+  const violations = []
+  let grandfathered = 0
+  for (const [rel, labels] of Object.entries(counts)) {
+    for (const [label, count] of Object.entries(labels)) {
+      const allowed = typeof baseline[rel]?.[label] === 'number' ? baseline[rel][label] : 0
+      if (count <= allowed) {
+        grandfathered += count
+        continue
+      }
+      const lines = findings.filter((f) => f.rel === rel && f.label === label)
+      violations.push(
+        `  ${rel}: ${count} × ${label}` +
+          (allowed > 0 ? ` (baseline allows ${allowed} — new mute added)` : '') +
+          '\n' +
+          lines.map((f) => `    ${f.file}:${f.line}: ${f.text}`).join('\n'),
+      )
+    }
+  }
+
   if (violations.length > 0) {
     process.stderr.write(
-      `check-muted-test: ${violations.length} muted gate test(s) — a silenced gate test is a fake-green:\n`,
+      `check-muted-test: muted gate test(s) over baseline — a silenced gate test is a fake-green:\n`,
     )
     for (const v of violations) process.stderr.write(v + '\n')
+    process.stderr.write(
+      'Fix the test, add `// arbiter-allow-skip: <reason>`, or (brownfield adoption only)\n' +
+        'grandfather the CURRENT state via: node scripts/check-muted-test.mjs --update-baseline\n',
+    )
     return 1
   }
-  process.stdout.write(`check-muted-test: OK — ${files.length} gate test file(s), no skip markers\n`)
+  process.stdout.write(
+    `check-muted-test: OK — ${files.length} gate test file(s)` +
+      (grandfathered > 0
+        ? `, ${grandfathered} muted test(s) grandfathered by muted-tests-baseline.json`
+        : ', no skip markers') +
+      '\n',
+  )
   return 0
 }
 
