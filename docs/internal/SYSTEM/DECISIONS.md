@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-07-10'
+last_review: '2026-07-11'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -122,3 +122,4 @@ related: []
 | 101 | [runnerProfile cadence axis (solo/fleet)](../ADR/101-runner-profile-cadence-axis.md) | Accepted | 2026-07-01 |
 | 102 | [gate the workflow-template-emitted dims at L3](../ADR/102-l3-workflow-dim-gating.md) | Accepted | 2026-07-01 |
 | 104 | [Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning](../ADR/104-trivy-fs-replaces-owasp-dependency-check.md) | Accepted | 2026-07-10 |
+| 105 | [never-brick config migration — coercible vs fatal fields](../ADR/105-never-brick-config-migration.md) | Accepted | 2026-07-11 |

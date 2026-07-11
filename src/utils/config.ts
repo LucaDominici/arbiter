@@ -5,7 +5,7 @@ import { writeFile } from './fs.js'
 import { acquireLock } from './file-lock.js'
 import { getLogger } from './logger.js'
 import { ConfigError } from './errors.js'
-import { type ArbiterConfigV2, validateConfig } from '../config/schema.js'
+import { type ArbiterConfigV2, sanitizeCoercibleFields, validateConfig } from '../config/schema.js'
 import { migrate } from '../config/migrations/index.js'
 import { applyEnvOverrides } from '../config/env-overrides.js'
 import { rotateBackup } from '../state/backups.js'
@@ -156,7 +156,31 @@ export function loadConfig(dir: string): ArbiterConfig | null {
   try {
     const migrated = migrate(raw)
     const withEnv = applyEnvOverrides(migrated, process.env)
-    const validation = validateConfig(withEnv)
+    let validation = validateConfig(withEnv)
+    // Never-brick fallback (T0): a first-pass validation failure is not
+    // immediately fatal. A closed set of axis/identity fields (contractType,
+    // databaseEngine, governanceLevel, tools, …) is safe to coerce to a
+    // documented default — see sanitizeCoercibleFields for the exact set and
+    // rationale. Only when the config is STILL invalid after that pass — i.e.
+    // the failure is in a field this fallback does not know how to repair —
+    // do we hard-throw E_CONFIG_INVALID.
+    if (!validation.ok) {
+      const { draft, report } = sanitizeCoercibleFields(
+        withEnv as unknown as Record<string, unknown>,
+      )
+      if (report.length > 0) {
+        validation = validateConfig(draft)
+        if (validation.ok) {
+          getLogger().warn(
+            'config.coerced_fields',
+            { path, fields: report.map((r) => r.field).join(',') },
+            `arbiter.json at ${path} had ${report.length} field(s) migrated to a safe default ` +
+              `(${report.map((r) => `${r.field}: ${JSON.stringify(r.from)} → ${JSON.stringify(r.to)}`).join('; ')}). ` +
+              `Run 'arbiter configure' to persist the cleaned-up values.`,
+          )
+        }
+      }
+    }
     if (!validation.ok) {
       throw new ConfigError(
         'E_CONFIG_INVALID',

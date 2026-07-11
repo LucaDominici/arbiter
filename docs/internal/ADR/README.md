@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-10'
+last_review: '2026-07-11'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 104)
+1. Create `NNN-short-title.md` in this directory (next free number after 105)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -131,3 +131,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 101 | [runnerProfile cadence axis (solo/fleet)](101-runner-profile-cadence-axis.md)                                                                                         | Accepted   | 2026-07-01 |  |
 | 102 | [gate the workflow-template-emitted dims at L3](102-l3-workflow-dim-gating.md)                                                                                        | Accepted   | 2026-07-01 |  |
 | 104 | [Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning](104-trivy-fs-replaces-owasp-dependency-check.md)                                               | Accepted   | 2026-07-10 |  |
+| 105 | [never-brick config migration — coercible vs fatal fields](105-never-brick-config-migration.md)                                                                       | Accepted   | 2026-07-11 |  |
