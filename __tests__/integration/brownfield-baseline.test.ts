@@ -15,9 +15,14 @@ import { tmpdir } from 'node:os'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { makeConfig } from '../helpers.js'
 import { runGenerators } from '../../src/commands/init.js'
-import type { DebtBaselineV2 } from '../../src/generators/debt-ratchet.js'
 
 const RUN_E2E = process.env['RUN_E2E'] === '1'
+
+/** Shape of scripts/debt-baseline.json as written by capture-debt-baseline.mjs. */
+interface DebtBaselineShape {
+  version: number
+  metrics: Record<string, { value: number } | undefined>
+}
 
 const FIXTURE_DIR = new URL('../fixtures/brownfield-java', import.meta.url).pathname
 
@@ -145,7 +150,7 @@ describe.skipIf(!RUN_E2E)('brownfield Java baseline E2E', () => {
 
     const baseline0 = JSON.parse(
       readFileSync(join(dir, 'scripts/debt-baseline.json'), 'utf-8'),
-    ) as unknown as DebtBaselineV2
+    ) as unknown as DebtBaselineShape
 
     expect(baseline0.version).toBe(2)
     expect(typeof baseline0.metrics['pmdViolations']).toBe('object')
@@ -204,7 +209,7 @@ describe.skipIf(!RUN_E2E)('brownfield Java baseline E2E', () => {
 
     const baselineUpdated = JSON.parse(
       readFileSync(join(dir, 'scripts/debt-baseline.json'), 'utf-8'),
-    ) as unknown as DebtBaselineV2
+    ) as unknown as DebtBaselineShape
 
     expect(baselineUpdated.metrics['pmdViolations']?.value).toBe(n0 - 1)
   })

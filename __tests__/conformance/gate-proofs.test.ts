@@ -7,7 +7,7 @@
 // NON-CONFORMANT). This replaces script self-test suites: instead of testing that a check
 // SCRIPT runs, we test that the RULE bites on a real violation.
 import { describe, it, expect } from 'vitest'
-import { listGateProofs, runGateProofs, verdictBites } from '../../src/conformance/gate-proofs.js'
+import { runGateProofs, verdictBites } from '../../src/conformance/gate-proofs.js'
 
 // Every tier-1 dimension id currently declared in dimensions.ts (kept in sync manually here;
 // drift between this list and dimensions.ts's tier-1 set is itself a signal worth catching —
@@ -39,14 +39,14 @@ describe('verdictBites', () => {
 
 describe('gate proof registry', () => {
   it('has exactly one proof per known tier-1 dimension, no duplicates', () => {
-    const ids = listGateProofs().map((p) => p.id)
+    const ids = runGateProofs().map((r) => r.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids.sort()).toEqual([...KNOWN_TIER1_IDS].sort())
   })
 
   it('every proof declares a non-empty violation description (why the fixture is bad)', () => {
-    for (const proof of listGateProofs()) {
-      expect(proof.violation.length).toBeGreaterThan(0)
+    for (const result of runGateProofs()) {
+      expect(result.violation.length).toBeGreaterThan(0)
     }
   })
 })
@@ -56,7 +56,7 @@ describe('runGateProofs — each seeded fixture must flip its gate to a failing 
   const byId = new Map(results.map((r) => [r.id, r]))
 
   it('runs one result per registered proof', () => {
-    expect(results).toHaveLength(listGateProofs().length)
+    expect(results).toHaveLength(KNOWN_TIER1_IDS.length)
   })
 
   for (const id of KNOWN_TIER1_IDS) {

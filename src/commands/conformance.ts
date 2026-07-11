@@ -12,7 +12,7 @@
 // Design: deterministic, code-computed, never AI-scored. Pure functions in
 // src/conformance/dimensions.ts and src/conformance/doc-probes.ts keep probe logic testable.
 
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { writeFileTranslated } from '../utils/fs.js'
 import {
@@ -286,14 +286,4 @@ export function runConformance(opts: ConformanceOptions = {}): ConformanceScanRe
   if (opts.check) return applyCheckRatchet(root, payload)
   if (opts.updateBaseline) return applyUpdateBaseline(root, payload)
   return computeDefaultResult(payload, failOn, strict, summary)
-}
-
-/** Return mtime of the baseline file, or null if absent. */
-export function baselineMtime(root: string): number | null {
-  const abs = resolve(root, '.arbiter', BASELINE_FILE)
-  try {
-    return statSync(abs).mtimeMs
-  } catch {
-    return null
-  }
 }
