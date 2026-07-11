@@ -146,51 +146,57 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
         if (dir != null) rmSync(dir, { recursive: true, force: true })
       })
 
-      it.skipIf(skipReason != null)(`init → bake → execute generated L1 gate green`, async () => {
-        await runInit({
-          yes: true,
-          tools: 'claude',
-          level: 'L1',
-          dir,
-          dryRun: false,
-          brownfield: false,
-          noVerify: true,
-          language: language as never,
-          archetype: manifest.archetype as never,
-        })
+      it.skipIf(skipReason != null)(
+        `init → bake → execute generated L1 gate green`,
+        async () => {
+          await runInit({
+            yes: true,
+            tools: 'claude',
+            level: 'L1',
+            dir,
+            dryRun: false,
+            brownfield: false,
+            noVerify: true,
+            language: language as never,
+            archetype: manifest.archetype as never,
+          })
 
-        // Re-commit fixture state after init so the generated gate sees a clean tree.
-        execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
-        execFileSync('git', ['commit', '-m', 'chore: post-init', '--no-verify'], {
-          cwd: dir,
-          stdio: 'ignore',
-        })
+          // Re-commit fixture state after init so the generated gate sees a clean tree.
+          execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+          execFileSync('git', ['commit', '-m', 'chore: post-init', '--no-verify'], {
+            cwd: dir,
+            stdio: 'ignore',
+          })
 
-        const dep = installDeps(dir, language)
-        if ('skip' in dep) {
-          // GENUINELY offline (network signature in install output) ⇒ SKIP rather than
-          // false-RED. A deterministic install failure does NOT reach here — it throws
-          // inside installDeps and fails the cell, so it can never be laundered green.
-          expect(dep.skip, 'deps unavailable (offline) — skipping gate exec').toBeTruthy()
-          return
-        }
+          const dep = installDeps(dir, language)
+          if ('skip' in dep) {
+            // GENUINELY offline (network signature in install output) ⇒ SKIP rather than
+            // false-RED. A deterministic install failure does NOT reach here — it throws
+            // inside installDeps and fails the cell, so it can never be laundered green.
+            expect(dep.skip, 'deps unavailable (offline) — skipping gate exec').toBeTruthy()
+            return
+          }
 
-        const result = runGeneratedGate(dir, dep.pathPrefix)
-        // Load-bearing #1041/#1042 guarantee: the gate must EXECUTE — no missing
-        // generated script (127) and no dangling generated module reference.
-        expect(result.status, `gate did not execute:\n${result.output.slice(-2000)}`).not.toBe(127)
-        expect(result.output).not.toMatch(/Cannot find module/)
-        // The generated BDD suites must NOT break the default build (the #1042
-        // root cause): no unresolved cucumber/godog import cascading into the
-        // unit/vet/lint checks.
-        expect(result.output).not.toMatch(/no required module provides package.*godog/)
-        expect(result.output).not.toMatch(/unresolved import `cucumber`/)
-        // Green out of the box once deps are installed.
-        expect(
-          result.status,
-          result.status === 0 ? '' : `generated L1 gate failed:\n${result.output.slice(-3000)}`,
-        ).toBe(0)
-      }, 240_000)
+          const result = runGeneratedGate(dir, dep.pathPrefix)
+          // Load-bearing #1041/#1042 guarantee: the gate must EXECUTE — no missing
+          // generated script (127) and no dangling generated module reference.
+          expect(result.status, `gate did not execute:\n${result.output.slice(-2000)}`).not.toBe(
+            127,
+          )
+          expect(result.output).not.toMatch(/Cannot find module/)
+          // The generated BDD suites must NOT break the default build (the #1042
+          // root cause): no unresolved cucumber/godog import cascading into the
+          // unit/vet/lint checks.
+          expect(result.output).not.toMatch(/no required module provides package.*godog/)
+          expect(result.output).not.toMatch(/unresolved import `cucumber`/)
+          // Green out of the box once deps are installed.
+          expect(
+            result.status,
+            result.status === 0 ? '' : `generated L1 gate failed:\n${result.output.slice(-3000)}`,
+          ).toBe(0)
+        },
+        240_000,
+      )
     })
   }
 })
