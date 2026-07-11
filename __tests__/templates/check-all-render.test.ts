@@ -1177,3 +1177,31 @@ describe('check-all.mjs.ejs rendering — domain-api-surface wiring (INV-125, #1
     expect(content).not.toContain('check-domain-api-surface.mjs')
   })
 })
+
+// #1887-B: check-feature-matrix.mjs / gen-gap.mjs are emitted by
+// generateFeatureMatrix/generateGap at the identical L2+ gate
+// (governanceLevel !== 'L1') — the reference must be gated the same way so
+// the emission-coherence check never sees a dangling reference at L1.
+describe('check-all.mjs.ejs rendering — feature-matrix/gap wiring (#1887-B)', () => {
+  it('references check-feature-matrix.mjs and gen-gap.mjs at L2+ (matches their emission gate)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/check-feature-matrix.mjs')
+    expect(content).toContain('scripts/gen-gap.mjs')
+  })
+
+  it('does not reference check-feature-matrix.mjs or gen-gap.mjs at L1 (never emitted there)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-feature-matrix.mjs')
+    expect(content).not.toContain('gen-gap.mjs')
+  })
+})

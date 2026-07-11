@@ -1074,6 +1074,13 @@ if (level === 'L2') {
   // fresh `arbiter update` consumer that has never had this enforced before);
   // [skip-docs] in a commit message bypasses.
   runWarnCheck('docs updated with code (#356)', 'node', ['scripts/check-docs.mjs']);
+  // ─── L2+: FEATURE_MATRIX.md / GAP.md gates (#1887-B) ─────────────────────────
+  // generateFeatureMatrix/generateGap emit these docs at this same L2+ gate
+  // (governanceLevel !== 'L1') and each doc's own header comment promises a
+  // gate script — check-feature-matrix.mjs and gen-gap.mjs are emitted at the
+  // identical gate, so the reference always resolves.
+  runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs']);
+  runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check']);
 <% } %>
   // Advisory (#1398/C6, INV-128): conformance scorecard ratchet — informational, never blocks gate.
   if (existsSync('scripts/conformance.mjs')) {
