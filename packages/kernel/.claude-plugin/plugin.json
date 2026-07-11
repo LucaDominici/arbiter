@@ -1,0 +1,7 @@
+{
+  "name": "completion-integrity-kernel",
+  "description": "Fail-closed completion-integrity for AI coding agents: an agent cannot declare a task done without SHA-pinned, anti-replay, machine-verified evidence that the real gate ran on the real tree. Blocks fabricated evidence, stale gates, and --no-verify end-runs.",
+  "version": "0.1.0",
+  "keywords": ["completion-integrity", "agent-safety", "guardrails", "hooks", "gate"],
+  "license": "Apache-2.0"
+}
