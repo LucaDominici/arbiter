@@ -141,6 +141,16 @@ In addition to the workflows, `generateCiTier` / `generateGithub` emit:
 | `human-approval-required` | —                                                          | Verify PR has `human-approved` label (INV-74)                        |
 | `ci-required`             | `gate`, `human-approval-required`, `build-reactor` (maven) | Status check target for branch protection                            |
 
+> **Gitleaks scan scope (#1908):** `security-early-fail`'s `gitleaks detect` call (and the
+> matching L2 check in `scripts/check-all.mjs`) passes `--log-opts="HEAD"`. Without it, gitleaks
+> defaults to scanning **all refs** reachable in the checkout's object DB — since the checkout
+> step above uses `fetch-depth: 0` (every remote branch, not just this one) — so an unrelated,
+> never-merged branch's commit can fail the Security gate for every other open PR. `--log-opts`
+> still walks the full history of the ref actually being tested; it just stops other branches
+> from leaking in. The nightly `gitleaks-history` job intentionally keeps `--all --full-history`
+> as the deep, cross-branch safety net — that tradeoff (fast/narrow per-PR vs. slow/broad nightly)
+> is deliberate, not a gap.
+
 TypeScript/Java projects add parallel test category jobs (`unit-tests`, `contract-tests`,
 `integration-tests`, `behavioral-tests`) that fan out from `gate`. Java/Maven jobs download
 the reactor artifact and restore `$HOME/.m2/repository` via the `setup-java-maven` composite
