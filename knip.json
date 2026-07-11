@@ -18,6 +18,7 @@
   "ignoreBinaries": [
     "gh",
     "flock",
+    "actionlint",
     "cosign",
     "which",
     "java",

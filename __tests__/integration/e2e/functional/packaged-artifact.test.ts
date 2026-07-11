@@ -29,7 +29,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { hasBinary, isOfflineFailure, stageFixture } from '../helpers.js'
 
@@ -103,7 +103,9 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
 
   afterEach(() => {
     if (packDir != null) rmSync(packDir, { recursive: true, force: true })
-    if (projectDir != null) rmSync(projectDir, { recursive: true, force: true })
+    // stageFixture nests a fixed-name project dir under a random parent
+    // (determinism for content hashing, see helpers.ts) — clean up the parent.
+    if (projectDir != null) rmSync(dirname(projectDir), { recursive: true, force: true })
   })
 
   it.skipIf(!hasBinary('npm') || !hasBinary('node'))(

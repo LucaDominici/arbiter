@@ -118,6 +118,9 @@ export default tseslint.config(
       'eslint.config.js',
       'src/templates/',
       '__tests__/fixtures/',
+      // Full-content approval snapshots (rendered template OUTPUT captured for
+      // review, not authored source) — same category as the two ignores above.
+      '__tests__/templates/__snapshots__/',
     ],
   },
 )

@@ -3,6 +3,7 @@
 // stage to tmpdir, run `arbiter init`, assert generated arbiter.json validates,
 // snapshot the delta of generated files. Bake tier asserts STRUCTURE only —
 // no exec of the generated project (that is C3 functional tier).
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -25,6 +26,37 @@ interface BakeSnapshot {
   fixture: string
   level: string
   generated: string[]
+  // Content golden master (literature gap #1 — a name-list snapshot alone is
+  // blind to a template BODY regression that changes content but not the file
+  // set). sha256 of each generated file's content, keyed by the same relative
+  // path as `generated`. Hash, not full text, to keep 30 fixtures' worth of
+  // snapshots small while still catching content drift.
+  contentHashes: Record<string, string>
+}
+
+// ApprovalTests-style "scrubber": two live sources embed wall-clock output into
+// generated content, so a naive byte-for-byte hash would drift on every run even
+// with an unchanged template. (1) ISO27001_ANNEX_A.md.ejs renders
+// `new Date().toISOString().slice(0,10)` — TODAY's date — as a "Last updated"
+// field. (2) at L2+, `arbiter init` actually EXECUTES the emitted
+// scripts/capture-debt-baseline.mjs, which writes a `capturedAt` full ISO-8601
+// timestamp (down to the millisecond) into scripts/debt-baseline.json. Scrub any
+// ISO-8601 date/datetime before hashing so the golden master pins TEMPLATE +
+// TOOL STRUCTURE, never the instant the fixture happened to bake at.
+const ISO_TIMESTAMP_RE = /\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?/g
+
+function hashFileContent(absPath: string): string {
+  const raw = readFileSync(absPath, 'utf-8')
+  const normalized = raw.replace(ISO_TIMESTAMP_RE, '<TIMESTAMP>')
+  return createHash('sha256').update(normalized).digest('hex')
+}
+
+function computeContentHashes(dir: string, files: readonly string[]): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const rel of files) {
+    out[rel] = hashFileContent(join(dir, rel))
+  }
+  return out
 }
 
 function snapshotPath(fixture: string): string {
@@ -79,7 +111,9 @@ describe.each(fixtures)('bake — %s', (fixture) => {
   })
 
   afterEach(() => {
-    if (dir != null) rmSync(dir, { recursive: true, force: true })
+    // stageFixture nests a fixed-name project dir under a random parent
+    // (determinism for content hashing, see helpers.ts) — clean up the parent.
+    if (dir != null) rmSync(dirname(dir), { recursive: true, force: true })
   })
 
   it('arbiter init produces valid arbiter.json + matches generated-file snapshot', async () => {
@@ -120,9 +154,10 @@ describe.each(fixtures)('bake — %s', (fixture) => {
 
     const after = listProjectFiles(dir)
     const generated = computeFileDelta(before, after).sort()
+    const contentHashes = computeContentHashes(dir, generated)
 
     if (UPDATE) {
-      writeSnapshot({ fixture, level, generated })
+      writeSnapshot({ fixture, level, generated, contentHashes })
       return
     }
     const snap = loadSnapshot(fixture)
@@ -133,5 +168,13 @@ describe.each(fixtures)('bake — %s', (fixture) => {
     if (snap == null) return
     expect(snap.level).toBe(level)
     expect(generated).toEqual(snap.generated)
+    // Per-file content golden master: assert one file at a time (rather than a
+    // single toEqual on the whole hash map) so a mismatch names the exact
+    // generated file whose CONTENT drifted from the approved snapshot.
+    for (const rel of generated) {
+      expect(contentHashes[rel], `content drift in generated file: ${rel}`).toBe(
+        snap.contentHashes[rel],
+      )
+    }
   })
 })

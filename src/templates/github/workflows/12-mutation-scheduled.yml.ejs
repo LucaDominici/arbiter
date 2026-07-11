@@ -43,3 +43,58 @@ jobs:
       - name: Stryker mutation (full suite)
         run: npx stryker run
 <% } %>
+<% if (locals.language === 'rust') { %>
+  rust-mutation:
+    name: cargo-mutants mutation run
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - name: cargo-mutants (full suite)
+        run: |
+          cargo install cargo-mutants --locked
+          cargo mutants --all-features
+<% } %>
+<% if (locals.language === 'python') { %>
+  python-mutation:
+    name: mutmut mutation run
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version-file: .python-version
+      - name: mutmut (full suite)
+        run: |
+          pip install -e ".[dev]" mutmut
+          mutmut run
+          mutmut results
+<% } %>
+<% if (locals.language === 'go') { %>
+  go-mutation:
+    name: go-mutesting mutation run
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        with:
+          go-version-file: go.mod
+      - name: go-mutesting (full suite)
+        run: |
+          go install github.com/zimmski/go-mutesting/cmd/go-mutesting@latest
+          go-mutesting ./...
+<% } %>
+<%
+  // Any language without a wired mutation tool above (kept in sync with
+  // src/generators/mutation.ts's supported set). Emits a valid no-op job
+  // rather than an empty `jobs:` map, which GitHub Actions rejects outright.
+  const MUTATION_SUPPORTED_LANGUAGES = ['java', 'typescript', 'rust', 'python', 'go', 'multi']
+%>
+<% if (!MUTATION_SUPPORTED_LANGUAGES.includes(locals.language)) { %>
+  mutation-unsupported:
+    name: Mutation testing not available for this stack
+    runs-on: ubuntu-latest
+    steps:
+      - name: No mutation-testing tool wired for <%= locals.language %>
+        run: echo "arbiter does not yet wire mutation testing for '<%= locals.language %>'"
+<% } %>

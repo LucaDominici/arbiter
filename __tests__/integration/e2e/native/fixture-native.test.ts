@@ -4,6 +4,7 @@
 // Guard: set VITEST_NATIVE=1 to run. Skipped in PR-fast tier (T1) — covered
 // nightly (T4). See docs/SYSTEM/E2E-RUNTIMES.md for tier policy.
 import { rmSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { missingBinaries, stageFixture } from '../helpers.js'
@@ -69,7 +70,9 @@ describe.skipIf(!NATIVE)('native — toolchain smoke tests', () => {
   const staged: string[] = []
 
   afterEach(() => {
-    for (const d of staged.splice(0)) rmSync(d, { recursive: true, force: true })
+    // stageFixture nests a fixed-name project dir under a random parent
+    // (determinism for content hashing, see helpers.ts) — clean up the parent.
+    for (const d of staged.splice(0)) rmSync(dirname(d), { recursive: true, force: true })
   })
 
   for (const { fixture, bins, cmds, assertTests } of STACKS) {
