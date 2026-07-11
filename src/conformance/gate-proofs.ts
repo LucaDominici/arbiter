@@ -206,11 +206,6 @@ const GATE_PROOFS: GateProof[] = [
   },
 ]
 
-/** All registered gate proofs, in dimensions.ts declaration order. Exported read-only for tests. */
-export function listGateProofs(): readonly GateProof[] {
-  return GATE_PROOFS
-}
-
 /**
  * Run one gate proof in an isolated tmp directory. Never throws: a proof whose seed/run throws
  * is reported as a non-biting result with the error in `detail` (fail-visible, not fail-silent —

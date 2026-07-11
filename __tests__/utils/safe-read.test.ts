@@ -2,11 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdirSync, writeFileSync, chmodSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  readFileSafe,
-  readPackageJsonSafe,
-  readBaselineFileSafe,
-} from '../../src/utils/safe-read.js'
+import { readFileSafe, readPackageJsonSafe } from '../../src/utils/safe-read.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
 describe('readFileSafe (#684)', () => {
@@ -79,44 +75,3 @@ describe('readPackageJsonSafe (#684)', () => {
   })
 })
 
-describe('readBaselineFileSafe (#1264)', () => {
-  let dir: string
-
-  beforeEach(() => {
-    dir = createTestProject()
-  })
-  afterEach(() => {
-    cleanupTestProject(dir)
-  })
-
-  it('returns the parsed object for a valid baseline', () => {
-    const p = join(dir, 'baseline.json')
-    writeFileSync(p, JSON.stringify({ 'a.mjs': 12, 'b.mjs': 34 }))
-    expect(readBaselineFileSafe(p)).toEqual({ 'a.mjs': 12, 'b.mjs': 34 })
-  })
-
-  it('returns null when the baseline file is absent (no warning)', () => {
-    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-    expect(readBaselineFileSafe(join(dir, 'missing.json'))).toBeNull()
-    expect(spy).not.toHaveBeenCalled()
-    spy.mockRestore()
-  })
-
-  it('returns null and warns to stderr on invalid JSON', () => {
-    const p = join(dir, 'bad.json')
-    writeFileSync(p, '{ not json')
-    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-    expect(readBaselineFileSafe(p)).toBeNull()
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('invalid JSON'))
-    spy.mockRestore()
-  })
-
-  it('returns null and warns when the top level is an array', () => {
-    const p = join(dir, 'arr.json')
-    writeFileSync(p, JSON.stringify([1, 2, 3]))
-    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-    expect(readBaselineFileSafe(p)).toBeNull()
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('unexpected structure'))
-    spy.mockRestore()
-  })
-})

@@ -24,10 +24,6 @@ const EXPERIMENTS: readonly ExperimentRecord[] = [
 
 const experimentMap = new Map<string, ExperimentRecord>(EXPERIMENTS.map((e) => [e.name, e]))
 
-export function listExperiments(): ExperimentRecord[] {
-  return [...EXPERIMENTS]
-}
-
 export function getExperiment(name: string): ExperimentRecord {
   const record = experimentMap.get(name)
   if (record === undefined) {

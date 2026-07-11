@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Tests for `arbiter conformance` (#1369, C5 #1397) — per-dimension gold-pattern scorecard.
-import { mkdtempSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, statSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
 import {
   runConformance,
-  baselineMtime,
   type ConformanceOptions,
   type ConformanceScanResult,
   type Verdict,
@@ -546,8 +545,7 @@ describe('conformance (#1369)', () => {
     expect(result.exitCode).toBe(0)
     expect(result.status).toBe('ok')
     // baseline should now exist
-    const mtimeAfter = baselineMtime(dir)
-    expect(mtimeAfter).not.toBeNull()
+    expect(existsSync(join(dir, '.arbiter', 'conformance-baseline.json'))).toBe(true)
   })
 
   // AC-C5-6: --check score drop → exit 1

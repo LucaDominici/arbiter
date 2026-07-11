@@ -2,7 +2,7 @@
 // #1817 (A5) — arbiter doctor --prove-gates: text/JSON output and exit-code wiring.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { runDoctorProveGates } from '../../src/commands/doctor.js'
-import { listGateProofs } from '../../src/conformance/gate-proofs.js'
+import { runGateProofs } from '../../src/conformance/gate-proofs.js'
 
 interface Captured {
   out: string
@@ -30,7 +30,7 @@ describe('runDoctorProveGates — text mode', () => {
     const captured = captureStdout()
     try {
       const result = runDoctorProveGates({})
-      expect(result.results).toHaveLength(listGateProofs().length)
+      expect(result.results).toHaveLength(runGateProofs().length)
       for (const r of result.results) {
         expect(captured.out).toContain(r.id)
         expect(captured.out).toContain(r.bites ? '[BITES]' : '[NO-BITE]')

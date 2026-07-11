@@ -14,11 +14,11 @@
 // Pure file-IO command: no git/gh/spawn/process.exit seam exists. Every branch is
 // exercised through a real mkdtempSync temp fixture, cleaned in afterEach.
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
-import { runConformance, baselineMtime } from '../../src/commands/conformance.js'
+import { runConformance } from '../../src/commands/conformance.js'
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
 
@@ -211,7 +211,7 @@ describe('conformance.ts branch coverage (#1486)', () => {
     // Non-object baseline parses to null → bootstrap branch → fresh write, exit 0.
     expect(result.exitCode).toBe(0)
     expect(result.status).toBe('ok')
-    expect(baselineMtime(dir)).not.toBeNull()
+    expect(existsSync(join(dir, '.arbiter', 'conformance-baseline.json'))).toBe(true)
   })
 
   it('--check rebootstraps when the baseline object lacks a numeric score', () => {
@@ -258,7 +258,7 @@ describe('conformance.ts branch coverage (#1486)', () => {
     const result = runConformance({ dir, updateBaseline: true })
     expect(result.exitCode).toBe(0)
     expect(result.status).toBe('ok')
-    expect(baselineMtime(dir)).not.toBeNull()
+    expect(existsSync(join(dir, '.arbiter', 'conformance-baseline.json'))).toBe(true)
   })
 
   // ── applyUpdateBaseline: baseline present + score drops → fail ─────────────
@@ -294,7 +294,7 @@ describe('conformance.ts branch coverage (#1486)', () => {
     const result = runConformance({ dir, updateBaseline: true })
     expect(result.exitCode).toBe(0)
     expect(result.status).toBe('ok')
-    expect(baselineMtime(dir)).not.toBeNull()
+    expect(existsSync(join(dir, '.arbiter', 'conformance-baseline.json'))).toBe(true)
   })
 
   // ── computeDefaultResult: failOn==='partial' with P>0 and zero N → fail ────
@@ -370,20 +370,6 @@ describe('conformance.ts branch coverage (#1486)', () => {
     } finally {
       process.chdir(original)
     }
-  })
-
-  // ── baselineMtime: catch branch when the baseline file is absent ───────────
-  it('baselineMtime returns null when the baseline file does not exist', () => {
-    const dir = tmpRepo() // empty temp dir, no .arbiter/conformance-baseline.json
-    expect(baselineMtime(dir)).toBeNull()
-  })
-
-  it('baselineMtime returns a number once the baseline file exists', () => {
-    const dir = tmpRepo()
-    writeBaseline(dir, { score: 42 })
-    const mtime = baselineMtime(dir)
-    expect(mtime).not.toBeNull()
-    expect(typeof mtime).toBe('number')
   })
 
   // ── runConformance: archetype is a non-string → archetype coerced to null ───
