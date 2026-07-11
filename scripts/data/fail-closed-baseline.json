@@ -138,7 +138,6 @@
     "src/commands/graph.ts",
     "src/commands/init.ts",
     "src/commands/init/generate.ts",
-    "src/commands/kit-install.ts",
     "src/commands/review.ts",
     "src/commands/ship-profile.ts",
     "src/commands/task-note.ts",

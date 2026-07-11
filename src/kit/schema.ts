@@ -3,7 +3,6 @@
 import { z } from 'zod'
 import { VALID_TML, VALID_GATES, VALID_STACKS } from './taxonomy.js'
 export { VALID_STACKS } from './taxonomy.js'
-export type { Stack } from './taxonomy.js'
 
 // ─── Overlay cell variants ────────────────────────────────────────────────────
 

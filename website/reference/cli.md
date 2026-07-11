@@ -513,9 +513,12 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter configure` | Modify arbiter.json configuration (interactive on TTY, or use --set) |
 | `arbiter diff` | Show what arbiter update would change (dry run) |
 | `arbiter doctor` | Diagnose and repair arbiter state |
+| `arbiter explain` | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
+| `arbiter gate-exec` | — |
 | `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine) |
 | `arbiter init` | Initialise / update the unified task document (#1206) |
 | `arbiter note` | Capture an out-of-scope finding to the per-agent JSONL spool (#1401) |
+| `arbiter review` | Semantic diff between graph snapshots (#262) |
 | `arbiter ship` | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206) |
 | `arbiter task` | Manage task lifecycle state |
 | `arbiter update` | Re-generate governance files using stored config (arbiter.json) |
@@ -560,6 +563,24 @@ Diagnose and repair arbiter state.
 - `--interactive` — Guided health check with one-key repair on a TTY (#1168)
 - `--prove-gates` — Run negative proofs for every tier-1 conformance gate; report any gate that does not bite (#1817, A5)
 
+## arbiter explain
+
+Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule.
+
+**Options:**
+
+- `--format <format>` — Output format: text (default) or json
+- `--list` — List all known codes grouped by category
+- `--handoff <topic>` — Scaffold HANDOFF-&lt;TOPIC&gt;.md from the executable-handoff template (#1817 A7)
+- `--out <dir>` — Target directory for --handoff (default: cwd)
+
+## arbiter gate-exec
+
+**Options:**
+
+- `--key <key>` — Explicit mutex key (overrides per-repo derivation)
+- `--dir <dir>` — Target directory (default: current directory)
+
 ## arbiter gold-audit
 
 Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine).
@@ -597,6 +618,14 @@ Capture an out-of-scope finding to the per-agent JSONL spool (#1401).
 - `--file <path>` — Repo-relative file the finding concerns
 - `--line <n>` — Line number the finding was seen at (excluded from the fingerprint)
 - `--dir <path>` — Project root (default: cwd)
+
+## arbiter review
+
+Semantic diff between graph snapshots (#262).
+
+**Subcommands:**
+
+- `arbiter review diff` — Semantic diff between two graph snapshots (#262)
 
 ## arbiter ship
 
@@ -673,67 +702,8 @@ These commands are fully functional but hidden from the default `arbiter --help`
 
 | Command | Description |
 |---------|-------------|
-| `arbiter explain` | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
-| `arbiter gate-exec` | — |
-| `arbiter graph` | — |
-| `arbiter kit` | Cross-stack governance kit commands (requires --experimental.kit) |
-| `arbiter review` | Semantic diff between graph snapshots (#262) |
 | `arbiter settings` | List every settable arbiter.json path with its current value (#1121) |
 | `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates |
-
-## arbiter explain
-
-Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule.
-
-**Options:**
-
-- `--format <format>` — Output format: text (default) or json
-- `--list` — List all known codes grouped by category
-- `--handoff <topic>` — Scaffold HANDOFF-&lt;TOPIC&gt;.md from the executable-handoff template (#1817 A7)
-- `--out <dir>` — Target directory for --handoff (default: cwd)
-
-## arbiter gate-exec
-
-**Options:**
-
-- `--key <key>` — Explicit mutex key (overrides per-repo derivation)
-- `--dir <dir>` — Target directory (default: current directory)
-
-## arbiter graph
-
-**Subcommands:**
-
-- `arbiter graph build` — Build the provenance graph from invariants and write .arbiter/graph.json
-
-**Options:**
-
-- `--dir <dir>` — Target directory (default: current directory)
-- `--input <path>` — Override graph snapshot path (default: &lt;dir&gt;/.arbiter/graph.json)
-- `--json` — Emit machine-readable JSON output
-
-## arbiter kit
-
-Cross-stack governance kit commands (requires --experimental.kit).
-
-**Subcommands:**
-
-- `arbiter kit list` — List kit dimensions
-- `arbiter kit show` — Show details for a kit dimension by ID (e.g. N01)
-- `arbiter kit explain` — Explain a kit dimension with per-stack projection
-- `arbiter kit validate` — Validate kit catalog: schema, parity, and redaction (requires --experimental.kit)
-- `arbiter kit generate` — Generate per-dimension reference docs (requires --experimental.kit)
-- `arbiter kit install` — Run the 6-phase kit install lifecycle: DETECT → MEASURE → SCAFFOLD → ASSESS → PLAN → VERIFY
-- `arbiter kit check-flyway` — A9 (opt-in): validate Flyway migrations — naming, destructive-DDL, idempotency, dual-set parity
-- `arbiter kit check-test-taxonomy` — A9 (opt-in): enforce @Tag("unit")/@Tag("integration") test taxonomy (zero untagged tests)
-- `arbiter kit check-token-hygiene` — A10 (opt-in): frontend token-hygiene check — semantic tokens only, with baseline + ratchet
-
-## arbiter review
-
-Semantic diff between graph snapshots (#262).
-
-**Subcommands:**
-
-- `arbiter review diff` — Semantic diff between two graph snapshots (#262)
 
 ## arbiter settings
 

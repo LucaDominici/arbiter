@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-// Behavioral tests (#1770 T5): public 11-command CLI surface — spawn the real
-// CLI binary and assert default --help shows exactly the public commands while
-// `arbiter help --all` still lists the experimental (hidden) surface.
+// Behavioral tests (#1770 T5, superseded by T2 tier-3 cathedral cut): public
+// 14-command CLI surface — spawn the real CLI binary and assert default
+// --help shows exactly the public commands while `arbiter help --all` still
+// lists the experimental (hidden) surface.
 import { describe, it, expect } from 'vitest'
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -21,6 +22,9 @@ const PUBLIC_COMMANDS = [
   'note',
   'gold-audit',
   'worktree',
+  'gate-exec',
+  'review',
+  'explain',
 ]
 
 function spawn(args: string[]): { stdout: string; stderr: string; status: number } {
@@ -48,8 +52,8 @@ function commandNames(helpText: string): string[] {
   return names
 }
 
-describe('arbiter --help — public 11-command surface (#1770 T5)', () => {
-  it('default help lists exactly the 11 public commands', () => {
+describe('arbiter --help — public 14-command surface (#1770 T5, T2 tier-3)', () => {
+  it('default help lists exactly the 14 public commands', () => {
     const { status, stdout } = spawn(['--help'])
     expect(status).toBe(0)
     const names = commandNames(stdout)
@@ -62,20 +66,20 @@ describe('arbiter --help — public 11-command surface (#1770 T5)', () => {
     expect(stdout).toContain('Run `arbiter help --all` for experimental commands.')
   })
 
-  it('help --all lists experimental commands including graph', () => {
+  it('help --all lists the remaining experimental commands', () => {
     const { status, stdout } = spawn(['help', '--all'])
     expect(status).toBe(0)
     expect(stdout).toContain('Experimental commands:')
     const experimentalSection = stdout.slice(stdout.indexOf('Experimental commands:'))
-    for (const hidden of ['graph', 'review', 'explain']) {
+    for (const hidden of ['settings', 'upgrade-level']) {
       expect(experimentalSection).toMatch(new RegExp(`^ {2}${hidden}\\s`, 'm'))
     }
   })
 
   it('hidden commands remain fully functional', () => {
-    const { status, stdout } = spawn(['graph', '--help'])
+    const { status, stdout } = spawn(['settings', '--help'])
     expect(status).toBe(0)
-    expect(stdout).toContain('provenance graph')
+    expect(stdout).toContain('settable')
   })
 
   it('validate is the public name and verify still works as alias', () => {

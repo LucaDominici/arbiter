@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 import { createRequire } from 'node:module'
-import { Command, Option } from 'commander'
+import { Command } from 'commander'
 import { runInit } from './commands/init.js'
 import { resolvePresetOption } from './wizard/presets.js'
 import { runUpdate } from './commands/update.js'
@@ -40,8 +40,7 @@ import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
-import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
-import type { GraphFormat } from './commands/graph.js'
+import { runVerifyGraph } from './commands/graph.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
 import { confirmChannelDowngrade } from './utils/confirm-downgrade.js'
 import type { ReleaseChannel } from './utils/channel.js'
@@ -65,7 +64,7 @@ import { SnapshotChecksumError } from './state/envelope.js'
 import { registerCleanupHandlers } from './utils/fs.js'
 import { runExplain } from './commands/explain.js'
 import { getRunId, formatRunIdFooter } from './utils/run-id.js'
-import { parseExperimentalArgv, isEnabled } from './experimental/index.js'
+import { parseExperimentalArgv } from './experimental/index.js'
 import { applyDeprecatedFlagFilter } from './internal/deprecate.js'
 import { CLI_DEPRECATED_FLAGS } from './internal/cli-deprecation-registry.js'
 import { warnExperimental } from './internal/experimental-warn.js'
@@ -73,21 +72,6 @@ import { setRootLogger, getLogger, type LogLevel } from './utils/logger.js'
 import { resolveFromProcess } from './utils/logger-config.js'
 import { startReplay, rotateReplayLogs, type ReplayHandle } from './utils/replay.js'
 import { startProfiler, type ProfilerHandle } from './utils/profiler.js'
-import {
-  runKitList,
-  runKitShow,
-  runKitExplain,
-  runKitValidate,
-  runKitGenerate,
-  enforceKitGate,
-  runKitCheckFlyway,
-  runKitCheckTestTaxonomy,
-  runKitCheckTokenHygiene,
-} from './commands/kit.js'
-import type { KitListFormat, KitListFilter } from './commands/kit.js'
-import type { Stack } from './kit/schema.js'
-import { runKitInstall } from './commands/kit-install.js'
-import type { BrownfieldClass } from './kit/thresholds.js'
 
 registerCleanupHandlers()
 
@@ -384,7 +368,9 @@ const packageVersion = readPackageVersion()
 
 program.name('arbiter').description('AI development governance framework').version(packageVersion)
 
-// #1770 (T5): public 11-command surface. Experimental commands are registered with
+// #1770 (T5), superseded by T2 tier-3 (cathedral cut, 76→≤15 registrations):
+// 14-command public surface (11 original + gate-exec/review/explain promoted).
+// Remaining experimental commands are registered with
 // `{ hidden: true }` — fully functional, omitted from default --help. The built-in
 // help command is replaced by a hidden `help [command] [--all]` so `arbiter help --all`
 // can list the hidden surface (see registration at the bottom of this file).
@@ -811,9 +797,10 @@ worktree
   })
 
 program
-  // Hidden (#1770 T5 public-surface policy): gate-exec is an agent-facing leaf
-  // primitive invoked by the wave-drain skill, not a headline human command.
-  .command('gate-exec <cmd...>', { hidden: true })
+  // Promoted to public (T2 tier-3, #1770 T5 supersession): gate-exec is a
+  // load-bearing primitive (J5) invoked by the wave-drain skill — worth
+  // surfacing directly rather than hiding behind `help --all`.
+  .command('gate-exec <cmd...>')
   .description(
     'Run a command under the per-repo gate mutex (#1873, ADR-103): every worktree of ' +
       'the same repo converges on ONE flock(1) lock, the wait is kernel-side (blocking), ' +
@@ -839,7 +826,7 @@ program
   })
 
 const review = program
-  .command('review', { hidden: true })
+  .command('review')
   .description('Semantic diff between graph snapshots (#262)')
 
 program
@@ -1026,45 +1013,6 @@ verify
       process.stdout.write(`verify tdd: PASS (${result.checks?.length ?? 0} checks)\n`)
     } else {
       process.stderr.write(`verify tdd: FAIL — ${result.reason ?? 'unknown'}\n`)
-    }
-    process.exit(result.exitCode)
-  })
-
-const graph = program
-  .command('graph', { hidden: true })
-  .description('Manage the provenance graph (#259)')
-
-graph
-  .command('build')
-  .description('Build the provenance graph from invariants and write .arbiter/graph.json')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--output <path>', 'Override output path (default: <dir>/.arbiter/graph.json)')
-  .option('--format <fmt>', 'Output format: json | dot | mermaid (default: json)', 'json')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; output?: string; format: string; json: boolean }) => {
-    const buildOpts: import('./commands/graph.js').GraphBuildOptions = {}
-    if (opts.dir !== undefined) buildOpts.dir = opts.dir
-    if (opts.output !== undefined) buildOpts.output = opts.output
-    buildOpts.format = opts.format as GraphFormat
-    const result = runGraphBuild(buildOpts)
-    if (opts.json) {
-      jsonOutput(
-        'graph build',
-        result.status,
-        {
-          exitCode: result.exitCode,
-          path: result.path,
-          nodes: result.nodes,
-          edges: result.edges,
-        },
-        result.reason !== undefined ? [result.reason] : undefined,
-      )
-    } else if (result.status === 'ok') {
-      process.stdout.write(
-        `graph build: wrote ${result.path} (${result.nodes} nodes, ${result.edges} edges)\n`,
-      )
-    } else {
-      process.stderr.write(`graph build: FAIL — ${result.reason ?? 'unknown error'}\n`)
     }
     process.exit(result.exitCode)
   })
@@ -1554,7 +1502,7 @@ review
   )
 
 program
-  .command('explain [code]', { hidden: true })
+  .command('explain [code]')
   .description('Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule')
   .option('--format <format>', 'Output format: text (default) or json')
   .option('--list', 'List all known codes grouped by category')
@@ -1575,231 +1523,10 @@ program
     },
   )
 
-// ── kit — read-only kit catalog commands (--experimental.kit) ─────────────────
-
-function getActiveExperimentalFlags(): Record<string, boolean> {
-  try {
-    return JSON.parse(process.env['ARBITER_EXPERIMENTAL'] ?? '{}') as Record<string, boolean>
-  } catch {
-    return {}
-  }
-}
-
-const kit = program
-  .command('kit', { hidden: true })
-  .description('Cross-stack governance kit commands (requires --experimental.kit)')
-
-kit.hook('preAction', () => {
-  if (!isEnabled('kit', getActiveExperimentalFlags())) {
-    process.stderr.write(
-      // #1837 (F1): `arbiter experiments list` does not exist — no command
-      // enumerates experiments. Tell the user the concrete opt-in flag instead.
-      'arbiter: "kit" requires the --experimental.kit flag, e.g. `arbiter --experimental.kit kit <subcommand>`.\n',
-    )
-    process.exit(1)
-  }
-  // #1151: fail-closed against real kit state, not just the feature flag.
-  const severity = enforceKitGate()
-  if (severity > 0) process.exit(severity)
-})
-
-kit
-  .command('list')
-  .description('List kit dimensions')
-  .addOption(
-    new Option('--format <fmt>', 'Output format')
-      .choices(['table', 'json', 'csv'])
-      .default('table'),
-  )
-  .addOption(
-    new Option('--filter <filter>', 'Filter dimensions')
-      .choices(['gaps', 'covered', 'partial', 'missing', 'all'])
-      .default('all'),
-  )
-  .addOption(
-    new Option('--stack <stack>', 'Filter by stack').choices([
-      'java',
-      'typescript',
-      'python',
-      'go',
-      'rust',
-    ]),
-  )
-  .addOption(new Option('--tml <tml>', 'Filter by TML level').choices(['L1', 'L2', 'L3', 'L4']))
-  .action((opts: { format: string; filter: string; stack?: string; tml?: string }) => {
-    runKitList({
-      format: opts.format as KitListFormat,
-      filter: opts.filter as KitListFilter,
-      ...(opts.stack !== undefined && { stack: opts.stack as Stack }),
-      ...(opts.tml !== undefined && { tml: opts.tml as 'L1' | 'L2' | 'L3' | 'L4' }),
-    })
-  })
-
-kit
-  .command('show <id>')
-  .description('Show details for a kit dimension by ID (e.g. N01)')
-  .action((id: string) => {
-    runKitShow(id)
-  })
-
-kit
-  .command('explain <id>')
-  .description('Explain a kit dimension with per-stack projection')
-  .action((id: string) => {
-    runKitExplain(id)
-  })
-
-kit
-  .command('validate')
-  .description('Validate kit catalog: schema, parity, and redaction (requires --experimental.kit)')
-  .action(() => {
-    runKitValidate()
-  })
-
-kit
-  .command('generate')
-  .description('Generate per-dimension reference docs (requires --experimental.kit)')
-  .option('--out <dir>', 'output directory', 'docs/REFERENCE')
-  .option('--force', 'overwrite user-edited files')
-  .option('--prune', 'remove orphan dim-*.md files not in current catalog')
-  .action((opts: { out?: string; force?: boolean; prune?: boolean }) => {
-    runKitGenerate(opts)
-  })
-
-kit
-  .command('install')
-  .description(
-    'Run the 6-phase kit install lifecycle: DETECT → MEASURE → SCAFFOLD → ASSESS → PLAN → VERIFY',
-  )
-  .option('--target-dir <dir>', 'Target project directory', process.cwd())
-  .option('--language <lang>', 'Project language (auto-detected from the repo if omitted)')
-  .addOption(
-    new Option('--brownfield-class <cls>', 'Brownfield class (auto-detected if omitted)')
-      .choices(['gold', 'light', 'medium', 'heavy'])
-      .default('gold'),
-  )
-  .option('--dry-run', 'Skip file writes (scaffold phase reports only)', false)
-  .option('--emit-issues', 'Create GitHub issues for W1 dims via gh CLI', false)
-  .option('--report-path <path>', 'Write audit report to this path (default: no report)')
-  .action(
-    async (opts: {
-      targetDir: string
-      language?: string
-      brownfieldClass: string
-      dryRun: boolean
-      emitIssues: boolean
-      reportPath?: string
-    }) => {
-      const result = await runKitInstall({
-        targetDir: opts.targetDir,
-        ...(opts.language !== undefined ? { language: opts.language } : {}),
-        brownfieldClass: opts.brownfieldClass as BrownfieldClass,
-        dryRun: opts.dryRun,
-        emitIssues: opts.emitIssues,
-        ...(opts.reportPath !== undefined ? { reportPath: opts.reportPath } : {}),
-      })
-      for (const phase of result.phases) {
-        process.stdout.write(`[${phase.phase}] ${phase.output}\n`)
-      }
-      // #1643: a partial scaffold failure (some generators failed) must surface
-      // its per-failure detail and exit non-zero — matching `arbiter update`'s
-      // fail-closed semantics. Previously `generatorErrors` was dead output: the
-      // caller never read it, so a half-installed kit exited 0 with no diagnostic.
-      if (result.generatorErrors?.length) {
-        process.stderr.write(
-          `[kit install] SCAFFOLD failed — ${result.generatorErrors.length} generator(s):\n`,
-        )
-        for (const line of result.generatorErrors) {
-          process.stderr.write(`  - ${line}\n`)
-        }
-        process.exit(2)
-      }
-      if (!result.ok) {
-        process.stderr.write(`[kit install] ${result.error ?? 'unknown error'}\n`)
-        process.exit(1)
-      }
-    },
-  )
-
-// ── A9/A10 (#1817) — opt-in java/fe checks, not part of the install pipeline ──
-
-kit
-  .command('check-flyway')
-  .description(
-    'A9 (opt-in): validate Flyway migrations — naming, destructive-DDL, idempotency, dual-set parity',
-  )
-  .requiredOption('--dir <dir>', 'Primary migration set directory (e.g. db/migration)')
-  .option('--secondary-dir <dir>', 'Secondary dialect migration set directory, for dual-set parity')
-  .action((opts: { dir: string; secondaryDir?: string }) => {
-    runKitCheckFlyway({
-      dir: opts.dir,
-      ...(opts.secondaryDir !== undefined && { secondaryDir: opts.secondaryDir }),
-    })
-  })
-
-kit
-  .command('check-test-taxonomy')
-  .description(
-    'A9 (opt-in): enforce @Tag("unit")/@Tag("integration") test taxonomy (zero untagged tests)',
-  )
-  .requiredOption('--dir <dir>', 'Java test source directory (e.g. src/test/java)')
-  .option('--required-tags <tags>', 'Comma-separated list of required tags', 'unit,integration')
-  .action((opts: { dir: string; requiredTags: string }) => {
-    runKitCheckTestTaxonomy({
-      dir: opts.dir,
-      requiredTags: opts.requiredTags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
-    })
-  })
-
-kit
-  .command('check-token-hygiene')
-  .description(
-    'A10 (opt-in): frontend token-hygiene check — semantic tokens only, with baseline + ratchet',
-  )
-  .requiredOption('--dirs <dirs>', 'Comma-separated list of source directories to scan')
-  .option('--extensions <exts>', 'Comma-separated file extensions to scan', '.vue')
-  .option(
-    '--allowed-color-names <names>',
-    'Comma-separated semantic color names allowed with a shade suffix',
-  )
-  .option('--forbid-style-blocks', 'Fail on any <style> block found in scanned files', false)
-  .option('--baseline-path <path>', 'Path to the grandfathered-violations baseline JSON file')
-  .action(
-    (opts: {
-      dirs: string
-      extensions: string
-      allowedColorNames?: string
-      forbidStyleBlocks: boolean
-      baselinePath?: string
-    }) => {
-      runKitCheckTokenHygiene({
-        dirs: opts.dirs
-          .split(',')
-          .map((d) => d.trim())
-          .filter(Boolean),
-        extensions: opts.extensions
-          .split(',')
-          .map((e) => e.trim())
-          .filter(Boolean),
-        ...(opts.allowedColorNames !== undefined && {
-          allowedColorNames: opts.allowedColorNames
-            .split(',')
-            .map((c) => c.trim())
-            .filter(Boolean),
-        }),
-        forbidStyleBlocks: opts.forbidStyleBlocks,
-        ...(opts.baselinePath !== undefined && { baselinePath: opts.baselinePath }),
-      })
-    },
-  )
-
 // ── help (#1770 T5) ───────────────────────────────────────────────────────────
 // Replaces the built-in help command (disabled above via program.helpCommand(false))
 // so `arbiter help --all` can list experimental (hidden) commands. Registered hidden
-// itself so the public surface stays at exactly 11 commands.
+// itself so it does not inflate the public surface count.
 program
   .command('help [command]', { hidden: true })
   .description('Display help for a command')
