@@ -168,12 +168,6 @@ describe.each(fixtures)('bake — %s', (fixture) => {
     if (snap == null) return
     expect(snap.level).toBe(level)
     expect(generated).toEqual(snap.generated)
-    // TEMP DIAGNOSTIC (self-hosted-runner content drift investigation, do not merge):
-    // collect ALL mismatching files instead of failing on the first.
-    const drifted = generated.filter((rel) => contentHashes[rel] !== snap.contentHashes[rel])
-    if (drifted.length > 0) {
-      process.stderr.write(`\n[DIAG] ${fixture}: ${drifted.length} file(s) drifted: ${drifted.join(', ')}\n`)
-    }
     // Per-file content golden master: assert one file at a time (rather than a
     // single toEqual on the whole hash map) so a mismatch names the exact
     // generated file whose CONTENT drifted from the approved snapshot.
