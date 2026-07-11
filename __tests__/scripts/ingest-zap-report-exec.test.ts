@@ -42,10 +42,7 @@ describe('ingest-zap-report.mjs — materialized execution (#1887-E)', () => {
   })
 
   it('exits 1 (FAIL) when a HIGH alert exceeds the default threshold of 0', () => {
-    writeFileSync(
-      join(dir, 'zap-report.json'),
-      zapReport([{ riskcode: 3, name: 'SQL Injection' }]),
-    )
+    writeFileSync(join(dir, 'zap-report.json'), zapReport([{ riskcode: 3, name: 'SQL Injection' }]))
     expect(() => execFileSync('node', ['scripts/ingest-zap-report.mjs'], { cwd: dir })).toThrow()
   })
 
@@ -82,11 +79,10 @@ describe('ingest-zap-report.mjs — materialized execution (#1887-E)', () => {
   it('respects a custom --report path', () => {
     const customPath = join(dir, 'custom-zap.json')
     writeFileSync(customPath, zapReport([{ riskcode: 0, name: 'Info only' }]))
-    const out = execFileSync(
-      'node',
-      ['scripts/ingest-zap-report.mjs', '--report', customPath],
-      { cwd: dir, encoding: 'utf-8' },
-    )
+    const out = execFileSync('node', ['scripts/ingest-zap-report.mjs', '--report', customPath], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
     expect(out).toContain('PASS')
   })
 })

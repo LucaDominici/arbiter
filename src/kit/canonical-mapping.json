@@ -16,9 +16,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "ArchitectureTests.java"
-      ],
+      "planning_evidence_paths": ["ArchitectureTests.java"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -75,9 +73,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "service/*Service.java"
-      ],
+      "planning_evidence_paths": ["service/*Service.java"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -134,9 +130,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "config/AsyncConfig.java"
-      ],
+      "planning_evidence_paths": ["config/AsyncConfig.java"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -166,9 +160,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "controller/*.java + dto/*Request.java"
-      ],
+      "planning_evidence_paths": ["controller/*.java + dto/*Request.java"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -225,9 +217,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "ArchitectureTests.java rules 36-39"
-      ],
+      "planning_evidence_paths": ["ArchitectureTests.java rules 36-39"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -284,9 +274,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml spotless-maven-plugin"
-      ],
+      "planning_evidence_paths": ["pom.xml spotless-maven-plugin"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -316,9 +304,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml + pmd-ruleset.xml"
-      ],
+      "planning_evidence_paths": ["pom.xml + pmd-ruleset.xml"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -348,9 +334,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml spotbugs-maven-plugin"
-      ],
+      "planning_evidence_paths": ["pom.xml spotbugs-maven-plugin"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -380,9 +364,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml + checkstyle.xml"
-      ],
+      "planning_evidence_paths": ["pom.xml + checkstyle.xml"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -493,9 +475,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml spring-boot-starter-test"
-      ],
+      "planning_evidence_paths": ["pom.xml spring-boot-starter-test"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -525,9 +505,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml jacoco-maven-plugin"
-      ],
+      "planning_evidence_paths": ["pom.xml jacoco-maven-plugin"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -584,9 +562,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "crossdb",
-      "planning_evidence_paths": [
-        "pom.xml pitest-maven-plugin"
-      ],
+      "planning_evidence_paths": ["pom.xml pitest-maven-plugin"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -697,9 +673,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml <profiles>"
-      ],
+      "planning_evidence_paths": ["pom.xml <profiles>"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -756,9 +730,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "run.sh"
-      ],
+      "planning_evidence_paths": ["run.sh"],
       "arbiter_target_path": "run.sh",
       "arbiter_target_kind": "script",
       "invariant_id": null,
@@ -788,9 +760,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml rest-assured + BaseIntegrationTest"
-      ],
+      "planning_evidence_paths": ["pom.xml rest-assured + BaseIntegrationTest"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -820,9 +790,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml swagger-request-validator-restassured"
-      ],
+      "planning_evidence_paths": ["pom.xml swagger-request-validator-restassured"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -852,9 +820,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "src/test/.../behavior/"
-      ],
+      "planning_evidence_paths": ["src/test/.../behavior/"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -992,9 +958,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        ".github/workflows/build.yml"
-      ],
+      "planning_evidence_paths": [".github/workflows/build.yml"],
       "arbiter_target_path": ".github/workflows/01-pr-fast.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -1024,9 +988,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "build.yml quality-gates job"
-      ],
+      "planning_evidence_paths": ["build.yml quality-gates job"],
       "arbiter_target_path": ".github/workflows/01-pr-fast.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -1056,9 +1018,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "build.yml ship stage"
-      ],
+      "planning_evidence_paths": ["build.yml ship stage"],
       "arbiter_target_path": ".github/workflows/06-nightly.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -1088,9 +1048,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        ".github/workflows/nightly.yml"
-      ],
+      "planning_evidence_paths": [".github/workflows/nightly.yml"],
       "arbiter_target_path": ".github/workflows/05-release.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
@@ -1201,9 +1159,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "template",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "docs/api/{service}.postman_collection.json"
-      ],
+      "planning_evidence_paths": ["docs/api/{service}.postman_collection.json"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1233,9 +1189,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "template",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "tests/load/*.js"
-      ],
+      "planning_evidence_paths": ["tests/load/*.js"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1265,9 +1219,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "template",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "nightly.yml zap-dast job"
-      ],
+      "planning_evidence_paths": ["nightly.yml zap-dast job"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1594,9 +1546,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        ".githooks/pre-commit"
-      ],
+      "planning_evidence_paths": [".githooks/pre-commit"],
       "arbiter_target_path": ".githooks/pre-commit",
       "arbiter_target_kind": "hook",
       "invariant_id": null,
@@ -1626,9 +1576,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "pom.xml dependency-check-maven"
-      ],
+      "planning_evidence_paths": ["pom.xml dependency-check-maven"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -1658,9 +1606,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        ".trivyignore, .zap/rules.tsv"
-      ],
+      "planning_evidence_paths": [".trivyignore, .zap/rules.tsv"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1717,9 +1663,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        ".githooks/ + scripts/setup-hooks.sh"
-      ],
+      "planning_evidence_paths": [".githooks/ + scripts/setup-hooks.sh"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1776,9 +1720,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        ".github/pull_request_template.md"
-      ],
+      "planning_evidence_paths": [".github/pull_request_template.md"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1808,9 +1750,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        ".github/ISSUE_TEMPLATE/"
-      ],
+      "planning_evidence_paths": [".github/ISSUE_TEMPLATE/"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -1840,9 +1780,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "CLAUDE.md"
-      ],
+      "planning_evidence_paths": ["CLAUDE.md"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1872,9 +1810,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "docs/ci/README.md"
-      ],
+      "planning_evidence_paths": ["docs/ci/README.md"],
       "arbiter_target_path": "docs/TEST_TAXONOMY.md",
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1904,9 +1840,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "docs/adr/ADR-*.md"
-      ],
+      "planning_evidence_paths": ["docs/adr/ADR-*.md"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1936,9 +1870,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "docs/api/"
-      ],
+      "planning_evidence_paths": ["docs/api/"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -1968,9 +1900,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "docs/runbooks/, docs/support/"
-      ],
+      "planning_evidence_paths": ["docs/runbooks/, docs/support/"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
@@ -2054,9 +1984,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        ".env.*.example"
-      ],
+      "planning_evidence_paths": [".env.*.example"],
       "arbiter_target_path": "src/templates/env/.env.example.ejs",
       "arbiter_target_kind": "template",
       "invariant_id": null,
@@ -2140,9 +2068,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "pharma",
-      "planning_evidence_paths": [
-        "Liquibase changeset + trigger SQL"
-      ],
+      "planning_evidence_paths": ["Liquibase changeset + trigger SQL"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -2199,9 +2125,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "pharma",
-      "planning_evidence_paths": [
-        "service/AuditEventServiceImpl.java + mapper"
-      ],
+      "planning_evidence_paths": ["service/AuditEventServiceImpl.java + mapper"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "adapter",
       "invariant_id": null,
@@ -2257,9 +2181,7 @@
       "gate_type": "BLOCKING",
       "stack_tag": "java",
       "conditional": "spring-boot",
-      "planning_evidence_paths": [
-        "src/test/java"
-      ],
+      "planning_evidence_paths": ["src/test/java"],
       "arbiter_target_path": "src/test/java/{basePackage}/modulith/ApplicationModulesTest.java",
       "arbiter_target_kind": "test",
       "invariant_id": null,
@@ -2285,9 +2207,7 @@
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
-      "planning_evidence_paths": [
-        "docs/GOVERNANCE/RESILIENCE.md"
-      ],
+      "planning_evidence_paths": ["docs/GOVERNANCE/RESILIENCE.md"],
       "arbiter_target_path": "docs/GOVERNANCE/RESILIENCE.md",
       "arbiter_target_kind": "doc",
       "invariant_id": "INV-19",
@@ -2310,9 +2230,7 @@
       "import_id": 4,
       "import_name": "API versioning /v1/ (P12)",
       "detail": "context-path=/{servizio}, controller=/v1/{risorsa}",
-      "planning_evidence_paths": [
-        "application.yml + controller"
-      ],
+      "planning_evidence_paths": ["application.yml + controller"],
       "framework_realization": {
         "template": "src/templates/java/architecture/api-versioning-v1-p12.ejs",
         "generator": null,
@@ -2325,9 +2243,7 @@
       "import_id": 5,
       "import_name": "DTO in package dto/ (P17-P19)",
       "detail": "DTO separati Request/Response, MAI in Commons/model",
-      "planning_evidence_paths": [
-        "dto/*Request.java, dto/*Response.java"
-      ],
+      "planning_evidence_paths": ["dto/*Request.java, dto/*Response.java"],
       "framework_realization": {
         "template": "src/templates/java/architecture/dto-in-package-dto-p17-p19.ejs",
         "generator": null,
@@ -2340,9 +2256,7 @@
       "import_id": 6,
       "import_name": "Constructor injection (P7)",
       "detail": "@RequiredArgsConstructor. MAI @Autowired su campi",
-      "planning_evidence_paths": [
-        "Tutti i @Service/@Controller"
-      ],
+      "planning_evidence_paths": ["Tutti i @Service/@Controller"],
       "framework_realization": {
         "template": "src/templates/java/architecture/constructor-injection-p7.ejs",
         "generator": null,
@@ -2355,9 +2269,7 @@
       "import_id": 7,
       "import_name": "Exception hierarchy RFC 7807 (P15)",
       "detail": "{Service}Exception + ProblemDetail. MAI raw RuntimeException",
-      "planning_evidence_paths": [
-        "exception/{Service}Exception.java"
-      ],
+      "planning_evidence_paths": ["exception/{Service}Exception.java"],
       "framework_realization": {
         "template": "src/templates/java/architecture/exception-hierarchy-rfc-7807-p15.ejs",
         "generator": null,
@@ -2370,9 +2282,7 @@
       "import_id": 16,
       "import_name": "CycloneDX SBOM",
       "detail": "JSON output. Supply chain tracking",
-      "planning_evidence_paths": [
-        "pom.xml cyclonedx-maven-plugin"
-      ],
+      "planning_evidence_paths": ["pom.xml cyclonedx-maven-plugin"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2385,9 +2295,7 @@
       "import_id": 19,
       "import_name": "Testcontainers PostgreSQL",
       "detail": "DB reale in test. Sostituisce H2/mock",
-      "planning_evidence_paths": [
-        "pom.xml testcontainers + TestcontainersConfig"
-      ],
+      "planning_evidence_paths": ["pom.xml testcontainers + TestcontainersConfig"],
       "framework_realization": {
         "template": "src/templates/java/test-framework/testcontainers-postgresql.ejs",
         "generator": null,
@@ -2400,9 +2308,7 @@
       "import_id": 20,
       "import_name": "Testcontainers MariaDB + MSSQL",
       "detail": "Cross-DB compatibility. Profili dedicati",
-      "planning_evidence_paths": [
-        "pom.xml testcontainers + profili"
-      ],
+      "planning_evidence_paths": ["pom.xml testcontainers + profili"],
       "framework_realization": {
         "template": "src/templates/java/test-framework/testcontainers-mariadb-mssql.ejs",
         "generator": null,
@@ -2415,9 +2321,7 @@
       "import_id": 21,
       "import_name": "Testcontainers Toxiproxy",
       "detail": "Resilience test: DB stall, latency injection",
-      "planning_evidence_paths": [
-        "DbStallResilienceTest.java"
-      ],
+      "planning_evidence_paths": ["DbStallResilienceTest.java"],
       "framework_realization": {
         "template": "src/templates/java/test-framework/testcontainers-toxiproxy.ejs",
         "generator": null,
@@ -2430,9 +2334,7 @@
       "import_id": 23,
       "import_name": "Base test infrastructure",
       "detail": "BaseIntegrationTest + TestDataFactory + JwtTestHelper + MockServicesConfig",
-      "planning_evidence_paths": [
-        "src/test/.../config/, factory/"
-      ],
+      "planning_evidence_paths": ["src/test/.../config/, factory/"],
       "framework_realization": {
         "template": "src/templates/java/test-framework/base-test-infrastructure.ejs",
         "generator": null,
@@ -2445,9 +2347,7 @@
       "import_id": 25,
       "import_name": "@Tag taxonomy (25 tags)",
       "detail": "unit, integration, behavioral, edge-case, contract, etc. ArchUnit enforcement",
-      "planning_evidence_paths": [
-        "ArchitectureTests.java tag rules"
-      ],
+      "planning_evidence_paths": ["ArchitectureTests.java tag rules"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2460,9 +2360,7 @@
       "import_id": 27,
       "import_name": "Unit tests",
       "detail": "L1: >=1 test. L2: >=20% coverage. L3: >=60%",
-      "planning_evidence_paths": [
-        "src/test/.../service/"
-      ],
+      "planning_evidence_paths": ["src/test/.../service/"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2475,9 +2373,7 @@
       "import_id": 29,
       "import_name": "Edge-case tests (boundary)",
       "detail": "Null, overflow, boundary conditions",
-      "planning_evidence_paths": [
-        "src/test/.../boundary/"
-      ],
+      "planning_evidence_paths": ["src/test/.../boundary/"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2490,9 +2386,7 @@
       "import_id": 30,
       "import_name": "Contract tests (OpenAPI)",
       "detail": "Swagger Request Validator runtime. OpenApiRuntimeValidationTest",
-      "planning_evidence_paths": [
-        "src/test/.../contract/"
-      ],
+      "planning_evidence_paths": ["src/test/.../contract/"],
       "framework_realization": {
         "template": "src/templates/testing/contract-tests-openapi.ejs",
         "generator": "src/generators/contract-tests-openapi.ts",
@@ -2505,9 +2399,7 @@
       "import_id": 31,
       "import_name": "Concurrent/stress tests",
       "detail": "Thread safety, race condition, burst. @Tag('concurrency')",
-      "planning_evidence_paths": [
-        "ConcurrentBookingTest, BatchStressTest"
-      ],
+      "planning_evidence_paths": ["ConcurrentBookingTest, BatchStressTest"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2520,9 +2412,7 @@
       "import_id": 32,
       "import_name": "Migration tests (Liquibase rollback)",
       "detail": "Rollback changeset, cross-DB. >=5 classi",
-      "planning_evidence_paths": [
-        "src/test/.../migration/"
-      ],
+      "planning_evidence_paths": ["src/test/.../migration/"],
       "framework_realization": {
         "template": "src/templates/testing/migration-tests-liquibase-rollback.ejs",
         "generator": null,
@@ -2535,9 +2425,7 @@
       "import_id": 33,
       "import_name": "Performance Surefire tests",
       "detail": "@Tag('performance'). Stress unit test. >=2 classi",
-      "planning_evidence_paths": [
-        "src/test/.../stress/"
-      ],
+      "planning_evidence_paths": ["src/test/.../stress/"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2550,9 +2438,7 @@
       "import_id": 38,
       "import_name": "issue-state.yml automation",
       "detail": "Lifecycle issue: In Progress->In Review->Staged->Done",
-      "planning_evidence_paths": [
-        ".github/workflows/issue-state.yml"
-      ],
+      "planning_evidence_paths": [".github/workflows/issue-state.yml"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2565,9 +2451,7 @@
       "import_id": 39,
       "import_name": "Load test workflows",
       "detail": "Manual trigger per singoli k6 test + weekly scheduled",
-      "planning_evidence_paths": [
-        ".github/workflows/load-*.yml"
-      ],
+      "planning_evidence_paths": [".github/workflows/load-*.yml"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2580,9 +2464,7 @@
       "import_id": 40,
       "import_name": "Newman CI integration",
       "detail": "Run Postman collection in CI. Gate su assertion",
-      "planning_evidence_paths": [
-        "build.yml / nightly.yml"
-      ],
+      "planning_evidence_paths": ["build.yml / nightly.yml"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2595,9 +2477,7 @@
       "import_id": 43,
       "import_name": "k6 endurance test (30min)",
       "detail": "Memory/thread leak detection. LT-11 pattern",
-      "planning_evidence_paths": [
-        "tests/load/endurance.js"
-      ],
+      "planning_evidence_paths": ["tests/load/endurance.js"],
       "framework_realization": {
         "template": "src/templates/test-tooling/k6-endurance-test-30min.ejs",
         "generator": "src/generators/k6-endurance-test-30min.ts",
@@ -2610,9 +2490,7 @@
       "import_id": 45,
       "import_name": "validate-mybatis-xml-crud.sh",
       "detail": "#{param} check (no ${param} SQL injection). P16",
-      "planning_evidence_paths": [
-        "scripts/validate-mybatis-xml-crud.sh"
-      ],
+      "planning_evidence_paths": ["scripts/validate-mybatis-xml-crud.sh"],
       "framework_realization": {
         "template": "src/templates/scripts/validators/validate-mybatis-xml-crud-sh.ejs",
         "generator": null,
@@ -2625,9 +2503,7 @@
       "import_id": 46,
       "import_name": "validate-schema-isolation.sh",
       "detail": "No cross-tenant access. P23/ADR-019",
-      "planning_evidence_paths": [
-        "scripts/validate-schema-isolation.sh"
-      ],
+      "planning_evidence_paths": ["scripts/validate-schema-isolation.sh"],
       "framework_realization": {
         "template": "src/templates/scripts/validators/validate-schema-isolation-sh.ejs",
         "generator": null,
@@ -2640,9 +2516,7 @@
       "import_id": 47,
       "import_name": "validate-liquibase-naming.sh + crossdb.sh",
       "detail": "Naming convention + no PG-specific SQL",
-      "planning_evidence_paths": [
-        "scripts/validate-liquibase-*.sh"
-      ],
+      "planning_evidence_paths": ["scripts/validate-liquibase-*.sh"],
       "framework_realization": {
         "template": "src/templates/scripts/validators/validate-liquibase-naming-sh-crossd.ejs",
         "generator": null,
@@ -2655,9 +2529,7 @@
       "import_id": 48,
       "import_name": "validate-postman-collection.sh",
       "detail": "Integrit&#224; collection Postman",
-      "planning_evidence_paths": [
-        "scripts/validate-postman-collection.sh"
-      ],
+      "planning_evidence_paths": ["scripts/validate-postman-collection.sh"],
       "framework_realization": {
         "template": "src/templates/scripts/validators/validate-postman-collection-sh.ejs",
         "generator": null,
@@ -2670,9 +2542,7 @@
       "import_id": 49,
       "import_name": "validate-nightly-k6.sh + post-run + workflow",
       "detail": "k6 threshold, DB post-assertions, CI integrity",
-      "planning_evidence_paths": [
-        "scripts/validate-*.sh (5 script)"
-      ],
+      "planning_evidence_paths": ["scripts/validate-*.sh (5 script)"],
       "framework_realization": {
         "template": "src/templates/scripts/validators/validate-nightly-k6-sh-post-run-wor.ejs",
         "generator": null,
@@ -2685,9 +2555,7 @@
       "import_id": 50,
       "import_name": "check-drift.py",
       "detail": "Configuration drift detection cross-service",
-      "planning_evidence_paths": [
-        "scripts/check-drift.py"
-      ],
+      "planning_evidence_paths": ["scripts/check-drift.py"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2700,9 +2568,7 @@
       "import_id": 51,
       "import_name": "quality-check.sh (aggregated)",
       "detail": "Quality gate aggregato: spotless+test+jacoco+spotbugs",
-      "planning_evidence_paths": [
-        "scripts/quality-check.sh"
-      ],
+      "planning_evidence_paths": ["scripts/quality-check.sh"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2715,9 +2581,7 @@
       "import_id": 52,
       "import_name": "coverage-report.sh + arch-verify.sh",
       "detail": "JaCoCo HTML report + ArchUnit standalone",
-      "planning_evidence_paths": [
-        "scripts/coverage-report.sh, arch-verify.sh"
-      ],
+      "planning_evidence_paths": ["scripts/coverage-report.sh, arch-verify.sh"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2730,9 +2594,7 @@
       "import_id": 53,
       "import_name": "format-fix.sh + security-scan.sh",
       "detail": "Spotless auto-fix + Gitleaks+OWASP+SpotBugs security",
-      "planning_evidence_paths": [
-        "scripts/format-fix.sh, security-scan.sh"
-      ],
+      "planning_evidence_paths": ["scripts/format-fix.sh, security-scan.sh"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2745,9 +2607,7 @@
       "import_id": 54,
       "import_name": "pii-scan.sh",
       "detail": "PII pattern detection (email, phone, SSN, CF, IBAN)",
-      "planning_evidence_paths": [
-        "scripts/security/pii-scan.sh"
-      ],
+      "planning_evidence_paths": ["scripts/security/pii-scan.sh"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2760,9 +2620,7 @@
       "import_id": 56,
       "import_name": "SecurityConfig hardening",
       "detail": "anyRequest().authenticated(), CORS restrictive, CSRF",
-      "planning_evidence_paths": [
-        "config/SecurityConfig.java"
-      ],
+      "planning_evidence_paths": ["config/SecurityConfig.java"],
       "framework_realization": {
         "template": "src/templates/security/securityconfig-hardening.ejs",
         "generator": null,
@@ -2775,9 +2633,7 @@
       "import_id": 58,
       "import_name": "Docker build-args safety",
       "detail": "No secrets in image history. Multi-stage build",
-      "planning_evidence_paths": [
-        "Dockerfile"
-      ],
+      "planning_evidence_paths": ["Dockerfile"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2790,9 +2646,7 @@
       "import_id": 62,
       "import_name": ".editorconfig",
       "detail": "Indentation/encoding consistency",
-      "planning_evidence_paths": [
-        ".editorconfig"
-      ],
+      "planning_evidence_paths": [".editorconfig"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2805,9 +2659,7 @@
       "import_id": 63,
       "import_name": "docs/coding-standards.md",
       "detail": "Regole codice, naming, pattern. Servizio-specifico",
-      "planning_evidence_paths": [
-        "docs/coding-standards.md"
-      ],
+      "planning_evidence_paths": ["docs/coding-standards.md"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2820,9 +2672,7 @@
       "import_id": 64,
       "import_name": "docs/testing/ (3 file)",
       "detail": "master-test-plan, test-taxonomy, rtm",
-      "planning_evidence_paths": [
-        "docs/testing/*.md"
-      ],
+      "planning_evidence_paths": ["docs/testing/*.md"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2835,9 +2685,7 @@
       "import_id": 66,
       "import_name": "docs/security/ (2 file)",
       "detail": "risk-assessment, stride-threat-model",
-      "planning_evidence_paths": [
-        "docs/security/*.md"
-      ],
+      "planning_evidence_paths": ["docs/security/*.md"],
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -2850,9 +2698,7 @@
       "import_id": 71,
       "import_name": "Seed data scripts",
       "detail": "seed-{service}-k6.sql, seed-test-data.sh",
-      "planning_evidence_paths": [
-        "scripts/seed-*.sql"
-      ],
+      "planning_evidence_paths": ["scripts/seed-*.sql"],
       "framework_realization": {
         "template": "src/templates/bootstrap/seed-data-scripts.ejs",
         "generator": null,
@@ -2865,9 +2711,7 @@
       "import_id": 72,
       "import_name": "Spring Boot version alignment",
       "detail": "Tutti i moduli stessa versione parent",
-      "planning_evidence_paths": [
-        "pom.xml parent version"
-      ],
+      "planning_evidence_paths": ["pom.xml parent version"],
       "framework_realization": {
         "template": "src/templates/bootstrap/spring-boot-version-alignment.ejs",
         "generator": null,

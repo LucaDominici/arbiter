@@ -150,10 +150,10 @@ describe('ZAP DAST template rendering (#898)', () => {
     })
 
     it('04-deploy-test.yml.ejs: dast-baseline wires context_file + cmd_options + the ingest step', () => {
-      const out = renderTemplate(
-        'github/workflows/04-deploy-test.yml.ejs',
-        { ...zapConfig(), deployTarget: 'azure-container-app' },
-      )
+      const out = renderTemplate('github/workflows/04-deploy-test.yml.ejs', {
+        ...zapConfig(),
+        deployTarget: 'azure-container-app',
+      })
       expect(out).toContain("context_file: '.zap/baseline-auth.context'")
       expect(out).toContain("cmd_options: '-J zap-report.json'")
       expect(out).toContain('node scripts/ingest-zap-report.mjs --report zap-report.json')

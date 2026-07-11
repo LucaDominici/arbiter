@@ -380,17 +380,16 @@ describe('runInit with --recipe (#546)', () => {
     },
   )
 
-  it.each([
-    ['codeownersNotify'],
-    ['taxonomy25d'],
-    ['perfTesting'],
-  ] as const)('recipe without the flag persists features.%s=false (#1887-A)', async (featureKey) => {
-    const { runInit } = await import('../../src/commands/init.js')
-    await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: FIXTURE_PATH })
+  it.each([['codeownersNotify'], ['taxonomy25d'], ['perfTesting']] as const)(
+    'recipe without the flag persists features.%s=false (#1887-A)',
+    async (featureKey) => {
+      const { runInit } = await import('../../src/commands/init.js')
+      await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: FIXTURE_PATH })
 
-    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
-      features?: Record<string, unknown>
-    }
-    expect(raw.features?.[featureKey]).toBe(false)
-  })
+      const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+        features?: Record<string, unknown>
+      }
+      expect(raw.features?.[featureKey]).toBe(false)
+    },
+  )
 })

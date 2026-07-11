@@ -306,7 +306,10 @@ function generateRestPublic(
       if (applyExportOpenapi) {
         injectGradleWiring(base, dryRun, {
           plugins: [
-            { id: 'org.springdoc.openapi-gradle-plugin', version: SPRINGDOC_OPENAPI_PLUGIN_VERSION },
+            {
+              id: 'org.springdoc.openapi-gradle-plugin',
+              version: SPRINGDOC_OPENAPI_PLUGIN_VERSION,
+            },
           ],
           snippets: [applyExportOpenapi],
         })

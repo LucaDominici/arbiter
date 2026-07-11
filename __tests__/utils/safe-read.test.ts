@@ -74,4 +74,3 @@ describe('readPackageJsonSafe (#684)', () => {
     spy.mockRestore()
   })
 })
-
