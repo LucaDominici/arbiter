@@ -192,4 +192,21 @@ describe('resolveProjectConfig — canonical builder field mapping (#1077)', () 
     const { config: cfgOff } = resolveProjectConfig(dir, 'x', makeStored())
     expect(cfgOff[configField]).toBe(false)
   })
+
+  // #1887-A: activation path for enableCodeownersNotify / enableTaxonomy25d /
+  // enablePerfTesting — round-trip persistence half (see init-recipe.test.ts for
+  // the recipe-to-arbiter.json half of the same activation path).
+  it.each([
+    ['codeownersNotify', 'enableCodeownersNotify'],
+    ['taxonomy25d', 'enableTaxonomy25d'],
+    ['perfTesting', 'enablePerfTesting'],
+  ] as const)('round-trips stored features.%s into %s (#1887-A)', (featureKey, configField) => {
+    const on = makeStored()
+    ;(on.features as Record<string, unknown>)[featureKey] = true
+    const { config: cfgOn } = resolveProjectConfig(dir, 'x', on)
+    expect(cfgOn[configField]).toBe(true)
+
+    const { config: cfgOff } = resolveProjectConfig(dir, 'x', makeStored())
+    expect(cfgOff[configField]).toBe(false)
+  })
 })

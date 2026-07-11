@@ -317,6 +317,8 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
   // #1835: the CI-gate opt-in is merged by a helper to keep
   // applyRecipeOverrides within the complexity-15 limit.
   applyRecipeCiOverrides(config, recipe)
+  // #1887-A: same complexity-ceiling reason.
+  applyRecipeActivationOverrides(config, recipe)
 }
 
 /**
@@ -330,6 +332,25 @@ function applyRecipeCiOverrides(config: ProjectConfig, recipe: Recipe): void {
   }
   if (recipe.enableFiveLaneCi !== undefined) {
     config.enableFiveLaneCi = recipe.enableFiveLaneCi
+  }
+}
+
+/**
+ * #1887-A — apply the 3 opt-in flags that previously had generators built and
+ * gated on the ProjectConfig field, but NO public activation path (no CLI flag,
+ * wizard prompt, recipe field, or preset). Extracted (mirrors
+ * applyRecipeCiOverrides) to keep applyRecipeOverrides under the complexity-15
+ * ceiling.
+ */
+function applyRecipeActivationOverrides(config: ProjectConfig, recipe: Recipe): void {
+  if (recipe.enableCodeownersNotify !== undefined) {
+    config.enableCodeownersNotify = recipe.enableCodeownersNotify
+  }
+  if (recipe.enableTaxonomy25d !== undefined) {
+    config.enableTaxonomy25d = recipe.enableTaxonomy25d
+  }
+  if (recipe.enablePerfTesting !== undefined) {
+    config.enablePerfTesting = recipe.enablePerfTesting
   }
 }
 

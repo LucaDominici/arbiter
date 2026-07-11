@@ -78,6 +78,24 @@ describe('runConfigure — --set round-trips', () => {
     expect((raw['features'] as Record<string, unknown>)['mutationTesting']).toBe(false)
     expect((raw['thresholds'] as Record<string, unknown>)['lineCoverage']).toBe(85)
   })
+
+  // #1887-A: activation path for enableCodeownersNotify / enableTaxonomy25d /
+  // enablePerfTesting — `configure --set` is the persistent-settings half
+  // (mirrors the pre-existing features.soloDevMode ALLOWED_PATHS entry).
+  it.each(['features.codeownersNotify', 'features.taxonomy25d', 'features.perfTesting'])(
+    'sets %s=true and writes valid v2 to disk (#1887-A)',
+    async (path) => {
+      writeV2Config(dir)
+      const key = path.split('.')[1]!
+
+      await runConfigure({ dir, sets: [`${path}=true`] })
+
+      const raw = readArbiterJson(dir)
+      const features = raw['features'] as Record<string, unknown>
+      expect(features[key]).toBe(true)
+      expect(raw['version']).toBe('0.2')
+    },
+  )
 })
 
 describe('runConfigure — validation', () => {

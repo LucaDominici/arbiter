@@ -58,6 +58,14 @@ export interface FeatureFlags {
   iso27001Mapping?: boolean
   nis2Mapping?: boolean
   gdprMapping?: boolean
+  /**
+   * #1887-A: 3 more generators built + gated on the ProjectConfig field but with
+   * no public activation path at all — same round-trip-drop class. Opt-in,
+   * absent ⇒ false.
+   */
+  codeownersNotify?: boolean
+  taxonomy25d?: boolean
+  perfTesting?: boolean
 }
 
 export type DecompositionBackendId = 'github' | 'markdown'
@@ -628,6 +636,9 @@ const OPTIONAL_FEATURE_FLAGS = [
   'iso27001Mapping',
   'nis2Mapping',
   'gdprMapping',
+  'codeownersNotify',
+  'taxonomy25d',
+  'perfTesting',
 ] as const
 
 /** #1530: `: void` like its siblings — failure flows through `errors[]`, not a return. */

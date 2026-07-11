@@ -156,6 +156,10 @@ function storedFeatureFlagFields(stored: ArbiterConfigV2): Partial<ProjectConfig
     enableIso27001Mapping: stored.features.iso27001Mapping ?? false,
     enableNis2Mapping: stored.features.nis2Mapping ?? false,
     enableGdprMapping: stored.features.gdprMapping ?? false,
+    // #1887-A: activation path for the 3 previously-unreachable opt-in flags.
+    enableCodeownersNotify: stored.features.codeownersNotify ?? false,
+    enableTaxonomy25d: stored.features.taxonomy25d ?? false,
+    enablePerfTesting: stored.features.perfTesting ?? false,
   }
 }
 

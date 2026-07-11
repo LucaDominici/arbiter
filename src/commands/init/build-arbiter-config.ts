@@ -177,6 +177,11 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       iso27001Mapping: config.enableIso27001Mapping === true,
       nis2Mapping: config.enableNis2Mapping === true,
       gdprMapping: config.enableGdprMapping === true,
+      // #1887-A: same round-trip-drop class — generators built, gated on the
+      // ProjectConfig field, but no public activation path until now.
+      codeownersNotify: config.enableCodeownersNotify === true,
+      taxonomy25d: config.enableTaxonomy25d === true,
+      perfTesting: config.enablePerfTesting === true,
     },
     ...buildCollaborationOverrides(config),
     thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],
