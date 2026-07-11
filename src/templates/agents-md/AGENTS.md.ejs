@@ -184,7 +184,30 @@ apply from: 'gradle/modulith-deps.gradle'
 ```
 
 **Setup** (Maven): see `docs/modulith-maven-setup.md` for the `<dependency>` snippet.
-<% } %><% } %><% if (language === 'go') { %>### Go
+<% } %><% if (enableDebtGates && buildTool === 'gradle') { %>
+
+### Coverage Gate (JaCoCo)
+
+Generated `gradle/jacoco.gradle` wires `jacocoTestCoverageVerification` as a hard gate on `check` (#1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+apply from: 'gradle/jacoco.gradle'
+```
+<% } %><% } %><% if (language === 'kotlin' && enableDebtGates && buildTool === 'gradle') { %>### Coverage Gate (Kover)
+
+Generated `kover.gradle` wires `koverVerify`/`koverXmlReport` as a hard gate (#1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+plugins {
+    id 'org.jetbrains.kotlinx.kover' version '0.9.8'
+}
+```
+```groovy
+apply from: 'kover.gradle'
+```
+<% } %><% if (language === 'go') { %>### Go
 
 - All exported functions must have documentation comments
 - Error handling: check every returned error — no `_ = err` patterns

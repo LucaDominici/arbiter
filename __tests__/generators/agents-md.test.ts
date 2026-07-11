@@ -157,4 +157,41 @@ describe('generateAgentsMd', () => {
     expect(content).toContain('pr-review-toolkit:code-reviewer')
     expect(content).toContain('—')
   })
+
+  // #1887-F: AGENTS.md documents the JaCoCo/Kover gradle-snippet wiring —
+  // sibling rows to the ArchUnit/Modulith sections above.
+  it('includes JaCoCo setup row for a java gradle project with debt gates enabled', () => {
+    generateAgentsMd(
+      makeConfig(dir, { language: 'java', buildTool: 'gradle', enableDebtGates: true }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('Coverage Gate (JaCoCo)')
+    expect(content).toContain("apply from: 'gradle/jacoco.gradle'")
+  })
+
+  it('omits the JaCoCo row when debt gates are disabled', () => {
+    generateAgentsMd(
+      makeConfig(dir, { language: 'java', buildTool: 'gradle', enableDebtGates: false }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).not.toContain('Coverage Gate (JaCoCo)')
+  })
+
+  it('includes Kover setup row for a kotlin gradle project with debt gates enabled', () => {
+    generateAgentsMd(
+      makeConfig(dir, { language: 'kotlin', buildTool: 'gradle', enableDebtGates: true }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('Coverage Gate (Kover)')
+    expect(content).toContain("id 'org.jetbrains.kotlinx.kover' version '0.9.8'")
+    expect(content).toContain("apply from: 'kover.gradle'")
+  })
+
+  it('omits the Kover row when debt gates are disabled', () => {
+    generateAgentsMd(
+      makeConfig(dir, { language: 'kotlin', buildTool: 'gradle', enableDebtGates: false }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).not.toContain('Coverage Gate (Kover)')
+  })
 })

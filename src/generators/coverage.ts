@@ -2,8 +2,14 @@
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { resolveEffectiveThresholds } from '../config/thresholds.js'
+import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
 import type { Archetype, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+
+// #1887-F: org.jetbrains.kotlinx.kover is a marketplace plugin (unlike jacoco,
+// which ships built-in with Gradle) — kover.gradle.ejs's `kover {}` extension
+// block only resolves once the plugin is declared in the root plugins block.
+const KOVER_PLUGIN_VERSION = '0.9.8'
 
 /**
  * #359 Phase 7G — release binary size budget per archetype (bytes).
@@ -72,6 +78,17 @@ export function generateCoverage(
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
+    // #1887-F: gradle/jacoco.gradle was emitted but never wired into the root
+    // build — the exact #1886 modulith-deps.gradle ghost class. jacoco itself is
+    // a built-in Gradle plugin (self-applies via `apply plugin: 'jacoco'` inside
+    // the applied script — no plugins{} declaration needed, unlike kover below),
+    // so only the apply(from=...) line is required. Withhold when the root
+    // build already configures `jacoco {}` inline (mirrors the spotbugs/spotless
+    // rootBuildSignatures precedent in debt-gates.ts).
+    const applyJacoco = safeApplyFromSnippet(base, 'gradle/jacoco.gradle', {
+      rootBuildSignatures: [/(?:^|\n)[ \t]*jacoco\s*\{/],
+    })
+    if (applyJacoco) injectGradleWiring(base, opts.dryRun, { snippets: [applyJacoco] })
   }
 
   if ((config.language === 'java' || config.language === 'multi') && config.buildTool === 'maven') {
@@ -121,13 +138,25 @@ function emitKotlinCoverage(
   data: Record<string, unknown>,
   dryRun: boolean,
 ): WriteResult[] {
-  return [
-    writeFile(
-      resolvedPath(base, 'kover.gradle'),
-      renderTemplate('coverage/kover.gradle.ejs', data),
-      { skipIfExists: true, dryRun },
-    ),
-  ]
+  const result = writeFile(
+    resolvedPath(base, 'kover.gradle'),
+    renderTemplate('coverage/kover.gradle.ejs', data),
+    { skipIfExists: true, dryRun },
+  )
+  // #1887-F: kover.gradle was emitted but never wired — unlike jacoco, kover is a
+  // marketplace plugin that MUST be declared in the root plugins block (with a
+  // version) for its `kover {}` extension block to resolve at all. Withhold the
+  // apply-from when the root build already configures `kover {}` inline.
+  const applyKover = safeApplyFromSnippet(base, 'kover.gradle', {
+    rootBuildSignatures: [/(?:^|\n)[ \t]*kover\s*\{/],
+  })
+  if (applyKover) {
+    injectGradleWiring(base, dryRun, {
+      plugins: [{ id: 'org.jetbrains.kotlinx.kover', version: KOVER_PLUGIN_VERSION }],
+      snippets: [applyKover],
+    })
+  }
+  return [result]
 }
 
 /**
