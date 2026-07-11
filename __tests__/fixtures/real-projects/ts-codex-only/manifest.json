@@ -1,0 +1,9 @@
+{
+  "language": "typescript",
+  "archetype": "library",
+  "buildTool": null,
+  "levels": ["L1"],
+  "tier": "bake",
+  "tools": "codex",
+  "note": "#1885 — codex-only init (no `claude` in tools). Materialization must self-satisfy .codex/config.toml's own hook references (SHARED_GUARD_HOOKS) without generateClaudeHooks ever running."
+}

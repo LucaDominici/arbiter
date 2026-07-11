@@ -14,6 +14,10 @@ export interface FixtureManifest {
   levels: string[]
   tier: 'snapshot' | 'bake' | 'functional'
   note?: string
+  // #1885: comma-separated `arbiter init --tools` override. Defaults to 'claude'
+  // (every pre-existing fixture) — only set when a cell must exercise a
+  // non-default tool selection, e.g. a codex-only materialization.
+  tools?: string
 }
 
 const FIXTURES_ROOT = resolve('__tests__/fixtures/real-projects')

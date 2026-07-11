@@ -319,6 +319,44 @@ describe('checkEmissionCoherence (#1331)', () => {
     }
   })
 
+  // #1885: .codex/config.toml wires `.claude/hooks/*.mjs` scripts via
+  // codex-adapter.mjs `command = "node .codex/codex-adapter.mjs <hook-path>"`
+  // entries. Unguarded by construction (a TOML command string carries no
+  // existsSync/[ -f ] check) — a dangling ref is the exact ghost class that
+  // crashed every bash/apply_patch call on a codex-only project (#1885).
+  it('FAILs on a .codex/config.toml hook command pointing at a missing file', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      '.codex/config.toml':
+        '[[hooks.PreToolUse.hooks]]\n' +
+        'type = "command"\n' +
+        'command = "node .codex/codex-adapter.mjs .claude/hooks/ghost.mjs"\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('ghost.mjs'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSes a .codex/config.toml whose referenced hook is emitted', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      '.claude/hooks/stop-dangerous.mjs': '// ok',
+      '.codex/config.toml':
+        '[[hooks.PreToolUse.hooks]]\n' +
+        'type = "command"\n' +
+        'command = "node .codex/codex-adapter.mjs .claude/hooks/stop-dangerous.mjs"\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
   // #1518 — REVERSE coherence: an emitted gate script invoked by nothing is a dead
   // emission (the broader-than-template registry predicate case the forward gate misses).
   describe('reverse direction — emitted-but-unreferenced gate scripts (#1518)', () => {

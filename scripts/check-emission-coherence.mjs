@@ -15,7 +15,8 @@
 // Static lint of an arbiter-generated tree: every script / hook / workflow
 // reference in the emission must resolve to a file that actually exists. Scans
 // check-all.mjs, .claude/hooks/hooks.mjs, .githooks/*, .github/workflows/*,
-// .claude/settings.json, the Makefile, and every .claude/commands/*.md playbook
+// .claude/settings.json, .codex/config.toml (#1885 — the codex-adapter hook-path
+// ghost), the Makefile, and every .claude/commands/*.md playbook
 // (#1345 — the Makefile/command blind spot that hid the done-evidence &
 // route-auditors ghosts). Catches "referenced but never emitted" ghosts (the
 // class behind #1318/#1319/#1345) in milliseconds, no toolchains — affordable
@@ -226,6 +227,26 @@ function checkCommands(dir, problems) {
   }
 }
 
+// #1885: .codex/config.toml wires `.claude/hooks/*.mjs` scripts through
+// `command = "node .codex/codex-adapter.mjs <hook-path>"` entries. A TOML
+// command string carries no existsSync/[ -f ] guard, so a dangling ref is
+// unguarded by construction (same class as the Makefile/command-doc scan) —
+// this is the ghost that crashed every bash/apply_patch call on a codex-only
+// project before the hook-parity fix.
+function checkCodexConfig(dir, problems) {
+  const c = read(dir, '.codex/config.toml')
+  if (c === null) return
+  const seen = new Set()
+  for (const m of c.matchAll(/\.claude\/hooks\/([\w.-]+\.mjs)/g)) {
+    const hookFile = m[1]
+    if (seen.has(hookFile)) continue
+    seen.add(hookFile)
+    if (!existsSync(join(dir, '.claude/hooks', hookFile))) {
+      problems.push(`.codex/config.toml references missing .claude/hooks/${hookFile}`)
+    }
+  }
+}
+
 function checkSettings(dir, problems) {
   const settings = read(dir, '.claude/settings.json')
   if (settings === null) return
@@ -333,6 +354,7 @@ export function checkEmissionCoherence(dir) {
   checkGithooks(dir, optional, problems)
   checkWorkflows(dir, problems)
   checkSettings(dir, problems)
+  checkCodexConfig(dir, problems)
   checkMakefile(dir, problems)
   checkCommands(dir, problems)
   return { problems: [...new Set(problems)].sort() }
