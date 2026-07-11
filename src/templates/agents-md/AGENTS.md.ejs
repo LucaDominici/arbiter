@@ -172,6 +172,18 @@ apply from: 'gradle/arch-test-deps.gradle'
 | `RestAssuredArchTest` | All `*ControllerIT` must extend `RestAssuredBaseIT` |<% } %>
 
 **Suppressions**: add exemptions to `suppressions/archunit-baseline.json` with `scope` (class-pattern glob) + `expiresAt` (wave-migration date).
+<% } %><% if (basePackage) { %>
+
+### Module Boundaries (Spring Modulith)
+
+If this is a Spring Boot project, the generated `ApplicationModulesTest` (`src/test/java/<%= basePackage.replace(/\./g, '/') %>/modulith/`) verifies module boundaries via `ApplicationModules.of(...).verify()` (#1886).
+
+**Setup** (Gradle): add to `build.gradle`:
+```groovy
+apply from: 'gradle/modulith-deps.gradle'
+```
+
+**Setup** (Maven): see `docs/modulith-maven-setup.md` for the `<dependency>` snippet.
 <% } %><% } %><% if (language === 'go') { %>### Go
 
 - All exported functions must have documentation comments
