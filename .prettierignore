@@ -43,3 +43,8 @@ graphify-out/
 examples/ts-library/
 examples/python-library/
 examples/go-library/
+# Full-content approval snapshots (toMatchFileSnapshot) — the EXACT bytes
+# `renderTemplate` produces, captured for review; must NOT be reformatted or
+# the snapshot no longer matches its own source of truth. Same reasoning as
+# the examples/ ignores above.
+__tests__/templates/__snapshots__/high-fanout/

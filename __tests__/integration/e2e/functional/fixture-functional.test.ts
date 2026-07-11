@@ -22,7 +22,7 @@
 // so this is fixture-owned, same as the fixture's other pre-existing test deps).
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit } from '../../../../src/commands/init.js'
 import { isOfflineFailure, listFixtures, loadFixtureManifest, stageFixture } from '../helpers.js'
@@ -143,7 +143,9 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
       })
 
       afterEach(() => {
-        if (dir != null) rmSync(dir, { recursive: true, force: true })
+        // stageFixture nests a fixed-name project dir under a random parent
+        // (determinism for content hashing, see helpers.ts) — clean up the parent.
+        if (dir != null) rmSync(dirname(dir), { recursive: true, force: true })
       })
 
       it.skipIf(skipReason != null)(

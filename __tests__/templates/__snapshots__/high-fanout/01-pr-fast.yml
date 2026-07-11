@@ -1,0 +1,593 @@
+# Reference: docs/REFERENCE/workflow-pr-fast.md
+name: PR Fast (T1)
+
+permissions:
+  contents: read
+
+on:
+  push:
+
+    branches: [main, "task/**"]
+
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, ready_for_review, unlabeled]
+
+    branches: [main]
+
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+      - '.editorconfig'
+
+# Cancel in-progress runs on the same ref; main always completes (#357).
+concurrency:
+  group: pr-fast-${{ github.head_ref || github.ref }}
+
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+
+jobs:
+  config-lint:
+    name: Config Lint (yaml + shell)
+    # gold-align (#1506 yamllint / #1507 shellcheck): a language-agnostic style/
+    # structure lint lane. yamllint checks non-workflow YAML (indentation, duplicate
+    # keys, trailing spaces, document structure) — complementary to actionlint, which
+    # owns .github/workflows *semantics*. shellcheck checks generated *.sh for unquoted
+    # expansions / unsafe word-splitting at warning severity. Both BLOCKING; both
+    # version-pinned for reproducibility. Each linter no-ops cleanly (green) when the
+    # repo carries no matching files. Committed .yamllint.yml / .shellcheckrc (when
+    # present) are auto-discovered and make the rules explicit + tunable.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Install shellcheck (pinned)
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz \
+            | tar -xJ -C "$RUNNER_TEMP/bin" --strip-components=1 shellcheck-v0.10.0/shellcheck
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: shellcheck (generated shell, blocking at warning severity)
+        # .shellcheckrc (when present) is auto-discovered. No *.sh ⇒ no-op (green).
+        run: |
+          files=$(git ls-files '*.sh')
+          if [ -n "$files" ]; then
+            echo "$files" | xargs shellcheck --severity=warning
+          else
+            echo "shellcheck: no *.sh files — skipping"
+          fi
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: '3.12'
+      - name: Install yamllint (pinned)
+        run: pip install yamllint==1.35.1
+      - name: yamllint (non-workflow YAML, blocking on errors)
+        # actionlint owns .github/workflows semantics; exclude them to avoid overlap.
+        # A committed .yamllint.yml (when present) is auto-discovered and authoritative;
+        # otherwise fall back to yamllint's built-in `relaxed` preset — both block on
+        # ERRORS only (line-length etc. stay advisory warnings). No matching YAML ⇒ no-op.
+        run: |
+          files=$(git ls-files '*.yml' '*.yaml' ':!.github/workflows/**')
+          if [ -n "$files" ]; then
+            if [ -f .yamllint.yml ] || [ -f .yamllint.yaml ] || [ -f .yamllint ]; then
+              echo "$files" | xargs yamllint
+            else
+              echo "$files" | xargs yamllint -d relaxed
+            fi
+          else
+            echo "yamllint: no non-workflow YAML — skipping"
+          fi
+
+  security-early-fail:
+    name: Security (PII + Secrets)
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version-file: '.nvmrc'
+      - name: PII scan (INV-12, HARD)
+        run: node scripts/pii-scan.mjs
+      - name: Install gitleaks
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Gitleaks secrets scan (INV-11)
+        run: |
+          gitleaks detect --source . --config .gitleaks.toml \
+            --gitleaks-ignore-path suppressions/.gitleaksignore \
+            --exit-code 1 --redact
+
+
+  classify-changes:
+    name: Classify Changes
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      backend_changed: ${{ steps.classify.outputs.backend_changed }}
+      frontend_changed: ${{ steps.classify.outputs.frontend_changed }}
+      infra_changed: ${{ steps.classify.outputs.infra_changed }}
+      high_risk: ${{ steps.classify.outputs.high_risk }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version-file: '.nvmrc'
+      - id: classify
+        if: hashFiles('scripts/ci-classify-changes.mjs') != ''
+        run: node scripts/ci-classify-changes.mjs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+          HEAD_SHA: ${{ github.sha }}
+
+
+  dependency-review:
+    name: Dependency Review (supply-chain)
+    # A1 (#1502): the canonical FAST PR supply-chain gate. dependency-review-action
+    # diffs the PR's dependency-manifest changes and fails on a newly-introduced
+    # vulnerable dependency — keeping slow full-tree scanners off the always-path.
+    # PR-only (the action diffs base...head and errors on push). Fail severity is
+    # configurable via the DEPENDENCY_REVIEW_FAIL_SEVERITY repo variable (default: high).
+    # Floor: enableSecurityScanning — the same always-path gate as security-early-fail.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    # PR-only AND GHAS-gated (#1685): dependency-review-action HARD-errors when the
+    # repo lacks Dependency Graph + GitHub Advanced Security, which reds every PR
+    # while GHAS is off. A JOB-LEVEL guard makes the job SKIP (result=skipped, which
+    # the ci-required aggregator treats as non-failure) until GHAS is enabled by
+    # setting the GHAS_ENABLED repo variable to 'true'. NOT step-level
+    # continue-on-error: that would violate INV-80 and silently neuter the gate once
+    # GHAS is on. With the var set, a real finding still fails the job and blocks.
+    if: github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: Dependency review (fail on newly-introduced high-severity deps)
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
+        with:
+          fail-on-severity: ${{ vars.DEPENDENCY_REVIEW_FAIL_SEVERITY || 'high' }}
+
+  iac-scan:
+    name: IaC Scan (infra-changed)
+    # A1 (#1502): consume the classify-changes `infra_changed` signal (previously
+    # classified but UNUSED) — scan terraform / kubernetes / dockerfile only when the
+    # PR actually touches infrastructure-as-code, keeping the always-path lean.
+    # #1785: was pinned to a LITERAL `runs-on: ubuntu-latest` on the (disproven)
+    # assumption that GitHub-hosted runners are never containerized (#1756).
+    # Evidence (run 28693108584) showed a job pinned to literal `ubuntu-latest`
+    # actually serviced by self-hosted `arbiter-slot-build-3` — the label alone
+    # never guaranteed real GitHub-hosted infra here. Rather than keep trusting
+    # an unverified runner label, Checkov now runs as a plain pip-installed CLI
+    # (bridgecrewio/checkov-action was only a Docker convenience wrapper around
+    # it) — no docker-container action, no workspace bind-mount, the whole
+    # defect class sidestepped entirely (same pattern as the osv-scanner static-
+    # binary fix, #1767). Enforced by scripts/check-docker-action-runner-safety.mjs.
+    # #1894: routed through the same `RUNNER_LABELS_TEST` expression as every other
+    # job. The former literal `ubuntu-latest` used to be intercepted by the self-
+    # hosted fleet (#1785 evidence), but the fleet dropped the `ubuntu-latest`
+    # label, so the literal pin fell through to real GitHub-hosted infra and failed
+    # (spending-limit block). The expression defaults to `["ubuntu-latest"]` when
+    # the var is unset (consumers unaffected); arbiter's own repo sets it to the
+    # self-hosted labels. Checkov/tflint are plain CLIs (no docker-action), so the
+    # runner class remains moot for the #1785 safety class either way.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [classify-changes]
+    if: needs.classify-changes.outputs.infra_changed == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: '3.12'
+      - name: Install Checkov (pinned, no Docker — #1785)
+        run: pip install checkov==3.3.7
+      - name: Checkov IaC scan (all frameworks)
+        run: |
+          # #1685: `all` is checkov's documented-valid multi-framework value (also
+          # its own default scope). Hard-fail stays the default (no soft-fail
+          # flag passed): a real misconfiguration must block (INV-80).
+          checkov --directory . --framework all --quiet --compact
+      # #1509 gold-align: Checkov scans for known misconfigurations; tflint is the
+      # Terraform-specific *linter* (provider-aware deprecations, invalid arg
+      # combinations, unused declarations). Reference-grade IaC pipelines run it
+      # BLOCKING — no soft-fail. `--recursive` exits 0 when the repo carries no
+      # `.tf` files, so non-Terraform infra changes (k8s/dockerfile) stay green.
+      - name: Setup tflint (Terraform linter)
+        uses: terraform-linters/setup-tflint@6e1e0642c0289bd619021bf6b34e3c08ed1e005a  # v6.3.0
+      - name: tflint (Terraform lint, blocking)
+        run: tflint --recursive --no-color
+
+
+
+  gate:
+    name: Lint + Typecheck
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [security-early-fail, classify-changes]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: npm run typecheck
+      - run: npm run lint
+
+      - name: Dep audit (INV-13)
+        run: npm audit --omit=dev --audit-level=high
+
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [gate, classify-changes]
+    strategy:
+      max-parallel: 2
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: npm run test:unit -- --reporter=junit --outputFile=test-results/junit.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: test-results-unit-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
+
+
+  contract-tests:
+    name: Contract Tests
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [gate, classify-changes]
+    strategy:
+      max-parallel: 2
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: npm run test:contract
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [gate, classify-changes]
+    strategy:
+      max-parallel: 2
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: npm run test:integration
+
+  behavioral-tests:
+    name: Behavioral Tests
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [gate, classify-changes]
+    strategy:
+      max-parallel: 2
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: npm run test:behavioral
+
+
+
+
+  docs-check:
+    name: Docs Check
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Check docs updated with code changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # #356: rebased-aware via merge-base; bypass via [skip-docs] commit token.
+          MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || echo "$BASE_SHA")
+          CHANGED=$(git diff --name-only "$MB" "$HEAD_SHA")
+          LOG=$(git log --format=%B "$MB..$HEAD_SHA" || true)
+
+          HAS_CODE=$(echo "$CHANGED" | grep -E '^(src/|__tests__/)' || true)
+          HAS_DOCS=$(echo "$CHANGED" | grep -E '^(docs/|README\.md)' || true)
+          BYPASS=$(echo "$LOG" | grep -F '[skip-docs]' || true)
+
+          if [ -n "$HAS_CODE" ] && [ -z "$HAS_DOCS" ] && [ -z "$BYPASS" ]; then
+            echo "::error::Code changed without documentation update"
+            echo ""
+            echo "Files changed in src/ or __tests__/:"
+            echo "$HAS_CODE"
+            echo ""
+            echo "Please update docs/ or README.md, or add [skip-docs] to a commit message to bypass."
+            exit 1
+          fi
+          echo "Docs check passed."
+
+
+
+  debt-gates:
+    name: Tech Debt Gates
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [gate]
+    # E1 (#1502): the PR leg keeps only the FAST static-analysis gates
+    # (knip/madge/pmd/spotbugs/clippy/ruff/golangci). The whole-suite coverage
+    # re-run that used to live here was a SECOND full test execution on the PR
+    # (the unit/integration jobs already ran the suite, and `gate-full` runs
+    # check-all L2 which enforces the coverage threshold). The threshold floor is
+    # therefore preserved on PR via gate-full; the heavy coverage report (HTML/lcov
+    # artifact) is produced at nightly cadence in 06-nightly `coverage-report`.
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: npx knip
+      - run: npx madge --circular --extensions ts,tsx,js,jsx src
+
+
+
+
+  sonar-scan:
+    name: SonarCloud Scan
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [gate]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+
+      - name: SonarCloud Scan (PR decoration — incremental new-code analysis)
+        # E1 (#1502): on PRs Sonar runs in pull-request mode — it decorates the PR
+        # with new-code findings only (incremental), NOT a full deep scan. The full
+        # branch baseline runs on merge-to-main below and nightly (06-nightly
+        # `sonar-deep-scan`), keeping the PR path fast.
+        if: env.SONAR_TOKEN != '' && github.event_name == 'pull_request'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # untrusted refs pass through env (never inlined into the script body).
+          PR_KEY: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
+        run: |
+          npx sonar-scanner -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.pullrequest.key="$PR_KEY" \
+            -Dsonar.pullrequest.branch="$PR_BRANCH" \
+            -Dsonar.pullrequest.base="$PR_BASE"
+      - name: SonarCloud Scan (full branch baseline)
+        # Push to a long-lived branch refreshes the full-project baseline so the
+        # PR decoration above has a fresh reference to diff new code against.
+        if: env.SONAR_TOKEN != '' && github.event_name != 'pull_request'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          npx sonar-scanner -Dsonar.token="$SONAR_TOKEN"
+
+
+
+  debt-ratchet:
+    name: Debt Ratchet
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [gate]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Run debt ratchet
+        run: node scripts/debt-report.mjs --gate
+
+
+
+  gate-full:
+    name: Full Gate (L2, INV-59)
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+
+    needs: [security-early-fail, classify-changes]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Install gitleaks
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Install actionlint
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" actionlint
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Build
+        run: npm run build
+      - name: Run full L2 gate (== pre-push)
+        run: node scripts/check-all.mjs L2 --json gate-result.json
+      - name: Upload gate-result artifact (activates INV-59 runtime parity)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: gate-result
+          path: gate-result.json
+          retention-days: 7
+
+
+  human-approval-required:
+    name: Human Approval Required (INV-74)
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Assert approved-by-human label (anti-bot gate)
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            if (!labels.includes('approved-by-human')) {
+              core.setFailed(
+                'PR requires the "approved-by-human" label applied by a human reviewer. ' +
+                'See 03-human-approval.yml — a bot approval does not satisfy this check.'
+              );
+            }
+
+  ci-required:
+    name: CI Required
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+
+    needs: [gate, human-approval-required, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, gate-full, debt-gates, debt-ratchet, classify-changes]
+    if: always()
+    steps:
+      - env:
+          DOCS_ONLY: ${{ needs.classify-changes.outputs.docs_only }}
+        run: |
+
+          if [[ "${{ needs.classify-changes.result }}" != "success" ]]; then
+            echo "classify-changes failed — cannot trust docs_only, failing closed"
+            exit 1
+          fi
+          # success, or skipped ONLY when the docs-only classification skipped the job
+          ok() { [[ "$1" == "success" || ( "$DOCS_ONLY" == "true" && "$1" == "skipped" ) ]]; }
+          if ! ok "${{ needs.gate.result }}"; then
+            echo "gate failed"
+            exit 1
+          fi
+
+          if ! ok "${{ needs.unit-tests.result }}"; then
+            echo "unit-tests failed"
+            exit 1
+          fi
+          if ! ok "${{ needs.contract-tests.result }}"; then
+            echo "contract-tests failed"
+            exit 1
+          fi
+          if ! ok "${{ needs.integration-tests.result }}"; then
+            echo "integration-tests failed"
+            exit 1
+          fi
+          if ! ok "${{ needs.behavioral-tests.result }}"; then
+            echo "behavioral-tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.security-early-fail.result }}" != "success" ]]; then
+            echo "security-early-fail failed"
+            exit 1
+          fi
+          # dependency-review skips on push (PR-only) — only a real finding blocks.
+          if [[ "${{ needs.dependency-review.result }}" == "failure" ]]; then
+            echo "dependency-review failed — a newly-introduced dependency exceeds the severity floor"
+            exit 1
+          fi
+          # iac-scan skips when no infra changed — only a real IaC finding blocks.
+          if [[ "${{ needs.iac-scan.result }}" == "failure" ]]; then
+            echo "iac-scan failed — an infrastructure-as-code misconfiguration was found"
+            exit 1
+          fi
+          if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then
+            echo "docs-check failed"
+            exit 1
+          fi
+          if [[ "${{ needs.sonar-scan.result }}" == "failure" ]]; then
+            echo "sonar-scan failed"
+            exit 1
+          fi
+          if ! ok "${{ needs.debt-gates.result }}"; then
+            echo "debt-gates failed"
+            exit 1
+          fi
+          if ! ok "${{ needs.debt-ratchet.result }}"; then
+            echo "debt-ratchet failed"
+            exit 1
+          fi
+          if [[ "${{ needs.gate-full.result }}" != "success" && "${{ needs.gate-full.result }}" != "skipped" ]]; then
+            echo "gate-full (L2) failed or was cancelled"
+            exit 1
+          fi
+          if [[ "${{ needs.human-approval-required.result }}" == "failure" ]]; then
+            echo "human-approval-required failed — PR needs approved-by-human label"
+            exit 1
+          fi
+
+
+  post-merge-gate:
+    name: D4-LITE post-merge gate (main)
+    needs: [classify-changes]
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.classify-changes.result == 'success' &&
+      needs.classify-changes.outputs.docs_only != 'true'
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Install gitleaks
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Install actionlint
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" actionlint
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Build
+        run: npm run build
+      - name: Run full L2 gate (D4-LITE catch-net)
+        run: node scripts/check-all.mjs L2
+
+  post-merge-notify:
+    name: D4-LITE notify on failure
+    needs: [post-merge-gate]
+    if: always() && needs.post-merge-gate.result == 'failure'
+    permissions:
+      issues: write
+    uses: ./.github/workflows/_notify.yml
+    with:
+      workflow_name: D4-LITE post-merge gate
+      area: ci
+      severity: P1
+      branch: main
+      run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      failure_summary: Post-merge L2 gate failed on main — a change merged without full verification.
+      status: failure
+
+

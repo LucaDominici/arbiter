@@ -14,7 +14,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit, runGenerators } from '../../../../src/commands/init.js'
 import { makeConfig } from '../../../helpers.js'
@@ -106,7 +106,9 @@ describe.skipIf(!L2)('virgin-init harness — generated gate runs green (#1321)'
       })
 
       afterEach(() => {
-        if (dir != null) rmSync(dir, { recursive: true, force: true })
+        // stageFixture nests a fixed-name project dir under a random parent
+        // (determinism for content hashing, see helpers.ts) — clean up the parent.
+        if (dir != null) rmSync(dirname(dir), { recursive: true, force: true })
       })
 
       // #1321: init must exit 0 and the generated gate must pass on the greenfield

@@ -52,13 +52,37 @@ export function listFixtures(...tiers: Array<FixtureManifest['tier']>): string[]
   })
 }
 
+// The staged project dir's BASENAME must be deterministic, not a random mkdtemp
+// suffix: `runInit` (src/commands/init.ts) derives `projectName` from
+// `basename(targetDir)`, and several templates interpolate `projectName` — raw,
+// upper-cased, or lower-cased — into generated file content (e.g.
+// FAIL_CLOSED.md.ejs, sonar-project.properties.ejs). A random basename makes
+// that content differ on every run, which breaks byte-for-byte golden-master
+// comparison (content hashing) even though the FILE SET is identical. Fixed by
+// nesting: mkdtemp gives a uniquely-suffixed PARENT (collision-safe under
+// parallel test workers), and the actual project dir underneath it is named
+// exactly `name` — same two-level pattern already proven by
+// scripts/regenerate-examples.mjs (random parent, fixed-name child), applied
+// here for the identical reason. Callers must clean up `dirname(dir)`, not just
+// `dir`, to avoid leaking the now-otherwise-empty parent.
 export function stageFixture(name: string): string {
   const src = join(FIXTURES_ROOT, name)
-  const dir = mkdtempSync(join(tmpdir(), `arbiter-e2e-${name}-`))
+  const parent = mkdtempSync(join(tmpdir(), 'arbiter-e2e-'))
+  const dir = join(parent, name)
   cpSync(src, dir, { recursive: true })
   initGit(dir)
   return dir
 }
+
+// Pinned so the fixture-init commit's SHA is deterministic across runs — a git
+// commit hash is derived from author/committer date too, not just the tree, so
+// leaving these at "now" (git's default) makes `git rev-parse --short HEAD`
+// return a different value every run. arbiter's own debt-baseline capture
+// embeds that SHA (`getCommit()`, src/templates/scripts/debt-lib.mjs.ejs) into
+// generated content, which content-hash golden masters (fixture-bake.test.ts)
+// then see as spurious drift. Same determinism goal as the pinned
+// user.email/user.name below; any fixed value works — no semantic meaning.
+const FIXED_COMMIT_DATE = '2020-01-01T00:00:00Z'
 
 export function initGit(dir: string): void {
   execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
@@ -68,6 +92,11 @@ export function initGit(dir: string): void {
   execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['commit', '-m', 'chore: fixture init', '--no-verify'], {
     cwd: dir,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: FIXED_COMMIT_DATE,
+      GIT_COMMITTER_DATE: FIXED_COMMIT_DATE,
+    },
     stdio: 'ignore',
   })
 }
