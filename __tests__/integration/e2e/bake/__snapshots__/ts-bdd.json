@@ -157,7 +157,7 @@
     "tsconfig.json"
   ],
   "contentHashes": {
-    ".arbiter-generated-manifest.json": "f8afe56a1d88301fcd656f288175593f9b6d53d224fb8c5c72993c957b869c15",
+    ".arbiter-generated-manifest.json": "2266fe63a57ceaedff8308c71c4a6aac6803688fe9732ac13c6bc46c458468c1",
     ".arbiter/ship/TICK_PROMPT.md": "03a8b78da1ba474a13866a38cb71e36cf364af78f8b2994b4951e29f33718cd0",
     ".arbiter/ship/supervisor.sh": "44b50dd34c1807153c34812ff487f7961e78dbeec6d567502df7d2a27da6e01c",
     ".claude/CLAUDE.md": "1eb20d13d0d029ff69a565d169f19243028b1769f7e531d2db47ca95ad1028ed",
@@ -223,7 +223,7 @@
     ".githooks/pre-commit": "f2dd3ea950c0d0085adf08ae9dae205645b172fd26d0166ed8268d1ad79e9516",
     ".githooks/pre-push": "9acd06fa5078d0b0f35192338b45dfac770cdb40944ca4f91fd487ef90e5544c",
     ".gitignore": "a08537d954e9742289d54d0a574606d7aa21d60efce3c2278615cffc31ca0a46",
-    ".prettierignore": "7aeb672072be48f6a62b95a7b80bf844e7e09cb6e0ffffc256f040e6ffee8b94",
+    ".prettierignore": "a6c0e5861dbb42660145825cdaa2dd4195a205bcc9bec512011044660d586757",
     ".prettierrc.json": "2ba158185b0ad7f72c160eb17eaf3ea0cfadfffdf6ebc0377a25f8d5a21eb1ae",
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",

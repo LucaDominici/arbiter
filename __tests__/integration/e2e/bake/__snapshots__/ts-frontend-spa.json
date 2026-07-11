@@ -90,7 +90,9 @@
     "docs/METHOD/SSOT_CORE_SET.md",
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
+    "eslint.config.frontend-spa.mjs",
     "eslint.config.mjs",
+    "eslint.config.playwright.mjs",
     "eslint.config.static.mjs",
     "features/example.feature",
     "features/step_definitions/example.steps.ts",
@@ -175,7 +177,7 @@
     "vitest.browser.config.ts"
   ],
   "contentHashes": {
-    ".arbiter-generated-manifest.json": "4b36c88fa3349a8b8f77976cf70618d6f6c93459f94ef623710d1501d4c0bc55",
+    ".arbiter-generated-manifest.json": "69ed72c3bb13befdbff5461c0570e22f6fbf43dd19634bb7b341452c6a2722d3",
     ".arbiter/ship/TICK_PROMPT.md": "03a8b78da1ba474a13866a38cb71e36cf364af78f8b2994b4951e29f33718cd0",
     ".arbiter/ship/supervisor.sh": "44b50dd34c1807153c34812ff487f7961e78dbeec6d567502df7d2a27da6e01c",
     ".claude/CLAUDE.md": "656f917ed69f366a0c906fb3acf5e155823c46b4f16eef9c528bf49bc92dc304",
@@ -263,14 +265,16 @@
     "docs/METHOD/SSOT_CORE_SET.md": "11494849d3bc5e7f6d8dbd476c825d750e62a8f812bf16a27d58f189a5084067",
     "docs/TESTING_POLICY.md": "77f00c98d197032d85b87380aeb5596396d921f1432c200c01f57c3c48e69d18",
     "docs/TEST_TAXONOMY.md": "3ffbbfe0f7047f09f73c5247aa84532006ea3bb4ae79797047014a25cdb88463",
+    "eslint.config.frontend-spa.mjs": "905841376eb86dff3773349679d09a49821a6355d31fb7190d7b4b289203453e",
     "eslint.config.mjs": "0f561422cc4b752a4fff7aaa13a5b30f3048565a7acdf86d10f6ae30c4e61a5f",
+    "eslint.config.playwright.mjs": "efa17343c7802bb9835e3787668780d8523dfa1d6f8477b1a83fe9a1d5d743ae",
     "eslint.config.static.mjs": "9c73ca56db74c2062afcb7267da0ab22e44def99671c46b90d51249e52cf7e71",
     "features/example.feature": "6641017d70607163249c4935076fdcd7a3afeb290c063dc309309d133919bfd9",
     "features/step_definitions/example.steps.ts": "1550d09707c17599c8a2ba378ae4d7e17fb841f7ee6c47bf4857d8bbb5c57f19",
     "muted-tests-baseline.json": "591ba0e9f6b642dcdb4528a2ee8ea56c0a8418a7c9cdb0d745f6cee53b922df1",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
     "scripts/check-action-pins.mjs": "01ee39254ed3fecb89ed13b424d430e95f86b4c5889999426536f9507b151b97",
-    "scripts/check-all.mjs": "5f89c34393f61371558a6c4a463420eafd50e10e6aceee3f2a0138136094619d",
+    "scripts/check-all.mjs": "248774eb176e7b66bf7522725d9d86f6ca68ce4eccf2183bf57eb14bb1216578",
     "scripts/check-anti-fake-green.mjs": "0d80f4e025a95c0e1c7883afa01c367acce9a1eb0175bcb8914e1feed5ad02cb",
     "scripts/check-anti-proforma.mjs": "27c63b20176d0005a17507754d61e978f88d00398b270fa50ab35335850548c9",
     "scripts/check-api-e2e.mjs": "157572cb0e54a46a779df74300d09b42b3312713efebcf8a2498fa382dc80ed0",
@@ -344,7 +348,7 @@
     "test-pyramid.json": "0ba894adfb1caca646d5070b715f114b7f78845cd6a726bb7e52d99b0c6d6ceb",
     "tests/e2e/a11y.spec.ts": "8184d6e01665e8d7d7fa0b2719c1b5d320c4f2e530bf0e6b89c6b26327a90bb3",
     "tests/e2e/a11y/run-axe.ts": "46fa900b7f4d9f01ba92e50489bd1b4da32fbf459876cba67ca80e46828e4aa6",
-    "tests/e2e/render-smoke.spec.ts": "3dac3f934d1884586928599a8d1f5fcb02cab2aa38f7944f6783f5b16bc99ec9",
+    "tests/e2e/render-smoke.spec.ts": "e77fba230198e943e9aa46eea2ee4103c765a28483b1d2f32be69901308e4dc6",
     "vitest.browser.config.ts": "31dbc1d27184d18cd1c148f311430859e89b52ad87e74f4185cea695bdbdc33a"
   }
 }

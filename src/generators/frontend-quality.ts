@@ -6,6 +6,7 @@
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { injectDevDependency } from '../utils/pkg.js'
+import { formatContent } from '../utils/prettier-format.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -107,12 +108,20 @@ export function generateFrontendQuality(
         dryRun: opts.dryRun,
       }),
       // #1366 (INV-127): render-smoke behavioural spec (TS frontends only).
+      // formatContent (#933 F13) reformats this hand-authored template to the
+      // TARGET project's own .prettierrc BEFORE writing (#1491-class fix — the
+      // raw template's manual line-wrapping did not match a fresh project's
+      // printWidth:100/singleQuote/no-semi style, so `format` RED'd on Day 1).
       ...(renderSmokeSpec !== null
         ? [
-            writeFile(resolvedPath(base, 'tests', 'e2e', 'render-smoke.spec.ts'), renderSmokeSpec, {
-              skipIfExists: true,
-              dryRun: opts.dryRun,
-            }),
+            (() => {
+              const renderSmokePath = resolvedPath(base, 'tests', 'e2e', 'render-smoke.spec.ts')
+              return writeFile(
+                renderSmokePath,
+                formatContent(renderSmokeSpec, renderSmokePath, base),
+                { skipIfExists: true, dryRun: opts.dryRun },
+              )
+            })(),
           ]
         : []),
     ],

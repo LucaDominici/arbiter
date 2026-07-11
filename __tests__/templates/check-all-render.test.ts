@@ -614,7 +614,9 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).toContain("runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']")
+    expect(content).toContain(
+      "runToolCheck('lint:css', 'npx', ['stylelint', '--allow-empty-input', 'src/**/*.css']",
+    )
     // gate-on-present: non-frontend/partial targets won't have .stylelintrc, so CI must not FAIL when it is absent (#352 config emitted by frontend-quality for FE-TS targets, PR #1138)
     expect(content).toContain("if (existsSync('.stylelintrc.json') || existsSync('.stylelintrc'))")
   })
@@ -647,7 +649,9 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).toContain("runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']")
+    expect(content).toContain(
+      "runToolCheck('lint:css', 'npx', ['stylelint', '--allow-empty-input', 'src/**/*.css']",
+    )
   })
 })
 
