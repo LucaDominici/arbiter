@@ -4,7 +4,49 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Language, ProjectConfig } from '../src/wizard/types.js'
 import { presetToTiers, defaultPresetForLevel } from '../src/invariants/filter.js'
+import { acquireLock } from '../src/utils/file-lock.js'
 export { DEFAULT_THRESHOLDS } from '../src/config/schema.js'
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+const DOGFOOD_REPO_MUTATION_LOCK_PATH = join(
+  tmpdir(),
+  'arbiter-check-self-dogfood-repo-mutation.lock',
+)
+
+/**
+ * `check-self-dogfood.test.ts` and `check-self-dogfood-external.test.ts` each
+ * spawn `node scripts/check-self-dogfood.mjs` against the LIVE repo checkout,
+ * and several of those tests transiently mutate a real tracked file (write →
+ * spawn → restore) to prove the gate goes red. Vitest runs different test
+ * files concurrently by default, so without exclusion one file's spawned
+ * check can observe another file's in-flight mutation window — a
+ * load-sensitive cross-file race (same shape as the #1891 SIGKILL-flake-budget
+ * and #1907 dogfood races). Serializes every such test across BOTH files via
+ * the product's own file-lock primitive (`acquireLock` fails fast on
+ * contention, so poll it rather than block-wait).
+ */
+export async function withRealRepoMutationLock<T>(fn: () => T | Promise<T>): Promise<T> {
+  const deadline = Date.now() + 60_000
+  for (;;) {
+    try {
+      const lock = await acquireLock(DOGFOOD_REPO_MUTATION_LOCK_PATH, {
+        staleAgeMs: 5 * 60 * 1000,
+      })
+      try {
+        return await fn()
+      } finally {
+        await lock.release()
+      }
+    } catch (e) {
+      const code = e instanceof Error ? (e as Error & { code?: string }).code : undefined
+      if (code !== 'E_LOCK_BUSY' || Date.now() > deadline) throw e
+      await sleep(100)
+    }
+  }
+}
 
 /**
  * Write the unified task document (`.claude/.task/status.json`) for a test fixture (#1206).
