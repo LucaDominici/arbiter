@@ -177,6 +177,34 @@ describe('generateAgentsMd', () => {
     expect(content).not.toContain('Coverage Gate (JaCoCo)')
   })
 
+  it('includes Pact provider-verification row for a java gradle rest-owned project', () => {
+    generateAgentsMd(
+      makeConfig(dir, { language: 'java', buildTool: 'gradle', contractType: 'rest-owned' }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('Contract Testing (Pact provider verification)')
+    expect(content).toContain("apply from: 'config/pact-deps.gradle'")
+  })
+
+  it('includes OpenAPI exporter row for a java gradle rest-public project', () => {
+    generateAgentsMd(
+      makeConfig(dir, { language: 'java', buildTool: 'gradle', contractType: 'rest-public' }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('Contract Testing (OpenAPI exporter)')
+    expect(content).toContain("id 'org.springdoc.openapi-gradle-plugin' version '1.8.0'")
+    expect(content).toContain("apply from: 'config/export-openapi-java.gradle'")
+  })
+
+  it('omits both contract-testing rows when contractType is none', () => {
+    generateAgentsMd(
+      makeConfig(dir, { language: 'java', buildTool: 'gradle', contractType: 'none' }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).not.toContain('Contract Testing (Pact provider verification)')
+    expect(content).not.toContain('Contract Testing (OpenAPI exporter)')
+  })
+
   it('includes Kover setup row for a kotlin gradle project with debt gates enabled', () => {
     generateAgentsMd(
       makeConfig(dir, { language: 'kotlin', buildTool: 'gradle', enableDebtGates: true }),

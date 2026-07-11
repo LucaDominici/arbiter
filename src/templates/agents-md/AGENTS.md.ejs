@@ -194,6 +194,31 @@ Generated `gradle/jacoco.gradle` wires `jacocoTestCoverageVerification` as a har
 ```groovy
 apply from: 'gradle/jacoco.gradle'
 ```
+<% } %><% if (contractType === 'rest-owned' && buildTool === 'gradle') { %>
+
+### Contract Testing (Pact provider verification)
+
+Generated `config/pact-deps.gradle` wires the Pact provider-verification dependencies + broker system properties (#1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+apply from: 'config/pact-deps.gradle'
+```
+<% } %><% if (contractType === 'rest-public' && buildTool === 'gradle') { %>
+
+### Contract Testing (OpenAPI exporter)
+
+Generated `config/export-openapi-java.gradle` wires the `org.springdoc.openapi-gradle-plugin` + `generateOpenApiDocs` task, producing `contracts/openapi-current.yaml` for the diff test (INV-43, #1887-F).
+
+**Setup**: add to `build.gradle`:
+```groovy
+plugins {
+    id 'org.springdoc.openapi-gradle-plugin' version '1.8.0'
+}
+```
+```groovy
+apply from: 'config/export-openapi-java.gradle'
+```
 <% } %><% } %><% if (language === 'kotlin' && enableDebtGates && buildTool === 'gradle') { %>### Coverage Gate (Kover)
 
 Generated `kover.gradle` wires `koverVerify`/`koverXmlReport` as a hard gate (#1887-F).

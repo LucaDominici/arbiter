@@ -1,8 +1,8 @@
 // OpenAPI exporter — generates contracts/openapi-current.yaml (INV-43)
 // Run: ./gradlew generateOpenApiDocs
-plugins {
-    id 'org.springdoc.openapi-gradle-plugin' version '1.8.0'
-}
+// #1887-F: the org.springdoc.openapi-gradle-plugin declaration lives in the root
+// build's plugins block (arbiter-managed) — Gradle forbids a `plugins {}` block
+// inside an applied script (apply from: 'config/export-openapi-java.gradle').
 
 openApi {
     apiDocsUrl = 'http://localhost:8080/v3/api-docs'
