@@ -314,14 +314,6 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     purpose: 'Allow a release-channel downgrade without an interactive TTY prompt.',
     isGateBypass: true,
   },
-  // ── probe↔writer alignment audit (#1707) ────────────────────────────────
-  {
-    name: 'ARBITER_AUDIT_CELLS',
-    type: 'string',
-    purpose:
-      'Override the probe↔writer audit matrix with `archetype:level:language,...` (scripts/probe-writer-audit.mjs). Empty/absent → the default representative matrix.',
-    isGateBypass: false,
-  },
 ]
 
 const FLAG_BY_NAME: ReadonlyMap<string, EnvFlag> = new Map(
