@@ -16,7 +16,11 @@ const workflows = [
   ['07-weekly.yml', 'github/workflows/07-weekly.yml.ejs'],
   ['_nightly.yml', 'github/workflows/_nightly.yml.ejs'],
   ['_weekly.yml', 'github/workflows/_weekly.yml.ejs'],
-  ['_shared-security.yml', 'github/workflows/_shared-security.yml.ejs'],
+  // _shared-security.yml excluded (A3, wave1 action plan): self intentionally
+  // removes the dast-full job (no functional DAST target — arbiter is a CLI,
+  // not a service). Approved + diff-pinned via .dogfood-divergences.json
+  // (CANON-14) and covered by check-self-dogfood.mjs, which — unlike this
+  // exact-match test — has an escape hatch for a reviewed, intentional diff.
   ['08-monthly.yml', 'github/workflows/08-monthly.yml.ejs'],
   ['09-heartbeat.yml', 'github/workflows/09-heartbeat.yml.ejs'],
   ['_notify.yml', 'github/workflows/_notify.yml.ejs'],
