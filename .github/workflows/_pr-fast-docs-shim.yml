@@ -33,4 +33,5 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 5
     steps:
-      - run: echo "docs-only change (or docs subset of a mixed PR) — 01-pr-fast.yml's paths-ignore excludes this path set; reporting the required context so the PR can leave BLOCKED. See #1878."
+      - run: |
+          echo "docs-only change (or docs subset of a mixed PR) — 01-pr-fast.yml's paths-ignore excludes this path set; reporting the required context so the PR can leave BLOCKED. See #1878."

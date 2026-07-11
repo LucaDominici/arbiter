@@ -24,6 +24,16 @@ paths = [
   # false-positives on the hex hash values (matches the same
   # `"<key>": "<hex>"` shape as a real key); these are hashes, not secrets.
   '''examples/(ts|python|go)-library/\.arbiter-generated-manifest\.json''',
+  # #1908: `__tests__/integration/e2e/bake/__snapshots__/*.json` are vitest
+  # golden-master snapshot fixtures asserting byte-for-byte bake output
+  # stability (#1328/#1840). Each carries a `contentHashes` map of
+  # `"<emitted-file-path>": "<sha256-hex-digest>"`. Same false-positive shape
+  # as the manifest allowlist above — the default `generic-api-key` rule
+  # misreads the hex digest as a key. These are content hashes of generated
+  # test fixtures, never hand-authored, never secrets. Structural fix for the
+  # false-positive class (any future golden-master snapshot commit would
+  # otherwise retrigger it) — see arbiter#1908.
+  '''__tests__/integration/e2e/bake/__snapshots__/.*\.json''',
 ]
 
 # Paths that gitleaks scans are controlled via .gitleaksignore
