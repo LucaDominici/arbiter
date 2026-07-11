@@ -1,8 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { renderTemplate } from '../../../src/utils/render.js'
 import { makeConfig } from '../../helpers.js'
 
@@ -16,7 +12,6 @@ const SCRIPT_TEMPLATES = [
   'scripts/check-knowledge-map.mjs.ejs',
   'scripts/check-canonical-paths.mjs.ejs',
   'scripts/knowledge-map-update.mjs.ejs',
-  'scripts/harness.mjs.ejs',
 ] as const
 
 describe('SSOT script templates (#255)', () => {
@@ -48,30 +43,6 @@ describe('SSOT script templates (#255)', () => {
       })
     })
   }
-
-  it('harness.mjs.ejs references all 4 gate scripts', () => {
-    const out = renderTemplate('scripts/harness.mjs.ejs', cfg())
-    expect(out).toContain('check-ssot-core')
-    expect(out).toContain('check-doc-links')
-    expect(out).toContain('check-knowledge-map')
-    expect(out).toContain('check-canonical-paths')
-  })
-
-  it('rendered harness.mjs exits 1 when no gate scripts are present — vacuous-green floor (#1652)', () => {
-    const out = renderTemplate('scripts/harness.mjs.ejs', cfg())
-    const dir = mkdtempSync(join(tmpdir(), 'harness-tmpl-'))
-    try {
-      // PROJECT_ROOT = join(__dirname, '..'); gates resolve under scripts/.
-      mkdirSync(join(dir, 'scripts'), { recursive: true })
-      const scriptPath = join(dir, 'scripts', 'harness.mjs')
-      writeFileSync(scriptPath, out)
-      const r = spawnSync('node', [scriptPath], { encoding: 'utf-8' })
-      expect(r.status).toBe(1)
-      expect((r.stdout ?? '') + (r.stderr ?? '')).toMatch(/nothing was verified|no SSOT gate/i)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
 
   it('check-ssot-core.mjs.ejs references SSOT_CORE_SET.md', () => {
     const out = renderTemplate('scripts/check-ssot-core.mjs.ejs', cfg())

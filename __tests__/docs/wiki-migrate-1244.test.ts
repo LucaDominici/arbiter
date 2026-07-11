@@ -137,14 +137,16 @@ describe('#1244 — bespoke knowledge-map retired', () => {
     expect(existsSync(r('__tests__/scripts/check-knowledge-map.test.ts'))).toBe(false)
     expect(existsSync(r('__tests__/scripts/knowledge-map-update.test.ts'))).toBe(false)
   })
-  it("'knowledge map' check is unregistered from the gate + parity + harness", () => {
+  it("'knowledge map' check is unregistered from the gate + parity", () => {
+    // scripts/harness.mjs was ALSO removed outright (A4, wave1 action plan —
+    // redundant aggregator of gates already individually wired in check-all.mjs),
+    // so there is no third file left to assert against here.
     expect(readFileSync(r('scripts/check-all.mjs'), 'utf-8')).not.toContain(
       'check-knowledge-map.mjs',
     )
     expect(readFileSync(r('scripts/check-local-ci-parity.mjs'), 'utf-8')).not.toContain(
       "'knowledge map'",
     )
-    expect(readFileSync(r('scripts/harness.mjs'), 'utf-8')).not.toContain('check-knowledge-map')
   })
   it('INV-56 is retired as a tombstone (status:retired) per ID-STABILITY, not deleted', () => {
     const catalog = readFileSync(r('src/invariants/catalog.ts'), 'utf-8')

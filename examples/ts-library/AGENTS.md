@@ -1146,6 +1146,12 @@ Installed Claude Code skills detected at init time. These replace the correspond
 | `project-bootstrap:ln-912-community-announcer` | project-bootstrap | — | — |
 | `project-bootstrap:ln-913-community-debater` | project-bootstrap | — | — |
 | `project-bootstrap:ln-914-community-responder` | project-bootstrap | — | — |
+| `ponytail:ponytail` | ponytail | — | — |
+| `ponytail:ponytail-audit` | ponytail | — | — |
+| `ponytail:ponytail-debt` | ponytail | — | — |
+| `ponytail:ponytail-gain` | ponytail | — | — |
+| `ponytail:ponytail-help` | ponytail | — | — |
+| `ponytail:ponytail-review` | ponytail | — | — |
 | `claude-mem:mem-search` | claude-mem | — | — |
 | `web-asset-generator:web-asset-generator` | web-asset-generator | — | — |
 | `user:codebase-audit` | user | — | — |

@@ -84,14 +84,5 @@ export function generateSsot(
     )
   }
 
-  // harness.mjs — convenience runner for all four SSOT gates (#255)
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'harness.mjs'),
-      renderTemplate('scripts/harness.mjs.ejs', data),
-      { skipIfExists: true, dryRun: opts.dryRun },
-    ),
-  )
-
   return { files: results }
 }

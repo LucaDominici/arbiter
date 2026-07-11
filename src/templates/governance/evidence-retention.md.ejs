@@ -16,7 +16,7 @@ Local copies are pruned after upload. Ensure bucket credentials are configured.
 
 | Script | Purpose | When to run |
 | --- | --- | --- |
-| `scripts/evidence-rotate.mjs` | Automated rotation — keeps last N runs | Called by task harness after each run |
+| `scripts/evidence-rotate.mjs` | Rotation — keeps last N runs, removes older ones | Manual tool — run as needed by maintainer, or wire into CI/a hook if you want automatic rotation |
 | `scripts/evidence-prune.mjs` | Manual maintenance — supports --keep-last, --keep-days, --dry-run | Run as needed by maintainer |
 
 ## Usage

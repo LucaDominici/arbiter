@@ -11,7 +11,23 @@ related: []
 
 # Real-Project Testing
 
-Arbiter's nightly CI workflow (`real-project-matrix.yml`) stages minimal real-project fixtures and runs the full pipeline — `arbiter init → arbiter verify → check-all.mjs` — against each one. This document explains how the system works, how to add a new fixture, and how to debug failures.
+> **STALE (found during A4, wave1 action plan):** `real-project-matrix.yml` and
+> `__tests__/scripts/real-project-matrix-workflow.test.ts`, referenced throughout
+> this page, do not exist in this repo — confirmed by exhaustive grep. The
+> `manifest.json`-driven fixture set under `__tests__/fixtures/real-projects/`
+> IS real and current, but its actual consumers today are the vitest harnesses
+> in `__tests__/integration/e2e/bake/` (structure-only) and
+> `__tests__/integration/e2e/functional/` (executes the generated gate) — not a
+> GitHub Actions workflow. `scripts/build-matrix.mjs` and
+> `scripts/aggregate-matrix-result.mjs`, which this page's "How It Works"
+> section names, were removed as zero-invoker dead code (A4) — nothing in the
+> repo ever called them. The rest of this page (fixture schema, adding a
+> fixture, dog-fooding locally, troubleshooting) has not been re-audited against
+> the vitest harnesses and may also be stale; treat it as unverified until a
+> dedicated pass reconciles it. Tracked for follow-up — not fixed wholesale here
+> (out of scope for a dead-code-removal pass).
+
+Arbiter's real-project fixtures exercise the full pipeline — `arbiter init → arbiter verify → check-all.mjs` — against each one. This document explains how the system works, how to add a new fixture, and how to debug failures.
 
 See ADR-027 for the architectural rationale.
 
@@ -19,25 +35,19 @@ See ADR-027 for the architectural rationale.
 
 ## How It Works
 
+The vitest harnesses (see stale-notice above) drive each fixture through the
+same pipeline shape, in-process rather than via a GitHub Actions matrix:
+
 ```
-discover job
-  └─ node scripts/build-matrix.mjs
-       reads __tests__/fixtures/real-projects/*/manifest.json
-       emits { include: [ { fixture, language, level, archetype } … ] }
+fixture-bake.test.ts (structure only — no gate exec)
+  reads __tests__/fixtures/real-projects/*/manifest.json (loadFixtureManifest)
+  runs `arbiter init` in-process, snapshots the generated file set + content hashes
 
-run job (matrix fan-out, one cell per fixture × level)
-  ├─ checkout + build arbiter
-  ├─ install per-language toolchain (setup-java/go/python/rust)
-  ├─ install extra L2 binaries when the generated gate requires them
-  ├─ cp fixture → $RUNNER_TEMP/project
-  ├─ node dist/cli.js init --yes --no-verify --level=$LEVEL
-  ├─ node dist/cli.js verify
+fixture-functional.test.ts (executes the generated gate)
+  ├─ stage fixture → tmpdir (stageFixture)
+  ├─ `arbiter init` in-process
+  ├─ install per-language deps
   └─ node scripts/check-all.mjs $LEVEL  (inside the staged project)
-
-aggregate job
-  └─ node scripts/aggregate-matrix-result.mjs
-       queries GitHub Jobs API for this run
-       asserts ≥10 cells with conclusion=success
 ```
 
 At L1, the workflow only needs the language toolchain plus Node for Arbiter itself. At L2, the staged project executes the full generated gate, so the runner must also provide the binaries that the generated project expects to call. The current nightly workflow installs these explicitly rather than assuming they are present on `docker-ci-build`.
@@ -297,7 +307,7 @@ Your fixture must include the appropriate marker file for detection to work.
 2. Add a valid `manifest.json` (see schema above).
 3. Add a real build config + source + test. The test must pass with `go test ./...` / `cargo test` / `pytest` / `npm test` / `./gradlew test`.
 4. Run `node scripts/check-matrix-fixtures.mjs` locally — it should exit 0.
-5. Run `node scripts/build-matrix.mjs` — confirm your fixture appears in the output.
+5. Run the relevant vitest harness (`fixture-bake.test.ts` / `fixture-functional.test.ts`, `VITEST_L2=1`) — confirm your fixture is picked up (`loadFixtureManifest`/`listFixtures`).
 6. Dog-food locally (see below).
 
 If you are adding a language that is already listed as "proven" in `src/compatibility/cross-language-matrix.json`, the L1 gate (`check-matrix-fixtures.mjs`) already requires a fixture for that language. Your new fixture satisfies that requirement.

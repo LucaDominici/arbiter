@@ -159,6 +159,14 @@ if (existsSync('eslint.config.static.mjs')) {
 } else {
   console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
 }
+// ─── L1: No fake-db imports in test files (INV-34, #1887-D) ─────────────────
+// Isolated flat config, same reasoning as static analysis above — the legacy
+// .eslintrc-no-fake-db.json cannot be loaded by ESLint v9. Emitted by
+// generateIntegrationTesting only when hasDatabase, so the guard is graceful
+// on a project without a database (never emitted there).
+if (existsSync('eslint.config.no-fake-db.mjs')) {
+  runCheck('no-fake-db imports (INV-34)', 'npx', ['eslint', '--config', 'eslint.config.no-fake-db.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', '.']);
+}
 runCheck('unit tests', 'npm', ['run', 'test:unit']);
 // ─── L1: npm-ci lockfile drift under the pinned npm (#1684) ────────────────────
 // Verifies `npm ci` would succeed under the npm pinned in package.json#packageManager,
@@ -397,6 +405,8 @@ runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mj
 // Service archetypes (api-e2e.json required:true) must ship a non-mocked suite that
 // boots the real binary; required:false / absent manifest ⇒ runtime SKIP.
 runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs']);
+// ─── L1: domain<->API surface-completeness gate (INV-125, #1367) ─────────────
+
 // ─── L1: frontend render-smoke presence gate (INV-127, #1366) ────────────────
 // Fails-closed when a frontend archetype (or `frontend` lane) ships without a
 // render-smoke behavioural spec. Self-SKIPs for non-frontend / ungoverned repos.

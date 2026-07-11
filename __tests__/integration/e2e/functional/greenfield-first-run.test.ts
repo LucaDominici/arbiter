@@ -25,16 +25,50 @@
 // on a real violation, so this harness cannot be satisfied by a gate that always
 // exits 0 (Terraform-acceptance: green on clean AND red on a seeded violation).
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { missingBinaries } from '../helpers.js'
 
 const L2 = process.env.VITEST_L2 === '1'
 const REPO_ROOT = process.cwd()
-const CLI = join(REPO_ROOT, 'dist', 'cli.js')
 const CLI_MISSING_REASON = 'dist/cli.js not built (run `npm run build` first)'
+
+// Isolate this file's dist/cli.js from a genuine hazard: packaged-artifact.test.ts
+// runs `npm pack`, which triggers the `prepack` lifecycle script (`npm run build`
+// → `rm -rf dist && …`). vitest runs integration test FILES concurrently (forks
+// pool), so that rebuild can delete/recreate the repo's shared dist/ WHILE this
+// file's spawned `node dist/cli.js` calls are mid-flight, MODULE_NOT_FOUND-ing
+// them. No other file depended on dist/cli.js directly (the rest use in-process
+// runInit()), so the hazard was latent until this file — the one the task
+// specifically requires to go through the REAL packaged entry point. Fix: copy
+// dist/ once into a process-private dir this file owns exclusively. Must stay
+// INSIDE the repo tree (under .arbiter/, already gitignored wholesale) rather
+// than os.tmpdir() — cli.js's bare imports (commander, ejs, …) resolve via
+// Node's standard upward node_modules walk, which only finds REPO_ROOT's
+// node_modules if the copy has REPO_ROOT as an ancestor.
+const distSourceMissing = !existsSync(join(REPO_ROOT, 'dist', 'cli.js'))
+let privateDistDir: string | null = null
+let CLI = join(REPO_ROOT, 'dist', 'cli.js')
+if (!distSourceMissing) {
+  mkdirSync(join(REPO_ROOT, '.arbiter'), { recursive: true })
+  privateDistDir = mkdtempSync(join(REPO_ROOT, '.arbiter', 'greenfield-dist-'))
+  cpSync(join(REPO_ROOT, 'dist'), privateDistDir, { recursive: true })
+  CLI = join(privateDistDir, 'cli.js')
+}
+
+afterAll(() => {
+  if (privateDistDir != null) rmSync(privateDistDir, { recursive: true, force: true })
+})
 
 function initGit(dir: string): void {
   execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })

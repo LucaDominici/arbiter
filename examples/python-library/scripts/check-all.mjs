@@ -352,6 +352,8 @@ runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mj
 // Service archetypes (api-e2e.json required:true) must ship a non-mocked suite that
 // boots the real binary; required:false / absent manifest ⇒ runtime SKIP.
 runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs']);
+// ─── L1: domain<->API surface-completeness gate (INV-125, #1367) ─────────────
+
 // ─── L1: frontend render-smoke presence gate (INV-127, #1366) ────────────────
 // Fails-closed when a frontend archetype (or `frontend` lane) ships without a
 // render-smoke behavioural spec. Self-SKIPs for non-frontend / ungoverned repos.

@@ -15,15 +15,9 @@ export interface DeprecatedFlagRecord {
 // warn  → print deprecation notice; flag still works.
 // hide  → print notice + suppress flag from --help output.
 // remove → reject with error pointing to replacement.
-export const CLI_DEPRECATED_FLAGS: readonly DeprecatedFlagRecord[] = [
-  // ADR-103 (#1873): ship --batch is the second multi-issue loop (ADR-093 disease).
-  // /drain (wave-drain skill) is the canonical multi-issue entrypoint. The batch
-  // seam (IssueRunner, runShipBatch) stays sync and untouched until removal.
-  {
-    flag: '--batch',
-    stage: 'warn',
-    deprecatedIn: '0.4.0',
-    removeIn: '0.6.0',
-    replacement: '/drain (wave-drain skill)',
-  },
-]
+//
+// A4 (wave1 action plan): ship --batch (ADR-103, #1873) reached its removeIn
+// (0.6.0) and was deleted outright (src/batch/, cli.ts wiring) rather than
+// transitioned through the hide/remove stages — see docs/DEPRECATIONS.md
+// Closed/Removed table.
+export const CLI_DEPRECATED_FLAGS: readonly DeprecatedFlagRecord[] = []

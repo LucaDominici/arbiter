@@ -19,7 +19,17 @@
     "selfValidationHarness": true,
     "auditToolchain": false,
     "fiveLaneCi": false,
-    "soloDevMode": false
+    "soloDevMode": false,
+    "mcpFallback": false,
+    "noSkippedTests": true,
+    "riskRegister": false,
+    "operationsHandbook": false,
+    "iso27001Mapping": false,
+    "nis2Mapping": false,
+    "gdprMapping": false,
+    "codeownersNotify": false,
+    "taxonomy25d": false,
+    "perfTesting": false
   },
   "collaborationMode": "peer-review",
   "automation": {
