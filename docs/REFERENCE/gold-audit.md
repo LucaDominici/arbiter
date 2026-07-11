@@ -159,11 +159,15 @@ score and dimension table render into `GOLD-REPORT.md` via `scripts/gold-report.
 - **`/gold-audit`** (#1420) — read-only measurement front door. Runs `arbiter gold-audit --json` and
   reports the level band + a prioritized "what's missing" list (N/P checks grouped by family, with
   evidence). It never re-scores (no AI scoring) and never changes code.
-- **`/close-gold-gap`** (#1422) + `arbiter close-gold-gap <gapId>` — emits the deterministic remediation
-  recipe for one gap, keyed on the check's `type`/`dimension` via `src/remediations/playbook-catalog.json`.
-  Anti-fake-green is **structural**: `manual`/NV checks route to human-only playbooks (no code recipe), a
-  doc-set scaffold-only recipe yields verdict P (presence ≠ closure), and no recipe contains a suppression
-  step. The `/levelup` orchestrator (#1421) consumes this catalog to raise the level honestly, wave by wave.
+- **`/close-gold-gap`** (#1422) — emits the deterministic remediation recipe for one gap, keyed on the
+  check's `type`/`dimension` via a remediation catalog. **Known gap:** the `close-gold-gap` CLI command
+  and its `src/remediations/` catalog were removed in the T2 command-surface cut — the emitted
+  `close-gold-gap` skill/command templates still invoke `npx @arbiter/cli close-gold-gap <gapId>`, which
+  no longer resolves. Treat this as a bug pending a follow-up (re-implement the command, or rewrite the
+  skill to a manual recipe lookup). Anti-fake-green was **structural** by design: `manual`/NV checks
+  route to human-only playbooks (no code recipe), a doc-set scaffold-only recipe yields verdict P
+  (presence ≠ closure), and no recipe contains a suppression step. The `/levelup` orchestrator (#1421)
+  consumed this catalog to raise the level honestly, wave by wave — also affected by the same gap.
 
 ## Downstream generation (#1419)
 

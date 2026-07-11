@@ -12,7 +12,7 @@ related: []
 # Task Recovery Reference
 
 **Issues:** #690, #694, #1206
-**Commands:** `arbiter task resume`, `arbiter mark`, `arbiter task recover`, `arbiter ship`
+**Commands:** `arbiter task resume`, `arbiter task recover`, `arbiter ship`
 
 Use this when a session interrupted mid-task and you need to know where to pick up.
 
@@ -25,22 +25,33 @@ arbiter task resume
 ```
 
 Reads the unified task document (`.claude/.task/status.json`, see below) and prints where to resume.
-If a step-cursor was set with `arbiter mark`, resume lands on the **exact** next action; otherwise it
-falls back to phase-level recovery guidance.
+If a step-cursor was set, resume lands on the **exact** next action; otherwise it falls back to
+phase-level recovery guidance.
 
 ---
 
-## Pinpoint resume — `arbiter mark` (#1206)
+## Pinpoint resume — the step-cursor (#1206)
 
 `arbiter task resume` is phase-granular by default. For an interrupted session to resume at the EXACT
-sub-step (not "you were somewhere in green"), drop a step-cursor as you work:
+sub-step (not "you were somewhere in green"), drop a step-cursor as you work.
 
-```bash
-arbiter mark --tdd GREEN \
-  --last "wrote failing test for validateEmail" \
-  --next "implement validateEmail in src/validators.ts" \
-  --digest "green: stubbing validateEmail"
+**Known gap:** the "arbiter mark" command that used to write this cursor was removed in the T2
+command-surface cut (`src/commands/task-mark.ts` deleted) — there is no CLI replacement. The `cursor`
+field is still read by `resume` (see the `status.json` schema below), so until a replacement command
+lands, set it by merging directly into `.claude/.task/status.json`:
+
+```json
+{
+  "cursor": {
+    "tddPhase": "GREEN",
+    "lastAction": "wrote failing test for validateEmail",
+    "nextAction": "implement validateEmail in src/validators.ts"
+  }
+}
 ```
+
+(a shallow merge into the existing document — never overwrite the whole file). Optionally append a
+one-line entry to `.claude/.task/log.md` yourself; there is no `--digest` flag anymore either.
 
 After a mid-task `/clear`, `arbiter task resume` reads the cursor from disk and prints:
 
@@ -51,7 +62,7 @@ Next action: implement validateEmail in src/validators.ts
 ```
 
 The cursor lives in the single unified document, so resume is exact — not inferred from the
-filesystem. `--digest` also appends a one-line entry to `.claude/.task/log.md`.
+filesystem.
 
 ---
 
@@ -127,7 +138,7 @@ git commit -m "CHECKPOINT(#694): refactor dispatch.ts before context window fill
 | `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter task advance --to red-team-rework`; clear → `--to red`          |
 | _(handoff boundary)_         | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter ship #NNN --advance --post-clear --units <N>`; see `docs/REFERENCE/recipes/cost-optimized-phase-handoff.md` |
 | `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter task advance --to red-team-review`; or full replan: `--to plan`                                    |
-| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter task resume` (lands on the cursor if `arbiter mark` was used); run `node scripts/check-all.mjs L1`                            |
+| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter task resume` (lands on the cursor if one was set — see the known gap above); run `node scripts/check-all.mjs L1`              |
 | `verification`               | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; fix failures; commit and push                                                                  |
 | `complete`                   | Task done                                             | Verify PR created: `gh pr list --head $(git branch --show-current)`; confirm issue closed                                              |
 
@@ -142,7 +153,7 @@ the legacy files migrates it transparently (seed + delete) on first access.
 
 ```
 .claude/.task/status.json   structured state — single atomic writer
-.claude/.task/log.md         append-only digest (every phase transition + every `arbiter mark`)
+.claude/.task/log.md         append-only digest (every phase transition + every cursor update)
 ```
 
 `status.json` schema:
@@ -166,20 +177,20 @@ the legacy files migrates it transparently (seed + delete) on first access.
 }
 ```
 
-| Field                  | Description                                                                |
-| ---------------------- | -------------------------------------------------------------------------- |
-| `taskId`               | Active task id (was `.task-id`)                                            |
-| `phase`                | Current lifecycle phase — authoritative, single writer (was `.task-phase`) |
-| `tier`                 | Task tier XS/S/Standard (was `.task-tier`)                                 |
-| `plan`                 | Repo-relative path to the plan file (was `.task-plan`)                     |
-| `cursor`               | Step-cursor written by `arbiter mark` — drives pinpoint resume             |
-| `handoffStrategy`      | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy  |
-| `handoffReady`         | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)      |
-| `planningHandoffReady` | ISO timestamp when the interactive handoff gate was triggered              |
-| `postClearResumed`     | ISO timestamp set after a successful post-clear re-entry                   |
-| `timestamps`           | ISO timestamps per phase entered (accumulated across sessions)             |
-| `runId`                | `<pid>-<epoch-ms>` — unique per process invocation                         |
-| `gateDecisions`        | Gate pass/fail records                                                     |
+| Field                  | Description                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `taskId`               | Active task id (was `.task-id`)                                                   |
+| `phase`                | Current lifecycle phase — authoritative, single writer (was `.task-phase`)        |
+| `tier`                 | Task tier XS/S/Standard (was `.task-tier`)                                        |
+| `plan`                 | Repo-relative path to the plan file (was `.task-plan`)                            |
+| `cursor`               | Step-cursor (no CLI writer since the T2 cut — see above) — drives pinpoint resume |
+| `handoffStrategy`      | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy         |
+| `handoffReady`         | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)             |
+| `planningHandoffReady` | ISO timestamp when the interactive handoff gate was triggered                     |
+| `postClearResumed`     | ISO timestamp set after a successful post-clear re-entry                          |
+| `timestamps`           | ISO timestamps per phase entered (accumulated across sessions)                    |
+| `runId`                | `<pid>-<epoch-ms>` — unique per process invocation                                |
+| `gateDecisions`        | Gate pass/fail records                                                            |
 
 Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
 update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file

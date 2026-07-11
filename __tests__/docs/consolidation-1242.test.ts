@@ -122,7 +122,14 @@ describe('#1242 KEEP-CORE consolidation — targets exist with merged content', 
 // repurposed as a brand-new public quickstart doc, so its #1242 "merged-away
 // original stays deleted" check no longer applies — the path is inhabited by
 // design, not by regression.
-const REPURPOSED_SOURCES = new Set<string>(['docs/QUICKSTART.md'])
+//
+// Convergence T3 (commit 69828e59, 2026-07-11): docs/architecture/README.md is
+// likewise repurposed — it is now the index for the brand-new GOLD
+// docs/architecture/{arc42,c4-model,adr-index,README}.md set (referenced as
+// EXECUTION-PLAYBOOK.md's own "photograph" input), unrelated in content to the
+// pre-#1242 docs/architecture/README.md this MERGES table describes. Ground
+// truth (§7 of the playbook) wins over the stale path-collision assumption.
+const REPURPOSED_SOURCES = new Set<string>(['docs/QUICKSTART.md', 'docs/architecture/README.md'])
 
 describe('#1242 merged-away originals are deleted (no duplicate authority)', () => {
   // ENGINEERING_DEFAULTS.md is an existing target (kept) — exclude it from the delete set.

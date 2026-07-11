@@ -59,15 +59,15 @@ tied to the current branch and SHA) is rejected like a failing gate.
 
 ### 1.1 Top three requirements (the "three primitives")
 
-| # | Primitive | What it guarantees |
-|---|-----------|--------------------|
-| 1 | **Self-installing governance** | One `arbiter init` emits a canonical `AGENTS.md` + thin per-tool overlays + hooks + gates + CI, idempotently re-runnable, deletable with `rm`. |
-| 2 | **Gate-blocked task lifecycle** | Work moves through a fixed, machine-checked phase sequence (plan → red → green → verify → ship); each advance runs that phase's gate and refuses to move forward on red. |
-| 3 | **Evidence-gated "done"** | Completion requires correlated artifacts (TDD evidence, dispatched-agents record, gate-pass stamp); the `stop-evidence-guard` hook (INV-114) blocks claims without them. |
+| #   | Primitive                       | What it guarantees                                                                                                                                                       |
+| --- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **Self-installing governance**  | One `arbiter init` emits a canonical `AGENTS.md` + thin per-tool overlays + hooks + gates + CI, idempotently re-runnable, deletable with `rm`.                           |
+| 2   | **Gate-blocked task lifecycle** | Work moves through a fixed, machine-checked phase sequence (plan → red → green → verify → ship); each advance runs that phase's gate and refuses to move forward on red. |
+| 3   | **Evidence-gated "done"**       | Completion requires correlated artifacts (TDD evidence, dispatched-agents record, gate-pass stamp); the `stop-evidence-guard` hook (INV-114) blocks claims without them. |
 
 ### 1.2 Quality goals (top 5)
 
-1. **Un-fakeable gates** — every gate is *fail-closed* and *anti-fake-green*: a gate that "looks
+1. **Un-fakeable gates** — every gate is _fail-closed_ and _anti-fake-green_: a gate that "looks
    installed but does not bite" is the primary failure mode the whole design guards against.
 2. **Zero telemetry / zero lock-in** — no network beacons, no server, no database; uninstall is a
    file operation.
@@ -79,29 +79,29 @@ tied to the current branch and SHA) is rejected like a failing gate.
 
 ### 1.3 Stakeholders
 
-| Stakeholder | Concern |
-|-------------|---------|
-| Developer (human) | Bootstrap + configure governance; audit its completeness (`gold-audit`). |
-| AI coding agent (Claude Code / Codex) | Drive the `/ship` and `/drain` loops under machine-checked constraints. |
-| Reviewer / auditor | Read a single canonical governance file; trust that claims are evidence-backed. |
-| Maintainers of arbiter | Extend generators/invariants under the dual-track contract without drift. |
+| Stakeholder                           | Concern                                                                         |
+| ------------------------------------- | ------------------------------------------------------------------------------- |
+| Developer (human)                     | Bootstrap + configure governance; audit its completeness (`gold-audit`).        |
+| AI coding agent (Claude Code / Codex) | Drive the `/ship` and `/drain` loops under machine-checked constraints.         |
+| Reviewer / auditor                    | Read a single canonical governance file; trust that claims are evidence-backed. |
+| Maintainers of arbiter                | Extend generators/invariants under the dual-track contract without drift.       |
 
 ---
 
 ## 2. Architecture Constraints
 
-| # | Constraint | Source |
-|---|-----------|--------|
-| C1 | **Runtime is TypeScript on Node ≥ 22**, single CLI process, ESM. | ADR-006; `package.json` engines |
-| C2 | **`gh` CLI is the only hard external dep** for GitHub features; **CLI-first over MCP**. | ADR-003, ADR-020 |
-| C3 | **No telemetry, no unsolicited network calls.** Enforced by `check-anti-telemetry.mjs`. | `PRIVACY.md`; INV set |
-| C4 | **`AGENTS.md` is the single canonical governance file**; all tool configs are thin pointers that must not duplicate its content. | ADR-001, ADR-002 |
-| C5 | **EJS is the only template engine** (554 `.ejs` files); JS interpolation, no custom DSL. | ADR-009 |
-| C6 | **Dual-track contract** — every framework capability ships as arbiter-self (Track A) *and* generator template (Track B) in the **same PR**. | CANON-01, ARCHITECTURE §Dual-Track |
-| C7 | **Generated files are ordinary + deletable**; write strategies are `backup` / `skipIfExists` / deep-merge only. | ADR-004, ADR-005, ADR-011 |
-| C8 | **The `check-all.mjs` gate runs without a build step** and cannot import from `src/` (must stay portable into target repos). | `scripts/check-all.mjs:29` |
-| C9 | **The orchestration engine cannot write code or dispatch review sub-agents** — it computes the next step; the model-side driver does the work. | `task-ship.ts:3-10`; ADR-088/093 |
-| C10 | **Ceremony scales on issue SIZE/TIER, never on model identity** — model-tier gating is deliberately removed and refused re-entry. | `AGENTS.md §Model-Pyramid`; §11 |
+| #   | Constraint                                                                                                                                     | Source                             |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| C1  | **Runtime is TypeScript on Node ≥ 22**, single CLI process, ESM.                                                                               | ADR-006; `package.json` engines    |
+| C2  | **`gh` CLI is the only hard external dep** for GitHub features; **CLI-first over MCP**.                                                        | ADR-003, ADR-020                   |
+| C3  | **No telemetry, no unsolicited network calls.** Enforced by `check-anti-telemetry.mjs`.                                                        | `PRIVACY.md`; INV set              |
+| C4  | **`AGENTS.md` is the single canonical governance file**; all tool configs are thin pointers that must not duplicate its content.               | ADR-001, ADR-002                   |
+| C5  | **EJS is the only template engine** (554 `.ejs` files); JS interpolation, no custom DSL.                                                       | ADR-009                            |
+| C6  | **Dual-track contract** — every framework capability ships as arbiter-self (Track A) _and_ generator template (Track B) in the **same PR**.    | CANON-01, ARCHITECTURE §Dual-Track |
+| C7  | **Generated files are ordinary + deletable**; write strategies are `backup` / `skipIfExists` / deep-merge only.                                | ADR-004, ADR-005, ADR-011          |
+| C8  | **The `check-all.mjs` gate runs without a build step** and cannot import from `src/` (must stay portable into target repos).                   | `scripts/check-all.mjs:29`         |
+| C9  | **The orchestration engine cannot write code or dispatch review sub-agents** — it computes the next step; the model-side driver does the work. | `task-ship.ts:3-10`; ADR-088/093   |
+| C10 | **Ceremony scales on issue SIZE/TIER, never on model identity** — model-tier gating is deliberately removed and refused re-entry.              | `AGENTS.md §Model-Pyramid`; §11    |
 
 ---
 
@@ -113,38 +113,38 @@ diagram.
 
 ### 3.1 External interfaces
 
-| Partner | Direction | Interface |
-|---------|-----------|-----------|
-| Developer | in | CLI commands (`init`, `configure`, `ship`, `gold-audit`, `worktree`, …) |
-| AI coding agent | in/out | `/ship`, `/drain` slash commands (generated); reads `AGENTS.md`; writes `.arbiter/` evidence |
-| Target repository | out | Generated files (`AGENTS.md`, `.claude/`, `.agents/`, `.github/`, `scripts/check-all.mjs`) |
-| GitHub | in/out | Issues, PRs, labels, branch protection (via `gh`) |
-| CI runners (GitHub Actions) | out | Emitted workflows mirror the local gate |
-| Stack toolchains | out (invoked) | `eslint`/`ruff`/`clippy`/`gofmt`/`gradle`, `jscpd`, `knip`, `madge`, `trivy`, `gitleaks` |
-| npm registry | in | Distribution of `@arbiter/cli` |
+| Partner                     | Direction     | Interface                                                                                    |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- |
+| Developer                   | in            | CLI commands (`init`, `configure`, `ship`, `gold-audit`, `worktree`, …)                      |
+| AI coding agent             | in/out        | `/ship`, `/drain` slash commands (generated); reads `AGENTS.md`; writes `.arbiter/` evidence |
+| Target repository           | out           | Generated files (`AGENTS.md`, `.claude/`, `.agents/`, `.github/`, `scripts/check-all.mjs`)   |
+| GitHub                      | in/out        | Issues, PRs, labels, branch protection (via `gh`)                                            |
+| CI runners (GitHub Actions) | out           | Emitted workflows mirror the local gate                                                      |
+| Stack toolchains            | out (invoked) | `eslint`/`ruff`/`clippy`/`gofmt`/`gradle`, `jscpd`, `knip`, `madge`, `trivy`, `gitleaks`     |
+| npm registry                | in            | Distribution of `@arbiter/cli`                                                               |
 
 ### 3.2 Out of scope
 
 Arbiter does **not**: deploy or release the target application (`/ship` = "drive an issue to a merged
-PR", explicitly *not* deploy); run as a hosted service; store any state server-side; measure or
+PR", explicitly _not_ deploy); run as a hosted service; store any state server-side; measure or
 select AI model tiers.
 
 ---
 
 ## 4. Solution Strategy
 
-| Goal (from §1.2) | Strategy | Realized by |
-|------------------|----------|-------------|
-| Single source of truth | One canonical `AGENTS.md` (Layer 0) + thin overlays (Layer 1) + GitHub/gate (Layer 2). | Canonical Source Model (ARCHITECTURE §Layer 0-2) |
-| Self-installing, idempotent | Detect → resolve one **ProjectProfile** → run a **registry of ~90 generators** → write with per-file conflict strategy. | `src/config`, `src/detectors`, `src/generators`, `src/utils/fs.ts` |
-| Un-fakeable gates | A **conformance/check engine** with fail-closed verdicts + **negative "does the gate bite?" proofs** + monotonic ratchets. | `src/conformance`, `scripts/check-all.mjs`, `scripts/gold-audit.mjs` |
-| Gate-blocked lifecycle | A **deterministic next-action computer** (engine) + a **model-side driver loop** (the `/ship` command). | `src/commands/task-ship.ts`, `src/templates/claude/commands/ship.md.ejs` |
-| Evidence-gated done | **Correlated evidence artifacts** + a fail-closed `Stop` hook (INV-114). | `src/evidence`, `.claude/hooks/stop-evidence-guard.mjs` |
-| Dogfooding parity | **Dual-track contract** + diff-pinned **self-dogfood** check. | CANON-01, `scripts/check-self-dogfood.mjs` |
-| Keep orchestration honest but simple | **Deterministic leaf primitives** (gate mutex, worktree isolation, prune); the multi-issue decision loop stays **model-side** ("no new TS engine"). | `gate-exec.ts`, `src/worktree`, `wave-drain` skill |
+| Goal (from §1.2)                     | Strategy                                                                                                                                            | Realized by                                                              |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Single source of truth               | One canonical `AGENTS.md` (Layer 0) + thin overlays (Layer 1) + GitHub/gate (Layer 2).                                                              | Canonical Source Model (ARCHITECTURE §Layer 0-2)                         |
+| Self-installing, idempotent          | Detect → resolve one **ProjectProfile** → run a **registry of ~90 generators** → write with per-file conflict strategy.                             | `src/config`, `src/detectors`, `src/generators`, `src/utils/fs.ts`       |
+| Un-fakeable gates                    | A **conformance/check engine** with fail-closed verdicts + **negative "does the gate bite?" proofs** + monotonic ratchets.                          | `src/conformance`, `scripts/check-all.mjs`, `scripts/gold-audit.mjs`     |
+| Gate-blocked lifecycle               | A **deterministic next-action computer** (engine) + a **model-side driver loop** (the `/ship` command).                                             | `src/commands/task-ship.ts`, `src/templates/claude/commands/ship.md.ejs` |
+| Evidence-gated done                  | **Correlated evidence artifacts** + a fail-closed `Stop` hook (INV-114).                                                                            | `src/evidence`, `.claude/hooks/stop-evidence-guard.mjs`                  |
+| Dogfooding parity                    | **Dual-track contract** + diff-pinned **self-dogfood** check.                                                                                       | CANON-01, `scripts/check-self-dogfood.mjs`                               |
+| Keep orchestration honest but simple | **Deterministic leaf primitives** (gate mutex, worktree isolation, prune); the multi-issue decision loop stays **model-side** ("no new TS engine"). | `gate-exec.ts`, `src/worktree`, `wave-drain` skill                       |
 
-The overarching pattern is a **two-layer split** everywhere it matters: a *deterministic* substrate
-(config, generators, gates, leaf primitives, state machine) plus a *model-driven* layer (the
+The overarching pattern is a **two-layer split** everywhere it matters: a _deterministic_ substrate
+(config, generators, gates, leaf primitives, state machine) plus a _model-driven_ layer (the
 `/ship`/`/drain` slash commands and generated sub-agents) that does the reasoning the substrate
 deliberately refuses to do.
 
@@ -157,30 +157,30 @@ Container diagram. This section is the textual decomposition.
 
 ### 5.1 Level 1 whitebox — arbiter as subsystems
 
-| Subsystem | Path(s) | Responsibility |
-|-----------|---------|----------------|
-| **CLI Front Controller** | `src/cli.ts` (~95k, 76 `.command()` registrations) | Command surface (commander); 11 public commands, the rest hidden/experimental. |
-| **Wizard / Init** | `src/wizard`, `src/commands/init` | Interactive + flag-driven bootstrap → `ProjectConfig`. |
-| **Detectors** | `src/detectors` | Auto-detect language / framework / archetype / axes from repo signals. |
-| **Profile Resolver** | `src/config` (`schema.ts`, `resolve-project-config.ts`, `override-resolver.ts`) | Resolve one `ProjectProfile` across orthogonal axes with a single precedence layer (ADR-094). |
-| **Generators** | `src/generators` (84 files, 8756 LOC) | ~90 generators; each renders templates and writes with the right conflict strategy. |
-| **Template Engine** | `src/utils/render.ts`, `src/templates` (554 `.ejs`) | EJS render; `governanceLevel` guards; static files copied verbatim. |
-| **Write Pipeline** | `src/utils/fs.ts` | `backup` / `skipIfExists` / deep-merge; atomic tmp+rename; SIG cleanup. |
-| **Invariant Catalog** | `src/invariants` (`catalog.ts`, `filter.ts`, `tiers.ts`) | 134 machine-readable INV-NN; `selfOnly`/`optInGroup`/`status` filters. |
-| **KIT Catalog** | `src/kit` (`catalog.json`, `taxonomy.ts`, `measure.ts`, `wave-engine.ts`) | 78-dimension self-assessment taxonomy (wrap-not-replace, ADR-045). |
-| **Compatibility Matrix** | `src/compatibility` | `language × archetype` "proven" cells (CANON-02/03, ADR-083). |
-| **Conformance / Check Engine** | `src/conformance` (`engine.ts`, `dimensions.ts`, `score.ts`, `gate-proofs.ts`) | Evaluate checks/dimensions → `Y/P/N/NA/NV`; two-tier conjunctive GOLD scoring. |
-| **Gate Runner** | `scripts/check-all.mjs` (+ `.ejs`) | The L1 ⊂ L2 ⊂ L3 check ladder (~60 L1 + ~9 L2 checks). |
-| **Gold Audit** | `src/commands/gold-audit.ts`, `scripts/gold-audit.mjs`, `gold-report.mjs` | Score arbiter's governance completeness against a ratcheted baseline. |
-| **Self-Dogfood Check** | `scripts/check-self-dogfood.mjs` | Fail-closed diff-pin between shipped templates and arbiter's `.claude/`. |
-| **Orchestration Engine** | `src/commands/task-ship.ts`, `task.ts`, `task-state.ts`, `ship-profile.ts` | The `/ship` next-action computer + 10-phase state machine + autonomy grants. |
-| **Verification Bridge** | `src/verify`, `verify-plan.ts`, `verify-tdd.ts`, `review-diff.ts`, `anti-fake-green.ts` | Claim-verified plan review, TDD-evidence gate, enforcement-weakening gate. |
-| **Fix-on-Red** | `src/ship/fix-on-red.ts` | Failure-signature 2-strike engine; fail-closed `escalate-uncertain`. |
-| **Gate Mutex** | `src/commands/gate-exec.ts` | `flock(1)` serialization of gates across worktrees of one repo. |
-| **Worktree Manager** | `src/commands/worktree.ts`, `src/worktree` | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest. |
-| **Evidence Store** | `src/evidence`, `.arbiter/evidence` | Append-only TDD / plan-review / red-team / gate / companion artifacts. |
-| **Provenance Graph** | `src/graph` | 9 node kinds × 8 edge kinds linking INV ↔ GATE ↔ TEST ↔ EVIDENCE (ADR-040). |
-| **Plugin API** | `src/commands/plugin.ts` | Third-party scaffolders + memory interface (v1.1, ADR-031/048). |
+| Subsystem                      | Path(s)                                                                                 | Responsibility                                                                                |
+| ------------------------------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **CLI Front Controller**       | `src/cli.ts` (~95k, 76 `.command()` registrations)                                      | Command surface (commander); 11 public commands, the rest hidden/experimental.                |
+| **Wizard / Init**              | `src/wizard`, `src/commands/init`                                                       | Interactive + flag-driven bootstrap → `ProjectConfig`.                                        |
+| **Detectors**                  | `src/detectors`                                                                         | Auto-detect language / framework / archetype / axes from repo signals.                        |
+| **Profile Resolver**           | `src/config` (`schema.ts`, `resolve-project-config.ts`, `override-resolver.ts`)         | Resolve one `ProjectProfile` across orthogonal axes with a single precedence layer (ADR-094). |
+| **Generators**                 | `src/generators` (84 files, 8756 LOC)                                                   | ~90 generators; each renders templates and writes with the right conflict strategy.           |
+| **Template Engine**            | `src/utils/render.ts`, `src/templates` (554 `.ejs`)                                     | EJS render; `governanceLevel` guards; static files copied verbatim.                           |
+| **Write Pipeline**             | `src/utils/fs.ts`                                                                       | `backup` / `skipIfExists` / deep-merge; atomic tmp+rename; SIG cleanup.                       |
+| **Invariant Catalog**          | `src/invariants` (`catalog.ts`, `filter.ts`, `tiers.ts`)                                | 134 machine-readable INV-NN; `selfOnly`/`optInGroup`/`status` filters.                        |
+| **KIT Catalog**                | `src/kit` (`catalog.json`, `taxonomy.ts`, `measure.ts`, `wave-engine.ts`)               | 78-dimension self-assessment taxonomy (wrap-not-replace, ADR-045).                            |
+| **Compatibility Matrix**       | `src/compatibility`                                                                     | `language × archetype` "proven" cells (CANON-02/03, ADR-083).                                 |
+| **Conformance / Check Engine** | `src/conformance` (`engine.ts`, `dimensions.ts`, `score.ts`, `gate-proofs.ts`)          | Evaluate checks/dimensions → `Y/P/N/NA/NV`; two-tier conjunctive GOLD scoring.                |
+| **Gate Runner**                | `scripts/check-all.mjs` (+ `.ejs`)                                                      | The L1 ⊂ L2 ⊂ L3 check ladder (~60 L1 + ~9 L2 checks).                                        |
+| **Gold Audit**                 | `src/commands/gold-audit.ts`, `scripts/gold-audit.mjs`, `gold-report.mjs`               | Score arbiter's governance completeness against a ratcheted baseline.                         |
+| **Self-Dogfood Check**         | `scripts/check-self-dogfood.mjs`                                                        | Fail-closed diff-pin between shipped templates and arbiter's `.claude/`.                      |
+| **Orchestration Engine**       | `src/commands/task-ship.ts`, `task.ts`, `task-state.ts`, `ship-profile.ts`              | The `/ship` next-action computer + 10-phase state machine + autonomy grants.                  |
+| **Verification Bridge**        | `src/verify`, `verify-plan.ts`, `verify-tdd.ts`, `review-diff.ts`, `anti-fake-green.ts` | Claim-verified plan review, TDD-evidence gate, enforcement-weakening gate.                    |
+| **Fix-on-Red**                 | `src/ship/fix-on-red.ts`                                                                | Failure-signature 2-strike engine; fail-closed `escalate-uncertain`.                          |
+| **Gate Mutex**                 | `src/commands/gate-exec.ts`                                                             | `flock(1)` serialization of gates across worktrees of one repo.                               |
+| **Worktree Manager**           | `src/commands/worktree.ts`, `src/worktree`                                              | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest.                     |
+| **Evidence Store**             | `src/evidence`, `.arbiter/evidence`                                                     | Append-only TDD / plan-review / red-team / gate / companion artifacts.                        |
+| **Provenance Graph**           | `src/graph`                                                                             | 9 node kinds × 8 edge kinds linking INV ↔ GATE ↔ TEST ↔ EVIDENCE (ADR-040).                   |
+| **Plugin API**                 | `src/commands/plugin.ts`                                                                | Third-party scaffolders + memory interface (v1.1, ADR-031/048).                               |
 
 ### 5.2 Level 2 whitebox — the generator pipeline
 
@@ -188,8 +188,8 @@ Two stages, one shared config builder:
 
 1. **Detect + resolve** — `resolveProjectConfig(targetDir, name, stored, useGitHubBackend)`
    (`resolve-project-config.ts:213`) runs all detectors, then `v2ToProjectConfig` folds stored
-   `arbiter.json` (v2) over detector fields into a canonical `ProjectConfig`. *The same builder feeds
-   `init`/`update` (real emit) and `diff` (dry-run)*, so all three see an identical config.
+   `arbiter.json` (v2) over detector fields into a canonical `ProjectConfig`. _The same builder feeds
+   `init`/`update` (real emit) and `diff` (dry-run)_, so all three see an identical config.
 2. **Emit** — `runGenerators(config)` → `runGeneratorsFromRegistry(buildRegistry(config))`.
    `buildRegistry` (`registry.ts:618`) concatenates category spec-builders into `GeneratorSpec[]`
    (`{key, enabled, run}`); `safeRun` collects failures — a throw ⇒ non-zero exit (INV-53).
@@ -204,17 +204,17 @@ wiki, conformance). Gating is **level-driven** (`governanceLevel !== 'L1'`) and 
 
 Canonical type `ProjectConfig` (`src/wizard/types.ts:213`), persisted as `ArbiterConfigV2`:
 
-| Axis | Values | ADR |
-|------|--------|-----|
-| `governanceLevel` | L1 / L2 / L3 / L4 (ordinal) | ADR-008, ADR-050 |
-| `archetype` | backend-web-db / cli / library / data-pipeline / frontend-spa / embedded | ADR-021 |
-| `collaborationMode` | trunk-solo / peer-review / gated-review | ADR-051 |
-| `runnerProfile` | solo / fleet (CI cadence, orthogonal) | ADR-101 |
-| `contractType` | rest-owned / rest-public / graphql / grpc / message-queue / none | ADR-028 |
-| `architectureStyle` | hexagonal / layered / modular-monolith / none | ADR-021 |
-| `industryOverlay` | none / pharma / sox / gdpr / iso27001 / iso9001 / regulated / generic | ADR-066, ADR-078 |
-| `observability` / `auth` | provider enums (or `none`) | ADR-064, ADR-065 |
-| `invariantPreset` | essential / standard / full | ADR-059, `filter.ts` |
+| Axis                     | Values                                                                   | ADR                  |
+| ------------------------ | ------------------------------------------------------------------------ | -------------------- |
+| `governanceLevel`        | L1 / L2 / L3 / L4 (ordinal)                                              | ADR-008, ADR-050     |
+| `archetype`              | backend-web-db / cli / library / data-pipeline / frontend-spa / embedded | ADR-021              |
+| `collaborationMode`      | trunk-solo / peer-review / gated-review                                  | ADR-051              |
+| `runnerProfile`          | solo / fleet (CI cadence, orthogonal)                                    | ADR-101              |
+| `contractType`           | rest-owned / rest-public / graphql / grpc / message-queue / none         | ADR-028              |
+| `architectureStyle`      | hexagonal / layered / modular-monolith / none                            | ADR-021              |
+| `industryOverlay`        | none / pharma / sox / gdpr / iso27001 / iso9001 / regulated / generic    | ADR-066, ADR-078     |
+| `observability` / `auth` | provider enums (or `none`)                                               | ADR-064, ADR-065     |
+| `invariantPreset`        | essential / standard / full                                              | ADR-059, `filter.ts` |
 
 **Precedence (ADR-094):** per-run override (`--set`) → session (`status.json`) → env + `arbiter.json`
 profile → derived default. Each layer's candidate is re-validated; invalid ⇒ warn-skip and fall
@@ -230,10 +230,11 @@ through (fail-closed). `arbiter.json` is the single persisted Project-Profile SS
   security), validated against `schemas/evidence-bundle.schema.json`. TDD evidence lives at
   `.arbiter/evidence/tdd/#NNN.json` (`TddEvidenceV1`).
 - **Provenance graph** — in-memory `GraphStore`; node kinds `INV/ADR/REQ/CANON/FILE/SYMBOL/TEST/
-  EVIDENCE/GATE`, edge kinds `enforces/decides/demands/implements/proves/produces/supersedes/
-  promotes`. `verify graph` detects orphan-invariant / broken-ref / missing-evidence / stale-prover.
-  `arbiter ci plan` walks `FILE →implements→ INV →enforces→ GATE` to compute the minimal required-gate
-  set for a changeset.
+EVIDENCE/GATE`, edge kinds `enforces/decides/demands/implements/proves/produces/supersedes/
+promotes`. `verify graph` detects orphan-invariant / broken-ref / missing-evidence / stale-prover.
+  The `FILE →implements→ INV →enforces→ GATE` walk that computes the minimal required-gate set for a
+  changeset was previously surfaced as "ci plan"; that command was removed in the T2 command-surface
+  cut and there is currently no CLI entrypoint for the walk (§11 catalogs this class of gap).
 
 ---
 
@@ -248,7 +249,7 @@ for the Component diagram.
 The design splits orchestration into two layers (`task-ship.ts:3-10`):
 
 - **Engine (deterministic, TS):** `arbiter ship #NNN` reads the phase from `status.json`, resolves a
-  `ShipProfile` from the *target repo's* `arbiter.json`, and returns the next `ShipStep`
+  `ShipProfile` from the _target repo's_ `arbiter.json`, and returns the next `ShipStep`
   (`{action, command?, reviewAgents, verticals}`). With `--advance` it runs that phase's gate via
   `runTaskAdvance` and advances **only if the gate is green** (throws on red — never advances).
 - **Driver (model, generated):** the `/ship` slash command is the loop that executes the
@@ -294,12 +295,12 @@ model-tier gating anywhere (see §11.6).
 
 **Four count-axes, all derived from tier — do not conflate them:**
 
-| Axis | XS | S | Standard | Source |
-|------|----|----|----------|--------|
-| Red-team challenge agents | 1 | 2 | 3 | `task-ship.ts:77` (`REDTEAM_AGENTS`) |
-| Refactor-phase review agents | 3 | 3 | 4 | `task-ship.ts:79` (`REVIEW_AGENTS`) |
-| `/review-code` reviewers | 3 | 3 | 5 | `.claude/commands/review-code.md` |
-| Review **verticals** (breadth) | 3 | 4 | 7 | `task-ship.ts:96-100` (`verticalsForTier`) |
+| Axis                           | XS  | S   | Standard | Source                                     |
+| ------------------------------ | --- | --- | -------- | ------------------------------------------ |
+| Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77` (`REDTEAM_AGENTS`)       |
+| Refactor-phase review agents   | 3   | 3   | 4        | `task-ship.ts:79` (`REVIEW_AGENTS`)        |
+| `/review-code` reviewers       | 3   | 3   | 5        | `.claude/commands/review-code.md`          |
+| Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100` (`verticalsForTier`) |
 
 Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`; Standard =
 `+security, data-integrity, silent-failures`.
@@ -308,27 +309,27 @@ Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`
 config files drive it:
 
 - `.claude/agent-dispatch-matrix.json` — a drift-proof oracle over `tier × track × review_mode ×
-  pr_type`; resolution is *additive and never narrows below the tier floor*. A gate asserts
+pr_type`; resolution is _additive and never narrows below the tier floor_. A gate asserts
   `verticalsForTier` (code) ≡ this matrix.
 - `.claude/auditor-routing.json` — **7 weighted auditors** with an `always_on` floor and a `tag_map`
   from changed-file glob → auditors:
 
-  | Auditor | Weight | Fires on (examples from `tag_map`) |
-  |---------|--------|-------------------------------------|
-  | security | 4 | `**/*.env*`, `**/*.pem/.key`, `migrations/**`, `.github/**` |
-  | data-integrity | 4 | `migrations/**`, `**/*.sql` |
-  | bugs | 3 | always_on; `src/**`, `scripts/**` |
-  | domain | 3 | always_on; `src/templates/**`, `src/generators/**` |
-  | type-safety | 2 | always_on; `src/**/*.ts` |
-  | test-quality | 2 | `__tests__/**`, `src/commands/**` |
-  | silent-failures | 2 | `scripts/**`, `.claude/hooks/**` |
+  | Auditor         | Weight | Fires on (examples from `tag_map`)                          |
+  | --------------- | ------ | ----------------------------------------------------------- |
+  | security        | 4      | `**/*.env*`, `**/*.pem/.key`, `migrations/**`, `.github/**` |
+  | data-integrity  | 4      | `migrations/**`, `**/*.sql`                                 |
+  | bugs            | 3      | always_on; `src/**`, `scripts/**`                           |
+  | domain          | 3      | always_on; `src/templates/**`, `src/generators/**`          |
+  | type-safety     | 2      | always_on; `src/**/*.ts`                                    |
+  | test-quality    | 2      | `__tests__/**`, `src/commands/**`                           |
+  | silent-failures | 2      | `scripts/**`, `.claude/hooks/**`                            |
 
   `critical_paths` (e.g. `AGENTS.md`, `auditor-routing.json`, `catalog.ts`) force **all** auditors.
 
 **The weighted verdict makes unresolved findings mathematically block PASS.**
 `score = 100 × Σ(weight of passing active auditors) / Σ(weight of ALL active auditors)`; ladder
 `≥80 PASS / ≥60 CONCERNS / ≥40 REWORK / <40 FAIL`. The denominator is the **total** active weight, so
-a *skip can never raise the score* (no inflation by omission). Every still-`resolved:false` red-team
+a _skip can never raise the score_ (no inflation by omission). Every still-`resolved:false` red-team
 finding **caps its mapped auditor's score to 0** — so findings-resolution is enforced arithmetic, not
 advice. Red-team findings are forward-linked into review as
 `redTeamFindings[] = {id:'RT-01', severity, summary, auditorHint, resolved}`.
@@ -350,16 +351,16 @@ feature end-to-end; checks dead code and CLI-flag wiring). Then the two-phase br
 only when both phases pass**; a REJECT cannot be overridden.
 
 **Governance / collaboration gating.** At `governanceLevel === 'L1'` there is **no** red-team /
-multi-agent review phase at all. In `trunk-solo` mode the swarm collapses to *1 self-review agent + 1
-adversarial verifier*. Autonomy grants (`AUTONOMY_GRANTS`, `ship-profile.ts:153-165`) scale L0→L3 what
+multi-agent review phase at all. In `trunk-solo` mode the swarm collapses to _1 self-review agent + 1
+adversarial verifier_. Autonomy grants (`AUTONOMY_GRANTS`, `ship-profile.ts:153-165`) scale L0→L3 what
 the loop may do unattended:
 
-| Level | Grants |
-|-------|--------|
-| L0 | ∅ (ask each step) — the default |
-| L1 | auto-advance, auto-merge |
-| L2 | + fix-on-red-attempt |
-| L3 | + wave-batch, fix-on-red-autopush, subagent-auto-spawn |
+| Level | Grants                                                 |
+| ----- | ------------------------------------------------------ |
+| L0    | ∅ (ask each step) — the default                        |
+| L1    | auto-advance, auto-merge                               |
+| L2    | + fix-on-red-attempt                                   |
+| L3    | + wave-batch, fix-on-red-autopush, subagent-auto-spawn |
 
 Floor invariants (2-strike, reproduce-before-push, no `--no-verify`, no commit-to-main) are **not
 behaviors and cannot be granted away**.
@@ -382,10 +383,10 @@ the guard.
 - **Plan-review gate** — reads `latest.json`, requires `verdict: PASS` **and** a plan-digest match
   (`task.ts:287-318`).
 - **TDD-evidence gate** (`red → green`) — four claims: `task_id` matches; the recorded test-run log
-  contains a *real* framework failure signature ("the test must actually fail"); the test commit SHA
+  contains a _real_ framework failure signature ("the test must actually fail"); the test commit SHA
   exists on the branch; the test file existed at that SHA (`task.ts:450-490`).
 - **Enforcement-weakening gate** (`review diff`) — blocks (exit 2) any removed `enforces` edge or a
-  removed last `proves` test, *including a net-neutral 1-for-1 swap*.
+  removed last `proves` test, _including a net-neutral 1-for-1 swap_.
 - **Anti-fake-green** — surfaces the `check-anti-fake-green.mjs` engine's INV-53 exit code; `--enforce`
   promotes advisory findings to hard failures.
 
@@ -400,7 +401,7 @@ Autonomy gates the push: L3 → autopush; L2 → apply but hand push to a human;
 ### 6.5 Wave drain — multi-issue batch orchestration (`/drain`)
 
 `/drain` is the batch sibling of `/ship`: it drains the open backlog as **waves** and drives each
-wave to a **single PR merged GREEN**, running the heavy ceremony *once per wave, not per issue*. The
+wave to a **single PR merged GREEN**, running the heavy ceremony _once per wave, not per issue_. The
 orchestrator directs parallel agents; it does not implement.
 
 **Bounds:** wave ≤ 10 issues, partitioned into groups ≤ 5 (a group is the unit of parallelism);
@@ -411,8 +412,8 @@ autonomy behavior.**
 **Phase contract (`wave-drain` skill):**
 
 1. **Triage + compose** — `gh issue list --state open`, exclude `blocked/needs-human/epic`; an issue
-   labelled `conflicts-with:#N` shares a *serial lane* with #N. *(This declarative label is the
-   surviving substitute for the pruned auto-correlation — see §11.1.)*
+   labelled `conflicts-with:#N` shares a _serial lane_ with #N. _(This declarative label is the
+   surviving substitute for the pruned auto-correlation — see §11.1.)_
 2. **Harvest finding spool** — drain `.arbiter/findings/*.jsonl` (written by `arbiter note` during
    CLOSER mode) into tracked issues; transactional check-all-then-claim-all with rollback.
 3. **One cumulative plan** → `.claude/plans/wave-N.md` with per-group manifests whose file-sets are
@@ -421,8 +422,8 @@ autonomy behavior.**
 5. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`, branch per group),
    TDD per unit, **light checks only; the full gate is forbidden inside worktrees**. Expensive gates
    go through `arbiter gate-exec -- <cmd>` (the flock mutex). Per-worktree caches (`symlink-children`).
-6. **Local integration** on `wave-N-integration` (off `main`): sequential merge in *minimum-overlap
-   order computed from the real `git diff --name-only`*, then multiagent review + adversarial verify +
+6. **Local integration** on `wave-N-integration` (off `main`): sequential merge in _minimum-overlap
+   order computed from the real `git diff --name-only`_, then multiagent review + adversarial verify +
    evidence (INV-114), then the full gate **under the mutex** → `gate-pass.json`.
 7. **One PR per wave** (one `Closes #N` line per issue), merge only on GREEN CI; `/wt-close` +
    `worktree prune --stale 24` → `/clear` → next wave.
@@ -436,7 +437,7 @@ branch `task/<#id>`; the on-disk dir strips `#` (it breaks Vite/Vitest/Node-ESM 
 can't corrupt one shared cache; open/close guarded by `.arbiter/.lock`; close runs an
 `assertBranchMerged` guard and an optional harvest of modified/untracked files back to main.
 
-**Gate mutex** (`gate-exec.ts`, ADR-103): a *deterministic leaf* with no orchestration state. It keys
+**Gate mutex** (`gate-exec.ts`, ADR-103): a _deterministic leaf_ with no orchestration state. It keys
 the lock on `hash(git rev-parse --git-common-dir)` so every worktree of a repo converges on **one**
 lock (outside the repo, at `$XDG_RUNTIME_DIR/arbiter/…`), delegating both wait and release to
 `flock(1)` (kernel-side, survives SIGKILL/OOM); **fail-closed** (`E_GATE_MUTEX_UNSUPPORTED`, degrade to
@@ -448,7 +449,7 @@ never holds two arbiter locks at once.
 `scripts/check-all.mjs` runs the L1 block unconditionally (~60 hard checks), then — if the subcommand
 isn't `check` — the L2 extension (~9 more: coverage + ratchet, dead code, duplication, npm audit,
 gitleaks, debt ratchet, TDD-evidence, evidence-bundle, script cohesion, integration/BDD suites,
-conformance). The subset relationship L1 ⊂ L2 ⊂ L3 is enforced *by code structure*. On green it writes
+conformance). The subset relationship L1 ⊂ L2 ⊂ L3 is enforced _by code structure_. On green it writes
 `.arbiter/gate/local-result.json` (schema `arbiter-gate-v1`) carrying a `parityContentHash` over the
 L1 subset (used by `check-local-ci-parity.mjs`, INV-59/87) and stamps `.arbiter/gate-pass.json`.
 
@@ -504,18 +505,18 @@ makes human-approval mandatory (INV-74) and keeps cosign + SBOM + SLSA-L3 proven
 
 ### 8.1 The canonical source model (SSOT layering)
 
-`AGENTS.md` (Layer 0) is the single canonical governance file; tool configs (Layer 1) are *thin
-pointers* that must not duplicate its content; GitHub + gate (Layer 2) are generated once. Write
+`AGENTS.md` (Layer 0) is the single canonical governance file; tool configs (Layer 1) are _thin
+pointers_ that must not duplicate its content; GitHub + gate (Layer 2) are generated once. Write
 strategies: `backup` for canonical/pointer files (stateless, regenerable), `skipIfExists` for
 customizable files (hooks/rules/commands/CI), deep-merge for `settings.json`. All writes are atomic
 tmp+rename with signal-handler cleanup.
 
 ### 8.2 The dual-track contract (CANON-01)
 
-Every framework capability ships **Track A** (applied to arbiter itself) *and* **Track B** (a reusable
+Every framework capability ships **Track A** (applied to arbiter itself) _and_ **Track B** (a reusable
 generator artifact: B1 template, B2 generator, B3 KIT doc, B4 invariant/gate) in the **same PR**.
 Split PRs are a violation. Enforced by `pre-edit-plan-anchor.mjs`, `check-no-orphan-todo.mjs`, and
-CANON gates. This is *why* nearly every subsystem appears twice (an arbiter-self instance under
+CANON gates. This is _why_ nearly every subsystem appears twice (an arbiter-self instance under
 `.claude/` and an `.ejs` template under `src/templates/`).
 
 ### 8.3 Fail-closed, anti-fake-green everywhere
@@ -545,7 +546,8 @@ maps to `GATE` nodes; an empty enforcement is an orphan the graph verifier flags
 `PostToolUseFailure` (debug-state capture), `PreCompact`. All are concurrency-class **SAFE** (pure
 read / stdout-inject / append-only) — a structural invariant forbids SERIALIZE hooks and file locks
 in hooks. A **hardness manifest** (ADR-032, INV-36) classifies each hook HARD/ADVISORY with a fixture
-+ expected exit code, so a hook cannot silently degrade from blocking to ceremony.
+
+- expected exit code, so a hook cannot silently degrade from blocking to ceremony.
 
 ### 8.6 Internationalization
 
@@ -560,20 +562,20 @@ Arbiter maintains **106 ADRs** (`docs/internal/ADR/`), digested in
 [`docs/internal/SYSTEM/DECISIONS.md`](../internal/SYSTEM/DECISIONS.md) and catalogued (one line each,
 with gaps flagged) in [`adr-index.md`](adr-index.md). The load-bearing ones for this architecture:
 
-| ADR | Decision | Section |
-|-----|----------|---------|
-| 001, 002 | `AGENTS.md` canonical + thin-pointer overlays | §8.1 |
-| 008, 042, 050 | Governance levels + three-tier gate (L1 ⊂ L2 ⊂ L3) + archetype-default pipeline | §6.6, §7.3 |
-| 034, 041(dep), 088, 093 | Phase-tracked lifecycle + `/ship` single/dual-side orchestrator | §6.1 |
-| 035 | Pluggable decomposition backend — **engine since pruned** | §11.1 |
-| 039, 057, 025 | Verification bridge + claim-verified governance | §6.3 |
-| 040 | Provenance graph as a first-class primitive | §5.4 |
-| 045 | KIT taxonomy (wrap-not-replace, parity contract) | §5.4 |
-| 051, 101 | Collaboration-mode + runner-profile axes | §5.3, §7.3 |
-| 059 | `selfOnly` invariant filter | §8.4 |
-| 061, 103 | Batch-execution safety for parallel agents (**ADR-103 file missing**) | §6.5, §11.3 |
-| 083 | Matrix downgrade-vs-fix (PASS/HALF/FAKE verdicts) | §5.1 |
-| 090, 094 | Workflow performance budget + project-profile resolver | §5.3 |
+| ADR                     | Decision                                                                        | Section     |
+| ----------------------- | ------------------------------------------------------------------------------- | ----------- |
+| 001, 002                | `AGENTS.md` canonical + thin-pointer overlays                                   | §8.1        |
+| 008, 042, 050           | Governance levels + three-tier gate (L1 ⊂ L2 ⊂ L3) + archetype-default pipeline | §6.6, §7.3  |
+| 034, 041(dep), 088, 093 | Phase-tracked lifecycle + `/ship` single/dual-side orchestrator                 | §6.1        |
+| 035                     | Pluggable decomposition backend — **engine since pruned**                       | §11.1       |
+| 039, 057, 025           | Verification bridge + claim-verified governance                                 | §6.3        |
+| 040                     | Provenance graph as a first-class primitive                                     | §5.4        |
+| 045                     | KIT taxonomy (wrap-not-replace, parity contract)                                | §5.4        |
+| 051, 101                | Collaboration-mode + runner-profile axes                                        | §5.3, §7.3  |
+| 059                     | `selfOnly` invariant filter                                                     | §8.4        |
+| 061, 103                | Batch-execution safety for parallel agents (**ADR-103 file missing**)           | §6.5, §11.3 |
+| 083                     | Matrix downgrade-vs-fix (PASS/HALF/FAKE verdicts)                               | §5.1        |
+| 090, 094                | Workflow performance budget + project-profile resolver                          | §5.3        |
 
 ---
 
@@ -581,16 +583,16 @@ with gaps flagged) in [`adr-index.md`](adr-index.md). The load-bearing ones for 
 
 ### 10.1 Quality tree (top scenarios)
 
-| Attribute | Scenario | Mechanism |
-|-----------|----------|-----------|
-| **Integrity (un-fakeable)** | An agent claims "done" without a real failing-first test → the claim is rejected. | INV-114 Stop hook + TDD-evidence gate (§6.3) |
-| **Integrity (no silent weakening)** | A refactor removes an `enforces` edge / last `proves` test → merge blocked. | `review diff` exit 2 (§6.3) |
-| **Determinism** | Same repo + registry run twice → byte-identical scored output. | conformance engine determinism contract (§8.3) |
-| **Non-regression** | A change lowers coverage / raises duplication → gate fails. | monotonic ratchets (§8.3) |
-| **Dogfood parity** | A shipped hook is edited without updating the template → gate fails. | `check-self-dogfood.mjs` diff-pin (§8.2) |
-| **Idempotency** | `arbiter init` re-run never destroys customizations. | `skipIfExists` + deep-merge (§8.1) |
-| **Privacy** | Arbiter makes an unsolicited network call → gate fails. | `check-anti-telemetry.mjs` (C3) |
-| **Safety (parallelism)** | Two write-agents touch the same file concurrently → prevented by design. | worktree isolation + disjoint file-sets (§6.5) |
+| Attribute                           | Scenario                                                                          | Mechanism                                      |
+| ----------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Integrity (un-fakeable)**         | An agent claims "done" without a real failing-first test → the claim is rejected. | INV-114 Stop hook + TDD-evidence gate (§6.3)   |
+| **Integrity (no silent weakening)** | A refactor removes an `enforces` edge / last `proves` test → merge blocked.       | `review diff` exit 2 (§6.3)                    |
+| **Determinism**                     | Same repo + registry run twice → byte-identical scored output.                    | conformance engine determinism contract (§8.3) |
+| **Non-regression**                  | A change lowers coverage / raises duplication → gate fails.                       | monotonic ratchets (§8.3)                      |
+| **Dogfood parity**                  | A shipped hook is edited without updating the template → gate fails.              | `check-self-dogfood.mjs` diff-pin (§8.2)       |
+| **Idempotency**                     | `arbiter init` re-run never destroys customizations.                              | `skipIfExists` + deep-merge (§8.1)             |
+| **Privacy**                         | Arbiter makes an unsolicited network call → gate fails.                           | `check-anti-telemetry.mjs` (C3)                |
+| **Safety (parallelism)**            | Two write-agents touch the same file concurrently → prevented by design.          | worktree isolation + disjoint file-sets (§6.5) |
 
 ### 10.2 Measured quality baselines (arbiter's own repo)
 
@@ -615,17 +617,17 @@ is cosmetic — each is load-bearing for anyone extending the tool.
 The most sophisticated "jewel" a reader might expect — a computed issue-correlation/clustering engine
 — **no longer exists in the code.** The **#1817 "B-prune"** (commits `9477fe4e`/`9e001361`, **−11,423
 LOC**) removed `src/affinity/`, `src/sizing/`, `src/cost/`, `src/decomposition/`, the multi-pass
-`src/review/` dispatch subsystem, and `src/batch/`, plus the `arbiter work`, `ship --batch`, and
+`src/review/` dispatch subsystem, and `src/batch/`, plus the "arbiter work", `ship --batch`, and
 `findings promote/list` commands, as "2025-era model-tier machinery" (`CHANGELOG.md:167-186`).
 
 The original algorithm (recoverable only from git history at `9477fe4e~1:src/affinity/affinity.ts`)
-was a pure pairwise correlation scorer: candidates scoped to *open siblings in the same milestone*
+was a pure pairwise correlation scorer: candidates scoped to _open siblings in the same milestone_
 (cap 30), scored `+2` for file-overlap **or** shared `domain:` label (counted once), `+1` same
 milestone, `+1` same `type:` label, threshold ≥ 3 ⇒ correlated. Today, clustering is a **model-side
 skill decision** (`wave-drain`), and "correlation" survives only as the declarative
 `conflicts-with:#N` label convention and manual module-grouping. The explicit architectural stance is
 **"no new TS engine"** — the multi-issue decision loop stays in the LLM, bounded by deterministic
-leaf primitives (`docs/REFERENCE/wave-primitives.md:13-16`). This is a *defensible* simplification,
+leaf primitives (`docs/REFERENCE/wave-primitives.md:13-16`). This is a _defensible_ simplification,
 but it means the "clustering intelligence" is now prompt text, not code.
 
 ### 11.2 Live documentation drift — the phantom "Affinity line" (MEDIUM)
@@ -638,7 +640,7 @@ generated template shipped to every target project, so the drift propagates outw
 
 ### 11.3 ADR-103 is cited everywhere but has no ADR file (MEDIUM)
 
-ADR-103 is the formal basis for parallel *write*-agents (the worktree carve-out) and is referenced in
+ADR-103 is the formal basis for parallel _write_-agents (the worktree carve-out) and is referenced in
 `src/cli.ts`, `src/templates/claude/rules/50-batch-execution.md`, `wave-drain/SKILL.md.ejs`,
 `gate-exec.ts`, `worktree-prune.ts`, and the `related:` frontmatter of several files — yet
 `docs/internal/ADR/103-*.md` **does not exist**, and the ADR index/DECISIONS digest jumps 102 → 104.
@@ -652,12 +654,12 @@ comments in `gate-exec.ts`.)
 `maxParallelWorktrees`). `affinityBatching` was meant to feed the affinity engine that §11.1 deleted,
 so the knob now only produces an advisory English string in `planAction` — a live setting with no
 computational consumer. Similarly ADR-035's pluggable decomposition backend abstraction survives in
-template EJS (`_backend = decompositionBackend ?? …`) while its consuming command (`arbiter work`)
+template EJS (`_backend = decompositionBackend ?? …`) while its consuming command ("arbiter work")
 was pruned.
 
 ### 11.5 Overloaded vocabulary: "tier" means five different things (MEDIUM, comprehension risk)
 
-The word *tier* is used across at least five orthogonal axes: the gate-execution ladder
+The word _tier_ is used across at least five orthogonal axes: the gate-execution ladder
 (check/gate/full/simulate-*), the nested gate levels (L1 ⊂ L2 ⊂ L3), the governance/emit levels
 (L1–L4), the invariant tiers (architectural…governance), and the conformance dimension tiers (Tier-1
 must-pass vs Tier-2 weighted) — plus the CI cadence buckets and the ship ceremony tiers (XS/S/Standard).
@@ -668,7 +670,7 @@ This is a real cognitive-load hazard; §6 and §5 keep them separate, but the co
 A reader coming from a downstream consumer may look for "model-conditional thresholds" (Opus vs
 non-Opus, 1M-context detection, full-ceremony vs optimized fallback). **Arbiter has none and refuses
 to reintroduce them** (`AGENTS.md §Model-Pyramid`; the git-diff auto-tiering `arbiter.sizing`
-subsystem was pruned, `task-ship.ts:86-90`). Ceremony scales on issue *size/tier*, computed from the
+subsystem was pruned, `task-ship.ts:86-90`). Ceremony scales on issue _size/tier_, computed from the
 diff, not on model identity. Any model-tier machinery a consuming repo has is that project's own
 overlay. This is documented here so the absence is not mistaken for an oversight.
 
@@ -692,40 +694,40 @@ enabling those axes get less-verified governance.
 
 ### 11.9 Risk register
 
-| Risk | Likelihood | Impact | Mitigation in place |
-|------|-----------|--------|---------------------|
+| Risk                                                                 | Likelihood          | Impact | Mitigation in place                                                          |
+| -------------------------------------------------------------------- | ------------------- | ------ | ---------------------------------------------------------------------------- |
 | Doc-drift propagates a false promise to every target (Affinity line) | High (already live) | Medium | Fix the template; `check-doc-set`/link gates do not catch semantic staleness |
-| Missing ADR-103 causes divergent re-implementation of the carve-out | Medium | Medium | Rule is codified in `50-batch-execution.md` + code comments |
-| Overloaded "tier" vocabulary causes a mis-wired gate | Medium | High | Parity gates (`agent-dispatch-matrix`, catalog↔AGENTS) catch some, not all |
-| Pruned-engine config knobs mislead an extender | Medium | Low | This section; the knobs still resolve safely (fail-closed defaults) |
-| Two-engine parity (TS ↔ mjs) drifts | Low | Medium | Deep-equal parity test in CI |
+| Missing ADR-103 causes divergent re-implementation of the carve-out  | Medium              | Medium | Rule is codified in `50-batch-execution.md` + code comments                  |
+| Overloaded "tier" vocabulary causes a mis-wired gate                 | Medium              | High   | Parity gates (`agent-dispatch-matrix`, catalog↔AGENTS) catch some, not all   |
+| Pruned-engine config knobs mislead an extender                       | Medium              | Low    | This section; the knobs still resolve safely (fail-closed defaults)          |
+| Two-engine parity (TS ↔ mjs) drifts                                  | Low                 | Medium | Deep-equal parity test in CI                                                 |
 
 ---
 
 ## 12. Glossary
 
-| Term | Definition |
-|------|------------|
-| **AGENTS.md** | The single canonical governance file (Layer 0) every supported AI tool reads. |
-| **arbiter** | The governance installer CLI (`@arbiter/cli`). |
-| **archetype** | Project shape (backend-web-db / cli / library / data-pipeline / frontend-spa / embedded) selecting templates/adapters. |
-| **CANON-NN** | A process-level rule (`docs/internal/SYSTEM/CANON.md`); promoted to an INV-NN once automatable. |
-| **collaboration mode** | trunk-solo / peer-review / gated-review — drives branching, CI shape, merge policy (ADR-051). |
-| **conformance dimension** | A measured governance attribute with a Tier-1 (must-pass) or Tier-2 (weighted) role in the GOLD score. |
-| **dogfood divergence** | An approved, diff-pinned difference between a shipped template and arbiter's materialized copy. |
-| **dual-track contract** | Every capability ships arbiter-self (Track A) + generator template (Track B) in one PR (CANON-01). |
-| **evidence bundle** | `.evidence/SUMMARY.json` / `.arbiter/evidence/*` — auditable artifacts proving a task's TDD + gate history. |
-| **gate (L1/L2/L3)** | The tiered `check-all.mjs` quality gate; strictly nested L1 ⊂ L2 ⊂ L3. |
-| **GOLD** | The top conformance band: all Tier-1 dims pass, weighted score clears the gate, and no regression. |
-| **governance level (L1–L4)** | How much governance a target project gets; scales emitted invariants/gates/CI. |
-| **invariant (INV-NN)** | A machine-checked hard rule in `src/invariants/catalog.ts`; violation stops work. |
-| **KIT** | The 78-dimension self-assessment taxonomy a project is measured against (ADR-045). |
-| **ProjectProfile** | The resolved configuration across all axes; persisted as `arbiter.json`. |
-| **provenance graph** | The INV↔GATE↔TEST↔EVIDENCE graph (9 node kinds, 8 edge kinds) that `verify graph` / `ci plan` walk. |
-| **red-team agent** | A READ-ONLY adversarial challenge agent dispatched at `red-team-review` (1/2/3 by tier). |
-| **/ship** | The single orchestration entrypoint — drives one issue to a reviewed, merged PR (not deploy). |
-| **/drain** | The multi-issue sibling of `/ship` — drains the backlog as waves, one wave PR merged GREEN per cycle. |
-| **tier (XS/S/Standard)** | The ship ceremony tier auto-computed from issue size; sets review-agent count + vertical breadth. |
-| **vertical (review vertical)** | An auditor angle (bugs, type-safety, domain, test-quality, security, data-integrity, silent-failures). |
-| **wave** | A batch of ≤10 issues drained to a single PR by `/drain`; the unit of `/drain` ceremony. |
-| **worktree isolation** | One agent, one worktree, one branch — the precondition for safe parallel write-agents. |
+| Term                           | Definition                                                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| **AGENTS.md**                  | The single canonical governance file (Layer 0) every supported AI tool reads.                                          |
+| **arbiter**                    | The governance installer CLI (`@arbiter/cli`).                                                                         |
+| **archetype**                  | Project shape (backend-web-db / cli / library / data-pipeline / frontend-spa / embedded) selecting templates/adapters. |
+| **CANON-NN**                   | A process-level rule (`docs/internal/SYSTEM/CANON.md`); promoted to an INV-NN once automatable.                        |
+| **collaboration mode**         | trunk-solo / peer-review / gated-review — drives branching, CI shape, merge policy (ADR-051).                          |
+| **conformance dimension**      | A measured governance attribute with a Tier-1 (must-pass) or Tier-2 (weighted) role in the GOLD score.                 |
+| **dogfood divergence**         | An approved, diff-pinned difference between a shipped template and arbiter's materialized copy.                        |
+| **dual-track contract**        | Every capability ships arbiter-self (Track A) + generator template (Track B) in one PR (CANON-01).                     |
+| **evidence bundle**            | `.evidence/SUMMARY.json` / `.arbiter/evidence/*` — auditable artifacts proving a task's TDD + gate history.            |
+| **gate (L1/L2/L3)**            | The tiered `check-all.mjs` quality gate; strictly nested L1 ⊂ L2 ⊂ L3.                                                 |
+| **GOLD**                       | The top conformance band: all Tier-1 dims pass, weighted score clears the gate, and no regression.                     |
+| **governance level (L1–L4)**   | How much governance a target project gets; scales emitted invariants/gates/CI.                                         |
+| **invariant (INV-NN)**         | A machine-checked hard rule in `src/invariants/catalog.ts`; violation stops work.                                      |
+| **KIT**                        | The 78-dimension self-assessment taxonomy a project is measured against (ADR-045).                                     |
+| **ProjectProfile**             | The resolved configuration across all axes; persisted as `arbiter.json`.                                               |
+| **provenance graph**           | The INV↔GATE↔TEST↔EVIDENCE graph (9 node kinds, 8 edge kinds) that `verify graph` / `ci plan` walk.                    |
+| **red-team agent**             | A READ-ONLY adversarial challenge agent dispatched at `red-team-review` (1/2/3 by tier).                               |
+| **/ship**                      | The single orchestration entrypoint — drives one issue to a reviewed, merged PR (not deploy).                          |
+| **/drain**                     | The multi-issue sibling of `/ship` — drains the backlog as waves, one wave PR merged GREEN per cycle.                  |
+| **tier (XS/S/Standard)**       | The ship ceremony tier auto-computed from issue size; sets review-agent count + vertical breadth.                      |
+| **vertical (review vertical)** | An auditor angle (bugs, type-safety, domain, test-quality, security, data-integrity, silent-failures).                 |
+| **wave**                       | A batch of ≤10 issues drained to a single PR by `/drain`; the unit of `/drain` ceremony.                               |
+| **worktree isolation**         | One agent, one worktree, one branch — the precondition for safe parallel write-agents.                                 |

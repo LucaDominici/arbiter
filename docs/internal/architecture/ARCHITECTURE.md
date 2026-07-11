@@ -388,7 +388,7 @@ The generated `CLAUDE.md` and `CODEX.md` templates enforce this pattern. See [AD
 
 ## Template System
 
-Arbiter generates all output files from templates. This document covers why EJS was chosen, the full `ProjectConfig` variable reference available in templates, conditional branching patterns, the `renderTemplate()` pipeline, and a complete inventory of the 32 template files.
+Arbiter generates all output files from templates. This document covers why EJS was chosen, the full `ProjectConfig` variable reference available in templates, conditional branching patterns, the `renderTemplate()` pipeline, and a representative inventory of key template files (the tree has grown to 546 `.ejs` files across 49 subdirectories — see "Template Inventory" below for the caveat on coverage).
 
 For the ADR rationale, see [ADR-009](../ADR/009-ejs-over-handlebars.md).
 
@@ -399,7 +399,7 @@ For the ADR rationale, see [ADR-009](../ADR/009-ejs-over-handlebars.md).
 EJS (Embedded JavaScript) was chosen over Handlebars, Mustache, and Nunjucks for three reasons:
 
 1. **JavaScript interpolation with no new syntax** — template authors use plain JS expressions (`<% if (...) %>`, `<%= variable %>`), not a custom DSL. Anyone who knows JavaScript can read and modify templates without learning another language.
-2. **Already in use** — all 32 template files use `.ejs` syntax. There is no migration cost.
+2. **Already in use** — every one of the 546 template files uses `.ejs` syntax. There is no migration cost.
 3. **Simple rendering API** — `ejs.render(templateString, data)` is a single function call. The rendering pipeline in `src/utils/render.ts` is 20 lines.
 
 See [ADR-009](../ADR/009-ejs-over-handlebars.md) for alternatives considered.
@@ -529,7 +529,10 @@ L3 gate requires evidence artifacts in `.evidence/` before release.
 
 ## Template Inventory
 
-32 template files across 8 subdirectories in `src/templates/`:
+The tree has grown to 546 template files across 49 subdirectories in `src/templates/`. The table
+below was hand-authored against an earlier, 32-file/8-subdirectory snapshot and only covers those
+original 8 — it is a representative sample of the pattern, not a complete inventory. Trust
+`find src/templates -name '*.ejs'` for the live count.
 
 ### `agents-md/` (1 file)
 
@@ -752,7 +755,7 @@ Every wave in `docs/plans/planning-skeleton-migration-plan.md` fills in this tab
 | A     | `scripts/check-kit-catalog-parity.mjs`                  |
 | B1    | `src/templates/kit/*.ejs`                               |
 | B2    | `src/generators/kit.ts`                                 |
-| B3    | `docs/REFERENCE/dim-001-*.md … dim-076-*.md` (76 files) |
+| B3    | `docs/REFERENCE/dim-001-*.md … dim-078-*.md` (78 files) |
 | B4    | INV-86 in catalog                                       |
 
 ### Example: Anti-Drift Validator (W6)
@@ -1076,7 +1079,7 @@ For every primitive introduced in W2-W11, both tracks ship in the same PR:
 | CI workflow   | `.github/workflows/*.yml`                 | `src/templates/github/workflows/*.yml.ejs`                 | `src/generators/github-workflows.ts`      | `docs/REFERENCE/ci-tier-workflows.md`        | INV-73 update        |
 | Makefile      | `Makefile`                                | `src/templates/local-wrapper/Makefile.ejs`                 | `src/generators/local-wrapper.ts`         | `docs/REFERENCE/local-wrapper-contract.md`   | INV-87               |
 | Stack adapter | RETIRED (#1837)                           | n/a                                                          | n/a                                        | n/a                                            | INV-88 (retired)      |
-| KIT catalog   | `src/kit/catalog.ts`                      | `src/templates/kit/*.ejs`                                  | `src/generators/kit.ts`                   | `docs/REFERENCE/dim-001-*.md … dim-076-*.md` | INV-86               |
+| KIT catalog   | `src/kit/catalog.ts`                      | `src/templates/kit/*.ejs`                                  | `src/generators/kit.ts`                   | `docs/REFERENCE/dim-001-*.md … dim-078-*.md` | INV-86               |
 | Evidence      | `.evidence/<batch>/`                      | `src/templates/evidence/*.ejs`                             | `src/generators/test-taxonomy.ts`         | `docs/REFERENCE/evidence-schema.md`          | INV-90               |
 | Supply chain  | `.github/workflows/05-release.yml`        | `src/templates/github/workflows/05-release.yml.ejs`        | `src/generators/github-workflows.ts`      | `docs/REFERENCE/supply-chain.md`             | INV-92               |
 | AI-PR gate    | `.github/workflows/_label-on-approve.yml` | `src/templates/github/workflows/_label-on-approve.yml.ejs` | `src/generators/github-workflows.ts`      | `docs/REFERENCE/ai-pr-gate.md`               | INV-91               |
@@ -1141,7 +1144,7 @@ Each anti-drift validator in `scripts/check-*.mjs` must support `--help` (INV-89
 
 - `docs/plans/planning-skeleton-migration-plan.md` — wave execution playbook
 - `#dual-track-contract (this document)` — binding dual-track contract
-- `docs/audits/kit-canonical-mapping.json` — machine-readable 76-dim catalog
+- `docs/audits/kit-canonical-mapping.json` — machine-readable 78-dim catalog
 - `docs/audits/arbiter-skeleton-gap-analysis.md` — severity-rated gap matrix
 - `docs/REFERENCE/external-kit-sources.md` — KIT XLSX pointer + refresh procedure
 - `AGENTS.md` — invariants INV-73, INV-86..INV-93

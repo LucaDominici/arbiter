@@ -37,8 +37,7 @@ level) is [`AGENTS.md`](https://github.com/LucaDominici/arbiter/blob/main/AGENTS
 
 Beyond the named invariants, arbiter tracks a machine-generated catalogue of **78 security and
 quality dimensions** — each with its gate tier (L1/L2/L3), BLOCKING/ADVISORY status, and per-stack
-coverage. `arbiter kit generate` renders it into an adopting project's `docs/REFERENCE/GLOBAL_KIT.md`
-from the same source arbiter uses for itself.
+coverage, rendered into `docs/REFERENCE/GLOBAL_KIT.md` from the same source arbiter uses for itself.
 <!-- END GENERATED:kit-count -->
 
 <!-- The region above is emitted by scripts/gen-derived-pages.mjs from

@@ -27,7 +27,7 @@ Arbiter generates governance artifacts — `AGENTS.md`, hooks, CI gate, skills �
 2. **Reference** — when a skill is detected, arbiter omits its own equivalent (e.g. arbiter's bundled `tdd` skill is skipped if superpowers `tdd` is present) and instead adds an `Integrations` section to `AGENTS.md` pointing to the installed skill.
 3. **No duplication** — arbiter never copies, embeds, or modifies upstream skill files.
 
-Run `arbiter integrations list` to see which skills are currently detected or recommended.
+Detection runs automatically during `arbiter init` / `arbiter update`; the result shows up as the `Integrations` section of the generated `AGENTS.md`. To inspect the full catalog directly, read `src/integrations/skills-matrix.ts`.
 
 ---
 
@@ -77,7 +77,7 @@ Example (generated `AGENTS.md` fragment):
 ```
 
 3. Add detection logic if the skill uses a non-standard path (default: walks `~/.claude/skills/<skill-basename>`).
-4. Open a PR. The `arbiter integrations list` test in CI will catch any malformed entries.
+4. Open a PR. `scripts/check-skills-matrix.mjs` (wired in CI) and `__tests__/integrations/skills-matrix.test.ts` will catch any malformed entries.
 
 ---
 
