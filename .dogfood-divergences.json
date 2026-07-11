@@ -103,7 +103,7 @@
     "dest": ".github/workflows",
     "path": "01-pr-fast.yml",
     "reason": "The template collapses 01-pr-fast.yml.ejs's entire PR pipeline (gate, unit/contract/integration/behavioral tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, debt-gates, ci-required, post-merge-gate) to a one-line solo-dev-gate stub whenever `locals.enableSoloDevMode` is true — and arbiter.json sets features.soloDevMode: true. Self deliberately keeps running the full peer-review-shaped pipeline regardless (arbiter dogfoods harder than its own declared collaborationMode: trunk-solo — same pattern documented in check-ci-tiers.mjs.ejs's cadence-parity comment). Tracked under #1900.",
-    "diffHash": "65a850bb1a27cfd6193c19a5f9f9d66dae3c237e6e94324814a778d87ac513bc"
+    "diffHash": "93480982f9cacf145a70316198052112a90b1191d2ae5895342b405624a78905"
   },
   {
     "dest": ".github/workflows",
@@ -120,8 +120,8 @@
   {
     "dest": ".github/workflows",
     "path": "_nightly.yml",
-    "reason": "Self sets `enableNativeBakeE2E` (bake-e2e-native + generated-gate-e2e jobs) — a flag with no wiring path in resolveProjectConfig/src/generators (grep confirms zero setters): a manual arbiter-self-only harness augmentation for the init→bake native-fixture-smoke matrix + VITEST_L2 generated-gate harness. The template comment says as much: \"Downstream-generated projects do not ship this harness, so it renders only for arbiter itself.\" Tracked under #1900.",
-    "diffHash": "b8fde80cbb55a72e4e01b7a0fa6ef32c3322f8590b63eab5c7ac13af46440191"
+    "reason": "Self sets `enableNativeBakeE2E` (bake-e2e-native + generated-gate-e2e [per-language matrix] + generated-gate-e2e-misc jobs) — a flag with no wiring path in resolveProjectConfig/src/generators (grep confirms zero setters): a manual arbiter-self-only harness augmentation for the init→bake native-fixture-smoke matrix + VITEST_L2 generated-gate harness (split per-stack, B5 gate-thesis reliability). The template comment says as much: \"Downstream-generated projects do not ship this harness, so it renders only for arbiter itself.\" Tracked under #1900.",
+    "diffHash": "635dcfcc9b553a206146ebc6ad32135ce3c02a4ac72a47b327649606b1a77757"
   },
   {
     "dest": ".github/workflows",
