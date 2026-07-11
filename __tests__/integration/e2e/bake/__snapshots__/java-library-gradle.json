@@ -159,7 +159,7 @@
     "test-pyramid.json"
   ],
   "contentHashes": {
-    ".arbiter-generated-manifest.json": "e5e525f7220d74454921edcc5f11d0cf836d21424133749eefda21aa4024bba3",
+    ".arbiter-generated-manifest.json": "e70e674c4f249c8b4ef22361158512edc0bd737d29c61a4c469cd9863a9d3efa",
     ".arbiter/ship/TICK_PROMPT.md": "03a8b78da1ba474a13866a38cb71e36cf364af78f8b2994b4951e29f33718cd0",
     ".arbiter/ship/supervisor.sh": "44b50dd34c1807153c34812ff487f7961e78dbeec6d567502df7d2a27da6e01c",
     ".claude/CLAUDE.md": "9fff26c58136e2569b02833237374d9c5a0af0fcb884b9529c7f8f129d6079b6",
@@ -225,10 +225,10 @@
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".trivyignore": "4b1e090b79bedce32e59a6362370898dcec94c35330244d1af0d7b3f8cc9adfa",
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",
-    "AGENTS.md": "f1e5c3f30c77700f064b4060557cbd21f5c67543effbd82ad7506996f3ea6224",
+    "AGENTS.md": "d1dc191af97be01fdaa563d18d6b0b568d558247ef9799c4790c1c71847e44be",
     "Makefile": "a4c1c14edfbc83bde72217512cf725d0f53cfbe7dc6e7ae82c0883087596f11f",
     "api-e2e.json": "b36e9eecffcfe1a25ab0fe059a266d48cd9bf02fd63d2c01617a5902f871a1bf",
-    "arbiter.json": "135024f2ef2aa450a86ad5c287ac50613228cf03d1b8b2b9f73f6cb1778d7c3e",
+    "arbiter.json": "9a40c9d3d2eebd198b9abe9abccf6ed228794f92313236d8b304e557ea3052c9",
     "config/checkstyle.xml": "8f7b59039799f236619dbc800154c810bbfd633b249dc6bd9c8dd4f208bb7d6b",
     "docs/COMPLIANCE_MENU.md": "8515995f5d4548129167fed04a6b0125c568225e72f665dcc0d3e40f14d76692",
     "docs/METHOD/CANONICAL_PATHS.md": "c73852e3683d53aa0a170982b5d1b28018b73a346f367530ecc3e3fbe4c632b7",

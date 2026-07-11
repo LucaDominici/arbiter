@@ -174,7 +174,7 @@
     "tsconfig.json"
   ],
   "contentHashes": {
-    ".arbiter-generated-manifest.json": "ee4865f4eb1a25925b97c967cb7fadd29ec21db8f267daec946a358ceac32fc3",
+    ".arbiter-generated-manifest.json": "cb0b3a3482a7a50b04db0119392a2d53af227a72f310f177978cb9c6477c8edc",
     ".arbiter/ship/TICK_PROMPT.md": "03a8b78da1ba474a13866a38cb71e36cf364af78f8b2994b4951e29f33718cd0",
     ".arbiter/ship/supervisor.sh": "44b50dd34c1807153c34812ff487f7961e78dbeec6d567502df7d2a27da6e01c",
     ".claude/CLAUDE.md": "43bba181aa0122cc7e180d50cf3a086e7c6ef89eac4bd774db979377d63986b2",
@@ -249,7 +249,7 @@
     "Makefile": "721c9c911cbd74e865a71693ffed8eae47d7793ec80816153273cf31b4f0a94e",
     "__tests__/contract/error-shape.contract.test.ts": "208c6f897162c3a17c6970443577ddc81804750ddf3bd3e70f8d516f344ba672",
     "api-e2e.json": "e3b185c97cf032ae710c6aa91da19046333ee04e86c5437090d23da116f56bfc",
-    "arbiter.json": "0505d00537f8adc787d737e93d7d85e1ec536cd2d51f5aa42ecf808f23616b01",
+    "arbiter.json": "ca9d4474c98a2b0cc043fd18504b5cf1f2ee72307b329c71ea4a2a43f45fa6b3",
     "docs/COMPLIANCE_MENU.md": "19ff1b5ce44f6ac1ea8d64e392f673cda22d4a5792afb0b7f4343ad9c8b28238",
     "docs/GOVERNANCE/E2E_CONSTITUTION.md": "1258d78aa5188be3409c62ab7bcb05a6827b86d45059fdd55007c99e4a48dc60",
     "docs/METHOD/CANONICAL_PATHS.md": "3931f96c6b04a6daba8e9ee10c531af6022154bfb1c322128a6ac5cad5ad09f4",
@@ -265,7 +265,7 @@
     "muted-tests-baseline.json": "591ba0e9f6b642dcdb4528a2ee8ea56c0a8418a7c9cdb0d745f6cee53b922df1",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
     "scripts/check-action-pins.mjs": "a44e424332b4cc6473547a656134ef8083c4fdbd3be8a1c6066a49f2e2f38992",
-    "scripts/check-all.mjs": "954b49bbe3cb1148c73251be033a1c2a7cd47f15a0a41172610e361ec70ead47",
+    "scripts/check-all.mjs": "8ed4ffb229d8a04ec1f4254c187e6342345ae2227788e579542b9ef2dc0cd7eb",
     "scripts/check-anti-fake-green.mjs": "0d80f4e025a95c0e1c7883afa01c367acce9a1eb0175bcb8914e1feed5ad02cb",
     "scripts/check-anti-proforma.mjs": "18c4616e33c7025e307ebf3353b02fbf2dcba3ade2e04fdc1f4dad83a8b8cfa8",
     "scripts/check-api-e2e.mjs": "157572cb0e54a46a779df74300d09b42b3312713efebcf8a2498fa382dc80ed0",

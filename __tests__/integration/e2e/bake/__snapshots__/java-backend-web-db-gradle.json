@@ -170,7 +170,7 @@
     "tests/api/run.sh"
   ],
   "contentHashes": {
-    ".arbiter-generated-manifest.json": "a4bfc1d203e4f7b3a791fd5a0670f1c289aaea4c7d70dbd3e53b7921ca2db636",
+    ".arbiter-generated-manifest.json": "4636e0a5bcd9f8f3f2d4daca286b91eadc3a7c70804c64564d929c2fa341ebaa",
     ".arbiter/ship/TICK_PROMPT.md": "03a8b78da1ba474a13866a38cb71e36cf364af78f8b2994b4951e29f33718cd0",
     ".arbiter/ship/supervisor.sh": "44b50dd34c1807153c34812ff487f7961e78dbeec6d567502df7d2a27da6e01c",
     ".claude/CLAUDE.md": "77b02347e564cade25e2140ffd56e6065112ef76c9db3a2fd50c49d9c071dc8b",
@@ -236,10 +236,10 @@
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".trivyignore": "4b1e090b79bedce32e59a6362370898dcec94c35330244d1af0d7b3f8cc9adfa",
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",
-    "AGENTS.md": "bbec1947c13ba8c7bf5da623cf22c31ac65860e68a21c7e938d92b5a96405da8",
+    "AGENTS.md": "2008fdf1be9b50a5350c4aea3462f8044cf4f5af9876a133c976ac08a9a7a4c2",
     "Makefile": "62598e0eb46227da987450a299d2be58e059151c0bed3a9e2a0f8132e2f52626",
     "api-e2e.json": "52e0b7952a633034ab4ff79977fb68e532f3a744dcfeea4d55ddf87eaf20f256",
-    "arbiter.json": "92d89f7d7a5e580c073bc0b04fa8b58500f6aef87ff77983bfdf09efb773c44e",
+    "arbiter.json": "681786939f41e64faa1d17f26046352e4dd95b5512ccbc969ab35da40b6158b2",
     "config/checkstyle.xml": "226958657d70ca939a1a369882cbeac806e99941a3f0bd787ac3ee5e4f2f15e0",
     "docs/COMPLIANCE_MENU.md": "0be8e818fc9c68c3f06f16787e7ae99d9b9a1d5d31fa3b8fc2a28d666c749e07",
     "docs/GOVERNANCE/E2E_CONSTITUTION.md": "639efeec1f2690cc58df1089bbe95624deb626723c738ec22da9199a9de43cec",

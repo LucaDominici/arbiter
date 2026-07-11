@@ -178,7 +178,7 @@
     "vitest.browser.config.ts"
   ],
   "contentHashes": {
-    ".arbiter-generated-manifest.json": "3a687c63821d64250e995b5c581096f2370c49ab56fea82b0cbfec0893aa360f",
+    ".arbiter-generated-manifest.json": "7b9a3bd5d75a2489c78d496d8001368526dfbce5beb6340629a92e6d56995761",
     ".arbiter/ship/TICK_PROMPT.md": "03a8b78da1ba474a13866a38cb71e36cf364af78f8b2994b4951e29f33718cd0",
     ".arbiter/ship/supervisor.sh": "44b50dd34c1807153c34812ff487f7961e78dbeec6d567502df7d2a27da6e01c",
     ".claude/CLAUDE.md": "365d94b9ba9720a93ca2e70c21605926cc901019425c39f6f377de4a7e81f318",
@@ -255,7 +255,7 @@
     "AGENTS.md": "0df94a20dacc86dc4de0bfae3d2f31e7d5b7a869190b9afab098443bb6ce1c6a",
     "Makefile": "663321fdd5d2fbc3609a3b5e109f870385b897869df2ef633e5c49d8ec84aa60",
     "api-e2e.json": "e6433e4247124cc3a1ddb3ebdc25172f43d93e7af82c3952988436634b03d387",
-    "arbiter.json": "02ec29309df775ecdcf1ee6c521436a08bb532bdf516496970464dd288481b4f",
+    "arbiter.json": "f977b729f1de86720e84abbda47381501c7ef4f6f60cdf244171e36dc3b26aba",
     "bundle-budget.json": "4126e7a242f0791b28f7e4d66ca33df079c96e32ef4de2847141b09098e5765f",
     "design-tokens.json": "139cdc4557b5f8ccb06e957db4f720af0798bc8f2f880be5c18d9710e78776cb",
     "docs/COMPLIANCE_MENU.md": "76de02d1a0764c81d5589c101b9366d286892a6422076813e2a09f159ba49efd",
@@ -275,7 +275,7 @@
     "muted-tests-baseline.json": "591ba0e9f6b642dcdb4528a2ee8ea56c0a8418a7c9cdb0d745f6cee53b922df1",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
     "scripts/check-action-pins.mjs": "6f2ca47b4bcfabc70bb1c49badf201a0e01e9fe1c144da13037db17e8e6f24ef",
-    "scripts/check-all.mjs": "a0448e0b8cb572738ef1f2cec738a0e98c84a5c423dbfad69a50b291459eb0e3",
+    "scripts/check-all.mjs": "0a115a0f15801e05acc18ce30098971a1cdd05fdfd4d86ae34ae8c9a7615752c",
     "scripts/check-anti-fake-green.mjs": "0d80f4e025a95c0e1c7883afa01c367acce9a1eb0175bcb8914e1feed5ad02cb",
     "scripts/check-anti-proforma.mjs": "b1533f5f885f80dd627cd73220ff15045f1c5466e7c3d61775fa73c7aa762752",
     "scripts/check-api-e2e.mjs": "157572cb0e54a46a779df74300d09b42b3312713efebcf8a2498fa382dc80ed0",

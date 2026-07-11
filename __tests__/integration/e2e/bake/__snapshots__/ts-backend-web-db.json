@@ -171,7 +171,7 @@
     "tests/e2e/a11y/run-axe.ts"
   ],
   "contentHashes": {
-    ".arbiter-generated-manifest.json": "633e24a828f5cb1198fb702cd9249511b38151ed2dc7943033cd36c05447e72a",
+    ".arbiter-generated-manifest.json": "733b10d51bd9e1bb16ebe8a2b653144672c20f11fba7cdd649ea91160a9839d3",
     ".arbiter/ship/TICK_PROMPT.md": "03a8b78da1ba474a13866a38cb71e36cf364af78f8b2994b4951e29f33718cd0",
     ".arbiter/ship/supervisor.sh": "44b50dd34c1807153c34812ff487f7961e78dbeec6d567502df7d2a27da6e01c",
     ".claude/CLAUDE.md": "d5fa69c614ac96f07204da0249154260f01f5dd2567af9fee6333b4117254e1b",
@@ -244,7 +244,7 @@
     "Makefile": "052569a0f571f38d1098733805f2ba5d5de4dc5c76951674769ec86668c4056c",
     "__tests__/contract/error-shape.contract.test.ts": "208c6f897162c3a17c6970443577ddc81804750ddf3bd3e70f8d516f344ba672",
     "api-e2e.json": "e3b185c97cf032ae710c6aa91da19046333ee04e86c5437090d23da116f56bfc",
-    "arbiter.json": "0505d00537f8adc787d737e93d7d85e1ec536cd2d51f5aa42ecf808f23616b01",
+    "arbiter.json": "ca9d4474c98a2b0cc043fd18504b5cf1f2ee72307b329c71ea4a2a43f45fa6b3",
     "docs/COMPLIANCE_MENU.md": "0dd20e38c1ec77d60ea0c64e473237ece11fea9049c36cb80817886ff410a323",
     "docs/GOVERNANCE/E2E_CONSTITUTION.md": "558f0c585649d2ad5d3f72f5f0e88295c7b6eaf3cde12fa9fcc1da83528080d4",
     "docs/METHOD/CANONICAL_PATHS.md": "7fb9fcf9ead39bfc88eaa7e35a1eda9b8d929e0d8545b37ec0b9ebce265ef2f3",
@@ -260,7 +260,7 @@
     "muted-tests-baseline.json": "591ba0e9f6b642dcdb4528a2ee8ea56c0a8418a7c9cdb0d745f6cee53b922df1",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
     "scripts/check-action-pins.mjs": "6ee0d96b480a7676b13708b33806c1d514b03eee1bd11c48ced539f3fd1459fd",
-    "scripts/check-all.mjs": "7f67141cc44ca4be98e3d9af31a331bbfed53a3a81484a23f45af6807a76d1d8",
+    "scripts/check-all.mjs": "15e514ab3fbc3d8984a0747a62314176d7f09720e8080715a69f9b801828f6fa",
     "scripts/check-anti-fake-green.mjs": "0d80f4e025a95c0e1c7883afa01c367acce9a1eb0175bcb8914e1feed5ad02cb",
     "scripts/check-anti-proforma.mjs": "96fc745f0212a05c31e99e8e642074077096eb9913a9490ad53027c7a5cae431",
     "scripts/check-api-e2e.mjs": "157572cb0e54a46a779df74300d09b42b3312713efebcf8a2498fa382dc80ed0",
