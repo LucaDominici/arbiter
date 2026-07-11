@@ -9,9 +9,142 @@ tags: []
 related: []
 ---
 
-## [Unreleased]
+## [0.5.0] — 2026-07-11
 
-_Nothing yet._
+**Channel:** stable
+
+### Added
+
+- ADR-103 (#1873, T1 governance): worktree-isolated parallel execution carve-out.
+  Rule 50 (batch execution) gains a conditional exemption — parallel agents may
+  edit/commit/branch only when each runs in a dedicated worktree opened via
+  `arbiter worktree open`, on a distinct branch, with plan-manifest-disjoint
+  file-sets; dependency changes, main-tree edits and tags stay prohibited. The
+  edit lands dual-side (self file + claude template + codex template) with a
+  byte-parity test. The ADR also fixes the engine/primitive boundary for the
+  wave technique (no new TS engine; deterministic leaf primitives only), the
+  anti-deadlock lock order (gate-lock ≺ worktree-lock ≺ wave-claim, gate-exec is
+  a leaf), and the owner-ratified hybrid convergence model (governed repos: one
+  wave-PR; non-governed repos: N-PR + merge-train in the skill's cross-repo
+  appendix). `ship --batch` is deprecated at warn stage in favour of `/drain`
+  (wave-drain skill); the batch seam stays sync and untouched.
+- Wave primitives T2-T5 of #1873 (ADR-103 leaf set). T2: `isStale` is now
+  liveness-first — a live same-boot lock is never stolen on age alone (the
+  double-gate hole), a dead pid is stale immediately, and the age backstop
+  applies only to EPERM unknown-user pids. T3: new `arbiter gate-exec [--key K]
+-- <cmd...>` per-repo gate mutex — key hashed from the git common dir so all
+  worktrees of a repo converge on one flock(1) lock under XDG_RUNTIME_DIR;
+  kernel-side blocking wait and guaranteed release on SIGKILL/OOM; exit-code
+  passthrough; fail-closed E_GATE_MUTEX_UNSUPPORTED where flock is missing.
+  T4: new worktree link strategy `symlink-children` (now the node_modules
+  default) — per-child symlinks excluding `.vite`/`.cache`, so parallel
+  worktree builds stop corrupting one shared cache; `symlink`/`copy` configs
+  unchanged. T5: new `arbiter worktree prune [--stale <hours>] [--execute]`
+  zombie reaper — clean trees that are merged or inactive beyond the threshold;
+  dry-run by default; dirty trees never touched (INV-96); inactive-unmerged
+  candidates keep their branch.
+- wave-drain skill v2 + /drain v2 (T6 of #1873, dual-side): the parallel wave
+  protocol proven 2026-07-09/10 lands in the existing skill/command — ADR-103
+  legality header (worktree + distinct branch + disjoint file-sets), gate mutex
+  via `arbiter gate-exec` (flock(1), SIGKILL/OOM-safe, fail-closed serial
+  fallback), anti-stall split (deterministic gate-wait vs sweep-bounded
+  turn-stall), `conflicts-with:#N` serial lane, optional per-issue 3-hop plan
+  gate for `needs-plan`, cap `min(--max-parallel, nproc-2, wave)`, per-worktree
+  caches, REAL-diff fan-in order, end-of-wave zombie reaper. Convergence model
+  owner-ratified: governed repos ONE wave-PR; the cross-repo appendix documents
+  N-PR + merge-train for non-governed repos with explicit caveats. The
+  opus-4.8-harness-wave-orchestrator prompt is superseded; SKILL.md/drain.md
+  stay byte-equal to their templates (dogfood INV-45).
+- Wave F2 of the flagship epic (#1836): promotes 4 ceremony rules from prose-reviewed
+  to wired gates (#1838). CANON-10 (hook↔doc parity between `.claude/settings.json`
+  and `.claude/CLAUDE.md`) is now enforced by `check-hook-doc-parity.mjs`. INV-111 is
+  extended beyond the generated CLI-reference region to hand-authored prose
+  (PRIVACY.md, docs/, website/, excluding decision/roadmap archives and the
+  changelog) via `check-phantom-command-scan.mjs`. `check-version-parity.mjs` closes
+  the version-drift class fixed once already in F1 (#1837) by permanently checking
+  package.json, the compiled CLI's `--version` output, and CHANGELOG.md's top entry
+  all agree. `check-doc-links.mjs` now also scans website/ (previously excluded
+  outright over VitePress route false-positives — it now resolves `/`-absolute
+  routes and extensionless relative sibling links the same way VitePress itself
+  does) and self-referential `github.com/.../blob|tree/...` URLs anywhere in the
+  corpus, which caught 2 live dead links in `website/.vitepress/config.ts` (ADR
+  Ledger / Decisions nav entries still pointed at the pre-#1770 `docs/ADR` and
+  `docs/SYSTEM/DECISIONS.md` paths) and a dead `/privacy` route on the homepage —
+  all fixed in this PR alongside the gate that now guards them.
+- Wave F2 tranche 2 (#1838, epic #1836): CANON-14's dogfood allowlist becomes an
+  auto-diff registry, and derived website pages get a generator with an L1
+  freshness gate. `.dogfood-divergences.json` entries now pin the sha256 of the
+  exact approved template-vs-materialized diff (`diffHash`): new drift inside an
+  allowlisted file, a healed (stale) entry, or a dead entry (path no corpus
+  visits) all fail `check-self-dogfood.mjs` instead of being silently absorbed by
+  a whole-file skip — the class that let the guard-done-evidence vs
+  stop-evidence-guard divergence slip. At introduction the auto-diff caught 1
+  stale entry (`check-circular-deps.mjs`, template and copy had already
+  converged) and 3 dead entries (`review-code.md`, `gen-wiki.mjs`,
+  `check-wiki-lint.mjs` — never visited by any corpus), all removed. Re-pin after
+  a reviewed change with `--update-divergences`. New
+  `scripts/gen-derived-pages.mjs` emits the active-experiments table
+  (website/reference/experimental-policy.md, from src/experimental/registry.ts —
+  closing the TODO left by the F1 hand-fix of #1837) and the kit dimension count
+  (website/features/index.md, from src/kit/catalog.json — the 77-vs-78 class)
+  into marker-delimited regions, prettier-converged, with `--check` wired in L1.
+- #1902: extends the CANON-14 dogfood auto-diff (above) beyond scripts to
+  `.github/workflows/*` and every `check-*.mjs`, closing the coverage gap the
+  first pass left open.
+- Adds `.github/workflows/generator-matrix.yml`, a dedicated dispatchable +
+  weekly + pre-release entry point for arbiter's DEEP generator E2E cells (TS
+  packaged-artifact; Python/Go/Rust/Java fixture-functional), independent of
+  the broad nightly sweep that already runs them bundled (#1840 F4 tranche 2).
+  Kotlin is excluded — declassified to snapshot-only pre-publish (README
+  already didn't list it as supported; #1803 is the re-promotion path).
+  Toolchain-pin coherence (the #1854/#1856 incident class) is locked by a new
+  regression test sharing a `MIN_GO_FOR_PINNED_TOOL` registry with the
+  `_nightly.yml.ejs` guard.
+- #1894: Trivy `fs` scanning replaces OWASP Dependency-Check for JVM dependency
+  scanning (faster, actively maintained, no NVD API-key friction), with INV-92
+  template parity so generated projects get the same swap.
+- `#1839` (F3 friction cut): `--preset` is now a self-sufficient non-interactive fast
+  path for `arbiter init` — it no longer additionally requires `--yes`. `resolveConfig`
+  only checked `options.yes || recipe !== undefined` before deciding whether to run the
+  interactive wizard, so a bare `--preset industrial-grade` still blocked on stdin. This
+  restores the "No wizard prompts" behavior documented in ADR-066.
+- `#1839`: `src/commands/init.ts` (~1734 LOC, 6 mixed responsibilities) split into
+  `src/commands/init/{resolve-config,build-arbiter-config,generate,github-setup,maturity-gates}.ts`,
+  and `src/commands/doctor.ts` split into 5 subcommand modules. Pure extraction —
+  both stay thin orchestrators + public barrels (every previously-exported symbol
+  is re-exported), no behavior change.
+
+### Fixed
+
+- #1908/#1909: `gitleaks detect` (both the CI `security-early-fail` job and
+  `scripts/check-all.mjs`'s L2 gate) ran with no `--log-opts`, so it scanned
+  **all refs** reachable in the checkout, not just the current branch/PR's own
+  ancestry — an unrelated, unmerged branch's commit could trip the Security gate
+  on every other PR. Durable fix: scope the scan to `--log-opts="HEAD"`, with the
+  nightly `gitleaks-history` job keeping `--all --full-history` as the deep
+  cross-branch safety net. Also trims ~300 stale fingerprint suppressions from
+  `suppressions/.gitleaksignore` that the scope fix makes unnecessary.
+- #1905/#1906/#1910: two `D4-LITE post-merge gate` flakes from `check-self-dogfood`'s
+  repo-mutation tests racing on shared fixture state — serialized.
+- #1885/#1886/#1887/#1888/#1907: scaffold-not-wired wiring pass + the "ponytail"
+  YAGNI-drafting companion audit — closes several `arbiter init`-generated
+  project gaps where a template shipped a check/script that the generated
+  `check-all.mjs`/CI never actually invoked (dead-on-arrival gates).
+- #1889: `check-domain-api-surface.mjs` (INV-125) was generated but never wired
+  into `check-all.mjs` — another dead gate, now invoked.
+- #1890: generated Java builds now wire checkstyle/pmd/spotbugs/spotless into
+  the build (previously templated but not invoked).
+- #1897: codex-only hook parity + spring-modulith dependency wiring.
+- #1898/#1899: java-tooling's `apply(from = ...)` is withheld when the target
+  Gradle config block is already inline, avoiding a duplicate-config error.
+- #R-08/#1903: remapped `canonical-mapping.json`'s crosswalk + the phantom-path
+  gate (INV-86) after the docs Wave-2 migration left stale entries.
+- #1042/#1840: Java's generated BDD example (`ExampleBddIT.java`) now actually
+  runs green instead of silently failing once wired up. The generator now also
+  emits `ExampleSteps.java`, the Cucumber glue for `example.feature`'s
+  Given/When/Then steps — without it every step resolved as UNDEFINED (Cucumber
+  is strict by default), the same class of gap Go/Rust/TS already closed by
+  shipping their step definitions alongside the suite/runner.
 
 ## [0.4.0] — 2026-07-07
 
@@ -563,6 +696,8 @@ _Nothing yet._
 - feat(worktree): harvest parent-state guardrails (#733) — prevent worktree harvest when parent branch has uncommitted changes or is ahead of remote
 
 ## [0.1.0] — 2026-05-15
+
+**Channel:** stable
 
 ### Added
 
