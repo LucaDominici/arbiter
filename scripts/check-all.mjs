@@ -300,6 +300,11 @@ if (isMain) {
     // installs it into a throwaway root with no repo overrides/devDeps, and audits
     // THAT tree at a stricter `moderate` floor — closing the structural blind spot.
     runCheck('consumer audit', 'node', ['scripts/check-consumer-audit.mjs'])
+    // --log-opts=HEAD (#1908): default gitleaks scans ALL refs in the local
+    // object DB (every branch you've ever fetched), not just this one — so an
+    // unrelated branch's commit can fail the gate on a checkout that has
+    // nothing to do with it. Scoping to HEAD keeps full-history depth for the
+    // ref actually being validated, matching the CI 01-pr-fast.yml gitleaks step.
     runCheck('gitleaks', 'gitleaks', [
       'detect',
       '--source',
@@ -308,6 +313,7 @@ if (isMain) {
       '.gitleaks.toml',
       '--gitleaks-ignore-path',
       'suppressions/.gitleaksignore',
+      '--log-opts=HEAD',
       '--exit-code',
       '1',
     ])
