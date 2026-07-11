@@ -51,8 +51,8 @@ const ROOT = process.cwd()
 const OUT_FILE = resolve(ROOT, 'THIRD_PARTY_LICENSES.md')
 
 /**
- * In a git worktree, `node_modules` is a symlink to the main repo's
- * `node_modules`. Running `npm ls` from the worktree gives a bloated,
+ * In a git worktree, `node_modules` is (or contains) symlinks into the main
+ * repo's `node_modules`. Running `npm ls` from the worktree gives a bloated,
  * incorrect production dependency closure (it sees ALL packages in the shared
  * store, not just those reachable from the CLI's production dep graph). Detect
  * the symlink and resolve to the main repo root so `npm ls` reports the
@@ -63,8 +63,24 @@ function resolveNpmCwd(dir) {
     const nmPath = join(dir, 'node_modules')
     const stat = lstatSync(nmPath)
     if (stat.isSymbolicLink()) {
-      // node_modules is a symlink → git worktree. Use the real parent as npm cwd.
+      // node_modules is a symlink → git worktree (whole-dir link). Use the
+      // real parent as npm cwd.
       return resolve(realpathSync(nmPath), '..')
+    }
+    // #1928: `arbiter wt open` links node_modules' individual top-level
+    // entries (children), not the whole directory — so node_modules itself
+    // is a real directory here. Detect via the first symlinked child and
+    // derive the real node_modules root from its target.
+    for (const entry of readdirSync(nmPath)) {
+      let entryStat
+      try {
+        entryStat = lstatSync(join(nmPath, entry))
+      } catch {
+        continue
+      }
+      if (entryStat.isSymbolicLink()) {
+        return resolve(realpathSync(join(nmPath, entry)), '..', '..')
+      }
     }
   } catch {
     /* no node_modules or stat failed — use dir as-is */

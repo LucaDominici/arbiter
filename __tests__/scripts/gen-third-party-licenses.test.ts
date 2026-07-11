@@ -9,6 +9,7 @@ import {
   rmSync,
   globSync,
   lstatSync,
+  readdirSync,
   realpathSync,
 } from 'node:fs'
 import { resolve, join } from 'node:path'
@@ -18,9 +19,12 @@ const SCRIPT = resolve('scripts/gen-third-party-licenses.mjs')
 const OUT = resolve('THIRD_PARTY_LICENSES.md')
 
 /**
- * When `node_modules` is a symlink (git worktree), `npm ls` must run from the
- * real main repo root to report the correct production closure. Otherwise it
- * sees the entire shared node_modules and reports all packages as candidates.
+ * When `node_modules` is (or contains) a symlink into the main repo (git
+ * worktree), `npm ls` must run from the real main repo root to report the
+ * correct production closure. Otherwise it sees the entire shared
+ * node_modules and reports all packages as candidates. Mirrors the fix in
+ * scripts/gen-third-party-licenses.mjs (#1928): `arbiter wt open` links
+ * node_modules' individual top-level entries, not the whole directory.
  */
 function resolveNpmCwd(): string {
   const cwd = resolve('.')
@@ -29,6 +33,17 @@ function resolveNpmCwd(): string {
     const stat = lstatSync(nmPath)
     if (stat.isSymbolicLink()) {
       return resolve(realpathSync(nmPath), '..')
+    }
+    for (const entry of readdirSync(nmPath)) {
+      let entryStat
+      try {
+        entryStat = lstatSync(join(nmPath, entry))
+      } catch {
+        continue
+      }
+      if (entryStat.isSymbolicLink()) {
+        return resolve(realpathSync(join(nmPath, entry)), '..', '..')
+      }
     }
   } catch {
     /* no node_modules or stat failed — use cwd */
