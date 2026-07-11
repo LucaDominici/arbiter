@@ -44,6 +44,20 @@ export interface FeatureFlags {
   debtGates: boolean
   suppressions: boolean
   soloDevMode?: boolean
+  /** #1887-A: persistence of enableMcpFallback (opt-in — omitted/absent ⇒ false). */
+  mcpFallback?: boolean
+  /** #1887-A: persistence of enableNoSkippedTests (opt-out — absent ⇒ true). */
+  noSkippedTests?: boolean
+  /**
+   * #1887-A: compliance doc-pack, set only by applyPreset('industrial-grade').
+   * Without persistence a preset-initialized project silently dropped these
+   * generators on the next `arbiter update`/`diff`. All opt-in — absent ⇒ false.
+   */
+  riskRegister?: boolean
+  operationsHandbook?: boolean
+  iso27001Mapping?: boolean
+  nis2Mapping?: boolean
+  gdprMapping?: boolean
 }
 
 export type DecompositionBackendId = 'github' | 'markdown'
@@ -597,6 +611,25 @@ function validateThresholds(raw: unknown, errors: string[]): void {
   }
 }
 
+// Forward-compat optional feature flags: validate ONLY if present (absence is
+// valid — the field simply defaults at read-back time). One shared loop keeps
+// validateFeatures's cyclomatic complexity flat as flags are added (#1887-A
+// added mcpFallback/noSkippedTests/the 5-flag compliance doc-pack on top of
+// the pre-existing selfValidationHarness/auditToolchain/fiveLaneCi/soloDevMode).
+const OPTIONAL_FEATURE_FLAGS = [
+  'selfValidationHarness',
+  'auditToolchain',
+  'fiveLaneCi',
+  'soloDevMode',
+  'mcpFallback',
+  'noSkippedTests',
+  'riskRegister',
+  'operationsHandbook',
+  'iso27001Mapping',
+  'nis2Mapping',
+  'gdprMapping',
+] as const
+
 /** #1530: `: void` like its siblings — failure flows through `errors[]`, not a return. */
 function validateFeatures(raw: unknown, errors: string[]): void {
   if (!isRecord(raw)) {
@@ -616,21 +649,10 @@ function validateFeatures(raw: unknown, errors: string[]): void {
       errors.push(`features.${key} must be a boolean`)
     }
   }
-  // selfValidationHarness is optional for forward-compat; validate only if present
-  if ('selfValidationHarness' in raw && typeof raw['selfValidationHarness'] !== 'boolean') {
-    errors.push('features.selfValidationHarness must be a boolean')
-  }
-  // auditToolchain is optional (#1835); validate only if present
-  if ('auditToolchain' in raw && typeof raw['auditToolchain'] !== 'boolean') {
-    errors.push('features.auditToolchain must be a boolean')
-  }
-  // fiveLaneCi is optional (#1835 Task B); validate only if present
-  if ('fiveLaneCi' in raw && typeof raw['fiveLaneCi'] !== 'boolean') {
-    errors.push('features.fiveLaneCi must be a boolean')
-  }
-  // soloDevMode is optional; validate only if present
-  if ('soloDevMode' in raw && typeof raw['soloDevMode'] !== 'boolean') {
-    errors.push('features.soloDevMode must be a boolean')
+  for (const key of OPTIONAL_FEATURE_FLAGS) {
+    if (key in raw && typeof raw[key] !== 'boolean') {
+      errors.push(`features.${key} must be a boolean`)
+    }
   }
 }
 

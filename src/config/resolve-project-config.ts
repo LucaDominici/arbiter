@@ -134,6 +134,31 @@ function storedOptionalFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
  * runs the detectors first). Tests pin its field-mapping through that entry — see
  * __tests__/commands/update.test.ts.
  */
+/**
+ * Map the optional `features.*` flags (each defaulted via `??` on absence) into
+ * a Partial<ProjectConfig>. Extracted from v2ToProjectConfig to keep its
+ * cyclomatic complexity below the 15-branch ceiling — #1887-A added the
+ * mcpFallback/noSkippedTests/compliance-doc-pack round-trips on top of the
+ * pre-existing selfValidationHarness/auditToolchain/fiveLaneCi/soloDevMode set.
+ */
+function storedFeatureFlagFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
+  return {
+    enableSelfValidationHarness: stored.features.selfValidationHarness ?? true,
+    enableAuditToolchain: stored.features.auditToolchain ?? false,
+    enableFiveLaneCi: stored.features.fiveLaneCi ?? false,
+    enableSoloDevMode: stored.features.soloDevMode ?? false,
+    // #1887-A: round-trip the two pure round-trip-drop flags (see build-arbiter-config.ts).
+    enableMcpFallback: stored.features.mcpFallback ?? false,
+    enableNoSkippedTests: stored.features.noSkippedTests ?? true,
+    // #1887-A: compliance doc-pack — fixes the silent drop after preset init.
+    enableRiskRegister: stored.features.riskRegister ?? false,
+    enableOperationsHandbook: stored.features.operationsHandbook ?? false,
+    enableIso27001Mapping: stored.features.iso27001Mapping ?? false,
+    enableNis2Mapping: stored.features.nis2Mapping ?? false,
+    enableGdprMapping: stored.features.gdprMapping ?? false,
+  }
+}
+
 function v2ToProjectConfig(stored: ArbiterConfigV2, detectorFields: DetectorFields): ProjectConfig {
   const level = stored.governanceLevel
   return {
@@ -148,10 +173,7 @@ function v2ToProjectConfig(stored: ArbiterConfigV2, detectorFields: DetectorFiel
     enableMutationTesting: stored.features.mutationTesting,
     enableContractTesting: stored.features.contractTesting,
     enableEvidenceHarness: stored.features.evidenceHarness,
-    enableSelfValidationHarness: stored.features.selfValidationHarness ?? true,
-    enableAuditToolchain: stored.features.auditToolchain ?? false,
-    enableFiveLaneCi: stored.features.fiveLaneCi ?? false,
-    enableSoloDevMode: stored.features.soloDevMode ?? false,
+    ...storedFeatureFlagFields(stored),
     // ADR-051 (#1119): use canonical resolver — honours stored.collaborationMode first,
     // then soloDevMode alias, then defaults to 'peer-review'. Replaces inline derivation.
     collaborationMode: resolveCollaborationMode({

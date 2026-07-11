@@ -146,4 +146,50 @@ describe('resolveProjectConfig — canonical builder field mapping (#1077)', () 
     expect(registry.find((s) => s.key === 'github')?.enabled).toBe(false)
     expect(registry.find((s) => s.key === 'ci-tier')?.enabled).toBe(false)
   })
+
+  // #1887-A: features.mcpFallback / features.noSkippedTests were persisted by
+  // NEITHER the writer (buildArbiterConfig) NOR this reader — a pure round-trip
+  // drop (the recipe schema and generators already honour the ProjectConfig
+  // field on fresh init; only `arbiter update`/`diff` silently reverted it).
+  it('round-trips stored features.mcpFallback into enableMcpFallback (#1887-A)', () => {
+    const on = makeStored()
+    ;(on.features as Record<string, unknown>)['mcpFallback'] = true
+    const { config: cfgOn } = resolveProjectConfig(dir, 'x', on)
+    expect(cfgOn.enableMcpFallback).toBe(true)
+
+    const { config: cfgOff } = resolveProjectConfig(dir, 'x', makeStored())
+    expect(cfgOff.enableMcpFallback).toBe(false)
+  })
+
+  it('round-trips stored features.noSkippedTests into enableNoSkippedTests (#1887-A)', () => {
+    const off = makeStored()
+    ;(off.features as Record<string, unknown>)['noSkippedTests'] = false
+    const { config: cfgOff } = resolveProjectConfig(dir, 'x', off)
+    expect(cfgOff.enableNoSkippedTests).toBe(false)
+
+    // Absent (legacy stored config, pre-#1887-A) must default to true — the
+    // opt-out flag's semantic default, not a silent flip to false.
+    const { config: cfgDefault } = resolveProjectConfig(dir, 'x', makeStored())
+    expect(cfgDefault.enableNoSkippedTests).toBe(true)
+  })
+
+  // #1887-A: the 5 compliance doc-pack flags had NO persistence at all — set only
+  // by applyPreset in-memory at init. Without this read-back, a preset-initialized
+  // project's arbiter.json round-trip silently dropped risk-register/compliance/
+  // operations docs on the very next `arbiter update`/`diff`.
+  it.each([
+    ['riskRegister', 'enableRiskRegister'],
+    ['operationsHandbook', 'enableOperationsHandbook'],
+    ['iso27001Mapping', 'enableIso27001Mapping'],
+    ['nis2Mapping', 'enableNis2Mapping'],
+    ['gdprMapping', 'enableGdprMapping'],
+  ] as const)('round-trips stored features.%s into %s (#1887-A)', (featureKey, configField) => {
+    const on = makeStored()
+    ;(on.features as Record<string, unknown>)[featureKey] = true
+    const { config: cfgOn } = resolveProjectConfig(dir, 'x', on)
+    expect(cfgOn[configField]).toBe(true)
+
+    const { config: cfgOff } = resolveProjectConfig(dir, 'x', makeStored())
+    expect(cfgOff[configField]).toBe(false)
+  })
 })
