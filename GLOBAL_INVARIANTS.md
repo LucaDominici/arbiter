@@ -673,6 +673,14 @@ Any `.arbiter/` mutator must take a process-bound exclusive lock keyed by bootId
 
 ---
 
+### INV-73: CI tier presence — all 8 workflow files must exist under .github/workflows/
+
+Every GitHub-enabled project must contain exactly the canonical 8 CI tier files: 01-pr-fast.yml, 02-pr-extended.yml, 03-human-approval.yml, 05-release.yml, 06-nightly.yml, 07-weekly.yml, 08-monthly.yml, 09-heartbeat.yml. Missing tiers degrade the deployment pipeline and break branch-protection required checks.
+
+**Enforcement:** scripts/check-ci-tiers.mjs (L1 gate)
+
+---
+
 ### INV-107: docs/internal/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync
 
 Every numbered ADR file in `docs/internal/ADR/` must have a unique number and a populated `canonical_id`, and the README index must list it. `docs/internal/ADR/` is the single source for architectural decisions.

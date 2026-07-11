@@ -449,8 +449,8 @@ if (existsSync('scripts/check-regulated-overlay.mjs')) {
   ]);
 }
 
-// ─── L1: GitHub CI tier gates (INV-72, INV-75, INV-76) ───────────────────────
-runCheck('ci tiers (INV-72)', 'node', ['scripts/check-ci-tiers.mjs']);
+// ─── L1: GitHub CI tier gates (INV-73, INV-75, INV-76) ───────────────────────
+runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs']);
 runCheck('action pins (INV-75)', 'node', ['scripts/check-action-pins.mjs']);
 runCheck('workflow perms (INV-76)', 'node', ['scripts/check-workflow-perms.mjs']);
 // ─── L1: Workflow anti-drift validators (INV-89, #1152) ──────────────────────
