@@ -45,7 +45,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** Arbiter's value proposition is that it generates governance for target projects. If arbiter applies a rule only to itself (self-config-only) or only emits it without applying it (template-only), the governance model is asymmetric and the "eat your own dog food" guarantee breaks.
 
-**Enforcement:** Prose — checked at PR review. Machine-promotable once a generator-vs-settings diff script exists.
+**Enforcement:** Prose — checked at PR review. Machine-promotable once a generator-vs-settings diff script exists (the ACTION_PLAN.md B2 gate: maps every self mechanism to a template emission or a motivated `.dogfood-divergences.json` entry, plus a ratchet on the divergence count). promotion: #1922 by 2026-08-15.
 
 **Source issues:** #149, #151, #162, #164, #165, #167, #176, #183
 
@@ -57,7 +57,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** "Proven" in the matrix is a public contract. If the generated gate never calls the tool, the matrix claim is a lie and users lose silent coverage.
 
-**Enforcement:** Prose — checked at PR review when matrix cells change. Promotable to `check-matrix-proven-cells.mjs` gate script.
+**Enforcement:** `scripts/check-matrix-proven-cells.mjs` (L1 gate, INV-47) — wired in `check-all.mjs`. Was prose-only ("checked at PR review when matrix cells change") until the B1 CANON-parity pass (2026-07-11) caught the stale field: the gate had already existed since the INV-47 promotion.
 
 **Source issues:** #155, #160, #171
 
@@ -83,7 +83,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** EJS syntax errors and missing interpolation variables are invisible until render time. String-presence assertions in template tests catch these before PR merge.
 
-**Enforcement:** Prose — the template test coverage gap is tracked by `scripts/check-all.mjs` coverage threshold.
+**Enforcement:** `scripts/check-template-tests.mjs` (L1 ratchet gate, INV-48) — wired in `check-all.mjs`. Was prose-only ("tracked by `scripts/check-all.mjs` coverage threshold", a vague self-reference) until the B1 CANON-parity pass (2026-07-11) caught the stale field: the specific ratchet gate had already existed since the INV-48 promotion.
 
 **Source issues:** #166, #175
 
@@ -97,7 +97,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** Generator logic is the most critical path in arbiter (it writes governance into target projects). Untested generators can silently emit wrong content.
 
-**Enforcement:** Prose — checked at PR review when generators are added/changed.
+**Enforcement:** `scripts/check-generator-tests.mjs` (L1 gate, INV-49) — wired in `check-all.mjs`; requires a matching `__tests__/generators/<stem>.test.ts` for every `src/generators/*.ts`. Was prose-only ("checked at PR review") until the B1 CANON-parity pass (2026-07-11) caught the stale field: the gate had already existed since the INV-49 promotion.
 
 **Source issues:** #118, #181, #175
 
@@ -111,7 +111,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** CLI commands orchestrate all generators and are the user's entry point. Untested commands cannot be refactored safely.
 
-**Enforcement:** Prose — checked at PR review.
+**Enforcement:** `scripts/check-command-tests.mjs` (L1 gate, INV-50) — wired in `check-all.mjs`; requires at least one `__tests__/commands/<stem>*.test.ts` (prefix match) for every `src/commands/*.ts`. Was prose-only ("checked at PR review") until the B1 CANON-parity pass (2026-07-11) caught the stale field: the gate had already existed since the INV-50 promotion.
 
 **Source issues:** #174, #186
 
@@ -125,7 +125,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** Template-string assertions cannot catch missing `await`, wrong exit-code propagation, or steps that reference undefined env vars. The gate is the primary governance artifact; it must have execution-level test coverage.
 
-**Enforcement:** Prose — tracked by `__tests__/integration/` test count. Future: required at L2.
+**Enforcement:** `__tests__/integration/e2e/functional/fixture-functional.test.ts` (L2, `VITEST_L2=1`) — executes the generated `scripts/check-all.mjs` in a real fixture project and asserts exit code 0. Wired PR-required for the TypeScript cell in `.github/workflows/01-pr-fast.yml`, full 5-stack matrix in `.github/workflows/_nightly.yml` (B5, #1041/#1915/#1916/#1918). Note: `__tests__/integration/generated-check-all.test.ts` (the original #172 test) was found dead during the B1 pass (2026-07-11) — `_nightly.yml` explicitly excludes it (fixture-artifact FAILs, not generated-output defects) and `test:integration`'s npm script globs a differently-named directory — tracked as #1927; `fixture-functional.test.ts` supersedes its intent.
 
 **Source issues:** #172
 
@@ -151,7 +151,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** The INV-32 gate was claimed but never called, meaning language promotions silently bypassed the fixture requirement.
 
-**Enforcement:** Prose — verify by grepping `check-all.mjs` for the script name whenever AGENTS.md enforcement claims change.
+**Enforcement:** `scripts/check-inv-enforcement-wired.mjs` (L1 gate, INV-52) — wired in `check-all.mjs`; parses every catalog `enforcement` field for a `scripts/*.mjs` or hook citation and fails if it is not actually called from `check-all.mjs` / registered in `.claude/settings.json`. Was prose-only ("verify by grepping... whenever claims change") until the B1 CANON-parity pass (2026-07-11) caught the stale field: the gate had already existed since the INV-52 promotion.
 
 **Source issues:** #179
 
@@ -179,7 +179,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** The brownfield contract (preserve user files) is the most user-visible guarantee arbiter makes. Untested brownfield behaviour can silently destroy user work on re-init.
 
-**Enforcement:** Prose — checked at PR review for new generators.
+**Enforcement:** `scripts/check-brownfield-tests.mjs` (L1 ratchet gate) — wired in `check-all.mjs`. Full 1:1 coverage does not exist yet (52 of 85 generators are pre-existing gaps, frozen as the committed baseline in `.brownfield-tests-baseline.txt`); the ratchet blocks the gap from growing while new/touched generators gain real brownfield coverage. Added by the B1 CANON-parity pass (2026-07-11) as the minimal gate for a rule the audit found genuinely unenforced.
 
 **Source issues:** #182, #185
 
@@ -227,7 +227,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** A config file without a gate invocation is a paper rule. No CI runner will enforce it unless `check-all.mjs` calls it.
 
-**Enforcement:** Prose — checked at PR review for any new template that emits a tool config file.
+**Enforcement:** Prose — checked at PR review for any new template that emits a tool config file. CANON-02 machine-checks the narrower case (compatibility-matrix `proven` cells); this general case across all artifact classes belongs in the B3 emission-coherence v2 gate (ACTION_PLAN.md, ~1-2 weeks). promotion: #1923 by 2026-08-29.
 
 **Source issues:** #154, #175
 
@@ -253,7 +253,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** NodeJS errno strings are opaque to users; "ENOENT" tells the user nothing about what is missing or how to fix it. Untranslated errors create support load and erode trust in the tool. Translation gates the failure mode into the catalog where it gains a stable error code, hint, and i18n key.
 
-**Enforcement:** Prose — checked at PR review for any code path that invokes `fs.*` or `node:fs`/`node:fs/promises` symbols directly. The audit baseline is `docs/audits/fs-callers-2026-05-17.md` (#824). Promotable to a lint rule once `src/utils/fs.ts` becomes the sole approved fs façade.
+**Enforcement:** Prose — checked at PR review for any code path that invokes `fs.*` or `node:fs`/`node:fs/promises` symbols directly. The audit baseline is `docs/audits/fs-callers-2026-05-17.md` (#824). Promotable to a lint rule once `src/utils/fs.ts` becomes the sole approved fs façade — that consolidation has not happened yet; the existing generators-only direct-fs gate is a narrower, different rule (INV-12-adjacent, not errno translation) and does not cover this one. promotion: #1924 by 2026-09-15.
 
 **Source issues:** #618, #824
 
@@ -277,7 +277,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** The sign-and-attest composite action is called from four distinct publish job paths. A breaking input rename or missing output silently breaks release signing for every archetype that references the action.
 
-**Enforcement:** Prose — checked at PR review for any composite action template edit.
+**Enforcement:** `__tests__/templates/sign-and-attest-render.test.ts` (renders the composite action across its inputs) + `__tests__/matrix/cross-product.test.ts` (renders `github/workflows/05-release.yml.ejs` at L2 and asserts `actionlint`, CANON-18's mechanism) — both re-run on every change regardless of what triggered it, so a breaking sign-and-attest edit that breaks the release workflow is caught without needing to know what changed. Found already covered during the B1 CANON-parity pass (2026-07-11); was previously mis-recorded as prose-only.
 
 **Source issues:** CI-TIER-MODEL spec (2026-05-17)
 
@@ -285,11 +285,11 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ## CANON-20 — Governance threshold table changes require cross-product fixture update
 
-**Rule:** When editing `src/config/thresholds-by-level.ts` (the CI tier threshold matrix), the affected workflow templates must be re-rendered and their output verified to contain updated threshold values. Fixture snapshots under `__tests__/fixtures/` must be regenerated.
+**Rule:** When editing `src/config/thresholds.ts` (the CI tier threshold matrix; renamed from `thresholds-by-level.ts`), the affected workflow templates must be re-rendered and their output verified to contain updated threshold values. Fixture snapshots under `__tests__/fixtures/` must be regenerated.
 
-**Why:** Threshold values flow from `thresholds-by-level.ts` through EJS interpolation into generated workflow YAML. A threshold change that does not propagate through fixtures creates a silent divergence between what the spec promises and what generated projects receive.
+**Why:** Threshold values flow from `thresholds.ts` through EJS interpolation into generated workflow YAML. A threshold change that does not propagate through fixtures creates a silent divergence between what the spec promises and what generated projects receive.
 
-**Enforcement:** Prose — checked at PR review when threshold matrix changes. Promotable to a gate check once snapshot tooling is wired.
+**Enforcement:** `__tests__/config/thresholds.test.ts` (unit-tests the threshold matrix itself) + `__tests__/templates/gold-kit-render.test.ts` (renders `standards/thresholds.yml.ejs` and asserts the per-class threshold table content) + `__tests__/templates/coverage-render.test.ts` (renders coverage-threshold-dependent templates). All three re-run on every change and fail if the rendered output no longer matches the source threshold values. Found already covered during the B1 CANON-parity pass (2026-07-11); the path reference was also stale (`thresholds-by-level.ts` no longer exists, renamed to `thresholds.ts`).
 
 **Source issues:** CI-TIER-MODEL spec (2026-05-17)
 
