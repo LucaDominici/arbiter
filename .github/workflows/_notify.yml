@@ -74,12 +74,16 @@ jobs:
           **Run:** ${RUN_URL}
 
           ${FAILURE_SUMMARY}"
+          # GitHub's search API does not index HTML-comment content (and has
+          # indexing lag), so `--search "${MARKER} in:body"` never matched and
+          # every failure opened a fresh issue. Filter locally instead.
           ISSUE_NUMBER=$(gh issue list \
             --repo "${GH_REPO}" \
             --state open \
-            --search "${MARKER} in:body" \
-            --json number \
-            --jq '.[0].number // empty')
+            --limit 100 \
+            --json number,body |
+            jq -r --arg marker "$MARKER" \
+              '[.[] | select((.body // "") | contains($marker))][0].number // empty')
           if [ -n "$ISSUE_NUMBER" ]; then
             gh issue comment "$ISSUE_NUMBER" \
               --repo "${GH_REPO}" \
