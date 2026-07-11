@@ -156,8 +156,8 @@
   {
     "dest": "scripts",
     "path": "check-ci-tiers.mjs",
-    "reason": "Self's check-ci-tiers.mjs cites INV-73 for CI-tier presence; the shipped template check-ci-tiers.mjs.ejs cites INV-72 for the same enforcement concept — same check, different invariant ID (found via this rollout's INV-number cross-reference scan). Self also implements a minPresent/collab-aware-missing floor read from src/invariants/catalog.ts at runtime; the template resolves the required set at RENDER time via EJS. Needs a decision (rename one side, or confirm two distinct invariants) — filed as part of #1900; pinned as the current baseline in the meantime.",
-    "diffHash": "ce476fecc3579e5ff748b2dacd28b634032180bdce6eefb7059b3b3c6d6e02dc"
+    "reason": "#1900 RESOLVED (A1/wave1 action plan): the template's INV-72 mislabel (file-lock semantics, unrelated) was corrected to INV-73 (CI tier presence) — both sides now cite the same invariant. Remaining divergence: self implements a minPresent/collab-aware-missing floor read from src/invariants/catalog.ts at runtime; the template resolves the required set at RENDER time via EJS. That structural difference is out of scope for the label fix — tracked separately if/when the two engines are unified.",
+    "diffHash": "0ac605badb8c3ae47764a2705c2addd8b9b3d6eacd2a39eec124d989a3a58323"
   },
   {
     "dest": "scripts",

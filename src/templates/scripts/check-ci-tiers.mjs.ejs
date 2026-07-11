@@ -1,5 +1,5 @@
 <%
-// #1319.2 — INV-72: the required CI-tier set is the EXACT inverse of the
+// #1319.2 — INV-73: the required CI-tier set is the EXACT inverse of the
 // generation predicates in src/generators/github.ts. The config is known at
 // generation time, so we resolve the set HERE (render-time EJS) instead of
 // guessing at runtime via existsSync heuristics.
@@ -46,7 +46,7 @@ if (_cm === 'trunk-solo' && _isL3Plus) _required.push('07-weekly-lite.yml');
 if (_isL3Plus) _required.push('09-heartbeat.yml');
 -%>
 #!/usr/bin/env node
-// <%= projectName %> — CI tier presence gate (INV-72)
+// <%= projectName %> — CI tier presence gate (INV-73)
 // Gate: verify the required CI workflow files exist in .github/workflows/.
 // The required set is fixed at generation time as the inverse of the workflow
 // generation predicates (collaboration mode <%= _cm %> × governance <%= _level %>).
@@ -66,7 +66,7 @@ const CWD = process.cwd();
 const WORKFLOWS_DIR = join(CWD, '.github', 'workflows');
 
 // Required CI-tier files for this project (collaboration mode + governance level
-// resolved at generation time — INV-72).
+// resolved at generation time — INV-73).
 const REQUIRED_TIERS = [
 <% _required.forEach((f) => { -%>
   '<%= f %>',
@@ -76,7 +76,7 @@ const REQUIRED_TIERS = [
 const missing = REQUIRED_TIERS.filter((f) => !existsSync(join(WORKFLOWS_DIR, f)));
 
 <% if (_isL3Plus) { -%>
-// ─── INV-72 content strictness (#1720) ───────────────────────────────────────
+// ─── INV-73 content strictness (#1720) ───────────────────────────────────────
 // Existence alone missed a real regression: a hand-rolled template guard bug
 // (05-release.yml.ejs's `_slsaL3` boolean) silently rendered a WEAKER release
 // workflow at L4 than at L3 while the file still existed — this gate stayed
@@ -87,7 +87,7 @@ let contentViolation = null;
 if (REQUIRED_TIERS.includes('05-release.yml') && !missing.includes('05-release.yml')) {
   const releaseContent = readFileSync(join(WORKFLOWS_DIR, '05-release.yml'), 'utf-8');
   if (!releaseContent.includes('L3 hermetic')) {
-    contentViolation = '05-release.yml is present but missing L3 hermetic SLSA provenance (INV-72 content check)';
+    contentViolation = '05-release.yml is present but missing L3 hermetic SLSA provenance (INV-73 content check)';
   }
 }
 <% } -%>
