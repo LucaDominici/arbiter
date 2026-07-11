@@ -140,31 +140,108 @@ jobs:
 <% } %>
 <% if (language === 'typescript' && locals.enableNativeBakeE2E) { %>
   generated-gate-e2e:
-    # B5 / #1491 / #1042 — THE core promise of a governance installer: run
-    # `arbiter init` and execute the GENERATED project's own gate to green. These
-    # e2e suites are gated behind VITEST_L2=1 (kept out of pre-commit L1 for speed)
-    # and were therefore DARK in every CI tier — B3/B4-class generated-output
-    # defects shipped invisibly. This job sets VITEST_L2=1 with all five stack
-    # toolchains present so the init→bake→execute-generated-gate assertions run for
-    # real. Downstream-generated projects do not ship this harness, so it renders
-    # only for arbiter itself (the typescript self-project).
-    name: Generated-gate e2e (init → run generated gate green, VITEST_L2)
+    # B5 (arbiter audit, gate-thesis reliability) / #1491 / #1042 — THE core
+    # promise of a governance installer: run `arbiter init` and execute the
+    # GENERATED project's own gate to green. Was a single monolithic job serially
+    # installing all 5 stack toolchains + running every functional-tier fixture in
+    # one `vitest run` — the single most important assertion in the framework
+    # sharing one 45-min job-level timeout with 4 unrelated languages, so
+    # contention/slowness in ANY one stack could starve or fail the others
+    # (confirmed root cause of the ts-backend-web-db 60s-vs-64s near-miss, #1904).
+    # Split into a per-language matrix (mirrors generator-matrix.yml's proven DEEP-
+    # cell pattern) — each stack gets its OWN toolchain install, OWN build, OWN
+    # timeout-minutes, and runs ONLY its own fixture-functional.test.ts cell via
+    # `-t <language>`. A slow/contended Java runner can no longer affect the
+    # TypeScript cell's budget. The other three functional-tier suites (virgin-
+    # init-matrix, packaged-artifact, fixture-functional-offline-guard — none of
+    # which need the full 5-toolchain matrix) moved to the sibling
+    # `generated-gate-e2e-misc` job below. Downstream-generated projects do not
+    # ship this harness, so it renders only for arbiter itself.
+    name: Generated-gate e2e (${{ matrix.stack }}, init → run generated gate green)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 45
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [typescript, python, go, rust, java]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - uses: ./.github/actions/setup-node-pnpm
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        if: matrix.stack == 'python'
         with:
           python-version: '3.12'
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        if: matrix.stack == 'go'
+        with:
+          go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
+          cache-dependency-path: __tests__/fixtures/real-projects/go-library/go.mod
+
+      # golangci-lint is the only pinned Go tool the L1 gate this cell exercises
+      # invokes (staticcheck/govulncheck are L2-only — not reached by
+      # fixture-functional.test.ts, which always runs the generated gate at L1;
+      # same pin/rationale as generator-matrix.yml's identical Go cell).
+      - name: Install Go lint toolchain (golangci-lint — L1 gate dependency)
+        if: matrix.stack == 'go'
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        if: matrix.stack == 'java'
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        if: matrix.stack == 'java'
+
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        if: matrix.stack == 'rust'
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Build
+        run: npm run build
+
+      - name: Generated-gate e2e (${{ matrix.stack }}, VITEST_L2=1)
+        # generated-check-all is intentionally NOT included here: it renders
+        # check-all.mjs in isolation (without the supporting governance scripts),
+        # so its missing-script FAILs are a fixture artifact, not a
+        # generated-output defect.
+        env:
+          VITEST_L2: "1"
+        run: |
+          npx vitest run --config vitest.integration.config.ts \
+            __tests__/integration/e2e/functional/fixture-functional.test.ts \
+            -t "${{ matrix.stack }}"
+
+  generated-gate-e2e-misc:
+    # Sibling of generated-gate-e2e (split above): the three functional-tier e2e
+    # suites that do NOT need the full 5-stack toolchain matrix — virgin-init
+    # (TS + Go only, #1321), packaged-artifact (TS-only outsider npm-pack install,
+    # #1770 T8) and the always-on offline-install-classifier guard (#1491/#1042).
+    # Kept as one job (none of the three is individually toolchain-heavy).
+    name: Generated-gate e2e (virgin-init + packaged-artifact + offline-guard)
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: ./.github/actions/setup-node-pnpm
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
           cache-dependency-path: __tests__/fixtures/real-projects/go-library/go.mod
 
+      # virgin-init-matrix's go-library smoke cell runs the generated gate at L2
+      # (SMOKE_CELLS: level 'L2'), which — unlike fixture-functional's always-L1
+      # cells — DOES reach staticcheck/govulncheck; keep all three pinned tools.
       - name: Install Go lint toolchain (golangci-lint, staticcheck, govulncheck)
         run: |
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
@@ -172,38 +249,17 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: '21'
+      - name: Build
+        run: npm run build
 
-      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
-
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-
-      - name: Install gitleaks
-        run: |
-          mkdir -p "$RUNNER_TEMP/bin"
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-
-      - name: Build dist + kit
-        run: npm run build && node scripts/build-kit.mjs
-
-      - name: Generated-gate e2e (VITEST_L2=1)
-        # The full-init harnesses (functional + virgin-init-matrix) run a real
-        # `arbiter init` and then execute the generated gate. generated-check-all
-        # is intentionally NOT included here: it renders check-all.mjs in isolation
-        # (without the supporting governance scripts), so its missing-script FAILs
-        # are a fixture artifact, not a generated-output defect.
+      - name: Generated-gate e2e — virgin-init + packaged-artifact + offline-guard (VITEST_L2=1)
         env:
           VITEST_L2: "1"
         run: |
           npx vitest run --config vitest.integration.config.ts \
-            __tests__/integration/e2e/functional/
+            __tests__/integration/e2e/functional/virgin-init-matrix.test.ts \
+            __tests__/integration/e2e/functional/packaged-artifact.test.ts \
+            __tests__/integration/e2e/functional/fixture-functional-offline-guard.test.ts
 
 <% } %>
 <% if (_isService) { %>
@@ -458,6 +514,7 @@ jobs:
 <% } %>
 <% if (language === 'typescript' && locals.enableNativeBakeE2E) { %>
       - generated-gate-e2e
+      - generated-gate-e2e-misc
 <% } %>
     if: always()
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
@@ -497,6 +554,7 @@ jobs:
 <% } %>
 <% if (language === 'typescript' && locals.enableNativeBakeE2E) { %>
       - generated-gate-e2e
+      - generated-gate-e2e-misc
 <% } %>
     if: always()
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
@@ -520,6 +578,7 @@ jobs:
 <% } %>
 <% if (language === 'typescript' && locals.enableNativeBakeE2E) { %>
             "${{ needs.generated-gate-e2e.result }}"
+            "${{ needs.generated-gate-e2e-misc.result }}"
 <% } %>
           )
           FAILED=0

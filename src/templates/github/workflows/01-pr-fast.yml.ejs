@@ -958,7 +958,41 @@ jobs:
               );
             }
 <% } %>
-  ci-required:
+<% if (language === 'typescript' && locals.enableNativeBakeE2E) { %>  generated-gate-min:
+    name: Generated-gate min cell (TS, the gate-thesis on every PR)
+    # B5 (arbiter audit, gate-thesis reliability): arbiter's core promise —
+    # `arbiter init` on a project → the GENERATED project's own gate is green out
+    # of the box — was proven only nightly (generated-gate-e2e in _nightly.yml,
+    # VITEST_L2=1) or weekly (generator-matrix.yml). A regression in that promise
+    # could land on main and ride unnoticed for up to 24h. This is the minimal,
+    # fast slice of that same proof (ts-backend-web-db + ts-library — the two
+    # TypeScript functional-tier fixtures, ~25-30s locally) promoted to a
+    # PR-required check so the thesis is verified on every merge, not just at
+    # night. The other 4 languages' cells stay nightly-only (their toolchain
+    # install cost does not belong on the always-path of every PR). Self-only
+    # (enableNativeBakeE2E): downstream-generated projects do not ship arbiter's
+    # own __tests__/fixtures/real-projects/ harness, so this never renders for them.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 15
+    needs: [gate<% if (locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
+<% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
+<% } %>      - name: Generated-gate e2e — TypeScript cell (VITEST_L2=1)
+        env:
+          VITEST_L2: "1"
+        run: |
+          npx vitest run --config vitest.integration.config.ts \
+            __tests__/integration/e2e/functional/fixture-functional.test.ts \
+            -t typescript
+
+<% } %>  ci-required:
     name: CI Required
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
@@ -969,6 +1003,7 @@ jobs:
   if (language === 'typescript' || language === 'java') {
     _ciNeeds.push('unit-tests', 'contract-tests', 'integration-tests', 'behavioral-tests');
   }
+  if (language === 'typescript' && locals.enableNativeBakeE2E) _ciNeeds.push('generated-gate-min');
   // #1512: the per-PR ArchUnit (*ArchTest) lane is a BLOCKING required check for Java L2+.
   if (language === 'java' && governanceLevel !== 'L1') _ciNeeds.push('archunit-tests');
   if (enableSecurityScanning) _ciNeeds.push('security-early-fail', 'dependency-review');
@@ -1023,6 +1058,11 @@ jobs:
           fi
           if ! ok "${{ needs.behavioral-tests.result }}"; then
             echo "behavioral-tests failed"
+            exit 1
+          fi
+<% } %><% if (language === 'typescript' && locals.enableNativeBakeE2E) { %>
+          if ! ok "${{ needs.generated-gate-min.result }}"; then
+            echo "generated-gate-min failed — the generated-project gate-thesis cell is red"
             exit 1
           fi
 <% } %><% if (language === 'java' && governanceLevel !== 'L1') { %>
