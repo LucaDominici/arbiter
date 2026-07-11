@@ -39,19 +39,19 @@ jobs:
 
   dep-cve-refresh:
     name: Dependency CVE refresh
-    # #1756: pinned to a LITERAL GitHub-hosted runner, not the usual
-    # `vars.RUNNER_LABELS_TEST` self-hosted-capable fallback, on the assumption
-    # that GitHub-hosted runners are not containerized and therefore immune to
-    # the Docker-outside-of-Docker workspace-bind-mount defect that
-    # docker-container actions hit on a self-hosted runner whose own process
-    # runs inside a container. Enforced by scripts/check-docker-action-runner-safety.mjs.
-    # #1767/#1785: that assumption does not hold in every environment — literal
-    # `ubuntu-latest` has been observed resolving to self-hosted infra. The
-    # typescript branch's osv-scanner step (#1767) was switched to a pinned static
-    # binary as a result, sidestepping the defect class entirely; the java branch's
-    # Trivy fs step (ADR-104) is a composite action with no workspace bind-mount,
-    # so it was never subject to the defect class in the first place.
-    runs-on: ubuntu-latest
+    # #1756/#1767/#1785: was previously pinned to a LITERAL GitHub-hosted
+    # runner on the (later disproven, #1767/#1785) assumption that
+    # GitHub-hosted runners are immune to the Docker-outside-of-Docker
+    # workspace-bind-mount defect that docker-container actions hit on a
+    # self-hosted runner whose own process runs inside a container. That
+    # literal pin also puts this job on paid GitHub-hosted minutes, which
+    # fails outright on billing/spending-limit issues (#1904). The
+    # typescript branch's osv-scanner step (#1767) is now a pinned static
+    # binary and the java branch's Trivy fs step (ADR-104) is a composite
+    # action with no workspace bind-mount — no docker-container action
+    # remains in this job, so scripts/check-docker-action-runner-safety.mjs
+    # does not flag switching back to the shared self-hosted-capable runner.
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
