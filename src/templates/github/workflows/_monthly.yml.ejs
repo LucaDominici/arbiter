@@ -74,7 +74,12 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
       - name: license-checker full report
         run: npx --yes license-checker --json --out license-report.json
-<% } else if (language === 'java') { %>
+<%# #1803: kotlin fell through this strict-equality java check — no dedicated
+    arm, job rendered checkout-only, silently producing no license report.
+    Gradle/Maven license-report plugins operate on the build's dependency
+    graph, not the source language, so kotlin shares this arm (same fix
+    shape as the #1803 fuzz job). -%>
+<% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
         with:
           distribution: temurin
@@ -169,7 +174,12 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
       - name: npm sbom (CycloneDX)
         run: npm sbom --sbom-format=cyclonedx > sbom.cdx.json
-<% } else if (language === 'java') { %>
+<%# #1803: kotlin fell through this strict-equality java check — no dedicated
+    arm, job rendered checkout-only, silently producing no SBOM. Gradle/Maven
+    CycloneDX plugins operate on the build's dependency graph, not the
+    source language, so kotlin shares this arm (same fix shape as the #1803
+    fuzz job). -%>
+<% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
         with:
           distribution: temurin

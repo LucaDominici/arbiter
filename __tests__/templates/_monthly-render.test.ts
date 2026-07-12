@@ -105,3 +105,42 @@ describe('_monthly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(untilNext).toContain('contents: read')
   })
 })
+
+// #1803: sbom (and license-full-audit, same file/class) were 2 of the 3/8
+// workflow dims relying on an unverified JVM-shared EJS branch for kotlin.
+// `language === 'java'` never matches 'kotlin', so both jobs fell through to
+// checkout-only (sbom-archive) or the upload-artifact-with-no-file warn path.
+// Gradle/Maven CycloneDX + license-report plugins operate on the build's
+// dependency graph, not the source language, so kotlin now shares the java
+// arm in both jobs (same fix shape as the already-fixed fuzz job).
+describe('_monthly.yml.ejs — kotlin sbom + license-full-audit coverage (#1803)', () => {
+  it.each(['gradle', 'maven'] as const)(
+    'kotlin/%s: sbom-archive shares the java/JVM CycloneDX branch, not checkout-only',
+    (buildTool) => {
+      const rendered = renderMonthlyPartial({ language: 'kotlin', buildTool })
+      const jobStart = rendered.indexOf('sbom-archive:')
+      const jobEnd = rendered.indexOf('evidence-collect:')
+      const section = rendered.slice(jobStart, jobEnd)
+      expect(section).toContain('setup-java')
+      expect(section).toContain(buildTool === 'gradle' ? 'cyclonedxBom' : 'cyclonedx-maven-plugin')
+    },
+  )
+
+  it.each(['gradle', 'maven'] as const)(
+    'kotlin/%s: license-full-audit shares the java/JVM license-report branch, not checkout-only',
+    (buildTool) => {
+      const rendered = renderMonthlyPartial({ language: 'kotlin', buildTool })
+      const jobStart = rendered.indexOf('license-full-audit:')
+      const jobEnd = rendered.indexOf('action-pins-stale-audit:')
+      const section = rendered.slice(jobStart, jobEnd)
+      expect(section).toContain('setup-java')
+      expect(section).toContain(buildTool === 'gradle' ? 'licenseReport' : 'aggregate-third-party-report')
+    },
+  )
+
+  it('kotlin leaves no EJS tag leaks', () => {
+    const rendered = renderMonthlyPartial({ language: 'kotlin', buildTool: 'gradle' })
+    expect(rendered).not.toContain('<%')
+    expect(rendered).not.toContain('%>')
+  })
+})
