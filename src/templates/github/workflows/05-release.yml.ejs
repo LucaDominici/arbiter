@@ -696,6 +696,19 @@ jobs:
 <% } %>
 <% } %>
 
+  doc-freshness-gate:
+    name: Per-doc freshness gate (T4, gold-doc-tranches-t3-t5.md §2.3 — release-tag blocking)
+    needs: [build-superset]
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Per-doc freshness audit — no stale gold doc ships in a tagged release
+        run: node scripts/check-doc-freshness.mjs
+
   release-required:
     name: Release gate
     needs:
@@ -706,6 +719,7 @@ jobs:
       - cosign-sign
       - slsa-provenance
       - attest-build-provenance
+      - doc-freshness-gate
 <% if (_isService) { %>
       - build-container
 <% } else if (_isCli) { %>

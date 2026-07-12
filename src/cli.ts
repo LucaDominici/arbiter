@@ -949,6 +949,11 @@ program
       'overwrites a hand-edited doc; upgrades a byte-equal banner stub)',
     false,
   )
+  .option(
+    '--freshness',
+    'T4: run the per-doc freshness audit (scripts/check-doc-freshness.mjs) instead of presence',
+    false,
+  )
   .action(
     (
       repo: string | undefined,
@@ -961,6 +966,7 @@ program
         docProfile?: string
         plan: boolean
         apply: boolean
+        freshness: boolean
       },
     ) => {
       if (opts.plan || opts.apply) {
@@ -979,6 +985,7 @@ program
         json: opts.json,
         generate: opts.generate,
         refreshStubs: opts.refreshStubs,
+        freshness: opts.freshness,
         ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
         ...(opts.docProfile !== undefined ? { profile: opts.docProfile } : {}),
       })

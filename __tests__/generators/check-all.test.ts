@@ -26,7 +26,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 25 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + safety-adopt-ratchet (T1) + 4 file-scan guards) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
+  it('emits exactly 26 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + doc-freshness (T4) + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + safety-adopt-ratchet (T1) + 4 file-scan guards) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -39,6 +39,8 @@ describe('generateCheckAll', () => {
     // + lib/e2e-reliability.mjs + check-e2e-quarantine.mjs (INV-130, #1445)
     // + check-tdd-evidence.mjs (INV-131, #1446)
     // + check-doc-set.mjs + check-anti-fake-green.mjs (thin runners, INV-135, #1428)
+    // + check-doc-freshness.mjs (freshness thin runner, T4, gold-doc-tranches-t3-t5.md §2.3 —
+    //   emitted unconditionally but wired OUTSIDE check-all.mjs L2, monthly/release lane only)
     // + check-todo-max-age.mjs (INV-133, #1456)
     // + verify-module-coverage.mjs (INV-134, #1457)
     // + verify-mutation-baseline.mjs (#1508)
@@ -49,7 +51,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(25)
+    expect(result.files).toHaveLength(26)
     expect(
       result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
     ).toBe(true)
@@ -76,6 +78,7 @@ describe('generateCheckAll', () => {
     expect(result.files.some((f) => f.path.endsWith('scripts/check-e2e-quarantine.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-tdd-evidence.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-doc-set.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-doc-freshness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-anti-fake-green.mjs'))).toBe(
       true,
     )

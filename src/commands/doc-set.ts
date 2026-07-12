@@ -78,6 +78,14 @@ export interface DocSetOptions {
   profile?: string
   /** Suppress this command's own stdout/stderr passthrough — return only the parsed result. */
   quiet?: boolean
+  /**
+   * T4 (gold-doc-tranches-t3-t5.md §2.3): route to the freshness engine
+   * (scripts/check-doc-freshness.mjs) instead of the presence engine. No new top-level CLI
+   * command — a flag on this already-ledgered one. Mutually exclusive in effect with
+   * strict/generate/refreshStubs (the freshness engine doesn't have those concepts); they are
+   * simply never forwarded when this is set.
+   */
+  freshness?: boolean
 }
 
 export interface DocSetResult {
@@ -96,11 +104,14 @@ function packageRoot(): string {
 function buildEngineArgs(opts: DocSetOptions): string[] {
   const args: string[] = []
   if (opts.json) args.push('--json')
+  if (opts.manifest) args.push('--manifest', opts.manifest)
+  if (opts.profile) args.push('--profile', opts.profile)
+  // The freshness engine has no --strict/--generate/--refresh-stubs concept (binary verdict,
+  // no scaffolding) — never forward them even if a caller set both `freshness` and one of these.
+  if (opts.freshness) return args
   if (opts.strict) args.push('--strict')
   if (opts.generate) args.push('--generate')
   if (opts.refreshStubs) args.push('--refresh-stubs')
-  if (opts.manifest) args.push('--manifest', opts.manifest)
-  if (opts.profile) args.push('--profile', opts.profile)
   return args
 }
 
@@ -160,7 +171,10 @@ function parsePayload(stdout: string, jsonRequested: boolean): DocSetPayload | n
  */
 export function runDocSet(opts: DocSetOptions = {}): DocSetResult {
   const repo = opts.repo ? resolve(opts.repo) : process.cwd()
-  const script = resolve(packageRoot(), 'scripts/check-doc-set.mjs')
+  const script = resolve(
+    packageRoot(),
+    opts.freshness ? 'scripts/check-doc-freshness.mjs' : 'scripts/check-doc-set.mjs',
+  )
 
   const { stdout, stderr, exitCode } = runEngine(script, buildEngineArgs(opts), repo)
 

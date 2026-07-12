@@ -124,7 +124,7 @@
     "dest": ".github/workflows",
     "reason": "Self is the typescript/library archetype's own release: it runs npm-package-publishing guards (check-pack-size.mjs, check-tarball-contents.mjs, `zip -r release-artifact.zip`) that only apply to the @arbiter/cli tarball, absent from the generic multi-archetype template render for this profile. Large diff (many other-archetype release steps this profile doesn't hit) — NOT individually audited line-by-line; R-01/R-09 (census) already track 05-release template↔self parity as a dedicated follow-up. Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "c8201b7d3a818cc97c21fef87bdca2343c59dadab22ea49972cb5596580967ec"
+    "diffHash": "eef9e343e7b5e86c84a4a5a65602d72b882792e3e4d638846a1b2663fd52bce7"
   },
   {
     "path": "_nightly.yml",
@@ -229,7 +229,14 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "44615ebe2da4454fb143baef9932e7b56b0da809eff144471923fbb7c83ce137"
+    "diffHash": "ea10ee115e85079ba6f6acce0f9e5369673441508ed8c716d3944d1a5aa470e6"
+  },
+  {
+    "path": "check-doc-freshness.mjs",
+    "dest": "scripts",
+    "reason": "T4 (gold-doc-tranches-t3-t5.md, design doc \u00a72.3), by design (not drift), R-02 dogfood-parity rollout (#1900): self runs the REAL engine (frontmatter parsing, per-class bars, git change-coupling \u2014 scripts/check-doc-freshness.mjs) while the shipped template counterpart is a THIN runner that only shells `npx --no-install arbiter doc-set --freshness`, mirroring the pre-existing check-doc-set.mjs / check-doc-set.mjs.ejs split (the row directly above this one) so governed repos never take the `yaml` dependency.",
+    "expires": "2026-08-15",
+    "diffHash": "4685b27a70a5ba991b1cba74fac8ed2f352d72151776af1765a8371f7577032c"
   },
   {
     "path": "check-docs.mjs",

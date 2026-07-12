@@ -180,6 +180,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-doc-set.mjs'],
     tpl: 'scripts/check-doc-set.mjs.ejs',
   },
+  // T4 (gold-doc-tranches-t3-t5.md §2.3): freshness thin runner, same shape/rationale as
+  // check-doc-set.mjs above — delegates to `npx arbiter doc-set --freshness`. Emitted
+  // unconditionally but wired OUTSIDE check-all.mjs L2 (monthly + release lane only, per the
+  // solo-developer-gate-model doctrine) — see _monthly.yml.ejs / 05-release.yml.ejs.
+  {
+    rel: ['scripts', 'check-doc-freshness.mjs'],
+    tpl: 'scripts/check-doc-freshness.mjs.ejs',
+  },
   {
     rel: ['scripts', 'check-anti-fake-green.mjs'],
     tpl: 'scripts/check-anti-fake-green.mjs.ejs',
