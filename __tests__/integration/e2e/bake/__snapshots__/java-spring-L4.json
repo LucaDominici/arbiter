@@ -347,7 +347,7 @@
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",
     ".zap/baseline-auth.context": "d9309688a0a50e59ca586c82b2a50b40b12195d63b2b2013a98fd9efa8fb9d2b",
     ".zap/rules.tsv": "08da8ebdfbf5f9df1ee38bbd4a4c6e5631dc155622dd423734e5ee9efd2fb3fd",
-    "AGENTS.md": "271bb0d3ebe5013ea53f3804a31b057d8e8838bb1c3a78569fa904c78256641d",
+    "AGENTS.md": "1a9a9bde085b17768e6092dfcd1388e493c87f160153b428542614ee64e490da",
     "CONTRACTS_POLICY.md": "027e76ec66dde565af9952c1a03af331ca9e0c782388635e9c26e209a0be6400",
     "GLOBAL_INVARIANTS.md": "28a489b4cfa47662e592a3a4f6089e86a640518637fccca776dd066d3d3cce3d",
     "Makefile": "e37df383404f6dab22a280a611ad7c29b42ebc10cb39a6edcb36ca3cf4d327a5",

@@ -121,12 +121,27 @@ describe.each(fixtures)('bake — %s', (fixture) => {
   // Use the lowest declared level to keep bake fast; functional harness exercises L2+.
   const level = manifest.levels[0] ?? 'L1'
   let dir: string
+  // #1937 — HOST-PORTABLE GENERATION: `arbiter init` derives claudeHome from
+  // process.env.HOME (init.ts) and renders any detected `~/.claude` skills into
+  // AGENTS.md's Installed Skills table. A golden master captured on a dev host with
+  // plugins installed bakes those LOCAL skills into AGENTS.md's hash, which then
+  // drifts against CI's clean-env run (the observed AGENTS.md-only content drift).
+  // Point HOME at an empty dir so skill detection finds nothing — the portable
+  // output CI produces — regardless of the machine capturing or checking the golden.
+  let savedHome: string | undefined
+  let fakeHome: string
 
   beforeEach(() => {
     dir = stageFixture(fixture)
+    savedHome = process.env.HOME
+    fakeHome = mkdtempSync(join(tmpdir(), 'bake-home-'))
+    process.env.HOME = fakeHome
   })
 
   afterEach(() => {
+    if (savedHome === undefined) delete process.env.HOME
+    else process.env.HOME = savedHome
+    if (fakeHome != null) rmSync(fakeHome, { recursive: true, force: true })
     // stageFixture nests a fixed-name project dir under a random parent
     // (determinism for content hashing, see helpers.ts) — clean up the parent.
     if (dir != null) rmSync(dirname(dir), { recursive: true, force: true })

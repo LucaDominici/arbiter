@@ -236,7 +236,7 @@
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".trivyignore": "4b1e090b79bedce32e59a6362370898dcec94c35330244d1af0d7b3f8cc9adfa",
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",
-    "AGENTS.md": "6aa4ba372954fc38a8117ec8c7b1e769eebe13ebdf92adae3deb3c1f5304292c",
+    "AGENTS.md": "a8d7c633ca9c9d0b35a66246b6536e6f99083063c0a342cf143f2f17fa9a4c9b",
     "Makefile": "052569a0f571f38d1098733805f2ba5d5de4dc5c76951674769ec86668c4056c",
     "__tests__/contract/error-shape.contract.test.ts": "208c6f897162c3a17c6970443577ddc81804750ddf3bd3e70f8d516f344ba672",
     "api-e2e.json": "e3b185c97cf032ae710c6aa91da19046333ee04e86c5437090d23da116f56bfc",
