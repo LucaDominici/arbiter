@@ -26,9 +26,14 @@ const L2 = process.env.VITEST_L2 === '1'
 // consumers are TS and Go. We guard the binaries that gate hard so a missing
 // local toolchain SKIPs with a reason instead of a false RED. TS additionally
 // needs its npm deps resolvable (node_modules), guarded separately below.
+// `gitleaks` gates hard at L2 for every enableSecurityScanning project (both
+// languages emit `runCheck('gitleaks', …)` in check-all.mjs.ejs), so an absent
+// binary must SKIP the cell, not false-RED. It was omitted from this guard set,
+// which failed the nightly Generated-gate e2e on runner slots that ship without
+// gitleaks (the short-lived runner pool has inconsistent toolchains).
 const CELL_BINARIES: Record<string, readonly string[]> = {
-  typescript: ['node', 'npx'],
-  go: ['go', 'gofmt', 'golangci-lint'],
+  typescript: ['node', 'npx', 'gitleaks'],
+  go: ['go', 'gofmt', 'golangci-lint', 'gitleaks'],
 }
 
 function runGeneratedGate(dir: string, level: 'L1' | 'L2'): { status: number; output: string } {
