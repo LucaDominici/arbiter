@@ -82,6 +82,7 @@ import { generateSoloException } from './solo-exception.js'
 import { generateWiki } from './wiki.js'
 import { generateConformanceScript } from './conformance.js'
 import { generateGoldKit } from './gold-kit.js'
+import { generateDocSetSkeletons } from './doc-set.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult, GeneratorRunOpts } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -660,6 +661,17 @@ export function buildRegistry(
       key: 'gold-kit',
       enabled: true,
       run: (opts) => generateGoldKit(config, opts).files,
+    },
+    {
+      // T3 (gold-doc-tranches-t3-t5.md §1.2c): real per-doc-type skeleton bodies for gaps the
+      // gold-kit manifest declares — shells check-doc-set.mjs (via runDocSet), never a second
+      // resolution engine. Runs immediately after gold-kit so the manifest it reads is already
+      // on disk in a real (non-dry-run) run; the dry-run edge (manifest not yet emitted) is
+      // handled honestly inside generateDocSetSkeletons (SKIP, not a phantom plan). Always-on:
+      // right-sizing (which rows even appear in `missing[]`) is the engine's job, not a gate here.
+      key: 'doc-set-skeletons',
+      enabled: true,
+      run: (opts) => generateDocSetSkeletons(config, opts).files,
     },
   ]
 }

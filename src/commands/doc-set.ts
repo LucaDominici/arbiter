@@ -31,6 +31,32 @@ export interface DocSetPayload {
   }
   missingMandatory: string[]
   missingRecommended: string[]
+  /**
+   * T3 (gold-doc-tranches-t3-t5.md §1.2a): structured per-gap entries, additive alongside the
+   * legacy string arrays above (never removed — the doc-set.test.ts payload-parity test pins the
+   * whole-payload equality between this wrapper and the raw engine invocation). `template` is the
+   * manifest's dormant `template:` catalog id (undefined when the row has none bound — reported
+   * as "unbound" by the generator, never guessed). Consumed by src/generators/doc-set.ts.
+   */
+  missing?: Array<{
+    path: string
+    requirement: 'mandatory' | 'recommended'
+    template?: string
+    freshness_class?: string
+    purpose?: string
+  }>
+  /**
+   * T3: the mirror of `missing[]` for checks the engine found PRESENT — presence is content-
+   * blind (a file merely existing satisfies it), so an untouched `--generate` banner stub is
+   * "present" too and would otherwise be invisible to a `missing[]`-only consumer. Lets the
+   * generator detect + upgrade a stub without a second resolution pass.
+   */
+  present?: Array<{
+    path: string
+    template?: string
+    freshness_class?: string
+    purpose?: string
+  }>
   generated: string[]
   refreshed: string[]
 }

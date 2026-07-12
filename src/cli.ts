@@ -14,6 +14,8 @@ import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runGoldAudit } from './commands/gold-audit.js'
 import { runDocSet } from './commands/doc-set.js'
+import { runDocSetPlanApply } from './generators/doc-set.js'
+import type { DocSetSkeletonsResult } from './generators/doc-set.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
@@ -84,6 +86,37 @@ getRunId()
 
 function printCliError(msg: string): void {
   process.stderr.write(`  Error: ${msg}${formatRunIdFooter()}\n`)
+}
+
+/**
+ * T3 (gold-doc-tranches-t3-t5.md §1.2d): human report for `arbiter doc-set --plan/--apply` —
+ * present · would-scaffold(+template id) · unbound · withheld. `--plan` writes nothing (dryRun);
+ * the action label reflects the PROSPECTIVE action either way (writeFile's dryRun/real paths are
+ * structurally incapable of drifting, src/utils/fs.ts `resolveWriteAction`).
+ */
+function printDocSetPlanApplyReport(result: DocSetSkeletonsResult, applied: boolean): void {
+  const mode = applied ? 'apply' : 'plan'
+  const tier = result.tierColumn ?? 'n/a (no manifest — SKIP)'
+  process.stdout.write(`doc-set skeletons [tier: ${tier}] (${mode}):\n`)
+  for (const s of result.scaffolded) {
+    const verb =
+      s.action === 'created'
+        ? applied
+          ? '+ created'
+          : '+ would-scaffold'
+        : s.action === 'replaced' || s.action === 'backed-up-and-replaced'
+          ? applied
+            ? '~ replaced (banner upgrade)'
+            : '~ would-upgrade (banner)'
+          : '. skipped (withheld — hand-edited)'
+    process.stdout.write(`    ${verb}  ${s.path}  [${s.template}]\n`)
+  }
+  for (const p of result.unbound) {
+    process.stdout.write(`    ? unbound (no skeleton bound — engine --generate banner only): ${p}\n`)
+  }
+  if (result.scaffolded.length === 0 && result.unbound.length === 0) {
+    process.stdout.write('    (nothing to scaffold — all applicable rows present)\n')
+  }
 }
 
 // ── Evidence logging setup ────────────────────────────────────────────────────
@@ -905,6 +938,17 @@ program
     '--doc-profile <path>',
     'Overlay profile path override (default standards/doc-profile)',
   )
+  .option(
+    '--plan',
+    'T3: dry-run the skeleton generator — report would-scaffold/unbound, write nothing',
+    false,
+  )
+  .option(
+    '--apply',
+    'T3: scaffold real per-doc-type skeletons for missing bound rows (skipIfExists; never ' +
+      'overwrites a hand-edited doc; upgrades a byte-equal banner stub)',
+    false,
+  )
   .action(
     (
       repo: string | undefined,
@@ -915,8 +959,20 @@ program
         refreshStubs: boolean
         manifest?: string
         docProfile?: string
+        plan: boolean
+        apply: boolean
       },
     ) => {
+      if (opts.plan || opts.apply) {
+        const result = runDocSetPlanApply({
+          ...(repo !== undefined ? { repo } : {}),
+          apply: opts.apply,
+          ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
+          ...(opts.docProfile !== undefined ? { profile: opts.docProfile } : {}),
+        })
+        printDocSetPlanApplyReport(result, opts.apply)
+        process.exit(0)
+      }
       const result = runDocSet({
         ...(repo !== undefined ? { repo } : {}),
         strict: opts.strict,

@@ -82,6 +82,7 @@ export type GeneratorKey =
   | 'api-e2e'
   | 'conformance'
   | 'gold-kit'
+  | 'doc-set-skeletons'
 
 export interface ConfigDiff {
   paths: string[]

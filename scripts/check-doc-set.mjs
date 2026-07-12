@@ -267,6 +267,12 @@ function main() {
   const na = []
   const generated = []
   const refreshed = []
+  // T3 (gold-doc-tranches-t3-t5.md §1.2a): structured missing[] entries, additive alongside the
+  // existing missingMandatory/missingRecommended string arrays (the doc-set.test.ts payload-
+  // parity test keeps passing — same shape emitted for the CLI wrapper and the raw script since
+  // both invoke this exact function). Consumed by src/generators/doc-set.ts to resolve which
+  // skeleton template (if any, via the dormant `template:` field) satisfies a gap.
+  const missing = []
 
   // --refresh-stubs (opt-in) re-renders an EXISTING doc in place, but ONLY when its bytes equal
   // the freshly rendered stub — a real, hand-written doc is never touched. It runs for present
@@ -306,6 +312,13 @@ function main() {
     }
     if (requirement === 'mandatory') missingMandatory.push(check)
     else missingRecommended.push(check)
+    missing.push({
+      path: check.path,
+      requirement,
+      template: check.template,
+      freshness_class: check.freshness_class,
+      purpose: check.purpose,
+    })
 
     if (flag('--generate') && check.path.endsWith('.md')) {
       const abs = resolve(CWD, check.path)
@@ -332,6 +345,18 @@ function main() {
     },
     missingMandatory: missingMandatory.map((c) => c.path),
     missingRecommended: missingRecommended.map((c) => c.path),
+    missing,
+    // T3 (gold-doc-tranches-t3-t5.md §1.2c banner-upgrade): a check whose file EXISTS is
+    // "present" regardless of content — a banner stub scaffolded by a prior --generate/--apply
+    // run passes presence too, so it is otherwise invisible to a missing[]-only consumer. Mirrors
+    // `missing[]`'s shape (minus `requirement`, irrelevant once present) so the generator can
+    // detect + upgrade an untouched stub without a second resolution pass.
+    present: present.map((c) => ({
+      path: c.path,
+      template: c.template,
+      freshness_class: c.freshness_class,
+      purpose: c.purpose,
+    })),
     generated,
     refreshed,
   }
