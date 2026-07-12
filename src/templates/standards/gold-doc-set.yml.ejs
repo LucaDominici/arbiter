@@ -150,7 +150,7 @@ checks:
         'docs/architecture/blueprint.md',
         'docs/ARCHITECTURE.md',
         # H2 (Tranche 2): subtree recognition — real arc42/C4 gold docs often live two-plus
-        # directories deep (e.g. haben's docs/architecture/budget/{arc42,c4-model}.md), not
+        # directories deep (e.g. a governed project's docs/architecture/budget/{arc42,c4-model}.md), not
         # flat under docs/architecture/. `**` is resolved via a real recursive walk (H2).
         'docs/architecture/**/arc42.md',
         'docs/**/c4-model.md',
@@ -165,7 +165,7 @@ checks:
     drivers: ['iso12207']
     glob: 'docs/ADR/[0-9]*.md'
     # H2 (Tranche 2): adr:true also triggers a recursive, dual-recognition-aware subtree walk
-    # (adrPresentAnywhere) — an ADR directory living anywhere in the repo (e.g. haben's
+    # (adrPresentAnywhere) — an ADR directory living anywhere in the repo (e.g. a governed project's
     # docs/architecture/budget/adr/ADR-006..014_*.md) is recognized, not just docs/ADR|adr.
     adr: true
     accept_any:

@@ -75,7 +75,7 @@ const isGlob = (p) => /[*?\[\]]/.test(p)
  * `docs/architecture/**\/arc42.md`) is resolved with a real recursive repo walk
  * (scripts/lib/glob-walk.mjs `walkRepo` + `globToRegExp` — the same restricted-glob engine
  * `check-render-smoke.mjs` already uses, #1366) so subtree-nested docs (arc42/C4/ADR living
- * two-plus directories deep, e.g. haben's `docs/architecture/budget/`) are recognized. A
+ * two-plus directories deep, e.g. a governed project's `docs/architecture/budget/`) are recognized. A
  * `**`-free pattern keeps the original single-directory `readdirSync` fast path unchanged —
  * no behavior change for any existing single-level glob check (docs/ADR/[0-9]*.md, sbom*.json,
  * docs/api/*, ...).
@@ -139,7 +139,7 @@ function adrPresent(adrDir) {
 
 /**
  * H2 (gold-doc-capability Tranche 2): the single-directory adrPresent() above is path-blind — a
- * project whose ADRs live two-plus directories deep (haben's real
+ * project whose ADRs live two-plus directories deep (a governed project's real
  * `docs/architecture/budget/adr/ADR-006..014_*.md`) is invisible to it. Recursively walk the repo
  * (SKIP_DIRS-pruned) for any file whose immediate parent directory is literally named `ADR`/`adr`
  * (case-insensitive — legacy convention is uppercase, real-world nested convention is lowercase)
