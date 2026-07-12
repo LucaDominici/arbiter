@@ -335,6 +335,8 @@ runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs']);
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs']);
 // ─── L1: collaborationMode wired (INV-100, #1093) ────────────────────────────
 runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs']);
+// ─── L1: safety-class adopt ratchet (T1, anti-erosion) ───────────────────────
+runCheck('safety adopt ratchet', 'node', ['scripts/check-safety-adopt-ratchet.mjs']);
 // ─── L1: governance constraint scan (INV-115, #1214) ─────────────────────────
 runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs']);
 // ─── L1: wiki lint gate (INV-116, #1241) ─────────────────────────────────────

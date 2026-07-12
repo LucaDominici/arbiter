@@ -29,13 +29,8 @@ attest). Pick the gap's `id` and ask for its recipe.
 npx @arbiter/cli gold-audit
 ```
 
-2. Get the recipe for one gap:
-
-```bash
-npx @arbiter/cli close-gold-gap <gapId>
-# machine-readable:
-npx @arbiter/cli close-gold-gap <gapId> --json
-```
+2. Classify the gap by **category** — what does the failed check actually verify? There is no
+   separate recipe engine; the category table below **is** the recipe.
 
 3. Execute the recipe's steps yourself. Each step is typed by **category**:
 
