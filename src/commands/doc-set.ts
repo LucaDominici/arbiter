@@ -118,6 +118,7 @@ function parsePayload(stdout: string, jsonRequested: boolean): DocSetPayload | n
   if (!text.startsWith('{')) return null
   try {
     return JSON.parse(text) as DocSetPayload
+    // FAIL-OPEN-INTENT: a parse failure is the engine's documented plain-text SKIP path, not an error.
   } catch {
     return null
   }
