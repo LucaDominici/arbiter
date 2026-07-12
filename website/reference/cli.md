@@ -681,11 +681,12 @@ Manage git worktrees for parallel task development.
 
 These commands are fully functional but hidden from the default `arbiter --help` listing. They are not part of the stable public surface and may change without notice. List them from the CLI with `arbiter help --all`.
 
-| Command                 | Description                                                          |
-| ----------------------- | -------------------------------------------------------------------- |
-| `arbiter doc-set`       | —                                                                    |
-| `arbiter settings`      | List every settable arbiter.json path with its current value (#1121) |
-| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates           |
+| Command                 | Description                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `arbiter doc-set`       | —                                                                               |
+| `arbiter mark`          | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
+| `arbiter settings`      | List every settable arbiter.json path with its current value (#1121)            |
+| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates                      |
 
 ## arbiter doc-set
 
@@ -697,6 +698,22 @@ These commands are fully functional but hidden from the default `arbiter --help`
 - `--refresh-stubs` — (with --generate) re-render a doc in place only if it is byte-equal to the stub template
 - `--manifest <path>` — Manifest path override (default standards/gold-doc-set.yml)
 - `--doc-profile <path>` — Overlay profile path override (default standards/doc-profile)
+- `--plan` — T3: dry-run the skeleton generator — report would-scaffold/unbound, write nothing
+- `--apply` — T3: scaffold real per-doc-type skeletons for missing bound rows (skipIfExists; never
+- `--freshness` — T4: run the per-doc freshness audit (scripts/check-doc-freshness.mjs) instead of presence
+
+## arbiter mark
+
+Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206).
+
+**Options:**
+
+- `--next <action>` — The exact next sub-step to resume on
+- `--last <action>` — The sub-step just completed
+- `--tdd <phase>` — TDD sub-phase (RED|GREEN|REFACTOR)
+- `--task <id>` — Set/override the active task id
+- `--digest <line>` — One-line progress digest for log.md
+- `--dir <dir>` — Target directory (default: current directory)
 
 ## arbiter settings
 

@@ -104,7 +104,7 @@ function frontmatter(title: string, today: string): string {
 /**
  * Mirrors `stubFor()`'s docs/*.md output (scripts/check-doc-set.mjs) — used ONLY to detect an
  * untouched engine-scaffolded banner stub, never to compute presence (that stays the engine's
- * job). The `last_review` date is normalized to a placeholder on BOTH sides before comparing so a
+ * job). The `last_review` date is normalized to a fixed sentinel on BOTH sides before comparing so a
  * banner scaffolded on an earlier day still upgrades today (mirrors the intent of the engine's
  * own `--refresh-stubs`, which is same-day-only) — every other byte, including the whole body,
  * must match exactly, so a single hand-edited character anywhere withholds the upgrade.
@@ -184,10 +184,20 @@ function scaffoldRow(
   if (!shouldWrite) return null // present-real, or missing-but-override-target-taken -> withheld
 
   const title = basename(targetRel).replace(/\.md$/, '')
-  const body = renderTemplate(templatePath, { ...ctx.config, projectName: ctx.projectName, title, today: ctx.today })
-  const rendered = templatePath.startsWith('docs/skeletons/') ? frontmatter(title, ctx.today) + body : body
+  const body = renderTemplate(templatePath, {
+    ...ctx.config,
+    projectName: ctx.projectName,
+    title,
+    today: ctx.today,
+  })
+  const rendered = templatePath.startsWith('docs/skeletons/')
+    ? frontmatter(title, ctx.today) + body
+    : body
 
-  const result = writeFile(targetAbs, rendered, { skipIfExists: !bannerDetected, dryRun: ctx.dryRun })
+  const result = writeFile(targetAbs, rendered, {
+    skipIfExists: !bannerDetected,
+    dryRun: ctx.dryRun,
+  })
   return { result, targetRel }
 }
 

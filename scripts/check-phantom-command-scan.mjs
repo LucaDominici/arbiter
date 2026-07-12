@@ -57,7 +57,15 @@ const ROOTS = argValue('roots')
 
 // Path segments excluded from the scan (see header comment): decision/roadmap
 // archives and the changelog, none of which assert *current* CLI behavior.
-const SKIP_PATH_SEGMENTS = [`${sep}internal${sep}`, `${sep}changelog${sep}`]
+// `design` (gold-doc-self-tier-and-coherence.md §2.2): design docs are PROPOSAL records too —
+// they legitimately cite a cut or never-shipped command (`arbiter watch`, `arbiter ghostcmd`,
+// `arbiter context-pack`) as the very thing being discussed/rejected. Current-state promises
+// must not live in docs/design/, so a design doc discussing a dead command is not a phantom
+// citation the way a live skill/playbook instructing one would be (full CLI-surface coherence
+// scan-root extension — .claude/skills, .claude/commands, .claude/agents, src/templates,
+// *.md.ejs, spawn-array matching — is T5b′, out of scope here; this is only the narrow carve-out
+// needed so enrolling docs/design/ as gold docs (T5) doesn't break this pre-existing gate).
+const SKIP_PATH_SEGMENTS = [`${sep}internal${sep}`, `${sep}changelog${sep}`, `${sep}design${sep}`]
 
 // `help` is commander's built-in meta-command — extractTopLevelCommandNames
 // deliberately excludes it (gen-cli-ref.mjs's generated table doesn't need a

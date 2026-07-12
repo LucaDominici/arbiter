@@ -134,9 +134,9 @@ describe('generateDocSetSkeletons — banner-upgrade path (§1.2c)', () => {
     expect(content).not.toContain('STUB — fill me in')
     expect(content).toContain('## Decision rights')
     const scaffolded = result.scaffolded.find((s) => s.path === 'docs/GOVERNANCE.md')
-    expect(scaffolded?.action === 'replaced' || scaffolded?.action === 'backed-up-and-replaced').toBe(
-      true,
-    )
+    expect(
+      scaffolded?.action === 'replaced' || scaffolded?.action === 'backed-up-and-replaced',
+    ).toBe(true)
   })
 
   it('withholds (never touches) a banner stub with one hand-edited character', () => {

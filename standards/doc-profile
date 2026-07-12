@@ -13,8 +13,20 @@
 #   gxp             — regulated GxP context → GAMP 5 / 21 CFR Part 11 (CSV, audit-trail)
 #   has-ai          — ships AI/ML features → model card + AI risk assessment
 #   has-mobile      — ships a mobile app → store compliance + Playwright coverage
+#   self-charter    — arbiter-specific: the 5 foundational docs that define this very capability
+#                     (the standard, the methodology, and the 3 gold-doc design docs). NOT a
+#                     general-purpose overlay — inert for any repo that copies this manifest shape
+#                     (gold-doc-tranches-t3-t5.md §3.2).
 overlays:
   - has-plugin-api
   - has-api
+  - self-charter
 # allow: extra doc paths intentionally present that the audit should NOT flag (derogations).
 allow: []
+# tier_floor (T1b): arbiter is an npm-published framework exposing a plugin API, consumed by many
+# — Self = Enterprise always, regardless of arbiter.json's own collaborationMode (trunk-solo, a
+# solo-maintainer fact about THIS repo's own dev process, not about who consumes it). Without this
+# floor, self silently grades itself on the SOLO column (live-verified regression, gold-doc-self-
+# tier-and-coherence.md §1.1) — 8 always-rows go dormant and self passes a materially weaker bar
+# than the standard it enforces on others. A floor only RAISES the column, never lowers it.
+tier_floor: enterprise

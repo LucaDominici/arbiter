@@ -20,8 +20,12 @@ import { runCli, CliError } from '../utils/run-cli.js'
 export interface DocSetPayload {
   manifest: string
   profile: { overlays: string[] }
-  /** H3 (gold-doc-capability Tranche 1): which tiers{} column resolved this run. */
+  /** H3/T1b (gold-doc-capability Tranche 1 / self-tier addendum §1): the EFFECTIVE tiers{} column. */
   tierColumn: 'solo' | 'small' | 'enterprise'
+  /** T1b: what collaborationMode alone resolves to, before any `tier_floor` is applied. */
+  tierDerived?: 'solo' | 'small' | 'enterprise'
+  /** T1b: the profile's `tier_floor`, or null when the repo sets none (governed default). */
+  tierFloor?: 'solo' | 'small' | 'enterprise' | null
   totals: {
     applicable: number
     present: number

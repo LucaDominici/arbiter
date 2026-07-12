@@ -34,7 +34,13 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve, basename } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { parse as parseYaml } from 'yaml'
-import { loadOverlays, loadTierColumn, requirementFor, resolvePresentPaths } from './lib/doc-set-resolve.mjs'
+import {
+  loadOverlays,
+  loadTierColumn,
+  requirementFor,
+  resolveEffectiveColumn,
+  resolvePresentPaths,
+} from './lib/doc-set-resolve.mjs'
 // SKIP_FILENAMES (INDEX.md, DECISIONS.md, ...): auto-generated digests that check-doc-style.mjs
 // already exempts from carrying frontmatter at all — a generated file has no `last_review` to
 // grade honestly (the next regen wouldn't preserve one anyway), so this gate defers to the SAME
@@ -152,7 +158,12 @@ function evaluateDoc(check, filePath, bars, cwd) {
   if (!lastReview) {
     // Fail-closed (INV-96): missing/empty/unparseable last_review on a required doc is STALE,
     // never a vacuous pass.
-    return { ...base, last_review: raw || null, verdict: 'stale', reason: 'missing or unparseable last_review' }
+    return {
+      ...base,
+      last_review: raw || null,
+      verdict: 'stale',
+      reason: 'missing or unparseable last_review',
+    }
   }
 
   const ageDays = Math.floor((Date.now() - Date.parse(lastReview)) / 86_400_000)
@@ -175,8 +186,10 @@ function main() {
     process.stderr.write(`check-doc-freshness: unreadable manifest ${MANIFEST} — ${err.message}\n`)
     return 2
   }
-  const { overlays } = loadOverlays(CWD, PROFILE)
-  const tierColumn = loadTierColumn(CWD)
+  // T1b: apply the SAME tier_floor max()-semantics presence uses (scripts/check-doc-set.mjs) —
+  // freshness and presence must never disagree about which column a repo is graded on.
+  const { overlays, tierFloor } = loadOverlays(CWD, PROFILE)
+  const tierColumn = resolveEffectiveColumn(loadTierColumn(CWD), tierFloor)
   const bars = { ...DEFAULT_BARS, ...(manifest.freshness_bars || {}) }
 
   const docs = []

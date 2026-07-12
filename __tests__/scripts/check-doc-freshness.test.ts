@@ -38,7 +38,7 @@ function frontmatter(lastReview: string | null, extra = ''): string {
     ...(lastReview !== null ? [`last_review: '${lastReview}'`] : []),
     "owner: ''",
     "canonical_id: ''",
-    "tags: []",
+    'tags: []',
     'related: []',
     extra,
     '---',
@@ -222,7 +222,7 @@ describe('check-doc-freshness (T4, #H4)', () => {
     }
   })
 
-  it('a check with no applicable/present file is simply not graded (presence is check-doc-set.mjs\'s job)', () => {
+  it("a check with no applicable/present file is simply not graded (presence is check-doc-set.mjs's job)", () => {
     const manifest = `checks:
   - path: docs/never-written.md
     tier: mandatory
@@ -262,10 +262,39 @@ describe('check-doc-freshness (T4, #H4)', () => {
     }
   })
 
+  it('T1b interlock: a `tier_floor` in doc-profile is honored the SAME way presence honors it — never disagreeing', () => {
+    const manifest = `checks:
+  - path: docs/enterprise-only.md
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    applies: always
+    freshness_class: policy
+`
+    const { dir, cleanup } = makeRepo(manifest, 'overlays: []\ntier_floor: enterprise\n')
+    try {
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'trunk-solo' }))
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'enterprise-only.md'), frontmatter(''))
+      const r = run(dir, ['--json'])
+      const j = JSON.parse(r.stdout)
+      // Without the floor this row is 'o' (skip) at solo and never graded (see the test above);
+      // WITH the floor the effective column is enterprise ('R'), so it IS graded, and fails
+      // closed on the empty last_review.
+      expect(j.tierColumn).toBe('enterprise')
+      expect(j.docs).toHaveLength(1)
+      expect(j.docs[0].verdict).toBe('stale')
+      expect(r.status).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
   describe('change-coupling (strongest signal)', () => {
     function initGitRepo(dir: string): void {
       execFileSync('git', ['init'], { cwd: dir, stdio: 'ignore' })
-      execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: dir, stdio: 'ignore' })
+      execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], {
+        cwd: dir,
+        stdio: 'ignore',
+      })
       execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: dir, stdio: 'ignore' })
     }
 

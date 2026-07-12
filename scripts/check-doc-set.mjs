@@ -33,7 +33,13 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import { isPresent, loadOverlays, loadTierColumn, requirementFor } from './lib/doc-set-resolve.mjs'
+import {
+  isPresent,
+  loadOverlays,
+  loadTierColumn,
+  requirementFor,
+  resolveEffectiveColumn,
+} from './lib/doc-set-resolve.mjs'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -100,8 +106,12 @@ function main() {
     return 0
   }
   const manifest = parseYaml(readFileSync(resolve(CWD, MANIFEST), 'utf-8'))
-  const { overlays } = loadOverlays(CWD, PROFILE)
-  const tierColumn = loadTierColumn(CWD)
+  const { overlays, tierFloor } = loadOverlays(CWD, PROFILE)
+  const tierDerived = loadTierColumn(CWD)
+  // T1b (gold-doc-self-tier-and-coherence.md §1): tierColumn is the EFFECTIVE column used for
+  // every resolution below; tierDerived is what collaborationMode alone would have produced —
+  // both are reported so every audit is self-explanatory about whether a floor is in play.
+  const tierColumn = resolveEffectiveColumn(tierDerived, tierFloor)
 
   const present = []
   const missingMandatory = []
@@ -177,7 +187,9 @@ function main() {
   const report = {
     manifest: MANIFEST,
     profile: { overlays: [...overlays] },
-    tierColumn, // H3: which tiers{} column ('solo'|'small'|'enterprise') resolved this run
+    tierColumn, // H3/T1b: the EFFECTIVE tiers{} column ('solo'|'small'|'enterprise') this run used
+    tierDerived, // T1b: what collaborationMode alone resolves to, before any tier_floor
+    tierFloor: tierFloor ?? null, // T1b: the profile's tier_floor, or null when unset
     totals: {
       applicable,
       present: present.length,

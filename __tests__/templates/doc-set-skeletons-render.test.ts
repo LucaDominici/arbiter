@@ -28,11 +28,14 @@ describe('docs/skeletons/*.md.ejs render (T3)', () => {
     ['docs/skeletons/test-strategy.md.ejs', ['## Pyramid', '## Coverage policy']],
     ['docs/skeletons/governance.md.ejs', ['## Decision rights', '## Gate ladder']],
     ['docs/skeletons/technical-debt.md.ejs', ['| Item | Class | Interest | Plan |']],
-  ] as const)('%s renders with its real section headers, never a lorem/STUB banner', (tpl, headers) => {
-    const content = renderTemplate(tpl, { ...config, title: 'x' })
-    expect(content.trim().length).toBeGreaterThan(0)
-    expect(content).not.toContain('STUB — fill me in')
-    expect(content).not.toContain('lorem')
-    for (const h of headers) expect(content).toContain(h)
-  })
+  ] as const)(
+    '%s renders with its real section headers, never a lorem/STUB banner',
+    (tpl, headers) => {
+      const content = renderTemplate(tpl, { ...config, title: 'x' })
+      expect(content.trim().length).toBeGreaterThan(0)
+      expect(content).not.toContain('STUB — fill me in')
+      expect(content).not.toContain('lorem')
+      for (const h of headers) expect(content).toContain(h)
+    },
+  )
 })

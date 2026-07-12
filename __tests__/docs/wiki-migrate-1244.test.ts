@@ -188,14 +188,17 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
   // (commit 69828e59, 2026-07-11) legitimately added 3 GOLD `kind/spine` docs —
   // docs/architecture/{arc42,c4-model,README}.md — that this doc's own SSOT set now lists
   // (`adr-index.md` stays excluded: its first kind/* tag is `adr`, per the selection rule).
+  // T5 (gold-doc-tranches-t3-t5.md, self-charter enrollment) legitimately added
+  // docs/methodology/agent-orchestration-and-context-hygiene.md (`kind/governance`, one of the
+  // capability's own two normative-base charter docs — see gold-doc-capability.md §self-charter).
   // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
   // the pre-growth ceiling. Bound updated to the current real count so the budget still
   // catches future unbounded growth.
-  it('selectSsotDocs returns at most 23 canonical core docs', () => {
+  it('selectSsotDocs returns at most 24 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(23)
+    ).toBeLessThanOrEqual(24)
   })
 })

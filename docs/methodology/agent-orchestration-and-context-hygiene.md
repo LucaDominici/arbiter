@@ -1,0 +1,593 @@
+---
+title: 'Agent Orchestration and Context Hygiene — Operating Standard'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-07-12'
+owner: ''
+canonical_id: ''
+tags: ['audience/dev', 'audience/agent', 'kind/governance']
+related:
+  [
+    'docs/CONCEPTS.md',
+    'docs/EXECUTION-PLAYBOOK.md',
+    'docs/REFERENCE/wave-drain.md',
+    'docs/internal/ADR/054-phase-3-5-handoff-modeled-as-status-json-fields.md',
+    '103-worktree-parallel-carveout',
+  ]
+---
+
+# Agent Orchestration and Context Hygiene — Operating Standard
+
+**Scope:** how WE run coding agents — on every repo, not only arbiter. Arbiter is the
+carrier: it applies the standard to itself (self-governance) and propagates it into every
+governed project (scaffolded gates, hooks, skills, templates). This document is the METHOD;
+the appendix maps every measure to the arbiter mechanism that enforces it today or must be
+built next.
+
+**Status of this document:** normative. Where a measure has no enforcer yet, that is
+declared as **TO-CREATE** debt with a target mechanism — never left as silent prose.
+
+---
+
+## 0. Doctrine (why every measure must be code)
+
+Four axioms, already operative in arbiter, govern everything below:
+
+1. **Beyoncé rule** — a rule without an automated check does not exist. Prose decays;
+   only gates persist. (Applied to arbiter's own CANON in `docs/EXECUTION-PLAYBOOK.md`
+   §T4: prose-only rules are promoted to machine gates or deleted.)
+2. **Paved road / pit of success** — the correct way must be the pre-built default. A
+   measure that requires remembering is already failing (`docs/audit/FRAMEWORK_AUDIT.md`).
+3. **Normalization of deviance** — an unenforced or routinely-bypassed rule trains
+   everyone to ignore all rules. The bypass-log is the confession
+   (`docs/audit/IS-ARBITER-WORTH-IT.md`: 305 bypasses of one gate = not a gate).
+4. **IRON LAW of proof** — nothing is done until it is **WIRED** (invoked, `file:line`),
+   **TESTED** (a red-path/flip test proves it BLOCKS, not only passes) and **WORKING**
+   (dogfooded on real input). (`docs/EXECUTION-PLAYBOOK.md` §0.1.)
+
+Corollary for this standard: each measure below carries an **Enforcement** row. Legend:
+
+| Level    | Meaning                                                                   |
+| -------- | ------------------------------------------------------------------------- |
+| **HARD** | hook/gate blocks the violation mechanically                               |
+| **SOFT** | advisory check or structural default; promotion to HARD is dated debt     |
+| **DOC**  | prose only — by axiom 1 this is a defect, listed with its target enforcer |
+
+And a **Self / Governed** row: what arbiter does _for itself_ vs what it _generates and
+enforces_ in governed projects. The two sides must converge (CANON-14: self-config ⊇
+template at equal governance level; `scripts/check-self-dogfood.mjs`).
+
+---
+
+## 1. Threat model: context rot and drift
+
+The failure modes this standard exists to kill — each observed for real, not hypothesized:
+
+| #   | Failure mode                                                                                                                             | Real incident                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | **Volatile-context loss** — findings/decisions live only in the model's window; compaction or `/clear` destroys them                     | Mid-task compactions losing multi-phase state (countered by the 3-layer protocol in `.claude/skills/context-rot-management/SKILL.md`) |
+| R2  | **Fake green / unverified claims** — agent reports success without exercising the change                                                 | Majority of observed real agent errors (5 of 8) were success claims never exercised (`AGENTS.md` §Verification-Before-Victory)        |
+| R3  | **Shared-tree parallel corruption** — concurrent agents editing one working tree corrupt index/lockfiles/diffs                           | Real incident 2026-03-01: parallel agents without worktrees produced accidental edits on `main`; codified as Iron Law in `AGENTS.md`  |
+| R4  | **False structural claims** — an agent asserts an architectural fact from vibes, not code                                                | Real false alarm: "hexagonal architecture is fiction" refuted by cross-checking 113 ArchUnit rules in the actual codebase             |
+| R5  | **Context pollution** — research dumps (file listings, greps, long reads) rot the orchestrator's window and degrade every later judgment | Structural; the reason read-only sub-agents exist (`.claude/agents/codebase-scanner.md`)                                              |
+| R6  | **Ceremony drift** — gates bypassed until the bypass is the process                                                                      | 332 logged bypasses, 305 on one gate (`docs/audit/IS-ARBITER-WORTH-IT.md`)                                                            |
+| R7  | **Expensive-model burn** — top-tier models spent on mechanical execution                                                                 | #1817 gold-rebaseline pattern A8: ~90% of implementation belongs on a cheap model executing a worked-out plan                         |
+
+---
+
+## 2. The measures
+
+### M1 — Model pyramid: deterministic task-class → model routing
+
+**What.** Every unit of work is classified before dispatch and routed to the cheapest
+model tier that can own it:
+
+| Tier           | Model class                 | Owns                                                                                      |
+| -------------- | --------------------------- | ----------------------------------------------------------------------------------------- |
+| Judgment       | **Fable** (top reasoning)   | design, architecture decisions, plan review, verdicts, brainstorming, keep-or-kill triage |
+| Verification   | **Opus** (strong reasoning) | red-team, adversarial verify, dogfood, safety re-grep before destructive ops              |
+| Implementation | **Sonnet**                  | mechanical-plus coding: implement a reviewed plan, wiring, migrations, guarded deletion   |
+| Mechanical     | **Haiku**                   | checklist leaf work: pattern search, leaf-file deletion, link sweeps, formatting          |
+
+Routing is **deterministic by declaration**, not by runtime machinery: the task's model
+tier is written into the plan/handoff (`src/templates/HANDOFF.template.md` "Suggested
+tier" per task) and the dispatch legend of the playbook driving the work
+(`docs/EXECUTION-PLAYBOOK.md` §0.2). Per-agent model assignments live in
+`.claude/AGENT_REGISTRY.md` (model + effort + cost rationale per sub-agent) and the
+tier→review-vertical floor in `.claude/agent-dispatch-matrix.json`.
+
+**Rule of thumb (Iron Law, `AGENTS.md` §Model-Pyramid):** if the expensive model spends
+its turn executing rather than judging, the _plan_ handed to it was the defect — fix the
+task spec, not the model tier. Arbiter deliberately does **not** select or gate on model
+tier at runtime (that machinery is deprecated and stays deprecated); enforcement is on
+the _declarations_ and their parity, not on a runtime selector.
+
+**Why.** Kills R7 (token burn) and reduces R5: cheap short-lived executors read only
+their task slice; the expensive model's window stays reserved for judgment.
+
+**Enforcement.** HARD on declaration parity: `scripts/check-agent-dispatch.mjs` asserts
+the declared dispatch matrix matches the compiled derivation in
+`src/commands/task-ship.ts::verticalsForTier` (the "dispatch oracle", jewel J2).
+SOFT on the pyramid itself: registry + handoff-template defaults (paved road).
+TO-CREATE: a handoff-lint that flags a handoff doc whose tasks carry no tier suggestion.
+
+**Self / Governed.** Self: registry, matrix, playbook legends. Governed: arbiter
+scaffolds the agents + registry conventions (`src/generators/skills.ts`,
+`src/templates/claude/agents/*.ejs`) and the HANDOFF template.
+
+**Tier.** All tiers. Solo gets the same pyramid — it is a cost rule, not a team rule.
+
+---
+
+### M2 — Short-lived agents, one task per session
+
+**What.** An agent session owns exactly one task and dies after its verdict/deliverable.
+No agent accumulates state across tasks; continuity lives in files (M4), never in a
+long-running session. Orchestrators direct; they do not implement
+(`.claude/skills/wave-drain/SKILL.md`: "the orchestrator directs parallel agents — it
+never implements").
+
+**Why.** Long sessions are where rot compounds (R1, R5). A short-lived agent's context
+is by construction fresh, scoped, and disposable.
+
+**Enforcement.** SOFT: session discipline is structural in `/ship` (each phase's work is
+dispatched, the phase machine holds state) and in wave-drain (one agent per group per
+worktree, closed at harvest). HARD at the boundary: the phase machine
+(`arbiter task advance`) refuses to move on red, so a dead agent's unfinished work
+cannot silently pass to the next. TO-CREATE: a dispatch-manifest check that an agent
+prompt references exactly one task id.
+
+**Self / Governed.** Both — the `/ship` + wave-drain machinery is scaffolded to targets.
+
+**Tier.** All.
+
+---
+
+### M3 — Mesocycle handover: context reset between phases, state carried by file
+
+**What.** The task lifecycle (plan → red → green → verify → ship) is cut into
+_mesocycles_. At each phase boundary the context is reset (`/clear` or fresh sub-agent)
+and the next phase starts **cold** from a handover artifact, never from residual window
+content. The handover contract:
+
+- **Handoff doc** — `src/templates/HANDOFF.template.md`: written for "a COLD model with
+  zero prior context", every task with its own AC + exact verification command + tier.
+- **Phase state** — `status.json` fields (`handoffStrategy`, `planningHandoffReady`,
+  `postClearResumed`), not a new phase enum (ADR-054); resumed via
+  `arbiter ship #NNN --advance --post-clear`.
+- **Clear strategy** — computed, not vibed: `src/commands/task.ts::decideClearStrategy`
+  (≤10 units inline, ≤20 sub-agent, else stop-and-/clear) and
+  `::buildHandoffBanner` prints the exact resume command (jewel J4).
+- **Compaction resilience** — `.claude/hooks/pre-compact.mjs` persists context before
+  auto-compaction and re-grounds the model (branch/task/phase) after it; the 3-layer
+  durable-redundancy protocol (BACKLOG file + task cursor + phase-boundary git commits)
+  in `.claude/skills/context-rot-management/SKILL.md` makes context loss a non-event.
+
+**Why.** Directly kills R1. A phase that can only be resumed from a file is a phase
+whose state is, by construction, persisted (feeds M4).
+
+**Enforcement.** HARD: the handoff gate throws on the `red-team-review → red` transition
+until the handoff fields are satisfied (`checkHandoffGate`, `src/commands/task.ts`);
+`Stop` hook blocks completion claims regardless (M11). SOFT: banner + skill protocol.
+
+**Self / Governed.** Both. The hooks, skill, and task engine are emitted to targets
+(`src/generators/claude.ts`, `src/generators/skills.ts`).
+
+**Tier.** Handoff file + `/clear` discipline: all tiers. The full 3-layer protocol
+activates only for Standard-tier tasks with >5 units (right-sized by its own skill).
+
+> Transitional note: `docs/EXECUTION-PLAYBOOK.md` §T2.B cuts the `arbiter mark` cursor
+> _command_ (danger cluster D2). The cursor survives as `status.json` fields (INV-113,
+> ADR-054); skills referencing `arbiter mark` must be repointed when T2 lands.
+
+---
+
+### M4 — Persist everything to file: findings, decisions, evidence — never context-only
+
+**What.** Anything an agent finds or decides is written to a durable, append-friendly
+artifact **at the moment of discovery**, not summarized at session end:
+
+| Artifact class        | Canonical home                                                                           | Mechanism                                                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Incidental findings   | `.arbiter/findings/` JSONL spool                                                         | `arbiter note` → `src/commands/task-note.ts::FindingEntry` (ts, kind, severity, file:line, sha, fingerprint; parallel-safe shards) |
+| Decisions             | `docs/internal/ADR/`                                                                     | INV-107 (unique numbers, index in sync, `scripts/check-adr-index.mjs`)                                                             |
+| Evidence per phase    | `.arbiter/evidence/<task>/…` (`tdd/`, `plan-review/`, `redteam/`, `review/`, `dogfood/`) | INV-90 schema (`schemas/evidence-bundle.schema.json`, `scripts/check-evidence-bundle.mjs`); INV-27 evidence for all gate runs      |
+| Task state            | `.claude/.task/status.json` + append-only log                                            | INV-113 single authoritative phase doc (`scripts/check-phase-doc-consistency.mjs`)                                                 |
+| Plan                  | `.claude/plans/*.md`                                                                     | plan anchor required before edit (CANON-16, `.claude/hooks/pre-edit-plan-anchor.mjs`)                                              |
+| Suppressions/bypasses | commit footers + `.arbiter/evidence/bypass-log.jsonl` (append-only)                      | `scripts/check-commit-footer-rationale.mjs` (INV-119)                                                                              |
+
+Findings never rot in the spool: wave-drain Phase 0.5 **harvests** the spool into
+tracked issues before composing each wave ("the backlog is the queue, not the
+graveyard" — `.claude/CLAUDE.md` Iron Law).
+
+**Why.** Kills R1 at the root: the context window becomes a cache, never the source of
+truth. Also enables M11–M13 (you cannot verify, refute, or audit what was never
+written down).
+
+**Enforcement.** HARD: INV-114 Stop gate (a completion claim without correlated evidence
+on disk is blocked — see M11); INV-90 schema check; INV-113 consistency; INV-107 ADR
+index. SOFT: the spool-harvest step. TO-CREATE: a "finding-loss" check — a session that
+dispatched research agents but wrote zero notes/evidence gets flagged.
+
+**Self / Governed.** Both; the whole family is dual-tracked (self-gate + emitted).
+
+**Tier.** All. The evidence _schema_ depth scales with governance level (L2+ evidence,
+L4 full harness).
+
+---
+
+### M5 — SSOT-first: truth lives in canonical files; memory is non-authoritative
+
+**What.** A fixed authority hierarchy (`AGENTS.md` §Authority Hierarchy: AGENTS.md →
+ADRs → CANON → active plan → AI judgment last). Model memory, retrieval systems, and
+prior-session recollections are conveniences that always lose to the canonical file.
+Agents navigate via the ssot-navigation skill instead of re-deriving.
+
+**Why.** Kills drift between what the agent "remembers" and what the repo says (R4 in
+its chronic form). Conflicts get resolved by rank, not by debate.
+
+**Enforcement.** HARD: `scripts/check-drift.mjs` (INV-28 SSOT contradiction check),
+`scripts/check-ssot-core.mjs` + `scripts/gen-ssot-core.mjs --check` (INV-108 core-set
+exhaustiveness), doc-links integrity (INV-55), `.claude/hooks/pre-edit-ssot-guard.mjs`
+(unauthorized SSOT edits blocked at edit time), INV-115 constraint-scan (every free-text
+prohibition must resolve to a verified enforcer — the Beyoncé rule _as a gate_).
+
+**Self / Governed.** Both.
+
+**Tier.** All; the guarded file-set shrinks at solo (fewer ceremony docs — see §3).
+
+---
+
+### M6 — Read-set / context economy: load only what the phase authorizes
+
+**What.** Each phase/agent declares its read-set up front (plan manifest, handoff
+"Where" rows, track scoping) and loads nothing else. Big files are read by slice; whole
+files only when the slice is load-bearing. "Don't re-read unchanged files" is policy,
+not preference.
+
+**Why.** Attacks R5 directly: window budget is the scarcest resource; every irrelevant
+token degrades every later judgment (context-rot literature and our own incidents
+agree).
+
+**Enforcement.** SOFT/structural: plan manifests per wave group declare files touched
+(`.claude/skills/wave-drain/SKILL.md` Phase 1); `pre-edit-load-memory.mjs` injects
+gotchas only when a glob matches (targeted, not global). DOC→TO-CREATE: a read-set
+declaration in the plan template plus an advisory check that an implementation agent's
+touched files ⊆ its manifest (the disjointness half is already what makes ADR-103
+parallelism legal — the same manifest can bound reads).
+
+**Self / Governed.** Both (manifest discipline ships with wave-drain).
+
+**Tier.** All; strictness scales with parallelism (mandatory where agents run parallel).
+
+---
+
+### M7 — Research through sub-agents: the context firewall
+
+**What.** Exploration, grep-sweeps, and "does X exist?" questions are delegated to
+read-only sub-agents that return **conclusions, not transcripts**. The escalation
+ladder is cheap-first (`.claude/AGENT_REGISTRY.md` §Escalation Hierarchy):
+`codebase-scanner` (Haiku, read-only) → `context-checker` (structured verdict) →
+`bridge-reviewer` (combined verdict); `red-team` runs in parallel with planning.
+
+**Why.** R5: the orchestrator's window never absorbs raw search output; it absorbs one
+paragraph of conclusion. Also cheap (M1).
+
+**Enforcement.** SOFT/structural: the agents exist, are registered, and are the paved
+road; rule-50 makes read-only the _only_ legal mode for non-worktree parallel agents
+(`.claude/rules/50-batch-execution.md` §Allowed). TO-CREATE: none needed beyond keeping
+the registry parity gate green.
+
+**Self / Governed.** Both — `codebase-scanner` and `red-team` are emitted templates
+(`src/templates/claude/agents/*.md.ejs`).
+
+**Tier.** All.
+
+---
+
+### M8 — Structured-output schemas for agent returns
+
+**What.** An agent's deliverable back to the orchestrator is a schema-validated
+artifact, not free prose to be re-parsed: evidence bundles
+(`schemas/evidence-bundle.schema.json`), `REVIEW_CONTEXT` JSON from `context-checker`,
+`gate-pass.json`, the dispatch matrix itself (`.claude/agent-dispatch-matrix.json`),
+TDD evidence (schema inlined in the emitted `check-tdd-evidence.mjs`). Validation
+happens at the tool/gate layer — a malformed return is a failed gate, not a parsing
+adventure.
+
+**Why.** Kills fragile-parsing drift and makes M4 artifacts machine-consumable; a
+schema violation is caught at the boundary instead of corrupting downstream phases.
+
+**Enforcement.** HARD where schemas exist: `scripts/check-evidence-bundle.mjs`
+(INV-90), `checkTddEvidenceGate`, `check-agent-dispatch.mjs`. TO-CREATE: a generic
+**agent-return envelope** (verdict ∈ {PASS,WARN,FAIL}, findings[], evidence-refs[],
+confidence) + one validator, so every review/verify agent writes the same shape into
+`.arbiter/evidence/` — today only some returns are schematized.
+
+**Self / Governed.** Schemas + validators are dual-tracked.
+
+**Tier.** All at L2+; solo/L1 keeps at minimum the TDD-evidence and gate-pass shapes.
+
+---
+
+### M9 — Worktree isolation for parallel agents (absolute rule)
+
+**What.** **Never** run parallel write-agents in one working tree. Parallelism is legal
+only under the ADR-103 carve-out, all conditions necessary: (1) dedicated worktree per
+agent (`/wt-open`, `src/worktree/`), (2) distinct branch per agent, (3) file-sets
+declared disjoint in the plan manifest _before_ dispatch. Always serial regardless:
+dependency/lockfile changes, main-tree edits, tags. Expensive gates serialize through
+the flock mutex (`arbiter gate-exec`, kernel-level, released even on SIGKILL); lock
+acquisition is totally ordered (gate ≺ worktree ≺ wave-claim) to prevent deadlock;
+stale worktrees are reaped (`arbiter worktree prune --stale`).
+
+**Why.** R3 — the one failure mode with a confirmed real incident and no clean
+recovery path. Isolation converts a catastrophic race into ordinary merge mechanics.
+
+**Enforcement.** HARD-structural: worktree open is lock-serialized; gate mutex is
+flock(1), fail-closed serial where flock is missing; Iron Law in `AGENTS.md`
+(STOP→REFUSE on violation). Recovery protocol codified in rule-50. TO-CREATE: a
+dispatch-time hook that refuses to spawn a write-agent whose `cwd` is the main tree
+while another write-agent is active (today the rule is iron but the spawn itself is
+not mechanically intercepted).
+
+**Self / Governed.** Both — rule-50, `/wt-*` commands and the worktree engine are
+emitted (`src/templates/claude/rules/50-batch-execution.md`, generators).
+
+**Tier.** All. Solo needs it _more_: a solo operator runs the most unattended
+parallelism.
+
+---
+
+### M10 — Deterministic orchestration where structure is known
+
+**What.** When the workflow shape is known (phase order, fan-out width, review-agent
+count, integration order), a **script computes it** and the model only fills the
+judgment slots. `arbiter ship` is the next-action computer (the loop asks it for the
+current step, does the model-work, advances on green); wave composition, group
+partitioning, agent caps (`min(--max-parallel, nproc-2, wave-size)`), and merge order
+(minimum-overlap from real `git diff --name-only`) are computed, not improvised;
+review fan-out derives from the declared tier matrix (M1).
+
+**Why.** Model-driven control flow drifts (R2, R6): a model can skip a phase under
+pressure; a phase machine cannot. Determinism also makes the process auditable and
+resumable (M3).
+
+**Enforcement.** HARD: the phase machine refuses out-of-order advance
+(`arbiter task advance` gates each transition; INV-38 phase-tracked lifecycle);
+dispatch parity gate (M1). SOFT: playbook execution-order contracts.
+
+**Self / Governed.** Both — ship/task/wave engine is the product.
+
+**Tier.** All; solo runs the same machine with lighter gates (§3).
+
+---
+
+### M11 — Iron law "prove it or it is not done" (wired + tested-red + working)
+
+**What.** No completion on trust — neither the agent's nor the orchestrator's. A claim
+of done requires, mechanically:
+
+- **Wired:** the change is invoked (call-site `file:line` + the command that reaches it).
+- **Tested (red-path):** a test that _failed before_ the fix and passes after —
+  `arbiter task record-red` captures the failing run; `checkTddEvidenceGate` verifies
+  task-id match, a recognized failure signature in the log, the test commit SHA in
+  history, and the test path present in that commit. Gates themselves need flip-tests:
+  a gate proven only green is ceremony (`scripts/check-guard-flip.mjs`; target =
+  100% flip coverage of emitted gates, playbook §T3).
+- **Working:** exercised end-to-end on real input (dogfood), not a fixture —
+  Verification-Before-Victory (`AGENTS.md`).
+
+**Why.** R2 is the dominant observed failure mode. Review layers do not catch it;
+only evidence does.
+
+**Enforcement.** HARD: `.claude/hooks/stop-evidence-guard.mjs` (INV-114, Stop event,
+exit 2 blocks the completion claim); `enforce-gate-before-pr.mjs` (no PR without a
+valid `gate-pass.json`); `guard-task-completion.mjs` (premature-claim warning);
+CI-side re-verification on fresh checkout (INV-131 `check-tdd-evidence.mjs`);
+anti-fake-green + fail-closed audit (INV-96: uncertainty ⇒ BLOCK, never SKIP).
+PARTIAL: flip coverage is not yet 100% (playbook §T3); the "working/dogfood" leg is
+enforced on arbiter-self (`check-self-dogfood.mjs`) but only advisory on targets.
+
+**Self / Governed.** Both; J1 (completion-integrity kernel) is slated to ship as a
+standalone plugin (playbook §T1) precisely so ungoverned repos can adopt this one
+measure alone.
+
+**Tier.** The Stop gate + TDD evidence: L2+. Solo/L1 keeps the gate-before-PR and
+red-record as the floor.
+
+---
+
+### M12 — Verify-first: no structural claim without cross-checking the code
+
+**What.** Any structural/architectural assertion an agent makes (or receives) must be
+grounded in cited code (`file:line`) before it drives action. The refutation incident
+is canon: an audit claimed "the hexagonal architecture is fiction" — cross-checking
+found 113 ArchUnit rules enforcing it; the alarm was the fiction. Corollary already
+codified: **the ground is the authority** — Opus re-greps immediately before every
+deletion batch; "this document is a map, not a warrant" (playbook §7.5). Root-Cause-First
+is the same law applied to failures: read the actual failure before the second fix
+attempt (`AGENTS.md` Iron Law).
+
+**Why.** R4. A false structural claim, acted on, is indistinguishable from sabotage.
+
+**Enforcement.** SOFT today: red-team protocol demands `file:line` evidence per
+finding (the 3-hop plan gate verifies the trail via `gh` deterministically —
+wave-drain v2); playbook safety re-grep contract. TO-CREATE: make citation mandatory
+in the agent-return envelope (M8) — a structural finding without a resolvable
+`file:line` is rejected at the tool layer.
+
+**Self / Governed.** Both.
+
+**Tier.** All.
+
+---
+
+### M13 — Adversarial verification: independent skeptics try to refute; majority survives
+
+**What.** High-stakes findings and verdicts are not accepted from a single agent.
+Independent skeptical agents are dispatched with the explicit mandate to **REFUTE**
+the finding (not to confirm it); a finding survives only if it withstands the
+majority. Today's building blocks: the `red-team` agent (adversarial by charter,
+PASS/WARN/FAIL, CRITICAL routes to rework, max 2 cycles); the adversarial verifier in
+the refactor phase; tier-scaled review fan-out with orthogonal verticals (bugs,
+type-safety, domain, +test-quality, +security, +data-integrity, +silent-failures) so
+reviewers cannot herd.
+
+**Why.** Single-reviewer verdicts inherit the reviewer's blind spots and the
+confirmation bias of "reviewing to approve". Refutation-framing plus independence is
+the cheapest known de-biaser; majority survival bounds both false positives (R4) and
+rubber stamps (R2).
+
+**Enforcement.** PARTIAL: red-team dispatch is phase-gated in ship (tier-N agents at
+`red-team-review`); vertical breadth floors are parity-checked (M1). TO-CREATE: the
+**refutation protocol** as a first-class skill/dispatch mode — N independent skeptics
+per surviving finding, refute-mandate prompts, majority rule, verdicts persisted as
+M8 envelopes; wire it as the required path for audit findings above a severity
+threshold.
+
+**Self / Governed.** Both (red-team template already emitted).
+
+**Tier.** Fan-out width scales by tier: solo XS/S = 1 skeptic (the red-team);
+Standard = 3; enterprise/gated-review = full vertical set. Right-sized: solo never
+pays 5 agents for a typo fix.
+
+---
+
+### M14 — Loop-until-dry: discovery of unknown size terminates on evidence, not on fatigue
+
+**What.** When the size of the problem space is unknown (audits, backlog drains,
+dead-code hunts, finding harvests), the loop repeats until a **dry pass**: a full pass
+that produces zero new findings (for audits: two consecutive dry passes from
+differently-seeded scans). Wave-drain already runs this shape at backlog level
+("next wave, until the backlog is empty"; every issue ends merged or `needs-human` —
+never silently dropped); the codebase-audit skill runs a re-verification pass after
+fixes.
+
+**Why.** Fixed-iteration discovery under-samples precisely when the space is large —
+the case where it matters most. The dry-pass criterion converts "I think we got
+everything" (a claim, R2) into evidence.
+
+**Enforcement.** SOFT/structural in wave-drain (termination = empty backlog is
+observable via `gh`). TO-CREATE: codify the dry-pass termination rule in the
+codebase-audit skill (pass counter + new-finding count per pass persisted in the
+evidence dir; the skill refuses to conclude while the last pass was wet).
+
+**Self / Governed.** Both.
+
+**Tier.** All; pass width (number of parallel scanners) scales with tier.
+
+---
+
+### M15 — Fail-closed gates + bypass accounting (anti-deviance loop)
+
+**What.** Two complementary rules. (a) Every gate/hook/check defaults to **BLOCK on
+uncertainty**, never SKIP (INV-96 — fail-open is how rot enters silently). (b) Every
+bypass is possible only through an audited, append-only channel (bypass-log JSONL,
+commit-footer rationale INV-119) and the _bypass rate itself is gated_: a gate
+bypassed more than N times/month is auto-flagged for demotion or deletion (ceremony
+detector, playbook §T4) — because a routinely-bypassed gate actively trains deviance
+(axiom 3).
+
+**Why.** R6. This is the immune system of every other measure: without it, M1–M14
+decay into prose within months (observed: 305 bypasses).
+
+**Enforcement.** HARD: `scripts/check-fail-closed-audit.mjs` (INV-96, audits scripts/,
+`.githooks/`, `.claude/hooks/` for fail-open anti-patterns);
+`check-commit-footer-rationale.mjs`; append-only bypass-log; suppressions require
+expiry (INV-31). TO-CREATE: `check-bypass-ceremony.mjs` + `doctor` surface (playbook
+§T4); move bypass env vars out of agent-readable config (playbook §T1 — the bypass
+channel becomes human-permissioned).
+
+**Self / Governed.** Both.
+
+**Tier.** All; N (bypass tolerance) may be higher at solo.
+
+---
+
+## 3. Right-sizing per tier (no cathedral)
+
+The tier axis is `collaborationMode` (`src/config/collaboration-mode-defaults.ts`,
+ADR-051) × governance level (L1–L4, `docs/CONCEPTS.md`). Mapping to plain words:
+**solo** = trunk-solo, **team** = peer-review, **enterprise** = gated-review.
+
+| Measure                         | Solo (trunk-solo)                 | Team (peer-review)                  | Enterprise (gated-review)                      |
+| ------------------------------- | --------------------------------- | ----------------------------------- | ---------------------------------------------- |
+| M1 pyramid                      | full (cost rule)                  | full                                | full + registry review                         |
+| M2 short-lived                  | full                              | full                                | full                                           |
+| M3 handover//clear              | handoff file + banner             | + status.json gate                  | + evidence of handoff in bundle                |
+| M4 persist-to-file              | findings spool + gate-pass        | + full evidence dirs (L2)           | + L4 evidence harness, audit trail             |
+| M5 SSOT-first                   | AGENTS.md + drift check           | + core-set gate                     | + guarded-edit hooks on all SSOT               |
+| M6 read-set                     | advisory                          | manifest per plan                   | manifest checked                               |
+| M7 research sub-agents          | scanner agent                     | full ladder                         | full ladder                                    |
+| M8 schemas                      | tdd-evidence + gate-pass          | + evidence bundle (INV-90)          | + full return-envelope                         |
+| M9 worktrees                    | **full — never relaxed**          | full                                | full                                           |
+| M10 deterministic orchestration | ship/task machine                 | + wave-drain                        | + merge-train / one-wave-PR                    |
+| M11 prove-or-not-done           | gate-before-PR + record-red       | + Stop gate (INV-114), CI re-verify | + flip-coverage 100%, dogfood leg              |
+| M12 verify-first                | rule of conduct                   | citation in reviews                 | citation enforced in envelope                  |
+| M13 adversarial                 | 1 skeptic (red-team)              | 3 skeptics, majority                | full vertical set, majority                    |
+| M14 loop-until-dry              | dry-pass rule                     | + persisted pass ledger             | + audited termination evidence                 |
+| M15 fail-closed + bypass        | fail-closed always; bypass logged | + footer rationale                  | + ceremony detector, human-permissioned bypass |
+
+Principle: **M9 and M15(a) never scale down.** Everything else scales in _depth of
+evidence and fan-out width_, not in whether the measure exists.
+
+---
+
+## 4. Self vs governed — division of labor
+
+- **Arbiter for itself (self):** runs every measure at team-or-above depth; dogfood
+  parity is gated (CANON-14, `check-self-dogfood.mjs`, `.dogfood-divergences.json`
+  with dated carve-outs). The self-repo is the reference implementation of this
+  standard.
+- **Arbiter for governed projects:** `arbiter init/update` **generates** the
+  enforcement surface (hooks, gate scripts, rules, skills, agents, templates listed
+  in §5) right-sized by `collaborationMode` × level, and `update --adopt` (playbook
+  §T1) guarantees safety-class fixes propagate even over local modifications —
+  a withheld safety fix is the erosion case, blocked by ratchet.
+- **Ungoverned repos:** the completion-integrity kernel (J1: stop-evidence-guard +
+  evidence protocol + the two wiring detectors) ships as a standalone plugin so M11
+  is adoptable without the rest.
+
+---
+
+## 5. Appendix — measure → arbiter mechanism map (implementation base)
+
+Status legend: **EXISTS** (wired today) · **PARTIAL** (exists, gap named) ·
+**TO-CREATE** (net-new, target named).
+
+| #   | Measure                                                 | Mechanism                                                                     | Status                                                              | Code anchors                                                                                                                                                                                                                                  |
+| --- | ------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1  | Model pyramid, deterministic routing                    | dispatch oracle + registry + handoff tier rows                                | **EXISTS** (declaration+parity)                                     | `.claude/agent-dispatch-matrix.json`; `scripts/check-agent-dispatch.mjs`; `src/commands/task-ship.ts::verticalsForTier` (~L92); `.claude/AGENT_REGISTRY.md`; `src/templates/HANDOFF.template.md`; `AGENTS.md` §Model-Pyramid                  |
+| M1  | Handoff-lint (tier suggested per task)                  | new advisory check                                                            | **TO-CREATE**                                                       | target: `scripts/check-handoff-doc.mjs`                                                                                                                                                                                                       |
+| M2  | Short-lived / one task per session                      | phase machine + wave worker lifecycle                                         | **EXISTS** (structural)                                             | `src/commands/task.ts` (advance gates); `.claude/skills/wave-drain/SKILL.md`                                                                                                                                                                  |
+| M3  | Mesocycle handover + /clear                             | handoff gate, clear strategy, post-clear re-entry, pre-compact, 3-layer skill | **EXISTS**                                                          | `src/commands/task.ts::decideClearStrategy` (~L511) / `::buildHandoffBanner` (~L526) / `handlePostClearReEntry`; ADR-054; `.claude/hooks/pre-compact.mjs`; `.claude/skills/context-rot-management/SKILL.md`; `src/capabilities/host-probe.ts` |
+| M3  | Cursor after T2 cut of `arbiter mark`                   | status.json fields only; repoint skill docs                                   | **PARTIAL** (transition)                                            | playbook §T2.B D2; INV-113                                                                                                                                                                                                                    |
+| M4  | Findings spool + harvest                                | task-note JSONL + wave Phase 0.5                                              | **EXISTS**                                                          | `src/commands/task-note.ts::FindingEntry` (~L61); `.arbiter/findings/`; wave-drain Phase 0.5                                                                                                                                                  |
+| M4  | Evidence per phase, schema'd                            | evidence dirs + bundle schema + phase doc                                     | **EXISTS**                                                          | `.arbiter/evidence/**`; `schemas/evidence-bundle.schema.json`; `scripts/check-evidence-bundle.mjs` (INV-90); `scripts/check-phase-doc-consistency.mjs` (INV-113)                                                                              |
+| M4  | Plan anchor before edit                                 | pre-edit hook (CANON-16)                                                      | **EXISTS**                                                          | `.claude/hooks/pre-edit-plan-anchor.mjs`                                                                                                                                                                                                      |
+| M4  | Finding-loss detector                                   | new advisory check                                                            | **TO-CREATE**                                                       | target: session-end check in stop-evidence-guard family                                                                                                                                                                                       |
+| M5  | SSOT-first                                              | drift + core-set + links + edit guard + constraint-scan                       | **EXISTS**                                                          | `scripts/check-drift.mjs` (INV-28); `scripts/gen-ssot-core.mjs`/`check-ssot-core.mjs` (INV-108); `scripts/check-doc-links.mjs` (INV-55); `.claude/hooks/pre-edit-ssot-guard.mjs`; `scripts/check-constraint-scan.mjs` (INV-115)               |
+| M6  | Read-set / context economy                              | wave plan manifests; targeted memory hook                                     | **PARTIAL** (manifest exists for writes; read-set advisory missing) | wave-drain Phase 1 manifests; `.claude/hooks/pre-edit-load-memory.mjs`; target: read-set row in plan template + touched⊆manifest advisory                                                                                                     |
+| M7  | Research sub-agents, cheap-first ladder                 | scanner/context-checker/bridge/red-team registry                              | **EXISTS**                                                          | `.claude/agents/*.md`; `.claude/AGENT_REGISTRY.md` §Escalation; `src/templates/claude/agents/*.ejs`; rule-50 read-only clause                                                                                                                 |
+| M8  | Structured agent returns                                | per-artifact schemas + gate validation                                        | **PARTIAL** (no generic envelope)                                   | `schemas/evidence-bundle.schema.json`; `gate-pass.json`; REVIEW_CONTEXT (context-checker); target: agent-return envelope schema + validator                                                                                                   |
+| M9  | Worktree isolation (absolute)                           | Iron Law + rule-50/ADR-103 carve-out + wt engine + gate mutex + reaper        | **EXISTS**                                                          | `AGENTS.md` §Iron Laws; `.claude/rules/50-batch-execution.md`; `src/worktree/{paths,links,validate,harvest}.ts`; `src/commands/{worktree,worktree-prune,gate-exec}.ts`; `/wt-*` commands                                                      |
+| M9  | Spawn-time interception (main-tree write-agent refusal) | new PreToolUse hook                                                           | **TO-CREATE**                                                       | target: dispatch hook checking cwd vs active write-agents                                                                                                                                                                                     |
+| M10 | Deterministic orchestration                             | ship next-action computer + phase gates + wave composition math               | **EXISTS**                                                          | `src/commands/task-ship.ts`; `arbiter ship --advance`; `.claude/commands/ship.md`; wave-drain caps/merge-order; INV-38                                                                                                                        |
+| M11 | Prove-or-not-done                                       | Stop gate + TDD evidence + gate-before-PR + CI re-verify + fail-closed        | **EXISTS** (core)                                                   | `.claude/hooks/stop-evidence-guard.mjs` (INV-114); `src/commands/task.ts::checkTddEvidenceGate` (~L450); `.claude/hooks/enforce-gate-before-pr.mjs`; `scripts/check-tdd-evidence.mjs` (INV-131); `scripts/check-anti-fake-green.mjs`          |
+| M11 | Flip-coverage 100% of emitted gates                     | extend flip harness                                                           | **PARTIAL**                                                         | `scripts/check-guard-flip.mjs`; playbook §T3                                                                                                                                                                                                  |
+| M11 | Kernel as standalone plugin                             | package J1                                                                    | **TO-CREATE**                                                       | playbook §T1; `packages/kernel/`                                                                                                                                                                                                              |
+| M12 | Verify-first / citation-grounded claims                 | red-team file:line protocol; pre-delete re-grep contract                      | **PARTIAL** (protocol prose; envelope-enforced citation missing)    | `.claude/agents/red-team.md`; wave-drain 3-hop plan gate; playbook §0.2/§7.5; target: mandatory citation field in M8 envelope                                                                                                                 |
+| M13 | Adversarial refutation, majority                        | red-team + adversarial verifier + tiered verticals                            | **PARTIAL** (single-skeptic today; majority protocol missing)       | `src/commands/task-ship.ts` REDTEAM_AGENTS/REVIEW_AGENTS (~L77); ship phase map; target: refutation skill + majority rule + persisted verdicts                                                                                                |
+| M14 | Loop-until-dry                                          | wave loop to empty backlog; audit re-verify pass                              | **PARTIAL** (dry-pass criterion not codified)                       | wave-drain loop; `.claude/skills/codebase-audit/`; target: pass-ledger + two-dry-passes rule in the skill                                                                                                                                     |
+| M15 | Fail-closed everywhere                                  | fail-closed audit gate                                                        | **EXISTS**                                                          | `scripts/check-fail-closed-audit.mjs` (INV-96)                                                                                                                                                                                                |
+| M15 | Bypass accounting + ceremony detector                   | footer rationale + append-only log; detector                                  | **PARTIAL** (log+footers exist; detector missing)                   | `scripts/check-commit-footer-rationale.mjs` (INV-119); `.arbiter/evidence/bypass-log.jsonl`; target: `scripts/check-bypass-ceremony.mjs` + `doctor` surface + bypass env out of agent reach (playbook §T1/T4)                                 |
+
+**Wiring order recommendation (when implementation starts):** (1) M8 generic
+agent-return envelope — it is the substrate M12/M13 enforcement hangs on; (2) M13
+refutation skill + M14 dry-pass rule (pure skill/doc + one validator each, cheap);
+(3) M15 ceremony detector and M11 flip-coverage (already scheduled in the playbook
+T3/T4); (4) M9 spawn-time hook; (5) the advisory checks (M1 handoff-lint, M4
+finding-loss, M6 read-set). Every new gate follows INV-53 exit codes, INV-94 CATALOG
+marker, INV-96 fail-closed, and ships with its flip-test (M11) — the standard applies
+to its own enforcement.

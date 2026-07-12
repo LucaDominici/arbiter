@@ -29,6 +29,7 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `CODE_OF_CONDUCT.md` — Contributor Covenant Code of Conduct
 - `CONTRIBUTING.md` — Contributing to arbiter
 - `docs/GOVERNANCE.md` — Governance — arbiter
+- `docs/methodology/agent-orchestration-and-context-hygiene.md` — Agent Orchestration and Context Hygiene — Operating Standard
 
 ### Method
 

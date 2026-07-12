@@ -112,7 +112,9 @@ function printDocSetPlanApplyReport(result: DocSetSkeletonsResult, applied: bool
     process.stdout.write(`    ${verb}  ${s.path}  [${s.template}]\n`)
   }
   for (const p of result.unbound) {
-    process.stdout.write(`    ? unbound (no skeleton bound — engine --generate banner only): ${p}\n`)
+    process.stdout.write(
+      `    ? unbound (no skeleton bound — engine --generate banner only): ${p}\n`,
+    )
   }
   if (result.scaffolded.length === 0 && result.unbound.length === 0) {
     process.stdout.write('    (nothing to scaffold — all applicable rows present)\n')

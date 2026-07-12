@@ -92,7 +92,8 @@ const ADR_LEGACY_RE = /^ADR-\d{3,}[-_].+\.md$/i
 const ADR_PREFIX_RE = /^[A-Za-z][A-Za-z0-9]*-\d{3,}[-_].+\.md$/
 
 /** True if >=1 filename matches a decision-record form (legacy/prefixed dual recognition). */
-export const isAdrFilename = (e) => ADR_BARE_RE.test(e) || ADR_LEGACY_RE.test(e) || ADR_PREFIX_RE.test(e)
+export const isAdrFilename = (e) =>
+  ADR_BARE_RE.test(e) || ADR_LEGACY_RE.test(e) || ADR_PREFIX_RE.test(e)
 
 /** True if >=1 ADR record (legacy bare/ADR-NNN or repo-prefixed <PREFIX>-NNN) lives under dir. */
 export function adrPresent(adrDir, cwd) {
@@ -154,11 +155,16 @@ export function adrPresentAnywhereList(cwd) {
 // Mirrors scripts/check-ci-tiers.mjs `resolveCm`: explicit collaborationMode > the
 // soloDevMode back-compat alias (ADR-051) > default 'peer-review' (same default the rest
 // of the codebase uses, src/wizard/prompts.ts DEFAULT_COLLABORATION_MODE).
-export const TIER_COLUMN = { 'trunk-solo': 'solo', 'peer-review': 'small', 'gated-review': 'enterprise' }
+export const TIER_COLUMN = {
+  'trunk-solo': 'solo',
+  'peer-review': 'small',
+  'gated-review': 'enterprise',
+}
 
 export function resolveCollaborationMode(config) {
   if (config.collaborationMode) return config.collaborationMode
-  if (config.enableSoloDevMode === true || config.features?.soloDevMode === true) return 'trunk-solo'
+  if (config.enableSoloDevMode === true || config.features?.soloDevMode === true)
+    return 'trunk-solo'
   return 'peer-review'
 }
 
@@ -222,14 +228,46 @@ export function resolvePresentPaths(check, cwd) {
   return candidates.filter(isGlob).flatMap((c) => globMatchList(c, cwd))
 }
 
-/** Load `standards/doc-profile`-shaped overlays for `cwd` (behavior-frozen from check-doc-set.mjs). */
+/**
+ * T1b (addendum §1.2, gold-doc-self-tier-and-coherence.md) — solo < small < enterprise ordering
+ * for the `tier_floor` max()-semantics below. Exported so a floor value can be validated against
+ * the SAME set `loadTierColumn`'s TIER_COLUMN targets (never a second, drifting enum).
+ */
+export const TIER_ORDER = { solo: 0, small: 1, enterprise: 2 }
+
+/**
+ * Load `standards/doc-profile`-shaped overlays (+ optional `tier_floor`, T1b) for `cwd`.
+ * `tier_floor` fail-closed (INV-96): an explicit-but-invalid value ALWAYS throws — never silently
+ * ignored — but a genuine YAML syntax error still safely defaults (existing tolerant behavior,
+ * kept OUTSIDE the parse try/catch on purpose so the two failure classes stay distinct).
+ */
 export function loadOverlays(cwd, profilePath) {
   const abs = resolve(cwd, profilePath)
-  if (!existsSync(abs)) return { overlays: new Set(), allow: [] }
+  if (!existsSync(abs)) return { overlays: new Set(), allow: [], tierFloor: undefined }
+  let p
   try {
-    const p = parseYaml(readFileSync(abs, 'utf-8')) || {}
-    return { overlays: new Set(p.overlays || []), allow: p.allow || [] }
+    p = parseYaml(readFileSync(abs, 'utf-8')) || {}
   } catch {
-    return { overlays: new Set(), allow: [] }
+    return { overlays: new Set(), allow: [], tierFloor: undefined }
   }
+  if (p.tier_floor !== undefined && !(p.tier_floor in TIER_ORDER)) {
+    throw new Error(
+      `check-doc-set: invalid tier_floor "${p.tier_floor}" in ${profilePath} — must be one of ` +
+        'solo|small|enterprise (INV-96 fail-closed)',
+    )
+  }
+  return { overlays: new Set(p.overlays || []), allow: p.allow || [], tierFloor: p.tier_floor }
+}
+
+/**
+ * T1b — effective tier column = max(derived, floor) on solo < small < enterprise. A floor can
+ * only RAISE the collaborationMode-derived column, never lower it: `gated-review` +
+ * `tier_floor: solo` still resolves to `enterprise` — the floor cannot be used to dodge the
+ * anti-cathedral guardrail (gold-doc-capability.md §2), only to raise a repo's own bar above what
+ * its collaborationMode alone would derive (self: `trunk-solo` -> `solo`, floored to `enterprise`
+ * because arbiter is an npm-published framework exposing a plugin API, gold-doc-capability.md §1/§6.1).
+ */
+export function resolveEffectiveColumn(derived, floor) {
+  if (!floor) return derived
+  return TIER_ORDER[floor] > TIER_ORDER[derived] ? floor : derived
 }
