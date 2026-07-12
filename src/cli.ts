@@ -13,6 +13,7 @@ import { runWorktreePrune } from './commands/worktree-prune.js'
 import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runGoldAudit } from './commands/gold-audit.js'
+import { runDocSet } from './commands/doc-set.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
@@ -870,6 +871,58 @@ program
         json: opts.json,
         cockpit: opts.cockpit,
         ascii: opts.ascii,
+      })
+      process.exit(result.exitCode)
+    },
+  )
+
+program
+  // Hidden (like settings/upgrade-level, line ~662/1068): fully functional but omitted from the
+  // curated public 14-command --help surface (#1770 T5 / T2 tier-3). The generated governed-repo
+  // thin-runner invokes it directly (`npx arbiter doc-set`) — visibility in `--help` is not part
+  // of H1's fix, only registration. Discoverable via `arbiter help --all`.
+  .command('doc-set [repo]', { hidden: true })
+  .description(
+    'Deterministic gold doc-set presence audit (H1, gold-doc-capability: wraps ' +
+      'scripts/check-doc-set.mjs). Required-set is tier-parameterized by collaborationMode ' +
+      '(solo/small/enterprise) — see standards/gold-doc-set.yml `tiers{}`.',
+  )
+  .option('--strict', 'Exit 1 if any mandatory doc is missing (default: advisory, exit 0)', false)
+  .option('--json', 'Emit the audit as JSON', false)
+  .option('--generate', 'Scaffold stub files for missing mandatory+recommended .md docs', false)
+  .option(
+    '--refresh-stubs',
+    '(with --generate) re-render a doc in place only if it is byte-equal to the stub template',
+    false,
+  )
+  .option('--manifest <path>', 'Manifest path override (default standards/gold-doc-set.yml)')
+  .option(
+    // NOT named `--profile`: that flag name is globally reserved (consumeFlag('--profile'),
+    // cli.ts:164, the V8 CPU-profiler switch) and is spliced out of argv BEFORE Commander ever
+    // parses subcommand options — a same-named local option would silently lose its value.
+    '--doc-profile <path>',
+    'Overlay profile path override (default standards/doc-profile)',
+  )
+  .action(
+    (
+      repo: string | undefined,
+      opts: {
+        strict: boolean
+        json: boolean
+        generate: boolean
+        refreshStubs: boolean
+        manifest?: string
+        docProfile?: string
+      },
+    ) => {
+      const result = runDocSet({
+        ...(repo !== undefined ? { repo } : {}),
+        strict: opts.strict,
+        json: opts.json,
+        generate: opts.generate,
+        refreshStubs: opts.refreshStubs,
+        ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
+        ...(opts.docProfile !== undefined ? { profile: opts.docProfile } : {}),
       })
       process.exit(result.exitCode)
     },

@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: Apache-2.0
+// `arbiter doc-set` — a THIN wrapper over the SSOT gold doc-set engine (H1, gold-doc-capability).
+//
+// Existing Code Survey: the presence-audit ENGINE already exists as scripts/check-doc-set.mjs
+// (overlays, accept_any, glob, ADR dual-recognition, write-safe --generate, --strict). No second
+// engine is introduced here: this command shells `node scripts/check-doc-set.mjs` through the
+// INV-12 runCli helper and forwards its verdict. It mirrors src/commands/gold-audit.ts (thin
+// wrapper over gold-audit.mjs).
+//
+// Why this command had to exist (H1): the generated governed-repo thin-runner
+// (scripts/check-doc-set.mjs.ejs) has always shelled `npx arbiter doc-set` — but until this file,
+// no such CLI command was registered, so every governed repo's doc-set presence gate failed with
+// `error: unknown command 'doc-set'`. This file is what makes that runner resolve.
+
+import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
+import { runCli, CliError } from '../utils/run-cli.js'
+
+/** The engine's `--json` audit payload (scripts/check-doc-set.mjs). */
+export interface DocSetPayload {
+  manifest: string
+  profile: { overlays: string[] }
+  totals: {
+    applicable: number
+    present: number
+    missingMandatory: number
+    missingRecommended: number
+    na: number
+  }
+  missingMandatory: string[]
+  missingRecommended: string[]
+  generated: string[]
+  refreshed: string[]
+}
+
+export interface DocSetOptions {
+  /** Repo to audit (default: current directory). */
+  repo?: string
+  /** exit 1 if any mandatory doc is missing (delegates verbatim to the engine's own --strict exit code). */
+  strict?: boolean
+  /** Emit machine-readable JSON instead of the human report. */
+  json?: boolean
+  /** Scaffold stubs for missing mandatory+recommended .md docs (write-safe: never overwrites). */
+  generate?: boolean
+  /** With --generate: re-render a doc in place only if it is byte-equal to the stub template. */
+  refreshStubs?: boolean
+  /** Manifest path override (default standards/gold-doc-set.yml, resolved inside the target repo). */
+  manifest?: string
+  /** Overlay-profile path override (default standards/doc-profile, resolved inside the target repo). */
+  profile?: string
+  /** Suppress this command's own stdout/stderr passthrough — return only the parsed result. */
+  quiet?: boolean
+}
+
+export interface DocSetResult {
+  /** The engine's own exit code, forwarded verbatim: 0=pass/advisory, 1=fail(--strict gap), 2=error. */
+  exitCode: number
+  /** Parsed `--json` payload, or null when --json was not requested or the engine emitted a non-JSON SKIP line. */
+  payload: DocSetPayload | null
+}
+
+/** Resolve the package root (this file lives at src/commands/, two levels down). */
+function packageRoot(): string {
+  return resolve(fileURLToPath(import.meta.url), '../../..')
+}
+
+/** Build the engine CLI args from options — one flag per option, no branching beyond presence. */
+function buildEngineArgs(opts: DocSetOptions): string[] {
+  const args: string[] = []
+  if (opts.json) args.push('--json')
+  if (opts.strict) args.push('--strict')
+  if (opts.generate) args.push('--generate')
+  if (opts.refreshStubs) args.push('--refresh-stubs')
+  if (opts.manifest) args.push('--manifest', opts.manifest)
+  if (opts.profile) args.push('--profile', opts.profile)
+  return args
+}
+
+/** Result of the raw engine invocation, before JSON parsing. */
+interface EngineRun {
+  stdout: string
+  stderr: string
+  exitCode: number
+}
+
+/**
+ * Run the engine and normalize its outcome to {stdout, stderr, exitCode} — never throws. The
+ * engine's own exit code (0 pass/advisory, 1 --strict mandatory gap) is forwarded verbatim; only
+ * a genuine infra failure (ENOENT/ENOBUFS/timeout, or a non-CliError crash) maps to 2 (ERROR).
+ */
+function runEngine(script: string, args: string[], repo: string): EngineRun {
+  try {
+    const r = runCli('node', [script, ...args], { cwd: repo })
+    return { stdout: r.stdout, stderr: r.stderr, exitCode: 0 }
+  } catch (err) {
+    if (err instanceof CliError) {
+      // runCli only throws on a non-zero exit or an infra failure (ENOENT/ENOBUFS/timeout — all
+      // surfaced as exitCode -1 by classifyAttempt). A genuine engine exit (0 or 1) is never -1,
+      // so any negative code here IS an infra failure, not the strict-mode "mandatory gap" exit —
+      // map it to the engine's own ERROR band (2) rather than misreporting it as a doc gap (1).
+      return { stdout: err.stdout, stderr: err.stderr, exitCode: err.exitCode >= 0 ? err.exitCode : 2 }
+    }
+    const msg = err instanceof Error ? err.message : String(err)
+    return { stdout: '', stderr: `doc-set: engine failed — ${msg}\n`, exitCode: 2 }
+  }
+}
+
+/**
+ * Parse the engine's stdout as the JSON payload, when JSON was requested. The engine emits a
+ * plain SKIP line (no manifest found) instead of JSON even under --json — that (and any parse
+ * failure) degrades to `null`, never a thrown JSON.parse error.
+ */
+function parsePayload(stdout: string, jsonRequested: boolean): DocSetPayload | null {
+  if (!jsonRequested) return null
+  const text = stdout.trim()
+  if (!text.startsWith('{')) return null
+  try {
+    return JSON.parse(text) as DocSetPayload
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Run the gold doc-set presence-audit engine and forward its verdict.
+ * Reuses the engine (no second engine, no re-scoring) — the exit code IS the engine's exit code.
+ */
+export function runDocSet(opts: DocSetOptions = {}): DocSetResult {
+  const repo = opts.repo ? resolve(opts.repo) : process.cwd()
+  const script = resolve(packageRoot(), 'scripts/check-doc-set.mjs')
+
+  const { stdout, stderr, exitCode } = runEngine(script, buildEngineArgs(opts), repo)
+
+  if (!opts.quiet) {
+    if (stdout) process.stdout.write(stdout)
+    if (stderr) process.stderr.write(stderr)
+  }
+
+  return { exitCode, payload: parsePayload(stdout, Boolean(opts.json)) }
+}

@@ -77,6 +77,17 @@ describe('arbiter CLI — top-level surface', () => {
     expect(status).toBe(0)
     expect(stdout).toContain('--level')
   })
+
+  // H1 (gold-doc-capability, Tranche 0) regression guard: `doc-set` was previously unregistered
+  // (`error: unknown command 'doc-set'`), which meant the governed thin-runner
+  // (scripts/check-doc-set.mjs.ejs → `npx arbiter doc-set`) could never resolve. This asserts the
+  // command is actually wired into Commander, not just exported as a TS function.
+  it('doc-set --help exits 0 and mentions --strict + --doc-profile', () => {
+    const { status, stdout } = spawn(['doc-set', '--help'])
+    expect(status).toBe(0)
+    expect(stdout).toContain('--strict')
+    expect(stdout).toContain('--doc-profile')
+  })
 })
 
 // ---------------------------------------------------------------------------
