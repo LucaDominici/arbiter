@@ -156,6 +156,16 @@ function generateOne(example) {
   runGit(['add', '-A'], stageDir)
   runGit(['commit', '-q', '-m', 'chore: starter', '--no-verify'], stageDir)
 
+  // #1937 — HOST-PORTABLE OUTPUT: `arbiter init` derives claudeHome from
+  // process.env.HOME (init.ts) and renders any detected `~/.claude` skills into
+  // AGENTS.md's "Installed Skills" table (AGENTS.md.ejs). A dev host with plugins
+  // installed would bake its LOCAL skills into the committed example, which then
+  // drifts against CI's clean-env regeneration (Generator Matrix DEEP cell). Point
+  // HOME at an empty dir so skill detection finds nothing — the same portable
+  // output CI produces — regardless of the calling machine.
+  const emptyHome = join(parent, '.empty-home')
+  mkdirSync(emptyHome, { recursive: true })
+
   const r = spawnSync(
     process.execPath,
     [
@@ -173,7 +183,7 @@ function generateOne(example) {
       '--archetype',
       example.archetype,
     ],
-    { cwd: stageDir, encoding: 'utf-8' },
+    { cwd: stageDir, encoding: 'utf-8', env: { ...process.env, HOME: emptyHome } },
   )
   if (r.status !== 0) {
     rmSync(parent, { recursive: true, force: true })
