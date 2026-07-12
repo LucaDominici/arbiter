@@ -33,6 +33,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { globToRegExp, walkRepo } from './lib/glob-walk.mjs'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -67,8 +68,23 @@ const PROFILE = opt('--profile', 'standards/doc-profile')
 
 const isGlob = (p) => /[*?\[\]]/.test(p)
 
-/** True if at least one file under the glob's directory matches its pattern. */
+/**
+ * True if at least one file matches the glob pattern.
+ *
+ * H2 (gold-doc-capability Tranche 2): a `**`-bearing pattern (e.g.
+ * `docs/architecture/**\/arc42.md`) is resolved with a real recursive repo walk
+ * (scripts/lib/glob-walk.mjs `walkRepo` + `globToRegExp` — the same restricted-glob engine
+ * `check-render-smoke.mjs` already uses, #1366) so subtree-nested docs (arc42/C4/ADR living
+ * two-plus directories deep, e.g. haben's `docs/architecture/budget/`) are recognized. A
+ * `**`-free pattern keeps the original single-directory `readdirSync` fast path unchanged —
+ * no behavior change for any existing single-level glob check (docs/ADR/[0-9]*.md, sbom*.json,
+ * docs/api/*, ...).
+ */
 function globMatches(pattern) {
+  if (pattern.includes('**')) {
+    const re = globToRegExp(pattern)
+    return walkRepo(CWD).some((rel) => re.test(rel))
+  }
   const dir = dirname(pattern)
   const base = pattern.slice(dir.length + 1)
   const dirAbs = resolve(CWD, dir)
@@ -104,6 +120,10 @@ const ADR_BARE_RE = /^\d{3,}[-_].+\.md$/
 const ADR_LEGACY_RE = /^ADR-\d{3,}[-_].+\.md$/i
 const ADR_PREFIX_RE = /^[A-Za-z][A-Za-z0-9]*-\d{3,}[-_].+\.md$/
 
+/** True if >=1 filename matches a decision-record form (legacy/prefixed dual recognition). */
+const isAdrFilename = (e) =>
+  ADR_BARE_RE.test(e) || ADR_LEGACY_RE.test(e) || ADR_PREFIX_RE.test(e)
+
 /** True if >=1 ADR record (legacy bare/ADR-NNN or repo-prefixed <PREFIX>-NNN) lives under dir. */
 function adrPresent(adrDir) {
   const dirAbs = resolve(CWD, adrDir)
@@ -114,7 +134,27 @@ function adrPresent(adrDir) {
   } catch {
     return false
   }
-  return entries.some((e) => ADR_BARE_RE.test(e) || ADR_LEGACY_RE.test(e) || ADR_PREFIX_RE.test(e))
+  return entries.some(isAdrFilename)
+}
+
+/**
+ * H2 (gold-doc-capability Tranche 2): the single-directory adrPresent() above is path-blind — a
+ * project whose ADRs live two-plus directories deep (haben's real
+ * `docs/architecture/budget/adr/ADR-006..014_*.md`) is invisible to it. Recursively walk the repo
+ * (SKIP_DIRS-pruned) for any file whose immediate parent directory is literally named `ADR`/`adr`
+ * (case-insensitive — legacy convention is uppercase, real-world nested convention is lowercase)
+ * AND whose filename matches the SAME dual-recognition regexes — never a second, looser notion of
+ * "is an ADR". Bounded cost: one full walk, only when `check.adr === true`.
+ */
+function adrPresentAnywhere() {
+  for (const rel of walkRepo(CWD)) {
+    const parts = rel.split('/')
+    const filename = parts[parts.length - 1]
+    const parentDir = parts[parts.length - 2]
+    if (!parentDir || parentDir.toLowerCase() !== 'adr') continue
+    if (isAdrFilename(filename)) return true
+  }
+  return false
 }
 
 // H3 (gold-doc-capability Tranche 1) — collaborationMode → tiers{} column resolution.
@@ -164,7 +204,13 @@ function requirementFor(check, column) {
 function isPresent(check) {
   const candidates = check.accept_any?.length ? check.accept_any : [check.path]
   // ADR checks accept legacy AND repo-prefixed records; fall through to glob/accept_any too.
-  if (check.adr === true && adrPresent(dirname(check.glob || 'docs/ADR/x'))) return true
+  // H2: also recognize an ADR subtree living anywhere in the repo (adrPresentAnywhere), not just
+  // the single directory derived from this check's own glob/path.
+  if (
+    check.adr === true &&
+    (adrPresent(dirname(check.glob || 'docs/ADR/x')) || adrPresentAnywhere())
+  )
+    return true
   if (check.glob && globMatches(check.glob)) return true
   return candidates.some(candidateExists)
 }

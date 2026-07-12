@@ -149,6 +149,11 @@ checks:
         'docs/architecture/arc42.md',
         'docs/architecture/blueprint.md',
         'docs/ARCHITECTURE.md',
+        # H2 (Tranche 2): subtree recognition — real arc42/C4 gold docs often live two-plus
+        # directories deep (e.g. haben's docs/architecture/budget/{arc42,c4-model}.md), not
+        # flat under docs/architecture/. `**` is resolved via a real recursive walk (H2).
+        'docs/architecture/**/arc42.md',
+        'docs/**/c4-model.md',
       ]
     purpose: System architecture (arc42 / C4 / blueprint equivalent).
   - path: docs/ADR
@@ -159,6 +164,9 @@ checks:
     phase: design
     drivers: ['iso12207']
     glob: 'docs/ADR/[0-9]*.md'
+    # H2 (Tranche 2): adr:true also triggers a recursive, dual-recognition-aware subtree walk
+    # (adrPresentAnywhere) — an ADR directory living anywhere in the repo (e.g. haben's
+    # docs/architecture/budget/adr/ADR-006..014_*.md) is recognized, not just docs/ADR|adr.
     adr: true
     accept_any:
       [
@@ -167,6 +175,7 @@ checks:
         'docs/ADR/README.md',
         'docs/internal/ADR/[0-9]*.md',
         'docs/internal/ADR/README.md',
+        'docs/**/adr/ADR-*.md',
       ]
     purpose: Architecture Decision Records (at least one; legacy or <PREFIX>-NNN).
   - path: docs/SEMVER.md
