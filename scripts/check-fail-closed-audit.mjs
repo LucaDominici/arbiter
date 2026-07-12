@@ -79,6 +79,11 @@ const SKIP_FILES = new Set([
   'scripts/lib/guard-flip-registry.mjs', // #1497 pure flip-proof registry; no entry point
   'scripts/lib/ci-cadence.mjs', // #1502 pure cadence-bucket SSOT/partition helper; no entry point
   'scripts/lib/cli-command-names.mjs', // #1838 pure cli.ts command-name parser; consumers (gen-cli-ref, phantom-command-scan) own the exit contract and fail closed on zero-extraction
+  // T4 (gold-doc-tranches-t3-t5.md §2.2): pure resolution SSOT shared by check-doc-set.mjs and
+  // check-doc-freshness.mjs — exports semantics only, no entry point (mirrors the
+  // gold-audit.mjs / gold-audit-lib.mjs split above); its missing-file catches return
+  // false/[]/undefined by design, and both entry-point consumers own the exit contract.
+  'scripts/lib/doc-set-resolve.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/
