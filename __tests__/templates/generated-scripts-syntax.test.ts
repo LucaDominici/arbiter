@@ -26,14 +26,14 @@
  * several representative configs and assert `node --check` parses each one.
  *
  * Existing Code Survey (CANON-16): test-only file — no production source added.
- *   - grep for "node', \['--check'" across __tests__: only generated-check-all
- *     (L2-gated), conformance.test, gold-kit.test syntax-check a single script
- *     each. No always-on sweep over the full template set exists.
+ *   - grep for "node', \['--check'" across __tests__: conformance.test,
+ *     gold-kit.test syntax-check a single script each. No always-on sweep over
+ *     the full template set exists.
  *   - Decision: generalize this always-on (L1) test that iterates the template
- *     glob. Rejected extending generated-check-all.test.ts: it is
- *     `describe.skipIf` L2-gated (needs toolchains) and scoped to one script's
- *     runtime behaviour; a cheap parse-only sweep belongs in an always-on unit
- *     test.
+ *     glob. Rejected extending the then-existing generated-check-all.test.ts
+ *     (since removed as dead, #1927): it was `describe.skipIf` L2-gated (needs
+ *     toolchains) and scoped to one script's runtime behaviour; a cheap
+ *     parse-only sweep belongs in an always-on unit test.
  */
 import { describe, it, expect } from 'vitest'
 import { globSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
