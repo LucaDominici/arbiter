@@ -22,7 +22,7 @@ It composes the engines that already exist — there is **no new TS engine** and
 `arbiter` CLI verb**:
 
 - `/gold-audit` (`arbiter gold-audit --json`) — measure the band + prioritized gaps.
-- `/close-gold-gap <gapId>` (`arbiter close-gold-gap`) — the honest recipe per gap.
+- `/close-gold-gap <gapId>` skill — the honest, category-typed recipe per gap.
 - `arbiter gold-audit --check` — the no-regress ratchet that locks each gain.
 - `scripts/check-all.mjs` — the disarm-proof anti-fake-green aggregate.
 

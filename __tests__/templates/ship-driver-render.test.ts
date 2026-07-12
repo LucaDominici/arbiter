@@ -72,10 +72,13 @@ describe('supervisor.sh.ejs render', () => {
 })
 
 describe('TICK_PROMPT.md.ejs render', () => {
-  it('delegates failure policy to the engine', () => {
+  it('keeps sequencing engine-owned; fix-on-red is prose 2-strike judgment (no dead ship-on-red verb)', () => {
     const md = renderTickPrompt()
-    expect(md).toContain('arbiter ship-on-red')
     expect(md).toContain('arbiter ship')
+    // ship-on-red was retired — fix-on-red is now the agent's 2-strike judgment from PR history.
+    expect(md).not.toContain('arbiter ship-on-red')
+    expect(md).toContain('2-strike')
+    expect(md).toMatch(/needs-human/)
     expect(md).not.toContain('attempts.json')
   })
 
@@ -115,7 +118,7 @@ describe('cross-stack render (DoD: stacks × governance)', () => {
         const sh = renderSupervisor({ language, governanceLevel })
         const md = renderTickPrompt({ language, governanceLevel })
         expect(sh).toContain('set -euo pipefail')
-        expect(md).toContain('arbiter ship-on-red')
+        expect(md).toContain('2-strike')
       }
     }
   })

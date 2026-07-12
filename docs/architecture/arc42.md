@@ -596,8 +596,10 @@ with gaps flagged) in [`adr-index.md`](adr-index.md). The load-bearing ones for 
 
 ### 10.2 Measured quality baselines (arbiter's own repo)
 
-- **Coverage:** lines 97.03 % / branches 90.61 % / functions 97.63 % / statements 96.38 %
-  (`.coverage-baseline.json`, ratcheted).
+- **Coverage:** lines 96.54 % / branches 90.82 % / functions 96.87 % / statements 95.64 %
+  (`.coverage-baseline.json`, ratcheted; rebaselined to the real post-cut floor after the
+  T2 command/template deletions shifted the aggregate — branches rose, functions/statements/lines
+  settled ~0.7pp lower as well-covered command modules were removed).
 - **Gold audit self-score:** 100 (`.gold-audit-baseline.json`, all D-* dimensions at 100).
 - **Test taxonomy:** unit / contract / integration / behavioral (BDD, Cucumber) / property (fast-check
   fuzz) / e2e (bake + native) — enforced test-pyramid ratios (INV-124).

@@ -16,17 +16,19 @@ related: ['gold-audit', 'tdd']
 `/close-gold-gap <gapId>` prints the **remediation recipe** for one gold-audit gap — the concrete,
 deterministic steps that close it for a **real** reason. It loads the **`close-gold-gap`** skill.
 
-It runs the existing gold-audit engine (one engine, never a second), finds the requested `N`/`P` gap
-(or a `manual` check), and emits the typed recipe from the remediation catalog. It **never executes**
-the recipe and **never fakes a close**.
+It reuses the existing gold-audit engine (one engine, never a second) to locate the requested
+`N`/`P` gap (or a `manual` check), then derives the **typed recipe** from the category table in the
+skill — there is no separate recipe engine. It **never executes** the recipe and **never fakes a
+close**.
 
 ## Use it
 
 ```bash
 npx @arbiter/cli gold-audit          # list the gaps
-npx @arbiter/cli close-gold-gap <gapId>        # human recipe
-npx @arbiter/cli close-gold-gap <gapId> --json # machine-readable recipe
 ```
+
+Then classify the chosen gap by category (doc-set / test / config / process) and follow that row's
+recipe below.
 
 ## Recipe categories
 

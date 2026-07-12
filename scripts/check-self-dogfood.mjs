@@ -16,6 +16,10 @@
 //   - diff is now EMPTY             → FAIL (stale entry: the divergence healed,
 //     the entry must be removed or it suppresses all future drift)
 //   - entry path never visited      → FAIL (dead entry: nothing pins it)
+//   - entry `expires` in the past   → FAIL (T4 dogfood-closure: a STAGED divergence
+//     is audit-mode with a deadline, not a destination — an expired carve-out must be
+//     reconciled to the template or re-dated. Undated entries are permanent-by-design
+//     self-hardening and are not expiry-checked. See classifyDivergence.)
 // Regenerate pins after a human-approved change with:
 //   node scripts/check-self-dogfood.mjs --update-divergences
 //
@@ -302,8 +306,30 @@ export function hashDiff(diff) {
  * Classify a recomputed diff against a divergence entry's pinned diffHash.
  * Returns null when the divergence is still exactly the approved one, or a
  * violation object {reason} otherwise. Exported for unit tests.
+ *
+ * Dated divergences (T4 dogfood-closure — audit-mode is a STAGE, not a destination):
+ * an entry MAY carry an explicit `expires` (ISO `YYYY-MM-DD`). Past its expiry the entry
+ * FAILS the gate — forcing a re-decision (reconcile self to the template, or re-date with a
+ * fresh rationale) rather than a silently-lapsed carve-out. Checked BEFORE the diff logic so
+ * an expired entry fails even while its pinned diff still matches. `now` is injectable for
+ * deterministic tests; the gate uses the wall clock.
  */
-export function classifyDivergence(entry, diff) {
+export function classifyDivergence(entry, diff, now = Date.now()) {
+  if (typeof entry.expires === 'string' && entry.expires.length > 0) {
+    const expMs = Date.parse(entry.expires)
+    if (Number.isNaN(expMs)) {
+      return {
+        reason: `divergence has an unparseable "expires" value (${entry.expires}) — use ISO YYYY-MM-DD`,
+      }
+    }
+    if (expMs < now) {
+      return {
+        reason:
+          `divergence expired on ${entry.expires} — audit-mode is a stage with a deadline, not a ` +
+          'destination. Reconcile self to the template, or re-date the entry with a fresh rationale.',
+      }
+    }
+  }
   const actualHash = hashDiff(diff)
   if (diff === null) {
     return {

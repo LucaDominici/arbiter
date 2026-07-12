@@ -96,6 +96,22 @@ describe('listProjectFiles — env-derived files excluded (#1685)', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('excludes the derived .arbiter-generated-manifest.json (T4 — env-fragile hash sidecar)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-lpf-'))
+    try {
+      writeFileSync(
+        join(dir, '.arbiter-generated-manifest.json'),
+        '{"$schemaVersion":1,"files":{}}',
+      )
+      writeFileSync(join(dir, 'arbiter.json'), '{}')
+      const files = listProjectFiles(dir)
+      expect(files).not.toContain('.arbiter-generated-manifest.json')
+      expect(files).toContain('arbiter.json')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 const fixtures = listFixtures('bake', 'functional').sort()

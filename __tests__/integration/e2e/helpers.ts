@@ -125,7 +125,22 @@ const EXCLUDE_FILES = new Set(['.DS_Store'])
 // init detects host integrations/skills — present on a dev machine, absent in CI's
 // clean env. Keyed by repo-relative POSIX path so the bake name-list snapshot is
 // reproducible across environments. (Detection in init.ts is intentionally left as-is.)
-const EXCLUDE_RELS = new Set(['.arbiter/detected-integrations.json'])
+//
+// T4 (dogfood-closure): `.arbiter-generated-manifest.json` is a DERIVED integrity
+// sidecar mapping every emitted file to the sha256 of arbiter's RAW (un-scrubbed)
+// render. The bake golden-master already pins each of those files individually via
+// hashFileContent, which scrubs ISO timestamps — but the manifest records the raw
+// hash of a timestamp-bearing render (e.g. a "Last updated"/capturedAt field), and a
+// sha256 hex string is not an ISO date, so the scrubber cannot reach it. The manifest
+// therefore byte-drifts across UTC-date boundaries / environments even though every
+// underlying file matches — the exact pre-existing bake CI-env-drift. It adds no
+// coverage the per-file hashes don't already give; its own generation is pinned by
+// __tests__/unit/state/generated-manifest.test.ts. Exclude it so the bake is
+// reproducible everywhere. (Generation in init.ts is intentionally left as-is.)
+const EXCLUDE_RELS = new Set([
+  '.arbiter/detected-integrations.json',
+  '.arbiter-generated-manifest.json',
+])
 
 export function listProjectFiles(dir: string): string[] {
   const out: string[] = []

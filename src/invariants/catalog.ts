@@ -2238,10 +2238,12 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     tier: 'operational',
     title: 'Conformance script generated',
     description:
-      'Every arbiter-governed project must ship a conformance scorecard script ' +
-      '(`scripts/conformance.mjs`). The script delegates to `arbiter conformance --check` ' +
-      'via npx so target projects need no local arbiter install. Enforced by the conformance ' +
-      'generator (UNCONDITIONAL_EMISSIONS entry in check-all.ts); wired as an advisory ' +
+      'Every arbiter-governed project must ship a conformance scorecard runner ' +
+      '(`scripts/conformance.mjs`). The runner is SELF-CONTAINED: the standalone ' +
+      '`arbiter conformance` command was retired, so it no longer shells out to it — it ' +
+      'points at `arbiter gold-audit` (the surviving governance scorecard: level band + ' +
+      'missing items) and exits 0. Enforced by the conformance generator ' +
+      '(UNCONDITIONAL_EMISSIONS entry in check-all.ts); wired as an advisory ' +
       '(runWarnCheck) in check-all.mjs L2 — informational, never hard-fails the gate.',
     selfOnly: false,
     alwaysActive: false,
@@ -2251,7 +2253,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
       'src/templates/scripts/conformance.mjs.ejs (CANON-01/04/11). Invoked as advisory ' +
       '(runWarnCheck) in generated scripts/check-all.mjs L2 behind existsSync guard ' +
-      '(#1398/C6). Exit codes per INV-53: 0=PASS, 1=FAIL (below threshold), 2=ERROR.',
+      '(#1398/C6). Self-contained fail-closed runner (INV-96): a top-level catch exits ' +
+      'non-zero on unexpected error. Exit codes per INV-53: 0=advisory OK, 2=ERROR.',
   },
   {
     id: 'INV-129',

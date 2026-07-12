@@ -7,11 +7,7 @@ owner: ''
 canonical_id: 'ARCH-README'
 tags: ['audience/dev', 'kind/spine', 'kind/architecture']
 related:
-  [
-    'docs/architecture/arc42.md',
-    'docs/architecture/c4-model.md',
-    'docs/architecture/adr-index.md',
-  ]
+  ['docs/architecture/arc42.md', 'docs/architecture/c4-model.md', 'docs/architecture/adr-index.md']
 ---
 
 # Arbiter — Architecture Documentation
@@ -26,22 +22,22 @@ or carries pruned scaffolding, the docs say so ([arc42 §11](arc42.md#11-risks--
 
 ## The map
 
-| Document | What it gives you | Read it when |
-|----------|-------------------|--------------|
-| **[arc42.md](arc42.md)** | The full architecture in the 12 arc42 sections. **§6 Runtime View is the centre of gravity** — the dynamic rules for when/how arbiter challenges, reviews, verifies, and clusters. | You want the complete picture, or the honest tech-debt truth (§11). |
-| **[c4-model.md](c4-model.md)** | The three C4 diagrams (Mermaid): **Context** (arbiter vs developer / AI agent / repo / GitHub / CI), **Container** (the internal subsystems), **Component** (inside the orchestration engine — the dynamic dispatch/verify rules). | You want the visual system map, or to see the orchestration internals. |
-| **[adr-index.md](adr-index.md)** | All 106 ADRs catalogued one line each, grouped by theme, **plus a gap register** of load-bearing decisions that have no ADR (e.g. the missing ADR-103, the "no new TS engine" B-prune). | You want to find or audit a decision. |
+| Document                         | What it gives you                                                                                                                                                                                                                  | Read it when                                                           |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **[arc42.md](arc42.md)**         | The full architecture in the 12 arc42 sections. **§6 Runtime View is the centre of gravity** — the dynamic rules for when/how arbiter challenges, reviews, verifies, and clusters.                                                 | You want the complete picture, or the honest tech-debt truth (§11).    |
+| **[c4-model.md](c4-model.md)**   | The three C4 diagrams (Mermaid): **Context** (arbiter vs developer / AI agent / repo / GitHub / CI), **Container** (the internal subsystems), **Component** (inside the orchestration engine — the dynamic dispatch/verify rules). | You want the visual system map, or to see the orchestration internals. |
+| **[adr-index.md](adr-index.md)** | All 106 ADRs catalogued one line each, grouped by theme, **plus a gap register** of load-bearing decisions that have no ADR (e.g. the missing ADR-103, the "no new TS engine" B-prune).                                            | You want to find or audit a decision.                                  |
 
 ## Where the jewels are (start here)
 
-The value that a simplified re-telling of arbiter does **not** capture — the sophisticated *dynamic
-rules* for launching challenge/verify agents and orchestrating work:
+The value that a simplified re-telling of arbiter does **not** capture — the sophisticated _dynamic
+rules_ for launching challenge/verify agents and orchestrating work:
 
 - **The `/ship` next-action loop** — a deterministic engine that computes the next step and advances
   only on a green gate, driving a model-side loop that does the reasoning
   (`src/commands/task-ship.ts`). → [arc42 §6.1](arc42.md#61-the-ship-loop--a-deterministic-next-action-computer-driving-a-model-loop)
 - **Tier-driven, size-computed dispatch** — four count-axes (red-team 1/2/3, review 3/3/4, reviewers
-  3/3/5, verticals 3/4/7), auto-computed from issue *size*, never from model identity
+  3/3/5, verticals 3/4/7), auto-computed from issue _size_, never from model identity
   (`task-ship.ts:77-100`). → [arc42 §6.2](arc42.md#62-the-dynamic-dispatch-rules-the-crown-jewels)
 - **Weighted auditor routing** — 7 weighted auditors, an `always_on` floor, a glob `tag_map`, and a
   verdict `score = Σw(pass)/Σw(all)` where unresolved red-team findings mathematically cap the score
