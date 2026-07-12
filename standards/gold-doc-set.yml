@@ -150,15 +150,17 @@ checks:
     applies: always
     phase: design
     drivers: ['iso12207', 'diataxis']
-    accept_any: [
+    # H2 (Tranche 2): the last two entries below are subtree recognition — real arc42/C4
+    # gold docs often live two-plus directories deep (e.g. a governed project's
+    # docs/architecture/budget/{arc42,c4-model}.md), not flat under docs/architecture/.
+    # `**` is resolved via a real recursive walk (H2).
+    accept_any:
+      [
         'docs/architecture/ARCHITECTURE.md',
         'docs/internal/architecture/ARCHITECTURE.md',
         'docs/architecture/arc42.md',
         'docs/architecture/blueprint.md',
         'docs/ARCHITECTURE.md',
-        # H2 (Tranche 2): subtree recognition — real arc42/C4 gold docs often live two-plus
-        # directories deep (e.g. a governed project's docs/architecture/budget/{arc42,c4-model}.md), not
-        # flat under docs/architecture/. `**` is resolved via a real recursive walk (H2).
         'docs/architecture/**/arc42.md',
         'docs/**/c4-model.md',
       ]
