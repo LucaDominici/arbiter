@@ -121,8 +121,7 @@ const ADR_LEGACY_RE = /^ADR-\d{3,}[-_].+\.md$/i
 const ADR_PREFIX_RE = /^[A-Za-z][A-Za-z0-9]*-\d{3,}[-_].+\.md$/
 
 /** True if >=1 filename matches a decision-record form (legacy/prefixed dual recognition). */
-const isAdrFilename = (e) =>
-  ADR_BARE_RE.test(e) || ADR_LEGACY_RE.test(e) || ADR_PREFIX_RE.test(e)
+const isAdrFilename = (e) => ADR_BARE_RE.test(e) || ADR_LEGACY_RE.test(e) || ADR_PREFIX_RE.test(e)
 
 /** True if >=1 ADR record (legacy bare/ADR-NNN or repo-prefixed <PREFIX>-NNN) lives under dir. */
 function adrPresent(adrDir) {

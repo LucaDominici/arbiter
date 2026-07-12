@@ -142,8 +142,7 @@ checks:
     applies: always
     phase: design
     drivers: ['iso12207', 'diataxis']
-    accept_any:
-      [
+    accept_any: [
         'docs/architecture/ARCHITECTURE.md',
         'docs/internal/architecture/ARCHITECTURE.md',
         'docs/architecture/arc42.md',

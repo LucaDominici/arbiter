@@ -127,7 +127,10 @@ describe('check-doc-set: tiers{} + collaborationMode resolution (H3, gold-doc-ca
     try {
       mkdirSync(join(dir, '.arbiter'), { recursive: true })
       mkdirSync(join(dir, 'standards'), { recursive: true })
-      writeFileSync(join(dir, 'standards', 'doc-profile'), 'overlays:\n  - deploys\n  - customer-data\n')
+      writeFileSync(
+        join(dir, 'standards', 'doc-profile'),
+        'overlays:\n  - deploys\n  - customer-data\n',
+      )
       const strict = spawnSync('node', [SCRIPT, '--strict'], { encoding: 'utf-8', cwd: dir })
       // ARCHITECTURE.md (recommended for solo) + GOVERNANCE.md (skip) are still the only
       // non-conditional gaps; neither the SLO nor the threat-model conditional gap can fail

@@ -134,7 +134,9 @@ describe('_monthly.yml.ejs — kotlin sbom + license-full-audit coverage (#1803)
       const jobEnd = rendered.indexOf('action-pins-stale-audit:')
       const section = rendered.slice(jobStart, jobEnd)
       expect(section).toContain('setup-java')
-      expect(section).toContain(buildTool === 'gradle' ? 'licenseReport' : 'aggregate-third-party-report')
+      expect(section).toContain(
+        buildTool === 'gradle' ? 'licenseReport' : 'aggregate-third-party-report',
+      )
     },
   )
 

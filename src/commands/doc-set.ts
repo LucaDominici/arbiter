@@ -100,7 +100,11 @@ function runEngine(script: string, args: string[], repo: string): EngineRun {
       // surfaced as exitCode -1 by classifyAttempt). A genuine engine exit (0 or 1) is never -1,
       // so any negative code here IS an infra failure, not the strict-mode "mandatory gap" exit —
       // map it to the engine's own ERROR band (2) rather than misreporting it as a doc gap (1).
-      return { stdout: err.stdout, stderr: err.stderr, exitCode: err.exitCode >= 0 ? err.exitCode : 2 }
+      return {
+        stdout: err.stdout,
+        stderr: err.stderr,
+        exitCode: err.exitCode >= 0 ? err.exitCode : 2,
+      }
     }
     const msg = err instanceof Error ? err.message : String(err)
     return { stdout: '', stderr: `doc-set: engine failed — ${msg}\n`, exitCode: 2 }
