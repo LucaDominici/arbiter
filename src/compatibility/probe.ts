@@ -337,6 +337,23 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
     }
   }
 
+  // A fresh `arbiter init` scaffolds tsconfig.json (and a generated test importing
+  // vitest) BEFORE `npm install` ever runs. Without node_modules, `npx` bootstraps
+  // tsc from the registry (or fails outright offline) and, when it does run, tsc
+  // reports "cannot find module 'vitest'" for the just-generated test — a false
+  // "TypeScript errors" failure that has nothing to do with the user's code. Only
+  // npx-invoked probes need this guard: gradlew/cargo/go build probes shell out to
+  // toolchain binaries directly, not through npm's dependency tree. Skip (not fail)
+  // so init completes and degrades gracefully instead of aborting on its own output.
+  if (spec.command === 'npx' && !existsSync(join(dir, 'node_modules'))) {
+    return {
+      tool: spec.name,
+      status: 'skipped',
+      kind: 'build',
+      reason: 'node-modules-missing: run `npm install`, then `arbiter validate` to verify',
+    }
+  }
+
   try {
     const result = runCli(spec.command, spec.args, {
       cwd: dir,

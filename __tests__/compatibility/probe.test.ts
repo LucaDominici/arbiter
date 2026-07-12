@@ -248,6 +248,69 @@ describe('runBuildProbe — requires file missing → skipped', () => {
   })
 })
 
+describe('runBuildProbe — npx command without node_modules → skipped, not failed', () => {
+  it('skips tsc:noEmit-shaped probe with a corrected hint when node_modules is missing (virgin `arbiter init -y`)', () => {
+    // Repro: a fresh `arbiter init -y` scaffolds tsconfig.json (requires: passes)
+    // BEFORE `npm install` ever runs. Without this guard, `npx tsc --noEmit` either
+    // fails to bootstrap tsc or reports "cannot find module 'vitest'" for the
+    // just-generated test file — a false "TypeScript errors" failure with nothing
+    // to do with the user's code, previously surfaced as `status: 'failed'` with
+    // the misleading generic hint "Fix TypeScript errors or install: npm install
+    // --save-dev typescript" (typescript is already a declared devDependency; the
+    // real fix is just running the install). This must never reach runCli/npx at all.
+    mockExistsSync.mockImplementation((p: unknown) => !String(p).endsWith('node_modules'))
+    const result = runBuildProbe('/some/dir', {
+      name: 'tsc:noEmit',
+      command: 'npx',
+      args: ['tsc', '--noEmit'],
+      requires: 'tsconfig.json',
+    })
+    expect(result.status).toBe('skipped')
+    expect(result.kind).toBe('build')
+    expect(result.reason).toBe(
+      'node-modules-missing: run `npm install`, then `arbiter validate` to verify',
+    )
+    expect(mockRunCli).not.toHaveBeenCalled()
+  })
+
+  it('still runs when node_modules IS present (normal case)', () => {
+    mockExistsSync.mockReturnValue(true)
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0, durationMs: 50 })
+    const result = runBuildProbe('/some/dir', {
+      name: 'tsc:noEmit',
+      command: 'npx',
+      args: ['tsc', '--noEmit'],
+      requires: 'tsconfig.json',
+    })
+    expect(result.status).toBe('passed')
+    expect(mockRunCli).toHaveBeenCalledWith(
+      'npx',
+      ['tsc', '--noEmit'],
+      expect.objectContaining({ cwd: '/some/dir' }),
+    )
+  })
+
+  it('does not apply the node_modules guard to non-npx build probes (e.g. gradlew)', () => {
+    // Only npx-invoked probes route through npm's dependency tree; gradlew/cargo/go
+    // shell out to their own toolchain binaries directly and must not be skipped
+    // just because node_modules is absent.
+    mockExistsSync.mockImplementation((p: unknown) => !String(p).endsWith('node_modules'))
+    mockRunCli.mockReturnValue({
+      stdout: 'BUILD SUCCESSFUL',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 50,
+    })
+    const result = runBuildProbe('/some/dir', {
+      name: 'gradlew:version',
+      command: './gradlew',
+      args: ['--version'],
+      requires: 'gradlew',
+    })
+    expect(result.status).toBe('passed')
+  })
+})
+
 describe('runBuildProbe — command succeeds → passed', () => {
   it('returns passed when command exits 0', () => {
     mockExistsSync.mockReturnValue(true)

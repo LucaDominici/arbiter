@@ -1,11 +1,21 @@
 #!/usr/bin/env node
-// CATALOG: scans hand-authored prose (PRIVACY.md, docs/, website/) for `arbiter <cmd>` citations of commands absent from src/cli.ts (INV-111 ext).
+// CATALOG: scans hand-authored prose (PRIVACY.md, docs/, website/, .claude/) for `arbiter <cmd>` citations of commands absent from src/cli.ts (INV-111 ext).
 // CATALOG: rejected fold-in into gen-cli-ref.mjs (generates/validates ONE machine-owned region in cli.md; this scans the whole prose corpus — different failure surface, shared parser via lib/cli-command-names.mjs).
 // CATALOG: rejected fold-in into check-doc-links.mjs (link-target existence, not command-existence; merging would conflate two drift models).
 //
 // Gate (F2 #1838, item 4 — extends INV-111 enforcement): every `arbiter <cmd>`
-// invocation cited in hand-authored prose docs (PRIVACY.md, docs/, website/)
-// must name a command that actually exists in src/cli.ts's routing.
+// invocation cited in hand-authored prose docs (PRIVACY.md, docs/, website/,
+// .claude/) must name a command that actually exists in src/cli.ts's routing.
+//
+// .claude/ was added to ROOTS after a release-readiness audit found a phantom
+// `arbiter context-pack` citation in .claude/agents/context-checker.md that this
+// gate never saw (docs/website only): agent personas and slash-command runbooks
+// are exactly the "current-state, user-facing promises" this gate exists to
+// police, they just happen to live outside docs/. Only .claude/*.md is scanned
+// (materialized, hand-read files) — the .ejs template SOURCES under
+// src/templates/claude/ render TO those .md files but are not markdown
+// themselves, so they are out of collectMarkdownFiles' reach by construction,
+// not by an explicit exclusion.
 //
 // INV-111 already guards the MACHINE-GENERATED region of website/reference/cli.md
 // (scripts/gen-cli-ref.mjs --check) — but hand-written prose elsewhere can cite a
@@ -41,7 +51,9 @@ function argValue(flag) {
 
 const CWD = resolve('.')
 const CLI_TS = argValue('cli') ? resolve(argValue('cli')) : resolve(CWD, 'src', 'cli.ts')
-const ROOTS = argValue('roots') ? argValue('roots').split(',') : ['PRIVACY.md', 'docs', 'website']
+const ROOTS = argValue('roots')
+  ? argValue('roots').split(',')
+  : ['PRIVACY.md', 'docs', 'website', '.claude']
 
 // Path segments excluded from the scan (see header comment): decision/roadmap
 // archives and the changelog, none of which assert *current* CLI behavior.
