@@ -117,6 +117,49 @@ function adrPresent(adrDir) {
   return entries.some((e) => ADR_BARE_RE.test(e) || ADR_LEGACY_RE.test(e) || ADR_PREFIX_RE.test(e))
 }
 
+// H3 (gold-doc-capability Tranche 1) — collaborationMode → tiers{} column resolution.
+// Mirrors scripts/check-ci-tiers.mjs `resolveCm`: explicit collaborationMode > the
+// soloDevMode back-compat alias (ADR-051) > default 'peer-review' (same default the rest
+// of the codebase uses, src/wizard/prompts.ts DEFAULT_COLLABORATION_MODE).
+const TIER_COLUMN = { 'trunk-solo': 'solo', 'peer-review': 'small', 'gated-review': 'enterprise' }
+
+function resolveCollaborationMode(config) {
+  if (config.collaborationMode) return config.collaborationMode
+  if (config.enableSoloDevMode === true || config.features?.soloDevMode === true)
+    return 'trunk-solo'
+  return 'peer-review'
+}
+
+/** Read arbiter.json's collaborationMode (repo-root relative) and resolve the tiers{} column. */
+function loadTierColumn() {
+  const cfgPath = resolve(CWD, 'arbiter.json')
+  if (!existsSync(cfgPath)) return TIER_COLUMN[resolveCollaborationMode({})]
+  try {
+    const config = JSON.parse(readFileSync(cfgPath, 'utf-8'))
+    const cm = resolveCollaborationMode(config)
+    return TIER_COLUMN[cm] || TIER_COLUMN[resolveCollaborationMode({})]
+  } catch {
+    return TIER_COLUMN[resolveCollaborationMode({})]
+  }
+}
+
+/**
+ * Resolve a check's requirement band for the given tiers{} column.
+ *   'R' -> 'mandatory'  'r' -> 'recommended'  'o' | '-' -> 'skip' (dormant, counted as n/a)
+ * Checks without a tiers{} field fall back to the legacy flat `tier:` literal (`conditional`
+ * checks are unaffected either way — resolved via the `applicable` overlay check in main()).
+ */
+function requirementFor(check, column) {
+  if (!check.tiers) return check.tier === 'mandatory' ? 'mandatory' : 'recommended'
+  const cell = check.tiers[column]
+  if (cell === 'R') return 'mandatory'
+  if (cell === 'r') return 'recommended'
+  if (cell === 'o' || cell === '-') return 'skip'
+  // Unrecognized value or missing column key (manifest typo) ⇒ fail-closed (INV-96):
+  // never let a malformed tiers{} cell silently drop a requirement.
+  return 'mandatory'
+}
+
 /** Resolve presence for a check: any of accept_any / glob / path (ADR-aware for adr:true). */
 function isPresent(check) {
   const candidates = check.accept_any?.length ? check.accept_any : [check.path]
@@ -171,6 +214,7 @@ function main() {
   }
   const manifest = parseYaml(readFileSync(resolve(CWD, MANIFEST), 'utf-8'))
   const { overlays } = loadOverlays()
+  const tierColumn = loadTierColumn()
 
   const present = []
   const missingMandatory = []
@@ -204,11 +248,18 @@ function main() {
       na.push(check)
       continue
     }
+    // H3: tiers{} (when present) resolves the requirement band for THIS repo's
+    // collaborationMode column — 'skip' (o|-) is dormant, same bucket as inapplicable.
+    const requirement = requirementFor(check, tierColumn)
+    if (requirement === 'skip') {
+      na.push(check)
+      continue
+    }
     if (isPresent(check)) {
       present.push(check)
       continue
     }
-    if (check.tier === 'mandatory') missingMandatory.push(check)
+    if (requirement === 'mandatory') missingMandatory.push(check)
     else missingRecommended.push(check)
 
     if (flag('--generate') && check.path.endsWith('.md')) {
@@ -226,6 +277,7 @@ function main() {
   const report = {
     manifest: MANIFEST,
     profile: { overlays: [...overlays] },
+    tierColumn, // H3: which tiers{} column ('solo'|'small'|'enterprise') resolved this run
     totals: {
       applicable,
       present: present.length,
@@ -243,7 +295,7 @@ function main() {
     process.stdout.write(JSON.stringify(report, null, 2) + '\n')
   } else {
     process.stdout.write(
-      `check-doc-set: ${present.length}/${applicable} applicable docs present ` +
+      `check-doc-set [tier: ${tierColumn}]: ${present.length}/${applicable} applicable docs present ` +
         `(mandatory gaps: ${missingMandatory.length}, recommended gaps: ${missingRecommended.length}, n/a: ${na.length})\n`,
     )
     for (const c of missingMandatory) process.stdout.write(`    MISSING [mandatory] ${c.path}\n`)

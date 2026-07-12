@@ -20,6 +20,8 @@ import { runCli, CliError } from '../utils/run-cli.js'
 export interface DocSetPayload {
   manifest: string
   profile: { overlays: string[] }
+  /** H3 (gold-doc-capability Tranche 1): which tiers{} column resolved this run. */
+  tierColumn: 'solo' | 'small' | 'enterprise'
   totals: {
     applicable: number
     present: number

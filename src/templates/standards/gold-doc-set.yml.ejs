@@ -8,7 +8,21 @@
 #
 # Per check:
 #   path        canonical location (also the stub target for --generate)
-#   tier        mandatory | recommended | conditional
+#   tier        mandatory | recommended | conditional — LEGACY, flat, team-size-blind.
+#               Superseded by tiers{} when present (H3, gold-doc-capability Tranche 1);
+#               kept as the fallback for any check not yet carrying tiers{}.
+#   tiers       NEW (#H3): the standard's TIER×doc-type matrix cell, keyed by the
+#               collaborationMode-derived column — { solo, small, enterprise }. Values:
+#                 R = mandatory (gap = strict failure)
+#                 r = recommended (gap = warning)
+#                 o | '-' = not required at this tier (dormant, counted as n/a, never a gap)
+#               When present, tiers{} REPLACES `tier` for requirement resolution (the tier
+#               field conflated enforcement strength with team size; tiers{} separates them).
+#               collaborationMode → column: trunk-solo→solo, peer-review→small,
+#               gated-review→enterprise (mirrors scripts/check-ci-tiers.mjs `resolveCm`).
+#   freshness_class  NEW (#H3/#H4): one of high-churn | policy | decision | operational |
+#               regulatory — selects the max-age bar for the (not-yet-built) freshness gate.
+#               ADR/decision docs are immutable-once-accepted, never re-dated.
 #   applies     always | <overlay-name>
 #   accept_any  equivalent paths; the check PASSES if ANY exists (architecture=blueprint, etc.)
 #   glob        a glob that passes if >=1 file matches (e.g. at least one ADR)
@@ -21,6 +35,13 @@
 #               diataxis · iso29148 · gamp5 · part11 · iso27001 · gdpr · nis2 ·
 #               dd-impresoft · iso12207 · iso9001 · owasp
 #
+# Anti-cathedral guardrail (docs/design/gold-doc-capability.md §2): a trunk-solo (solo) repo
+# is never handed SLO/on-call, full STRIDE, traceability, or the CODE_OF_CONDUCT/CODEOWNERS
+# cathedral. tiers{} is intentionally added ONLY to the `always`-applying checks below; the
+# `conditional` (overlay-gated) checks further down are untouched by Tranche 1 — a missing
+# conditional doc already only ever produces an advisory (never `--strict`-blocking) gap
+# regardless of tier, so the guardrail holds by construction without extra machinery.
+#
 # --generate write-safety: stubs are scaffolded ONLY for missing docs and NEVER overwrite an
 # existing file. Stub-refresh-in-place is opt-in via --refresh-stubs and overwrites ONLY a file
 # that is byte-equal to the freshly rendered stub template (a real doc is always preserved, #1415).
@@ -30,12 +51,16 @@ checks:
   # ---- mandatory (always) ----
   - path: README.md
     tier: mandatory
+    tiers: { solo: 'R', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: inception
     drivers: ['diataxis']
     purpose: Repo overview — purpose, install, quickstart.
   - path: AGENTS.md
     tier: mandatory
+    tiers: { solo: 'R', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: inception
     drivers: ['diataxis', 'iso12207']
@@ -43,12 +68,18 @@ checks:
     purpose: Governance SSOT (invariants + workflow) for AI-assisted development.
   - path: CHANGELOG.md
     tier: mandatory
+    tiers: { solo: 'R', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: release
     drivers: ['diataxis']
     purpose: Human-readable change history (semver / Keep a Changelog).
   - path: CONTRIBUTING.md
     tier: mandatory
+    # standard §2 row 12: solo has no 2nd contributor to onboard yet (o); required once a repo
+    # is not solo (small/enterprise) — the `2nd contributor` trigger (#4) promotes solo o->R.
+    tiers: { solo: 'o', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: build
     drivers: ['diataxis', 'iso9001']
@@ -56,6 +87,8 @@ checks:
     purpose: How to contribute — workflow, gate, conventions.
   - path: SECURITY.md
     tier: mandatory
+    tiers: { solo: 'R', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: operate
     drivers: ['iso27001', 'owasp']
@@ -63,6 +96,8 @@ checks:
     purpose: Security policy + vulnerability reporting.
   - path: LICENSE
     tier: mandatory
+    tiers: { solo: 'R', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: inception
     drivers: ['iso12207']
@@ -70,6 +105,8 @@ checks:
     purpose: Open-source license.
   - path: VERSION
     tier: mandatory
+    tiers: { solo: 'R', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: release
     drivers: ['iso12207']
@@ -77,12 +114,20 @@ checks:
     purpose: Release version SSOT (semver).
   - path: docs/INDEX.md
     tier: mandatory
+    # standard §2 row 13: a discoverable index matters more once there's more than one doc
+    # author reading it cold — recommended solo, required small/enterprise.
+    tiers: { solo: 'r', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: build
     drivers: ['diataxis']
     purpose: Generated, discoverable index of the doc set.
   - path: docs/GOVERNANCE.md
     tier: mandatory
+    # H3 (load-bearing fix): a solo repo has no decision-rights ambiguity to govern — this
+    # was wrongly mandatory-for-all before Tranche 1 (docs/design/gold-doc-capability.md §2).
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: inception
     drivers: ['iso9001', 'iso12207']
@@ -90,12 +135,17 @@ checks:
     purpose: Governance model — how decisions and gates work.
   - path: docs/architecture/ARCHITECTURE.md
     tier: mandatory
+    # H3: solo carries a recommended Canvas-level doc, not the full arc42+C4 cathedral,
+    # until the `>2 deployable units` trigger (#6) promotes it to required.
+    tiers: { solo: 'r', small: 'R', enterprise: 'R' }
+    freshness_class: high-churn
     applies: always
     phase: design
     drivers: ['iso12207', 'diataxis']
     accept_any:
       [
         'docs/architecture/ARCHITECTURE.md',
+        'docs/internal/architecture/ARCHITECTURE.md',
         'docs/architecture/arc42.md',
         'docs/architecture/blueprint.md',
         'docs/ARCHITECTURE.md',
@@ -103,15 +153,28 @@ checks:
     purpose: System architecture (arc42 / C4 / blueprint equivalent).
   - path: docs/ADR
     tier: mandatory
+    tiers: { solo: 'R', small: 'R', enterprise: 'R' }
+    freshness_class: decision
     applies: always
     phase: design
     drivers: ['iso12207']
     glob: 'docs/ADR/[0-9]*.md'
     adr: true
-    accept_any: ['docs/ADR/[0-9]*.md', 'docs/adr/[0-9]*.md', 'docs/ADR/README.md']
+    accept_any:
+      [
+        'docs/ADR/[0-9]*.md',
+        'docs/adr/[0-9]*.md',
+        'docs/ADR/README.md',
+        'docs/internal/ADR/[0-9]*.md',
+        'docs/internal/ADR/README.md',
+      ]
     purpose: Architecture Decision Records (at least one; legacy or <PREFIX>-NNN).
   - path: docs/SEMVER.md
     tier: mandatory
+    # H3: the bare VERSION file (above) stays required at every tier; the elaborated
+    # compatibility/semver *policy write-up* is cathedral for a repo with one committer.
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: release
     drivers: ['iso12207']
@@ -119,6 +182,10 @@ checks:
     purpose: Versioning / compatibility policy.
   - path: docs/coding-standards.md
     tier: mandatory
+    # H3: recommended solo (a one-person repo has no cross-author style to converge on
+    # yet), required small/enterprise.
+    tiers: { solo: 'r', small: 'R', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: build
     drivers: ['iso9001', 'owasp']
@@ -133,12 +200,16 @@ checks:
   # ---- recommended (advisory) ----
   - path: CODE_OF_CONDUCT.md
     tier: recommended
+    tiers: { solo: '-', small: 'r', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: inception
     drivers: ['diataxis']
     purpose: Community standards.
   - path: ROADMAP.md
     tier: recommended
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: inception
     drivers: ['iso29148']
@@ -146,6 +217,8 @@ checks:
     purpose: Forward-looking plan.
   - path: docs/GLOSSARY.md
     tier: recommended
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: design
     drivers: ['diataxis', 'iso29148']
@@ -153,6 +226,8 @@ checks:
     purpose: Domain + project terminology (reduces cross-product confusion).
   - path: PRIVACY.md
     tier: recommended
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    freshness_class: regulatory
     applies: always
     phase: operate
     drivers: ['gdpr']
@@ -160,6 +235,8 @@ checks:
     purpose: Privacy / data-handling statement.
   - path: docs/technical-debt.md
     tier: recommended
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    freshness_class: policy
     applies: always
     phase: build
     drivers: ['iso9001', 'iso12207']
