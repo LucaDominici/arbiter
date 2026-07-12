@@ -99,6 +99,32 @@ function injectTsGateToolchain(targetDir: string, dryRun: boolean): void {
   })
 }
 
+// The generated L2 gate invokes `npx prettier --check .` directly from
+// check-all.mjs — never through an npm script — so nothing in a virgin
+// project's package.json ever documents that `prettier` is used. knip's
+// dependency-usage analysis only recognizes a devDependency via imports,
+// plugin-recognized config files, or a literal binary name inside a
+// package.json `scripts` entry; with none of those present it (correctly,
+// from its own evidence) flags `prettier` as unused and REDs the L2 "dead
+// code" check on the very first run (B4, #1491) — a false positive baked in
+// by arbiter's own under-declaration, not a real usage gap. A `format`
+// script is the same convention every hand-authored TS project already uses
+// (see __tests__/fixtures/real-projects/ts-library/package.json) — it makes
+// the usage visible to knip AND gives humans/CI a normal `npm run format`
+// entry point, fixing the cause instead of adding `prettier` to knip.json's
+// `ignoreDependencies` (which would silence a genuine usage, not a phantom
+// one).
+function injectFormatScript(targetDir: string, dryRun: boolean): void {
+  mutatePackageJson(targetDir, dryRun, (pkg) => {
+    const scripts = (pkg.scripts ?? {}) as Record<string, string>
+    // Respect a brownfield project's own `format` script — never overwrite it.
+    if (scripts.format) return false
+    scripts.format = 'prettier --check .'
+    pkg.scripts = scripts
+    return true
+  })
+}
+
 // Gate-essential TypeScript config files — every one is consumed by the generated
 // L1 gate (typecheck→tsconfig, format→.prettierrc/.prettierignore, lint→
 // eslint.config.mjs, static analysis→eslint.config.static.mjs). Emitted on EVERY
@@ -322,6 +348,7 @@ export function generateDebtGates(
     // stay below the enableDebtGates guard.
     results.push(...emitTsGateScaffold(base, data, opts.dryRun))
     injectTsGateToolchain(base, opts.dryRun)
+    injectFormatScript(base, opts.dryRun)
   }
 
   // Gate-essential Java scaffold — even L1 runs checkstyleMain + spotlessCheck.
