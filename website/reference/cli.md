@@ -683,8 +683,20 @@ These commands are fully functional but hidden from the default `arbiter --help`
 
 | Command                 | Description                                                          |
 | ----------------------- | -------------------------------------------------------------------- |
+| `arbiter doc-set`       | —                                                                    |
 | `arbiter settings`      | List every settable arbiter.json path with its current value (#1121) |
 | `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates           |
+
+## arbiter doc-set
+
+**Options:**
+
+- `--strict` — Exit 1 if any mandatory doc is missing (default: advisory, exit 0)
+- `--json` — Emit the audit as JSON
+- `--generate` — Scaffold stub files for missing mandatory+recommended .md docs
+- `--refresh-stubs` — (with --generate) re-render a doc in place only if it is byte-equal to the stub template
+- `--manifest <path>` — Manifest path override (default standards/gold-doc-set.yml)
+- `--doc-profile <path>` — Overlay profile path override (default standards/doc-profile)
 
 ## arbiter settings
 
