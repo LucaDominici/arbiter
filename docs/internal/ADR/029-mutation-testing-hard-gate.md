@@ -1,8 +1,8 @@
 ---
 title: 'ADR-029: Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold'
 doc_version: '1.0.0'
-status: active
-last_review: '2026-05-20'
+status: superseded
+last_review: '2026-07-12'
 owner: ''
 canonical_id: '029'
 tags: ['audience/dev', 'kind/adr']

@@ -83,7 +83,7 @@
 | [ADR-026 — Scaled Thresholds and Practical/Pedantic Strictness Tiers](internal/ADR/026-scaled-thresholds.md) | 026 | active | kind/adr |
 | [ADR-027 — Real-Project Nightly Matrix](internal/ADR/027-real-project-nightly-matrix.md) | 027 | active | kind/adr |
 | [ADR-028: Grace Period for Level Upgrade + Contract Type Axis](internal/ADR/028-level-upgrade-grace-and-contract-type.md) | 028 | active | kind/adr |
-| [ADR-029: Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold](internal/ADR/029-mutation-testing-hard-gate.md) | 029 | active | kind/adr |
+| [ADR-029: Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold](internal/ADR/029-mutation-testing-hard-gate.md) | 029 | superseded | kind/adr |
 | [ADR-030 — Nightly Pipeline & Evidence Harness](internal/ADR/030-nightly-evidence-harness.md) | 030 | active | kind/adr |
 | [ADR-031: Plugin API v1](internal/ADR/031-plugin-api-v1.md) | 031 | active | kind/adr |
 | [ADR-032: Hook Hardness Manifest and Empirical Verification (INV-36)](internal/ADR/032-hook-hardness-manifest.md) | 032 | active | kind/adr |
