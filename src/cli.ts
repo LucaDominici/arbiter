@@ -40,6 +40,8 @@ import { buildShipOverrides } from './commands/ship-profile.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
+import { runTaskMark } from './commands/task-mark.js'
+import { isTddPhase } from './commands/task-state.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
 import { runVerifyGraph } from './commands/graph.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
@@ -1372,6 +1374,44 @@ task
   .action((opts: { field: string; dir?: string }) => {
     runTaskGet({ field: opts.field, ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
   })
+
+program
+  .command('mark', { hidden: true })
+  .description('Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206)')
+  .option('--next <action>', 'The exact next sub-step to resume on')
+  .option('--last <action>', 'The sub-step just completed')
+  .option('--tdd <phase>', 'TDD sub-phase (RED|GREEN|REFACTOR)')
+  .option('--task <id>', 'Set/override the active task id')
+  .option('--digest <line>', 'One-line progress digest for log.md')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action(
+    (opts: {
+      next?: string
+      last?: string
+      tdd?: string
+      task?: string
+      digest?: string
+      dir?: string
+    }) => {
+      let tddPhase: 'RED' | 'GREEN' | 'REFACTOR' | undefined
+      if (opts.tdd !== undefined) {
+        const upper = opts.tdd.toUpperCase()
+        if (!isTddPhase(upper)) {
+          process.stderr.write(`Invalid --tdd value "${opts.tdd}". Valid: RED, GREEN, REFACTOR\n`)
+          process.exit(2)
+        }
+        tddPhase = upper
+      }
+      runTaskMark({
+        ...(opts.next !== undefined ? { next: opts.next } : {}),
+        ...(opts.last !== undefined ? { last: opts.last } : {}),
+        ...(tddPhase !== undefined ? { tddPhase } : {}),
+        ...(opts.task !== undefined ? { taskId: opts.task } : {}),
+        ...(opts.digest !== undefined ? { digest: opts.digest } : {}),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+    },
+  )
 
 program
   .command('ship [id]')
