@@ -169,14 +169,15 @@ describe('collaborationMode — ceremony divergence (#1119)', () => {
   it('peer-review ship.md does NOT show "direct merge" block (#1216)', async () => {
     // #1216: orchestration content is now in ship.md.
     // peer-review uses mergeMode=pr-ff, so the direct merge block is absent.
-    // With markdown backend, Complete section uses arbiter work close.
+    // With markdown backend, Complete section has no CLI command for closing the work item
+    // (`arbiter work` was removed in #1817) — it points at manual tracking instead.
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
     expect(shipMd).not.toContain('git push origin HEAD:main')
-    expect(shipMd).toContain('arbiter work close')
+    expect(shipMd).toContain('Mark the work item done manually')
   })
 
   it('peer-review ship.md does NOT contain --squash (ADR-051 compliance, #1216)', async () => {

@@ -143,11 +143,10 @@ plan (CANON-16, enforced by the `pre-edit-plan-anchor` hook). No per-issue plans
 
 ## Phase 2 — One plan review
 
-Run the plan gate **once** on the cumulative plan:
-
-```bash
-arbiter review plan          # plan-review gate on .claude/plans/wave-N.md
-```
+Run the plan gate **once** on the cumulative plan: dispatch the plan-review agents against
+`.claude/plans/wave-N.md` and record their verdict in
+`.arbiter/evidence/plan-review/<id>/latest.json` (the review-dispatch CLI was removed in #1817 —
+the gate now reads that evidence file, it is not a single command).
 
 In parallel, dispatch a **tier-Standard red-team** (3 agents) against the cumulative plan.
 

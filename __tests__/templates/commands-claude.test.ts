@@ -193,9 +193,9 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).not.toContain('done-evidence.mjs')
   })
 
-  it('complete section closes the issue (gh issue close or arbiter work close)', () => {
+  it('complete section closes the issue (gh issue close, or manual for markdown backend)', () => {
     const content = renderShip('typescript', 'L2')
-    expect(content).toMatch(/gh issue close|arbiter work close/i)
+    expect(content).toMatch(/gh issue close|Mark the work item done manually/i)
   })
 
   it('complete section advances to complete phase', () => {

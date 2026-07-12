@@ -88,7 +88,7 @@ arbiter task advance --to plan
 | Phase | What `/ship` does | Review agents |
 |-------|-------------------|---------------|
 | `preflight` | Open worktree (`/wt-open #NNN`), read issue, seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; pass the plan-review gate (`arbiter review plan`) | — |
+| `plan` | Write the plan; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
 | `red` | Write failing tests (TDD red); `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
@@ -213,9 +213,8 @@ gh pr merge --rebase --admin
 Close the issue:
 
 
-```bash
-arbiter work close NNN
-```
+Mark the work item done manually (no CLI command for the `markdown` backend — `arbiter work` was
+removed in #1817; track closure in your issue tracker of choice).
 
 
 Advance to the terminal phase and close the worktree:
@@ -256,7 +255,8 @@ At **GO/handoff** (plan-review gate green):
 - CRITICAL red-team finding → `arbiter task advance --to red-team-rework`, revise, re-run review.
 - If `tasks.worktree` is `always` in `arbiter.json`, opening a worktree is mandatory — HARD STOP if skipped.
 - The fail-closed Stop hook (INV-114) requires three correlated artifacts before any completion claim:
-  plan-review `latest.json` (written by `arbiter review plan`), `.arbiter/agents-dispatched.json`
+  plan-review `latest.json` (written by the plan-review dispatch — not a CLI command since #1817),
+  `.arbiter/agents-dispatched.json`
   (written in the refactor section above), `.arbiter/gate-pass.json` (written by the gate). The
   `phase: complete` state releases the guard.
 - Never skip the gate, never commit to `main` outside the merge step, never leave the loop mid-phase
