@@ -123,7 +123,10 @@ function runCli(dir: string, args: string[]): { status: number; output: string }
   return { status: r.status ?? 1, output: (r.stdout ?? '') + (r.stderr ?? '') }
 }
 
-function runGate(dir: string, level: 'L1' | 'L2'): { status: number; output: string } {
+// 'gate' is the real subcommand alias cited in the release-readiness verdict
+// (`check-all.mjs gate`) — it maps to L2 inside the generated script's own
+// _SUBCOMMAND_LEVEL table, same as omitting the argument entirely.
+function runGate(dir: string, level: 'L1' | 'L2' | 'gate'): { status: number; output: string } {
   const scriptPath = join(dir, 'scripts', 'check-all.mjs')
   if (!existsSync(scriptPath)) {
     return { status: 127, output: `check-all.mjs not generated at ${scriptPath}` }
@@ -306,6 +309,119 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
           'a seeded format violation must RED the gate, not pass silently',
         ).not.toBe(0)
         expect(gate.output).toMatch(/format/i)
+      },
+      300_000,
+    )
+  })
+
+  // Tier-blindness fix (release-readiness verdict, Blocker 2): every cell above
+  // pins `--level L1` and gates with `runGate(dir, 'L1')`, so a project that goes
+  // through `arbiter init` the way the verdict actually reproduced it —
+  // `arbiter init -y` with NO --level flag, which resolves to the CLI's own
+  // default, L2 (see `arbiter init --help`) — was never exercised end-to-end by
+  // this harness. That gap is exactly how the B4 knip/prettier regression (a
+  // virgin `arbiter init -y` → `check-all.mjs gate` exiting 1) shipped unnoticed:
+  // the "green" first-run E2E only ever asserted L1. This block closes the gap by
+  // driving `arbiter init` with no --level override and gating with the real
+  // `gate` subcommand (`check-all.mjs gate`, the exact command cited in the
+  // verdict) — which the generated script's own _SUBCOMMAND_LEVEL table maps to
+  // L2, matching what a first-time user actually runs pre-push.
+  describe('default level (L2) first-run — tier-blindness fix', () => {
+    let dir: string
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'arbiter-greenfield-l2default-'))
+      initGit(dir)
+      scaffoldBareTsSkeleton(dir)
+      commitAll(dir, 'chore: bare skeleton')
+    })
+
+    afterEach(() => {
+      if (dir != null) rmSync(dir, { recursive: true, force: true })
+    })
+
+    const skip = cliMissing || missingBinaries(['node', 'npx']).length > 0
+
+    it.skipIf(skip)(
+      `init -y (no --level ⇒ default L2) → check-all.mjs gate exits 0 on first run${skip ? ` (${CLI_MISSING_REASON})` : ''}`,
+      () => {
+        const init = runCli(dir, [
+          'init',
+          '--yes',
+          '--tools',
+          'codex',
+          '--language',
+          'typescript',
+          '--archetype',
+          'library',
+          '--no-verify',
+        ])
+        expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
+        commitAll(dir, 'chore: post-init')
+
+        const install = spawnSync('npm', ['install', '--no-audit', '--no-fund'], {
+          cwd: dir,
+          encoding: 'utf-8',
+          timeout: 240_000,
+        })
+        expect(install.status, `npm install failed:\n${install.stderr}`).toBe(0)
+
+        const gate = runGate(dir, 'gate')
+        expect(gate.status, `gate did not execute:\n${gate.output.slice(-2000)}`).not.toBe(127)
+        expect(
+          gate.status,
+          gate.status === 0
+            ? ''
+            : `generated default-level (L2) gate failed on first run:\n${gate.output.slice(-4000)}`,
+        ).toBe(0)
+      },
+      300_000,
+    )
+
+    // Terraform-acceptance pairing for the default-level cell above: proves the
+    // same default-level gate is not vacuously green by seeding a genuine
+    // unused-devDependency (dead-code) violation — the same finding CLASS as the
+    // B4 regression this block exists to catch, and one that only an L2 gate
+    // (knip runs at L2, not L1) can detect. A future regression that silently
+    // widens knip.json's ignoreDependencies (or otherwise neuters the dead-code
+    // check) would turn this red-path green again, so it FAILS the test.
+    it.skipIf(skip)(
+      `a seeded unused-devDependency REDs the default-level (L2) gate${skip ? ` (${CLI_MISSING_REASON})` : ''}`,
+      () => {
+        const init = runCli(dir, [
+          'init',
+          '--yes',
+          '--tools',
+          'codex',
+          '--language',
+          'typescript',
+          '--archetype',
+          'library',
+          '--no-verify',
+        ])
+        expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
+
+        const pkgPath = join(dir, 'package.json')
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as {
+          devDependencies?: Record<string, string>
+        }
+        pkg.devDependencies = { ...pkg.devDependencies, 'is-odd': '^3.0.1' }
+        writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+        commitAll(dir, 'chore: post-init + seeded unused devDependency')
+
+        const install = spawnSync('npm', ['install', '--no-audit', '--no-fund'], {
+          cwd: dir,
+          encoding: 'utf-8',
+          timeout: 240_000,
+        })
+        expect(install.status, `npm install failed:\n${install.stderr}`).toBe(0)
+
+        const gate = runGate(dir, 'gate')
+        expect(
+          gate.status,
+          'a seeded unused devDependency must RED the default-level (L2) gate, not pass silently',
+        ).not.toBe(0)
+        expect(gate.output).toMatch(/dead code|unused devDependenc/i)
       },
       300_000,
     )
