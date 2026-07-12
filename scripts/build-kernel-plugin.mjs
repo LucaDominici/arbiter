@@ -7,6 +7,11 @@
 // config (no project-specific data leaks in); copies the already-standalone
 // (non-templated) safety hooks verbatim.
 //
+// Fail-closed (INV-96): all imperative work runs inside main(), wrapped in a
+// top-level try/catch that exits non-zero on ANY error — a render throw, a
+// missing source hook, or a non-zero prettier reformat all abort the build
+// instead of leaving a partial/unformatted plugin behind.
+//
 // Usage: node scripts/build-kernel-plugin.mjs  (run after `npm run build`)
 import { mkdirSync, writeFileSync, readFileSync, copyFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -19,7 +24,6 @@ import { DEFAULT_TASK_TIERS } from '../dist/config/schema.js'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
 const outDir = join(root, 'packages', 'kernel', 'hooks')
-mkdirSync(outDir, { recursive: true })
 
 // Neutral representative config — deliberately generic (no company/product
 // name, per the playbook's no-company-reference rule §0.4). Only the fields
@@ -73,8 +77,6 @@ function buildRenderContext(cfg) {
   return { ...cfg, taskTiers, ...axes }
 }
 
-const data = buildRenderContext(config)
-
 // The J1 kernel — completion-integrity, EJS-templated, rendered once here.
 // Deliberately does NOT render hooks.mjs.ejs (the full-set dispatcher) — that
 // dispatcher's HANDLERS table assumes arbiter's entire ~25-hook emission, so
@@ -88,12 +90,6 @@ const RENDERED = [
   ['claude/hooks/guard-done-evidence.mjs.ejs', 'guard-done-evidence.mjs'],
 ]
 
-for (const [tpl, out] of RENDERED) {
-  const content = renderTemplate(tpl, data)
-  writeFileSync(join(outDir, out), content, 'utf-8')
-  process.stdout.write(`  rendered ${tpl} -> hooks/${out}\n`)
-}
-
 // Already-standalone (non-templated) safety hooks — copied verbatim, byte-
 // identical to what arbiter emits (no divergence possible by construction).
 const COPIED = [
@@ -105,66 +101,83 @@ const COPIED = [
   'check-no-placeholders.mjs',
 ]
 
-for (const name of COPIED) {
-  const src = join(root, 'src', 'templates', 'claude', 'hooks', name)
-  copyFileSync(src, join(outDir, name))
-  process.stdout.write(`  copied   claude/hooks/${name} -> hooks/${name}\n`)
-}
+function main() {
+  mkdirSync(outDir, { recursive: true })
 
-process.stdout.write(
-  `\nbuild-kernel-plugin: ${RENDERED.length} rendered + ${COPIED.length} copied -> packages/kernel/hooks/\n`,
-)
+  const data = buildRenderContext(config)
 
-// hooks.json — direct per-event wiring (mirrors arbiter's own dogfooded
-// .claude/settings.json; NOT the full-set hooks.mjs dispatcher, see above).
-// ${CLAUDE_PLUGIN_ROOT} is the documented Claude Code plugin path variable —
-// resolves to this plugin's install directory at load time.
-const ROOT = '${CLAUDE_PLUGIN_ROOT}'
-const cmd = (name) => ({
-  type: 'command',
-  command: `node ${ROOT}/hooks/${name}`,
-  timeout: 5,
-})
-const hooksJson = {
-  hooks: {
-    PreToolUse: [
-      { matcher: 'Bash', hooks: [cmd('stop-dangerous.mjs'), cmd('enforce-gate-before-pr.mjs')] },
-      {
-        matcher: 'Edit|Write',
-        hooks: [cmd('enforce-read-only.mjs'), cmd('pre-edit-ssot-guard.mjs')],
-      },
-    ],
-    PostToolUse: [
-      {
-        matcher: 'Edit|Write',
-        hooks: [cmd('check-no-orphan-todo.mjs'), cmd('check-no-placeholders.mjs')],
-      },
-    ],
-    UserPromptSubmit: [{ hooks: [{ ...cmd('guard-done-evidence.mjs'), timeout: 3 }] }],
-    Stop: [{ hooks: [{ ...cmd('stop-evidence-guard.mjs'), timeout: 5 }] }],
-  },
-}
-writeFileSync(
-  join(root, 'packages', 'kernel', 'hooks', 'hooks.json'),
-  JSON.stringify(hooksJson, null, 2) + '\n',
-  'utf-8',
-)
-process.stdout.write('  wrote    hooks/hooks.json (direct per-event wiring)\n')
+  for (const [tpl, out] of RENDERED) {
+    const content = renderTemplate(tpl, data)
+    writeFileSync(join(outDir, out), content, 'utf-8')
+    process.stdout.write(`  rendered ${tpl} -> hooks/${out}\n`)
+  }
 
-// Sanity: no leftover EJS delimiters in the rendered output.
-for (const [, out] of RENDERED) {
-  const body = readFileSync(join(outDir, out), 'utf-8')
-  if (body.includes('<%') || body.includes('%>')) {
-    process.stderr.write(`build-kernel-plugin: FAIL — ${out} still contains EJS delimiters\n`)
-    process.exit(1)
+  for (const name of COPIED) {
+    const src = join(root, 'src', 'templates', 'claude', 'hooks', name)
+    copyFileSync(src, join(outDir, name))
+    process.stdout.write(`  copied   claude/hooks/${name} -> hooks/${name}\n`)
+  }
+
+  process.stdout.write(
+    `\nbuild-kernel-plugin: ${RENDERED.length} rendered + ${COPIED.length} copied -> packages/kernel/hooks/\n`,
+  )
+
+  // hooks.json — direct per-event wiring (mirrors arbiter's own dogfooded
+  // .claude/settings.json; NOT the full-set hooks.mjs dispatcher, see above).
+  // ${CLAUDE_PLUGIN_ROOT} is the documented Claude Code plugin path variable —
+  // resolves to this plugin's install directory at load time.
+  const ROOT = '${CLAUDE_PLUGIN_ROOT}'
+  const cmd = (name) => ({
+    type: 'command',
+    command: `node ${ROOT}/hooks/${name}`,
+    timeout: 5,
+  })
+  const hooksJson = {
+    hooks: {
+      PreToolUse: [
+        { matcher: 'Bash', hooks: [cmd('stop-dangerous.mjs'), cmd('enforce-gate-before-pr.mjs')] },
+        {
+          matcher: 'Edit|Write',
+          hooks: [cmd('enforce-read-only.mjs'), cmd('pre-edit-ssot-guard.mjs')],
+        },
+      ],
+      PostToolUse: [
+        {
+          matcher: 'Edit|Write',
+          hooks: [cmd('check-no-orphan-todo.mjs'), cmd('check-no-placeholders.mjs')],
+        },
+      ],
+      UserPromptSubmit: [{ hooks: [{ ...cmd('guard-done-evidence.mjs'), timeout: 3 }] }],
+      Stop: [{ hooks: [{ ...cmd('stop-evidence-guard.mjs'), timeout: 5 }] }],
+    },
+  }
+  writeFileSync(join(outDir, 'hooks.json'), JSON.stringify(hooksJson, null, 2) + '\n', 'utf-8')
+  process.stdout.write('  wrote    hooks/hooks.json (direct per-event wiring)\n')
+
+  // Sanity: no leftover EJS delimiters in the rendered output.
+  for (const [, out] of RENDERED) {
+    const body = readFileSync(join(outDir, out), 'utf-8')
+    if (body.includes('<%') || body.includes('%>')) {
+      throw new Error(`${out} still contains EJS delimiters`)
+    }
+  }
+  process.stdout.write('build-kernel-plugin: OK — no leftover EJS delimiters\n')
+
+  // Reformat the rendered files (EJS output keeps the template's own semicolon
+  // style; the repo's format gate scans packages/ too) so the build stays
+  // reproducible without a manual `prettier --write` step afterward. Fail-closed:
+  // a non-zero prettier aborts the build rather than leaving an unformatted plugin.
+  const fmt = spawnSync('npx', ['prettier', '--write', outDir], { cwd: root, stdio: 'inherit' })
+  if (fmt.status !== 0) {
+    throw new Error(`prettier --write on ${outDir} exited ${fmt.status ?? 'null (spawn failed)'}`)
   }
 }
-process.stdout.write('build-kernel-plugin: OK — no leftover EJS delimiters\n')
 
-// Reformat the rendered files (EJS output keeps the template's own semicolon
-// style; the repo's format gate scans packages/ too) so the build stays
-// reproducible without a manual `prettier --write` step afterward.
-const fmt = spawnSync('npx', ['prettier', '--write', outDir], { cwd: root, stdio: 'inherit' })
-if (fmt.status !== 0) {
-  process.stderr.write('build-kernel-plugin: WARN — prettier --write on hooks/ did not exit 0\n')
+try {
+  main()
+} catch (err) {
+  process.stderr.write(
+    `build-kernel-plugin: FATAL — ${err instanceof Error ? err.message : String(err)}\n`,
+  )
+  process.exit(1)
 }

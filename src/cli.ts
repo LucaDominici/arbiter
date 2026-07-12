@@ -825,9 +825,7 @@ program
     }
   })
 
-const review = program
-  .command('review')
-  .description('Semantic diff between graph snapshots (#262)')
+const review = program.command('review').description('Semantic diff between graph snapshots (#262)')
 
 program
   .command('gold-audit [repo]')

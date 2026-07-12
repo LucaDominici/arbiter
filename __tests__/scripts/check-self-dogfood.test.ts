@@ -334,6 +334,36 @@ describe('classifyDivergence (CANON-14, #1838)', () => {
   })
 })
 
+// ─── T4 dogfood-closure: dated divergences (audit-mode is a STAGE) ────────────
+describe('classifyDivergence expiry (T4 dogfood-closure)', () => {
+  const diff = { added: ['self-hardening line'], removed: [] }
+  const NOW = Date.parse('2026-07-12')
+
+  it('passes an unexpired dated divergence whose pinned diff still matches', () => {
+    const entry = { path: 'x', reason: 'r', diffHash: hashDiff(diff), expires: '2026-08-15' }
+    expect(classifyDivergence(entry, diff, NOW)).toBeNull()
+  })
+
+  it('FAILS (red-path) an expired dated divergence even while its pinned diff still matches', () => {
+    const entry = { path: 'x', reason: 'r', diffHash: hashDiff(diff), expires: '2026-06-01' }
+    const violation = classifyDivergence(entry, diff, NOW)
+    expect(violation).not.toBeNull()
+    expect(violation?.reason).toContain('expired on 2026-06-01')
+  })
+
+  it('FAILS an entry with an unparseable expires value (fail-closed)', () => {
+    const entry = { path: 'x', reason: 'r', diffHash: hashDiff(diff), expires: 'soon' }
+    const violation = classifyDivergence(entry, diff, NOW)
+    expect(violation).not.toBeNull()
+    expect(violation?.reason).toContain('unparseable "expires"')
+  })
+
+  it('leaves undated (permanent-by-design) divergences unaffected', () => {
+    const entry = { path: 'x', reason: 'r', diffHash: hashDiff(diff) }
+    expect(classifyDivergence(entry, diff, NOW)).toBeNull()
+  })
+})
+
 // ─── CANON-14 non-vacuity proof: drift INSIDE an allowlisted file goes red ────
 // Before #1838 an allowlist entry skipped the whole file — new drift inside it
 // was invisible (the class that let guard-done-evidence vs stop-evidence-guard

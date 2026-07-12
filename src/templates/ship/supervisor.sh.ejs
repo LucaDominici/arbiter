@@ -2,8 +2,9 @@
 # arbiter ship driver — stateless tick supervisor.
 # State lives on GitHub (issues, labels, PRs) and in the arbiter engine's files;
 # this loop holds none. One tick = one bounded agent run; a dead tick loses nothing.
-# Sequencing, failure memory, and the 2-strike policy are engine-owned
-# (`arbiter ship`, `arbiter ship-on-red`) — this script must never reimplement them.
+# Sequencing is engine-owned (`arbiter ship`); failure memory and the 2-strike policy
+# live in the PR's own comment history, read by the tick agent — this script must never
+# reimplement them.
 set -euo pipefail
 
 REPO_DIR="${1:?usage: supervisor.sh /path/to/repo}"

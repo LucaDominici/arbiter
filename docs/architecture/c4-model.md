@@ -6,8 +6,7 @@ last_review: '2026-07-11'
 owner: ''
 canonical_id: 'C4-MODEL'
 tags: ['audience/dev', 'kind/spine', 'kind/architecture']
-related:
-  ['docs/architecture/arc42.md', 'docs/internal/architecture/ARCHITECTURE.md']
+related: ['docs/architecture/arc42.md', 'docs/internal/architecture/ARCHITECTURE.md']
 ---
 
 # Arbiter — C4 Model
@@ -143,31 +142,31 @@ graph TB
 
 **Container responsibilities (one line each)**
 
-| Container | Responsibility |
-|-----------|----------------|
-| CLI Front Controller | `commander` command surface; routes to command handlers; registers hidden/experimental commands |
-| Wizard / Init | Interactive + flag-driven project bootstrap; produces a `ProjectConfig` |
-| Detectors | Auto-detect language, framework/build tool, archetype from repo signals |
-| Profile Resolver | Resolve one `ProjectProfile` from config across 5 orthogonal axes; single precedence layer (ADR-094) |
-| Generators | 85 generators; each renders its templates and writes with the correct conflict strategy |
-| Template Engine | EJS render of 554 `.ejs` files; `governanceLevel` guards; static files copied verbatim |
-| Write Pipeline | `backup` / `skipIfExists` / deep-merge strategies; atomic tmp+rename; SIG cleanup |
-| Invariant Catalog | Machine-readable INV-NN rules; `selfOnly` filters arbiter-internal rules from generated output |
-| KIT Catalog | Dimension taxonomy (wrap-not-replace); links dims → invariants → validators |
-| Compatibility Matrix | `language × archetype` "proven" cells; every proven cell must be gated + fixtured (CANON-02/03) |
-| Conformance Engine | Evaluate dimensions → `PASS / HALF / FAKE / FAIL` verdicts (ADR-083) |
-| Gate Runner | `check-all.mjs` orchestrates the L1⊂L2⊂L3 check ladder |
-| Gold Audit | Score arbiter's own governance completeness (D-* dimensions) against a ratcheted baseline |
-| Self-Dogfood Check | Fail-closed diff between shipped templates and arbiter's materialized `.claude/` |
-| Ship Engine | Deterministic next-action computer; phase→step; advance-on-green |
-| Task State Machine | 10-phase lifecycle; single-writer `status.json`; handoff/clear strategy |
-| Verification Bridge | Plan-review rule engine; claim-verified gates (plan digest, TDD evidence, enforcement-weakening) |
-| Fix-on-Red | Failure-signature 2-strike engine; fail-closed `escalate-uncertain` |
-| Gate Mutex | `flock(1)` serialization of expensive gates across parallel worktrees of one repo |
-| Worktree Manager | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest |
-| Evidence Store | Append-only TDD / plan-review / red-team / gate / companion artifacts under `.arbiter/` |
-| Provenance Graph | First-class `enforces` / `proves` edges linking invariants ↔ gates ↔ tests |
-| Plugin API | Third-party scaffolders + memory interface (v1.1) |
+| Container            | Responsibility                                                                                       |
+| -------------------- | ---------------------------------------------------------------------------------------------------- |
+| CLI Front Controller | `commander` command surface; routes to command handlers; registers hidden/experimental commands      |
+| Wizard / Init        | Interactive + flag-driven project bootstrap; produces a `ProjectConfig`                              |
+| Detectors            | Auto-detect language, framework/build tool, archetype from repo signals                              |
+| Profile Resolver     | Resolve one `ProjectProfile` from config across 5 orthogonal axes; single precedence layer (ADR-094) |
+| Generators           | 85 generators; each renders its templates and writes with the correct conflict strategy              |
+| Template Engine      | EJS render of 554 `.ejs` files; `governanceLevel` guards; static files copied verbatim               |
+| Write Pipeline       | `backup` / `skipIfExists` / deep-merge strategies; atomic tmp+rename; SIG cleanup                    |
+| Invariant Catalog    | Machine-readable INV-NN rules; `selfOnly` filters arbiter-internal rules from generated output       |
+| KIT Catalog          | Dimension taxonomy (wrap-not-replace); links dims → invariants → validators                          |
+| Compatibility Matrix | `language × archetype` "proven" cells; every proven cell must be gated + fixtured (CANON-02/03)      |
+| Conformance Engine   | Evaluate dimensions → `PASS / HALF / FAKE / FAIL` verdicts (ADR-083)                                 |
+| Gate Runner          | `check-all.mjs` orchestrates the L1⊂L2⊂L3 check ladder                                               |
+| Gold Audit           | Score arbiter's own governance completeness (D-* dimensions) against a ratcheted baseline            |
+| Self-Dogfood Check   | Fail-closed diff between shipped templates and arbiter's materialized `.claude/`                     |
+| Ship Engine          | Deterministic next-action computer; phase→step; advance-on-green                                     |
+| Task State Machine   | 10-phase lifecycle; single-writer `status.json`; handoff/clear strategy                              |
+| Verification Bridge  | Plan-review rule engine; claim-verified gates (plan digest, TDD evidence, enforcement-weakening)     |
+| Fix-on-Red           | Failure-signature 2-strike engine; fail-closed `escalate-uncertain`                                  |
+| Gate Mutex           | `flock(1)` serialization of expensive gates across parallel worktrees of one repo                    |
+| Worktree Manager     | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest                             |
+| Evidence Store       | Append-only TDD / plan-review / red-team / gate / companion artifacts under `.arbiter/`              |
+| Provenance Graph     | First-class `enforces` / `proves` edges linking invariants ↔ gates ↔ tests                           |
+| Plugin API           | Third-party scaffolders + memory interface (v1.1)                                                    |
 
 ---
 
@@ -176,9 +175,9 @@ graph TB
 This is the heart of the system: **how arbiter decides when to challenge, how many reviewers to
 dispatch, which review verticals fire, and how completion is gated on correlated evidence.**
 
-The design principle is a **two-layer split**: arbiter's TypeScript engine is a *deterministic
-next-action computer* that **cannot write code or dispatch review sub-agents**; the generated
-`/ship` slash command is the *model-driven driver loop* that executes the model-requiring steps
+The design principle is a **two-layer split**: arbiter's TypeScript engine is a _deterministic
+next-action computer_ that **cannot write code or dispatch review sub-agents**; the generated
+`/ship` slash command is the _model-driven driver loop_ that executes the model-requiring steps
 between engine calls (`task-ship.ts:3-10`).
 
 ```mermaid
@@ -240,12 +239,12 @@ deliberately removed and is refused re-entry (`AGENTS.md` §Model-Pyramid; `task
 
 **2. Four distinct count-axes all derive from tier — do not conflate them:**
 
-| Axis | XS | S | Standard | Source |
-|------|----|----|----------|--------|
-| Red-team challenge agents | 1 | 2 | 3 | `task-ship.ts:77` |
-| Refactor-phase review agents | 3 | 3 | 4 | `task-ship.ts:79` |
-| `/review-code` reviewers | 3 | 3 | 5 | `.claude/commands/review-code.md` |
-| Review **verticals** (breadth) | 3 | 4 | 7 | `task-ship.ts:96-100` |
+| Axis                           | XS  | S   | Standard | Source                            |
+| ------------------------------ | --- | --- | -------- | --------------------------------- |
+| Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77`                 |
+| Refactor-phase review agents   | 3   | 3   | 4        | `task-ship.ts:79`                 |
+| `/review-code` reviewers       | 3   | 3   | 5        | `.claude/commands/review-code.md` |
+| Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100`             |
 
 Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`; Standard =
 `+security, data-integrity, silent-failures`.
@@ -260,7 +259,7 @@ raise the verdict score (no inflation by omission).
 **4. The weighted verdict makes unresolved findings mathematically block PASS.**
 `score = 100 × Σ(weight of passing active auditors) / Σ(weight of ALL active auditors)`; ladder
 `≥80 PASS / ≥60 CONCERNS / ≥40 REWORK / <40 FAIL`. Every still-`resolved:false` red-team finding
-caps its mapped auditor's score to 0 (`--caps`), so findings-resolution is *enforced arithmetic*,
+caps its mapped auditor's score to 0 (`--caps`), so findings-resolution is _enforced arithmetic_,
 not advice.
 
 **5. Completion is fail-closed on three correlated artifacts (INV-114).**
@@ -271,8 +270,8 @@ current branch+SHA. "I reviewed it" without real agent tool-calls does not satis
 
 **6. Governance level and collaboration mode gate the whole ceremony.**
 At `governanceLevel === 'L1'` there is **no** red-team / multi-agent review phase at all. In
-`trunk-solo` collaboration mode the review swarm collapses to *1 self-review agent + 1 adversarial
-verifier*. Autonomy grants (`AUTONOMY_GRANTS`, `ship-profile.ts:153-165`) scale L0→L3 what the loop
+`trunk-solo` collaboration mode the review swarm collapses to _1 self-review agent + 1 adversarial
+verifier_. Autonomy grants (`AUTONOMY_GRANTS`, `ship-profile.ts:153-165`) scale L0→L3 what the loop
 may do unattended (auto-advance, auto-merge, fix-on-red, wave-batch, sub-agent auto-spawn) — but
 floor invariants (2-strike, reproduce-before-push, no `--no-verify`, no commit-to-main) **cannot be
 granted away**.

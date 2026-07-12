@@ -6,12 +6,16 @@ import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
 describe('scripts/conformance.mjs.ejs render (CANON-04, #1398)', () => {
-  it('renders without error and contains arbiter conformance invocation', () => {
+  it('renders a self-contained advisory that no longer shells out to the retired command', () => {
     const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
     const content = renderTemplate('scripts/conformance.mjs.ejs', config)
     expect(content.trim().length).toBeGreaterThan(0)
-    expect(content).toContain('arbiter')
-    expect(content).toContain('conformance')
+    // The standalone `arbiter conformance` command was retired — the runner must NOT
+    // spawn it (a generated project would call a dead command and fail).
+    expect(content).not.toContain('spawnSync')
+    expect(content).not.toMatch(/'conformance'\s*,/)
+    // Intent preserved: it points at the surviving governance scorecard.
+    expect(content).toContain('gold-audit')
   })
 
   it('rendered output starts with shebang', () => {
@@ -24,5 +28,12 @@ describe('scripts/conformance.mjs.ejs render (CANON-04, #1398)', () => {
     const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
     const content = renderTemplate('scripts/conformance.mjs.ejs', config)
     expect(content).toContain('SPDX-License-Identifier: Apache-2.0')
+  })
+
+  it('is fail-closed (INV-96): a top-level catch exits non-zero on unexpected error', () => {
+    const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
+    const content = renderTemplate('scripts/conformance.mjs.ejs', config)
+    expect(content).toMatch(/catch\s*\([^)]*\)\s*\{/)
+    expect(content).toContain('process.exit(1)')
   })
 })
