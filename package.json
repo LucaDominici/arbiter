@@ -3,6 +3,22 @@
   "version": "0.5.0",
   "description": "Governance installer for AI-assisted software development, with an optional orchestration layer",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LucaDominici/arbiter.git"
+  },
+  "homepage": "https://github.com/LucaDominici/arbiter#readme",
+  "bugs": {
+    "url": "https://github.com/LucaDominici/arbiter/issues"
+  },
+  "keywords": [
+    "ai-governance",
+    "cli",
+    "quality-gates",
+    "invariants",
+    "agent-orchestration",
+    "developer-tools"
+  ],
   "type": "module",
   "packageManager": "npm@10.9.8",
   "bin": {
