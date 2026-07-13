@@ -238,7 +238,7 @@
     "scripts/check-all.mjs": "419a2c8ec412f5f8ec62eec6d772c0e08cae6112df4afecd4c0677485d2adc69",
     "scripts/check-anti-fake-green.mjs": "0d80f4e025a95c0e1c7883afa01c367acce9a1eb0175bcb8914e1feed5ad02cb",
     "scripts/check-anti-proforma.mjs": "643580620a7413225eabbbae4ad96927c572fbb5962357052ef6dedb177b82d4",
-    "scripts/check-api-e2e.mjs": "157572cb0e54a46a779df74300d09b42b3312713efebcf8a2498fa382dc80ed0",
+    "scripts/check-api-e2e.mjs": "24a4614e74aa42ad2e2b8648197b4bfe34422a53e986bb56172ff99214213f18",
     "scripts/check-canonical-paths.mjs": "598290fc9b9bf388ba0a2e1c95deb47afabdfb37283a11f1e0c50ee03b3ca3b4",
     "scripts/check-ci-tiers.mjs": "3476946090f7e8bb233b0a63cf0a3dc871e77650609db6bc639e3cbbf35bbd92",
     "scripts/check-claude-md-lint.mjs": "012d140f4b828df476dbf0a0f85018265d2a535227afcb2ae1b84ed9d6942c55",
