@@ -925,6 +925,12 @@ program
       '(solo/small/enterprise) — see standards/gold-doc-set.yml `tiers{}`.',
   )
   .option('--strict', 'Exit 1 if any mandatory doc is missing (default: advisory, exit 0)', false)
+  .option(
+    '--check',
+    'Run the default advisory presence audit (backward-compat alias for the no-flag default; ' +
+      'emitted governed-repo runners pass it)',
+    false,
+  )
   .option('--json', 'Emit the audit as JSON', false)
   .option('--generate', 'Scaffold stub files for missing mandatory+recommended .md docs', false)
   .option(
