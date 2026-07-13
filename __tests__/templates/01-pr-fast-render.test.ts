@@ -95,39 +95,14 @@ describe('01-pr-fast.yml.ejs — structural invariants (CANON-18, #1131)', () =>
 
 // #1227 — Parallelization assertions (ADR-090: chain ≤ 3, parallel after gate)
 // Red phase: these tests FAIL before the needs: [unit-tests] → needs: [gate] fix.
+//
+// #1875: contract-tests/integration-tests/behavioral-tests no longer render in
+// 01-pr-fast.yml.ejs at all (moved to 02-pr-extended.yml.ejs, T2) — the DAG
+// parallelism assertions for those two jobs were removed accordingly; the
+// remaining T1 fan-out (unit-tests, sonar-scan, debt-gates, debt-ratchet, ...)
+// still exercises the same ≥3-parallel-dependents invariant.
 describe('01-pr-fast.yml.ejs — DAG parallelism (#1227, ADR-090)', () => {
-  // TypeScript path: integration-tests and behavioral-tests must depend on gate,
-  // not on unit-tests. Serial chain gate→unit→integration is a 4-step critical path.
-  it('typescript L2: integration-tests depends on gate, not unit-tests', () => {
-    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
-    // Must NOT have needs: [unit-tests] for integration-tests job
-    expect(rendered).not.toMatch(/integration-tests:[\s\S]*?needs:\s*\[unit-tests\]/)
-    // Must have needs: [gate] instead
-    expect(rendered).toMatch(/integration-tests:[\s\S]{0,200}?needs:\s*\[gate, classify-changes\]/)
-  })
-
-  it('typescript L2: behavioral-tests depends on gate, not unit-tests', () => {
-    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
-    // Must NOT have needs: [unit-tests] for behavioral-tests job
-    expect(rendered).not.toMatch(/behavioral-tests:[\s\S]*?needs:\s*\[unit-tests\]/)
-    // Must have needs: [gate] instead
-    expect(rendered).toMatch(/behavioral-tests:[\s\S]{0,200}?needs:\s*\[gate, classify-changes\]/)
-  })
-
-  // Java path: same serial chain fix required
-  it('java gradle L2: integration-tests depends on gate, not unit-tests', () => {
-    const rendered = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L2' })
-    expect(rendered).not.toMatch(/integration-tests:[\s\S]*?needs:\s*\[unit-tests\]/)
-    expect(rendered).toMatch(/integration-tests:[\s\S]{0,200}?needs:\s*\[gate, classify-changes\]/)
-  })
-
-  it('java gradle L2: behavioral-tests depends on gate, not unit-tests', () => {
-    const rendered = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L2' })
-    expect(rendered).not.toMatch(/behavioral-tests:[\s\S]*?needs:\s*\[unit-tests\]/)
-    expect(rendered).toMatch(/behavioral-tests:[\s\S]{0,200}?needs:\s*\[gate, classify-changes\]/)
-  })
-
-  // Parallel jobs count: after the fix, gate has ≥3 direct dependents (unit, integration, behavioral)
+  // Parallel jobs count: gate has ≥3 direct dependents (unit-tests, sonar-scan, debt-gates, ...)
   it('typescript L2: gate has at least 3 parallel direct dependents', () => {
     const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
     // Count job blocks that depend directly on gate (gate as first need; some also add classify-changes)
@@ -140,16 +115,6 @@ describe('01-pr-fast.yml.ejs — DAG parallelism (#1227, ADR-090)', () => {
   it('typescript L2: unit-tests job has strategy.max-parallel: 2', () => {
     const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
     expect(rendered).toMatch(/unit-tests:[\s\S]{0,200}?strategy:\s*\n\s+max-parallel:\s*2/)
-  })
-
-  it('typescript L2: integration-tests job has strategy.max-parallel: 2', () => {
-    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
-    expect(rendered).toMatch(/integration-tests:[\s\S]{0,200}?strategy:\s*\n\s+max-parallel:\s*2/)
-  })
-
-  it('typescript L2: behavioral-tests job has strategy.max-parallel: 2', () => {
-    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
-    expect(rendered).toMatch(/behavioral-tests:[\s\S]{0,200}?strategy:\s*\n\s+max-parallel:\s*2/)
   })
 
   it('java gradle L2: unit-tests job has strategy.max-parallel: 2', () => {
@@ -247,9 +212,11 @@ describe('01-pr-fast.yml.ejs — build-cache wiring (E2, #1500)', () => {
 
   it('self-host: test jobs restore the cache instead of re-running npm run build', () => {
     const rendered = renderSelfHost()
-    // Each of the 4 test jobs replaced its inline `npm run build && build-kit`
-    // prefix with a restore step (build-kit still runs, fed by restored/rebuilt dist).
-    const unit = (rendered.split('  unit-tests:')[1] ?? '').split('\n  contract-tests:')[0]
+    // unit-tests replaced its inline `npm run build && build-kit` prefix with a
+    // restore step (build-kit still runs, fed by restored/rebuilt dist).
+    // #1875: contract-tests no longer follows unit-tests in 01-pr-fast (moved to
+    // T2) — split on the next 2-space job header instead of a hardcoded name.
+    const unit = (rendered.split('  unit-tests:')[1] ?? '').split(/\n {2}(?=\S)/)[0]
     expect(unit).toContain('op: restore')
     expect(unit).not.toContain('npm run build && node scripts/build-kit.mjs')
     // unit-tests now depends on build-workspace.
