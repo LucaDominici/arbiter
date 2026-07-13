@@ -232,7 +232,7 @@ function shipStepBody(
         // (resolved through the unified resolver): they tell the wave orchestrator whether
         // to group affinity-related issues and how many worktrees may run concurrently.
         action: planAction(profile),
-        command: 'arbiter review plan <plan-file>',
+        command: 'arbiter verify plan <plan-file>',
         reviewAgents: 0,
       }
     case 'red-team-review':
