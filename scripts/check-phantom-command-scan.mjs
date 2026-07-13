@@ -65,7 +65,18 @@ const ROOTS = argValue('roots')
 // scan-root extension — .claude/skills, .claude/commands, .claude/agents, src/templates,
 // *.md.ejs, spawn-array matching — is T5b′, out of scope here; this is only the narrow carve-out
 // needed so enrolling docs/design/ as gold docs (T5) doesn't break this pre-existing gate).
-const SKIP_PATH_SEGMENTS = [`${sep}internal${sep}`, `${sep}changelog${sep}`, `${sep}design${sep}`]
+// `audit` (docs/audit/release-readiness-verdict.md, seal/fable-docs): same class as `design` —
+// an audit report's job is to quote OTHER files' broken citations as EVIDENCE (`arbiter mark`,
+// `arbiter review plan`, `arbiter work close`, ...), not to assert those commands currently work.
+// A backtick-quoted phantom inside an audit finding is the bug being reported, not a live
+// user-facing promise this gate exists to police — flagging it would be the exact self-referential
+// false positive the verdict doc's own B1 section already documents happening to another file.
+const SKIP_PATH_SEGMENTS = [
+  `${sep}internal${sep}`,
+  `${sep}changelog${sep}`,
+  `${sep}design${sep}`,
+  `${sep}audit${sep}`,
+]
 
 // `help` is commander's built-in meta-command — extractTopLevelCommandNames
 // deliberately excludes it (gen-cli-ref.mjs's generated table doesn't need a

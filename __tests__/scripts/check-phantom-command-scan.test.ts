@@ -111,6 +111,31 @@ describe('check-phantom-command-scan.mjs — synthetic phantom command fails clo
     }
   })
 
+  it('skips docs/audit/ — an audit report quoting a phantom command as evidence is not a live promise', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-scan-audit-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('init').description('Init')\n",
+      )
+      const docsDir = join(dir, 'docs')
+      mkdirSync(join(docsDir, 'audit'), { recursive: true })
+      writeFileSync(
+        join(docsDir, 'audit', 'release-readiness-verdict.md'),
+        '- `arbiter frobnicate` — cited in ship.md.ejs; this command does not exist.\n',
+      )
+      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${docsDir}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(0)
+      expect(r.stdout).not.toContain('phantom:')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('exits 0 when the cited command is a real alias, not registered as its own .command()', () => {
     const dir = mkdtempSync(join(tmpdir(), 'phantom-scan-alias-'))
     try {
