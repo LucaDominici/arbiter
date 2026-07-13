@@ -337,60 +337,13 @@ jobs:
           path: test-results/
           retention-days: 7
 <% } %>
-
-  contract-tests:
-    name: Contract Tests
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-    strategy:
-      max-parallel: 2
-<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
-<% } %>    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-node-pnpm
-<% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
-        uses: ./.github/actions/build-cache
-        with:
-          op: restore
-      - run: node scripts/build-kit.mjs
-<% } %>      - run: npm run test:contract
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-    strategy:
-      max-parallel: 2
-<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
-<% } %>    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-node-pnpm
-<% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
-        uses: ./.github/actions/build-cache
-        with:
-          op: restore
-      - run: node scripts/build-kit.mjs
-<% } %>      - run: npm run test:integration
-
-  behavioral-tests:
-    name: Behavioral Tests
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-    strategy:
-      max-parallel: 2
-<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
-<% } %>    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-node-pnpm
-<% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
-        uses: ./.github/actions/build-cache
-        with:
-          op: restore
-      - run: node scripts/build-kit.mjs
-<% } %>      - run: npm run test:behavioral
+<%# #1875: contract-tests/integration-tests/behavioral-tests moved OFF the
+    always-run T1 lane to 02-pr-extended.yml.ejs (T2, conditionally triggered).
+    They used to fan out from `gate` unconditionally on every PR — on arbiter's
+    own dogfooded CI, `contract-tests` alone measured ~12min, blowing the
+    15min T1 budget (ADR-090). docs/REFERENCE/ci-tier-workflows.md already
+    documented the "Extended gate" tier as the correct home for this suite;
+    the template just hadn't caught up. -%>
 
 <% } %><% if (language === 'rust') { %>
   gate:
@@ -538,71 +491,10 @@ jobs:
           path: ${{ runner.temp }}/.m2-reactor
       - run: mvn surefire:test -Dtest="*ArchTest" --offline
 <% } %>
-<% } %>  contract-tests:
-    name: Contract Tests (Java)
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-<% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } else { %>    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } %>    strategy:
-      max-parallel: 2
-<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
-<% } %>    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-java-maven
-<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
-      - run: ./gradlew contractTest
-<% } else { %>      - name: Download reactor M2 artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
-        with:
-          name: reactor-m2-${{ github.run_id }}
-          path: ${{ runner.temp }}/.m2-reactor
-      - run: mvn surefire:test -Pcontract --offline
 <% } %>
-
-  integration-tests:
-    name: Integration Tests (Java)
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-<% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } else { %>    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } %>    strategy:
-      max-parallel: 2
-<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
-<% } %>    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-java-maven
-<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
-      - run: ./gradlew integrationTest
-<% } else { %>      - name: Download reactor M2 artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
-        with:
-          name: reactor-m2-${{ github.run_id }}
-          path: ${{ runner.temp }}/.m2-reactor
-      - run: mvn surefire:test -Pintegration --offline
-<% } %>
-
-  behavioral-tests:
-    name: Behavioral Tests (Java)
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-<% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } else { %>    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } %>    strategy:
-      max-parallel: 2
-<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
-<% } %>    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-java-maven
-<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
-      - run: ./gradlew behavioralTest
-<% } else { %>      - name: Download reactor M2 artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
-        with:
-          name: reactor-m2-${{ github.run_id }}
-          path: ${{ runner.temp }}/.m2-reactor
-      - run: mvn surefire:test -Pbehavioral --offline
-<% } %>
+<%# #1875: contract-tests/integration-tests/behavioral-tests (Java) moved OFF
+    the always-run T1 lane to 02-pr-extended.yml.ejs (T2, conditionally
+    triggered) — mirrors the TypeScript move above. -%>
 
 <% } %><% if (language === 'go') { %>
   gate:
@@ -1000,8 +892,11 @@ jobs:
   const _ciNeeds = ['gate'];
   if (_humanApproval) _ciNeeds.push('human-approval-required');
   if (language === 'java' && buildTool === 'maven') _ciNeeds.push('build-reactor');
+  // #1875: contract-tests/integration-tests/behavioral-tests moved to the T2
+  // (02-pr-extended) conditional lane — only unit-tests stays on the always-run
+  // T1 path.
   if (language === 'typescript' || language === 'java') {
-    _ciNeeds.push('unit-tests', 'contract-tests', 'integration-tests', 'behavioral-tests');
+    _ciNeeds.push('unit-tests');
   }
   if (language === 'typescript' && locals.enableNativeBakeE2E) _ciNeeds.push('generated-gate-min');
   // #1512: the per-PR ArchUnit (*ArchTest) lane is a BLOCKING required check for Java L2+.
@@ -1046,18 +941,6 @@ jobs:
 <% } if (language === 'typescript' || language === 'java') { %>
           if ! ok "${{ needs.unit-tests.result }}"; then
             echo "unit-tests failed"
-            exit 1
-          fi
-          if ! ok "${{ needs.contract-tests.result }}"; then
-            echo "contract-tests failed"
-            exit 1
-          fi
-          if ! ok "${{ needs.integration-tests.result }}"; then
-            echo "integration-tests failed"
-            exit 1
-          fi
-          if ! ok "${{ needs.behavioral-tests.result }}"; then
-            echo "behavioral-tests failed"
             exit 1
           fi
 <% } %><% if (language === 'typescript' && locals.enableNativeBakeE2E) { %>

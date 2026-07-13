@@ -287,60 +287,6 @@ jobs:
           retention-days: 7
 
 
-  contract-tests:
-    name: Contract Tests
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [gate, build-workspace, classify-changes]
-    strategy:
-      max-parallel: 2
-    if: needs.classify-changes.outputs.docs_only != 'true'
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-node-pnpm
-      - name: Restore cached workspace build (non-blocking)
-        uses: ./.github/actions/build-cache
-        with:
-          op: restore
-      - run: node scripts/build-kit.mjs
-      - run: npm run test:contract
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [gate, build-workspace, classify-changes]
-    strategy:
-      max-parallel: 2
-    if: needs.classify-changes.outputs.docs_only != 'true'
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-node-pnpm
-      - name: Restore cached workspace build (non-blocking)
-        uses: ./.github/actions/build-cache
-        with:
-          op: restore
-      - run: node scripts/build-kit.mjs
-      - run: npm run test:integration
-
-  behavioral-tests:
-    name: Behavioral Tests
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [gate, build-workspace, classify-changes]
-    strategy:
-      max-parallel: 2
-    if: needs.classify-changes.outputs.docs_only != 'true'
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: ./.github/actions/setup-node-pnpm
-      - name: Restore cached workspace build (non-blocking)
-        uses: ./.github/actions/build-cache
-        with:
-          op: restore
-      - run: node scripts/build-kit.mjs
-      - run: npm run test:behavioral
-
 
 
 
@@ -537,7 +483,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 
-    needs: [gate, unit-tests, contract-tests, integration-tests, behavioral-tests, generated-gate-min, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, gate-full, debt-gates, debt-ratchet, classify-changes]
+    needs: [gate, unit-tests, generated-gate-min, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, gate-full, debt-gates, debt-ratchet, classify-changes]
     if: always()
     steps:
       - env:
@@ -557,18 +503,6 @@ jobs:
 
           if ! ok "${{ needs.unit-tests.result }}"; then
             echo "unit-tests failed"
-            exit 1
-          fi
-          if ! ok "${{ needs.contract-tests.result }}"; then
-            echo "contract-tests failed"
-            exit 1
-          fi
-          if ! ok "${{ needs.integration-tests.result }}"; then
-            echo "integration-tests failed"
-            exit 1
-          fi
-          if ! ok "${{ needs.behavioral-tests.result }}"; then
-            echo "behavioral-tests failed"
             exit 1
           fi
 
