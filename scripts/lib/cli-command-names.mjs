@@ -52,3 +52,41 @@ export function extractCommandAliases(src) {
   const aliasRe = /\.alias\('([^'\n]+)'\)/g
   return new Set([...stripped.matchAll(aliasRe)].map((m) => m[1].trim()))
 }
+
+/**
+ * Extract the set of `--flag` tokens registered via `.option(...)` on a single
+ * top-level command's block in src/cli.ts (T5b'' #1944, flag-surface extension
+ * of the CLI-emitted-surface ledger). Deliberately a smaller, standalone
+ * extraction rather than exposing gen-cli-ref.mjs's parseCliTs block-scoping
+ * regex: parseCliTs is already covered by its own render-parity tests and
+ * builds a full {description, options, subcommands} shape for the doc
+ * generator — reusing it here only for flag names would mean importing (and
+ * being coupled to) machinery this caller doesn't need. This function shares
+ * the same block-scoping strategy (bounded lookahead to the next `.command('`
+ * registration) so both stay in sync by construction, not by cross-import.
+ *
+ * Returns null if the command itself isn't found in src (caller's job to
+ * treat "command doesn't exist" as its own, distinct failure).
+ */
+export function extractCommandOptions(src, commandName) {
+  const stripped = src.replace(/\/\/.*/g, '')
+  const escaped = commandName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const blockRe = new RegExp(
+    `\\.command\\('${escaped}(?: [^']*)?'(?:,\\s*\\{\\s*hidden:\\s*true\\s*\\})?\\)([\\s\\S]{0,6000}?)(?=\\.command\\('|const |var |let |\\bprogram\\b|$)`,
+  )
+  const m = blockRe.exec(stripped)
+  if (!m) return null
+
+  const flags = new Set()
+  for (const om of m[0].matchAll(/\.option\(\s*['"]([^'"]+)['"]/g)) {
+    // A flags spec may carry a short+long pair ("-y, --yes") or a value
+    // placeholder ("--manifest <path>") — split on whitespace/comma and keep
+    // only the `--long` token(s); short-only flags are not part of this
+    // ledger's vocabulary (every emitted-surface citation seen to date uses
+    // the long form).
+    for (const tok of om[1].split(/[\s,]+/)) {
+      if (tok.startsWith('--')) flags.add(tok)
+    }
+  }
+  return flags
+}

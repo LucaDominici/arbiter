@@ -56,6 +56,10 @@
     {
       "path": "scripts/check-regulated-overlay.mjs",
       "rationale": "Emitted only when the opt-in regulated/high-assurance governance overlay is selected (#1497). check-all.mjs references it behind existsSync(); a project without the overlay skips it gracefully. Absent on projects without that overlay."
+    },
+    {
+      "path": "scripts/check-touched-vs-manifest.mjs",
+      "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs — check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
     }
   ]
 }

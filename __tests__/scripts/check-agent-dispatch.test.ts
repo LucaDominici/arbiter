@@ -83,3 +83,66 @@ describe('check-agent-dispatch — catches a planted mismatch (AC4)', () => {
     expect(r.status).not.toBe(0)
   })
 })
+
+describe('check-agent-dispatch — refutation_skeptics parity (M13 #1943)', () => {
+  let tmp: string
+
+  beforeAll(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'agent-dispatch-refut-'))
+    mkdirSync(join(tmp, '.claude', 'skills', 'refutation'), { recursive: true })
+    cpSync(MATRIX, join(tmp, '.claude/agent-dispatch-matrix.json'))
+    cpSync(
+      join(REPO_ROOT, '.claude/agent-dispatch-matrix.schema.json'),
+      join(tmp, '.claude/agent-dispatch-matrix.schema.json'),
+    )
+    cpSync(
+      join(REPO_ROOT, '.claude/skills/refutation/SKILL.md'),
+      join(tmp, '.claude/skills/refutation/SKILL.md'),
+    )
+  })
+  afterAll(() => {
+    if (tmp && existsSync(tmp)) rmSync(tmp, { recursive: true, force: true })
+  })
+
+  it('exits 0 when matrix refutation_skeptics matches the skill N table', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, '--matrix-root', tmp], {
+      encoding: 'utf-8',
+      cwd: REPO_ROOT,
+      env: { ...process.env, NO_COLOR: '1' },
+    })
+    expect(r.status).toBe(0)
+  })
+
+  it('exits non-zero when matrix refutation_skeptics drifts from the skill N table', () => {
+    const m = JSON.parse(readFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), 'utf-8'))
+    m.refutation_skeptics.Standard = 5 // skill says 3
+    writeFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), JSON.stringify(m, null, 2))
+    const r = spawnSync(process.execPath, [SCRIPT, '--matrix-root', tmp], {
+      encoding: 'utf-8',
+      cwd: REPO_ROOT,
+      env: { ...process.env, NO_COLOR: '1' },
+    })
+    expect(r.status).not.toBe(0)
+    expect(`${r.stdout}${r.stderr}`).toMatch(/refutation_skeptics.*Standard.*drift/i)
+    // restore
+    m.refutation_skeptics.Standard = 3
+    writeFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), JSON.stringify(m, null, 2))
+  })
+
+  it('exits non-zero when matrix declares refutation_skeptics but the skill is absent', () => {
+    const noSkill = mkdtempSync(join(tmpdir(), 'agent-dispatch-no-skill-'))
+    mkdirSync(join(noSkill, '.claude'), { recursive: true })
+    cpSync(
+      join(tmp, '.claude/agent-dispatch-matrix.json'),
+      join(noSkill, '.claude/agent-dispatch-matrix.json'),
+    )
+    const r = spawnSync(process.execPath, [SCRIPT, '--matrix-root', noSkill], {
+      encoding: 'utf-8',
+      cwd: REPO_ROOT,
+      env: { ...process.env, NO_COLOR: '1' },
+    })
+    rmSync(noSkill, { recursive: true, force: true })
+    expect(r.status).not.toBe(0)
+    expect(`${r.stdout}${r.stderr}`).toMatch(/skill not found/i)
+  })
+})

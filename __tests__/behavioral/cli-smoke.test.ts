@@ -88,6 +88,25 @@ describe('arbiter CLI — top-level surface', () => {
     expect(stdout).toContain('--strict')
     expect(stdout).toContain('--doc-profile')
   })
+
+  // Cross-repo compat regression: the emitted governed-repo thin-runner
+  // (src/templates/scripts/check-doc-set.mjs.ejs) passes CLI argv straight through to
+  // `npx arbiter doc-set ...args`, and its own usage comment documents `--check` as a
+  // backward-compat alias for the no-flag advisory default. Commander never registered the
+  // option, so every emitted runner invoking `--check` (e.g. a governed repo's generated
+  // scripts/check-doc-set.mjs calling `node scripts/check-doc-set.mjs --check`) hit
+  // `error: unknown option '--check'` and died before the audit ever ran. Bootstrap mode
+  // (no manifest) keeps this fast and isolated.
+  it('doc-set --check exits 0 (backward-compat advisory alias, not an unknown option)', () => {
+    const dir = makeTmpDir()
+    try {
+      const { status, stderr } = spawn(['doc-set', '--check'], dir)
+      expect(stderr).not.toContain('unknown option')
+      expect(status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

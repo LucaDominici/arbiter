@@ -54,7 +54,7 @@ same customizable-install contract, if present in this repo).
 8. **Quarantine annotates, never suppresses (INV-130, #1817 A3).** A known-
    flaky test may be quarantined — owner, linked issue, and a TTL — but it
    still runs and still reports. An entry that is incomplete or past its TTL
-   fails closed (`arbiter conformance`, `scripts/check-e2e-quarantine.mjs`).
+   fails closed (`scripts/check-e2e-quarantine.mjs`).
    Quarantine is a spotlight, not a mute button.
 
 9. **No skip without an issue and a TTL.** A bare `test.skip(...)` is a gate
@@ -71,7 +71,7 @@ same customizable-install contract, if present in this repo).
 
 - Rules 7–8 are mechanically enforced: `scripts/check-e2e-quarantine.mjs`
   (Track-B, generated) and `DISC-e2e-quarantine`
-  (`src/conformance/dimensions.ts`, Track-A, `arbiter conformance`).
+  (`src/conformance/dimensions.ts`, Track-A).
 - Rules 1–6, 9–10 are process discipline — reviewed at PR time, not (yet)
   mechanically gated. A future gate absorbing one of these into a script
   should link back here, not duplicate the rationale.

@@ -132,6 +132,41 @@ for (const tier of matrix.axes.tier) {
   }
 }
 
+// ── 3. Refutation-skeptics parity (M13 #1943) ───────────────────────────────
+// The refutation skill's documented N table (.claude/skills/refutation/SKILL.md) MUST equal
+// the matrix `refutation_skeptics` block — N is declared, not improvised (M1/M10). A drift
+// here means the skill dispatches a different skeptic count than the dispatch SSOT promises.
+if (matrix.refutation_skeptics) {
+  const skillPath = join(matrixRoot, '.claude', 'skills', 'refutation', 'SKILL.md')
+  if (!existsSync(skillPath)) {
+    fail(`matrix declares refutation_skeptics but skill not found at ${skillPath}`)
+  }
+  let skillSrc
+  try {
+    skillSrc = readFileSync(skillPath, 'utf-8')
+  } catch (e) {
+    invoke(`cannot read refutation skill ${skillPath}: ${e.message}`)
+  }
+  for (const tier of matrix.axes.tier) {
+    const declaredN = matrix.refutation_skeptics[tier]
+    if (!Number.isInteger(declaredN)) {
+      fail(`refutation_skeptics.${tier} missing or not an integer in matrix`)
+    }
+    // The skill documents N as a markdown table row: `| <tier> | <N> |`.
+    const re = new RegExp(`\\|\\s*${tier}\\s*\\|\\s*(\\d+)\\s*\\|`)
+    const m = skillSrc.match(re)
+    if (!m) {
+      fail(`refutation skill ${skillPath} has no N-table row for tier "${tier}"`)
+    }
+    if (Number(m[1]) !== declaredN) {
+      fail(
+        `refutation_skeptics.${tier} drift: matrix declares ${declaredN} but skill documents ${m[1]}. ` +
+          `The matrix is the SSOT; update the skill N table (or the matrix) so they agree.`,
+      )
+    }
+  }
+}
+
 process.stdout.write(
   `[check-agent-dispatch] OK — dispatch matrix matches actual derivation ` +
     `(${matrix.axes.tier.length} tiers × ${matrix.axes.track.length} tracks × ` +
