@@ -5,7 +5,8 @@
 // Reads invariants from GLOBAL_INVARIANTS.md, canon entries from
 // docs/SYSTEM/CANON.md, optional explicit routing rules from a fenced
 // `routes:` YAML block in docs/METHOD/KNOWLEDGE_MAP.md, and emits a signed
-// Markdown bundle per docs/METHOD/CONTEXT_PACK_SPEC.md.
+// Markdown bundle. Internal arbiter tooling — not shipped to governed
+// projects (no generator emits this script nor its spec doc downstream).
 //
 // Determinism contract:
 //   - No timestamps, hostnames, PIDs, or environment variables in output.
@@ -29,7 +30,7 @@ const SPEC_VERSION = '1.0.0'
 const BASELINE_INV = ['INV-01', 'INV-12', 'INV-13']
 const VALID_TRACKS = new Set(['core', 'templates', 'kit', 'docs', 'ci', 'meta'])
 
-// Per-track defaults — mirror docs/METHOD/CONTEXT_PACK_SPEC.md §v1 Defaults.
+// Per-track defaults — mirror the v1 CONTEXT_PACK spec Defaults (see track model).
 const TRACK_DEFAULTS = {
   core: { inv: ['INV-04', 'INV-05', 'INV-06'], canon: ['CANON-16'] },
   templates: { inv: ['INV-04'], canon: ['CANON-04', 'CANON-13', 'CANON-16'] },

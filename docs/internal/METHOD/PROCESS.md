@@ -25,7 +25,7 @@ arbiter task belongs to exactly one _track_. A track scopes:
 - Which excerpts the CONTEXT_PACK emitter selects by default.
 
 **Location:** `docs/METHOD/TRACK_MODEL.md`
-**Pairs with:** `docs/METHOD/CONTEXT_PACK_SPEC.md` (track informs pack scope).
+**Pairs with:** the CONTEXT_PACK emitter (`scripts/emit-context-pack.mjs`), whose per-track defaults this model informs.
 
 > Not to be confused with `docs/METHOD/TRACK_ROUTER.md.ejs` (query routing
 > for agents). TRACK_ROUTER tells an agent which doc to read next;
