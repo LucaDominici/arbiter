@@ -134,13 +134,6 @@
     "diffHash": "635dcfcc9b553a206146ebc6ad32135ce3c02a4ac72a47b327649606b1a77757"
   },
   {
-    "path": "_sigstore-retry-sign.yml",
-    "dest": ".github/workflows",
-    "reason": "Self simplified the reusable signing workflow to a single `artifact-path` input (collapsing the template's separate artifact-name/artifact-file) and dropped the workflow_dispatch resign-oci-image (manual post-outage re-sign) job entirely. Genuine pre-existing staleness, not yet reconciled either direction — filed as #1901 (needs a decision on whether to backport). Pinned as the current baseline; tracked under #1900.",
-    "expires": "2026-08-15",
-    "diffHash": "2b6787849abf98f3be895e652f9df5dab0024b45c912772992e2f03914e99082"
-  },
-  {
     "path": "check-action-pins.mjs",
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",

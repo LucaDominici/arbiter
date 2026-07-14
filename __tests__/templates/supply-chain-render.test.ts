@@ -32,16 +32,21 @@ describe('_sigstore-retry-sign.yml.ejs — structural invariants (CANON-18, #885
     expect(rendered).toContain('name:')
   })
 
-  it.each(STACKS)('$language: workflow_call trigger present', ({ language, buildTool }) => {
+  it.each(STACKS)('$language: workflow_dispatch trigger present', ({ language, buildTool }) => {
     const rendered = renderRetrySign({ language, buildTool })
-    expect(rendered).toContain('workflow_call')
+    expect(rendered).toContain('workflow_dispatch')
+    // #1887-G: the dead workflow_call (sign-with-retry) half was removed.
+    // Assert the trigger key is absent; the header comment may still name it.
+    expect(rendered).not.toMatch(/^(\s*)workflow_call:/m)
   })
 
-  it.each(STACKS)('$language: cosign sign-blob step present', ({ language, buildTool }) => {
-    const rendered = renderRetrySign({ language, buildTool })
-    expect(rendered).toContain('cosign')
-    expect(rendered).toContain('sign-blob')
-  })
+  it.each(STACKS)(
+    '$language: cosign sign step present (OCI image re-sign)',
+    ({ language, buildTool }) => {
+      const rendered = renderRetrySign({ language, buildTool })
+      expect(rendered).toContain('cosign sign --yes')
+    },
+  )
 
   it.each(STACKS)(
     '$language: sigstore/cosign-installer action present',
@@ -51,10 +56,9 @@ describe('_sigstore-retry-sign.yml.ejs — structural invariants (CANON-18, #885
     },
   )
 
-  it.each(STACKS)('$language: retry logic present (max-attempts)', ({ language, buildTool }) => {
+  it.each(STACKS)('$language: owner-only guard present', ({ language, buildTool }) => {
     const rendered = renderRetrySign({ language, buildTool })
-    // retry wrapper must have retry mechanism
-    expect(rendered).toMatch(/retry|max.attempts|attempt/i)
+    expect(rendered).toContain('repository_owner')
   })
 
   it.each(LEVELS)('%s: renders without error', (governanceLevel) => {
