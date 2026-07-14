@@ -114,4 +114,82 @@ describe('runTaskRecordRed()', () => {
     expect(result.ok).toBe(false)
     expect(result.reason).toMatch(/launch/)
   })
+
+  it('uses an explicit testCmd verbatim (no shell interpolation) and persists it (#1951)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:12: boom',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 100,
+      })
+    const result = runTaskRecordRed({
+      testPath: 'pkg/foo_test.go',
+      dir,
+      testCmd: ['go', 'test', '-run', 'TestFoo', './pkg'],
+    })
+    expect(result.ok).toBe(true)
+    // The test command is passed verbatim (binary + args), no shell joining.
+    expect(mockedRunCli.mock.calls[1]).toEqual([
+      'go',
+      ['test', '-run', 'TestFoo', './pkg'],
+      expect.any(Object),
+    ])
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_command).toEqual(['go', 'test', '-run', 'TestFoo', './pkg'])
+  })
+
+  it('clamps the timeout into [1000, 600000] and forwards it to runCli (#1951)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '--- FAIL: TestFoo\n',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 5,
+      })
+    runTaskRecordRed({ testPath: 'src/foo.test.ts', dir, timeoutMs: 9_999_999 })
+    // runCli call for the test (index 1) receives the clamped timeout.
+    const testCallOpts = mockedRunCli.mock.calls[1][2] as { timeoutMs: number }
+    expect(testCallOpts.timeoutMs).toBe(600_000)
+  })
+
+  it('auto-selects `go test <pkg-dir>` when the project language is go (#1951)', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'go' }), 'utf-8')
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:1: nope',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 50,
+      })
+    runTaskRecordRed({ testPath: 'pkg/foo_test.go', dir })
+    expect(mockedRunCli.mock.calls[1]).toEqual(['go', ['test', './pkg'], expect.any(Object)])
+  })
+
+  it('auto-selects `pytest <path>` when the project language is python (#1951)', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'python' }), 'utf-8')
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '=== FAILURES ===\nFAILED tests/test_foo.py::test_foo - boom',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 50,
+      })
+    runTaskRecordRed({ testPath: 'tests/test_foo.py', dir })
+    expect(mockedRunCli.mock.calls[1]).toEqual([
+      'pytest',
+      ['tests/test_foo.py'],
+      expect.any(Object),
+    ])
+  })
 })

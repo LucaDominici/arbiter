@@ -1383,20 +1383,45 @@ task
   .description('Record TDD red-phase evidence: run a failing test and capture evidence (#551)')
   .requiredOption('--test-path <path>', 'Repo-relative path to the failing test file')
   .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
-  .action((opts: { testPath: string; dir?: string }) => {
-    const result = runTaskRecordRed({
-      testPath: opts.testPath,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-    if (result.ok) {
-      process.stdout.write(
-        `record-red: OK (framework=${result.framework})\nevidence: ${result.evidencePath}\n`,
-      )
-    } else {
-      process.stderr.write(`record-red: FAIL — ${result.reason}\n`)
-      process.exit(1)
-    }
-  })
+  .option(
+    '--test-command <cmd>',
+    'Override the test runner binary (e.g. go, pytest, npx). Overrides language-based auto-selection. The command is passed verbatim to the runner (no shell interpolation).',
+  )
+  .option(
+    '--test-arg <arg>',
+    'Argument to the test command (repeatable). Combined with --test-command in the order given.',
+    (val: string, acc: string[]) => acc.concat(val),
+    [] as string[],
+  )
+  .option('--timeout-ms <ms>', 'Test-run timeout in ms (default 60000, clamped to 1..600000)')
+  .action(
+    (opts: {
+      testPath: string
+      dir?: string
+      testCommand?: string
+      testArg?: string[]
+      timeoutMs?: string
+    }) => {
+      const testCmd =
+        opts.testCommand !== undefined ? [opts.testCommand, ...(opts.testArg ?? [])] : undefined
+      const timeoutMs =
+        opts.timeoutMs !== undefined ? Number.parseInt(opts.timeoutMs, 10) : undefined
+      const result = runTaskRecordRed({
+        testPath: opts.testPath,
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(testCmd !== undefined ? { testCmd } : {}),
+        ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      })
+      if (result.ok) {
+        process.stdout.write(
+          `record-red: OK (framework=${result.framework})\nevidence: ${result.evidencePath}\n`,
+        )
+      } else {
+        process.stderr.write(`record-red: FAIL — ${result.reason}\n`)
+        process.exit(1)
+      }
+    },
+  )
 
 task
   .command('record-tech-debt')
