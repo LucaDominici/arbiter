@@ -23,6 +23,7 @@
     "which",
     "java",
     "python3",
+    "go",
     "gofmt",
     "Apache-2.0",
     "BSD-2-Clause",
