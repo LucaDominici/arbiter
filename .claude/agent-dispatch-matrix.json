@@ -34,5 +34,11 @@
     "chore": [],
     "refactor": ["type-safety"],
     "test": ["test-quality"]
+  },
+  "refutation_skeptics": {
+    "XS": 1,
+    "S": 1,
+    "Standard": 3,
+    "_doc": "M13 refutation-by-majority fan-out (#1943). N independent skeptics per acted-on finding above the severity threshold. Declared here (the dispatch SSOT) so the refutation skill's documented N table (scripts/check-agent-dispatch.mjs parity assertion) cannot drift from the dispatch oracle. Solo XS/S = 1 (the red-team IS the skeptic); Standard = 3; gated-review raises to the full vertical set (tier_verticals.Standard)."
   }
 }
