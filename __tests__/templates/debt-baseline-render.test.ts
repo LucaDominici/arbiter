@@ -49,6 +49,17 @@ describe('capture-debt-baseline.mjs.ejs', () => {
     expect(rendered).toContain('coverprofile')
   })
 
+  it('go debt-lib excludes node_modules packages from coverage (#1950)', () => {
+    const data = makeDataWithProfile({ language: 'go' })
+    const rendered = renderTemplate('scripts/debt-lib.mjs.ejs', data)
+    // Coverage must enumerate via `go list ./...` and filter /node_modules/,
+    // never pass bare `./...` to `go test -coverprofile` (#1950).
+    expect(rendered).toContain("['list', './...']")
+    expect(rendered).toContain("'/node_modules/'")
+    expect(rendered).not.toContain("['test', '-coverprofile=.coverage-tmp.out', './...']")
+    expect(rendered).toContain('...goPkgs')
+  })
+
   it('python debt-lib contains pytest --cov', () => {
     const data = makeDataWithProfile({ language: 'python' })
     const rendered = renderTemplate('scripts/debt-lib.mjs.ejs', data)

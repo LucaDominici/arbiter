@@ -701,7 +701,28 @@ export function collectMetrics(cwd) {
   const metrics = {};
 
   // ── Coverage (go test -cover) ─────────────────────────────────────────────
-  run('go', ['test', '-coverprofile=.coverage-tmp.out', './...'], { cwd });
+  // Enumerate project packages with `go list ./...` and exclude import paths
+  // containing /node_modules/ — npm packages that ship Go source without a
+  // nested go.mod (e.g. `flatted`) are otherwise measured as project code,
+  // making the debt ratchet dependency-layout-sensitive (#1950). Package paths
+  // are passed as separate spawn arguments (shell:false), never concatenated.
+  // Fail closed if enumeration fails or yields no usable packages.
+  const goList = run('go', ['list', './...'], { cwd });
+  if ((goList.status ?? 1) !== 0) {
+    throw new Error(
+      `go list ./... failed (exit ${goList.status}): ${goList.stderr ?? ''} — refusing to write (fail-closed)`,
+    );
+  }
+  const goPkgs = (goList.stdout ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.includes('/node_modules/'));
+  if (goPkgs.length === 0) {
+    throw new Error(
+      'go list ./... returned no project packages after excluding /node_modules/ — refusing to write (fail-closed)',
+    );
+  }
+  run('go', ['test', '-coverprofile=.coverage-tmp.out', ...goPkgs], { cwd });
   const goCoverRaw = run('go', ['tool', 'cover', '-func=.coverage-tmp.out'], { cwd });
   try {
     const match = goCoverRaw.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
