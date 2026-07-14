@@ -36,6 +36,7 @@ export const PlanJsonV1 = z.object({
       no_skips: z.literal(true).optional(),
     })
     .optional(),
+  invariant_ids: z.array(z.string().regex(/^INV-\d+$/)).optional(),
   notes: z.array(z.string()).optional(),
   review_bridge: ReviewBridge,
 })
