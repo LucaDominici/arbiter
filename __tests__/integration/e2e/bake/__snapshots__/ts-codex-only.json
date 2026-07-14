@@ -212,7 +212,7 @@
     "scripts/check-workflow-runners.mjs": "4ce1f544e80093c37b343a5dae1320dab05fe79910f18223987b3e9e798fff4f",
     "scripts/check-workflow-sha-pinning.mjs": "0ff517c88a75a240d174aec6d41cd37758fd51ea2120f60923360a988b8b72fe",
     "scripts/check-workflow-test-integrity.mjs": "9e0d01dc12d761449c7ecfc0e8471e0eb3910a8112acc23da468b3a01e75ada1",
-    "scripts/conformance.mjs": "be126ae9d30dee897d6348f5c7861249271970cf5fe3fdb728cbcfb76f2d341d",
+    "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
     "scripts/gold-audit.mjs": "fe1f551916bf975795cbd65085938eb0f7121002005af01de8cf675549935281",
     "scripts/knowledge-map-update.mjs": "e96cf3f17164584a9d342a49055c7f4e4c06f0f31ebb81b89a426555254cae30",
     "scripts/lib/e2e-reliability.mjs": "22c5fdafc559b9a53b5bc74a3b2fe96f9757d6ed6bf9765cb384964343bbc1c5",
