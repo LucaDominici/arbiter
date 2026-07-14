@@ -30,6 +30,17 @@
     "pr_type_modifiers": {
       "type": "object",
       "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "refutation_skeptics": {
+      "type": "object",
+      "description": "M13 refutation-by-majority fan-out (#1943): N independent skeptics per tier.",
+      "properties": {
+        "_doc": { "type": "string" },
+        "XS": { "type": "integer", "minimum": 1 },
+        "S": { "type": "integer", "minimum": 1 },
+        "Standard": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
