@@ -11,6 +11,7 @@ export const TddEvidenceV1 = z.object({
   test_run_log: z.string(),
   observed_failure: z.string().min(1, 'observed_failure must not be empty'),
   recorded_at: z.iso.datetime({ message: 'recorded_at must be ISO8601' }),
+  test_command: z.array(z.string()).optional(),
 })
 export type TddEvidence = z.infer<typeof TddEvidenceV1>
 
