@@ -46,7 +46,6 @@ export type GeneratorKey =
   | 'docs'
   | 'api-middleware'
   | 'seed'
-  | 'evidence-backlog'
   | 'self-validation'
   | 'operations'
   | 'risk-register'

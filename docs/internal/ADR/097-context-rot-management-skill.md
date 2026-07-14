@@ -20,8 +20,9 @@ related: ['020-cli-first-over-mcp', '088-ship-as-orchestration-entrypoint']
 
 On a long, multi-phase task the context window eventually compacts and in-memory state is lost. The
 agent then either silently drops acceptance criteria or re-does completed work. arbiter already owns
-every primitive needed to survive this — `src/generators/evidence-backlog.ts` (the BACKLOG snapshot,
-currently L4-gated), `.claude/hooks/pre-compact.mjs` (re-grounds the model on compaction), the
+every primitive needed to survive this — the inline BACKLOG.md template embedded in the
+`context-rot-management` skill (the standalone `evidence-backlog` generator that emitted an
+orphan `.evidence/BACKLOG.md.template` was removed as dead — #1887-C), `.claude/hooks/pre-compact.mjs` (re-grounds the model on compaction), the
 `arbiter mark` task cursor, and `docs/REFERENCE/task-recovery.md` — but there was **no skill** tying
 them into a single protocol and **no activation heuristic** telling the agent when the discipline is
 worth its overhead. The pieces existed; the discipline did not.

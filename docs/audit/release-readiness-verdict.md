@@ -165,12 +165,12 @@ the project's own M9 "worktrees, never the main tree" rule.
 
 The project's own open tracking issue **#1887** confesses the rest: 8+ `enableXxx` flags with no
 activation path or silently dropped on `arbiter update` (`resolve-project-config.ts` read-back
-gaps), dead emissions (`mutation/README.md.ejs`, `.evidence/BACKLOG.md.template`,
-`evidence-rotate.mjs` "called by task harness" — called by nothing), a format-incompatible
-`.eslintrc-no-fake-db.json`, deploy/DAST orphans, and 8 Gradle snippets requiring manual
-`apply from:`. Partial progress is real — `check-feature-matrix.mjs`/`gen-gap.mjs` are now
-emitted _and wired_ (verified in the virgin repo, `scripts/check-all.mjs:600–601`) — but the
-issue is open, `needs-human`, and untriaged against the release.
+gaps), dead emissions (`.evidence/BACKLOG.md.template` — since removed; `mutation/README.md.ejs`
+and the `evidence-rotate.mjs` "called by task harness" doc-lie — both since corrected), a
+format-incompatible `.eslintrc-no-fake-db.json`, deploy/DAST orphans, and 8 Gradle snippets
+requiring manual `apply from:`. Partial progress is real — `check-feature-matrix.mjs`/`gen-gap.mjs`
+are now emitted _and wired_ (verified in the virgin repo, `scripts/check-all.mjs:600–601`) — but
+the issue is open, `needs-human`, and untriaged against the release.
 
 ## Cosa manca per il GO (ordered, ~1–2 focused days + CI cycles)
 

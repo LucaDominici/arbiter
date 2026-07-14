@@ -51,7 +51,6 @@ import { generateGithubSetup } from './github-setup.js'
 import { generateDocs } from './docs.js'
 import { generateApiMiddleware } from './api-middleware.js'
 import { generateSeed } from './seed.js'
-import { generateEvidenceBacklog } from './evidence-backlog.js'
 import { generateSelfValidation } from './self-validation.js'
 import { generateOperations } from './operations.js'
 import { generateFrontendGovernance } from './frontend-governance.js'
@@ -529,11 +528,6 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'evidence-retention',
       enabled: config.enableEvidenceHarness !== false,
       run: (opts) => generateEvidenceRetention(config, opts).files,
-    },
-    {
-      key: 'evidence-backlog',
-      enabled: config.governanceLevel !== 'L1',
-      run: (opts) => generateEvidenceBacklog(config, opts).files,
     },
     {
       key: 'test-taxonomy',
