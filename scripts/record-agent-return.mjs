@@ -22,16 +22,10 @@ import { resolve, join } from 'node:path'
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { validateSchema, enforceCitations, loadSchema } from './lib/agent-return-validate.mjs'
+import { arg } from './lib/gate-args.mjs'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
-
-function arg(flag, argv) {
-  const i = argv.indexOf(`--${flag}`)
-  if (i >= 0 && i + 1 < argv.length) return argv[i + 1]
-  const eq = argv.find((x) => x.startsWith(`--${flag}=`))
-  return eq ? eq.slice(`--${flag}=`.length) : null
-}
 
 const argv = process.argv.slice(2)
 const TASK_ID = arg('task', argv)
