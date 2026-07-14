@@ -112,7 +112,6 @@ describe('extractSpawnedCommands', () => {
   })
 })
 
-
 describe('check-phantom-command-scan.mjs — synthetic phantom command fails closed', () => {
   it('exits 1 when a doc cites a command absent from cli.ts (regression: #1837)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'phantom-scan-'))
@@ -204,7 +203,12 @@ describe('check-phantom-command-scan.mjs — T5b′ template spawn-array scan', 
       )
       const r = spawnSync(
         'node',
-        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${join(dir, 'none.yml')}`],
+        [
+          SCRIPT,
+          `--cli=${cliPath}`,
+          `--roots=${join(dir, 'templates')}`,
+          `--ledger=${join(dir, 'none.yml')}`,
+        ],
         { encoding: 'utf-8' },
       )
       expect(r.status).toBe(1)
@@ -231,9 +235,13 @@ describe('check-phantom-command-scan.mjs — T5b′ template spawn-array scan', 
       )
       const ledgerPath = join(dir, 'ledger.yml')
       writeFileSync(ledgerPath, 'commands:\n  - command: init\n')
-      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
-        encoding: 'utf-8',
-      })
+      const r = spawnSync(
+        'node',
+        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`],
+        {
+          encoding: 'utf-8',
+        },
+      )
       expect(r.status).toBe(0)
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -261,7 +269,12 @@ describe('check-phantom-command-scan.mjs — T5b″ ledger cross-check', () => {
       )
       const r = spawnSync(
         'node',
-        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${join(dir, 'absent.yml')}`],
+        [
+          SCRIPT,
+          `--cli=${cliPath}`,
+          `--roots=${join(dir, 'templates')}`,
+          `--ledger=${join(dir, 'absent.yml')}`,
+        ],
         { encoding: 'utf-8' },
       )
       expect(r.status).toBe(1)
@@ -291,9 +304,13 @@ describe('check-phantom-command-scan.mjs — T5b″ ledger cross-check', () => {
       const ledgerPath = join(dir, 'ledger.yml')
       // ledger has `init` but NOT `doctor` — completeness gap
       writeFileSync(ledgerPath, 'commands:\n  - command: init\n')
-      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
-        encoding: 'utf-8',
-      })
+      const r = spawnSync(
+        'node',
+        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`],
+        {
+          encoding: 'utf-8',
+        },
+      )
       expect(r.status).toBe(1)
       expect(r.stdout).toContain('`doctor`')
       expect(r.stdout).toContain('completeness')
@@ -318,13 +335,14 @@ describe('check-phantom-command-scan.mjs — T5b″ ledger cross-check', () => {
         "spawnSync('npx', ['--no-install', 'arbiter', 'init', ...args], {})\n",
       )
       const ledgerPath = join(dir, 'ledger.yml')
-      writeFileSync(
-        ledgerPath,
-        'commands:\n  - command: init\n  - command: ghostcmd\n',
+      writeFileSync(ledgerPath, 'commands:\n  - command: init\n  - command: ghostcmd\n')
+      const r = spawnSync(
+        'node',
+        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`],
+        {
+          encoding: 'utf-8',
+        },
       )
-      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
-        encoding: 'utf-8',
-      })
       expect(r.status).toBe(1)
       expect(r.stdout).toContain('`ghostcmd`')
       expect(r.stdout).toContain('not a registered command')
@@ -356,9 +374,13 @@ describe('check-phantom-command-scan.mjs — T5b″ ledger cross-check', () => {
         ledgerPath,
         'commands:\n  - command: doc-set\n    flags:\n      - --check\n      - --bogus-flag\n',
       )
-      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
-        encoding: 'utf-8',
-      })
+      const r = spawnSync(
+        'node',
+        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`],
+        {
+          encoding: 'utf-8',
+        },
+      )
       expect(r.status).toBe(1)
       expect(r.stdout).toContain('`--bogus-flag`')
       expect(r.stdout).toContain('flag-surface')
@@ -392,9 +414,13 @@ describe('check-phantom-command-scan.mjs — T5b″ ledger cross-check', () => {
         ledgerPath,
         'commands:\n  - command: doc-set\n    flags:\n      - --check\n      - --freshness\n  - command: init\n',
       )
-      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
-        encoding: 'utf-8',
-      })
+      const r = spawnSync(
+        'node',
+        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`],
+        {
+          encoding: 'utf-8',
+        },
+      )
       expect(r.status).toBe(0)
     } finally {
       rmSync(dir, { recursive: true, force: true })

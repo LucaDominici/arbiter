@@ -268,7 +268,9 @@ function crossCheckLedger(ledgerPath, templateCitedCommands, realCommandNames, c
   try {
     ledger = parseYaml(readFileSync(ledgerPath, 'utf-8'))
   } catch (err) {
-    process.stdout.write(`  ledger: ${rel} failed to parse: ${err instanceof Error ? err.message : String(err)}\n`)
+    process.stdout.write(
+      `  ledger: ${rel} failed to parse: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
     return 1
   }
   const rows = Array.isArray(ledger?.commands) ? ledger.commands : []
