@@ -218,7 +218,7 @@
     "scripts/lib/e2e-reliability.mjs": "22c5fdafc559b9a53b5bc74a3b2fe96f9757d6ed6bf9765cb384964343bbc1c5",
     "scripts/lib/glob-walk.mjs": "e037d45a8141d29b21712b2bcf731ccd561f3d994f82894cd488f29e7491c9c2",
     "scripts/lib/run-helpers.mjs": "c335360eaa0671ec22106064067e3e08c0ad7ce46c9cc6faab5dcd4ecd192f82",
-    "scripts/optional-emissions.json": "4333e7013498a11c01d02603d1feefec2c8a0d30de7459003cc60f881ae136bd",
+    "scripts/optional-emissions.json": "b5141398a81b58a322bd0389f4776642a82134ac2fe9940cab02642bea0258ff",
     "scripts/self-validation.mjs": "371bf749b0846563956e1e5320a1618898a4bd4369e65f275ec76fb9e5dff7e8",
     "scripts/verify-module-coverage.mjs": "4f5e9d0b3d3674d0d55e1a6534e8924641f120508069c48fbfe1601bf814e98a",
     "scripts/verify-mutation-baseline.mjs": "9f29480a364ab870fbb55defee6825af84a6a74625360d0cb4825a76d5bfe4a1",
