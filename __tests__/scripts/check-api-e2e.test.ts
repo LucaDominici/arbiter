@@ -20,10 +20,19 @@ const RENDERED = renderTemplate('scripts/check-api-e2e.mjs.ejs', {
   ...makeConfig('/tmp/render-api-e2e', { language: 'typescript' }),
 } as unknown as Record<string, unknown>)
 
+// check-api-e2e.mjs imports the shared glob-walk helper (scripts/lib/glob-walk.mjs), which the
+// real generator emits alongside it unconditionally (src/generators/check-all.ts) — stage() must
+// materialize the same sibling file or the spawned script fails at module-load, before any of its
+// own logic (including --help) runs.
+const RENDERED_GLOB_WALK = renderTemplate('scripts/lib/glob-walk.mjs.ejs', {
+  ...makeConfig('/tmp/render-api-e2e', { language: 'typescript' }),
+} as unknown as Record<string, unknown>)
+
 function stage(manifest: unknown | null, extraFiles: Record<string, string> = {}) {
   const d = mkdtempSync(join(tmpdir(), 'api-e2e-'))
-  mkdirSync(join(d, 'scripts'), { recursive: true })
+  mkdirSync(join(d, 'scripts', 'lib'), { recursive: true })
   writeFileSync(join(d, 'scripts', 'check-api-e2e.mjs'), RENDERED)
+  writeFileSync(join(d, 'scripts', 'lib', 'glob-walk.mjs'), RENDERED_GLOB_WALK)
   if (manifest !== null) {
     writeFileSync(join(d, 'api-e2e.json'), JSON.stringify(manifest, null, 2))
   }
@@ -131,8 +140,9 @@ describe('generated check-api-e2e.mjs runtime (CANON-07)', () => {
 
   it('exits 2 (schema) on invalid JSON', () => {
     const d = mkdtempSync(join(tmpdir(), 'api-e2e-badjson-'))
-    mkdirSync(join(d, 'scripts'), { recursive: true })
+    mkdirSync(join(d, 'scripts', 'lib'), { recursive: true })
     writeFileSync(join(d, 'scripts', 'check-api-e2e.mjs'), RENDERED)
+    writeFileSync(join(d, 'scripts', 'lib', 'glob-walk.mjs'), RENDERED_GLOB_WALK)
     writeFileSync(join(d, 'api-e2e.json'), '{ not json')
     try {
       expect(run(d).status).toBe(2)
@@ -143,8 +153,9 @@ describe('generated check-api-e2e.mjs runtime (CANON-07)', () => {
 
   it('prints --help and exits 0', () => {
     const d = mkdtempSync(join(tmpdir(), 'api-e2e-help-'))
-    mkdirSync(join(d, 'scripts'), { recursive: true })
+    mkdirSync(join(d, 'scripts', 'lib'), { recursive: true })
     writeFileSync(join(d, 'scripts', 'check-api-e2e.mjs'), RENDERED)
+    writeFileSync(join(d, 'scripts', 'lib', 'glob-walk.mjs'), RENDERED_GLOB_WALK)
     try {
       const r = spawnSync('node', [join(d, 'scripts', 'check-api-e2e.mjs'), '--help'], {
         encoding: 'utf-8',

@@ -21,7 +21,9 @@
 //        phantom command scan (INV-111 ext), version parity, hook doc parity (CANON-10) (60)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       self-validation drill + local-ci parity + id stability + anti-telemetry +
-//       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) (69)
+//       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) +
+//       anti-context-rot enforcers: agent-return envelope + refutation majority +
+//       audit dry-pass + handoff lint (#1943, advisory) (73)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
@@ -330,6 +332,14 @@ if (isMain) {
     // INV-133 (#1456): over-age linked task-marker gate. SKIPs offline / no token.
     runCheck('todo max-age', 'node', ['scripts/check-todo-max-age.mjs'])
     runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
+    // E1-E6a #1943 (anti-context-rot enforcers, advisory at land-time per design §0; promote
+    // to runCheck at gated-review). Vacuous-pass when no evidence — wired now so the path is real.
+    runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
+    runWarnCheck('refutation majority (E2 #1943)', 'node', [
+      'scripts/check-refutation-verdicts.mjs',
+    ])
+    runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
+    runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
     runCheck('commit-footer rationale (INV-119)', 'node', [
       'scripts/check-commit-footer-rationale.mjs',
     ])

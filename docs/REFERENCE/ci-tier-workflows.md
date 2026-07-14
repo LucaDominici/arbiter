@@ -151,20 +151,25 @@ In addition to the workflows, `generateCiTier` / `generateGithub` emit:
 > as the deep, cross-branch safety net — that tradeoff (fast/narrow per-PR vs. slow/broad nightly)
 > is deliberate, not a gap.
 
-TypeScript/Java projects add parallel test category jobs (`unit-tests`, `contract-tests`,
-`integration-tests`, `behavioral-tests`) that fan out from `gate`. Java/Maven jobs download
-the reactor artifact and restore `$HOME/.m2/repository` via the `setup-java-maven` composite
-action.
+TypeScript/Java projects add a `unit-tests` job that fans out from `gate`. Java/Maven jobs
+download the reactor artifact and restore `$HOME/.m2/repository` via the `setup-java-maven`
+composite action.
 
-> **Known tier-assignment gap (#1875):** `contract-tests`/`integration-tests`/`behavioral-tests`
-> run unconditionally here even though the "Extended gate" row above already documents them as
-> the **scoped** T2 suite. On arbiter's own dogfooded CI this measured ~12min for
+> **Tier-assignment fix (#1875):** `contract-tests`/`integration-tests`/`behavioral-tests` used
+> to run unconditionally here even though the "Extended gate" row above already documented them
+> as the **scoped** T2 suite. On arbiter's own dogfooded CI this measured ~12min for
 > `contract-tests` alone, blowing the ≤15min T1 budget (ADR-090). #1839 (F3 friction cut)
-> root-caused this and confirmed a self-repo-only fix is not viable — `.github/workflows/01-pr-fast.yml`
+> root-caused this and confirmed a self-repo-only fix was not viable — `.github/workflows/01-pr-fast.yml`
 > / `02-pr-extended.yml` must render byte-identical to this template
 > (`__tests__/parity/ci-tier-render-parity.test.ts`), so the template and arbiter's own
-> materialized workflows have to move together. Fix tracked in #1875, together with the
-> dedicated template-assertion tests it will need to update.
+> materialized workflows had to move together. #1875 moved all three jobs to
+> `02-pr-extended.yml.ejs` (fanning out from `check-trigger`, conditionally
+> triggered), added the previously-missing `contract-tests` job to that T2 lane
+> (it used to be T1-only, asymmetric with integration/behavioral), and added
+> realistic `stepEstimates` for `test:contract`/`test:integration`/`test:behavioral`
+> to `__tests__/fixtures/workflow-perf-budgets.json` (they previously fell through
+> to the 1-minute `_default`, which is why the static critical-path gate never
+> caught the regression).
 
 ## SHA pinning (INV-76)
 

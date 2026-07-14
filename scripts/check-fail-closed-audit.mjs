@@ -84,6 +84,11 @@ const SKIP_FILES = new Set([
   // gold-audit.mjs / gold-audit-lib.mjs split above); its missing-file catches return
   // false/[]/undefined by design, and both entry-point consumers own the exit contract.
   'scripts/lib/doc-set-resolve.mjs',
+  // E1 #1943: pure agent-return envelope semantics (schema validate + M12 citation resolve);
+  // consumers (check-agent-return.mjs, record-agent-return.mjs) own the exit contract.
+  'scripts/lib/agent-return-validate.mjs',
+  // #1943: pure shared argv parser for the enforcer gate scripts; no entry point.
+  'scripts/lib/gate-args.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

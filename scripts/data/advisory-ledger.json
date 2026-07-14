@@ -1,0 +1,30 @@
+{
+  "schema": "arbiter-advisory-ledger-v1",
+  "_doc": "Declared-intent ledger for runWarnCheck advisory gates (E4 ceremony detector, M15b #1943). Every runWarnCheck call site in scripts/check-all.mjs MUST have an entry here: either a dated promotion (promoteBy) or permanent:true with rationale. This is the dated-debt discipline of suppressions expiry (INV-31) applied to the gate roster itself — an advisory gate with no dated promotion is ceremony ('advisory-forever'). The ceremony detector that enforces this ledger is deferred (sub-issue of #1943 — owner decision on the 2 pre-existing runWarnCheck gates 'orchestrator coverage (#1410)' and 'conformance' is OD-14); until it lands this file is declared-intent, unenforced-for-now. Entries below are the 4 new advisory enforcers landed in #1943.",
+  "entries": [
+    {
+      "check": "agent-return envelope (E1 #1943)",
+      "since": "2026-07-14",
+      "promoteBy": "2026-10-14",
+      "rationale": "M8 core substrate + M12 citation enforcement. Advisory until the dispatch cross-check sidecar is routinely populated; promote to runCheck + --enforce at gated-review once producer lines land in ship.md."
+    },
+    {
+      "check": "refutation majority (E2 #1943)",
+      "since": "2026-07-14",
+      "promoteBy": "2026-10-14",
+      "rationale": "M13 refutation-by-majority. Advisory until the refutation skill is exercised on real audit findings; promote at gated-review for Standard-tier audits."
+    },
+    {
+      "check": "audit dry-pass (E3 #1943)",
+      "since": "2026-07-14",
+      "promoteBy": "2026-10-14",
+      "rationale": "M14 dry-pass termination. Advisory until the codebase-audit skill writes the pass-ledger; promote at gated-review where the ledger is part of the audited evidence bundle."
+    },
+    {
+      "check": "handoff lint (E6a #1943)",
+      "since": "2026-07-14",
+      "promoteBy": "2026-10-14",
+      "rationale": "M1 handoff-lint. Advisory at land-time (M1 is a cost rule, all tiers); promote to runCheck once the producer side (/ship handoff phase) references --file mode."
+    }
+  ]
+}

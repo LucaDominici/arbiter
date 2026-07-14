@@ -89,15 +89,13 @@ function usage() {
 // ─── Invariant extraction ────────────────────────────────────────────────────
 
 /**
- * Find a `### INV-NN: ...` heading and extract from that line up to the
- * next horizontal rule (`---`) or next `### INV-` heading, whichever first.
- * Returns { startLine, endLine, body } with 1-based inclusive line numbers,
- * or null if not found.
+ * Find the first line matching `headingRe` and extract from that line up to
+ * the line before the first line matching any of `boundaryRes`, or end of
+ * file. Returns { startLine, endLine, body } with 1-based inclusive line
+ * numbers, or null if the heading isn't found.
  */
-function extractInvariant(doc, invId) {
+function extractSection(doc, headingRe, boundaryRes) {
   const lines = doc.split('\n')
-  const escaped = invId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const headingRe = new RegExp(`^### ${escaped}:`)
   let start = -1
   for (let i = 0; i < lines.length; i++) {
     if (headingRe.test(lines[i])) {
@@ -109,16 +107,11 @@ function extractInvariant(doc, invId) {
 
   let end = lines.length - 1
   for (let i = start + 1; i < lines.length; i++) {
-    if (/^---\s*$/.test(lines[i])) {
-      end = i - 1
-      break
-    }
-    if (/^### INV-\d+:/.test(lines[i])) {
+    if (boundaryRes.some((re) => re.test(lines[i]))) {
       end = i - 1
       break
     }
   }
-
   while (end > start && lines[end].trim() === '') end--
 
   return {
@@ -126,6 +119,15 @@ function extractInvariant(doc, invId) {
     endLine: end + 1,
     body: lines.slice(start, end + 1).join('\n'),
   }
+}
+
+/**
+ * Find a `### INV-NN: ...` heading and extract from that line up to the
+ * next horizontal rule (`---`) or next `### INV-` heading, whichever first.
+ */
+function extractInvariant(doc, invId) {
+  const escaped = invId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return extractSection(doc, new RegExp(`^### ${escaped}:`), [/^---\s*$/, /^### INV-\d+:/])
 }
 
 /**
@@ -133,32 +135,8 @@ function extractInvariant(doc, invId) {
  * heading or end of file (whichever first).
  */
 function extractCanon(doc, canonId) {
-  const lines = doc.split('\n')
   const escaped = canonId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const headingRe = new RegExp(`^## ${escaped}(\\s|$)`)
-  let start = -1
-  for (let i = 0; i < lines.length; i++) {
-    if (headingRe.test(lines[i])) {
-      start = i
-      break
-    }
-  }
-  if (start === -1) return null
-
-  let end = lines.length - 1
-  for (let i = start + 1; i < lines.length; i++) {
-    if (/^## CANON-\d+/.test(lines[i])) {
-      end = i - 1
-      break
-    }
-  }
-  while (end > start && lines[end].trim() === '') end--
-
-  return {
-    startLine: start + 1,
-    endLine: end + 1,
-    body: lines.slice(start, end + 1).join('\n'),
-  }
+  return extractSection(doc, new RegExp(`^## ${escaped}(\\s|$)`), [/^## CANON-\d+/])
 }
 
 // ─── KNOWLEDGE_MAP routing (v1: fenced YAML block) ───────────────────────────
