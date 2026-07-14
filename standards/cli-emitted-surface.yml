@@ -1,0 +1,50 @@
+# CLI Emitted Surface — append-only memory (T5b″, #1944)
+#
+# Records every `arbiter <cmd>` command that ships INSIDE emitted artifacts —
+# i.e. is cited by an emitted-template SOURCE under src/templates/** (backtick
+# prose in *.md.ejs, or the spawn-array shape `'arbiter', '<cmd>'` in *.mjs.ejs
+# thin-runners). scripts/check-phantom-command-scan.mjs cross-checks this ledger
+# against src/cli.ts:
+#   1. completeness — every template-cited command must have a row here;
+#   2. existence — every command recorded here must be registered in cli.ts;
+#   3. flag-surface — a row's optional `flags:` list must each match a real
+#      `.option()` for that command in cli.ts (the check that would have caught
+#      the `doc-set --check` incident: the command existed but the flag didn't,
+#      a class the name-level scan is structurally blind to; fixed in 379185de).
+#
+# This file is append-only memory: ADD rows when a new command (or flag) starts
+# shipping inside an emitted template. Never delete a row to silence the gate —
+# a row going stale means a template still cites something cli.ts no longer
+# provides, which is exactly the drift this ledger exists to make permanent-
+# catchable. Rows are unordered; the gate sorts its output for determinism.
+#
+# Bootstrapped from the template corpus + cli.ts at #1944 (16 commands; flags
+# recorded only where an emitted runner hardcodes or advertises them).
+commands:
+  - command: configure
+  - command: doc-set
+    flags:
+      - --check
+      - --freshness
+      - --generate
+      - --json
+      - --strict
+  - command: doctor
+  - command: explain
+  - command: gate-exec
+  - command: gold-audit
+    flags:
+      - --check
+      - --class
+      - --json
+      - --stack
+  - command: init
+  - command: mark
+  - command: note
+  - command: ship
+  - command: task
+  - command: update
+  - command: upgrade-level
+  - command: verify
+  - command: worktree
+  - command: wt

@@ -13,6 +13,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
   extractCitedCommands,
+  extractSpawnedCommands,
   findPhantomCommands,
 } from '../../scripts/check-phantom-command-scan.mjs'
 
@@ -84,7 +85,33 @@ describe('check-phantom-command-scan.mjs — real repo (INV-111 extension)', () 
   })
 })
 
-// ─── end-to-end: synthetic drift must fail the gate (non-vacuity proof) ──────
+// ─── extractSpawnedCommands (T5b′ spawn-array matcher) ───────────────────────
+
+describe('extractSpawnedCommands', () => {
+  it('extracts the command token from a thin-runner spawn array', () => {
+    const src = "spawnSync('npx', ['--no-install', 'arbiter', 'doc-set', ...args], {})"
+    expect(extractSpawnedCommands(src)).toEqual(new Set(['doc-set']))
+  })
+
+  it('extracts multiple distinct spawn citations', () => {
+    const src =
+      "spawnSync('npx', ['--no-install', 'arbiter', 'doc-set', ...args], {})\n" +
+      "spawnSync('npx', ['--no-install', 'arbiter', 'gold-audit', ...args], {})"
+    expect(extractSpawnedCommands(src)).toEqual(new Set(['doc-set', 'gold-audit']))
+  })
+
+  it('does not match bare prose without the array-literal shape', () => {
+    expect(extractSpawnedCommands('Run arbiter init to get started.')).toEqual(new Set())
+  })
+
+  it('is unaffected by a flag token immediately after the command', () => {
+    // check-doc-freshness.mjs.ejs shape: ['--no-install', 'arbiter', 'doc-set', '--freshness', ...]
+    const src =
+      "spawnSync('npx', ['--no-install', 'arbiter', 'doc-set', '--freshness', ...args], {})"
+    expect(extractSpawnedCommands(src)).toEqual(new Set(['doc-set']))
+  })
+})
+
 
 describe('check-phantom-command-scan.mjs — synthetic phantom command fails closed', () => {
   it('exits 1 when a doc cites a command absent from cli.ts (regression: #1837)', () => {
@@ -148,6 +175,224 @@ describe('check-phantom-command-scan.mjs — synthetic phantom command fails clo
       mkdirSync(join(dir, 'docs'), { recursive: true })
       writeFileSync(join(dir, 'docs', 'PRIVACY.md'), 'Run `arbiter wt` to manage worktrees.\n')
       const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'docs')}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+// ─── T5b′: emitted-template spawn-array scan (#1944) ───────────────────────
+
+describe('check-phantom-command-scan.mjs — T5b′ template spawn-array scan', () => {
+  it('fails when a .mjs.ejs thin-runner spawns an unregistered command', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-scan-spawn-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('init').description('Init')\n",
+      )
+      const tmplDir = join(dir, 'templates', 'scripts')
+      mkdirSync(tmplDir, { recursive: true })
+      writeFileSync(
+        join(tmplDir, 'check-thing.mjs.ejs'),
+        "const result = spawnSync('npx', ['--no-install', 'arbiter', 'frobnicate', ...args], {})\n",
+      )
+      const r = spawnSync(
+        'node',
+        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${join(dir, 'none.yml')}`],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('frobnicate')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('passes when a .mjs.ejs thin-runner spawns a real command (with a matching ledger row)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-scan-spawn-ok-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('init').description('Init')\n",
+      )
+      const tmplDir = join(dir, 'templates', 'scripts')
+      mkdirSync(tmplDir, { recursive: true })
+      writeFileSync(
+        join(tmplDir, 'check-thing.mjs.ejs'),
+        "const result = spawnSync('npx', ['--no-install', 'arbiter', 'init', ...args], {})\n",
+      )
+      const ledgerPath = join(dir, 'ledger.yml')
+      writeFileSync(ledgerPath, 'commands:\n  - command: init\n')
+      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+// ─── T5b″: emitted-surface ledger cross-check (#1944) ───────────────────────
+
+describe('check-phantom-command-scan.mjs — T5b″ ledger cross-check', () => {
+  it('fails when the ledger is missing while template sources are scanned', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ledger-missing-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('init').description('Init')\n",
+      )
+      const tmplDir = join(dir, 'templates', 'scripts')
+      mkdirSync(tmplDir, { recursive: true })
+      writeFileSync(
+        join(tmplDir, 'check-thing.mjs.ejs'),
+        "const result = spawnSync('npx', ['--no-install', 'arbiter', 'init', ...args], {})\n",
+      )
+      const r = spawnSync(
+        'node',
+        [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${join(dir, 'absent.yml')}`],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('not found')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when a template-cited command has no ledger row (completeness)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ledger-incomplete-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('init').description('Init')\n" +
+          "program.command('doctor').description('Doctor')\n",
+      )
+      const tmplDir = join(dir, 'templates', 'scripts')
+      mkdirSync(tmplDir, { recursive: true })
+      writeFileSync(
+        join(tmplDir, 'a.mjs.ejs'),
+        "spawnSync('npx', ['--no-install', 'arbiter', 'init', ...args], {})\n" +
+          "spawnSync('npx', ['--no-install', 'arbiter', 'doctor', ...args], {})\n",
+      )
+      const ledgerPath = join(dir, 'ledger.yml')
+      // ledger has `init` but NOT `doctor` — completeness gap
+      writeFileSync(ledgerPath, 'commands:\n  - command: init\n')
+      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('`doctor`')
+      expect(r.stdout).toContain('completeness')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when the ledger records a command not registered in cli.ts (existence)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ledger-phantom-cmd-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('init').description('Init')\n",
+      )
+      const tmplDir = join(dir, 'templates', 'scripts')
+      mkdirSync(tmplDir, { recursive: true })
+      writeFileSync(
+        join(tmplDir, 'a.mjs.ejs'),
+        "spawnSync('npx', ['--no-install', 'arbiter', 'init', ...args], {})\n",
+      )
+      const ledgerPath = join(dir, 'ledger.yml')
+      writeFileSync(
+        ledgerPath,
+        'commands:\n  - command: init\n  - command: ghostcmd\n',
+      )
+      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('`ghostcmd`')
+      expect(r.stdout).toContain('not a registered command')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when a ledger flag is not a real .option() — the doc-set --check incident class', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ledger-phantom-flag-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('doc-set [repo]', { hidden: true })\n" +
+          ".option('--check', 'Advisory audit', false)\n" +
+          ".description('Doc-set audit')\n",
+      )
+      const tmplDir = join(dir, 'templates', 'scripts')
+      mkdirSync(tmplDir, { recursive: true })
+      writeFileSync(
+        join(tmplDir, 'check-doc-set.mjs.ejs'),
+        "spawnSync('npx', ['--no-install', 'arbiter', 'doc-set', ...args], {})\n",
+      )
+      const ledgerPath = join(dir, 'ledger.yml')
+      // --check exists; --bogus-flag does not — flag-surface drift
+      writeFileSync(
+        ledgerPath,
+        'commands:\n  - command: doc-set\n    flags:\n      - --check\n      - --bogus-flag\n',
+      )
+      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('`--bogus-flag`')
+      expect(r.stdout).toContain('flag-surface')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('passes when the ledger is complete and every flag matches a real .option()', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ledger-ok-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('doc-set [repo]', { hidden: true })\n" +
+          ".option('--check', 'Advisory audit', false)\n" +
+          ".option('--freshness', 'Freshness audit', false)\n" +
+          ".description('Doc-set audit')\n" +
+          "program.command('init').description('Init')\n",
+      )
+      const tmplDir = join(dir, 'templates', 'scripts')
+      mkdirSync(tmplDir, { recursive: true })
+      writeFileSync(
+        join(tmplDir, 'check-doc-set.mjs.ejs'),
+        "spawnSync('npx', ['--no-install', 'arbiter', 'doc-set', '--freshness', ...args], {})\n" +
+          "spawnSync('npx', ['--no-install', 'arbiter', 'init', ...args], {})\n",
+      )
+      const ledgerPath = join(dir, 'ledger.yml')
+      writeFileSync(
+        ledgerPath,
+        'commands:\n  - command: doc-set\n    flags:\n      - --check\n      - --freshness\n  - command: init\n',
+      )
+      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'templates')}`, `--ledger=${ledgerPath}`], {
         encoding: 'utf-8',
       })
       expect(r.status).toBe(0)
