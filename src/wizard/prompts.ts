@@ -797,7 +797,7 @@ const YES_NO_OPTIONS: Opt<boolean>[] = [
 const PUBLIC_API_COST =
   '  Generates: OWASP ZAP DAST scan, OpenAPI/contract test suite, API deprecation policy + breaking-change gate.'
 const MULTI_TENANT_COST =
-  '  Generates: tenant-isolation invariants, per-tenant data-scoping checks, and tenancy auth machinery.'
+  '  Generates: risk-register entry for tenant data isolation; descriptive metadata only (does not generate isolation machinery).'
 const CONTRACT_TYPE_COST =
   '  Generates: a consumer/provider contract-test suite (Pact / OpenAPI-diff / buf / schema-registry) wired into CI.'
 

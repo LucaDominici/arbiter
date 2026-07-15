@@ -44,7 +44,7 @@ Add a `RISK_ASSESSMENT_TEMPLATE.md`-based assessment for each new risk before ad
 <% } %><% if (archetype === 'frontend-spa') { %>
 | R-006 | Confidentiality | XSS / client-side injection              | Browser session / DOM   | 2 | 3 | 6     | Medium   | Open      | CSP headers + no `innerHTML` + sanitization | TBD   | TBD         |
 <% } %><% if (isMultiTenant) { %>
-| R-008 | Confidentiality | Tenant data cross-contamination          | All tenant data stores  | 1 | 4 | 4     | Low      | Open      | Row-level security + tenant ID validation   | TBD   | TBD         |
+| R-008 | Confidentiality | Tenant data cross-contamination          | All tenant data stores  | 1 | 4 | 4     | Low      | Open      | Isolation topology enforced (row-level, schema, DB, or file-per-tenant); tenant routing/validation at request-time      | TBD   | TBD         |
 <% } %><% if (hasPublicApi) { %>
 | R-009 | Availability    | API abuse / rate-limit bypass            | Public API endpoints    | 3 | 2 | 6     | Medium   | Open      | Rate-limiting middleware + WAF rules        | TBD   | TBD         |
 <% } %>
