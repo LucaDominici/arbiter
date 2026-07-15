@@ -53,6 +53,6 @@ M23 — Mutation Testing as Hard Gate
 | -------------------------------------- | ----------------------------------------------------- |
 | [FEATURE_MATRIX.md](FEATURE_MATRIX.md) | Product truth RTM — 55 requirements with evidence     |
 | [INDEX.md](../../INDEX.md)             | Every governance doc in one inventory                 |
-| [PRD.md](PRD.md)                       | Product requirements, personas, and governance levels |
+| [PRD.md](../../PRODUCT/PRD.md)         | Product requirements, personas, and governance levels |
 
 <!-- STATUS_END -->
