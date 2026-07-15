@@ -490,13 +490,13 @@ describe('generateGithub — deployTarget deploy-workflow gate (CANON-05, #899, 
     expect(existsSync(join(wfDir, '_sigstore-retry-sign.yml'))).toBe(false)
   })
 
-  it('_sigstore-retry-sign.yml contains workflow_call trigger', () => {
+  it('_sigstore-retry-sign.yml contains workflow_dispatch trigger', () => {
     generateGithub(makeConfig(dir, { ciTierMode: 'full' }))
     const content = readFileSync(
       join(dir, '.github', 'workflows', '_sigstore-retry-sign.yml'),
       'utf-8',
     )
-    expect(content).toContain('workflow_call')
+    expect(content).toContain('workflow_dispatch')
   })
 
   it('sign-and-attest/action.yml contains SBOM attestation step', () => {

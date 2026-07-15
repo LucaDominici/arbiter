@@ -2,15 +2,30 @@ import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
-describe('_sigstore-retry-sign.yml.ejs rendering (CANON-04, INV-76, #1076)', () => {
+// #1887-G: the dead `workflow_call` (sign-with-retry) half was removed — it was
+// emitted with no caller (05-release.yml signs inline). Only the reachable
+// `workflow_dispatch` (resign-oci-image) half ships. These tests pin the
+// remaining half; the retry/back-off/artifact-name/artifact-file assertions
+// for the removed half were deleted with it.
+
+describe('_sigstore-retry-sign.yml.ejs rendering (CANON-04, INV-76, #1887-G)', () => {
   const data = makeConfig('/tmp/test', {
     governanceLevel: 'L2',
   }) as unknown as Record<string, unknown>
 
-  it('renders cosign retry wrapper', () => {
+  it('triggers on workflow_dispatch only (no workflow_call half)', () => {
     const rendered = renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data)
-    expect(rendered).toContain('cosign sign-blob')
-    expect(rendered).toContain('max-attempts')
+    expect(rendered).toMatch(/^on:\s*\n\s*workflow_dispatch:/m)
+    // The dead workflow_call trigger was removed (#1887-G); the explanatory
+    // header comment may still mention it by name, so assert the trigger KEY
+    // (with colon) is absent rather than the bare word.
+    expect(rendered).not.toMatch(/^(\s*)workflow_call:/m)
+  })
+
+  it('ships the resign-oci-image job (manual post-outage re-sign)', () => {
+    const rendered = renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data)
+    expect(rendered).toContain('resign-oci-image')
+    expect(rendered).toContain('cosign sign --yes')
   })
 
   it('has top-level permissions block', () => {
@@ -26,27 +41,15 @@ describe('_sigstore-retry-sign.yml.ejs rendering (CANON-04, INV-76, #1076)', () 
     expect(nonSha).toEqual([])
   })
 
-  it('implements exponential back-off retry', () => {
+  it('enforces an owner-only guard on the manual dispatch', () => {
     const rendered = renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data)
-    expect(rendered).toContain('delay=$((delay * 2))')
+    expect(rendered).toMatch(/repository_owner/)
   })
 
-  // #1663: the single `artifact-path` input conflated an artifact NAME (for
-  // download-artifact) with a filesystem PATH (for cosign sign-blob). It is split
-  // into `artifact-name` and `artifact-file` so neither concept is misused.
-  it('separates artifact-name (download) from artifact-file (sign) — no conflated artifact-path', () => {
+  it('does NOT carry the removed retry/back-off scaffold', () => {
     const rendered = renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data)
-    expect(rendered).toContain('artifact-name:')
-    expect(rendered).toContain('artifact-file:')
-    expect(rendered).not.toContain('artifact-path')
-  })
-
-  it('download step uses artifact-name with an explicit path; sign uses artifact-file', () => {
-    const rendered = renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data)
-    // download-artifact pulls by NAME and lands in a deterministic directory
-    expect(rendered).toMatch(/name:\s*\$\{\{\s*inputs\.artifact-name\s*\}\}/)
-    expect(rendered).toMatch(/download-artifact[\s\S]*?path:\s*\./)
-    // the file handed to cosign comes from artifact-file via env (injection-safe)
-    expect(rendered).toMatch(/ARTIFACT:\s*\$\{\{\s*inputs\.artifact-file\s*\}\}/)
+    expect(rendered).not.toContain('delay=$((delay * 2))')
+    expect(rendered).not.toContain('artifact-name')
+    expect(rendered).not.toContain('artifact-file')
   })
 })

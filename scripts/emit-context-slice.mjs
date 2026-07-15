@@ -3,7 +3,8 @@
 //
 // emit-context-slice.mjs (#993) — atomic verbatim CONTEXT_SLICE emitter.
 // Extracts a byte-identical line range from one source file and emits a
-// self-describing CONTEXT_SLICE block per docs/METHOD/CONTEXT_SLICE_SPEC.md.
+// self-describing CONTEXT_SLICE block. Internal arbiter tooling — not
+// shipped to governed projects (no generator emits this script downstream).
 //
 // Determinism contract: no timestamps, hostnames, PIDs, or env vars in output.
 //
