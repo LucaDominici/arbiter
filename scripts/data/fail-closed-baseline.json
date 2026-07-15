@@ -110,8 +110,6 @@
     "scripts/gen-wiki.mjs",
     "scripts/gold-audit.mjs",
     "scripts/gold-report.mjs",
-    "scripts/lib/check-registry.mjs",
-    "scripts/lib/full-gate-blacklist.mjs",
     "scripts/lib/log-bypass.mjs",
     "scripts/lib/loud-bypass.mjs",
     "scripts/pii-scan.mjs",

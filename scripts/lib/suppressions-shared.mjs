@@ -2,8 +2,8 @@
 // Shared validation helpers for suppression checkers (file-based and inline).
 // Used by check-suppressions.mjs and check-inline-suppressions.mjs.
 
-export const REASON_MIN_LEN = 10
-export const WARN_DAYS = 30
+const REASON_MIN_LEN = 10
+const WARN_DAYS = 30
 
 /**
  * Checks whether an ISO date string is expired or expiring soon.
@@ -13,7 +13,7 @@ export const WARN_DAYS = 30
  * @param {string} file - file path for error messages
  * @param {{ failed: number, warnings: number }} counters
  */
-export function checkExpiry(dateStr, label, file, counters) {
+function checkExpiry(dateStr, label, file, counters) {
   const expiry = new Date(dateStr)
   if (isNaN(expiry.getTime())) {
     process.stderr.write(
@@ -95,21 +95,6 @@ export function parseArgs(argsStr) {
   }
   if (current.trim()) parts.push(current.trim())
   return parts
-}
-
-/**
- * Parses pipe-separated key: value metadata from a comment text.
- * Used by file-based suppressions (XML, .gitleaksignore).
- * @param {string} commentText
- * @returns {Record<string, string>}
- */
-export function parseMetaComment(commentText) {
-  const result = {}
-  for (const field of ['reason', 'owner', 'expiresAt', 'scope']) {
-    const match = commentText.match(new RegExp(`${field}:\\s*([^|\\n]+)`))
-    if (match) result[field] = match[1].trim()
-  }
-  return result
 }
 
 /**

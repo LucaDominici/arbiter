@@ -1,14 +1,7 @@
 {
   "workspaces": {
     ".": {
-      "entry": [
-        "src/cli.ts!",
-        "src/types/plugin.ts!",
-        "src/invariants/index.ts!",
-        "src/compatibility/index.ts!",
-        "src/utils/plugin-worker.ts!",
-        "scripts/**/*.mjs"
-      ],
+      "entry": ["src/utils/plugin-worker.ts!", "scripts/**/*.mjs"],
       "project": ["src/**/*.ts!", "!src/templates/**!", "scripts/**/*.mjs"]
     }
   },
@@ -19,9 +12,7 @@
     "gh",
     "flock",
     "actionlint",
-    "cosign",
     "which",
-    "java",
     "python3",
     "go",
     "gofmt",
