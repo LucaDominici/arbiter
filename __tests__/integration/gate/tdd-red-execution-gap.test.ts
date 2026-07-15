@@ -17,8 +17,22 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest'
 import { runVerifyTdd } from '../../../src/commands/verify-tdd.js'
+
+// gitCwd() lets ARBITER_HOOK_GIT_CWD win over an explicit dir (deliberate:
+// the pre-push rsync dir has no .git). This suite runs verify against a
+// /tmp fixture repo, so under the pre-push hook the override would point
+// every git check at the arbiter repo instead of the fixture and the
+// sha-on-branch check would fail before red-execution ever runs.
+let savedHookGitCwd: string | undefined
+beforeAll(() => {
+  savedHookGitCwd = process.env.ARBITER_HOOK_GIT_CWD
+  delete process.env.ARBITER_HOOK_GIT_CWD
+})
+afterAll(() => {
+  if (savedHookGitCwd !== undefined) process.env.ARBITER_HOOK_GIT_CWD = savedHookGitCwd
+})
 
 const ARBITER_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 
