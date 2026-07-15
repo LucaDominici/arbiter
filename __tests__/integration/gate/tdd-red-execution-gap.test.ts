@@ -50,7 +50,10 @@ describe('TDD red-execution gap (#1957)', () => {
     // Resolve vitest without a per-fixture npm install (mirrors
     // __tests__/integration/e2e/functional/record-red-runner.test.ts).
     symlinkSync(join(ARBITER_ROOT, 'node_modules'), join(d, 'node_modules'))
-    writeFileSync(join(d, 'vitest.config.mjs'), "export default { test: { include: ['*.test.ts'] } }\n")
+    writeFileSync(
+      join(d, 'vitest.config.mjs'),
+      "export default { test: { include: ['*.test.ts'] } }\n",
+    )
     return d
   }
 
@@ -98,7 +101,8 @@ describe('TDD red-execution gap (#1957)', () => {
         task_id: '#9001',
         test_path: 'math.test.ts',
         test_commit_sha: shaBeforeFix,
-        test_run_log: 'FAIL math.test.ts\n✗ add > adds correctly\nAssertionError: expected -1 to be 5',
+        test_run_log:
+          'FAIL math.test.ts\n✗ add > adds correctly\nAssertionError: expected -1 to be 5',
         observed_failure: 'FAIL math.test.ts',
         recorded_at: new Date().toISOString(),
         test_command: ['npx', 'vitest', 'run', 'math.test.ts'],

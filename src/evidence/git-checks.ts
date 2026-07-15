@@ -4,7 +4,7 @@ import { runCli } from '../utils/run-cli.js'
 // Pre-push hook rsyncs to a '#'-free temp dir without .git when the worktree
 // path contains '#'. ARBITER_HOOK_GIT_CWD points back to the real repo so git
 // queries against test-commit SHAs still resolve.
-function gitCwd(dir?: string): string {
+export function gitCwd(dir?: string): string {
   return process.env.ARBITER_HOOK_GIT_CWD || dir || process.cwd()
 }
 
