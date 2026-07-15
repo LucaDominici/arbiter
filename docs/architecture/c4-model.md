@@ -205,7 +205,7 @@ graph TB
 
     subgraph gates["FAIL-CLOSED VERIFICATION GATES"]
       pg["Plan-review gate<br/>SHA-256 plan-digest match<br/>(task.ts:287-318)"]
-      tg["TDD-evidence gate<br/>test really failed + sha-on-branch<br/>(task.ts:450-490)"]
+      tg["TDD-evidence gate<br/>sha-on-branch + re-executed at test_commit_sha (#1957)<br/>(task.ts:450-490, verify-tdd.ts)"]
       sg["🛑 stop-evidence-guard (INV-114)<br/>3 correlated artifacts required:<br/>plan-review · agents-dispatched · gate-pass"]
       cap["Verdict math<br/>score=100·Σw(pass)/Σw(all)<br/>unresolved RT-xx caps auditor→0"]
     end

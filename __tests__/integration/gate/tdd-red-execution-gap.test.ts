@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1957 — reproduces the real false-green found in Haben #366/#370: evidence
-// named a specific failing test whose `test_commit_sha` predated that test's
-// own existence. The test *file* existed at that commit (with an unrelated,
+// #1957 — reproduces a real false-green found in a downstream project:
+// evidence named a specific failing test whose `test_commit_sha` predated
+// that test's own existence. The test *file* existed at that commit (with an unrelated,
 // already-passing test in it), but the specific test named in the evidence
 // did not — it was added in the same commit as the production fix.
 //
@@ -75,7 +75,7 @@ describe('TDD red-execution gap (#1957)', () => {
     const shaBeforeFix = commit(dir, 'chore: buggy add() + unrelated test')
 
     // Commit B: fix lands together with the new covering test — same commit,
-    // exactly the Haben #366/#370 pattern.
+    // exactly the downstream-project pattern this reproduces.
     writeFileSync(
       join(dir, 'math.ts'),
       'export function add(a: number, b: number): number {\n  return a + b\n}\n',

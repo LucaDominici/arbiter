@@ -22,9 +22,9 @@ export const DEFAULT_REEXEC_TIMEOUT_MS = 120_000
  * re-extracted from that fresh run must match the recorded `observed_failure`
  * byte-for-byte.
  *
- * Closes the false-green in Haben #366/#370 (#1957): evidence named a
- * specific failing test whose `test_commit_sha` predated the test's own
- * existence — the file existed at that commit, the test did not. Neither
+ * Closes the false-green found in a downstream project (#1957): evidence
+ * named a specific failing test whose `test_commit_sha` predated the test's
+ * own existence — the file existed at that commit, the test did not. Neither
  * `sha-on-branch` nor `test-path-in-commit` re-run anything, so both passed
  * anyway. Re-executing the recorded command against the recorded commit's
  * real source is the only check that can catch this: at that commit the
@@ -130,10 +130,9 @@ function linkNodeModules(sourceDir: string, worktreeDir: string): void {
   if (!existsSync(src) || existsSync(dest)) return
   try {
     symlinkSync(src, dest, 'dir')
+    // FAIL-OPEN-INTENT: a missing link surfaces downstream as a genuine check failure (npx can't resolve the runner), never a false PASS.
   } catch {
-    // Best-effort: a missing link just means the re-run may fail to resolve
-    // an `npx`-launched binary, which correctly surfaces as a check failure
-    // rather than a false PASS.
+    // no-op — see FAIL-OPEN-INTENT above
   }
 }
 
@@ -155,8 +154,9 @@ function removeDetachedWorktree(repoDir: string, worktreeDir: string): void {
       cwd: repoDir,
       timeoutMs: 30_000,
     })
+    // FAIL-OPEN-INTENT: cleanup is best-effort — the unconditional rmSync below guarantees the directory is gone regardless of this command's outcome.
   } catch {
-    // best-effort — the rmSync below guarantees the directory itself is gone
+    // no-op — see FAIL-OPEN-INTENT above
   }
   rmSync(worktreeDir, { recursive: true, force: true })
 }

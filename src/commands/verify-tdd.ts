@@ -74,7 +74,7 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
   // Check 6: the recorded test_command genuinely reproduces observed_failure
   // when re-run from source at test_commit_sha (#1957). The only check that
   // catches evidence naming a test that did not exist — or was not yet
-  // failing — at the recorded commit (Haben #366/#370 false-green).
+  // failing — at the recorded commit (a real false-green found downstream).
   const reExec = verifyRedExecution(ev, dir)
   if (!reExec.ok) {
     const reason = reExec.reason ?? 'red-phase re-execution failed'
