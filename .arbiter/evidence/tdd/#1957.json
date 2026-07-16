@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1957",
+  "test_path": "__tests__/integration/gate/tdd-red-execution-gap.test.ts",
+  "test_commit_sha": "1fca45082ad671c5c5c9ad1e085ef56295568583",
+  "test_run_log": "\n RUN  v4.1.10 /tmp/arbiter-1957-capture2-OZ6B9T\n\n ❯ __tests__/integration/gate/tdd-red-execution-gap.test.ts (1 test | 1 failed) 42ms\n     × rejects evidence naming a test that did not exist yet at test_commit_sha (false-green) 41ms\n\n Test Files  1 failed (1)\n      Tests  1 failed (1)\n   Start at  22:16:26\n   Duration  184ms (transform 37ms, setup 15ms, import 55ms, tests 42ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/integration/gate/tdd-red-execution-gap.test.ts > TDD red-execution gap (#1957) > rejects evidence naming a test that did not exist yet at test_commit_sha (false-green)\nAssertionError: expected FAIL, got PASS — false-green not caught: expected 'PASS' to be 'FAIL' // Object.is equality\n\nExpected: \"FAIL\"\nReceived: \"PASS\"\n\n ❯ __tests__/integration/gate/tdd-red-execution-gap.test.ts:111:79\n    109|     const result = runVerifyTdd({ taskId: '#9001', dir })\n    110|\n    111|     expect(result.status, `expected FAIL, got PASS — false-green not c…\n       |                                                                               ^\n    112|     const reExecCheck = result.checks?.find((c) => c.name === 'red-exe…\n    113|     expect(reExecCheck?.pass).toBe(false)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/integration/gate/tdd-red-execution-gap.test.ts",
+  "recorded_at": "2026-07-15T20:17:30.331Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "--config",
+    "vitest.integration.config.ts",
+    "__tests__/integration/gate/tdd-red-execution-gap.test.ts"
+  ]
+}

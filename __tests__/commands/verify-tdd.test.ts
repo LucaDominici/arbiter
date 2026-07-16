@@ -10,6 +10,22 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
   pathExistsInCommit: vi.fn().mockReturnValue(true),
 }))
 
+import { shaExistsOnBranch, pathExistsInCommit } from '../../src/evidence/git-checks.js'
+const mockedShaExists = vi.mocked(shaExistsOnBranch)
+const mockedPathExists = vi.mocked(pathExistsInCommit)
+
+// The red-execution check (#1957) spawns real git worktrees + subprocesses —
+// out of scope for these orchestration-level unit tests, which only assert
+// that runVerifyTdd wires each check's result into the report correctly.
+// Real, unmocked reproduction lives in
+// __tests__/integration/gate/tdd-red-execution-gap.test.ts.
+vi.mock('../../src/evidence/tdd-reexecute.js', () => ({
+  verifyRedExecution: vi.fn().mockReturnValue({ ok: true }),
+}))
+
+import { verifyRedExecution } from '../../src/evidence/tdd-reexecute.js'
+const mockedVerifyRedExecution = vi.mocked(verifyRedExecution)
+
 const VALID_EVIDENCE = {
   $schemaVersion: 1,
   task_id: '#551',
@@ -18,6 +34,7 @@ const VALID_EVIDENCE = {
   test_run_log: 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 test failed',
   observed_failure: 'FAIL __tests__/evidence/tdd.test.ts',
   recorded_at: '2026-05-16T00:00:00.000Z',
+  test_command: ['npx', 'vitest', 'run', '__tests__/evidence/tdd.test.ts'],
 }
 
 describe('runVerifyTdd()', () => {
@@ -27,6 +44,8 @@ describe('runVerifyTdd()', () => {
       const d = dirs.pop()
       if (d) rmSync(d, { recursive: true, force: true })
     }
+    mockedVerifyRedExecution.mockClear()
+    mockedVerifyRedExecution.mockReturnValue({ ok: true })
   })
 
   function tmpRepo(): string {
@@ -105,6 +124,79 @@ describe('runVerifyTdd()', () => {
     const result = runVerifyTdd({ taskId: '#551', dir, json: true })
     for (const check of result.checks ?? []) {
       expect(check.pass).toBe(true)
+    }
+  })
+
+  it('runs 6 checks including red-execution, in order, when evidence is valid (#1957)', () => {
+    const dir = tmpRepo()
+    writeEvidence(dir, VALID_EVIDENCE)
+    const result = runVerifyTdd({ taskId: '#551', dir, json: true })
+    expect(result.checks?.map((c) => c.name)).toEqual([
+      'evidence-file',
+      'task-id-match',
+      'failure-signature',
+      'sha-on-branch',
+      'test-path-in-commit',
+      'red-execution',
+    ])
+  })
+
+  it('returns status FAIL when red-execution reports the recorded failure did not reproduce (#1957)', () => {
+    const dir = tmpRepo()
+    writeEvidence(dir, VALID_EVIDENCE)
+    mockedVerifyRedExecution.mockReturnValueOnce({
+      ok: false,
+      reason: 'test_command did not fail when re-run at test_commit_sha — false-green risk',
+    })
+    const result = runVerifyTdd({ taskId: '#551', dir })
+    expect(result.status).toBe('FAIL')
+    expect(result.exitCode).toBe(1)
+    expect(result.reason).toMatch(/false-green risk/)
+    const reExecCheck = result.checks?.find((c) => c.name === 'red-execution')
+    expect(reExecCheck?.pass).toBe(false)
+  })
+
+  it('returns status FAIL when the test commit sha is not in git history', () => {
+    const dir = tmpRepo()
+    writeEvidence(dir, VALID_EVIDENCE)
+    mockedShaExists.mockReturnValueOnce(false)
+    const result = runVerifyTdd({ taskId: '#551', dir })
+    expect(result.status).toBe('FAIL')
+    expect(result.reason).toMatch(/not found in git history/)
+    const check = result.checks?.find((c) => c.name === 'sha-on-branch')
+    expect(check?.pass).toBe(false)
+  })
+
+  it('returns status FAIL when the test path does not exist in the recorded commit', () => {
+    const dir = tmpRepo()
+    writeEvidence(dir, VALID_EVIDENCE)
+    mockedPathExists.mockReturnValueOnce(false)
+    const result = runVerifyTdd({ taskId: '#551', dir })
+    expect(result.status).toBe('FAIL')
+    expect(result.reason).toMatch(/not found in commit/)
+    const check = result.checks?.find((c) => c.name === 'test-path-in-commit')
+    expect(check?.pass).toBe(false)
+  })
+
+  it('falls back to a generic reason when red-execution fails without one (#1957)', () => {
+    const dir = tmpRepo()
+    writeEvidence(dir, VALID_EVIDENCE)
+    mockedVerifyRedExecution.mockReturnValueOnce({ ok: false })
+    const result = runVerifyTdd({ taskId: '#551', dir })
+    expect(result.status).toBe('FAIL')
+    expect(result.reason).toBe('red-phase re-execution failed')
+  })
+
+  it('falls back to process.cwd() when no dir is given', () => {
+    const d = tmpRepo() // no evidence written here
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(d)
+    try {
+      const result = runVerifyTdd({ taskId: '#551' })
+      // Evidence lookup happened against the cwd fixture → the fallback was used.
+      expect(result.status).toBe('FAIL')
+      expect(result.reason).toContain(d)
+    } finally {
+      cwdSpy.mockRestore()
     }
   })
 })

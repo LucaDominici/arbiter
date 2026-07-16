@@ -50,7 +50,7 @@ const FLAG_CATALOG: ReadonlyMap<string, FlagEntry> = new Map([
     {
       summary: 'Project serves multiple tenants from one deployment.',
       detail:
-        'Generates: tenant-isolation invariants, per-tenant data-scoping checks, and tenancy auth machinery (tenant context propagation + isolation tests).',
+        'Descriptive metadata input only — adds a risk-register entry for tenant data isolation (R-008). Does not generate isolation/auth machinery; isolation topology is user-determined (row-level, schema-per-tenant, DB-per-tenant, or file-per-tenant).',
     },
   ],
   [

@@ -53,6 +53,7 @@ Hooks wired in `.claude/settings.json`.
 | `post-brainstorm-stop.mjs`    | UserPromptSubmit   | \*           | read, delete           | `.arbiter/brainstorm-active`            | SAFE              |
 | `skill-forced-eval.mjs`       | UserPromptSubmit   | \*           | read, stdout-inject    | `.claude/.task-*`                       | SAFE              |
 | `guard-task-completion.mjs`   | UserPromptSubmit   | \*           | read                   | `.claude/.task-*`                       | SAFE              |
+| `guard-done-evidence.mjs`     | UserPromptSubmit   | \*           | read                   | `.claude/.task/status.json`, `arbiter.json`, `.claude/.last-done-evidence.json`, pinned src | SAFE (#1872, flag-gated) |
 | `stop-evidence-guard.mjs`     | Stop               | \*           | read (transcript, git) | `.arbiter/evidence/*`, `.claude/.task/` | SAFE              |
 | `closer-mode-guard.mjs`       | PreToolUse         | Bash         | read (task state, git) | `.claude/.task/`                        | SAFE              |
 | `debug-state-on-failure.mjs`  | PostToolUseFailure | Bash         | create-or-append-write | `.evidence/<task>/DEBUG_STATE.md`       | SAFE              |

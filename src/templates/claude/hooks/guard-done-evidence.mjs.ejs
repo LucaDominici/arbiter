@@ -10,6 +10,30 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
 const root = getRepoRoot();
+
+// --- Flag gate (#1872): inert unless the project opts in ---------------------
+// This hook is materialized for dogfood regardless of the flag, but stays
+// no-op (exit 0) until the owner flips features.evidenceHarness: true in
+// arbiter.json. The flag is the owner-flippable one-line activation switch;
+// the artifacts (hook + script + wiring) travel with it so the flip alone
+// turns enforcement on. Env ARBITER_EVIDENCE_HARNESS overrides for testing/CI:
+//   '1'/'true' → on, '0'/'false' → off, unset → read arbiter.json.
+// Fail-open (inert) when arbiter.json is absent or unreadable — a missing flag
+// never hard-blocks completion claims.
+function evidenceHarnessEnabled(repoRoot) {
+  const env = process.env.ARBITER_EVIDENCE_HARNESS;
+  if (env === '1' || env === 'true') return true;
+  if (env === '0' || env === 'false') return false;
+  try {
+    const cfg = JSON.parse(readFileSync(join(repoRoot, 'arbiter.json'), 'utf-8'));
+    return cfg?.features?.evidenceHarness === true;
+    // FAIL-OPEN-INTENT: missing/unreadable arbiter.json → inert (a missing flag never hard-blocks completion).
+  } catch {
+    return false;
+  }
+}
+if (!evidenceHarnessEnabled(root)) process.exit(0);
+
 const { phase } = readTaskState(root);
 
 // Only guard during verification phase (evidence required before claiming done)
@@ -26,8 +50,8 @@ try {
 }
 try {
   promptText = JSON.parse(raw)?.prompt ?? '';
+  // FAIL-OPEN-INTENT: non-JSON stdin is not a hook error — treat as empty prompt (exit 0).
 } catch {
-  // Non-JSON stdin is not a hook error — treat as empty prompt
   process.exit(0);
 }
 
@@ -58,12 +82,14 @@ let rawEvidence;
 try {
   rawEvidence = readFileSync(EVIDENCE_PATH, 'utf-8');
 } catch (e) {
-  fail(`could not read evidence file — ${e.code ?? e.message}`);
+  process.stderr.write(`[guard-done-evidence] ERROR: could not read evidence file — ${e.code ?? e.message}\n`);
+  process.exit(2);
 }
 try {
   evidence = JSON.parse(rawEvidence);
 } catch (e) {
-  fail(`evidence file is not valid JSON — ${e.message}`);
+  process.stderr.write(`[guard-done-evidence] ERROR: evidence file is not valid JSON — ${e.message}\n`);
+  process.exit(2);
 }
 
 if (evidence.all_green !== true) {
@@ -88,7 +114,8 @@ for (const entry of pinnedFiles) {
   try {
     currentSha = createHash('sha256').update(readFileSync(absPath)).digest('hex');
   } catch (e) {
-    fail(`could not read pinned file ${entry.path} — ${e.code ?? e.message}`);
+    process.stderr.write(`[guard-done-evidence] ERROR: could not read pinned file ${entry.path} — ${e.code ?? e.message}\n`);
+    process.exit(2);
   }
   if (currentSha !== entry.sha256) {
     fail(`SHA mismatch — drift detected in ${entry.path} (modified since evidence captured)`);

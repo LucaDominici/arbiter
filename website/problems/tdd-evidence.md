@@ -30,7 +30,13 @@ hard to prove was followed.
 
 - **INV-26 (TDD evidence):** `arbiter task record-red` captures the failing-test run; `arbiter verify
 tdd` runs in the L2 gate and at `arbiter task advance --to green`. Advancing to implementation
-  without a recorded red test is blocked.
+  without a recorded red test is blocked. Recording the test file's path and a failure-signature
+  string was not sufficient on its own: evidence could name a specific test that did not exist yet
+  at the recorded commit (the file existed, that test did not — a real false-green found downstream).
+  Arbiter's own `arbiter verify tdd` now re-executes the recorded test command in an isolated,
+  detached checkout of the recorded commit and requires the reproduced failure to match byte-for-byte
+  (#1957); evidence recorded before this check lacks the data to be re-verified and fails closed
+  until re-recorded.
 - **INV-30 (mutation testing, Java, L2+):** generated pitest config enforces a mutation-score /
   line-coverage threshold as a HARD gate — this narrows "tests that don't actually assert behavior."
 - **INV-34 (real-DB integration, L2+):** Testcontainers-backed tests with anti-fake-DB gates.

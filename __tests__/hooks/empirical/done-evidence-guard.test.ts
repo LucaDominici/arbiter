@@ -99,12 +99,30 @@ function writeEvidence(
   writeFileSync(join(dir, '.claude', '.last-done-evidence.json'), JSON.stringify(evidence, null, 2))
 }
 
-function runHook(hookPath: string, dir: string, prompt: string) {
+function runHook(
+  hookPath: string,
+  dir: string,
+  prompt: string,
+  // env is the dogfood activation switch (#1872): default ON so the pre-existing
+  // enforcement tests keep exercising the guard; inert-case tests pass an explicit
+  // override. A bare `{}` clears the env var so the hook falls through to arbiter.json.
+  envOverride: Record<string, string> = { ARBITER_EVIDENCE_HARNESS: '1' },
+) {
+  const baseEnv = { ...process.env }
+  delete baseEnv.ARBITER_EVIDENCE_HARNESS
   return spawnSync('node', [hookPath], {
     cwd: dir,
     input: JSON.stringify({ prompt }),
     encoding: 'utf-8',
+    env: { ...baseEnv, ...envOverride },
   })
+}
+
+function writeArbiterConfig(dir: string, evidenceHarness: boolean) {
+  writeFileSync(
+    join(dir, 'arbiter.json'),
+    JSON.stringify({ features: { evidenceHarness } }, null, 2),
+  )
 }
 
 describe('guard-done-evidence — empirical spawn', () => {
@@ -381,6 +399,97 @@ describe('guard-done-evidence — reality-contact (frontend-spa)', () => {
         },
       })
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('guard-done-evidence — flag gate (#1872)', () => {
+  // The hook is materialized for dogfood regardless of the flag, but must stay
+  // inert (exit 0) until features.evidenceHarness is true. The flag is the
+  // owner-flippable one-line switch; env ARBITER_EVIDENCE_HARNESS overrides for
+  // testing/CI. See issue #1872 safe-path step 2.
+
+  it('is inert (exit 0) when ARBITER_EVIDENCE_HARNESS=0, even on a done claim with no evidence', () => {
+    const { dir, hookPath } = setup()
+    try {
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT, { ARBITER_EVIDENCE_HARNESS: '0' })
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('is inert when env unset and no arbiter.json exists (fail-open)', () => {
+    const { dir, hookPath } = setup()
+    try {
+      // {} clears the env var — hook falls through to arbiter.json, which is absent
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT, {})
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('is inert when arbiter.json has features.evidenceHarness: false', () => {
+    const { dir, hookPath } = setup()
+    try {
+      writeArbiterConfig(dir, false)
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT, {})
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('enforces (exit 2) when arbiter.json has features.evidenceHarness: true and evidence is missing', () => {
+    const { dir, hookPath } = setup()
+    try {
+      writeArbiterConfig(dir, true)
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT, {})
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('env=0 overrides arbiter.json: true → inert', () => {
+    const { dir, hookPath } = setup()
+    try {
+      writeArbiterConfig(dir, true)
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT, { ARBITER_EVIDENCE_HARNESS: '0' })
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('env=1 overrides arbiter.json: false → enforces', () => {
+    const { dir, hookPath } = setup()
+    try {
+      writeArbiterConfig(dir, false)
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT, { ARBITER_EVIDENCE_HARNESS: '1' })
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('flag gate fires before the phase guard: inert even in verification with a done claim', () => {
+    const { dir, hookPath } = setup()
+    try {
+      // phase is already 'verification' from setup(); no evidence file present.
+      // With the flag off, the hook must exit 0 WITHOUT touching evidence checks.
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT, { ARBITER_EVIDENCE_HARNESS: '0' })
       expect(result.status).toBe(0)
       expect(result.stderr).toBe('')
     } finally {

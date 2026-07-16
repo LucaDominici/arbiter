@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
 import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
+import { verifyRedExecution } from '../evidence/tdd-reexecute.js'
 
 interface VerifyTddCheck {
   name: string
@@ -69,6 +70,17 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
     return fail(taskId, reason, [...checks, { name: 'test-path-in-commit', pass: false, reason }])
   }
   checks.push({ name: 'test-path-in-commit', pass: true })
+
+  // Check 6: the recorded test_command genuinely reproduces observed_failure
+  // when re-run from source at test_commit_sha (#1957). The only check that
+  // catches evidence naming a test that did not exist — or was not yet
+  // failing — at the recorded commit (a real false-green found downstream).
+  const reExec = verifyRedExecution(ev, dir)
+  if (!reExec.ok) {
+    const reason = reExec.reason ?? 'red-phase re-execution failed'
+    return fail(taskId, reason, [...checks, { name: 'red-execution', pass: false, reason }])
+  }
+  checks.push({ name: 'red-execution', pass: true })
 
   return { status: 'PASS', exitCode: 0, taskId, checks }
 }

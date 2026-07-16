@@ -120,6 +120,14 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     purpose: 'Prefix: override a features.<flag> value (e.g. ARBITER_FEATURE__MUTATION_TESTING=1).',
     isGateBypass: false,
   },
+  {
+    name: 'ARBITER_EVIDENCE_HARNESS',
+    type: 'boolean',
+    default: false,
+    purpose:
+      'Override the guard-done-evidence hook activation flag (#1872). "1"/"true" enforces, "0"/"false" disarms; unset falls through to features.evidenceHarness in arbiter.json.',
+    isGateBypass: false,
+  },
   // ── Paths / integration ──────────────────────────────────────────────────
   {
     name: 'ARBITER_EVIDENCE_DIR',
