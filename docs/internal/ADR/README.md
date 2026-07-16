@@ -56,7 +56,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 026 | [Scaled Thresholds and Practical/Pedantic Strictness Tiers](026-scaled-thresholds.md)                                                                                 | Accepted   | 2026-05-20 |  |
 | 027 | [Real-Project Nightly Matrix](027-real-project-nightly-matrix.md)                                                                                                     | Accepted   | 2026-05-20 |  |
 | 028 | [Grace Period for Level Upgrade + Contract Type Axis](028-level-upgrade-grace-and-contract-type.md)                                                                   | Accepted   | 2026-05-20 |  |
-| 029 | [Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold](029-mutation-testing-hard-gate.md)                                                                    | Accepted   | 2026-05-20 |  |
+| 029 | [Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold](029-mutation-testing-hard-gate.md)                                                                    | superseded | 2026-07-12 |  |
 | 030 | [Nightly Pipeline & Evidence Harness](030-nightly-evidence-harness.md)                                                                                                | Accepted   | 2026-05-20 |  |
 | 031 | [Plugin API v1](031-plugin-api-v1.md)                                                                                                                                 | Accepted   | 2026-05-20 |  |
 | 032 | [Hook Hardness Manifest and Empirical Verification (INV-36)](032-hook-hardness-manifest.md)                                                                           | Accepted   | 2026-05-20 |  |
