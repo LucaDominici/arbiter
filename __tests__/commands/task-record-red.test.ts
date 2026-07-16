@@ -192,4 +192,170 @@ describe('runTaskRecordRed()', () => {
       expect.any(Object),
     ])
   })
+
+  it.each(['typescript', 'java', 'kotlin', 'rust', 'multi'] as const)(
+    'auto-selects the vitest runner for language %s (no bespoke mapping) (#1951)',
+    (language) => {
+      const dir = tmpRepo()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language }), 'utf-8')
+      mockedRunCli
+        .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+        .mockReturnValueOnce({
+          stdout: 'FAIL src/foo.test.ts\n1 failed',
+          stderr: '',
+          exitCode: 1,
+          durationMs: 50,
+        })
+      runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+      expect(mockedRunCli.mock.calls[1]).toEqual([
+        'npx',
+        ['vitest', 'run', 'src/foo.test.ts'],
+        expect.any(Object),
+      ])
+    },
+  )
+
+  it('scopes `go test` to `.` for a root-level go test file (#1951)', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'go' }), 'utf-8')
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '--- FAIL: TestMain (0.00s)\nmain_test.go:1: nope',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 50,
+      })
+    runTaskRecordRed({ testPath: 'main_test.go', dir })
+    expect(mockedRunCli.mock.calls[1]).toEqual(['go', ['test', '.'], expect.any(Object)])
+  })
+
+  it('keeps an already-prefixed go package dir verbatim (#1951)', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'go' }), 'utf-8')
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:1: nope',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 50,
+      })
+    runTaskRecordRed({ testPath: './pkg/foo_test.go', dir })
+    expect(mockedRunCli.mock.calls[1]).toEqual(['go', ['test', './pkg'], expect.any(Object)])
+  })
+
+  it.each([
+    [500, 1000],
+    [Number.NaN, 1000],
+    [5000.5, 5000],
+  ])('clamps/normalises timeoutMs %s to %s before the run (#1951)', (given, expected) => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '--- FAIL: TestFoo\n',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 5,
+      })
+    runTaskRecordRed({ testPath: 'src/foo.test.ts', dir, timeoutMs: given })
+    const testCallOpts = mockedRunCli.mock.calls[1][2] as { timeoutMs: number }
+    expect(testCallOpts.timeoutMs).toBe(expected)
+  })
+
+  it('records evidence when the failure signature appears only on stderr of a zero-exit run', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: 'suite started',
+        stderr: 'FAIL src/foo.test.ts\n1 failed',
+        exitCode: 0,
+        durationMs: 50,
+      })
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result.ok).toBe(true)
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_run_log).toContain('suite started')
+    expect(ev.test_run_log).toContain('FAIL src/foo.test.ts')
+  })
+
+  it('captures both stdout and stderr from a failing (throwing) test run', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockImplementationOnce(() => {
+        // Real runCli throws a CliError carrying the child's output on non-zero exit.
+        throw Object.assign(new Error('exit 1'), {
+          stdout: 'FAIL src/foo.test.ts\n1 failed',
+          stderr: 'deprecation warning: old flag',
+        })
+      })
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result.ok).toBe(true)
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_run_log).toContain('FAIL src/foo.test.ts')
+    expect(ev.test_run_log).toContain('deprecation warning: old flag')
+  })
+
+  it('captures a failing run whose stderr is empty without appending a stray newline', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockImplementationOnce(() => {
+        throw Object.assign(new Error('exit 1'), {
+          stdout: 'FAIL src/foo.test.ts\n1 failed',
+          stderr: '',
+        })
+      })
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result.ok).toBe(true)
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_run_log).toBe('FAIL src/foo.test.ts\n1 failed')
+  })
+
+  it('stringifies a non-Error launch failure into the reason', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockImplementationOnce(() => {
+        throw 'spawn blew up' // deliberately a non-Error value
+      })
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/failed to launch/)
+    expect(result.reason).toMatch(/spawn blew up/)
+  })
+
+  it('stringifies a non-Error git rev-parse failure into the reason', () => {
+    const dir = tmpRepo()
+    mockedRunCli.mockImplementationOnce(() => {
+      throw 'git exploded' // deliberately a non-Error value
+    })
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/git rev-parse/)
+    expect(result.reason).toMatch(/git exploded/)
+  })
+
+  it('falls back to process.cwd() when no dir is given', () => {
+    const d = mkdtempSync(join(tmpdir(), 'record-red-cwd-'))
+    dirs.push(d)
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(d)
+    try {
+      const result = runTaskRecordRed({ testPath: 'src/foo.test.ts' })
+      // No .claude/.task-id in the cwd fixture → the cwd fallback was used.
+      expect(result.ok).toBe(false)
+      expect(result.reason).toMatch(/no active task/i)
+    } finally {
+      cwdSpy.mockRestore()
+    }
+  })
 })
