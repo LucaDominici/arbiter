@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+import { buildKnownLimitations } from '../../src/generators/codex-known-limitations.js'
 import type { Language } from '../../src/wizard/types.js'
 
 /**
@@ -24,7 +25,12 @@ function renderCodexMd(language: Language, testCommand?: string): string {
     language,
     testCommand: testCommand ?? GATE_MAP[language] ?? 'echo test',
   })
-  return renderTemplate('codex/CODEX.md.ejs', config as unknown as Record<string, unknown>)
+  // ADR-106 (#1966): CODEX.md's Known Limitations section is generated from
+  // the Claude-track inventory — mirror generateCodex's render enrichment.
+  return renderTemplate('codex/CODEX.md.ejs', {
+    ...config,
+    knownLimitations: buildKnownLimitations(config),
+  } as unknown as Record<string, unknown>)
 }
 
 function renderCursorrules(language: Language, testCommand?: string): string {

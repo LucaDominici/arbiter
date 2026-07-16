@@ -4,8 +4,8 @@ doc_version: '1.0.0'
 status: active
 last_review: '2026-07-16'
 owner: ''
-canonical_id: 'CODEX_PARITY_RUNBOOK'
-tags: ['audience/dev', 'kind/method']
+canonical_id: ''
+tags: ['audience/dev', 'kind/runbook']
 related: []
 ---
 
