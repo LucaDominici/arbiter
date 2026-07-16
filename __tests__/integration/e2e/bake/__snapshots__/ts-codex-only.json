@@ -118,13 +118,13 @@
     "test-pyramid.json"
   ],
   "contentHashes": {
-    ".agents/CODEX.md": "4efc921deb74ec6c093cf228b6175862438f7d23ba6afb096298f1e93ca284a7",
+    ".agents/CODEX.md": "268e6ca520f85eeb45402f042e3d64f4f7b78d06d9c836aeddb2472478a3e7ba",
     ".agents/plan/README.md": "bdca22392d62033e1038d713937c788aef6d31064e9c08a6dda112842e1a9c07",
     ".agents/rules/05-agent-lifecycle.md": "52ab5d19d43d954f08e1672a75dad88cd3a1c9557a9a730757eeb0a06306998d",
     ".agents/rules/25-todo-folder-policy.md": "4db8c0a73cc7397b65e1755dc77d2b85172495e66d434513ed5f3a01f3572a1d",
     ".agents/rules/50-batch-execution.md": "0485c724b751abb428bbaf8f4b1e8c67f18808b1156dc7cdd1b78c90ba98d6f5",
     ".agents/rules/60-incidental-capture.md": "5c6937eb1a6ca9f14cebe11641198a570b220c434176c1aec8aacbcccf1f9032",
-    ".agents/rules/90-exec-protocol.md": "4a6a497aad184ba68baeb1554097092ecec66704bb83f5e95fdc4b7be16fc873",
+    ".agents/rules/90-exec-protocol.md": "c0ee8c10c36bfe8087f779c41e0b8d4f398c60bc8a58ef19e708beac2a202adc",
     ".claude/hooks/check-no-orphan-todo.mjs": "6a363498bb173ae3a39eb213e2ad0cb30c36d355e9d37bd07f59755d09cba190",
     ".claude/hooks/check-no-placeholders.mjs": "87ca1c5367d7d2a76932cf742bdcf93871fc3d2fef473c109c8e6e5a4827e3fa",
     ".claude/hooks/check-no-skipped-tests.mjs": "25f10180080c9536af50fba56f29b50a326fe5223410a7d8ddaa7cb60dcc8e91",

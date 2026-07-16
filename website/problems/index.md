@@ -17,16 +17,17 @@ invariant, the generated hook or gate, the activation level — and **how to ver
 If arbiter cannot enforce something mechanically, it is not listed here. The boundaries are
 explicit on every page and collected under [What arbiter is NOT](/governance/).
 
-| Problem                                                                  | Mechanism (what `arbiter init` generates)                       | Verify                                          |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------- | ----------------------------------------------- |
-| [Agents drift from our conventions](/problems/agents-drift)              | Edit-time Claude hooks + L1 gate (INV-04, INV-21)               | inspect `.claude/hooks/`; `check-all.mjs L1`    |
-| [Standards documented but not enforced](/problems/enforced-not-advisory) | Every chosen rule is a HARD gate — no advisory tier             | `check-all.mjs L2` against a violation          |
-| [Secrets / PII slip into commits](/problems/secrets-pii)                 | gitleaks + PII scan, HARD at L2 (INV-11, INV-12)                | `check-all.mjs L2`; `pii-scan.mjs`              |
-| [Vulnerable dependencies reach prod](/problems/vulnerable-deps)          | Dependency audit, CVSS ≥ 7.0 fails the build (INV-13, L2)       | the generated dep-audit step                    |
-| [Suppressions become permanent](/problems/suppression-expiry)            | Mandatory expiry; a past-due waiver blocks L1 (INV-31)          | expired waiver → `check-all.mjs L1`             |
-| [Direct pushes / bot self-approval](/problems/branch-protection)         | Branch protection + human-approval workflow (INV-23, INV-74/91) | inspect generated `.github/workflows/`          |
-| [Tests written after the fact](/problems/tdd-evidence)                   | TDD red-evidence + mutation/real-DB at L2 (INV-26, INV-30/34)   | `arbiter verify tdd`                            |
-| [Can I trust the tool itself?](/problems/dogfooding-trust)               | arbiter governs arbiter at L2; public evidence trail            | browse the repo; `arbiter verify evidence` (L4) |
+| Problem                                                                  | Mechanism (what `arbiter init` generates)                           | Verify                                          |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------- | ----------------------------------------------- |
+| [Agents drift from our conventions](/problems/agents-drift)              | Edit-time Claude hooks + L1 gate (INV-04, INV-21)                   | inspect `.claude/hooks/`; `check-all.mjs L1`    |
+| [Standards documented but not enforced](/problems/enforced-not-advisory) | Every chosen rule is a HARD gate — no advisory tier                 | `check-all.mjs L2` against a violation          |
+| [Secrets / PII slip into commits](/problems/secrets-pii)                 | gitleaks + PII scan, HARD at L2 (INV-11, INV-12)                    | `check-all.mjs L2`; `pii-scan.mjs`              |
+| [Vulnerable dependencies reach prod](/problems/vulnerable-deps)          | Dependency audit, CVSS ≥ 7.0 fails the build (INV-13, L2)           | the generated dep-audit step                    |
+| [Suppressions become permanent](/problems/suppression-expiry)            | Mandatory expiry; a past-due waiver blocks L1 (INV-31)              | expired waiver → `check-all.mjs L1`             |
+| [Direct pushes / bot self-approval](/problems/branch-protection)         | Branch protection + human-approval workflow (INV-23, INV-74/91)     | inspect generated `.github/workflows/`          |
+| [Tests written after the fact](/problems/tdd-evidence)                   | TDD red-evidence + mutation/real-DB at L2 (INV-26, INV-30/34)       | `arbiter verify tdd`                            |
+| [Can I trust the tool itself?](/problems/dogfooding-trust)               | arbiter governs arbiter at L2; public evidence trail                | browse the repo; `arbiter verify evidence` (L4) |
+| [A second AI tool drifts to weaker governance](/problems/codex-parity)   | Derive-from-Claude + parity gate, 100% classified surface (ADR-106) | `check-codex-parity.mjs`; inject drift → red    |
 
 ## What's deliberately not here
 

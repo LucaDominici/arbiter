@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-07-11'
+last_review: '2026-07-16'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -47,7 +47,7 @@ related: []
 | 026 | [Scaled Thresholds and Practical/Pedantic Strictness Tiers](../ADR/026-scaled-thresholds.md) | Accepted | 2026-05-20 |
 | 027 | [Real-Project Nightly Matrix](../ADR/027-real-project-nightly-matrix.md) | Accepted | 2026-05-20 |
 | 028 | [Grace Period for Level Upgrade + Contract Type Axis](../ADR/028-level-upgrade-grace-and-contract-type.md) | Accepted | 2026-05-20 |
-| 029 | [Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold](../ADR/029-mutation-testing-hard-gate.md) | Accepted | 2026-05-20 |
+| 029 | [Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold](../ADR/029-mutation-testing-hard-gate.md) | superseded | 2026-07-12 |
 | 030 | [Nightly Pipeline & Evidence Harness](../ADR/030-nightly-evidence-harness.md) | Accepted | 2026-05-20 |
 | 031 | [Plugin API v1](../ADR/031-plugin-api-v1.md) | Accepted | 2026-05-20 |
 | 032 | [Hook Hardness Manifest and Empirical Verification (INV-36)](../ADR/032-hook-hardness-manifest.md) | Accepted | 2026-05-20 |
@@ -123,3 +123,4 @@ related: []
 | 102 | [gate the workflow-template-emitted dims at L3](../ADR/102-l3-workflow-dim-gating.md) | Accepted | 2026-07-01 |
 | 104 | [Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning](../ADR/104-trivy-fs-replaces-owasp-dependency-check.md) | Accepted | 2026-07-10 |
 | 105 | [never-brick config migration — coercible vs fatal fields](../ADR/105-never-brick-config-migration.md) | Accepted | 2026-07-11 |
+| 106 | [Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](../ADR/106-codex-track-parity-contract.md) | Accepted | 2026-07-16 |

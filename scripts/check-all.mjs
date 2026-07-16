@@ -23,7 +23,8 @@
 //       self-validation drill + local-ci parity + id stability + anti-telemetry +
 //       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) +
 //       anti-context-rot enforcers: agent-return envelope + refutation majority +
-//       audit dry-pass + handoff lint (#1943, advisory) (73)
+//       audit dry-pass + handoff lint (#1943, advisory) +
+//       codex parity (ADR-106, #1966) (74)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
@@ -329,6 +330,10 @@ if (isMain) {
     runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
     runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
     runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
+    // ADR-106 (#1966): codex-track parity contract — derive-from-Claude rules,
+    // 100% classified parity surface, generated Known Limitations, merge-base
+    // baseline anti-shrinkage. Bakes a fixture via the real CLI (init).
+    runCheck('codex parity (#1966)', 'node', ['scripts/check-codex-parity.mjs'])
     // INV-133 (#1456): over-age linked task-marker gate. SKIPs offline / no token.
     runCheck('todo max-age', 'node', ['scripts/check-todo-max-age.mjs'])
     runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])

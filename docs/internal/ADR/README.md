@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-11'
+last_review: '2026-07-16'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 105)
+1. Create `NNN-short-title.md` in this directory (next free number after 106)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -56,7 +56,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 026 | [Scaled Thresholds and Practical/Pedantic Strictness Tiers](026-scaled-thresholds.md)                                                                                 | Accepted   | 2026-05-20 |  |
 | 027 | [Real-Project Nightly Matrix](027-real-project-nightly-matrix.md)                                                                                                     | Accepted   | 2026-05-20 |  |
 | 028 | [Grace Period for Level Upgrade + Contract Type Axis](028-level-upgrade-grace-and-contract-type.md)                                                                   | Accepted   | 2026-05-20 |  |
-| 029 | [Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold](029-mutation-testing-hard-gate.md)                                                                    | Accepted   | 2026-05-20 |  |
+| 029 | [Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold](029-mutation-testing-hard-gate.md)                                                                    | superseded | 2026-07-12 |  |
 | 030 | [Nightly Pipeline & Evidence Harness](030-nightly-evidence-harness.md)                                                                                                | Accepted   | 2026-05-20 |  |
 | 031 | [Plugin API v1](031-plugin-api-v1.md)                                                                                                                                 | Accepted   | 2026-05-20 |  |
 | 032 | [Hook Hardness Manifest and Empirical Verification (INV-36)](032-hook-hardness-manifest.md)                                                                           | Accepted   | 2026-05-20 |  |
@@ -132,3 +132,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 102 | [gate the workflow-template-emitted dims at L3](102-l3-workflow-dim-gating.md)                                                                                        | Accepted   | 2026-07-01 |  |
 | 104 | [Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning](104-trivy-fs-replaces-owasp-dependency-check.md)                                               | Accepted   | 2026-07-10 |  |
 | 105 | [never-brick config migration — coercible vs fatal fields](105-never-brick-config-migration.md)                                                                       | Accepted   | 2026-07-11 |  |
+| 106 | [Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](106-codex-track-parity-contract.md)                                                 | Accepted   | 2026-07-16 |  |

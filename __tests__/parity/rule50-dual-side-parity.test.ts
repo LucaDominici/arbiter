@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // ADR-103 (#1873): rule 50 is templated DUAL-SIDE. The arbiter-self file
 // (.claude/rules/50-batch-execution.md) is the claude template body plus a
-// frontmatter block, and the codex template mirrors the claude template
-// byte-for-byte. Any carve-out edit must land on ALL THREE surfaces —
-// this parity test makes a single-side edit impossible to merge.
+// frontmatter block. Since ADR-106 (#1966) the Codex track DERIVES the rule
+// from the same claude template (the parallel codex copy was deleted), so
+// codex-side parity is structural: this suite pins the derivation mapping
+// and refuses any resurrected parallel copy. A carve-out edit therefore
+// lands on the claude template + self file only, and reaches Codex for free.
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { CODEX_DERIVED_RULES } from '../../src/generators/codex-known-limitations.js'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -20,7 +23,14 @@ const CLAUDE_TEMPLATE = join(
   'rules',
   '50-batch-execution.md',
 )
-const CODEX_TEMPLATE = join(repoRoot, 'src', 'templates', 'codex', 'rules', '50-batch-execution.md')
+const LEGACY_CODEX_TEMPLATE = join(
+  repoRoot,
+  'src',
+  'templates',
+  'codex',
+  'rules',
+  '50-batch-execution.md',
+)
 
 /** Strip the leading `--- ... ---` frontmatter block, if present. */
 function body(content: string): string {
@@ -37,10 +47,14 @@ describe('rule 50 dual-side parity (ADR-103, #1873)', () => {
     expect(self).toBe(template)
   })
 
-  it('codex template is byte-equal to the claude template', () => {
-    const codex = readFileSync(CODEX_TEMPLATE, 'utf-8')
-    const claude = readFileSync(CLAUDE_TEMPLATE, 'utf-8')
-    expect(codex).toBe(claude)
+  it('codex side is DERIVED from the claude template — no parallel copy exists (ADR-106)', () => {
+    const mapping = CODEX_DERIVED_RULES.find((r) => r.file === '50-batch-execution.md')
+    expect(mapping, 'rule 50 must stay in the codex derivation plan').toBeDefined()
+    expect(mapping!.template).toBe('claude/rules/50-batch-execution.md')
+    expect(
+      existsSync(LEGACY_CODEX_TEMPLATE),
+      'a resurrected parallel codex copy would reintroduce the #1966 drift class',
+    ).toBe(false)
   })
 
   it('documents the worktree-isolated carve-out with ALL-conditions semantics', () => {

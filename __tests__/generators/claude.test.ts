@@ -36,6 +36,23 @@ describe('generateClaude', () => {
     expect(claudeMd!.action).toBe('created')
   })
 
+  it('dry-run over an existing divergent settings.json reports the merge without touching disk', () => {
+    // First real run materializes settings.json, then diverge it so the merge
+    // path (not the skip path) is taken on the second, dry-run pass.
+    generateClaude(makeConfig(dir))
+    const settingsPath = join(dir, '.claude', 'settings.json')
+    const diverged = JSON.stringify({ userCustomKey: true }, null, 2) + '\n'
+    writeFileSync(settingsPath, diverged)
+
+    const result = generateClaude(makeConfig(dir), { dryRun: true })
+
+    const settings = result.files.find((f) => f.path.endsWith('settings.json'))
+    expect(settings?.action).toBe('backed-up-and-replaced')
+    // dry run NEVER mutates: no merged write, no backup file
+    expect(readFileSync(settingsPath, 'utf-8')).toBe(diverged)
+    expect(existsSync(`${settingsPath}.arbiter-backup`)).toBe(false)
+  })
+
   it('CLAUDE.md references AGENTS.md', () => {
     generateClaude(makeConfig(dir))
     const content = readFileSync(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')

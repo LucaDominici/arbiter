@@ -1,0 +1,5 @@
+{
+  "$schemaVersion": 1,
+  "description": "ADR-106: intentional codex-track divergences. Every entry pins BOTH sides by sha256 of the normalized content; a healed or drifted divergence turns the gate red. Add entries only together with their staleness coverage (see CODEX_PARITY_RUNBOOK.md failure playbook, branch b).",
+  "entries": []
+}

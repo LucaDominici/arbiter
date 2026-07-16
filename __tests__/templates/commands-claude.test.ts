@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+import { buildKnownLimitations } from '../../src/generators/codex-known-limitations.js'
 import type { Language, GovernanceLevel } from '../../src/wizard/types.js'
 
 /**
@@ -66,13 +67,20 @@ function renderClaudeMd(governanceLevel: GovernanceLevel = 'L2'): string {
 
 function renderCodexMd(): string {
   const config = makeConfig('/tmp/test')
-  return renderTemplate('codex/CODEX.md.ejs', config as unknown as Record<string, unknown>)
+  // ADR-106 (#1966): CODEX.md's Known Limitations section is generated from
+  // the Claude-track inventory — mirror generateCodex's render enrichment.
+  return renderTemplate('codex/CODEX.md.ejs', {
+    ...config,
+    knownLimitations: buildKnownLimitations(config),
+  } as unknown as Record<string, unknown>)
 }
 
 function renderCodexExecProtocol(): string {
   const config = makeConfig('/tmp/test')
+  // ADR-106 (#1966): the codex exec protocol is DERIVED from the canonical
+  // claude template (the parallel codex copy was removed).
   return renderTemplate(
-    'codex/rules/90-exec-protocol.md.ejs',
+    'claude/rules/90-exec-protocol.md.ejs',
     config as unknown as Record<string, unknown>,
   )
 }

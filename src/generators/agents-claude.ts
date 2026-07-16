@@ -8,7 +8,14 @@ export interface AgentsClaudeGeneratorResult {
   files: WriteResult[]
 }
 
-const AGENT_NAMES = ['codebase-scanner', 'red-team', 'context-checker', 'bridge-reviewer'] as const
+// Exported for codex-known-limitations.ts (ADR-106): the Claude-only agent
+// inventory in CODEX.md is derived from this list, never hand-maintained.
+export const AGENT_NAMES = [
+  'codebase-scanner',
+  'red-team',
+  'context-checker',
+  'bridge-reviewer',
+] as const
 
 export function generateAgentsClaude(
   config: ProjectConfig,
