@@ -607,7 +607,7 @@ original 8 — it is a representative sample of the pattern, not a complete inve
 3. Call `writeFile(outputPath, rendered, opts)` with the appropriate write strategy (`skipIfExists` or `backup`).
 4. Add a test in `__tests__/` that verifies the file is generated with correct content for at least one `ProjectConfig` variant.
 
-See [GETTING-STARTED.md](../DEVELOPMENT/GETTING-STARTED.md) for the full walkthrough with examples.
+See [QUICKSTART.md](../../QUICKSTART.md) for the full walkthrough with install, generated outputs, and running your first task.
 
 ---
 

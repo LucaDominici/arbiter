@@ -12,7 +12,6 @@ related:
     'docs/ADR/051-collaboration-mode-workflow-axis.md',
     'docs/ADR/053-ci-gap-closures-and-check-ladder.md',
     'docs/ADR/101-runner-profile-cadence-axis.md',
-    'docs/REFERENCE/ci-tier-workflows.md',
   ]
 ---
 
@@ -57,8 +56,7 @@ Each workflow belongs to **exactly one** cadence bucket (a strict partition, enf
 
 ¹ `15-codeql` and `17-ossf-scorecard` also carry a weekly `schedule` backstop, but their
 primary trigger is the PR/push gate (CodeQL) and the canonical-branch push (Scorecard), so
-they are bucketed by primary purpose. The full template inventory and per-workflow detail
-live in [`docs/REFERENCE/ci-tier-workflows.md`](../REFERENCE/ci-tier-workflows.md).
+they are bucketed by primary purpose. See the workflow files in `.github/workflows/` for full template details and per-workflow configuration.
 
 ## The emit-predicate contract (governance axis)
 

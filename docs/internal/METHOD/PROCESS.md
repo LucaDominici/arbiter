@@ -273,7 +273,7 @@ Defines how the `doc_version:` frontmatter field on hand-authored .md docs is
 bumped.
 
 `doc_version` is **per-document content versioning** and is intentionally
-distinct from the **product semver** described in [`../SEMVER.md`](../SEMVER.md).
+distinct from the **product semver** described in [`../../SEMVER.md`](../../SEMVER.md).
 The product semver governs the `@arbiter/cli` package; `doc_version` governs
 the meaning of an individual document. Two axes, two registers.
 
