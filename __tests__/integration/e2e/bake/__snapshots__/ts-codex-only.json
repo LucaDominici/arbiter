@@ -118,7 +118,7 @@
     "test-pyramid.json"
   ],
   "contentHashes": {
-    ".agents/CODEX.md": "1ad4911b93c5b7cc416f7ecb821e691939fb6c813ad583cdb5850f780737bc80",
+    ".agents/CODEX.md": "268e6ca520f85eeb45402f042e3d64f4f7b78d06d9c836aeddb2472478a3e7ba",
     ".agents/plan/README.md": "bdca22392d62033e1038d713937c788aef6d31064e9c08a6dda112842e1a9c07",
     ".agents/rules/05-agent-lifecycle.md": "52ab5d19d43d954f08e1672a75dad88cd3a1c9557a9a730757eeb0a06306998d",
     ".agents/rules/25-todo-folder-policy.md": "4db8c0a73cc7397b65e1755dc77d2b85172495e66d434513ed5f3a01f3572a1d",
