@@ -4,8 +4,9 @@
 name: Setup Node.js + npm ci
 description: >-
   Sets up Node.js from .nvmrc with the npm cache, pins npm to the version declared
-  in package.json#packageManager (corepack), then runs `npm ci`. Set the `install`
-  input to 'false' for setup-only jobs.
+  in package.json#packageManager (corepack), then runs `npm ci` — memoized via an
+  exact-key node_modules cache (#1839). Set the `install` input to 'false' for
+  setup-only jobs.
 
 inputs:
   node-version-file:
@@ -34,7 +35,33 @@ runs:
       run: |
         corepack enable npm
         echo "Pinned npm: $(npm --version)"
-    - name: Install dependencies (npm ci)
+    # #1839: memoize the install output across jobs/runs. `npm ci` was the dominant
+    # fixed cost of every PR-Fast job (~60-90s x 7 jobs per run) while the runner
+    # farm is slot-limited, so aggregate install time was wall time. EXACT key only
+    # (deliberately no restore-keys): a hit means byte-identical inputs (lockfile +
+    # root manifest + node version), so the npm ci it replaces would have produced
+    # the same trees; ANY miss falls through to the very same `npm ci` as before.
+    # Paths cover every tree `npm ci` writes in this workspace layout (root +
+    # nested workspace node_modules). Gate semantics unchanged — only the
+    # dependency install is memoized.
+    - name: Restore node_modules (exact lockfile key)
+      id: node-modules-cache
       if: ${{ inputs.install == 'true' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          node_modules
+          website/node_modules
+          packages/*/node_modules
+        key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json', '.nvmrc') }}
+    - name: Install dependencies (npm ci)
+      if: ${{ inputs.install == 'true' && steps.node-modules-cache.outputs.cache-hit != 'true' }}
       shell: bash
       run: npm ci
+    # On a cache hit `npm ci` is skipped, so run the root `prepare` lifecycle
+    # explicitly — it configures core.hooksPath, a side effect outside node_modules
+    # that the cache cannot carry. Keeps hit/miss behavior identical.
+    - name: Run prepare lifecycle (cache hit — npm ci skipped)
+      if: ${{ inputs.install == 'true' && steps.node-modules-cache.outputs.cache-hit == 'true' }}
+      shell: bash
+      run: npm run prepare --if-present
