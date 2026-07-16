@@ -14,6 +14,8 @@ import { generateClaude } from '../../src/generators/claude.js'
 import { generateCodex } from '../../src/generators/codex.js'
 import { generateSecurity } from '../../src/generators/security.js'
 import { generateWiki } from '../../src/generators/wiki.js'
+import { generateSkills } from '../../src/generators/skills.js'
+import { generateAgentsClaude } from '../../src/generators/agents-claude.js'
 import { makeConfig } from '../helpers.js'
 import {
   scanTrackRoots,
@@ -32,14 +34,18 @@ export const DATA_DIR = join(repoRoot, 'scripts', 'data')
  * Bake BOTH tracks into a fresh unique tmpdir with the real generators.
  * security + wiki are included because they also emit .claude/hooks/ files
  * (check-no-pii.mjs, wiki-on-commit.mjs) that the generated Known Limitations
- * table discloses — omitting them would make every fixture bake self-
- * inconsistent (stale table rows).
+ * table discloses; skills + agents populate the .claude/skills|agents/
+ * surfaces covered by the BY-DESIGN-EXCLUSIVE declarations — omitting any of
+ * them would make every fixture bake self-inconsistent (stale table rows or
+ * stale exclusive declarations).
  */
 export function bakeBothTracks(overrides: Partial<ProjectConfig> = {}): string {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-codex-parity-'))
   const config = makeConfig(dir, overrides)
   generateClaude(config)
   generateCodex(config)
+  generateSkills(config, [])
+  generateAgentsClaude(config)
   if (config.enableSecurityScanning) generateSecurity(config)
   if (config.governanceLevel !== 'L1') generateWiki(config)
   return dir
