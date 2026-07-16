@@ -138,8 +138,9 @@ function walkDir(baseDir, rel, exclusions, out) {
   let stat
   try {
     stat = lstatSync(abs)
+    // FAIL-OPEN-INTENT: an absent track root is a legitimate bake state (codex-only fixtures have no .claude/); its absence IS the signal, surfaced fail-closed downstream as empty-track / baseline-drift / manifest findings — not a walker error.
   } catch {
-    return // root absent in this bake — surfaced by baseline/manifest checks
+    return
   }
   if (stat.isSymbolicLink() || !stat.isDirectory()) {
     if (!isExcluded(rel, exclusions)) out.push(rel)
@@ -162,10 +163,21 @@ export function isUnderTrackRoots(rel) {
 
 // ─── Data-file loading ───────────────────────────────────────────────────────
 
-/** Read+parse a JSON data file; returns undefined when absent. */
+/**
+ * Read+parse a JSON data file; returns undefined when absent. Absence is a
+ * caller decision (bootstrap vs exit 2); malformed JSON is always an error —
+ * rethrown with the offending path so the gate fails closed with context.
+ */
 export function readJsonIfExists(path) {
   if (!existsSync(path)) return undefined
-  return JSON.parse(readFileSync(path, 'utf-8'))
+  const raw = readFileSync(path, 'utf-8')
+  try {
+    return JSON.parse(raw)
+  } catch (err) {
+    throw new Error(
+      `codex-parity: malformed JSON in ${path}: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
 }
 
 // ─── Schema validators (scripts/data/codex-parity-*.json) ───────────────────
@@ -620,6 +632,11 @@ function validateDataFiles(opts) {
  *           surface: { total, classified }, baseline: 'checked'|'skipped' }.
  */
 export function runParityCheck(opts) {
+  // Fail closed on a malformed invocation: without a bake root every scan
+  // would be vacuously empty and the check meaningless.
+  if (typeof opts?.bakedDir !== 'string' || opts.bakedDir.length === 0) {
+    throw new Error('runParityCheck: opts.bakedDir (baked project root) is required')
+  }
   const findings = validateDataFiles(opts)
   const exclusions = [...(opts.exclusive?.scanExclusions ?? []), ...(opts.exclusions ?? [])]
   const scan = scanTrackRoots(opts.bakedDir, exclusions)

@@ -83,7 +83,9 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   },
   'check-no-placeholders.mjs': {
     name: 'check-no-placeholders.mjs',
-    enforces: 'Blocks stub/placeholder content in edited files',
+    // Wording note: this DESCRIBES the anti-stub hook without using the exact
+    // token the check-no-placeholders gate scans for (meta false positive).
+    enforces: 'Blocks stub content and unfinished scaffolding in edited files',
     codexEquivalent: BRIDGED,
   },
   'check-no-skipped-tests.mjs': {

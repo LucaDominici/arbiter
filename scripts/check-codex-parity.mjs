@@ -143,6 +143,7 @@ export function resolveMergeBaseBaseline(gitRun = run) {
   let mergeBase
   try {
     mergeBase = gitRun('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: repoRoot }).trim()
+    // FAIL-OPEN-INTENT: not fail-open — the error is converted to a structured {error} the sole caller (main) turns into exit 2 with remediation; returned (not thrown/printed here) so unit tests can drive the function with an injected gitRun.
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     return {
@@ -155,11 +156,13 @@ export function resolveMergeBaseBaseline(gitRun = run) {
   let raw
   try {
     raw = gitRun('git', ['show', `${mergeBase}:${BASELINE_REPO_PATH}`], { cwd: repoRoot })
+    // FAIL-OPEN-INTENT: baseline absent at merge-base = the documented BOOTSTRAP case (the data file is younger than the merge-base); shrinkage-vs-nothing is undefined, every other parity check still runs, and the working-tree baseline identity check remains active.
   } catch {
     return { mergeBase, baseline: 'BOOTSTRAP' }
   }
   try {
     return { mergeBase, baseline: JSON.parse(raw) }
+    // FAIL-OPEN-INTENT: not fail-open — a corrupt merge-base baseline becomes a structured {error} the sole caller (main) turns into exit 2 (fail-closed); returned rather than thrown for unit-testability with an injected gitRun.
   } catch {
     return { error: `baseline at merge-base ${mergeBase} is not valid JSON — fail closed` }
   }
