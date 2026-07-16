@@ -36,6 +36,23 @@ describe('planClaudeHookInventory', () => {
     // L2-only hooks absent too
     expect(inventory).not.toContain('guard-task-completion.mjs')
   })
+
+  it('under ai-rulez the out-of-generator hooks never enter the inventory (security.ts/wiki.ts skip emission)', () => {
+    // security.ts and wiki.ts both guard their .claude/hooks/ writes behind
+    // !existing.aiRulez — a table row for a hook that is never emitted would
+    // be stale documentation, the exact #1966 bug-class.
+    const cfg = config({
+      existing: { ...config().existing, aiRulez: true },
+    })
+    const inventory = planClaudeHookInventory(cfg)
+    expect(inventory).not.toContain('check-no-pii.mjs')
+    expect(inventory).not.toContain('wiki-on-commit.mjs')
+    // the claude.ts plan itself is unaffected by ai-rulez
+    expect(inventory).toContain('stop-dangerous.mjs')
+    const rows = buildKnownLimitations(cfg).hooks.map((h) => h.name)
+    expect(rows).not.toContain('check-no-pii.mjs')
+    expect(rows).not.toContain('wiki-on-commit.mjs')
+  })
 })
 
 describe('buildKnownLimitations', () => {

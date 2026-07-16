@@ -227,7 +227,9 @@ function generateClaudeHooks(
   if (!dryRun) mkdirSync(hooksDir, { recursive: true })
 
   for (const entry of planClaudeHooks(config)) {
-    const content = entry.body ?? renderTemplate(entry.template ?? '', data)
+    // Plan invariant: every entry carries exactly one of template|body
+    // (planClaudeHooks constructs them), so no runtime fallback exists here.
+    const content = entry.body ?? renderTemplate(entry.template as string, data)
     results.push(
       writeFile(join(hooksDir, entry.file), content, {
         skipIfExists: true,
