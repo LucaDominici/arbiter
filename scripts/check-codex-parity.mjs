@@ -239,10 +239,20 @@ function main() {
   const exclusive = loadDataFile('codex-parity-exclusive.json')
   const baseline = loadDataFile('codex-parity-baseline.json')
 
-  const mb = resolveMergeBaseBaseline()
-  if (mb.error !== undefined) {
-    process.stderr.write(`check-codex-parity: ERROR — ${mb.error}\n`)
-    process.exit(2)
+  // Mode split (ADR-106): the baseline ratchet + golden-evolution heuristic
+  // are defined against the ARBITER REPO's own history (merge-base with
+  // origin/main) — repo-mode only. In fixture mode (--baked-dir: a pre-baked
+  // tree, no repo context) both are skipped EXPLICITLY and loudly below; the
+  // real gate path (repo-mode) keeps them fail-closed (hardening 17).
+  const fixtureMode = args.bakedDir !== undefined
+
+  let mb
+  if (!fixtureMode) {
+    mb = resolveMergeBaseBaseline()
+    if (mb.error !== undefined) {
+      process.stderr.write(`check-codex-parity: ERROR — ${mb.error}\n`)
+      process.exit(2)
+    }
   }
 
   const isEphemeralBake = args.bakedDir === undefined
@@ -253,16 +263,20 @@ function main() {
       process.exit(0)
     }
 
-    let findings
-    try {
-      findings = checkGoldenEvolution(
-        gitDiffNames(mb.mergeBase, ['--diff-filter=M']),
-        gitDiffNames(mb.mergeBase),
-      )
-    } catch (err) {
-      const detail = err instanceof Error ? err.message.split('\n')[0] : String(err)
-      process.stderr.write(`check-codex-parity: ERROR — git diff vs merge-base failed: ${detail}\n`)
-      process.exit(2)
+    let findings = []
+    if (!fixtureMode) {
+      try {
+        findings = checkGoldenEvolution(
+          gitDiffNames(mb.mergeBase, ['--diff-filter=M']),
+          gitDiffNames(mb.mergeBase),
+        )
+      } catch (err) {
+        const detail = err instanceof Error ? err.message.split('\n')[0] : String(err)
+        process.stderr.write(
+          `check-codex-parity: ERROR — git diff vs merge-base failed: ${detail}\n`,
+        )
+        process.exit(2)
+      }
     }
     const manifestFiles = readManifestFiles(bakedDir)
     if (manifestFiles === undefined && isEphemeralBake) {
@@ -278,11 +292,18 @@ function main() {
       allowlist,
       exclusive,
       baseline,
-      mergeBaseBaseline: mb.baseline,
+      mergeBaseBaseline: fixtureMode ? 'BOOTSTRAP' : mb.baseline,
+      skipBaseline: fixtureMode,
       goldensDir: GOLDENS_DIR,
     })
     result.findings.push(...findings)
 
+    if (fixtureMode) {
+      process.stdout.write(
+        'check-codex-parity: baseline: skipped — fixture mode (--baked-dir): not a repo ' +
+          'context; the repo-mode gate keeps the merge-base baseline fail-closed\n',
+      )
+    }
     report(result)
     process.exit(result.findings.length === 0 ? 0 : 1)
   } finally {

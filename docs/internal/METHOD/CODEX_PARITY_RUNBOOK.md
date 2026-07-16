@@ -135,6 +135,15 @@ remediation text — it never skips silently. Prerequisites:
 - Bootstrap (baseline not yet existing at merge-base) is recognized and passes
   the shrinkage step only — all other checks still run.
 
+**Repo-mode vs fixture-mode.** The baseline ratchet and the golden-evolution
+heuristic are defined against the arbiter repo's own history, so they run in
+repo-mode only (the default invocation, and the gate path). In fixture mode
+(`--baked-dir`, tests) the check states
+`baseline: skipped — fixture mode (--baked-dir): not a repo context` and runs
+the pure parity classification (including the nonzero-track non-vacuity
+check). This is a loud, asserted skip — never a silent one — and the repo-mode
+gate keeps the fail-closed contract above.
+
 ---
 
 ## Coverage interpretation (two axes)

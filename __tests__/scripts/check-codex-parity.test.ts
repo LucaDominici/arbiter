@@ -80,6 +80,31 @@ describe('check-codex-parity — non-vacuity mutations (#1966)', () => {
     expect(result.status).toBe('PASS')
     expect(result.surface.classified).toBe(result.surface.total)
     expect(result.surface.total).toBeGreaterThan(0)
+    // lib default is repo semantics: baseline sub-check runs unless the
+    // orchestrator explicitly opts a fixture out
+    expect(result.baseline).toBe('checked')
+  })
+
+  it('skipBaseline (fixture mode) reports the baseline sub-check as skipped but keeps non-vacuity', () => {
+    dir = bakeBothTracks()
+    const result = runParityCheck({
+      ...parityCtx(dir),
+      skipBaseline: true,
+      baseline: undefined, // no baseline data needed — and none validated
+      mergeBaseBaseline: undefined,
+    }) as ParityResult & { baseline: string }
+    expect(result.status).toBe('PASS')
+    expect(result.baseline).toBe('skipped')
+    // the empty-track non-vacuity check must survive the skip
+    const empty = runParityCheck({
+      ...parityCtx(dir),
+      bakedDir: `${dir}/definitely-empty-subdir`,
+      manifestFiles: [],
+      skipBaseline: true,
+      baseline: undefined,
+      mergeBaseBaseline: undefined,
+    }) as ParityResult
+    expect(empty.findings.some((f) => f.kind === 'empty-track')).toBe(true)
   })
 
   it('mutation 3b — Known-Limitations drift: a table missing emitted hooks is red', () => {
@@ -197,13 +222,16 @@ describe('check-codex-parity — non-vacuity mutations (#1966)', () => {
           }),
         )
       const [clean, drifted] = await Promise.all([spawn(dir), spawn(dirB)])
-      // The clean fixture never reports derivation drift; the mutated one must.
-      // (Both runs share the repo's committed data files, so identity-drift vs
-      // the real-init baseline appears in BOTH consistently — the assertion
-      // here is isolation: the mutation in B must not bleed into A.)
+      // Isolation: the mutation in B must not bleed into A. In fixture mode
+      // the repo-history baseline sub-check is skipped explicitly (both runs
+      // state it), so the clean bake is fully green and the mutated one is
+      // red on the drift alone.
+      expect(clean.code, `clean fixture must pass, got: ${clean.stdout}`).toBe(0)
       expect(clean.stdout).not.toContain('derived-drift')
+      expect(clean.stdout).toContain('baseline: skipped — fixture mode')
       expect(drifted.code).toBe(1)
       expect(drifted.stdout).toContain('derived-drift')
+      expect(drifted.stdout).toContain('baseline: skipped — fixture mode')
     } finally {
       cleanupBake(dirB)
     }
@@ -313,18 +341,60 @@ describe('shallow-clone fail-closed (spawned)', () => {
 // ─── E2E: the real gate entrypoint (bake via CLI init) ──────────────────────
 
 describe('check-codex-parity.mjs end to end', () => {
-  it('full run (real bake through `init`) is green on this repo', async () => {
-    const { stdout } = await execFileAsync('node', [CHECK_SCRIPT], {
-      encoding: 'utf-8',
-      env: cleanChildEnv(),
-      cwd: repoRoot,
-      timeout: 240_000,
-    })
-    expect(stdout).toContain('check-codex-parity: OK')
-    expect(stdout).toMatch(/parity-surface: (\d+)\/\1 \(100%\)/)
+  /** True when repo-mode can run here (merge-base with origin/main resolves). */
+  function mergeBaseResolvable(): boolean {
+    try {
+      execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], {
+        encoding: 'utf-8',
+        cwd: repoRoot,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // Repo-mode contract is environment-dependent BY DESIGN (hardening 17):
+  // where merge-base resolves (local dev, gate-full with fetch-depth 0) the
+  // full run must be green WITH the baseline checked; on a shallow checkout
+  // (the CI unit-tests job) the same invocation must fail CLOSED with exit 2
+  // and remediation text — never a silent skip. Both branches assert a real
+  // contract, so this test is meaningful in every environment it runs in.
+  it('full run: green with baseline checked where merge-base resolves; fail-closed exit 2 on shallow history', async () => {
+    if (mergeBaseResolvable()) {
+      const { stdout } = await execFileAsync('node', [CHECK_SCRIPT], {
+        encoding: 'utf-8',
+        env: cleanChildEnv(),
+        cwd: repoRoot,
+        timeout: 240_000,
+      })
+      expect(stdout).toContain('check-codex-parity: OK')
+      expect(stdout).toMatch(/parity-surface: (\d+)\/\1 \(100%\)/)
+      // repo-mode NEVER skips the baseline sub-check
+      expect(stdout).not.toContain('baseline: skipped')
+    } else {
+      let exitCode = 0
+      let stderr = ''
+      try {
+        await execFileAsync('node', [CHECK_SCRIPT], {
+          encoding: 'utf-8',
+          env: cleanChildEnv(),
+          cwd: repoRoot,
+          timeout: 240_000,
+        })
+      } catch (err) {
+        const e = err as { code?: number; stderr?: string }
+        exitCode = e.code ?? -1
+        stderr = e.stderr ?? ''
+      }
+      expect(exitCode, 'shallow history must fail closed (exit 2), never skip silently').toBe(2)
+      expect(stderr).toContain('fails closed')
+      expect(stderr).toContain('fetch-depth: 0')
+    }
   }, 300_000)
 
-  it('drift injected into a pre-baked tree turns the spawned check red', async () => {
+  it('drift injected into a pre-baked tree turns the spawned check red (fixture mode, baseline explicitly skipped)', async () => {
     const bakeDir = bakeBothTracks()
     try {
       dropCanon22(bakeDir)
@@ -344,6 +414,25 @@ describe('check-codex-parity.mjs end to end', () => {
       }
       expect(failed, 'spawned check must exit 1 on injected drift').toBe(true)
       expect(stdout).toContain('derived-drift')
+      // fixture mode: the repo-history baseline sub-check is skipped LOUDLY,
+      // not silently — the classification still ran (that's what went red).
+      expect(stdout).toContain('baseline: skipped — fixture mode')
+    } finally {
+      cleanupBake(bakeDir)
+    }
+  }, 180_000)
+
+  it('clean pre-baked tree passes in fixture mode with the baseline skip stated', async () => {
+    const bakeDir = bakeBothTracks()
+    try {
+      const { stdout } = await execFileAsync('node', [CHECK_SCRIPT, '--baked-dir', bakeDir], {
+        encoding: 'utf-8',
+        env: cleanChildEnv(),
+        cwd: repoRoot,
+        timeout: 120_000,
+      })
+      expect(stdout).toContain('check-codex-parity: OK')
+      expect(stdout).toContain('baseline: skipped — fixture mode')
     } finally {
       cleanupBake(bakeDir)
     }

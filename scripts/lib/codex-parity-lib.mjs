@@ -509,14 +509,10 @@ export function checkKnownLimitations(codexMdText, scannedHookBasenames, infra) 
 // ─── Baseline: identity + anti-shrinkage (hardening 3 + 14) ─────────────────
 
 /**
- * Nonzero totals; committed-baseline identity (any change requires an
- * explicit --update-baseline commit); anti-shrinkage against the baseline AT
- * MERGE-BASE (git show, not working tree — reducing output and baseline in
- * the same change stays red unless a reviewed removal record exists).
- * `mergeBaseBaseline` is the parsed merge-base copy, or 'BOOTSTRAP' when the
- * file did not exist at merge-base.
+ * Nonzero totals (hardening 3) — active in BOTH modes: a vacuous surface is
+ * never a pass, repo context or not.
  */
-export function checkBaseline(scan, committedBaseline, mergeBaseBaseline) {
+export function checkNonzeroTracks(scan) {
   const findings = []
   for (const track of ['claude', 'codex']) {
     if (scan[track].length === 0) {
@@ -527,6 +523,25 @@ export function checkBaseline(scan, committedBaseline, mergeBaseBaseline) {
       })
     }
   }
+  return findings
+}
+
+/**
+ * Nonzero totals; committed-baseline identity (any change requires an
+ * explicit --update-baseline commit); anti-shrinkage against the baseline AT
+ * MERGE-BASE (git show, not working tree — reducing output and baseline in
+ * the same change stays red unless a reviewed removal record exists).
+ * `mergeBaseBaseline` is the parsed merge-base copy, or 'BOOTSTRAP' when the
+ * file did not exist at merge-base.
+ *
+ * REPO-MODE ONLY: the baseline ratchet is defined against the arbiter repo's
+ * own history (merge-base with origin/main). In fixture mode
+ * (runParityCheck with skipBaseline — a pre-baked tree outside any repo
+ * context) the orchestrator skips this sub-check EXPLICITLY and loudly;
+ * the real gate path keeps it fail-closed.
+ */
+export function checkBaseline(scan, committedBaseline, mergeBaseBaseline) {
+  const findings = checkNonzeroTracks(scan)
   findings.push(...baselineIdentity(scan, committedBaseline))
   if (mergeBaseBaseline !== 'BOOTSTRAP') {
     findings.push(...baselineShrinkage(scan, committedBaseline, mergeBaseBaseline))
@@ -579,11 +594,10 @@ function baselineShrinkage(scan, committedBaseline, mergeBaseBaseline) {
 // ─── Orchestrator ────────────────────────────────────────────────────────────
 
 function validateDataFiles(opts) {
-  return [
-    ...validateAllowlist(opts.allowlist),
-    ...validateExclusive(opts.exclusive),
-    ...validateBaseline(opts.baseline),
-  ].map((message) => ({ kind: 'schema', file: 'scripts/data', message }))
+  const errors = [...validateAllowlist(opts.allowlist), ...validateExclusive(opts.exclusive)]
+  // In fixture mode no baseline comparison happens, and none is required.
+  if (opts.skipBaseline !== true) errors.push(...validateBaseline(opts.baseline))
+  return errors.map((message) => ({ kind: 'schema', file: 'scripts/data', message }))
 }
 
 /**
@@ -594,12 +608,16 @@ function validateDataFiles(opts) {
  *   manifestFiles       — baked-dir-relative paths from the generated manifest
  *   allowlist/exclusive/baseline — parsed data-file contents
  *   mergeBaseBaseline   — baseline JSON as of merge-base, or 'BOOTSTRAP'
+ *   skipBaseline        — fixture mode: skip the repo-history baseline
+ *                         sub-check EXPLICITLY (identity + shrinkage); the
+ *                         nonzero-track non-vacuity check still runs. The
+ *                         repo-mode gate never sets this.
  *   goldensDir          — committed golden fixtures root
  *   exclusions          — extra scan-exclusion patterns (tests)
  *   normOpts            — normalizeContent options
  *
  * Returns { status: 'PASS'|'FAIL', findings: [{kind, file, message}],
- *           surface: { total, classified } }.
+ *           surface: { total, classified }, baseline: 'checked'|'skipped' }.
  */
 export function runParityCheck(opts) {
   const findings = validateDataFiles(opts)
@@ -613,8 +631,13 @@ export function runParityCheck(opts) {
     ...compareDerivedPairs(opts.bakedDir, { goldensDir: opts.goldensDir, normOpts }),
     ...reconcileScanWithManifest(scan, opts.manifestFiles ?? [], exclusions),
     ...checkAllowlistEntries(opts.bakedDir, opts.allowlist, normOpts),
-    ...checkBaseline(scan, opts.baseline, opts.mergeBaseBaseline),
   )
+  const baselineMode = opts.skipBaseline === true ? 'skipped' : 'checked'
+  if (baselineMode === 'skipped') {
+    findings.push(...checkNonzeroTracks(scan))
+  } else {
+    findings.push(...checkBaseline(scan, opts.baseline, opts.mergeBaseBaseline))
+  }
 
   const codexMdAbs = join(opts.bakedDir, '.agents', 'CODEX.md')
   const hookBasenames = scan.claude
@@ -635,5 +658,6 @@ export function runParityCheck(opts) {
     status: findings.length === 0 ? 'PASS' : 'FAIL',
     findings,
     surface: { total, classified: classes.size },
+    baseline: baselineMode,
   }
 }
