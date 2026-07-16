@@ -152,39 +152,68 @@ const L2_ADVANCED_HOOKS = [
   'exitplanmode-banner.mjs',
 ] as const
 
-// L2+ advanced hooks (post-edit/debug/skill/completion/evidence guards) plus the
-// brainstorm terminal-state guardrail (#1265). Extracted from generateClaudeHooks
-// to keep that function under the max-lines ceiling.
-function generateL2AdvancedHooks(
-  hooksDir: string,
-  data: object,
-  config: ProjectConfig,
-  results: WriteResult[],
-  dryRun: boolean,
-): void {
-  const advancedHooks: string[] = [...L2_ADVANCED_HOOKS]
-  // Evidence guard only when evidence harness is enabled (mirrors CLI/config emission)
-  if (config.enableEvidenceHarness !== false) {
-    advancedHooks.push('guard-done-evidence.mjs')
-  }
-  for (const hookFile of advancedHooks) {
-    results.push(
-      writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
-        skipIfExists: true,
-        dryRun,
-      }),
-    )
+/** One planned .claude/hooks/ emission: either a template render or a literal body. */
+export interface ClaudeHookPlanEntry {
+  file: string
+  template?: string
+  body?: string
+}
+
+/**
+ * The declarative plan of every hook generateClaudeHooks emits for `config`,
+ * in emission order (ADR-106, #1966). Single source shared by the emitter
+ * below and by the generated CODEX.md Known Limitations inventory
+ * (src/generators/codex-known-limitations.ts) so the two can never drift:
+ * the table is derived from the same plan the writer executes.
+ */
+export function planClaudeHooks(config: ProjectConfig): ClaudeHookPlanEntry[] {
+  const isTs = config.language === 'typescript' || config.language === 'multi'
+  const entries: ClaudeHookPlanEntry[] = []
+  const tpl = (file: string, template: string): void => {
+    entries.push({ file, template })
   }
 
-  // Brainstorm terminal-state guardrail (#1265) — raw .mjs copy, wired into the
-  // dispatcher's UserPromptSubmit chain (L2+). Self-contained, no lib.mjs import.
-  results.push(
-    writeFile(
-      join(hooksDir, 'post-brainstorm-stop.mjs'),
-      renderTemplate('claude/hooks/post-brainstorm-stop.mjs', data),
-      { skipIfExists: true, dryRun },
-    ),
-  )
+  // Dispatcher (#248) — single entry point for all events; config table is baked in
+  tpl('hooks.mjs', 'claude/hooks/hooks.mjs.ejs')
+  for (const f of [
+    'stop-dangerous.mjs',
+    'enforce-read-only.mjs',
+    'pre-edit-ssot-guard.mjs',
+    'check-no-orphan-todo.mjs',
+    'check-no-placeholders.mjs',
+    'enforce-gate-before-pr.mjs',
+  ]) {
+    tpl(f, `claude/hooks/${f}`)
+  }
+  for (const f of ['lib.mjs', 'post-commit-check.mjs']) {
+    tpl(f, `claude/hooks/${f}.ejs`)
+  }
+  if (isTs) tpl('check-no-unused-exports.mjs', 'claude/hooks/check-no-unused-exports.mjs')
+  if (config.enableNoSkippedTests !== false) {
+    tpl('check-no-skipped-tests.mjs', 'claude/hooks/check-no-skipped-tests.mjs')
+  }
+  for (const hook of config.languageHooks) {
+    if (hook.name !== 'check-no-orphan-todo.mjs') {
+      entries.push({ file: hook.name, body: hook.body })
+    }
+  }
+  // Advanced hooks — generated for all governance levels
+  tpl('pre-edit-plan-anchor.mjs', 'claude/hooks/pre-edit-plan-anchor.mjs.ejs')
+  tpl('pre-compact.mjs', 'claude/hooks/pre-compact.mjs.ejs')
+  // Advanced hooks — L2+ only (post-edit/debug/skill/completion/evidence guards
+  // plus the brainstorm terminal-state guardrail, #1265)
+  if (config.governanceLevel !== 'L1') {
+    for (const f of L2_ADVANCED_HOOKS) tpl(f, `claude/hooks/${f}.ejs`)
+    // Evidence guard only when evidence harness is enabled (mirrors CLI/config emission)
+    if (config.enableEvidenceHarness !== false) {
+      tpl('guard-done-evidence.mjs', 'claude/hooks/guard-done-evidence.mjs.ejs')
+    }
+    tpl('post-brainstorm-stop.mjs', 'claude/hooks/post-brainstorm-stop.mjs')
+  }
+  // TypeScript hooks — circular dep detection (INV-01)
+  if (isTs) tpl('check-circular-deps.mjs', 'claude/hooks/check-circular-deps.mjs.ejs')
+
+  return entries
 }
 
 function generateClaudeHooks(
@@ -197,102 +226,23 @@ function generateClaudeHooks(
   const hooksDir = resolvedPath(base, '.claude', 'hooks')
   if (!dryRun) mkdirSync(hooksDir, { recursive: true })
 
-  // Dispatcher (#248) — single entry point for all events; config table is baked in
-  results.push(
-    writeFile(join(hooksDir, 'hooks.mjs'), renderTemplate('claude/hooks/hooks.mjs.ejs', data), {
-      skipIfExists: true,
-      dryRun,
-    }),
-  )
-
-  const staticHooks = [
-    'stop-dangerous.mjs',
-    'enforce-read-only.mjs',
-    'pre-edit-ssot-guard.mjs',
-    'check-no-orphan-todo.mjs',
-    'check-no-placeholders.mjs',
-    'enforce-gate-before-pr.mjs',
-  ]
-  for (const hookFile of staticHooks) {
+  for (const entry of planClaudeHooks(config)) {
+    const content = entry.body ?? renderTemplate(entry.template ?? '', data)
     results.push(
-      writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}`, data), {
+      writeFile(join(hooksDir, entry.file), content, {
         skipIfExists: true,
         dryRun,
       }),
-    )
-  }
-
-  const baseEjsHooks = ['lib.mjs', 'post-commit-check.mjs']
-  for (const hookFile of baseEjsHooks) {
-    results.push(
-      writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
-        skipIfExists: true,
-        dryRun,
-      }),
-    )
-  }
-
-  if (config.language === 'typescript' || config.language === 'multi') {
-    results.push(
-      writeFile(
-        join(hooksDir, 'check-no-unused-exports.mjs'),
-        renderTemplate('claude/hooks/check-no-unused-exports.mjs', data),
-        { skipIfExists: true, dryRun },
-      ),
-    )
-  }
-
-  if (config.enableNoSkippedTests !== false) {
-    results.push(
-      writeFile(
-        join(hooksDir, 'check-no-skipped-tests.mjs'),
-        renderTemplate('claude/hooks/check-no-skipped-tests.mjs', data),
-        { skipIfExists: true, dryRun },
-      ),
-    )
-  }
-
-  for (const hook of config.languageHooks) {
-    if (hook.name !== 'check-no-orphan-todo.mjs') {
-      results.push(writeFile(join(hooksDir, hook.name), hook.body, { skipIfExists: true, dryRun }))
-    }
-  }
-
-  // Advanced hooks — generated for all governance levels
-  for (const hookFile of ['pre-edit-plan-anchor.mjs', 'pre-compact.mjs']) {
-    results.push(
-      writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
-        skipIfExists: true,
-        dryRun,
-      }),
-    )
-  }
-
-  // Advanced hooks — L2+ only
-  if (config.governanceLevel !== 'L1') {
-    generateL2AdvancedHooks(hooksDir, data, config, results, dryRun)
-  }
-
-  // TypeScript hooks — circular dep detection (INV-01)
-  if (config.language === 'typescript' || config.language === 'multi') {
-    results.push(
-      writeFile(
-        join(hooksDir, 'check-circular-deps.mjs'),
-        renderTemplate('claude/hooks/check-circular-deps.mjs.ejs', data),
-        { skipIfExists: true, dryRun },
-      ),
     )
   }
 }
 
-function generateClaudeRules(
-  base: string,
-  data: object,
-  config: ProjectConfig,
-  results: WriteResult[],
-  dryRun: boolean,
-): void {
-  const rulesDir = resolvedPath(base, '.claude', 'rules')
+/**
+ * The declarative plan of every .claude/rules/ emission for `config`, in
+ * emission order. Shared with codex-known-limitations.ts (ADR-106) so the
+ * Claude-only rule delta in CODEX.md is derived, never hand-maintained.
+ */
+export function planClaudeRules(config: ProjectConfig): { file: string; template: string }[] {
   const rules = [
     {
       file: '05-agent-lifecycle.md',
@@ -334,7 +284,21 @@ function generateClaudeRules(
       template: 'claude/rules/95-closer-mode.md',
     },
   ]
-  for (const rule of rules) {
+  if (config.enableMcpFallback) {
+    rules.push({ file: '45-mcp-fallback.md', template: 'claude/rules/45-mcp-fallback.md' })
+  }
+  return rules
+}
+
+function generateClaudeRules(
+  base: string,
+  data: object,
+  config: ProjectConfig,
+  results: WriteResult[],
+  dryRun: boolean,
+): void {
+  const rulesDir = resolvedPath(base, '.claude', 'rules')
+  for (const rule of planClaudeRules(config)) {
     results.push(
       writeFile(join(rulesDir, rule.file), renderTemplate(rule.template, data), {
         skipIfExists: true,
@@ -342,16 +306,26 @@ function generateClaudeRules(
       }),
     )
   }
-  if (config.enableMcpFallback) {
-    results.push(
-      writeFile(
-        join(rulesDir, '45-mcp-fallback.md'),
-        renderTemplate('claude/rules/45-mcp-fallback.md', data),
-        { skipIfExists: true, dryRun },
-      ),
-    )
-  }
 }
+
+/**
+ * Every .claude/commands/ emission, in emission order. Shared with
+ * codex-known-limitations.ts (ADR-106): the Claude-only command inventory in
+ * CODEX.md is derived from this list, never hand-maintained.
+ */
+export const CLAUDE_COMMANDS: readonly string[] = [
+  'task.md',
+  'ship.md',
+  'drain.md',
+  'impact.md',
+  'gold-audit.md',
+  'wt-open.md',
+  'wt-close.md',
+  'wt-list.md',
+  'wt-prune.md',
+  'close-gold-gap.md',
+  'levelup.md',
+]
 
 function generateClaudeCommands(
   base: string,
@@ -360,20 +334,7 @@ function generateClaudeCommands(
   dryRun: boolean,
 ): void {
   const commandsDir = resolvedPath(base, '.claude', 'commands')
-  const commands = [
-    'task.md',
-    'ship.md',
-    'drain.md',
-    'impact.md',
-    'gold-audit.md',
-    'wt-open.md',
-    'wt-close.md',
-    'wt-list.md',
-    'wt-prune.md',
-    'close-gold-gap.md',
-    'levelup.md',
-  ]
-  for (const cmd of commands) {
+  for (const cmd of CLAUDE_COMMANDS) {
     results.push(
       writeFile(join(commandsDir, cmd), renderTemplate(`claude/commands/${cmd}.ejs`, data), {
         skipIfExists: true,

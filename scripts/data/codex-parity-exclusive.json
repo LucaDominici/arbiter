@@ -1,0 +1,98 @@
+{
+  "$schemaVersion": 1,
+  "description": "ADR-106: BY-DESIGN-EXCLUSIVE declarations. Exclusivity is declared, never inferred (hardening 1): every one-track emission must match exactly one declaration below or the parity gate goes red. knownLimitationsInfra lists .claude/hooks/ files that are plumbing (dispatcher/shared lib), not enforcement surface, and therefore carry no Known Limitations row. scanExclusions are minimatch patterns removed from the bake scan (hardening 16) — nondeterministic or non-emission artifacts only.",
+  "declarations": [
+    {
+      "id": "claude-md",
+      "track": "claude",
+      "pattern": ".claude/CLAUDE.md",
+      "reason": "Claude Code thin-pointer entrypoint; the Codex counterpart is .agents/CODEX.md (declared codex-exclusive) — both point at the canonical AGENTS.md"
+    },
+    {
+      "id": "claude-settings",
+      "track": "claude",
+      "pattern": ".claude/settings.json",
+      "reason": "Claude Code permission/hook wiring settings; Codex wiring lives in .codex/config.toml"
+    },
+    {
+      "id": "claude-knowledge-map",
+      "track": "claude",
+      "pattern": ".claude/knowledge-map.json",
+      "reason": "Claude-only track-routing artifact consumed by rule 40-context-economy; Codex has no knowledge-map mechanism"
+    },
+    {
+      "id": "claude-agents",
+      "track": "claude",
+      "pattern": ".claude/agents/**",
+      "reason": "Native Claude subagents; no Codex agent surface exists — disclosed in the generated CODEX.md Known Limitations"
+    },
+    {
+      "id": "claude-commands",
+      "track": "claude",
+      "pattern": ".claude/commands/**",
+      "reason": "Native Claude slash commands; Codex uses the arbiter CLI directly — disclosed in the generated CODEX.md Known Limitations"
+    },
+    {
+      "id": "claude-skills",
+      "track": "claude",
+      "pattern": ".claude/skills/**",
+      "reason": "Native Claude skills; no Codex skill surface exists — disclosed in the generated CODEX.md Known Limitations"
+    },
+    {
+      "id": "claude-hooks",
+      "track": "claude",
+      "pattern": ".claude/hooks/**",
+      "reason": "Claude hook system; the bridged subset runs on Codex via .codex/config.toml + codex-adapter.mjs and EVERY non-infra hook must have a generated Known Limitations row (checked against this same bake)"
+    },
+    {
+      "id": "claude-rule-40",
+      "track": "claude",
+      "pattern": ".claude/rules/40-context-economy.md",
+      "reason": "Coupled to .claude/knowledge-map.json routing (Claude-only artifact); not derived into the Codex track"
+    },
+    {
+      "id": "claude-rule-55",
+      "track": "claude",
+      "pattern": ".claude/rules/55-brainstorm-terminal-state.md",
+      "reason": "Enforced by the post-brainstorm-stop hook + /task command (Claude-only mechanisms); not derived into the Codex track"
+    },
+    {
+      "id": "claude-rule-75",
+      "track": "claude",
+      "pattern": ".claude/rules/75-impact-vault-reading.md",
+      "reason": "Drives the /impact skill + pre-edit-plan-anchor hook (Claude-only); not derived into the Codex track"
+    },
+    {
+      "id": "claude-rule-95",
+      "track": "claude",
+      "pattern": ".claude/rules/95-closer-mode.md",
+      "reason": "CLOSER mode is enforced by the closer-mode-guard hook (Claude-only); not derived into the Codex track"
+    },
+    {
+      "id": "codex-md",
+      "track": "codex",
+      "pattern": ".agents/CODEX.md",
+      "reason": "Codex thin-pointer entrypoint with generated Known Limitations disclosure; the Claude counterpart is .claude/CLAUDE.md"
+    },
+    {
+      "id": "codex-plan-readme",
+      "track": "codex",
+      "pattern": ".agents/plan/README.md",
+      "reason": "Codex explicit-plan protocol scaffold (PLAN.json workflow); Claude uses the /task lifecycle instead"
+    },
+    {
+      "id": "codex-config-toml",
+      "track": "codex",
+      "pattern": ".codex/config.toml",
+      "reason": "Codex hook wiring (platform-specific format); governance-relevant divergence in the wired hook SET is caught by the Known Limitations check"
+    },
+    {
+      "id": "codex-adapter",
+      "track": "codex",
+      "pattern": ".codex/codex-adapter.mjs",
+      "reason": "Codex-to-Claude-hook bridge adapter (platform-specific runtime); Claude invokes hooks natively"
+    }
+  ],
+  "knownLimitationsInfra": ["hooks.mjs", "lib.mjs"],
+  "scanExclusions": []
+}

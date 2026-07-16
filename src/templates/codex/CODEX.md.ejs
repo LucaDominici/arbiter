@@ -102,22 +102,28 @@ All hard stops from `AGENTS.md` apply. Additionally:
 
 ## Known Limitations — Codex Governance Parity
 
-Codex does not have a hook system. The following enforcement mechanisms exist in
-Claude Code but have **no real-time Codex equivalent**. Gate-time enforcement
-(`node scripts/check-all.mjs`) covers most of these at L1/L2.
+Codex does not have a native hook system. The table below is **generated from
+the actual Claude-track inventory for this configuration** (ADR-106, arbiter
+#1966) — do not edit it by hand; it is re-derived on every generation and
+checked against the emitted hook inventory by the arbiter parity gate.
+
+Hooks marked as *bridged* run in real time on Codex too, via
+`.codex/config.toml` → `codex-adapter.mjs`. Everything else is covered at
+gate time (`node scripts/check-all.mjs`) or is manual discipline, as stated.
 
 | Claude Code Hook | What it enforces | Codex equivalent |
 |-----------------|-----------------|------------------|
-| `check-no-any.mjs` | Blocks TypeScript `any` types (INV-04) | Gate: `tsc --strict` |
-| `check-no-orphan-todo.mjs` | Blocks bare TODO without task ID (INV-06) | Gate: `check-all.mjs` grep step |
-| `check-no-pii.mjs` | Blocks PII patterns in source (real-time) | Gate: `scripts/pii-scan.mjs` |
-| `pre-edit-ssot-guard.mjs` | Warns on SSOT/governance file edits | None — manual discipline |
-| `pre-edit-plan-anchor.mjs` | Requires plan file in implementation phase | `.agents/plan/PLAN.json` protocol |
-| `debug-state-on-failure.mjs` | Persists debug state on gate failure | None — manual logging |
-| `skill-forced-eval.mjs` | Forces skill invocation before task start | None — manual discipline |
-| `post-edit-dispatch.mjs` | Runs post-edit agents for quality checks | None — manual code review |
-| `guard-task-completion.mjs` | Blocks premature done claims | None — manual discipline |
-| `check-circular-deps.mjs` | Detects circular deps per-edit (INV-01) | Gate: `madge --circular src` |
+<% for (const row of knownLimitations.hooks) { -%>
+| `<%= row.name %>` | <%- row.enforces %> | <%- row.codexEquivalent %> |
+<% } -%>
+
+Claude-only surfaces with no Codex equivalent (by design, ADR-106 — accurate
+disclosure, not implementation parity):
+
+- **Commands** (<%= knownLimitations.commands.length %>): <%- knownLimitations.commands.map((c) => '`/' + c + '`').join(', ') %>
+- **Agents** (<%= knownLimitations.agents.length %>): <%- knownLimitations.agents.map((a) => '`' + a + '`').join(', ') %>
+- **Skills** (<%= knownLimitations.skills.length %>): <%- knownLimitations.skills.map((s) => '`' + s + '`').join(', ') %>
+- **Rules not derived into the Codex track** (<%= knownLimitations.claudeOnlyRules.length %>): <%- knownLimitations.claudeOnlyRules.map((r) => '`' + r + '`').join(', ') %> — each is coupled to a Claude-only mechanism (knowledge-map routing, brainstorm hook, `/impact` skill, CLOSER hook)
 
 **Decision:** This gap is intentional. OpenAI Codex has no plugin/hook extension
 point at the time of writing. When Codex adds a hook system, `codex-adapter.mjs`
