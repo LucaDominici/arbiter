@@ -70,6 +70,16 @@ describe('shallow-clone fail-closed (spawned, hardening 17)', () => {
         { encoding: 'utf-8' },
       )
       const shallowRepo = join(cloneDir, 'repo')
+      // A depth-1 clone only lacks origin/main when the source checkout is NOT
+      // on main (git clone points origin/main at whatever HEAD it cloned) — on
+      // main the merge-base resolves trivially and the check legitimately
+      // succeeds, which is not what this test probes. Delete the remote ref so
+      // the missing-history contract is exercised deterministically on every
+      // branch, including main's own post-merge gate.
+      execFileSync('git', ['update-ref', '-d', 'refs/remotes/origin/main'], {
+        encoding: 'utf-8',
+        cwd: shallowRepo,
+      })
       // the script only needs node stdlib + minimatch — reuse the real node_modules
       symlinkSync(join(repoRoot, 'node_modules'), join(shallowRepo, 'node_modules'))
       let exitCode = 0
