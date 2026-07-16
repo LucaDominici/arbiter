@@ -2,7 +2,7 @@
   "$schemaVersion": 1,
   "task_id": "#1966",
   "test_path": "__tests__/scripts/check-codex-parity.test.ts",
-  "test_commit_sha": "bae77ca26ac28c398e98bcbd1e61cb2431d8a887",
+  "test_commit_sha": "c99b21ea3927cdffec3ac0ba2912f1c1febc6259",
   "test_run_log": "\n RUN  v4.1.10 /home/user/work/repos/arbiter.worktrees/w-a1-parity\n\n ❯ __tests__/scripts/check-codex-parity.test.ts (1 test | 1 failed) 144ms\n     × goes RED when the codex derivation drops the CANON-22 section (mutation 3a — the #1966 regression) 144ms\n\n Test Files  1 failed (1)\n      Tests  1 failed (1)\n   Start at  08:53:24\n   Duration  464ms (transform 154ms, setup 17ms, import 192ms, tests 144ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-codex-parity.test.ts > check-codex-parity — non-vacuity mutations (#1966) > goes RED when the codex derivation drops the CANON-22 section (mutation 3a — the #1966 regression)\nAssertionError: a CANON-22-less codex exec protocol must fail the parity check: expected 'PASS' to be 'FAIL' // Object.is equality\n\nExpected: \"FAIL\"\nReceived: \"PASS\"\n\n ❯ __tests__/scripts/check-codex-parity.test.ts:38:93\n     36|     const result = runParityCheck(parityCtx(dir)) as ParityResult\n     37|\n     38|     expect(result.status, 'a CANON-22-less codex exec protocol must fa…\n       |                                                                                             ^\n     39|       'FAIL',\n     40|     )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
   "observed_failure": "FAIL  __tests__/scripts/check-codex-parity.test.ts",
   "recorded_at": "2026-07-16T06:53:25.048Z",
