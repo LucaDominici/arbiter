@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://arbiter.dev/schemas/agent-return/v1",
+  "title": "ArbiterAgentReturn",
+  "description": "Generic agent-return envelope (M8 core + M12 citation enforcement). Every review/verify/skeptic sub-agent hands back this shape; the orchestrator records it via scripts/record-agent-return.mjs and validates it via scripts/check-agent-return.mjs. A structural finding without a resolvable file:line citation is rejected at the tool layer (M12). Enforced by INV-137 (advisory at land-time, promoted on owner ratification — design §0).",
+  "type": "object",
+  "required": [
+    "schema",
+    "agent",
+    "role",
+    "taskId",
+    "branch",
+    "sha",
+    "ts",
+    "verdict",
+    "confidence",
+    "findings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "type": "string",
+      "description": "Envelope version marker, must be 'arbiter-agent-return-v1'.",
+      "const": "arbiter-agent-return-v1"
+    },
+    "agent": {
+      "type": "string",
+      "description": "Name of the agent that produced this return (e.g. 'red-team', 'context-checker').",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "description": "Role the agent played in this dispatch.",
+      "enum": ["skeptic", "reviewer", "scanner", "verifier"]
+    },
+    "taskId": {
+      "type": "string",
+      "description": "Task identifier in GitHub issue format, e.g. '#1943'.",
+      "pattern": "^#[0-9]+$"
+    },
+    "branch": {
+      "type": "string",
+      "description": "Git branch the agent worked on (stamped by the recorder, never trusted from input).",
+      "minLength": 1
+    },
+    "sha": {
+      "type": "string",
+      "description": "Git commit sha the envelope was produced against (stamped by the recorder).",
+      "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "ts": {
+      "type": "string",
+      "description": "ISO 8601 timestamp the recorder stamped this envelope.",
+      "format": "date-time"
+    },
+    "verdict": {
+      "type": "string",
+      "description": "Top-level verdict the agent returns to the orchestrator.",
+      "enum": ["PASS", "WARN", "FAIL"]
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Agent self-reported confidence in its verdict, 0.0 to 1.0.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "findings": {
+      "type": "array",
+      "description": "Findings. A structural finding MUST carry >=1 resolvable citation (enforced by the validator, not the schema alone).",
+      "items": { "$ref": "#/$defs/Finding" }
+    },
+    "refutations": {
+      "type": "array",
+      "description": "Optional refutation verdicts (E2/M13). Skeptics targeting a finding id record UPHELD or REFUTED.",
+      "items": { "$ref": "#/$defs/Refutation" }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "description": "Optional paths under .arbiter/evidence/ backing this return.",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "Finding": {
+      "type": "object",
+      "required": ["id", "severity", "kind", "claim", "citations"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable fingerprint id for this finding (used by refutations and the dry-pass ledger).",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "med", "low", "info"]
+        },
+        "kind": {
+          "type": "string",
+          "description": "Finding kind. 'structural' findings require >=1 resolvable citation (M12).",
+          "enum": ["structural", "behavioral", "process", "style"]
+        },
+        "claim": {
+          "type": "string",
+          "description": "One-sentence claim.",
+          "minLength": 1
+        },
+        "citations": {
+          "type": "array",
+          "description": "Citations backing the claim. Required non-empty for kind:'structural' (enforced by validator).",
+          "items": { "$ref": "#/$defs/Citation" }
+        }
+      }
+    },
+    "Citation": {
+      "type": "object",
+      "required": ["file", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Repository-relative file path.",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "description": "1-based line number. Validator resolves the file at the envelope sha and checks line <= file length.",
+          "minimum": 1
+        }
+      }
+    },
+    "Refutation": {
+      "type": "object",
+      "required": ["target", "verdict"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "id of the finding this skeptic verdict targets.",
+          "minLength": 1
+        },
+        "verdict": {
+          "type": "string",
+          "enum": ["UPHELD", "REFUTED"]
+        },
+        "citations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Citation" }
+        }
+      }
+    }
+  }
+}

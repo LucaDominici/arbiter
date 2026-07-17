@@ -480,5 +480,17 @@
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
     "diffHash": "21f3be247f22935df37e87c0e885b7e819d400f8e01b3a2160550e27918bf909"
+  },
+  {
+    "path": "glob-walk.mjs",
+    "dest": "scripts/lib",
+    "reason": "Arbiter self-dogfood (pre-existing divergence surfaced when the script-libs family joined parity scope, #1943 residual c): the SELF copy adds the nested-.git checkout boundary guard (skips agent worktrees/submodules materialized inside the tree — needed because arbiter's own repo hosts agent worktrees) with its extra existsSync import; the SHIPPED twin instead adds the Python dependency-closure SKIP_DIRS ('.venv'/'venv'/'__pycache__', #1840 F4 tranche-3) that only matter for generated Python targets. Both sides are deliberate specializations; reconciliation tracked as follow-up, not silent drift.",
+    "diffHash": "27c3b13aaf0762bc7334ec0e27aeacb8a6bc8eae394c9fa95331d2b48999e755"
+  },
+  {
+    "path": "run-helpers.mjs",
+    "dest": "scripts/lib",
+    "reason": "Arbiter self-dogfood (pre-existing divergence surfaced when the script-libs family joined parity scope, #1943 residual c): the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. Reconciliation tracked as follow-up, not silent drift.",
+    "diffHash": "20813964cca65599068efb753a26619594edcc155a4ef236fdbfb84c1973ca78"
   }
 ]
