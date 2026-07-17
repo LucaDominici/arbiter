@@ -129,6 +129,64 @@ function isObsidianResult(
   return 'status' in v
 }
 
+/** Handle mode === 'validate': run the linter and shape the result, no regen. */
+function handleValidateMode(
+  repoDir: string,
+  vaultAbsDir: string,
+  mode: ObsidianMode,
+  vaultDir: string,
+): ObsidianResult {
+  const validation = runLint(repoDir, vaultAbsDir, mode, vaultDir)
+  if (isObsidianResult(validation)) return validation
+  if (!validation.ok) {
+    return {
+      status: 'error',
+      exitCode: 1,
+      mode,
+      contractVersion: 1,
+      vaultDir,
+      validation,
+      reason: 'vault validation found violations',
+    }
+  }
+  return { status: 'ok', exitCode: 0, mode, contractVersion: 1, vaultDir, validation }
+}
+
+/** Handle mode === 'sync': regenerate, then re-validate — fail-closed. */
+function handleSyncMode(
+  repoDir: string,
+  vaultAbsDir: string,
+  mode: ObsidianMode,
+  vaultDir: string,
+): ObsidianResult {
+  const regen = runGenRegen(repoDir, vaultAbsDir, mode, vaultDir)
+  if (isObsidianResult(regen)) return regen
+
+  const validation = runLint(repoDir, vaultAbsDir, mode, vaultDir)
+  if (isObsidianResult(validation)) return validation
+  if (!validation.ok) {
+    return {
+      status: 'error',
+      exitCode: 1,
+      mode,
+      contractVersion: 1,
+      vaultDir,
+      regenerated: true,
+      validation,
+      reason: 'vault validation found violations after regeneration',
+    }
+  }
+  return {
+    status: 'ok',
+    exitCode: 0,
+    mode,
+    contractVersion: 1,
+    vaultDir,
+    regenerated: true,
+    validation,
+  }
+}
+
 /**
  * v1 thin generic orchestrator for the Obsidian vault (#1979). Shells out to
  * the consumer repo's OWN gen-wiki.mjs / check-wiki-lint.mjs — no bespoke
@@ -165,47 +223,9 @@ export function runObsidian(opts: ObsidianOptions = {}): ObsidianResult {
   }
 
   if (mode === 'validate') {
-    const validation = runLint(repoDir, vaultAbsDir, mode, vaultDir)
-    if (isObsidianResult(validation)) return validation
-    if (!validation.ok) {
-      return {
-        status: 'error',
-        exitCode: 1,
-        mode,
-        contractVersion: 1,
-        vaultDir,
-        validation,
-        reason: 'vault validation found violations',
-      }
-    }
-    return { status: 'ok', exitCode: 0, mode, contractVersion: 1, vaultDir, validation }
+    return handleValidateMode(repoDir, vaultAbsDir, mode, vaultDir)
   }
 
-  // mode === 'sync': regenerate, then re-validate — fail-closed.
-  const regen = runGenRegen(repoDir, vaultAbsDir, mode, vaultDir)
-  if (isObsidianResult(regen)) return regen
-
-  const validation = runLint(repoDir, vaultAbsDir, mode, vaultDir)
-  if (isObsidianResult(validation)) return validation
-  if (!validation.ok) {
-    return {
-      status: 'error',
-      exitCode: 1,
-      mode,
-      contractVersion: 1,
-      vaultDir,
-      regenerated: true,
-      validation,
-      reason: 'vault validation found violations after regeneration',
-    }
-  }
-  return {
-    status: 'ok',
-    exitCode: 0,
-    mode,
-    contractVersion: 1,
-    vaultDir,
-    regenerated: true,
-    validation,
-  }
+  // mode === 'sync'
+  return handleSyncMode(repoDir, vaultAbsDir, mode, vaultDir)
 }

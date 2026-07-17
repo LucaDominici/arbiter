@@ -149,6 +149,11 @@
             "type": "command",
             "command": "node .claude/hooks/stop-evidence-guard.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/stop-finding-loss.mjs",
+            "timeout": 5
           }
         ]
       }

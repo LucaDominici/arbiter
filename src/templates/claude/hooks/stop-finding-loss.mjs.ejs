@@ -30,6 +30,7 @@ function parseTranscript(transcriptPath) {
   let raw
   try {
     raw = readFileSync(transcriptPath, 'utf-8')
+    // FAIL-OPEN-INTENT: transcript path missing/unreadable — treat as "no signal" so the caller stands down instead of crashing the Stop hook.
   } catch {
     return null
   }
@@ -41,8 +42,9 @@ function parseTranscript(transcriptPath) {
     let obj
     try {
       obj = JSON.parse(trimmed)
+      // FAIL-OPEN-INTENT: a partially-written trailing transcript line is expected during a live session; skip it rather than aborting the whole parse.
     } catch {
-      continue // skip a partially-written trailing line
+      continue
     }
     if (sessionStartMs === null && typeof obj.timestamp === 'string') {
       const ms = Date.parse(obj.timestamp)
@@ -68,6 +70,7 @@ function countFindingsSince(root, sinceMs) {
     let raw
     try {
       raw = readFileSync(join(dir, f), 'utf-8')
+      // FAIL-OPEN-INTENT: a findings file can be deleted/rotated between readdir and read; skip it, one missing spool file must not abort the count.
     } catch {
       continue
     }
@@ -78,8 +81,9 @@ function countFindingsSince(root, sinceMs) {
         const entry = JSON.parse(trimmed)
         const ms = Date.parse(entry.ts)
         if (!Number.isNaN(ms) && ms >= sinceMs) count++
+        // FAIL-OPEN-INTENT: a malformed JSONL finding line must not abort the count — skip and keep scanning.
       } catch {
-        // skip malformed line
+        void 0
       }
     }
   }
@@ -99,16 +103,18 @@ function countAgentReturnsSince(root, sinceMs) {
       } else if (entry.isFile()) {
         try {
           if (statSync(p).mtimeMs >= sinceMs) count++
+          // FAIL-OPEN-INTENT: the file can be removed between readdir and stat (concurrent writer); skip it rather than aborting the walk.
         } catch {
-          // ignore races with concurrent writers
+          void 0
         }
       }
     }
   }
   try {
     walk(dir)
+    // FAIL-OPEN-INTENT: a directory scan error (permissions/race) must not crash the Stop hook — return the partial count so far.
   } catch {
-    // best-effort — a scan error must not crash the guard
+    void 0
   }
   return count
 }
@@ -117,10 +123,8 @@ function main() {
   let input = {}
   try {
     input = JSON.parse(readFileSync(0, 'utf-8')) ?? {}
+    // FAIL-OPEN-INTENT: unreadable/non-JSON stdin — same stand-down posture as stop-evidence-guard.mjs; a guard that cannot read the Stop payload must not block the stop.
   } catch {
-    // Unreadable/non-JSON stdin — nothing to correlate against.
-    // FAIL-OPEN-INTENT: same stand-down posture as stop-evidence-guard.mjs — a
-    // guard that cannot read the Stop payload must not block the stop.
     process.exit(0)
   }
 
@@ -152,4 +156,15 @@ function main() {
   process.exit(0)
 }
 
-main()
+// Top-level guard: an unexpected crash in main() must not silently fall through to the
+// shell's default success code with no explanation, nor hard-block a stop this advisory
+// hook was never meant to gate — surface the error to stderr and exit 0 (fail-open).
+try {
+  main()
+} catch (err) {
+  process.stderr.write(
+    `[arbiter] FINDING LOSS: unexpected error — ${err instanceof Error ? err.message : String(err)}\n`,
+  )
+  // FAIL-OPEN-INTENT: a crash in this advisory hook must not hard-block the Stop it does not own; surface and stand down.
+  process.exit(0)
+}

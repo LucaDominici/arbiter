@@ -87,11 +87,7 @@ describe('stop-finding-loss hook (#1948, design doc §E6b)', () => {
   it('exits 2: 3 dispatches + empty findings dir + hard grading', () => {
     const dir = track(setup())
     const transcript = writeTranscript(dir, 3, new Date().toISOString())
-    const result = runHook(
-      dir,
-      { transcript_path: transcript },
-      { ARBITER_FINDING_LOSS_HARD: '1' },
-    )
+    const result = runHook(dir, { transcript_path: transcript }, { ARBITER_FINDING_LOSS_HARD: '1' })
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('FINDING LOSS')
   })
@@ -109,11 +105,7 @@ describe('stop-finding-loss hook (#1948, design doc §E6b)', () => {
     const start = new Date(Date.now() - 60_000).toISOString()
     const transcript = writeTranscript(dir, 3, start)
     writeFindingsSpool(dir, new Date().toISOString())
-    const result = runHook(
-      dir,
-      { transcript_path: transcript },
-      { ARBITER_FINDING_LOSS_HARD: '1' },
-    )
+    const result = runHook(dir, { transcript_path: transcript }, { ARBITER_FINDING_LOSS_HARD: '1' })
     expect(result.status).toBe(0)
   })
 
@@ -130,11 +122,7 @@ describe('stop-finding-loss hook (#1948, design doc §E6b)', () => {
   it('exits 0: fewer than 2 dispatches never flags, even with zero persistence', () => {
     const dir = track(setup())
     const transcript = writeTranscript(dir, 1, new Date().toISOString())
-    const result = runHook(
-      dir,
-      { transcript_path: transcript },
-      { ARBITER_FINDING_LOSS_HARD: '1' },
-    )
+    const result = runHook(dir, { transcript_path: transcript }, { ARBITER_FINDING_LOSS_HARD: '1' })
     expect(result.status).toBe(0)
   })
 

@@ -12,7 +12,10 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
 
-const HOOK_PATH = resolve(import.meta.dirname, '../../../.claude/hooks/pre-spawn-worktree-guard.mjs')
+const HOOK_PATH = resolve(
+  import.meta.dirname,
+  '../../../.claude/hooks/pre-spawn-worktree-guard.mjs',
+)
 
 function setup(): string {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-spawn-guard-'))
@@ -85,7 +88,11 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
     writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
     writeSidecar(dir, [{ agent: 'general-purpose', ts: Date.now(), pid: 1, cwd: dir }])
     const result = runHook(dir, {
-      tool_input: { subagent_type: 'general-purpose', isolation: 'worktree', prompt: 'work on #100' },
+      tool_input: {
+        subagent_type: 'general-purpose',
+        isolation: 'worktree',
+        prompt: 'work on #100',
+      },
     })
     expect(result.status).toBe(0)
     const sidecar = JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-active.json'), 'utf-8'))

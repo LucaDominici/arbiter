@@ -179,6 +179,15 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     purpose: 'Debounce window (ms) for expensive post-edit hooks.',
     isGateBypass: false,
   },
+  {
+    name: 'ARBITER_FINDING_LOSS_HARD',
+    type: 'boolean',
+    default: false,
+    purpose:
+      'Escalates stop-finding-loss.mjs (E6b #1948) from advisory (exit 0) to hard block ' +
+      '(exit 2) when 2+ research dispatches persisted zero findings since session start.',
+    isGateBypass: false,
+  },
   // ── Compatibility probing ────────────────────────────────────────────────
   {
     name: 'ARBITER_PROBE_TIMEOUT_MS',

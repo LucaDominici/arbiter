@@ -37,6 +37,12 @@
       "since": "2026-07-17",
       "promoteBy": "2026-10-14",
       "rationale": "OD-14 (2026-07-17): pre-existing advisory gate, classified dated-promotion (not permanent) — same promoteBy window as the seeded #1943 enforcer entries. Promote to runCheck once the conformance surface has a stable pass baseline."
+    },
+    {
+      "check": "bypass ceremony (E4 #1949)",
+      "since": "2026-07-17",
+      "promoteBy": "2026-10-14",
+      "rationale": "OD-14 (2026-07-17): advisory-first wiring for the ceremony detector itself (self-referential — this entry satisfies its own ledger-completeness predicate). Advisory until the bypass-log and ledger are routinely populated across a full gate cycle; promote to runCheck at gated-review."
     }
   ]
 }

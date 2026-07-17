@@ -28,6 +28,7 @@ const SIDECAR_TTL_MS = 2 * 60 * 60 * 1000 // 2h — mirrors `arbiter worktree pr
 function readJson(path) {
   try {
     return JSON.parse(readFileSync(path, 'utf-8'))
+    // FAIL-OPEN-INTENT: missing/malformed classification or sidecar file — caller treats null as "no data" and proceeds fail-closed on write-intent.
   } catch {
     return null
   }
@@ -60,10 +61,8 @@ function main() {
   let input = {}
   try {
     input = JSON.parse(readFileSync(0, 'utf-8')) ?? {}
+    // FAIL-OPEN-INTENT: unreadable/non-JSON stdin — a guard that cannot read the dispatch payload must not block an unrelated tool call.
   } catch {
-    // Unreadable/non-JSON stdin — nothing to classify against, stand down.
-    // FAIL-OPEN-INTENT: a guard that cannot read the dispatch payload must not
-    // block an unrelated tool call.
     process.exit(0)
   }
 
@@ -108,8 +107,9 @@ function main() {
   try {
     mkdirSync(join(root, '.arbiter'), { recursive: true })
     writeFileSync(sidecarPath, JSON.stringify(entries, null, 2) + '\n')
+    // FAIL-OPEN-INTENT: best-effort bookkeeping — a sidecar write failure must not block a legal spawn.
   } catch {
-    // Best-effort bookkeeping — a sidecar write failure must not block a legal spawn.
+    void 0
   }
 
   // 3. One-task-per-dispatch (M2): count distinct #NNN ids in the prompt.
@@ -125,4 +125,13 @@ function main() {
   process.exit(0)
 }
 
-main()
+// Top-level guard: an unexpected crash in main() must fail closed (exit 1), never fall
+// through to the shell's default success exit code, which a hook harness would read as allow.
+try {
+  main()
+} catch (err) {
+  process.stderr.write(
+    `[arbiter] SPAWN GUARD: unexpected error — ${err instanceof Error ? err.message : String(err)}\n`,
+  )
+  process.exit(1)
+}

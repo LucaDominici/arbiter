@@ -35,7 +35,11 @@ function writeMarker(dir: string, headSha: string): void {
   mkdirSync(arbiterDir, { recursive: true })
   writeFileSync(
     join(arbiterDir, 'gate-pass.json'),
-    JSON.stringify({ head_sha: headSha, timestamp: new Date().toISOString(), level: 'L2' }, null, 2) + '\n',
+    JSON.stringify(
+      { head_sha: headSha, timestamp: new Date().toISOString(), level: 'L2' },
+      null,
+      2,
+    ) + '\n',
   )
 }
 
@@ -58,11 +62,16 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     // Main tree has NO marker — would fail if the hook validated it instead.
     const wtParent = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-wt-')))
     const wtPath = join(wtParent, 'wt1')
-    execFileSync('git', ['worktree', 'add', '-b', 'feature-1', wtPath], { cwd: main, stdio: 'ignore' })
+    execFileSync('git', ['worktree', 'add', '-b', 'feature-1', wtPath], {
+      cwd: main,
+      stdio: 'ignore',
+    })
     writeMarker(wtPath, currentHead(wtPath))
 
     const result = runHook(
-      { CLAUDE_TOOL_INPUT_COMMAND: `cd ${wtPath} && gh pr create --title "feat: x" --head feature-1` },
+      {
+        CLAUDE_TOOL_INPUT_COMMAND: `cd ${wtPath} && gh pr create --title "feat: x" --head feature-1`,
+      },
       main, // session cwd is the MAIN tree, which has no marker
     )
     expect(result.status).toBe(0)
@@ -73,7 +82,10 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     initRepo(main)
     const wtParent = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-wt-')))
     const wtPath = join(wtParent, 'wt2')
-    execFileSync('git', ['worktree', 'add', '-b', 'feature-2', wtPath], { cwd: main, stdio: 'ignore' })
+    execFileSync('git', ['worktree', 'add', '-b', 'feature-2', wtPath], {
+      cwd: main,
+      stdio: 'ignore',
+    })
     writeMarker(wtPath, currentHead(wtPath))
 
     // No `cd` prefix this time — session cwd is main, command only names --head.
@@ -90,7 +102,10 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     writeMarker(main, currentHead(main)) // main's OWN marker is fresh
     const wtParent = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-wt-')))
     const wtPath = join(wtParent, 'wt3')
-    execFileSync('git', ['worktree', 'add', '-b', 'feature-3', wtPath], { cwd: main, stdio: 'ignore' })
+    execFileSync('git', ['worktree', 'add', '-b', 'feature-3', wtPath], {
+      cwd: main,
+      stdio: 'ignore',
+    })
     writeMarker(wtPath, 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef') // wt's marker is stale
 
     const result = runHook(
@@ -105,7 +120,10 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     const main = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-main-')))
     initRepo(main)
     writeMarker(main, currentHead(main))
-    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --title "feat: no-head"' }, main)
+    const result = runHook(
+      { CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --title "feat: no-head"' },
+      main,
+    )
     expect(result.status).toBe(0)
   })
 
@@ -114,7 +132,10 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     initRepo(main)
     // No marker at all — if this were mis-matched as a PR-create it would block (exit 2).
     const result = runHook(
-      { CLAUDE_TOOL_INPUT_COMMAND: 'gh issue create --title "note" --body "remember to run gh pr create after"' },
+      {
+        CLAUDE_TOOL_INPUT_COMMAND:
+          'gh issue create --title "note" --body "remember to run gh pr create after"',
+      },
       main,
     )
     expect(result.status).toBe(0)

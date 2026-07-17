@@ -23,7 +23,7 @@
 //       self-validation drill + local-ci parity + id stability + anti-telemetry +
 //       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) +
 //       anti-context-rot enforcers: agent-return envelope + refutation majority +
-//       audit dry-pass + handoff lint (#1943, advisory) +
+//       audit dry-pass + handoff lint (#1943, advisory) + bypass ceremony (#1949, advisory) +
 //       codex parity (ADR-106, #1966) + codex self-parity (#1966) (75)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
@@ -348,6 +348,7 @@ if (isMain) {
     ])
     runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
     runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
+    runWarnCheck('bypass ceremony (E4 #1949)', 'node', ['scripts/check-bypass-ceremony.mjs'])
     runCheck('commit-footer rationale (INV-119)', 'node', [
       'scripts/check-commit-footer-rationale.mjs',
     ])

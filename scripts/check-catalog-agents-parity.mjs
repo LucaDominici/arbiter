@@ -205,7 +205,9 @@ if (catalogArg == null && agentsArg == null) {
     const classes = JSON.parse(readFileSync(writeClassesPath, 'utf-8')).classes ?? {}
     for (const name of Object.keys(classes)) {
       if (!existsSync(resolve(root, `.claude/agents/${name}.md`))) {
-        process.stdout.write(`  ORPHAN in agent-write-classes.json: ${name} (no .claude/agents/${name}.md)\n`)
+        process.stdout.write(
+          `  ORPHAN in agent-write-classes.json: ${name} (no .claude/agents/${name}.md)\n`,
+        )
         violations++
       }
     }

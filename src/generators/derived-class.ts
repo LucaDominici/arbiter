@@ -16,7 +16,7 @@
  * files are "codex-track derived".
  *
  * Deliberately excludes `.agents/plan/README.md`: that file is a scaffold
- * placeholder (task-plan directory marker), not derived-from-Claude-template
+ * directory marker (task-plan folder stand-in), not derived-from-Claude-template
  * content, and is out of scope for this refresh set.
  */
 

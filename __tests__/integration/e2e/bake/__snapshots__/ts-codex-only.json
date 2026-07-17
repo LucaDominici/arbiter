@@ -118,7 +118,7 @@
     "test-pyramid.json"
   ],
   "contentHashes": {
-    ".agents/CODEX.md": "37d427a453e7097b5587811256b7f52f829051fcb42baeda07841a36a42fc6da",
+    ".agents/CODEX.md": "80cb344e710747e9e009620efdd87b18387b0026118fcc59355eb740fdf138cf",
     ".agents/plan/README.md": "bdca22392d62033e1038d713937c788aef6d31064e9c08a6dda112842e1a9c07",
     ".agents/rules/05-agent-lifecycle.md": "52ab5d19d43d954f08e1672a75dad88cd3a1c9557a9a730757eeb0a06306998d",
     ".agents/rules/25-todo-folder-policy.md": "4db8c0a73cc7397b65e1755dc77d2b85172495e66d434513ed5f3a01f3572a1d",
@@ -164,7 +164,7 @@
     "muted-tests-baseline.json": "591ba0e9f6b642dcdb4528a2ee8ea56c0a8418a7c9cdb0d745f6cee53b922df1",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
     "scripts/check-action-pins.mjs": "957e18732e7a459b7f44040155af35823fdc97e71aebbb2b8c7313fffd040f03",
-    "scripts/check-all.mjs": "af6fef461a4b02a6523a8de2a5ec900d05505f15eb6e19070b2e3c86f10558aa",
+    "scripts/check-all.mjs": "3149a4701496e7c24c39f18f14ddd58a869591f1386a6646d6fe9912647ac87f",
     "scripts/check-anti-fake-green.mjs": "0d80f4e025a95c0e1c7883afa01c367acce9a1eb0175bcb8914e1feed5ad02cb",
     "scripts/check-anti-proforma.mjs": "2142c4c979e392614ebd217f43317b9c6b02704f38678b792b76a54f4e1e5307",
     "scripts/check-api-e2e.mjs": "24a4614e74aa42ad2e2b8648197b4bfe34422a53e986bb56172ff99214213f18",

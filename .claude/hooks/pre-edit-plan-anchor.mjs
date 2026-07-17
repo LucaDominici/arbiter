@@ -7,10 +7,39 @@
 // Exit 2: block — stderr returned to Claude as error context; user is NOT prompted
 // Bypass: ARBITER_PLAN_BYPASS=1 (session-scoped — see CONTRIBUTING.md)
 import { readTaskState, getRepoRoot, resolveToolInputPath } from './lib.mjs'
-import { readFileSync, existsSync } from 'node:fs'
-import { join, basename, resolve, relative } from 'node:path'
+import { readFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs'
+import { join, basename, resolve, relative, dirname } from 'node:path'
 
-if (process.env.ARBITER_PLAN_BYPASS === '1') process.exit(0)
+if (process.env.ARBITER_PLAN_BYPASS === '1') {
+  // Best-effort bypass accounting (#1949 handoff) — never blocks, never changes
+  // user-facing behavior. Inlined (hooks cannot import scripts/lib) from the
+  // defensive shape of appendJsonl in scripts/lib/loud-bypass.mjs.
+  try {
+    const logPath = join(getRepoRoot(), '.arbiter', 'evidence', 'bypass-log.jsonl')
+    mkdirSync(dirname(logPath), { recursive: true })
+    appendFileSync(
+      logPath,
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        env: 'ARBITER_PLAN_BYPASS',
+        value: '1',
+        bypassed: true,
+        gate: 'pre-edit-plan-anchor',
+      }) + '\n',
+      'utf-8',
+    )
+  } catch (err) {
+    try {
+      process.stderr.write(
+        `arbiter-bypass log-append-failed gate=pre-edit-plan-anchor err=${String(err?.message ?? err)}\n`,
+      )
+      // FAIL-OPEN-INTENT: stderr write itself is best-effort bypass accounting, never the gate — must not block or throw past the bypass exit below (mirrors scripts/lib/loud-bypass.mjs appendJsonl).
+    } catch {
+      /* swallow */
+    }
+  }
+  process.exit(0)
+}
 
 // Resolve the edit target once (stdin-JSON tool_input.file_path, env-var fallback) — the
 // stdin payload (fd 0) is consumed at most once, so capture it before any later use.

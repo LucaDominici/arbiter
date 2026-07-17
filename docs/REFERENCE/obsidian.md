@@ -31,7 +31,7 @@ arbiter obsidian [options]
 ```
 
 `arbiter obsidian` is a **v1 thin generic orchestrator**. It does not parse markdown,
-walk `[[wikilinks]]`, or check staleness itself — it shells out to the two vault
+walk wiki cross-references, or check staleness itself — it shells out to the two vault
 scripts a governed repo already received from `arbiter update`/`init`
 (`scripts/gen-wiki.mjs`, `scripts/check-wiki-lint.mjs`) and turns their output into a
 stable, structured result.
@@ -88,7 +88,7 @@ repo. If either is missing, the command exits 2 with a hint to run `arbiter upda
 
 - No GitHub-issue linking from vault pages.
 - No frontmatter rewriting beyond what `gen-wiki.mjs` itself already does.
-- No rename-rewrite — renaming a source doc does not repoint existing `[[wikilinks]]`.
+- No rename-rewrite — renaming a source doc does not repoint existing wiki cross-references.
 - No bespoke walker, markdown parser, or wikilink engine — everything is delegated to
   the two existing scripts; see ADR-107's CANON-16 survey for why a new engine was
   rejected.

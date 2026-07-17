@@ -380,14 +380,15 @@ export function validateTrunkSoloParityCoherence(
   }
   const missing: string[] = []
   if (!hasParityCheck) missing.push('a local-ci-parity check (run.sh gate full ≡ CI, INV-59)')
-  if (!hasPushGating) missing.push('push-gating (the full gate wired to run before push reaches trunk)')
+  if (!hasPushGating)
+    missing.push('push-gating (the full gate wired to run before push reaches trunk)')
   return {
     valid: false,
     severity: 'CRITICAL',
     message:
       `collaborationMode='trunk-solo' is missing ${missing.join(' and ')}. ` +
-      'trunk-solo is only sound as \'no PR ceremony, FULL gate locally, CI as verification ' +
-      'mirror\' — without both, there is no independent CI net before trunk.',
+      "trunk-solo is only sound as 'no PR ceremony, FULL gate locally, CI as verification " +
+      "mirror' — without both, there is no independent CI net before trunk.",
     remediation:
       'Run `arbiter update` to wire scripts/check-local-ci-parity.mjs and the pre-push hook, ' +
       'or switch collaborationMode to peer-review/gated-review.',

@@ -25,6 +25,7 @@ const PUBLIC_COMMANDS = [
   'gate-exec',
   'review',
   'explain',
+  'obsidian',
 ]
 
 function spawn(args: string[]): { stdout: string; stderr: string; status: number } {
@@ -53,7 +54,7 @@ function commandNames(helpText: string): string[] {
 }
 
 describe('arbiter --help — public 14-command surface (#1770 T5, T2 tier-3)', () => {
-  it('default help lists exactly the 14 public commands', () => {
+  it('default help lists exactly the 15 public commands', () => {
     const { status, stdout } = spawn(['--help'])
     expect(status).toBe(0)
     const names = commandNames(stdout)

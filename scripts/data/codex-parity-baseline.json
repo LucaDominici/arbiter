@@ -5,6 +5,7 @@
     "claude": {
       "files": [
         ".claude/CLAUDE.md",
+        ".claude/agents/agent-write-classes.json",
         ".claude/agents/bridge-reviewer.md",
         ".claude/agents/codebase-scanner.md",
         ".claude/agents/context-checker.md",
@@ -41,9 +42,11 @@
         ".claude/hooks/pre-compact.mjs",
         ".claude/hooks/pre-edit-plan-anchor.mjs",
         ".claude/hooks/pre-edit-ssot-guard.mjs",
+        ".claude/hooks/pre-spawn-worktree-guard.mjs",
         ".claude/hooks/skill-forced-eval.mjs",
         ".claude/hooks/stop-dangerous.mjs",
         ".claude/hooks/stop-evidence-guard.mjs",
+        ".claude/hooks/stop-finding-loss.mjs",
         ".claude/hooks/wiki-on-commit.mjs",
         ".claude/knowledge-map.json",
         ".claude/rules/05-agent-lifecycle.md",

@@ -208,6 +208,16 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
     enforces: 'Regenerates the LLM wiki on commit (INV-116)',
     codexEquivalent: 'Gate: wiki-lint check in `check-all.mjs`',
   },
+  'pre-spawn-worktree-guard.mjs': {
+    name: 'pre-spawn-worktree-guard.mjs',
+    enforces: 'Refuses a second write-intent sub-agent spawn onto the main tree (E5 #1947)',
+    codexEquivalent: 'None — manual worktree discipline',
+  },
+  'stop-finding-loss.mjs': {
+    name: 'stop-finding-loss.mjs',
+    enforces: 'Detects research dispatches with zero persisted findings (E6b #1948)',
+    codexEquivalent: 'None — manual discipline',
+  },
 }
 
 /**

@@ -537,7 +537,7 @@ program
   .option('--github', 'Activate GitHub API calls and set permitGitHub:true in stored config', false)
   .option(
     '--solo',
-    'Set collaborationMode=trunk-solo (direct-merge, minimal CI). Shorthand for ADR-051 trunk-solo mode.',
+    'Set collaborationMode=trunk-solo (direct-merge, full local gate ≡ CI, CI as verification mirror). Shorthand for ADR-051 trunk-solo mode.',
     false,
   )
   .option('--recipe <path>', 'Path or https:// URL to a recipe JSON file for pre-configured init')

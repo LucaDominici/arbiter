@@ -135,11 +135,11 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314                                           | medium   |
 | **Tier-2 (advisory only                                      | do NOT hard-gate alone):** — docs/internal/SYSTEM/CANON.md:326              | medium   |
 | - **DRY-as-dogma**                                           | duplication _count_ gates, but "never r — docs/internal/SYSTEM/CANON.md:329 | medium   |
-| - Skip the gate before committing                            | .claude/CLAUDE.md:92                                                        | medium   |
-| main                                                         | .claude/CLAUDE.md:93                                                        | medium   |
-| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:95                                                        | medium   |
-| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:107                                                       | medium   |
-| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:111                                                       | medium   |
+| - Skip the gate before committing                            | .claude/CLAUDE.md:99                                                        | medium   |
+| main                                                         | .claude/CLAUDE.md:100                                                       | medium   |
+| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:102                                                       | medium   |
+| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:114                                                       | medium   |
+| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:118                                                       | medium   |
 
 ## Known Debt
 

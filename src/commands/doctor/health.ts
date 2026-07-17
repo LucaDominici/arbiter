@@ -445,7 +445,8 @@ function checkTrunkSoloParityWiring(dir: string): HealthCheck {
     if (mode !== 'trunk-solo') return check
     check.detail = 'local-ci-parity check + push-gating both wired — coherent'
     if (hasWorkflowFiles(dir)) {
-      check.detail += '. CI workflow files present — verify `node scripts/check-local-ci-parity.mjs` is green.'
+      check.detail +=
+        '. CI workflow files present — verify `node scripts/check-local-ci-parity.mjs` is green.'
     }
     return check
   }
@@ -748,42 +749,38 @@ function checkGatePassLog(dir: string): HealthCheck {
  * Absent script (e.g. a non-arbiter project, or a stripped-down fixture) WARNs rather than
  * FAILs — doctor reports state, it does not require every gate script to exist.
  */
-function checkBypassCeremony(dir: string): HealthCheck {
-  const scriptPath = join(dir, 'scripts', 'check-bypass-ceremony.mjs')
-  if (!existsSync(scriptPath)) {
-    return {
-      id: 'bypass-ceremony',
-      label: 'bypass ceremony budget',
-      status: 'WARN',
-      detail: 'scripts/check-bypass-ceremony.mjs not found',
-    }
-  }
+type BypassCeremonyReport = {
+  channels?: { env: string; count: number; ceiling: number }[]
+  ledgerViolations?: string[]
+  rateViolations?: string[]
+}
+
+function bypassCeremonyWarn(detail: string): HealthCheck {
+  return { id: 'bypass-ceremony', label: 'bypass ceremony budget', status: 'WARN', detail }
+}
+
+/** Shell scripts/check-bypass-ceremony.mjs --json and parse its report; WARN on any launch/parse failure. */
+function runBypassCeremonyScript(
+  dir: string,
+  scriptPath: string,
+): { result: RunCliResult; parsed: BypassCeremonyReport } | HealthCheck {
   let result: RunCliResult
   try {
     result = runCli('node', [scriptPath, '--json', '--root', dir], { cwd: dir, timeoutMs: 15000 })
   } catch (err) {
-    return {
-      id: 'bypass-ceremony',
-      label: 'bypass ceremony budget',
-      status: 'WARN',
-      detail: `could not run bypass-ceremony check: ${err instanceof Error ? err.message : String(err)}`,
-    }
-  }
-  let parsed: {
-    channels?: { env: string; count: number; ceiling: number }[]
-    ledgerViolations?: string[]
-    rateViolations?: string[]
+    return bypassCeremonyWarn(
+      `could not run bypass-ceremony check: ${err instanceof Error ? err.message : String(err)}`,
+    )
   }
   try {
-    parsed = JSON.parse(result.stdout)
+    return { result, parsed: JSON.parse(result.stdout) as BypassCeremonyReport }
   } catch {
-    return {
-      id: 'bypass-ceremony',
-      label: 'bypass ceremony budget',
-      status: 'WARN',
-      detail: 'bypass-ceremony check produced unparseable output',
-    }
+    return bypassCeremonyWarn('bypass-ceremony check produced unparseable output')
   }
+}
+
+/** Shape the parsed bypass-ceremony report into the doctor HealthCheck row. */
+function toBypassCeremonyCheck(result: RunCliResult, parsed: BypassCeremonyReport): HealthCheck {
   const channels = parsed.channels ?? []
   const ledgerViolations = parsed.ledgerViolations ?? []
   const rateViolations = parsed.rateViolations ?? []
@@ -807,6 +804,16 @@ function checkBypassCeremony(dir: string): HealthCheck {
     status: 'PASS',
     detail: `channels: ${channelSummary}`,
   }
+}
+
+function checkBypassCeremony(dir: string): HealthCheck {
+  const scriptPath = join(dir, 'scripts', 'check-bypass-ceremony.mjs')
+  if (!existsSync(scriptPath)) {
+    return bypassCeremonyWarn('scripts/check-bypass-ceremony.mjs not found')
+  }
+  const outcome = runBypassCeremonyScript(dir, scriptPath)
+  if ('id' in outcome) return outcome
+  return toBypassCeremonyCheck(outcome.result, outcome.parsed)
 }
 
 function checkChannelSetting(dir: string, channelFlag: string | undefined): HealthCheck {

@@ -67,15 +67,15 @@ Configured in `.claude/settings.json`. Active hooks:
 | `UserPromptSubmit` → \*      | `guard-task-completion.mjs`   | Warn on premature task-completion claims                                                                                     |
 | `UserPromptSubmit` → \*      | `guard-done-evidence.mjs`     | Validate SHA-pinned done-evidence before completion claims (#1872; flag-gated, inert until `features.evidenceHarness: true`) |
 | `Stop` → \*                  | `stop-evidence-guard.mjs`     | Block completion claims without correlated evidence (INV-114, #1212)                                                         |
+| `Stop` → \*                  | `stop-finding-loss.mjs`       | E6b #1948; advisory — hard via ARBITER_FINDING_LOSS_HARD=1; activated per OD-14 2026-07-17                                   |
 | `PostToolUse` → ExitPlanMode | `exitplanmode-banner.mjs`     | Print next-step banner after plan mode ends (#1210)                                                                          |
 | `PreCompact` → \*            | `pre-compact.mjs`             | Persist context before auto-compaction                                                                                       |
 
 **Implemented, not activated** (present in `.claude/hooks/`, deliberately NOT wired into any matcher above — activation is owner decision OD-14, see `docs/design/anti-context-rot-enforcers.md`):
 
-| Hook                            | Would fire on          | Purpose                                                                                                       |
-| -------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `pre-spawn-worktree-guard.mjs`   | `PreToolUse` → Task\|Agent | E5 (#1947): refuse a second write-intent sub-agent spawn onto the main working tree (M9) + one-task-per-dispatch (M2) |
-| `stop-finding-loss.mjs`          | `Stop` → \*                | E6b (#1948): detect >=2 research sub-agent dispatches with zero persisted findings/agent-return envelopes since session start |
+| Hook                           | Would fire on              | Purpose                                                                                                               |
+| ------------------------------ | -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `pre-spawn-worktree-guard.mjs` | `PreToolUse` → Task\|Agent | E5 (#1947): refuse a second write-intent sub-agent spawn onto the main working tree (M9) + one-task-per-dispatch (M2) |
 
 ### Slash Commands
 

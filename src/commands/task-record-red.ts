@@ -112,6 +112,51 @@ function captureTestOutput(
   }
 }
 
+/** Resolve current HEAD sha — this becomes the recorded test_commit_sha. */
+function resolveHeadSha(dir: string, timeoutMs: number): string | RecordRedFailure {
+  try {
+    const r = runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs })
+    return r.stdout.trim()
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `git rev-parse HEAD failed: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+}
+
+/**
+ * #1988: refuse to record evidence that would point at a commit not actually
+ * containing the RED test — either because `__tests__/**` is dirty (the
+ * eventual test_commit_sha wouldn't yet include it) or because `testPath`
+ * isn't present in HEAD at all. `--force` is the escape hatch for exotic
+ * flows (e.g. re-recording evidence at a detached-worktree SHA).
+ */
+function checkTestCommitIntegrity(
+  opts: RecordRedOptions,
+  sha: string,
+  dir: string,
+): RecordRedFailure | null {
+  if (opts.force) return null
+  if (hasDirtyTestPaths(dir)) {
+    return {
+      ok: false,
+      reason:
+        `commit the RED test first — evidence must point at the commit that contains it ` +
+        `(__tests__/** has uncommitted changes). Pass --force to override.`,
+    }
+  }
+  if (!pathExistsInCommit(sha, opts.testPath, dir)) {
+    return {
+      ok: false,
+      reason:
+        `test_path "${opts.testPath}" not found in HEAD (${sha}) — evidence must point at a ` +
+        `commit that contains the RED test. Pass --force to override.`,
+    }
+  }
+  return null
+}
+
 export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | RecordRedFailure {
   const dir = opts.dir ?? process.cwd()
   const timeoutMs = clampTimeout(opts.timeoutMs)
@@ -124,43 +169,12 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
     }
   }
 
-  // Get current HEAD sha (this becomes the test commit sha)
-  let sha: string
-  try {
-    const r = runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 5000 })
-    sha = r.stdout.trim()
-  } catch (err) {
-    return {
-      ok: false,
-      reason: `git rev-parse HEAD failed: ${err instanceof Error ? err.message : String(err)}`,
-    }
-  }
+  const shaOrErr = resolveHeadSha(dir, 5000)
+  if (typeof shaOrErr === 'object') return shaOrErr
+  const sha = shaOrErr
 
-  // Refuse when __tests__/** is dirty (staged or unstaged): the evidence's
-  // test_commit_sha is stamped from HEAD below, so an uncommitted RED test
-  // would produce evidence pointing at a commit that does not contain it
-  // (#1988). --force is the escape hatch for exotic flows.
-  if (!opts.force && hasDirtyTestPaths(dir)) {
-    return {
-      ok: false,
-      reason:
-        `commit the RED test first — evidence must point at the commit that contains it ` +
-        `(__tests__/** has uncommitted changes). Pass --force to override.`,
-    }
-  }
-
-  // Refuse when the recorded test_path is not present in HEAD: recording
-  // evidence for a test that HEAD doesn't contain is the same false-green
-  // risk as the dirty-tree case above, just reached via an already-committed
-  // but different HEAD (#1988). --force is the escape hatch.
-  if (!opts.force && !pathExistsInCommit(sha, opts.testPath, dir)) {
-    return {
-      ok: false,
-      reason:
-        `test_path "${opts.testPath}" not found in HEAD (${sha}) — evidence must point at a ` +
-        `commit that contains the RED test. Pass --force to override.`,
-    }
-  }
+  const integrityFailure = checkTestCommitIntegrity(opts, sha, dir)
+  if (integrityFailure) return integrityFailure
 
   // Select the test runner. An explicit `testCmd` overrides auto-selection so
   // users can scope an exact command (e.g. `go test -run TestFoo ./pkg`) — the
