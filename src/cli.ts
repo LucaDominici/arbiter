@@ -1178,14 +1178,28 @@ verify
   .description('Verify TDD red-phase evidence for a task — replayable audit (#553)')
   .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((taskId: string, opts: { dir?: string; json: boolean }) => {
+  .action((taskId: string, opts: { dir?: string; json: boolean }, cmd: Command) => {
+    // #1992: `verify`/`validate` (the parent command) also declares --json,
+    // which shadows this subcommand's own parsed value in `opts` — Commander
+    // resolves the name collision to the parent's default. optsWithGlobals()
+    // merges local + inherited options and reflects the flag actually passed.
+    const json = Boolean(cmd.optsWithGlobals().json)
     const result = runVerifyTdd({
       taskId,
-      json: opts.json,
+      json,
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
     })
-    if (opts.json) {
-      process.stdout.write(JSON.stringify(result, null, 2) + '\n')
+    if (json) {
+      jsonOutput(
+        'verify tdd',
+        result.status === 'PASS' ? 'ok' : 'error',
+        {
+          exitCode: result.exitCode,
+          taskId: result.taskId,
+          checks: result.checks ?? [],
+        },
+        result.reason !== undefined ? [result.reason] : undefined,
+      )
     } else if (result.status === 'PASS') {
       process.stdout.write(`verify tdd: PASS (${result.checks?.length ?? 0} checks)\n`)
     } else {
