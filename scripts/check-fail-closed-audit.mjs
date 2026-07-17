@@ -67,6 +67,9 @@ const SKIP_FILES = new Set([
   'scripts/lib/suppressions-shared.mjs',
   'scripts/lib/workflow-scan.mjs',
   'scripts/lib/gen-doc-helpers.mjs',
+  // Pure classification/normalization helpers for the codex self-parity gate (#1966) —
+  // exports semantics only; the entry point is scripts/check-codex-self-parity.mjs.
+  'scripts/lib/codex-self-parity-lib.mjs',
   // Pure deterministic evaluator (#1373) — exports semantics, no entry point; its
   // missing-file catches return null by design (scored N, never a silent pass).
   'scripts/lib/gold-audit-lib.mjs',

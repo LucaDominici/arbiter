@@ -167,8 +167,12 @@ async function main() {
           trailingComma: 'all',
           semi: true,
         })
+        // Prettier unavailable or md parse error: compare raw content instead (the
+        // check-self-dogfood normalizeLines precedent) — a formatting-normalization
+        // miss can only produce a FALSE FAIL here, never mask drift.
+        // FAIL-OPEN-INTENT: prettier miss falls back to raw compare (false-FAIL-only path)
       } catch {
-        return content // prettier unavailable or parse error -- raw (dogfood precedent)
+        return content
       }
     }
     const loadSide = async (files, read, stripFm) => {
