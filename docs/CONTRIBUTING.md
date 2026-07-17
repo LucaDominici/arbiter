@@ -92,6 +92,8 @@ for low-level engine control or recovery (`arbiter task advance`, `record-red`, 
 - Gate red on tests → run the failing test in isolation; do not bypass with `--no-verify`
 - Gate red on TDD evidence (#NNN.json missing) → `arbiter task record-red --test-path <file>`
   (commit the RED test first — `record-red` refuses on a dirty/uncommitted `__tests__/**`, #1988)
+- Machine-readable verification → `arbiter verify tdd '#NNN' --json` emits the standard
+  envelope with the six per-check verdicts (#1992); plain output unchanged without the flag
 - Self-hosted CI runner offline → set repo variable `CI_BUILD_RUNNER_LABEL=ubuntu-latest` (default already ubuntu-latest as of #959)
 
 ---

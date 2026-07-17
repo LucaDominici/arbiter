@@ -664,6 +664,7 @@ Re-generate governance files using stored config (arbiter.json).
 - `--adopt` — Force-adopt ALL currently-withheld files (not just safety-class), recording a
 - `--no-adopt-safety` — Opt OUT of the default-on safety-class adoption (.claude/hooks/*.mjs). Leaves a
 - `--adopt-plan` — Two-phase preview: print what --adopt/the default safety adoption WOULD change
+- `--refresh-derived` — Force-refresh the codex-track derived file set (.agents/rules/_, .claude/hooks/_
 
 ## arbiter validate
 
