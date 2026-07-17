@@ -2,21 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // Arbiter hook: spawn-time worktree guard (E5, #1947, design doc §E5).
 // Fires on: PreToolUse → Task|Agent (sub-agent dispatch)
-// Exit 2: block — stderr returned to Claude as error context
+// Exit 2 (hard grading only): block — stderr returned to Claude as error context
+// Exit 0: advisory (soft grading, default) — same stderr warning, does not block
 //
-// IMPLEMENT-BUT-NOT-ACTIVATED (OD-14): this file is emitted and tested but
-// is NOT wired into .claude/settings.json's PreToolUse matchers. A live
-// PreToolUse interceptor on Task|Agent could wedge the running harness's own
-// sub-agent dispatch path — activation (adding the matcher block) is an
-// explicit owner decision, not bundled with this implementation. To activate:
-// add a PreToolUse group with `"matcher": "Task|Agent"` routing to this hook
-// in .claude/settings.json (and the emitted twin
-// src/templates/claude/settings.json.ejs), then promote INV-139 in
-// src/invariants/catalog.ts + AGENTS.md (see docs/design/anti-context-rot-enforcers.md §E5).
+// ACTIVATED advisory per OD-14 (2026-07-17): wired into .claude/settings.json's
+// PreToolUse matchers at soft/advisory grading by default. Set
+// ARBITER_SPAWN_GUARD_HARD=1 to promote to hard (exit 2) blocking, mirroring
+// stop-finding-loss.mjs's advisory/hard knob (see docs/design/anti-context-rot-enforcers.md §E5).
 //
-// Mechanically refuses to spawn a second write-intent sub-agent into the main
-// working tree — the one failure mode with a confirmed real incident (R3,
-// 2026-03-01). Also carries the M2 one-task-per-dispatch check.
+// Mechanically flags (advisory) or refuses (hard) spawning a second write-intent
+// sub-agent into the main working tree — the one failure mode with a confirmed
+// real incident (R3, 2026-03-01). Also carries the M2 one-task-per-dispatch check.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { getRepoRoot } from './lib.mjs'
@@ -86,17 +82,23 @@ function main() {
   // 2. Write-intent path: allowed iff isolated in a worktree.
   const inWorktree = isolation === 'worktree' || isWorktreeCwd(cwd)
 
+  const HARD_GRADING = process.env.ARBITER_SPAWN_GUARD_HARD === '1'
+
   const sidecarPath = join(root, SIDECAR_PATH)
   const now = Date.now()
   const existing = readJson(sidecarPath)
   let entries = pruneStale(Array.isArray(existing) ? existing : [], now)
 
   if (!inWorktree && entries.length > 0) {
-    process.stderr.write(
+    const message =
       `[arbiter] SPAWN GUARD: a write-intent agent is already active on the main working tree.\n` +
-        `Second write-agent on the main tree is blocked — open a worktree: \`/wt-open\` (ADR-103).\n`,
-    )
-    process.exit(2)
+      `Second write-agent on the main tree is blocked — open a worktree: \`/wt-open\` (ADR-103).\n`
+    if (HARD_GRADING) {
+      process.stderr.write(message)
+      process.exit(2)
+    }
+    process.stderr.write(message) // advisory: soft grading always exits 0
+    process.exit(0)
   }
 
   // No other writer on the main tree, or this spawn is worktree-isolated — allow and register.
@@ -115,11 +117,15 @@ function main() {
   // 3. One-task-per-dispatch (M2): count distinct #NNN ids in the prompt.
   const taskIdCount = countTaskIds(prompt)
   if (taskIdCount > 1) {
-    process.stderr.write(
+    const message =
       `[arbiter] SPAWN GUARD: dispatch prompt references ${taskIdCount} distinct task ids — ` +
-        `one-task-per-dispatch (M2) requires exactly one.\n`,
-    )
-    process.exit(2)
+      `one-task-per-dispatch (M2) requires exactly one.\n`
+    if (HARD_GRADING) {
+      process.stderr.write(message)
+      process.exit(2)
+    }
+    process.stderr.write(message) // advisory: soft grading always exits 0
+    process.exit(0)
   }
 
   process.exit(0)

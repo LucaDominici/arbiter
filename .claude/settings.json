@@ -40,6 +40,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "Task|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-spawn-worktree-guard.mjs",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUse": [

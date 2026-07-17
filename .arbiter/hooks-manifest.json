@@ -292,13 +292,12 @@
     },
     {
       "file": "pre-spawn-worktree-guard.mjs",
-      "classification": "HARD",
+      "classification": "ADVISORY",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "expectedExitCode": 2,
-      "rationale": "E5 (#1947, design doc \u00a7E5): IMPLEMENT-BUT-NOT-ACTIVATED (OD-14) \u2014 PreToolUse Task|Agent tripwire refusing a second write-intent sub-agent spawn onto the main working tree (M9) plus the M2 one-task-per-dispatch check. Not wired in .claude/settings.json (activation is an owner decision \u2014 a live interceptor on Task|Agent could wedge the harness's own dispatch path). Not auto-spawnable via the env-only/file-with-content fixture shapes (stdin is a structured Task/Agent tool_input payload); empirical exit-code coverage in __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts."
+      "rationale": "E5 (#1947, design doc \u00a7E5): PreToolUse Task|Agent tripwire flagging a second write-intent sub-agent spawn onto the main working tree (M9) plus the M2 one-task-per-dispatch check. Defaults to advisory (stderr nudge, exit 0); ARBITER_SPAWN_GUARD_HARD=1 promotes to hard (exit 2). Wired in .claude/settings.json's PreToolUse matchers (Task|Agent) per OD-14 2026-07-17. Not auto-spawnable via the env-only/file-with-content fixture shapes (stdin is a structured Task/Agent tool_input payload); empirical exit-code coverage in __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts."
     },
     {
       "file": "stop-finding-loss.mjs.ejs",

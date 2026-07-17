@@ -188,6 +188,15 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
       '(exit 2) when 2+ research dispatches persisted zero findings since session start.',
     isGateBypass: false,
   },
+  {
+    name: 'ARBITER_SPAWN_GUARD_HARD',
+    type: 'boolean',
+    default: false,
+    purpose:
+      'Escalates pre-spawn-worktree-guard.mjs (E5 #1947) from advisory (exit 0) to hard ' +
+      'block (exit 2) on a second write-intent spawn onto the main tree or a multi-task dispatch.',
+    isGateBypass: false,
+  },
   // ── Compatibility probing ────────────────────────────────────────────────
   {
     name: 'ARBITER_PROBE_TIMEOUT_MS',
