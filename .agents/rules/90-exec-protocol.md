@@ -2,7 +2,7 @@
 title: 'Execution Protocol'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-07-17'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
@@ -14,7 +14,6 @@ related: []
 ## Branch Enforcement (MANDATORY)
 
 Before any file edit:
-
 1. Run `git branch --show-current`
 2. If on `main` → HARD STOP → create task branch
 3. Branch must start with `task/` — e.g., `task/#123-description`
@@ -41,3 +40,12 @@ node scripts/check-all.mjs L2   # full: L1 + coverage + integration
 - Gate fails after two focused attempts → STOP, report blockers
 - INV violation found → STOP, do not bypass
 - Orphan TODO found → fix before proceeding
+- Symptom patch over a known smell (duplicate-of-existing-helper, missed extraction) without `arbiter task record-tech-debt` → STOP
+
+## Root-Cause Discipline (CANON-22)
+
+When a change touches code that the duplication (jscpd), complexity, or dead-code gates flag:
+
+- **Fix the root cause** in the smelly/duplicated code you touch — extract the shared helper, simplify the over-complex function, delete the dead branch.
+- **OR** run `arbiter task record-tech-debt` with an explicit rationale (why the root-cause fix is out of scope now) before proceeding.
+- A symptom-only patch layered over a known smell — duplicating a helper that already exists, widening a function already over the complexity ceiling — is a stop condition, not a tradeoff. The duplication ratchet (Lehman entropy) blocks any net increase regardless of intent.

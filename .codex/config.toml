@@ -41,6 +41,13 @@ type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-placeholders.mjs"
 timeout = 5
 
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-skipped-tests.mjs"
+timeout = 5
+
+
 [[hooks.PostToolUse.hooks]]
 type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-pii.mjs"
