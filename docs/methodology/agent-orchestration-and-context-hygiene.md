@@ -372,7 +372,11 @@ of done requires, mechanically:
 - **Tested (red-path):** a test that _failed before_ the fix and passes after —
   `arbiter task record-red` captures the failing run; `checkTddEvidenceGate` verifies
   task-id match, a recognized failure signature in the log, the test commit SHA in
-  history, and the test path present in that commit. Gates themselves need flip-tests:
+  history, and the test path present in that commit. Required ordering: commit the
+  RED test _before_ running `record-red` — it refuses on a dirty/uncommitted
+  `__tests__/**` or a test path absent from HEAD (`--force` overrides, #1988), so the
+  stamped SHA always points at a commit that actually contains the test. Gates
+  themselves need flip-tests:
   a gate proven only green is ceremony (`scripts/check-guard-flip.mjs`; target =
   100% flip coverage of emitted gates, playbook §T3).
 - **Working:** exercised end-to-end on real input (dogfood), not a fixture —
