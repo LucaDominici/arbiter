@@ -905,14 +905,19 @@ const CONTRACT_TYPE_OPTIONS: Opt<ContractType>[] = [
 const COLLABORATION_MODE_MESSAGE = [
   'Collaboration mode — controls branching, CI shape, and merge ceremony:',
   '',
-  '  trunk-solo    — push to trunk directly; minimal CI; no PR required',
+  '  trunk-solo    — push to trunk directly, no PR ceremony; requires the FULL gate',
+  '                  locally (run.sh gate full ≡ CI) as your independent net — CI',
+  '                  becomes a verification mirror, not extra ceremony',
   '  peer-review   — feature branches + PR + fast-forward merge (recommended)',
   '  gated-review  — PR + required approvals + full CI (enterprise / regulated)',
   '',
 ].join('\n')
 
 const COLLABORATION_MODE_OPTIONS: Opt<CollaborationMode>[] = [
-  { value: 'trunk-solo', label: 'trunk-solo    — solo dev, commit directly to main' },
+  {
+    value: 'trunk-solo',
+    label: 'trunk-solo    — solo dev, no PR; full gate locally ≡ CI (parity-gated)',
+  },
   { value: 'peer-review', label: 'peer-review   — small team, PR-based workflow  [recommended]' },
   {
     value: 'gated-review',

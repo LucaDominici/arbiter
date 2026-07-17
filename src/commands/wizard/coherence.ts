@@ -340,3 +340,56 @@ export function validateLanguageArchetypeCoherence(
   }
   return { valid: true, severity: 'OK', message: '' }
 }
+
+// ── #1977: trunk-solo × local-ci-parity coherence ────────────────────────────
+//
+// Sixth coherence axis. trunk-solo's whole premise is 'no PR ceremony' — but a
+// no-PR flow only stays sound under the HARD constraint that the local full
+// gate is CI-equivalent (`run.sh gate full ≡ CI`, INV-59). Without a PR there
+// is no independent CI net before trunk, so a trunk-solo config missing EITHER
+// the local-ci-parity check OR push-gating (the mechanism that actually forces
+// the full gate to run before code reaches trunk) is CRITICAL, not a warning —
+// unlike every other axis above, this one blocks: peer-review/gated-review are
+// unaffected because the PR itself is their independent net.
+
+/** The wiring facts the trunk-solo parity rule checks for. */
+export interface TrunkSoloParityWiring {
+  /** A local-ci-parity check script is present (e.g. scripts/check-local-ci-parity.mjs). */
+  hasParityCheck: boolean
+  /** The full gate is wired to run on push (pre-push hook or equivalent CI-blocking mechanism). */
+  hasPushGating: boolean
+}
+
+/**
+ * Validate a (collaborationMode × TrunkSoloParityWiring) cell. Only trunk-solo
+ * is constrained — peer-review and gated-review always return OK because the
+ * PR is their independent CI net, so parity/push-gating are moot for them.
+ *
+ * - trunk-solo + missing parity check and/or push-gating → CRITICAL.
+ * - trunk-solo + both wired → OK.
+ * - peer-review / gated-review → always OK.
+ */
+export function validateTrunkSoloParityCoherence(
+  mode: CollaborationMode,
+  wiring: TrunkSoloParityWiring,
+): CoherenceResult {
+  if (mode !== 'trunk-solo') return { valid: true, severity: 'OK', message: '' }
+  const { hasParityCheck, hasPushGating } = wiring
+  if (hasParityCheck && hasPushGating) {
+    return { valid: true, severity: 'OK', message: '' }
+  }
+  const missing: string[] = []
+  if (!hasParityCheck) missing.push('a local-ci-parity check (run.sh gate full ≡ CI, INV-59)')
+  if (!hasPushGating) missing.push('push-gating (the full gate wired to run before push reaches trunk)')
+  return {
+    valid: false,
+    severity: 'CRITICAL',
+    message:
+      `collaborationMode='trunk-solo' is missing ${missing.join(' and ')}. ` +
+      'trunk-solo is only sound as \'no PR ceremony, FULL gate locally, CI as verification ' +
+      'mirror\' — without both, there is no independent CI net before trunk.',
+    remediation:
+      'Run `arbiter update` to wire scripts/check-local-ci-parity.mjs and the pre-push hook, ' +
+      'or switch collaborationMode to peer-review/gated-review.',
+  }
+}

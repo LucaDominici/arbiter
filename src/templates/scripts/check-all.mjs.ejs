@@ -1170,6 +1170,13 @@ if (level === 'L2') {
   }
   pushResult('evidence gate (INV-33)', _evidenceStatus, Date.now() - _evidenceStart);
 <% } %>
+<% if (typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo') { %>
+  // ─── L2: local-ci-parity (INV-59, #1977) ───────────────────────────────────
+  // trunk-solo = 'no PR ceremony, FULL gate locally, CI as verification mirror' —
+  // that promise only holds if `run.sh gate full` and CI actually agree. Without
+  // a PR there is no independent net before trunk, so this is wired hard at L2.
+  runCheck('local-ci-parity (INV-59)', 'node', ['scripts/check-local-ci-parity.mjs']);
+<% } %>
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

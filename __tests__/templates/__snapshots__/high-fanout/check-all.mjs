@@ -678,6 +678,7 @@ if (level === 'L2') {
   // when gh is missing / token absent / offline (never false-fails).
   runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], { soft: graceActive });
 
+
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
