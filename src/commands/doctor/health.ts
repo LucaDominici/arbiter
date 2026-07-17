@@ -25,6 +25,7 @@ import {
   validateAutonomyCoherence,
   validateProfileCoherence,
   validateLanguageArchetypeCoherence,
+  validateTrunkSoloParityCoherence,
 } from '../wizard/coherence.js'
 import { resolveCollaborationMode } from '../../config/collaboration-mode-defaults.js'
 
@@ -168,6 +169,7 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
   out.push(checkOverlayCoherence(dir))
   out.push(checkAutonomyCoherence(dir))
   out.push(checkProfileCoherence(dir))
+  out.push(checkTrunkSoloParityWiring(dir))
   out.push(checkCompanionHealth(dir, claudeHome))
 
   return out
@@ -382,6 +384,70 @@ function checkCollaborationCoherence(dir: string): HealthCheck {
     return check
   }
   check.status = r.severity === 'CRITICAL' ? 'FAIL' : 'WARN'
+  check.detail = r.message
+  if (r.remediation !== undefined) check.hint = r.remediation
+  return check
+}
+
+/**
+ * #1977: does `scripts/check-local-ci-parity.mjs` exist? The presence check the
+ * trunk-solo coherence rule needs; kept as a tiny named predicate (rather than an
+ * inline existsSync) so its one call site reads as intent, matching the sibling
+ * `hasWorkflowFiles` predicate below.
+ */
+function hasLocalCiParityCheck(dir: string): boolean {
+  return existsSync(join(dir, 'scripts', 'check-local-ci-parity.mjs'))
+}
+
+/**
+ * #1977: is the full gate wired to run on push? `.githooks/pre-push` is the
+ * mechanism every governed project emits (githooks.ts); its presence is the
+ * push-gating signal. A project using a different mechanism (e.g. a CI-only
+ * required-status-check) would need a different signal, but for trunk-solo —
+ * which by definition has no PR/required-check surface — the local hook IS the
+ * only gate there is.
+ */
+function hasPushGatingWired(dir: string): boolean {
+  return existsSync(join(dir, '.githooks', 'pre-push'))
+}
+
+/**
+ * #1977: trunk-solo's whole premise is 'no PR ceremony' — but that is only sound
+ * under the HARD constraint that the local full gate is CI-equivalent (INV-59).
+ * Without a PR there is no independent CI net before trunk, so a trunk-solo
+ * config missing the local-ci-parity check and/or push-gating is CRITICAL (FAIL),
+ * not a warning — this is the one coherence axis above that blocks. Also surfaces
+ * (as an additional WARN-level detail, never escalated to FAIL) when a CI workflow
+ * set exists alongside a wired parity check but hasn't been statically verified —
+ * i.e. it names the presence of `.github/workflows/` so a human can cross-check
+ * `node scripts/check-local-ci-parity.mjs` ran clean, since doctor itself does not
+ * shell out to run the (potentially slow, network-touching) static parity script.
+ */
+function checkTrunkSoloParityWiring(dir: string): HealthCheck {
+  const check: HealthCheck = {
+    id: 'trunk-solo-parity-wiring',
+    label: 'trunk-solo local-ci-parity + push-gating',
+    status: 'PASS',
+    detail: 'not applicable (collaborationMode is not trunk-solo)',
+  }
+  const cfg = readRawCoherenceConfig(dir)
+  if (cfg === null) {
+    check.detail = 'could not read arbiter.json for trunk-solo-parity-wiring check'
+    return check
+  }
+  const mode = resolveCollaborationMode(cfg)
+  const hasParityCheck = hasLocalCiParityCheck(dir)
+  const hasPushGating = hasPushGatingWired(dir)
+  const r = validateTrunkSoloParityCoherence(mode, { hasParityCheck, hasPushGating })
+  if (r.severity === 'OK') {
+    if (mode !== 'trunk-solo') return check
+    check.detail = 'local-ci-parity check + push-gating both wired — coherent'
+    if (hasWorkflowFiles(dir)) {
+      check.detail += '. CI workflow files present — verify `node scripts/check-local-ci-parity.mjs` is green.'
+    }
+    return check
+  }
+  check.status = 'FAIL'
   check.detail = r.message
   if (r.remediation !== undefined) check.hint = r.remediation
   return check

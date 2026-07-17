@@ -2,6 +2,7 @@
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { resolveEffectiveThresholds } from '../config/thresholds.js'
+import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { isSubtreeFrontendLane } from '../detectors/lanes.js'
 import type { Archetype, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -306,6 +307,20 @@ export function generateCheckAll(
       writeFile(
         resolvedPath(base, 'scripts', 'check-docs.mjs'),
         renderTemplate('scripts/check-docs.mjs.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
+  // #1977: trunk-solo requires the local-ci-parity check wired BY DEFAULT — a
+  // no-PR flow is only sound when `run.sh gate full ≡ CI` (INV-59); without a
+  // PR there is no independent CI net before trunk. peer-review/gated-review
+  // rely on the PR itself as that net, so the script is trunk-solo-only.
+  if (resolveCollaborationMode(config) === 'trunk-solo') {
+    results.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'check-local-ci-parity.mjs'),
+        renderTemplate('scripts/check-local-ci-parity.mjs.ejs', data),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
