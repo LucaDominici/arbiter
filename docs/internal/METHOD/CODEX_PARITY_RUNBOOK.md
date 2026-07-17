@@ -1,8 +1,8 @@
 ---
 title: 'Codex Parity Runbook — arbiter'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-07-16'
+last_review: '2026-07-17'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/runbook']
@@ -186,3 +186,97 @@ BY-DESIGN-EXCLUSIVE declaration with reason, update the baseline.
 Adding a **new Claude hook**: give it a descriptor in
 `codex-known-limitations.ts` (generation fails closed without it), decide
 bridged/gate/manual honestly, update the baseline.
+
+---
+
+## Self-track parity (check-codex-self-parity)
+
+The fixture gate above bakes into an **empty** directory, so it structurally
+cannot see rot in arbiter's OWN materialized codex track. The rot vector is
+real: the derived rules and the adapter are emitted with `skipIfExists: true`,
+so once materialized, `arbiter update` never refreshes them in place — this is
+how the repo's `.agents/rules/90-exec-protocol.md` lost the CANON-22 section
+in self-config while the fixture gate stayed green. The self-track gate closes
+that hole (ADR-106 addendum, 2026-07-17):
+
+```bash
+node scripts/check-codex-self-parity.mjs
+```
+
+It emits the codex track fresh via the repo's own generator + resolved config
+into an empty tmpdir (dist-import pattern, same as `check-self-dogfood.mjs` —
+a missing or unimportable `dist/` fails closed with exit 2; run
+`npm run build` first), scans the emission against the repo's `.agents/**` +
+`.codex/**`, and requires every repo file under those roots to be exactly one
+of:
+
+| Class | Meaning |
+| ----- | ------- |
+| EMITTED-MATCH | normalized content equals today's fresh emission |
+| PINNED | intentional divergence, pinned in `scripts/data/codex-self-parity-divergences.json` (dated rationale + content hash, CANON-14 pin semantics) |
+| RUNTIME-ARTIFACT | repo-runtime file the generator never emits, declared in `scripts/data/codex-self-parity-runtime-artifacts.json` (e.g. `.agents/plan/PLAN.json`) |
+
+Inside the repo gate it runs at **L2**, immediately after
+`codex parity (#1966)`; CI inherits it via check-all L2. Exit codes follow the
+same INV-53 contract as above (0 pass / 1 findings / 2 fail-closed error;
+emission failure ⇒ 2).
+
+### Finding classes
+
+| Finding | Meaning |
+| ------- | ------- |
+| `STALE` | A repo file's normalized content diverges from the fresh emission and no pin covers it — the `skipIfExists` rot class |
+| `MISSING` | The generator emits a file today that has no counterpart under the repo roots (e.g. a newly derived rule never materialized) |
+| `UNCLASSIFIED` | A repo file under the roots that is neither emitted-match, pinned, nor a declared runtime artifact |
+| `DRIFTED-PIN` | A pinned file moved beyond the pinned content hash — the divergence no longer matches what was reviewed |
+| `HEALED-PIN` | A pin whose divergence no longer exists (file now matches the emission) — the pin has outlived its reason |
+| `DEAD-PIN` | A pin (or runtime-artifact declaration) referencing a path that no longer exists under the roots |
+
+### Failure playbook (self-track)
+
+- **`STALE`**: usually re-materialize — copy the fresh emission over the repo
+  copy (procedure below). If the divergence is intentional self-hardening,
+  pin it instead in `scripts/data/codex-self-parity-divergences.json` with a
+  dated rationale and the content hash.
+- **`MISSING`**: re-materialize — copy the emitted file into the repo path.
+- **`UNCLASSIFIED`**: decide what the file is — a repo-runtime file (declare
+  it in `scripts/data/codex-self-parity-runtime-artifacts.json` with a
+  reason), an intentional extra (pin it), or debris (remove it).
+- **`DRIFTED-PIN`**: re-review the divergence; either refresh the pin (new
+  hash + updated dated rationale) or re-materialize and drop the pin.
+- **`HEALED-PIN`**: delete the entry — a pin outliving its divergence is
+  refused, same semantics as the fixture gate's stale allowlist.
+- **`DEAD-PIN`**: delete the entry.
+
+### Re-materialization procedure
+
+1. Emit fresh to a scratch dir using the same sequence the gate uses (see the
+   emission block in `scripts/check-codex-self-parity.mjs`; it mirrors the
+   `check-self-dogfood.mjs` dist-import precedent):
+
+   ```js
+   const stored = loadConfig(repoRoot)
+   const { config } = resolveProjectConfig(repoRoot, 'arbiter', stored)
+   generateCodex({ ...config, targetDir: scratchDir }, { dryRun: false })
+   ```
+
+   The scratch dir must be empty — that is what defeats `skipIfExists`.
+
+2. For every `STALE`/`MISSING` file, **copy scratch → repo path**. Write
+   modes matter here:
+   - `.agents/rules/*` and `.codex/codex-adapter.mjs` are emitted with
+     `skipIfExists: true` — the generator will NEVER refresh them in place;
+     they MUST come from the scratch copy.
+   - `.agents/CODEX.md` and `.codex/config.toml` are overwrite-mode
+     (`backup: true`) — the generator can refresh them in place, but the
+     scratch-copy route works uniformly for all files.
+3. Re-run `node scripts/check-codex-self-parity.mjs`. Any divergence you
+   deliberately keep gets a pin (branch b above) instead of a copy.
+
+### Frontmatter note
+
+Repo copies may carry the repo's doc-frontmatter block (e.g.
+`.agents/CODEX.md`, `.agents/plan/README.md`); the templates do not emit one.
+The gate strips a leading YAML frontmatter block from the REPO side before
+comparing, so keeping or dropping frontmatter on a re-materialized file is a
+style decision, not a parity one — no pin is needed either way.

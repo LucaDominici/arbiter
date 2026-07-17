@@ -1,8 +1,8 @@
 ---
 title: 'The second AI tool quietly gets weaker governance than the first'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-07-16'
+last_review: '2026-07-17'
 owner: ''
 canonical_id: ''
 tags: []
@@ -54,6 +54,25 @@ node scripts/check-all.mjs gate            # as part of the L2 gate
 Inject drift and watch it fail: remove the CANON-22 section from a baked
 `.agents/rules/90-exec-protocol.md` copy and run the check with `--baked-dir` — exit 1,
 `derived-drift`.
+
+## Self-applied: the tool's own repo
+
+The same drift hits the tool's own config. Derived Codex rules are written once
+(`skipIfExists`), so routine updates never refresh them — and no gate read arbiter's own
+`.agents/` and `.codex/` at all. The result was the same failure mode in miniature:
+arbiter's own materialized execution-protocol rule had lost the CANON-22 hard stop, two
+derived rules were missing, and the config carried a hand-rolled table months out of
+date. arbiter now self-applies the contract: `scripts/check-codex-self-parity.mjs`
+(also in the **L2 gate**) re-emits the codex track fresh from arbiter's own generator
+and config and compares it against the materialized files — every file must match the
+fresh emission, carry a dated pin, or be a declared runtime artifact.
+
+```bash
+node scripts/check-codex-self-parity.mjs
+```
+
+Inject drift and watch it fail: edit any rule under `.agents/rules/` and run the check —
+exit 1.
 
 ## Limits
 

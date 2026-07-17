@@ -129,3 +129,46 @@ contract requires accurate generated disclosure, not artificial implementation p
 
 - Related ADRs: ADR-095 (supported AI tools: claude + codex), ADR-002 (thin pointer pattern)
 - Issues: #1966
+
+## Amendment (2026-07-17, #1966) — self-track scope extension
+
+The parity contract extends to **arbiter's own materialized codex track**: the
+`.agents/**` and `.codex/**` files committed in this repository.
+
+The original gate (`scripts/check-codex-parity.mjs`) satisfies the SHALL clauses above
+for **generated output**: it bakes a fixture project into an empty directory and verifies
+the fresh emission. It is structurally blind to the repository's own materialized copies
+— a bake into an empty directory can never observe rot in files that already exist. The
+rot vector is `skipIfExists: true` on the derived rules and the adapter: once
+materialized, `arbiter update` never refreshes them in place, and no gate read the self
+roots at all. Confirmed live rot found this cycle: the materialized
+`.agents/rules/90-exec-protocol.md` was missing the entire CANON-22 Root-Cause Discipline
+section (the exact regression that motivated this ADR, alive in self-config), the derived
+rules `50-batch-execution` and `60-incidental-capture` were missing entirely,
+`.agents/CODEX.md` carried a hand-rolled static Known-Limitations table predating the
+generated one, and `.codex/config.toml` lacked the current `check-no-skipped-tests`
+wiring.
+
+The self-config half of the contract is closed by a second gate,
+`scripts/check-codex-self-parity.mjs`. It SHALL:
+
+1. Emit the codex track fresh via the repository's own generator and resolved config
+   into an empty temp directory, so `skipIfExists` can never suppress output.
+2. Compare the emission against the materialized `.agents/**` + `.codex/**`, stripping
+   repo-side leading doc-frontmatter before compare.
+3. Classify every repository file under those roots into exactly one class —
+   EMITTED-MATCH, PINNED, or RUNTIME-ARTIFACT — with 100% coverage. An unclassified
+   file, or an emitted file with no repository counterpart, is a gate failure.
+
+Intentional divergences live in `scripts/data/codex-self-parity-divergences.json` (dated
+rationale + content-hash pins, CANON-14 semantics; a drifted, healed, or dead pin is a
+gate failure). Declared repo-runtime artifacts — files the repository legitimately writes
+under the roots but the generator never emits, e.g. `.agents/plan/PLAN.json` — live in
+`scripts/data/codex-self-parity-runtime-artifacts.json`. Exit codes are 0/1/2
+fail-closed. The check runs in the L2 gate immediately after `codex parity (#1966)`; CI
+inherits it via check-all L2.
+
+Together the two gates complete the contract: the fixture gate proves that fresh
+emissions match the canonical source; the self-parity gate proves that arbiter's own
+materialization matches today's fresh emission. The rotted files above were
+re-materialized in the same change; the gate keeps them current mechanically.
