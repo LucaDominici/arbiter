@@ -194,7 +194,7 @@ plan/apply flow (#1926) documented above:
   widens the force-write predicate for an explicit, opt-in run.
 
 **Related, not built here:** a possible future sibling — a materialized-mode parity check that scans a
-*downstream governed repo's* live `.agents/**`/`.codex/**` the way `scripts/check-codex-self-parity.mjs`
+_downstream governed repo's_ live `.agents/**`/`.codex/**` the way `scripts/check-codex-self-parity.mjs`
 (ADR-106) does for arbiter's own tree — is out of scope for #1983. See
 `docs/internal/METHOD/CODEX_PARITY_RUNBOOK.md` §Self-track parity for that gate's current, arbiter-only
 scope.
