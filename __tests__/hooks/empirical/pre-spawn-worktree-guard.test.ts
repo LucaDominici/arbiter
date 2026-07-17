@@ -1,6 +1,9 @@
-// E5 (#1947): spawn-time worktree guard. IMPLEMENT-BUT-NOT-ACTIVATED (OD-14) —
-// this hook is not wired in .claude/settings.json; these are empirical exit-code
-// tests run by spawning the hook file directly, per design doc §E5 red-path.
+// E5 (#1947): spawn-time worktree guard. Activated advisory per OD-14
+// (2026-07-17) — wired in .claude/settings.json's PreToolUse matchers
+// (Task|Agent) at soft/advisory grading by default; ARBITER_SPAWN_GUARD_HARD=1
+// promotes to hard (exit 2), mirroring stop-finding-loss.mjs (E6b #1948).
+// These are empirical exit-code tests run by spawning the hook file directly,
+// per design doc §E5 red-path.
 //
 // The hook is spawned from its REAL path in the repo (not copied into the temp
 // fixture) so its `./lib.mjs` import resolves normally; only `cwd` points at the
@@ -41,11 +44,16 @@ function writeSidecar(dir: string, entries: unknown[]): void {
   writeFileSync(join(arbiterDir, 'agents-active.json'), JSON.stringify(entries, null, 2) + '\n')
 }
 
-function runHook(dir: string, payload: Record<string, unknown>): ReturnType<typeof spawnSync> {
+function runHook(
+  dir: string,
+  payload: Record<string, unknown>,
+  env: NodeJS.ProcessEnv = {},
+): ReturnType<typeof spawnSync> {
   return spawnSync('node', [HOOK_PATH], {
     cwd: dir,
     encoding: 'utf-8',
     input: JSON.stringify(payload),
+    env: { ...process.env, ...env },
   })
 }
 
@@ -62,14 +70,27 @@ afterEach(() => {
 })
 
 describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
-  it('exits 2: unknown agent type + no isolation + a live writer already registered', () => {
+  it('exits 2: unknown agent type + no isolation + a live writer already registered, hard grading', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    writeSidecar(dir, [{ agent: 'general-purpose', ts: Date.now(), pid: 1, cwd: dir }])
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'unknown-type', prompt: 'do a thing for #100' } },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('SPAWN GUARD')
+  })
+
+  it('exits 0 with advisory stderr: same scenario at soft (default) grading', () => {
     const dir = track(setup())
     writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
     writeSidecar(dir, [{ agent: 'general-purpose', ts: Date.now(), pid: 1, cwd: dir }])
     const result = runHook(dir, {
       tool_input: { subagent_type: 'unknown-type', prompt: 'do a thing for #100' },
     })
-    expect(result.status).toBe(2)
+    expect(result.status).toBe(0)
     expect(result.stderr).toContain('SPAWN GUARD')
   })
 
@@ -99,7 +120,25 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
     expect(sidecar.length).toBe(2)
   })
 
-  it('exits 2: prompt referencing more than one distinct task id (M2)', () => {
+  it('exits 2: prompt referencing more than one distinct task id (M2), hard grading', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    const result = runHook(
+      dir,
+      {
+        tool_input: {
+          subagent_type: 'general-purpose',
+          isolation: 'worktree',
+          prompt: 'work on #12 and also #34',
+        },
+      },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('one-task-per-dispatch')
+  })
+
+  it('exits 0 with advisory stderr: same M2 violation at soft (default) grading', () => {
     const dir = track(setup())
     writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
     const result = runHook(dir, {
@@ -109,7 +148,7 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
         prompt: 'work on #12 and also #34',
       },
     })
-    expect(result.status).toBe(2)
+    expect(result.status).toBe(0)
     expect(result.stderr).toContain('one-task-per-dispatch')
   })
 
