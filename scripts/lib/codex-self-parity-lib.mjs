@@ -71,9 +71,20 @@ export function stripLeadingFrontMatter(content) {
   const close = content.indexOf('\n---\n', 3)
   if (close === -1) return content
   const block = content.slice('---\n'.length, close + 1)
+  // Default-DENY (CR4-01): every non-blank line must be an inline `key: ...`
+  // whose key is allowlisted, each key at most once. Anything else — plain
+  // directive lines, list items, indented/quoted/unicode keys, continuation
+  // lines — keeps the whole block on the compare surface (reds the gate).
+  // Residual channel (documented limit): hostile text as the VALUE of an
+  // allowlisted key still vanishes; values are repo-reviewed metadata.
+  const seen = new Set()
   for (const line of block.split('\n')) {
-    const m = /^([A-Za-z_][\w-]*):/.exec(line)
-    if (m !== null && !FRONT_MATTER_KEY_ALLOWLIST.includes(m[1])) return content
+    if (line.trim() === '') continue
+    const m = /^([A-Za-z_][\w-]*): /.exec(line)
+    if (m === null) return content
+    if (!FRONT_MATTER_KEY_ALLOWLIST.includes(m[1])) return content
+    if (seen.has(m[1])) return content
+    seen.add(m[1])
   }
   let body = content.slice(close + '\n---\n'.length)
   if (body.startsWith('\n')) body = body.slice(1)
@@ -289,7 +300,18 @@ export function classifySelfParity(opts) {
   // artifact matching no repo file is dead weight that would otherwise
   // accumulate invisibly (symmetric with the dead-pin sweep below).
   for (const declared of runtimeArtifacts) {
-    if (!repo.has(declared)) {
+    if (emitted.has(declared)) {
+      // CR4-04: an emitted path can never be a runtime artifact — the inert
+      // declaration would silently auto-green a leftover repo copy the day the
+      // generator stops emitting it.
+      findings.push({
+        clazz: 'contradictory-artifact',
+        path: declared,
+        detail:
+          'declared runtime artifact is emitted by the generator — remove the declaration from ' +
+          'scripts/data/codex-self-parity-runtime-artifacts.json',
+      })
+    } else if (!repo.has(declared)) {
       findings.push({
         clazz: 'dead-artifact',
         path: declared,

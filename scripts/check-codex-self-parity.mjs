@@ -184,21 +184,22 @@ async function main() {
       const map = new Map()
       for (const rel of files) {
         const abs = join(baseDir, rel)
-        let size
         try {
           const st = lstatSync(abs)
-          if (st.isSymbolicLink()) {
-            // follow the link but size-check the target via the guarded read below
-            size = undefined
-          } else if (!st.isFile()) {
-            unreadable.push({ path: rel, why: 'not a regular file' })
+          // CR4-02: symlinks are rejected outright — the generator never emits
+          // them, and following one reintroduces the blocking-open / unbounded-
+          // read class (symlink -> FIFO or /dev/urandom) the RT-01/02 guards
+          // exist to close. Same treatment for any other non-regular entry.
+          if (!st.isFile()) {
+            unreadable.push({
+              path: rel,
+              why: st.isSymbolicLink() ? 'symbolic link' : 'not a regular file',
+            })
             continue
-          } else {
-            size = st.size
           }
           // FAIL-OPEN-INTENT: lstat failure surfaces as an UNREADABLE parity finding (exit 1)
         } catch (err) {
-          unreadable.push({ path: rel, why: err?.code ?? String(err) })
+          unreadable.push({ path: rel, why: err?.code ?? 'unknown-error' })
           continue
         }
         let content
@@ -206,11 +207,13 @@ async function main() {
           content = readFileSync(abs, 'utf-8')
           // FAIL-OPEN-INTENT: read failure surfaces as an UNREADABLE parity finding (exit 1)
         } catch (err) {
-          unreadable.push({ path: rel, why: err?.code ?? String(err) })
+          unreadable.push({ path: rel, why: err?.code ?? 'unknown-error' })
           continue
         }
         if (stripFm) content = stripLeadingFrontMatter(content)
-        const oversized = (size ?? content.length) > PRETTIER_MAX_BYTES
+        // CR4-03: one consistent quantity on both sides — bytes of the exact
+        // string that would reach Prettier, measured post-strip.
+        const oversized = Buffer.byteLength(content, 'utf-8') > PRETTIER_MAX_BYTES
         if (rel.endsWith('.md') && !oversized) content = await prettierMd(content)
         map.set(rel, content)
       }
@@ -231,6 +234,13 @@ async function main() {
       readRepo: (rel) => repoByPath.get(rel),
       normalize: (content) => normalizeContent(content),
     })
+    // CR1-03: an unreadable path must surface ONLY as UNREADABLE — companion
+    // classifications computed from its absence (dead-artifact, missing,
+    // unclassified, dead-pin) misdirect remediation and are suppressed.
+    const unreadableSet = new Set(unreadableEntries.map((u) => u.path))
+    const kept = findings.filter((f) => !unreadableSet.has(f.path))
+    findings.length = 0
+    findings.push(...kept)
     for (const u of unreadableEntries) {
       findings.push({
         clazz: 'unreadable',
@@ -240,6 +250,8 @@ async function main() {
           'be a readable regular file; fix or remove it',
       })
     }
+    // CR1-02: unreadable entries stay on the denominator — they ARE surface.
+    surface.total += unreadableSet.size
 
     for (const f of findings) {
       process.stdout.write(

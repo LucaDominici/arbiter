@@ -230,7 +230,10 @@ emission failure ⇒ 2).
 | `UNCLASSIFIED` | A repo file under the roots that is neither emitted-match, pinned, nor a declared runtime artifact |
 | `DRIFTED-PIN` | A pinned file moved beyond the pinned content hash — the divergence no longer matches what was reviewed |
 | `HEALED-PIN` | A pin whose divergence no longer exists (file now matches the emission) — the pin has outlived its reason |
-| `DEAD-PIN` | A pin (or runtime-artifact declaration) referencing a path that no longer exists under the roots |
+| `DEAD-PIN` | A pin referencing a path that no longer exists under the roots |
+| `DEAD-ARTIFACT` | A runtime-artifact declaration matching no repo file — ledger rot, symmetric with `DEAD-PIN` |
+| `CONTRADICTORY-ARTIFACT` | A declared runtime artifact that the generator emits — the declaration is contradictory and must be removed |
+| `UNREADABLE` | A track entry that is not a readable regular file (symlink, FIFO, permission error) — every file on the parity surface must be a plain readable file |
 
 ### Failure playbook (self-track)
 
@@ -247,6 +250,14 @@ emission failure ⇒ 2).
 - **`HEALED-PIN`**: delete the entry — a pin outliving its divergence is
   refused, same semantics as the fixture gate's stale allowlist.
 - **`DEAD-PIN`**: delete the entry.
+- **`DEAD-ARTIFACT`**: delete the stale entry from
+  `scripts/data/codex-self-parity-runtime-artifacts.json`.
+- **`CONTRADICTORY-ARTIFACT`**: remove the declaration — an emitted file can
+  never be a runtime artifact.
+- **`UNREADABLE`**: fix or remove the offending entry (replace the symlink /
+  special file with a plain file, or restore read permissions). Symlinks are
+  rejected by design: the generator never emits them, and following one
+  reopens the blocking-read class the gate refuses fail-closed.
 
 ### Re-materialization procedure
 
@@ -278,5 +289,14 @@ emission failure ⇒ 2).
 Repo copies may carry the repo's doc-frontmatter block (e.g.
 `.agents/CODEX.md`, `.agents/plan/README.md`); the templates do not emit one.
 The gate strips a leading YAML frontmatter block from the REPO side before
-comparing, so keeping or dropping frontmatter on a re-materialized file is a
-style decision, not a parity one — no pin is needed either way.
+comparing — but ONLY when every non-blank line of the block is an inline
+`key: value` whose key is on the repo metadata allowlist
+(`FRONT_MATTER_KEY_ALLOWLIST` in `scripts/lib/codex-self-parity-lib.mjs`:
+title, doc_version, status, last_review, owner, canonical_id, tags, related;
+each at most once). A block carrying anything else — unknown keys, list
+items, plain text, duplicates — stays on the compare surface and reds the
+gate (injected-directive defense, default-deny). Within that bound, keeping
+or dropping frontmatter on a re-materialized file is a style decision, not a
+parity one. Markdown is additionally Prettier-normalized on BOTH sides before
+compare (formatting is invisible to parity, like frontmatter); files over
+1 MB skip Prettier and compare raw.

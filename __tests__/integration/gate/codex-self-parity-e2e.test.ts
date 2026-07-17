@@ -200,7 +200,9 @@ describe('check-codex-self-parity.mjs end to end (self-track, #1966)', () => {
         `pristine fixture must pass, got ${result.status}: ${result.stdout}${result.stderr}`,
       ).toBe(0)
       expect(result.stdout).toContain('check-codex-self-parity: OK')
-      expect(result.stdout).toMatch(/parity-surface: (\d+)\/\1/)
+      const m = /parity-surface: (\d+)\/(\d+)/.exec(result.stdout)
+      expect(m, 'parity-surface line must be present').not.toBeNull()
+      expect(m?.[1], 'surface must be fully classified').toBe(m?.[2])
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -313,6 +315,7 @@ describe('check-codex-self-parity.mjs end to end (self-track, #1966)', () => {
   it('RT-02: a FIFO under a track root is rejected without reading (no hang)', async () => {
     const dir = await buildFixture()
     try {
+      if (process.platform === 'win32') return // mkfifo: POSIX-only, CI is Linux
       execFileSync('mkfifo', [join(dir, '.agents', 'rules', 'pipe.md')], { env: cleanChildEnv() })
       const started = Date.now()
       const result = runGate(dir)
