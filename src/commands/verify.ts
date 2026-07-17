@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText, formatJson } from '../compatibility/report.js'
@@ -163,6 +163,82 @@ function handleRiskSkip(dir: string): VerifyEvidenceResult | null {
   return null
 }
 
+/** A run-id directory candidate: its SUMMARY.json path and directory mtime. */
+interface RunIdCandidate {
+  name: string
+  mtimeMs: number
+  path: string
+}
+
+/** Build a candidate for `name` if it has a SUMMARY.json and a readable mtime, else null. */
+function toRunIdCandidate(evidenceDir: string, name: string): RunIdCandidate | null {
+  const candidate = join(evidenceDir, name, 'SUMMARY.json')
+  if (!existsSync(candidate)) return null
+  try {
+    return { name, mtimeMs: statSync(join(evidenceDir, name)).mtimeMs, path: candidate }
+    // FAIL-OPEN-INTENT: an unreadable run-id dir is skipped as a candidate; the root SUMMARY.json or another run dir still wins.
+  } catch {
+    return null
+  }
+}
+
+/** True when `next` should replace `best` as the newest run-id candidate seen so far. */
+function isNewerCandidate(best: RunIdCandidate | null, next: RunIdCandidate): boolean {
+  if (best === null) return true
+  if (next.mtimeMs !== best.mtimeMs) return next.mtimeMs > best.mtimeMs
+  return next.name > best.name
+}
+
+/**
+ * Pick the newest `.evidence/<RUN_ID>/SUMMARY.json` among `entries` (run-id
+ * directory names), or null if none contain a SUMMARY.json. "Newest" is by
+ * directory mtime — not run-id name — because run-ids are not guaranteed to
+ * sort lexicographically by recency (e.g. numeric GitHub run ids:
+ * "9999999999" > "10000000000" as strings, but the second is newer). Ties
+ * (equal mtime) fall back to name comparison, greatest wins, for a
+ * deterministic result.
+ */
+function pickNewestRunIdSummary(evidenceDir: string, entries: string[]): string | null {
+  let best: RunIdCandidate | null = null
+  for (const name of entries) {
+    const candidate = toRunIdCandidate(evidenceDir, name)
+    if (candidate && isNewerCandidate(best, candidate)) best = candidate
+  }
+  return best?.path ?? null
+}
+
+/**
+ * Resolve the SUMMARY.json path to verify (#1982).
+ *
+ * Preference order:
+ *   1. `.evidence/SUMMARY.json` at the project root (legacy single-run layout).
+ *   2. The newest-mtime `.evidence/<RUN_ID>/SUMMARY.json` — see
+ *      `pickNewestRunIdSummary` for the selection rule.
+ *
+ * Root-level wins when both exist so brownfield single-run projects are
+ * unaffected; only projects that never write a root SUMMARY.json (governed
+ * repos writing per-run-id directories exclusively) fall through to (2).
+ */
+function resolveSummaryPath(dir: string): string {
+  const rootPath = join(dir, '.evidence', 'SUMMARY.json')
+  if (existsSync(rootPath)) return rootPath
+
+  const evidenceDir = join(dir, '.evidence')
+  if (!existsSync(evidenceDir)) return rootPath
+
+  let entries: string[]
+  try {
+    entries = readdirSync(evidenceDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+    // FAIL-OPEN-INTENT: an unreadable .evidence dir falls back to the root SUMMARY.json path, whose absence is reported downstream.
+  } catch {
+    return rootPath
+  }
+
+  return pickNewestRunIdSummary(evidenceDir, entries) ?? rootPath
+}
+
 function loadSummary(summaryPath: string): Record<string, unknown> | VerifyEvidenceResult {
   const loaded = loadSummaryFile(summaryPath)
   if (!loaded.ok) {
@@ -206,8 +282,12 @@ function checkFreshness(
 }
 
 /**
- * Verify an existing `.evidence/SUMMARY.json` snapshot. Returns a result
- * envelope so callers (CLI / programmatic) can decide how to surface it.
+ * Verify an existing SUMMARY.json snapshot. Returns a result envelope so
+ * callers (CLI / programmatic) can decide how to surface it.
+ *
+ * Path resolution (#1982): `.evidence/SUMMARY.json` at the project root when
+ * present, else the most recent `.evidence/<RUN_ID>/SUMMARY.json` — see
+ * `resolveSummaryPath`.
  *
  * Exit code conventions (canonical CLI convention — see CLI.md §Exit codes):
  *   0 = ok (or E2E_RISK_SKIP set with a valid reason)
@@ -226,7 +306,7 @@ export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
   const skipResult = handleRiskSkip(dir)
   if (skipResult) return skipResult
 
-  const summaryPath = join(dir, '.evidence', 'SUMMARY.json')
+  const summaryPath = resolveSummaryPath(dir)
   const loaded = loadSummary(summaryPath)
   if (isResult(loaded)) return loaded
 

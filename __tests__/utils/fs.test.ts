@@ -127,6 +127,66 @@ describe('writeFile — content-equality skipping (#1077 F6)', () => {
   })
 })
 
+describe('writeFile — preserve marker withholds overwrite (#1980)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('leaves a marked file byte-identical and reports it withheld (no backup, no skipIfExists)', () => {
+    const path = join(dir, 'GLOBAL_INVARIANTS.md')
+    const stub = '<!-- arbiter:preserve -->\n# Hand-maintained pointer stub\nSee central docs.\n'
+    writeFileSync(path, stub)
+    const result = writeFile(path, '# Full generated content\n...')
+    expect(result.action).toBe('skipped')
+    expect(result.withheld).toBe(true)
+    expect(readFileSync(path, 'utf-8')).toBe(stub)
+  })
+
+  it('withholds even when backup=true (fail-safe regardless of backup setting)', () => {
+    const path = join(dir, 'marked-backup.md')
+    const stub = '<!-- arbiter:preserve -->\nkeep me\n'
+    writeFileSync(path, stub)
+    const result = writeFile(path, 'new content', { backup: true })
+    expect(result.action).toBe('skipped')
+    expect(result.withheld).toBe(true)
+    expect(readFileSync(path, 'utf-8')).toBe(stub)
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(false)
+  })
+
+  it('withholds even when skipIfExists=true and a generation session would otherwise adopt it', () => {
+    const path = join(dir, 'marked-session.md')
+    const stub = '<!-- arbiter:preserve -->\nkeep me\n'
+    writeFileSync(path, stub)
+    beginGenerationSession({
+      targetDir: dir,
+      prevHashes: {},
+      adoptPredicate: () => true,
+    })
+    try {
+      const result = writeFile(path, 'new content', { skipIfExists: true })
+      expect(result.action).toBe('skipped')
+      expect(result.withheld).toBe(true)
+      expect(result.adopted).not.toBe(true)
+    } finally {
+      endGenerationSession()
+    }
+    expect(readFileSync(path, 'utf-8')).toBe(stub)
+  })
+
+  it('does not withhold a file without the marker', () => {
+    const path = join(dir, 'unmarked.md')
+    writeFileSync(path, 'plain content')
+    const result = writeFile(path, 'new content')
+    expect(result.action).toBe('replaced')
+    expect(readFileSync(path, 'utf-8')).toBe('new content')
+  })
+})
+
 describe('writeFile — dryRun action parity (#1077 F1/F7)', () => {
   let dir: string
 

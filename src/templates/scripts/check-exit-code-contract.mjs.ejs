@@ -41,7 +41,7 @@ function inStringLiteral(line, matchIndex) {
 }
 
 const EXTENSIONS = new Set([".mjs", ".js", ".ejs"]);
-const SKIP_DIRS = new Set(["node_modules", "dist", ".git"]);
+const SKIP_DIRS = new Set(["node_modules", "dist", ".git", ".arbiter"]);
 const SKIP_PATHS = new Set(["__tests__/fixtures"]);
 
 const args = process.argv.slice(2);

@@ -502,8 +502,9 @@ jobs:
 
   post-merge-gate:
     name: D4-LITE post-merge gate (main)
-    needs: [classify-changes]
+    needs: [classify-changes, gate-full]
     if: >
+      always() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       needs.classify-changes.result == 'success' &&

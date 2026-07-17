@@ -110,7 +110,7 @@
     "dest": ".github/workflows",
     "reason": "The template collapses 01-pr-fast.yml.ejs's entire PR pipeline (gate, unit tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, debt-gates, ci-required, post-merge-gate — contract/integration/behavioral tests moved to 02-pr-extended.yml.ejs at #1875) to a one-line solo-dev-gate stub whenever `locals.enableSoloDevMode` is true — and arbiter.json sets features.soloDevMode: true. Self deliberately keeps running the full peer-review-shaped pipeline regardless (arbiter dogfoods harder than its own declared collaborationMode: trunk-solo — same pattern documented in check-ci-tiers.mjs.ejs's cadence-parity comment). Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "66bd8c985475424558a075b367a346dd3c828d52a46971891732743ecd934024"
+    "diffHash": "58185763187f5168bcb614814f71982e8bc490718a5c8a82df2c86e11f56d925"
   },
   {
     "path": "02-pr-extended.yml",
@@ -264,14 +264,14 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "00d86367122cf9a9b41f11259221a24b75218798ed3a3fb151b0f8dfe4362753"
+    "diffHash": "6a9fe55a24cb1a4c9aef51b1900a440ea0725cf22615ff46c9cfaccdd287a4e3"
   },
   {
     "path": "check-fail-closed-audit.mjs",
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "1db7d8fa208fc73d15c9212baf1ea8def778cd333d052c543e01adb80a2772c1"
+    "diffHash": "93837313fdac96deec526d02b1d500955b51835df1f011299fcff4cffee2561a"
   },
   {
     "dest": "scripts",

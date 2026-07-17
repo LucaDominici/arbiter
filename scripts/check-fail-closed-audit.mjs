@@ -92,6 +92,10 @@ const SKIP_FILES = new Set([
   'scripts/lib/agent-return-validate.mjs',
   // #1943: pure shared argv parser for the enforcer gate scripts; no entry point.
   'scripts/lib/gate-args.mjs',
+  // #1984: pure mtime-comparison helper for the stale-dist guard; no entry point.
+  // Consumers (check-self-dogfood.mjs, check-codex-self-parity.mjs) own the exit
+  // contract (both fail closed with exit 2 on a stale/missing dist).
+  'scripts/lib/dist-staleness.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

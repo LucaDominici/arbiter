@@ -32,7 +32,10 @@ function inStringLiteral(line, matchIndex) {
 }
 
 const EXTENSIONS = new Set(['.mjs', '.js', '.ejs'])
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.git'])
+// .arbiter/ is gitignored runtime/scratch state (see .gitignore: `.arbiter/**`)
+// — it can contain copied build output (e.g. a killed e2e run's leftover
+// dist/ copy) that the repo does not ship and must never fail this check.
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.arbiter'])
 const SKIP_PATHS = new Set(['__tests__/fixtures'])
 
 const args = process.argv.slice(2)

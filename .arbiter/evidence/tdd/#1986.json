@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1986",
+  "test_path": "__tests__/scripts/check-exit-code-contract.test.ts",
+  "test_commit_sha": "79a12ddf07a20362d05f13fd6f4845c7d9f2f9b7",
+  "test_run_log": "\n RUN  v4.1.10 /tmp/tmp.P5MNNL7dlQ\n\n ❯ __tests__/scripts/check-exit-code-contract.test.ts (12 tests | 1 failed) 319ms\n     × excludes .arbiter/ scratch state from the repo-root scan (#1986) 77ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 11 passed (12)\n   Start at  11:18:09\n   Duration  460ms (transform 30ms, setup 28ms, import 18ms, tests 319ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-exit-code-contract.test.ts > check-exit-code-contract scanner > excludes .arbiter/ scratch state from the repo-root scan (#1986)\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/scripts/check-exit-code-contract.test.ts:182:34\n    180|         cwd: resolve('.'),\n    181|       })\n    182|       expect(result.status ?? 1).toBe(0)\n       |                                  ^\n    183|       expect(result.stdout ?? '').not.toContain('greenfield-dist-test1…\n    184|     } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-exit-code-contract.test.ts",
+  "recorded_at": "2026-07-17T09:18:09.614Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-exit-code-contract.test.ts"
+  ]
+}

@@ -19,6 +19,16 @@ vi.mock('../../src/utils/config.js', () => ({
 }))
 vi.mock('../../src/detectors/git.js', () => ({
   detectAdverseGitState: vi.fn().mockReturnValue(null),
+  // #1978: runUpdate now resolves projectName via resolveProjectName, which
+  // consults detectGitInfo as one precedence source — stub it alongside
+  // detectAdverseGitState so the mock module shape matches the real one.
+  detectGitInfo: vi.fn().mockReturnValue({
+    isGitRepo: true,
+    remoteUrl: null,
+    githubOwner: null,
+    githubRepo: null,
+    projectName: null,
+  }),
 }))
 vi.mock('../../src/detectors/github.js', () => ({
   detectGithubAccess: vi.fn().mockReturnValue({ authenticated: false }),

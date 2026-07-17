@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { resolve, basename, join } from 'node:path'
+import { resolve, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, FatalError } from '../utils/errors.js'
 import {
@@ -27,6 +27,7 @@ import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { excludeOwnEmittedSkills } from '../generators/skills.js'
 import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../utils/config.js'
 import { runGithubSetup, printResults, runPlugins, slugifyProjectName } from './init.js'
+import { resolveProjectName } from '../config/resolve-project-name.js'
 import { diffConfig, impactedGenerators } from '../config/diff.js'
 import { validateConfig } from '../config/schema.js'
 import { resolveProjectConfig } from '../config/resolve-project-config.js'
@@ -673,7 +674,6 @@ function handleAdverseState(
 
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const projectName = slugifyProjectName(basename(targetDir))
   const log: (msg: string) => void = options.json
     ? (): void => {}
     : (msg: string): void => {
@@ -697,6 +697,11 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       process.exit(78)
       return { keysRun: null }
     }
+    // #1978: resolve via the durable-source precedence chain (stored name →
+    // package.json → git remote → cwd basename) — NEVER the cwd basename
+    // directly, since worktree-based invocations run in a dir whose basename
+    // is not the project name.
+    const projectName = slugifyProjectName(resolveProjectName(targetDir, stored))
 
     handleAdverseState(detectAdverseGitState(targetDir), options.force)
 

@@ -1,5 +1,6 @@
 {
   "version": "0.2",
+  "projectName": "arbiter",
   "tools": ["claude", "codex"],
   "governanceLevel": "L2",
   "decomposition": {

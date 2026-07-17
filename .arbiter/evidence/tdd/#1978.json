@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1978",
+  "test_path": "__tests__/config/resolve-project-name.test.ts",
+  "test_commit_sha": "b327eae94a78cea08e64f70ddc0959a532ca3762",
+  "test_run_log": "\n RUN  v4.1.10 /tmp/arbiter-red-verify-1978\n\n ❯ __tests__/config/resolve-project-name.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  11:28:46\n   Duration  97ms (transform 17ms, setup 15ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/config/resolve-project-name.test.ts [ __tests__/config/resolve-project-name.test.ts ]\nError: Cannot find module '../../src/config/resolve-project-name.js' imported from /tmp/arbiter-red-verify-1978/__tests__/config/resolve-project-name.test.ts\n ❯ __tests__/config/resolve-project-name.test.ts:24:1\n     22| import { join } from 'node:path'\n     23| import { execFileSync } from 'node:child_process'\n     24| import { resolveProjectName } from '../../src/config/resolve-project-n…\n       | ^\n     25|\n     26| function initGitRepo(dir: string, remote?: string): void {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/config/resolve-project-name.test.ts",
+  "recorded_at": "2026-07-17T09:28:46.622Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/config/resolve-project-name.test.ts"
+  ]
+}

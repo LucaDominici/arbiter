@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs'
+import {
+  mkdtempSync,
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  existsSync,
+  utimesSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { computeSummarySha } from '../../src/risk/sha-check.js'
@@ -241,5 +249,89 @@ describe('runVerifyEvidence (#238)', () => {
     expect(result.status).toBe('error')
     expect(result.exitCode).toBe(1)
     expect(result.reason).toMatch(/missing required field/)
+  })
+
+  // ── #1982: per-run-id evidence layout ────────────────────────────────────
+  // Governed repos write one SUMMARY.json per run under
+  // `.evidence/<RUN_ID>/SUMMARY.json` (matches evidence-rotate.mjs.ejs's own
+  // convention of run-id subdirectories directly under .evidence/), instead
+  // of a single file at `.evidence/SUMMARY.json`. Today `runVerifyEvidence`
+  // hardcodes the root-level path and reports "not found" even though a
+  // valid, fresher summary exists in a run-id subdirectory.
+  //
+  // Selection is by directory **mtime**, not run-id name, because run-ids
+  // are not guaranteed to sort lexicographically by recency (e.g. numeric
+  // GitHub run ids). Each fixture below sets explicit mtimes via utimesSync
+  // so the ordering is deterministic and independent of directory-creation
+  // order, and puts the broken summary on the *older* side so the test
+  // actually fails if the wrong directory is ever selected.
+  it('resolves SUMMARY.json from the run-id subdirectory with the newest mtime when no root file exists (#1982)', () => {
+    const { serialised: newer } = makeSummary({
+      timestamp: new Date().toISOString(),
+    })
+    const olderDir = join(dir, '.evidence', 'run-20260717-120000')
+    const newerDir = join(dir, '.evidence', 'run-20260101-000000')
+    mkdirSync(olderDir, { recursive: true })
+    // Broken summary on the older-mtime dir: if resolution picks it by
+    // mistake, the result flips to 'error' and the test fails.
+    writeFileSync(join(olderDir, 'SUMMARY.json'), JSON.stringify({ broken: true }))
+    mkdirSync(newerDir, { recursive: true })
+    writeFileSync(join(newerDir, 'SUMMARY.json'), newer)
+
+    const oldTime = new Date(Date.now() - 60_000)
+    const newTime = new Date()
+    utimesSync(olderDir, oldTime, oldTime)
+    utimesSync(newerDir, newTime, newTime)
+
+    const result = runVerifyEvidence({ dir })
+    expect(result.status).toBe('ok')
+    expect(result.exitCode).toBe(0)
+  })
+
+  it('picks the newer-mtime run-id dir over a lexicographically-greater numeric run-id (#1982)', () => {
+    // GitHub run_id-style numeric dir names: "9999999999" > "10000000000"
+    // as strings, but the second directory is the newer one. Lexicographic
+    // selection would pick the string-greater ("9999999999") dir, which
+    // here holds the broken summary — the test must fail if that happens.
+    const { serialised: valid } = makeSummary()
+    const lexGreaterDir = join(dir, '.evidence', '9999999999')
+    const actuallyNewerDir = join(dir, '.evidence', '10000000000')
+    mkdirSync(lexGreaterDir, { recursive: true })
+    writeFileSync(join(lexGreaterDir, 'SUMMARY.json'), JSON.stringify({ broken: true }))
+    mkdirSync(actuallyNewerDir, { recursive: true })
+    writeFileSync(join(actuallyNewerDir, 'SUMMARY.json'), valid)
+
+    const oldTime = new Date(Date.now() - 60_000)
+    const newTime = new Date()
+    utimesSync(lexGreaterDir, oldTime, oldTime)
+    utimesSync(actuallyNewerDir, newTime, newTime)
+
+    const result = runVerifyEvidence({ dir })
+    expect(result.status).toBe('ok')
+    expect(result.exitCode).toBe(0)
+  })
+
+  it('prefers the root-level .evidence/SUMMARY.json over any run-id subdirectory (back-compat)', () => {
+    const { serialised: rootSummary } = makeSummary()
+    writeFileSync(join(dir, '.evidence', 'SUMMARY.json'), rootSummary)
+
+    // A run-id subdir with a broken summary must NOT be consulted — root wins.
+    mkdirSync(join(dir, '.evidence', 'run-20260717-120000'), { recursive: true })
+    writeFileSync(
+      join(dir, '.evidence', 'run-20260717-120000', 'SUMMARY.json'),
+      JSON.stringify({ broken: true }),
+    )
+
+    const result = runVerifyEvidence({ dir })
+    expect(result.status).toBe('ok')
+    expect(result.exitCode).toBe(0)
+  })
+
+  it('returns error when neither root nor any run-id subdirectory has SUMMARY.json', () => {
+    mkdirSync(join(dir, '.evidence', 'run-20260717-120000'), { recursive: true })
+    const result = runVerifyEvidence({ dir })
+    expect(result.exitCode).toBe(1)
+    expect(result.status).toBe('error')
+    expect(result.reason).toMatch(/not found/)
   })
 })

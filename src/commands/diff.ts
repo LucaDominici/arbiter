@@ -6,9 +6,10 @@
 // relative to `update` (F1/F7). It additionally enumerates the GitHub remote
 // side effects `update --github` would perform — as a STATIC descriptor, never
 // by calling `gh` (ADR-001; diff is strictly read-only).
-import { resolve, basename, relative } from 'node:path'
+import { resolve, relative } from 'node:path'
 import { loadConfig } from '../utils/config.js'
 import { slugifyProjectName } from './init.js'
+import { resolveProjectName } from '../config/resolve-project-name.js'
 import { resolveProjectConfig, gitHubPermitted } from '../config/resolve-project-config.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../generators/registry.js'
@@ -138,7 +139,6 @@ function printHuman(
 
 export function runDiff(options: DiffOptions): void {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const projectName = slugifyProjectName(basename(targetDir))
 
   if (!options.json) {
     process.stdout.write(`${t('cli.diff.banner')}\n`)
@@ -154,6 +154,10 @@ export function runDiff(options: DiffOptions): void {
     process.exit(statusToExitCode('error'))
     return
   }
+  // #1978: resolve via the durable-source precedence chain — see update.ts's
+  // identical comment for the full rationale (worktree dirs must never leak
+  // into the resolved project name).
+  const projectName = slugifyProjectName(resolveProjectName(targetDir, stored))
 
   // Build the same config update would, then run the registry dry. `diff` never
   // touches GitHub, so useGitHubBackend is false (read-only): the registry file

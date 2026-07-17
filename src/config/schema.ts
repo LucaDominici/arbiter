@@ -159,6 +159,16 @@ export interface TaxonomyConfig {
 export interface ArbiterConfigV2 {
   version: string
   $schemaVersion?: number
+  /**
+   * #1978: durable project name, resolved once at `init` time via
+   * {@link resolveProjectName} (stored name → package.json → git remote → cwd
+   * basename) and persisted here so `arbiter update`/`diff` never re-derive it
+   * from the cwd basename — which breaks every worktree-based invocation
+   * (a worktree dir like `1978-fix-cwd` would otherwise become the project
+   * name). Absent on configs written before this field existed; callers fall
+   * back through the same precedence chain in that case.
+   */
+  projectName?: string
   tools: AiTool[]
   governanceLevel: GovernanceLevel
   useGitHub?: boolean
@@ -703,6 +713,15 @@ function validateOptionalScalars(raw: Record<string, unknown>, errors: string[])
   if ('basePackage' in raw && raw['basePackage'] !== undefined) {
     if (typeof raw['basePackage'] !== 'string') {
       errors.push('basePackage must be a string')
+    }
+  }
+
+  // #1978 — projectName is optional, but if present must be a string. It is
+  // the highest-precedence source resolveProjectName consults, so a malformed
+  // value must fail fast rather than silently propagate into every generated file.
+  if ('projectName' in raw && raw['projectName'] !== undefined) {
+    if (typeof raw['projectName'] !== 'string') {
+      errors.push('projectName must be a string')
     }
   }
 
