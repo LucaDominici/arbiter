@@ -16,6 +16,7 @@ import {
   manifestKey,
 } from '../state/generated-manifest.js'
 import { isSafetyClassKey } from '../generators/safety-class.js'
+import { isDerivedTrackKey } from '../generators/derived-class.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
@@ -69,6 +70,17 @@ export interface UpdateOptions {
    * anything (config, manifest, generated files all untouched). Read-only.
    */
   adoptPlan?: boolean
+  /**
+   * #1983: force-refresh the known codex-track derived file set
+   * (`.agents/rules/*`, `.claude/hooks/*` when codex-only, `.codex/codex-
+   * adapter.mjs` — see `generators/derived-class.ts`) even when a copy already
+   * exists on disk (these are `skipIfExists: true` by default so a downstream
+   * governed repo never silently regresses once initialized). Reuses the same
+   * two-phase adopt/plan machinery as `--adopt` (#1926): combine with
+   * `--adopt-plan` to preview the diff before applying. A file carrying the
+   * `arbiter:preserve` marker is never overwritten regardless (#1980).
+   */
+  refreshDerived?: boolean
 }
 
 /** One captured adopt decision: a withheld file that the adopt predicate matched. */
@@ -89,12 +101,16 @@ function sha256(content: string): string {
  * Build the T1 adopt predicate from CLI flags. Safety-class files
  * (`.claude/hooks/*.mjs`) adopt by default — `noAdoptSafety` is the only way
  * to freeze one deliberately. `adopt` broadens to every withheld file.
- * Exported for unit testing independent of the filesystem.
+ * `refreshDerived` (#1983) broadens it to exactly the codex-track derived
+ * file set, independent of `adopt`/`noAdoptSafety`. Exported for unit testing
+ * independent of the filesystem.
  */
 export function buildAdoptPredicate(options: UpdateOptions): (key: string) => boolean {
   const adoptAll = options.adopt === true
   const adoptSafety = options.noAdoptSafety !== true
-  return (key: string): boolean => adoptAll || (adoptSafety && isSafetyClassKey(key))
+  const refreshDerived = options.refreshDerived === true
+  return (key: string): boolean =>
+    adoptAll || (adoptSafety && isSafetyClassKey(key)) || (refreshDerived && isDerivedTrackKey(key))
 }
 
 /**
@@ -108,6 +124,25 @@ function localOverrideSlug(key: string): string {
   return key.replace(/^\.+/, '').replace(/[/\\]+/g, '__')
 }
 
+/**
+ * #1983: the local-override reason must name the actual trigger — a derived-
+ * track file refreshed via `--refresh-derived` was not necessarily "user-
+ * modified" (it may simply predate a template fix), so the `--adopt` wording
+ * would misdescribe it.
+ */
+function localOverrideReason(key: string): string {
+  if (isDerivedTrackKey(key)) {
+    return (
+      'update --refresh-derived: codex-track derived file force-refreshed to the ' +
+      'current template render (skipIfExists bypassed for this known set only)'
+    )
+  }
+  return (
+    'update --adopt: template fix force-adopted over user-modified content ' +
+    '(safety-class files adopt by default; see --no-adopt-safety)'
+  )
+}
+
 export function recordLocalOverride(
   targetDir: string,
   record: AdoptRecord,
@@ -118,9 +153,7 @@ export function recordLocalOverride(
   const envelope = {
     path: record.key,
     adoptedAt: now().toISOString(),
-    reason:
-      'update --adopt: template fix force-adopted over user-modified content ' +
-      '(safety-class files adopt by default; see --no-adopt-safety)',
+    reason: localOverrideReason(record.key),
     priorContent: record.priorContent,
     priorContentSha256: sha256(record.priorContent),
     newContent: record.newContent,

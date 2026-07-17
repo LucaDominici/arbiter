@@ -167,6 +167,38 @@ any withheld fix exists, so CI can flag it without claiming `update` would rewri
 never recorded as manifest entries. Plugin- and `doctor`-written files keep the legacy skip-always
 behavior (out of scope for the manifest).
 
+### Refreshing codex-track derived files (`update --refresh-derived`, #1983)
+
+**Issue:** #1983
+
+A specific subset of `skipIfExists` files — the codex-track files DERIVED from the canonical Claude
+rule templates (`.agents/rules/*`) plus the codex hook/adapter bridge (`.claude/hooks/*` on a codex-only
+project, `.codex/codex-adapter.mjs`) — has the same erosion exposure as any other `skipIfExists` file:
+once materialized in a governed repo, a later upstream template fix (e.g. a new CANON-22-class section
+landing in `90-exec-protocol.md.ejs`) never reaches it through a plain `arbiter update`.
+
+`arbiter update --refresh-derived` is the opt-in escape hatch, modeled on the `--adopt` two-phase
+plan/apply flow (#1926) documented above:
+
+- The refresh set is derived from the SAME declarative sources the generators consume
+  (`CODEX_DERIVED_RULES` in `src/generators/codex-known-limitations.ts`, `SHARED_GUARD_HOOKS` in
+  `src/generators/codex-hooks.ts`) via `src/generators/derived-class.ts` — never a hand-copied path list,
+  so the refresh set and the actual emission can never independently drift.
+- Combine with `--adopt-plan` to preview the per-file diff (current on-disk content vs. the fresh
+  emission for the repo's resolved config) before writing anything.
+- Byte-identical files are skipped silently. A file carrying the `arbiter:preserve` marker (see above,
+  #1980) is **never** overwritten, even with `--refresh-derived` — reported as preserved, same as any
+  other preserve-marked file.
+- This flag changes nothing about the DEFAULT emission set — a fresh `arbiter init`/`arbiter update`
+  without the flag still emits these files `skipIfExists: true` exactly as before. `--refresh-derived` only
+  widens the force-write predicate for an explicit, opt-in run.
+
+**Related, not built here:** a possible future sibling — a materialized-mode parity check that scans a
+_downstream governed repo's_ live `.agents/**`/`.codex/**` the way `scripts/check-codex-self-parity.mjs`
+(ADR-106) does for arbiter's own tree — is out of scope for #1983. See
+`docs/internal/METHOD/CODEX_PARITY_RUNBOOK.md` §Self-track parity for that gate's current, arbiter-only
+scope.
+
 ### Preserve marker — opting a file out of every future overwrite (#1980)
 
 **Issue:** #1980

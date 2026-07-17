@@ -21,7 +21,11 @@ export interface CodexHooksGeneratorResult {
 // files: generateClaudeHooks (claude.ts) is the only emitter and only runs when `claude`
 // is selected, so config.toml pointed at 6 nonexistent scripts and codex-adapter.mjs's
 // execFileSync crashed on every PreToolUse/PostToolUse call, blocking all bash/apply_patch.
-const SHARED_GUARD_HOOKS = [
+// Exported (not just module-local) so derived-class.ts (#1983) can build the
+// `.claude/hooks/*` refresh-set from this single list rather than a hand-copied
+// path array — the two can never independently drift on which hooks are
+// codex-track `skipIfExists` emissions.
+export const SHARED_GUARD_HOOKS = [
   'stop-dangerous.mjs',
   'enforce-read-only.mjs',
   'pre-edit-ssot-guard.mjs',
