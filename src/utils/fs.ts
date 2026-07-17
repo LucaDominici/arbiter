@@ -291,6 +291,10 @@ interface ResolvedWrite {
  * of truth shared by real + dryRun paths so they can never diverge. The on-disk
  * bytes are read ONCE (A8) and reused for both the byte-identical check and the
  * pristine-hash check. Precedence:
+ *   0. exists + differs + on-disk content carries the `arbiter:preserve` marker
+ *                                               → skipped, NOT baselineMatches, withheld
+ *                                                  (#1980; fail-safe — ahead of
+ *                                                  skipIfExists/backup/adopt)
  *   1. missing                                  → created (baselineMatches)
  *   2. exists + byte-identical content          → skipped (baselineMatches; idempotent)
  *   3. exists + skipIfExists + session + pristine (sha256(disk)==prevHash) + differs
@@ -365,6 +369,18 @@ function resolveWriteAction(
   if (disk !== null && disk === content)
     return { action: 'skipped', baselineMatches: true, withheld: false, adopted: false }
 
+  // #1980: a preserve-marked file is NEVER overwritten — fail-safe, ahead of
+  // skipIfExists/backup/adopt. A generation session (when active) still gets
+  // the same withheld-reporting/visibility treatment as any other withheld fix.
+  if (hasPreserveMarker(disk)) {
+    const session = generationSession
+    if (session) {
+      const key = manifestKey(session.targetDir, filePath)
+      ;(session.onWithheld ?? defaultWithheldWarn)(key ?? filePath)
+    }
+    return { action: 'skipped', baselineMatches: false, withheld: true, adopted: false }
+  }
+
   if (skipIfExists) {
     const session = generationSession
     if (session && disk !== null)
@@ -378,6 +394,21 @@ function resolveWriteAction(
     withheld: false,
     adopted: false,
   }
+}
+
+/**
+ * #1980: grep-able preserve/do-not-edit marker. A destination file whose
+ * on-disk content contains this string is NEVER overwritten by `writeFile`,
+ * regardless of `skipIfExists`/`backup`/adopt policy — a downstream repo can
+ * replace any arbiter-generated file (e.g. GLOBAL_INVARIANTS.md) with a
+ * hand-maintained stub and mark it, and every future `arbiter update` treats
+ * it exactly like a withheld user-modified file. Documented in
+ * docs/REFERENCE/file-stability.md.
+ */
+export const PRESERVE_MARKER = 'arbiter:preserve'
+
+function hasPreserveMarker(disk: string | null): boolean {
+  return disk !== null && disk.includes(PRESERVE_MARKER)
 }
 
 function defaultWithheldWarn(key: string): void {

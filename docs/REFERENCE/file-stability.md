@@ -49,12 +49,12 @@ Every file arbiter generates has a declared stability status. This determines th
 
 ### GLOBAL_INVARIANTS.md
 
-| Property       | Value                                                                     |
-| -------------- | ------------------------------------------------------------------------- |
-| Default path   | `GLOBAL_INVARIANTS.md`                                                    |
-| Status         | **stable**                                                                |
-| User-editable  | No — fully managed by arbiter. Custom documentation belongs in AGENTS.md. |
-| Merge strategy | Fully regenerated on `arbiter update`.                                    |
+| Property       | Value                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| Default path   | `GLOBAL_INVARIANTS.md`                                                                       |
+| Status         | **stable**                                                                                    |
+| User-editable  | No — fully managed by arbiter. Custom documentation belongs in AGENTS.md.                    |
+| Merge strategy | Fully regenerated on `arbiter update`, unless the file carries the preserve marker (#1980; see below). |
 
 ### .arbiter-generated.json
 
@@ -166,6 +166,32 @@ any withheld fix exists, so CI can flag it without claiming `update` would rewri
 `update` persists the manifest before writing `arbiter.json`/`.arbiter-generated.json`, so those two are
 never recorded as manifest entries. Plugin- and `doctor`-written files keep the legacy skip-always
 behavior (out of scope for the manifest).
+
+### Preserve marker — opting a file out of every future overwrite (#1980)
+
+**Issue:** #1980
+
+A handful of arbiter-generated files (e.g. `GLOBAL_INVARIANTS.md`) are written unconditionally on every
+`arbiter update` — they are not `skipIfExists`, so the manifest/withheld machinery above does not apply to
+them by default. A governed repo occasionally has a legitimate reason to replace one of these with a
+hand-maintained file instead — for example a short pointer stub that redirects to a central/shared
+document living elsewhere. Without an explicit signal, `update` cannot tell that divergence apart from
+simple drift and overwrites it.
+
+To opt a file out of every future overwrite, include the literal marker string `arbiter:preserve` anywhere
+in its content (a comment is the natural place, e.g. `<!-- arbiter:preserve -->` in Markdown/HTML,
+`# arbiter:preserve` elsewhere):
+
+- `writeFile` checks for the marker on the **existing on-disk content** before any other write decision.
+  When present, the write is **always skipped** — regardless of `skipIfExists`, `backup`, or the `--adopt`
+  force-adopt policy (fail-safe: presence of the marker wins over every other flag).
+- `arbiter update`'s summary counts a preserve-marked file under the same **withheld** tally reported for
+  `skipIfExists` files, since the visible contract is identical: "this file diverged from the template on
+  purpose, delete it to let arbiter regenerate it."
+- This applies to **every** `writeFile` call site (all generators), not just files that also set
+  `skipIfExists` — it is the mechanism that makes `GLOBAL_INVARIANTS.md` (and any other unconditionally
+  regenerated file) overridable at all.
+- To take the current template again, delete the marker (or the whole file) and re-run `arbiter update`.
 
 > **Selective vs full update.** When a config change maps to a _subset_ of generators, `arbiter update`
 > runs only that subset, so a pristine-stale file owned by a non-impacted generator is not rewritten that
