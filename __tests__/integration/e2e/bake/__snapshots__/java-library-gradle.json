@@ -320,7 +320,7 @@
     "suppressions/.gitleaksignore": "d40d147e2096fcb1329d97f491d916d1aa7b43c318b51cf0f132ad6590d7b7bf",
     "suppressions/archunit-baseline.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
     "suppressions/pii-allowlist.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-    "suppressions/suppressions-schema.json": "eeaf91c43a97a0ec4cfabffdcb1eeadde5e4b1f869f9c5302add98b3a3d61be9",
+    "suppressions/suppressions-schema.json": "3821f3c2692905a0eb7d04867faf084e5e091dd5121c1971d6786152b806306d",
     "test-pyramid.json": "84da93b51d54d279ec538d73d7f408a938e473caf796b1fc5665c9241b861c22"
   }
 }
