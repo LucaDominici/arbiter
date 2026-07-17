@@ -12,7 +12,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { flipGuard } from '../../scripts/check-guard-flip.mjs'
-import { GUARDS } from '../../scripts/lib/anti-fake-green-guards.mjs'
+import { GUARDS, CONTEXT_ROT_GATES } from '../../scripts/lib/anti-fake-green-guards.mjs'
 import { FLIP_REGISTRY } from '../../scripts/lib/guard-flip-registry.mjs'
 
 const HARNESS = resolve('scripts/check-guard-flip.mjs')
@@ -44,6 +44,33 @@ describe('check-guard-flip — completeness over the GUARDS SSOT', () => {
   it('every guard in the roster has a flip-proof registered (no vacuous gap)', () => {
     const missing = GUARDS.filter((g) => !FLIP_REGISTRY[g.name]).map((g) => g.name)
     expect(missing).toEqual([])
+  })
+})
+
+describe('check-guard-flip — flip coverage for the anti-context-rot gates (M11, #1943)', () => {
+  it('the flip roster enumerates the five E1-E7 gate scripts', () => {
+    expect(CONTEXT_ROT_GATES.map((g: { script: string }) => g.script).sort()).toEqual([
+      'scripts/check-agent-return.mjs',
+      'scripts/check-audit-dry-pass.mjs',
+      'scripts/check-handoff-doc.mjs',
+      'scripts/check-refutation-verdicts.mjs',
+      'scripts/check-touched-vs-manifest.mjs',
+    ])
+  })
+
+  it('every anti-context-rot gate has a flip-proof registered (no vacuous gap)', () => {
+    const missing = CONTEXT_ROT_GATES.filter(
+      (g: { name: string }) => !FLIP_REGISTRY[g.name],
+    ).map((g: { name: string }) => g.name)
+    expect(missing).toEqual([])
+  })
+
+  it('each anti-context-rot flip-proof discriminates (bad → red, clean → green)', () => {
+    for (const gate of CONTEXT_ROT_GATES) {
+      const entry = FLIP_REGISTRY[gate.name]
+      expect(entry, `${gate.name} has no registry entry`).toBeDefined()
+      expect(flipGuard(gate, entry), `${gate.name} does not discriminate`).toEqual([])
+    }
   })
 })
 
