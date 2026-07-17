@@ -230,6 +230,37 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-safety-adopt-ratchet.mjs'],
     tpl: 'scripts/check-safety-adopt-ratchet.mjs.ejs',
   },
+  // E1-E7 #1943 (CANON-14): anti-context-rot enforcer twins — verbatim copies of
+  // arbiter's own gate set (design: docs/design/anti-context-rot-enforcers.md).
+  // Emitted unconditionally: every gate vacuous-PASSes when its evidence surface
+  // is absent, and the design's tier table keeps the recorder AVAILABLE from L1
+  // ("solo/L1: recorder available, gate not wired"). The four repo-wide gates are
+  // wired ADVISORY (runWarnCheck) inside check-all.mjs.ejs's enableDebtGates ring
+  // (L2+ default), mirroring arbiter's own advisory-at-land-time wiring;
+  // check-touched-vs-manifest is emitted but NOT wired there — it is a per-group
+  // harvest-time gate that requires --plan/--group/--base args (design E7).
+  { rel: ['scripts', 'check-agent-return.mjs'], tpl: 'scripts/check-agent-return.mjs.ejs' },
+  {
+    rel: ['scripts', 'check-refutation-verdicts.mjs'],
+    tpl: 'scripts/check-refutation-verdicts.mjs.ejs',
+  },
+  { rel: ['scripts', 'check-audit-dry-pass.mjs'], tpl: 'scripts/check-audit-dry-pass.mjs.ejs' },
+  { rel: ['scripts', 'check-handoff-doc.mjs'], tpl: 'scripts/check-handoff-doc.mjs.ejs' },
+  {
+    rel: ['scripts', 'check-touched-vs-manifest.mjs'],
+    tpl: 'scripts/check-touched-vs-manifest.mjs.ejs',
+  },
+  { rel: ['scripts', 'record-agent-return.mjs'], tpl: 'scripts/record-agent-return.mjs.ejs' },
+  // Shared E1-E7 helpers + the envelope schema the recorder/gate validate against.
+  { rel: ['scripts', 'lib', 'gate-args.mjs'], tpl: 'scripts/lib/gate-args.mjs.ejs' },
+  {
+    rel: ['scripts', 'lib', 'agent-return-validate.mjs'],
+    tpl: 'scripts/lib/agent-return-validate.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'agent-return.schema.json'],
+    tpl: 'scripts/schemas/agent-return.schema.json.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

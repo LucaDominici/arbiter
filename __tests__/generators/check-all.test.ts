@@ -26,7 +26,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 26 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + doc-freshness (T4) + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + safety-adopt-ratchet (T1) + 4 file-scan guards) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
+  it('emits exactly 35 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + doc-freshness (T4) + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + safety-adopt-ratchet (T1) + 4 file-scan guards + 9 anti-context-rot twins (E1-E7 #1943)) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -48,10 +48,14 @@ describe('generateCheckAll', () => {
     //   + check-grace-window.mjs (anti-fake-green file-scan guards, A5, #1497)
     // + muted-tests-baseline.json (brownfield grandfathering for check-muted-test, #1835-class)
     // + check-safety-adopt-ratchet.mjs (T1, anti-erosion ratchet — convergence playbook)
+    // + the 9 anti-context-rot twins (E1-E7 #1943, CANON-14): check-agent-return,
+    //   check-refutation-verdicts, check-audit-dry-pass, check-handoff-doc,
+    //   check-touched-vs-manifest, record-agent-return, lib/gate-args,
+    //   lib/agent-return-validate, schemas/agent-return.schema.json
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(26)
+    expect(result.files).toHaveLength(35)
     expect(
       result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
     ).toBe(true)
@@ -82,6 +86,21 @@ describe('generateCheckAll', () => {
     expect(result.files.some((f) => f.path.endsWith('scripts/check-anti-fake-green.mjs'))).toBe(
       true,
     )
+    // E1-E7 #1943 (CANON-14): anti-context-rot twins emitted at every level — the
+    // design keeps the recorder AVAILABLE from L1 (gates vacuous-PASS without evidence).
+    for (const twin of [
+      'scripts/check-agent-return.mjs',
+      'scripts/check-refutation-verdicts.mjs',
+      'scripts/check-audit-dry-pass.mjs',
+      'scripts/check-handoff-doc.mjs',
+      'scripts/check-touched-vs-manifest.mjs',
+      'scripts/record-agent-return.mjs',
+      'scripts/lib/gate-args.mjs',
+      'scripts/lib/agent-return-validate.mjs',
+      'schemas/agent-return.schema.json',
+    ]) {
+      expect(result.files.some((f) => f.path.endsWith(twin))).toBe(true)
+    }
   })
 
   it('emits the doc-set + anti-fake-green thin runners and wires them advisory at L2 (INV-135, #1428)', () => {

@@ -483,7 +483,35 @@ export const EXTERNAL_CI_FAMILIES = [
     materializedDir: 'scripts',
     materializedSuffix: '.mjs',
     renderPath: (base) => `scripts/${base}.mjs.ejs`,
-    include: (base) => base.startsWith('check-') && base !== 'check-all',
+    // record-* admitted alongside check-* (#1943 residual c): the E1 recorder
+    // (record-agent-return.mjs) is a shipped twin exactly like the gates —
+    // excluding it from parity scope would let the write path silently drift
+    // from the emitted copy while the read path stays pinned.
+    include: (base) => (base.startsWith('check-') || base.startsWith('record-')) && base !== 'check-all',
+  },
+  // #1943 residual c: the E1-E7 enforcer twins import shared helpers from
+  // scripts/lib/ — a helper that drifts (self vs shipped) changes gate behavior
+  // exactly like a drifted gate body, so the lib family joins parity scope.
+  // Basename-intersection semantics as above: only helpers shipped as twins are
+  // compared (template-only libs like coverage-gate.mjs have no self counterpart).
+  {
+    key: 'script-libs',
+    templateDir: 'src/templates/scripts/lib',
+    templateSuffix: '.mjs.ejs',
+    materializedDir: 'scripts/lib',
+    materializedSuffix: '.mjs',
+    renderPath: (base) => `scripts/lib/${base}.mjs.ejs`,
+  },
+  // #1943 residual c: the agent-return envelope schema is the validation SSOT for
+  // both the recorder and the gate — a schema that drifts between self and the
+  // shipped twin splits the envelope contract between arbiter and its targets.
+  {
+    key: 'schemas',
+    templateDir: 'src/templates/scripts/schemas',
+    templateSuffix: '.schema.json.ejs',
+    materializedDir: 'schemas',
+    materializedSuffix: '.schema.json',
+    renderPath: (base) => `scripts/schemas/${base}.schema.json.ejs`,
   },
 ]
 
