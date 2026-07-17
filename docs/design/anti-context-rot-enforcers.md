@@ -9,7 +9,6 @@ tags: ['audience/dev', 'audience/agent', 'kind/design']
 related:
   [
     'docs/methodology/agent-orchestration-and-context-hygiene.md',
-    'docs/EXECUTION-PLAYBOOK.md',
     'GLOBAL_INVARIANTS.md',
     'scripts/check-all.mjs',
     'schemas/evidence-bundle.schema.json',

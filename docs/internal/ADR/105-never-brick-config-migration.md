@@ -118,4 +118,5 @@ strict validation.
 ## Links
 
 - Related ADRs: none
-- Issues: none (executed as playbook tranche T0, `docs/EXECUTION-PLAYBOOK.md` §T0)
+- Issues: none (executed as playbook tranche T0; tranche context now carried by
+  `docs/design/anti-context-rot-enforcers.md`)

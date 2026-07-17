@@ -5,9 +5,10 @@
 // here without a discrimination proof in the flip harness is presumed vacuous and FAILS CI.
 // Pure data export — no entry point, no process.exit (see check-fail-closed-audit SKIP_FILES).
 //
-// class: 'file-scan' (deterministic, exit1=hard aggregate fail) | 'gh-audit' (remote, exit1=advisory).
+// class: 'file-scan' (deterministic, exit1=hard aggregate fail) | 'gh-audit' (remote,
+// exit1=advisory) | 'context-rot' (flip-proof required, aggregate-exempt — see below).
 
-/** @typedef {{ name: string, script: string, class: 'file-scan' | 'gh-audit' }} Guard */
+/** @typedef {{ name: string, script: string, class: 'file-scan' | 'gh-audit' | 'context-rot' }} Guard */
 
 /** The anti-fake-green guard roster. @type {Guard[]} */
 export const GUARDS = [
@@ -43,4 +44,30 @@ export const GUARDS = [
   // exit fails the aggregate). It stays individually wired in check-all too, so the named INV-25
   // gate remains visible + parity-tracked. NO-DATA (no offending scripts) is a PASS.
   { name: 'no-empty-suite', script: 'scripts/check-no-passwithnotests.mjs', class: 'file-scan' },
+]
+
+// Anti-context-rot gate roster (E1-E7 #1943, M11 flip-coverage — design doc
+// docs/design/anti-context-rot-enforcers.md §Red-path proof: "a check proven only green is
+// ceremony"). Enumerated by the guard-flip harness ONLY — deliberately NOT part of GUARDS:
+// the anti-fake-green AGGREGATE spawns each GUARDS entry with no argv against the live repo,
+// while these gates take bespoke argv (--evidence-dir/--dir/--file/--plan) and are already
+// individually wired advisory in check-all.mjs. Adding them to GUARDS would double-run four
+// and hard-error the fifth (check-touched-vs-manifest exits 2 without --plan/--group/--base).
+// class 'context-rot': flip-proof required, aggregate-exempt.
+
+/** @type {Guard[]} */
+export const CONTEXT_ROT_GATES = [
+  { name: 'agent-return', script: 'scripts/check-agent-return.mjs', class: 'context-rot' },
+  {
+    name: 'refutation-verdicts',
+    script: 'scripts/check-refutation-verdicts.mjs',
+    class: 'context-rot',
+  },
+  { name: 'audit-dry-pass', script: 'scripts/check-audit-dry-pass.mjs', class: 'context-rot' },
+  { name: 'handoff-doc', script: 'scripts/check-handoff-doc.mjs', class: 'context-rot' },
+  {
+    name: 'touched-vs-manifest',
+    script: 'scripts/check-touched-vs-manifest.mjs',
+    class: 'context-rot',
+  },
 ]

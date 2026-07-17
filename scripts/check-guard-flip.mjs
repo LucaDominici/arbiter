@@ -22,9 +22,14 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { join, resolve } from 'node:path'
-import { GUARDS } from './lib/anti-fake-green-guards.mjs'
+import { GUARDS, CONTEXT_ROT_GATES } from './lib/anti-fake-green-guards.mjs'
 import { FLIP_REGISTRY } from './lib/guard-flip-registry.mjs'
 import { V } from './lib/anti-fake-green-core.mjs'
+
+// Completeness surface = the aggregate roster PLUS the anti-context-rot gate roster
+// (E1-E7 #1943, M11): the latter is aggregate-exempt (bespoke argv, already wired
+// advisory in check-all) but its discrimination proof is enforced identically here.
+const FLIP_ROSTER = [...GUARDS, ...CONTEXT_ROT_GATES]
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -43,9 +48,15 @@ function runGuard(guard, entry, plant) {
   try {
     plant(dir)
     const scriptPath = resolve(guard.script)
+    // argv → bespoke flags built from the fixture dir (anti-context-rot gates, #1943);
     // inject 'dir' → pass --dir; inject 'cwd' → run the guard FROM the fixture dir (guards that
     // read package.json / .github from process.cwd() with no --dir flag).
-    const spawnArgs = entry.inject === 'dir' ? [scriptPath, '--dir', dir] : [scriptPath]
+    const spawnArgs =
+      typeof entry.argv === 'function'
+        ? [scriptPath, ...entry.argv(dir)]
+        : entry.inject === 'dir'
+          ? [scriptPath, '--dir', dir]
+          : [scriptPath]
     const cwd = entry.inject === 'cwd' ? dir : process.cwd()
     const r = spawnSync('node', spawnArgs, { encoding: 'utf-8', cwd })
     return r.status ?? 1
@@ -89,7 +100,7 @@ function main() {
   const uncovered = []
   const vacuous = []
   let proven = 0
-  for (const guard of GUARDS) {
+  for (const guard of FLIP_ROSTER) {
     const entry = FLIP_REGISTRY[guard.name]
     if (!entry) {
       uncovered.push(guard.name)
@@ -101,7 +112,7 @@ function main() {
   }
 
   process.stdout.write(
-    `check-guard-flip: proven=${proven} vacuous=${vacuous.length} uncovered=${uncovered.length} (of ${GUARDS.length})\n`,
+    `check-guard-flip: proven=${proven} vacuous=${vacuous.length} uncovered=${uncovered.length} (of ${FLIP_ROSTER.length})\n`,
   )
   for (const u of uncovered)
     process.stderr.write(
