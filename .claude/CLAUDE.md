@@ -75,6 +75,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | Hook                            | Would fire on          | Purpose                                                                                                       |
 | -------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `pre-spawn-worktree-guard.mjs`   | `PreToolUse` → Task\|Agent | E5 (#1947): refuse a second write-intent sub-agent spawn onto the main working tree (M9) + one-task-per-dispatch (M2) |
+| `stop-finding-loss.mjs`          | `Stop` → \*                | E6b (#1948): detect >=2 research sub-agent dispatches with zero persisted findings/agent-return envelopes since session start |
 
 ### Slash Commands
 

@@ -150,6 +150,10 @@ const L2_ADVANCED_HOOKS = [
   // #1331: registered in hooks.mjs HANDLERS at L2+ (ExitPlanMode banner, #1210)
   // but historically never emitted — dead config (same ghost class as #1318.5).
   'exitplanmode-banner.mjs',
+  // E6b (#1948): finding-loss Stop hook — implement-but-not-activated (OD-14).
+  // Emitted at L2+ (design doc §E6b tier: advisory solo/team, hard gated-review)
+  // but NOT registered in settings.json's Stop chain; activation is owner decision.
+  'stop-finding-loss.mjs',
 ] as const
 
 /** One planned .claude/hooks/ emission: either a template render or a literal body. */

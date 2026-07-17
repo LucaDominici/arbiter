@@ -84,6 +84,7 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 | `enforce-gate-before-pr.mjs` | PreToolUse gate-marker guard (R1.S5): blocks `gh pr create` unless gate marker is fresh. Pending registration after full gate-marker infra lands.        |
 | `hooks.mjs`                  | Arbiter-generated hook dispatcher for target projects. Present here as dogfood; not registered as Claude Code hook in arbiter's own settings.json.       |
 | `pre-spawn-worktree-guard.mjs` | E5 (#1947, design doc §E5): IMPLEMENT-BUT-NOT-ACTIVATED (OD-14) — PreToolUse `Task\|Agent` spawn-time worktree guard (M9) + one-task-per-dispatch (M2). Activation (the settings.json matcher) is an explicit owner decision, deferred to avoid wedging the harness's own sub-agent dispatch path. |
+| `stop-finding-loss.mjs`       | E6b (#1948, design doc §E6b): IMPLEMENT-BUT-NOT-ACTIVATED (OD-14) — Stop hook detecting >=2 research sub-agent dispatches with zero persisted findings/agent-return envelopes since session start. Activation (the Stop-chain registration) is an explicit owner decision, deferred to avoid interfering with the harness's own Stop handling. |
 
 ---
 
