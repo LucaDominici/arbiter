@@ -22,6 +22,7 @@ import { detectExisting } from '../detectors/existing.js'
 import { detectGithubAccess } from '../detectors/github.js'
 import { detectLanes } from '../detectors/lanes.js'
 import { saveConfig, loadConfig } from '../utils/config.js'
+import { slugifyProjectName, resolveProjectName } from '../config/resolve-project-name.js'
 import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile, beginGenerationSession, endGenerationSession } from '../utils/fs.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -95,24 +96,21 @@ function runPreMutationGitGuards(targetDir: string, options: InitOptions): void 
   }
 }
 
-/**
- * Normalize a raw directory basename into a structurally inert project name (#1550).
- *
- * `projectName` is derived from `basename(targetDir)` and then interpolated into
- * generated JSON / `.properties` / TOML / shell config files. A raw basename may
- * carry JSON-structural (`"`, `\`), HTML-meta (`&`, `<`, `>`) or shell metacharacters
- * that corrupt or break those emitted files. Slugifying ONCE here — the config
- * boundary shared by init/update/diff — collapses every disallowed character to `-`
- * and keeps only `[A-Za-z0-9._-]`, so downstream interpolation is always safe. Falls
- * back to `app` when nothing survives (e.g. a basename of only metacharacters).
- */
-export function slugifyProjectName(raw: string): string {
-  return raw.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+|[-.]+$/g, '') || 'app'
-}
+// #1978: slugifyProjectName + resolveProjectName now live in
+// src/config/resolve-project-name.ts (config-boundary normalization, alongside
+// the precedence chain that FEEDS it). Re-exported here so the existing
+// `from './init.js'` import sites (explain.ts, update.ts, diff.ts and their
+// tests) are unaffected.
+export { slugifyProjectName, resolveProjectName }
 
 export async function runInit(options: InitOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const projectName = slugifyProjectName(basename(targetDir))
+  // #1978: consult the precedence chain (stored name → package.json → git
+  // remote → cwd basename) rather than the cwd basename directly, so a
+  // brownfield re-init from a worktree dir keeps the durable name. A missing
+  // arbiter.json (fresh init) returns null and resolveProjectName falls
+  // through to the next source.
+  const projectName = slugifyProjectName(resolveProjectName(targetDir, loadConfig(targetDir)))
   const log: (msg: string) => void = options.json
     ? (): void => {}
     : (msg: string): void => {
@@ -290,7 +288,10 @@ async function generateAndFinalize(
     const newConfig = buildArbiterConfig(config)
     const backendResult = runBackendSetup(config, log)
 
-    // Load existing stored config before overwriting (brownfield re-init may have plugins)
+    // Load existing stored config before overwriting (brownfield re-init may have plugins).
+    // #1978: this is a SEPARATE read from the one resolveProjectName consults at the
+    // top of runInit — a long-running init should still see the on-disk state
+    // immediately before this write, not a value cached from function entry.
     const storedBefore = loadConfig(targetDir)
     await saveConfig(targetDir, newConfig)
 

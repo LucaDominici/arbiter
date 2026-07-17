@@ -762,7 +762,10 @@ describe('runInit — calls runPlugins (#317)', () => {
   })
 
   it('calls loadPlugin when loadConfig returns plugins in stored config (#317)', async () => {
-    mockLoadConfig.mockReturnValueOnce({
+    // #1978: runInit now calls loadConfig twice (once for resolveProjectName's
+    // precedence chain, once for the pre-overwrite plugins read) — mockReturnValue
+    // (not Once) so both calls see the same stored config, matching real behavior.
+    mockLoadConfig.mockReturnValue({
       version: '0.2',
       tools: ['claude'],
       governanceLevel: 'L2',

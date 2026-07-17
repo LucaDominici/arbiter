@@ -16,12 +16,13 @@
 //     place of the raw `slugifyProjectName(basename(targetDir))` call. This
 //     is additive (new module) because the precedence chain is a genuinely
 //     new responsibility, not a variant of an existing one.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { resolveProjectName } from '../../src/config/resolve-project-name.js'
+import { getLogger } from '../../src/utils/logger.js'
 
 function initGitRepo(dir: string, remote?: string): void {
   execFileSync('git', ['init', '-q'], { cwd: dir })
@@ -75,6 +76,18 @@ describe('#1978 resolveProjectName — precedence chain never starts at cwd base
     initGitRepo(dir) // git repo, no remote configured
     const name = resolveProjectName(dir, null)
     expect(name).toBe('1978-project-name-cwd')
+  })
+
+  it('warns when falling back to the cwd basename (issue-mandated WARN)', () => {
+    const warnSpy = vi.spyOn(getLogger(), 'warn')
+    initGitRepo(dir) // git repo, no remote configured
+    resolveProjectName(dir, null)
+    expect(warnSpy).toHaveBeenCalledWith(
+      'config.project_name_cwd_fallback',
+      expect.objectContaining({ fallback: '1978-project-name-cwd' }),
+      expect.stringContaining('1978-project-name-cwd'),
+    )
+    warnSpy.mockRestore()
   })
 
   it('the worktree repro case: differently-named worktree dir resolves the real name', () => {
