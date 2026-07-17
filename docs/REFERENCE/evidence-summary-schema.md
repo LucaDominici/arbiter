@@ -23,10 +23,13 @@ related: []
 order:
 
 1. `.evidence/SUMMARY.json` at the project root, if it exists.
-2. Otherwise, the most recent `.evidence/<RUN_ID>/SUMMARY.json` — "most recent" is the
-   lexicographically-greatest run-id directory name directly under `.evidence/`. This
-   matches the sort convention `scripts/evidence-rotate.mjs` already uses to prune old
-   runs, so sortable run-id formats (e.g. `run-YYYYMMDD-HHMMSS`) resolve correctly.
+2. Otherwise, the `.evidence/<RUN_ID>/SUMMARY.json` whose run-id directory (directly
+   under `.evidence/`) has the newest **mtime** among directories that contain a
+   SUMMARY.json. Directory mtime — not run-id name — is the ordering key, because
+   run-id formats are not guaranteed to sort lexicographically by recency (e.g.
+   numeric GitHub `run_id` values: `"9999999999" > "10000000000"` as strings, even
+   though the second run happened later). Ties (equal mtime) fall back to comparing
+   run-id names, greatest wins, for a deterministic result.
 
 Root-level always wins when both exist, so single-run projects that write directly to
 `.evidence/SUMMARY.json` are unaffected. Only projects that write exclusively into
@@ -42,15 +45,15 @@ If neither is found, the command exits 1 with `.evidence/SUMMARY.json not found`
 `validateSummarySchema` (`src/evidence/summary.ts`) requires all of the following to be
 present and non-null:
 
-| Field            | Type                          | Description                                       |
-| ---------------- | ------------------------------ | -------------------------------------------------- |
-| `head_sha`        | string                         | Full git commit SHA the evidence was captured at   |
-| `head_sha_short`  | string                         | Short form of `head_sha` (e.g. `git rev-parse --short`) |
-| `obs_gate`        | `"PASS"` \| `"FAIL"`           | Aggregate gate result for this run                 |
-| `tests`           | object                         | Test run summary (see below)                       |
-| `coverage`        | object                         | Coverage summary (see below)                        |
-| `mutation`        | object                         | Mutation testing summary (see below)                |
-| `security`        | object                         | Security scan summary (see below)                   |
+| Field            | Type                 | Description                                             |
+| ---------------- | -------------------- | ------------------------------------------------------- |
+| `head_sha`       | string               | Full git commit SHA the evidence was captured at        |
+| `head_sha_short` | string               | Short form of `head_sha` (e.g. `git rev-parse --short`) |
+| `obs_gate`       | `"PASS"` \| `"FAIL"` | Aggregate gate result for this run                      |
+| `tests`          | object               | Test run summary (see below)                            |
+| `coverage`       | object               | Coverage summary (see below)                            |
+| `mutation`       | object               | Mutation testing summary (see below)                    |
+| `security`       | object               | Security scan summary (see below)                       |
 
 `obs_gate` is additionally value-checked: any value other than `"PASS"` or `"FAIL"` is
 rejected.
@@ -59,12 +62,12 @@ rejected.
 
 These are not schema-required but are read when present:
 
-| Field       | Type                    | Effect when present                                                                                    |
-| ----------- | ----------------------- | --------------------------------------------------------------------------------------------------------- |
-| `sha`       | string                  | **Required in practice** — SHA-256 over the canonicalised body (all other fields, sorted keys, `sha` excluded). Verified by `verifySummarySha`; a mismatch or missing/non-string `sha` fails with exit code 2. |
-| `stack`     | one of the known languages (`typescript`, `java`, `kotlin`, `rust`, `python`, `go`) | Used to classify `files[]` risk. If absent or unrecognised, falls back to `detectLanguage(dir)` on disk.  |
-| `files`     | string[]                | Each path is classified via the risk matrix; the highest risk level scales stale-evidence severity (see below). Absent/empty → legacy advisory-only stale behaviour. |
-| `timestamp` | ISO 8601 date-time string | Used for the freshness check (see below). Missing/unparseable → freshness check is skipped.               |
+| Field       | Type                                                                                | Effect when present                                                                                                                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sha`       | string                                                                              | **Required in practice** — SHA-256 over the canonicalised body (all other fields, sorted keys, `sha` excluded). Verified by `verifySummarySha`; a mismatch or missing/non-string `sha` fails with exit code 2. |
+| `stack`     | one of the known languages (`typescript`, `java`, `kotlin`, `rust`, `python`, `go`) | Used to classify `files[]` risk. If absent or unrecognised, falls back to `detectLanguage(dir)` on disk.                                                                                                       |
+| `files`     | string[]                                                                            | Each path is classified via the risk matrix; the highest risk level scales stale-evidence severity (see below). Absent/empty → legacy advisory-only stale behaviour.                                           |
+| `timestamp` | ISO 8601 date-time string                                                           | Used for the freshness check (see below). Missing/unparseable → freshness check is skipped.                                                                                                                    |
 
 Unlisted fields (e.g. `commit`, `duration_seconds`, `mutation.threshold`) are ignored by
 the validator but are commonly written by `evidence-collect.mjs` for the human-readable
@@ -115,22 +118,22 @@ When `files[]` is present, each path is classified via `classifyPath(file, stack
 (`src/risk/classifier.ts`) and the highest resulting risk level drives how strictly
 stale evidence (`timestamp` older than 7 days) is treated:
 
-| Aggregate risk       | Stale evidence outcome     |
-| --------------------- | --------------------------- |
-| R0 / R1 / R2 (higher risk) | exit 2 (blocker)        |
-| R3 / R4 (lower risk)       | exit 1 (warning)         |
+| Aggregate risk             | Stale evidence outcome                                        |
+| -------------------------- | ------------------------------------------------------------- |
+| R0 / R1 / R2 (higher risk) | exit 2 (blocker)                                              |
+| R3 / R4 (lower risk)       | exit 1 (warning)                                              |
 | Any file unclassified      | exit 1 (warning) — "manual review required", never fails open |
-| `files[]` absent           | exit 1 (warning) — legacy advisory-only behaviour |
+| `files[]` absent           | exit 1 (warning) — legacy advisory-only behaviour             |
 
 ---
 
 ## Exit codes
 
-| Code | Meaning                                                                 |
-| ---- | ------------------------------------------------------------------------ |
-| 0    | OK, or `E2E_RISK_SKIP` set with a valid `<flake\|infra\|external>:#<issue>[:<slug>]` reason |
+| Code | Meaning                                                                                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------- |
+| 0    | OK, or `E2E_RISK_SKIP` set with a valid `<flake\|infra\|external>:#<issue>[:<slug>]` reason                 |
 | 1    | SUMMARY.json missing/unreadable/invalid JSON, missing required field, low-risk stale, or unclassified files |
-| 2    | `sha` mismatch, or stale evidence on medium/high-risk changes (R0–R2)   |
+| 2    | `sha` mismatch, or stale evidence on medium/high-risk changes (R0–R2)                                       |
 
 ---
 
@@ -140,7 +143,7 @@ stale evidence (`timestamp` older than 7 days) is treated:
 - `src/evidence/summary.ts` — required-field schema validation
 - `src/risk/sha-check.ts` — SHA-256 tamper/staleness signature
 - `src/commands/verify.ts` — `runVerifyEvidence`, path resolution, freshness/risk gating
-- `scripts/evidence-rotate.mjs` (generated) — the run-id directory rotation convention
-  this resolution follows
+- `scripts/evidence-rotate.mjs` (generated) — prunes old run-id directories (by name
+  sort, a separate concern from the mtime-based resolution above)
 - `docs/REFERENCE/evidence-schema.md` — the separate `task-#NNN/bundle.json` schema
   (INV-90), not to be confused with this SUMMARY.json schema

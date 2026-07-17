@@ -2,41 +2,41 @@
   {
     "file": "generators/contract-testing.ts",
     "line": 225,
-    "justification": "Internal generator diagnostic prefixed with [contract-testing] \u2014 not user-facing terminal output"
+    "justification": "Internal generator diagnostic prefixed with [contract-testing] — not user-facing terminal output"
   },
   {
     "file": "generators/debt-gates.ts",
     "line": 19,
-    "justification": "Internal generator diagnostic prefixed with [injectTestScripts] \u2014 parse failure note for maintainers only"
+    "justification": "Internal generator diagnostic prefixed with [injectTestScripts] — parse failure note for maintainers only"
   },
   {
     "file": "generators/debt-gates.ts",
     "line": 49,
-    "justification": "Internal generator diagnostic prefixed with [injectDepCruiserPackageJson] \u2014 parse failure note for maintainers only"
+    "justification": "Internal generator diagnostic prefixed with [injectDepCruiserPackageJson] — parse failure note for maintainers only"
   },
   {
     "file": "generators/registry.ts",
     "line": 358,
-    "justification": "Internal generator error sink \u2014 prefixed with [registry]; surfaced in logs only when a generator throws"
+    "justification": "Internal generator error sink — prefixed with [registry]; surfaced in logs only when a generator throws"
   },
   {
     "file": "utils/safe-read.ts",
     "line": 15,
-    "justification": "Internal [arbiter] prefixed read-failure warning \u2014 debug diagnostic, not a user-visible CLI message"
+    "justification": "Internal [arbiter] prefixed read-failure warning — debug diagnostic, not a user-visible CLI message"
   },
   {
     "file": "utils/safe-read.ts",
     "line": 31,
-    "justification": "Internal [arbiter] prefixed parse-failure warning \u2014 debug diagnostic, not a user-visible CLI message"
+    "justification": "Internal [arbiter] prefixed parse-failure warning — debug diagnostic, not a user-visible CLI message"
   },
   {
     "file": "commands/update.ts",
-    "line": 663,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') \u2014 no hardcoded English literal remains. Line shifted 378\u2192663 by the T1 adopt/ratchet additions (convergence playbook)."
+    "line": 664,
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. Line shifted 378→663 by the T1 adopt/ratchet additions (convergence playbook). Line shifted 663→664 by the #1978 projectName resolution reorder."
   },
   {
     "file": "commands/init.ts",
-    "line": 372,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') \u2014 no hardcoded English literal remains. Line shifted 781\u2192372 by the #1839 init.ts command-group split (F3 friction cut)."
+    "line": 373,
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. Line shifted 781→372 by the #1839 init.ts command-group split (F3 friction cut). Line shifted 372→373 by the #1978 resolve-project-name extraction."
   }
 ]

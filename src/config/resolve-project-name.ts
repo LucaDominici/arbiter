@@ -54,6 +54,7 @@ function readPackageJsonName(dir: string): string | null {
     return typeof pkg.name === 'string' && pkg.name.trim() !== ''
       ? unscopePackageName(pkg.name.trim())
       : null
+    // FAIL-OPEN-INTENT: a malformed package.json only skips this precedence source; the chain continues to git remote / cwd fallback.
   } catch {
     return null
   }

@@ -14,9 +14,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 // Import the real .mjs SSOT (not a re-implementation) so the test guards the shipped file.
-const { checkDistFresh } = (await import(
-  join(REPO_ROOT, 'scripts/lib/dist-staleness.mjs')
-)) as {
+const { checkDistFresh } = (await import(join(REPO_ROOT, 'scripts/lib/dist-staleness.mjs'))) as {
   checkDistFresh: (
     root: string,
     opts?: { srcDirs?: string[] },

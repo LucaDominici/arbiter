@@ -49,11 +49,11 @@ Every file arbiter generates has a declared stability status. This determines th
 
 ### GLOBAL_INVARIANTS.md
 
-| Property       | Value                                                                                        |
-| -------------- | --------------------------------------------------------------------------------------------- |
-| Default path   | `GLOBAL_INVARIANTS.md`                                                                       |
-| Status         | **stable**                                                                                    |
-| User-editable  | No — fully managed by arbiter. Custom documentation belongs in AGENTS.md.                    |
+| Property       | Value                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------ |
+| Default path   | `GLOBAL_INVARIANTS.md`                                                                                 |
+| Status         | **stable**                                                                                             |
+| User-editable  | No — fully managed by arbiter. Custom documentation belongs in AGENTS.md.                              |
 | Merge strategy | Fully regenerated on `arbiter update`, unless the file carries the preserve marker (#1980; see below). |
 
 ### .arbiter-generated.json

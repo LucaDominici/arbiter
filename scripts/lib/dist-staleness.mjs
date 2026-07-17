@@ -55,6 +55,12 @@ function newestMtimeMs(root, relDir) {
  * @returns {{ fresh: boolean, reason?: string }}
  */
 export function checkDistFresh(root, opts = {}) {
+  // NOTE: this guard trusts filesystem mtimes, which assumes a freshly-built
+  // dist/. A tar-based cache restore (e.g. actions/cache) preserves each
+  // archived file's original mtime, so a cache-restored dist/ can compare as
+  // fresh (or stale) independent of whether it actually matches current src/.
+  // CI jobs that wire cache-restore together with this guard must rebuild
+  // dist/ after restoring, not rely on the restored mtimes.
   const srcDirs = opts.srcDirs ?? DEFAULT_WATCHED_SRC_DIRS
   const distMtime = newestMtimeMs(root, 'dist')
   if (distMtime === -Infinity) {

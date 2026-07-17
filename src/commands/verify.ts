@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText, formatJson } from '../compatibility/report.js'
@@ -163,15 +163,57 @@ function handleRiskSkip(dir: string): VerifyEvidenceResult | null {
   return null
 }
 
+/** A run-id directory candidate: its SUMMARY.json path and directory mtime. */
+interface RunIdCandidate {
+  name: string
+  mtimeMs: number
+  path: string
+}
+
+/** Build a candidate for `name` if it has a SUMMARY.json and a readable mtime, else null. */
+function toRunIdCandidate(evidenceDir: string, name: string): RunIdCandidate | null {
+  const candidate = join(evidenceDir, name, 'SUMMARY.json')
+  if (!existsSync(candidate)) return null
+  try {
+    return { name, mtimeMs: statSync(join(evidenceDir, name)).mtimeMs, path: candidate }
+    // FAIL-OPEN-INTENT: an unreadable run-id dir is skipped as a candidate; the root SUMMARY.json or another run dir still wins.
+  } catch {
+    return null
+  }
+}
+
+/** True when `next` should replace `best` as the newest run-id candidate seen so far. */
+function isNewerCandidate(best: RunIdCandidate | null, next: RunIdCandidate): boolean {
+  if (best === null) return true
+  if (next.mtimeMs !== best.mtimeMs) return next.mtimeMs > best.mtimeMs
+  return next.name > best.name
+}
+
+/**
+ * Pick the newest `.evidence/<RUN_ID>/SUMMARY.json` among `entries` (run-id
+ * directory names), or null if none contain a SUMMARY.json. "Newest" is by
+ * directory mtime — not run-id name — because run-ids are not guaranteed to
+ * sort lexicographically by recency (e.g. numeric GitHub run ids:
+ * "9999999999" > "10000000000" as strings, but the second is newer). Ties
+ * (equal mtime) fall back to name comparison, greatest wins, for a
+ * deterministic result.
+ */
+function pickNewestRunIdSummary(evidenceDir: string, entries: string[]): string | null {
+  let best: RunIdCandidate | null = null
+  for (const name of entries) {
+    const candidate = toRunIdCandidate(evidenceDir, name)
+    if (candidate && isNewerCandidate(best, candidate)) best = candidate
+  }
+  return best?.path ?? null
+}
+
 /**
  * Resolve the SUMMARY.json path to verify (#1982).
  *
  * Preference order:
  *   1. `.evidence/SUMMARY.json` at the project root (legacy single-run layout).
- *   2. The most recent `.evidence/<RUN_ID>/SUMMARY.json`, where "most recent"
- *      is the lexicographically-greatest run-id directory name — the same
- *      sort convention `evidence-rotate.mjs.ejs` uses to prune old runs, so
- *      sortable run-id formats (e.g. `run-YYYYMMDD-HHMMSS`) resolve correctly.
+ *   2. The newest-mtime `.evidence/<RUN_ID>/SUMMARY.json` — see
+ *      `pickNewestRunIdSummary` for the selection rule.
  *
  * Root-level wins when both exist so brownfield single-run projects are
  * unaffected; only projects that never write a root SUMMARY.json (governed
@@ -189,17 +231,12 @@ function resolveSummaryPath(dir: string): string {
     entries = readdirSync(evidenceDir, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
-      .sort()
+    // FAIL-OPEN-INTENT: an unreadable .evidence dir falls back to the root SUMMARY.json path, whose absence is reported downstream.
   } catch {
     return rootPath
   }
 
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const candidate = join(evidenceDir, entries[i] as string, 'SUMMARY.json')
-    if (existsSync(candidate)) return candidate
-  }
-
-  return rootPath
+  return pickNewestRunIdSummary(evidenceDir, entries) ?? rootPath
 }
 
 function loadSummary(summaryPath: string): Record<string, unknown> | VerifyEvidenceResult {
