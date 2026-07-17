@@ -8,11 +8,15 @@
 //   { kind: 'file-scan', inject: 'dir' | 'cwd', plantBad(dir), plantClean(dir) }
 //     inject 'dir' → the guard is run with `--dir <fixture>`; 'cwd' → the guard is run FROM the
 //     fixture dir (guards that read package.json/.github from process.cwd() with no --dir flag).
+//   { kind: 'file-scan', argv(dir) => string[], plantBad(dir), plantClean(dir) }
+//     argv → the guard takes bespoke flags (--evidence-dir/--file/--plan…, the anti-context-rot
+//     gates, #1943 M11); the harness spawns `node <script> ...argv(fixtureDir)` from the repo root.
 //   { kind: 'core', flip() => { bad, clean } }  // a gh-audit guard, proven via its pure classifier
 //
 // Pure semantics export — no entry point, no process.exit (see check-fail-closed-audit SKIP_FILES).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { classifyReview, classifyOwnership } from './anti-fake-green-core.mjs'
 
 const write = (dir, rel, body) => {
@@ -62,6 +66,75 @@ const SECRET_CLEAN = secretStep(
 
 const STUB_DOC = '# Moved\n\nThis page has moved to [the new home](./new.md).\n'
 const REAL_DOC = '# Real\n\n' + 'genuine content here. '.repeat(30) + '\n'
+
+// ── anti-context-rot fixtures (E1-E7 #1943, M11 flip-coverage) ────────────────────────────────
+
+/** A schema-valid agent-return envelope (E1); override fields to plant a violation. */
+const envelope = (overrides = {}) =>
+  JSON.stringify(
+    {
+      schema: 'arbiter-agent-return-v1',
+      agent: 'red-team',
+      role: 'reviewer',
+      taskId: '#1',
+      branch: 'main',
+      sha: 'deadbeefcafe',
+      ts: '2026-01-01T00:00:00Z',
+      verdict: 'PASS',
+      confidence: 0.9,
+      findings: [],
+      ...overrides,
+    },
+    null,
+    2,
+  )
+
+/** A skeptic envelope carrying one refutation verdict targeting finding `f1` (E2). */
+const skeptic = (verdict) =>
+  JSON.stringify({ role: 'skeptic', refutations: [{ target: 'f1', verdict }] }, null, 2)
+
+/** Refutation marker: N=3 skeptics required over one acted-on finding (E2). */
+const REFUTATION_MARKER = JSON.stringify({ skeptics: 3, findings: ['f1'] }, null, 2)
+
+/** Plant an E2 fixture: marker + three skeptic verdicts for finding f1. */
+const plantRefutation = (d, verdicts) => {
+  write(d, join('returns', 'task', 'refutation-required.json'), REFUTATION_MARKER)
+  verdicts.forEach((v, i) => write(d, join('returns', 'task', `skeptic-${i}.json`), skeptic(v)))
+}
+
+/** One dry-pass ledger line (E3). */
+const pass = (n, seed, newFindings) => JSON.stringify({ pass: n, seed, newFindings }) + '\n'
+
+/** A HANDOFF task section; `tierRow` plants/omits the Suggested-tier contract row (E6a). */
+const handoff = (tierRow) =>
+  '# Handoff: fixture\n\n### 1. Do the thing\n\n' +
+  '- **What:** implement it\n- **Where:** src/a.ts\n- **AC:** it works\n' +
+  '- **Verify:** `npm test`\n' +
+  (tierRow ? '- **Suggested tier:** haiku\n' : '')
+
+/** git helper for the E7 fixture repo (never touches the host repo). */
+const git = (dir, ...args) =>
+  execFileSync('git', ['-C', dir, '-c', 'user.email=t@t.t', '-c', 'user.name=t', ...args], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf-8',
+  })
+
+/**
+ * Plant an E7 fixture: a real git repo whose `base` branch declares src/a.ts and whose
+ * HEAD commit touches `touchedFile` — inside (clean) or outside (bad) the manifest.
+ */
+const plantManifestRepo = (d, touchedFile) => {
+  write(d, 'plan.md', '## Group: G\nFiles: src/a.ts\nRead-set: src/a.ts\n')
+  const repo = join(d, 'repo')
+  write(repo, join('src', 'a.ts'), 'export const a = 1\n')
+  git(repo, 'init', '-q')
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'base')
+  git(repo, 'branch', 'base')
+  write(repo, touchedFile, 'export const x = 2\n')
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'work')
+}
 
 const pkg = (testScript) =>
   JSON.stringify({ name: 'fx', version: '0.0.0', scripts: { 'test:unit': testScript } }, null, 2)
@@ -164,5 +237,58 @@ export const FLIP_REGISTRY = {
     inject: 'cwd',
     plantBad: (d) => write(d, 'package.json', pkg('vitest run --passWithNoTests')),
     plantClean: (d) => write(d, 'package.json', pkg('vitest run')),
+  },
+
+  // ── anti-context-rot gates (E1-E7 #1943): proven via bespoke-argv fixtures ────────────────
+  'agent-return': {
+    kind: 'file-scan',
+    argv: (d) => ['--evidence-dir', join(d, 'returns'), '--repo-root', d],
+    // verdict outside the schema enum → the envelope shape the E1 gate must reject.
+    plantBad: (d) =>
+      write(d, join('returns', 'task', 'red-team-0.json'), envelope({ verdict: 'MAYBE' })),
+    plantClean: (d) => write(d, join('returns', 'task', 'red-team-0.json'), envelope()),
+  },
+  'refutation-verdicts': {
+    kind: 'file-scan',
+    argv: (d) => ['--evidence-dir', join(d, 'returns')],
+    // acted-on finding majority-REFUTED (1 UPHELD vs 2 REFUTED) → must fail adjudication.
+    plantBad: (d) => plantRefutation(d, ['UPHELD', 'REFUTED', 'REFUTED']),
+    plantClean: (d) => plantRefutation(d, ['UPHELD', 'UPHELD', 'REFUTED']),
+  },
+  'audit-dry-pass': {
+    kind: 'file-scan',
+    argv: (d) => ['--dir', join(d, 'audit')],
+    // conclusion artifact present while the last pass is still wet (newFindings > 0).
+    plantBad: (d) => {
+      write(d, join('audit', 'report.md'), '# concluded\n')
+      write(d, join('audit', 'pass-ledger.jsonl'), pass(1, 'a', 3) + pass(2, 'b', 2))
+    },
+    plantClean: (d) => {
+      write(d, join('audit', 'report.md'), '# concluded\n')
+      write(d, join('audit', 'pass-ledger.jsonl'), pass(1, 'a', 0) + pass(2, 'b', 0))
+    },
+  },
+  'handoff-doc': {
+    kind: 'file-scan',
+    argv: (d) => ['--file', join(d, 'HANDOFF.md')],
+    // task section missing the Suggested-tier row → silent expensive-model re-route (R7).
+    plantBad: (d) => write(d, 'HANDOFF.md', handoff(false)),
+    plantClean: (d) => write(d, 'HANDOFF.md', handoff(true)),
+  },
+  'touched-vs-manifest': {
+    kind: 'file-scan',
+    argv: (d) => [
+      '--plan',
+      join(d, 'plan.md'),
+      '--group',
+      'G',
+      '--base',
+      'base',
+      '--repo-root',
+      join(d, 'repo'),
+    ],
+    // HEAD touches src/b.ts while the manifest declares only src/a.ts → outside the write set.
+    plantBad: (d) => plantManifestRepo(d, join('src', 'b.ts')),
+    plantClean: (d) => plantManifestRepo(d, join('src', 'a.ts')),
   },
 }

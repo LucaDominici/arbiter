@@ -9,7 +9,7 @@ tags: ['audience/dev', 'audience/agent', 'kind/governance']
 related:
   [
     'docs/CONCEPTS.md',
-    'docs/EXECUTION-PLAYBOOK.md',
+    'docs/design/anti-context-rot-enforcers.md',
     'docs/REFERENCE/wave-drain.md',
     'docs/internal/ADR/054-phase-3-5-handoff-modeled-as-status-json-fields.md',
     '103-worktree-parallel-carveout',
@@ -34,8 +34,9 @@ declared as **TO-CREATE** debt with a target mechanism — never left as silent 
 Four axioms, already operative in arbiter, govern everything below:
 
 1. **Beyoncé rule** — a rule without an automated check does not exist. Prose decays;
-   only gates persist. (Applied to arbiter's own CANON in `docs/EXECUTION-PLAYBOOK.md`
-   §T4: prose-only rules are promoted to machine gates or deleted.)
+   only gates persist. (Applied to arbiter's own CANON via the §T4 dogfood-closure
+   tranche, `docs/design/anti-context-rot-enforcers.md`: prose-only rules are
+   promoted to machine gates or deleted.)
 2. **Paved road / pit of success** — the correct way must be the pre-built default. A
    measure that requires remembering is already failing (`docs/audit/FRAMEWORK_AUDIT.md`).
 3. **Normalization of deviance** — an unenforced or routinely-bypassed rule trains
@@ -43,7 +44,8 @@ Four axioms, already operative in arbiter, govern everything below:
    (`docs/audit/IS-ARBITER-WORTH-IT.md`: 305 bypasses of one gate = not a gate).
 4. **IRON LAW of proof** — nothing is done until it is **WIRED** (invoked, `file:line`),
    **TESTED** (a red-path/flip test proves it BLOCKS, not only passes) and **WORKING**
-   (dogfooded on real input). (`docs/EXECUTION-PLAYBOOK.md` §0.1.)
+   (dogfooded on real input). (`docs/design/anti-context-rot-enforcers.md` §0 — every
+   enforcer names its wiring `file:line`, its red-path proof, and its dogfood split.)
 
 Corollary for this standard: each measure below carries an **Enforcement** row. Legend:
 
@@ -91,8 +93,8 @@ model tier that can own it:
 
 Routing is **deterministic by declaration**, not by runtime machinery: the task's model
 tier is written into the plan/handoff (`src/templates/HANDOFF.template.md` "Suggested
-tier" per task) and the dispatch legend of the playbook driving the work
-(`docs/EXECUTION-PLAYBOOK.md` §0.2). Per-agent model assignments live in
+tier" per task) and the tier table of the enforcer design driving the work
+(`docs/design/anti-context-rot-enforcers.md` §0). Per-agent model assignments live in
 `.claude/AGENT_REGISTRY.md` (model + effort + cost rationale per sub-agent) and the
 tier→review-vertical floor in `.claude/agent-dispatch-matrix.json`.
 
@@ -176,7 +178,8 @@ until the handoff fields are satisfied (`checkHandoffGate`, `src/commands/task.t
 **Tier.** Handoff file + `/clear` discipline: all tiers. The full 3-layer protocol
 activates only for Standard-tier tasks with >5 units (right-sized by its own skill).
 
-> Transitional note: `docs/EXECUTION-PLAYBOOK.md` §T2.B cuts the `arbiter mark` cursor
+> Transitional note: the §T2.B tranche (playbook context now carried by
+> `docs/design/anti-context-rot-enforcers.md`) cuts the `arbiter mark` cursor
 > _command_ (danger cluster D2). The cursor survives as `status.json` fields (INV-113,
 > ADR-054); skills referencing `arbiter mark` must be repointed when T2 lands.
 
