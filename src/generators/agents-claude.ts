@@ -34,5 +34,16 @@ export function generateAgentsClaude(
     ),
   )
 
+  // E5 (#1947): write-intent registry consumed by pre-spawn-worktree-guard.mjs
+  // (implement-but-not-activated). Plain JSON, no EJS tags — renderTemplate is a
+  // no-op passthrough on it, same as the raw .mjs hooks (CANON-14 twin).
+  files.push(
+    writeFile(
+      resolvedPath(base, '.claude', 'agents', 'agent-write-classes.json'),
+      renderTemplate('claude/agents/agent-write-classes.json', data),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+  )
+
   return { files }
 }

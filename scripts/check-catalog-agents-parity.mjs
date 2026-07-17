@@ -6,7 +6,7 @@
 //
 // Usage: node scripts/check-catalog-agents-parity.mjs \
 //   [--catalog=path] [--agents=path] [--canon=path]
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const args = process.argv.slice(2)
@@ -193,6 +193,24 @@ if (canonSrc) {
       process.stdout.write(`    agents: ${agentsTitle}\n`)
       violations++
     }
+  }
+}
+
+// E5 (#1947): agent-write-classes.json ↔ .claude/agents/*.md parity — every
+// classified agent name must have a real agent file (no phantom entry feeding
+// pre-spawn-worktree-guard.mjs a stale classification). Real-repo-files mode only.
+if (catalogArg == null && agentsArg == null) {
+  const writeClassesPath = resolve(root, '.claude/agents/agent-write-classes.json')
+  try {
+    const classes = JSON.parse(readFileSync(writeClassesPath, 'utf-8')).classes ?? {}
+    for (const name of Object.keys(classes)) {
+      if (!existsSync(resolve(root, `.claude/agents/${name}.md`))) {
+        process.stdout.write(`  ORPHAN in agent-write-classes.json: ${name} (no .claude/agents/${name}.md)\n`)
+        violations++
+      }
+    }
+  } catch {
+    // agent-write-classes.json is optional (E5 implement-but-not-activated) — absence is not a violation.
   }
 }
 

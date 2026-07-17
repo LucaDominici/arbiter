@@ -26,7 +26,19 @@ describe('generateAgentsClaude', () => {
   it('generates all agent files for claude projects', () => {
     const config = makeConfig(dir, { tools: ['claude'] })
     const result = generateAgentsClaude(config)
-    expect(result.files).toHaveLength(AGENT_NAMES.length)
+    // AGENT_NAMES.length agent .md files + agent-write-classes.json (E5, #1947)
+    expect(result.files).toHaveLength(AGENT_NAMES.length + 1)
+  })
+
+  it('writes the agent-write-classes.json write-intent registry (E5, #1947)', () => {
+    const config = makeConfig(dir, { tools: ['claude'] })
+    generateAgentsClaude(config)
+    const path = join(dir, '.claude', 'agents', 'agent-write-classes.json')
+    expect(existsSync(path)).toBe(true)
+    const doc = JSON.parse(readFileSync(path, 'utf-8'))
+    for (const name of AGENT_NAMES) {
+      expect(doc.classes[name]).toBe('read-only')
+    }
   })
 
   it('writes each agent to .claude/agents/<name>.md', () => {
@@ -75,6 +87,6 @@ describe('generateAgentsClaude', () => {
   it('agent files are marked skipIfExists to avoid overwriting customizations', () => {
     const config = makeConfig(dir, { tools: ['claude'] })
     const result = generateAgentsClaude(config)
-    expect(result.files).toHaveLength(AGENT_NAMES.length)
+    expect(result.files).toHaveLength(AGENT_NAMES.length + 1)
   })
 })

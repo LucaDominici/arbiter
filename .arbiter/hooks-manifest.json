@@ -289,6 +289,25 @@
       "spawnable": false,
       "expectedExitCode": 2,
       "rationale": "#1265: UserPromptSubmit hard block (exit 2) \u2014 while a brainstorm session is active (.arbiter/brainstorm-active marker), /task commands are rejected until the marker is cleared or auto-expires after 24h. Enforces the brainstorm terminal state (design doc + issue, never auto-implement). Not auto-spawnable: requires both a /task stdin prompt and a cwd marker; empirical exit-2 coverage in __tests__/skills/brainstorming.test.ts."
+    },
+    {
+      "file": "pre-spawn-worktree-guard.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "E5 (#1947, design doc \u00a7E5): IMPLEMENT-BUT-NOT-ACTIVATED (OD-14) \u2014 PreToolUse Task|Agent tripwire refusing a second write-intent sub-agent spawn onto the main working tree (M9) plus the M2 one-task-per-dispatch check. Not wired in .claude/settings.json (activation is an owner decision \u2014 a live interceptor on Task|Agent could wedge the harness's own dispatch path). Not auto-spawnable via the env-only/file-with-content fixture shapes (stdin is a structured Task/Agent tool_input payload); empirical exit-code coverage in __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts."
+    },
+    {
+      "file": "stop-finding-loss.mjs.ejs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "E6b (#1948, design doc \u00a7E6b): IMPLEMENT-BUT-NOT-ACTIVATED (OD-14) \u2014 Stop hook detecting the R1 signature at session scale (>=2 research sub-agent dispatches with zero persisted findings/agent-return envelopes since session start). Defaults to advisory (stderr nudge, exit 0); ARBITER_FINDING_LOSS_HARD=1 promotes to hard (exit 2, guarded by stop_hook_active re-entry) per the design doc's gated-review tier. Not wired in .claude/settings.json's Stop chain (activation is an owner decision \u2014 a live Stop interceptor could interfere with the harness's own Stop handling). Not auto-spawnable via the env-only/file-with-content fixture shapes (stdin is a structured Stop transcript payload); empirical exit-code coverage in __tests__/hooks/empirical/stop-finding-loss.test.ts."
     }
   ]
 }

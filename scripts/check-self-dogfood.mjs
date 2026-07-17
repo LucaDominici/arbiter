@@ -56,6 +56,7 @@ export const REQUIRED_RAW_HOOKS = [
   'check-no-unused-exports.mjs',
   'check-no-skipped-tests.mjs',
   'post-brainstorm-stop.mjs',
+  'pre-spawn-worktree-guard.mjs',
 ]
 
 // ─── helpers ────────────────────────────────────────────────────────────────
