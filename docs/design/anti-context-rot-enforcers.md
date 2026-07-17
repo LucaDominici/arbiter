@@ -331,39 +331,54 @@ TO-CREATE (dispatch-manifest: an agent prompt references exactly one task).
    cwd is under a worktree root (`<repo>.worktrees/` / `arbiter.worktrees/` — the layout
    `src/worktree/paths.ts` manages). Otherwise consult
    `.arbiter/agents-active.json` (new sidecar: `[{agent, ts, pid, cwd}]`, written by this
-   hook on every allowed write-spawn): another live write-agent registered ⇒ **exit 2** with
-   rule-50 recovery text ("second write-agent on the main tree — open a worktree:
-   `/wt-open`, ADR-103"). No other writer ⇒ allow (serial main-tree work is legal) and
-   register. Entries expire after 2h or on session Stop (a companion 5-line cleanup in the
-   Stop chain) so a killed agent cannot wedge future spawns — staleness handling mirrors
-   `arbiter worktree prune --stale`.
+   hook on every allowed write-spawn): another live write-agent registered ⇒ **exit 2 at
+   hard grading, exit 0 (advisory stderr) at soft** with rule-50 recovery text ("second
+   write-agent on the main tree — open a worktree: `/wt-open`, ADR-103"). No other writer ⇒
+   allow (serial main-tree work is legal) and register. Entries expire after 2h or on
+   session Stop (a companion 5-line cleanup in the Stop chain) so a killed agent cannot wedge
+   future spawns — staleness handling mirrors `arbiter worktree prune --stale`.
 3. **One-task rule (M2).** Count distinct `#\d+` task ids in the prompt: >1 ⇒ advisory
    stderr at soft hardness, exit 2 at hard (grading via the hooks manifest — body unchanged).
 
+**Grading knob (activation update, OD-14, 2026-07-17).** Both violation branches above
+(second write-agent refusal and the one-task rule) share one soft/hard switch,
+`ARBITER_SPAWN_GUARD_HARD=1` (registered in `src/config/env-registry.ts`, pattern mirrors
+`ARBITER_FINDING_LOSS_HARD` / E6b). Default is **advisory**: stderr warning, exit 0, never
+blocks. `ARBITER_SPAWN_GUARD_HARD=1` restores the original HARD exit-2 behavior described
+above. This supersedes the original design's unconditional `exit 2` on the write-agent-
+refusal branch — mirrors `stop-finding-loss.mjs`'s advisory/hard posture (§E6b) so both
+spawn-time and stop-time guards default soft and promote per-repo via the env knob.
+
 **Wiring (file:line).**
 
-- `.claude/settings.json` — new PreToolUse matcher block after `:43` (`"Task|Agent"` → the
-  hook, timeout 5).
-- Emitted twin: `src/templates/claude/settings.json.ejs` same block +
-  `src/templates/claude/hooks/pre-spawn-worktree-guard.mjs.ejs`, registered in
-  `src/generators/claude.ts` L2_ADVANCED_HOOKS (`:142`) — **exception:** emitted at ALL
-  levels, because M9 never scales down (methodology §3); wire it beside the always-emitted
-  raw hooks rather than the L2 list if level-gating would exclude L1.
-- Bookkeeping: `.arbiter/hooks-manifest.json` entry (HARD, spawnable fixture),
-  HOOK-CONTRACTS.md row, CLAUDE.md hooks table (all three gated — §0).
+- `.claude/settings.json` — PreToolUse matcher block (`"Task|Agent"` → the hook, timeout 5).
+  **Activated advisory per OD-14 (2026-07-17)** — previously implement-but-not-activated.
+- Emitted twin: `src/templates/claude/hooks/pre-spawn-worktree-guard.mjs`, registered in
+  `src/generators/claude.ts` (emitted at ALL levels, because M9 never scales down —
+  methodology §3). The generator's `settings.json.ejs` uses a generic dispatcher
+  (`hooks.mjs`) rather than arbiter self-config's explicit per-hook matcher blocks;
+  activating the matcher in the dispatcher's `HANDLERS` table for generated/governed
+  projects is a separate, later owner decision — this activation covers arbiter's own
+  `.claude/settings.json` only.
+- Bookkeeping: `.arbiter/hooks-manifest.json` entry (ADVISORY, non-spawnable — stdin is a
+  structured Task/Agent payload), HOOK-CONTRACTS.md row (moved from Unregistered to
+  Registered), CLAUDE.md hooks table (moved from "Implemented, not activated" to Active).
 
 **Red-path** (hardness-inventory spawn fixtures + `__tests__`): stdin simulating dispatch of
-an unknown agent type, no isolation, sidecar already holding one live writer → expect exit 2;
-`codebase-scanner` dispatch under the same sidecar → 0; `isolation:"worktree"` write dispatch
-→ 0 + sidecar grows; prompt containing `#12 and #34` at hard grading → 2.
+an unknown agent type, no isolation, sidecar already holding one live writer → exit 0 with
+advisory stderr by default, exit 2 under `ARBITER_SPAWN_GUARD_HARD=1`; `codebase-scanner`
+dispatch under the same sidecar → 0 (unaffected by grading); `isolation:"worktree"` write
+dispatch → 0 + sidecar grows (unaffected by grading); prompt containing `#12 and #34` →
+0 with advisory stderr by default, exit 2 under hard grading.
 
 **Self / governed.** Both, same PR (dogfood parity). The write-classes JSON is emitted next
 to the agents the generators already ship (`src/templates/claude/agents/*.ejs`).
 
-**Tier.** All tiers, all modes, HARD default for the parallel-second-writer branch — solo
-runs the most unattended parallelism (methodology M9). The one-task rule starts soft
-everywhere; promote per-repo via the manifest. **Proposed INV-139** (spawn-time isolation)
-— the enforcement anchor ADR-103/rule-50 already provides the doctrine text.
+**Tier.** All tiers, all modes, **advisory by default** for both violation branches per the
+2026-07-17 activation update above — solo runs the most unattended parallelism (methodology
+M9) so a hard default at activation time risked wedging live dispatch; promote to hard
+per-repo via `ARBITER_SPAWN_GUARD_HARD=1`. **Proposed INV-139** (spawn-time isolation) — the
+enforcement anchor ADR-103/rule-50 already provides the doctrine text.
 
 ---
 
