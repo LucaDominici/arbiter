@@ -3,7 +3,7 @@
 // shells out to the vault scripts a consumer repo already received from arbiter
 // (scripts/gen-wiki.mjs, scripts/check-wiki-lint.mjs). No new walker/wikilink
 // engine — see ADR-107 for the CANON-16 reuse survey.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -112,7 +112,18 @@ describe('arbiter obsidian (#1979)', () => {
     runObsidian({ dir, sync: true })
     writeFileSync(
       join(dir, 'wiki', 'dangling.md'),
-      ['---', "generated: true", "source: 'docs/METHOD/FOO.md'", "source_sha: 'x'", '---', '', '# Dangling', '', '[[NonExistentPage]]', ''].join('\n'),
+      [
+        '---',
+        'generated: true',
+        "source: 'docs/METHOD/FOO.md'",
+        "source_sha: 'x'",
+        '---',
+        '',
+        '# Dangling',
+        '',
+        '[[NonExistentPage]]',
+        '',
+      ].join('\n'),
     )
     const result = runObsidian({ dir, validateOnly: true })
     expect(result.status).toBe('error')
@@ -126,9 +137,18 @@ describe('arbiter obsidian (#1979)', () => {
     runObsidian({ dir, sync: true })
     writeFileSync(
       join(dir, 'wiki', 'orphan-page.md'),
-      ['---', 'generated: true', "source: 'docs/METHOD/FOO.md'", "source_sha: 'x'", '---', '', '# Orphan', '', 'No inbound links.', ''].join(
-        '\n',
-      ),
+      [
+        '---',
+        'generated: true',
+        "source: 'docs/METHOD/FOO.md'",
+        "source_sha: 'x'",
+        '---',
+        '',
+        '# Orphan',
+        '',
+        'No inbound links.',
+        '',
+      ].join('\n'),
     )
     const result = runObsidian({ dir, validateOnly: true })
     expect(result.status).toBe('error')
@@ -141,7 +161,10 @@ describe('arbiter obsidian (#1979)', () => {
     runObsidian({ dir, sync: true })
     const fooPage = join(dir, 'wiki', 'method-foo.md')
     const text = readFileSync(fooPage, 'utf-8')
-    const staled = text.replace(/source_sha: '[0-9a-f]+'/, "source_sha: '0000000000000000000000000000000000000000'")
+    const staled = text.replace(
+      /source_sha: '[0-9a-f]+'/,
+      "source_sha: '0000000000000000000000000000000000000000'",
+    )
     expect(staled).not.toBe(text)
     writeFileSync(fooPage, staled)
     const result = runObsidian({ dir, validateOnly: true })

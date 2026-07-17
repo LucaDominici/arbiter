@@ -6,6 +6,7 @@ import { runInit } from './commands/init.js'
 import { resolvePresetOption } from './wizard/presets.js'
 import { runUpdate } from './commands/update.js'
 import { runDiff } from './commands/diff.js'
+import { runObsidian } from './commands/obsidian.js'
 import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
@@ -719,6 +720,48 @@ program
   .action((opts: { dir?: string; json: boolean; withheld: boolean }) => {
     runDiff({ dir: opts.dir, json: opts.json, withheld: opts.withheld })
   })
+
+program
+  .command('obsidian')
+  .description('Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)')
+  .option('--repo <dir>', 'Target repo directory (default: current directory)')
+  .option('--vault-path <dir>', 'Vault directory relative to the repo root', 'wiki')
+  .option('--sync', 'Regenerate the vault then re-validate (fail-closed)', false)
+  .option('--validate-only', 'Validate the existing vault without writing', false)
+  .option('--write', 'Reserved for a future writer; v1 is read-only (ADR-001)', false)
+  .option('--dry-run', 'Report only — writes nothing (default)', false)
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(
+    (opts: {
+      repo?: string
+      vaultPath: string
+      sync: boolean
+      validateOnly: boolean
+      write: boolean
+      dryRun: boolean
+      json: boolean
+    }) => {
+      const result = runObsidian({
+        ...(opts.repo !== undefined ? { dir: opts.repo } : {}),
+        vaultPath: opts.vaultPath,
+        sync: opts.sync,
+        validateOnly: opts.validateOnly,
+        write: opts.write,
+        dryRun: opts.dryRun,
+        json: opts.json,
+      })
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(result) + '\n')
+      } else if (result.reason) {
+        process.stdout.write(`obsidian: ${result.reason}\n`)
+      } else {
+        process.stdout.write(
+          `obsidian: ${result.mode} — ${result.status} (vault: ${result.vaultDir})\n`,
+        )
+      }
+      process.exit(result.exitCode)
+    },
+  )
 
 const worktree = program
   .command('worktree')
