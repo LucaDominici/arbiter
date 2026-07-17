@@ -323,7 +323,7 @@
     "suppressions/.gitleaksignore": "5347a3707f990de505662be4a6b84e56dd34e2dbd7eb810e19b6b06abd9a4507",
     "suppressions/archunit-baseline.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
     "suppressions/pii-allowlist.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-    "suppressions/suppressions-schema.json": "ea627fa6f10980eb7f8f0359afbee4699ecefbf2f90f79a5c40cd41b1afe4e2b",
+    "suppressions/suppressions-schema.json": "8a297f93763180eb86544769f5e1b51bf3cedfc1878a00ee25be3ddd15a0ee53",
     "test-pyramid.json": "541e04e4bd60d479de199abf965d719dc1036e3716c735bea89a982a397908d8",
     "tests/api/ApiE2ETest.java": "32933f6e8848449bba5e76be261f2b956b3ffef8d55252dec934dc5318ce0721",
     "tests/api/README.md": "6a31a91689f354df478a9d3aac65b13327a40d739e657bcdb5f048ff73db5011",

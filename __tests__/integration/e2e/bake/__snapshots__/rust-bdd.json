@@ -303,7 +303,7 @@
     "standards/thresholds.yml": "1208e55cded6b436d2915bde124bdb202a5ccb5bd2514613d8d4ae8a52cbb665",
     "suppressions/.gitleaksignore": "b8aa0209dd35bac71af6bc4de90604e2e8a4f9b40c16bf93414ed8b360bd692a",
     "suppressions/pii-allowlist.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-    "suppressions/suppressions-schema.json": "bab1f488360833849dae23e2f8a4d6d8747e1e3bf63261656974d531effa6683",
+    "suppressions/suppressions-schema.json": "24940711f2faf90a7cdb5e7f0bf480fd13a89e145eb7959ba4220386e084557c",
     "test-pyramid.json": "bebd039735fe983d9a1036cc09cd42668eb06c7732d3f0b059c1bdbe3f16ba80",
     "tests/example_behavioral_test.rs": "60e932bf2755c8fd6bcb9ea014b6e95cf6914c050029c4afed3e11b2c1318153"
   }

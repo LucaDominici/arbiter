@@ -84,7 +84,7 @@ describe('#1550 JSON config templates survive a hostile projectName', () => {
   it('suppressions-schema.json.ejs emits valid, uncorrupted JSON', () => {
     const out = render('suppressions/suppressions-schema.json.ejs', HOSTILE)
     const parsed = JSON.parse(out)
-    expect(parsed.title).toBe(`${HOSTILE} Suppression Entry`)
+    expect(parsed.title).toBe(`${HOSTILE} Suppressions`)
   })
 
   it('regulated/overlay.json.ejs emits valid, uncorrupted JSON', () => {

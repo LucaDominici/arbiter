@@ -321,7 +321,7 @@
     "standards/thresholds.yml": "1208e55cded6b436d2915bde124bdb202a5ccb5bd2514613d8d4ae8a52cbb665",
     "suppressions/.gitleaksignore": "af03f852089bd5ec6a82dfa3dfc1b5003d4bccb407c0641094ac922388aa4e1e",
     "suppressions/pii-allowlist.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-    "suppressions/suppressions-schema.json": "2a2ea7b4437a18a80195681eeb0970fcaf579f5b62a2102e641713793a96946e",
+    "suppressions/suppressions-schema.json": "235ce47e4563e452a6e41faadda45c3d02f4d8d20df3cdac3e3fe2e331a6f3ae",
     "test-pyramid.json": "237528a5d9643fc65c1605981192d157137bc69e26054430045290f1ec2e2e8e",
     "tests/api/README.md": "6a31a91689f354df478a9d3aac65b13327a40d739e657bcdb5f048ff73db5011",
     "tests/api/run.sh": "0f0f0abe2e0f6f6cd8d0ebc416f0a444037a992ebe95238dd194d8efb0662a84",
