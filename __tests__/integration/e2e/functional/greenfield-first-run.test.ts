@@ -30,6 +30,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -60,8 +61,20 @@ const distSourceMissing = !existsSync(join(REPO_ROOT, 'dist', 'cli.js'))
 let privateDistDir: string | null = null
 let CLI = join(REPO_ROOT, 'dist', 'cli.js')
 if (!distSourceMissing) {
-  mkdirSync(join(REPO_ROOT, '.arbiter'), { recursive: true })
-  privateDistDir = mkdtempSync(join(REPO_ROOT, '.arbiter', 'greenfield-dist-'))
+  const arbiterDir = join(REPO_ROOT, '.arbiter')
+  mkdirSync(arbiterDir, { recursive: true })
+  // #1986: self-heal from a prior run killed before afterAll ran (timeout,
+  // host contention, SIGKILL, operator abort). mkdtempSync names are unique
+  // per-run, so a sibling greenfield-dist-* here is always stale — sweep it
+  // before creating this run's own copy, rather than relying on afterAll
+  // alone. Leftovers otherwise persist and can be scanned by unrelated
+  // checks that walk the repo tree.
+  for (const entry of readdirSync(arbiterDir)) {
+    if (entry.startsWith('greenfield-dist-')) {
+      rmSync(join(arbiterDir, entry), { recursive: true, force: true })
+    }
+  }
+  privateDistDir = mkdtempSync(join(arbiterDir, 'greenfield-dist-'))
   cpSync(join(REPO_ROOT, 'dist'), privateDistDir, { recursive: true })
   CLI = join(privateDistDir, 'cli.js')
 }

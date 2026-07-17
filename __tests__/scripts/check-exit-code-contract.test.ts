@@ -162,4 +162,27 @@ describe('check-exit-code-contract scanner', () => {
     const result = runScanner('--nonexistent-path-xyz-abc-999')
     expect(result.status).toBe(2)
   })
+
+  // #1986: a killed greenfield e2e run can leave a stale
+  // .arbiter/greenfield-dist-* copy of dist/ behind. .arbiter/ is gitignored
+  // runtime scratch state — the scanner must not indict content the repo
+  // does not ship. Reproduces the no-args (repo-root) invocation used by
+  // scripts/check-all.mjs, since the leftover lives at the repo root, not
+  // under an explicit scan arg.
+  it('excludes .arbiter/ scratch state from the repo-root scan (#1986)', () => {
+    const arbiterDir = resolve('.arbiter')
+    const leftover = join(arbiterDir, 'greenfield-dist-test1986')
+    mkdirSync(leftover, { recursive: true })
+    writeFileSync(join(leftover, 'bad.js'), 'process.exit(130);\n')
+    try {
+      const result = spawnSync('node', [SCRIPT], {
+        encoding: 'utf-8',
+        cwd: resolve('.'),
+      })
+      expect(result.status ?? 1).toBe(0)
+      expect(result.stdout ?? '').not.toContain('greenfield-dist-test1986')
+    } finally {
+      rmSync(leftover, { recursive: true, force: true })
+    }
+  })
 })
