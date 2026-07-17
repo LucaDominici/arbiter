@@ -103,6 +103,39 @@ const DIVERGENCE_KEYS = Object.freeze(['path', 'reason', 'date', 'diffHash'])
  * violation throw with the offending entry — the gate fails closed on a
  * ledger it cannot trust. Returns the validated array.
  */
+// Unknown-key + path/duplicate checks for one divergence entry — split out of
+// validateDivergenceEntry to keep both helpers under the complexity budget.
+// `seen` is mutated in place (duplicate-path tracking spans the whole array).
+function validateDivergenceKeysAndPath(e, i, seen) {
+  const errors = []
+  for (const key of Object.keys(e)) {
+    if (!DIVERGENCE_KEYS.includes(key)) errors.push(`divergences[${i}]: unknown key "${key}"`)
+  }
+  if (!isSelfTrackPath(e.path)) {
+    errors.push(`divergences[${i}]: path must be repo-relative under .agents/ or .codex/`)
+  } else if (seen.has(e.path)) {
+    errors.push(`divergences[${i}]: duplicate pin for ${e.path}`)
+  } else {
+    seen.add(e.path)
+  }
+  return errors
+}
+
+// Per-entry validation for a single divergence pin — split out of
+// validateSelfDivergences so the array-walk stays a flat dispatch (complexity
+// budget) while this helper carries the actual field-shape checks. `seen` is
+// mutated in place (duplicate-path tracking spans the whole array).
+function validateDivergenceEntry(e, i, seen) {
+  if (!isPlainObject(e)) {
+    return [`divergences[${i}]: entry must be an object`]
+  }
+  const errors = validateDivergenceKeysAndPath(e, i, seen)
+  if (!isNonEmptyString(e.reason)) errors.push(`divergences[${i}]: reason must be non-empty`)
+  if (!ISO_DATE.test(e.date ?? '')) errors.push(`divergences[${i}]: date must be YYYY-MM-DD`)
+  if (!HEX64.test(e.diffHash ?? '')) errors.push(`divergences[${i}]: diffHash must be sha256 hex`)
+  return errors
+}
+
 export function validateSelfDivergences(json) {
   const errors = []
   if (!Array.isArray(json)) {
@@ -110,23 +143,7 @@ export function validateSelfDivergences(json) {
   }
   const seen = new Set()
   json.forEach((e, i) => {
-    if (!isPlainObject(e)) {
-      errors.push(`divergences[${i}]: entry must be an object`)
-      return
-    }
-    for (const key of Object.keys(e)) {
-      if (!DIVERGENCE_KEYS.includes(key)) errors.push(`divergences[${i}]: unknown key "${key}"`)
-    }
-    if (!isSelfTrackPath(e.path)) {
-      errors.push(`divergences[${i}]: path must be repo-relative under .agents/ or .codex/`)
-    } else if (seen.has(e.path)) {
-      errors.push(`divergences[${i}]: duplicate pin for ${e.path}`)
-    } else {
-      seen.add(e.path)
-    }
-    if (!isNonEmptyString(e.reason)) errors.push(`divergences[${i}]: reason must be non-empty`)
-    if (!ISO_DATE.test(e.date ?? '')) errors.push(`divergences[${i}]: date must be YYYY-MM-DD`)
-    if (!HEX64.test(e.diffHash ?? '')) errors.push(`divergences[${i}]: diffHash must be sha256 hex`)
+    errors.push(...validateDivergenceEntry(e, i, seen))
   })
   if (errors.length > 0) throw new Error(`codex-self-parity ledger invalid: ${errors.join('; ')}`)
   return json
@@ -211,94 +228,107 @@ export function computeDivergenceDiffHash(emittedNorm, repoNorm) {
  * where total is the union size and classified counts only terminal-good
  * files. Zero findings ⇒ pass.
  */
-export function classifySelfParity(opts) {
-  const { emittedFiles, repoFiles, divergences, runtimeArtifacts, readEmitted, readRepo } = opts
-  const { normalize } = opts
-  const findings = []
-  const emitted = new Set(emittedFiles)
-  const repo = new Set(repoFiles)
-  const pins = new Map(divergences.map((d) => [d.path, d]))
-  const artifacts = new Set(runtimeArtifacts)
-  const union = [...new Set([...emittedFiles, ...repoFiles])].sort()
-  let classified = 0
+// Classifies a path present on BOTH sides (emitted + repo) — the
+// EMITTED-MATCH / healed-pin / stale / PINNED / drifted-pin branches. Split
+// out of classifySelfParity's main loop to keep the per-path dispatch flat.
+// Returns { classified: boolean, finding?: {clazz, path, detail} }.
+function classifyPresentBothSides(path, pin, emittedNorm, repoNorm) {
+  if (emittedNorm === repoNorm) {
+    if (pin === undefined) return { classified: true }
+    return {
+      classified: true,
+      finding: {
+        clazz: 'healed-pin',
+        path,
+        detail:
+          'pinned divergence has healed (sides are now normalized-equal) — remove the ' +
+          'ledger entry or it suppresses future drift (its rationale survives in git history)',
+      },
+    }
+  }
+  if (pin === undefined) {
+    return {
+      classified: false,
+      finding: {
+        clazz: 'stale',
+        path,
+        detail:
+          'materialized file diverges from the current generator emission — re-materialize ' +
+          '(copy the fresh emission over the repo copy) or pin the divergence with a dated ' +
+          'rationale in scripts/data/codex-self-parity-divergences.json',
+      },
+    }
+  }
+  if (computeDivergenceDiffHash(emittedNorm, repoNorm) === pin.diffHash) {
+    return { classified: true }
+  }
+  return {
+    classified: false,
+    finding: {
+      clazz: 'drifted-pin',
+      path,
+      detail:
+        'divergence drifted beyond the approved pin (diffHash mismatch) — re-review and ' +
+        're-pin both sides, or re-materialize the repo copy',
+    },
+  }
+}
 
-  for (const path of union) {
-    const pin = pins.get(path)
-    if (emitted.has(path) && repo.has(path)) {
-      const emittedNorm = normalize(readEmitted(path), 'emitted')
-      const repoNorm = normalize(readRepo(path), 'repo')
-      if (emittedNorm === repoNorm) {
-        classified++
-        if (pin !== undefined) {
-          findings.push({
-            clazz: 'healed-pin',
-            path,
-            detail:
-              'pinned divergence has healed (sides are now normalized-equal) — remove the ' +
-              'ledger entry or it suppresses future drift (its rationale survives in git history)',
-          })
-        }
-      } else if (pin === undefined) {
-        findings.push({
-          clazz: 'stale',
-          path,
-          detail:
-            'materialized file diverges from the current generator emission — re-materialize ' +
-            '(copy the fresh emission over the repo copy) or pin the divergence with a dated ' +
-            'rationale in scripts/data/codex-self-parity-divergences.json',
-        })
-      } else if (computeDivergenceDiffHash(emittedNorm, repoNorm) === pin.diffHash) {
-        classified++
-      } else {
-        findings.push({
-          clazz: 'drifted-pin',
-          path,
-          detail:
-            'divergence drifted beyond the approved pin (diffHash mismatch) — re-review and ' +
-            're-pin both sides, or re-materialize the repo copy',
-        })
-      }
-    } else if (emitted.has(path)) {
-      findings.push({
+// Classifies a path that is NOT present on both sides: emitted-only
+// (missing), declared runtime artifact, repo-only pinned, or unclassified.
+// Mirrors classifyPresentBothSides's return shape.
+function classifyNotPresentBothSides(path, pin, isEmitted, artifacts, readRepo, normalize) {
+  if (isEmitted) {
+    return {
+      classified: false,
+      finding: {
         clazz: 'missing',
         path,
         detail:
           'generator emits this file but the repo has no materialized copy — skipIfExists ' +
           'never backfills it; copy it in from a fresh emission',
-      })
-    } else if (artifacts.has(path)) {
-      classified++
-    } else if (pin !== undefined) {
-      // Repo-only pinned file: the pin justifies content the generator never
-      // emits; its diffHash hashes the emitted side as '' (see
-      // computeDivergenceDiffHash).
-      const repoNorm = normalize(readRepo(path), 'repo')
-      if (computeDivergenceDiffHash('', repoNorm) === pin.diffHash) {
-        classified++
-      } else {
-        findings.push({
-          clazz: 'drifted-pin',
-          path,
-          detail:
-            'repo-only pinned file drifted beyond the approved pin (diffHash mismatch) — ' +
-            're-review and re-pin, or remove the file',
-        })
-      }
-    } else {
-      findings.push({
-        clazz: 'unclassified',
-        path,
-        detail:
-          'repo file under a codex track root is not emitted, not pinned, and not a declared ' +
-          'runtime artifact — remove it, pin it, or declare it in ' +
-          'scripts/data/codex-self-parity-runtime-artifacts.json',
-      })
+      },
     }
   }
+  if (artifacts.has(path)) return { classified: true }
+  if (pin !== undefined) {
+    // Repo-only pinned file: the pin justifies content the generator never
+    // emits; its diffHash hashes the emitted side as '' (see
+    // computeDivergenceDiffHash).
+    const repoNorm = normalize(readRepo(path), 'repo')
+    if (computeDivergenceDiffHash('', repoNorm) === pin.diffHash) {
+      return { classified: true }
+    }
+    return {
+      classified: false,
+      finding: {
+        clazz: 'drifted-pin',
+        path,
+        detail:
+          'repo-only pinned file drifted beyond the approved pin (diffHash mismatch) — ' +
+          're-review and re-pin, or remove the file',
+      },
+    }
+  }
+  return {
+    classified: false,
+    finding: {
+      clazz: 'unclassified',
+      path,
+      detail:
+        'repo file under a codex track root is not emitted, not pinned, and not a declared ' +
+        'runtime artifact — remove it, pin it, or declare it in ' +
+        'scripts/data/codex-self-parity-runtime-artifacts.json',
+    },
+  }
+}
 
-  // RT-03 (#1966 red-team): runtime-artifact ledger rot sweep — a declared
-  // artifact matching no repo file is dead weight that would otherwise
-  // accumulate invisibly (symmetric with the dead-pin sweep below).
+// RT-03 (#1966 red-team): runtime-artifact ledger rot sweep — a declared
+// artifact matching no repo file is dead weight that would otherwise
+// accumulate invisibly (symmetric with the dead-pin sweep below). Returns the
+// findings for the sweep; the caller pushes them onto its own array.
+function sweepRuntimeArtifacts(runtimeArtifacts, emitted, repo) {
+  const findings = []
   for (const declared of runtimeArtifacts) {
     if (emitted.has(declared)) {
       // CR4-04: an emitted path can never be a runtime artifact — the inert
@@ -321,7 +351,13 @@ export function classifySelfParity(opts) {
       })
     }
   }
+  return findings
+}
 
+// Dead-pin sweep: a ledger pin whose path matches neither tree. Returns the
+// findings for the sweep; the caller pushes them onto its own array.
+function sweepDeadPins(pins, emitted, repo) {
+  const findings = []
   for (const [path] of pins) {
     if (!emitted.has(path) && !repo.has(path)) {
       findings.push({
@@ -333,6 +369,37 @@ export function classifySelfParity(opts) {
       })
     }
   }
+  return findings
+}
+
+export function classifySelfParity(opts) {
+  const { emittedFiles, repoFiles, divergences, runtimeArtifacts, readEmitted, readRepo } = opts
+  const { normalize } = opts
+  const findings = []
+  const emitted = new Set(emittedFiles)
+  const repo = new Set(repoFiles)
+  const pins = new Map(divergences.map((d) => [d.path, d]))
+  const artifacts = new Set(runtimeArtifacts)
+  const union = [...new Set([...emittedFiles, ...repoFiles])].sort()
+  let classified = 0
+
+  for (const path of union) {
+    const pin = pins.get(path)
+    const result =
+      emitted.has(path) && repo.has(path)
+        ? classifyPresentBothSides(
+            path,
+            pin,
+            normalize(readEmitted(path), 'emitted'),
+            normalize(readRepo(path), 'repo'),
+          )
+        : classifyNotPresentBothSides(path, pin, emitted.has(path), artifacts, readRepo, normalize)
+    if (result.classified) classified++
+    if (result.finding !== undefined) findings.push(result.finding)
+  }
+
+  findings.push(...sweepRuntimeArtifacts(runtimeArtifacts, emitted, repo))
+  findings.push(...sweepDeadPins(pins, emitted, repo))
 
   return { findings, surface: { total: union.length, classified } }
 }

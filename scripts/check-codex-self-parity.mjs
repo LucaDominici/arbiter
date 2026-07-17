@@ -86,6 +86,68 @@ function loadDataFile(root, name) {
   return data
 }
 
+// Loads and validates both self-parity ledgers for `root`, writing the ERROR
+// line to stderr itself on failure (fail-closed: a self gate without its
+// ledger is unverifiable, not vacuously green — kept as a direct write, not a
+// returned message, so the fail-closed-audit swallowed-catch check can see
+// the surfacing call in the same function as the catch). Returns
+// { divergences, runtimeArtifacts } on success, or { failed: true }.
+function loadLedgers(root) {
+  try {
+    const divergences = validateSelfDivergences(
+      loadDataFile(root, 'codex-self-parity-divergences.json'),
+    )
+    const runtimeArtifacts = validateRuntimeArtifacts(
+      loadDataFile(root, 'codex-self-parity-runtime-artifacts.json'),
+    ).runtimeArtifacts
+    return { divergences, runtimeArtifacts }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    process.stderr.write(`check-codex-self-parity: ERROR — ${detail}\n`)
+    return { failed: true }
+  }
+}
+
+// Emission — direct generator invocation via the COMPILED dist, the exact
+// precedent check-self-dogfood.mjs R-02 uses (scripts/ cannot import .ts
+// directly, #1267). Emitting into an empty temp dir means skipIfExists
+// never suppresses a write: the emission is the full, current truth. Writes
+// the ERROR line to stderr itself on failure (same rationale as loadLedgers:
+// keeps the surfacing call visible in the catch for the fail-closed audit).
+// Returns `true` on success, `false` on failure (missing arbiter.json,
+// missing dist build, or a generator throw).
+async function emitGeneratorTree(scriptRepoRoot, root, tmpDir) {
+  try {
+    const distUrl = (p) => pathToFileURL(join(scriptRepoRoot, 'dist', p)).href
+    const { loadConfig } = await import(distUrl('utils/config.js'))
+    const { resolveProjectConfig } = await import(distUrl('config/resolve-project-config.js'))
+    const { generateCodex } = await import(distUrl('generators/codex.js'))
+    const stored = loadConfig(root)
+    if (!stored) {
+      process.stderr.write(
+        `check-codex-self-parity: ERROR — no arbiter.json found at ${root}; ` +
+          'without the stored config there is no resolved emission to compare against\n',
+      )
+      return false
+    }
+    const { config } = resolveProjectConfig(root, 'arbiter', stored)
+    generateCodex({ ...config, targetDir: tmpDir }, { dryRun: false })
+    return true
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    const importShaped =
+      err?.code === 'ERR_MODULE_NOT_FOUND' || /Cannot find (module|package)/.test(detail)
+    process.stderr.write(
+      `check-codex-self-parity: ERROR — emission failed: ${detail}${
+        importShaped
+          ? '. Run "npm run build" first — scripts/ cannot import .ts directly (#1267)'
+          : ''
+      }\n`,
+    )
+    return false
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   if (args.help) {
@@ -94,53 +156,14 @@ async function main() {
   }
   const root = args.repoRoot ?? scriptRepoRoot
 
-  let divergences
-  let runtimeArtifacts
-  try {
-    divergences = validateSelfDivergences(loadDataFile(root, 'codex-self-parity-divergences.json'))
-    runtimeArtifacts = validateRuntimeArtifacts(
-      loadDataFile(root, 'codex-self-parity-runtime-artifacts.json'),
-    ).runtimeArtifacts
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err)
-    process.stderr.write(`check-codex-self-parity: ERROR — ${detail}\n`)
-    return 2
-  }
+  const ledgers = loadLedgers(root)
+  if (ledgers.failed) return 2
+  const { divergences, runtimeArtifacts } = ledgers
 
   const tmpDir = mkdtempSync(join(tmpdir(), 'arbiter-codex-self-parity-'))
   try {
-    // Emission — direct generator invocation via the COMPILED dist, the exact
-    // precedent check-self-dogfood.mjs R-02 uses (scripts/ cannot import .ts
-    // directly, #1267). Emitting into an empty temp dir means skipIfExists
-    // never suppresses a write: the emission is the full, current truth.
-    try {
-      const distUrl = (p) => pathToFileURL(join(scriptRepoRoot, 'dist', p)).href
-      const { loadConfig } = await import(distUrl('utils/config.js'))
-      const { resolveProjectConfig } = await import(distUrl('config/resolve-project-config.js'))
-      const { generateCodex } = await import(distUrl('generators/codex.js'))
-      const stored = loadConfig(root)
-      if (!stored) {
-        process.stderr.write(
-          `check-codex-self-parity: ERROR — no arbiter.json found at ${root}; ` +
-            'without the stored config there is no resolved emission to compare against\n',
-        )
-        return 2
-      }
-      const { config } = resolveProjectConfig(root, 'arbiter', stored)
-      generateCodex({ ...config, targetDir: tmpDir }, { dryRun: false })
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err)
-      const importShaped =
-        err?.code === 'ERR_MODULE_NOT_FOUND' || /Cannot find (module|package)/.test(detail)
-      process.stderr.write(
-        `check-codex-self-parity: ERROR — emission failed: ${detail}${
-          importShaped
-            ? '. Run "npm run build" first — scripts/ cannot import .ts directly (#1267)'
-            : ''
-        }\n`,
-      )
-      return 2
-    }
+    const emitted = await emitGeneratorTree(scriptRepoRoot, root, tmpDir)
+    if (!emitted) return 2
 
     // Independent denominator: filesystem scan of the codex track roots
     // (.agents/** + .codex/**) on both sides. The .claude half of
@@ -180,36 +203,43 @@ async function main() {
     // never a blocking read. RT-05: oversized files skip Prettier (a V8 OOM in
     // the formatter is an uncatchable abort, not a throw) and compare raw.
     const PRETTIER_MAX_BYTES = 1_000_000
+    // lstat + read one track entry, split out of loadSide to keep its
+    // per-file dispatch flat (complexity budget). Returns the raw file
+    // content on success, or `undefined` after pushing an UNREADABLE record
+    // onto `unreadable` (non-regular entry, lstat failure, or read failure).
+    const readTrackEntry = (rel, abs, unreadable) => {
+      try {
+        const st = lstatSync(abs)
+        // CR4-02: symlinks are rejected outright — the generator never emits
+        // them, and following one reintroduces the blocking-open / unbounded-
+        // read class (symlink -> FIFO or /dev/urandom) the RT-01/02 guards
+        // exist to close. Same treatment for any other non-regular entry.
+        if (!st.isFile()) {
+          unreadable.push({
+            path: rel,
+            why: st.isSymbolicLink() ? 'symbolic link' : 'not a regular file',
+          })
+          return undefined
+        }
+        // FAIL-OPEN-INTENT: lstat failure surfaces as an UNREADABLE parity finding (exit 1)
+      } catch (err) {
+        unreadable.push({ path: rel, why: err?.code ?? 'unknown-error' })
+        return undefined
+      }
+      try {
+        return readFileSync(abs, 'utf-8')
+        // FAIL-OPEN-INTENT: read failure surfaces as an UNREADABLE parity finding (exit 1)
+      } catch (err) {
+        unreadable.push({ path: rel, why: err?.code ?? 'unknown-error' })
+        return undefined
+      }
+    }
     const loadSide = async (files, baseDir, stripFm, unreadable) => {
       const map = new Map()
       for (const rel of files) {
         const abs = join(baseDir, rel)
-        try {
-          const st = lstatSync(abs)
-          // CR4-02: symlinks are rejected outright — the generator never emits
-          // them, and following one reintroduces the blocking-open / unbounded-
-          // read class (symlink -> FIFO or /dev/urandom) the RT-01/02 guards
-          // exist to close. Same treatment for any other non-regular entry.
-          if (!st.isFile()) {
-            unreadable.push({
-              path: rel,
-              why: st.isSymbolicLink() ? 'symbolic link' : 'not a regular file',
-            })
-            continue
-          }
-          // FAIL-OPEN-INTENT: lstat failure surfaces as an UNREADABLE parity finding (exit 1)
-        } catch (err) {
-          unreadable.push({ path: rel, why: err?.code ?? 'unknown-error' })
-          continue
-        }
-        let content
-        try {
-          content = readFileSync(abs, 'utf-8')
-          // FAIL-OPEN-INTENT: read failure surfaces as an UNREADABLE parity finding (exit 1)
-        } catch (err) {
-          unreadable.push({ path: rel, why: err?.code ?? 'unknown-error' })
-          continue
-        }
+        let content = readTrackEntry(rel, abs, unreadable)
+        if (content === undefined) continue
         if (stripFm) content = stripLeadingFrontMatter(content)
         // CR4-03: one consistent quantity on both sides — bytes of the exact
         // string that would reach Prettier, measured post-strip.
