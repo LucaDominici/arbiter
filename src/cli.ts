@@ -1069,9 +1069,13 @@ verify
   .description('Verify the .evidence/SUMMARY.json snapshot (SHA + freshness window).')
   .option('--json', 'Emit machine-readable JSON output', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { json: boolean; dir?: string }) => {
+  .action((opts: { json: boolean; dir?: string }, cmd: Command) => {
+    // #1994: same parent/child --json shadowing #1992 fixed for `verify tdd` —
+    // `verify`/`validate` declares its own --json, so opts.json here reads the
+    // parent's default. optsWithGlobals() reflects the flag actually passed.
+    const json = Boolean(cmd.optsWithGlobals().json)
     const result = runVerifyEvidence({ dir: opts.dir })
-    if (opts.json) {
+    if (json) {
       jsonOutput(
         'verify evidence',
         result.status,
@@ -1106,7 +1110,12 @@ verify
         failOnWarn: boolean
         json: boolean
       },
+      cmd: Command,
     ) => {
+      // #1994: same parent/child --json shadowing #1992 fixed for `verify tdd` —
+      // opts.json reads the verify/validate parent's default; optsWithGlobals()
+      // reflects the flag actually passed.
+      const json = Boolean(cmd.optsWithGlobals().json)
       const { resolve } = await import('node:path')
       const dir = resolve(opts.dir ?? '.')
       const stored = loadConfig(dir)
@@ -1130,7 +1139,7 @@ verify
         dir,
         ...(opts.reviewer !== undefined ? { reviewer: opts.reviewer } : {}),
         failOnWarn: opts.failOnWarn,
-        json: opts.json,
+        json,
         extraRules,
       })
       process.exit(result.exitCode)
@@ -1145,12 +1154,16 @@ verify
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--input <path>', 'Override graph snapshot path (default: <dir>/.arbiter/graph.json)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; input?: string; json: boolean }) => {
+  .action((opts: { dir?: string; input?: string; json: boolean }, cmd: Command) => {
+    // #1994: same parent/child --json shadowing #1992 fixed for `verify tdd` —
+    // opts.json reads the verify/validate parent's default; optsWithGlobals()
+    // reflects the flag actually passed.
+    const json = Boolean(cmd.optsWithGlobals().json)
     const verifyOpts: import('./commands/graph.js').VerifyGraphOptions = {}
     if (opts.dir !== undefined) verifyOpts.dir = opts.dir
     if (opts.input !== undefined) verifyOpts.input = opts.input
     const result = runVerifyGraph(verifyOpts)
-    if (opts.json) {
+    if (json) {
       jsonOutput(
         'verify graph',
         result.status,

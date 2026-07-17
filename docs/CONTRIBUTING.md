@@ -94,6 +94,8 @@ for low-level engine control or recovery (`arbiter task advance`, `record-red`, 
   (commit the RED test first — `record-red` refuses on a dirty/uncommitted `__tests__/**`, #1988)
 - Machine-readable verification → `arbiter verify tdd '#NNN' --json` emits the standard
   envelope with the six per-check verdicts (#1992); plain output unchanged without the flag
+- `verify evidence`/`verify graph`/`verify plan` honor `--json` the same way (#1994) —
+  standard envelope on the flag, plain output and exit codes unchanged without it
 - Self-hosted CI runner offline → set repo variable `CI_BUILD_RUNNER_LABEL=ubuntu-latest` (default already ubuntu-latest as of #959)
 
 ---

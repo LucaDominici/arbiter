@@ -83,4 +83,51 @@ describe('arbiter verify — sub-command surface', () => {
     expect(status).toBe(0)
     expect(stdout).toContain('provenance')
   })
+
+  // #1994: the same verify/validate parent-child `--json` shadowing #1992
+  // fixed for `verify tdd` is still live in these three sibling handlers —
+  // each reads the shadowed `opts.json` (always the parent's `false`
+  // default) instead of `cmd.optsWithGlobals().json`, so `--json` was
+  // silently ignored and the CLI printed the plain-text line instead.
+
+  it('verify evidence --json emits a parseable error envelope (#1994)', () => {
+    // No .evidence/SUMMARY.json in this repo — deterministic error path.
+    const { status, stdout, stderr } = spawn(['verify', 'evidence', '--json'])
+    expect(status).not.toBe(0)
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
+      'verify evidence:',
+    )
+    const parsed = JSON.parse(stdout)
+    expect(parsed.command).toBe('verify evidence')
+    expect(parsed.status).toBe('error')
+  })
+
+  it('verify graph --json emits a parseable error envelope (#1994)', () => {
+    // No .arbiter/graph.json in this repo — deterministic error path.
+    const { status, stdout, stderr } = spawn(['verify', 'graph', '--json'])
+    expect(status).not.toBe(0)
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
+      'verify graph:',
+    )
+    const parsed = JSON.parse(stdout)
+    expect(parsed.command).toBe('verify graph')
+    expect(parsed.status).toBe('error')
+  })
+
+  it('verify plan <file> --json emits a parseable error envelope (#1994)', () => {
+    // Nonexistent plan file — deterministic error path.
+    const { status, stdout, stderr } = spawn([
+      'verify',
+      'plan',
+      '/tmp/arbiter-1994-does-not-exist.json',
+      '--json',
+    ])
+    expect(status).not.toBe(0)
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
+      'verify plan:',
+    )
+    const parsed = JSON.parse(stdout)
+    expect(parsed.command).toBe('verify plan')
+    expect(parsed.status).toBe('error')
+  })
 })
