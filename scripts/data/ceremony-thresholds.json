@@ -1,0 +1,7 @@
+{
+  "schema": "arbiter-ceremony-thresholds-v1",
+  "_doc": "Bypass-rate ceilings for scripts/check-bypass-ceremony.mjs (E4, #1949). A gate channel (env var) bypassed more than the ceiling within a trailing 30-day window is flagged for demotion/deletion (axiom 3: a routinely-bypassed gate trains deviance). Data file, not arbiter.json, to avoid touching the required-config schema (T0/T2 brick risk). `default` applies unless `overrides[env]` is set; `soloDefault` applies instead of `default` when arbiter.json resolves collaborationMode to trunk-solo (solo projects legitimately bypass more).",
+  "default": 12,
+  "soloDefault": 20,
+  "overrides": {}
+}
