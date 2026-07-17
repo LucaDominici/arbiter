@@ -643,6 +643,14 @@ program
       '(file list + line diff), without writing anything.',
     false,
   )
+  .option(
+    '--refresh-derived',
+    'Force-refresh the codex-track derived file set (.agents/rules/*, .claude/hooks/* ' +
+      'when codex-only, .codex/codex-adapter.mjs) even though these are skipIfExists by ' +
+      'default. Combine with --adopt-plan to preview first. A file marked arbiter:preserve ' +
+      'is never overwritten (#1983).',
+    false,
+  )
   .action(
     async (opts: {
       dir?: string
@@ -652,6 +660,7 @@ program
       adopt: boolean
       adoptSafety: boolean
       adoptPlan: boolean
+      refreshDerived: boolean
     }) => {
       if (_channelFlag !== undefined) {
         const config = loadConfig(opts.dir ?? '.')
@@ -665,6 +674,7 @@ program
         adopt: opts.adopt,
         noAdoptSafety: !opts.adoptSafety,
         adoptPlan: opts.adoptPlan,
+        refreshDerived: opts.refreshDerived,
       })
     },
   )
