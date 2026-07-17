@@ -242,4 +242,52 @@ describe('runVerifyEvidence (#238)', () => {
     expect(result.exitCode).toBe(1)
     expect(result.reason).toMatch(/missing required field/)
   })
+
+  // ── #1982: per-run-id evidence layout ────────────────────────────────────
+  // Governed repos (e.g. viafera) write one SUMMARY.json per run under
+  // `.evidence/<RUN_ID>/SUMMARY.json` (matches evidence-rotate.mjs.ejs's own
+  // convention of run-id subdirectories directly under .evidence/), instead
+  // of a single file at `.evidence/SUMMARY.json`. Today `runVerifyEvidence`
+  // hardcodes the root-level path and reports "not found" even though a
+  // valid, fresher summary exists in a run-id subdirectory.
+  it('resolves SUMMARY.json from the most recent run-id subdirectory when no root file exists (#1982)', () => {
+    const { serialised: older } = makeSummary({
+      timestamp: new Date(Date.now() - 60_000).toISOString(),
+    })
+    const { serialised: newer } = makeSummary({
+      timestamp: new Date().toISOString(),
+    })
+    mkdirSync(join(dir, '.evidence', 'run-20260101-000000'), { recursive: true })
+    writeFileSync(join(dir, '.evidence', 'run-20260101-000000', 'SUMMARY.json'), older)
+    mkdirSync(join(dir, '.evidence', 'run-20260717-120000'), { recursive: true })
+    writeFileSync(join(dir, '.evidence', 'run-20260717-120000', 'SUMMARY.json'), newer)
+
+    const result = runVerifyEvidence({ dir })
+    expect(result.status).toBe('ok')
+    expect(result.exitCode).toBe(0)
+  })
+
+  it('prefers the root-level .evidence/SUMMARY.json over any run-id subdirectory (back-compat)', () => {
+    const { serialised: rootSummary } = makeSummary()
+    writeFileSync(join(dir, '.evidence', 'SUMMARY.json'), rootSummary)
+
+    // A run-id subdir with a broken summary must NOT be consulted — root wins.
+    mkdirSync(join(dir, '.evidence', 'run-20260717-120000'), { recursive: true })
+    writeFileSync(
+      join(dir, '.evidence', 'run-20260717-120000', 'SUMMARY.json'),
+      JSON.stringify({ broken: true }),
+    )
+
+    const result = runVerifyEvidence({ dir })
+    expect(result.status).toBe('ok')
+    expect(result.exitCode).toBe(0)
+  })
+
+  it('returns error when neither root nor any run-id subdirectory has SUMMARY.json', () => {
+    mkdirSync(join(dir, '.evidence', 'run-20260717-120000'), { recursive: true })
+    const result = runVerifyEvidence({ dir })
+    expect(result.exitCode).toBe(1)
+    expect(result.status).toBe('error')
+    expect(result.reason).toMatch(/not found/)
+  })
 })
