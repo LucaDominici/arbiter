@@ -345,6 +345,133 @@ describe('runTaskRecordRed()', () => {
     expect(result.reason).toMatch(/git exploded/)
   })
 
+  it('refuses when __tests__/** is dirty (staged or unstaged) (#1988)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      // git rev-parse HEAD
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      // git status --porcelain -- __tests__ → dirty test file reported
+      .mockReturnValueOnce({
+        stdout: ' M __tests__/evidence/tdd.test.ts\n',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+      })
+    const result = runTaskRecordRed({ testPath: '__tests__/evidence/tdd.test.ts', dir })
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/commit the red test first/i)
+    expect(result.reason).toMatch(/--force/)
+    // No test run should have been attempted (only 2 runCli calls: rev-parse + status).
+    expect(mockedRunCli).toHaveBeenCalledTimes(2)
+  })
+
+  it('--force overrides the dirty-__tests__ refusal and proceeds to record (#1988)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      // dirty check is skipped entirely under --force, so next call is the
+      // HEAD-presence check (ls-tree), which we make pass...
+      .mockReturnValueOnce({
+        stdout: '100644 blob abc\t__tests__/evidence/tdd.test.ts\n',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+      })
+      // ...then the actual test run (fails, as expected for RED).
+      .mockReturnValueOnce({
+        stdout: 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 failed',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 500,
+      })
+    const result = runTaskRecordRed({
+      testPath: '__tests__/evidence/tdd.test.ts',
+      dir,
+      force: true,
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('refuses when the recorded test_path is absent from HEAD (#1988)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      // git status --porcelain -- __tests__ → clean
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 10 })
+      // git ls-tree HEAD <path> → empty stdout means the path is not in HEAD
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 10 })
+    const result = runTaskRecordRed({ testPath: '__tests__/evidence/missing.test.ts', dir })
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/not found in head|not found in commit/i)
+    expect(result.reason).toMatch(/--force/)
+    expect(mockedRunCli).toHaveBeenCalledTimes(3)
+  })
+
+  it('--force overrides the missing-test-in-HEAD refusal (#1988)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: 'FAIL __tests__/evidence/missing.test.ts\n✗ 1 failed',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 500,
+      })
+    const result = runTaskRecordRed({
+      testPath: '__tests__/evidence/missing.test.ts',
+      dir,
+      force: true,
+    })
+    expect(result.ok).toBe(true)
+    // Under --force, neither the dirty-check nor the HEAD-presence check runs:
+    // only rev-parse + the test run itself (2 calls total).
+    expect(mockedRunCli).toHaveBeenCalledTimes(2)
+  })
+
+  it('records evidence when __tests__/** is clean and the test path exists in HEAD (#1988)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '100644 blob abc\t__tests__/evidence/tdd.test.ts\n',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+      })
+      .mockReturnValueOnce({
+        stdout: 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 failed',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 500,
+      })
+    const result = runTaskRecordRed({ testPath: '__tests__/evidence/tdd.test.ts', dir })
+    expect(result.ok).toBe(true)
+  })
+
+  it('dirty check ignores changes outside __tests__/** (#1988)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      // git status scoped to __tests__ returns nothing even though other
+      // paths in the repo are dirty (scoping is via pathspec, not filtering).
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 10 })
+      .mockReturnValueOnce({
+        stdout: '100644 blob abc\t__tests__/evidence/tdd.test.ts\n',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+      })
+      .mockReturnValueOnce({
+        stdout: 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 failed',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 500,
+      })
+    const result = runTaskRecordRed({ testPath: '__tests__/evidence/tdd.test.ts', dir })
+    expect(result.ok).toBe(true)
+  })
+
   it('falls back to process.cwd() when no dir is given', () => {
     const d = mkdtempSync(join(tmpdir(), 'record-red-cwd-'))
     dirs.push(d)
