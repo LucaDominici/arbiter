@@ -83,6 +83,7 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 | `check-no-skipped-tests.mjs` | Available for opt-in by generated projects; not self-applied to arbiter (arbiter uses `.skip` in `vitest.config.ts` exclusions, not inline skip markers) |
 | `enforce-gate-before-pr.mjs` | PreToolUse gate-marker guard (R1.S5): blocks `gh pr create` unless gate marker is fresh. Pending registration after full gate-marker infra lands.        |
 | `hooks.mjs`                  | Arbiter-generated hook dispatcher for target projects. Present here as dogfood; not registered as Claude Code hook in arbiter's own settings.json.       |
+| `pre-spawn-worktree-guard.mjs` | E5 (#1947, design doc §E5): IMPLEMENT-BUT-NOT-ACTIVATED (OD-14) — PreToolUse `Task\|Agent` spawn-time worktree guard (M9) + one-task-per-dispatch (M2). Activation (the settings.json matcher) is an explicit owner decision, deferred to avoid wedging the harness's own sub-agent dispatch path. |
 
 ---
 

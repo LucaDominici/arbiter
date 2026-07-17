@@ -182,6 +182,10 @@ export function planClaudeHooks(config: ProjectConfig): ClaudeHookPlanEntry[] {
     'check-no-orphan-todo.mjs',
     'check-no-placeholders.mjs',
     'enforce-gate-before-pr.mjs',
+    // E5 (#1947): implement-but-not-activated — emitted at ALL levels (M9 never
+    // scales down, design doc §E5) but NOT wired into settings.json's PreToolUse
+    // matchers. Activation (the matcher line) is owner decision OD-14.
+    'pre-spawn-worktree-guard.mjs',
   ]) {
     tpl(f, `claude/hooks/${f}`)
   }

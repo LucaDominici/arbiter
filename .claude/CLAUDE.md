@@ -70,6 +70,12 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → ExitPlanMode | `exitplanmode-banner.mjs`     | Print next-step banner after plan mode ends (#1210)                                                                          |
 | `PreCompact` → \*            | `pre-compact.mjs`             | Persist context before auto-compaction                                                                                       |
 
+**Implemented, not activated** (present in `.claude/hooks/`, deliberately NOT wired into any matcher above — activation is owner decision OD-14, see `docs/design/anti-context-rot-enforcers.md`):
+
+| Hook                            | Would fire on          | Purpose                                                                                                       |
+| -------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pre-spawn-worktree-guard.mjs`   | `PreToolUse` → Task\|Agent | E5 (#1947): refuse a second write-intent sub-agent spawn onto the main working tree (M9) + one-task-per-dispatch (M2) |
+
 ### Slash Commands
 
 | Command      | Purpose                                                                                     |
