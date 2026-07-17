@@ -68,6 +68,13 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
       { path: 'features.codeownersNotify', label: 'CODEOWNERS post-merge email notify (L2+)' },
       { path: 'features.taxonomy25d', label: '26-dimension compliance test taxonomy' },
       { path: 'features.perfTesting', label: 'k6 performance testing ecosystem' },
+      // #1887 (Finding-A residual): activation path for the 5 compliance
+      // doc-pack flags previously reachable only via --preset industrial-grade.
+      { path: 'features.riskRegister', label: 'Risk register doc' },
+      { path: 'features.operationsHandbook', label: 'Operations handbook doc' },
+      { path: 'features.iso27001Mapping', label: 'ISO 27001 control mapping' },
+      { path: 'features.nis2Mapping', label: 'NIS2 control mapping' },
+      { path: 'features.gdprMapping', label: 'GDPR control mapping' },
     ],
   },
   {

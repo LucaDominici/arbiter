@@ -76,6 +76,14 @@ export const RecipeSchema = z.object({
   enableCodeownersNotify: z.boolean().optional(),
   enableTaxonomy25d: z.boolean().optional(),
   enablePerfTesting: z.boolean().optional(),
+  // #1887 (Finding-A residual): the 5 compliance doc-pack flags previously had
+  // persistence + read-back but the ONLY activation path was `--preset
+  // industrial-grade` — no individual recipe field. Same class of bug.
+  enableRiskRegister: z.boolean().optional(),
+  enableOperationsHandbook: z.boolean().optional(),
+  enableIso27001Mapping: z.boolean().optional(),
+  enableNis2Mapping: z.boolean().optional(),
+  enableGdprMapping: z.boolean().optional(),
   // #1261: ship-autonomy axis (ADR-093 §4) — the non-interactive override for
   // `automation.autonomy` (init --yes/--json never prompts; default is L0).
   // #1306 (ADR-094 §Decision.4): the three orchestration prefs are recipe-settable

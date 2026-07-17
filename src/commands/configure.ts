@@ -39,6 +39,13 @@ export const ALLOWED_PATHS = new Set([
   'features.codeownersNotify',
   'features.taxonomy25d',
   'features.perfTesting',
+  // #1887 (Finding-A residual): these 5 had persistence + read-back but no
+  // individual activation path — only `--preset industrial-grade` set them.
+  'features.riskRegister',
+  'features.operationsHandbook',
+  'features.iso27001Mapping',
+  'features.nis2Mapping',
+  'features.gdprMapping',
   'collaborationMode',
   'solo.mergeMode',
   'branchingStrategy',

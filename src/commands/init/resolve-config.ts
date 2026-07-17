@@ -352,6 +352,34 @@ function applyRecipeActivationOverrides(config: ProjectConfig, recipe: Recipe): 
   if (recipe.enablePerfTesting !== undefined) {
     config.enablePerfTesting = recipe.enablePerfTesting
   }
+  // #1887 (Finding-A residual): same complexity-ceiling reason.
+  applyRecipeComplianceOverrides(config, recipe)
+}
+
+/**
+ * #1887 (Finding-A residual) — apply the 5 compliance doc-pack flags a recipe
+ * may declare (`enableRiskRegister`, `enableOperationsHandbook`,
+ * `enableIso27001Mapping`, `enableNis2Mapping`, `enableGdprMapping`).
+ * Previously only `--preset industrial-grade` could set these. Extracted
+ * (mirrors applyRecipeActivationOverrides) to keep applyRecipeOverrides under
+ * the complexity-15 ceiling.
+ */
+function applyRecipeComplianceOverrides(config: ProjectConfig, recipe: Recipe): void {
+  if (recipe.enableRiskRegister !== undefined) {
+    config.enableRiskRegister = recipe.enableRiskRegister
+  }
+  if (recipe.enableOperationsHandbook !== undefined) {
+    config.enableOperationsHandbook = recipe.enableOperationsHandbook
+  }
+  if (recipe.enableIso27001Mapping !== undefined) {
+    config.enableIso27001Mapping = recipe.enableIso27001Mapping
+  }
+  if (recipe.enableNis2Mapping !== undefined) {
+    config.enableNis2Mapping = recipe.enableNis2Mapping
+  }
+  if (recipe.enableGdprMapping !== undefined) {
+    config.enableGdprMapping = recipe.enableGdprMapping
+  }
 }
 
 /**
