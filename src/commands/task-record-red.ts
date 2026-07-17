@@ -2,6 +2,7 @@
 import { dirname } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 import { extractFailureSignature, writeTddEvidence, type TddEvidence } from '../evidence/tdd.js'
+import { hasDirtyTestPaths, pathExistsInCommit } from '../evidence/git-checks.js'
 import { readTaskId } from './task-state.js'
 import { loadConfig } from '../utils/config.js'
 import { detectLanguage } from '../detectors/language.js'
@@ -14,6 +15,13 @@ export interface RecordRedOptions {
   testCmd?: readonly string[]
   /** Test-run timeout in ms. Default 60_000; clamped to [1000, 600_000]. */
   timeoutMs?: number
+  /**
+   * Skip the dirty-`__tests__` and test-path-in-HEAD refusals (#1988). Only
+   * for exotic flows (e.g. re-recording evidence at a detached-worktree SHA);
+   * the default (false) is the safe path that keeps evidence pointing at a
+   * commit that actually contains the RED test.
+   */
+  force?: boolean
 }
 
 export interface RecordRedSuccess {
@@ -125,6 +133,32 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
     return {
       ok: false,
       reason: `git rev-parse HEAD failed: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  // Refuse when __tests__/** is dirty (staged or unstaged): the evidence's
+  // test_commit_sha is stamped from HEAD below, so an uncommitted RED test
+  // would produce evidence pointing at a commit that does not contain it
+  // (#1988). --force is the escape hatch for exotic flows.
+  if (!opts.force && hasDirtyTestPaths(dir)) {
+    return {
+      ok: false,
+      reason:
+        `commit the RED test first — evidence must point at the commit that contains it ` +
+        `(__tests__/** has uncommitted changes). Pass --force to override.`,
+    }
+  }
+
+  // Refuse when the recorded test_path is not present in HEAD: recording
+  // evidence for a test that HEAD doesn't contain is the same false-green
+  // risk as the dirty-tree case above, just reached via an already-committed
+  // but different HEAD (#1988). --force is the escape hatch.
+  if (!opts.force && !pathExistsInCommit(sha, opts.testPath, dir)) {
+    return {
+      ok: false,
+      reason:
+        `test_path "${opts.testPath}" not found in HEAD (${sha}) — evidence must point at a ` +
+        `commit that contains the RED test. Pass --force to override.`,
     }
   }
 

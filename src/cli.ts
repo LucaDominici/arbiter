@@ -1394,6 +1394,7 @@ task
     [] as string[],
   )
   .option('--timeout-ms <ms>', 'Test-run timeout in ms (default 60000, clamped to 1..600000)')
+  .option('--force', 'Skip the dirty-__tests__ and test-path-in-HEAD refusals (#1988)', false)
   .action(
     (opts: {
       testPath: string
@@ -1401,6 +1402,7 @@ task
       testCommand?: string
       testArg?: string[]
       timeoutMs?: string
+      force: boolean
     }) => {
       const testCmd =
         opts.testCommand !== undefined ? [opts.testCommand, ...(opts.testArg ?? [])] : undefined
@@ -1411,6 +1413,7 @@ task
         ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         ...(testCmd !== undefined ? { testCmd } : {}),
         ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+        force: opts.force,
       })
       if (result.ok) {
         process.stdout.write(

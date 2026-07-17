@@ -18,6 +18,23 @@ function gitSha(): string {
   return 'b'.repeat(40)
 }
 
+/**
+ * Queue the two mocked `runCli` responses record-red issues between
+ * `git rev-parse HEAD` and the actual test run: a clean `git status`
+ * scoped to `__tests__/**` and a non-empty `git ls-tree` (test path
+ * present in HEAD). Call right after mocking rev-parse (#1988).
+ */
+function mockCleanGitChecks(testPath: string): void {
+  mockedRunCli
+    .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 10 })
+    .mockReturnValueOnce({
+      stdout: `100644 blob abc\t${testPath}\n`,
+      stderr: '',
+      exitCode: 0,
+      durationMs: 10,
+    })
+}
+
 describe('runTaskRecordRed()', () => {
   const dirs: string[] = []
   afterEach(() => {
@@ -42,10 +59,10 @@ describe('runTaskRecordRed()', () => {
     const failLog = 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 failed'
 
     // git rev-parse HEAD → sha
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      // npm test <path> → non-zero (test fails)
-      .mockReturnValueOnce({ stdout: failLog, stderr: '', exitCode: 1, durationMs: 500 })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks(testPath)
+    // npm test <path> → non-zero (test fails)
+    mockedRunCli.mockReturnValueOnce({ stdout: failLog, stderr: '', exitCode: 1, durationMs: 500 })
 
     const result = runTaskRecordRed({ testPath, dir })
     expect(result.ok).toBe(true)
@@ -61,14 +78,14 @@ describe('runTaskRecordRed()', () => {
 
   it('returns ok:false when test passes (no failure signature)', () => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: 'All tests passed.',
-        stderr: '',
-        exitCode: 0,
-        durationMs: 200,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'All tests passed.',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 200,
+    })
 
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
     expect(result.ok).toBe(false)
@@ -105,11 +122,11 @@ describe('runTaskRecordRed()', () => {
 
   it('returns ok:false when test command fails to launch (non-CliError)', () => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockImplementationOnce(() => {
-        throw new Error('ENOENT: spawn failed')
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockImplementationOnce(() => {
+      throw new Error('ENOENT: spawn failed')
+    })
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
     expect(result.ok).toBe(false)
     expect(result.reason).toMatch(/launch/)
@@ -117,14 +134,14 @@ describe('runTaskRecordRed()', () => {
 
   it('uses an explicit testCmd verbatim (no shell interpolation) and persists it (#1951)', () => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:12: boom',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 100,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('pkg/foo_test.go')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:12: boom',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 100,
+    })
     const result = runTaskRecordRed({
       testPath: 'pkg/foo_test.go',
       dir,
@@ -132,7 +149,8 @@ describe('runTaskRecordRed()', () => {
     })
     expect(result.ok).toBe(true)
     // The test command is passed verbatim (binary + args), no shell joining.
-    expect(mockedRunCli.mock.calls[1]).toEqual([
+    // Index 3: rev-parse(0), status(1), ls-tree(2), test run(3).
+    expect(mockedRunCli.mock.calls[3]).toEqual([
       'go',
       ['test', '-run', 'TestFoo', './pkg'],
       expect.any(Object),
@@ -145,48 +163,48 @@ describe('runTaskRecordRed()', () => {
 
   it('clamps the timeout into [1000, 600000] and forwards it to runCli (#1951)', () => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: '--- FAIL: TestFoo\n',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 5,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: '--- FAIL: TestFoo\n',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 5,
+    })
     runTaskRecordRed({ testPath: 'src/foo.test.ts', dir, timeoutMs: 9_999_999 })
-    // runCli call for the test (index 1) receives the clamped timeout.
-    const testCallOpts = mockedRunCli.mock.calls[1][2] as { timeoutMs: number }
+    // runCli call for the test (index 3) receives the clamped timeout.
+    const testCallOpts = mockedRunCli.mock.calls[3][2] as { timeoutMs: number }
     expect(testCallOpts.timeoutMs).toBe(600_000)
   })
 
   it('auto-selects `go test <pkg-dir>` when the project language is go (#1951)', () => {
     const dir = tmpRepo()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'go' }), 'utf-8')
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:1: nope',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 50,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('pkg/foo_test.go')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:1: nope',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 50,
+    })
     runTaskRecordRed({ testPath: 'pkg/foo_test.go', dir })
-    expect(mockedRunCli.mock.calls[1]).toEqual(['go', ['test', './pkg'], expect.any(Object)])
+    expect(mockedRunCli.mock.calls[3]).toEqual(['go', ['test', './pkg'], expect.any(Object)])
   })
 
   it('auto-selects `pytest <path>` when the project language is python (#1951)', () => {
     const dir = tmpRepo()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'python' }), 'utf-8')
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: '=== FAILURES ===\nFAILED tests/test_foo.py::test_foo - boom',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 50,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('tests/test_foo.py')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: '=== FAILURES ===\nFAILED tests/test_foo.py::test_foo - boom',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 50,
+    })
     runTaskRecordRed({ testPath: 'tests/test_foo.py', dir })
-    expect(mockedRunCli.mock.calls[1]).toEqual([
+    expect(mockedRunCli.mock.calls[3]).toEqual([
       'pytest',
       ['tests/test_foo.py'],
       expect.any(Object),
@@ -198,16 +216,21 @@ describe('runTaskRecordRed()', () => {
     (language) => {
       const dir = tmpRepo()
       writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language }), 'utf-8')
-      mockedRunCli
-        .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-        .mockReturnValueOnce({
-          stdout: 'FAIL src/foo.test.ts\n1 failed',
-          stderr: '',
-          exitCode: 1,
-          durationMs: 50,
-        })
+      mockedRunCli.mockReturnValueOnce({
+        stdout: gitSha(),
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+      })
+      mockCleanGitChecks('src/foo.test.ts')
+      mockedRunCli.mockReturnValueOnce({
+        stdout: 'FAIL src/foo.test.ts\n1 failed',
+        stderr: '',
+        exitCode: 1,
+        durationMs: 50,
+      })
       runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
-      expect(mockedRunCli.mock.calls[1]).toEqual([
+      expect(mockedRunCli.mock.calls[3]).toEqual([
         'npx',
         ['vitest', 'run', 'src/foo.test.ts'],
         expect.any(Object),
@@ -218,31 +241,31 @@ describe('runTaskRecordRed()', () => {
   it('scopes `go test` to `.` for a root-level go test file (#1951)', () => {
     const dir = tmpRepo()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'go' }), 'utf-8')
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: '--- FAIL: TestMain (0.00s)\nmain_test.go:1: nope',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 50,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('main_test.go')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: '--- FAIL: TestMain (0.00s)\nmain_test.go:1: nope',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 50,
+    })
     runTaskRecordRed({ testPath: 'main_test.go', dir })
-    expect(mockedRunCli.mock.calls[1]).toEqual(['go', ['test', '.'], expect.any(Object)])
+    expect(mockedRunCli.mock.calls[3]).toEqual(['go', ['test', '.'], expect.any(Object)])
   })
 
   it('keeps an already-prefixed go package dir verbatim (#1951)', () => {
     const dir = tmpRepo()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'go' }), 'utf-8')
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:1: nope',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 50,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('./pkg/foo_test.go')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: '--- FAIL: TestFoo (0.00s)\nfoo_test.go:1: nope',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 50,
+    })
     runTaskRecordRed({ testPath: './pkg/foo_test.go', dir })
-    expect(mockedRunCli.mock.calls[1]).toEqual(['go', ['test', './pkg'], expect.any(Object)])
+    expect(mockedRunCli.mock.calls[3]).toEqual(['go', ['test', './pkg'], expect.any(Object)])
   })
 
   it.each([
@@ -251,29 +274,29 @@ describe('runTaskRecordRed()', () => {
     [5000.5, 5000],
   ])('clamps/normalises timeoutMs %s to %s before the run (#1951)', (given, expected) => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: '--- FAIL: TestFoo\n',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 5,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: '--- FAIL: TestFoo\n',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 5,
+    })
     runTaskRecordRed({ testPath: 'src/foo.test.ts', dir, timeoutMs: given })
-    const testCallOpts = mockedRunCli.mock.calls[1][2] as { timeoutMs: number }
+    const testCallOpts = mockedRunCli.mock.calls[3][2] as { timeoutMs: number }
     expect(testCallOpts.timeoutMs).toBe(expected)
   })
 
   it('records evidence when the failure signature appears only on stderr of a zero-exit run', () => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: 'suite started',
-        stderr: 'FAIL src/foo.test.ts\n1 failed',
-        exitCode: 0,
-        durationMs: 50,
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'suite started',
+      stderr: 'FAIL src/foo.test.ts\n1 failed',
+      exitCode: 0,
+      durationMs: 50,
+    })
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
     expect(result.ok).toBe(true)
     const ev = JSON.parse(
@@ -285,15 +308,15 @@ describe('runTaskRecordRed()', () => {
 
   it('captures both stdout and stderr from a failing (throwing) test run', () => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockImplementationOnce(() => {
-        // Real runCli throws a CliError carrying the child's output on non-zero exit.
-        throw Object.assign(new Error('exit 1'), {
-          stdout: 'FAIL src/foo.test.ts\n1 failed',
-          stderr: 'deprecation warning: old flag',
-        })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockImplementationOnce(() => {
+      // Real runCli throws a CliError carrying the child's output on non-zero exit.
+      throw Object.assign(new Error('exit 1'), {
+        stdout: 'FAIL src/foo.test.ts\n1 failed',
+        stderr: 'deprecation warning: old flag',
       })
+    })
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
     expect(result.ok).toBe(true)
     const ev = JSON.parse(
@@ -305,14 +328,14 @@ describe('runTaskRecordRed()', () => {
 
   it('captures a failing run whose stderr is empty without appending a stray newline', () => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockImplementationOnce(() => {
-        throw Object.assign(new Error('exit 1'), {
-          stdout: 'FAIL src/foo.test.ts\n1 failed',
-          stderr: '',
-        })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockImplementationOnce(() => {
+      throw Object.assign(new Error('exit 1'), {
+        stdout: 'FAIL src/foo.test.ts\n1 failed',
+        stderr: '',
       })
+    })
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
     expect(result.ok).toBe(true)
     const ev = JSON.parse(
@@ -323,11 +346,11 @@ describe('runTaskRecordRed()', () => {
 
   it('stringifies a non-Error launch failure into the reason', () => {
     const dir = tmpRepo()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockImplementationOnce(() => {
-        throw 'spawn blew up' // deliberately a non-Error value
-      })
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockImplementationOnce(() => {
+      throw 'spawn blew up' // deliberately a non-Error value
+    })
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
     expect(result.ok).toBe(false)
     expect(result.reason).toMatch(/failed to launch/)
@@ -369,15 +392,8 @@ describe('runTaskRecordRed()', () => {
     const dir = tmpRepo()
     mockedRunCli
       .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      // dirty check is skipped entirely under --force, so next call is the
-      // HEAD-presence check (ls-tree), which we make pass...
-      .mockReturnValueOnce({
-        stdout: '100644 blob abc\t__tests__/evidence/tdd.test.ts\n',
-        stderr: '',
-        exitCode: 0,
-        durationMs: 10,
-      })
-      // ...then the actual test run (fails, as expected for RED).
+      // Both the dirty-check and HEAD-presence check are skipped entirely
+      // under --force, so the very next call is the actual test run.
       .mockReturnValueOnce({
         stdout: 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 failed',
         stderr: '',
@@ -390,6 +406,7 @@ describe('runTaskRecordRed()', () => {
       force: true,
     })
     expect(result.ok).toBe(true)
+    expect(mockedRunCli).toHaveBeenCalledTimes(2)
   })
 
   it('refuses when the recorded test_path is absent from HEAD (#1988)', () => {

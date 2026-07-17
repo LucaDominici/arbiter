@@ -20,6 +20,25 @@ export function shaExistsOnBranch(sha: string, dir?: string): boolean {
   }
 }
 
+/**
+ * True when the working tree or index has uncommitted changes under
+ * `__tests__/**` (staged or unstaged, tracked or untracked). Used to refuse
+ * `record-red` before the evidence's `test_commit_sha` can point at a commit
+ * that does not yet contain the RED test (#1988).
+ */
+export function hasDirtyTestPaths(dir?: string): boolean {
+  try {
+    const result = runCli(
+      'git',
+      ['status', '--porcelain', '--untracked-files=all', '--', '__tests__'],
+      { cwd: gitCwd(dir), timeoutMs: 5000 },
+    )
+    return result.exitCode === 0 && result.stdout.trim().length > 0
+  } catch {
+    return false
+  }
+}
+
 export function pathExistsInCommit(sha: string, path: string, dir?: string): boolean {
   try {
     const result = runCli('git', ['ls-tree', '--name-only', sha, path], {
