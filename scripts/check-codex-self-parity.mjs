@@ -22,7 +22,7 @@
 //   node scripts/check-codex-self-parity.mjs --help
 //
 // Exit codes (INV-53): 0=PASS, 1=FAIL (self-parity violation), 2=ERROR (config/environment,
-// fail-closed — e.g. missing dist build, missing arbiter.json, invalid ledger).
+// fail-closed — e.g. missing or stale dist build (#1984), missing arbiter.json, invalid ledger).
 //
 // Runbook: docs/internal/METHOD/CODEX_PARITY_RUNBOOK.md (self-track parity section)
 // Operator entry: website/problems/codex-parity.md
@@ -38,6 +38,7 @@ import {
   validateRuntimeArtifacts,
   classifySelfParity,
 } from './lib/codex-self-parity-lib.mjs'
+import { checkDistFresh } from './lib/dist-staleness.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // dist is ALWAYS this script's own repo build — --repo-root only moves the
@@ -155,6 +156,18 @@ async function main() {
     return 0
   }
   const root = args.repoRoot ?? scriptRepoRoot
+
+  // #1984: emitGeneratorTree below dynamically imports compiled dist/ — dist
+  // is ALWAYS scriptRepoRoot's own build (never --repo-root, see comment at
+  // its declaration). A missing build already fails closed via the import
+  // catch there; a STALE build (built before the current src/ changes)
+  // previously reported green. Checked first — cheap mtime compare — before
+  // the ledger load and emission work run.
+  const distFreshness = checkDistFresh(scriptRepoRoot)
+  if (!distFreshness.fresh) {
+    process.stderr.write(`check-codex-self-parity: ERROR — ${distFreshness.reason}\n`)
+    return 2
+  }
 
   const ledgers = loadLedgers(root)
   if (ledgers.failed) return 2
