@@ -135,13 +135,7 @@
     "Markdown twin (files: manifest for the plan-anchor hook): .claude/plans/task-1966.md",
     "CANON refs: CANON-14 re-pin, CANON-22 restored section, ADR-106 Amendment."
   ],
-  "invariant_ids": [
-    "INV-53",
-    "INV-94",
-    "INV-96",
-    "INV-114",
-    "INV-124"
-  ],
+  "invariant_ids": ["INV-53", "INV-94", "INV-96", "INV-114", "INV-124"],
   "review_bridge": {
     "enabled": true,
     "reviewer": "claude-fable-ship-ceremony",
