@@ -22,7 +22,7 @@ related: []
 npx @arbiter/cli init
 ```
 
-<!-- TODO(#1770): demo GIF -->
+![Terminal demo: arbiter init scaffolds governance for a TypeScript project, then the L1 gate runs clean](docs/assets/demo.svg)
 
 Coding agents are great at writing code and even better at claiming it works.
 Arbiter makes "done means tested" mechanical: `npx @arbiter/cli init` gives your
