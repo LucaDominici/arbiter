@@ -3,10 +3,12 @@
 // binary and assert observable output/exit-code invariants.
 import { describe, it, expect } from 'vitest'
 import { resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 const CLI = resolve(import.meta.dirname, '../../dist/cli.js')
 const NODE = process.execPath
+const CLI_SRC = resolve(import.meta.dirname, '../../src/cli.ts')
 
 function spawn(args: string[], cwd?: string): { stdout: string; stderr: string; status: number } {
   const result = spawnSync(NODE, [CLI, ...args], {
@@ -129,5 +131,56 @@ describe('arbiter verify — sub-command surface', () => {
     const parsed = JSON.parse(stdout)
     expect(parsed.command).toBe('verify plan')
     expect(parsed.status).toBe('error')
+  })
+})
+
+// #1996: static regression guard — the #1992/#1994 parent/child `--json`
+// shadowing class has now bitten 4 `verify`/`validate` child commands (tdd,
+// evidence, graph, plan). Read the real source and assert every child
+// `.action(` body reads `cmd.optsWithGlobals().json`, never the shadowed
+// `opts.json` / `options.json` — so a 5th child can't reintroduce the bug.
+describe('arbiter verify — child commands never read the shadowed --json (#1996)', () => {
+  /** Source lines where a top-level `verify` child registration starts. */
+  function childBlockStarts(lines: string[]): number[] {
+    const starts: number[] = []
+    for (let i = 0; i < lines.length; i++) {
+      if (/^verify$/.test(lines[i] ?? '')) starts.push(i)
+    }
+    return starts
+  }
+
+  /** Slice from a child's start line to the next top-level (column-0) statement. */
+  function extractChildBlock(lines: string[], start: number): string {
+    let end = start + 1
+    while (end < lines.length && !/^\S/.test(lines[end] ?? '')) end++
+    return lines.slice(start, end).join('\n')
+  }
+
+  function childCommandName(block: string): string | undefined {
+    return block.match(/\.command\(\s*['"]([a-z]+)/)?.[1]
+  }
+
+  it('finds the 4 known verify child commands with no shadowed opts.json read', () => {
+    const src = readFileSync(CLI_SRC, 'utf-8')
+    const lines = src.split('\n')
+    const starts = childBlockStarts(lines)
+    expect(starts.length).toBeGreaterThanOrEqual(4)
+
+    const seen: string[] = []
+    for (const start of starts) {
+      const block = extractChildBlock(lines, start)
+      const codeOnly = block
+        .split('\n')
+        .map((l) => l.replace(/\/\/.*$/, ''))
+        .join('\n')
+      const name = childCommandName(codeOnly)
+      if (name !== undefined) seen.push(name)
+      const shadowedRead = /\b(?:opts|options)\.json\b/.test(codeOnly)
+      expect(
+        shadowedRead,
+        `verify ${name ?? '?'} reads the shadowed opts.json — use cmd.optsWithGlobals().json instead`,
+      ).toBe(false)
+    }
+    expect(seen).toEqual(expect.arrayContaining(['evidence', 'plan', 'graph', 'tdd']))
   })
 })
