@@ -52,10 +52,29 @@ function isPlainObject(x) {
  * plus ONE following blank line when present; content without a leading block
  * (or with an unterminated one) is returned unchanged.
  */
+// RT-04 (#1966 red-team): only the repo-convention metadata keys may vanish from
+// the parity compare. A block carrying ANY other top-level key (e.g. an injected
+// agent directive) is treated as content — it stays visible and reds the gate.
+const FRONT_MATTER_KEY_ALLOWLIST = Object.freeze([
+  'title',
+  'doc_version',
+  'status',
+  'last_review',
+  'owner',
+  'canonical_id',
+  'tags',
+  'related',
+])
+
 export function stripLeadingFrontMatter(content) {
   if (!content.startsWith('---\n')) return content
   const close = content.indexOf('\n---\n', 3)
   if (close === -1) return content
+  const block = content.slice('---\n'.length, close + 1)
+  for (const line of block.split('\n')) {
+    const m = /^([A-Za-z_][\w-]*):/.exec(line)
+    if (m !== null && !FRONT_MATTER_KEY_ALLOWLIST.includes(m[1])) return content
+  }
   let body = content.slice(close + '\n---\n'.length)
   if (body.startsWith('\n')) body = body.slice(1)
   return body
@@ -261,6 +280,21 @@ export function classifySelfParity(opts) {
         detail:
           'repo file under a codex track root is not emitted, not pinned, and not a declared ' +
           'runtime artifact — remove it, pin it, or declare it in ' +
+          'scripts/data/codex-self-parity-runtime-artifacts.json',
+      })
+    }
+  }
+
+  // RT-03 (#1966 red-team): runtime-artifact ledger rot sweep — a declared
+  // artifact matching no repo file is dead weight that would otherwise
+  // accumulate invisibly (symmetric with the dead-pin sweep below).
+  for (const declared of runtimeArtifacts) {
+    if (!repo.has(declared)) {
+      findings.push({
+        clazz: 'dead-artifact',
+        path: declared,
+        detail:
+          'runtime-artifact declaration matches no repo file — remove the stale entry from ' +
           'scripts/data/codex-self-parity-runtime-artifacts.json',
       })
     }

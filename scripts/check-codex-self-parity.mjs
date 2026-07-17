@@ -27,7 +27,7 @@
 // Runbook: docs/internal/METHOD/CODEX_PARITY_RUNBOOK.md (self-track parity section)
 // Operator entry: website/problems/codex-parity.md
 
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, lstatSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -175,36 +175,71 @@ async function main() {
         return content
       }
     }
-    const loadSide = async (files, read, stripFm) => {
+    // RT-01/02 (#1966 red-team): non-regular entries (FIFOs, dangling symlinks)
+    // and unreadable files must classify as findings — never a raw crash and
+    // never a blocking read. RT-05: oversized files skip Prettier (a V8 OOM in
+    // the formatter is an uncatchable abort, not a throw) and compare raw.
+    const PRETTIER_MAX_BYTES = 1_000_000
+    const loadSide = async (files, baseDir, stripFm, unreadable) => {
       const map = new Map()
       for (const rel of files) {
-        let content = read(rel)
+        const abs = join(baseDir, rel)
+        let size
+        try {
+          const st = lstatSync(abs)
+          if (st.isSymbolicLink()) {
+            // follow the link but size-check the target via the guarded read below
+            size = undefined
+          } else if (!st.isFile()) {
+            unreadable.push({ path: rel, why: 'not a regular file' })
+            continue
+          } else {
+            size = st.size
+          }
+          // FAIL-OPEN-INTENT: lstat failure surfaces as an UNREADABLE parity finding (exit 1)
+        } catch (err) {
+          unreadable.push({ path: rel, why: err?.code ?? String(err) })
+          continue
+        }
+        let content
+        try {
+          content = readFileSync(abs, 'utf-8')
+          // FAIL-OPEN-INTENT: read failure surfaces as an UNREADABLE parity finding (exit 1)
+        } catch (err) {
+          unreadable.push({ path: rel, why: err?.code ?? String(err) })
+          continue
+        }
         if (stripFm) content = stripLeadingFrontMatter(content)
-        if (rel.endsWith('.md')) content = await prettierMd(content)
+        const oversized = (size ?? content.length) > PRETTIER_MAX_BYTES
+        if (rel.endsWith('.md') && !oversized) content = await prettierMd(content)
         map.set(rel, content)
       }
       return map
     }
-    const emittedByPath = await loadSide(
-      emittedFiles,
-      (rel) => readFileSync(join(tmpDir, rel), 'utf-8'),
-      false,
-    )
-    const repoByPath = await loadSide(
-      repoFiles,
-      (rel) => readFileSync(join(root, rel), 'utf-8'),
-      true,
-    )
+    const unreadableEntries = []
+    const emittedByPath = await loadSide(emittedFiles, tmpDir, false, unreadableEntries)
+    const repoByPath = await loadSide(repoFiles, root, true, unreadableEntries)
+    const readableEmitted = emittedFiles.filter((rel) => emittedByPath.has(rel))
+    const readableRepo = repoFiles.filter((rel) => repoByPath.has(rel))
 
     const { findings, surface } = classifySelfParity({
-      emittedFiles,
-      repoFiles,
+      emittedFiles: readableEmitted,
+      repoFiles: readableRepo,
       divergences,
       runtimeArtifacts,
       readEmitted: (rel) => emittedByPath.get(rel),
       readRepo: (rel) => repoByPath.get(rel),
       normalize: (content) => normalizeContent(content),
     })
+    for (const u of unreadableEntries) {
+      findings.push({
+        clazz: 'unreadable',
+        path: u.path,
+        detail:
+          `track entry could not be read (${u.why}) — every file on the parity surface must ` +
+          'be a readable regular file; fix or remove it',
+      })
+    }
 
     for (const f of findings) {
       process.stdout.write(
