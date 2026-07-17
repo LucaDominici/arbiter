@@ -4,6 +4,8 @@
 // arbiter's own config) to content that matches its materialized .claude/ file.
 //
 // Exits 1 if unexpected drift is found.
+// Exits 2 if dist/ is missing or stale relative to the src/ trees the R-02
+// external CI-surface parity check depends on (#1984) — run "npm run build".
 //
 // CANON-14 auto-diff (F2 #1838, item 2): .dogfood-divergences.json is NOT a
 // whole-file skip list. Each entry pins the sha256 of the exact approved diff
@@ -34,6 +36,7 @@ import { createHash } from 'node:crypto'
 import { join, relative, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { checkDistFresh } from './lib/dist-staleness.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
@@ -585,6 +588,18 @@ export async function checkExternalCiSurfaceParity(rootDir, divergences, render)
 // ─── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // #1984: R-02 below dynamically imports compiled dist/ (scripts/ cannot
+  // import .ts directly, #1267). A missing build already failed closed via
+  // the import catch; a STALE build (dist/ built before the current src/
+  // changes) previously reported green. Checked first — cheap mtime compare
+  // — so a stale build fails before any other work runs, same exit-2 class
+  // as check-codex-self-parity.mjs's fail-closed config/environment errors.
+  const distFreshness = checkDistFresh(repoRoot)
+  if (!distFreshness.fresh) {
+    console.error(`[dogfood] FAIL — ${distFreshness.reason}`)
+    process.exit(2)
+  }
+
   // Lazy-load ejs so the exported helpers work without it
   const ejs = (await import('ejs')).default
 
@@ -741,8 +756,10 @@ async function main() {
   // R-02: workflow/check-script external CI-surface parity (#1877/#1894 drift class).
   // Needs arbiter's OWN resolved ProjectConfig + the real renderTemplate — scripts/
   // cannot import .ts directly (mirrors check-agent-dispatch.mjs, #1267), so this reads
-  // the COMPILED dist. A missing/stale build fails the gate closed (one drift entry)
-  // rather than crashing main() before the .claude-family results above are reported.
+  // the COMPILED dist. Staleness is already ruled out by the checkDistFresh guard at
+  // the top of main() (#1984); this catch remains for a missing/corrupt/unimportable
+  // build and fails the gate closed (one drift entry) rather than crashing main()
+  // before the .claude-family results above are reported.
   let external = { checked: 0, skipped: 0, drifted: [], visited: new Map() }
   let externalCheckFailed = false
   try {
