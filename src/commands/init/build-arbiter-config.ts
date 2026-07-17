@@ -146,6 +146,10 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
   const backend = config.decompositionBackend ?? (config.useGitHub ? 'github' : 'markdown')
   return {
     version: '0.2',
+    // #1978: persist the resolved name so `arbiter update`/`diff` read it back
+    // as the highest-precedence source instead of re-deriving from the cwd
+    // basename on every invocation (which breaks worktree-based runs).
+    projectName: config.projectName,
     tools: config.tools,
     governanceLevel: level,
     permitGitHub: config.useGitHub,
