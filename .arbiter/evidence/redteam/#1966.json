@@ -1,0 +1,111 @@
+{
+  "$schema": "RedTeamEvidenceV1",
+  "task_id": "#1966",
+  "tier": "Standard",
+  "agents": 3,
+  "angles": [
+    "edge-cases+error-handling",
+    "regression+data-integrity",
+    "security+dependency"
+  ],
+  "ts": "2026-07-17T06:00:25.725214+00:00",
+  "findings": [
+    {
+      "id": "RT-01",
+      "severity": "MEDIUM",
+      "summary": "loadSide readFileSync unguarded: EACCES/dangling-symlink crash exit-1-with-stacktrace instead of clean exit 2 (INV-53)",
+      "auditorHint": "silent-failures",
+      "resolved": true,
+      "action": "fix-in-green"
+    },
+    {
+      "id": "RT-02",
+      "severity": "MEDIUM",
+      "summary": "FIFO/non-regular file under track root hangs readFileSync forever \u2014 reject non-regular files at scan/read",
+      "auditorHint": "silent-failures",
+      "resolved": true,
+      "action": "fix-in-green"
+    },
+    {
+      "id": "RT-03",
+      "severity": "MEDIUM",
+      "summary": "runtimeArtifacts ledger rot invisible: entry matching no repo file stays green (asymmetric vs dead-pin) \u2014 add dead-artifact finding",
+      "auditorHint": "data-integrity",
+      "resolved": true,
+      "action": "fix-in-green"
+    },
+    {
+      "id": "RT-04",
+      "severity": "MEDIUM",
+      "summary": "frontmatter strip unbounded: unknown keys (injected agent directives) invisible to gate \u2014 strip only with allowlisted keys, else keep block (reds)",
+      "auditorHint": "security",
+      "resolved": true,
+      "action": "fix-in-green"
+    },
+    {
+      "id": "RT-05",
+      "severity": "MEDIUM",
+      "summary": "no size guard: ~20MB md OOM-aborts prettier uncatchably (exit 134, fail-closed but SIGABRT) \u2014 statSync cap, raw compare over threshold",
+      "auditorHint": "bugs",
+      "resolved": true,
+      "action": "fix-in-green"
+    },
+    {
+      "id": "RT-06",
+      "severity": "MEDIUM",
+      "summary": "PRE-EXISTING: minimatch undeclared direct dep (codex-parity-lib/check-all/route-auditors) \u2014 self-parity path never reaches it",
+      "auditorHint": "dependency",
+      "resolved": false,
+      "action": "parking-issue"
+    },
+    {
+      "id": "RT-07",
+      "severity": "SUGGESTION",
+      "summary": "prettier fallback asymmetric per side: false-FAIL possible \u2014 make both-raw when either throws",
+      "auditorHint": "test-quality",
+      "resolved": false,
+      "action": "parking"
+    },
+    {
+      "id": "RT-08",
+      "severity": "SUGGESTION",
+      "summary": "codex-adapter forwards full env to child hooks (template-owned, CANON-04) \u2014 consider scrub in template",
+      "auditorHint": "security",
+      "resolved": false,
+      "action": "parking"
+    }
+  ],
+  "probes_held": 24,
+  "critical": 0,
+  "high": 0,
+  "medium": 6,
+  "suggestion": 2,
+  "reviewRound": {
+    "agents": 4,
+    "verdicts": [
+      "APPROVE",
+      "REQUEST-CHANGES",
+      "APPROVE",
+      "REQUEST-CHANGES"
+    ],
+    "blockers_absorbed": [
+      "CR2-01/CR4-01 default-deny front-matter strip",
+      "CR1-01/CR4-02 symlink rejection",
+      "CR4-03 byteLength guard",
+      "CR4-04 contradictory-artifact",
+      "CR4-05 err fallback",
+      "CR1-02 surface count",
+      "CR1-03 finding suppression",
+      "CR2-03 repo-only pin coverage",
+      "CR2-04 regex fix",
+      "CR2-06 mkfifo guard",
+      "CR3-01/02 runbook classes+frontmatter note"
+    ],
+    "parked": [
+      "CR3-03 descriptor INV id (src/ + goldens scope)",
+      "CR2-02 size-guard test vacuity",
+      "CR1-04b artifact+pin conflict",
+      "CR2-07 tests under tsc"
+    ]
+  }
+}
