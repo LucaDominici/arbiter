@@ -11,6 +11,7 @@
   "ignoreBinaries": [
     "gh",
     "flock",
+    "mkfifo",
     "actionlint",
     "which",
     "python3",

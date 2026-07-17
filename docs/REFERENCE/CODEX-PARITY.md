@@ -1,8 +1,8 @@
 ---
 title: 'Codex Governance Parity Reference'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-07-17'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -54,6 +54,17 @@ and `src/templates/codex/codex-adapter.mjs` to bridge the remaining gaps.
 When a target project is initialized with `arbiter init --tools codex`, the generated
 `CODEX.md` (from `src/templates/codex/CODEX.md.ejs`) includes a **Known Limitations**
 section listing this table inline for project developers.
+
+## Self-track coverage
+
+Since the ADR-106 addendum (2026-07-17), the parity contract also covers arbiter's own
+materialized codex track: `scripts/check-codex-self-parity.mjs` re-emits the track fresh
+via the repo's own generator and resolved config, and verifies `.agents/**` + `.codex/**`
+against it in the L2 gate (check-all), with every file classified as EMITTED-MATCH,
+PINNED (dated + hashed pin), or RUNTIME-ARTIFACT. As a consequence, the Known Limitations
+table in arbiter's own `.agents/CODEX.md` is now the generated, inventory-backed one —
+the hand-maintained variant can no longer silently survive there. Operational details:
+`docs/internal/METHOD/CODEX_PARITY_RUNBOOK.md` §Self-track parity.
 
 ## See Also
 

@@ -154,6 +154,7 @@ const CI_COVERAGE = new Map([
   ['BDD suite (INV-25)', 'gate-full'],
   ['todo max-age', 'gate-full'],
   ['codex parity (#1966)', 'gate-full'],
+  ['codex self-parity (#1966)', 'gate-full'],
   ['build-kit', 'gate-full'],
   ['no redacted tokens', 'gate-full'],
   ['no work refs', 'gate-full'],
