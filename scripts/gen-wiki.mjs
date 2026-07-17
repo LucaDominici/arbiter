@@ -11,6 +11,7 @@
 //   node scripts/gen-wiki.mjs --check       # fail if wiki/ is stale
 //   node scripts/gen-wiki.mjs --changed     # incremental: only pages whose source changed
 //   node scripts/gen-wiki.mjs query <terms> # keyword search over wiki pages
+//   node scripts/gen-wiki.mjs --wiki-dir <dir> # write/check a non-default vault dir (#1979)
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
@@ -19,10 +20,20 @@ import { fileURLToPath } from 'node:url'
 
 try {
   const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
-  const WIKI_DIR = join(ROOT, 'wiki')
+  const args = process.argv.slice(2)
+  // #1979: the vault orchestrator's --vault-path option needs gen-wiki to
+  // target a non-default vault dir — mirrors check-wiki-lint.mjs's --wiki-dir.
+  const wikiDirFlagIdx = args.indexOf('--wiki-dir')
+  const wikiDirArg =
+    args.find((a) => a.startsWith('--wiki-dir='))?.split('=')[1] ??
+    (wikiDirFlagIdx !== -1 &&
+    args[wikiDirFlagIdx + 1] !== undefined &&
+    !args[wikiDirFlagIdx + 1].startsWith('-')
+      ? args[wikiDirFlagIdx + 1]
+      : null)
+  const WIKI_DIR = wikiDirArg ? resolve(wikiDirArg) : join(ROOT, 'wiki')
   const DOCS_DIR = join(ROOT, 'docs')
 
-  const args = process.argv.slice(2)
   const isCheck = args.includes('--check')
   const isChanged = args.includes('--changed')
   const isQuery = args[0] === 'query'

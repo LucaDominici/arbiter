@@ -133,3 +133,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 104 | [Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning](104-trivy-fs-replaces-owasp-dependency-check.md)                                               | Accepted   | 2026-07-10 |  |
 | 105 | [never-brick config migration — coercible vs fatal fields](105-never-brick-config-migration.md)                                                                       | Accepted   | 2026-07-11 |  |
 | 106 | [Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](106-codex-track-parity-contract.md)                                                 | Accepted   | 2026-07-16 |  |
+| 107 | [arbiter obsidian subcommand — thin generic orchestrator](107-obsidian-subcommand.md)                                                                                 | Accepted   | 2026-07-17 |  |

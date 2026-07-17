@@ -499,6 +499,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
 | `arbiter init`       | Initialise / update the unified task document (#1206)                           |
 | `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
+| `arbiter obsidian`   | Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)        |
 | `arbiter review`     | Semantic diff between graph snapshots (#262)                                    |
 | `arbiter ship`       | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
 | `arbiter task`       | Manage task lifecycle state                                                     |
@@ -600,6 +601,20 @@ Capture an out-of-scope finding to the per-agent JSONL spool (#1401).
 - `--line <n>` — Line number the finding was seen at (excluded from the fingerprint)
 - `--dir <path>` — Project root (default: cwd)
 
+## arbiter obsidian
+
+Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979).
+
+**Options:**
+
+- `--repo <dir>` — Target repo directory (default: current directory)
+- `--vault-path <dir>` — Vault directory relative to the repo root
+- `--sync` — Regenerate the vault then re-validate (fail-closed)
+- `--validate-only` — Validate the existing vault without writing
+- `--write` — Reserved for a future writer; v1 is read-only (ADR-001)
+- `--dry-run` — Report only — writes nothing (default)
+- `--json` — Emit machine-readable JSON output
+
 ## arbiter review
 
 Semantic diff between graph snapshots (#262).
@@ -693,6 +708,7 @@ These commands are fully functional but hidden from the default `arbiter --help`
 **Options:**
 
 - `--strict` — Exit 1 if any mandatory doc is missing (default: advisory, exit 0)
+- `--check` — Run the default advisory presence audit (backward-compat alias for the no-flag default;
 - `--json` — Emit the audit as JSON
 - `--generate` — Scaffold stub files for missing mandatory+recommended .md docs
 - `--refresh-stubs` — (with --generate) re-render a doc in place only if it is byte-equal to the stub template
