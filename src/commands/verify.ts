@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText, formatJson } from '../compatibility/report.js'
@@ -163,6 +163,45 @@ function handleRiskSkip(dir: string): VerifyEvidenceResult | null {
   return null
 }
 
+/**
+ * Resolve the SUMMARY.json path to verify (#1982).
+ *
+ * Preference order:
+ *   1. `.evidence/SUMMARY.json` at the project root (legacy single-run layout).
+ *   2. The most recent `.evidence/<RUN_ID>/SUMMARY.json`, where "most recent"
+ *      is the lexicographically-greatest run-id directory name — the same
+ *      sort convention `evidence-rotate.mjs.ejs` uses to prune old runs, so
+ *      sortable run-id formats (e.g. `run-YYYYMMDD-HHMMSS`) resolve correctly.
+ *
+ * Root-level wins when both exist so brownfield single-run projects are
+ * unaffected; only projects that never write a root SUMMARY.json (governed
+ * repos writing per-run-id directories exclusively) fall through to (2).
+ */
+function resolveSummaryPath(dir: string): string {
+  const rootPath = join(dir, '.evidence', 'SUMMARY.json')
+  if (existsSync(rootPath)) return rootPath
+
+  const evidenceDir = join(dir, '.evidence')
+  if (!existsSync(evidenceDir)) return rootPath
+
+  let entries: string[]
+  try {
+    entries = readdirSync(evidenceDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort()
+  } catch {
+    return rootPath
+  }
+
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const candidate = join(evidenceDir, entries[i] as string, 'SUMMARY.json')
+    if (existsSync(candidate)) return candidate
+  }
+
+  return rootPath
+}
+
 function loadSummary(summaryPath: string): Record<string, unknown> | VerifyEvidenceResult {
   const loaded = loadSummaryFile(summaryPath)
   if (!loaded.ok) {
@@ -206,8 +245,12 @@ function checkFreshness(
 }
 
 /**
- * Verify an existing `.evidence/SUMMARY.json` snapshot. Returns a result
- * envelope so callers (CLI / programmatic) can decide how to surface it.
+ * Verify an existing SUMMARY.json snapshot. Returns a result envelope so
+ * callers (CLI / programmatic) can decide how to surface it.
+ *
+ * Path resolution (#1982): `.evidence/SUMMARY.json` at the project root when
+ * present, else the most recent `.evidence/<RUN_ID>/SUMMARY.json` — see
+ * `resolveSummaryPath`.
  *
  * Exit code conventions (canonical CLI convention — see CLI.md §Exit codes):
  *   0 = ok (or E2E_RISK_SKIP set with a valid reason)
@@ -226,7 +269,7 @@ export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
   const skipResult = handleRiskSkip(dir)
   if (skipResult) return skipResult
 
-  const summaryPath = join(dir, '.evidence', 'SUMMARY.json')
+  const summaryPath = resolveSummaryPath(dir)
   const loaded = loadSummary(summaryPath)
   if (isResult(loaded)) return loaded
 
