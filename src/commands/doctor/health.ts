@@ -9,6 +9,7 @@ import { jsonOutput } from '../../utils/json-output.js'
 import { loadConfig } from '../../utils/config.js'
 import type { ArbiterConfig } from '../../utils/config.js'
 import { runCli } from '../../utils/run-cli.js'
+import type { RunCliResult } from '../../utils/run-cli.js'
 import { forceReleaseLock } from '../../utils/file-lock.js'
 import type { LockInfo } from '../../utils/file-lock.js'
 import { ArbiterError } from '../../utils/errors.js'
@@ -169,6 +170,7 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
   out.push(checkAutonomyCoherence(dir))
   out.push(checkProfileCoherence(dir))
   out.push(checkCompanionHealth(dir, claudeHome))
+  out.push(checkBypassCeremony(dir))
 
   return out
 }
@@ -667,6 +669,77 @@ function checkGatePassLog(dir: string): HealthCheck {
     label: 'gate-pass log',
     status: 'PASS',
     detail: `${lines.length} entries; last ${recent.length}: ${recent.join(', ')}`,
+  }
+}
+
+/**
+ * #1949 (E4, M15b): doctor row for the bypass-ceremony detector — the anti-deviance loop
+ * that flags (a) a gate bypassed more than its ceiling within a trailing 30-day window and
+ * (b) a runWarnCheck advisory site with no dated promoteBy / permanent:true entry in
+ * scripts/data/advisory-ledger.json. Shells scripts/check-bypass-ceremony.mjs --json — the
+ * script is the SSOT for both detectors' logic; doctor only renders its JSON, it never
+ * re-implements the ceiling math or ledger parsing (one source of truth, CANON-22).
+ * Absent script (e.g. a non-arbiter project, or a stripped-down fixture) WARNs rather than
+ * FAILs — doctor reports state, it does not require every gate script to exist.
+ */
+function checkBypassCeremony(dir: string): HealthCheck {
+  const scriptPath = join(dir, 'scripts', 'check-bypass-ceremony.mjs')
+  if (!existsSync(scriptPath)) {
+    return {
+      id: 'bypass-ceremony',
+      label: 'bypass ceremony budget',
+      status: 'WARN',
+      detail: 'scripts/check-bypass-ceremony.mjs not found',
+    }
+  }
+  let result: RunCliResult
+  try {
+    result = runCli('node', [scriptPath, '--json', '--root', dir], { cwd: dir, timeoutMs: 15000 })
+  } catch (err) {
+    return {
+      id: 'bypass-ceremony',
+      label: 'bypass ceremony budget',
+      status: 'WARN',
+      detail: `could not run bypass-ceremony check: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+  let parsed: {
+    channels?: { env: string; count: number; ceiling: number }[]
+    ledgerViolations?: string[]
+    rateViolations?: string[]
+  }
+  try {
+    parsed = JSON.parse(result.stdout)
+  } catch {
+    return {
+      id: 'bypass-ceremony',
+      label: 'bypass ceremony budget',
+      status: 'WARN',
+      detail: 'bypass-ceremony check produced unparseable output',
+    }
+  }
+  const channels = parsed.channels ?? []
+  const ledgerViolations = parsed.ledgerViolations ?? []
+  const rateViolations = parsed.rateViolations ?? []
+  const channelSummary =
+    channels.length > 0
+      ? channels.map((c) => `${c.env}: ${c.count}/${c.ceiling}`).join(', ')
+      : 'no bypass-log channels in the trailing 30 days'
+  if (result.exitCode !== 0 || ledgerViolations.length > 0 || rateViolations.length > 0) {
+    const detail = [...rateViolations, ...ledgerViolations].slice(0, 3).join('; ')
+    return {
+      id: 'bypass-ceremony',
+      label: 'bypass ceremony budget',
+      status: 'FAIL',
+      detail: detail || `channels: ${channelSummary}`,
+      hint: 'Run `node scripts/check-bypass-ceremony.mjs` for the full report.',
+    }
+  }
+  return {
+    id: 'bypass-ceremony',
+    label: 'bypass ceremony budget',
+    status: 'PASS',
+    detail: `channels: ${channelSummary}`,
   }
 }
 

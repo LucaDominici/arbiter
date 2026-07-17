@@ -1,6 +1,6 @@
 {
   "schema": "arbiter-advisory-ledger-v1",
-  "_doc": "Declared-intent ledger for runWarnCheck advisory gates (E4 ceremony detector, M15b #1943). Every runWarnCheck call site in scripts/check-all.mjs MUST have an entry here: either a dated promotion (promoteBy) or permanent:true with rationale. This is the dated-debt discipline of suppressions expiry (INV-31) applied to the gate roster itself — an advisory gate with no dated promotion is ceremony ('advisory-forever'). The ceremony detector that enforces this ledger is deferred (sub-issue of #1943 — owner decision on the 2 pre-existing runWarnCheck gates 'orchestrator coverage (#1410)' and 'conformance' is OD-14); until it lands this file is declared-intent, unenforced-for-now. Entries below are the 4 new advisory enforcers landed in #1943.",
+  "_doc": "Declared-intent ledger for runWarnCheck advisory gates (E4 ceremony detector, M15b #1943/#1949). Every runWarnCheck call site in scripts/check-all.mjs MUST have an entry here: either a dated promotion (promoteBy) or permanent:true with rationale. This is the dated-debt discipline of suppressions expiry (INV-31) applied to the gate roster itself — an advisory gate with no dated promotion is ceremony ('advisory-forever'). scripts/check-bypass-ceremony.mjs (#1949) enforces this ledger. The 2 pre-existing runWarnCheck gates 'orchestrator coverage (#1410)' and 'conformance' were resolved by owner decision OD-14 (2026-07-17): dated promoteBy 2026-10-14, same window as the seeded #1943 entries — neither is permanent.",
   "entries": [
     {
       "check": "agent-return envelope (E1 #1943)",
@@ -25,6 +25,18 @@
       "since": "2026-07-14",
       "promoteBy": "2026-10-14",
       "rationale": "M1 handoff-lint. Advisory at land-time (M1 is a cost rule, all tiers); promote to runCheck once the producer side (/ship handoff phase) references --file mode."
+    },
+    {
+      "check": "orchestrator coverage (#1410)",
+      "since": "2026-07-17",
+      "promoteBy": "2026-10-14",
+      "rationale": "OD-14 (2026-07-17): pre-existing advisory gate, classified dated-promotion (not permanent) — same promoteBy window as the seeded #1943 enforcer entries. Promote to runCheck once orchestrator coverage is routinely satisfied."
+    },
+    {
+      "check": "conformance",
+      "since": "2026-07-17",
+      "promoteBy": "2026-10-14",
+      "rationale": "OD-14 (2026-07-17): pre-existing advisory gate, classified dated-promotion (not permanent) — same promoteBy window as the seeded #1943 enforcer entries. Promote to runCheck once the conformance surface has a stable pass baseline."
     }
   ]
 }

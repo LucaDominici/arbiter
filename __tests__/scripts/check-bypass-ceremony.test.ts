@@ -86,8 +86,10 @@ describe('check-bypass-ceremony.mjs', () => {
       expect(run(['--root', tmpDir]).exitCode).toBe(0)
     })
 
-    it('fails when a channel exceeds the ceiling within the 30-day window (13 > default 3)', () => {
-      const lines = Array.from({ length: 13 }, () => bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(1)))
+    it('fails when a channel exceeds the ceiling within the 30-day window (13 > default 12/month)', () => {
+      const lines = Array.from({ length: 13 }, () =>
+        bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(1)),
+      )
       writeFileSync(join(evidenceDir, 'bypass-log.jsonl'), jsonl(lines))
       const r = run(['--root', tmpDir])
       expect(r.exitCode).toBe(1)
@@ -95,15 +97,17 @@ describe('check-bypass-ceremony.mjs', () => {
       expect(r.stdout).toMatch(/demote/i)
     })
 
-    it('passes when a channel is within the ceiling (2 <= default 3)', () => {
-      const lines = [bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(1)), bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(2))]
+    it('passes when a channel is within the ceiling (11 <= default 12/month)', () => {
+      const lines = Array.from({ length: 11 }, () =>
+        bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(1)),
+      )
       writeFileSync(join(evidenceDir, 'bypass-log.jsonl'), jsonl(lines))
       expect(run(['--root', tmpDir]).exitCode).toBe(0)
     })
 
     it('ignores bypassed:false entries and entries outside the 30-day window', () => {
       const lines = [
-        ...Array.from({ length: 10 }, () => bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(60))),
+        ...Array.from({ length: 20 }, () => bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(60))),
         bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(1)),
         { ...bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(1)), bypassed: false },
       ]
@@ -116,9 +120,11 @@ describe('check-bypass-ceremony.mjs', () => {
       mkdirSync(dataDir, { recursive: true })
       writeFileSync(
         join(dataDir, 'ceremony-thresholds.json'),
-        JSON.stringify({ default: 3, overrides: { ARBITER_PREPUSH_BYPASS: 20 } }),
+        JSON.stringify({ default: 12, overrides: { ARBITER_PREPUSH_BYPASS: 20 } }),
       )
-      const lines = Array.from({ length: 13 }, () => bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(1)))
+      const lines = Array.from({ length: 13 }, () =>
+        bypassEntry('ARBITER_PREPUSH_BYPASS', isoDaysAgo(1)),
+      )
       writeFileSync(join(evidenceDir, 'bypass-log.jsonl'), jsonl(lines))
       expect(run(['--root', tmpDir]).exitCode).toBe(0)
     })
@@ -148,14 +154,21 @@ describe('check-bypass-ceremony.mjs', () => {
     it('passes when every runWarnCheck site has a future promoteBy entry', () => {
       writeCheckAll(tmpDir, ['conformance'])
       writeLedger(tmpDir, [
-        { check: 'conformance', since: '2026-07-17', promoteBy: isoDaysAhead(90), rationale: 'OD-14' },
+        {
+          check: 'conformance',
+          since: '2026-07-17',
+          promoteBy: isoDaysAhead(90),
+          rationale: 'OD-14',
+        },
       ])
       expect(run(['--root', tmpDir]).exitCode).toBe(0)
     })
 
     it('passes when a runWarnCheck site is permanent:true with a rationale', () => {
       writeCheckAll(tmpDir, ['conformance'])
-      writeLedger(tmpDir, [{ check: 'conformance', permanent: true, rationale: 'genuinely informational surface' }])
+      writeLedger(tmpDir, [
+        { check: 'conformance', permanent: true, rationale: 'genuinely informational surface' },
+      ])
       expect(run(['--root', tmpDir]).exitCode).toBe(0)
     })
 
