@@ -392,4 +392,63 @@ describe('runInit with --recipe (#546)', () => {
       expect(raw.features?.[featureKey]).toBe(false)
     },
   )
+
+  // #1887 (Finding-A residual): riskRegister/operationsHandbook/iso27001Mapping/
+  // nis2Mapping/gdprMapping had generators + persistence + read-back, but the
+  // ONLY activation path was `--preset industrial-grade` — no recipe field, no
+  // individual `configure --set`. Mirrors the #1887-A codeownersNotify/
+  // taxonomy25d/perfTesting precedent for these 5 flags.
+  it.each([
+    ['enableRiskRegister', 'riskRegister'],
+    ['enableOperationsHandbook', 'operationsHandbook'],
+    ['enableIso27001Mapping', 'iso27001Mapping'],
+    ['enableNis2Mapping', 'nis2Mapping'],
+    ['enableGdprMapping', 'gdprMapping'],
+  ] as const)(
+    'recipe %s=true reaches the registry config and persists features.%s (#1887)',
+    async (configField, featureKey) => {
+      const recipePath = join(dir, `${featureKey}-recipe.json`)
+      writeFileSync(
+        recipePath,
+        JSON.stringify({
+          tools: ['claude'],
+          governanceLevel: 'L2',
+          language: 'typescript',
+          archetype: 'backend-web-db',
+          useGitHub: true,
+          [configField]: true,
+        }),
+      )
+
+      const { buildRegistry } = await import('../../src/generators/registry.js')
+      const mockBuild = vi.mocked(buildRegistry)
+
+      const { runInit } = await import('../../src/commands/init.js')
+      await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: recipePath })
+
+      const config = mockBuild.mock.calls[0]?.[0] as Record<string, unknown> | undefined
+      expect(config?.[configField]).toBe(true)
+
+      const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+        features?: Record<string, unknown>
+      }
+      expect(raw.features?.[featureKey]).toBe(true)
+    },
+  )
+
+  it.each([
+    ['riskRegister'],
+    ['operationsHandbook'],
+    ['iso27001Mapping'],
+    ['nis2Mapping'],
+    ['gdprMapping'],
+  ] as const)('recipe without the flag persists features.%s=false (#1887)', async (featureKey) => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: FIXTURE_PATH })
+
+    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      features?: Record<string, unknown>
+    }
+    expect(raw.features?.[featureKey]).toBe(false)
+  })
 })
