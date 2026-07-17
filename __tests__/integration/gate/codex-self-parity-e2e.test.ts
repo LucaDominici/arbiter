@@ -68,6 +68,7 @@ async function importDist<T>(rel: string): Promise<T> {
     throw new Error(
       `cannot import dist/${rel} (${detail}) — run "npm run build" first; ` +
         'scripts/ and tests cannot import .ts directly (#1267)',
+      { cause: err },
     )
   }
 }
@@ -107,6 +108,20 @@ async function emitCodexTrackInto(fixtureRoot: string): Promise<void> {
  * repo-runtime artifact .agents/plan/PLAN.json (git-tracked task state, never
  * emitted). Caller removes it in `finally`.
  */
+/**
+ * Seed the per-repo-root ledgers the gate resolves from --repo-root: an empty
+ * divergence ledger and the declared runtime-artifact list (mirrors the real
+ * repo's scripts/data/ pair).
+ */
+function seedLedgers(dir: string): void {
+  mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
+  writeFileSync(join(dir, 'scripts', 'data', 'codex-self-parity-divergences.json'), '[]\n')
+  writeFileSync(
+    join(dir, 'scripts', 'data', 'codex-self-parity-runtime-artifacts.json'),
+    JSON.stringify({ runtimeArtifacts: ['.agents/plan/PLAN.json'] }, null, 2) + '\n',
+  )
+}
+
 async function buildFixture(): Promise<string> {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-codex-self-parity-'))
   copyFileSync(join(repoRoot, 'arbiter.json'), join(dir, 'arbiter.json'))
@@ -118,6 +133,7 @@ async function buildFixture(): Promise<string> {
   writeFileSync(join(dir, 'src', 'index.ts'), 'export const selfParityFixture = true\n')
   execFileSync('git', ['init', '-q'], { cwd: dir, encoding: 'utf-8', env: cleanChildEnv() })
   await emitCodexTrackInto(dir)
+  seedLedgers(dir)
   mkdirSync(join(dir, '.agents', 'plan'), { recursive: true })
   writeFileSync(
     join(dir, '.agents', 'plan', 'PLAN.json'),
@@ -265,6 +281,7 @@ describe('check-codex-self-parity.mjs end to end (self-track, #1966)', () => {
 
   it('fails closed (exit 2) when the --repo-root has no arbiter.json', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-codex-self-parity-bare-'))
+    seedLedgers(dir)
     try {
       const result = runGate(dir)
       expect(

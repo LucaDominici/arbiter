@@ -334,6 +334,9 @@ if (isMain) {
     // 100% classified parity surface, generated Known Limitations, merge-base
     // baseline anti-shrinkage. Bakes a fixture via the real CLI (init).
     runCheck('codex parity (#1966)', 'node', ['scripts/check-codex-parity.mjs'])
+    // ADR-106 addendum (#1966): self-track — arbiter's OWN materialized .agents/.codex
+    // must stay normalized-equivalent to its own generator's emission (skipIfExists rot).
+    runCheck('codex self-parity (#1966)', 'node', ['scripts/check-codex-self-parity.mjs'])
     // INV-133 (#1456): over-age linked task-marker gate. SKIPs offline / no token.
     runCheck('todo max-age', 'node', ['scripts/check-todo-max-age.mjs'])
     runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
