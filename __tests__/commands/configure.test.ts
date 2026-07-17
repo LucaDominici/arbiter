@@ -96,6 +96,29 @@ describe('runConfigure — --set round-trips', () => {
       expect(raw['version']).toBe('0.2')
     },
   )
+
+  // #1887 (Finding-A residual): the 5 compliance flags had persistence +
+  // read-back (build-arbiter-config.ts / resolve-project-config.ts) but no
+  // individual activation path — only `--preset industrial-grade` set them.
+  // `configure --set` is the persistent-settings half, mirroring the
+  // #1887-A codeownersNotify/taxonomy25d/perfTesting ALLOWED_PATHS entries.
+  it.each([
+    'features.riskRegister',
+    'features.operationsHandbook',
+    'features.iso27001Mapping',
+    'features.nis2Mapping',
+    'features.gdprMapping',
+  ])('sets %s=true and writes valid v2 to disk (#1887)', async (path) => {
+    writeV2Config(dir)
+    const key = path.split('.')[1]!
+
+    await runConfigure({ dir, sets: [`${path}=true`] })
+
+    const raw = readArbiterJson(dir)
+    const features = raw['features'] as Record<string, unknown>
+    expect(features[key]).toBe(true)
+    expect(raw['version']).toBe('0.2')
+  })
 })
 
 describe('runConfigure — validation', () => {
