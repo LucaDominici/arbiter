@@ -18,12 +18,12 @@ related: []
 
 ## Quick Reference
 
-| Fact | Value |
-|------|-------|
-| **Project** | arbiter |
-| **Test** | `npm run test` |
-| **Gate** | `node scripts/check-all.mjs` |
-| **Full governance** | `../AGENTS.md` |
+| Fact                | Value                        |
+| ------------------- | ---------------------------- |
+| **Project**         | arbiter                      |
+| **Test**            | `npm run test`               |
+| **Gate**            | `node scripts/check-all.mjs` |
+| **Full governance** | `../AGENTS.md`               |
 
 ---
 
@@ -94,17 +94,18 @@ Follow this lifecycle for every task:
 
 ## Command Translation
 
-| Claude Code | Codex Equivalent |
-|-------------|-----------------|
-| `/ship #NNN` | **Orchestration entrypoint** — drive an issue to a merged PR |
-| `/task` | Low-level engine/CLI: `arbiter task init/advance/record-red/recover/get` |
-| `npm run test` | Run tests for this stack |
-| `node scripts/check-all.mjs L1` | Run before each commit |
-| `node scripts/check-all.mjs L2` | Run before push/PR |
+| Claude Code                     | Codex Equivalent                                                         |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| `/ship #NNN`                    | **Orchestration entrypoint** — drive an issue to a merged PR             |
+| `/task`                         | Low-level engine/CLI: `arbiter task init/advance/record-red/recover/get` |
+| `npm run test`                  | Run tests for this stack                                                 |
+| `node scripts/check-all.mjs L1` | Run before each commit                                                   |
+| `node scripts/check-all.mjs L2` | Run before push/PR                                                       |
 
 ## Hard Stops
 
 All hard stops from `AGENTS.md` apply. Additionally:
+
 - Never edit without a plan in `.agents/plan/PLAN.json`
 - Never commit directly to `main`
 - Never skip the gate
@@ -118,35 +119,35 @@ the actual Claude-track inventory for this configuration** (ADR-106, arbiter
 #1966) — do not edit it by hand; it is re-derived on every generation and
 checked against the emitted hook inventory by the arbiter parity gate.
 
-Hooks marked as *bridged* run in real time on Codex too, via
+Hooks marked as _bridged_ run in real time on Codex too, via
 `.codex/config.toml` → `codex-adapter.mjs`. Everything else is covered at
 gate time (`node scripts/check-all.mjs`) or is manual discipline, as stated.
 
-| Claude Code Hook | What it enforces | Codex equivalent |
-|-----------------|-----------------|------------------|
-| `stop-dangerous.mjs` | Blocks dangerous shell commands before execution | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `enforce-read-only.mjs` | Blocks edits to read-only / generated paths | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `pre-edit-ssot-guard.mjs` | Warns on SSOT/governance file edits | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `check-no-orphan-todo.mjs` | Blocks bare TODO without task ID (INV-06) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `check-no-placeholders.mjs` | Blocks stub content and unfinished scaffolding in edited files | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `enforce-gate-before-pr.mjs` | Blocks PR creation before the local gate passed | Gate: `node scripts/check-all.mjs L2` before push (manual discipline) |
-| `post-commit-check.mjs` | Post-commit checklist verification | None — manual discipline |
-| `check-no-unused-exports.mjs` | Blocks unused TypeScript exports (dead code) | Gate: dead-code check (`knip`) in `check-all.mjs` |
-| `check-no-skipped-tests.mjs` | Blocks skipped/muted tests at edit time (INV-25) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `check-no-any.mjs` | Blocks TypeScript `any` types (INV-04) | Gate: `tsc --strict` |
-| `pre-edit-plan-anchor.mjs` | Requires plan file in implementation phase | `.agents/plan/PLAN.json` protocol |
-| `pre-compact.mjs` | Snapshots task state before context compaction | None — no Codex compaction hook point |
-| `post-edit-dispatch.mjs` | Runs post-edit agents for quality checks | None — manual code review |
-| `debug-state-on-failure.mjs` | Persists debug state on gate failure | None — manual logging |
-| `skill-forced-eval.mjs` | Forces skill invocation before task start | None — manual discipline |
-| `guard-task-completion.mjs` | Blocks premature done claims | None — manual discipline |
-| `stop-evidence-guard.mjs` | Fail-closed completion backstop (INV-114) | None — manual discipline |
-| `closer-mode-guard.mjs` | CLOSER-mode enforcement in the close phase | None — manual discipline |
-| `exitplanmode-banner.mjs` | Plan-exit banner in the task lifecycle | None — informational only |
-| `post-brainstorm-stop.mjs` | Brainstorm terminal-state guardrail (#1265) | None — manual discipline |
-| `check-circular-deps.mjs` | Detects circular deps per-edit (INV-01) | Gate: `madge --circular src` in `check-all.mjs` |
-| `check-no-pii.mjs` | Blocks PII patterns in source (real-time) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `wiki-on-commit.mjs` | Regenerates the LLM wiki on commit (INV-116) | Gate: wiki-lint check in `check-all.mjs` |
+| Claude Code Hook              | What it enforces                                               | Codex equivalent                                                      |
+| ----------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `stop-dangerous.mjs`          | Blocks dangerous shell commands before execution               | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`     |
+| `enforce-read-only.mjs`       | Blocks edits to read-only / generated paths                    | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`     |
+| `pre-edit-ssot-guard.mjs`     | Warns on SSOT/governance file edits                            | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`     |
+| `check-no-orphan-todo.mjs`    | Blocks bare TODO without task ID (INV-06)                      | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`     |
+| `check-no-placeholders.mjs`   | Blocks stub content and unfinished scaffolding in edited files | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`     |
+| `enforce-gate-before-pr.mjs`  | Blocks PR creation before the local gate passed                | Gate: `node scripts/check-all.mjs L2` before push (manual discipline) |
+| `post-commit-check.mjs`       | Post-commit checklist verification                             | None — manual discipline                                              |
+| `check-no-unused-exports.mjs` | Blocks unused TypeScript exports (dead code)                   | Gate: dead-code check (`knip`) in `check-all.mjs`                     |
+| `check-no-skipped-tests.mjs`  | Blocks skipped/muted tests at edit time (INV-25)               | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`     |
+| `check-no-any.mjs`            | Blocks TypeScript `any` types (INV-04)                         | Gate: `tsc --strict`                                                  |
+| `pre-edit-plan-anchor.mjs`    | Requires plan file in implementation phase                     | `.agents/plan/PLAN.json` protocol                                     |
+| `pre-compact.mjs`             | Snapshots task state before context compaction                 | None — no Codex compaction hook point                                 |
+| `post-edit-dispatch.mjs`      | Runs post-edit agents for quality checks                       | None — manual code review                                             |
+| `debug-state-on-failure.mjs`  | Persists debug state on gate failure                           | None — manual logging                                                 |
+| `skill-forced-eval.mjs`       | Forces skill invocation before task start                      | None — manual discipline                                              |
+| `guard-task-completion.mjs`   | Blocks premature done claims                                   | None — manual discipline                                              |
+| `stop-evidence-guard.mjs`     | Fail-closed completion backstop (INV-114)                      | None — manual discipline                                              |
+| `closer-mode-guard.mjs`       | CLOSER-mode enforcement in the close phase                     | None — manual discipline                                              |
+| `exitplanmode-banner.mjs`     | Plan-exit banner in the task lifecycle                         | None — informational only                                             |
+| `post-brainstorm-stop.mjs`    | Brainstorm terminal-state guardrail (#1265)                    | None — manual discipline                                              |
+| `check-circular-deps.mjs`     | Detects circular deps per-edit (INV-01)                        | Gate: `madge --circular src` in `check-all.mjs`                       |
+| `check-no-pii.mjs`            | Blocks PII patterns in source (real-time)                      | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`     |
+| `wiki-on-commit.mjs`          | Regenerates the LLM wiki on commit (INV-116)                   | Gate: wiki-lint check in `check-all.mjs`                              |
 
 Claude-only surfaces with no Codex equivalent (by design, ADR-106 — accurate
 disclosure, not implementation parity):

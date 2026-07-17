@@ -151,17 +151,55 @@ async function main() {
 
     // Repo-side-only frontmatter strip (design §3.1 step 3 / M1): the repo doc
     // convention adds a YAML metadata block the codex templates never emit.
-    const normalize = (content, side) =>
-      normalizeContent(side === 'repo' ? stripLeadingFrontMatter(content) : content)
+    // Markdown additionally goes through Prettier on BOTH sides before compare
+    // (the check-self-dogfood normalizeLines precedent): the repo formatting
+    // gate prettier-formats materialized .md, the generator emits unformatted --
+    // formatting must be invisible to parity, exactly like frontmatter.
+    const prettierMd = async (content) => {
+      try {
+        const prettier = await import('prettier')
+        return await prettier.format(content, {
+          parser: 'markdown',
+          printWidth: 80,
+          tabWidth: 2,
+          useTabs: false,
+          singleQuote: false,
+          trailingComma: 'all',
+          semi: true,
+        })
+      } catch {
+        return content // prettier unavailable or parse error -- raw (dogfood precedent)
+      }
+    }
+    const loadSide = async (files, read, stripFm) => {
+      const map = new Map()
+      for (const rel of files) {
+        let content = read(rel)
+        if (stripFm) content = stripLeadingFrontMatter(content)
+        if (rel.endsWith('.md')) content = await prettierMd(content)
+        map.set(rel, content)
+      }
+      return map
+    }
+    const emittedByPath = await loadSide(
+      emittedFiles,
+      (rel) => readFileSync(join(tmpDir, rel), 'utf-8'),
+      false,
+    )
+    const repoByPath = await loadSide(
+      repoFiles,
+      (rel) => readFileSync(join(root, rel), 'utf-8'),
+      true,
+    )
 
     const { findings, surface } = classifySelfParity({
       emittedFiles,
       repoFiles,
       divergences,
       runtimeArtifacts,
-      readEmitted: (rel) => readFileSync(join(tmpDir, rel), 'utf-8'),
-      readRepo: (rel) => readFileSync(join(root, rel), 'utf-8'),
-      normalize,
+      readEmitted: (rel) => emittedByPath.get(rel),
+      readRepo: (rel) => repoByPath.get(rel),
+      normalize: (content) => normalizeContent(content),
     })
 
     for (const f of findings) {
