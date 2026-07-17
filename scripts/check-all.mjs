@@ -24,7 +24,7 @@
 //       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) +
 //       anti-context-rot enforcers: agent-return envelope + refutation majority +
 //       audit dry-pass + handoff lint (#1943, advisory) +
-//       codex parity (ADR-106, #1966) (74)
+//       codex parity (ADR-106, #1966) + codex self-parity (#1966) (75)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.

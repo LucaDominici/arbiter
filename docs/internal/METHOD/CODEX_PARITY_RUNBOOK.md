@@ -300,3 +300,22 @@ or dropping frontmatter on a re-materialized file is a style decision, not a
 parity one. Markdown is additionally Prettier-normalized on BOTH sides before
 compare (formatting is invisible to parity, like frontmatter); files over
 1 MB skip Prettier and compare raw.
+
+### Known couplings (red-team 2026-07-17, accepted)
+
+- **Non-`.md` files compare byte-exact.** `.codex/codex-adapter.mjs` and
+  `.codex/config.toml` are emitted with the hardcoded Prettier fallback
+  (`ARBITER_DEFAULT_PRETTIER_ARGS`, `src/utils/prettier-format.ts`); the gate
+  stays green only while the repo `.prettierrc.json` is semantically equal to
+  that fallback. If either diverges (or a Prettier major changes a default),
+  the gate reds with a `stale` finding — re-materialize per the procedure above.
+- **`.agents/plan/PLAN.json` must exist while declared.** It is a declared
+  RUNTIME-ARTIFACT; deleting it from the tree without pruning its entry in
+  `scripts/data/codex-self-parity-runtime-artifacts.json` produces a
+  `dead-artifact` red (fail-closed by design).
+- **`.codex/config.toml` green state is flag-coupled.** The committed file
+  carries the `check-no-pii.mjs` and `check-no-skipped-tests.mjs` blocks, which
+  the template emits only when arbiter's own resolved config keeps
+  `enableSecurityScanning` on and `enableNoSkippedTests` not disabled. Flipping
+  either flag reds the gate until the file is re-materialized — intended
+  detection, recorded here so the red is not mistaken for a gate bug.
