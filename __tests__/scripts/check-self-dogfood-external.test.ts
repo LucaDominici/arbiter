@@ -29,10 +29,12 @@ const repoRoot = join(__dirname, '..', '..')
 // ─── EXTERNAL_CI_FAMILIES ─────────────────────────────────────────────────────
 
 describe('EXTERNAL_CI_FAMILIES', () => {
-  it('declares exactly the github-workflows and check-scripts families', () => {
+  it('declares the github-workflows, check-scripts, script-libs and schemas families', () => {
     expect(EXTERNAL_CI_FAMILIES.map((f: { key: string }) => f.key)).toEqual([
       'github-workflows',
       'check-scripts',
+      'script-libs',
+      'schemas',
     ])
   })
 
@@ -42,10 +44,46 @@ describe('EXTERNAL_CI_FAMILIES', () => {
     expect(scripts.include('check-drift')).toBe(true)
   })
 
-  it('check-scripts family only includes check-*.mjs, not the wider scripts/ corpus', () => {
+  it('check-scripts family admits the record-* recorder twins (E1 #1943)', () => {
+    const scripts = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'check-scripts')
+    expect(scripts.include('record-agent-return')).toBe(true)
+  })
+
+  it('check-scripts family only includes check-*/record-*.mjs, not the wider scripts/ corpus', () => {
     const scripts = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'check-scripts')
     expect(scripts.include('debt-lib')).toBe(false)
     expect(scripts.include('evidence-collect')).toBe(false)
+  })
+
+  it('script-libs family basename-intersects scripts/lib with its shipped twins', () => {
+    const libs = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'script-libs')
+    expect(libs.templateDir).toBe('src/templates/scripts/lib')
+    expect(libs.materializedDir).toBe('scripts/lib')
+    // The E1-E7 shared helpers must be inside parity scope (#1943 residual c).
+    expect(matchedFamilyBasenames(repoRoot, libs)).toEqual(
+      expect.arrayContaining(['gate-args', 'agent-return-validate']),
+    )
+  })
+
+  it('schemas family covers the agent-return envelope schema twin (E1 #1943)', () => {
+    const schemas = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'schemas')
+    expect(schemas.materializedDir).toBe('schemas')
+    expect(matchedFamilyBasenames(repoRoot, schemas)).toContain('agent-return')
+  })
+
+  it('check-scripts family covers the five anti-context-rot gate twins (#1943 residual c)', () => {
+    const scripts = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'check-scripts')
+    const matched = matchedFamilyBasenames(repoRoot, scripts)
+    expect(matched).toEqual(
+      expect.arrayContaining([
+        'check-agent-return',
+        'check-refutation-verdicts',
+        'check-audit-dry-pass',
+        'check-handoff-doc',
+        'check-touched-vs-manifest',
+        'record-agent-return',
+      ]),
+    )
   })
 })
 
