@@ -5,14 +5,12 @@
 // Exit 2 (hard grading only): re-prompts the model to persist findings before stopping.
 // Exit 0: advisory (soft grading) or nothing to flag.
 //
-// IMPLEMENT-BUT-NOT-ACTIVATED (OD-14): this file is emitted and tested but is
-// NOT wired into .claude/settings.json's Stop chain. A live Stop interceptor
-// could interfere with the running harness's own Stop handling — activation
-// (adding the registration alongside stop-evidence-guard.mjs) is an explicit
-// owner decision, not bundled with this implementation. To activate: register
-// this hook in the Stop chain of .claude/settings.json (and the emitted twin
-// src/templates/claude/settings.json.ejs), after stop-evidence-guard.mjs, then
-// promote the hardness classification per docs/design/anti-context-rot-enforcers.md §E6b.
+// WIRED (OD-14, 2026-07-17): registered in .claude/settings.json's Stop chain
+// (after stop-evidence-guard.mjs), advisory by default (exit 0 nudge, never
+// blocks). Hard grading — exit 2 re-prompt — is opt-in via
+// ARBITER_FINDING_LOSS_HARD=1; see the CLAUDE.md hooks table row for
+// stop-finding-loss.mjs and docs/design/anti-context-rot-enforcers.md §E6b for
+// the hardness-classification rationale.
 //
 // Detects the R1 signature at session scale: a session that dispatched >= 2
 // research sub-agents (Task/Agent tool_use blocks) but persisted NOTHING — no
