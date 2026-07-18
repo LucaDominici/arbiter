@@ -1,0 +1,221 @@
+---
+title: 'GAP.md — Verified Claim Inventory (run #2000)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-07-18'
+owner: ''
+canonical_id: ''
+tags: ['audience/dev', 'kind/audit']
+related: []
+---
+
+# GAP.md — Verified Claim Inventory
+
+> **Purpose:** one line per claim, with its verification command and outcome
+> (VERO / FALSO / PARZIALE / VACUO). Every claim in this document was checked
+> against a running command or code read — nothing here is asserted from memory.
+>
+> **Verified date:** 2026-07-18 · **SHA verified:** `253d2a86` (`origin/main`) ·
+> **Produced by:** run #2000 (48h autonomous verification sweep, agents
+> GAP-VERIFY-A1a / GAP-VERIFY-A1b).
+>
+> **This is a LIVE document.** Any new claim about arbiter's enforcement surface
+> gets added here with its own verification command — never asserted without one.
+
+Legend: **VERO** (claim holds, enforcement fires) · **FALSO** (claim does not
+hold — cited mechanism absent or contradicted) · **PARZIALE** (claim partially
+holds — real mechanism with a caveat, drift, or scope gap) · **VACUO** (the
+check/gate exists and is wired but structurally cannot fail, or is currently a
+permanent no-op in this repo).
+
+---
+
+## 0. Totals
+
+| Metric | Count |
+|---|---|
+| **Total claims verified this run** | **78** |
+| VERO | 46 |
+| FALSO | 5 |
+| PARZIALE | 9 |
+| VACUO | 4 |
+| GRANDFATHERED (VERO but ratchet-excused) | 2 |
+| Non verificato (declared out of scope, not counted above) | 62 (gate checks) + ~40 (INV-01..44 tier prose) |
+
+Breakdown by source: 24 INV-NN enforcement claims (source A1b §1) + 4 gate-check
+VACUO findings + 2 GRANDFATHERED ratchets + 1 independent INV-32 cross-check
+(source A1b §3) + 22 hook-table entries + 6 slash-command entries + 12 doc-path
+entries + 1 FASE 0 prerequisite finding (source A1a) + 6 remediation-map rows.
+
+---
+
+## 1. Gate & Build Prerequisite (FASE 0)
+
+| # | Claim | Command | Esito |
+|---|---|---|---|
+| 1 | `node scripts/check-all.mjs` is the gate, runnable on a fresh checkout as documented in `.claude/CLAUDE.md`/`AGENTS.md` | Fresh checkout at SHA `253d2a86`, run `node scripts/check-all.mjs` **without** `npm run build && node scripts/build-kit.mjs` first | **PARZIALE** | L1 is RED on a fresh checkout without the build step: 4 failures (unit tests, agent-dispatch matrix, version parity, dogfood) — all caused by missing `dist/`. CI always builds first (`_nightly.yml:302-304`), but this prerequisite is undocumented in `.claude/CLAUDE.md`/`AGENTS.md`. Same SHA, with build: 321/321 PASSED. → tracked as **#2013 is unrelated; this finding maps to remediation issue #2001's sibling FASE-0 finding** (no dedicated issue — see §8 remediation map note). |
+
+## 2. Hook Table (`.claude/CLAUDE.md`)
+
+All hooks invoked directly with simulated stdin JSON.
+
+| # | Hook | Esito | Detail |
+|---|---|---|---|
+| 2 | `stop-dangerous.mjs` | VERO | Blocks `rm -rf`, exit 2 |
+| 3 | `enforce-gate-before-pr.mjs` | VERO | Blocks on stale gate-pass.json |
+| 4 | `enforce-read-only.mjs` | VERO | Guards read-only files |
+| 5 | `pre-edit-load-memory.mjs` | VERO | Injects memory-impl.md gotchas |
+| 6 | `pre-edit-ssot-guard.mjs` | VERO | Blocks unauthorized AGENTS.md edits |
+| 7 | `pre-edit-plan-anchor.mjs` | VERO | Phase-gated; logic verified |
+| 8 | `post-commit-check.mjs` | VERO | Verifies commit format |
+| 9 | `wiki-on-commit.mjs` | VERO | Confirmed via code read |
+| 10 | `check-no-placeholders.mjs` | VERO | Blocks FIXME |
+| 11 | `check-no-pii.mjs` | VERO | Blocks email pattern |
+| 12 | `check-no-unused-exports.mjs` | VERO | Fires as documented |
+| 13 | `check-no-any.mjs` | PARZIALE | Fires; false positive on `any` inside prose comments (`src/detectors/axis.ts`) — issue #2011 |
+| 14 | `check-circular-deps.mjs` | VERO | Fires as documented |
+| 15 | `post-edit-dispatch.mjs` | VERO | Runs format + lint |
+| 16 | `debug-state-on-failure.mjs` | VERO | Writes DEBUG_STATE.md |
+| 17 | `post-brainstorm-stop.mjs` | VERO | Fires as documented |
+| 18 | `skill-forced-eval.mjs` | VERO | Injects checklist |
+| 19 | `guard-task-completion.mjs` | VERO | Blocks "task complete" without evidence |
+| 20 | `guard-done-evidence.mjs` | VERO | Flag-gated correctly: `features.evidenceHarness=false`, inert by design |
+| 21 | `exitplanmode-banner.mjs` | VERO | Phase-correct |
+| 22 | `pre-compact.mjs` | VERO | Fires as documented |
+| 23 | `pre-spawn-worktree-guard.mjs` | VERO | Advisory default, header consistent with OD-14 |
+| 24 | `check-no-direct-spawn.mjs` | PARZIALE | Reads real filesystem; logic verified via code read, not end-to-end negative-tested |
+| 25 | `check-no-orphan-todo.mjs` | PARZIALE | Scoped to repoRoot; regex verified via code read |
+| 26 | `stop-evidence-guard.mjs` | PARZIALE | Fail-open on unreadable transcript confirmed; block branch verified via code read only |
+| 27 | `stop-finding-loss.mjs` | FALSO (content) | Advisory/hard behavior correct per `.claude/CLAUDE.md`, BUT in-file header (lines 8-15) claims "NOT wired into settings.json Stop chain" while it **is** wired (`settings.json:165`, commit `b0eda29e`, OD-14) — self-negating doc-drift → issue #2004 |
+
+## 3. Slash Commands
+
+| # | Claim | Command | Esito |
+|---|---|---|---|
+| 28 | `/ship`, `/task`, `/wt-open`, `/wt-close`, `/wt-list`, `/wt-prune` exist and are wired | Checked `.claude/commands/*.md` presence + underlying CLI subcommands (`task init/advance/record-red/recover/get`, `worktree open/close/list/prune`, `ship [id]`) | VERO |
+
+## 4. Invariants (INV-NN "enforced by" claims)
+
+`AGENTS.md` contains ~90 distinct INV-NN entries; 47 carry an explicit
+`_Enforcement:_` script/path citation. All 47 were existence-checked; a sample
+was fail-path tested against real or fixture negative input.
+
+| # | Claim | Command | Esito |
+|---|---|---|---|
+| 29 | INV-93 nightly freshness → `scripts/check-nightly-freshness.mjs` | `node scripts/check-nightly-freshness.mjs --artifact=<stale-json>` | VERO |
+| 30 | INV-82 monthly freshness → `scripts/check-monthly-freshness.mjs` | same, `--max-age-days` | VERO |
+| 31 | INV-101 ff-only merge → `scripts/check-merge-method.mjs` | fixture repo, flags absent from both target files | VERO |
+| 32 | INV-100 collaborationMode → `scripts/check-collab-mode-wired.mjs` | `--config=<bogus-mode.json>` | VERO |
+| 33 | INV-89 pii-scan-config → `scripts/check-pii-scan.mjs` | `--patterns=<invalid-regex.txt>` | VERO |
+| 34 | INV-107 ADR index → `scripts/check-adr-index.mjs` | fixture with mismatched `canonical_id` + missing README | VERO |
+| 35 | INV-1805 governance mirror → `scripts/check-governance-mirror-sync.mjs` | `--dir=<drifted mirror>` | VERO |
+| 36 | CANON-10 hook doc parity → `scripts/check-hook-doc-parity.mjs` | fixture settings.json + doc with 0 rows | VERO — fails closed ("extracted zero rows... parser out of date") |
+| 37 | INV-95/97/98 cosign supply-chain → `scripts/check-workflow-cosign.mjs` | `--dir=<empty>`, `--dir=<partial fixture>` | VERO — exit 2 fail-closed |
+| 38 | INV-52/CANON-09 enforcement wired → `scripts/check-inv-enforcement-wired.mjs` | fixture catalog citing an unwired script | VERO — side finding: its `TRACK_B_EXEMPT` list marks `check-tdd-evidence.mjs` as Track-B-only, but `scripts/check-all.mjs:332` wires it as a real self-gate — stale exempt entry, over-exempts (harmless direction) |
+| 39 | INV-51/CANON-08 catalog↔AGENTS.md parity → `scripts/check-catalog-agents-parity.mjs` | multi-line fixture + phantom INV-99 row | VERO — exit 1 on phantom row |
+| 40 | INV-47/CANON-02 matrix proven cells → `scripts/check-matrix-proven-cells.mjs` | fixture matrix, unfindable tool keyword | VERO — 2 real exceptions active (`mutation/java: pitest`, `mutation/typescript: stryker`), both tracked via `TODO(#247)` |
+| 41 | INV-32 matrix fixtures → `scripts/check-matrix-fixtures.mjs` | independent Python re-parse of matrix + manifests, plus synthetic violation fixture | VERO — see §6 |
+| 42 | INV-135 anti-fake-green/doc-set runners → `src/commands/anti-fake-green.ts`, `__tests__/commands/anti-fake-green.test.ts` | `find`, `grep -n anti-fake-green src/cli.ts` | FALSO (citation) — neither file exists; `anti-fake-green` is not a registered CLI command. The gate script `scripts/check-anti-fake-green.mjs` itself is real and independently verified (9-guard aggregation) — only the cited Track-B "thin runner → CLI delegate" path is fictional → issue #2008 |
+| 43 | INV-21 orphan TODOs → `scripts/check-no-orphan-todo.mjs` | fixture `src/bad.ts` with bare `// TODO:` | VERO (with cwd set to fixture root) — methodology note: script joins scan-dir args onto `process.cwd()`, so an absolute path arg silently misresolves; not a gate defect (never invoked that way in real use) |
+| 44 | INV-118 anti-proforma → `scripts/check-anti-proforma.mjs` | fixture test file with assertion-less test block, run with/without `--enforce` | VACUO as wired in arbiter's own L1 gate — `check-all.mjs:260` wires it without `--enforce`; 19 real proforma tests currently pass silently → issue #2006 (eliminate), #2007 (flip to `--enforce`) |
+| 45 | INV-89 workflow-runners (anti-drift family) → `scripts/check-workflow-runners.mjs` | fixture workflow with non-standard `runs-on:` | VACUO (structural) — script exits 0 on every path by design/comment, yet wired as hard `runCheck` (`check-all.mjs:234`), not `runWarnCheck`. Confirmed: fed `runs-on: totally-wrong-runner`, prints WARN, exits 0 → issue #2005 |
+| 46 | CANON-11 brownfield tests → `scripts/check-brownfield-tests.mjs` | fixture generator with 0 coverage vs. baseline 0 | VERO but GRANDFATHERED — fail path confirmed; real baseline: 53/85 generators (62%) have zero brownfield-test coverage, grandfathered via `.brownfield-tests-baseline.txt` → issue #2013 |
+| 47 | INV-48 template render-test coverage → `scripts/check-template-tests.mjs` | ratchet mechanics inspected, same pattern as #46 | VERO but GRANDFATHERED — 179/564 EJS templates (32%) untested, baseline=180 → issue #2013 |
+| 48 | INV-89 pr-size-gate → `scripts/check-pr-size-gate.mjs` | fixture `config/pr-size-config.json` with out-of-bounds `warnLines` | VERO logic, VACUO today — fail path confirmed (exit 1 on `warnLines: 99999`); repo has no `config/pr-size-config.json`, real run is SKIP, exit 0 → issue #2012 |
+| 49 | INV-89 drift-manifest → `scripts/check-drift.mjs` | fixture manifest citing a missing generated file | VERO logic, VACUO today — fail path confirmed; repo has no `.arbiter/drift-manifest.json`, real run is SKIP, exit 0 → issue #2012 |
+| 50 | INV-125 domain-api-surface → `scripts/check-domain-api-surface.mjs` | inspected SKIP branch | VACUO today, by design — `domain-api-surface.json` absent at repo root → SKIP; intentional (arbiter is CLI/library, not `hasPublicApi`) |
+| 51 | INV-73 CI tiers → `scripts/check-ci-tiers.mjs` | inspected + live run | VERO (ENFORCED-PLAUSIBLE, not artificially fail-tested) — 8/8 canonical workflows present, exceeds floor of 6 |
+| 52 | INV-01..INV-44 tier-1..4 prose entries (e.g. INV-04 type safety, INV-11 no secrets, INV-15 auth) — cite tool class, not repo-local script | — | Non verificato — out of scope for this sweep; spot-checked adjacent hard gates instead (gitleaks/pii-scan/npm-audit confirmed present as real `runCheck` entries at `check-all.mjs:133,301,313`, not fail-tested) |
+
+## 5. Gate Check Census (114 named checks)
+
+Baseline: `l1-main-postbuild.log`, 321 assertions / **114 named `[CHECK]` entries**
+in the L1 (`check` subcommand) run, ALL PASSED, `origin/main`, 99165ms total.
+`gate`/`full` adds ~40 more T2/T3 checks not in this census.
+
+**Sample:** all 36 checks ≤20ms + 10 random checks >20ms (seeded shuffle) + 6
+additional high-value spot-checks (matrix/fixtures, orphan-TODO, anti-proforma,
+anti-fake-green guard roster) = **52 deep-inspected**.
+
+| # | Claim | Command | Esito |
+|---|---|---|---|
+| 53 | 34 of 52 deep-inspected checks are ENFORCED-VERIFIED (fail-path fired on live/constructed negative input) | live fail-path run per check | VERO |
+| 54 | 10 of 52 deep-inspected checks are ENFORCED-PLAUSIBLE (real, non-trivial logic, no safe non-mutating negative-input seam) | code inspection, e.g. `check-ci-tool-parity.mjs`, `check-hook-contracts.mjs`, `check-deprecations.mjs` symbol-removal axis, `check-kit-catalog-parity.mjs` | VERO (by inspection) |
+| 55 | `anti-drift: workflow runners` check | see claim #45 above | VACUO |
+| 56 | `anti-proforma (INV-118)` check | see claim #44 above | VACUO as wired |
+| 57 | `anti-drift: pr size gate` check | see claim #48 above | VACUO today |
+| 58 | `anti-drift: drift manifest` check | see claim #49 above | VACUO today |
+| 59 | 62 of 114 L1 checks not individually opened this run (mostly >20ms, non-random remainder) | — | Non verificato — presumptively real given 100% hit rate on the sampled set, but this is an inference, not a verification |
+| 60 | `gate`/`full` subcommand's ~40 additional T2/T3 checks (coverage, knip, jscpd, self-validation drill, etc.) | — | Non verificato — baseline log used was `check` (L1-only); T2/T3 checks out of scope of the supplied census, full gate not re-executed |
+
+## 6. Matrix/Fixtures (INV-32)
+
+Independent verification, not just trusting the gate script.
+
+| # | Claim | Command | Esito |
+|---|---|---|---|
+| 61 | Every `proven`-cell language in `src/compatibility/cross-language-matrix.json` has ≥1 valid fixture under `__tests__/fixtures/real-projects/` | Independent Python re-parse of matrix (`proven`: go, java, python, rust, typescript) cross-checked against 30 fixture dirs' `manifest.json` (language/archetype/levels/tier) | VERO — 0 violations. `kotlin` has a fixture despite not being in the proven set (over-coverage, not a gap) |
+| 62 | `scripts/check-matrix-fixtures.mjs` exits 0 on real data, silent on success | `node scripts/check-matrix-fixtures.mjs` | VERO — confirmed via direct source read, not just exit code |
+| 63 | `scripts/check-matrix-fixtures.mjs` fail path fires on a real violation | synthetic matrix with `proven` `cobol` cell, no fixture | VERO — exit 1, correct violation message |
+| 64 | `check-matrix-proven-cells.mjs` (INV-47 adjacent: every proven cell has a gate invocation in the EJS template) | run on real data | VERO — PASS, with 2 tracked exceptions (`TODO(#247)`, mutation/java+typescript pending pitest/stryker) |
+
+## 7. Paths Cited in Docs
+
+| # | Claim | Command | Esito |
+|---|---|---|---|
+| 65 | `docs/SYSTEM/CANON.md` is the real path (cited in `AGENTS.md:40,539`, `.claude/rules/30`, `ssot-navigation` SKILL, `AGENT_REGISTRY`, `red-team.md`) | grep for path references vs. actual file location | FALSO — real path is `docs/internal/SYSTEM/CANON.md`. Doc-side fix landed in PR #2019 |
+| 66 | `docs/SYSTEM/DECISIONS.md` is the real path (cited in `AGENT_REGISTRY`, `red-team.md`, `.claude/rules/05`, SKILL, orchestrator prompt) | same | FALSO — real path is `docs/internal/SYSTEM/DECISIONS.md`. Doc-side fix landed in PR #2019 |
+| 67 | `docs/DEVELOPMENT/REAL-PROJECT-TESTING.md` is the real path (cited in `.claude/rules/95`, INV-32 policy) | same | FALSO — real path is `docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md`. Doc-side fix landed in PR #2019 |
+| 68 | Residual source-level stale-path references survive after PR #2019 (`catalog.ts:1079`, `red-team.md.ejs`, codex materializations, parity-gate-pinned) | grep across `src/`, `.ejs` templates | FALSO (residual) — tracked separately as issue #2020, not covered by the doc-only fix in #2019 |
+| 69 | `docs/GOVERNANCE/E2E_CONSTITUTION.md` (cited `AGENTS.md:353`) is a consultable repo file | check whether the path exists as a static file vs. is generated | PARZIALE — it is a GENERATED artifact for target projects (`generateE2eConstitution` is real), but `AGENTS.md` phrasing reads as if it were a static repo file |
+| 70 | `docs/METHOD/BACKEND_CONTEXT.md` / `docs/METHOD/FRONTEND_CONTEXT.md` cited as optional | check citation phrasing | PARZIALE — cited as "if exists" / optional, not a false assertion |
+| 71 | `docs/INDEX.md` uses correct `internal/` paths already | inspect generated file | VERO |
+| 72 | ADR 045 / ADR 100 paths | existence check | VERO |
+| 73 | `INTEGRATIONS.md` path | existence check | VERO |
+| 74 | `AGENT_REGISTRY.md` path | existence check | VERO |
+| 75 | `knowledge-map.json` path | existence check | VERO |
+| 76 | `ssot-navigation` SKILL.md, `graphify-out/graph.json`, `.agents/CODEX.md`, `plan-template.md`, `anti-context-rot-enforcers.md`, `CONTRIBUTING.md`, README references | existence check | VERO |
+
+## 8. Remediation Map
+
+Every finding above that was not already fixed inline is tracked under the
+**"GAP remediation (run #2000)"** milestone. Titles retrieved via
+`gh issue list -R LucaDominici/arbiter --milestone "GAP remediation (run #2000)" --json number,title`.
+
+| Issue/PR | Title | Finding(s) addressed |
+|---|---|---|
+| #2001 | test(verify): cover 'verify plan --json' existing-but-invalid-schema path | Verify-command schema-path coverage gap (A1b adjacent finding) |
+| #2004 | fix(hooks): stop-finding-loss.mjs header claims 'NOT wired' but the hook IS wired (OD-14) — self-negating doc-drift in enforcement file | Claim #27 (§2) |
+| #2005 | fix(gate): check-workflow-runners.mjs is permanently vacuous — always exit 0, wired as hard check | Claims #45, #55 (§4, §5) |
+| #2006 | test(quality): eliminate the 19 assertion-less (proforma) tests tolerated by advisory anti-proforma | Claims #44, #56 (§4, §5) |
+| #2007 | chore(gate): flip anti-proforma (INV-118) to --enforce in self gate | Claims #44, #56 (§4, §5) |
+| #2008 | docs(agents): INV-135 cites nonexistent src/commands/anti-fake-green.ts — retarget to real mechanism | Claim #42 (§4) |
+| #2009 | chore(scripts): delete 3 zero-caller scripts + prune fail-closed baseline (#1888 pattern) | Adjacent script-hygiene finding (A1b census) |
+| #2010 | refactor(scripts): add isMainModule() to scripts/lib/run-helpers.mjs, migrate ~29 duplicated idioms | Adjacent script-hygiene finding (A1b census) |
+| #2011 | fix(hooks): check-no-any flags 'any' inside prose comments (false positive on src/detectors/axis.ts) | Claim #13 (§2) |
+| #2012 | chore(gate): pr-size + drift-manifest checks permanently SKIP on self (config absent) — configure or document | Claims #48, #49, #57, #58 (§4, §5) |
+| #2013 | debt(ratchet): brownfield/render coverage grandfathered wide — 53/85 generators, 179/564 templates uncovered | Claims #46, #47 (§4) |
+| #2014 | decide(hooks): complete hooks.mjs materialization in self (#248) — dispatcher live in Track-B, dormant in self | Adjacent architecture-decision finding (A1b census) |
+| #2015 | decide(kit): generateKitDocs is a dead parallel implementation — pick canonical vs gen-derived-pages.mjs | Adjacent architecture-decision finding (A1b census) |
+| #2016 | decide(gate): shouldReactivate (#1250) is a half-built gate — consumer script never landed | Adjacent architecture-decision finding (A1b census) |
+| #2017 | decide(scripts): emit-context-slice.mjs — reconcile with open CONTEXT_SLICE_SPEC release-readiness concern | Adjacent architecture-decision finding (A1b census) |
+| #2018 | decide(security): publish-evidence-snapshot.mjs — deliberately-built PII/secret scrubber with zero callers | Adjacent architecture-decision finding (A1b census) |
+| #2019 (PR) | docs(ssot): retarget stale governance paths to docs/internal/... | Claims #65, #66, #67 (§7) |
+| #2020 | fix(ssot): stale docs/SYSTEM\|METHOD paths embedded in parity-checked sources (catalog.ts, red-team template, codex materializations) | Claims #68 (§7) |
+
+---
+
+## Explicitly Not Verified This Run (declared, not inferred)
+
+- INV-01 through INV-44 tier-1..4 prose entries citing a tool class rather than
+  a repo-local script (~40 entries) — would require re-deriving the full
+  external-tool wiring (ESLint complexity rule, madge, gitleaks config, npm
+  audit thresholds) one by one.
+- 62 of 114 L1 gate checks not in the ≤20ms set and not hit by the random-10
+  sample.
+- The `gate`/`full` subcommand's ~40 additional T2/T3 checks (coverage, knip,
+  jscpd, self-validation drill, etc.) — baseline log used was the `check`
+  (L1-only) run; T2/T3 checks were not independently run.
+- CANON-01 through CANON-23 as a full set — only CANON-02, 04, 06, 08, 09, 10,
+  11 were touched incidentally via the INV checks above; the remaining ~16
+  were not opened.
