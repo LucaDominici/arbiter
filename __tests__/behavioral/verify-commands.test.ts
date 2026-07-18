@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Behavioral tests (#1040): arbiter verify sub-commands — spawn the real CLI
 // binary and assert observable output/exit-code invariants.
-import { describe, it, expect } from 'vitest'
-import { resolve } from 'node:path'
-import { readFileSync } from 'node:fs'
+import { describe, it, expect, afterEach } from 'vitest'
+import { resolve, join } from 'node:path'
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 
 const CLI = resolve(import.meta.dirname, '../../dist/cli.js')
@@ -21,6 +22,22 @@ function spawn(args: string[], cwd?: string): { stdout: string; stderr: string; 
     stderr: result.stderr ?? '',
     status: result.status ?? 1,
   }
+}
+
+const planFixtureDirs: string[] = []
+afterEach(() => {
+  for (const d of planFixtureDirs.splice(0)) {
+    rmSync(d, { recursive: true, force: true })
+  }
+})
+
+/** Write `content` to a fresh temp PLAN.json and return its path. */
+function writePlanFixture(content: string): string {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-verify-plan-2001-'))
+  planFixtureDirs.push(dir)
+  const file = join(dir, 'PLAN.json')
+  writeFileSync(file, content)
+  return file
 }
 
 describe('arbiter verify — sub-command surface', () => {
@@ -125,6 +142,49 @@ describe('arbiter verify — sub-command surface', () => {
       '--json',
     ])
     expect(status).not.toBe(0)
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
+      'verify plan:',
+    )
+    const parsed = JSON.parse(stdout)
+    expect(parsed.command).toBe('verify plan')
+    expect(parsed.status).toBe('error')
+  })
+
+  // #2001: the file-not-found path above pins exitCode 2 + a JSON error
+  // envelope, but the existing-file-with-invalid-content paths were only
+  // verified manually (see #1996 closing comment) — no pinning test. A
+  // future refactor reintroducing a throwing `.parse()` in `parsePlan()`
+  // (src/commands/verify-plan.ts) would land unnoticed. Pin current
+  // behavior for all three invalid-content shapes.
+
+  it('verify plan <file> --json: existing file, schema-invalid content (wrong field) → exit 2 + error envelope (#2001)', () => {
+    const file = writePlanFixture(JSON.stringify({ not_a_valid_plan_field: true }))
+    const { status, stdout, stderr } = spawn(['verify', 'plan', file, '--json'])
+    expect(status).toBe(2)
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
+      'verify plan:',
+    )
+    const parsed = JSON.parse(stdout)
+    expect(parsed.command).toBe('verify plan')
+    expect(parsed.status).toBe('error')
+  })
+
+  it('verify plan <file> --json: existing file, malformed JSON → exit 2 + error envelope (#2001)', () => {
+    const file = writePlanFixture('{ this is not valid JSON')
+    const { status, stdout, stderr } = spawn(['verify', 'plan', file, '--json'])
+    expect(status).toBe(2)
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
+      'verify plan:',
+    )
+    const parsed = JSON.parse(stdout)
+    expect(parsed.command).toBe('verify plan')
+    expect(parsed.status).toBe('error')
+  })
+
+  it('verify plan <file> --json: existing file, wrong root type (array) → exit 2 + error envelope (#2001)', () => {
+    const file = writePlanFixture(JSON.stringify([1, 2, 3]))
+    const { status, stdout, stderr } = spawn(['verify', 'plan', file, '--json'])
+    expect(status).toBe(2)
     expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
       'verify plan:',
     )
