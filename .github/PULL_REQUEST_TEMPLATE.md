@@ -23,7 +23,7 @@
 - [ ] No invariant violations (see AGENTS.md)
 - [ ] Tests added/updated for changed code
 - [ ] Commit messages follow convention: `type(scope): summary`
-- [ ] No CANON violations — applicable CANON-NN IDs listed below (see `docs/SYSTEM/CANON.md`)
+- [ ] No CANON violations — applicable CANON-NN IDs listed below (see `docs/internal/SYSTEM/CANON.md`)
 
 **Applicable CANON-NN:** <!-- list e.g. CANON-01, CANON-05 or "none" -->
 

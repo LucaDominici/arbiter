@@ -579,7 +579,7 @@ Every script emitted by Arbiter (scripts/_.mjs, src/templates/scripts/_.ejs) mus
 
 ### INV-54: SSOT core set integrity — all listed files must exist
 
-Every file listed in docs/METHOD/SSOT_CORE_SET.md must exist on disk. The gate exits 1 if any listed file is missing. Bootstrap mode: if SSOT_CORE_SET.md itself is absent, the gate exits 0 and skips.
+Every file listed in docs/internal/METHOD/SSOT_CORE_SET.md must exist on disk. The gate exits 1 if any listed file is missing. Bootstrap mode: if SSOT_CORE_SET.md itself is absent, the gate exits 0 and skips.
 
 **Enforcement:** scripts/check-ssot-core.mjs (L1 gate, #255)
 
@@ -603,7 +603,7 @@ RETIRED (#1244): the bespoke knowledge-map (its index doc, updater, and freshnes
 
 ### INV-57: Canonical-paths integrity — all redirect targets must exist
 
-Every redirect target in docs/METHOD/CANONICAL_PATHS.md must exist on disk. A dangling alias (target missing) causes the gate to exit 1. Bootstrap mode: if CANONICAL_PATHS.md is absent, the gate exits 0.
+Every redirect target in docs/internal/METHOD/CANONICAL_PATHS.md must exist on disk. A dangling alias (target missing) causes the gate to exit 1. Bootstrap mode: if CANONICAL_PATHS.md is absent, the gate exits 0.
 
 **Enforcement:** scripts/check-canonical-paths.mjs (L1 gate, #255)
 
@@ -627,9 +627,9 @@ check-all.mjs emits a gate result JSON to .arbiter/gate/local-result.json on eve
 
 ### INV-96: Fail-closed default — every gate, hook, check, and generator blocks on uncertainty
 
-Doctrine: arbiter's gates default to block-on-uncertainty, never skip-on-uncertainty. Every script under scripts/, .githooks/, and .claude/hooks/ (and their EJS templates under src/templates/) must: (a) translate unhandled errors into a non-zero exit — node scripts wrap their entry block in try/catch with process.exit(1) or consume runCheck/runWarnCheck/runToolCheck from scripts/lib/run-helpers.mjs; bash scripts start with `set -euo pipefail`; (b) treat missing required inputs as failure with a diagnostic line; (c) reject silent bypass — any opt-out must be a loud env var with a logged reason (see Port #10 loud-bypass contract); (d) avoid the documented anti-patterns: `|| true` on critical paths, swallowed `catch {}` blocks, default-true booleans without explicit fallback. Legitimate fail-open paths must carry a `# FAIL-OPEN-INTENT: <reason>` (bash) or `// FAIL-OPEN-INTENT: <reason>` (node) comment on the line above the construct; reviewers must challenge the reason. Pre-existing non-conformant scripts are grandfathered in scripts/data/fail-closed-baseline.json — the baseline is a debt ledger, not a bypass. The gate hard-fails only when a NEW file (not in the baseline) violates the contract. See docs/SYSTEM/FAIL_CLOSED.md for the full doctrine, contract, and anti-pattern catalogue.
+Doctrine: arbiter's gates default to block-on-uncertainty, never skip-on-uncertainty. Every script under scripts/, .githooks/, and .claude/hooks/ (and their EJS templates under src/templates/) must: (a) translate unhandled errors into a non-zero exit — node scripts wrap their entry block in try/catch with process.exit(1) or consume runCheck/runWarnCheck/runToolCheck from scripts/lib/run-helpers.mjs; bash scripts start with `set -euo pipefail`; (b) treat missing required inputs as failure with a diagnostic line; (c) reject silent bypass — any opt-out must be a loud env var with a logged reason (see Port #10 loud-bypass contract); (d) avoid the documented anti-patterns: `|| true` on critical paths, swallowed `catch {}` blocks, default-true booleans without explicit fallback. Legitimate fail-open paths must carry a `# FAIL-OPEN-INTENT: <reason>` (bash) or `// FAIL-OPEN-INTENT: <reason>` (node) comment on the line above the construct; reviewers must challenge the reason. Pre-existing non-conformant scripts are grandfathered in scripts/data/fail-closed-baseline.json — the baseline is a debt ledger, not a bypass. The gate hard-fails only when a NEW file (not in the baseline) violates the contract. See docs/internal/METHOD/ENGINEERING_DEFAULTS.md for the full doctrine, contract, and anti-pattern catalogue.
 
-**Enforcement:** scripts/check-fail-closed-audit.mjs (L2 gate) — exits 1 when a new file outside the baseline violates the fail-closed contract; doctrine at docs/SYSTEM/FAIL_CLOSED.md
+**Enforcement:** scripts/check-fail-closed-audit.mjs (L2 gate) — exits 1 when a new file outside the baseline violates the fail-closed contract; doctrine at docs/internal/METHOD/ENGINEERING_DEFAULTS.md
 
 ---
 

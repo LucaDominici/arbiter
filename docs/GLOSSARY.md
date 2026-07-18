@@ -22,7 +22,7 @@ detail.
 - **invariant (INV-NN)** — a hard rule the codebase must always satisfy, catalogued in
   `src/invariants/catalog.ts` and enforced by hooks/gates. Violations stop work.
 - **CANON-NN** — a process-level rule (e.g. refactor-first, no orphan TODOs) from
-  `docs/SYSTEM/CANON.md`, enforced like invariants.
+  `docs/internal/SYSTEM/CANON.md`, enforced like invariants.
 - **governance level (L1–L4)** — how much governance a generated project gets, from light to
   fully regulated; controls which invariants and gates are emitted.
 - **brownfield class** — a maturity classification (gold / light / medium / heavy) of an

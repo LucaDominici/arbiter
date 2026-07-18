@@ -89,4 +89,4 @@ codebase-scanner  →  context-checker  →  bridge-reviewer
 1. Create or delete `.claude/agents/<name>.md`
 2. Update this registry (add/remove row + chain entries)
 3. Update `.claude/rules/05-agent-lifecycle.md` if the agent affects always-loaded rules
-4. Append an ADR-style entry to `docs/SYSTEM/DECISIONS.md`
+4. Append an ADR-style entry to `docs/internal/SYSTEM/DECISIONS.md`

@@ -13,13 +13,13 @@ related: []
 
 ## Source
 
-`docs/SYSTEM/CANON.md` — 23 process-level rules derived from audit waves #151–#186.
+`docs/internal/SYSTEM/CANON.md` — 23 process-level rules derived from audit waves #151–#186.
 
 ## Protocol
 
 When implementing any open issue:
 
-1. **Read** `docs/SYSTEM/CANON.md` before touching any file
+1. **Read** `docs/internal/SYSTEM/CANON.md` before touching any file
 2. **List** every CANON-NN ID that applies to the issue (check labels: `canon/NN-*`)
 3. **Block** advancement to the next implementation step until each listed CANON-NN is satisfied
 4. **Cite** CANON-NN on violation: `STOP — CANON-NN violation: <rule summary>`

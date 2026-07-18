@@ -37,7 +37,7 @@ When documents conflict, higher level wins. No debate.
 ```
 Level 1:  AGENTS.md — invariants + governance (this file)
 Level 2:  ADRs (docs/internal/ADR/) — architectural decisions
-Level 3:  docs/SYSTEM/CANON.md — process constraints
+Level 3:  docs/internal/SYSTEM/CANON.md — process constraints
 Level 4:  Active task plan (.claude/plans/*.md) — task-level guidance
 Level 5:  AI judgment — last resort
 ```
@@ -536,7 +536,7 @@ arbiter uses a detect-and-reference posture with other Claude Code skill suites.
 ## Process Canon (CANON-01..23)
 
 Structural process rules enforced by `scripts/check-catalog-agents-parity.mjs` (CANON-08).
-Canonical source: `docs/SYSTEM/CANON.md`.
+Canonical source: `docs/internal/SYSTEM/CANON.md`.
 
 - **CANON-01:** Dual-sided declination
 - **CANON-02:** Proven cell ⇒ gated step

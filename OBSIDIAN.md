@@ -64,5 +64,5 @@ graph stays focused on hand-authored docs.
   graph is exhaustive; KNOWLEDGE_MAP is opinionated.
 - The CI gate `scripts/check-doc-links.mjs`. Obsidian's broken-link UI is a
   hint; the gate is the contract.
-- The `docs/METHOD/SSOT_CORE_SET.md` inventory. Obsidian lists every file;
+- The `docs/internal/METHOD/SSOT_CORE_SET.md` inventory. Obsidian lists every file;
   SSOT_CORE_SET lists the canonical ones.
