@@ -145,20 +145,16 @@ describe('render-determinism property (fast-check)', () => {
     )
   })
 
-  it(
-    'every workflow template renders byte-identical output on repeated render',
-    { timeout: 30_000 },
-    () => {
-      fc.assert(
-        fc.property(sampledConfig, (config) => {
-          for (const tpl of WORKFLOW_TEMPLATES) {
-            const first = renderTemplate(tpl, config as unknown as Record<string, unknown>)
-            const second = renderTemplate(tpl, config as unknown as Record<string, unknown>)
-            expect(second, `${tpl} rendered differently on a repeated call`).toBe(first)
-          }
-        }),
-        FC_CONFIG,
-      )
-    },
-  )
+  it('workflow templates render byte-identically on repeated render', { timeout: 30_000 }, () => {
+    fc.assert(
+      fc.property(sampledConfig, (config) => {
+        for (const tpl of WORKFLOW_TEMPLATES) {
+          const first = renderTemplate(tpl, config as unknown as Record<string, unknown>)
+          const second = renderTemplate(tpl, config as unknown as Record<string, unknown>)
+          expect(second, `${tpl} rendered differently on a repeated call`).toBe(first)
+        }
+      }),
+      FC_CONFIG,
+    )
+  })
 })

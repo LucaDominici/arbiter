@@ -60,9 +60,7 @@ describe('en.json completeness', () => {
   }
 
   it('every t() key in src/ must exist in en.json', () => {
-    if (missing.length > 0) {
-      const report = missing.map(({ file, key }) => `  ${file}: "${key}"`).join('\n')
-      expect.fail(`Missing keys in en.json:\n${report}`)
-    }
+    const report = missing.map(({ file, key }) => `${file}: "${key}"`)
+    expect(report, `Missing keys in en.json:\n${report.join('\n')}`).toEqual([])
   })
 })

@@ -13,6 +13,10 @@ function cfg(overrides: Parameters<typeof makeConfig>[1] = {}) {
 
 const TEMPLATE = 'scripts/check-constraint-scan.mjs.ejs'
 
+// Hoisted out of the token-parity test body: an unbalanced ']}' character class in a
+// same-line literal can confuse brace-counting static test-quality scanners (#2006).
+const TRAILING_COMMA_RE = /,(?=[)\]}])/g
+
 describe('check-constraint-scan.mjs.ejs render (INV-115)', () => {
   it('renders without EJS leaks', () => {
     const out = renderTemplate(TEMPLATE, cfg())
@@ -65,7 +69,7 @@ describe('check-constraint-scan.mjs.ejs render (INV-115)', () => {
         .map((l) => l.replace(/docs\/internal\/SYSTEM\/CANON\.md/g, 'docs/SYSTEM/CANON.md'))
         .join('\n')
         .replace(/\s+/g, '') // strip ALL whitespace → Prettier line-wrapping insensitive
-        .replace(/,(?=[)\]}])/g, '') // drop Prettier trailing commas (semantically insignificant)
+        .replace(TRAILING_COMMA_RE, '') // drop Prettier trailing commas (semantically insignificant)
         .trim()
     const rendered = normalise(renderTemplate(TEMPLATE, cfg()))
     const self = normalise(readFileSync(resolve('scripts/check-constraint-scan.mjs'), 'utf8'))

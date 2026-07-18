@@ -290,7 +290,7 @@ describe('check-fail-closed-audit', () => {
       join(env.root, 'scripts', 'documented.mjs'),
       [
         '#!/usr/bin/env node',
-        '// example of a forbidden shape: } catch { return null }',
+        '// example of a forbidden shape: catch { return null }',
         "const doc = 'a catch { } that is just text'",
         'console.log(doc)',
         'try { main() } catch (e) { console.error(e); process.exit(1) }',

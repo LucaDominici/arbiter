@@ -9,14 +9,11 @@ function cfg(overrides: Parameters<typeof makeConfig>[1] = {}) {
   return makeConfig('/tmp/test', overrides) as unknown as Record<string, unknown>
 }
 
-function noLeak(out: string): void {
-  expect(out).not.toContain('<%')
-  expect(out).not.toContain('%>')
-}
-
 describe('docs/steering/structure.md.ejs (#1268, CANON-04)', () => {
   it('renders without EJS leaks', () => {
-    noLeak(renderTemplate('docs/steering/structure.md.ejs', cfg()))
+    const out = renderTemplate('docs/steering/structure.md.ejs', cfg())
+    expect(out).not.toContain('<%')
+    expect(out).not.toContain('%>')
   })
   it('interpolates projectName', () => {
     const out = renderTemplate('docs/steering/structure.md.ejs', cfg({ projectName: 'my-svc' }))
@@ -30,7 +27,9 @@ describe('docs/steering/structure.md.ejs (#1268, CANON-04)', () => {
 
 describe('docs/steering/tech.md.ejs (#1268, CANON-04)', () => {
   it('renders without EJS leaks', () => {
-    noLeak(renderTemplate('docs/steering/tech.md.ejs', cfg()))
+    const out = renderTemplate('docs/steering/tech.md.ejs', cfg())
+    expect(out).not.toContain('<%')
+    expect(out).not.toContain('%>')
   })
   it('reflects the configured language', () => {
     const out = renderTemplate('docs/steering/tech.md.ejs', cfg({ language: 'typescript' }))
@@ -48,7 +47,9 @@ describe('docs/steering/tech.md.ejs (#1268, CANON-04)', () => {
 
 describe('docs/steering/product.md.ejs (#1268, CANON-04)', () => {
   it('renders without EJS leaks', () => {
-    noLeak(renderTemplate('docs/steering/product.md.ejs', cfg()))
+    const out = renderTemplate('docs/steering/product.md.ejs', cfg())
+    expect(out).not.toContain('<%')
+    expect(out).not.toContain('%>')
   })
   it('interpolates projectName', () => {
     const out = renderTemplate('docs/steering/product.md.ejs', cfg({ projectName: 'my-svc' }))
@@ -62,7 +63,9 @@ describe('docs/steering/product.md.ejs (#1268, CANON-04)', () => {
 
 describe('docs/specs/atomic-task-list.md.ejs (#1268, CANON-04)', () => {
   it('renders without EJS leaks', () => {
-    noLeak(renderTemplate('docs/specs/atomic-task-list.md.ejs', cfg()))
+    const out = renderTemplate('docs/specs/atomic-task-list.md.ejs', cfg())
+    expect(out).not.toContain('<%')
+    expect(out).not.toContain('%>')
   })
   it('interpolates projectName', () => {
     const out = renderTemplate('docs/specs/atomic-task-list.md.ejs', cfg({ projectName: 'my-svc' }))
@@ -81,7 +84,9 @@ describe('docs/specs/atomic-task-list.md.ejs (#1268, CANON-04)', () => {
 
 describe('docs/bugs/bug-analysis.md.ejs (#1268, CANON-04)', () => {
   it('renders without EJS leaks', () => {
-    noLeak(renderTemplate('docs/bugs/bug-analysis.md.ejs', cfg()))
+    const out = renderTemplate('docs/bugs/bug-analysis.md.ejs', cfg())
+    expect(out).not.toContain('<%')
+    expect(out).not.toContain('%>')
   })
   it('contains root-cause analysis sections', () => {
     const out = renderTemplate('docs/bugs/bug-analysis.md.ejs', cfg())
@@ -91,7 +96,9 @@ describe('docs/bugs/bug-analysis.md.ejs (#1268, CANON-04)', () => {
 
 describe('docs/bugs/bug-report.md.ejs (#1268, CANON-04)', () => {
   it('renders without EJS leaks', () => {
-    noLeak(renderTemplate('docs/bugs/bug-report.md.ejs', cfg()))
+    const out = renderTemplate('docs/bugs/bug-report.md.ejs', cfg())
+    expect(out).not.toContain('<%')
+    expect(out).not.toContain('%>')
   })
   it('contains expected vs actual sections', () => {
     const out = renderTemplate('docs/bugs/bug-report.md.ejs', cfg())
@@ -103,7 +110,9 @@ describe('docs/bugs/bug-report.md.ejs (#1268, CANON-04)', () => {
 
 describe('docs/bugs/bug-verification.md.ejs (#1268, CANON-04)', () => {
   it('renders without EJS leaks', () => {
-    noLeak(renderTemplate('docs/bugs/bug-verification.md.ejs', cfg()))
+    const out = renderTemplate('docs/bugs/bug-verification.md.ejs', cfg())
+    expect(out).not.toContain('<%')
+    expect(out).not.toContain('%>')
   })
   it('aligns with the DEBUG_STATE evidence artifact', () => {
     const out = renderTemplate('docs/bugs/bug-verification.md.ejs', cfg())

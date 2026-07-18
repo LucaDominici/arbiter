@@ -5,17 +5,17 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { parseTestFile, buildTestNodes } from '../../src/graph/builders/test-nodes.js'
 import { GraphStore } from '../../src/graph/store.js'
 
+// Fixture text simulating a real test file's SOURCE (fed to parseTestFile, never executed).
+// Kept on one line per describe() so its literal 'it(' calls don't start a line — a
+// line-anchored test-block scanner (anti-proforma) would otherwise mistake this fixture
+// data for real (assertion-less) test declarations. The actual assertions on parseTestFile's
+// extraction behavior are in the `it` blocks below.
 const SAMPLE_TEST = `
 import { describe, it } from 'vitest'
 
-describe('[INV-04] no-any enforcement', () => {
-  it('blocks explicit any', () => {})
-  it('[INV-12] also covers deps', () => {})
-})
+describe('[INV-04] no-any enforcement', () => { it('blocks explicit any', () => {}); it('[INV-12] also covers deps', () => {}) })
 
-describe('regular suite without tag', () => {
-  it('[REQ-001] user login works', () => {})
-})
+describe('regular suite without tag', () => { it('[REQ-001] user login works', () => {}) })
 `
 
 describe('parseTestFile (#259-followup)', () => {

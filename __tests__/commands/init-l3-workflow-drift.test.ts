@@ -106,42 +106,48 @@ describe('deriveWorkflowCapabilities — drift vs the real github generator (#16
   // the sampled configs — no false-block (gate claims a dim the generator doesn't emit) and
   // no false-pass (generator emits a dim the gate doesn't claim). typescript has matrix
   // cells for all 8 dims, so the gate doesn't skip any (the comparison is exact).
-  function assertMatch(label: string, overrides: Partial<ProjectConfig>): void {
+  // Returns the mismatch labels (empty when the gate and generator agree) so each `it` can
+  // assert on the result directly and stay legible to static test-quality scanners (#2006).
+  function mismatches(label: string, overrides: Partial<ProjectConfig>): string[] {
     const { config, dims } = runGithub(overrides)
     dirs.push(config.targetDir)
     const gate = gateDims(config)
+    const out: string[] = []
     for (const d of gate) {
-      expect(
-        dims,
-        `${label}: gate claims ${d} but generator did not emit it (false-block)`,
-      ).toContain(d)
+      if (!dims.has(d))
+        out.push(`${label}: gate claims ${d} but generator did not emit it (false-block)`)
     }
     for (const d of dims) {
-      expect(
-        gate,
-        `${label}: generator emits ${d} but gate does not claim it (false-pass)`,
-      ).toContain(d)
+      if (!gate.has(d))
+        out.push(`${label}: generator emits ${d} but gate does not claim it (false-pass)`)
     }
+    return out
   }
 
   it('typescript service standard L3: gate dims match the generated active jobs', () => {
-    assertMatch('ts-service-standard', {})
+    expect(mismatches('ts-service-standard', {})).toEqual([])
   })
 
   it('non-service lib standard L3 (no deploy): no container_scan/dast (no false-block)', () => {
-    assertMatch('ts-lib-no-deploy', { archetype: 'library', deployTarget: undefined })
+    expect(
+      mismatches('ts-lib-no-deploy', { archetype: 'library', deployTarget: undefined }),
+    ).toEqual([])
   })
 
   it('non-service lib WITH deploy: container_scan + dast emitted via 04-deploy (no false-pass)', () => {
-    assertMatch('ts-lib-deploy', { archetype: 'library', deployTarget: 'gcp-cloud-run' })
+    expect(
+      mismatches('ts-lib-deploy', { archetype: 'library', deployTarget: 'gcp-cloud-run' }),
+    ).toEqual([])
   })
 
   it('trunk-solo L3: no fuzz (scheduled suite skipped)', () => {
-    assertMatch('ts-service-trunk-solo', { collaborationMode: 'trunk-solo' })
+    expect(mismatches('ts-service-trunk-solo', { collaborationMode: 'trunk-solo' })).toEqual([])
   })
 
   it('starter L3 peer-review: no sbom/binary_signing/provenance (05 skipped)', () => {
-    assertMatch('ts-starter', { pipelineStyle: 'starter', deployTarget: undefined })
+    expect(mismatches('ts-starter', { pipelineStyle: 'starter', deployTarget: undefined })).toEqual(
+      [],
+    )
   })
 
   it('residual blind spots are documented (honesty): language + config-space classes NOT caught', () => {
