@@ -2,6 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import type { Language, ProjectConfig } from '../src/wizard/types.js'
 import { presetToTiers, defaultPresetForLevel } from '../src/invariants/filter.js'
 import { acquireLock } from '../src/utils/file-lock.js'
@@ -11,10 +12,20 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-const DOGFOOD_REPO_MUTATION_LOCK_PATH = join(
-  tmpdir(),
-  'arbiter-check-self-dogfood-repo-mutation.lock',
-)
+/**
+ * Derive the mutation-lock path for a given repo checkout root (#2026).
+ *
+ * Suffixed with a short hash of `repoRoot` so distinct checkouts (e.g.
+ * parallel ADR-103 worktree lanes) get distinct lock files under the shared
+ * OS tmpdir, while repeated calls for the SAME checkout keep resolving to
+ * the same stable path (preserving same-checkout serialization).
+ */
+export function dogfoodRepoMutationLockPath(repoRoot: string): string {
+  const hash = createHash('sha1').update(repoRoot).digest('hex').slice(0, 12)
+  return join(tmpdir(), `arbiter-check-self-dogfood-repo-mutation-${hash}.lock`)
+}
+
+const DOGFOOD_REPO_MUTATION_LOCK_PATH = dogfoodRepoMutationLockPath(process.cwd())
 
 /**
  * `check-self-dogfood.test.ts` and `check-self-dogfood-external.test.ts` each
@@ -27,6 +38,10 @@ const DOGFOOD_REPO_MUTATION_LOCK_PATH = join(
  * and #1907 dogfood races). Serializes every such test across BOTH files via
  * the product's own file-lock primitive (`acquireLock` fails fast on
  * contention, so poll it rather than block-wait).
+ *
+ * The lock path is scoped per checkout root (#2026): ADR-103 supports
+ * parallel worktree lanes, and a single GLOBAL lock file would make unrelated
+ * checkouts contend/time out on each other through a shared tmp file.
  */
 export async function withRealRepoMutationLock<T>(fn: () => T | Promise<T>): Promise<T> {
   const deadline = Date.now() + 60_000
