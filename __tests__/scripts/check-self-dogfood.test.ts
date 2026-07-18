@@ -371,29 +371,33 @@ describe('classifyDivergence expiry (T4 dogfood-closure)', () => {
 // the real checker, and requires red; restores the original bytes.
 
 describe('allowlisted-file drift detection is non-vacuous (CANON-14, #1838)', () => {
-  it('a mutated .claude/rules/90-exec-protocol.md (allowlisted) turns the gate red', () =>
-    withRealRepoMutationLock(() => {
-      const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
-      const target = `${repoRoot}.claude/rules/90-exec-protocol.md`
-      const original = readFileSync(target, 'utf-8')
-      try {
-        writeFileSync(
-          target,
-          original + '\nsynthetic drift beyond the approved divergence\n',
-          'utf-8',
-        )
-        const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-          cwd: repoRoot,
-          encoding: 'utf-8',
-          timeout: 120_000,
-        })
-        expect(r.status).not.toBe(0)
-        expect(r.stdout + r.stderr).toContain('90-exec-protocol.md')
-        expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
-      } finally {
-        writeFileSync(target, original, 'utf-8')
-      }
-    }))
+  it(
+    'a mutated .claude/rules/90-exec-protocol.md (allowlisted) turns the gate red',
+    () =>
+      withRealRepoMutationLock(() => {
+        const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
+        const target = `${repoRoot}.claude/rules/90-exec-protocol.md`
+        const original = readFileSync(target, 'utf-8')
+        try {
+          writeFileSync(
+            target,
+            original + '\nsynthetic drift beyond the approved divergence\n',
+            'utf-8',
+          )
+          const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
+            cwd: repoRoot,
+            encoding: 'utf-8',
+            timeout: 120_000,
+          })
+          expect(r.status).not.toBe(0)
+          expect(r.stdout + r.stderr).toContain('90-exec-protocol.md')
+          expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
+        } finally {
+          writeFileSync(target, original, 'utf-8')
+        }
+      }),
+    150_000,
+  )
 })
 
 // ─── non-vacuity proof for the ship family (#1290) ────────────────────────────
@@ -402,22 +406,26 @@ describe('allowlisted-file drift detection is non-vacuous (CANON-14, #1838)', ()
 // checker, and require it to go red; finally restores the original bytes.
 
 describe('ship-family drift detection is non-vacuous (#1290)', () => {
-  it('a mutated .arbiter/ship/supervisor.sh turns the gate red', () =>
-    withRealRepoMutationLock(() => {
-      const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
-      const target = `${repoRoot}.arbiter/ship/supervisor.sh`
-      const original = readFileSync(target, 'utf-8')
-      try {
-        writeFileSync(target, original + 'echo drift-sentinel\n', 'utf-8')
-        const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-          cwd: repoRoot,
-          encoding: 'utf-8',
-          timeout: 120_000,
-        })
-        expect(r.status).not.toBe(0)
-        expect(r.stdout + r.stderr).toContain('supervisor.sh')
-      } finally {
-        writeFileSync(target, original, 'utf-8')
-      }
-    }))
+  it(
+    'a mutated .arbiter/ship/supervisor.sh turns the gate red',
+    () =>
+      withRealRepoMutationLock(() => {
+        const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
+        const target = `${repoRoot}.arbiter/ship/supervisor.sh`
+        const original = readFileSync(target, 'utf-8')
+        try {
+          writeFileSync(target, original + 'echo drift-sentinel\n', 'utf-8')
+          const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
+            cwd: repoRoot,
+            encoding: 'utf-8',
+            timeout: 120_000,
+          })
+          expect(r.status).not.toBe(0)
+          expect(r.stdout + r.stderr).toContain('supervisor.sh')
+        } finally {
+          writeFileSync(target, original, 'utf-8')
+        }
+      }),
+    150_000,
+  )
 })
