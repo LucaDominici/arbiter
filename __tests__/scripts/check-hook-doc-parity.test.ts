@@ -5,7 +5,7 @@
 // suite proves the wired gate actually catches the drift that review misses.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
@@ -157,6 +157,27 @@ describe('check-hook-doc-parity.mjs — real repo (CANON-10)', () => {
     const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: resolve('.') })
     expect(r.stdout + r.stderr).not.toContain('MISSING')
     expect(r.status).toBe(0)
+  })
+})
+
+// ─── header self-consistency: a hook's own activation-state claim must not
+// contradict its settings.json wiring (#2004) ─────────────────────────────────
+
+describe('hook header activation-state must not contradict settings.json wiring (#2004)', () => {
+  it('stop-finding-loss.mjs does not claim "NOT wired" while registered in settings.json Stop chain', () => {
+    const settingsJson = JSON.parse(readFileSync(resolve('.claude/settings.json'), 'utf-8'))
+    const settingsHooks = parseSettingsHooks(settingsJson)
+    const isWired = settingsHooks.some(
+      (h) => h.event === 'Stop' && h.filename === 'stop-finding-loss.mjs',
+    )
+    expect(isWired).toBe(true)
+
+    const hookSource = readFileSync(
+      resolve('.claude/hooks/stop-finding-loss.mjs'),
+      'utf-8',
+    )
+    const claimsNotWired = /NOT\s+wired\s+into\s+\.claude\/settings\.json/i.test(hookSource)
+    expect(claimsNotWired).toBe(false)
   })
 })
 
