@@ -2,7 +2,7 @@
 title: 'Arbiter — Milestones'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-07-18'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -12,7 +12,7 @@ related: []
 # Arbiter — Milestones
 
 **Status:** Active
-**Last updated:** 2026-04-19
+**Last updated:** 2026-07-18
 
 Each milestone has a scope, exit criteria, and dependency chain. Milestones are tracked as GitHub issues.
 
@@ -956,3 +956,68 @@ M1-M21 (ALL DONE)
 **Critical path (Phase 10):** Phase 9.5 complete → M22 → M23 → M24 → M25 → M31.
 
 **Parallelizable (Phase 10):** M22/M23/M24/M26/M29 can start in parallel once their Phase 9.5 prerequisites are met. M27/M28 after M26. M30 after M29. M32 after M31.
+
+---
+
+## Reconciliation 2026-07-18 (autonomous run #2000)
+
+This section reconciles the milestone table above (last substantively updated
+2026-04-19) against the live GitHub board as of 2026-07-18. It is an append-only
+audit — the historical sections above are left untouched.
+
+### a. Discrepancies found
+
+Every `**Issue:**` / `**Issues:**` reference across M1-M33 (46 issues: M1-M21,
+M11's #28/#34/#40, MA-ML's #82-#93, M22-M33, plus epic #81) was checked with
+`gh issue view <n> --json state,title`.
+
+**Result: zero state discrepancies.** All 46 referenced issues are `CLOSED` on the
+live board, which matches or is consistent with every milestone this document
+marks `✅ DONE` / `✓ SHIPPED` / `✓`.
+
+| M | Issue | Status (doc) | Status (real) | Note |
+| --- | --- | --- | --- | --- |
+| M23 | #71 | *(no header marker)* | CLOSED | Header carries no ✅/✓ despite the issue being closed — cosmetic omission, not a false claim. |
+| M24 | #72 | *(no header marker; inline "Status: COMPLETE (2026-04-17)")* | CLOSED | Consistent — inline status is correct, only the header checkmark is missing. |
+| M29 | #77 | *(no header marker)* | CLOSED | Same pattern as M23. |
+| M31 | #79 | *(no header marker)* | CLOSED | Same pattern as M23. |
+| M32 | #80 | *(no header marker)* | CLOSED | Same pattern as M23. |
+| M33 | #95 | *(no header marker)* | CLOSED | Same pattern as M23. |
+
+No issue referenced by this document was found open, and no issue number
+referenced was missing/nonexistent on the board. The five rows above are flagged
+as a **formatting gap** (missing header checkmark), not a state discrepancy: the
+underlying milestones are all real-closed. Left as-is as a historical-fidelity
+call — not rewritten per the append-only rule for this run.
+
+### b. Active tracks (live board)
+
+**Open epics:**
+
+| Epic | Title | State |
+| --- | --- | --- |
+| #1491 | Release-readiness remediation — pre-public-launch fix waves | OPEN |
+| #1770 | Release v0.1 — public-launch wave (audit 2026-07-04) | OPEN |
+| #1943 | Anti-context-rot enforcers E1-E7 (M8/M12/M13/M14/M9/M1/M4/M6 TO-CREATE debt) — untracked | OPEN |
+
+**Milestone 7 — "GAP remediation (run #2000)":** 20 open issues, 2 closed.
+
+**Open PRs (human-gated):**
+
+| PR | Title | State |
+| --- | --- | --- |
+| #2002 | fix(wave): wave-5 integration — anti-context-rot twins, spawn-guard knob, compliance flags, T9 demo | OPEN |
+| #2019 | docs(ssot): retarget stale governance paths to docs/internal/... | OPEN |
+| #2024 | docs(gap): land GAP.md — verified claim inventory (run #2000) | OPEN |
+
+**Verified-claim inventory:** `docs/internal/PRODUCT/GAP.md` (landing via #2024, not
+yet on `main` as of this reconciliation) is the current ground-truth audit of
+78 documentation/enforcement claims: 46 VERO, 5 FALSO, 9 PARZIALE, 4 VACUO, 2
+GRANDFATHERED (VERO but ratchet-excused). Treat it as the authoritative claim
+inventory once merged.
+
+### c. Operative source of truth
+
+Operative state tracking = **issue + milestone + label** (GitHub Issues/Milestones/Labels).
+GitHub Projects (v2) is not usable as the source of truth for this reconciliation —
+board access is blocked by an insufficient token scope (see #2000).
