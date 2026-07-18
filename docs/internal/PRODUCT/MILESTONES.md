@@ -1010,11 +1010,12 @@ call — not rewritten per the append-only rule for this run.
 | #2019 | docs(ssot): retarget stale governance paths to docs/internal/... | OPEN |
 | #2024 | docs(gap): land GAP.md — verified claim inventory (run #2000) | OPEN |
 
-**Verified-claim inventory:** `docs/internal/PRODUCT/GAP.md` (landing via #2024, not
-yet on `main` as of this reconciliation) is the current ground-truth audit of
-78 documentation/enforcement claims: 46 VERO, 5 FALSO, 9 PARZIALE, 4 VACUO, 2
-GRANDFATHERED (VERO but ratchet-excused). Treat it as the authoritative claim
-inventory once merged.
+**Verified-claim inventory:** `docs/internal/SYSTEM/GAP.md` (landing via #2024, not
+yet on `main` as of this reconciliation; not to be confused with the generated
+feature-gap register at `docs/internal/PRODUCT/GAP.md`) is the current
+ground-truth audit of 78 documentation/enforcement claims: 46 VERO, 5 FALSO, 9
+PARZIALE, 4 VACUO, 2 GRANDFATHERED (VERO but ratchet-excused). Treat it as the
+authoritative claim inventory once merged.
 
 ### c. Operative source of truth
 
