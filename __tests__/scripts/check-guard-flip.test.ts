@@ -59,9 +59,9 @@ describe('check-guard-flip — flip coverage for the anti-context-rot gates (M11
   })
 
   it('every anti-context-rot gate has a flip-proof registered (no vacuous gap)', () => {
-    const missing = CONTEXT_ROT_GATES.filter(
-      (g: { name: string }) => !FLIP_REGISTRY[g.name],
-    ).map((g: { name: string }) => g.name)
+    const missing = CONTEXT_ROT_GATES.filter((g: { name: string }) => !FLIP_REGISTRY[g.name]).map(
+      (g: { name: string }) => g.name,
+    )
     expect(missing).toEqual([])
   })
 

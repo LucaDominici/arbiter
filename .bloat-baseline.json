@@ -1,22 +1,22 @@
 {
-  "capturedAt": "2026-07-12T20:22:03.319Z",
-  "task": "#gold-doc-t3-t5",
+  "capturedAt": "2026-07-18T07:59:19.738Z",
+  "task": "#1943",
   "buckets": {
     "srcDirect": {
       "files": 1,
-      "loc": 1774
+      "loc": 1897
     },
     "generators": {
-      "files": 87,
-      "loc": 9173
+      "files": 88,
+      "loc": 9512
     },
     "commands": {
-      "files": 41,
-      "loc": 11432
+      "files": 42,
+      "loc": 12185
     },
     "templates": {
-      "files": 565,
-      "loc": 48299
+      "files": 574,
+      "loc": 50179
     }
   }
 }
