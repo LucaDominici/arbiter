@@ -665,6 +665,24 @@ if (level === 'L2') {
   if (existsSync('scripts/verify-module-coverage.mjs')) {
     runWarnCheck('module coverage ratchet', 'node', ['scripts/verify-module-coverage.mjs'])
   }
+  // Advisory (E1-E6a #1943): anti-context-rot enforcers — advisory at land-time per the
+  // design's tier table (docs/design/anti-context-rot-enforcers.md §0); each vacuous-PASSes
+  // when its evidence surface is absent, so a fresh consumer sees no day-1 redness. Dated
+  // promotion discipline (advisory-is-a-stage-not-a-destination): promote to runCheck at
+  // gated-review once the producer paths are routinely populated. check-touched-vs-manifest
+  // is deliberately NOT here — it is a per-group harvest-time gate needing --plan/--group/--base.
+  if (existsSync('scripts/check-agent-return.mjs')) {
+    runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
+  }
+  if (existsSync('scripts/check-refutation-verdicts.mjs')) {
+    runWarnCheck('refutation majority (E2 #1943)', 'node', ['scripts/check-refutation-verdicts.mjs'])
+  }
+  if (existsSync('scripts/check-audit-dry-pass.mjs')) {
+    runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
+  }
+  if (existsSync('scripts/check-handoff-doc.mjs')) {
+    runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
+  }
 
   // ─── L2: TDD red→green evidence re-verification (INV-131, #1446) ──────────────
   // Re-verifies every task-ID commit's red→green evidence on a fresh CI checkout —

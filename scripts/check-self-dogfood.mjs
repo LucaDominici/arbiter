@@ -487,7 +487,8 @@ export const EXTERNAL_CI_FAMILIES = [
     // (record-agent-return.mjs) is a shipped twin exactly like the gates —
     // excluding it from parity scope would let the write path silently drift
     // from the emitted copy while the read path stays pinned.
-    include: (base) => (base.startsWith('check-') || base.startsWith('record-')) && base !== 'check-all',
+    include: (base) =>
+      (base.startsWith('check-') || base.startsWith('record-')) && base !== 'check-all',
   },
   // #1943 residual c: the E1-E7 enforcer twins import shared helpers from
   // scripts/lib/ — a helper that drifts (self vs shipped) changes gate behavior

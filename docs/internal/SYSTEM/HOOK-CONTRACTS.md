@@ -60,6 +60,8 @@ Hooks wired in `.claude/settings.json`.
 | `exitplanmode-banner.mjs`     | PostToolUse        | ExitPlanMode | read, stdout-inject    | `.claude/.task/status.json`             | SAFE              |
 | `pre-compact.mjs`             | PreCompact         | \*           | read, stdout-inject    | `.claude/.task-*`                       | SAFE              |
 | `pre-spawn-worktree-guard.mjs`| PreToolUse         | Task\|Agent  | read, create-or-append-write | `.arbiter/agents-active.json`, `.claude/agents/agent-write-classes.json` | SAFE              |
+| `enforce-gate-before-pr.mjs`  | PreToolUse         | Bash         | read (gate marker, git) | `.arbiter/gate/`                        | SAFE              |
+| `stop-finding-loss.mjs`       | Stop               | \*           | read (transcript)      | `.arbiter/findings/*`, `.arbiter/evidence/agent-returns/*` | SAFE (E6b #1948; advisory, hard via ARBITER_FINDING_LOSS_HARD=1; activated per OD-14 2026-07-17) |
 
 ---
 
@@ -82,9 +84,7 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 | `check-no-mockmvc.mjs`       | PostToolUse Java guard (INV-29): blocks MockMvc imports; only applies to Java files. Not registered in arbiter self-config (no Java sources here).       |
 | `check-no-raw-types.mjs`     | PostToolUse Java guard: blocks unparameterized generic types in Java files. Not registered in arbiter self-config (no Java sources here).                |
 | `check-no-skipped-tests.mjs` | Available for opt-in by generated projects; not self-applied to arbiter (arbiter uses `.skip` in `vitest.config.ts` exclusions, not inline skip markers) |
-| `enforce-gate-before-pr.mjs` | PreToolUse gate-marker guard (R1.S5): blocks `gh pr create` unless gate marker is fresh. Pending registration after full gate-marker infra lands.        |
 | `hooks.mjs`                  | Arbiter-generated hook dispatcher for target projects. Present here as dogfood; not registered as Claude Code hook in arbiter's own settings.json.       |
-| `stop-finding-loss.mjs`       | E6b (#1948, design doc §E6b): IMPLEMENT-BUT-NOT-ACTIVATED (OD-14) — Stop hook detecting >=2 research sub-agent dispatches with zero persisted findings/agent-return envelopes since session start. Activation (the Stop-chain registration) is an explicit owner decision, deferred to avoid interfering with the harness's own Stop handling. |
 
 ---
 
