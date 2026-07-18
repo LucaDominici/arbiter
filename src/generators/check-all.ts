@@ -234,18 +234,9 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // arbiter's own gate set (design: docs/design/anti-context-rot-enforcers.md).
   // Emitted unconditionally: every gate vacuous-PASSes when its evidence surface
   // is absent, and the design's tier table keeps the recorder AVAILABLE from L1
-  // ("solo/L1: recorder available, gate not wired"). The four repo-wide gates are
-  // wired ADVISORY (runWarnCheck) inside check-all.mjs.ejs's enableDebtGates ring
-  // (L2+ default), mirroring arbiter's own advisory-at-land-time wiring;
-  // check-touched-vs-manifest is emitted but NOT wired there — it is a per-group
-  // harvest-time gate that requires --plan/--group/--base args (design E7).
-  { rel: ['scripts', 'check-agent-return.mjs'], tpl: 'scripts/check-agent-return.mjs.ejs' },
-  {
-    rel: ['scripts', 'check-refutation-verdicts.mjs'],
-    tpl: 'scripts/check-refutation-verdicts.mjs.ejs',
-  },
-  { rel: ['scripts', 'check-audit-dry-pass.mjs'], tpl: 'scripts/check-audit-dry-pass.mjs.ejs' },
-  { rel: ['scripts', 'check-handoff-doc.mjs'], tpl: 'scripts/check-handoff-doc.mjs.ejs' },
+  // ("solo/L1: recorder available, gate not wired").
+  // check-touched-vs-manifest is emitted but NOT wired into the gate ring — it is
+  // a per-group harvest-time gate that requires --plan/--group/--base args (E7).
   {
     rel: ['scripts', 'check-touched-vs-manifest.mjs'],
     tpl: 'scripts/check-touched-vs-manifest.mjs.ejs',
@@ -263,8 +254,31 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   },
 ]
 
+// The four repo-wide anti-context-rot gates are wired ADVISORY (runWarnCheck)
+// inside check-all.mjs.ejs's enableDebtGates ring (L2+ default) — their emission
+// follows the SAME predicate so no fixture ever carries a dead emission (#1835
+// class; caught by check-emission-coherence on L1/peer-review).
+const DEBT_GATED_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string }> = [
+  { rel: ['scripts', 'check-agent-return.mjs'], tpl: 'scripts/check-agent-return.mjs.ejs' },
+  {
+    rel: ['scripts', 'check-refutation-verdicts.mjs'],
+    tpl: 'scripts/check-refutation-verdicts.mjs.ejs',
+  },
+  { rel: ['scripts', 'check-audit-dry-pass.mjs'], tpl: 'scripts/check-audit-dry-pass.mjs.ejs' },
+  { rel: ['scripts', 'check-handoff-doc.mjs'], tpl: 'scripts/check-handoff-doc.mjs.ejs' },
+]
+
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {
   return UNCONDITIONAL_EMISSIONS.map(({ rel, tpl }) => emitTemplateFile(base, rel, tpl, data, opts))
+}
+
+function emitDebtGated(
+  base: string,
+  data: { enableDebtGates?: boolean },
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  if (data.enableDebtGates !== true) return []
+  return DEBT_GATED_EMISSIONS.map(({ rel, tpl }) => emitTemplateFile(base, rel, tpl, data, opts))
 }
 
 export function generateCheckAll(
@@ -292,6 +306,7 @@ export function generateCheckAll(
   }
 
   results.push(...emitUnconditional(base, data, opts))
+  results.push(...emitDebtGated(base, data, opts))
 
   // #1319.8 — greenfield-aware coverage gate predicate (TS + coverage only).
   results.push(...emitCoverageGate(base, data, opts))
