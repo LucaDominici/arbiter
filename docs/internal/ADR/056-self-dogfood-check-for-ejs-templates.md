@@ -29,3 +29,15 @@ is caught at commit time (pre-commit runs L1) rather than push time. The decisio
 is otherwise unchanged; "L2 block"/"L2 gate" wording reflects the original wiring. L2 still runs
 the check via its L1 superset. Escape hatch for intentional local divergence remains
 `.dogfood-divergences.json` (worktree checkouts are unaffected — pre-commit skips L1 there).
+
+## Amendment (2026-07-18, #2026) — mutation lock scoped per checkout
+
+`check-self-dogfood.test.ts` / `check-self-dogfood-external.test.ts` spawn the real
+`check-self-dogfood.mjs` against the live checkout and transiently mutate a tracked file to
+prove the gate goes red; `withRealRepoMutationLock` (`__tests__/helpers.ts`) serializes those
+tests via the product's own `acquireLock` primitive. That lock previously pinned every checkout
+to one GLOBAL file under `os.tmpdir()`, so under the ADR-103 parallel-worktree-lane carve-out
+(`.claude/rules/50-batch-execution.md`), two unrelated checkouts would contend or time out on
+each other through that shared tmp file. `dogfoodRepoMutationLockPath(repoRoot)` now suffixes
+the lock filename with a `sha1` hash of the repo root, so distinct checkouts get distinct lock
+files while repeated calls for the same checkout keep resolving to the same stable path.
