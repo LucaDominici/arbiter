@@ -172,10 +172,7 @@ describe('hook header activation-state must not contradict settings.json wiring 
     )
     expect(isWired).toBe(true)
 
-    const hookSource = readFileSync(
-      resolve('.claude/hooks/stop-finding-loss.mjs'),
-      'utf-8',
-    )
+    const hookSource = readFileSync(resolve('.claude/hooks/stop-finding-loss.mjs'), 'utf-8')
     const claimsNotWired = /NOT\s+wired\s+into\s+\.claude\/settings\.json/i.test(hookSource)
     expect(claimsNotWired).toBe(false)
   })
