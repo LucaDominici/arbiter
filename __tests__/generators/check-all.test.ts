@@ -55,7 +55,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(35)
+    expect(result.files).toHaveLength(31)
     expect(
       result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
     ).toBe(true)
@@ -86,13 +86,10 @@ describe('generateCheckAll', () => {
     expect(result.files.some((f) => f.path.endsWith('scripts/check-anti-fake-green.mjs'))).toBe(
       true,
     )
-    // E1-E7 #1943 (CANON-14): anti-context-rot twins emitted at every level — the
-    // design keeps the recorder AVAILABLE from L1 (gates vacuous-PASS without evidence).
+    // E1-E7 #1943 (CANON-14): recorder + harvest gate + libs + schema emitted at
+    // every level — the design keeps the recorder AVAILABLE from L1 (gates
+    // vacuous-PASS without evidence).
     for (const twin of [
-      'scripts/check-agent-return.mjs',
-      'scripts/check-refutation-verdicts.mjs',
-      'scripts/check-audit-dry-pass.mjs',
-      'scripts/check-handoff-doc.mjs',
       'scripts/check-touched-vs-manifest.mjs',
       'scripts/record-agent-return.mjs',
       'scripts/lib/gate-args.mjs',
@@ -100,6 +97,17 @@ describe('generateCheckAll', () => {
       'schemas/agent-return.schema.json',
     ]) {
       expect(result.files.some((f) => f.path.endsWith(twin))).toBe(true)
+    }
+    // The four repo-wide advisory gates follow their check-all wiring predicate
+    // (enableDebtGates, L2+): NOT emitted at L1 — emitting them unwired would be
+    // a dead emission (#1835 class, caught by check-emission-coherence).
+    for (const gated of [
+      'scripts/check-agent-return.mjs',
+      'scripts/check-refutation-verdicts.mjs',
+      'scripts/check-audit-dry-pass.mjs',
+      'scripts/check-handoff-doc.mjs',
+    ]) {
+      expect(result.files.some((f) => f.path.endsWith(gated))).toBe(false)
     }
   })
 
