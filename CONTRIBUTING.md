@@ -29,7 +29,7 @@ Architecture in three sentences:
 
 Everything else — invariants, plugins, the matrix, the CLI surface — exists to make detection deterministic and emission reproducible.
 
-The canonical governance contract lives in [`AGENTS.md`](./AGENTS.md). Every other doc is a thin pointer to it. See [`docs/SYSTEM/DECISIONS.md`](./docs/SYSTEM/DECISIONS.md) for ADR-001 (AGENTS.md as SSOT) and ADR-002 (thin-pointer policy).
+The canonical governance contract lives in [`AGENTS.md`](./AGENTS.md). Every other doc is a thin pointer to it. See [`docs/internal/SYSTEM/DECISIONS.md`](./docs/internal/SYSTEM/DECISIONS.md) for ADR-001 (AGENTS.md as SSOT) and ADR-002 (thin-pointer policy).
 
 ---
 
@@ -61,7 +61,7 @@ arbiter dogfoods at L3. The same gate that arbiter generates for target projects
 - It is invoked by `.githooks/pre-commit` and `.githooks/pre-push`. CI re-runs the same script.
 - `--no-verify` is blocked by hook policy. If the gate fails, you fix the root cause; you do not skip.
 
-The development philosophy is documented in [`docs/SYSTEM/CANON.md`](./docs/SYSTEM/CANON.md). The 15 CANON-NN rules are not style preferences — they are process constraints derived from prior audit waves. Read CANON before adding a new generator, template, or hook.
+The development philosophy is documented in [`docs/internal/SYSTEM/CANON.md`](./docs/internal/SYSTEM/CANON.md). The 15 CANON-NN rules are not style preferences — they are process constraints derived from prior audit waves. Read CANON before adding a new generator, template, or hook.
 
 ---
 
@@ -157,11 +157,11 @@ When a PR removes or renames a public symbol, flag or behavior:
 
 ### SSOT and plan bypass env vars
 
-| Hook / Check               | Guards                                                                                           | Bypass                                     |
-| -------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| `pre-edit-ssot-guard.mjs`  | `AGENTS.md`, `.claude/CLAUDE.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`, `.agents/CODEX.md`    | `ARBITER_SSOT_BYPASS=1 claude ...`         |
-| `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan; new `src/` file without Survey block (INV-46) | `ARBITER_PLAN_BYPASS=1 claude ...`         |
-| `check-bloat-ratchet.mjs`  | `src/` file/LOC ceiling per bucket (INV-46)                                                      | `ALLOW_BLOAT=1 node scripts/check-all.mjs` |
+| Hook / Check               | Guards                                                                                                          | Bypass                                     |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `pre-edit-ssot-guard.mjs`  | `AGENTS.md`, `.claude/CLAUDE.md`, `docs/internal/METHOD/`, `docs/internal/SYSTEM/DECISIONS`, `.agents/CODEX.md` | `ARBITER_SSOT_BYPASS=1 claude ...`         |
+| `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan; new `src/` file without Survey block (INV-46)                | `ARBITER_PLAN_BYPASS=1 claude ...`         |
+| `check-bloat-ratchet.mjs`  | `src/` file/LOC ceiling per bucket (INV-46)                                                                     | `ALLOW_BLOAT=1 node scripts/check-all.mjs` |
 
 Bypasses are session-scoped and must reference the corresponding task ID and ADR in the commit message. Never set them in your shell profile.
 
@@ -181,7 +181,7 @@ Use `ssot-navigation` at the start of every non-trivial task to locate the autho
 
 ## 6. Decision Process
 
-Architectural decisions are recorded as ADRs in [`docs/SYSTEM/DECISIONS.md`](./docs/SYSTEM/DECISIONS.md). Before proposing a change that:
+Architectural decisions are recorded as ADRs in [`docs/internal/SYSTEM/DECISIONS.md`](./docs/internal/SYSTEM/DECISIONS.md). Before proposing a change that:
 
 - Adds or removes an invariant
 - Changes the gate semantics
@@ -191,7 +191,7 @@ Architectural decisions are recorded as ADRs in [`docs/SYSTEM/DECISIONS.md`](./d
 
 …open an issue first and reference the ADR you intend to add. Implementation PRs that change the contract must include the ADR entry in the same commit.
 
-The 15 CANON-NN rules in `docs/SYSTEM/CANON.md` are the process-level counterpart: where ADRs record _what_ was decided, CANON records _how_ decisions are enforced.
+The 15 CANON-NN rules in `docs/internal/SYSTEM/CANON.md` are the process-level counterpart: where ADRs record _what_ was decided, CANON records _how_ decisions are enforced.
 
 ---
 

@@ -105,7 +105,7 @@ Quando tutti e 4 i subagent riportano:
 
 - Se due wave consecutive falliscono il gate consolidato → STOP, escalation a Luca.
 - Se scopri un INV/CANON violation strutturale → STOP, apri issue di rule-change, non bypassare.
-- Se il piano attivo Pn richiede architectural decision → STOP, scrivi ADR in `docs/SYSTEM/DECISIONS.md`, attendi review.
+- Se il piano attivo Pn richiede architectural decision → STOP, scrivi ADR in `docs/internal/SYSTEM/DECISIONS.md`, attendi review.
 
 ### Avvio
 

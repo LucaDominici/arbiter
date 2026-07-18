@@ -30,7 +30,7 @@ related: []
 ## Startup Protocol (Read First)
 
 1. Read `AGENTS.md` — this contains ALL governance rules and invariants
-2. Read `docs/SYSTEM/ARCHITECTURE.md` if it exists
+2. Read `docs/internal/architecture/ARCHITECTURE.md` if it exists
 3. Check current branch: must be `task/#NNN-description` (not `main`)
 4. If no task branch exists, create one before any edits
 

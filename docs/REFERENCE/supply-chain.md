@@ -120,7 +120,7 @@ minGovernanceLevel: L2
 ## See Also
 
 - `docs/REFERENCE/ci-tier-workflows.md` — full CI tier workflow reference
-- `docs/SYSTEM/CI-TIER-MODEL.md` — CI tier architecture specification
+- `docs/internal/SYSTEM/CI-TIER-MODEL.md` — CI tier architecture specification
 - `src/templates/github/workflows/05-release.yml.ejs` — release workflow template
 - `src/templates/github/workflows/_sigstore-retry-sign.yml.ejs` — retry wrapper template
 - `src/templates/github/actions/sign-and-attest/action.yml.ejs` — composite action template

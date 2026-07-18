@@ -333,7 +333,7 @@ Codes:
 | Prefix / code              | Source                                           |
 | -------------------------- | ------------------------------------------------ |
 | `INV-NN`                   | Invariant catalog (`src/invariants/catalog.ts`)  |
-| `CANON-NN`                 | Process rules (`docs/SYSTEM/CANON.md`)           |
+| `CANON-NN`                 | Process rules (`docs/internal/SYSTEM/CANON.md`)  |
 | `E_*`                      | Error catalog (`src/utils/error-catalog.ts`)     |
 | `hasPublicApi` etc. (FLAG) | Wizard flag cost map (`src/commands/explain.ts`) |
 
