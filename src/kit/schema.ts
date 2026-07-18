@@ -52,8 +52,6 @@ const KitOverlayCellSchema = z.discriminatedUnion('kind', [
 
 const DerivedCellSchema = z.union([KitOverlayCellSchema, z.object({ kind: z.literal('gap') })])
 
-export type DerivedCell = z.infer<typeof DerivedCellSchema>
-
 // ─── Catalog dimension ────────────────────────────────────────────────────────
 
 const KitDimensionSchema = z.object({

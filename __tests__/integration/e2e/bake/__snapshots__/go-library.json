@@ -293,7 +293,7 @@
     "scripts/check-workflow-docs-sync.mjs": "f05bfc8b7dd07bb097f45c3417077d69d3a0c7a29943c75823ac9f4e512cd8d0",
     "scripts/check-workflow-job-naming.mjs": "5131f895e58d784de42307a297ed81d3c34ce87d88b2b3a783625ca244ae0138",
     "scripts/check-workflow-perms.mjs": "1e5a3b222a2ae18dffb057affb5ac18870896ec42f45db05250562eb259e08b9",
-    "scripts/check-workflow-runners.mjs": "d4b5a07203581ae68f76742d398286cca8648c960fa4d2fad31bb96a77c80369",
+    "scripts/check-workflow-runners.mjs": "2c6611d3b4a26cce7351ab5620bf0d15835434480629d746fe91f3798ec278a8",
     "scripts/check-workflow-sha-pinning.mjs": "fa38249c2cd01ec46dd1e3df800e6793f31514c86bdd6f6ec5fa86bfcc8a83f8",
     "scripts/check-workflow-test-integrity.mjs": "74c8c19db40e7ca4d3c4503cfb0f68578af6f8db6423fcc75e90e98360477a56",
     "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
