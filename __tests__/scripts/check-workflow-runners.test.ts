@@ -56,7 +56,7 @@ describe('check-workflow-runners.mjs (INV-89 runner label drift)', () => {
     }
   })
 
-  it('exits 0 with WARN when a job uses a non-standard runner (advisory only)', () => {
+  it('exits 1 with FAIL when a job uses a non-standard runner (enforcing)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const workflowDir = join(dir, '.github', 'workflows')
@@ -68,10 +68,10 @@ describe('check-workflow-runners.mjs (INV-89 runner label drift)', () => {
         ),
       )
       const result = run(dir)
-      expect(result.status).toBe(0)
-      expect(result.stderr).toContain('WARN')
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('FAIL')
       expect(result.stderr).toContain('custom-runner')
-      expect(result.stdout).toContain('WARN')
+      expect(result.stdout).toContain('FAIL')
     } finally {
       cleanup()
     }
@@ -97,7 +97,7 @@ describe('check-workflow-runners.mjs (INV-89 runner label drift)', () => {
     }
   })
 
-  it('exits 0 with WARN when custom --runner flag does not match actual runners', () => {
+  it('exits 1 with FAIL when custom --runner flag does not match actual runners', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const workflowDir = join(dir, '.github', 'workflows')
@@ -109,8 +109,8 @@ describe('check-workflow-runners.mjs (INV-89 runner label drift)', () => {
         ),
       )
       const result = run(dir, 'windows-latest')
-      expect(result.status).toBe(0)
-      expect(result.stderr).toContain('WARN')
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('FAIL')
       expect(result.stderr).toContain('windows-latest')
     } finally {
       cleanup()

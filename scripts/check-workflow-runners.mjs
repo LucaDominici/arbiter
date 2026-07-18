@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // arbiter — workflow runner label drift detector (INV-89)
 // Validates that all workflow jobs use the expected runner label.
-// Advisory: warns but does not fail; runner customization is allowed per INV-13.
-// Exits 0 always (unexpected labels emit WARN, not FAIL).
+// Enforcing: exits 1 on unexpected labels (#2005). Use --runner or the
+// `${{ ... }}` / `$CI_` expression forms for legitimate CI_BUILD_RUNNER_LABEL
+// customization per INV-13 — those are not violations.
 // Part of the anti-drift validator family (W6).
 //
 // Usage: node scripts/check-workflow-runners.mjs [--dir <path>] [--runner <label>] [--help]
@@ -19,7 +20,8 @@ const { cwd: CWD } = parseHelpAndDir(args, {
     'Usage: node scripts/check-workflow-runners.mjs [options]',
     '',
     'Validates that all workflow jobs use the expected runner label.',
-    'Advisory: warns but does not fail (runner customization allowed per INV-13).',
+    'Enforcing: exits 1 on unexpected labels (runner customization via --runner',
+    'or ${{ ... }} / $CI_ expressions is allowed per INV-13).',
     '',
     'Options:',
     '  --dir <path>        Root directory to scan (default: cwd)',
@@ -54,7 +56,7 @@ for (const file of yamlFiles) {
     if (runner.startsWith('${{') || runner.startsWith('$CI_')) continue
     if (runner !== EXPECTED_RUNNER) {
       process.stderr.write(
-        `[WARN] unexpected runner: "${runner}" (expected "${EXPECTED_RUNNER}") in ${file}\n`,
+        `[FAIL] unexpected runner: "${runner}" (expected "${EXPECTED_RUNNER}") in ${file}\n`,
       )
       violations++
     }
@@ -63,10 +65,11 @@ for (const file of yamlFiles) {
 
 if (violations > 0) {
   process.stdout.write(
-    `check-workflow-runners: WARN — ${violations} job(s) use non-standard runner label (INV-89)\n`,
+    `check-workflow-runners: FAIL — ${violations} job(s) use non-standard runner label (INV-89). ` +
+      `Use "${EXPECTED_RUNNER}", pass --runner <label>, or use a \${{ ... }}/$CI_ expression for ` +
+      `CI_BUILD_RUNNER_LABEL customization (INV-13).\n`,
   )
-  // Informational only — exits 0 to allow CI_BUILD_RUNNER_LABEL customization (INV-13)
-  process.exit(0)
+  process.exit(1)
 }
 process.stdout.write(
   `check-workflow-runners: OK — all jobs use expected runner "${EXPECTED_RUNNER}" (INV-89, ${yamlFiles.length} files scanned)\n`,
