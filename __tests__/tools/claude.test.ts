@@ -81,6 +81,40 @@ describe('tool output: claude', () => {
     expect(deny.some((d) => d.includes('force'))).toBe(true)
   })
 
+  // #2040 (F-AGENT-08): the prior test only covered rm-rf/force-push, leaving the
+  // self-protection entries (ARBITER_* bypass envs, evidence-tamper guards) untested —
+  // a regression there would ship silently. Edit(...) only, not Write(...): #2048
+  // (merged same day, ancestor of this branch) found Write(path) rules ineffective in
+  // Claude Code (only Edit(path) is matched) and removed them as dead/warning-noise.
+  it('settings.json deny list blocks every ARBITER_* bypass env and evidence tampering (#2040)', () => {
+    const config = claudeConfig()
+    generateClaude(config)
+    const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
+    const parsed = JSON.parse(raw) as { permissions: { deny: string[] } }
+    const deny = parsed.permissions.deny
+    const ARBITER_BYPASS_ENVS = [
+      'ARBITER_GATE_BYPASS',
+      'ARBITER_PLAN_BYPASS',
+      'ARBITER_SKIP_PLAN_REVIEW',
+      'ARBITER_SKIP_TDD',
+      'ARBITER_SKIP_GATE_MARKER',
+      'ARBITER_SSOT_BYPASS',
+      'ARBITER_PREPUSH_BYPASS',
+      'ARBITER_PREPUSH_SKIP',
+      'ARBITER_NO_EVIDENCE',
+      'ARBITER_SKIP_DOCS',
+    ]
+    for (const env of ARBITER_BYPASS_ENVS) {
+      expect(
+        deny.some((d) => d.includes(env)),
+        `deny list missing ${env}`,
+      ).toBe(true)
+    }
+    expect(deny).toContain('Edit(.arbiter/evidence/**)')
+    expect(deny).toContain('Edit(.arbiter/gate-pass.json)')
+    expect(deny).toContain('Edit(.arbiter/status.json)')
+  })
+
   it('generates 5 static hook scripts in .claude/hooks/', () => {
     const config = claudeConfig()
     generateClaude(config)

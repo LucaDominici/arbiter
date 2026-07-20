@@ -235,7 +235,10 @@
       "remote_effect": "  → {op}  {target}",
       "withheld_file": "  ! {key}  (template fix WITHHELD — user-modified)",
       "withheld_header": "\n  Withheld template fixes ({count}) — preserved because user-modified, fix NOT applied:",
-      "withheld_hint": "  These files are behind the current template. Review the upstream changes and merge them manually, or run `arbiter diff --withheld` for a focused list."
+      "withheld_hint": "  These files are behind the current template. Review the upstream changes and merge them manually, or run `arbiter diff --withheld` for a focused list.",
+      "governance_stale_section": "STALE {file}: {section} — {detail}",
+      "governance_stale_footer": "Governance sections are stale — run `arbiter update`.",
+      "governance_up_to_date": "Governance sections are up to date."
     },
     "worktree": {
       "ready": "\nWorktree ready: {path}",
