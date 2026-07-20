@@ -31,9 +31,12 @@ landed on main and are **not** re-designed here:
 - **Kernel as standalone plugin (M11/J1)** — `packages/kernel/` exists with README +
   `scripts/build-kernel-plugin.mjs`. Remaining work is playbook §T1 polish, not net-new design.
 - **Bypass env out of agent reach (M15, half of the T1 target)** — the bypass env vars are
-  already permission-denied in both the self settings (`.claude/settings.json:185-205`,
-  `Bash(*ARBITER_GATE_BYPASS*)` etc., plus `Write/Edit(.arbiter/evidence/**)` and
-  `gate-pass.json`) and the emitted template (`src/templates/claude/settings.json.ejs:125`).
+  already permission-denied in both the self settings (`.claude/settings.json:205-221`,
+  `Bash(*ARBITER_GATE_BYPASS*)` etc., plus `Edit(.arbiter/evidence/**)` and
+  `gate-pass.json`) and the emitted template (`src/templates/claude/settings.json.ejs:139`).
+  (#2048: the twin `Write(...)` deny entries were removed — Claude Code only matches
+  file-editing tools via `Edit(path)`, so the `Write(...)` rules were dead weight; the
+  `Edit(...)` rules alone already carry the protection.)
   What remains of M15 is the **ceremony detector** (E4 below) — plus one real gap found while
   cross-checking: see E4 "legacy silent bypass".
 
@@ -300,7 +303,7 @@ date, so the detector polices itself. Promotion = `runCheck`.
 **Self / governed.** Script + data files + doctor row are self-side; emitted twins for the
 gate + thresholds default via check-all generator. Governed doctor parity rides the existing
 `doctor` emission. Append-only property of the log is already protected agent-side by the
-`.arbiter/evidence/**` write-deny (settings), and CI-side by INV-119 footer audit.
+`.arbiter/evidence/**` edit-deny (settings), and CI-side by INV-119 footer audit.
 
 **Tier.** L2+ all modes; only the ceiling differs (solo 20/month). The advisory-ledger
 detector is level-independent — ceremony is ceremony. **Proposed INV-138** on promotion.
