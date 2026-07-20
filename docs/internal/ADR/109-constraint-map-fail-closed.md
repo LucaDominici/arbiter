@@ -26,7 +26,7 @@ to resolve the COVERED case. Neither the map file nor a template for it was ever
 emitted by any generator: every consumer project runs the gate against `map = {}`,
 so nothing can ever be reported COVERED. A gate is declared and wired, but its linking
 data is silently absent — the exact "can't be faked" anti-pattern arbiter exists to
-prevent (observed in production in two consumer projects, haben and coach-system).
+prevent (observed in production in two generated consumer projects).
 
 ## Decision
 
@@ -54,10 +54,9 @@ prevent (observed in production in two consumer projects, haben and coach-system
 - The self-repo gate (`ENFORCE_DEFAULT=true`) and the emitted template
   (`ENFORCE_DEFAULT=false`) both gain the identical missing-map guard, mirrored
   token-for-token (enforced by `__tests__/templates/constraint-scan-render.test.ts`).
-- haben and coach-system (the two consumers observed with this bug) are NOT
-  retrofitted by this change — they pick it up via their own `arbiter update` under
-  their linked adoption issues (haben#483, coach#495), tracked separately from arbiter
-  self.
+- The two consumer projects observed with this bug are NOT retrofitted by this
+  change — they pick it up via their own `arbiter update` under their own linked
+  adoption issues in those repos, tracked separately from arbiter self.
 - A companion mechanism, `arbiter diff --governance` (#2040), audits whether a
   consumer's Iron Laws / permission deny-list sections are stale relative to the
   current template — same epic (#2034), same "declared but unverified" failure class,
