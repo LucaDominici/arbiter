@@ -6,7 +6,8 @@
 // relative to `update` (F1/F7). It additionally enumerates the GitHub remote
 // side effects `update --github` would perform — as a STATIC descriptor, never
 // by calling `gh` (ADR-001; diff is strictly read-only).
-import { resolve, relative } from 'node:path'
+import { resolve, relative, join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
 import { loadConfig } from '../utils/config.js'
 import { slugifyProjectName } from './init.js'
 import { resolveProjectName } from '../config/resolve-project-name.js'
@@ -17,12 +18,139 @@ import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { t } from '../i18n/index.js'
 import { beginGenerationSession, endGenerationSession, type WriteResult } from '../utils/fs.js'
 import { loadGeneratedManifest } from '../state/generated-manifest.js'
+import { renderAgentsMd } from '../generators/agents-md.js'
+import {
+  buildRenderContext as buildClaudeRenderContext,
+  parseExistingSettings,
+} from '../generators/claude.js'
+import { renderTemplate } from '../utils/render.js'
+import type { ProjectConfig } from '../wizard/types.js'
 
 export interface DiffOptions {
   dir: string | undefined
   json?: boolean | undefined
   /** #1344: filter the report to only withheld template fixes (focused reconciliation view). */
   withheld?: boolean | undefined
+  /**
+   * #2040: audit high-authority governance sections (Iron Laws in AGENTS.md, the
+   * permission deny list in .claude/settings.json) for staleness against the
+   * CURRENT template, section-scoped rather than whole-file. Fail-closed: any
+   * stale section exits 1.
+   */
+  governance?: boolean | undefined
+}
+
+export interface GovernanceSectionStatus {
+  file: string
+  section: string
+  stale: boolean
+  detail: string
+}
+
+/**
+ * Extract the `## Iron Laws` block (header through the line before the next
+ * `## ` heading) from AGENTS.md content. Returns null if the section is absent.
+ */
+const IRON_LAWS_HEADING = /^## Iron Laws[ \t]*$/m
+
+function extractIronLawsBlock(content: string): string | null {
+  // Anchored to a whole heading LINE (start-of-line, exact text) — an unanchored
+  // substring search would also match a `### Iron Laws` h3, or prose that merely
+  // quotes the heading name, defeating the section-scoped design entirely.
+  const match = IRON_LAWS_HEADING.exec(content)
+  if (!match) return null
+  const rest = content.slice(match.index)
+  const nextHeader = rest.indexOf('\n## ', 1)
+  return (nextHeader === -1 ? rest : rest.slice(0, nextHeader)).trim()
+}
+
+function normalizeWhitespace(s: string): string {
+  return s.replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * #2040: section-scoped governance drift check — deliberately NOT a whole-file
+ * diff. AGENTS.md is regenerated wholesale on every `arbiter update` (backup:true,
+ * no skipIfExists) so a whole-file compare would flag ANY unrelated customization
+ * as "stale", not just an out-of-date Iron Laws section. Reused from the same
+ * render paths the generators use (renderAgentsMd, buildRenderContext) so this
+ * check can never disagree with what `arbiter update` would actually produce.
+ */
+export function checkGovernanceSections(
+  config: ProjectConfig,
+  targetDir: string,
+): GovernanceSectionStatus[] {
+  const results: GovernanceSectionStatus[] = []
+
+  const agentsPath = join(targetDir, 'AGENTS.md')
+  const currentIronLaws = extractIronLawsBlock(renderAgentsMd(config))
+  if (!existsSync(agentsPath)) {
+    results.push({ file: 'AGENTS.md', section: 'Iron Laws', stale: true, detail: 'file missing' })
+  } else {
+    const materializedIronLaws = extractIronLawsBlock(readFileSync(agentsPath, 'utf-8'))
+    const stale =
+      materializedIronLaws === null ||
+      normalizeWhitespace(materializedIronLaws) !== normalizeWhitespace(currentIronLaws ?? '')
+    results.push({
+      file: 'AGENTS.md',
+      section: 'Iron Laws',
+      stale,
+      detail:
+        materializedIronLaws === null ? 'section missing' : 'content differs from current template',
+    })
+  }
+
+  const settingsPath = join(targetDir, '.claude', 'settings.json')
+  const incomingSettings = JSON.parse(
+    renderTemplate('claude/settings.json.ejs', buildClaudeRenderContext(config)),
+  ) as { permissions: { deny: string[] } }
+  const currentDeny = incomingSettings.permissions.deny
+  if (!existsSync(settingsPath)) {
+    results.push({
+      file: '.claude/settings.json',
+      section: 'deny list',
+      stale: true,
+      detail: 'file missing',
+    })
+  } else {
+    // #2040 red-team: reuse the existing safe parser (CANON-22 — avoid re-implementing
+    // the same JSON.parse+shape-check claude.ts already has) instead of a raw JSON.parse
+    // that would crash on a hand-edited or merge-conflicted file and break the --json
+    // contract. Any parse failure or non-array deny shape degrades to "stale", never a throw.
+    let materializedDeny: string[] = []
+    let malformed = false
+    try {
+      const materialized = parseExistingSettings(settingsPath)
+      const deny = (materialized['permissions'] as { deny?: unknown } | undefined)?.deny
+      if (Array.isArray(deny)) {
+        materializedDeny = deny as string[]
+      } else {
+        malformed = true
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`[diff] .claude/settings.json: ${msg}\n`)
+      malformed = true
+    }
+    if (malformed) {
+      results.push({
+        file: '.claude/settings.json',
+        section: 'deny list',
+        stale: true,
+        detail: 'malformed settings.json',
+      })
+      return results
+    }
+    const missing = currentDeny.filter((d) => !materializedDeny.includes(d))
+    results.push({
+      file: '.claude/settings.json',
+      section: 'deny list',
+      stale: missing.length > 0,
+      detail: missing.length > 0 ? `missing entries: ${missing.join(', ')}` : '',
+    })
+  }
+
+  return results
 }
 
 type DiffStatus = 'new' | 'changed' | 'unchanged' | 'withheld'
@@ -137,6 +265,29 @@ function printHuman(
   }
 }
 
+/** #2040: print/exit for the `--governance` short-circuit, extracted to keep runDiff's own complexity under the ceiling. */
+function printGovernanceReport(config: ProjectConfig, targetDir: string, json: boolean): void {
+  const sections = checkGovernanceSections(config, targetDir)
+  const stale = sections.filter((s) => s.stale)
+  if (json) {
+    jsonOutput('diff', stale.length > 0 ? 'warning' : 'ok', { sections })
+    if (stale.length > 0) process.exit(statusToExitCode('warning'))
+    return
+  }
+  for (const s of sections) {
+    if (s.stale) {
+      process.stdout.write(
+        `${t('cli.diff.governance_stale_section', { file: s.file, section: s.section, detail: s.detail })}\n`,
+      )
+    }
+  }
+  if (stale.length > 0) {
+    process.stdout.write(`${t('cli.diff.governance_stale_footer')}\n`)
+    process.exit(1)
+  }
+  process.stdout.write(`${t('cli.diff.governance_up_to_date')}\n`)
+}
+
 export function runDiff(options: DiffOptions): void {
   const targetDir = resolve(options.dir ?? process.cwd())
 
@@ -163,6 +314,15 @@ export function runDiff(options: DiffOptions): void {
   // touches GitHub, so useGitHubBackend is false (read-only): the registry file
   // set is identical regardless, and gh side effects are reported statically.
   const { config } = resolveProjectConfig(targetDir, projectName, stored)
+
+  // #2040: --governance short-circuits before the generic whole-file dry-run —
+  // it needs only the resolved config to re-render the current template's
+  // governance sections, not the full generator registry.
+  if (options.governance) {
+    printGovernanceReport(config, targetDir, options.json === true)
+    return
+  }
+
   const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
   const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
   const specs = buildRegistry(config, installedSkills)

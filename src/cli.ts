@@ -727,8 +727,18 @@ program
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
   .option('--withheld', 'Show only template fixes withheld from user-modified files (#1344)', false)
-  .action((opts: { dir?: string; json: boolean; withheld: boolean }) => {
-    runDiff({ dir: opts.dir, json: opts.json, withheld: opts.withheld })
+  .option(
+    '--governance',
+    'Audit Iron Laws (AGENTS.md) and the permission deny list (.claude/settings.json) for staleness vs the current template; fail-closed (#2040)',
+    false,
+  )
+  .action((opts: { dir?: string; json: boolean; withheld: boolean; governance: boolean }) => {
+    runDiff({
+      dir: opts.dir,
+      json: opts.json,
+      withheld: opts.withheld,
+      governance: opts.governance,
+    })
   })
 
 program

@@ -22,7 +22,7 @@ export interface ClaudeGeneratorResult {
  *     `pipelineStyle`   → from resolveCollaborationAxes (ADR-051 §#1119, wires
  *     the previously dead resolveDefaultMergeMode/resolveDefaultWorktreeMode)
  */
-function buildRenderContext(config: ProjectConfig): Record<string, unknown> {
+export function buildRenderContext(config: ProjectConfig): Record<string, unknown> {
   const taskTiers = config.taskTiers ?? DEFAULT_TASK_TIERS
   // Resolve the full axis bundle. Explicit spreads beat ...config so the resolved
   // values are always present even if config fields are absent (legacy projects).
@@ -72,7 +72,7 @@ function isPlainObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x)
 }
 
-function parseExistingSettings(settingsPath: string): Record<string, unknown> {
+export function parseExistingSettings(settingsPath: string): Record<string, unknown> {
   const raw = readFileSync(settingsPath, 'utf-8')
   let parsed: unknown
   try {
