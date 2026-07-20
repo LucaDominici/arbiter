@@ -360,7 +360,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `src/commands/init.ts` (`resolveAdoptionTier` desugars `--tier` into `governanceLevel` + `brownfield`; `runInit` applies it before level resolution) + the `--tier` CLI option in `src/cli.ts`. `--tier bootstrap` is the gentlest Day-1 entry — governance L1 (the minimal runnable gate) + brownfield baseline lock-in so a messy repo's pre-existing debt is captured, not thrown as day-1 red; `L1`–`L4` are governance-level aliases. The tier adds NO new persisted config field (a view over `(governanceLevel, brownfield, grace)`); graduation uses the existing `arbiter upgrade-level` (grace-softened, ADR-028) + `arbiter configure` flows. Verified by `__tests__/commands/init-tier.test.ts` (red→green). Documented in ADR-098. selfOnly — governs arbiter's own init CLI behaviour, not a gate emitted to targets (#1447).
 
 - **INV-135:** doc-set + anti-fake-green runners generated
-  - _Enforcement:_ `scripts/check-doc-set.mjs` + `scripts/check-anti-fake-green.mjs` — two Track-B thin runners emitted unconditionally for all governed targets via `src/generators/check-all.ts` UNCONDITIONAL_EMISSIONS from `src/templates/scripts/check-doc-set.mjs.ejs` and `src/templates/scripts/check-anti-fake-green.mjs.ejs` (CANON-01/04/11). Each follows the gold-audit thin-runner shape (#1419, INV-128): a STATIC `spawnSync("npx", ["--no-install", "arbiter", "<cmd>", ...args])` delegation, so a consumer needs NO local `yaml` dep — the engine + its `yaml` parse run inside arbiter's own env. Both wired ADVISORY (`runWarnCheck`) at L2 in generated `scripts/check-all.mjs` behind existsSync guards: doc-set is advisory unless `--strict`, and the anti-fake-green gh-audit guards fail OPEN when `gh` is absent, so a fresh consumer passes with no day-1 redness. CLI: `src/commands/doc-set.ts` + `src/commands/anti-fake-green.ts` (verified by `__tests__/commands/doc-set.test.ts` + `__tests__/commands/anti-fake-green.test.ts`, red→green). Exit codes per INV-53: 0=PASS/advisory, 1=FAIL, 2=ERROR (#1428).
+  - _Enforcement:_ `scripts/check-doc-set.mjs` + `scripts/check-anti-fake-green.mjs` — two Track-B thin runners emitted unconditionally for all governed targets via `src/generators/check-all.ts` UNCONDITIONAL_EMISSIONS from `src/templates/scripts/check-doc-set.mjs.ejs` and `src/templates/scripts/check-anti-fake-green.mjs.ejs` (CANON-01/04/11). Each follows the gold-audit thin-runner shape (#1419, INV-128): a STATIC `spawnSync("npx", ["--no-install", "arbiter", "<cmd>", ...args])` delegation, so a consumer needs NO local `yaml` dep — the engine + its `yaml` parse run inside arbiter's own env. Both wired ADVISORY (`runWarnCheck`) at L2 in generated `scripts/check-all.mjs` behind existsSync guards: doc-set is advisory unless `--strict`, and the anti-fake-green gh-audit guards fail OPEN when `gh` is absent, so a fresh consumer passes with no day-1 redness. CLI: `src/commands/doc-set.ts` (verified by `__tests__/commands/doc-set.test.ts`, red→green). anti-fake-green has no CLI subcommand — its real enforcement path is the self-contained `scripts/check-anti-fake-green.mjs` aggregate (INV-135, verified by `__tests__/templates/anti-fake-green-render.test.ts` + `__tests__/conformance/anti-fake-green-self-audit.test.ts`). Exit codes per INV-53: 0=PASS/advisory, 1=FAIL, 2=ERROR (#1428).
 
 - **INV-133:** TODO max-age enforced via linked-issue creation date
   - _Enforcement:_ `scripts/check-todo-max-age.mjs` (L2, self) — a `TODO(#NNN)` whose linked issue was created more than MAX_AGE_DAYS (default 180, `TODO_MAX_AGE_DAYS` override) days ago is reported as over-age and the gate exits 1. Age derives from the issue `created_at` (resolved per issue via `gh api repos/OWNER/REPO/issues/NNN --jq .created_at`, cached), so re-touching a TODO line leaves its age unchanged. This complements INV-21: INV-21 keeps a TODO traceable, INV-133 ages a traceable TODO out. The gate walks source for `TODO(#NNN)` and resolves OWNER/REPO from the git `origin` remote. When gh is absent, the token is missing, the host is offline, or `created_at` is unresolvable, the gate exits 0 (graceful skip, without false-fails). The age decision is a PURE function (`isOverAge` / `classifyOverAge` over an injected `{issueNumber→created_at}` map), unit-tested without live gh. Emitted unconditionally for governed targets via `src/generators/check-all.ts` UNCONDITIONAL_EMISSIONS from `src/templates/scripts/check-todo-max-age.mjs.ejs` (CANON-01/04/11), wired at L2 in the generated and self `scripts/check-all.mjs`. Verified by `__tests__/scripts/check-todo-max-age.test.ts` (red→green) + `__tests__/templates/check-todo-max-age-render.test.ts` (CANON-04). exit 0=PASS/SKIP, 1=FAIL, 2=ERROR per INV-53 (#1456).
@@ -464,7 +464,7 @@ node scripts/check-all.mjs L2   # before push
 Changes pass through five enforcement layers:
 
 | Layer             | Mechanism                             | Coverage                   |
-| ----------------- | ------------------------------------- | -------------------------- |
+| ----------------- | -------------------------------------- | -------------------------- |
 | Edit-time         | Claude Code hooks (`.claude/hooks/`)  | Claude Code edits only     |
 | Pre-commit        | `.githooks/pre-commit` — runs L1 gate | All editors (`git commit`) |
 | Pre-push          | `.githooks/pre-push` — runs L2 gate   | All pushes                 |
@@ -481,7 +481,7 @@ Bypass surface: only `git commit --no-verify` (documented, audited at PR review)
 Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.mjs L2`):
 
 | Check         | Tool                     | Threshold           |
-| ------------- | ------------------------ | ------------------- |
+| ------------- | ------------------------ | -------------------- |
 | Coverage      | vitest / jest            | 80% lines           |
 | Complexity    | ESLint `complexity` rule | max 15              |
 | Dead Code     | Knip                     | zero unused exports |
@@ -511,7 +511,7 @@ Proactive debt regression prevention. Baseline metrics stored in `debt-baseline.
 Security gates run as L2+ hard requirements. PII scan is HARD (no grace period) and runs before all other gates.
 
 | Scanner           | Tool         | Gate Level         | Trigger                                                                   |
-| ----------------- | ------------ | ------------------ | ------------------------------------------------------------------------- |
+| ----------------- | ------------ | ------------------- | -------------------------------------------------------------------------- |
 | Secrets detection | gitleaks     | L2 HARD            | `gitleaks detect --source . --baseline-path suppressions/.gitleaksignore` |
 | PII scan          | pii-scan.mjs | L2 HARD (no grace) | `node scripts/pii-scan.mjs`                                               |
 | Dep audit         | npm audit    | L2 HARD            | `npm audit --omit=dev --audit-level=high`                                 |
@@ -569,7 +569,7 @@ Canonical source: `docs/internal/SYSTEM/CANON.md`.
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:
 
 | File                | Tool         | Purpose                                        |
-| ------------------- | ------------ | ---------------------------------------------- |
+| ------------------- | ------------ | ----------------------------------------------- |
 | `.claude/CLAUDE.md` | Claude Code  | Hook configuration, sub-agents, slash commands |
 | `.agents/CODEX.md`  | OpenAI Codex | Plan JSON schema, execution router             |
 
