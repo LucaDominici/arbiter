@@ -8,7 +8,7 @@
 // CATALOG:     2. Immutable run-id key — the artifact name embeds github.run_id so
 // CATALOG:        every job in a run shares one build with no cross-run collision.
 // CATALOG:     3. Non-blocking rebuild fallback — `restore` never hard-fails on a
-// CATALOG:        missing/expired artifact; it rebuilds the outputs locally.
+// CATALOG:        missing/expired cache entry; it rebuilds the outputs locally.
 // CATALOG: Cannot fold into check-workflow-cache-strategy.mjs (different input root:
 // CATALOG:   that gate lints workflow templates for cache PRESENCE; this lints a
 // CATALOG:   composite ACTION template for the parametric-strategy contract — ADR-090).
@@ -102,22 +102,23 @@ if (!runIdKey.test(content)) {
 }
 
 // 3. Non-blocking rebuild fallback. Three structural conditions must all hold:
-//    (a) the restore download is guarded so a missing artifact never hard-fails
-//        (the failure is swallowed, e.g. `2>/dev/null`, and a `restored` flag is set);
+//    (a) restore uses actions/cache/restore — its miss semantics are non-blocking
+//        BY CONSTRUCTION (soft-fail); a hand-rolled download-and-swallow script
+//        can regress into a hard failure on a miss, so it is rejected outright;
 //    (b) a rebuild-fallback step exists; and
-//    (c) that step is gated on the restore having NOT succeeded.
-const restoreIsNonBlocking = content.includes('2>/dev/null') && /restored=false/.test(content)
-if (!restoreIsNonBlocking) {
+//    (c) that step is gated on the restore having missed cache.
+const usesCacheRestore = /uses:\s*actions\/cache\/restore@/.test(content)
+if (!usesCacheRestore) {
   violations.push(
-    'restore step is not non-blocking ' +
-      '(expected a swallowed download failure that sets restored=false on miss)',
+    'restore does not use actions/cache/restore ' +
+      '(a hand-rolled download script can regress into a hard failure on a cache miss)',
   )
 }
 
 const hasRebuildFallback = /Rebuild fallback/i.test(content)
 const fallbackGated =
-  /steps\.[\w-]*restore[\w-]*\.outputs\.restored\s*!=\s*'true'/.test(content) ||
-  /steps\.[\w-]*restore[\w-]*\.outputs\.restored\s*==\s*'false'/.test(content)
+  /steps\.[\w-]*restore[\w-]*\.outputs\.cache-hit\s*!=\s*'true'/.test(content) ||
+  /steps\.[\w-]*restore[\w-]*\.outputs\.cache-hit\s*==\s*'false'/.test(content)
 if (!hasRebuildFallback || !fallbackGated) {
   violations.push(
     'no gated rebuild fallback found ' +

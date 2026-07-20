@@ -32,24 +32,23 @@ const VALID = [
   'runs:',
   '  using: composite',
   '  steps:',
-  '    - name: Upload build-cache artifact (run-id keyed)',
-  "      if: ${{ inputs.op == 'save' }}",
-  '      uses: actions/upload-artifact@sha',
-  '      with:',
-  '        name: build-cache-<%= strat %>-${{ github.run_id }}',
-  '    - name: Restore build-cache artifact (non-blocking)',
+  '    - name: Restore cached workspace build (non-blocking)',
   '      id: build-cache-restore',
-  '      shell: bash',
-  '      run: |',
-  '        if gh run download "${{ github.run_id }}" --name "build-cache-<%= strat %>-${{ github.run_id }}" 2>/dev/null; then',
-  '          echo "restored=true" >> "$GITHUB_OUTPUT"',
-  '        else',
-  '          echo "restored=false" >> "$GITHUB_OUTPUT"',
-  '        fi',
+  "      if: ${{ inputs.op == 'restore' }}",
+  '      uses: actions/cache/restore@sha',
+  '      with:',
+  '        path: dist',
+  '        key: build-cache-<%= strat %>-${{ github.run_id }}',
   '    - name: Rebuild fallback (cache unavailable)',
-  "      if: ${{ steps.build-cache-restore.outputs.restored != 'true' }}",
+  "      if: ${{ steps.build-cache-restore.outputs.cache-hit != 'true' }}",
   '      shell: bash',
   '      run: npm run build',
+  '    - name: Save workspace build (run-id keyed)',
+  "      if: ${{ inputs.op == 'save' }}",
+  '      uses: actions/cache/save@sha',
+  '      with:',
+  '        path: dist',
+  '        key: build-cache-<%= strat %>-${{ github.run_id }}',
 ].join('\n')
 
 describe('check-build-cache-strategy.mjs — valid template', () => {
@@ -99,15 +98,19 @@ describe('check-build-cache-strategy.mjs — immutable run-id key', () => {
 })
 
 describe('check-build-cache-strategy.mjs — non-blocking rebuild fallback', () => {
-  it('exits 1 when the restore can hard-fail (no swallowed download / restored=false)', () => {
+  it('exits 1 when restore uses a hand-rolled download instead of actions/cache (regression risk)', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      // Drop the failure-swallow + restored=false branch → restore is blocking.
-      const blocking = VALID.split('2>/dev/null').join('').split('restored=false').join('noop')
+      // A hand-rolled `gh run download` script can regress into a hard failure on
+      // a miss — actions/cache/restore is non-blocking BY CONSTRUCTION; anything
+      // else must be rejected.
+      const blocking = VALID.split('uses: actions/cache/restore@sha').join(
+        'run: gh run download "${{ github.run_id }}"',
+      )
       writeAction(dir, blocking)
       const result = run(dir)
       expect(result.status).toBe(1)
-      expect(result.stderr).toContain('non-blocking')
+      expect(result.stderr).toContain('actions/cache/restore')
     } finally {
       cleanup()
     }
@@ -131,7 +134,7 @@ describe('check-build-cache-strategy.mjs — non-blocking rebuild fallback', () 
       // Adversarial: keep the "Rebuild fallback" name but ungate it — a vacuous
       // fallback that never actually depends on the restore having missed.
       const ungated = VALID.split(
-        "if: ${{ steps.build-cache-restore.outputs.restored != 'true' }}",
+        "if: ${{ steps.build-cache-restore.outputs.cache-hit != 'true' }}",
       ).join('if: ${{ always() }}')
       writeAction(dir, ungated)
       const result = run(dir)

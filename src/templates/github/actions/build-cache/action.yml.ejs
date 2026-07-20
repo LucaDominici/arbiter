@@ -37,11 +37,16 @@ else _bcStrategy = 'node-workspace';
 const _bc = _bcStrategies[_bcStrategy];
 %>name: Build cache (<%= _bcStrategy %>)
 description: >-
-  Parametric cross-job build cache (strategy: <%= _bcStrategy %>). The artifact key is
+  Parametric cross-job build cache (strategy: <%= _bcStrategy %>). The cache key is
   the immutable workflow run id, so every job in a run shares one build. On `restore`,
-  a missing or expired artifact is NON-BLOCKING: the job rebuilds locally instead of
+  a missing or expired cache entry is NON-BLOCKING: the job rebuilds locally instead of
   failing the run. Strategy is one of node-workspace | python-wheel | maven-reactor |
   gradle, fixed at generation time from the project archetype.
+  Uses actions/cache, not upload/download-artifact (#2058): this is pure cross-job
+  scratch data for a single run, never downloaded by a human, so it belongs in
+  Actions' auto-evicting Cache storage (soft-fail by design) — not the manually-
+  retained, hard-quota Artifacts store that a build-cache-shaped payload does
+  nothing to deserve.
 
 inputs:
   op:
@@ -51,57 +56,29 @@ inputs:
 runs:
   using: composite
   steps:
-    # ── save: build once, upload under the immutable run-id key ────────────────
+    # ── restore: fetch under the same run-id key, else rebuild (non-blocking) ──
+    - name: Restore cached workspace build (non-blocking)
+      id: build-cache-restore
+      if: ${{ inputs.op == 'restore' }}
+      uses: actions/cache/restore@5a3ec84abb95a8ab4ca1d11a90ab8e1a8d6b2571  # v4
+      with:
+        path: <%= _bc.pack %>
+        key: build-cache-<%= _bcStrategy %>-${{ github.run_id }}
+    - name: Rebuild fallback (cache unavailable)
+      if: ${{ inputs.op == 'restore' && steps.build-cache-restore.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        echo "::notice::build-cache unavailable — rebuilding locally (non-blocking fallback)"
+        <%= _bc.build %>
+
+    # ── save: build once, cache under the immutable run-id key ──────────────────
     - name: Build (<%= _bcStrategy %>)
       if: ${{ inputs.op == 'save' }}
       shell: bash
       run: <%= _bc.build %>
-    - name: Pack build outputs
+    - name: Save workspace build (run-id keyed)
       if: ${{ inputs.op == 'save' }}
-      shell: bash
-      run: |
-        DEST="${{ runner.temp }}/build-cache"
-        mkdir -p "$DEST"
-        # Pack the strategy's build-output tree when present; an empty tar
-        # otherwise so the artifact always exists and restore is deterministic.
-        if [ -e "<%= _bc.pack %>" ]; then
-          tar -cf "$DEST/build-cache.tar" "<%= _bc.pack %>"
-        else
-          tar -cf "$DEST/build-cache.tar" --files-from /dev/null
-        fi
-    - name: Upload build-cache artifact (run-id keyed)
-      if: ${{ inputs.op == 'save' }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+      uses: actions/cache/save@5a3ec84abb95a8ab4ca1d11a90ab8e1a8d6b2571  # v4
       with:
-        name: build-cache-<%= _bcStrategy %>-${{ github.run_id }}
-        path: ${{ runner.temp }}/build-cache/build-cache.tar
-        retention-days: 7
-        overwrite: true
-
-    # ── restore: download under the same run-id key, else rebuild (non-blocking) ─
-    - name: Restore build-cache artifact (non-blocking)
-      id: build-cache-restore
-      if: ${{ inputs.op == 'restore' }}
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        DEST="${{ runner.temp }}/build-cache"
-        mkdir -p "$DEST"
-        # NON-BLOCKING: a missing/expired artifact must never fail the run. The
-        # download is attempted and any failure is swallowed (2>/dev/null) so the
-        # run falls through to the local rebuild fallback below.
-        if gh run download "${{ github.run_id }}" \
-             --name "build-cache-<%= _bcStrategy %>-${{ github.run_id }}" \
-             --dir "$DEST" 2>/dev/null && [ -f "$DEST/build-cache.tar" ]; then
-          tar -xf "$DEST/build-cache.tar" -C .
-          echo "restored=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "restored=false" >> "$GITHUB_OUTPUT"
-        fi
-    - name: Rebuild fallback (cache unavailable)
-      if: ${{ inputs.op == 'restore' && steps.build-cache-restore.outputs.restored != 'true' }}
-      shell: bash
-      run: |
-        echo "::notice::build-cache artifact unavailable — rebuilding locally (non-blocking fallback)"
-        <%= _bc.build %>
+        path: <%= _bc.pack %>
+        key: build-cache-<%= _bcStrategy %>-${{ github.run_id }}
