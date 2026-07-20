@@ -157,7 +157,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Promoted to:** INV-52
 
-**Extended to:** INV-115 (#1214) — the claimed-enforcement = wired-gate rule is generalised from invariant catalog citations to free-text governance prohibitions (NEVER / MUST NOT / DO NOT / 🛑) via `scripts/check-constraint-scan.mjs`.
+**Extended to:** INV-115 (#1214) — the claimed-enforcement = wired-gate rule is generalised from invariant catalog citations to free-text governance prohibitions (NEVER / MUST NOT / DO NOT / 🔑) via `scripts/check-constraint-scan.mjs`.
 
 ---
 
@@ -239,7 +239,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** Unchecked file creation is the primary source of near-duplicate abstractions, bloated generator counts, and redundant templates. A senior developer asks "does this already exist?" before building. Without a documented survey, AI agents default to creation because it is lower-friction than refactoring.
 
-**Enforcement:** `pre-edit-plan-anchor.mjs` hard-blocks (exit 2) `Write` to any new `src/` file if the active plan lacks a valid `## Existing Code Survey` block for that file (Target anchor, Decision keyword, ≥3 evidence rows, ≥200-char Rationale). L2: `jscpd` duplication detector. L1: bloat ratchet (`check-bloat-ratchet.mjs`). See [ADR-041 anti-bloat enforcement](../SYSTEM/DECISIONS.md) (legacy log, search "ADR-041: Anti-bloat"), INV-46.
+**Enforcement:** `pre-edit-plan-anchor.mjs` hard-blocks (exit 2) `Write` to any new `src/` file if the active plan lacks a valid `## Existing Code Survey` block for that file (Target anchor, Decision keyword, ≥3 evidence rows, ≥200-char Rationale). L2: `jscpd` duplication detector. L1: bloat ratchet (`check-bloat-ratchet.mjs`). See the legacy "ADR-041: Anti-bloat" entry preserved in git history of `docs/internal/SYSTEM/DECISIONS.md` (prose log prior to the 2026-06-02 consolidation — distinct from the current ADR-041, the deprecated /task-workflow ADR), INV-46.
 
 **Promoted to:** INV-46
 

@@ -26,7 +26,7 @@ are applied and enforced.
 ## Canonical governance documents
 
 | Document                                                    | Purpose                                                                               |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | [`AGENTS.md`](../AGENTS.md)                                 | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
 | [`docs/internal/SYSTEM/CANON.md`](internal/SYSTEM/CANON.md) | 23 process-level rules (CANON-01..23) derived from audit waves #151–#186              |
 | [RACI Matrix](#raci-matrix--arbiter)                        | Responsibility matrix for governance decisions                                        |
@@ -34,8 +34,8 @@ are applied and enforced.
 ## Architecture Decision Records
 
 | ADR                                            | Title           | Status   |
-| ---------------------------------------------- | --------------- | -------- |
-| [ADR-041](internal/ADR/041-task-workflow.md)   | Task workflow   | Accepted |
+| ------------------------------------------------- | --------------- | -------- |
+| [ADR-041](internal/ADR/041-task-workflow.md)   | Task workflow   | Deprecated (superseded by [ADR-088](internal/ADR/088-ship-as-orchestration-entrypoint.md)) |
 | [ADR-042](internal/ADR/042-gate-tiers.md)      | Gate tiers      | Accepted |
 | [ADR-043](internal/ADR/043-docs-site-ia.md)    | Docs site IA    | Accepted |
 | [ADR-044](internal/ADR/044-docs-versioning.md) | Docs versioning | Accepted |
@@ -154,7 +154,7 @@ Until then, every `tags:` field reads `[]`.
 ### Document kind
 
 | Tag               | Purpose                                                        |
-| ----------------- | -------------------------------------------------------------- |
+| ------------------- | ------------------------------------------------------------------ |
 | `kind/adr`        | Architecture Decision Record under `docs/internal/ADR/`        |
 | `kind/runbook`    | Operational runbook (incident response, maintenance procedure) |
 | `kind/spine`      | Directory index / spine README pointing at sibling docs        |
@@ -175,7 +175,7 @@ Until then, every `tags:` field reads `[]`.
 ### Audience
 
 | Tag                | For whom                                                       |
-| ------------------ | -------------------------------------------------------------- |
+| -------------------- | ------------------------------------------------------------------ |
 | `audience/dev`     | Developers contributing to arbiter or building on it           |
 | `audience/ops`     | Operators / SRE running arbiter or arbiter-scaffolded projects |
 | `audience/agent`   | Read by Claude Code / agents during a task                     |
@@ -184,7 +184,7 @@ Until then, every `tags:` field reads `[]`.
 ### Lifecycle
 
 | Tag                    | Meaning                                        |
-| ---------------------- | ---------------------------------------------- |
+| ------------------------- | --------------------------------------------------- |
 | `lifecycle/draft`      | Work in progress; do not depend on contents    |
 | `lifecycle/active`     | Current; safe to reference                     |
 | `lifecycle/deprecated` | Superseded; pending removal                    |
@@ -195,7 +195,7 @@ Until then, every `tags:` field reads `[]`.
 ### Scope
 
 | Tag                | Scope                                                        |
-| ------------------ | ------------------------------------------------------------ |
+| -------------------- | ------------------------------------------------------------ |
 | `scope/self`       | Concerns arbiter as a project (self-config)                  |
 | `scope/framework`  | Concerns the framework arbiter scaffolds for target projects |
 | `scope/dual-track` | Cross-cuts both; dual-track contract applies (CANON-16)      |
@@ -224,7 +224,7 @@ Issues labeled `good first issue` are curated on-ramps for first-time contributo
 An issue qualifies as a good first issue when **all** of the following are true:
 
 | Criterion        | Rule                                                            |
-| ---------------- | --------------------------------------------------------------- |
+| ------------------ | -------------------------------------------------------------------- |
 | **Size**         | ≤ `size/S` (≤ 4h estimated)                                     |
 | **Scope**        | Touches ≤ 2 files; no architectural decisions required          |
 | **Clarity**      | Has explicit acceptance criteria + file paths in the issue body |
