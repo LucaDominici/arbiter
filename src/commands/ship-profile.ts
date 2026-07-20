@@ -311,7 +311,9 @@ function collaborationProfile(
   config: NonNullable<ReturnType<typeof loadConfig>>,
 ): Pick<ShipProfile, 'collaborationMode' | 'mergeMode' | 'governanceLevel'> {
   const collaborationMode = resolveCollaborationMode({
-    ...(config.collaborationMode !== undefined ? { collaborationMode: config.collaborationMode } : {}),
+    ...(config.collaborationMode !== undefined
+      ? { collaborationMode: config.collaborationMode }
+      : {}),
     ...(config.features.soloDevMode === true ? { enableSoloDevMode: true } : {}),
   })
   return {

@@ -91,7 +91,7 @@ what lands in your repo, uninstalling — see [docs/QUICKSTART.md](docs/QUICKSTA
 **Experimental:** Java, Kotlin, Rust · Cursor, Aider, Copilot, Gemini, Windsurf.
 
 | Language   | Detected from              | Build tool   | Lint          | Format   | Status       |
-| ---------- | --------------------------- | ------------ | ------------- | -------- | ------------ |
+| ---------- | -------------------------- | ------------ | ------------- | -------- | ------------ |
 | TypeScript | `package.json`             | npm          | eslint        | prettier | Supported    |
 | Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | —        | Experimental |
 | Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  | Experimental |
@@ -116,7 +116,7 @@ data-pipeline).
 ## What gets generated
 
 | Path                           | Purpose                                       |
-| ------------------------------- | ---------------------------------------------- |
+| ------------------------------ | --------------------------------------------- |
 | `AGENTS.md`                    | Canonical governance doc every AI tool reads  |
 | `.claude/` / `.agents/`        | Tool-specific hooks, rules, and pointer files |
 | `.github/workflows/ci.yml`     | CI gate mirroring the local check             |
@@ -151,7 +151,7 @@ network calls. See [PRIVACY.md](PRIVACY.md).
 ### How it compares
 
 | Capability                      | arbiter | BMAD | GSD2 | claude-flow | spec-kit |
-| --------------------------------- | ------- | ---- | ---- | ----------- | -------- |
+| ------------------------------- | ------- | ---- | ---- | ----------- | -------- |
 | Canonical governance file       | ✓       | —    | —    | —           | —        |
 | Evidence-gated completion       | ✓       | —    | —    | —           | —        |
 | Idempotent, re-runnable install | ✓       | —    | —    | —           | —        |

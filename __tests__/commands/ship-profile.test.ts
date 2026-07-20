@@ -121,50 +121,56 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
     expect(resolveShipProfile(dir).collaborationMode).toBe('trunk-solo')
   })
 
-  it('#2047 — a consumer with ONLY the legacy features.soloDevMode:true alias (no explicit ' +
-    'collaborationMode) resolves to trunk-solo/direct, not the peer-review default', () => {
-    // No migration derives collaborationMode from features.soloDevMode (verified: no such
-    // mapping exists under src/config/migrations/), so collaborationProfile bridges the alias
-    // itself. Before #2047 this silently resolved to 'peer-review' — the opposite of the
-    // flag's declared intent (a PR-gated ship for a repo that asked to skip PRs).
-    const dir = tmpRepo({
-      'package.json': pkg('acme-app'),
-      'arbiter.json': cfgV2({
-        features: {
-          debtGates: true,
-          suppressions: true,
-          securityScanning: true,
-          mutationTesting: true,
-          contractTesting: false,
-          evidenceHarness: false,
-          soloDevMode: true,
-        },
-      }),
-    })
-    const profile = resolveShipProfile(dir)
-    expect(profile.collaborationMode).toBe('trunk-solo')
-    expect(profile.mergeMode).toBe('direct')
-  })
+  it(
+    '#2047 — a consumer with ONLY the legacy features.soloDevMode:true alias (no explicit ' +
+      'collaborationMode) resolves to trunk-solo/direct, not the peer-review default',
+    () => {
+      // No migration derives collaborationMode from features.soloDevMode (verified: no such
+      // mapping exists under src/config/migrations/), so collaborationProfile bridges the alias
+      // itself. Before #2047 this silently resolved to 'peer-review' — the opposite of the
+      // flag's declared intent (a PR-gated ship for a repo that asked to skip PRs).
+      const dir = tmpRepo({
+        'package.json': pkg('acme-app'),
+        'arbiter.json': cfgV2({
+          features: {
+            debtGates: true,
+            suppressions: true,
+            securityScanning: true,
+            mutationTesting: true,
+            contractTesting: false,
+            evidenceHarness: false,
+            soloDevMode: true,
+          },
+        }),
+      })
+      const profile = resolveShipProfile(dir)
+      expect(profile.collaborationMode).toBe('trunk-solo')
+      expect(profile.mergeMode).toBe('direct')
+    },
+  )
 
-  it('#2047 — explicit collaborationMode still wins when BOTH the canonical field and the ' +
-    'legacy soloDevMode alias are present', () => {
-    const dir = tmpRepo({
-      'package.json': pkg('acme-app'),
-      'arbiter.json': cfgV2({
-        collaborationMode: 'peer-review',
-        features: {
-          debtGates: true,
-          suppressions: true,
-          securityScanning: true,
-          mutationTesting: true,
-          contractTesting: false,
-          evidenceHarness: false,
-          soloDevMode: true,
-        },
-      }),
-    })
-    expect(resolveShipProfile(dir).collaborationMode).toBe('peer-review')
-  })
+  it(
+    '#2047 — explicit collaborationMode still wins when BOTH the canonical field and the ' +
+      'legacy soloDevMode alias are present',
+    () => {
+      const dir = tmpRepo({
+        'package.json': pkg('acme-app'),
+        'arbiter.json': cfgV2({
+          collaborationMode: 'peer-review',
+          features: {
+            debtGates: true,
+            suppressions: true,
+            securityScanning: true,
+            mutationTesting: true,
+            contractTesting: false,
+            evidenceHarness: false,
+            soloDevMode: true,
+          },
+        }),
+      })
+      expect(resolveShipProfile(dir).collaborationMode).toBe('peer-review')
+    },
+  )
 
   it('malformed arbiter.json → safe defaults, never throws (RT-01)', () => {
     const dir = tmpRepo({

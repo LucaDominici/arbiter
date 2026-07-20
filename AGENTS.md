@@ -464,7 +464,7 @@ node scripts/check-all.mjs L2   # before push
 Changes pass through five enforcement layers:
 
 | Layer             | Mechanism                             | Coverage                   |
-| ----------------- | -------------------------------------- | -------------------------- |
+| ----------------- | ------------------------------------- | -------------------------- |
 | Edit-time         | Claude Code hooks (`.claude/hooks/`)  | Claude Code edits only     |
 | Pre-commit        | `.githooks/pre-commit` — runs L1 gate | All editors (`git commit`) |
 | Pre-push          | `.githooks/pre-push` — runs L2 gate   | All pushes                 |
@@ -481,7 +481,7 @@ Bypass surface: only `git commit --no-verify` (documented, audited at PR review)
 Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.mjs L2`):
 
 | Check         | Tool                     | Threshold           |
-| ------------- | ------------------------ | -------------------- |
+| ------------- | ------------------------ | ------------------- |
 | Coverage      | vitest / jest            | 80% lines           |
 | Complexity    | ESLint `complexity` rule | max 15              |
 | Dead Code     | Knip                     | zero unused exports |
@@ -511,7 +511,7 @@ Proactive debt regression prevention. Baseline metrics stored in `debt-baseline.
 Security gates run as L2+ hard requirements. PII scan is HARD (no grace period) and runs before all other gates.
 
 | Scanner           | Tool         | Gate Level         | Trigger                                                                   |
-| ----------------- | ------------ | ------------------- | -------------------------------------------------------------------------- |
+| ----------------- | ------------ | ------------------ | ------------------------------------------------------------------------- |
 | Secrets detection | gitleaks     | L2 HARD            | `gitleaks detect --source . --baseline-path suppressions/.gitleaksignore` |
 | PII scan          | pii-scan.mjs | L2 HARD (no grace) | `node scripts/pii-scan.mjs`                                               |
 | Dep audit         | npm audit    | L2 HARD            | `npm audit --omit=dev --audit-level=high`                                 |
@@ -569,7 +569,7 @@ Canonical source: `docs/internal/SYSTEM/CANON.md`.
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:
 
 | File                | Tool         | Purpose                                        |
-| ------------------- | ------------ | ----------------------------------------------- |
+| ------------------- | ------------ | ---------------------------------------------- |
 | `.claude/CLAUDE.md` | Claude Code  | Hook configuration, sub-agents, slash commands |
 | `.agents/CODEX.md`  | OpenAI Codex | Plan JSON schema, execution router             |
 
