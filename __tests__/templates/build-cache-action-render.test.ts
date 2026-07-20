@@ -56,15 +56,15 @@ describe('build-cache/action.yml.ejs — parametric strategy', () => {
   )
 
   it.each(CASES)(
-    '$strategy has a non-blocking restore with a gated rebuild fallback',
+    '$strategy uses actions/cache (non-blocking by construction) with a gated rebuild fallback',
     ({ language, buildTool }) => {
       const out = render({ language, buildTool })
-      // download failure is swallowed → non-blocking
-      expect(out).toContain('2>/dev/null')
-      expect(out).toContain('restored=false')
-      // rebuild fallback exists and is gated on the restore having missed
+      // actions/cache/restore never hard-fails on a miss — no hand-rolled swallow needed
+      expect(out).toContain('uses: actions/cache/restore@')
+      expect(out).toContain('uses: actions/cache/save@')
+      // rebuild fallback exists and is gated on the restore having missed cache
       expect(out).toContain('Rebuild fallback')
-      expect(out).toMatch(/steps\.build-cache-restore\.outputs\.restored != 'true'/)
+      expect(out).toMatch(/steps\.build-cache-restore\.outputs\.cache-hit != 'true'/)
     },
   )
 
@@ -73,6 +73,6 @@ describe('build-cache/action.yml.ejs — parametric strategy', () => {
     const doc = parseYaml(out) as { runs?: { using?: string; steps?: unknown[] } }
     expect(doc.runs?.using).toBe('composite')
     expect(Array.isArray(doc.runs?.steps)).toBe(true)
-    expect((doc.runs?.steps ?? []).length).toBeGreaterThanOrEqual(5)
+    expect((doc.runs?.steps ?? []).length).toBeGreaterThanOrEqual(4)
   })
 })

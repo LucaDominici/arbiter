@@ -252,6 +252,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['schemas', 'agent-return.schema.json'],
     tpl: 'scripts/schemas/agent-return.schema.json.ejs',
   },
+  // #2058: best-effort nightly safety net — deletes Actions artifacts GitHub
+  // itself already marked expired but hasn't physically purged. Invoked directly
+  // by the nightly workflow's cleanup-expired-artifacts job, not wired into the
+  // check-all.mjs gate ring (it's CI hygiene, not a correctness gate).
+  {
+    rel: ['scripts', 'gh-cleanup-expired-artifacts.mjs'],
+    tpl: 'scripts/gh-cleanup-expired-artifacts.mjs.ejs',
+  },
 ]
 
 // The four repo-wide anti-context-rot gates are wired ADVISORY (runWarnCheck)

@@ -55,7 +55,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(31)
+    expect(result.files).toHaveLength(32)
     expect(
       result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
     ).toBe(true)
@@ -98,6 +98,11 @@ describe('generateCheckAll', () => {
     ]) {
       expect(result.files.some((f) => f.path.endsWith(twin))).toBe(true)
     }
+    // #2058: nightly artifact-cleanup safety net, invoked by the workflow directly
+    // (not wired into the check-all.mjs gate ring).
+    expect(
+      result.files.some((f) => f.path.endsWith('scripts/gh-cleanup-expired-artifacts.mjs')),
+    ).toBe(true)
     // The four repo-wide advisory gates follow their check-all wiring predicate
     // (enableDebtGates, L2+): NOT emitted at L1 — emitting them unwired would be
     // a dead emission (#1835 class, caught by check-emission-coherence).
