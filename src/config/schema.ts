@@ -299,6 +299,12 @@ interface GovernanceConfig {
    * 'extended': also includes opt-in extended set (INV-62..INV-71).
    */
   invariants_catalog?: 'core' | 'extended'
+  /**
+   * INV-115 constraint-scan gate toggle (#2037).
+   * 'on' (default): fail-closed when scripts/constraint-map.json is missing.
+   * 'off': explicit, visible opt-out — the gate SKIPs instead of running.
+   */
+  constraintScan?: 'on' | 'off'
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
@@ -1112,6 +1118,7 @@ function validateContextPack(raw: unknown, errors: string[]): void {
 }
 
 const VALID_INVARIANTS_CATALOG_VALUES = new Set(['core', 'extended'])
+const VALID_CONSTRAINT_SCAN_VALUES = new Set(['on', 'off'])
 
 function validateGovernance(raw: unknown, errors: string[]): void {
   if (raw === undefined || raw === null) return
@@ -1123,6 +1130,12 @@ function validateGovernance(raw: unknown, errors: string[]): void {
   if (catalog !== undefined && !VALID_INVARIANTS_CATALOG_VALUES.has(catalog as string)) {
     errors.push(
       `governance.invariants_catalog must be 'core' or 'extended' — got ${typeof catalog === 'string' ? catalog : JSON.stringify(catalog)}`,
+    )
+  }
+  const constraintScan = raw['constraintScan']
+  if (constraintScan !== undefined && !VALID_CONSTRAINT_SCAN_VALUES.has(constraintScan as string)) {
+    errors.push(
+      `governance.constraintScan must be 'on' or 'off' — got ${typeof constraintScan === 'string' ? constraintScan : JSON.stringify(constraintScan)}`,
     )
   }
 }

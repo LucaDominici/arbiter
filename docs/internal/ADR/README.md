@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-17'
+last_review: '2026-07-20'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 108)
+1. Create `NNN-short-title.md` in this directory (next free number after 109)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -135,3 +135,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 106 | [Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](106-codex-track-parity-contract.md)                                                 | Accepted   | 2026-07-16 |  |
 | 107 | [arbiter obsidian subcommand — thin generic orchestrator](107-obsidian-subcommand.md)                                                                                 | Accepted   | 2026-07-17 |  |
 | 108 | [Merge method = fast-forward-only for evidence-bearing PRs](108-ff-only-merge-method-evidence-bearing-prs.md)                                                         | Accepted   | 2026-07-17 |  |
+| 109 | [constraint-map.json scaffolded + INV-115 fail-closed on a missing map](109-constraint-map-fail-closed.md)                                                            | Accepted   | 2026-07-20 |  |

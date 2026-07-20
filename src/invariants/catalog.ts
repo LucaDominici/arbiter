@@ -1928,6 +1928,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     minGovernanceLevel: 'L1',
     selfOnly: false,
     alwaysActive: true,
+    adr: 'ADR-109',
     title:
       'Free-text governance prohibitions must resolve to a verified enforcer, live scan, or explicit triage',
     description:
@@ -1941,12 +1942,18 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(the CANON-23 fiction guard). (2) ENFORCED-BY-SCAN: a derivable code token, live-grepped ' +
       'against source every run — the scan itself is the wiring. (3) UNENFORCEABLE: prose / ' +
       'path / non-code token surfaced for human triage. Extends CANON-09 (claimed-enforcement = ' +
-      'wired-gate) from invariant citations to free-text prohibitions.',
+      'wired-gate) from invariant citations to free-text prohibitions. A MISSING map file (#2037, ' +
+      'ADR-109) fails the gate closed — a project declaring this gate must supply linking data, ' +
+      'not silently scan against nothing; a present-but-empty map still warns (fresh project, ' +
+      'curated over time). Escape: governance.constraintScan:"off" in arbiter.json.',
     enforcement:
       'scripts/check-constraint-scan.mjs (L1 gate, wired in scripts/check-all.mjs): extracts ' +
       'directive prohibitions, classifies via scripts/constraint-map.json, hard-fails on a live ' +
-      'un-covered derivable violation or a map-fiction entry. Emitted for target projects as ' +
-      'src/templates/scripts/check-constraint-scan.mjs.ejs (warn-default, --enforce to promote) ' +
+      'un-covered derivable violation, a map-fiction entry, or a MISSING map file (ADR-109). ' +
+      'scripts/constraint-map.json is scaffolded unconditionally alongside the gate (#2037) so ' +
+      'the missing-file case only arises from deletion/retrofit, never a fresh project. Emitted ' +
+      'for target projects as src/templates/scripts/check-constraint-scan.mjs.ejs (warn-default ' +
+      'on ENFORCED-BY-SCAN, --enforce to promote; the missing-map fail-closed applies regardless) ' +
       "and dogfooded on arbiter's own governance (CANON-01/14). Empirical coverage: " +
       '__tests__/scripts/check-constraint-scan.test.ts.',
   },

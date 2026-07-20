@@ -312,7 +312,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-114:** Fail-closed Stop gate — completion claims require correlated evidence
   - _Enforcement:_ `.claude/hooks/stop-evidence-guard.mjs` (Claude Code `Stop` event, exit 2 = block; L2+, generated for targets + dogfooded per CANON-01/14)
 - **INV-115:** Free-text governance prohibitions must resolve to a verified enforcer, live scan, or explicit triage
-  - _Enforcement:_ `scripts/check-constraint-scan.mjs` (L1; extracts NEVER/MUST NOT/DO NOT prohibitions from AGENTS.md/CANON.md/CLAUDE.md, classifies via `scripts/constraint-map.json` with enforcer-existence verification, fails on a live un-covered violation or map-fiction; generated for targets + dogfooded per CANON-01/14)
+  - _Enforcement:_ `scripts/check-constraint-scan.mjs` (L1; extracts NEVER/MUST NOT/DO NOT prohibitions from AGENTS.md/CANON.md/CLAUDE.md, classifies via `scripts/constraint-map.json` with enforcer-existence verification, fails on a live un-covered violation, map-fiction, or a MISSING map file (ADR-109, escape: governance.constraintScan=off); generated for targets + dogfooded per CANON-01/14)
 - **INV-116:** wiki/ must be free of broken wikilinks, orphan pages, stale source hashes, and missing citations
   - _Enforcement:_ `scripts/check-wiki-lint.mjs` (L2; validates 4 lint dimensions: broken-link, orphan, stale, citation-integrity; exits 0 on bootstrap; generated for targets + dogfooded per CANON-01/14)
 - **INV-117:** arbiter self-repo must not track binary build artifacts

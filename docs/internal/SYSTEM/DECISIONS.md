@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-07-17'
+last_review: '2026-07-20'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -126,3 +126,4 @@ related: []
 | 106 | [Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](../ADR/106-codex-track-parity-contract.md) | Accepted | 2026-07-16 |
 | 107 | [arbiter obsidian subcommand — thin generic orchestrator](../ADR/107-obsidian-subcommand.md) | Accepted | 2026-07-17 |
 | 108 | [Merge method = fast-forward-only for evidence-bearing PRs](../ADR/108-ff-only-merge-method-evidence-bearing-prs.md) | Accepted | 2026-07-17 |
+| 109 | [constraint-map.json scaffolded + INV-115 fail-closed on a missing map](../ADR/109-constraint-map-fail-closed.md) | Accepted | 2026-07-20 |

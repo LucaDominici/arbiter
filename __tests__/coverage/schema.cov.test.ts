@@ -496,6 +496,17 @@ describe('validateConfig — governance', () => {
       true,
     )
   })
+
+  it('rejects an invalid constraintScan value (#2037)', () => {
+    expect(errorsOf({ ...validBase(), governance: { constraintScan: 'nope' } })).toEqual(
+      expect.arrayContaining([expect.stringContaining("governance.constraintScan must be")]),
+    )
+  })
+
+  it('accepts a valid constraintScan value (#2037)', () => {
+    expect(validateConfig({ ...validBase(), governance: { constraintScan: 'off' } }).ok).toBe(true)
+    expect(validateConfig({ ...validBase(), governance: { constraintScan: 'on' } }).ok).toBe(true)
+  })
 })
 
 describe('validateConfig — kit', () => {

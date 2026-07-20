@@ -251,7 +251,29 @@ function main() {
   }
   const root = process.cwd()
 
-  // Load map (optional — absent map means nothing is pre-covered; targets curate their own).
+  // #2037: explicit, visible opt-out — governance.constraintScan:"off" in arbiter.json
+  // skips the whole gate. Unreadable arbiter.json is a schema error (INV-96 fail-closed),
+  // not silently ignored — mirrors check-render-smoke.mjs's ERROR/exit(2) contract.
+  const arbiterJsonPath = resolve(root, 'arbiter.json')
+  if (existsSync(arbiterJsonPath)) {
+    let arbiterCfg
+    try {
+      arbiterCfg = JSON.parse(readFileSync(arbiterJsonPath, 'utf8'))
+    } catch (err) {
+      process.stderr.write(`[check-constraint-scan] invalid arbiter.json: ${err.message}\n`)
+      process.exit(2)
+    }
+    if (arbiterCfg?.governance?.constraintScan === 'off') {
+      process.stdout.write(
+        '[check-constraint-scan] SKIP — governance.constraintScan is "off" in arbiter.json\n',
+      )
+      process.exit(0)
+    }
+  }
+
+  // Load map. #2037: a MISSING map file fails closed — the gate declares coverage against
+  // it, so absent linking data must never read as compliant. A PRESENT-but-empty map still
+  // warns (unchanged): a fresh project curates coverage over time, it starts empty by design.
   let map = {}
   const mapPath = resolve(root, args.map)
   if (existsSync(mapPath)) {
@@ -261,6 +283,36 @@ function main() {
       process.stderr.write(`[constraint-scan] invalid map JSON at ${mapPath}: ${err.message}\n`)
       process.exit(2)
     }
+    // Shape-valid JSON is not schema-valid: an array/string/number/null parses fine
+    // but is not a token→{enforcer,kind} object — silently treating it as an empty
+    // map would be indistinguishable from a legitimately-curated empty {} map.
+    if (map === null || typeof map !== 'object' || Array.isArray(map)) {
+      process.stderr.write(
+        `[constraint-scan] invalid map JSON at ${mapPath}: expected an object, got ` +
+          `${Array.isArray(map) ? 'array' : map === null ? 'null' : typeof map}\n`,
+      )
+      process.exit(2)
+    }
+    // "//"-prefixed keys are documentation comments (the scaffolded starter map uses
+    // them), never real tokens — strip them before validation so a self-documenting
+    // map isn't rejected as schema-invalid, and before any lookup so a doc key can
+    // never collide with an extracted token.
+    map = Object.fromEntries(Object.entries(map).filter(([key]) => !key.startsWith('//')))
+    for (const [tok, entry] of Object.entries(map)) {
+      if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+        process.stderr.write(
+          `[constraint-scan] invalid map JSON at ${mapPath}: entry "${tok}" must be an ` +
+            `object with enforcer/kind, got ${entry === null ? 'null' : typeof entry}\n`,
+        )
+        process.exit(2)
+      }
+    }
+  } else {
+    process.stderr.write(
+      `[check-constraint-scan] FAIL — ${args.map} missing; run \`arbiter update\` to scaffold it, ` +
+        `or set governance.constraintScan:"off" in arbiter.json\n`,
+    )
+    process.exit(1)
   }
 
   // Extract from every present doc.
