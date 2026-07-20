@@ -89,6 +89,10 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     tpl: 'scripts/check-collab-mode-wired.mjs.ejs',
   },
   { rel: ['scripts', 'check-constraint-scan.mjs'], tpl: 'scripts/check-constraint-scan.mjs.ejs' },
+  // #2037 (INV-115): scaffold the map alongside its checker so the gate never runs
+  // against an absent map by construction. skipIfExists — a project's curated
+  // coverage is never clobbered by a later `arbiter update`.
+  { rel: ['scripts', 'constraint-map.json'], tpl: 'scripts/constraint-map.json.ejs' },
   // #1407 (INV-129): repo-hygiene gate — no tracked data/state files or compiled
   // binaries in the index. Emitted unconditionally and wired at L1 in check-all.mjs.ejs.
   {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, chmodSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, chmodSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -290,6 +290,136 @@ describe('check-constraint-scan.mjs (INV-115) — #1215 follow-ups', () => {
       chmodSync(join(srcDir, 'secret.ts'), 0o644) // restore for cleanup
       expect(r.status).toBe(1)
       expect(r.stderr).toContain('[SCAN-INCOMPLETE]')
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+describe('check-constraint-scan.mjs (INV-115) — fail-closed on a MISSING map (#2037)', () => {
+  it('14. map file does not exist (not merely empty) → FAIL exit 1 with actionable message', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenSentinelToken()`\n')
+      const src = writeSrc(dir, {})
+      const missingMap = join(dir, 'does-not-exist.json') // never written — absent by construction
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${missingMap}`])
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain(missingMap)
+      expect(r.stderr).toMatch(/missing/i)
+      expect(r.stderr).toContain('arbiter update')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('15. a present-but-empty map ({}) still WARNS (not FAILs) — only absence fails', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenSentinelToken()`\n')
+      const src = writeSrc(dir, { 'bad.ts': 'export const x = forbiddenSentinelToken()\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, '--enforce=false'])
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('[WARN-SCAN]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('16. governance.constraintScan="off" in arbiter.json → SKIP exit 0 even with no map', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenSentinelToken()`\n')
+      writeFileSync(
+        join(dir, 'arbiter.json'),
+        JSON.stringify({ governance: { constraintScan: 'off' } }),
+      )
+      const r = runIn(dir, [`--docs=${doc}`])
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('SKIP')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('17. malformed arbiter.json → FAIL exit 2 (schema error, not silently ignored)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenSentinelToken()`\n')
+      writeFileSync(join(dir, 'arbiter.json'), '{ not valid json')
+      const r = runIn(dir, [`--docs=${doc}`])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/invalid arbiter\.json/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // Red-team (regression pass): a shape-valid-JSON-but-schema-invalid map (array, string,
+  // null) previously parsed successfully and was silently treated as an empty {} map —
+  // indistinguishable from a legitimately empty, fresh-project map. Must fail closed the
+  // same way invalid JSON does (exit 2), not degrade silently to a false OK/green.
+  it('18. constraint-map.json that is a JSON array (not an object) → FAIL exit 2', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenSentinelToken()`\n')
+      const mapPath = join(dir, 'map.json')
+      writeFileSync(mapPath, '[]')
+      const r = run([`--docs=${doc}`, `--map=${mapPath}`, '--enforce=false'])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/invalid map/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('19. constraint-map.json that is the JSON literal null → FAIL exit 2 (not a crash)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenSentinelToken()`\n')
+      const mapPath = join(dir, 'map.json')
+      writeFileSync(mapPath, 'null')
+      const r = run([`--docs=${doc}`, `--map=${mapPath}`, '--enforce=false'])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/invalid map/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('20. constraint-map.json entry that is null (not {enforcer,kind}) → FAIL exit 2 (not a crash)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenSentinelToken()`\n')
+      const mapPath = join(dir, 'map.json')
+      writeFileSync(mapPath, JSON.stringify({ forbiddenSentinelToken: null }))
+      const r = run([`--docs=${doc}`, `--map=${mapPath}`, '--enforce=false'])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/invalid map/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // Red-team (self-review pass, x2 corroborated): the scaffolded starter map
+  // (src/templates/scripts/constraint-map.json.ejs) documents itself via "//N"
+  // comment-keys whose VALUES are strings — which the shape validator (test 18-20
+  // above) would reject as "not an object", making a freshly-scaffolded project's
+  // own gate hard-fail immediately. Comment keys must be ignorable, not schema-valid.
+  it('21. the real scaffolded starter map ("//" comment keys) passes shape validation (WARN, not FAIL)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenSentinelToken()`\n')
+      const src = writeSrc(dir, {})
+      const scaffold = readFileSync(
+        resolve('src/templates/scripts/constraint-map.json.ejs'),
+        'utf8',
+      )
+      const mapPath = join(dir, 'map.json')
+      writeFileSync(mapPath, scaffold)
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${mapPath}`, '--enforce=false'])
+      expect(r.status).toBe(0)
     } finally {
       cleanup()
     }

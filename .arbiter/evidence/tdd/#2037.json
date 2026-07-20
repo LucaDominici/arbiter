@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2037",
+  "test_path": "__tests__/scripts/check-constraint-scan.test.ts",
+  "test_commit_sha": "2f0fdb973dcd26757c0deed126bdbd9c0f699dbd",
+  "test_run_log": "\n RUN  v4.1.10 /home/luca/work/repos/arbiter.worktrees/2037-constraint-map-drift\n\n ❯ __tests__/scripts/check-constraint-scan.test.ts (24 tests | 1 failed) 490ms\n     × 14. map file does not exist (not merely empty) → FAIL exit 1 with actionable message 25ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 23 passed (24)\n   Start at  22:50:58\n   Duration  585ms (transform 20ms, setup 13ms, import 16ms, tests 490ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-constraint-scan.test.ts > check-constraint-scan.mjs (INV-115) — fail-closed on a MISSING map (#2037) > 14. map file does not exist (not merely empty) → FAIL exit 1 with actionable message\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-constraint-scan.test.ts:307:24\n    305|       const missingMap = join(dir, 'does-not-exist.json') // never wri…\n    306|       const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${missing…\n    307|       expect(r.status).toBe(1)\n       |                        ^\n    308|       expect(r.stderr).toContain(missingMap)\n    309|       expect(r.stderr).toMatch(/missing/i)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-constraint-scan.test.ts",
+  "recorded_at": "2026-07-20T20:50:59.059Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-constraint-scan.test.ts"
+  ]
+}
