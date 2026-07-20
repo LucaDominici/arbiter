@@ -49,6 +49,39 @@ const cfg = (extra: Record<string, unknown>): string =>
     ...extra,
   })
 
+// #2047 — `cfg()`'s `version: '2.0.0'` is not the real v2 marker (that's the string '0.2';
+// migrate() routes anything else through the v0→v1→v2 chain, which REBUILDS `features` from
+// a fixed set of derived keys and drops any other key — including `features.soloDevMode`, the
+// legacy alias under test). A real, currently-authored arbiter.json (this repo's own) carries
+// `version: '0.2'`, which migrateV1ToV2 passes through via `validateConfig` unchanged — the
+// only path that preserves `features.soloDevMode` verbatim. Full, schema-valid shape (mirrors
+// this repo's own arbiter.json) so the v0.2 passthrough branch validates.
+const cfgV2 = (extra: Record<string, unknown>): string =>
+  JSON.stringify({
+    version: '0.2',
+    governanceLevel: 'L2',
+    tools: ['claude'],
+    permitGitHub: false,
+    features: {
+      debtGates: true,
+      suppressions: true,
+      securityScanning: true,
+      mutationTesting: true,
+      contractTesting: false,
+      evidenceHarness: false,
+    },
+    thresholds: {
+      lineCoverage: 80,
+      branchCoverage: 70,
+      mutationScore: 80,
+      cyclomaticComplexity: 15,
+      methodLength: 65,
+      maxParams: 7,
+    },
+    decomposition: { backend: 'markdown' },
+    ...extra,
+  })
+
 describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', () => {
   it('consumer repo (peer-review) → not self, peer-review, pr-ff, L2', () => {
     const dir = tmpRepo({
@@ -80,22 +113,57 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
     expect(p.mergeMode).toBe('direct')
   })
 
-  it('canonical collaborationMode field is authoritative; legacy features.soloDevMode is normalized away by loadConfig (RT-03)', () => {
-    // loadConfig rebuilds `features` to the fixed FeatureFlags set, dropping the legacy
-    // soloDevMode alias (migration maps v1 configs to collaborationMode instead). A consumer
-    // that sets ONLY the legacy flag therefore resolves to the safe default, not trunk-solo —
-    // the engine relies on the canonical collaborationMode field, never the dropped alias.
+  it('explicit collaborationMode field is authoritative over the legacy features.soloDevMode alias (RT-03)', () => {
     const dir = tmpRepo({
-      'package.json': pkg('acme-app'),
-      'arbiter.json': cfg({ features: { soloDevMode: true } }),
-    })
-    expect(resolveShipProfile(dir).collaborationMode).toBe('peer-review')
-    // Explicit canonical field IS honored.
-    const dir2 = tmpRepo({
       'package.json': pkg('acme-app'),
       'arbiter.json': cfg({ collaborationMode: 'trunk-solo' }),
     })
-    expect(resolveShipProfile(dir2).collaborationMode).toBe('trunk-solo')
+    expect(resolveShipProfile(dir).collaborationMode).toBe('trunk-solo')
+  })
+
+  it('#2047 — a consumer with ONLY the legacy features.soloDevMode:true alias (no explicit ' +
+    'collaborationMode) resolves to trunk-solo/direct, not the peer-review default', () => {
+    // No migration derives collaborationMode from features.soloDevMode (verified: no such
+    // mapping exists under src/config/migrations/), so collaborationProfile bridges the alias
+    // itself. Before #2047 this silently resolved to 'peer-review' — the opposite of the
+    // flag's declared intent (a PR-gated ship for a repo that asked to skip PRs).
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfgV2({
+        features: {
+          debtGates: true,
+          suppressions: true,
+          securityScanning: true,
+          mutationTesting: true,
+          contractTesting: false,
+          evidenceHarness: false,
+          soloDevMode: true,
+        },
+      }),
+    })
+    const profile = resolveShipProfile(dir)
+    expect(profile.collaborationMode).toBe('trunk-solo')
+    expect(profile.mergeMode).toBe('direct')
+  })
+
+  it('#2047 — explicit collaborationMode still wins when BOTH the canonical field and the ' +
+    'legacy soloDevMode alias are present', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfgV2({
+        collaborationMode: 'peer-review',
+        features: {
+          debtGates: true,
+          suppressions: true,
+          securityScanning: true,
+          mutationTesting: true,
+          contractTesting: false,
+          evidenceHarness: false,
+          soloDevMode: true,
+        },
+      }),
+    })
+    expect(resolveShipProfile(dir).collaborationMode).toBe('peer-review')
   })
 
   it('malformed arbiter.json → safe defaults, never throws (RT-01)', () => {

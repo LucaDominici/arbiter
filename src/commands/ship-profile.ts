@@ -235,11 +235,13 @@ export function isArbiterSelf(root: string): boolean {
  * malformed/invalid arbiter.json (it returns null only when ABSENT), so a typo'd consumer
  * config must degrade to safe defaults rather than abort the ship (RT-01).
  *
- * collaborationMode is read via the canonical resolver. Note (RT-03): the legacy
- * `features.soloDevMode` alias is normalized away by `loadConfig` (it rebuilds `features` to the
- * fixed FeatureFlags set) and, for v1 configs, mapped to `collaborationMode` during migration —
- * so by the time the engine sees the config, the canonical `collaborationMode` field is the
- * single authoritative source. Bridging the dropped alias here would be dead code.
+ * collaborationMode is read via the canonical resolver. Note (RT-03, #2047): `loadConfig`
+ * rebuilds `features` to the fixed FeatureFlags set, but does NOT map the legacy
+ * `features.soloDevMode` alias to `collaborationMode` — no migration derives it (verified: no
+ * such mapping exists under src/config/migrations/). So `collaborationProfile` below bridges
+ * the alias itself on every call by passing `enableSoloDevMode` to `resolveCollaborationMode`
+ * alongside `collaborationMode`; a consumer repo with only `features.soloDevMode: true` set
+ * would otherwise silently resolve to the 'peer-review' default (#2047).
  */
 export function resolveShipProfile(
   root: string,
@@ -308,9 +310,10 @@ function profileCompanions(
 function collaborationProfile(
   config: NonNullable<ReturnType<typeof loadConfig>>,
 ): Pick<ShipProfile, 'collaborationMode' | 'mergeMode' | 'governanceLevel'> {
-  const collaborationMode = resolveCollaborationMode(
-    config.collaborationMode !== undefined ? { collaborationMode: config.collaborationMode } : {},
-  )
+  const collaborationMode = resolveCollaborationMode({
+    ...(config.collaborationMode !== undefined ? { collaborationMode: config.collaborationMode } : {}),
+    ...(config.features.soloDevMode === true ? { enableSoloDevMode: true } : {}),
+  })
   return {
     collaborationMode,
     mergeMode: config.solo?.mergeMode ?? resolveDefaultMergeMode(collaborationMode),
