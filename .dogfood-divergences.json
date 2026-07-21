@@ -110,7 +110,7 @@
     "dest": ".github/workflows",
     "reason": "The template collapses 01-pr-fast.yml.ejs's entire PR pipeline (gate, unit tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, debt-gates, ci-required, post-merge-gate — contract/integration/behavioral tests moved to 02-pr-extended.yml.ejs at #1875) to a one-line solo-dev-gate stub whenever `locals.enableSoloDevMode` is true — and arbiter.json sets features.soloDevMode: true. Self deliberately keeps running the full peer-review-shaped pipeline regardless (arbiter dogfoods harder than its own declared collaborationMode: trunk-solo — same pattern documented in check-ci-tiers.mjs.ejs's cadence-parity comment). Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "58185763187f5168bcb614814f71982e8bc490718a5c8a82df2c86e11f56d925"
+    "diffHash": "13bc62bc8cc330a4ec2dec4b252ad6c0f006aeeef76b3969e6bf4dd1a0f34403"
   },
   {
     "path": "02-pr-extended.yml",
@@ -479,7 +479,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "21f3be247f22935df37e87c0e885b7e819d400f8e01b3a2160550e27918bf909"
+    "diffHash": "30954de96d06ec5ff4b2920a1aaecfd5ea13135975807ed877d8687b2f087da2"
   },
   {
     "path": "glob-walk.mjs",
