@@ -105,4 +105,13 @@ describe('check-handoff-doc.mjs', () => {
     writeFileSync(join(tmpDir, 'docs', 'plan.md'), `# Handoff: thing\n\n${goodSection(1)}`)
     expect(run(['--root', tmpDir]).exitCode).toBe(0)
   })
+
+  it('exempts HANDOFF.template.md copies (e.g. greenfield-dist) — placeholders by design', () => {
+    mkdirSync(join(tmpDir, 'templates'), { recursive: true })
+    writeFileSync(
+      join(tmpDir, 'templates', 'HANDOFF.template.md'),
+      `### 1. Task\n\n- **What:** x.\n- **Where:** y.\n- **AC:** z.\n- **Verify:** \`npm test\`\n- **Suggested tier:** …\n`,
+    )
+    expect(run(['--root', tmpDir]).exitCode).toBe(0)
+  })
 })
