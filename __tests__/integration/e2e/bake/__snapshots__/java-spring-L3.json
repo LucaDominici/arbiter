@@ -316,7 +316,7 @@
     "scripts/check-workflow-sha-pinning.mjs": "f2c6065ce7ca1afa6e94103530761342125712875cfce732968333ecdea843a2",
     "scripts/check-workflow-test-integrity.mjs": "d03105fe5e52be58dac9f348e320e9a53c4cee7f55a1d53cf23d90ec93cceea0",
     "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
-    "scripts/gh-cleanup-expired-artifacts.mjs": "8d66408fae1841d57b6ba29e35e8696c244d7ce8de965bdaabc720ccce0cf59e",
+    "scripts/gh-cleanup-expired-artifacts.mjs": "4ca6f4c99f6505d374592a4cea5cc663de574009510a6cdd9b77d672d694e83e",
     "scripts/gold-audit.mjs": "fe1f551916bf975795cbd65085938eb0f7121002005af01de8cf675549935281",
     "scripts/knowledge-map-update.mjs": "8c15f1a9d51f38e0036703065c9755528eda7e1bb7654a32a179c5ec2db97644",
     "scripts/lib/agent-return-validate.mjs": "b21b4f4d365b0e2936bda5205299250c4b2112e5365cb2f21816479007f9a6ef",

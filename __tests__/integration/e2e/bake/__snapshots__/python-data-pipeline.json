@@ -299,7 +299,7 @@
     "scripts/check-workflow-sha-pinning.mjs": "ca9a07b64138babc8428879a0e4ba26acc6824ed03520f881462e242b272b8d5",
     "scripts/check-workflow-test-integrity.mjs": "c48c7b92c14062ca9753448abbe8f8fabe5f27e271691a096c0b3230e6737672",
     "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
-    "scripts/gh-cleanup-expired-artifacts.mjs": "8d66408fae1841d57b6ba29e35e8696c244d7ce8de965bdaabc720ccce0cf59e",
+    "scripts/gh-cleanup-expired-artifacts.mjs": "4ca6f4c99f6505d374592a4cea5cc663de574009510a6cdd9b77d672d694e83e",
     "scripts/gold-audit.mjs": "fe1f551916bf975795cbd65085938eb0f7121002005af01de8cf675549935281",
     "scripts/knowledge-map-update.mjs": "1d6e6dcf72dd9ab3f3028bd8fea37b4fe10d9ef3195550d47652308f2f1cc199",
     "scripts/lib/agent-return-validate.mjs": "b21b4f4d365b0e2936bda5205299250c4b2112e5365cb2f21816479007f9a6ef",

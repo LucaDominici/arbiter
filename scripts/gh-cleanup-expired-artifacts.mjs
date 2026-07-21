@@ -17,7 +17,10 @@
 // Usage: node scripts/gh-cleanup-expired-artifacts.mjs
 //   env GH_CLEANUP_DRY_RUN=1   report what would be deleted, delete nothing
 //
-// Exit codes: always 0 — housekeeping never fails a CI run.
+// Exit codes (INV-53): 0 SKIP/OK (every expected condition — offline, no gh,
+// nothing to delete); 2 ERROR (unexpected internal bug — never silently
+// swallowed). The nightly job this runs in is standalone and excluded from
+// nightly-required's aggregation, so a red exit here never blocks the gate.
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
@@ -119,11 +122,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     main()
   } catch (err) {
-    // exit(0), not exit(2): this is best-effort housekeeping, not a correctness
-    // gate — an internal bug here must never fail the nightly job it rides in.
+    // Every EXPECTED failure mode (offline, no gh, unauthenticated, nothing to
+    // delete) is handled inside main() itself via exitFn(0) — this catch only
+    // ever fires on a genuinely unexpected internal bug, which must surface
+    // loudly rather than silently pass as green housekeeping.
     process.stderr.write(
       `gh-cleanup-expired-artifacts: ERROR — ${err instanceof Error ? err.message : String(err)}\n`,
     )
-    process.exit(0)
+    process.exit(2)
   }
 }
