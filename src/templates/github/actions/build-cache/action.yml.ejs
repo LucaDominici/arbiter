@@ -60,7 +60,7 @@ runs:
     - name: Restore cached workspace build (non-blocking)
       id: build-cache-restore
       if: ${{ inputs.op == 'restore' }}
-      uses: actions/cache/restore@5a3ec84abb95a8ab4ca1d11a90ab8e1a8d6b2571  # v4
+      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
       with:
         path: <%= _bc.pack %>
         key: build-cache-<%= _bcStrategy %>-${{ github.run_id }}
@@ -78,7 +78,7 @@ runs:
       run: <%= _bc.build %>
     - name: Save workspace build (run-id keyed)
       if: ${{ inputs.op == 'save' }}
-      uses: actions/cache/save@5a3ec84abb95a8ab4ca1d11a90ab8e1a8d6b2571  # v4
+      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
       with:
         path: <%= _bc.pack %>
         key: build-cache-<%= _bcStrategy %>-${{ github.run_id }}
