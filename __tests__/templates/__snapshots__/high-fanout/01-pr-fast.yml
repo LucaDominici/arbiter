@@ -251,7 +251,11 @@ jobs:
       - run: npm run test:unit -- --reporter=junit --outputFile=test-results/junit.xml
 
       - name: Upload test results
+        id: upload-test-results
         if: always()
+        # Supplementary artifact — never let an Artifacts-quota hiccup fail the
+        # job whose actual signal (the test run above) already passed.
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: test-results-unit-${{ github.run_id }}
@@ -406,7 +410,12 @@ jobs:
       - name: Run full L2 gate (== pre-push)
         run: node scripts/check-all.mjs L2 --json gate-result.json
       - name: Upload gate-result artifact (activates INV-59 runtime parity)
+        id: upload-gate-result
         if: always()
+        # check-local-ci-parity.mjs already treats a missing gate-result artifact
+        # as a graceful skip, not a hard failure — an Artifacts-quota hiccup on
+        # this upload must not fail the job the real gate already ran in.
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: gate-result
