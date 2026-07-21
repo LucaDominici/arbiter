@@ -130,6 +130,19 @@ mod tests {
 - Minimal code to pass — no extra features
 - Refactor only after green
 
+## Anchor to the Acceptance Criteria (INV-137)
+
+Acceptance tests derive from the issue's frozen criteria, not from your interpretation —
+writing tests from your own reading of the issue is grading your own homework.
+
+- Source of truth: the plan's `## Acceptance Criteria` block (`AC-N:` ids frozen verbatim
+  from the issue), never a live re-read of the issue.
+- Cite the id in the test title: `it('retries 3 times on 5xx (AC-1)', …)` — the reviewer's
+  FIT rubric maps each `AC-N` to the test line that proves it.
+- State the mapping in the red commit body: "tests map 1:1 to the acceptance criteria of #NNN".
+- A behavior worth implementing that maps to NO criterion means the anchor is incomplete:
+  update the plan anchor first (or capture it via `arbiter note`), don't silently widen scope.
+
 ## When to Skip TDD
 
 Only with explicit user permission. "This is simple" is never a reason.

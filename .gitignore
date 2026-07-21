@@ -48,6 +48,13 @@ coverage/
 # Wave audits + their evidence — version-controlled audit history
 !.arbiter/wave*/
 !.arbiter/wave*/**
+# ac-fit per-criterion review verdicts (INV-137) — committed so the PR carries the FIT record
+!.arbiter/evidence/ac-fit/
+!.arbiter/evidence/ac-fit/*.json
+# Rework telemetry ledger (acceptance-anchor P4) — committed dataset, merge=union
+# (file-precise: only the ledger is re-included, stray files stay ignored per #1770)
+!.arbiter/rework/
+!.arbiter/rework/ledger.jsonl
 # #1770 (T1): manager state (MILESTONES, DONE, chat-protocol), design notes,
 # redteam evidence, and other internal-only artifacts stay untracked+ignored
 # ahead of the repo going public. Kept on disk, never re-added by `git add -A`.

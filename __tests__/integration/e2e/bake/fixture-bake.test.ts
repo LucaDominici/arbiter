@@ -51,9 +51,18 @@ function hashFileContent(absPath: string): string {
   return createHash('sha256').update(normalized).digest('hex')
 }
 
+// Files whose CONTENT is measured from the baking host rather than rendered from a
+// template. scripts/debt-baseline.json is written by EXECUTING the emitted
+// capture-debt-baseline.mjs at L2+ init: its metric values depend on which analysis
+// tools resolve on the host (same env-fragile class as the scrubbed timestamps, but
+// value-shaped, so a regex scrub cannot normalize it). Presence stays asserted via
+// the name list; only the content hash is skipped.
+const CONTENT_HASH_EXCLUDE = new Set(['scripts/debt-baseline.json'])
+
 function computeContentHashes(dir: string, files: readonly string[]): Record<string, string> {
   const out: Record<string, string> = {}
   for (const rel of files) {
+    if (CONTENT_HASH_EXCLUDE.has(rel)) continue
     out[rel] = hashFileContent(join(dir, rel))
   }
   return out

@@ -64,19 +64,31 @@ body:
     attributes:
       label: "<%- governanceLevel !== 'L1' ? '5.' : '4.' %> Acceptance Criteria"
       description: |
+        Explicit, stable `AC-N:` ids — acceptance tests and the review FIT rubric cite these verbatim.
         Use EARS format for precision, or plain prose for simple tasks.
         - Event-driven: `When <trigger>, the system shall <response>`
         - Conditional: `If <condition>, then the system shall <response>`
       placeholder: |
-        When the user submits the form, the system shall validate all required fields.
-        If validation fails, the system shall return a 400 with field-level errors.
+        - [ ] AC-1: When the user submits the form, the system shall validate all required fields.
+        - [ ] AC-2: If validation fails, the system shall return a 400 with field-level errors.
+    validations:
+      required: true
+
+  - type: textarea
+    id: nongoals
+    attributes:
+      label: "<%- governanceLevel !== 'L1' ? '6.' : '5.' %> Non-Goals"
+      description: What this task deliberately leaves out — the scope-creep guard the reviewer enforces.
+      placeholder: |
+        - No refactor of the adjacent module
+        - No schema migration in this task
     validations:
       required: true
 
   - type: textarea
     id: testplan
     attributes:
-      label: "<%- governanceLevel !== 'L1' ? '6.' : '5.' %> Test Plan"
+      label: "<%- governanceLevel !== 'L1' ? '7.' : '6.' %> Test Plan"
       description: |
         Describe scenarios to verify:
         - Happy path: normal success case
@@ -92,7 +104,7 @@ body:
   - type: textarea
     id: forbidden
     attributes:
-      label: "7. Forbidden Patterns"
+      label: "8. Forbidden Patterns"
       description: Explicit rules this task must NOT violate.
       placeholder: |
         - Must NOT introduce global state

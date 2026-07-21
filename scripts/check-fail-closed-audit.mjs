@@ -96,6 +96,10 @@ const SKIP_FILES = new Set([
   // Consumers (check-self-dogfood.mjs, check-codex-self-parity.mjs) own the exit
   // contract (both fail closed with exit 2 on a stale/missing dist).
   'scripts/lib/dist-staleness.mjs',
+  // INV-137: pure AC parsing/validation semantics (no I/O, no process.exit); consumers
+  // (check-acceptance.mjs, issue-readiness.mjs) own the exit contract and fail closed
+  // (exit 2) on malformed state / unreadable plans.
+  'scripts/lib/acceptance-criteria.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

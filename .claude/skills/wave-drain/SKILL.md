@@ -54,7 +54,24 @@ merge-train).
 ## Phase 0 — Triage + Wave composition
 
 1. `gh issue list --state open` (this repo). **Exclude** anything labelled `blocked`,
-   `needs-human`, or `epic`.
+   `needs-human`, `epic`, or `needs-clarification`.
+   1b. **Readiness gate (INV-137)** — for each issue that survives the label filter AND is
+   about to be selected into the wave (never a mass sweep of the whole backlog), run:
+
+   ```bash
+   gh issue view <n> --json body -q .body > /tmp/issue-<n>.md
+   node scripts/issue-readiness.mjs --body-file /tmp/issue-<n>.md --emit-comment
+   ```
+
+   Exit 1 (not ready — missing explicit `AC-N:` acceptance criteria, non-goals, or
+   files/contracts touched) ⇒ label it `needs-clarification`, post the emitted comment
+   (skip the comment when the label is already present), and **exclude it from the wave**.
+   Underspecification is paid here, as a prompt before dispatch — not after review as a
+   thrown-away PR. Exit 2 (gh/network error) ⇒ treat the issue as not composable this wave.
+   If `scripts/issue-readiness.mjs` does not exist in this repo (Track-B emission is a
+   tracked follow-up, ADR-110), **skip this readiness step entirely** — a
+   `Cannot find module` failure is never a "not ready" verdict.
+
 2. Compose a **WAVE**: up to **10 issues**, partitioned into **groups** of **≤5 issues** each,
    grouped by module / dependency. Independent groups are parallelizable. Entangled issues
    (the `/ship` affinity / batching warning flags these) go in the **same group** or get
@@ -135,8 +152,19 @@ group include a **manifest**:
   - **Read-set** — files/globs the group is expected to READ beyond its write set (M6 #1943;
     reads bounded socially, writes mechanically)
 - **Invariants** in scope (from `GLOBAL_INVARIANTS.md` + `AGENTS.md` — cite INV-IDs)
-- **TDD units** (the red → green slices)
+- **Acceptance-criteria anchor (INV-137)** — per issue, copy the issue's criteria
+  **verbatim** into a `## Acceptance Criteria` block (plus `## Non-Goals`) under the
+  group's section, **namespacing each id per issue**: issue #123's `AC-1` becomes
+  `AC-123.1` in the wave plan (duplicate bare ids across issues are a gate error).
+  Tests and review cite these frozen ids, never a re-reading of the issue: the anchor —
+  not the implementing agent's interpretation — is the DoD.
+- **TDD units** (the red → green slices) — each unit names the `AC-N` id(s) it proves
 - **Conflict risks** vs other groups (which files / interfaces overlap)
+
+This manifest is the group's **merge contract** (INV-137): acceptance criteria + repo
+policy + required tests + CI expectations + review/security surfaces + dependencies,
+derived BEFORE writing. Code and tests are born against it — adversarial review judges
+the diff against it before integration, which is what kills accordion PRs.
 
 Every implementation agent will **anchor its `arbiter task` to its group's section** of this
 plan (CANON-16, enforced by the `pre-edit-plan-anchor` hook). No per-issue plans.
@@ -271,6 +299,13 @@ wave.** The rest of the wave proceeds.
    - Route auditors: `node scripts/route-auditors.mjs --size-floor Standard`
    - Self-review pass + **Adversarial Verifier**: trace each feature end-to-end, hunt dead
      code and unwired options.
+   - **FIT rubric (INV-137):** the review judges fit against the frozen anchor, not just
+     code quality — for **each** `AC-N` in each group's `## Acceptance Criteria` block,
+     cite the diff/test line that proves it; any criterion without cited evidence ⇒
+     REJECT for that group. Non-goals violated ⇒ scope-creep finding. Record the
+     per-criterion verdicts in `.arbiter/evidence/ac-fit/wave-N.json` (schema
+     `arbiter-ac-fit-v1`), then run the deterministic check — anchor AND all-PASS fit:
+     `node scripts/check-acceptance.mjs --plan .claude/plans/wave-N.md --ac-fit .arbiter/evidence/ac-fit/wave-N.json`
    - Write the **evidence file** (fail-closed, INV-114).
    - Any still-unresolved `redTeamFindings` cap their mapped auditor's score (`[RT-xx UNRESOLVED]`).
    - **CRITICAL / MAJOR** → dispatch a fixer agent.
@@ -287,7 +322,10 @@ wave.** The rest of the wave proceeds.
 
 5. **RED → root-cause structural fix** (never `--no-verify`, never skip). If the culprit is
    one group, **revert that group's merge** → mark its issues `needs-human` → the wave
-   continues with the rest.
+   continues with the rest. **Any reverted/redone group and any FIT REJECT is rework
+   data**: append the why × where-caught before proceeding —
+   `node scripts/rework-log.mjs add --issue <n> --reason <r> --caught review` (taxonomy in
+   the script; `report` mode shows which issue-template section is leaking).
 6. **One PR per wave.** Body: a table mapping each issue → its commit, and **one `Closes #N`
    line per issue** — never a comma-separated list (`Closes #N1, #N2, ...`); GitHub's
    closing-keyword parser only reliably auto-closes the first issue in such a list on

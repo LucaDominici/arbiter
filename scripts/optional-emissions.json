@@ -2,7 +2,7 @@
   "optional": [
     {
       "path": "scripts/conformance.mjs",
-      "rationale": "Generated only in target projects via arbiter init/update (UNCONDITIONAL_EMISSIONS, #1398, INV-128). The arbiter self-repo references this script behind existsSync() in its check-all.mjs advisory but does not emit the file itself — arbiter is the generator, not a recipient."
+      "rationale": "Generated only in target projects via arbiter init/update (UNCONDITIONAL_EMISSIONS, #1398, INV-128). The arbiter self-repo references this script behind existsSync() in its check-all.mjs advisory but does not emit the file itself \u2014 arbiter is the generator, not a recipient."
     },
     {
       "path": "scripts/gold-audit.mjs",
@@ -10,7 +10,7 @@
     },
     {
       "path": "scripts/check-touched-vs-manifest.mjs",
-      "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs — check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
+      "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs \u2014 check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
     }
   ]
 }

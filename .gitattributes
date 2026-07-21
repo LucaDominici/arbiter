@@ -9,6 +9,9 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 
+# Rework telemetry ledger: append-only JSONL from parallel task branches — union-merge
+.arbiter/rework/ledger.jsonl merge=union
+
 # Binary files — no line-ending processing
 *.png binary
 *.jpg binary

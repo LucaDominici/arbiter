@@ -33,11 +33,15 @@ rest of the wave.
 ## The loop (per wave)
 
 1. **Triage + compose** — `gh issue list --state open`; exclude `blocked` / `needs-human` /
-   `epic`. Partition into groups of ≤5 issues by module/dependency; independent groups are
-   parallelizable.
+   `epic` / `needs-clarification`. **Readiness gate (INV-137):** each issue selected into
+   the wave passes `node scripts/issue-readiness.mjs` — explicit `AC-N:` acceptance
+   criteria, non-goals, files/contracts touched — or it is labeled `needs-clarification`
+   (with a generated checklist comment) and excluded. Partition into groups of ≤5 issues
+   by module/dependency; independent groups are parallelizable.
 2. **One cumulative plan** → `.claude/plans/wave-N.md`, a manifest per group (files,
-   invariants, TDD units, conflict risks). Each agent anchors its `arbiter task` to its
-   group's section (CANON-16, `pre-edit-plan-anchor`).
+   invariants, the issues' `AC-N` criteria frozen verbatim + non-goals — the INV-137
+   anchor tests and review cite, TDD units, conflict risks). Each agent anchors its
+   `arbiter task` to its group's section (CANON-16, `pre-edit-plan-anchor`).
 3. **One plan review** — plan review on the cumulative plan + a tier-Standard
    red-team. CRITICAL → rework (max 2 cycles) → else GO for the whole wave.
 4. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`),

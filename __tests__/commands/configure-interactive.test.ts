@@ -84,6 +84,7 @@ function mockAllGroupsNoChange(th: (typeof DEFAULT_THRESHOLDS)['L2']): void {
   mockConfirm.mockResolvedValueOnce(true) // mutationTesting
   mockConfirm.mockResolvedValueOnce(true) // securityScanning
   mockConfirm.mockResolvedValueOnce(false) // evidenceHarness
+  mockConfirm.mockResolvedValueOnce(false) // acceptanceAnchor
   mockConfirm.mockResolvedValueOnce(true) // debtGates
   mockConfirm.mockResolvedValueOnce(true) // suppressions
   mockConfirm.mockResolvedValueOnce(false) // soloDevMode
@@ -133,6 +134,7 @@ describe('runInteractiveConfigure', () => {
     vi.mocked(clack.confirm).mockResolvedValueOnce(true)
     vi.mocked(clack.confirm).mockResolvedValueOnce(true)
     vi.mocked(clack.confirm).mockResolvedValueOnce(false)
+    vi.mocked(clack.confirm).mockResolvedValueOnce(false) // acceptanceAnchor
     vi.mocked(clack.confirm).mockResolvedValueOnce(true)
     vi.mocked(clack.confirm).mockResolvedValueOnce(true)
     vi.mocked(clack.confirm).mockResolvedValueOnce(false)

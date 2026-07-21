@@ -26,7 +26,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 35 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + constraint-map (#2037) + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + doc-freshness (T4) + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + safety-adopt-ratchet (T1) + 4 file-scan guards + 9 anti-context-rot twins (E1-E7 #1943)) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
+  it('emits exactly 37 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + constraint-map (#2037) + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + doc-freshness (T4) + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + safety-adopt-ratchet (T1) + 4 file-scan guards + 9 anti-context-rot twins (E1-E7 #1943) + check-smoke-journeys (INV-137, #2080) + 3 acceptance-anchor tools (ADR-110)) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -53,10 +53,17 @@ describe('generateCheckAll', () => {
     //   check-refutation-verdicts, check-audit-dry-pass, check-handoff-doc,
     //   check-touched-vs-manifest, record-agent-return, lib/gate-args,
     //   lib/agent-return-validate, schemas/agent-return.schema.json
+    // + the 3 acceptance-anchor orchestration tools (INV-138, ADR-110):
+    //   issue-readiness.mjs + rework-log.mjs + lib/acceptance-criteria.mjs
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(34)
+    expect(result.files).toHaveLength(37)
+    expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/lib/acceptance-criteria.mjs'))).toBe(
+      true,
+    )
     expect(
       result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
     ).toBe(true)

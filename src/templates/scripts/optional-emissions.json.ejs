@@ -1,5 +1,5 @@
 {
-  "$comment": "INV-123 (#1331, #1345, #1518): manifest of intentionally-optional gate scripts. Covers BOTH coherence directions. FORWARD: check-all.mjs references a script behind an existsSync() guard but the overlay/archetype that emits it is absent — a GUARDED-missing reference. REVERSE (#1518): a script is EMITTED unconditionally but wired (referenced) only at some governance levels/overlays, so at other cells it ships present-but-unreferenced. The emission-coherence gate (scripts/check-emission-coherence.mjs) scans check-all.mjs, .claude/hooks/hooks.mjs, .githooks/*, .github/workflows/*, .claude/settings.json, the Makefile, and .claude/commands/*.md; it FAILs a GUARDED-missing reference OR an emitted-but-unreferenced scripts/check-*.mjs UNLESS that path is listed here with a non-empty rationale. An UNGUARDED-missing reference (including any Makefile-recipe or command-playbook reference, which are unguarded by construction) can NEVER be silenced by this manifest.",
+  "$comment": "INV-123 (#1331, #1345, #1518): manifest of intentionally-optional gate scripts. Covers BOTH coherence directions. FORWARD: check-all.mjs references a script behind an existsSync() guard but the overlay/archetype that emits it is absent \u2014 a GUARDED-missing reference. REVERSE (#1518): a script is EMITTED unconditionally but wired (referenced) only at some governance levels/overlays, so at other cells it ships present-but-unreferenced. The emission-coherence gate (scripts/check-emission-coherence.mjs) scans check-all.mjs, .claude/hooks/hooks.mjs, .githooks/*, .github/workflows/*, .claude/settings.json, the Makefile, and .claude/commands/*.md; it FAILs a GUARDED-missing reference OR an emitted-but-unreferenced scripts/check-*.mjs UNLESS that path is listed here with a non-empty rationale. An UNGUARDED-missing reference (including any Makefile-recipe or command-playbook reference, which are unguarded by construction) can NEVER be silenced by this manifest.",
   "optional": [
     {
       "path": "scripts/check-doc-set.mjs",
@@ -7,7 +7,7 @@
     },
     {
       "path": "scripts/check-doc-freshness.mjs",
-      "rationale": "REVERSE (#1518): T4 (gold-doc-tranches-t3-t5.md §2.3) emits this freshness thin-runner (`npx arbiter doc-set --freshness`) unconditionally, but it is wired ONLY from 05-release.yml (non-starter pipelineStyle) and _monthly.yml (L3+, non-trunk-solo, non-starter) — by design, kept OUTSIDE check-all.mjs so the L2 per-commit gate never carries an expensive freshness audit (solo-developer-gate-model doctrine). Any cell resolving to 'starter' pipelineStyle (trunk-solo L1/L2, peer-review L1) ships it present-but-unwired, available for manual/CI invocation."
+      "rationale": "REVERSE (#1518): T4 (gold-doc-tranches-t3-t5.md \u00a72.3) emits this freshness thin-runner (`npx arbiter doc-set --freshness`) unconditionally, but it is wired ONLY from 05-release.yml (non-starter pipelineStyle) and _monthly.yml (L3+, non-trunk-solo, non-starter) \u2014 by design, kept OUTSIDE check-all.mjs so the L2 per-commit gate never carries an expensive freshness audit (solo-developer-gate-model doctrine). Any cell resolving to 'starter' pipelineStyle (trunk-solo L1/L2, peer-review L1) ships it present-but-unwired, available for manual/CI invocation."
     },
     {
       "path": "scripts/check-anti-fake-green.mjs",
@@ -59,7 +59,7 @@
     },
     {
       "path": "scripts/check-touched-vs-manifest.mjs",
-      "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs — check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
+      "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs \u2014 check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
     }
   ]
 }
