@@ -305,6 +305,9 @@ jobs:
         run: node scripts/check-all.mjs L2 --json gate-result-nightly.json
       - name: Upload nightly gate-result artifact
         if: always()
+        # Supplementary artifact — never let an Artifacts-quota hiccup fail the
+        # job whose actual signal (the L2 gate above) already passed (#2058-class).
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: gate-result-nightly
@@ -328,6 +331,9 @@ jobs:
       - name: Upload coverage reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
+        # Supplementary artifact — never let an Artifacts-quota hiccup fail the
+        # job whose actual signal (the coverage run above) already passed (#2058-class).
+        continue-on-error: true
         with:
           name: coverage-${{ github.run_id }}
           path: coverage/
@@ -403,6 +409,9 @@ jobs:
           echo "Nightly run: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > nightly-evidence/summary.txt
           echo "Ref: ${{ github.sha }}" >> nightly-evidence/summary.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        # Supplementary artifact — never let an Artifacts-quota hiccup fail this
+        # best-effort evidence job (#2058-class).
+        continue-on-error: true
         with:
           name: nightly-evidence-${{ github.run_id }}
           path: nightly-evidence/
