@@ -55,7 +55,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(32)
+    expect(result.files).toHaveLength(33)
     expect(
       result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
     ).toBe(true)
