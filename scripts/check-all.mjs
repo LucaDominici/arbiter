@@ -180,6 +180,9 @@ if (isMain) {
   // agreement — the permanent gate promised in the F1 fix for #1837.
   runCheck('version parity (#1838)', 'node', ['scripts/check-version-parity.mjs'])
   runCheck('phase doc consistency (INV-113)', 'node', ['scripts/check-phase-doc-consistency.mjs'])
+  // INV-137: acceptance-criteria anchor — flag-gated (features.acceptanceAnchor),
+  // vacuous without an active task, so main/CI/fresh clones stay green.
+  runCheck('acceptance anchor (INV-137)', 'node', ['scripts/check-acceptance.mjs'])
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
   runCheck('canon references', 'node', ['scripts/check-canon-references.mjs'])
   runCheck('canon enforcement parity (B1)', 'node', ['scripts/check-canon-enforcement-parity.mjs'])

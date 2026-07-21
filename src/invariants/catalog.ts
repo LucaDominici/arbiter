@@ -2516,4 +2516,43 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '__tests__/templates/module-coverage-render.test.ts (render across archetypes). exit ' +
       '0=PASS/SKIP/seed, 1=regression (#1457).',
   },
+  {
+    id: 'INV-138',
+    tier: 'governance',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'Acceptance-criteria anchor — plans freeze issue AC; fit is evidenced per criterion',
+    description:
+      'A green gate certifies mechanics, not intent; rework lives in the gap between "green" ' +
+      'and "what was asked". The anchor closes it in three steps. (1) Entry gate: an issue ' +
+      'enters a wave / ship preflight only when its body carries explicit `AC-N:` acceptance ' +
+      'criteria (beyond template stock lines), a Non-goals section, and the files/contracts it ' +
+      'touches — otherwise it is labeled needs-clarification and excluded ' +
+      '(issue-readiness.mjs, orchestration-time, gh allowed, deliberately not a gate step). ' +
+      '(2) External DoD anchor: ' +
+      'during implementation phases the active task plan freezes the issue AC verbatim under ' +
+      '"## Acceptance Criteria" (explicit AC-N ids) plus "## Non-Goals", so acceptance tests ' +
+      'derive from the issue, not from the implementing agent self-grading its own ' +
+      'interpretation. (3) Fit evidence: at verification/close the reviewer-written ' +
+      '.arbiter/evidence/ac-fit/<task>.json must cover every AC-N with verdict PASS and a cited ' +
+      'file:line — the mechanical form of "unproven criterion = REJECT". Rework telemetry ' +
+      '(rework-log.mjs, committed .arbiter/rework/ledger.jsonl) tags every redone PR ' +
+      'with why + where-caught, making the issue template self-correcting. Flag-gated ' +
+      '(features.acceptanceAnchor / ARBITER_ACCEPTANCE_ANCHOR) and vacuous without an active ' +
+      'task, so main, CI and fresh clones stay green. AC↔test-title mapping stays a reviewer ' +
+      'rubric, deliberately not a grep gate (CANON-22: contested heuristics advise).',
+    enforcement:
+      'scripts/check-acceptance.mjs (L1, flag-gated features.acceptanceAnchor; --plan mode for ' +
+      'wave integrate) — wired runCheck in scripts/check-all.mjs. Pure parsing/validation core ' +
+      'in scripts/lib/acceptance-criteria.mjs. Verified by ' +
+      '__tests__/scripts/acceptance-criteria-lib.test.ts + ' +
+      '__tests__/scripts/check-acceptance.test.ts + __tests__/scripts/issue-readiness.test.ts + ' +
+      '__tests__/scripts/rework-log.test.ts (red→green). The orchestration tools ' +
+      '(issue-readiness.mjs, rework-log.mjs, lib/acceptance-criteria.mjs) ARE emitted to ' +
+      'governed targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS ' +
+      '(CANON-01/04, __tests__/templates/acceptance-anchor-scripts-render.test.ts); selfOnly ' +
+      'because the check-acceptance GATE wiring in generated check-all.mjs is the tracked ' +
+      'ADR-110 follow-up. exit 0=PASS/SKIP, 1=FAIL, 2=ERROR per INV-53.',
+    adr: 'ADR-110',
+  },
 ]

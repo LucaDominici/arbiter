@@ -20,10 +20,10 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 135
+const EXPECTED_TOTAL_ENTRIES = 136
 const EXPECTED_TIER4_OPERATIONAL = 49
-const EXPECTED_TIER5_GOVERNANCE = 50
-const EXPECTED_SELFONLY = 29
+const EXPECTED_TIER5_GOVERNANCE = 51
+const EXPECTED_SELFONLY = 30
 
 // ---------------------------------------------------------------------------
 // INVARIANT_CATALOG structure
@@ -58,6 +58,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1456: +1 (INV-133 TODO max-age enforced via linked-issue creation date, governance/Tier-5, all-languages)
     // Updated #1817: +1 (INV-136 tier-assignment rule, operational/Tier-4, all-languages)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, operational/Tier-4, all-languages)
+    // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
     expect(INVARIANT_CATALOG).toHaveLength(EXPECTED_TOTAL_ENTRIES)
   })
 
@@ -79,9 +80,11 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1447: +1 (INV-132)
     // Updated #1428: +1 (INV-135)
     // Updated #1456: +1 (INV-133)
+    // Updated #2080: +1 (INV-137 smoke-journey acceptance floor)
+    // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(135)
+    expect(unique.size).toBe(136)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {

@@ -36,6 +36,8 @@ export interface FeatureFlags {
   mutationTesting: boolean
   securityScanning: boolean
   evidenceHarness: boolean
+  /** INV-137: acceptance-criteria anchor gate (scripts/check-acceptance.mjs). Opt-in — absent ⇒ false. */
+  acceptanceAnchor?: boolean
   selfValidationHarness?: boolean
   /** #1835: opt-in toolchain/workflow-inventory audit (scripts/audit-toolchain.mjs). */
   auditToolchain?: boolean
@@ -649,6 +651,7 @@ const OPTIONAL_FEATURE_FLAGS = [
   'codeownersNotify',
   'taxonomy25d',
   'perfTesting',
+  'acceptanceAnchor',
 ] as const
 
 /** #1530: `: void` like its siblings — failure flows through `errors[]`, not a return. */

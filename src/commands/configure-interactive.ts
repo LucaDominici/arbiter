@@ -138,6 +138,7 @@ async function promptFeaturesGroup(config: ArbiterConfigV2): Promise<string[] | 
     ['features.mutationTesting', f.mutationTesting],
     ['features.securityScanning', f.securityScanning],
     ['features.evidenceHarness', f.evidenceHarness],
+    ['features.acceptanceAnchor', f.acceptanceAnchor ?? false],
     ['features.debtGates', f.debtGates],
     ['features.suppressions', f.suppressions],
     ['features.soloDevMode', f.soloDevMode ?? false],

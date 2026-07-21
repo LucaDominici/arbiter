@@ -128,6 +128,14 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
       'Override the guard-done-evidence hook activation flag (#1872). "1"/"true" enforces, "0"/"false" disarms; unset falls through to features.evidenceHarness in arbiter.json.',
     isGateBypass: false,
   },
+  {
+    name: 'ARBITER_ACCEPTANCE_ANCHOR',
+    type: 'boolean',
+    default: false,
+    purpose:
+      'Override the acceptance-criteria anchor gate activation (INV-137, scripts/check-acceptance.mjs). "1"/"true" enforces, "0"/"false" disarms; unset falls through to features.acceptanceAnchor in arbiter.json. Bespoke var (not ARBITER_FEATURE__*): the gate script cannot run TS config resolution.',
+    isGateBypass: false,
+  },
   // ── Paths / integration ──────────────────────────────────────────────────
   {
     name: 'ARBITER_EVIDENCE_DIR',

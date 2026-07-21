@@ -40,6 +40,7 @@ const VALID_FEATURE_KEYS = new Set<keyof FeatureFlags>([
   'mutationTesting',
   'securityScanning',
   'evidenceHarness',
+  'acceptanceAnchor',
   'debtGates',
   'suppressions',
 ])

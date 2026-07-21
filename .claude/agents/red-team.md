@@ -38,15 +38,16 @@ Provide a file path, PR diff, or feature description.
 
 For each input, probe:
 
-| Vector               | Questions to Ask                                                          |
-| -------------------- | ------------------------------------------------------------------------- |
-| **Input validation** | What happens with null, empty, negative, max-length inputs?               |
-| **Auth/authz**       | Can an unauthorized actor reach this path?                                |
-| **Data integrity**   | Can this leave data in an inconsistent state?                             |
-| **Error handling**   | What happens when a dependency fails? Is the error surfaced or swallowed? |
-| **Type safety**      | Are there runtime casts that could throw?                                 |
-| **Async errors**     | Are all promises awaited? Are rejections handled?                         |
-| **Concurrency**      | Can two requests interfere with each other?                               |
+| Vector               | Questions to Ask                                                                                                                                                                                                  |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Input validation** | What happens with null, empty, negative, max-length inputs?                                                                                                                                                       |
+| **Auth/authz**       | Can an unauthorized actor reach this path?                                                                                                                                                                        |
+| **Data integrity**   | Can this leave data in an inconsistent state?                                                                                                                                                                     |
+| **Error handling**   | What happens when a dependency fails? Is the error surfaced or swallowed?                                                                                                                                         |
+| **Type safety**      | Are there runtime casts that could throw?                                                                                                                                                                         |
+| **Async errors**     | Are all promises awaited? Are rejections handled?                                                                                                                                                                 |
+| **Concurrency**      | Can two requests interfere with each other?                                                                                                                                                                       |
+| **FIT (INV-137)**    | Does the change hit the declared target? For each frozen `AC-N` criterion in the plan anchor, is there a diff/test line that proves it — and does anything in the diff violate a declared Non-Goal (scope creep)? |
 
 ## Anti-Bloat & Root-Cause Vectors (CANON-22)
 

@@ -49,6 +49,7 @@ For each input, probe:
 | **Type safety** | Are there runtime casts that could throw? |
 | **Async errors** | Are all promises awaited? Are rejections handled? |<% } %>
 | **Concurrency** | Can two requests interfere with each other? |
+| **FIT (INV-137)** | Does the change hit the declared target? For each frozen `AC-N` criterion in the plan anchor, is there a diff/test line that proves it — and does anything in the diff violate a declared Non-Goal (scope creep)? |
 
 ## Anti-Bloat & Root-Cause Vectors (CANON-22)
 

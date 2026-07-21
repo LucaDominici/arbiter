@@ -91,16 +91,36 @@ The tier (XS / S / Standard) sets the number of review agents dispatched per rev
 
 | Phase | What `/ship` does | Review agents |
 |-------|-------------------|---------------|
-| `preflight` | Open worktree (`/wt-open #NNN`), read issue, seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
+| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-137)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), STOP the ship. The `[ -f … ]` guard makes the step a no-op on brownfield trees that predate the script's emission (ADR-110) — a missing script is never a not-ready verdict; seed task state (see Local-only state above) | — |
+| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-137 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
-| `red` | Write failing tests (TDD red); `arbiter task record-red` | — |
+| `red` | Write failing tests (TDD red) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
 | `refactor` | Clean up; 1 self-review agent (trunk-solo mode) + 1 adversarial verifier | 1 |
 | `verification` | Run the gate: `npm run test` then `node scripts/check-all.mjs check` | — |
 | `complete` | Commit, push, open/merge PR, close issue, clean up | — |
 
 
+
+---
+
+## Merge Contract (derive before writing — INV-137)
+
+Before the first edit of each slice, derive its **merge contract** and record it in the
+plan; code and tests are born against the contract, never against a re-reading of the
+issue. Six sources:
+
+1. **Acceptance criteria** — the frozen `AC-N` anchor (the DoD core, hard-gated by
+   `check-acceptance`).
+2. **Repo policy** — invariants/CANON in scope (cite `INV-NN` ids).
+3. **Required tests** — the TDD units proving each `AC-N`, named up front.
+4. **CI** — which gate checks/lanes the slice must keep green (L1/L2, workflows).
+5. **Review/security** — the review verticals and security surfaces the diff will face.
+6. **Dependencies** — modules/contracts the slice touches (blast radius via `/impact`).
+
+Adversarial review runs against this contract **before push**. Pricing the constraint set
+in before the first line is what kills accordion PRs (write → review reveals a missed
+constraint → rewrite → repeat).
 
 ---
 
@@ -214,8 +234,18 @@ mkdir -p .arbiter && printf '{"count":1,"branch":"%s","sha":"%s"}\n' "$(git rev-
 **Adversarial Verifier (mandatory, after review):** Trace each new feature end-to-end; check dead code,
 CLI option wiring end-to-end (flag declared → parsed → forwarded), fixture assumptions and test setup.
 
-**Acceptance criteria:** Re-read the original issue. For each acceptance criterion state:
-PASS / FAIL / NOT TESTED. Any FAIL blocks advance.
+**FIT rubric (INV-137):** The verifier judges FIT against the plan's frozen `## Acceptance
+Criteria` anchor — not a re-reading of the live issue (mutable) and not "is this good
+code". For **each** `AC-N`: verdict PASS / FAIL / NOT-TESTED **with the diff or test
+`file:line` that proves it** — an uncited PASS does not count. Write the verdicts to
+`.arbiter/evidence/ac-fit/<taskId>.json` with the taskId SANITIZED for the filename —
+`#` and `/` stripped, so task `#42` writes `42.json` (schema `arbiter-ac-fit-v1`,
+committed; the `check-acceptance` gate validates it and hard-requires all-PASS at
+verification/close).
+Any FAIL or NOT-TESTED blocks advance — unproven criterion = REJECT. A REJECT that forces
+a redo is rework data:
+`[ -f scripts/rework-log.mjs ] && node scripts/rework-log.mjs add --issue NNN --reason <r> --caught review`
+(guarded for brownfield trees that predate the script's emission — ADR-110).
 
 
 

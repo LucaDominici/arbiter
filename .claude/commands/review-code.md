@@ -50,6 +50,24 @@ Each agent's raw response is persisted under
 - **silent-failure-hunter** — swallowed errors, empty catches, ignored rejections
 - **test-analyzer** — coverage and assertion quality (Standard)
 
+## FIT Rubric (INV-137) — target, not just quality
+
+A reviewer that sees only the diff can say "good code", never "the code that was asked
+for". When the active task's plan carries a frozen `## Acceptance Criteria` anchor
+(`AC-N:` ids), the review MUST judge fit against it as an explicit rubric:
+
+- For **each** `AC-N`: cite the diff or test `file:line` that satisfies it — verdict
+  PASS / FAIL / NOT-TESTED. An uncited PASS does not count.
+- Any criterion without demonstrated evidence ⇒ **REJECT**, regardless of code quality.
+- Diff behavior that maps to no criterion and violates a `## Non-Goals` bullet ⇒
+  scope-creep finding.
+- Record the verdicts in `.arbiter/evidence/ac-fit/<taskId>.json` — taskId sanitized
+  for the filename (`#` and `/` stripped: task `#42` → `42.json`), schema
+  `arbiter-ac-fit-v1` — validated by `scripts/check-acceptance.mjs`, which
+  hard-requires all-PASS at verification/close.
+- A REJECT that forces a redo is rework data:
+  `node scripts/rework-log.mjs add --issue <n> --reason <r> --caught review`.
+
 ## Auditor Routing
 
 Auditors are selected per-diff using `.claude/auditor-routing.json`. Run before dispatching agents:

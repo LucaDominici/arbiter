@@ -163,6 +163,7 @@
 | [ADR-107: arbiter obsidian subcommand — thin generic orchestrator](internal/ADR/107-obsidian-subcommand.md) | 107 | active | kind/adr |
 | [ADR-108: Merge method = fast-forward-only for evidence-bearing PRs](internal/ADR/108-ff-only-merge-method-evidence-bearing-prs.md) | 108 | active | kind/adr |
 | [ADR-109: constraint-map.json scaffolded + INV-115 fail-closed on a missing map](internal/ADR/109-constraint-map-fail-closed.md) | 109 | active | kind/adr |
+| [ADR-110: Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](internal/ADR/110-acceptance-criteria-anchor.md) | 110 | active | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-000_template.md) | — | draft | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-TEMPLATE.md) | — | active | kind/adr |
 | [Architectural Decision Records](internal/ADR/README.md) | — | active | kind/adr |

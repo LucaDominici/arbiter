@@ -177,6 +177,25 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'lib', 'glob-walk.mjs'],
     tpl: 'scripts/lib/glob-walk.mjs.ejs',
   },
+  // ADR-110 (INV-137): acceptance-anchor orchestration tools. The generated ship.md
+  // preflight/FIT-rubric steps invoke issue-readiness.mjs / rework-log.mjs, so the
+  // files must exist in every governed tree (INV-123 emission coherence — command-doc
+  // references are unguarded by construction). Both share the pure parsing core in
+  // scripts/lib/acceptance-criteria.mjs, co-emitted like glob-walk above. The
+  // check-acceptance.mjs GATE stays self-only (not wired in generated check-all) —
+  // that wiring is the tracked ADR-110 follow-up.
+  {
+    rel: ['scripts', 'issue-readiness.mjs'],
+    tpl: 'scripts/issue-readiness.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'rework-log.mjs'],
+    tpl: 'scripts/rework-log.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'lib', 'acceptance-criteria.mjs'],
+    tpl: 'scripts/lib/acceptance-criteria.mjs.ejs',
+  },
   // #1398 (INV-128) conformance.mjs and #1419 gold-audit.mjs are NOT listed here:
   // each has a dedicated always-on owner (generateConformanceScript / generateGoldKit)
   // that runs later in the registry and is the SOLE emitter. Listing them here too made

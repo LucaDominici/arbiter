@@ -63,6 +63,7 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
       { path: 'features.mutationTesting', label: 'Mutation testing' },
       { path: 'features.contractTesting', label: 'Contract testing' },
       { path: 'features.evidenceHarness', label: 'Evidence harness' },
+      { path: 'features.acceptanceAnchor', label: 'Acceptance-criteria anchor gate (INV-137)' },
       { path: 'features.soloDevMode', label: 'Solo dev mode (deprecated)' },
       // #1887-A: activation path for 3 previously-unreachable opt-in generators.
       { path: 'features.codeownersNotify', label: 'CODEOWNERS post-merge email notify (L2+)' },

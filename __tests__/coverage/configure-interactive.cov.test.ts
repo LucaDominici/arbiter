@@ -114,6 +114,7 @@ function queueAllGroupsNoChange(th: Thresholds): void {
   mockConfirm.mockResolvedValueOnce(true) // mutationTesting
   mockConfirm.mockResolvedValueOnce(true) // securityScanning
   mockConfirm.mockResolvedValueOnce(false) // evidenceHarness
+  mockConfirm.mockResolvedValueOnce(false) // acceptanceAnchor
   mockConfirm.mockResolvedValueOnce(true) // debtGates
   mockConfirm.mockResolvedValueOnce(true) // suppressions
   mockConfirm.mockResolvedValueOnce(false) // soloDevMode (?? false)
@@ -209,6 +210,7 @@ describe('runInteractiveConfigure — branch coverage', () => {
     mockConfirm.mockResolvedValueOnce(false) // mutationTesting true → false
     mockConfirm.mockResolvedValueOnce(false) // securityScanning true → false
     mockConfirm.mockResolvedValueOnce(true) // evidenceHarness false → true
+    mockConfirm.mockResolvedValueOnce(true) // acceptanceAnchor false → true
     mockConfirm.mockResolvedValueOnce(false) // debtGates true → false
     mockConfirm.mockResolvedValueOnce(false) // suppressions true → false
     mockConfirm.mockResolvedValueOnce(true) // soloDevMode (?? false) → true
@@ -293,6 +295,7 @@ describe('runInteractiveConfigure — branch coverage', () => {
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(false)
+    mockConfirm.mockResolvedValueOnce(false) // acceptanceAnchor
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true) // soloDevMode present=true
@@ -365,6 +368,7 @@ describe('runInteractiveConfigure — branch coverage', () => {
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(false)
+    mockConfirm.mockResolvedValueOnce(false) // acceptanceAnchor
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(false)
@@ -433,6 +437,7 @@ describe('runInteractiveConfigure — branch coverage', () => {
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(false)
+    mockConfirm.mockResolvedValueOnce(false) // acceptanceAnchor
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(false)
@@ -478,6 +483,7 @@ describe('runInteractiveConfigure — branch coverage', () => {
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(false)
+    mockConfirm.mockResolvedValueOnce(false) // acceptanceAnchor
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(true)
     mockConfirm.mockResolvedValueOnce(false)

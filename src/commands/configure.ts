@@ -31,6 +31,7 @@ export const ALLOWED_PATHS = new Set([
   'features.mutationTesting',
   'features.securityScanning',
   'features.evidenceHarness',
+  'features.acceptanceAnchor',
   'features.debtGates',
   'features.suppressions',
   'features.soloDevMode',

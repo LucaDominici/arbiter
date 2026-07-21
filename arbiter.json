@@ -13,6 +13,7 @@
     "mutationTesting": true,
     "contractTesting": true,
     "evidenceHarness": false,
+    "acceptanceAnchor": true,
     "soloDevMode": true
   },
   "thresholds": {
