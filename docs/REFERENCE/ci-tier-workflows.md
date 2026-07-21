@@ -182,6 +182,16 @@ The `scripts/check-action-pins.mjs` gate enforces this at L2.
 Every generated workflow declares explicit top-level `permissions:` with least-privilege
 defaults. The `scripts/check-workflow-perms.mjs` gate enforces this at L1.
 
+**Reusable-workflow propagation (#2049):** a job in a `workflow_call`-triggered file (e.g.
+`_nightly.yml`) can only be granted a permission scope the _caller_ also grants — GitHub
+validates the union at dispatch time and rejects the whole run (`startup_failure`, 0 jobs
+created) if a job requests a scope the caller never passed down. The `cleanup-expired-artifacts`
+job (`scripts/gh-cleanup-expired-artifacts.mjs`, above) needs `actions: write`; that scope is
+granted in all three places the chain requires it: `06-nightly.yml`'s top-level `permissions:`,
+its `nightly:` job's `permissions:`, and `_nightly.yml`'s top-level (`workflow_call`)
+`permissions:`. When adding a job that needs a new permission scope, grant it in all three
+layers, not just the job itself.
+
 ## Alternative shape: collapsed 5-lane CI doctrine (#1825, opt-in)
 
 `enableFiveLaneCi: true` replaces the entire numbered-workflow inventory above with the
