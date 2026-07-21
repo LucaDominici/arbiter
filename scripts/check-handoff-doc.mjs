@@ -34,14 +34,20 @@ const TEMPLATE_PATH = join(repoDefault, 'src', 'templates', 'HANDOFF.template.md
 
 const PLACEHOLDER = /(…|_fill in_|<[^>]*>)/
 
-/** Is this file the template itself (exempt — it IS placeholders)? */
+/** Is this file the template, or a copy of it (exempt — templates ARE placeholders by design)? */
 function isTemplate(absPath) {
   try {
-    return resolve(absPath) === resolve(TEMPLATE_PATH)
-    // FAIL-OPEN-INTENT: resolve() threw on a bad path — treat as not-the-template (safe default: the file gets linted).
+    if (resolve(absPath) === resolve(TEMPLATE_PATH)) return true
+    // FAIL-OPEN-INTENT: resolve() threw on a bad path — fall through to the basename check.
   } catch {
-    return false
+    // resolve() threw — fall through to the basename check.
   }
+  // Also exempt copies of the template by basename — the greenfield-dist
+  // generation copies the template to .arbiter/greenfield-dist-*/templates/,
+  // and exact-path matching missed those copies (arbiter#2066). A template
+  // copy is placeholders by design, so it must not be linted as a real handoff.
+  const base = absPath.split(sep).pop() ?? ''
+  return /^HANDOFF\.template\.md$/i.test(base)
 }
 
 /** Walk a directory recursively collecting markdown files. */
