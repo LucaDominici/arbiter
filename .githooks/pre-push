@@ -119,6 +119,24 @@ elif [ -d "$ARBITER_PREPUSH_EVIDENCE_DIR" ]; then
 fi
 # ─── end evidence-freshness gate ─────────────────────────────────────────────
 
+# ─── L2 bypass (mirrors viafera VIAFERA_PREPUSH_BYPASS; arbiter#2066) ──────────
+# Authorized, loud bypass of the full local L2 for workflow-only / low-risk
+# changes, letting the T1 PR CI verify instead (it is the merge gate). The
+# workflow-only policy is human-enforced — matching viafera's posture — and the
+# bypass is exact-string 'true' only (other values fall through to the L2),
+# logged to bypass-log.jsonl. Default (unset) behavior is unchanged: L2 runs.
+if [ "${ARBITER_PREPUSH_BYPASS:-}" = "true" ]; then
+  BR="$(git branch --show-current 2>/dev/null || echo unknown)"
+  TS="$(date -u +%FT%TZ)"
+  REASON="${ARBITER_PREPUSH_BYPASS_REASON:-unspecified}"
+  echo "arbiter-bypass env=ARBITER_PREPUSH_BYPASS (L2 skipped; T1 PR CI is the merge gate) branch=${BR} at=${TS} reason=\"${REASON}\"" >&2
+  mkdir -p "$ARBITER_PREPUSH_EVIDENCE_DIR"
+  BR="$BR" TS="$TS" REASON="$REASON" \
+    node -e 'const e=process.env;process.stdout.write(JSON.stringify({env:"ARBITER_PREPUSH_BYPASS_L2",branch:e.BR,ts:e.TS,value:"true",bypassed:true,reason:e.REASON})+"\n")' \
+    >> "$ARBITER_PREPUSH_EVIDENCE_DIR/bypass-log.jsonl"
+  exit 0
+fi
+
 # Vite/vitest (v5+) cannot handle '#' in the project root path.
 # Use pwd -P (physical path) to detect symlink-based worktrees where $PWD
 # may not contain '#' even though the real path does.
