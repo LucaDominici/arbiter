@@ -133,6 +133,14 @@ In addition to the workflows, `generateCiTier` / `generateGithub` emit:
 | `.github/actions/sign-and-attest/action.yml`  | Composite cosign sign + attest action (release/deploy path)                                                                                                                                                                                                    |
 | `sonar-project.properties`                    | SonarQube project config; JaCoCo XML path set per build tool (`maven` → `target/coverage/jacoco.xml`, `gradle` → `build/coverage/coverage.xml`)                                                                                                                |
 
+`_nightly.yml`'s three purely-supplementary artifact uploads (`gate-full-nightly`'s
+gate-result, `coverage-report`'s coverage HTML, `evidence-collect`'s summary) carry
+`continue-on-error: true` — same #2058-class tolerance as the build-cache/cleanup entries
+above: the upload is evidence for later inspection, not the gate itself (the L2 gate /
+coverage-threshold run above it already succeeded or failed on its own terms), so an
+Artifacts-quota hiccup on the upload must not retroactively red a job whose real work
+already completed.
+
 ## Jobs in 01-pr-fast.yml
 
 | Job                       | Depends on                                                 | Purpose                                                              |
