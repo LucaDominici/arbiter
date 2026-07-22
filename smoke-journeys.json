@@ -1,0 +1,5 @@
+{
+  "archetype": "library",
+  "applicable": false,
+  "reason": "Archetype \"library\" has no interactive login/CRUD/authz user journeys to smoke-test."
+}

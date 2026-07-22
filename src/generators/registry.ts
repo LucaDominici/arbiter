@@ -77,6 +77,7 @@ import { generateGap } from './gap.js'
 import { generateResilience } from './resilience.js'
 import { generateTestPyramidManifest } from './test-pyramid-manifest.js'
 import { generateApiE2e } from './api-e2e.js'
+import { generateSmokeJourneys } from './smoke-journeys.js'
 import { generateSoloException } from './solo-exception.js'
 import { generateWiki } from './wiki.js'
 import { generateConformanceScript } from './conformance.js'
@@ -236,6 +237,15 @@ function buildGateScriptSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'api-e2e',
       enabled: true,
       run: (opts) => generateApiE2e(config, opts).files,
+    },
+    {
+      // #2080/INV-137: declarative login/CRUD/authz smoke-journey acceptance floor. Always
+      // emits smoke-journeys.json (applicability is archetype×language-computed inside the
+      // generator ⇒ non-applicable combos emit applicable:false and the gate runtime-SKIPs);
+      // scaffolds a real Playwright starter only for the frontend-spa + TypeScript combo.
+      key: 'smoke-journeys',
+      enabled: true,
+      run: (opts) => generateSmokeJourneys(config, opts).files,
     },
   ]
 }

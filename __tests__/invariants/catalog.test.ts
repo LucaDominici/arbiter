@@ -20,8 +20,8 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 134
-const EXPECTED_TIER4_OPERATIONAL = 48
+const EXPECTED_TOTAL_ENTRIES = 135
+const EXPECTED_TIER4_OPERATIONAL = 49
 const EXPECTED_TIER5_GOVERNANCE = 50
 const EXPECTED_SELFONLY = 29
 
@@ -57,6 +57,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational/Tier-4)
     // Updated #1456: +1 (INV-133 TODO max-age enforced via linked-issue creation date, governance/Tier-5, all-languages)
     // Updated #1817: +1 (INV-136 tier-assignment rule, operational/Tier-4, all-languages)
+    // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, operational/Tier-4, all-languages)
     expect(INVARIANT_CATALOG).toHaveLength(EXPECTED_TOTAL_ENTRIES)
   })
 
@@ -80,7 +81,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1456: +1 (INV-133)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(134)
+    expect(unique.size).toBe(135)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -519,7 +520,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
     // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all-languages, operational)
-    expect(result).toHaveLength(88)
+    // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all-languages, operational)
+    expect(result).toHaveLength(89)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -552,7 +554,8 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(76)
+    // +1 from INV-137 (L1+, all languages, smoke-journey floor) — threshold < 76 → < 77
+    expect(result.length).toBeLessThan(77)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -632,7 +635,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
     // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all languages, operational)
-    expect(result).toHaveLength(83)
+    // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all languages, operational)
+    expect(result).toHaveLength(84)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -660,12 +664,13 @@ describe('getFilteredInvariants', () => {
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
     // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all languages, operational)
+    // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all languages, operational)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(84)
+    expect(result).toHaveLength(85)
   })
 
   it('essential preset at L1 returns minimal set', () => {

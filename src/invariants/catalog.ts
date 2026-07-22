@@ -1549,6 +1549,42 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'src/generators/ci-five-lane.ts',
   },
 
+  // ─── Smoke-Journey Acceptance Floor — login/CRUD/authz (#2080) ───────────────
+  {
+    id: 'INV-137',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'Declared smoke journeys must be covered — no aspirational acceptance floor',
+    description:
+      'A project that declares a smoke journey in smoke-journeys.json (machine-readable manifest ' +
+      'at repo root, schema arbiter-smoke-journeys-v1) must COVER it with ≥1 real spec file ' +
+      "matching that journey's globs. OR semantics: a required journey passes if ANY of its " +
+      'globs matches ≥1 file. This is the synthesis of two precedents: the per-item ' +
+      '{ id, name, globs, status, rationale } shape and auditable machinery of INV-124 ' +
+      '(test-pyramid) — n/a needs a rationale ≥20 chars, all-n/a is a hard fail — but the ' +
+      'FAIL-CLOSED default direction of INV-126 (api-e2e): applicability is archetype-computed, ' +
+      'so a journey applicable to the archetype defaults to required (absent status ⇒ required, ' +
+      'never silently n/a) and day-1-green comes from a REAL scaffolded starter, not a default ' +
+      'flag. An archetype with no interactive login/CRUD/authz journeys declares a top-level ' +
+      'applicable:false with a reason ⇒ gate SKIPs (mirrors INV-126 required:false); a missing ' +
+      'manifest ⇒ SKIP (exit 0) so ungoverned repos never false-fail. Because applicability is ' +
+      'genuine (archetype-computed) rather than human-asserted, a wired-but-dead CI job can never ' +
+      'be laundered into a legitimate n/a here — that stays a defect to fix, not a skip. ' +
+      'Path-traversal globs and a non-array journeys field ⇒ exit 2 (schema error). Boundary: ' +
+      'file PRESENCE only — assertion quality is INV-118 (anti-proforma) and execution is the ' +
+      'render-smoke/e2e CI lane. Introduced in #2080 (sub-issue of #2043).',
+    enforcement:
+      'scripts/check-smoke-journeys.mjs (L1) — self-gate wired in scripts/check-all.mjs; generated ' +
+      'for targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-smoke-journeys.mjs.ejs (imports the shared scripts/lib/glob-walk.mjs ' +
+      'helper, also unconditionally emitted). Manifest smoke-journeys.json + the TS Playwright starter ' +
+      '(tests/smoke/smoke-journeys.spec.ts, frontend-spa + TypeScript only) emitted by ' +
+      'src/generators/smoke-journeys.ts (skipIfExists:true; applicability archetype×language-computed). ' +
+      'Exit codes per INV-53: 0=PASS/SKIP, 1=policy violation, 2=schema/path-traversal error.',
+  },
+
   // ─── Deploy Target Supply Chain (INV-95, INV-97..99, PR-B #1005) ────────────
   {
     id: 'INV-95',

@@ -44,7 +44,7 @@ describe('extended opt-in invariants', () => {
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, operational/Tier-4, selfOnly)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
     // Updated #1817: +1 (INV-136 tier-assignment rule, operational)
-    expect(INVARIANT_CATALOG).toHaveLength(134)
+    expect(INVARIANT_CATALOG).toHaveLength(135)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

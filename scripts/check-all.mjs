@@ -254,6 +254,7 @@ if (isMain) {
   runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs'])
   runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs'])
   runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs'])
+  runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs'])
   runCheck('workflow cache strategy (§17.5 rec 3)', 'node', [
     'scripts/check-workflow-cache-strategy.mjs',
   ])

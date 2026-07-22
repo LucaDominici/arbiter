@@ -458,6 +458,10 @@ runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surf
 // Fails-closed when a frontend archetype (or `frontend` lane) ships without a
 // render-smoke behavioural spec. Self-SKIPs for non-frontend / ungoverned repos.
 runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs']);
+// ─── L1: smoke-journey acceptance-floor gate (INV-137, #2080) ─────────────────
+// Asserts the declared login/CRUD/authz journeys are COVERED (not just present, unlike
+// INV-126). applicable:false / absent manifest ⇒ runtime SKIP.
+runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs']);
 
 // ─── L1: stack-conformity gate (INV-121, #1312) ──────────────────────────────
 // Fails when the repo-root manifest contradicts the declared language/databaseEngine

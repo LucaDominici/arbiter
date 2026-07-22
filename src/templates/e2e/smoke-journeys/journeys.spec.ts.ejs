@@ -1,0 +1,50 @@
+// smoke-journeys.spec.ts — INV-137 (#2080), the login/CRUD acceptance floor.
+//
+// The MINIMUM user-journey gate for a frontend: a headless browser boots the BUILT
+// SPA (served at E2E_BASE_URL — the same ephemeral-server convention as render-smoke
+// and the a11y lane) and drives each MANDATORY journey end-to-end. This is the layer
+// that catches "every unit test green, but a real user cannot log in or save a record".
+//
+// These are HONEST STARTERS, not pass-throughs: each block navigates the real app and
+// asserts a real, journey-specific outcome. Replace the // TODO(#2080) selectors/paths
+// with your app's, and keep the assertion meaningful — an empty test() here is a lie the
+// smoke-journeys gate (presence-only) cannot catch, but INV-118 (anti-proforma) can.
+//
+// Declared in smoke-journeys.json:
+//   auth  — Authentication flow        (required)
+//   crud  — Core CRUD operation        (required)
+//   authz — Authorization enforcement  (n/a for frontend-spa — the backend archetype's floor)
+
+import { test, expect } from '@playwright/test'
+
+const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:4173'
+
+test('auth — a user can complete the login flow (INV-137)', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text())
+  })
+
+  // TODO(#2080): drive your real login form. Replace path + selectors + credentials.
+  await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' })
+  await page.getByLabel(/email|username/i).fill(process.env.E2E_USER ?? 'test@example.com')
+  await page.getByLabel(/password/i).fill(process.env.E2E_PASS ?? 'password')
+  await page.getByRole('button', { name: /log ?in|sign ?in/i }).click()
+
+  // The journey succeeds only if the app leaves the login screen for an authed view.
+  await expect(page).not.toHaveURL(/\/login\b/)
+  expect(consoleErrors, `console errors during login: ${consoleErrors.join('; ')}`).toHaveLength(0)
+})
+
+test('crud — a user can create then read back a record (INV-137)', async ({ page }) => {
+  // TODO(#2080): drive your real create-then-read path. Replace path + selectors.
+  // Keep the assertion journey-specific: the created record must be visible on read-back,
+  // proving the write persisted and the read wiring surfaces it (not just a 200).
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' })
+  await expect(page.locator('body')).toBeVisible()
+  // e.g.:
+  //   await page.getByRole('button', { name: /new|create|add/i }).click()
+  //   await page.getByLabel(/title|name/i).fill('smoke-journey record')
+  //   await page.getByRole('button', { name: /save|submit/i }).click()
+  //   await expect(page.getByText('smoke-journey record')).toBeVisible()
+})
