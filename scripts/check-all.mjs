@@ -150,19 +150,13 @@ if (isMain) {
   // #1523: scripts/ (the gate-enforcement layer) is linted alongside src/ and
   // __tests__/ so the enforcer is held to the same dead-code bar it imposes.
   runCheck('lint', 'npx', ['eslint', 'src', '__tests__', 'scripts'])
-  runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
-  runCheck(
-    'greenfield smoke',
-    'npx',
-    [
-      'vitest',
-      'run',
-      '--config',
-      'vitest.integration.config.ts',
-      '__tests__/integration/init-greenfield-smoke.test.ts',
-    ],
-    vitestEnv ? { env: vitestEnv } : {},
-  )
+  // #2085 (fail-fast ordering): the expensive vitest suites (unit tests, greenfield
+  // smoke) are deferred to the END of the L1 block — after the cheap static/lint
+  // gates above and the near-instant check-*.mjs gates below — so a fast failure
+  // (lint, format, typecheck, a static check) surfaces in the output stream first
+  // and the operator can abort sooner. Pure reordering: the checks stay inside the
+  // L1 partition (before l1EndIdx), so parityContentHash/contentHash (both sorted
+  // by name) and the `check`-subcommand set are byte-identical.
   runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts,tsx,js,jsx', 'src/'])
   runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', 'src'])
   runCheck('i18n raw strings', 'node', [
@@ -318,6 +312,23 @@ if (isMain) {
   runCheck('build-cache strategy (C3)', 'node', ['scripts/check-build-cache-strategy.mjs'])
   // #1744 (INV-45): template<->materialized drift is caught at COMMIT time, not push time.
   runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
+
+  // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
+  // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still
+  // inside the L1 partition (captured by l1EndIdx below) → hash- and set-invariant.
+  runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
+  runCheck(
+    'greenfield smoke',
+    'npx',
+    [
+      'vitest',
+      'run',
+      '--config',
+      'vitest.integration.config.ts',
+      '__tests__/integration/init-greenfield-smoke.test.ts',
+    ],
+    vitestEnv ? { env: vitestEnv } : {},
+  )
 
   // Capture L1 boundary for parityContentHash computation (INV-59)
   const l1EndIdx = getResults().length
@@ -533,6 +544,22 @@ if (isMain) {
           return 'unknown'
         }
       })()
+      // #2085: record whether the TRACKED tree was clean when the gate ran, so the
+      // pre-push hook can safely reuse this green evidence only when the stamp
+      // corresponds to a committed (clean) tree. Matches the hook's own porcelain
+      // semantics: untracked files ('??') are ignored. Fail-closed: any error → false
+      // (a stamp that cannot prove cleanliness is never reused).
+      const treeWasClean = (() => {
+        try {
+          const porcelain = execFileSync('git', ['status', '--porcelain'], {
+            encoding: 'utf-8',
+            cwd: GIT_CWD ?? process.cwd(),
+          })
+          return porcelain.split('\n').every((l) => l === '' || l.startsWith('??'))
+        } catch {
+          return false
+        }
+      })()
       const markerPath = resolve(GIT_CWD ?? process.cwd(), '.arbiter/gate-pass.json')
       mkdirSync(dirname(markerPath), { recursive: true })
       writeFileSync(
@@ -546,6 +573,7 @@ if (isMain) {
             level,
             node_version: process.version,
             git_user: gitUser,
+            tree_was_clean_at_run_time: treeWasClean,
           },
           null,
           2,

@@ -57,6 +57,14 @@ node scripts/check-all.mjs L2   # full: L1 + coverage + integration
 L1 must pass before commit, L2 before push. The `.githooks/` scripts enforce
 both automatically once the git hook path is configured.
 
+The pre-push hook reuses a fresh green L2 stamp instead of always re-running the
+full gate: `check-all.mjs` writes `.arbiter/gate-pass.json` on PASS, and the hook
+skips the rerun when that stamp matches the exact HEAD being pushed, was produced
+from a clean tree under the same node version, and is within the freshness window
+(printing `PRE-PUSH: reusing green L2 evidence …`). Any mismatch re-runs the full
+gate (fail-closed). This is a local convenience, not a security control — CI
+re-runs the gate independently and stays authoritative.
+
 ## 4. Verify hooks
 
 ```sh

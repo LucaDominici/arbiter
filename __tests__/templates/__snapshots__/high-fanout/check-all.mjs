@@ -811,13 +811,24 @@ if (_failedCount === 0 && !_inspect) {
       return (typeof _s.taskId === 'string' && _s.taskId.length > 0) ? _s.taskId : 'unknown';
     } catch { return 'unknown'; }
   })();
+  // #2085: record whether the TRACKED tree was clean when the gate ran, so the
+  // generated pre-push hook can reuse this green evidence only when the stamp
+  // corresponds to a committed (clean) tree. Untracked files ('??') are ignored,
+  // matching the hook's porcelain semantics. Fail-closed: any error → false.
+  const _treeWasClean = (() => {
+    try {
+      const _p = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf-8' });
+      if (_p.status !== 0 || typeof _p.stdout !== 'string') return false;
+      return _p.stdout.split('\n').every((l) => l === '' || l.startsWith('??'));
+    } catch { return false; }
+  })();
   const _markerPath = resolve(process.cwd(), '.arbiter/gate-pass.json');
   try {
     mkdirSync(dirname(_markerPath), { recursive: true });
     writeFileSync(
       _markerPath,
       JSON.stringify(
-        { head_sha: _headSha, branch: _branch, task_id: _taskId, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser },
+        { head_sha: _headSha, branch: _branch, task_id: _taskId, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser, tree_was_clean_at_run_time: _treeWasClean },
         null,
         2,
       ) + '\n',
