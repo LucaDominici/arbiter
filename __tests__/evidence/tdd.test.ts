@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, chmodSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
@@ -9,6 +9,8 @@ import {
   extractFailureSignature,
   loadTddEvidence,
   tddEvidencePath,
+  writeTddEvidence,
+  type TddEvidence,
 } from '../../src/evidence/tdd.js'
 
 const VALID: Record<string, unknown> = {
@@ -173,6 +175,95 @@ describe('loadTddEvidence()', () => {
     const result = loadTddEvidence('#551', dir)
     expect(result.ok).toBe(true)
     if (result.ok) expect(result.data.task_id).toBe('#551')
+  })
+})
+
+describe('writeTddEvidence() (#2064)', () => {
+  const dirs: string[] = []
+  afterEach(() => {
+    while (dirs.length > 0) {
+      const d = dirs.pop()
+      if (d) rmSync(d, { recursive: true, force: true })
+    }
+  })
+
+  function tmpRepo(): string {
+    const d = mkdtempSync(join(tmpdir(), 'tdd-write-test-'))
+    dirs.push(d)
+    return d
+  }
+
+  function evidence(overrides: Partial<TddEvidence> = {}): TddEvidence {
+    return { ...VALID, ...overrides } as TddEvidence
+  }
+
+  it('writes evidence for a task with no prior evidence file', () => {
+    const dir = tmpRepo()
+    const p = writeTddEvidence({ repoDir: dir, evidence: evidence() })
+    const result = loadTddEvidence('#551', dir)
+    expect(result.ok).toBe(true)
+    expect(p).toBe(tddEvidencePath('#551', dir))
+  })
+
+  it('overwrites a prior evidence file belonging to the SAME task (re-recording)', () => {
+    const dir = tmpRepo()
+    writeTddEvidence({ repoDir: dir, evidence: evidence({ observed_failure: 'first run' }) })
+    writeTddEvidence({ repoDir: dir, evidence: evidence({ observed_failure: 'second run' }) })
+    const result = loadTddEvidence('#551', dir)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.data.observed_failure).toBe('second run')
+  })
+
+  // Test case 6 (#2064): evidence path exists with mismatched internal task_id => fail closed.
+  it('refuses to overwrite a file whose on-disk task_id differs from its own path (fail closed)', () => {
+    const dir = tmpRepo()
+    const evDir = join(dir, '.arbiter', 'evidence', 'tdd')
+    mkdirSync(evDir, { recursive: true })
+    // A corrupted/hand-edited file: filename says #551, content says #999.
+    const tampered = { ...VALID, task_id: '#999' }
+    const p = tddEvidencePath('#551', dir)
+    writeFileSync(p, JSON.stringify(tampered), 'utf-8')
+
+    expect(() =>
+      writeTddEvidence({ repoDir: dir, evidence: evidence({ task_id: '#551' }) }),
+    ).toThrow(/refusing to overwrite/)
+    // No file changes (#2064 expected resolution item 3).
+    expect(readFileSync(p, 'utf-8')).toBe(JSON.stringify(tampered))
+  })
+
+  // Test case 5 (#2064): interrupted write => prior evidence remains valid.
+  it('leaves prior evidence intact when the atomic write is interrupted', () => {
+    // Skip where the process runs as root (root ignores directory permissions) —
+    // same convention as __tests__/utils/safe-read.test.ts.
+    if (process.getuid?.() === 0) return
+    const dir = tmpRepo()
+    writeTddEvidence({ repoDir: dir, evidence: evidence({ observed_failure: 'original' }) })
+    const p = tddEvidencePath('#551', dir)
+    const before = readFileSync(p, 'utf-8')
+
+    // Read+execute only: the atomic writer can no longer create its temp-file
+    // sibling (or rename it in), so the write is interrupted before it can
+    // touch the existing evidence file.
+    const evDir = join(dir, '.arbiter', 'evidence', 'tdd')
+    chmodSync(evDir, 0o555)
+    try {
+      expect(() =>
+        writeTddEvidence({ repoDir: dir, evidence: evidence({ observed_failure: 'new run' }) }),
+      ).toThrow()
+    } finally {
+      chmodSync(evDir, 0o755)
+    }
+
+    // The temp-file + rename primitive never touched the original path.
+    expect(readFileSync(p, 'utf-8')).toBe(before)
+  })
+
+  it('rejects evidence that fails schema validation before writing anything', () => {
+    const dir = tmpRepo()
+    expect(() =>
+      writeTddEvidence({ repoDir: dir, evidence: evidence({ task_id: 'not-a-task-id' }) }),
+    ).toThrow()
+    expect(loadTddEvidence('not-a-task-id', dir).ok).toBe(false)
   })
 })
 

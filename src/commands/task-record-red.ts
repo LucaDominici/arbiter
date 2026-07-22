@@ -2,7 +2,7 @@
 import { dirname } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 import { extractFailureSignature, writeTddEvidence, type TddEvidence } from '../evidence/tdd.js'
-import { hasDirtyTestPaths, pathExistsInCommit } from '../evidence/git-checks.js'
+import { currentBranch, hasDirtyTestPaths, pathExistsInCommit } from '../evidence/git-checks.js'
 import { readTaskId } from './task-state.js'
 import { loadConfig } from '../utils/config.js'
 import { detectLanguage } from '../detectors/language.js'
@@ -157,17 +157,62 @@ function checkTestCommitIntegrity(
   return null
 }
 
-export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | RecordRedFailure {
-  const dir = opts.dir ?? process.cwd()
-  const timeoutMs = clampTimeout(opts.timeoutMs)
+/**
+ * Task id embedded in a `task/#NNN[-slug]` (or `task/NNN[-slug]`) branch name,
+ * or undefined when the branch doesn't follow the task-branch convention
+ * (main, a detached-HEAD `HEAD`, a non-task feature branch, ...).
+ */
+export function taskIdFromBranch(branch: string): string | undefined {
+  const m = branch.match(/^task\/#?(\d+)(?:-.*)?$/)
+  return m ? `#${m[1]}` : undefined
+}
 
-  const taskId = readTaskId(dir)
+/**
+ * #2064: resolve the active task id from TWO authoritative sources — the current
+ * git branch and the task-state document (`.claude/.task/status.json`) — and
+ * fail closed on disagreement rather than silently trusting either. Worktree
+ * open/close logs are deliberately never consulted here: they are historical
+ * audit data, not current-task authority (issue #2064, resolution item 5).
+ *
+ * - Both agree, or only one resolves → use it (branch wins when the document
+ *   has no active task at all).
+ * - Both resolve to DIFFERENT ids → refuse; this is exactly the #503/#489
+ *   incident (a stale task-document surviving a branch switch) that #2064 fixes.
+ * - Neither resolves → the pre-existing "no active task" refusal.
+ */
+function resolveActiveTaskId(dir: string): { taskId: string } | RecordRedFailure {
+  const docTaskId = readTaskId(dir)
+  const branch = currentBranch(dir)
+  const branchTaskId = taskIdFromBranch(branch)
+
+  if (branchTaskId !== undefined && docTaskId !== undefined && branchTaskId !== docTaskId) {
+    return {
+      ok: false,
+      reason:
+        `branch/task-document mismatch — refusing to guess which task's evidence to record. ` +
+        `branch "${branch}" resolves to task ${branchTaskId}; the task document ` +
+        `(.claude/.task/status.json) says ${docTaskId}. Run \`arbiter task init --id ${branchTaskId}\` ` +
+        `to realign the task document with the current branch (or switch to the intended branch).`,
+    }
+  }
+
+  const taskId = branchTaskId ?? docTaskId
   if (taskId === undefined) {
     return {
       ok: false,
       reason: `no active task — run \`arbiter task init --id #NNN\` (or \`/task #NNN\`) to initialise the task first`,
     }
   }
+  return { taskId }
+}
+
+export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | RecordRedFailure {
+  const dir = opts.dir ?? process.cwd()
+  const timeoutMs = clampTimeout(opts.timeoutMs)
+
+  const resolution = resolveActiveTaskId(dir)
+  if ('reason' in resolution) return resolution
+  const taskId = resolution.taskId
 
   const shaOrErr = resolveHeadSha(dir, 5000)
   if (typeof shaOrErr === 'object') return shaOrErr
@@ -205,6 +250,25 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
     test_command: [...testCmd],
   }
 
-  const evidencePath = writeTddEvidence({ repoDir: dir, evidence })
-  return { ok: true, evidencePath, framework: sig.framework }
+  return saveEvidence(dir, evidence, sig.framework)
+}
+
+/**
+ * #2064: writeTddEvidence throws (rather than returning ok:false) when it
+ * refuses to overwrite another task's evidence — surface it as a normal
+ * record-red failure, not an uncaught exception. Split out of
+ * `runTaskRecordRed` to keep that function's cyclomatic complexity within
+ * the lint ceiling.
+ */
+function saveEvidence(
+  dir: string,
+  evidence: TddEvidence,
+  framework: string,
+): RecordRedSuccess | RecordRedFailure {
+  try {
+    const evidencePath = writeTddEvidence({ repoDir: dir, evidence })
+    return { ok: true, evidencePath, framework }
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) }
+  }
 }
