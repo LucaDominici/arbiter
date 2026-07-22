@@ -451,7 +451,7 @@
     "scripts/check-exit-code-contract.mjs": "696d474c568fb4ca66f458df29f32f68c7446e9ba593aad1c474470179aa99d9",
     "scripts/check-feature-matrix.mjs": "fedc58978c98e237551b22430cb6cd82e64fca614cf4bd8ee2d433324a964a82",
     "scripts/check-grace-window.mjs": "de2d06eb5d0ee5f5016376cfc3a818e299cd059a0a3e06c93fe07e60df3a0020",
-    "scripts/check-handoff-doc.mjs": "be63b3ae3452e36e1267a0f25900e8014eefb02330a8be6119c27f3f03875967",
+    "scripts/check-handoff-doc.mjs": "0ae91044af3a5fa160f76f83dc283022348f2075c597fff01604be170b3f5bf7",
     "scripts/check-image-pins.mjs": "95a2e95a0c66b00528c0a7ad784489e18d4505ae5956c73c3e6b9784da1ae983",
     "scripts/check-inline-suppressions.mjs": "55607f677a60a5714ef14d6dc18a66c3e68fc25479876c26f0c092cd3e5a00d0",
     "scripts/check-knowledge-map.mjs": "d5ac6872892d334d06c17305c9c473751fa47ea79f91a1cbbf7fc5f1ebd0d2eb",
