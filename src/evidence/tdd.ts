@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
+import { writeFile } from '../utils/fs.js'
 
 export const TddEvidenceV1 = z.object({
   $schemaVersion: z.literal(1),
@@ -98,9 +99,26 @@ export interface WriteTddEvidenceOptions {
   evidence: TddEvidence
 }
 
+/**
+ * #2064: never clobber another task's evidence. `task_id` selects the destination
+ * path, so a mismatch can only happen when the on-disk file's OWN `task_id` field
+ * disagrees with its filename — a corrupted/hand-edited file. Refuse rather than
+ * guess. Schema-validates before writing (fail before touching disk) and writes
+ * atomically (temp-file + rename, via the shared `writeFile` — same primitive
+ * `task-state.ts` uses for its status document) so a crash mid-write leaves prior
+ * evidence untouched.
+ */
 export function writeTddEvidence({ repoDir, evidence }: WriteTddEvidenceOptions): string {
-  const p = tddEvidencePath(evidence.task_id, repoDir)
-  mkdirSync(join(repoDir, '.arbiter', 'evidence', 'tdd'), { recursive: true })
-  writeFileSync(p, JSON.stringify(evidence, null, 2) + '\n', 'utf-8')
+  const parsed = TddEvidenceV1.parse(evidence)
+  const p = tddEvidencePath(parsed.task_id, repoDir)
+  if (existsSync(p)) {
+    const existing = loadTddEvidence(parsed.task_id, repoDir)
+    if (existing.ok && existing.data.task_id !== parsed.task_id) {
+      throw new Error(
+        `refusing to overwrite ${p}: it belongs to task ${existing.data.task_id}, not ${parsed.task_id}`,
+      )
+    }
+  }
+  writeFile(p, JSON.stringify(parsed, null, 2) + '\n')
   return p
 }
