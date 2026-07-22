@@ -1033,7 +1033,7 @@ describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#17
         writeFileSync(join(scriptsDir, 'check-all.mjs'), probe)
         writeFileSync(
           join(scriptsDir, 'lib', 'run-helpers.mjs'),
-          'export const runCheck = () => {};\nexport const runWarnCheck = () => {};\nexport const runToolCheck = () => {};\nexport const pushResult = () => {};\nexport const getResults = () => [];\nexport const getFailed = () => [];\n',
+          'export const runCheck = () => {};\nexport const runWarnCheck = () => {};\nexport const runToolCheck = () => {};\nexport const pushResult = () => {};\nexport const getResults = () => [];\nexport const getFailed = () => [];\nexport const setMode = () => {};\n',
         )
         const r = spawnSync('node', [join(scriptsDir, 'check-all.mjs'), ...args], {
           encoding: 'utf-8',
