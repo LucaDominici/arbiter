@@ -137,7 +137,7 @@
     ".claude/hooks/check-no-skipped-tests.mjs": "25f10180080c9536af50fba56f29b50a326fe5223410a7d8ddaa7cb60dcc8e91",
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/lib.mjs": "b944c1cf367eb23ab4975e4f7d0a17be59ae310bbe79b31df19624552d983b7d",
-    ".claude/hooks/pre-edit-ssot-guard.mjs": "a1813697ed2c39fcb412046ab0ced7a4ece4ab7592d7690659a9fd361f16d5f8",
+    ".claude/hooks/pre-edit-ssot-guard.mjs": "2e6de8399a477e29ae0f1c5b59924b5008fe9771525c42c429447bcf31652b3e",
     ".claude/hooks/stop-dangerous.mjs": "22649cfb751fb2ccdfc8c3d3d931eb21c2c326b366b6c1d725e3ae8834c211d2",
     ".codex/codex-adapter.mjs": "d8c4cc343332e519c2daf9d065e5fb2fb4112406b3865c2d17a2afdd4fc864bd",
     ".codex/config.toml": "1d25dc5de704bf305fac45510abde83bbc97ba4d0af3b32dcb85bc9c28a87cef",

@@ -202,7 +202,7 @@
     ".claude/hooks/post-commit-check.mjs": "6db2a23c6ec189347a96c4b837aeb53fe818a3bcbea376aea4048511595bcf02",
     ".claude/hooks/pre-compact.mjs": "ea7e9ed1fa8b767054add4917f3dc9622b9c0b5b8eed4f277e8438fda831e6a5",
     ".claude/hooks/pre-edit-plan-anchor.mjs": "62a07ceeefee45a747040e148ac382392235c97cc7be553ef49c1e4df75af94e",
-    ".claude/hooks/pre-edit-ssot-guard.mjs": "a1813697ed2c39fcb412046ab0ced7a4ece4ab7592d7690659a9fd361f16d5f8",
+    ".claude/hooks/pre-edit-ssot-guard.mjs": "2e6de8399a477e29ae0f1c5b59924b5008fe9771525c42c429447bcf31652b3e",
     ".claude/hooks/pre-spawn-worktree-guard.mjs": "54ce4d9030ced33a855befa3525dcd9d8f34d390525ee98a84a0ed1676c842ff",
     ".claude/hooks/stop-dangerous.mjs": "22649cfb751fb2ccdfc8c3d3d931eb21c2c326b366b6c1d725e3ae8834c211d2",
     ".claude/knowledge-map.json": "10405370385df9a46d5788b5edfa637433a477e2ae99b3d8301a60fde4e07ad9",

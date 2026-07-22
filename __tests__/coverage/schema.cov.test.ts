@@ -507,6 +507,22 @@ describe('validateConfig — governance', () => {
     expect(validateConfig({ ...validBase(), governance: { constraintScan: 'off' } }).ok).toBe(true)
     expect(validateConfig({ ...validBase(), governance: { constraintScan: 'on' } }).ok).toBe(true)
   })
+
+  it('rejects a non-array ssotGuardPatterns and a non-string entry (#2045)', () => {
+    expect(errorsOf({ ...validBase(), governance: { ssotGuardPatterns: 'AGENTS.md' } })).toEqual(
+      expect.arrayContaining([expect.stringContaining('governance.ssotGuardPatterns must be')]),
+    )
+    expect(errorsOf({ ...validBase(), governance: { ssotGuardPatterns: ['ok', 5] } })).toEqual(
+      expect.arrayContaining([expect.stringContaining('governance.ssotGuardPatterns must be')]),
+    )
+  })
+
+  it('accepts a valid ssotGuardPatterns array (#2045)', () => {
+    expect(
+      validateConfig({ ...validBase(), governance: { ssotGuardPatterns: ['AGENTS.md', 'docs/ADR/'] } })
+        .ok,
+    ).toBe(true)
+  })
 })
 
 describe('validateConfig — kit', () => {

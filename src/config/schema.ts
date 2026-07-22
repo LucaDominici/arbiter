@@ -305,6 +305,14 @@ interface GovernanceConfig {
    * 'off': explicit, visible opt-out — the gate SKIPs instead of running.
    */
   constraintScan?: 'on' | 'off'
+  /**
+   * #2045: repo-relative substrings guarded by pre-edit-ssot-guard.mjs, read at hook
+   * runtime (not baked into the hook), ADDED to the hook's own DEFAULT_SSOT_PATTERNS
+   * (AGENTS.md, .claude/CLAUDE.md, .agents/CODEX.md, docs/METHOD/, docs/SYSTEM/DECISIONS,
+   * docs/SYSTEM/CANON.md, docs/ADR/). Additive only — cannot remove a default-guarded
+   * path, so a config typo or an empty list never silently weakens the guard.
+   */
+  ssotGuardPatterns?: string[]
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
@@ -1137,6 +1145,15 @@ function validateGovernance(raw: unknown, errors: string[]): void {
     errors.push(
       `governance.constraintScan must be 'on' or 'off' — got ${typeof constraintScan === 'string' ? constraintScan : JSON.stringify(constraintScan)}`,
     )
+  }
+  validateSsotGuardPatterns(raw['ssotGuardPatterns'], errors)
+}
+
+/** #2045: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
+function validateSsotGuardPatterns(raw: unknown, errors: string[]): void {
+  if (raw === undefined) return
+  if (!Array.isArray(raw) || raw.some((p) => typeof p !== 'string')) {
+    errors.push('governance.ssotGuardPatterns must be an array of strings')
   }
 }
 
