@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: Third-party attribution generator — enumerates the PRODUCTION
-// CATALOG: dependencies from package.json, resolves each in node_modules, and
-// CATALOG: emits a deterministic THIRD_PARTY_LICENSES.md (name, version, license
-// CATALOG: id, homepage, and the verbatim license text). Wired into `prepack`
-// CATALOG: so the file ships in the npm tarball (package.json files[] + NOTICE
-// CATALOG: reference it). Stands alone because it produces a shipped legal
-// CATALOG: artifact from the dep tree — a concern distinct from the license
-// CATALOG: ALLOWLIST gate (check that validates permitted SPDX ids), which
-// CATALOG: enforces policy rather than producing attribution.
+// CATALOG: dependency closure from package-lock.json, resolves each in
+// CATALOG: node_modules, and emits a deterministic THIRD_PARTY_LICENSES.md
+// CATALOG: (name, version, license id, homepage, and the verbatim license
+// CATALOG: text). Wired into `prepack` so the file ships in the npm tarball
+// CATALOG: (package.json files[] + NOTICE reference it). Stands alone because
+// CATALOG: it produces a shipped legal artifact from the dep tree — a concern
+// CATALOG: distinct from the license ALLOWLIST gate (check that validates
+// CATALOG: permitted SPDX ids), which enforces policy rather than producing
+// CATALOG: attribution.
 //
 // Usage:
 //   node scripts/gen-third-party-licenses.mjs            # write THIRD_PARTY_LICENSES.md
@@ -24,82 +25,45 @@
 // check below; drift must be fixed and committed via the write form BEFORE a
 // publish, never silently patched over by one.
 //
-// Determinism: dependencies are sorted; only production deps are included —
-// devDependencies never ship in the tarball. The set is the FULL production
+// Determinism: the closure is read from package-lock.json — npm's authoritative,
+// platform-INDEPENDENT record — NOT from an `npm ls` walk over the physically
+// installed `node_modules`. That walk is non-deterministic w.r.t. install state
+// (a platform-specific OPTIONAL variant present on one machine but absent on
+// another changes the tree) and, worse, leaks dev-only optional+peer packages
+// into an `--omit=dev` listing — the exact defect that put six dev-only wasm
+// packages (@emnapi/*, @napi-rs/wasm-runtime, @tybys/wasm-util, tslib) into a
+// production attribution file they never belonged in. The lockfile's per-entry
+// `dev`/`optional`/`license` flags are computed once at resolution time and are
+// identical on every machine, so the output is the same regardless of which
+// platform variants happen to be installed. The set is the FULL production
 // dependency closure a consumer installs (every transitive registry package
-// reachable from the root `dependencies`), not merely the direct deps: every
-// one of those packages carries an attribution obligation (MIT/BSD/ISC require
-// the copyright notice be preserved). Local workspace packages (resolved
-// `file:`) are pruned — they are first-party, not redistributed third parties.
-// Each entry pulls the installed package's own `package.json` (version,
-// license, homepage) and the first matching LICENSE* file text, so the output
-// reflects what is actually installed, not a hand-maintained list. The
-// generator FAILS CLOSED on any unresolved (`UNKNOWN`) license: a legal
-// artifact must never silently omit an obligation.
-import {
-  readFileSync,
-  writeFileSync,
-  readdirSync,
-  globSync,
-  lstatSync,
-  realpathSync,
-} from 'node:fs'
+// reachable from the root `dependencies`, production `optional` deps included as
+// the cross-platform superset), not merely the direct deps: every one of those
+// packages carries an attribution obligation (MIT/BSD/ISC require the copyright
+// notice be preserved). Local workspace packages (`link:true` / source dirs) are
+// pruned — they are first-party, not redistributed third parties. The license id
+// comes from the lockfile (install-independent); homepage + verbatim license
+// text come from the installed package (production deps are non-optional, hence
+// always installed after `npm ci`). The generator FAILS CLOSED on any unresolved
+// (`UNKNOWN`) license or uninstalled production dep: a legal artifact must never
+// silently omit an obligation.
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { execFileSync } from 'node:child_process'
 
 const ROOT = process.cwd()
 const OUT_FILE = resolve(ROOT, 'THIRD_PARTY_LICENSES.md')
 
-/**
- * In a git worktree, `node_modules` is (or contains) symlinks into the main
- * repo's `node_modules`. Running `npm ls` from the worktree gives a bloated,
- * incorrect production dependency closure (it sees ALL packages in the shared
- * store, not just those reachable from the CLI's production dep graph). Detect
- * the symlink and resolve to the main repo root so `npm ls` reports the
- * correct closure.
- */
-function resolveNpmCwd(dir) {
-  try {
-    const nmPath = join(dir, 'node_modules')
-    const stat = lstatSync(nmPath)
-    if (stat.isSymbolicLink()) {
-      // node_modules is a symlink → git worktree (whole-dir link). Use the
-      // real parent as npm cwd.
-      return resolve(realpathSync(nmPath), '..')
-    }
-    // #1928: `arbiter wt open` links node_modules' individual top-level
-    // entries (children), not the whole directory — so node_modules itself
-    // is a real directory here. Detect via the first symlinked child and
-    // derive the real node_modules root from its target.
-    for (const entry of readdirSync(nmPath)) {
-      let entryStat
-      try {
-        entryStat = lstatSync(join(nmPath, entry))
-      } catch {
-        continue
-      }
-      if (entryStat.isSymbolicLink()) {
-        return resolve(realpathSync(join(nmPath, entry)), '..', '..')
-      }
-    }
-  } catch {
-    /* no node_modules or stat failed — use dir as-is */
-  }
-  return dir
-}
-
-const NPM_ROOT = resolveNpmCwd(ROOT)
-
-// --npm-ls-fixture=<path> or --npm-ls-fixture <path>: substitute a JSON file for the
-// `npm ls` spawn (testing only). Supports both `=` and space-separated forms.
+// --lockfile-fixture=<path> or --lockfile-fixture <path>: substitute a JSON file
+// for the repo's package-lock.json (testing only). Supports both `=` and
+// space-separated forms.
 const _fixtureIdx = process.argv.findIndex(
-  (a) => a === '--npm-ls-fixture' || a.startsWith('--npm-ls-fixture='),
+  (a) => a === '--lockfile-fixture' || a.startsWith('--lockfile-fixture='),
 )
 const _fixturePath =
   _fixtureIdx === -1
     ? null
-    : process.argv[_fixtureIdx].startsWith('--npm-ls-fixture=')
-      ? process.argv[_fixtureIdx].slice('--npm-ls-fixture='.length)
+    : process.argv[_fixtureIdx].startsWith('--lockfile-fixture=')
+      ? process.argv[_fixtureIdx].slice('--lockfile-fixture='.length)
       : (process.argv[_fixtureIdx + 1] ?? null)
 
 // --license-overrides-fixture=<path> or space form: substitute a JSON file for the
@@ -107,7 +71,7 @@ const _fixturePath =
 // hatch (the map is currently empty — see LICENSE_OVERRIDES docstring); this flag
 // lets the positive override path + `source` audit trail be exercised by a
 // synthetic fixture without depending on a real metadata-less package. Supports
-// both `=` and space-separated forms, mirroring `--npm-ls-fixture`.
+// both `=` and space-separated forms, mirroring `--lockfile-fixture`.
 const _overridesIdx = process.argv.findIndex(
   (a) => a === '--license-overrides-fixture' || a.startsWith('--license-overrides-fixture='),
 )
@@ -122,8 +86,8 @@ const HEADER = `# Third-Party Licenses
 arbiter (\`@arbiter/cli\`) is distributed under the Apache License 2.0. This file
 lists the full production dependency closure a consumer installs with
 \`@arbiter/cli\` — every transitive runtime dependency — together with its
-license. It is generated by \`scripts/gen-third-party-licenses.mjs\` from the
-installed production dependency tree; do not edit it by hand.
+license. It is generated by \`scripts/gen-third-party-licenses.mjs\` from
+\`package-lock.json\`; do not edit it by hand.
 
 `
 
@@ -208,88 +172,53 @@ function homepageOf(pkgJson) {
 }
 
 /**
- * Collect the `name` fields of all local workspace packages declared in the
- * root `package.json#workspaces` globs. Used to distinguish first-party
- * workspace packages (which carry `file:` resolved paths in `npm ls --long`)
- * from third-party registry packages whose paths happen to be `file:` paths
- * in git worktrees where `node_modules` is a symlink to the main repo.
- */
-function readWorkspaceNames() {
-  const pkg = JSON.parse(readFileSync(join(NPM_ROOT, 'package.json'), 'utf8'))
-  const patterns = Array.isArray(pkg.workspaces) ? pkg.workspaces : []
-  const names = new Set()
-  for (const pattern of patterns) {
-    const dirs = globSync(pattern, { cwd: NPM_ROOT })
-    for (const dir of dirs) {
-      try {
-        const ws = JSON.parse(readFileSync(join(NPM_ROOT, dir, 'package.json'), 'utf8'))
-        if (ws.name) names.add(ws.name)
-      } catch {
-        /* missing package.json — skip */
-      }
-    }
-  }
-  return names
-}
-
-/**
- * Resolve the full production dependency closure via `npm ls`. Returns one
- * entry per distinct package@version actually installed, with its on-disk
- * `path` (transitive deps may be nested under a parent or installed at several
- * versions — the path from `npm ls --long` is the only reliable resolver).
- * Local workspace packages (resolved `file:` AND name in workspaces set) are
- * pruned: they are first-party, not redistributed third parties. Third-party
- * packages with `file:` resolved paths (as seen in git worktrees where
- * node_modules is a symlink) are retained. Entries are sorted name-then-version.
+ * Resolve the full PRODUCTION dependency closure from package-lock.json — npm's
+ * authoritative, platform-INDEPENDENT record. Every entry in the lockfile's
+ * `packages` map carries npm's own `dev`/`optional`/`license` classification,
+ * computed once at resolution time and identical on every machine regardless of
+ * which platform-specific OPTIONAL variants happen to be physically installed.
+ *
+ * An entry is in the production closure iff npm did NOT mark it `dev` — i.e. it
+ * is reachable from the root `dependencies`, not solely from devDependencies.
+ * Production `optional` deps (dev:false, optional:true) ARE kept: the superset
+ * across all platforms, so attribution is complete regardless of this machine's
+ * platform. Workspace links (`link:true`) and root/workspace source entries
+ * (keys without a `node_modules/` segment) are first-party and pruned. Each kept
+ * entry returns its lockfile version + license id and its on-disk `path`
+ * (ROOT-relative lockfile key; symlinks in worktrees are followed transparently
+ * by the fs when the license text is read). Deduped by name@version, sorted.
  */
 function productionClosure() {
-  let raw
-  if (_fixturePath) {
-    raw = readFileSync(_fixturePath, 'utf8')
-  } else {
-    try {
-      raw = execFileSync('npm', ['ls', '--omit=dev', '--all', '--json', '--long'], {
-        // Use NPM_ROOT (main repo root in worktrees) so `npm ls` reports the
-        // correct production closure rather than the entire shared node_modules.
-        cwd: NPM_ROOT,
-        encoding: 'utf8',
-        maxBuffer: 64 * 1024 * 1024,
-        // `npm ls` exits non-zero on benign peer-dep warnings; we only need the
-        // JSON tree it always prints, so capture stdout regardless of exit code.
-        stdio: ['ignore', 'pipe', 'ignore'],
-      })
-    } catch (err) {
-      // execFileSync throws on non-zero exit but still attaches captured stdout.
-      raw = err && typeof err.stdout === 'string' ? err.stdout : ''
-      if (!raw) {
-        throw new Error(
-          `Cannot enumerate production dependency closure: ${err instanceof Error ? err.message : String(err)}. Run \`npm ci\` first.`,
-        )
-      }
-    }
+  const lockPath = _fixturePath ?? resolve(ROOT, 'package-lock.json')
+  let lock
+  try {
+    lock = JSON.parse(readFileSync(lockPath, 'utf8'))
+  } catch (err) {
+    throw new Error(
+      `Cannot read ${lockPath}: ${err instanceof Error ? err.message : String(err)}. Run \`npm ci\` first.`,
+    )
   }
-  const tree = JSON.parse(raw)
-  const workspaceNames = readWorkspaceNames()
+  const packages = lock.packages ?? {}
+  const NM = 'node_modules/'
   const byKey = new Map()
-  const walk = (node) => {
-    const deps = node && node.dependencies ? node.dependencies : {}
-    for (const [name, child] of Object.entries(deps)) {
-      if (child && child.missing) continue // peer dep listed but not installed — skip
-      const resolved = (child && child.resolved) || ''
-      if (resolved.startsWith('file:') && workspaceNames.has(name)) continue // first-party workspace — prune
-      const version = (child && child.version) || '0.0.0'
-      const key = `${name}@${version}`
-      if (!byKey.has(key)) {
-        byKey.set(key, {
-          name,
-          version,
-          path: (child && child.path) || resolve(NPM_ROOT, 'node_modules', name),
-        })
-        walk(child)
-      }
+  for (const [pkgPath, entry] of Object.entries(packages)) {
+    if (!entry || entry.dev || entry.link) continue // dev-only or workspace symlink — prune
+    const nmIdx = pkgPath.lastIndexOf(NM)
+    if (nmIdx === -1) continue // root "" or workspace source dir — first-party, prune
+    const name = pkgPath.slice(nmIdx + NM.length)
+    const version = entry.version ?? '0.0.0'
+    const key = `${name}@${version}`
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        name,
+        version,
+        // license id straight from the lockfile is install-independent; string
+        // or object (`{ type }`) forms are normalized by licenseId() at use.
+        lockLicense: entry.license ?? null,
+        path: resolve(ROOT, pkgPath),
+      })
     }
   }
-  walk(tree)
   return [...byKey.values()].sort(
     (a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version),
   )
@@ -305,7 +234,10 @@ function generate() {
   const sections = []
   const missing = []
   const unresolved = []
-  for (const { name, path: pkgDir } of deps) {
+  for (const { name, version, lockLicense, path: pkgDir } of deps) {
+    // Production deps are non-optional, hence always installed after `npm ci`;
+    // an unreadable package.json means a broken install → fail closed (below),
+    // never a silently install-dependent output.
     let pkgJson
     try {
       pkgJson = readJson(join(pkgDir, 'package.json'))
@@ -313,19 +245,26 @@ function generate() {
       missing.push(name)
       continue
     }
-    let id = licenseId(pkgJson)
-    const override = EFFECTIVE_OVERRIDES[`${name}@${pkgJson.version}`]
+    // License id from the lockfile first (install-independent); fall back to the
+    // installed package.json, then a curated override, before failing closed.
+    let id = licenseId({ license: lockLicense })
+    if (id === 'UNKNOWN') id = licenseId(pkgJson)
+    const override = EFFECTIVE_OVERRIDES[`${name}@${version}`]
     if (id === 'UNKNOWN' && override) {
       id = override.id
     }
     if (id === 'UNKNOWN') {
-      unresolved.push(`${name}@${pkgJson.version}`)
+      unresolved.push(`${name}@${version}`)
       continue
     }
     const homepage = homepageOf(pkgJson)
+    // ponytail: verbatim text is read from the installed package — deterministic
+    // today because every production dep is non-optional (always installed). If a
+    // production `optional` platform dep is ever added, its text would vary by
+    // install state; attribute it via LICENSE_OVERRIDES or vendor the text then.
     const text = findLicenseText(pkgDir)
 
-    let section = `## ${name}@${pkgJson.version}\n\n`
+    let section = `## ${name}@${version}\n\n`
     section += `- License: ${id}\n`
     if (override) section += `- Attribution source: ${override.source}\n`
     if (homepage) section += `- Homepage: ${homepage}\n`
