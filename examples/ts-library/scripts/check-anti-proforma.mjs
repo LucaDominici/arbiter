@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — anti-proforma test gate (INV-118, §R-41)
+// ts-library-fixture — anti-proforma test gate (INV-118, §R-41)
 // CATALOG: INV-118 enforcement. Detects proforma (no-assertion) test methods in TypeScript/JavaScript
 // CATALOG:   test files. Recognized assertions: expect(, assert., toBe(, toEqual(, toThrow(,
 // CATALOG:   toHaveLength(, toContain(, assertThat, verify(. Bypass via

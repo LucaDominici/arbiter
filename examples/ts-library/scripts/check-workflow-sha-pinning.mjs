@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — workflow SHA-pinning drift detector (INV-89)
+// ts-library-fixture — workflow SHA-pinning drift detector (INV-89)
 // Validates that all third-party GitHub Actions references in .github/ are SHA-pinned.
 // Exits 0 when all refs are SHA-pinned; exits 1 when tag/branch refs are found.
 // Part of the anti-drift validator family (W6).

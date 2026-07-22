@@ -1,4 +1,4 @@
-# Knowledge Map — ts-library
+# Knowledge Map — ts-library-fixture
 
 **Purpose:** Index of documentation files with section descriptions for context-efficient agent navigation. Read this before opening large docs — it tells you exactly where to look.
 **Maintenance:** Run `node scripts/knowledge-map-update.mjs` after adding or significantly editing a canonical document to keep line counts current.

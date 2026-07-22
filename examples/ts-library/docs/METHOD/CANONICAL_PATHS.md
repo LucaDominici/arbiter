@@ -1,4 +1,4 @@
-# Canonical Paths — ts-library
+# Canonical Paths — ts-library-fixture
 
 **Purpose:** Aliasing registry for documents that have moved. Before reporting a broken link, check this file for the current location of the referenced document.
 **Location:** `docs/METHOD/CANONICAL_PATHS.md`

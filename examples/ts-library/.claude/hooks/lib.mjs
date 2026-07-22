@@ -1,12 +1,12 @@
 // Arbiter hook library — shared utilities for all hooks
-// Project: ts-library
+// Project: ts-library-fixture
 import { mkdirSync, appendFileSync, readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
-const PROJECT = 'ts-library';
+const PROJECT = 'ts-library-fixture';
 const LOG_DIR = '.claude/hooks/logs';
 const LOG_FILE = `${LOG_DIR}/hook-events.log`;
 

@@ -224,6 +224,23 @@ function main() {
   }
   const root = process.cwd()
 
+  const arbiterJsonPath = resolve(root, 'arbiter.json')
+  if (existsSync(arbiterJsonPath)) {
+    let arbiterCfg
+    try {
+      arbiterCfg = JSON.parse(readFileSync(arbiterJsonPath, 'utf8'))
+    } catch (err) {
+      process.stderr.write(`[check-constraint-scan] invalid arbiter.json: ${err.message}\n`)
+      process.exit(2)
+    }
+    if (arbiterCfg?.governance?.constraintScan === 'off') {
+      process.stdout.write(
+        '[check-constraint-scan] SKIP — governance.constraintScan is "off" in arbiter.json\n',
+      )
+      process.exit(0)
+    }
+  }
+
   let map = {}
   const mapPath = resolve(root, args.map)
   if (existsSync(mapPath)) {
@@ -233,6 +250,29 @@ function main() {
       process.stderr.write(`[constraint-scan] invalid map JSON at ${mapPath}: ${err.message}\n`)
       process.exit(2)
     }
+    if (map === null || typeof map !== 'object' || Array.isArray(map)) {
+      process.stderr.write(
+        `[constraint-scan] invalid map JSON at ${mapPath}: expected an object, got ` +
+          `${Array.isArray(map) ? 'array' : map === null ? 'null' : typeof map}\n`,
+      )
+      process.exit(2)
+    }
+    map = Object.fromEntries(Object.entries(map).filter(([key]) => !key.startsWith('//')))
+    for (const [tok, entry] of Object.entries(map)) {
+      if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+        process.stderr.write(
+          `[constraint-scan] invalid map JSON at ${mapPath}: entry "${tok}" must be an ` +
+            `object with enforcer/kind, got ${entry === null ? 'null' : typeof entry}\n`,
+        )
+        process.exit(2)
+      }
+    }
+  } else {
+    process.stderr.write(
+      `[check-constraint-scan] FAIL — ${args.map} missing; run \`arbiter update\` to scaffold it, ` +
+        `or set governance.constraintScan:"off" in arbiter.json\n`,
+    )
+    process.exit(1)
   }
 
   const prohibitions = []

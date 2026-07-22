@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// ts-library — mutation-score non-regression ratchet (#1508).
+// ts-library-fixture — mutation-score non-regression ratchet (#1508).
 //
 // The absolute `mutationThreshold` (enforced by the mutator itself — stryker
 // `thresholds.break`, pitest `mutationThreshold`) catches a CATASTROPHIC drop, but

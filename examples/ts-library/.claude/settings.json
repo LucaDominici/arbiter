@@ -92,11 +92,8 @@
       "Bash(*ARBITER_PREPUSH_SKIP*)",
       "Bash(*ARBITER_NO_EVIDENCE*)",
       "Bash(*ARBITER_SKIP_DOCS*)",
-      "Write(.arbiter/evidence/**)",
       "Edit(.arbiter/evidence/**)",
-      "Write(.arbiter/gate-pass.json)",
       "Edit(.arbiter/gate-pass.json)",
-      "Write(.arbiter/status.json)",
       "Edit(.arbiter/status.json)"
     ]
   }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// ts-library — per-MODULE coverage non-regression ratchet (#1457, INV-134).
+// ts-library-fixture — per-MODULE coverage non-regression ratchet (#1457, INV-134).
 //
 // ADVISORY (L2, start-warn): complements — does NOT duplicate — the FE per-layer
 // coverage ratchet (verify-fe-coverage.mjs, FSD layers, frontend-only) and the

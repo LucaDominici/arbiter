@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// ts-library — workflow runner label drift detector (INV-89)
+// ts-library-fixture — workflow runner label drift detector (INV-89)
 // Validates that all workflow jobs use the expected runner label.
-// Exits 0 when all runners match; exits 0 (WARN) when unexpected labels found (informational).
+// Enforcing: exits 1 on unexpected labels. Use --runner or the `${{ ... }}` /
+// `$CI_` expression forms for legitimate runner-label customization.
 // Part of the anti-drift validator family (W6).
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -12,7 +13,8 @@ if (args.includes('--help') || args.includes('-h')) {
     'Usage: node scripts/check-workflow-runners.mjs [options]',
     '',
     'Validates that all workflow jobs use the expected runner label.',
-    'Exits 0 when all runners match; exits 0 (WARN) when unexpected labels found (informational).',
+    'Enforcing: exits 1 on unexpected labels (runner customization via --runner',
+    'or ${{ ... }} / $CI_ expressions is allowed).',
     '',
     'Options:',
     '  --dir <path>        Root directory to scan (default: cwd)',
@@ -66,7 +68,7 @@ for (const file of yamlFiles) {
     const runner = m[1].trim().replace(/^['"]|['"]$/g, '');
     if (runner.startsWith('${{') || runner.startsWith('$CI_')) continue;
     if (runner !== EXPECTED_RUNNER) {
-      process.stderr.write(`[WARN] unexpected runner: "${runner}" (expected "${EXPECTED_RUNNER}") in ${file}\n`);
+      process.stderr.write(`[FAIL] unexpected runner: "${runner}" (expected "${EXPECTED_RUNNER}") in ${file}\n`);
       violations++;
     }
   }
@@ -74,10 +76,10 @@ for (const file of yamlFiles) {
 
 if (violations > 0) {
   process.stdout.write(
-    `check-workflow-runners: WARN — ${violations} job(s) use non-standard runner label (INV-89)\n`,
+    `check-workflow-runners: FAIL — ${violations} job(s) use non-standard runner label (INV-89). ` +
+      `Use "${EXPECTED_RUNNER}", pass --runner <label>, or use a \${{ ... }}/$CI_ expression for runner customization.\n`,
   );
-  // Informational only — exits 0 to allow runner customization
-  process.exit(0);
+  process.exit(1);
 }
 process.stdout.write(
   `check-workflow-runners: OK — all jobs use expected runner "${EXPECTED_RUNNER}" (INV-89, ${yamlFiles.length} files scanned)\n`,

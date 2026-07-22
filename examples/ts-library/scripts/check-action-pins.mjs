@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — action SHA-pin gate (INV-76)
+// ts-library-fixture — action SHA-pin gate (INV-76)
 // Gate: verify all GitHub Actions references in .github/ are SHA-pinned.
 // L1: tag references generate warnings but do not fail.
 // L2/L3: any tag reference is a hard failure.

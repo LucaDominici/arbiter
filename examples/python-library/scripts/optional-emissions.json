@@ -6,6 +6,10 @@
       "rationale": "REVERSE (#1518): emitted unconditionally as an advisory thin-runner (`npx arbiter doc-set`), but wired (runWarnCheck 'doc-set') in check-all.mjs only at L2+ (INV-135). At L1 it ships present-but-unwired, available for manual/CI invocation."
     },
     {
+      "path": "scripts/check-doc-freshness.mjs",
+      "rationale": "REVERSE (#1518): T4 (gold-doc-tranches-t3-t5.md §2.3) emits this freshness thin-runner (`npx arbiter doc-set --freshness`) unconditionally, but it is wired ONLY from 05-release.yml (non-starter pipelineStyle) and _monthly.yml (L3+, non-trunk-solo, non-starter) — by design, kept OUTSIDE check-all.mjs so the L2 per-commit gate never carries an expensive freshness audit (solo-developer-gate-model doctrine). Any cell resolving to 'starter' pipelineStyle (trunk-solo L1/L2, peer-review L1) ships it present-but-unwired, available for manual/CI invocation."
+    },
+    {
       "path": "scripts/check-anti-fake-green.mjs",
       "rationale": "REVERSE (#1518): emitted unconditionally as an advisory aggregate thin-runner, but wired (runWarnCheck 'anti-fake-green') in check-all.mjs only at L2+ (INV-135). At L1 it ships present-but-unwired, available for manual/CI invocation."
     },
@@ -52,6 +56,10 @@
     {
       "path": "scripts/check-regulated-overlay.mjs",
       "rationale": "Emitted only when the opt-in regulated/high-assurance governance overlay is selected (#1497). check-all.mjs references it behind existsSync(); a project without the overlay skips it gracefully. Absent on projects without that overlay."
+    },
+    {
+      "path": "scripts/check-touched-vs-manifest.mjs",
+      "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs — check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
     }
   ]
 }

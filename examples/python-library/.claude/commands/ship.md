@@ -213,7 +213,7 @@ gh pr merge --rebase --admin
 Close the issue:
 
 
-Mark the work item done manually (no CLI command for the `markdown` backend — `arbiter work` was
+Mark the work item done manually (no CLI command for the `markdown` backend — the `work` command was
 removed in #1817; track closure in your issue tracker of choice).
 
 

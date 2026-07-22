@@ -1,5 +1,5 @@
 
-# ts-library — Claude Code Configuration
+# ts-library-fixture — Claude Code Configuration
 
 @AGENTS.md
 
@@ -12,7 +12,7 @@
 
 | Fact | Value |
 |------|-------|
-| **Project** | ts-library |
+| **Project** | ts-library-fixture |
 | **Gate** | `node scripts/check-all.mjs` |
 | **Full governance** | `../AGENTS.md` (auto-imported above) |
 | **Collaboration mode** | `peer-review` — merge: `pr-ff` / branch: `github-flow` |

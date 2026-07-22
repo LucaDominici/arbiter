@@ -1,4 +1,4 @@
-# ts-library — AGENTS.md
+# ts-library-fixture — AGENTS.md
 
 > **Canonical governance for AI coding agents.**
 > All tools read this file. Tool-specific extensions: `.claude/CLAUDE.md`, `.agents/CODEX.md`
@@ -11,7 +11,7 @@
 
 | Fact | Value |
 |------|-------|
-| **What** | ts-library project |
+| **What** | ts-library-fixture project |
 | **Stack** | typescript |
 | **Build** | `npm run build` |
 | **Test** | `npm run test` |

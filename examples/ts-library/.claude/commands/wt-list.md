@@ -8,9 +8,9 @@ Show all active worktrees managed by the worktree system. Delegates to `git work
 
 **Example output:**
 ```
-/home/user/repos/ts-library                                 a1b2c3d [main]
-/home/user/repos/ts-library.worktrees/#123-feat       e4f5g6h [task/#123-feat]
-/home/user/repos/ts-library.worktrees/#456-fix        i7j8k9l [task/#456-fix]
+/home/user/repos/ts-library-fixture                                 a1b2c3d [main]
+/home/user/repos/ts-library-fixture.worktrees/#123-feat       e4f5g6h [task/#123-feat]
+/home/user/repos/ts-library-fixture.worktrees/#456-fix        i7j8k9l [task/#456-fix]
 ```
 
 ## Steps

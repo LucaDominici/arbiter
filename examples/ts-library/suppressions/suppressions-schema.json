@@ -1,8 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "suppressions-schema.json",
-  "title": "ts-library Suppression Entry",
-  "description": "Schema for entries in pii-allowlist.json and archunit-baseline.json. All fields are mandatory. Expiry is enforced by check-suppressions.mjs on every L1 commit.",
+  "title": "ts-library-fixture Suppressions",
+  "description": "Schema for pii-allowlist.json and archunit-baseline.json: a top-level array of suppression entries. All entry fields are mandatory. Expiry is enforced by check-suppressions.mjs on every L1 commit.",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/SuppressionEntry"
+  },
   "definitions": {
     "SuppressionEntry": {
       "type": "object",
@@ -31,6 +35,5 @@
         }
       }
     }
-  },
-  "$ref": "#/definitions/SuppressionEntry"
+  }
 }

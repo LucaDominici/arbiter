@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — SSOT core set gate (INV-47)
+// ts-library-fixture — SSOT core set gate (INV-47)
 // Gate: verify every file listed in SSOT_CORE_SET.md exists on disk.
 // Exits 0: all entries exist or no SSOT_CORE_SET.md found (bootstrap mode).
 // Exits 1: one or more listed files are missing.

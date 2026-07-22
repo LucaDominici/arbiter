@@ -132,6 +132,8 @@ group include a **manifest**:
 
 - **Files** the group will touch — file-sets MUST be disjoint across parallel groups
   (ADR-103 carve-out condition; overlap → same group, serial)
+  - **Read-set** — files/globs the group is expected to READ beyond its write set (M6 #1943;
+    reads bounded socially, writes mechanically)
 - **Invariants** in scope (from `GLOBAL_INVARIANTS.md` + `AGENTS.md` — cite INV-IDs)
 - **TDD units** (the red → green slices)
 - **Conflict risks** vs other groups (which files / interfaces overlap)
@@ -308,6 +310,13 @@ wave.** The rest of the wave proceeds.
    then re-run with `--execute`) → `/clear` → **next wave**, until the backlog is empty. The
    reaper also runs inside the watchdog sweep, so a crashed worker's zombie worktree never
    outlives the wave (dirty trees are never touched — INV-96).
+
+   **M6 touched-vs-manifest GO condition (#1943):** before merging each group's branch, run
+   `node scripts/check-touched-vs-manifest.mjs --plan .claude/plans/wave-N.md --group <G>
+--base main --branch <group-branch>` — an agent that edited outside its declared write set
+   also read outside it and voided the ADR-103 disjointness assumption. Non-zero ⇒ the group
+   is NOT clear to merge (root-cause: either the manifest was under-declared or the agent
+   scope-crept). Read-set row absent ⇒ advisory only, PASS.
 
 ---
 

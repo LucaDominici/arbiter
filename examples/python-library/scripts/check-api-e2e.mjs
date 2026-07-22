@@ -9,48 +9,12 @@
 // CATALOG:   (tests/api/run.sh), assertion quality is INV-118 (anti-proforma).
 // Exit codes: 0=PASS/SKIP, 1=policy violation (absent/empty suite), 2=schema/path-traversal error
 // Usage: node scripts/check-api-e2e.mjs [--help]
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve, isAbsolute } from 'node:path'
-
-function globMatch(pattern, filepath) {
-  let reStr = '^'
-  let i = 0
-  while (i < pattern.length) {
-    const ch = pattern[i]
-    if (ch === '*' && pattern[i + 1] === '*') {
-      if (pattern[i + 2] === '/') {
-        reStr += '(?:[^/]*/)*'
-        i += 3
-      } else {
-        reStr += '[\\s\\S]*'
-        i += 2
-      }
-    } else if (ch === '*') {
-      reStr += '[^/]*'
-      i++
-    } else if ('\\.+?^${}()|[]'.includes(ch)) {
-      reStr += '\\' + ch
-      i++
-    } else {
-      reStr += ch
-      i++
-    }
-  }
-  reStr += '$'
-  return new RegExp(reStr).test(filepath)
-}
+import { readFileSync, existsSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { globMatch, validateGlob, walkRepo } from './lib/glob-walk.mjs'
 
 const ROOT = resolve(process.cwd())
 const MANIFEST_PATH = join(ROOT, 'api-e2e.json')
-const SKIP_DIRS = new Set([
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  'coverage',
-  '.coverage',
-  'target',
-])
 
 const HELP = `Usage: node scripts/check-api-e2e.mjs [--help]
 
@@ -70,39 +34,6 @@ Exit codes:
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.stdout.write(`${HELP}\n`)
   process.exit(0)
-}
-
-function walkDir(dir, files) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let stat
-    try {
-      stat = statSync(full)
-    } catch {
-      continue
-    }
-    if (stat.isDirectory()) {
-      walkDir(full, files)
-    } else {
-      files.push({ rel: full.slice(ROOT.length + 1).replace(/\\/g, '/'), abs: full })
-    }
-  }
-}
-
-function validateGlob(pattern) {
-  if (typeof pattern !== 'string' || pattern.length === 0) return false
-  if (isAbsolute(pattern)) return false
-  for (const part of pattern.split('/')) {
-    if (part === '..') return false
-  }
-  return true
 }
 
 function fileIsNonEmpty(abs) {
@@ -135,7 +66,7 @@ async function main() {
   }
 
   const glob = manifest.glob
-  if (!validateGlob(glob)) {
+  if (typeof glob !== 'string' || glob.length === 0 || !validateGlob(glob)) {
     process.stderr.write(
       `[check-api-e2e] ERROR — manifest.glob "${glob}" is absent, absolute, or contains ` +
         `path traversal — only relative, non-traversal globs are allowed\n`,
@@ -143,11 +74,10 @@ async function main() {
     process.exit(2)
   }
 
-  const allFiles = []
-  walkDir(ROOT, allFiles)
+  const allFiles = walkRepo(ROOT)
 
-  const matches = allFiles.filter((f) => globMatch(glob, f.rel))
-  const nonEmpty = matches.filter((f) => fileIsNonEmpty(f.abs))
+  const matches = allFiles.filter((rel) => globMatch(glob, rel))
+  const nonEmpty = matches.filter((rel) => fileIsNonEmpty(join(ROOT, rel)))
 
   if (nonEmpty.length === 0) {
     const reason =

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — validator --help text coverage check (INV-89)
+// ts-library-fixture — validator --help text coverage check (INV-89)
 // Validates that all anti-drift check-*.mjs scripts support a --help flag.
 // Exits 0 when all anti-drift validators have --help; exits 1 when any are missing it.
 // Part of the anti-drift validator family (W6).

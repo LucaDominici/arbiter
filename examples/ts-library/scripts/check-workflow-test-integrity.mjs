@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — workflow test integrity checker (INV-89)
+// ts-library-fixture — workflow test integrity checker (INV-89)
 // Validates that workflow files do not have syntax issues or missing required fields.
 // Exits 0 when all workflows pass integrity checks; exits 1 when issues found.
 // Part of the anti-drift validator family (W6).
@@ -33,6 +33,12 @@ const INFORMATIONAL_PATTERNS = ['heartbeat', 'nightly', 'weekly', 'monthly'];
 // a drift issue instead). Any OTHER continue-on-error step in drift-shadow.yml FAILS.
 const STEP_SCOPED_ALLOWLIST = {
   'drift-shadow.yml': new Set(['parity']),
+  // These two steps upload SUPPLEMENTARY artifacts (JUnit output, the gate's
+  // own --json result) — never a test or build step itself. Both run AFTER
+  // the real signal (the test/gate run above) already succeeded or failed on
+  // its own terms; an Artifacts-quota hiccup on the upload must not
+  // retroactively fail a job whose actual work already completed correctly.
+  '01-pr-fast.yml': new Set(['upload-test-results', 'upload-gate-result']),
 };
 
 // #1491 — fake-green-via-`|| true`: a gate/test/check command whose exit code is swallowed by a

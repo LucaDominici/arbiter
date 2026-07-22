@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — canonical-paths gate (INV-50)
+// ts-library-fixture — canonical-paths gate (INV-50)
 // Gate: verify every redirect target in CANONICAL_PATHS.md exists on disk.
 // Exits 0: all redirect targets exist, or no CANONICAL_PATHS.md found.
 // Exits 1: one or more redirect targets are missing (dangling aliases).

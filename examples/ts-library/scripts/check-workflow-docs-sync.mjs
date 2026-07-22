@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — workflow documentation sync checker (INV-89)
+// ts-library-fixture — workflow documentation sync checker (INV-89)
 // Validates that all workflow files are documented in docs/ directory.
 // Exits 0 when all workflows are documented; exits 0 (WARN) when undocumented found.
 // Part of the anti-drift validator family (W6).

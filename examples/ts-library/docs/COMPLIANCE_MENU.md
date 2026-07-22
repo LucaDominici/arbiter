@@ -1,4 +1,4 @@
-# Compliance & Collaboration Menu — ts-library
+# Compliance & Collaboration Menu — ts-library-fixture
 
 <!-- arbiter-managed: compliance-menu (#1254) -->
 

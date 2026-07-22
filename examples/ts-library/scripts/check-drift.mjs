@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — generated content drift detector (INV-89)
+// ts-library-fixture — generated content drift detector (INV-89)
 // Validates that committed generated files match what the generator would produce.
 // Uses a manifest of generated files with expected content hashes.
 // Exits 0 when no drift found; exits 1 when generated content has drifted.

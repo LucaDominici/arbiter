@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — suppression expiry window check (INV-89)
+// ts-library-fixture — suppression expiry window check (INV-89)
 // Validates that no suppression entries have excessively far expiry dates (> 365 days).
 // Complements check-suppressions.mjs (checks expired) by catching over-extended suppressions.
 // Exits 0 when all expiries are within the window; exits 1 when window exceeded.
