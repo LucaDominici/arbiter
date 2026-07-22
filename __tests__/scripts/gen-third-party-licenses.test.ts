@@ -1,17 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
-import { spawnSync, execSync } from 'node:child_process'
-import {
-  readFileSync,
-  mkdtempSync,
-  mkdirSync,
-  writeFileSync,
-  rmSync,
-  globSync,
-  lstatSync,
-  readdirSync,
-  realpathSync,
-} from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -19,106 +9,34 @@ const SCRIPT = resolve('scripts/gen-third-party-licenses.mjs')
 const OUT = resolve('THIRD_PARTY_LICENSES.md')
 
 /**
- * When `node_modules` is (or contains) a symlink into the main repo (git
- * worktree), `npm ls` must run from the real main repo root to report the
- * correct production closure. Otherwise it sees the entire shared
- * node_modules and reports all packages as candidates. Mirrors the fix in
- * scripts/gen-third-party-licenses.mjs (#1928): `arbiter wt open` links
- * node_modules' individual top-level entries, not the whole directory.
- */
-function resolveNpmCwd(): string {
-  const cwd = resolve('.')
-  try {
-    const nmPath = join(cwd, 'node_modules')
-    const stat = lstatSync(nmPath)
-    if (stat.isSymbolicLink()) {
-      return resolve(realpathSync(nmPath), '..')
-    }
-    for (const entry of readdirSync(nmPath)) {
-      let entryStat
-      try {
-        entryStat = lstatSync(join(nmPath, entry))
-      } catch {
-        continue
-      }
-      if (entryStat.isSymbolicLink()) {
-        return resolve(realpathSync(join(nmPath, entry)), '..', '..')
-      }
-    }
-  } catch {
-    /* no node_modules or stat failed — use cwd */
-  }
-  return cwd
-}
-
-const NPM_CWD = resolveNpmCwd()
-
-/**
- * Collect the names of all local workspace packages declared in the root
- * package.json#workspaces globs. Reads from NPM_CWD (main repo root in
- * worktrees) to resolve workspace dirs correctly.
- */
-function workspaceNames(): Set<string> {
-  const pkg = JSON.parse(readFileSync(join(NPM_CWD, 'package.json'), 'utf8')) as {
-    workspaces?: string[]
-  }
-  const patterns = Array.isArray(pkg.workspaces) ? pkg.workspaces : []
-  const names = new Set<string>()
-  for (const pattern of patterns) {
-    const dirs = globSync(pattern, { cwd: NPM_CWD })
-    for (const dir of dirs) {
-      try {
-        const ws = JSON.parse(readFileSync(join(NPM_CWD, dir, 'package.json'), 'utf8')) as {
-          name?: string
-        }
-        if (ws.name) names.add(ws.name)
-      } catch {
-        /* missing package.json — skip */
-      }
-    }
-  }
-  return names
-}
-
-/**
  * The true production dependency closure a consumer installs with
- * `npm install @arbiter/cli` — every registry package reachable from the
- * root `dependencies`, pruning local workspace packages (resolved `file:`
- * AND name in the workspace set) whose own subtrees are not part of
- * arbiter's runtime. This is what the attribution file must cover, not
- * merely the 5 direct deps.
+ * `npm install @arbiter/cli`, read from package-lock.json — the SAME
+ * authoritative source the generator uses, so this oracle is deterministic and
+ * install-independent. An entry is production iff npm did NOT mark it `dev`;
+ * production `optional` deps stay (cross-platform superset). Workspace links
+ * (`link:true`) and the root/workspace source entries (keys without a
+ * `node_modules/` segment) are first-party and pruned. Returns distinct package
+ * names, sorted. This must cover the full transitive closure, not just the
+ * direct deps.
  */
 function productionClosure(): string[] {
-  const raw = execSync('npm ls --omit=dev --all --json', {
-    cwd: NPM_CWD,
-    encoding: 'utf-8',
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  const tree = JSON.parse(raw) as {
-    dependencies?: Record<
-      string,
-      { resolved?: string; missing?: boolean; version?: string; dependencies?: unknown }
-    >
+  const lock = JSON.parse(readFileSync(resolve('package-lock.json'), 'utf8')) as {
+    packages: Record<string, { version?: string; dev?: boolean; link?: boolean }>
   }
-  const wsNames = workspaceNames()
-  const acc: Record<string, true> = {}
-  const walk = (node: { dependencies?: Record<string, unknown> }): void => {
-    const deps = (node.dependencies ?? {}) as Record<
-      string,
-      { resolved?: string; missing?: boolean; dependencies?: unknown }
-    >
-    for (const [name, child] of Object.entries(deps)) {
-      if (child.missing) continue // peer dep listed but not installed — skip
-      const resolved = child.resolved ?? ''
-      if (resolved.startsWith('file:') && wsNames.has(name)) continue // prune local workspace subtree
-      if (!acc[name]) {
-        acc[name] = true
-        walk(child as { dependencies?: Record<string, unknown> })
-      }
-    }
+  const NM = 'node_modules/'
+  const names = new Set<string>()
+  for (const [pkgPath, entry] of Object.entries(lock.packages)) {
+    if (!entry || entry.dev || entry.link) continue
+    const nmIdx = pkgPath.lastIndexOf(NM)
+    if (nmIdx === -1) continue
+    names.add(pkgPath.slice(nmIdx + NM.length))
   }
-  walk(tree)
-  return Object.keys(acc).sort((a, b) => a.localeCompare(b))
+  return [...names].sort((a, b) => a.localeCompare(b))
+}
+
+/** Names of the `## <name>@<version>` sections in the attribution file. */
+function attributedNames(content: string): string[] {
+  return [...content.matchAll(/^## (.+?)@[^@\n]+$/gm)].map((m) => m[1]).sort()
 }
 
 function run(args: string[]) {
@@ -181,20 +99,29 @@ describe('gen-third-party-licenses.mjs', () => {
     }
   })
 
-  it('attributes the FULL production dependency closure, not just direct deps', () => {
+  it('attributes EXACTLY the production closure from the lockfile — no dev-only leakage', () => {
     // A consumer of `@arbiter/cli` installs the entire transitive production
     // tree; every one of those packages carries an attribution obligation
-    // (MIT/BSD/ISC require the copyright notice be preserved). Listing only
-    // the 5 direct deps while shipping ~90 transitive ones is a legal gap.
+    // (MIT/BSD/ISC require the copyright notice be preserved), and NOTHING a
+    // consumer never receives (devDependencies and their optional platform
+    // variants) may appear. The old generator derived the closure from an
+    // `npm ls --omit=dev` walk over physically-installed node_modules, which is
+    // install-dependent AND leaked six dev-only optional+peer wasm packages
+    // (@emnapi/*, @napi-rs/wasm-runtime, @tybys/wasm-util, tslib) whenever the
+    // wasm32-wasi variant happened to be installed. This asserts EXACT set
+    // equality against the lockfile's own dev classification, so both a missing
+    // production dep AND an extra dev-only leak fail the gate.
     const closure = productionClosure()
-    // Sanity: the closure is materially larger than the direct deps.
     const directCount = Object.keys(
       JSON.parse(readFileSync(resolve('package.json'), 'utf8')).dependencies ?? {},
     ).length
-    expect(closure.length).toBeGreaterThan(directCount)
-    const content = readFileSync(OUT, 'utf8')
-    const missing = closure.filter((dep) => !content.includes(`## ${dep}@`))
-    expect(missing, `unattributed production deps: ${missing.join(', ')}`).toEqual([])
+    expect(closure.length).toBeGreaterThan(directCount) // transitive, not just direct
+    const attributed = attributedNames(readFileSync(OUT, 'utf8'))
+    expect(new Set(attributed)).toEqual(new Set(closure))
+    // Explicit regression guard for the exact packages that leaked (#license-gen).
+    for (const devOnly of ['@emnapi/core', '@napi-rs/wasm-runtime', '@tybys/wasm-util', 'tslib']) {
+      expect(attributed).not.toContain(devOnly)
+    }
   })
 
   it('applies a sourced override to a metadata-less dependency (positive path, #1670)', () => {
@@ -205,16 +132,26 @@ describe('gen-third-party-licenses.mjs', () => {
     // attributing it MIT; the generator must emit the section + the `source` audit
     // trail (not fail-closed on UNKNOWN). Uses --license-overrides-fixture so the
     // positive path is covered without depending on a real metadata-less package.
-    const { root, pkgDir } = makeNoLicensePkgRoot('tpl-override')
-    const closureFixture = join(tmpdir(), `tpl-override-closure-${process.pid}.json`)
+    const { root } = makeNoLicensePkgRoot('tpl-override')
+    const lockFixture = join(tmpdir(), `tpl-override-lock-${process.pid}.json`)
     const overridesFixture = join(tmpdir(), `tpl-override-overrides-${process.pid}.json`)
     try {
+      // A lockfile whose sole production entry (nolicense-pkg) carries NO
+      // `license` field → licenseId falls to UNKNOWN → the override supplies it.
+      // path resolves ROOT-relative to root/node_modules/nolicense-pkg, created
+      // by makeNoLicensePkgRoot (also license-less), so the installed-pkg.json
+      // fallback stays UNKNOWN too.
       writeFileSync(
-        closureFixture,
+        lockFixture,
         JSON.stringify({
-          name: 'tpl-override-fixture',
-          version: '0.0.0',
-          dependencies: { 'nolicense-pkg': { version: '1.0.0', path: pkgDir, dependencies: {} } },
+          lockfileVersion: 3,
+          packages: {
+            '': {},
+            'node_modules/nolicense-pkg': {
+              version: '1.0.0',
+              resolved: 'https://registry.npmjs.org/nolicense-pkg/-/nolicense-pkg-1.0.0.tgz',
+            },
+          },
         }),
       )
       writeFileSync(
@@ -227,8 +164,8 @@ describe('gen-third-party-licenses.mjs', () => {
         'node',
         [
           SCRIPT,
-          '--npm-ls-fixture',
-          closureFixture,
+          '--lockfile-fixture',
+          lockFixture,
           '--license-overrides-fixture',
           overridesFixture,
         ],
@@ -242,7 +179,7 @@ describe('gen-third-party-licenses.mjs', () => {
       expect(out).toContain('- Attribution source: synthetic test override')
     } finally {
       rmSync(root, { recursive: true, force: true })
-      rmSync(closureFixture, { force: true })
+      rmSync(lockFixture, { force: true })
       rmSync(overridesFixture, { force: true })
     }
   })
@@ -256,17 +193,29 @@ describe('gen-third-party-licenses.mjs', () => {
 
   it('fails closed on an UNKNOWN license (no silent attribution gap)', () => {
     // A legal artifact must never silently emit `UNKNOWN`. Build a throwaway
-    // project whose sole dependency has no license field and run the generator
-    // there: it must exit non-zero rather than producing an UNKNOWN section.
-    // The fixture is created at runtime (its `node_modules/` is gitignored, so
-    // it cannot be committed) and torn down afterwards.
+    // project whose sole production dependency has no license field — in the
+    // lockfile AND in the installed package.json — and run the generator there:
+    // it must exit non-zero rather than producing an UNKNOWN section. The
+    // fixtures are created at runtime and torn down afterwards.
     const { root } = makeNoLicensePkgRoot('tpl-unknown')
+    const lockFixture = join(tmpdir(), `tpl-unknown-lock-${process.pid}.json`)
     try {
-      const result = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: root })
+      writeFileSync(
+        lockFixture,
+        JSON.stringify({
+          lockfileVersion: 3,
+          packages: { '': {}, 'node_modules/nolicense-pkg': { version: '1.0.0' } },
+        }),
+      )
+      const result = spawnSync('node', [SCRIPT, '--lockfile-fixture', lockFixture], {
+        encoding: 'utf-8',
+        cwd: root,
+      })
       expect(result.status).not.toBe(0)
       expect(result.stderr).toMatch(/UNKNOWN|no resolvable license|unresolved/i)
     } finally {
       rmSync(root, { recursive: true, force: true })
+      rmSync(lockFixture, { force: true })
     }
   })
 
@@ -290,55 +239,71 @@ describe('gen-third-party-licenses.mjs', () => {
     expect(pkg.files).toContain('THIRD_PARTY_LICENSES.md')
   })
 
-  it('includes registry packages with file: paths when not in workspaces (#1695)', () => {
-    // In git worktrees, `npm ls --long` resolves ALL packages through the
-    // node_modules symlink, yielding `file:` resolved paths for every package
-    // — including real registry deps. The old filter pruned ALL `file:` paths,
-    // yielding 0 deps. The fix prunes only packages whose name is in the local
-    // workspace set. This test builds a fixture dynamically (paths must point to
-    // packages actually installed on this machine — machine-agnostic) that
-    // simulates the worktree output and verifies both packages appear in the
-    // generated attribution.
-    const nmDir = join(NPM_CWD, 'node_modules')
-    const semverVersion = (
-      JSON.parse(readFileSync(join(nmDir, 'semver', 'package.json'), 'utf8')) as {
-        version: string
-      }
-    ).version
-    const ejsVersion = (
-      JSON.parse(readFileSync(join(nmDir, 'ejs', 'package.json'), 'utf8')) as { version: string }
-    ).version
-    const fixtureData = JSON.stringify({
-      name: '@arbiter/cli',
-      version: '0.0.0',
-      dependencies: {
-        semver: {
-          version: semverVersion,
-          resolved: 'file:../../../../arbiter/node_modules/semver',
-          path: join(nmDir, 'semver'),
-          dependencies: {},
-        },
-        ejs: {
-          version: ejsVersion,
-          resolved: 'file:../../../../arbiter/node_modules/ejs',
-          path: join(nmDir, 'ejs'),
-          dependencies: {},
-        },
-      },
-    })
-    const tempFixture = join(tmpdir(), `npm-ls-worktree-${process.pid}.json`)
-    writeFileSync(tempFixture, fixtureData)
-    const original = readFileSync(OUT, 'utf8')
+  it('closure is derived from the lockfile dev flag, independent of install state', () => {
+    // The core determinism guarantee: a package's membership follows npm's
+    // lockfile `dev` classification, NOT whether it is physically installed.
+    // Two lockfile fixtures with the SAME production entry but DIFFERENT
+    // dev-only siblings (one present, one absent — simulating a platform where
+    // an optional dev variant did vs did not install) must yield the SAME
+    // attribution. This is exactly the axis the old `npm ls` walk got wrong.
+    const { root } = makeNoLicensePkgRoot('tpl-determinism')
+    // Give the installed package an MIT license so it resolves without override.
+    writeFileSync(
+      join(root, 'node_modules', 'nolicense-pkg', 'package.json'),
+      JSON.stringify({ name: 'nolicense-pkg', version: '1.0.0', license: 'MIT' }),
+    )
+    const withDev = join(tmpdir(), `tpl-det-withdev-${process.pid}.json`)
+    const withoutDev = join(tmpdir(), `tpl-det-nodev-${process.pid}.json`)
     try {
-      const result = run(['--npm-ls-fixture', tempFixture])
-      expect(result.status).toBe(0)
-      expect(result.stderr).toContain('wrote THIRD_PARTY_LICENSES.md')
-      const written = readFileSync(OUT, 'utf8')
-      expect(written).toContain('## semver@')
-      expect(written).toContain('## ejs@')
+      const prodEntry = {
+        version: '1.0.0',
+        resolved: 'https://registry.npmjs.org/nolicense-pkg/-/nolicense-pkg-1.0.0.tgz',
+        license: 'MIT',
+      }
+      // Same production dep; the dev-only optional sibling exists in one lockfile
+      // and not the other — attribution must ignore it in BOTH.
+      writeFileSync(
+        withDev,
+        JSON.stringify({
+          lockfileVersion: 3,
+          packages: {
+            '': {},
+            'node_modules/nolicense-pkg': prodEntry,
+            'node_modules/@emnapi/core': {
+              version: '1.11.1',
+              license: 'MIT',
+              dev: true,
+              optional: true,
+            },
+          },
+        }),
+      )
+      writeFileSync(
+        withoutDev,
+        JSON.stringify({
+          lockfileVersion: 3,
+          packages: { '': {}, 'node_modules/nolicense-pkg': prodEntry },
+        }),
+      )
+      const a = spawnSync('node', [SCRIPT, '--lockfile-fixture', withDev], {
+        encoding: 'utf-8',
+        cwd: root,
+      })
+      const outA = readFileSync(join(root, 'THIRD_PARTY_LICENSES.md'), 'utf8')
+      const b = spawnSync('node', [SCRIPT, '--lockfile-fixture', withoutDev], {
+        encoding: 'utf-8',
+        cwd: root,
+      })
+      const outB = readFileSync(join(root, 'THIRD_PARTY_LICENSES.md'), 'utf8')
+      expect(a.status).toBe(0)
+      expect(b.status).toBe(0)
+      expect(outA).toBe(outB) // dev-only sibling's install state changed nothing
+      expect(outA).toContain('## nolicense-pkg@1.0.0')
+      expect(outA).not.toContain('@emnapi/core') // dev-only never attributed
     } finally {
-      writeFileSync(OUT, original)
-      rmSync(tempFixture, { force: true })
+      rmSync(root, { recursive: true, force: true })
+      rmSync(withDev, { force: true })
+      rmSync(withoutDev, { force: true })
     }
   })
 })
