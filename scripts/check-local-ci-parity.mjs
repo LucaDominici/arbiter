@@ -1,14 +1,15 @@
 #!/usr/bin/env node
-// check-local-ci-parity.mjs — local↔CI gate result parity check (INV-59, INV-87, #470, #879, #1225)
+// check-local-ci-parity.mjs — local↔CI gate result parity check (INV-59, INV-87, #470, #879, #1225, #2042)
 //
 // 1. Runtime check: reads .arbiter/gate/local-result.json and latest CI gate-result artifact,
 //    compares parityContentHash. On mismatch, prints diff and exits 1.
 // 2. Static check (#879, W3, INV-87): parses Makefile .PHONY targets and .github/workflows/
 //    job names, compares the set. Skip-neutral when either source is absent.
 //    Set PARITY_STATIC_CHECK_ONLY=1 to run only the static check (testing).
-// 3. Check-level parity (#1225): extracts all runCheck/runToolCheck call IDs from
-//    scripts/check-all.mjs, then asserts every ID appears in CI_COVERAGE or CI_SKIP_SET.
-//    Fails if any check-all check has no CI counterpart and is not explicitly skipped.
+// 3. Check-level parity (#1225, bidirectional per #2042): extracts all runCheck/runToolCheck
+//    call IDs from scripts/check-all.mjs, then asserts (a) every ID appears in CI_COVERAGE or
+//    CI_SKIP_SET (forward), and (b) every CI_COVERAGE job-name value is a real, current job in
+//    .github/workflows/*.yml (reverse — catches a job rename/removal silently desyncing the map).
 //    Set PARITY_CHECK_LEVEL_ONLY=1 to run only this check (testing).
 //
 // Exit codes:
@@ -21,6 +22,54 @@ import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 
 const ROOT = process.cwd()
+
+// ─── Shared workflow job-name parsing (#879, #2042) ───────────────────────────
+
+/** Extract top-level job IDs from a single workflow YAML file's contents. */
+function parseWorkflowJobNames(content) {
+  const jobs = new Set()
+  const lines = content.split('\n')
+  let inJobs = false
+  for (const line of lines) {
+    if (line === 'jobs:') {
+      inJobs = true
+      continue
+    }
+    if (inJobs && /^\S/.test(line) && line !== '') {
+      inJobs = false
+      continue
+    }
+    if (inJobs) {
+      const m = line.match(/^  ([\w][\w-]*):/)
+      if (m) jobs.add(m[1])
+    }
+  }
+  return jobs
+}
+
+/**
+ * Read all job IDs declared across .github/workflows/*.yml under root.
+ * Returns null (neutral — caller should skip) when the dir is absent, unreadable,
+ * or has no workflow files.
+ */
+function readWorkflowJobNames(root) {
+  const wfDir = join(root, '.github', 'workflows')
+  if (!existsSync(wfDir)) return null
+  let wfFiles
+  try {
+    wfFiles = readdirSync(wfDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+  } catch {
+    return null
+  }
+  if (wfFiles.length === 0) return null
+
+  const jobs = new Set()
+  for (const wfFile of wfFiles) {
+    const content = readFileSync(join(wfDir, wfFile), 'utf-8')
+    for (const job of parseWorkflowJobNames(content)) jobs.add(job)
+  }
+  return jobs
+}
 
 // ─── Static Makefile↔workflow parity check (INV-87, #879, W3) ────────────────
 
@@ -91,22 +140,7 @@ function checkStaticParity(root) {
   const wfJobs = new Set()
   for (const wfFile of wfFiles) {
     const content = readFileSync(join(wfDir, wfFile), 'utf-8')
-    const lines = content.split('\n')
-    let inJobs = false
-    for (const line of lines) {
-      if (line === 'jobs:') {
-        inJobs = true
-        continue
-      }
-      if (inJobs && /^\S/.test(line) && line !== '') {
-        inJobs = false
-        continue
-      }
-      if (inJobs) {
-        const m = line.match(/^  ([\w][\w-]*):/)
-        if (m) wfJobs.add(m[1])
-      }
-    }
+    for (const job of parseWorkflowJobNames(content)) wfJobs.add(job)
   }
 
   const makeOnly = [...makeTargets].filter((t) => !wfJobs.has(t))
@@ -288,6 +322,29 @@ const CI_SKIP_SET = new Set([
   'conformance', // advisory (#1397/C5): guarded by existsSync('scripts/conformance.mjs') — skipped when absent
 ])
 
+// Reverse of the forward check-level parity below (#2042): every CI_COVERAGE
+// job-name value must correspond to a real, current job in
+// .github/workflows/*.yml. Without this, a job rename/removal silently
+// desyncs the map without failing the gate. Neutral-skip (0, no output) when
+// no workflow files are present — mirrors the static check's skip behavior.
+function checkCoverageJobsAreReal(root) {
+  const wfJobs = readWorkflowJobNames(root)
+  if (wfJobs === null) return 0
+
+  const staleJobs = [...new Set(CI_COVERAGE.values())].filter((job) => !wfJobs.has(job))
+  if (staleJobs.length === 0) return 0
+
+  process.stderr.write('check-local-ci-parity: FAIL — check-level parity drift (reverse)\n')
+  process.stderr.write('  CI_COVERAGE job names with no matching workflow job (stale/renamed):\n')
+  for (const job of staleJobs.sort()) {
+    process.stderr.write(`    "${job}"\n`)
+  }
+  process.stderr.write(
+    '  Fix: update CI_COVERAGE to the current job name, or restore/rename the workflow job.\n',
+  )
+  return 1
+}
+
 function checkLevelParity(root) {
   const checkAllPath = join(root, 'scripts', 'check-all.mjs')
   if (!existsSync(checkAllPath)) {
@@ -320,6 +377,11 @@ function checkLevelParity(root) {
       '  Fix: add to CI_COVERAGE (map to gate-full or a CI job) or CI_SKIP_SET (document why).\n',
     )
     return 1
+  }
+
+  const reverseCode = checkCoverageJobsAreReal(root)
+  if (reverseCode !== 0) {
+    return reverseCode
   }
 
   process.stdout.write(
