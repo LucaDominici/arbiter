@@ -395,8 +395,10 @@ model (R1). Lint the contract the template already promises.
 `.claude/plans/` (deterministic, no config). Per numbered task section (`### N.` — the shape
 of `src/templates/HANDOFF.template.md:21-37`): require the five rows **What / Where / AC /
 Verify / Suggested tier**; `Verify:` must contain a backtick command; `Suggested tier:`
-must be non-empty and not the template placeholder (`…`/`_fill in_`). Template file itself is
-exempt (it IS placeholders).
+must be non-empty and not the template placeholder (`…`/`_fill in_`). The template file itself
+is exempt (it IS placeholders) — by exact path, or by basename (`HANDOFF.template.md`) for
+copies such as the greenfield-dist generation's `.arbiter/greenfield-dist-*/templates/`
+output (arbiter#2066).
 
 **Wiring.** `check-all.mjs` check block near the other doc gates (`doc style`, `:166`):
 `runWarnCheck('handoff lint', ...)` → promote to `runCheck`. Producer side: the `/ship`
