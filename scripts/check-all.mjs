@@ -340,6 +340,8 @@ if (isMain) {
     runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
     runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
     runWarnCheck('bypass ceremony (E4 #1949)', 'node', ['scripts/check-bypass-ceremony.mjs'])
+    // reuse survey (INV-70, #2079): advisory pending the start-warn→promote decision (#2044 item c).
+    runWarnCheck('reuse survey (INV-70)', 'node', ['scripts/check-reuse-survey.mjs'])
     runCheck('commit-footer rationale (INV-119)', 'node', [
       'scripts/check-commit-footer-rationale.mjs',
     ])

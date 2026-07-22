@@ -43,6 +43,12 @@
       "since": "2026-07-17",
       "promoteBy": "2026-10-14",
       "rationale": "OD-14 (2026-07-17): advisory-first wiring for the ceremony detector itself (self-referential — this entry satisfies its own ledger-completeness predicate). Advisory until the bypass-log and ledger are routinely populated across a full gate cycle; promote to runCheck at gated-review."
+    },
+    {
+      "check": "reuse survey (INV-70)",
+      "since": "2026-07-22",
+      "promoteBy": "2026-10-14",
+      "rationale": "#2079 (F-SSOT-05a): first mechanical proxy for INV-70 (reuse-before-new). Advisory during the start-warn bake-in; the hard flip + core-vs-extended promotion are #2044 item (c), which is blocked on bake-in across the dogfooding consumer repos. Same promoteBy window as the seeded #1943/OD-14 entries."
     }
   ]
 }
