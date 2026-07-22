@@ -11,6 +11,24 @@ import { spawnSync } from 'node:child_process'
 
 const SCRIPT = join(process.cwd(), 'scripts', 'check-local-ci-parity.mjs')
 
+/** All 7 distinct job names CI_COVERAGE maps check-all IDs to, as of #2042. */
+const REAL_CI_COVERAGE_JOBS = [
+  'gate',
+  'gate-full',
+  'unit-tests',
+  'debt-gates',
+  'debt-ratchet',
+  'integration-tests',
+  'security-early-fail',
+]
+
+function writeWorkflow(dir: string, jobs: string[]): void {
+  const wfDir = join(dir, '.github', 'workflows')
+  mkdirSync(wfDir, { recursive: true })
+  const jobBlock = jobs.map((j) => `  ${j}:\n    runs-on: ubuntu-latest\n    steps: []\n`).join('')
+  writeFileSync(join(wfDir, 'ci.yml'), `name: CI\non: [push]\njobs:\n${jobBlock}`)
+}
+
 function runCheckLevel(
   cwd: string,
   env?: Record<string, string>,
@@ -106,5 +124,48 @@ describe('check-local-ci-parity.mjs — check-level parity (#1225)', () => {
     })
     expect(result.status).toBe(1)
     expect((result.stderr ?? '') + (result.stdout ?? '')).toMatch(/orphan-rt06/)
+  })
+})
+
+// Red tests for #2042: reverse check-level parity. checkLevelParity today only
+// validates forward (check-all ID → CI_COVERAGE/CI_SKIP_SET entry). It never
+// validates that CI_COVERAGE's job-name *values* still correspond to real,
+// current jobs in .github/workflows/*.yml — a job rename/removal silently
+// desyncs the map without failing the gate. Green after: checkLevelParity
+// gains a reverse pass over the real (hardcoded) CI_COVERAGE map.
+describe('check-local-ci-parity.mjs — reverse check-level parity (#2042)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-cl-parity-rev-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('CI_COVERAGE job name missing from workflows → exit 1 naming the stale job', () => {
+    // Forward-passing stub (only IDs that map to job names present below).
+    writeCheckAllStub(dir, ['unit tests'])
+    // Workflow is missing 'gate-full' (among others) — a stand-in for a job
+    // rename/removal in .github/workflows/*.yml.
+    writeWorkflow(dir, ['gate', 'unit-tests'])
+    const r = runCheckLevel(dir)
+    expect(r.status).toBe(1)
+    expect(r.stderr + r.stdout).toMatch(/gate-full/)
+    expect(r.stderr + r.stdout).toMatch(/no matching workflow job|reverse/i)
+  })
+
+  it('all CI_COVERAGE job names present in workflows → exit 0', () => {
+    writeCheckAllStub(dir, ['unit tests'])
+    writeWorkflow(dir, REAL_CI_COVERAGE_JOBS)
+    const r = runCheckLevel(dir)
+    expect(r.status).toBe(0)
+  })
+
+  it('no .github/workflows present → neutral skip, reverse check does not fail', () => {
+    writeCheckAllStub(dir, ['unit tests'])
+    const r = runCheckLevel(dir)
+    expect(r.status).toBe(0)
   })
 })

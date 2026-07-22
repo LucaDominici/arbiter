@@ -6,25 +6,15 @@
 //                simulate-nightly (T4), simulate-weekly (T5)
 //   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
 //
-// check: build-kit, no redacted tokens, private paths ignored,
-//        typecheck, format, lint, unit tests, circular deps, placeholders, i18n raw strings,
-//        spdx headers, orphan TODOs, no direct-fs in generators, commitlint, test naming, hardness inventory, docs,
-//        matrix fixtures, matrix proven cells, template tests, generator tests, command tests,
-//        catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
-//        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links,
-//        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot,
-//        ci tiers (INV-73), action pin parity, action pin sha (INV-76),
-//        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
-//        workflow-runners, workflow-docs-sync, workflow-test-integrity, workflow-parallelism, pr-size-gate,
-//        validator-helptext, tier-coverage, nightly freshness (INV-93),
-//        no passWithNoTests (INV-25, #1039), actionlint, dogfood (INV-45, #1744),
-//        phantom command scan (INV-111 ext), version parity, hook doc parity (CANON-10) (60)
-// gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
-//       self-validation drill + local-ci parity + id stability + anti-telemetry +
-//       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) +
-//       anti-context-rot enforcers: agent-return envelope + refutation majority +
-//       audit dry-pass + handoff lint (#1943, advisory) + bypass ceremony (#1949, advisory) +
-//       codex parity (ADR-106, #1966) + codex self-parity (#1966) (75)
+// check (T1, "check" subcommand — L1 fast checks): 113 hard checks (runCheck/runToolCheck)
+//   + 1 advisory (runWarnCheck), as of #2042.
+// gate (T1+T2, "gate" subcommand, default): check + T2 extended checks, cumulative total
+//   138 hard checks + 7 advisory, as of #2042.
+// These counts are hand-maintained (#2042 fixed a ~2x stale count and a 25/37-gate-name
+// drift found by audit) — do not hand-copy an enumerated gate list here, it WILL drift.
+// For the exhaustive, always-current list: grep this file for `run(Check|ToolCheck|WarnCheck)(`
+// between the "check: T1 fast checks" and "─── Summary" section markers below, or run
+// `node scripts/check-all.mjs gate --level L2 --json` and inspect the emitted result.
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
