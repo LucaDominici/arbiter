@@ -469,7 +469,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## prettier@3.9.4
+## prettier@3.9.6
 
 - License: MIT
 - Homepage: https://prettier.io
