@@ -113,3 +113,13 @@ because arbiter _authors_ its own `AGENTS.md` whereas a target's is generated an
 Each divergence carries a dated rationale in `.dogfood-divergences.json` and is deliberately **not**
 back-ported: back-porting the repo-root bypass was empirically shown to break the INV-36 HARD-hook
 contract.
+
+`pre-edit-ssot-guard`'s divergence healed this way (#2045): its guarded-path list moved from a
+hardcoded array to a runtime read of `arbiter.json` `governance.ssotGuardPatterns` (additive over
+the shipped template's `DEFAULT_SSOT_PATTERNS`), so the template and the materialized copy are now
+byte-identical code — arbiter's own `docs/internal/...` paths live in `arbiter.json`, not in the
+hook source. Its `.dogfood-divergences.json` entry was removed accordingly. The same commit added a
+one-shot file bypass at `.arbiter/ssot-bypass` (single-line reason, consumed on the next
+guarded-file attempt regardless of outcome) alongside the existing `ARBITER_SSOT_BYPASS=1` env var —
+both now log a `BYPASS` event to `.arbiter/evidence/bypass-log.jsonl`, parity with
+`pre-edit-plan-anchor`'s `ARBITER_PLAN_BYPASS` accounting (#1949).
