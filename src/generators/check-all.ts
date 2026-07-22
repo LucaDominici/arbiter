@@ -165,6 +165,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-render-smoke.mjs'],
     tpl: 'scripts/check-render-smoke.mjs.ejs',
   },
+  // #2080 (INV-137): declarative smoke-journey acceptance-floor gate. Emitted unconditionally
+  // (runtime-SKIPs on applicable:false / absent manifest) so the gate is always wired; imports
+  // the shared glob-walk helper emitted just below. The manifest + starter come from
+  // src/generators/smoke-journeys.ts.
+  {
+    rel: ['scripts', 'check-smoke-journeys.mjs'],
+    tpl: 'scripts/check-smoke-journeys.mjs.ejs',
+  },
   {
     rel: ['scripts', 'lib', 'glob-walk.mjs'],
     tpl: 'scripts/lib/glob-walk.mjs.ejs',

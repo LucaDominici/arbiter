@@ -79,6 +79,7 @@ export type GeneratorKey =
   | 'stack-conformity'
   | 'test-pyramid'
   | 'api-e2e'
+  | 'smoke-journeys'
   | 'conformance'
   | 'gold-kit'
   | 'doc-set-skeletons'
