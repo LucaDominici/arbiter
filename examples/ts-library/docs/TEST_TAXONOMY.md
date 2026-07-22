@@ -1,9 +1,9 @@
-# Test Taxonomy — ts-library
+# Test Taxonomy — ts-library-fixture
 
 <!-- arbiter-managed: test-pyramid-profile (INV-89) -->
 <!-- Archetype: library -->
 
-This document defines the test pyramid for **ts-library**.
+This document defines the test pyramid for **ts-library-fixture**.
 Each level maps to a CI stage in `ci.yml` and a check in `scripts/check-all.mjs`.
 
 ---

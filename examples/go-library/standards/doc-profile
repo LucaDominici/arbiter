@@ -17,3 +17,11 @@
 overlays: []
 # allow: extra doc paths intentionally present that the audit should NOT flag (derogations).
 allow: []
+# tier_floor (T1b, optional): raises the collaborationMode-derived tiers{} column with max()
+# semantics (solo < small < enterprise) — a floor can only RAISE the column, never lower it, so
+# it cannot be used to dodge the anti-cathedral guardrail. Leave unset (the default): governed
+# repos are never auto-raised; right-sizing follows collaborationMode alone. Set this only when a
+# repo's OWN posture genuinely exceeds what its collaborationMode implies (e.g. a solo-maintained
+# framework published to a registry and consumed by many — see arbiter's own standards/doc-profile
+# for the worked example).
+# tier_floor: enterprise

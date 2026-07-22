@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — knowledge-map gate (INV-49)
+// ts-library-fixture — knowledge-map gate (INV-49)
 // Gate: verify KNOWLEDGE_MAP.md line counts match actual docs within tolerance.
 // Exits 0: all populated entries within tolerance, or no KNOWLEDGE_MAP.md found.
 // Exits 1: one or more entries have drifted beyond tolerance.

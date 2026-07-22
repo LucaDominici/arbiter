@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — CI tier presence gate (INV-73)
+// ts-library-fixture — CI tier presence gate (INV-73)
 // Gate: verify the required CI workflow files exist in .github/workflows/.
 // The required set is fixed at generation time as the inverse of the workflow
 // generation predicates (collaboration mode peer-review × governance L1).

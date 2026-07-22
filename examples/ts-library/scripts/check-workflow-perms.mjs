@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — workflow top-level permissions gate (INV-76)
+// ts-library-fixture — workflow top-level permissions gate (INV-76)
 // Gate: verify all .github/workflows/*.yml files declare top-level permissions.
 // Exits 0: all workflows pass.
 // Exits 1: one or more missing the top-level permissions declaration.

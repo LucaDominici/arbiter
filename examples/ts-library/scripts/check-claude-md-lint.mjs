@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — claude-md-lint: thin context-file linter (INV-89)
+// ts-library-fixture — claude-md-lint: thin context-file linter (INV-89)
 // Lints AI context files (CLAUDE.md / AGENTS.md, incl. nested .claude/CLAUDE.md) for
 // hardcoded absolute paths, a required @import of the shared layer in delegating files,
 // a soft line budget, and verbatim duplication of imported shared-layer content.

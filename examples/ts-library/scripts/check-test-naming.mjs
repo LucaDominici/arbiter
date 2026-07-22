@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Test naming convention gate for ts-library
+// Test naming convention gate for ts-library-fixture
 // Flags test files that don't follow the project's naming convention.
 // Exit 1 if violations found (HARD gate — L1+).
 import { readdirSync, statSync, readFileSync } from 'node:fs';

@@ -1,0 +1,16 @@
+{
+  "//": "INV-115 constraint-scan map (scripts/check-constraint-scan.mjs). Curate an entry",
+  "//1": "for every free-text prohibition in AGENTS.md / CANON.md / CLAUDE.md you have",
+  "//2": "already wired to an enforcer, so the scan reports it COVERED instead of just",
+  "//3": "ENFORCED-BY-SCAN or UNENFORCEABLE. Naming a non-existent enforcer is MAP-FICTION",
+  "//4": "and fails the gate — only add an entry once the enforcer actually exists.",
+  "//5": "Shape: \"<token>\": { \"kind\": \"gate|hook|script|inv|lint|template\", \"enforcer\": \"<ref>\" }",
+  "//6": "  gate     — enforcer is a check referenced in scripts/check-all.mjs",
+  "//7": "  hook     — enforcer is a file under .claude/hooks/",
+  "//8": "  script   — enforcer is a script file that exists on disk",
+  "//9": "  inv      — enforcer is an invariant id (e.g. INV-04) present in the catalog",
+  "//10": "  lint     — enforcer is a rule id active in an eslint config",
+  "//11": "  template — enforcer is a path under src/templates/",
+  "//12": "Example (uncomment and adapt once the enforcer exists):",
+  "//13": "  \"any\": { \"kind\": \"lint\", \"enforcer\": \"@typescript-eslint/no-explicit-any\" }"
+}

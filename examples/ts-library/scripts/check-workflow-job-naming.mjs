@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — workflow job naming convention drift detector (INV-89)
+// ts-library-fixture — workflow job naming convention drift detector (INV-89)
 // Validates that all workflow jobs have explicit name: fields.
 // Exits 0 when all jobs have names; exits 1 when unnamed jobs are found.
 // Part of the anti-drift validator family (W6).

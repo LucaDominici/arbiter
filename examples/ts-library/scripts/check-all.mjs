@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library quality gate
+// ts-library-fixture quality gate
 // Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
 // L1: format + lint + unit tests (fast, pre-commit)
 // L2: L1 + coverage + audit (full, pre-push)
@@ -139,7 +139,7 @@ if (existsSync(_arbiterJsonPath)) {
 }
 
 console.log('');
-console.log(`=== ts-library Quality Gate: ${level} ===`);
+console.log(`=== ts-library-fixture Quality Gate: ${level} ===`);
 console.log('');
 
 
@@ -466,6 +466,7 @@ if (level === 'L2') {
   // ago FAILS the gate. Age is derived from the issue created_at only. Graceful-SKIP
   // when gh is missing / token absent / offline (never false-fails).
   runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], { soft: graceActive });
+
 
 }
 

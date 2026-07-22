@@ -1,5 +1,5 @@
 Feature: Example feature
-  As a user of ts-library
+  As a user of ts-library-fixture
   I want to see a working BDD example
   So that I can extend it with real scenarios
 

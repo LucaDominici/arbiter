@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — exit code contract gate
+// ts-library-fixture — exit code contract gate
 // Scans scripts and EJS templates for exit codes outside the 0=PASS/1=FAIL/2=ERROR contract.
 // Part of the anti-drift validator family (W6).
 // Usage: node scripts/check-exit-code-contract.mjs [dir...] [--help]
@@ -41,7 +41,7 @@ function inStringLiteral(line, matchIndex) {
 }
 
 const EXTENSIONS = new Set([".mjs", ".js", ".ejs"]);
-const SKIP_DIRS = new Set(["node_modules", "dist", ".git"]);
+const SKIP_DIRS = new Set(["node_modules", "dist", ".git", ".arbiter"]);
 const SKIP_PATHS = new Set(["__tests__/fixtures"]);
 
 const args = process.argv.slice(2);

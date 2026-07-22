@@ -1,4 +1,4 @@
-# SSOT Core Set — ts-library
+# SSOT Core Set — ts-library-fixture
 
 **Status:** ENFORCED
 **Archetype:** `library`

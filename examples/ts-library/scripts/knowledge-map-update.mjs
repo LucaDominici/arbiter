@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — knowledge-map updater
+// ts-library-fixture — knowledge-map updater
 // Utility: regenerate **Lines:** counts in KNOWLEDGE_MAP.md from actual doc sizes.
 // Exits 0 always (utility, not a gate).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';

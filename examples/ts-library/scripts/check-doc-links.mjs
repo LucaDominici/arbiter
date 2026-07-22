@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — doc-links gate
+// ts-library-fixture — doc-links gate
 // Gate: verify markdown links in docs/ resolve; follow CANONICAL_PATHS redirects.
 // Exits 0: all links resolve (possibly via redirect) or no docs found.
 // Exits 1: one or more broken links with no valid redirect.

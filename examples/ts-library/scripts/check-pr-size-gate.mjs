@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — PR size gate drift checker (INV-89)
+// ts-library-fixture — PR size gate drift checker (INV-89)
 // Validates that the PR size gate configuration is present and within bounds.
 // Exits 0 when PR size gate config is valid; exits 1 when config is missing or invalid.
 // Part of the anti-drift validator family (W6).

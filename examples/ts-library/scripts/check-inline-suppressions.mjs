@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — inline suppression checker (INV-31)
+// ts-library-fixture — inline suppression checker (INV-31)
 // Validates arbiter-suppress directives in source files.
 // Directive form: arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason="...", owner=@user)
 // Part of the anti-drift validator family (W6).

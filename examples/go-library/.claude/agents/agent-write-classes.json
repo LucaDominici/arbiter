@@ -1,0 +1,10 @@
+{
+  "$schemaVersion": 1,
+  "_comment": "E5 (#1947): write-intent classification for pre-spawn-worktree-guard.mjs. Derived from .claude/agents/*.md — an agent with a `tools:` frontmatter restricted to Read/Grep/Glob (or a description naming it a reviewer/verifier/scanner with no file-mutation role) is read-only; everything else defaults write-intent (fail-closed, see the hook). Kept in parity with .claude/agents/*.md by a 3-line extension to scripts/check-catalog-agents-parity.mjs.",
+  "classes": {
+    "codebase-scanner": "read-only",
+    "context-checker": "read-only",
+    "red-team": "read-only",
+    "bridge-reviewer": "read-only"
+  }
+}

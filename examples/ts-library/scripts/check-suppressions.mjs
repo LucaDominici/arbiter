@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — suppression expiry check (INV-31)
+// ts-library-fixture — suppression expiry check (INV-31)
 // Validates that all suppression entries have mandatory metadata and a future expiresAt.
 // Part of the anti-drift validator family (W6).
 // Usage: node scripts/check-suppressions.mjs [--help]

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — secret pattern drift checker (INV-89)
+// ts-library-fixture — secret pattern drift checker (INV-89)
 // Validates that common secret patterns are not present in tracked source files.
 // Complements gitleaks; provides fast local check without external tool dependency.
 // Exits 0 when no secrets found; exits 1 when potential secrets detected.

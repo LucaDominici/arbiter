@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ts-library — suppression rationale quality check (INV-89)
+// ts-library-fixture — suppression rationale quality check (INV-89)
 // Validates that all suppression entries have meaningful rationale (reason field).
 // Exits 0 when all rationales are meaningful; exits 1 when thin rationales found.
 // Part of the anti-drift validator family (W6).
