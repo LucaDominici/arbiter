@@ -42,5 +42,13 @@
   },
   "automation": {
     "autonomy": "L3"
+  },
+  "governance": {
+    "ssotGuardPatterns": [
+      "docs/internal/METHOD/",
+      "docs/internal/SYSTEM/DECISIONS",
+      "docs/internal/SYSTEM/CANON.md",
+      "docs/internal/ADR/"
+    ]
   }
 }

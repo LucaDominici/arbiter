@@ -157,13 +157,18 @@ When a PR removes or renames a public symbol, flag or behavior:
 
 ### SSOT and plan bypass env vars
 
-| Hook / Check               | Guards                                                                                                          | Bypass                                     |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `pre-edit-ssot-guard.mjs`  | `AGENTS.md`, `.claude/CLAUDE.md`, `docs/internal/METHOD/`, `docs/internal/SYSTEM/DECISIONS`, `.agents/CODEX.md` | `ARBITER_SSOT_BYPASS=1 claude ...`         |
-| `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan; new `src/` file without Survey block (INV-46)                | `ARBITER_PLAN_BYPASS=1 claude ...`         |
-| `check-bloat-ratchet.mjs`  | `src/` file/LOC ceiling per bucket (INV-46)                                                                     | `ALLOW_BLOAT=1 node scripts/check-all.mjs` |
+| Hook / Check               | Guards                                                                                                          | Bypass                                                                                |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `pre-edit-ssot-guard.mjs`  | `AGENTS.md`, `.claude/CLAUDE.md`, `docs/internal/METHOD/`, `docs/internal/SYSTEM/DECISIONS`, `.agents/CODEX.md` | `ARBITER_SSOT_BYPASS=1 claude ...`, or a one-shot `.arbiter/ssot-bypass` file (below) |
+| `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan; new `src/` file without Survey block (INV-46)                | `ARBITER_PLAN_BYPASS=1 claude ...`                                                    |
+| `check-bloat-ratchet.mjs`  | `src/` file/LOC ceiling per bucket (INV-46)                                                                     | `ALLOW_BLOAT=1 node scripts/check-all.mjs`                                            |
 
 Bypasses are session-scoped and must reference the corresponding task ID and ADR in the commit message. Never set them in your shell profile.
+
+`pre-edit-ssot-guard.mjs`'s guarded-path list is config-driven (#2045): set `governance.ssotGuardPatterns` (an array of repo-relative substrings) in `arbiter.json` to extend the built-in default list — no hook edit or regeneration required. Additive only: config cannot remove a default-guarded path. Both bypass mechanisms are logged as a `BYPASS` event to `.arbiter/evidence/bypass-log.jsonl`:
+
+- **Env var** (`ARBITER_SSOT_BYPASS=1`): session-scoped, silent to the user beyond the log entry.
+- **One-shot file** (`.arbiter/ssot-bypass`): write a single-line reason to that file and retry the guarded edit. The file is consumed (deleted) on the next guarded-file attempt regardless of outcome — an empty/blank reason is still consumed but does not bypass. Use for a single, explicit, reviewable edit (an ADR, or an owner directive naming the exact file) rather than a standing permission.
 
 ### Claude Code skills
 
