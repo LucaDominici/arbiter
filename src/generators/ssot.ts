@@ -43,6 +43,26 @@ export function generateSsot(
         { backup: true, dryRun: opts.dryRun },
       ),
     )
+
+    // REUSE_REGISTRY_SPEC.md — L2+: the CANON-16 existing-code survey spec (#2079).
+    // Fixed spec doc → backup:true, regenerated like ENGINEERING_DEFAULTS.
+    results.push(
+      writeFile(
+        resolvedPath(base, 'docs', 'METHOD', 'REUSE_REGISTRY_SPEC.md'),
+        renderTemplate('root/docs/METHOD/REUSE_REGISTRY_SPEC.md.ejs', data),
+        { backup: true, dryRun: opts.dryRun },
+      ),
+    )
+
+    // PATTERNS_CATALOG.md — L2+: the consumer-populated pattern register (#2079).
+    // skipIfExists so `arbiter update` never clobbers catalogued entries (KNOWLEDGE_MAP precedent).
+    results.push(
+      writeFile(
+        resolvedPath(base, 'docs', 'METHOD', 'PATTERNS_CATALOG.md'),
+        renderTemplate('root/docs/METHOD/PATTERNS_CATALOG.md.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
   }
 
   // TRACK_ROUTER.md — L4 only (compliance-grade context economy)

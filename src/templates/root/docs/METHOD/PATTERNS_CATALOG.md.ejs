@@ -1,0 +1,51 @@
+<% if (governanceLevel !== 'L1') { %>---
+title: '<%= projectName %> Patterns Catalog'
+doc_version: '1.0.0'
+status: active
+canonical_id: 'PATTERNS_CATALOG'
+tags: ['audience/dev', 'kind/method']
+related: ['REUSE_REGISTRY_SPEC']
+---
+
+# <%= projectName %> Patterns Catalog
+
+**Purpose:** A curated register of reusable code patterns surveyed from this repository.
+Each entry is anchored to a literal directory under `src/` (or the project's source root) and
+answers the same six questions, so a contributor can decide reuse-vs-new without reading code.
+
+**Location:** `docs/METHOD/PATTERNS_CATALOG.md`
+**Spec:** `docs/METHOD/REUSE_REGISTRY_SPEC.md` (the CANON-16 existing-code survey protocol)
+
+Read this — and search `REUSE_REGISTRY.md` — before opening a new file under `src/`.
+This register is owned by the project: `arbiter update` never overwrites it once it exists.
+
+---
+
+## Purpose
+
+The catalog names the patterns worth reusing so they are extended, not re-invented. It is not a
+tutorial: each entry is a pointer plus the design decisions worth knowing before you copy it.
+
+---
+
+## Entry schema
+
+Each entry is a level-2 heading `## <n>. <pattern name>` followed by six labelled fields:
+
+- **Use when:** the situation the pattern is the right answer to.
+- **Avoid when:** the situation where reaching for it is a mistake.
+- **Registry path:** the literal directory the pattern lives in, in backticks (no globs).
+- **Variation axis:** what legitimately differs between instances of the pattern.
+- **Test approach:** how instances of the pattern are tested.
+- **Rejected alternatives:** the design that was considered and dropped, and why.
+
+Keep the catalog small (a dozen entries at most): it lists load-bearing patterns, not every helper.
+
+---
+
+## Catalog
+
+_No patterns catalogued yet._ Add the first entry when a reusable pattern emerges — a shape that
+appears in two or more places and is worth surveying before writing a third. Record the survey in
+your plan per `REUSE_REGISTRY_SPEC.md`.
+<% } %>

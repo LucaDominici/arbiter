@@ -64,6 +64,38 @@ describe('generateSsot', () => {
     expect(existsSync(join(dir, 'docs/METHOD/TRACK_ROUTER.md'))).toBe(true)
   })
 
+  // ── Reuse-first docs (#2079) ──────────────────────────────────────────────────
+
+  it('L1: does NOT generate REUSE_REGISTRY_SPEC.md or PATTERNS_CATALOG.md', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L1' })
+    generateSsot(config)
+    expect(existsSync(join(dir, 'docs/METHOD/REUSE_REGISTRY_SPEC.md'))).toBe(false)
+    expect(existsSync(join(dir, 'docs/METHOD/PATTERNS_CATALOG.md'))).toBe(false)
+  })
+
+  it('L2: generates REUSE_REGISTRY_SPEC.md and PATTERNS_CATALOG.md', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    generateSsot(config)
+    expect(existsSync(join(dir, 'docs/METHOD/REUSE_REGISTRY_SPEC.md'))).toBe(true)
+    expect(existsSync(join(dir, 'docs/METHOD/PATTERNS_CATALOG.md'))).toBe(true)
+  })
+
+  it('SSOT_CORE_SET.md lists the reuse-first docs for L2+', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    generateSsot(config)
+    const content = readFileSync(join(dir, 'docs/METHOD/SSOT_CORE_SET.md'), 'utf-8')
+    expect(content).toContain('REUSE_REGISTRY_SPEC.md')
+    expect(content).toContain('PATTERNS_CATALOG.md')
+  })
+
+  it('SSOT_CORE_SET.md does not list the reuse-first docs for L1', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L1' })
+    generateSsot(config)
+    const content = readFileSync(join(dir, 'docs/METHOD/SSOT_CORE_SET.md'), 'utf-8')
+    expect(content).not.toContain('REUSE_REGISTRY_SPEC.md')
+    expect(content).not.toContain('PATTERNS_CATALOG.md')
+  })
+
   // ── Return value ─────────────────────────────────────────────────────────────
 
   it('returns an array of WriteResults', () => {
