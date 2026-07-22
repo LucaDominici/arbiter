@@ -32,6 +32,28 @@ export function getResults() { return results; }
 export function getFailed() { return failed; }
 export function resetState() { results = []; failed = 0; }
 
+// #2078 (GATE-1 of #2041) — inspection modes for the agentic loop.
+//   dryRun: print what each check WOULD run and spawn nothing (records SKIP).
+//   only:   run only the check whose name === only; skip (unrecorded) the rest.
+// Set once by check-all.mjs after arg-parsing; the default is a no-op so normal
+// runs are unaffected.
+let mode = { dryRun: false, only: null };
+export function setMode(m = {}) {
+  mode = { dryRun: Boolean(m.dryRun), only: m.only ?? null };
+}
+
+// Shared pre-flight for the runCheck/runWarnCheck/runToolCheck trio. Returns true
+// when the caller must return WITHOUT spawning (skipped by --gate, or dry-run printed).
+function inspectSkip(name, cmd, args) {
+  if (mode.only !== null && name !== mode.only) return true; // --gate <name>: skip non-match (unrecorded)
+  if (mode.dryRun) {
+    console.log(`[CHECK] ${name} ... DRY-RUN (would run: ${cmd} ${args.join(' ')})`);
+    results.push({ name, status: 'SKIP', elapsed: 0 });
+    return true;
+  }
+  return false;
+}
+
 function spawn(name, cmd, args, opts) {
   const start = Date.now();
   process.stdout.write(`[CHECK] ${name} ... `);
@@ -74,6 +96,7 @@ function recordPass(name, elapsed) {
 }
 
 export function runCheck(name, cmd, args, opts = {}) {
+  if (inspectSkip(name, cmd, args)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     recordFail(name, elapsed, `command not found: ${cmd}`);
@@ -99,6 +122,7 @@ export function runCheck(name, cmd, args, opts = {}) {
 }
 
 export function runWarnCheck(name, cmd, args, opts = {}) {
+  if (inspectSkip(name, cmd, args)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     recordWarn(name, elapsed, `command not found: ${cmd}`);
@@ -119,6 +143,7 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
 }
 
 export function runToolCheck(name, cmd, args, opts = {}) {
+  if (inspectSkip(name, cmd, args)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     if (IS_CI()) {
