@@ -58,6 +58,8 @@ function isFrontend(arbiter) {
 function main() {
   if (!existsSync(ARBITER_PATH)) {
     process.stdout.write('[check-render-smoke] SKIP — arbiter.json not found\n')
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] arbiter.json not found\n')
     process.exit(0)
   }
 
@@ -73,6 +75,8 @@ function main() {
     process.stdout.write(
       '[check-render-smoke] SKIP — not a frontend archetype and no frontend lane\n',
     )
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] not a frontend archetype and no frontend lane\n')
     process.exit(0)
   }
 

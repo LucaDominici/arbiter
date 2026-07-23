@@ -40,6 +40,8 @@ let checked = 0;
 
 if (!existsSync(SCRIPTS_DIR)) {
   process.stdout.write('check-validator-helptext: SKIP — no scripts/ directory found\n');
+  // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+  process.stdout.write('[SKIP] no scripts/ directory found\n');
   process.exit(0);
 }
 

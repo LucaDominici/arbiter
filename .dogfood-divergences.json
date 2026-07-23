@@ -217,7 +217,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "409dfa73b13ba9f8fad083713398b8e979e09b30f83fe4da30b0f637af89a30d"
+    "diffHash": "24985c59acc20dd11d3de5ab8d17b54314cc00805e21ecdc4c70320eb0a642bf"
   },
   {
     "path": "check-doc-freshness.mjs",
@@ -335,7 +335,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "1a94759deae529630001a752787dfd14a1a29a3cd3e991cad8fccce4f06ce2fb"
+    "diffHash": "34338d285d575e1b8229ac49e3d2021c3effb625f1cf1c00b761e8acd73d97ad"
   },
   {
     "path": "check-secret-presence.mjs",
@@ -432,7 +432,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "2696502cce210b5a82618d985be497310dd14adc17bef872427e6180b1b1d21d"
+    "diffHash": "2eda1077e547314ea2453ebf7c64fa1c44da2ac9f7915c9897122589950f87b9"
   },
   {
     "path": "check-todo-max-age.mjs",
@@ -486,6 +486,6 @@
     "path": "run-helpers.mjs",
     "dest": "scripts/lib",
     "reason": "Arbiter self-dogfood (pre-existing divergence surfaced when the script-libs family joined parity scope, #1943 residual c): the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. Reconciliation tracked as follow-up, not silent drift.",
-    "diffHash": "8d14f42b8a8db5dc3107f5a5abbba42731e3950b42967fdff1bb46c606dd6df8"
+    "diffHash": "a63cba179660ce1629833b7276e7f7eb683e915c8af9267b2610497fad0685e7"
   }
 ]

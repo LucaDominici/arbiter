@@ -112,6 +112,8 @@ function validateRegistry(name, knownRefs) {
 function main() {
   if (!existsSync(STANDARDS)) {
     process.stdout.write(`check-gold-registries: SKIP — no ${STANDARDS}\n`)
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write(`[SKIP] no ${STANDARDS}\n`)
     return 0
   }
   const knownRefs = loadThresholdRefs()

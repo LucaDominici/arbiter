@@ -48,6 +48,8 @@ const REQUIRED_TIERS = [
 
 if (!existsSync(gatePath)) {
   process.stdout.write('check-tier-coverage: SKIP — check-all.mjs not found\n')
+  // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+  process.stdout.write('[SKIP] check-all.mjs not found\n')
   process.exit(0)
 }
 

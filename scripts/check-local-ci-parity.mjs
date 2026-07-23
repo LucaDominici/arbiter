@@ -413,6 +413,8 @@ const LOCAL_RESULT_PATH = join(ROOT, '.arbiter', 'gate', 'local-result.json')
 function skip(reason) {
   process.stdout.write(`check-local-ci-parity: ${reason}\n`)
   process.stdout.write('check-local-ci-parity: SKIP (neutral)\n')
+  // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+  process.stdout.write(`[SKIP] ${reason}\n`)
   process.exit(0)
 }
 

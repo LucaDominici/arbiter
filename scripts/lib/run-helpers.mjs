@@ -6,6 +6,10 @@
 //   runCheck      HARD — non-zero exit fails the gate (the default).
 //                 Accepts { soft: true } to coerce a single call to WARN
 //                 (used by template grace-period: { soft: graceActive }).
+//                 A child that exits 0 but prints a `[SKIP] <reason>` line
+//                 (#2052: self-skip, e.g. "nothing to check for this repo")
+//                 is recorded SKIP, not PASS — still non-blocking, but no
+//                 longer indistinguishable from a check that actually ran.
 //
 //   runWarnCheck  INFORMATIONAL — non-zero never fails the gate.
 //                 Allowed ONLY when no INV-NN backs the check. Surfaced as
@@ -39,6 +43,21 @@ const NO_COLOR = () => IS_CI() || process.env.NO_COLOR === '1'
 function stripAnsi(str) {
   // eslint-disable-next-line no-control-regex
   return (str ?? '').replace(/\x1b\[[0-9;]*m/g, '')
+}
+
+// Self-skip marker (#2052): a check that decides for itself — via config,
+// archetype, or missing input — that it has nothing to verify prints a
+// `[SKIP] <reason>` line to its own stdout and still exits 0 (INV-53: 0
+// stays PASS-or-SKIP for direct invocation). Anchored to the start of a
+// line so it can't collide with an incidental "SKIP" substring inside a
+// genuinely-passing check's own output (e.g. an env var name or a per-item
+// note elsewhere in the log).
+const SELF_SKIP_RE = /^\[SKIP\][ \t]*(.*)$/m
+
+function detectSelfSkip(stdout) {
+  const m = SELF_SKIP_RE.exec(stdout ?? '')
+  if (!m) return null
+  return m[1].trim() || 'self-skip'
 }
 
 /** @type {{ name: string; status: 'PASS'|'FAIL'|'WARN'|'SKIP'; elapsed: number }[]} */
@@ -127,6 +146,11 @@ export function runCheck(name, cmd, args, opts = {}) {
     return
   }
   if (r.status === 0) {
+    const selfSkip = detectSelfSkip(r.stdout)
+    if (selfSkip) {
+      recordSkip(name, elapsed, selfSkip)
+      return
+    }
     recordPass(name, elapsed)
     return
   }

@@ -25,6 +25,16 @@ function stripAnsi(str) {
   return (str ?? '').replace(/\x1b\[[0-9;]*m/g, '');
 }
 
+// Self-skip marker (#2052): a child that exits 0 but prints a `[SKIP] <reason>`
+// line decided for itself it had nothing to check — record SKIP, not PASS.
+const SELF_SKIP_RE = /^\[SKIP\][ \t]*(.*)$/m;
+
+function detectSelfSkip(stdout) {
+  const m = SELF_SKIP_RE.exec(stdout ?? '');
+  if (!m) return null;
+  return m[1].trim() || 'self-skip';
+}
+
 let results = [];
 let failed = 0;
 
@@ -111,7 +121,12 @@ export function runCheck(name, cmd, args, opts = {}) {
     recordFail(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`);
     return;
   }
-  if (r.status === 0) { recordPass(name, elapsed); return; }
+  if (r.status === 0) {
+    const selfSkip = detectSelfSkip(r.stdout);
+    if (selfSkip) { recordSkip(name, elapsed, selfSkip); return; }
+    recordPass(name, elapsed);
+    return;
+  }
   if (opts.soft) {
     recordWarn(name, elapsed, `grace period, exit ${r.status}`);
     emitOutput(r);

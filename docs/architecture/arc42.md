@@ -2,7 +2,7 @@
 title: 'Arbiter — Architecture (arc42)'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-11'
+last_review: '2026-07-23'
 owner: ''
 canonical_id: 'ARC42'
 tags: ['audience/dev', 'kind/spine', 'kind/architecture']
@@ -452,6 +452,13 @@ gitleaks, debt ratchet, TDD-evidence, evidence-bundle, script cohesion, integrat
 conformance). The subset relationship L1 ⊂ L2 ⊂ L3 is enforced _by code structure_. On green it writes
 `.arbiter/gate/local-result.json` (schema `arbiter-gate-v1`) carrying a `parityContentHash` over the
 L1 subset (used by `check-local-ci-parity.mjs`, INV-59/87) and stamps `.arbiter/gate-pass.json`.
+
+Each `runCheck` step ends in one of PASS/FAIL/WARN/SKIP (#2052): a child that exits 0 but prints a
+`[SKIP] <reason>` marker line — it decided for itself it had nothing to verify (missing manifest,
+feature off, wrong archetype) — is recorded SKIP rather than PASS, both in the console summary table
+and as a `status` field per gate entry in the JSON (alongside the pre-existing `pass` boolean). SKIP
+never fails the gate; it exists so a permanently-mis-wired check that always no-ops can't hide behind
+an evergreen-green PASS.
 
 ---
 

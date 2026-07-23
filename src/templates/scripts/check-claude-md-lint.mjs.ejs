@@ -76,6 +76,8 @@ function main() {
   const files = discover();
   if (files.length === 0) {
     process.stdout.write('check-claude-md-lint: SKIP — no context files found (INV-89)\n');
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] no context files found (INV-89)\n');
     return 0;
   }
 
