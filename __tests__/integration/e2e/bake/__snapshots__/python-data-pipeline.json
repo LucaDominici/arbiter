@@ -249,7 +249,7 @@
     "ruff.toml": "26613223ab88ecbef9977317ae058ce02483a5bdd33fe44cfc3eb78c582f43c1",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
     "schemas/agent-return.schema.json": "d5414e53c5ab588d37c439b838830540e658d7ac3a6efa3e159a5df2f5f73e18",
-    "scripts/check-action-pins.mjs": "e0e88eb359e39ab7c2bd7d171f043c4262c0a8da7b00166134199f510678f0a4",
+    "scripts/check-action-pins.mjs": "dbac7c94614e470e802ade7bdcd7086979dd47d69d4adbddaa7fffb05c600ed2",
     "scripts/check-all.mjs": "6023906a8eee5ae5e030f5d2dca12f69459a797ac81c036fe95f6a185eb3a7b0",
     "scripts/check-anti-fake-green.mjs": "0d80f4e025a95c0e1c7883afa01c367acce9a1eb0175bcb8914e1feed5ad02cb",
     "scripts/check-anti-proforma.mjs": "879f9db840089455ff1a9f27205550a524fcfe176b7638f9cc53f7efa72e24ad",
