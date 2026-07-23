@@ -87,7 +87,8 @@
     "gold:audit": "node scripts/gold-audit.mjs",
     "gold:report": "node scripts/gold-report.mjs",
     "examples:regenerate": "node scripts/regenerate-examples.mjs",
-    "examples:check": "node scripts/regenerate-examples.mjs --check"
+    "examples:check": "node scripts/regenerate-examples.mjs --check",
+    "regen": "node scripts/regen.mjs"
   },
   "dependencies": {
     "@clack/prompts": "1.7.0",
