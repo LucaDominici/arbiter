@@ -108,6 +108,57 @@ describe('arbiter update', () => {
     expect(after).toContain('// Custom modification')
   })
 
+  // #2056: a selective regen driven by a config change that maps (via
+  // src/config/diff.ts PATH_TO_KEYS) to generators OTHER than agents-md/claude
+  // must STILL refresh the governance sections those two own — Iron Laws in
+  // AGENTS.md and the ARBITER_* deny list in .claude/settings.json — otherwise a
+  // routine `arbiter update` (e.g. toggling securityScanning) leaves stale
+  // governance content in place, the root cause behind the downstream-consumer
+  // staleness #2040 was filed for.
+  it('selective regen for an unrelated config change still refreshes AGENTS.md Iron Laws + settings.json deny-list (#2056)', async () => {
+    const agentsPath = join(dir, 'AGENTS.md')
+    const settingsPath = join(dir, '.claude', 'settings.json')
+    const IRON_LAW = 'Worktree Isolation Is Mandatory For Parallel Agents'
+    const DENY_ENTRY = 'ARBITER_GATE_BYPASS'
+
+    // Prime once so a config snapshot exists — otherwise the first `arbiter
+    // update` has no snapshot and always full-regens (which trivially includes
+    // agents-md/claude). The selective-regen path this test targets only runs
+    // when a snapshot is present to diff against.
+    await runUpdate({ dir, github: false })
+
+    // Sanity: a freshly-initialized project carries both governance sections.
+    expect(readFileSync(agentsPath, 'utf-8')).toContain(IRON_LAW)
+    expect(readFileSync(settingsPath, 'utf-8')).toContain(DENY_ENTRY)
+
+    // Simulate governance sections that predate a template update (stale on disk).
+    writeFileSync(
+      agentsPath,
+      readFileSync(agentsPath, 'utf-8').replace(IRON_LAW, 'STALE PLACEHOLDER'),
+      'utf-8',
+    )
+    writeFileSync(
+      settingsPath,
+      readFileSync(settingsPath, 'utf-8').replace(DENY_ENTRY, 'STALE_PLACEHOLDER'),
+      'utf-8',
+    )
+
+    // Change an UNRELATED config field whose PATH_TO_KEYS mapping does NOT include
+    // agents-md/claude (features.securityScanning → ['security']) → selective regen.
+    const configPath = join(dir, 'arbiter.json')
+    const config = JSON.parse(readFileSync(configPath, 'utf-8')) as {
+      features: Record<string, boolean>
+    }
+    config.features.securityScanning = !config.features.securityScanning
+    writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
+
+    await runUpdate({ dir, github: false })
+
+    // Both governance artifacts refreshed despite the diff mapping only to `security`.
+    expect(readFileSync(agentsPath, 'utf-8')).toContain(IRON_LAW)
+    expect(readFileSync(settingsPath, 'utf-8')).toContain(DENY_ENTRY)
+  })
+
   it('update regenerates experimental tool files when present in config (cursor/copilot)', async () => {
     // ADR-095: cursor/copilot are experimental — no longer init-able via the
     // CLI (`parseTools` rejects them) — but their generators are RETAINED. A

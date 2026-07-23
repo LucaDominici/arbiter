@@ -135,6 +135,25 @@ describe('runUpdate — selective regeneration via snapshot', () => {
     expect(result.keysRun?.has('coverage')).toBe(false)
   })
 
+  it('always includes the governance generators (agents-md + claude) in any selective regen (#2056)', async () => {
+    writeV2Config(dir)
+    await runUpdate({ dir, github: false })
+
+    // lineCoverage maps (via PATH_TO_KEYS) only to coverage + check-all — NOT to
+    // agents-md/claude. The governance generators must refresh anyway so a routine
+    // update never leaves Iron Laws (agents-md) or the ARBITER_* deny list (claude)
+    // stale, the root cause behind the #2040 downstream-consumer drift.
+    writeV2Config(dir, {
+      thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 90 },
+    })
+
+    const result = await runUpdate({ dir, github: false })
+
+    expect(result.keysRun?.has('*')).toBe(false)
+    expect(result.keysRun?.has('agents-md')).toBe(true)
+    expect(result.keysRun?.has('claude')).toBe(true)
+  })
+
   it('returns full regen (*) when governanceLevel changes', async () => {
     writeV2Config(dir)
     await runUpdate({ dir, github: false })
