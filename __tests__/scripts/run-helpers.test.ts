@@ -78,6 +78,56 @@ describe('run-helpers — runCheck (HARD)', () => {
     expect(payload.failed).toBe(0)
     expect(payload.results[0]).toMatchObject({ name: 'soft-bad', status: 'WARN' })
   })
+
+  // #2052: a check that self-skips (exit 0 + a `[SKIP] <reason>` marker line on
+  // its own stdout) must surface as SKIP, not PASS — otherwise a permanently
+  // mis-wired check reads as evergreen-green forever.
+  it('exit 0 + `[SKIP] reason` marker records SKIP, not PASS, and does not fail the gate', () => {
+    const r = runHarness(`
+      import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      runCheck('self-skip', process.execPath, ['-e', "console.log('[SKIP] no config found')"]);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    expect(r.stdout).toContain('SKIP (no config found')
+    expect(r.stdout).not.toContain('PASS')
+    const last = r.stdout.trim().split('\n').pop()!
+    const payload = JSON.parse(last)
+    expect(payload.failed).toBe(0)
+    expect(payload.results[0]).toMatchObject({ name: 'self-skip', status: 'SKIP' })
+  })
+
+  it('exit 0 + `[SKIP]` marker with no reason text still records SKIP with a fallback message', () => {
+    const r = runHarness(`
+      import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      runCheck('bare-skip', process.execPath, ['-e', "console.log('[SKIP]')"]);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    const last = r.stdout.trim().split('\n').pop()!
+    const payload = JSON.parse(last)
+    expect(payload.results[0]).toMatchObject({ name: 'bare-skip', status: 'SKIP' })
+  })
+
+  it('a genuinely passing check that only mentions "skip" in prose still records PASS (no false-positive)', () => {
+    const r = runHarness(`
+      import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      runCheck('mentions-skip', process.execPath, ['-e', "console.log('note: SKIP_EXTENSIONS=1 handled, 3 files checked')"]);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    const last = r.stdout.trim().split('\n').pop()!
+    const payload = JSON.parse(last)
+    expect(payload.results[0]).toMatchObject({ name: 'mentions-skip', status: 'PASS' })
+  })
+
+  it('an indented "[SKIP]" (not at line start) does not trigger self-skip — PASS stands', () => {
+    const r = runHarness(`
+      import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      runCheck('nested-skip-note', process.execPath, ['-e', "console.log('  SKIP (exception): item-42')"]);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    const last = r.stdout.trim().split('\n').pop()!
+    const payload = JSON.parse(last)
+    expect(payload.results[0]).toMatchObject({ name: 'nested-skip-note', status: 'PASS' })
+  })
 })
 
 describe('run-helpers — runWarnCheck (informational)', () => {

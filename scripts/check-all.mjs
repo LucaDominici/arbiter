@@ -413,6 +413,10 @@ if (isMain) {
       gates: results.map((r) => ({
         name: r.name,
         pass: r.status === 'PASS',
+        // #2052: `pass` alone collapses SKIP into the same false as FAIL —
+        // `status` keeps the full PASS/FAIL/WARN/SKIP distinction visible to
+        // JSON consumers, not just the console summary table.
+        status: r.status,
         durationMs: r.elapsed,
       })),
       parityGates,

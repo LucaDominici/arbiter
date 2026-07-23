@@ -34,6 +34,8 @@ try {
 
   if (!existsSync(SOURCE)) {
     process.stdout.write('check-governance-mirror-sync: SKIP — no AGENTS.md (bootstrap mode)\n')
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] no AGENTS.md (bootstrap mode)\n')
     process.exit(0)
   }
 

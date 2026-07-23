@@ -103,6 +103,8 @@ function stubFor(check) {
 function main() {
   if (!existsSync(resolve(CWD, MANIFEST))) {
     process.stdout.write(`check-doc-set: SKIP — no manifest at ${MANIFEST}\n`)
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write(`[SKIP] no manifest at ${MANIFEST}\n`)
     return 0
   }
   const manifest = parseYaml(readFileSync(resolve(CWD, MANIFEST), 'utf-8'))

@@ -20,6 +20,8 @@ const manifestPath = join(repoRoot, MANIFEST_FILENAME)
 
 if (!existsSync(manifestPath)) {
   console.log(`[domain-api-surface] SKIP — manifest absent (${MANIFEST_FILENAME} not found)`)
+  // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+  console.log(`[SKIP] manifest absent (${MANIFEST_FILENAME} not found)`)
   process.exit(0)
 }
 

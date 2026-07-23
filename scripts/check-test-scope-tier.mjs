@@ -150,6 +150,8 @@ function fallbackSignal(name) {
 function main() {
   if (!existsSync(MANIFEST)) {
     process.stdout.write('[check-test-scope-tier] SKIP — test-pyramid.json not found (NO-DATA)\n')
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] test-pyramid.json not found (NO-DATA)\n')
     return 0
   }
   let manifest
@@ -173,6 +175,8 @@ function main() {
     process.stdout.write(
       '[check-test-scope-tier] SKIP — no gate surface (check-all.mjs / workflows) found\n',
     )
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] no gate surface (check-all.mjs / workflows) found\n')
     return 0
   }
   const broadSuite = BROAD_SUITE_RE.test(gate)
