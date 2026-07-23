@@ -486,6 +486,6 @@
     "path": "run-helpers.mjs",
     "dest": "scripts/lib",
     "reason": "Arbiter self-dogfood (pre-existing divergence surfaced when the script-libs family joined parity scope, #1943 residual c): the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. Reconciliation tracked as follow-up, not silent drift.",
-    "diffHash": "20813964cca65599068efb753a26619594edcc155a4ef236fdbfb84c1973ca78"
+    "diffHash": "8d14f42b8a8db5dc3107f5a5abbba42731e3950b42967fdff1bb46c606dd6df8"
   }
 ]
