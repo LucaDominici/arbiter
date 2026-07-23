@@ -8,8 +8,8 @@ import { makeConfig } from '../helpers.js'
 // canonical setup-node SHA. sync-action-pins (INV-76) does NOT scan composite
 // action.yml, so this render test is the pin guard.
 
-// Canonical setup-node pin the composite consolidates to (v6.4.0).
-const CANONICAL_SETUP_NODE = 'actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e'
+// Canonical setup-node pin the composite consolidates to (v7.0.0).
+const CANONICAL_SETUP_NODE = 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020'
 
 function renderAction(overrides: Record<string, unknown> = {}) {
   return renderTemplate(
@@ -26,7 +26,7 @@ describe('setup-node-pnpm/action.yml.ejs — structural invariants (CANON-18, #1
     expect(renderAction()).toContain('using: composite')
   })
 
-  it('pins the single canonical setup-node SHA (v6.4.0) — INV-76 guard', () => {
+  it('pins the single canonical setup-node SHA (v7.0.0) — INV-76 guard', () => {
     expect(renderAction()).toContain(CANONICAL_SETUP_NODE)
   })
 

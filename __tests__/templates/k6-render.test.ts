@@ -78,10 +78,10 @@ describe('_k6-runner.yml.ejs — render invariants (CANON-04, #895)', () => {
     expect(rendered).not.toContain('if [ -n "${{ inputs.vus }}" ]')
   })
 
-  // #1666: checkout pinned to the canonical v6.0.3 sha; stale v4.2.2 divergence removed.
-  it('pins actions/checkout to the canonical v6.0.3 sha, not stale v4.2.2 (#1666)', () => {
+  // #1666: checkout pinned to the canonical v7.0.1 sha; stale v4.2.2 divergence removed.
+  it('pins actions/checkout to the canonical v7.0.1 sha, not stale v4.2.2 (#1666)', () => {
     const rendered = renderTemplate('github/workflows/_k6-runner.yml.ejs', makeData())
-    expect(rendered).toContain('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0')
+    expect(rendered).toContain('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1')
     expect(rendered).not.toContain('11bd71901bbe5b1630ceea73d27597364c9af683')
   })
 })
