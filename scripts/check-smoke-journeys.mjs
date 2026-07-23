@@ -54,58 +54,124 @@ function globCount(pattern, allFiles) {
   return allFiles.filter((f) => globMatch(pattern, f)).length
 }
 
-async function main() {
+// Reads+parses arbiter.json. Returns null when absent/racily-removed (nothing to compare
+// against); exits directly (INV-96 fail-closed) on a real read or parse error.
+function loadArbiterConfig() {
+  if (!existsSync(ARBITER_PATH)) return null
+
+  let raw
+  try {
+    raw = readFileSync(ARBITER_PATH, 'utf-8')
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return null // race: file removed between existsSync and read
+    process.stderr.write(
+      `[check-smoke-journeys] ERROR — cannot read arbiter.json: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
+  }
+
+  try {
+    return JSON.parse(raw)
+  } catch (err) {
+    process.stderr.write(
+      `[check-smoke-journeys] FAIL — arbiter.json is malformed (${err instanceof Error ? err.message : String(err)}); ` +
+        `cannot verify archetype — fix the file or run arbiter update to regenerate\n`,
+    )
+    process.exit(1)
+  }
+}
+
+// Archetype mismatch guard: stale manifests detectable at gate time. A missing/racily-removed
+// arbiter.json legitimately skips the guard (loadArbiterConfig returns null); a CORRUPT one
+// already exited fail-closed above — silently skipping the archetype check is exactly when
+// manifest drift is most likely to hide.
+function checkArchetypeMatch(manifest) {
+  const arbiter = loadArbiterConfig()
+  if (!arbiter) return
+
+  const mismatch = arbiter.archetype && manifest.archetype && arbiter.archetype !== manifest.archetype
+  if (!mismatch) return
+
+  process.stderr.write(
+    `[check-smoke-journeys] FAIL — manifest generated for archetype ${manifest.archetype} ` +
+      `but arbiter.json declares ${arbiter.archetype} — run arbiter update to regenerate\n`,
+  )
+  process.exit(1)
+}
+
+function checkNaJourney(id, name, journey) {
+  const rationale = typeof journey.rationale === 'string' ? journey.rationale.trim() : ''
+  if (rationale.length >= REASON_MIN_LEN) return false
+  process.stderr.write(
+    `[check-smoke-journeys] FAIL — journey ${id} (${name}) is n/a but rationale is ` +
+      `${rationale.length} chars (min ${REASON_MIN_LEN}): "${rationale}"\n`,
+  )
+  return true
+}
+
+function checkRequiredJourney(id, name, journey, allFiles) {
+  const globs = Array.isArray(journey.globs) ? journey.globs : []
+  if (globs.length === 0) {
+    process.stderr.write(
+      `[check-smoke-journeys] FAIL — required journey ${id} (${name}) has no glob patterns ` +
+        `— add patterns or mark as n/a with rationale\n`,
+    )
+    return true
+  }
+
+  // Validate globs for path traversal
+  for (const g of globs) {
+    if (!validateGlob(g)) {
+      process.stderr.write(
+        `[check-smoke-journeys] ERROR — glob "${g}" in journey ${id} contains path traversal ` +
+          `or is absolute — only relative, non-traversal globs are allowed\n`,
+      )
+      process.exit(2)
+    }
+  }
+
+  // OR semantics: passes if ANY glob matches at least one file
+  const found = globs.some((g) => globCount(g, allFiles) > 0)
+  if (found) return false
+
+  process.stderr.write(
+    `[check-smoke-journeys] FAIL — journey ${id} (${name}) declared but empty ` +
+      `— no files matched: ${globs.join(', ')}\n`,
+  )
+  return true
+}
+
+// Validates one journey. Returns { isNa, violated } — main() aggregates counts/exit codes so
+// exit(2) schema-error paths (path-traversal globs) stay a hard process exit from here.
+function checkJourney(journey, allFiles) {
+  const id = typeof journey.id === 'string' ? journey.id : '?'
+  const name = typeof journey.name === 'string' ? journey.name : id
+  // Fail-closed default: only an explicit "n/a" is n/a; anything else (incl. an absent
+  // status) is REQUIRED — a journey applicable to the archetype cannot be silently skipped.
+  const isNa = journey.status === 'n/a'
+  const violated = isNa
+    ? checkNaJourney(id, name, journey)
+    : checkRequiredJourney(id, name, journey, allFiles)
+  return { isNa, violated }
+}
+
+// Loads smoke-journeys.json. SKIP-exits when absent; exits fail-closed on invalid JSON.
+function loadManifest() {
   if (!existsSync(MANIFEST_PATH)) {
     process.stdout.write('[check-smoke-journeys] SKIP — smoke-journeys.json not found\n')
     process.exit(0)
   }
-
-  let manifest
   try {
-    manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8'))
+    return JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8'))
   } catch (err) {
     process.stderr.write(`[check-smoke-journeys] ERROR — invalid JSON: ${err.message}\n`)
     process.exit(2)
   }
+}
 
-  // Archetype mismatch guard: stale manifests detectable at gate time.
-  // Fail-closed (INV-96): a MISSING arbiter.json (ENOENT race) legitimately skips the
-  // guard, but a CORRUPT/unparseable arbiter.json must FAIL — silently skipping the
-  // archetype check is exactly when manifest drift is most likely to hide.
-  if (existsSync(ARBITER_PATH)) {
-    let arbiterRaw
-    try {
-      arbiterRaw = readFileSync(ARBITER_PATH, 'utf-8')
-    } catch (err) {
-      if (err && err.code === 'ENOENT') {
-        arbiterRaw = undefined // race: file removed between existsSync and read — nothing to compare
-      } else {
-        process.stderr.write(
-          `[check-smoke-journeys] ERROR — cannot read arbiter.json: ${err instanceof Error ? err.message : String(err)}\n`,
-        )
-        process.exit(2)
-      }
-    }
-    if (arbiterRaw !== undefined) {
-      let arbiter
-      try {
-        arbiter = JSON.parse(arbiterRaw)
-      } catch (err) {
-        process.stderr.write(
-          `[check-smoke-journeys] FAIL — arbiter.json is malformed (${err instanceof Error ? err.message : String(err)}); ` +
-            `cannot verify archetype — fix the file or run arbiter update to regenerate\n`,
-        )
-        process.exit(1)
-      }
-      if (arbiter.archetype && manifest.archetype && arbiter.archetype !== manifest.archetype) {
-        process.stderr.write(
-          `[check-smoke-journeys] FAIL — manifest generated for archetype ${manifest.archetype} ` +
-            `but arbiter.json declares ${arbiter.archetype} — run arbiter update to regenerate\n`,
-        )
-        process.exit(1)
-      }
-    }
-  }
+async function main() {
+  const manifest = loadManifest()
+  checkArchetypeMatch(manifest)
 
   // Applicability SKIP (INV-126 precedent): an archetype with no interactive login/CRUD/authz
   // journeys declares applicable:false. Checked BEFORE the all-n/a / rationale guards so a
@@ -133,55 +199,9 @@ async function main() {
   const totalJourneys = manifest.journeys.length
 
   for (const journey of manifest.journeys) {
-    const id = typeof journey.id === 'string' ? journey.id : '?'
-    const name = typeof journey.name === 'string' ? journey.name : id
-    // Fail-closed default: only an explicit "n/a" is n/a; anything else (incl. an absent
-    // status) is REQUIRED — a journey applicable to the archetype cannot be silently skipped.
-    const status = journey.status === 'n/a' ? 'n/a' : 'required'
-
-    if (status === 'n/a') {
-      naCount++
-      const rationale = typeof journey.rationale === 'string' ? journey.rationale.trim() : ''
-      if (rationale.length < REASON_MIN_LEN) {
-        process.stderr.write(
-          `[check-smoke-journeys] FAIL — journey ${id} (${name}) is n/a but rationale is ` +
-            `${rationale.length} chars (min ${REASON_MIN_LEN}): "${rationale}"\n`,
-        )
-        violations++
-      }
-      continue
-    }
-
-    const globs = Array.isArray(journey.globs) ? journey.globs : []
-    if (globs.length === 0) {
-      process.stderr.write(
-        `[check-smoke-journeys] FAIL — required journey ${id} (${name}) has no glob patterns ` +
-          `— add patterns or mark as n/a with rationale\n`,
-      )
-      violations++
-      continue
-    }
-
-    // Validate globs for path traversal
-    for (const g of globs) {
-      if (!validateGlob(g)) {
-        process.stderr.write(
-          `[check-smoke-journeys] ERROR — glob "${g}" in journey ${id} contains path traversal ` +
-            `or is absolute — only relative, non-traversal globs are allowed\n`,
-        )
-        process.exit(2)
-      }
-    }
-
-    // OR semantics: passes if ANY glob matches at least one file
-    const found = globs.some((g) => globCount(g, allFiles) > 0)
-    if (!found) {
-      process.stderr.write(
-        `[check-smoke-journeys] FAIL — journey ${id} (${name}) declared but empty ` +
-          `— no files matched: ${globs.join(', ')}\n`,
-      )
-      violations++
-    }
+    const { isNa, violated } = checkJourney(journey, allFiles)
+    if (isNa) naCount++
+    if (violated) violations++
   }
 
   // All-n/a hard fail
