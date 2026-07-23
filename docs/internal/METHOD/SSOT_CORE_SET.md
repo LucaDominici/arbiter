@@ -30,6 +30,7 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `CONTRIBUTING.md` — Contributing to arbiter
 - `docs/GOVERNANCE.md` — Governance — arbiter
 - `docs/methodology/agent-orchestration-and-context-hygiene.md` — Agent Orchestration and Context Hygiene — Operating Standard
+- `docs/methodology/gate-throughput-patterns.md` — Gate-Throughput Patterns — Operating Standard
 
 ### Method
 
