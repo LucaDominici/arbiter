@@ -140,26 +140,45 @@ function recordPass(name, elapsed) {
 }
 
 /**
+ * True (and recorded) when `name` is in the selective-gate skip set — callers
+ * must return immediately without spawning. Split out of the runCheck trinity
+ * to keep each runner's own complexity under the ratchet (#2094).
+ */
+function skipIfSelected(name) {
+  if (!skippedChecks.has(name)) return false
+  recordSkip(name, 0, 'selective gate: no affected files changed')
+  return true
+}
+
+/**
+ * Classifies a spawn-level error (missing binary / timeout / buffer overflow)
+ * into the identical detail message all three runners use. Returns null when
+ * `r` completed without a spawn-level error (status may still be non-zero).
+ * ENOENT handling is NOT unconditional here — runToolCheck's CI-aware branch
+ * checks `r.error?.code === 'ENOENT'` itself, before this ever runs, so by the
+ * time it's called ENOENT (for that runner) is already handled.
+ */
+function classifySpawnError(r, cmd, elapsed, opts) {
+  if (!r.error) return null
+  if (r.error.code === 'ENOENT') return { detail: `command not found: ${cmd}` }
+  if (r.error.code === 'ETIMEDOUT') return { detail: `timeout after ${elapsed}ms` }
+  if (r.error.code === 'ENOBUFS') {
+    const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES
+    return { detail: `output exceeded buffer (limit ${limit} bytes)` }
+  }
+  return null
+}
+
+/**
  * HARD gate step. Non-zero exit fails the gate (failed++).
  */
 export function runCheck(name, cmd, args, opts = {}) {
-  if (skippedChecks.has(name)) {
-    recordSkip(name, 0, 'selective gate: no affected files changed')
-    return
-  }
+  if (skipIfSelected(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
-  if (r.error && r.error.code === 'ENOENT') {
-    recordFail(name, elapsed, `command not found: ${cmd}`)
-    return
-  }
-  if (r.error && r.error.code === 'ETIMEDOUT') {
-    recordFail(name, elapsed, `timeout after ${elapsed}ms`)
-    return
-  }
-  if (r.error && r.error.code === 'ENOBUFS') {
-    const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES
-    recordFail(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`)
+  const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
+  if (spawnErr) {
+    recordFail(name, elapsed, spawnErr.detail)
     return
   }
   if (r.status === 0) {
@@ -184,23 +203,12 @@ export function runCheck(name, cmd, args, opts = {}) {
  * INFORMATIONAL gate step. Non-zero exit records WARN, never fails the gate.
  */
 export function runWarnCheck(name, cmd, args, opts = {}) {
-  if (skippedChecks.has(name)) {
-    recordSkip(name, 0, 'selective gate: no affected files changed')
-    return
-  }
+  if (skipIfSelected(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
-  if (r.error && r.error.code === 'ENOENT') {
-    recordWarn(name, elapsed, `command not found: ${cmd}`)
-    return
-  }
-  if (r.error && r.error.code === 'ETIMEDOUT') {
-    recordWarn(name, elapsed, `timeout after ${elapsed}ms`)
-    return
-  }
-  if (r.error && r.error.code === 'ENOBUFS') {
-    const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES
-    recordWarn(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`)
+  const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
+  if (spawnErr) {
+    recordWarn(name, elapsed, spawnErr.detail)
     return
   }
   if (r.status === 0) {
@@ -215,13 +223,10 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
  * CI-AWARE TOOL gate step. Missing binary => SKIP locally, FAIL in CI.
  */
 export function runToolCheck(name, cmd, args, opts = {}) {
-  if (skippedChecks.has(name)) {
-    recordSkip(name, 0, 'selective gate: no affected files changed')
-    return
-  }
+  if (skipIfSelected(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
-  if (r.error && r.error.code === 'ENOENT') {
+  if (r.error?.code === 'ENOENT') {
     if (IS_CI()) {
       recordFail(name, elapsed, `tool not installed in CI: ${cmd}`)
     } else {
@@ -229,13 +234,9 @@ export function runToolCheck(name, cmd, args, opts = {}) {
     }
     return
   }
-  if (r.error && r.error.code === 'ETIMEDOUT') {
-    recordFail(name, elapsed, `timeout after ${elapsed}ms`)
-    return
-  }
-  if (r.error && r.error.code === 'ENOBUFS') {
-    const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES
-    recordFail(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`)
+  const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
+  if (spawnErr) {
+    recordFail(name, elapsed, spawnErr.detail)
     return
   }
   if (r.status === 0) {

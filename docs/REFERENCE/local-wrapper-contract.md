@@ -2,7 +2,7 @@
 title: 'Local-Wrapper Contract (INV-87, W3)'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-07-23'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -61,6 +61,21 @@ Enforcement: `scripts/check-local-ci-parity.mjs` runs two checks:
 ## `make ci` = `make gate`
 
 `ci` is a POSIX dependency alias (`ci: gate`). It exists so contributors can type `make ci` (CI-vernacular) and get the same behavior as `make gate`. Both run `node scripts/check-all.mjs gate`.
+
+## Selective gating for local iteration (self-only, #2094)
+
+`ARBITER_SELECTIVE_GATE=1 node scripts/check-all.mjs gate --level L2` skips checks whose
+`scripts/lib/gate-affects-registry.mjs` entry proves untouched by the current diff vs
+`origin/main` (working tree + untracked files, so it's meaningful pre-commit). Coarse
+buckets only — docs-only, `.github/**`-only, `src/templates/**`-only — everything else
+defaults to always-run. A blacklist (`package.json`, `scripts/lib/**`, the gate script
+itself, etc.) forces the full gate when a change could plausibly affect every check.
+
+This is a **local speed tool only**. CI and any pre-push/pre-merge invocation always run
+the full, unfiltered gate — the flag has no effect under `CI=true`/`GITHUB_ACTIONS=true`,
+and no merge is ever gated by a selective run. It is arbiter-self-specific (reasons about
+arbiter's own ~145-check self-gate) and is not part of what `arbiter init`/`arbiter update`
+emits to consumer projects.
 
 ## W10 Deferral: simulate-nightly / simulate-weekly
 

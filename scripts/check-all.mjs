@@ -107,11 +107,11 @@ if (isMain) {
         timeout: 6000,
       })
       // git diff never lists untracked files; a brand-new file is still a real change.
-      const untracked = execFileSync(
-        'git',
-        ['ls-files', '--others', '--exclude-standard'],
-        { encoding: 'utf-8', cwd: GIT_CWD, timeout: 6000 },
-      )
+      const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], {
+        encoding: 'utf-8',
+        cwd: GIT_CWD,
+        timeout: 6000,
+      })
       const changedFiles = [...trackedDiff.split('\n'), ...untracked.split('\n')]
         .map((s) => s.trim())
         .filter(Boolean)
