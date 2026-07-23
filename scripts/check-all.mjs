@@ -29,8 +29,16 @@ import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { minimatch } from 'minimatch'
-import { runCheck, runWarnCheck, runToolCheck, getResults, getFailed } from './lib/run-helpers.mjs'
+import {
+  runCheck,
+  runWarnCheck,
+  runToolCheck,
+  getResults,
+  getFailed,
+  setSkippedChecks,
+} from './lib/run-helpers.mjs'
 import { parseCheckArgs } from './lib/parse-check-args.mjs'
+import { GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST } from './lib/gate-affects-registry.mjs'
 
 // isMain guard so computeSkipped can be imported without running checks.
 const isMain = process.argv[1] === fileURLToPath(import.meta.url)
@@ -80,6 +88,52 @@ if (isMain) {
   // Gates excluded from parityContentHash (INV-59): these differ structurally between
   // local and CI environments — PR-only gates or tests run with different selectors.
   const PARITY_EXCLUDE = new Set(['commitlint', 'docs', 'unit tests'])
+
+  // Opt-in selective gating (#2094): local iteration speed only, never a merge
+  // gate — CI and any pre-push/pre-merge invocation always run the full,
+  // unfiltered gate. ARBITER_SELECTIVE_GATE=1 computes changed files against
+  // origin/main — committed AND uncommitted (this is a pre-commit iteration
+  // tool; using only `origin/main...HEAD` would see an empty diff before the
+  // first commit and skip every check, including ALWAYS-bucket ones) — and
+  // skips checks whose affects-registry entry proves untouched.
+  const _isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
+  if (process.env.ARBITER_SELECTIVE_GATE === '1' && !_isCI) {
+    try {
+      // Two-dot: merge-base(origin/main, HEAD) vs the CURRENT WORKING TREE —
+      // includes staged, unstaged, and committed-since-merge-base changes.
+      const trackedDiff = execFileSync('git', ['diff', '--name-only', 'origin/main'], {
+        encoding: 'utf-8',
+        cwd: GIT_CWD,
+        timeout: 6000,
+      })
+      // git diff never lists untracked files; a brand-new file is still a real change.
+      const untracked = execFileSync(
+        'git',
+        ['ls-files', '--others', '--exclude-standard'],
+        { encoding: 'utf-8', cwd: GIT_CWD, timeout: 6000 },
+      )
+      const changedFiles = [...trackedDiff.split('\n'), ...untracked.split('\n')]
+        .map((s) => s.trim())
+        .filter(Boolean)
+      // No diff at all vs origin/main => nothing to reason about; run the full
+      // gate rather than let an empty changedFiles array read as "skip everything".
+      const skipped =
+        changedFiles.length === 0
+          ? new Set()
+          : computeSkipped(changedFiles, GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST)
+      setSkippedChecks(skipped)
+      if (skipped.size > 0) {
+        process.stdout.write(
+          `[selective-gate] ${skipped.size} check(s) skipped (no affected files in diff vs origin/main)\n`,
+        )
+      }
+    } catch (err) {
+      // git diff failure (e.g. no origin/main locally, detached HEAD) => full gate, fail safe.
+      process.stdout.write(
+        `[selective-gate] could not compute diff (${err instanceof Error ? err.message : String(err)}) — running full gate\n`,
+      )
+    }
+  }
 
   process.stdout.write('\n')
   process.stdout.write(`=== arbiter Quality Gate: ${subcommand} [${level}] ===\n`)

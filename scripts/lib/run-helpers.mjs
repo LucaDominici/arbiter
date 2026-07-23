@@ -64,6 +64,18 @@ function detectSelfSkip(stdout) {
 let results = []
 let failed = 0
 
+// Opt-in selective gating (#2094): a name-based skip set computed by
+// computeSkipped() in check-all.mjs and installed via setSkippedChecks()
+// before any runCheck/runWarnCheck/runToolCheck call. Empty by default —
+// every check runs unless a caller explicitly opts in. This is a LOCAL
+// iteration speed tool only; it never gates a real push or merge (see #2094
+// issue body — the full, unfiltered gate remains the only merge authority).
+let skippedChecks = new Set()
+
+export function setSkippedChecks(names) {
+  skippedChecks = names instanceof Set ? names : new Set(names)
+}
+
 export function getResults() {
   return results
 }
@@ -75,6 +87,7 @@ export function getFailed() {
 export function resetState() {
   results = []
   failed = 0
+  skippedChecks = new Set()
 }
 
 /**
@@ -130,6 +143,10 @@ function recordPass(name, elapsed) {
  * HARD gate step. Non-zero exit fails the gate (failed++).
  */
 export function runCheck(name, cmd, args, opts = {}) {
+  if (skippedChecks.has(name)) {
+    recordSkip(name, 0, 'selective gate: no affected files changed')
+    return
+  }
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   if (r.error && r.error.code === 'ENOENT') {
@@ -167,6 +184,10 @@ export function runCheck(name, cmd, args, opts = {}) {
  * INFORMATIONAL gate step. Non-zero exit records WARN, never fails the gate.
  */
 export function runWarnCheck(name, cmd, args, opts = {}) {
+  if (skippedChecks.has(name)) {
+    recordSkip(name, 0, 'selective gate: no affected files changed')
+    return
+  }
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   if (r.error && r.error.code === 'ENOENT') {
@@ -194,6 +215,10 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
  * CI-AWARE TOOL gate step. Missing binary => SKIP locally, FAIL in CI.
  */
 export function runToolCheck(name, cmd, args, opts = {}) {
+  if (skippedChecks.has(name)) {
+    recordSkip(name, 0, 'selective gate: no affected files changed')
+    return
+  }
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   if (r.error && r.error.code === 'ENOENT') {
