@@ -3,7 +3,10 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect, beforeEach } from 'vitest'
-import { GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST } from '../../scripts/lib/gate-affects-registry.mjs'
+import {
+  GATE_AFFECTS_REGISTRY,
+  GATE_SKIP_BLACKLIST,
+} from '../../scripts/lib/gate-affects-registry.mjs'
 
 // Unit tests for selective gating logic (ADR-053)
 // Tests the computeSkipped() pure function exported from scripts/check-all.mjs.
@@ -129,15 +132,24 @@ describe('computeSkipped — input validation', () => {
 // (ALWAYS is safe, but an untracked rename is still a registry bug).
 describe('GATE_AFFECTS_REGISTRY — real registry coverage + representative samples', () => {
   it('covers every check name declared in check-all.mjs (runCheck/runWarnCheck/runToolCheck)', () => {
-    const source = readFileSync(resolve(import.meta.dirname, '../../scripts/check-all.mjs'), 'utf-8')
+    const source = readFileSync(
+      resolve(import.meta.dirname, '../../scripts/check-all.mjs'),
+      'utf-8',
+    )
     const declared = new Set(
       [...source.matchAll(/run(?:Check|WarnCheck|ToolCheck)\(\s*'([^']+)'/g)].map((m) => m[1]),
     )
     const registered = new Set(GATE_AFFECTS_REGISTRY.map((e) => e.name))
     const missing = [...declared].filter((n) => !registered.has(n))
     const stale = [...registered].filter((n) => !declared.has(n))
-    expect(missing, `check(s) in check-all.mjs missing from registry: ${missing.join(', ')}`).toEqual([])
-    expect(stale, `registry entries no longer declared in check-all.mjs: ${stale.join(', ')}`).toEqual([])
+    expect(
+      missing,
+      `check(s) in check-all.mjs missing from registry: ${missing.join(', ')}`,
+    ).toEqual([])
+    expect(
+      stale,
+      `registry entries no longer declared in check-all.mjs: ${stale.join(', ')}`,
+    ).toEqual([])
   })
 
   it('registry has no duplicate names', () => {
@@ -146,7 +158,11 @@ describe('GATE_AFFECTS_REGISTRY — real registry coverage + representative samp
   })
 
   it('docs-only change: wiki lint runs (affected), actionlint + template tests skip (unaffected)', () => {
-    const skipped = computeSkipped(['docs/technical-debt.md'], GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST)
+    const skipped = computeSkipped(
+      ['docs/technical-debt.md'],
+      GATE_AFFECTS_REGISTRY,
+      GATE_SKIP_BLACKLIST,
+    )
     expect(skipped.has('wiki lint (INV-116)')).toBe(false)
     expect(skipped.has('actionlint')).toBe(true)
     expect(skipped.has('template tests')).toBe(true)
@@ -235,7 +251,10 @@ describe('check-all.mjs ARBITER_SELECTIVE_GATE integration — real git diff', (
     // Guards the contract without spawning the real ~10min gate: absence of the
     // env var must never install a skip set. See scripts/check-all.mjs's isMain
     // block — the whole selective-gate branch is behind `ARBITER_SELECTIVE_GATE === '1'`.
-    const source = readFileSync(resolve(import.meta.dirname, '../../scripts/check-all.mjs'), 'utf-8')
+    const source = readFileSync(
+      resolve(import.meta.dirname, '../../scripts/check-all.mjs'),
+      'utf-8',
+    )
     expect(source).toMatch(/ARBITER_SELECTIVE_GATE === '1'/)
     expect(source).toMatch(/!_isCI/)
   })

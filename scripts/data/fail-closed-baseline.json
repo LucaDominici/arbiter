@@ -111,6 +111,7 @@
     "scripts/gold-audit.mjs",
     "scripts/gold-report.mjs",
     "scripts/lib/derived-artifacts.mjs",
+    "scripts/lib/gate-affects-registry.mjs",
     "scripts/lib/log-bypass.mjs",
     "scripts/lib/loud-bypass.mjs",
     "scripts/pii-scan.mjs",

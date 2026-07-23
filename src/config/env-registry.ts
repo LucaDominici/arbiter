@@ -220,6 +220,16 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     purpose: 'Maximum allowed length of a workflow `needs:` dependency chain.',
     isGateBypass: false,
   },
+  {
+    name: 'ARBITER_SELECTIVE_GATE',
+    type: 'boolean',
+    default: false,
+    purpose:
+      'Opt-in local-only speed mode (#2094): skip gate checks whose affects-registry entry ' +
+      'proves untouched by the current diff vs origin/main. Never gates CI or a real push — ' +
+      'the full unfiltered gate is the only merge authority.',
+    isGateBypass: false,
+  },
   // ── Loud-bypass audit metadata (ADR-072) ─────────────────────────────────
   {
     name: 'ARBITER_BYPASS_LOG_PATH',
