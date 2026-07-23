@@ -110,6 +110,7 @@
     "scripts/gen-wiki.mjs",
     "scripts/gold-audit.mjs",
     "scripts/gold-report.mjs",
+    "scripts/lib/derived-artifacts.mjs",
     "scripts/lib/log-bypass.mjs",
     "scripts/lib/loud-bypass.mjs",
     "scripts/pii-scan.mjs",

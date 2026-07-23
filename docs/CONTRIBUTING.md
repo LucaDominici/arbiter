@@ -89,6 +89,11 @@ for low-level engine control or recovery (`arbiter task advance`, `record-red`, 
 ## When something fails
 
 - Gate red on lint/format → `npm run format && npm run lint --fix`
+- Gate red on a derived-doc check (wiki lint, doc index, llms.txt, status dashboard, gap
+  register, ADR digest, CLI ref, third-party licenses, feature matrix, action pins,
+  governance mirror) → `npm run regen` before re-running the gate; these gates read
+  generated state that a prior source edit staled but never regenerated (see
+  `scripts/lib/derived-artifacts.mjs`)
 - Gate red on tests → run the failing test in isolation; do not bypass with `--no-verify`
 - Gate red on TDD evidence (#NNN.json missing) → `arbiter task record-red --test-path <file>`
   (commit the RED test first — `record-red` refuses on a dirty/uncommitted `__tests__/**`, #1988)
