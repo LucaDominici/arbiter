@@ -89,7 +89,8 @@ function checkArchetypeMatch(manifest) {
   const arbiter = loadArbiterConfig()
   if (!arbiter) return
 
-  const mismatch = arbiter.archetype && manifest.archetype && arbiter.archetype !== manifest.archetype
+  const mismatch =
+    arbiter.archetype && manifest.archetype && arbiter.archetype !== manifest.archetype
   if (!mismatch) return
 
   process.stderr.write(
