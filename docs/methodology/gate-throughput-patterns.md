@@ -43,10 +43,11 @@ granularity changes (one gate covers N issues, not N gates covering N issues).
 gate-cycle savings for merge-conflict risk and unclear failure attribution. Cluster only
 what was already meant to be sequential.
 
-**Validated:** viafera's `preparation` module epic (4 issues, explicitly chained) landed
-as one PR — 1 gate cycle instead of 4. See the consuming project's own PROCESS_CORE.md
-(or equivalent execution-governance doc) for the project-specific codification; this
-document is the portable pattern, not the project-specific enforcement point.
+**Validated:** a consuming project's `preparation` module epic (4 issues, explicitly
+chained) landed as one PR — 1 gate cycle instead of 4. See that project's own
+PROCESS_CORE.md (or equivalent execution-governance doc) for the project-specific
+codification and its `scripts/gates/chain-batching.sh`-class detector; this document is
+the portable pattern, not the project-specific enforcement point.
 
 ---
 
