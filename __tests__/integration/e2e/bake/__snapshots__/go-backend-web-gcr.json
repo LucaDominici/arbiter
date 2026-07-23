@@ -258,7 +258,7 @@
     "muted-tests-baseline.json": "591ba0e9f6b642dcdb4528a2ee8ea56c0a8418a7c9cdb0d745f6cee53b922df1",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
     "schemas/agent-return.schema.json": "d5414e53c5ab588d37c439b838830540e658d7ac3a6efa3e159a5df2f5f73e18",
-    "scripts/check-action-pins.mjs": "b6dbac9192666d59b6218a5ede7308972e0e2e93acbb455657bb909e56d2f848",
+    "scripts/check-action-pins.mjs": "b39f0635224974313be160df945f5c574a7cde40991708ba18a1e8f4600e15d2",
     "scripts/check-all.mjs": "451a1a013c75f8edb276dbce9248688ee0a0a5f892dfdc076f84a59bbbd32df1",
     "scripts/check-anti-fake-green.mjs": "0d80f4e025a95c0e1c7883afa01c367acce9a1eb0175bcb8914e1feed5ad02cb",
     "scripts/check-anti-proforma.mjs": "69ba6c4c4b470a1b7cc8ff9f309f03730c5b6e78bc8fbec250b245f7406f6659",
