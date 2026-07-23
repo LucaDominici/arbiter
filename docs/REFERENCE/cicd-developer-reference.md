@@ -55,6 +55,11 @@ The frozen fixture is `__tests__/fixtures/ci-tier-render-context.json` — edit 
 | `scripts/check-workflow-perms.mjs`  | Assert all workflows declare top-level permissions (INV-77)            | L1    |
 | `scripts/check-local-ci-parity.mjs` | Assert local Makefile targets match CI workflow steps (INV-87)         | L1/L2 |
 
+`check-local-ci-parity.mjs` validates level parity bidirectionally (#2042): every `check-all.mjs`
+check ID needs a `CI_COVERAGE`/`CI_SKIP_SET` entry, and every `CI_COVERAGE` job-name value must be
+a real, current job in `.github/workflows/*.yml` — catching a job rename that would otherwise
+silently desync the map.
+
 Run all checks:
 
 ```bash
