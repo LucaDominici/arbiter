@@ -32,7 +32,7 @@
  *   - src/utils/run-cli.ts: runInteractive inherits stdio and applies no
  *     timeout — exactly what a long gate under a mutex needs (INV-12).
  */
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -94,6 +94,37 @@ export interface GateExecOptions {
 }
 
 /**
+ * Advisory-only queue-depth check (#2098). Counts current holders/waiters on
+ * `lockPath` via the target project's own generated `scripts/lib/waiter-count.mjs`
+ * — the ONE shared implementation this shells out to rather than duplicating,
+ * also used by `scripts/capacity-probe.mjs`. gate-exec.ts ships compiled into
+ * dist/ WITHOUT scripts/ (see package.json "files"), so it cannot statically
+ * import a file that only exists in a target project's own checked-out tree;
+ * shelling out from `dir` (the target project) reaches the same file.
+ *
+ * Returns the advisory line once depth reaches >= 2 (this process about to
+ * join the queue makes 3+), or null when the helper is absent/broken or the
+ * queue is shallow. Never throws — this is UX, not the mutex itself.
+ */
+export function gateQueueAdvisory(dir: string, lockPath: string): string | null {
+  const helperPath = resolve(dir, 'scripts', 'lib', 'waiter-count.mjs')
+  if (!existsSync(helperPath)) return null
+  try {
+    const { stdout } = runCli('node', [helperPath, lockPath], { timeoutMs: 5_000 })
+    const count = Number(stdout.trim())
+    if (!Number.isFinite(count) || count < 2) return null
+    return (
+      `gate-exec: ${count} process(es) already queued on this mutex — CI is authoritative; ` +
+      'consider pushing instead of waiting: ARBITER_PREPUSH_BYPASS=true ' +
+      'ARBITER_PREPUSH_BYPASS_REASON="<reason>" git push (see docs/REFERENCE/api.md)'
+    )
+    // FAIL-OPEN-INTENT: advisory line — a broken/missing/timed-out helper must never block the mutex.
+  } catch {
+    return null
+  }
+}
+
+/**
  * Run `cmdArgs` under the per-repo gate mutex. Blocks (kernel-side) until the
  * lock is free, inherits stdio, and returns the child's exit code verbatim.
  */
@@ -103,6 +134,8 @@ export function runGateExec(opts: GateExecOptions): number {
   const key = opts.key ?? deriveGateKey(dir)
   const lockPath = gateLockPath(key)
   process.stderr.write(`gate-exec: mutex ${lockPath} (blocking until free)\n`)
+  const advisory = gateQueueAdvisory(dir, lockPath)
+  if (advisory) process.stderr.write(`${advisory}\n`)
   const [flockBin, ...flockArgs] = gateExecArgv(lockPath, opts.cmdArgs)
   const { exitCode } = runInteractive(flockBin as string, flockArgs, { cwd: dir })
   return exitCode

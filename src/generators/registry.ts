@@ -80,6 +80,7 @@ import { generateApiE2e } from './api-e2e.js'
 import { generateSmokeJourneys } from './smoke-journeys.js'
 import { generateSoloException } from './solo-exception.js'
 import { generateWiki } from './wiki.js'
+import { generatePrTooling } from './pr-tooling.js'
 import { generateConformanceScript } from './conformance.js'
 import { generateGoldKit } from './gold-kit.js'
 import { generateDocSetSkeletons } from './doc-set.js'
@@ -650,6 +651,15 @@ export function buildRegistry(
       key: 'wiki',
       enabled: config.governanceLevel !== 'L1',
       run: (opts) => generateWiki(config, opts).files,
+    },
+    {
+      // #2098: pr-merge-watch (merge-on-green watcher) + capacity-probe
+      // (queue-depth advisory) + their shared waiter-count helper.
+      // Orchestration glue, not gate infrastructure — always-on like
+      // conformance/gold-kit, no governance-level gate.
+      key: 'pr-tooling',
+      enabled: true,
+      run: (opts) => generatePrTooling(config, opts).files,
     },
     {
       // #1398 (INV-128): conformance scorecard runner — always-on; the script delegates
