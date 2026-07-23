@@ -1,17 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
-// CATALOG: #1984 — shared stale-dist guard consumed by check-self-dogfood.mjs
-// CATALOG:   (R-02 external CI-surface parity) and check-codex-self-parity.mjs
-// CATALOG:   (emission via compiled dist). Both gates dynamically import
-// CATALOG:   compiled JS from dist/ because scripts/ cannot import .ts
-// CATALOG:   directly (#1267); their existing catch blocks only handled a
-// CATALOG:   MISSING/unimportable build, not a STALE one built before the
-// CATALOG:   current src/ changes — a stale dist silently reported green.
-// CATALOG:   A single mtime-comparison helper closes the gap for both call
-// CATALOG:   sites instead of duplicating the walk-and-compare logic.
+// CATALOG: #1984/#2089 — shared stale-dist guard consumed by
+// CATALOG:   check-self-dogfood.mjs (R-02 external CI-surface parity) and
+// CATALOG:   check-codex-self-parity.mjs (emission via compiled dist). Both
+// CATALOG:   gates dynamically import compiled JS from dist/ because scripts/
+// CATALOG:   cannot import .ts directly (#1267); their catch blocks only handled
+// CATALOG:   a MISSING build, not a STALE one — a stale dist silently reported
+// CATALOG:   green. A single freshness helper closes the gap for both call sites.
+// CATALOG:
+// CATALOG:   #2089: the freshness check was mtime-based (newest src/ mtime vs
+// CATALOG:   newest dist/ mtime), which false-positived stale in two ways with no
+// CATALOG:   content change: (a) CI cache-restore skew — `git checkout` resets
+// CATALOG:   src/ mtimes to checkout time while an actions/cache-restored dist/
+// CATALOG:   keeps its older cache mtime, so any cache HIT looks stale; (b) local
+// CATALOG:   edit-then-verify skew — any Edit/Write bumps a src/ file's mtime to
+// CATALOG:   now even when the bytes are unchanged (touch / same-content rewrite).
+// CATALOG:   It now compares a CONTENT hash of the watched src/ files against the
+// CATALOG:   hash writeDistManifest() records inside dist/ at build time, so
+// CATALOG:   filesystem timestamps never enter the decision.
 //
-// Pure module — no process exit. Callers decide how to surface `fresh: false`
-// (both current consumers fail closed with an exit-2-class error).
-import { statSync, existsSync } from 'node:fs'
+// Pure comparison — checkDistFresh() has no process exit; callers decide how to
+// surface `fresh: false` (both fail closed with an exit-2-class error).
+// writeDistManifest() is the one writer: it is invoked ONLY from the full
+// `npm run build` (scripts/write-dist-manifest.mjs), never from build-kit.mjs —
+// build-kit reruns after the CI cache-restore and would regenerate the manifest
+// against current src/, making the freshness guard vacuous.
+import { createHash } from 'node:crypto'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { walkRepo } from './glob-walk.mjs'
 
@@ -23,63 +37,110 @@ export const DEFAULT_WATCHED_SRC_DIRS = [
   'src/config',
 ]
 
+/** Manifest, written inside dist/ so it travels with an actions/cache save+restore (#2089). */
+export const MANIFEST_REL_PATH = 'dist/.src-manifest.json'
+
 /**
- * Newest mtimeMs found by walking `root`/`relDir`, or -Infinity if the dir is
- * absent/empty/unreadable (walkRepo already swallows per-entry stat errors).
+ * sha256 over every watched src/ file: repo-root-relative POSIX path + NUL +
+ * bytes + NUL, in path order. Keyed on the RELATIVE path (never the absolute
+ * root) so the digest is identical across machines/CI runners with different
+ * checkout locations. walkRepo already prunes dist/ and vendor trees and yields
+ * paths relative to the walked dir.
+ *
+ * @param {string} root - repo root containing the watched src dirs.
+ * @param {string[]} [srcDirs] - override the watched src subtrees.
+ * @returns {string} lowercase hex sha256.
  */
-function newestMtimeMs(root, relDir) {
-  const abs = join(root, relDir)
-  if (!existsSync(abs)) return -Infinity
-  let newest = -Infinity
-  for (const rel of walkRepo(abs)) {
-    try {
-      const mtimeMs = statSync(join(abs, rel)).mtimeMs
-      if (mtimeMs > newest) newest = mtimeMs
-    } catch {
-      // FAIL-OPEN-INTENT: a single unreadable file cannot make the whole
-      // freshness check throw — it is excluded from the max and the
-      // comparison proceeds over the remaining, readable files.
+export function computeWatchedSrcHash(root, srcDirs = DEFAULT_WATCHED_SRC_DIRS) {
+  /** @type {Array<[string, Buffer]>} */
+  const entries = []
+  for (const dir of srcDirs) {
+    const abs = join(root, dir)
+    if (!existsSync(abs)) continue
+    for (const rel of walkRepo(abs)) {
+      try {
+        entries.push([`${dir}/${rel}`, readFileSync(join(abs, rel))])
+      } catch {
+        // FAIL-OPEN-INTENT: a single unreadable file cannot make the whole hash
+        // throw — it is excluded here AND (identically) by writeDistManifest, so
+        // a consistently-unreadable file hashes the same on both sides. Only a
+        // TRANSIENTLY unreadable file diverges, and that fails closed (stale).
+      }
     }
   }
-  return newest
+  entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  const h = createHash('sha256')
+  for (const [relKey, content] of entries) {
+    h.update(relKey)
+    h.update('\0')
+    h.update(content)
+    h.update('\0')
+  }
+  return h.digest('hex')
 }
 
 /**
- * Compare the newest mtime under `dist/` against the newest mtime under the
- * watched src/ subtrees. Fails closed (fresh: false) when dist/ is missing,
- * empty, or predates the newest watched source file — the same class of
- * failure as a missing/unimportable build.
+ * Record the watched src/ content hash at dist/.src-manifest.json. Invoked as
+ * the LAST step of `npm run build` (scripts/write-dist-manifest.mjs). Throws on
+ * write failure — fail-closed by nature (a build that cannot record its manifest
+ * must not report success).
+ *
+ * @param {string} root - repo root; dist/ is created if absent.
+ * @param {{ srcDirs?: string[] }} [opts]
+ * @returns {string} the recorded hash.
+ */
+export function writeDistManifest(root, opts = {}) {
+  const srcDirs = opts.srcDirs ?? DEFAULT_WATCHED_SRC_DIRS
+  const srcHash = computeWatchedSrcHash(root, srcDirs)
+  mkdirSync(join(root, 'dist'), { recursive: true })
+  writeFileSync(join(root, MANIFEST_REL_PATH), `${JSON.stringify({ srcHash })}\n`)
+  return srcHash
+}
+
+/** Read the recorded srcHash, or null if dist/manifest is absent/malformed. */
+function readManifestHash(root) {
+  const manifestPath = join(root, MANIFEST_REL_PATH)
+  if (!existsSync(manifestPath)) return null
+  // JSON.parse can throw only on a truncated/corrupt manifest (interrupted
+  // write) — a loud throw there is the correct fail-closed outcome, and a
+  // rebuild fixes it. The common missing-manifest path is handled above.
+  const parsed = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+  return parsed && typeof parsed.srcHash === 'string' ? parsed.srcHash : null
+}
+
+/**
+ * Report whether dist/ is fresh relative to the watched src/ subtrees by
+ * comparing content hashes (#2089 — never filesystem mtimes). Fails closed
+ * (fresh: false) when dist/ is missing, its manifest is missing/malformed, or
+ * the current watched src/ content differs from what the manifest recorded.
  *
  * @param {string} root - repo root containing both `dist/` and the src dirs.
  * @param {{ srcDirs?: string[] }} [opts] - override the watched src subtrees.
  * @returns {{ fresh: boolean, reason?: string }}
  */
 export function checkDistFresh(root, opts = {}) {
-  // NOTE: this guard trusts filesystem mtimes, which assumes a freshly-built
-  // dist/. A tar-based cache restore (e.g. actions/cache) preserves each
-  // archived file's original mtime, so a cache-restored dist/ can compare as
-  // fresh (or stale) independent of whether it actually matches current src/.
-  // CI jobs that wire cache-restore together with this guard must rebuild
-  // dist/ after restoring, not rely on the restored mtimes.
   const srcDirs = opts.srcDirs ?? DEFAULT_WATCHED_SRC_DIRS
-  const distMtime = newestMtimeMs(root, 'dist')
-  if (distMtime === -Infinity) {
+  if (!existsSync(join(root, 'dist'))) {
     return {
       fresh: false,
       reason: 'dist/ is missing or empty. Run "npm run build" first.',
     }
   }
-  let newestSrc = -Infinity
-  for (const dir of srcDirs) {
-    const m = newestMtimeMs(root, dir)
-    if (m > newestSrc) newestSrc = m
-  }
-  if (newestSrc > distMtime) {
+  const recorded = readManifestHash(root)
+  if (recorded === null) {
     return {
       fresh: false,
       reason:
-        'dist/ predates the newest watched src/ file — the build is stale. ' +
-        'Run "npm run build" first.',
+        'dist/ build manifest (dist/.src-manifest.json) is missing — the build ' +
+        'is stale or predates this check. Run "npm run build" first.',
+    }
+  }
+  if (computeWatchedSrcHash(root, srcDirs) !== recorded) {
+    return {
+      fresh: false,
+      reason:
+        'dist/ was built from different src/ content than is present now — the ' +
+        'build is stale. Run "npm run build" first.',
     }
   }
   return { fresh: true }
