@@ -83,6 +83,7 @@ export type GeneratorKey =
   | 'conformance'
   | 'gold-kit'
   | 'doc-set-skeletons'
+  | 'pr-tooling'
 
 export interface ConfigDiff {
   paths: string[]

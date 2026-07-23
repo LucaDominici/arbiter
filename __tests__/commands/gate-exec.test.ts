@@ -5,16 +5,17 @@
 // releases the lock on SIGKILL/OOM — the hole Node cleanup handlers cannot
 // cover); absence of flock is a hard, explicit error (fail-closed).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { execFileSync, spawn } from 'node:child_process'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import {
   deriveGateKey,
   gateLockPath,
   assertFlockAvailable,
   gateExecArgv,
   runGateExec,
+  gateQueueAdvisory,
 } from '../../src/commands/gate-exec.js'
 
 function initGitRepo(dir: string): void {
@@ -118,5 +119,64 @@ describe('gate-exec (#1873 T3)', () => {
   it('runGateExec returns 0 for a green command and honours --key override', () => {
     const code = runGateExec({ cmdArgs: ['true'], dir: repoA, key: 'custom-key' })
     expect(code).toBe(0)
+  })
+})
+
+// ── #2098: queue-depth advisory (shares the waiter-count helper with capacity-probe.mjs) ──
+
+describe('gateQueueAdvisory (#2098)', () => {
+  let dir: string
+  let lockPath: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-gate-advisory-'))
+    lockPath = join(dir, 'gate.lock')
+    writeFileSync(lockPath, '')
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('returns null when the target project has no scripts/lib/waiter-count.mjs (helper absent)', () => {
+    expect(gateQueueAdvisory(dir, lockPath)).toBeNull()
+  })
+
+  it('returns null (advisory only, never throws) when the helper file is broken', () => {
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'lib', 'waiter-count.mjs'), 'this is not valid js {{{')
+    expect(gateQueueAdvisory(dir, lockPath)).toBeNull()
+  })
+
+  it('returns null when queue depth is below the >= 2 threshold (nobody holds the lock)', () => {
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    copyFileSync(
+      resolve('scripts/lib/waiter-count.mjs'),
+      join(dir, 'scripts', 'lib', 'waiter-count.mjs'),
+    )
+    expect(gateQueueAdvisory(dir, lockPath)).toBeNull()
+  })
+
+  it('names the queue depth and the sanctioned bypass alternative once depth reaches 2', () => {
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    copyFileSync(
+      resolve('scripts/lib/waiter-count.mjs'),
+      join(dir, 'scripts', 'lib', 'waiter-count.mjs'),
+    )
+    const holderA = spawn('flock', ['--', lockPath, 'sleep', '2'], { stdio: 'ignore' })
+    const holderB = spawn('flock', ['--', lockPath, 'sleep', '2'], { stdio: 'ignore' })
+    try {
+      const start = Date.now()
+      let advisory: string | null = null
+      while (Date.now() - start < 2000) {
+        advisory = gateQueueAdvisory(dir, lockPath)
+        if (advisory) break
+      }
+      expect(advisory).not.toBeNull()
+      expect(advisory).toContain('ARBITER_PREPUSH_BYPASS')
+    } finally {
+      holderA.kill()
+      holderB.kill()
+    }
   })
 })

@@ -127,7 +127,10 @@ scaffolds the agents + registry conventions (`src/generators/skills.ts`,
 No agent accumulates state across tasks; continuity lives in files (M4), never in a
 long-running session. Orchestrators direct; they do not implement
 (`.claude/skills/wave-drain/SKILL.md`: "the orchestrator directs parallel agents — it
-never implements").
+never implements"). Corollary (#2098): before dispatching a fresh agent whose purpose is
+relaying new information into another agent's in-progress task, check the live-agent
+roster first — a live agent plus new information is resumed via message, not relayed to
+via a cold-start agent.
 
 **Why.** Long sessions are where rot compounds (R1, R5). A short-lived agent's context
 is by construction fresh, scoped, and disposable.
