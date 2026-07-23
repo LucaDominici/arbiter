@@ -578,3 +578,12 @@ When using Codex: read `.agents/CODEX.md` for Codex-specific configuration.
 All governance rules are in **this file**.
 
 Sub-agent registry (names, models, effort, interaction chains): `.claude/AGENT_REGISTRY.md`.
+
+<!-- arbiter:preserve — This AGENTS.md is hand-authored self-governance for the arbiter repo,
+     intentionally richer than the generic generateAgentsMd() output every consumer project gets
+     (frontmatter, 5-level Authority Hierarchy, Process Canon, Model-Pyramid Iron Law, per-INV
+     enforcement detail) and is not reproducible from the shipped template. The preserve marker
+     (src/utils/fs.ts #1980) stops `arbiter update` from overwriting it with the lossy generic
+     version; the guard in __tests__/governance/agents-md-parity.test.ts checks both the marker and
+     the hand-authored sentinels. Placed at end-of-file so it shifts no constraint line numbers
+     (keeps docs/internal/PRODUCT/GAP.md + wiki source hashes stable). See #2055. -->
