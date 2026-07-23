@@ -334,6 +334,18 @@ function selectAndRun(
       errors,
     }
   }
+  // #2056: the governance-bearing generators must refresh on EVERY selective
+  // update, not only when the diff happens to map to them. `agents-md` owns the
+  // Iron Laws and `claude` owns the ARBITER_* deny list in .claude/settings.json —
+  // both render from the whole config + their templates, which can carry updated
+  // governance content independent of which config field changed. Without this a
+  // routine update (e.g. toggling securityScanning → only `security`) leaves those
+  // sections stale, the root cause behind the #2040 downstream-consumer drift. Both
+  // no-op (byte-identical → skipped) when nothing actually changed, and a disabled
+  // generator (e.g. claude when the tool isn't selected) is filtered out by
+  // runGeneratorsSelective, so the blast radius stays minimal.
+  keys.add('agents-md')
+  keys.add('claude')
   process.stdout.write(`${t('cli.update.selective', { count: keys.size })}\n`)
   return {
     results: runGeneratorsSelective(specs, keys, errors, { dryRun }),

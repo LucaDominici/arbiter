@@ -31,8 +31,8 @@
   },
   {
     "file": "commands/update.ts",
-    "line": 697,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') \u2014 no hardcoded English literal remains. Line shifted 378\u2192663 by the T1 adopt/ratchet additions (convergence playbook). Line shifted 663\u2192664 by the #1978 projectName resolution reorder. Line shifted 664\u2192697 by wave-3 integration sweep (bypass-ceremony doctor row + other intervening additions)."
+    "line": 709,
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') \u2014 no hardcoded English literal remains. Line shifted 378\u2192663 by the T1 adopt/ratchet additions (convergence playbook). Line shifted 663\u2192664 by the #1978 projectName resolution reorder. Line shifted 664\u2192697 by wave-3 integration sweep (bypass-ceremony doctor row + other intervening additions). Line shifted 697\u2192709 by the #2056 selective-regen governance-generator comment."
   },
   {
     "file": "commands/init.ts",
