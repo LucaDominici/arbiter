@@ -98,14 +98,14 @@
     "dest": ".github/workflows",
     "path": "_shared-security.yml",
     "reason": "A3 (wave1 action plan, FP-6a): the dast-full (OWASP ZAP full scan) job is removed entirely from self. Arbiter is a CLI with no running service and no docker-compose.yml — the job could never have a real target, so it was permanent dead weight (`if: false`, un-runnable) rather than a genuinely-disabled-with-a-plan gate. The template still emits this job for downstream projects: `if: false` for non-service archetypes (discoverable/re-enablable, CANON-18-tested) and ACTIVE for service archetypes with a real target. That template behavior is intentional and unchanged — this divergence covers only self's stricter removal.",
-    "diffHash": "7f95f9738a8e8bcfd5ec6255518f66a0fe1588c38419b97b6abc76a033cac311"
+    "diffHash": "7487a2977ec2c1faa612582ee66f019dfb26f1ac508db25f5fcc61eb5cb1436a"
   },
   {
     "path": "01-pr-fast.yml",
     "dest": ".github/workflows",
     "reason": "The template collapses 01-pr-fast.yml.ejs's entire PR pipeline (gate, unit tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, debt-gates, ci-required, post-merge-gate — contract/integration/behavioral tests moved to 02-pr-extended.yml.ejs at #1875) to a one-line solo-dev-gate stub whenever `locals.enableSoloDevMode` is true — and arbiter.json sets features.soloDevMode: true. Self deliberately keeps running the full peer-review-shaped pipeline regardless (arbiter dogfoods harder than its own declared collaborationMode: trunk-solo — same pattern documented in check-ci-tiers.mjs.ejs's cadence-parity comment). Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "13bc62bc8cc330a4ec2dec4b252ad6c0f006aeeef76b3969e6bf4dd1a0f34403"
+    "diffHash": "e6da9c31f75fac8cc9319d2068eaf91a7a27944e89da5a5dceafe339062c6f9e"
   },
   {
     "path": "02-pr-extended.yml",
@@ -119,21 +119,21 @@
     "dest": ".github/workflows",
     "reason": "Self is the typescript/library archetype's own release: it runs npm-package-publishing guards (check-pack-size.mjs, check-tarball-contents.mjs, `zip -r release-artifact.zip`) that only apply to the @arbiter/cli tarball, absent from the generic multi-archetype template render for this profile. Large diff (many other-archetype release steps this profile doesn't hit) — NOT individually audited line-by-line; R-01/R-09 (census) already track 05-release template↔self parity as a dedicated follow-up. Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "eef9e343e7b5e86c84a4a5a65602d72b882792e3e4d638846a1b2663fd52bce7"
+    "diffHash": "67071a7eb5145c902048ec8895d8cc9af811622f7f35545d2b1fd81bc7a2abb5"
   },
   {
     "path": "_nightly.yml",
     "dest": ".github/workflows",
     "reason": "Self sets `enableNativeBakeE2E` (bake-e2e-native + generated-gate-e2e [per-language matrix] + generated-gate-e2e-misc jobs) — a flag with no wiring path in resolveProjectConfig/src/generators (grep confirms zero setters): a manual arbiter-self-only harness augmentation for the init→bake native-fixture-smoke matrix + VITEST_L2 generated-gate harness (split per-stack, B5 gate-thesis reliability). The template comment says as much: \"Downstream-generated projects do not ship this harness, so it renders only for arbiter itself.\" Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "635dcfcc9b553a206146ebc6ad32135ce3c02a4ac72a47b327649606b1a77757"
+    "diffHash": "4553cb9a59416669b99178fdc21037609621fb7d9f36474e6ba01abfe373396d"
   },
   {
     "path": "check-action-pins.mjs",
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "e0932a6a386221cc8ecff2013184cc5f0f2f2c042d3201a28aed6bdea6eb0df9"
+    "diffHash": "740a543e1e65cdc50a862dad3a1d171cd6413eace0c984737523888970337b23"
   },
   {
     "path": "check-anti-fake-green.mjs",

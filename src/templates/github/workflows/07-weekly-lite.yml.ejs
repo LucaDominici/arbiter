@@ -29,13 +29,13 @@ jobs:
     runs-on: <%- _runner %>
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: Check outdated packages
         run: npm outdated || true
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:
           distribution: temurin
           java-version: '21'
@@ -73,7 +73,7 @@ jobs:
     runs-on: <%- _runner %>
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Find SHA-pinned actions older than 180 days
         env:
           GH_TOKEN: ${{ github.token }}
@@ -114,7 +114,7 @@ jobs:
       # .git/refs/**/*.lock from an interrupted run, which makes the
       # deep checkout below fail with "cannot lock ref". No-op on
       # ephemeral runners.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0

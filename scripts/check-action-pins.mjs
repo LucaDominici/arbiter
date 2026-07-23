@@ -71,7 +71,7 @@ const CROSS_MAJOR_ALLOWLIST = {
   },
   'actions/setup-node': {
     4: '39370e3970a6d050c480ffad4ff0ed4d3fdee5af', // v4.1.0
-    6: '48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e', // v6.4.0
+    7: '820762786026740c76f36085b0efc47a31fe5020', // v7.0.0
   },
   'actions/upload-artifact': {
     4: 'ea165f8d65b6e75b540449e92b4886f43607fa02', // v4.6.2

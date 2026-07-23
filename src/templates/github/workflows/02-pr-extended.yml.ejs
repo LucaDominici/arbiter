@@ -36,7 +36,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: ./.github/actions/setup-java-maven
       - name: Pre-fetch plugins and dependencies (offline cache)
         run: mvn dependency:go-offline --batch-mode -q
@@ -61,7 +61,7 @@ jobs:
     outputs:
       should_run: ${{ steps.decide.outputs.should_run }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
       - name: Decide whether to run extended CI
@@ -115,7 +115,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: ./.github/actions/setup-node-pnpm
       - name: Build + cache workspace (shared via run-id key)
         uses: ./.github/actions/build-cache
@@ -135,7 +135,7 @@ jobs:
       max-parallel: 2
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: Restore cached workspace build (non-blocking)
@@ -168,7 +168,7 @@ jobs:
       max-parallel: 2
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - run: npm run test:integration
@@ -235,7 +235,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
 <% if (contractType === 'rest-owned' || contractType === 'rest-public' || contractType === 'message-queue') { %>
@@ -301,7 +301,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
       - name: Check Dockerfile changed
@@ -343,7 +343,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: License check
@@ -396,7 +396,7 @@ jobs:
       max-parallel: 2
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: Restore cached workspace build (non-blocking)
@@ -439,7 +439,7 @@ jobs:
     needs: [check-trigger, build-workspace]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: ./.github/actions/setup-node-pnpm
       - name: Restore cached workspace build (non-blocking)
         uses: ./.github/actions/build-cache

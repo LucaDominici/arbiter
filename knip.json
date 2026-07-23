@@ -9,12 +9,9 @@
   "ignoreFiles": ["src/test/example.behavioral.test.ts"],
   "ignoreExportsUsedInFile": true,
   "ignoreBinaries": [
-    "gh",
     "flock",
     "mkfifo",
     "actionlint",
-    "which",
-    "python3",
     "go",
     "gofmt",
     "Apache-2.0",

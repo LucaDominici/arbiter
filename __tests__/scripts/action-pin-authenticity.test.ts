@@ -5,10 +5,13 @@
 // fails at CI runtime with "Unable to resolve action … unable to find version".
 //
 // The sigstore/cosign-installer pin was fabricated: `d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50`
-// is a 404 in the upstream repo, while the genuine v3.8.1 commit is
+// is a 404 in the upstream repo, while the genuine v3.8.1 commit was
 // `d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a` (verified against the GitHub git/tags API). This
 // test is a STATIC, offline ratchet: no committed source/workflow/template may reference the
-// known-fabricated SHA, and the genuine commit must be the one in use.
+// known-fabricated SHA, and the genuine commit must be the one in use. The pin has since been
+// bumped to v4.1.2 (`6f9f17788090df1f26f669e9d70d6ae9567deba6`, independently re-verified against
+// the GitHub git/refs/tags API to match the v4.1.2 tag exactly) — the fabricated-SHA check below
+// still guards the original incident regardless of which genuine version is current.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -18,8 +21,8 @@ const ROOT = resolve(__dirname, '..', '..')
 
 // The fabricated 40-hex string that passed the format-only gate but is not a real commit.
 const FABRICATED_COSIGN_SHA = 'd7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50'
-// The genuine sigstore/cosign-installer v3.8.1 commit object.
-const GENUINE_COSIGN_SHA = 'd7d6bc7722e3daa8354c50bcb52f4837da5e9b6a'
+// The genuine sigstore/cosign-installer v4.1.2 commit object.
+const GENUINE_COSIGN_SHA = '6f9f17788090df1f26f669e9d70d6ae9567deba6'
 
 // git-tracked files only — never node_modules/dist artifacts the test should not police, and
 // never the frozen .arbiter/evidence/tdd/*.json snapshots (historical records, not live config).
@@ -54,7 +57,7 @@ describe('action-pin authenticity (#1491 — fabricated SHA ratchet)', () => {
     )
   })
 
-  it('cosign-installer is pinned to the genuine v3.8.1 commit where it appears', () => {
+  it('cosign-installer is pinned to the genuine v4.1.2 commit where it appears', () => {
     // Every cosign-installer ref in source/workflow/template files must use the genuine commit.
     const cosignRefs: { file: string; ref: string }[] = []
     const re = /sigstore\/cosign-installer@([0-9a-f]{40})/g
