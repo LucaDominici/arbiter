@@ -266,7 +266,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "93837313fdac96deec526d02b1d500955b51835df1f011299fcff4cffee2561a"
+    "diffHash": "5e52d8ab36e2bc9cc0a6b4e5f1210deb13fc0a7445c2603ea4dc8126394db5dc"
   },
   {
     "dest": "scripts",
@@ -376,7 +376,7 @@
     "path": "check-local-ci-parity.mjs",
     "dest": "scripts",
     "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder.",
-    "diffHash": "fab5f9f9ae7e282b3ffb76e51084677f130f91d9a5e7e5679f04111a2393518c"
+    "diffHash": "d75e290d9113d666f2b6544bf75e139c4abe675e8658deb6a1e8d4c42698c261"
   },
   {
     "path": "check-suppression-expiry.mjs",

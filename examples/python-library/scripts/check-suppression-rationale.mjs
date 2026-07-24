@@ -55,6 +55,8 @@ function checkJsonFile(filePath) {
 
 if (!existsSync(SUPPRESSIONS_DIR)) {
   process.stdout.write('check-suppression-rationale: SKIP — no suppressions/ directory\n');
+  // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+  process.stdout.write('[SKIP] no suppressions/ directory\n');
   process.exit(0);
 }
 

@@ -43,6 +43,7 @@ For each input, probe:
 | **Data integrity** | Can this leave data in an inconsistent state? |
 | **Error handling** | What happens when a dependency fails? Is the error surfaced or swallowed? |
 | **Concurrency** | Can two requests interfere with each other? |
+| **FIT (INV-138)** | Does the change hit the declared target? For each frozen `AC-N` criterion in the plan anchor, is there a diff/test line that proves it — and does anything in the diff violate a declared Non-Goal (scope creep)? |
 
 ## Anti-Bloat & Root-Cause Vectors (CANON-22)
 

@@ -18,6 +18,7 @@ import {
   pushResult,
   getResults,
   getFailed,
+  setMode,
 } from './lib/run-helpers.mjs';
 
 
@@ -27,7 +28,9 @@ const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
 // Accept EVERY invocation form arbiter emits: the positional level
 // (`check-all.mjs L2`), the subcommand aliases the Makefile + git hooks use
 // (`check`/`gate`/`full`/`simulate-nightly`/`simulate-weekly`), the flag form
-// (`--level L2` / `--level=L2`), and `--json [path]` — in any order.
+// (`--level L2` / `--level=L2`), and `--json [path]` — in any order. Plus the
+// #2078 inspection flags: `--dry-run` (print which checks WOULD run at this level,
+// spawn nothing) and `--gate <name>` (re-run one check by its display name).
 // A garbage or missing level FAILS LOUD (exit 2). It must NEVER silently degrade
 // to a weaker level than asked: a positional parser that reads the literal
 // `--level` as the level string skips the L2 branch while the job stays green —
@@ -44,9 +47,11 @@ const _SUBCOMMAND_LEVEL = {
 };
 let level = 'L2';
 let jsonPath = null;
+let dryRun = false; // #2078: print-what-would-run, spawn nothing
+let only = null; // #2078: --gate <name>, re-run a single check
 const _rawArgs = process.argv.slice(2);
 const _gateUsage =
-  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]]';
+  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>]';
 function _gateFatal(_msg) {
   console.error(`[GATE] FATAL: ${_msg}`);
   console.error(`[GATE] ${_gateUsage}`);
@@ -67,6 +72,17 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
     if (!_LEVELS.includes(_val))
       _gateFatal(`--level requires one of ${_LEVELS.join('|')}, got "${_val}"`);
     level = _val;
+  } else if (_a === '--dry-run') {
+    dryRun = true;
+  } else if (_a === '--gate') {
+    const _g = _rawArgs[_i + 1];
+    if (!_g || _g.startsWith('-')) _gateFatal('--gate requires a check name');
+    only = _g;
+    _i++;
+  } else if (_a.startsWith('--gate=')) {
+    const _g = _a.slice('--gate='.length);
+    if (!_g) _gateFatal('--gate= requires a check name');
+    only = _g;
   } else if (_LEVELS.includes(_a)) {
     level = _a;
   } else if (Object.prototype.hasOwnProperty.call(_SUBCOMMAND_LEVEL, _a)) {
@@ -92,6 +108,14 @@ if (level === 'L3' || level === 'L4') {
   console.warn(`[GATE] level ${level} clamps to L2 (strongest tier this generated gate implements)`);
   level = 'L2';
 }
+
+// #2078 (GATE-1 of #2041) — inspection modes. Both `--dry-run` and `--gate <name>`
+// are diagnostic: they must NEVER stamp a gate-pass marker / result JSON (guarded
+// at the write sites below), so a dry-run or single-check rerun cannot fake a green
+// gate for the fail-closed Stop hook. `setMode` threads the mode into the
+// runCheck/runWarnCheck/runToolCheck trio; a normal run leaves it a no-op.
+const _inspect = dryRun || only !== null;
+setMode({ dryRun, only });
 
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
 // A freshly-upgraded L1→L2 project may run its new L2 gates WARN-only for a
@@ -413,6 +437,10 @@ runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs']);
 // Fails-closed when a frontend archetype (or `frontend` lane) ships without a
 // render-smoke behavioural spec. Self-SKIPs for non-frontend / ungoverned repos.
 runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs']);
+// ─── L1: smoke-journey acceptance-floor gate (INV-137, #2080) ─────────────────
+// Asserts the declared login/CRUD/authz journeys are COVERED (not just present, unlike
+// INV-126). applicable:false / absent manifest ⇒ runtime SKIP.
+runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs']);
 
 // ─── L1: stack-conformity gate (INV-121, #1312) ──────────────────────────────
 // Fails when the repo-root manifest contradicts the declared language/databaseEngine
@@ -492,7 +520,9 @@ console.log(`${'Total'.padEnd(nameWidth)}          ${totalElapsed}ms`);
 console.log('');
 
 // ─── Gate result JSON (arbiter-gate-v1) ──────────────────────────────────────
-{
+// #2078: never write gate evidence from an inspection run (--dry-run / --gate) —
+// its `pass` would be a lie (all-SKIP for dry-run, a partial run for --gate).
+if (!_inspect) {
   const _parityGates = _allResults
     .map((r) => ({ name: r.name, pass: r.status === 'PASS' }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -515,7 +545,7 @@ console.log('');
   } catch { /* non-fatal */ }
 }
 
-if (_failedCount === 0) {
+if (_failedCount === 0 && !_inspect) {
   const _headResult = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' });
   const _headSha = _headResult.stdout.trim();
   const _gitUserResult = spawnSync('git', ['config', 'user.name'], { encoding: 'utf-8' });

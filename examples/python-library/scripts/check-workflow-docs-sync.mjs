@@ -30,10 +30,14 @@ const EXEMPT_PREFIXES = ['_'];
 
 if (!existsSync(WORKFLOWS_DIR)) {
   process.stdout.write('check-workflow-docs-sync: SKIP — no .github/workflows/ directory\n');
+  // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+  process.stdout.write('[SKIP] no .github/workflows/ directory\n');
   process.exit(0);
 }
 if (!existsSync(DOCS_DIR)) {
   process.stdout.write('check-workflow-docs-sync: SKIP — no docs/ directory\n');
+  // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+  process.stdout.write('[SKIP] no docs/ directory\n');
   process.exit(0);
 }
 

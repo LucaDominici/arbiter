@@ -486,26 +486,25 @@ arbiter update  # regenerate canonical files, preserve customizations
 ```
 
 <!-- BEGIN GENERATED:cli -->
-
 ## Command Reference
 
-| Command              | Description                                                                     |
-| -------------------- | ------------------------------------------------------------------------------- |
-| `arbiter configure`  | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
-| `arbiter diff`       | Show what arbiter update would change (dry run)                                 |
-| `arbiter doctor`     | Diagnose and repair arbiter state                                               |
-| `arbiter explain`    | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
-| `arbiter gate-exec`  | —                                                                               |
-| `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
-| `arbiter init`       | Initialise / update the unified task document (#1206)                           |
-| `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
-| `arbiter obsidian`   | Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)        |
-| `arbiter review`     | Semantic diff between graph snapshots (#262)                                    |
-| `arbiter ship`       | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
-| `arbiter task`       | Manage task lifecycle state                                                     |
-| `arbiter update`     | Re-generate governance files using stored config (arbiter.json)                 |
-| `arbiter validate`   | Probe toolchain compatibility for the detected stack                            |
-| `arbiter worktree`   | Manage git worktrees for parallel task development                              |
+| Command | Description |
+|---------|-------------|
+| `arbiter configure` | Modify arbiter.json configuration (interactive on TTY, or use --set) |
+| `arbiter diff` | Show what arbiter update would change (dry run) |
+| `arbiter doctor` | Diagnose and repair arbiter state |
+| `arbiter explain` | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
+| `arbiter gate-exec` | — |
+| `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine) |
+| `arbiter init` | Initialise / update the unified task document (#1206) |
+| `arbiter note` | Capture an out-of-scope finding to the per-agent JSONL spool (#1401) |
+| `arbiter obsidian` | Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979) |
+| `arbiter review` | Semantic diff between graph snapshots (#262) |
+| `arbiter ship` | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206) |
+| `arbiter task` | Manage task lifecycle state |
+| `arbiter update` | Re-generate governance files using stored config (arbiter.json) |
+| `arbiter validate` | Probe toolchain compatibility for the detected stack |
+| `arbiter worktree` | Manage git worktrees for parallel task development |
 
 ## arbiter configure
 
@@ -536,7 +535,7 @@ Diagnose and repair arbiter state.
 
 - `arbiter doctor repair-state` — Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)
 - `arbiter doctor recover-lock` — Force-release a stale .arbiter/.lock file left by a crashed process
-- `arbiter doctor clean` — Remove arbiter backup files (_.arbiter-backup, .arbiter-generated.json.bak._)
+- `arbiter doctor clean` — Remove arbiter backup files (*.arbiter-backup, .arbiter-generated.json.bak.*)
 
 **Options:**
 
@@ -632,7 +631,7 @@ Orchestrate an issue → reviewed, merged PR over the existing engine (#1206).
 
 - `--tier <tier>` — Task tier (XS|S|Standard)
 - `--autonomy <level>` — Per-run autonomy override (L0|L1|L2|L3) — beats arbiter.json automation.autonomy (#1291)
-- `--set <path=value>` — Per-run override of an overridable config path (repeatable, ADR-094).
+- `--set <path=value>` — Per-run override of an overridable config path (repeatable, ADR-094). 
 - `--advance` — Advance to the next phase (runs that phase gate; fails if red)
 - `--skip-plan-review` — Bypass the plan-review gate on advance
 - `--post-clear` — Signal post-/clear re-entry on advance
@@ -662,10 +661,10 @@ Re-generate governance files using stored config (arbiter.json).
 - `--github` — Activate live GitHub API calls (opt-in; ARBITER_GITHUB=1 also activates)
 - `--json` — Emit machine-readable JSON output
 - `--force` — Override adverse git state check (detached HEAD, rebase, etc.)
-- `--adopt` — Force-adopt ALL currently-withheld files (not just safety-class), recording a
-- `--no-adopt-safety` — Opt OUT of the default-on safety-class adoption (.claude/hooks/*.mjs). Leaves a
-- `--adopt-plan` — Two-phase preview: print what --adopt/the default safety adoption WOULD change
-- `--refresh-derived` — Force-refresh the codex-track derived file set (.agents/rules/_, .claude/hooks/_
+- `--adopt` — Force-adopt ALL currently-withheld files (not just safety-class), recording a 
+- `--no-adopt-safety` — Opt OUT of the default-on safety-class adoption (.claude/hooks/*.mjs). Leaves a 
+- `--adopt-plan` — Two-phase preview: print what --adopt/the default safety adoption WOULD change 
+- `--refresh-derived` — Force-refresh the codex-track derived file set (.agents/rules/*, .claude/hooks/* 
 
 ## arbiter validate
 
@@ -692,32 +691,32 @@ Manage git worktrees for parallel task development.
 - `arbiter worktree open` — Create a sibling worktree with a task branch and symlinked local files
 - `arbiter worktree close` — Tear down a task worktree after its branch is merged
 - `arbiter worktree list` — List open task worktrees
-- `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive
+- `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive 
 
 ## Experimental Commands
 
 These commands are fully functional but hidden from the default `arbiter --help` listing. They are not part of the stable public surface and may change without notice. List them from the CLI with `arbiter help --all`.
 
-| Command                 | Description                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------- |
-| `arbiter doc-set`       | —                                                                               |
-| `arbiter mark`          | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
-| `arbiter settings`      | List every settable arbiter.json path with its current value (#1121)            |
-| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates                      |
+| Command | Description |
+|---------|-------------|
+| `arbiter doc-set` | — |
+| `arbiter mark` | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
+| `arbiter settings` | List every settable arbiter.json path with its current value (#1121) |
+| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates |
 
 ## arbiter doc-set
 
 **Options:**
 
 - `--strict` — Exit 1 if any mandatory doc is missing (default: advisory, exit 0)
-- `--check` — Run the default advisory presence audit (backward-compat alias for the no-flag default;
+- `--check` — Run the default advisory presence audit (backward-compat alias for the no-flag default; 
 - `--json` — Emit the audit as JSON
 - `--generate` — Scaffold stub files for missing mandatory+recommended .md docs
 - `--refresh-stubs` — (with --generate) re-render a doc in place only if it is byte-equal to the stub template
 - `--manifest <path>` — Manifest path override (default standards/gold-doc-set.yml)
 - `--doc-profile <path>` — Overlay profile path override (default standards/doc-profile)
 - `--plan` — T3: dry-run the skeleton generator — report would-scaffold/unbound, write nothing
-- `--apply` — T3: scaffold real per-doc-type skeletons for missing bound rows (skipIfExists; never
+- `--apply` — T3: scaffold real per-doc-type skeletons for missing bound rows (skipIfExists; never 
 - `--freshness` — T4: run the per-doc freshness audit (scripts/check-doc-freshness.mjs) instead of presence
 
 ## arbiter mark
@@ -754,5 +753,4 @@ Upgrade governance level with a grace period for new gates.
 - `--dir <dir>` — Target directory (default: current directory)
 - `--interactive` — Guided level selection on a TTY (#1168)
 - `--json` — Emit machine-readable JSON output
-
 <!-- END GENERATED:cli -->
