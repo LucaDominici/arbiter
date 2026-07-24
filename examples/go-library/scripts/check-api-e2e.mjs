@@ -47,6 +47,8 @@ function fileIsNonEmpty(abs) {
 async function main() {
   if (!existsSync(MANIFEST_PATH)) {
     process.stdout.write('[check-api-e2e] SKIP — api-e2e.json not found\n')
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] api-e2e.json not found\n')
     process.exit(0)
   }
 
@@ -62,6 +64,8 @@ async function main() {
     process.stdout.write(
       '[check-api-e2e] SKIP — required:false (non-service archetype, no live-API suite mandated)\n',
     )
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] required:false (non-service archetype)\n')
     process.exit(0)
   }
 

@@ -25,12 +25,44 @@ function stripAnsi(str) {
   return (str ?? '').replace(/\x1b\[[0-9;]*m/g, '');
 }
 
+// Self-skip marker (#2052): a child that exits 0 but prints a `[SKIP] <reason>`
+// line decided for itself it had nothing to check — record SKIP, not PASS.
+const SELF_SKIP_RE = /^\[SKIP\][ \t]*(.*)$/m;
+
+function detectSelfSkip(stdout) {
+  const m = SELF_SKIP_RE.exec(stdout ?? '');
+  if (!m) return null;
+  return m[1].trim() || 'self-skip';
+}
+
 let results = [];
 let failed = 0;
 
 export function getResults() { return results; }
 export function getFailed() { return failed; }
 export function resetState() { results = []; failed = 0; }
+
+// #2078 (GATE-1 of #2041) — inspection modes for the agentic loop.
+//   dryRun: print what each check WOULD run and spawn nothing (records SKIP).
+//   only:   run only the check whose name === only; skip (unrecorded) the rest.
+// Set once by check-all.mjs after arg-parsing; the default is a no-op so normal
+// runs are unaffected.
+let mode = { dryRun: false, only: null };
+export function setMode(m = {}) {
+  mode = { dryRun: Boolean(m.dryRun), only: m.only ?? null };
+}
+
+// Shared pre-flight for the runCheck/runWarnCheck/runToolCheck trio. Returns true
+// when the caller must return WITHOUT spawning (skipped by --gate, or dry-run printed).
+function inspectSkip(name, cmd, args) {
+  if (mode.only !== null && name !== mode.only) return true; // --gate <name>: skip non-match (unrecorded)
+  if (mode.dryRun) {
+    console.log(`[CHECK] ${name} ... DRY-RUN (would run: ${cmd} ${args.join(' ')})`);
+    results.push({ name, status: 'SKIP', elapsed: 0 });
+    return true;
+  }
+  return false;
+}
 
 function spawn(name, cmd, args, opts) {
   const start = Date.now();
@@ -74,6 +106,7 @@ function recordPass(name, elapsed) {
 }
 
 export function runCheck(name, cmd, args, opts = {}) {
+  if (inspectSkip(name, cmd, args)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     recordFail(name, elapsed, `command not found: ${cmd}`);
@@ -88,7 +121,12 @@ export function runCheck(name, cmd, args, opts = {}) {
     recordFail(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`);
     return;
   }
-  if (r.status === 0) { recordPass(name, elapsed); return; }
+  if (r.status === 0) {
+    const selfSkip = detectSelfSkip(r.stdout);
+    if (selfSkip) { recordSkip(name, elapsed, selfSkip); return; }
+    recordPass(name, elapsed);
+    return;
+  }
   if (opts.soft) {
     recordWarn(name, elapsed, `grace period, exit ${r.status}`);
     emitOutput(r);
@@ -99,6 +137,7 @@ export function runCheck(name, cmd, args, opts = {}) {
 }
 
 export function runWarnCheck(name, cmd, args, opts = {}) {
+  if (inspectSkip(name, cmd, args)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     recordWarn(name, elapsed, `command not found: ${cmd}`);
@@ -119,6 +158,7 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
 }
 
 export function runToolCheck(name, cmd, args, opts = {}) {
+  if (inspectSkip(name, cmd, args)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     if (IS_CI()) {

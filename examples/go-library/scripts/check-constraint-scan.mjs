@@ -237,6 +237,8 @@ function main() {
       process.stdout.write(
         '[check-constraint-scan] SKIP — governance.constraintScan is "off" in arbiter.json\n',
       )
+      // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+      process.stdout.write('[SKIP] governance.constraintScan is "off" in arbiter.json\n')
       process.exit(0)
     }
   }

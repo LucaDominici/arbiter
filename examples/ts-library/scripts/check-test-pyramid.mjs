@@ -49,6 +49,8 @@ function globCount(pattern, allFiles) {
 async function main() {
   if (!existsSync(MANIFEST_PATH)) {
     process.stdout.write('[check-test-pyramid] SKIP — test-pyramid.json not found\n')
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] test-pyramid.json not found\n')
     process.exit(0)
   }
 

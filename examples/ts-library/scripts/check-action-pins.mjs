@@ -64,7 +64,7 @@ const USES_WITH_OPTIONAL_COMMENT = /^\s+(?:-\s+)?uses:\s+["']?([^@\s"']+)@([0-9a
 const CROSS_MAJOR_ALLOWLIST = {
   'actions/download-artifact': { 4: 'd3f86a106a0bac45b974a628896c90dbdf5c8093', 8: '3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c' },
   'actions/github-script': { 7: 'f28e40c7f34bde8b3046d885e986cb6290c5673b', 9: '3a2844b7e9c422d3c10d287c895573f7108da1b3' },
-  'actions/setup-node': { 4: '39370e3970a6d050c480ffad4ff0ed4d3fdee5af', 6: '48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e' },
+  'actions/setup-node': { 4: '39370e3970a6d050c480ffad4ff0ed4d3fdee5af', 7: '820762786026740c76f36085b0efc47a31fe5020' },
   'actions/upload-artifact': { 4: 'ea165f8d65b6e75b540449e92b4886f43607fa02', 7: '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' },
   'gradle/actions/setup-gradle': { 3: 'd9c87d481d55275bb5441eef3fe0e46805f9ef70', 4: 'ed408507eac070d1f99cc633dbcf757c94c7933a', 6: '3f131e8634966bd73d06cc69884922b02e6faf92' },
   'anchore/sbom-action': { '0.9': 'f6c3d0fe42c3cf876e3462574e4c9416b5e0f07a', '0.24': 'e22c389904149dbc22b58101806040fa8d37a610' },

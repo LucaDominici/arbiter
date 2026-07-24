@@ -87,10 +87,10 @@ arbiter task advance --to plan
 
 | Phase | What `/ship` does | Review agents |
 |-------|-------------------|---------------|
-| `preflight` | Open worktree (`/wt-open #NNN`), read issue, seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
+| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), STOP the ship. The `[ -f … ]` guard makes the step a no-op on brownfield trees that predate the script's emission (ADR-110) — a missing script is never a not-ready verdict; seed task state (see Local-only state above) | — |
+| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
-| `red` | Write failing tests (TDD red); `arbiter task record-red` | — |
+| `red` | Write failing tests (TDD red) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
 | `refactor` | Clean up; dispatch 4 code-review agents + 1 adversarial verifier | 4 (Standard) |
 | `verification` | Run the gate: `pytest` then `node scripts/check-all.mjs check` | — |
@@ -99,6 +99,26 @@ arbiter task advance --to plan
 
 Review-agent minimums by tier: XS=3, S=3, Standard=4.
 
+
+---
+
+## Merge Contract (derive before writing — INV-138)
+
+Before the first edit of each slice, derive its **merge contract** and record it in the
+plan; code and tests are born against the contract, never against a re-reading of the
+issue. Six sources:
+
+1. **Acceptance criteria** — the frozen `AC-N` anchor (the DoD core, hard-gated by
+   `check-acceptance`).
+2. **Repo policy** — invariants/CANON in scope (cite `INV-NN` ids).
+3. **Required tests** — the TDD units proving each `AC-N`, named up front.
+4. **CI** — which gate checks/lanes the slice must keep green (L1/L2, workflows).
+5. **Review/security** — the review verticals and security surfaces the diff will face.
+6. **Dependencies** — modules/contracts the slice touches (blast radius via `/impact`).
+
+Adversarial review runs against this contract **before push**. Pricing the constraint set
+in before the first line is what kills accordion PRs (write → review reveals a missed
+constraint → rewrite → repeat).
 
 ---
 

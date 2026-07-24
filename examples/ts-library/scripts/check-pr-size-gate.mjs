@@ -74,8 +74,12 @@ if (existsSync(CONFIG_PATH)) {
     process.stdout.write('check-pr-size-gate: OK — PR size gate referenced in workflows (INV-89)\n');
   } else {
     process.stdout.write('check-pr-size-gate: SKIP — no PR size gate configuration found (optional) (INV-89)\n');
+    // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+    process.stdout.write('[SKIP] no PR size gate configuration found (optional)\n');
   }
 } else {
   process.stdout.write('check-pr-size-gate: SKIP — no .github/workflows/ directory (INV-89)\n');
+  // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
+  process.stdout.write('[SKIP] no .github/workflows/ directory\n');
 }
 process.exit(0);
