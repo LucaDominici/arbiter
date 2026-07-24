@@ -10,6 +10,36 @@
 //
 // Imported by scripts/check-all.mjs. Plain ESM (.mjs).
 import { spawnSync } from 'node:child_process';
+import { statfsSync } from 'node:fs';
+
+// resolveTmpfsTmpdir returns a RAM-backed dir to use as TMPDIR, or null.
+//
+// Test suites that rebuild a database fixture per test (migrations replayed one
+// transaction at a time) are fsync-bound, not CPU-bound, on a disk-backed /tmp.
+// Measured on a governed Go/SQLite project: the same `-count=1` coverage run over
+// the gate's package list took 210s at 21% CPU on disk vs 33.7s at 101% CPU on
+// tmpfs, at identical user CPU.
+//
+// The check is FREE SPACE, not existence. /dev/shm exists in every Linux container
+// but defaults to 64 MB there, and TMPDIR relocates more than a test's own temp
+// files: with GOTMPDIR unset, Go's build work dirs and every test binary land there
+// too, and CI commonly runs this gate inside a container. Too small means ENOSPC
+// wearing a linker error's clothes, green locally.
+//
+// ponytail: fixed floor rather than a measured high-water mark — raise it if a gate
+// step starts staging multi-GB fixtures under TMPDIR.
+export function resolveTmpfsTmpdir({
+  path = '/dev/shm',
+  minFreeBytes = 4 * 1024 ** 3,
+  statfs = statfsSync,
+} = {}) {
+  try {
+    const { bavail, bsize } = statfs(path);
+    return bavail * bsize >= minFreeBytes ? path : null;
+  } catch {
+    return null; // absent, unmounted, or non-Linux — keep the platform default
+  }
+}
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 // Explicit spawnSync output ceiling. Node's default is 1 MB; verbose checks can

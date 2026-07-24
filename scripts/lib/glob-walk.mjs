@@ -4,7 +4,7 @@
 // CATALOG:   matcher: `**` crosses directories, `*` stays within one path component.
 // CATALOG:   walkRepo returns repo-relative POSIX paths; SKIP_DIRS prunes vendor trees.
 // Pure module — no process exit, no I/O side effects beyond readdir/stat.
-import { readdirSync, lstatSync, statSync, existsSync } from 'node:fs'
+import { readdirSync, lstatSync, statSync } from 'node:fs'
 import { join, isAbsolute } from 'node:path'
 
 export const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
@@ -89,6 +89,17 @@ export function walkRepo(root) {
     } catch {
       return
     }
+    // A nested checkout — git worktree, submodule, vendored clone — carries its own
+    // `.git` entry (a FILE for a worktree, a DIRECTORY for a clone/submodule). Its files
+    // belong to a different commit, so folding them into this repo's walk makes every
+    // walker lie: agent worktrees materialized under `.claude/worktrees/**` produced
+    // thousands of false "broken link" hits here (#1734/#1752), and on a governed project
+    // the same bug made the debt ratchet count another branch's TODO and go red on main.
+    // `.git` is in SKIP_DIRS, so only the sibling content leaks — prune at the checkout
+    // boundary instead. The root is exempt: it has `.git` too. (#2104 unified this with
+    // the shipped template's form: one check per directory over the entries already read,
+    // rather than an existsSync stat per subdirectory.)
+    if (dir !== base && entries.includes('.git')) return
     for (const entry of entries) {
       if (SKIP_DIRS.has(entry)) continue
       const full = join(dir, entry)
@@ -105,12 +116,6 @@ export function walkRepo(root) {
         continue
       }
       if (stat.isDirectory()) {
-        // A subdirectory containing its own `.git` entry (file, for a worktree — a worktree's
-        // `.git` is a pointer file — OR directory, for a plain nested clone/submodule) is a
-        // SEPARATE checkout, not part of THIS repo's tree. Descending into it produces false
-        // positives (e.g. thousands of "broken link" hits) from agent worktrees materialized
-        // under `.claude/worktrees/**`. #1734/#1752.
-        if (existsSync(join(full, '.git'))) continue
         visit(full)
       } else {
         files.push(full.slice(base.length + 1).replace(/\\/g, '/'))

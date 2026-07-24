@@ -106,6 +106,15 @@ export function walkRepo(root) {
     } catch {
       return
     }
+    // A nested checkout — git worktree, submodule, vendored clone — carries its own
+    // `.git` entry (a FILE for a worktree, a DIRECTORY for a clone/submodule). Its files
+    // belong to a different commit, so folding them into this repo's walk makes every
+    // walker lie: on a governed project this made the debt ratchet count another branch's
+    // TODO and go red on main, and made the secret scan re-scan each worktree's copy of
+    // the whole tree (62,974 files vs 20,528). `.git` is in SKIP_DIRS, so only the sibling
+    // content leaks — prune at the checkout boundary instead. The root is exempt: it has
+    // `.git` too.
+    if (dir !== base && entries.includes('.git')) return
     for (const entry of entries) {
       if (SKIP_DIRS.has(entry)) continue
       const full = join(dir, entry)
