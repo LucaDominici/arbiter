@@ -852,6 +852,20 @@ jobs:
           mkdir -p "$RUNNER_TEMP/bin"
           curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" actionlint
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Install psmisc (fuser — #2098 gate-exec queue-depth advisory)
+        # Mirrors the identical step in the Unit Tests job (see there for the
+        # full rationale) so this job's own gate-exec queue-depth advisory
+        # works too, independent of whether Unit Tests already ran on this
+        # runner. For arbiter's own repo, `check-all.mjs L2` below also runs
+        # the waiter-count/gate-exec test suite directly.
+        run: |
+          if ! command -v fuser >/dev/null 2>&1; then
+            if [ "$(id -u)" -eq 0 ]; then
+              apt-get update -qq && apt-get install -y -qq psmisc
+            else
+              sudo apt-get update -qq && sudo apt-get install -y -qq psmisc
+            fi
+          fi
       - name: Build
         run: npm run build<% if (locals.ciPreTestBuild) { %> && node scripts/build-kit.mjs<% } %>
       - name: Run full L2 gate (== pre-push)
