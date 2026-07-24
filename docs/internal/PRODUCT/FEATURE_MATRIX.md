@@ -124,12 +124,12 @@ Promotion is fail-closed (cannot skip a step).
 
 ## Summary
 
-| Status    | Count  |
-| --------- | ------ |
-| Verified  | 4      |
-| Done      | 4      |
-| Partial   | 46     |
-| Missing   | 1      |
+| Status | Count |
+|---|---|
+| Verified | 4 |
+| Done | 4 |
+| Partial | 46 |
+| Missing | 1 |
 | **Total** | **55** |
 
 ---
