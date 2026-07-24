@@ -152,6 +152,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'domain-api surface (INV-125)', affects: ALWAYS },
   { name: 'api e2e (INV-126)', affects: ALWAYS },
   { name: 'render smoke presence (INV-127)', affects: ALWAYS },
+  { name: 'smoke journeys (INV-137)', affects: ALWAYS },
   { name: 'dogfood', affects: ALWAYS },
   { name: 'coverage', affects: ALWAYS },
   { name: 'coverage ratchet (#1483)', affects: ALWAYS },
