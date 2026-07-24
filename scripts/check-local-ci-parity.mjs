@@ -311,7 +311,7 @@ const CI_COVERAGE = new Map([
   ['install command (B1)', 'gate-full'],
   ['third-party licenses', 'gate-full'],
   ['tool claims', 'gate-full'],
-  ['smoke journeys (INV-138)', 'gate-full'],
+  ['smoke journeys (INV-137)', 'gate-full'],
 ])
 
 // CI_SKIP_SET: checks intentionally excluded from CI parity enforcement.
