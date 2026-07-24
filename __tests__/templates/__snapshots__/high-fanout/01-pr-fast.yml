@@ -248,6 +248,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: ./.github/actions/setup-node-pnpm
+      - name: Install psmisc (fuser — #2098 gate-exec queue-depth advisory)
+        # scripts/lib/waiter-count.mjs shells out to `fuser` to count real flock
+        # waiters; unlike gitleaks/actionlint (single-binary GitHub-release
+        # tarballs, pinned in scripts/ci-tools.json), psmisc has no such release
+        # artifact, so apt is the install path here. flock itself (util-linux)
+        # is already present on the runner image; only fuser (psmisc) is missing.
+        run: apt-get update -qq && apt-get install -y -qq psmisc
       - run: npm run test:unit -- --reporter=junit --outputFile=test-results/junit.xml
 
       - name: Upload test results
