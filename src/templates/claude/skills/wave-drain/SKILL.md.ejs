@@ -55,7 +55,7 @@ merge-train).
 
 1. `gh issue list --state open` (this repo). **Exclude** anything labelled `blocked`,
    `needs-human`, `epic`, or `needs-clarification`.
-   1b. **Readiness gate (INV-137)** — for each issue that survives the label filter AND is
+   1b. **Readiness gate (INV-138)** — for each issue that survives the label filter AND is
    about to be selected into the wave (never a mass sweep of the whole backlog), run:
 
    ```bash
@@ -152,7 +152,7 @@ group include a **manifest**:
   - **Read-set** — files/globs the group is expected to READ beyond its write set (M6 #1943;
     reads bounded socially, writes mechanically)
 - **Invariants** in scope (from `GLOBAL_INVARIANTS.md` + `AGENTS.md` — cite INV-IDs)
-- **Acceptance-criteria anchor (INV-137)** — per issue, copy the issue's criteria
+- **Acceptance-criteria anchor (INV-138)** — per issue, copy the issue's criteria
   **verbatim** into a `## Acceptance Criteria` block (plus `## Non-Goals`) under the
   group's section, **namespacing each id per issue**: issue #123's `AC-1` becomes
   `AC-123.1` in the wave plan (duplicate bare ids across issues are a gate error).
@@ -161,7 +161,7 @@ group include a **manifest**:
 - **TDD units** (the red → green slices) — each unit names the `AC-N` id(s) it proves
 - **Conflict risks** vs other groups (which files / interfaces overlap)
 
-This manifest is the group's **merge contract** (INV-137): acceptance criteria + repo
+This manifest is the group's **merge contract** (INV-138): acceptance criteria + repo
 policy + required tests + CI expectations + review/security surfaces + dependencies,
 derived BEFORE writing. Code and tests are born against it — adversarial review judges
 the diff against it before integration, which is what kills accordion PRs.
@@ -299,7 +299,7 @@ wave.** The rest of the wave proceeds.
    - Route auditors: `node scripts/route-auditors.mjs --size-floor Standard`
    - Self-review pass + **Adversarial Verifier**: trace each feature end-to-end, hunt dead
      code and unwired options.
-   - **FIT rubric (INV-137):** the review judges fit against the frozen anchor, not just
+   - **FIT rubric (INV-138):** the review judges fit against the frozen anchor, not just
      code quality — for **each** `AC-N` in each group's `## Acceptance Criteria` block,
      cite the diff/test line that proves it; any criterion without cited evidence ⇒
      REJECT for that group. Non-goals violated ⇒ scope-creep finding. Record the

@@ -176,7 +176,7 @@ const CI_COVERAGE = new Map([
   ['lint', 'gate'],
   ['audit', 'gate'],
   ['consumer audit', 'gate-full'],
-  ['acceptance anchor (INV-137)', 'gate-full'],
+  ['acceptance anchor (INV-138)', 'gate-full'],
   ['unit tests', 'unit-tests'],
   ['PII scan', 'security-early-fail'],
   ['circular deps', 'debt-gates'],
@@ -311,7 +311,7 @@ const CI_COVERAGE = new Map([
   ['install command (B1)', 'gate-full'],
   ['third-party licenses', 'gate-full'],
   ['tool claims', 'gate-full'],
-  ['smoke journeys (INV-137)', 'gate-full'],
+  ['smoke journeys (INV-138)', 'gate-full'],
 ])
 
 // CI_SKIP_SET: checks intentionally excluded from CI parity enforcement.

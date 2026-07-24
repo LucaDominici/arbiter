@@ -10,7 +10,7 @@
 // CATALOG: at gate time; this RECORDS a single return at hand-back time with authority-stamped
 // CATALOG: provenance. Different lifecycle (write-path vs read-path), shared validator lib.
 //
-//INV-137 (advisory at land-time per design §0).
+//INV-138 (advisory at land-time per design §0).
 // Exit codes (INV-53): 0 written, 1 invalid input (schema/M12 violation — nothing written),
 // 2 ERROR (self / IO failure).
 //

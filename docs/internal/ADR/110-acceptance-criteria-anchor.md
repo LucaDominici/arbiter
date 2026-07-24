@@ -7,7 +7,7 @@ owner: ''
 canonical_id: '110'
 tags: ['audience/dev', 'kind/adr']
 related: ['042-gate-tiers', '105-never-brick-config-migration']
-enforces: ['INV-137']
+enforces: ['INV-138']
 ---
 
 # ADR-110: Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry
@@ -31,7 +31,7 @@ issue-template weakness that produces it is never localized.
 
 ## Decision
 
-Introduce **INV-137** (selfOnly, flag-gated `features.acceptanceAnchor` /
+Introduce **INV-138** (selfOnly, flag-gated `features.acceptanceAnchor` /
 `ARBITER_ACCEPTANCE_ANCHOR`) implementing all four proposals as one anchored chain:
 
 1. **Entry gate ("grill" upstream of every wave)** — `scripts/issue-readiness.mjs`
@@ -81,7 +81,7 @@ the `ARBITER_ACCEPTANCE_ANCHOR=0` escape named in the error).
   generator consumes the flag.
 - Track-B emission (templating `check-acceptance.mjs` + `issue-readiness.mjs` +
   `rework-log.mjs` for target projects per CANON-01 dual-sided declination) is a tracked
-  follow-up; INV-137 is `selfOnly` until then, mirroring the INV-107/INV-117 precedent.
+  follow-up; INV-138 is `selfOnly` until then, mirroring the INV-107/INV-117 precedent.
   The skill/agent text (wave-drain, ship, tdd, red-team) IS templated already, so targets
   inherit the process contract now and the mechanical gate later.
 - The stop-evidence-guard (INV-114) is intentionally untouched: ac-fit enforcement rides
@@ -137,5 +137,5 @@ governed target via `src/generators/check-all.ts` UNCONDITIONAL_EMISSIONS, with
 byte-parity render tests (`__tests__/templates/acceptance-anchor-scripts-render.test.ts`)
 proving CANON-01 dual-sided declination by construction. What remains follow-up is only
 the `check-acceptance.mjs` GATE wiring inside the generated `check-all.mjs` (hence
-INV-137 stays `selfOnly`). The `[ -f … ]` guards in ship.md remain for brownfield trees
+INV-138 stays `selfOnly`). The `[ -f … ]` guards in ship.md remain for brownfield trees
 that predate the emission.

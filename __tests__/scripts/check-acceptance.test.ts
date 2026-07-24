@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// RED phase (acceptance-anchor, INV-137): the gate script must be inert without the
+// RED phase (acceptance-anchor, INV-138): the gate script must be inert without the
 // feature flag, vacuous without an active task, hard-fail a plan missing the frozen
 // AC anchor during implementation phases, fail-closed (exit 2) on malformed state,
 // strip #fragment plan anchors (wave mode), and demand an all-PASS ac-fit artifact

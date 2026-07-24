@@ -12,7 +12,7 @@
 // CATALOG: a citation-resolution step that has no analog in the bundle validator. Different shape,
 // CATALOG: different failure surface — merging would conflate two drift models (CANON-21).
 //
-//INV-137 (advisory at land-time per design §0; promoted on owner ratification).
+//INV-138 (advisory at land-time per design §0; promoted on owner ratification).
 // Exit codes (INV-53): 0 PASS, 1 FAIL (envelope violations / evaporated returns), 2 ERROR (self).
 //
 // Usage:

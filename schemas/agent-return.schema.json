@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://arbiter.dev/schemas/agent-return/v1",
   "title": "ArbiterAgentReturn",
-  "description": "Generic agent-return envelope (M8 core + M12 citation enforcement). Every review/verify/skeptic sub-agent hands back this shape; the orchestrator records it via scripts/record-agent-return.mjs and validates it via scripts/check-agent-return.mjs. A structural finding without a resolvable file:line citation is rejected at the tool layer (M12). Enforced by INV-137 (advisory at land-time, promoted on owner ratification — design §0).",
+  "description": "Generic agent-return envelope (M8 core + M12 citation enforcement). Every review/verify/skeptic sub-agent hands back this shape; the orchestrator records it via scripts/record-agent-return.mjs and validates it via scripts/check-agent-return.mjs. A structural finding without a resolvable file:line citation is rejected at the tool layer (M12). Enforced by INV-138 (advisory at land-time, promoted on owner ratification — design §0).",
   "type": "object",
   "required": [
     "schema",

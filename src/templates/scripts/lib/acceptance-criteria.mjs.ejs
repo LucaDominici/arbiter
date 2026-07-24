@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // acceptance-criteria.mjs — pure parsing/validation core for the acceptance-criteria
-// anchor (INV-137). No I/O, no process.exit: shared by scripts/issue-readiness.mjs
+// anchor (INV-138). No I/O, no process.exit: shared by scripts/issue-readiness.mjs
 // (orchestration-time entry gate), scripts/check-acceptance.mjs (L1 gate) and tests.
 //
 // Grammar:

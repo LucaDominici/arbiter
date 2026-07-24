@@ -91,8 +91,8 @@ The tier (XS / S / Standard) sets the number of review agents dispatched per rev
 
 | Phase | What `/ship` does | Review agents |
 |-------|-------------------|---------------|
-| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-137)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), STOP the ship. The `[ -f … ]` guard makes the step a no-op on brownfield trees that predate the script's emission (ADR-110) — a missing script is never a not-ready verdict; seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-137 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
+| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), STOP the ship. The `[ -f … ]` guard makes the step a no-op on brownfield trees that predate the script's emission (ADR-110) — a missing script is never a not-ready verdict; seed task state (see Local-only state above) | — |
+| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
 | `red` | Write failing tests (TDD red) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
@@ -104,7 +104,7 @@ The tier (XS / S / Standard) sets the number of review agents dispatched per rev
 
 ---
 
-## Merge Contract (derive before writing — INV-137)
+## Merge Contract (derive before writing — INV-138)
 
 Before the first edit of each slice, derive its **merge contract** and record it in the
 plan; code and tests are born against the contract, never against a re-reading of the
@@ -234,7 +234,7 @@ mkdir -p .arbiter && printf '{"count":1,"branch":"%s","sha":"%s"}\n' "$(git rev-
 **Adversarial Verifier (mandatory, after review):** Trace each new feature end-to-end; check dead code,
 CLI option wiring end-to-end (flag declared → parsed → forwarded), fixture assumptions and test setup.
 
-**FIT rubric (INV-137):** The verifier judges FIT against the plan's frozen `## Acceptance
+**FIT rubric (INV-138):** The verifier judges FIT against the plan's frozen `## Acceptance
 Criteria` anchor — not a re-reading of the live issue (mutable) and not "is this good
 code". For **each** `AC-N`: verdict PASS / FAIL / NOT-TESTED **with the diff or test
 `file:line` that proves it** — an uncited PASS does not count. Write the verdicts to

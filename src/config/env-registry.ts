@@ -133,7 +133,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     type: 'boolean',
     default: false,
     purpose:
-      'Override the acceptance-criteria anchor gate activation (INV-137, scripts/check-acceptance.mjs). "1"/"true" enforces, "0"/"false" disarms; unset falls through to features.acceptanceAnchor in arbiter.json. Bespoke var (not ARBITER_FEATURE__*): the gate script cannot run TS config resolution.',
+      'Override the acceptance-criteria anchor gate activation (INV-138, scripts/check-acceptance.mjs). "1"/"true" enforces, "0"/"false" disarms; unset falls through to features.acceptanceAnchor in arbiter.json. Bespoke var (not ARBITER_FEATURE__*): the gate script cannot run TS config resolution.',
     isGateBypass: false,
   },
   // ── Paths / integration ──────────────────────────────────────────────────

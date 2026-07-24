@@ -48,7 +48,7 @@ coverage/
 # Wave audits + their evidence — version-controlled audit history
 !.arbiter/wave*/
 !.arbiter/wave*/**
-# ac-fit per-criterion review verdicts (INV-137) — committed so the PR carries the FIT record
+# ac-fit per-criterion review verdicts (INV-138) — committed so the PR carries the FIT record
 !.arbiter/evidence/ac-fit/
 !.arbiter/evidence/ac-fit/*.json
 # Rework telemetry ledger (acceptance-anchor P4) — committed dataset, merge=union

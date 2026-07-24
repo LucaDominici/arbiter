@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// RED phase (acceptance-anchor, INV-137): the pure acceptance-criteria lib must parse
+// RED phase (acceptance-anchor, INV-138): the pure acceptance-criteria lib must parse
 // AC checkboxes / non-goals / touches out of issue bodies and plan files, classify
 // readiness (explicit AC-N ids required, stock template lines don't count), and
 // validate the ac-fit evidence artifact. No I/O — everything here is pure.
