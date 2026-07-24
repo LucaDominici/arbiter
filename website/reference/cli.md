@@ -526,6 +526,7 @@ Show what arbiter update would change (dry run).
 - `--dir <dir>` — Target directory (default: current directory)
 - `--json` — Emit machine-readable JSON output
 - `--withheld` — Show only template fixes withheld from user-modified files (#1344)
+- `--governance` — Audit Iron Laws (AGENTS.md) and the permission deny list (.claude/settings.json) for staleness vs the current template; fail-closed (#2040)
 
 ## arbiter doctor
 
