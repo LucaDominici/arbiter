@@ -254,7 +254,17 @@ jobs:
         # tarballs, pinned in scripts/ci-tools.json), psmisc has no such release
         # artifact, so apt is the install path here. flock itself (util-linux)
         # is already present on the runner image; only fuser (psmisc) is missing.
-        run: apt-get update -qq && apt-get install -y -qq psmisc
+        # Root (self-hosted) uses apt-get directly; non-root (e.g. GitHub-hosted
+        # ubuntu-latest, where every consumer of this template lands by default)
+        # needs sudo. Skip entirely if fuser is already on PATH.
+        run: |
+          if ! command -v fuser >/dev/null 2>&1; then
+            if [ "$(id -u)" -eq 0 ]; then
+              apt-get update -qq && apt-get install -y -qq psmisc
+            else
+              sudo apt-get update -qq && sudo apt-get install -y -qq psmisc
+            fi
+          fi
       - run: npm run test:unit -- --reporter=junit --outputFile=test-results/junit.xml
 
       - name: Upload test results
