@@ -50,7 +50,7 @@ Each agent's raw response is persisted under
 - **silent-failure-hunter** — swallowed errors, empty catches, ignored rejections
 - **test-analyzer** — coverage and assertion quality (Standard)
 
-## FIT Rubric (INV-137) — target, not just quality
+## FIT Rubric (INV-138) — target, not just quality
 
 A reviewer that sees only the diff can say "good code", never "the code that was asked
 for". When the active task's plan carries a frozen `## Acceptance Criteria` anchor

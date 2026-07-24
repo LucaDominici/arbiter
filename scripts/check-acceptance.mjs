@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// check-acceptance.mjs — INV-137 acceptance-criteria anchor gate.
+// check-acceptance.mjs — INV-138 acceptance-criteria anchor gate.
 //
 // "Green" certifies mechanics; this gate anchors INTENT. During implementation phases
 // the active task's plan MUST freeze the issue's acceptance criteria (explicit AC-N ids)
@@ -19,7 +19,7 @@
 //
 // Exit codes (INV-53): 0 PASS/SKIP · 1 FAIL (anchor or fit missing/invalid) · 2 ERROR
 //
-// CATALOG: enforces the acceptance-criteria anchor (INV-137) — implementation-phase plans must freeze explicit AC-N criteria + non-goals, and verification/close requires an all-PASS per-criterion ac-fit evidence artifact.
+// CATALOG: enforces the acceptance-criteria anchor (INV-138) — implementation-phase plans must freeze explicit AC-N criteria + non-goals, and verification/close requires an all-PASS per-criterion ac-fit evidence artifact.
 // CATALOG: rejected fold-in into check-phase-doc-consistency.mjs because that gate validates the SHAPE of .claude/.task/status.json (single-doc split-brain), while this one validates the CONTENT CONTRACT between the anchored plan, the issue's acceptance criteria, and reviewer fit evidence — a different SSOT axis with a feature-flag lifecycle.
 // CATALOG: rejected fold-in into check-evidence-bundle.mjs because evidence bundles are per-task artifact BUNDLES under .evidence/ with their own JSON schema file, whereas ac-fit is a single per-criterion verdict artifact coupled to plan parsing (scripts/lib/acceptance-criteria.mjs) that bundle validation knows nothing about.
 import { readFileSync, existsSync } from 'node:fs'

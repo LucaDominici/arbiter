@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// CANON-04 render test (ADR-110, INV-137): the acceptance-anchor orchestration tools
+// CANON-04 render test (ADR-110, INV-138): the acceptance-anchor orchestration tools
 // emitted to every governed tree (issue-readiness.mjs, rework-log.mjs and their shared
 // pure core lib/acceptance-criteria.mjs) must render byte-equal to arbiter's own
 // dogfooded scripts (CANON-01 dual-sided declination holds by construction) and execute

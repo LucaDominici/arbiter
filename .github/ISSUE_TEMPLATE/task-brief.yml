@@ -14,7 +14,7 @@ body:
     id: scope
     attributes:
       label: Scope
-      description: Files/contracts expected to change (read by the INV-137 readiness gate)
+      description: Files/contracts expected to change (read by the INV-138 readiness gate)
     validations:
       required: true
 
@@ -24,7 +24,7 @@ body:
       label: Acceptance criteria
       description: >-
         Explicit, stable `AC-N:` ids — acceptance tests and the review FIT rubric cite
-        these verbatim (INV-137). Gate/lint greenness is implied, never a criterion.
+        these verbatim (INV-138). Gate/lint greenness is implied, never a criterion.
         Replace the placeholders: an issue that keeps them is not ready.
       value: |
         - [ ] AC-1: <observable behavior>

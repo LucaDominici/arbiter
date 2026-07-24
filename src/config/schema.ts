@@ -36,7 +36,7 @@ export interface FeatureFlags {
   mutationTesting: boolean
   securityScanning: boolean
   evidenceHarness: boolean
-  /** INV-137: acceptance-criteria anchor gate (scripts/check-acceptance.mjs). Opt-in — absent ⇒ false. */
+  /** INV-138: acceptance-criteria anchor gate (scripts/check-acceptance.mjs). Opt-in — absent ⇒ false. */
   acceptanceAnchor?: boolean
   selfValidationHarness?: boolean
   /** #1835: opt-in toolchain/workflow-inventory audit (scripts/audit-toolchain.mjs). */

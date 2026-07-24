@@ -2,7 +2,7 @@
 '@arbiter/cli': minor
 ---
 
-Acceptance-criteria anchor (INV-137, ADR-110): closes the gap between "gate green"
+Acceptance-criteria anchor (INV-138, ADR-110): closes the gap between "gate green"
 and "what was asked". New feature flag `features.acceptanceAnchor` (opt-in;
 `ARBITER_ACCEPTANCE_ANCHOR` env override) activates `scripts/check-acceptance.mjs`
 in check-all L1 — implementation-phase plans must freeze the issue's explicit

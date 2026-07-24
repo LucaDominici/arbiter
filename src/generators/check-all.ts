@@ -177,7 +177,7 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'lib', 'glob-walk.mjs'],
     tpl: 'scripts/lib/glob-walk.mjs.ejs',
   },
-  // ADR-110 (INV-137): acceptance-anchor orchestration tools. The generated ship.md
+  // ADR-110 (INV-138): acceptance-anchor orchestration tools. The generated ship.md
   // preflight/FIT-rubric steps invoke issue-readiness.mjs / rework-log.mjs, so the
   // files must exist in every governed tree (INV-123 emission coherence — command-doc
   // references are unguarded by construction). Both share the pure parsing core in
