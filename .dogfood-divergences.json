@@ -105,7 +105,7 @@
     "dest": ".github/workflows",
     "reason": "The template collapses 01-pr-fast.yml.ejs's entire PR pipeline (gate, unit tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, debt-gates, ci-required, post-merge-gate — contract/integration/behavioral tests moved to 02-pr-extended.yml.ejs at #1875) to a one-line solo-dev-gate stub whenever `locals.enableSoloDevMode` is true — and arbiter.json sets features.soloDevMode: true. Self deliberately keeps running the full peer-review-shaped pipeline regardless (arbiter dogfoods harder than its own declared collaborationMode: trunk-solo — same pattern documented in check-ci-tiers.mjs.ejs's cadence-parity comment). Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "e6da9c31f75fac8cc9319d2068eaf91a7a27944e89da5a5dceafe339062c6f9e"
+    "diffHash": "f2c6681bffed4c60ac915e676952fe87558b1eff2adafe6a48b52e7c77389adb"
   },
   {
     "path": "02-pr-extended.yml",

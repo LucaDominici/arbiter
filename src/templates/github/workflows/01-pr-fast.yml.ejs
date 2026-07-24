@@ -327,7 +327,14 @@ jobs:
         with:
           op: restore
       - run: node scripts/build-kit.mjs
-<% } %>      - run: npm run test:unit<% if (enableDebtGates) { %> -- --reporter=junit --outputFile=test-results/junit.xml<% } %>
+<% } %>      - name: Install psmisc (fuser — #2098 gate-exec queue-depth advisory)
+        # scripts/lib/waiter-count.mjs shells out to `fuser` to count real flock
+        # waiters; unlike gitleaks/actionlint (single-binary GitHub-release
+        # tarballs, pinned in scripts/ci-tools.json), psmisc has no such release
+        # artifact, so apt is the install path here. flock itself (util-linux)
+        # is already present on the runner image; only fuser (psmisc) is missing.
+        run: apt-get update -qq && apt-get install -y -qq psmisc
+      - run: npm run test:unit<% if (enableDebtGates) { %> -- --reporter=junit --outputFile=test-results/junit.xml<% } %>
 <% if (enableDebtGates) { %>
       - name: Upload test results
         id: upload-test-results
