@@ -130,7 +130,12 @@ long-running session. Orchestrators direct; they do not implement
 never implements"). Corollary (#2098): before dispatching a fresh agent whose purpose is
 relaying new information into another agent's in-progress task, check the live-agent
 roster first — a live agent plus new information is resumed via message, not relayed to
-via a cold-start agent.
+via a cold-start agent. Corollary 2 (#2098): under concurrency, an unscoped identifier is
+not a signal — a `pgrep -f <command>` liveness check can match a _different_ concurrent
+agent's identical process, and a generic output-redirect path (e.g. `gate-run1.log`) can
+collide with another agent's identical choice and read back a corrupted interleave.
+Always track the specific spawned PID and give every redirect target something
+invocation-unique (PID, worktree name, or timestamp+random suffix).
 
 **Why.** Long sessions are where rot compounds (R1, R5). A short-lived agent's context
 is by construction fresh, scoped, and disposable.
