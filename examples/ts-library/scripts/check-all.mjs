@@ -19,7 +19,20 @@ import {
   getResults,
   getFailed,
   setMode,
+  resolveTmpfsTmpdir,
 } from './lib/run-helpers.mjs';
+
+// ─── TMPDIR on tmpfs (dominant wall-clock lever for fsync-bound suites) ──────
+// Set BEFORE any child spawns so every one of them inherits it; see
+// resolveTmpfsTmpdir for the measurement and why the guard is free space, not
+// existence. An explicit TMPDIR always wins — note it also partitions Go's test
+// cache (TMPDIR is hashed into the test-input ID), so anyone running tests by
+// hand should export the same value the gate picks or they warm a second,
+// separate cache.
+if (!process.env.TMPDIR) {
+  const _tmpfs = resolveTmpfsTmpdir();
+  if (_tmpfs) process.env.TMPDIR = _tmpfs;
+}
 
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';

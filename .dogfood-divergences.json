@@ -479,13 +479,13 @@
   {
     "path": "glob-walk.mjs",
     "dest": "scripts/lib",
-    "reason": "Arbiter self-dogfood (pre-existing divergence surfaced when the script-libs family joined parity scope, #1943 residual c): the SELF copy adds the nested-.git checkout boundary guard (skips agent worktrees/submodules materialized inside the tree — needed because arbiter's own repo hosts agent worktrees) with its extra existsSync import; the SHIPPED twin instead adds the Python dependency-closure SKIP_DIRS ('.venv'/'venv'/'__pycache__', #1840 F4 tranche-3) that only matter for generated Python targets. Both sides are deliberate specializations; reconciliation tracked as follow-up, not silent drift.",
-    "diffHash": "27c3b13aaf0762bc7334ec0e27aeacb8a6bc8eae394c9fa95331d2b48999e755"
+    "reason": "Arbiter self-dogfood: the SHIPPED twin adds the Python dependency-closure SKIP_DIRS ('.venv'/'venv'/'__pycache__', #1840 F4 tranche-3) that only matter for generated Python targets; the SELF copy cannot adopt them because __tests__/conformance/skip-dirs-parity.test.ts locks its SKIP_DIRS byte-identical to src/conformance/shared.ts (#1521). The nested-.git checkout-boundary prune that used to be self-only (#1734/#1752) is NO LONGER part of this divergence: #2104 ported it to the template and unified both sides on the same cheaper form (one `entries.includes('.git')` check per directory over the entries already read, instead of an existsSync stat per subdirectory). Remaining divergence is the SKIP_DIRS set plus its comment; reconciliation tracked as follow-up, not silent drift.",
+    "diffHash": "694346ef35afa1578bb1b9bae908f8e2197a43859dd06dc874ccdd1b232ae467"
   },
   {
     "path": "run-helpers.mjs",
     "dest": "scripts/lib",
-    "reason": "Arbiter self-dogfood (pre-existing divergence surfaced when the script-libs family joined parity scope, #1943 residual c): the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. Reconciliation tracked as follow-up, not silent drift.",
-    "diffHash": "a63cba179660ce1629833b7276e7f7eb683e915c8af9267b2610497fad0685e7"
+    "reason": "Arbiter self-dogfood: the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. #2104 additionally adds `resolveTmpfsTmpdir` (TMPDIR on tmpfs) to the SHIPPED twin only: the 210s->33.7s measurement behind it is a Go/SQLite fsync-bound workload, arbiter's own gate is Node/TS and the lever is unmeasured there — and an exported-but-unwired helper would trip the unused-export guard. Reconciliation tracked as follow-up, not silent drift.",
+    "diffHash": "7afd199874fcf0bd1fd7e73f82c3819d7c6deabcb717bbdcc9e5ac4613da9fab"
   }
 ]

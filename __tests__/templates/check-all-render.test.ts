@@ -1033,7 +1033,10 @@ describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#17
         writeFileSync(join(scriptsDir, 'check-all.mjs'), probe)
         writeFileSync(
           join(scriptsDir, 'lib', 'run-helpers.mjs'),
-          'export const runCheck = () => {};\nexport const runWarnCheck = () => {};\nexport const runToolCheck = () => {};\nexport const pushResult = () => {};\nexport const getResults = () => [];\nexport const getFailed = () => [];\nexport const setMode = () => {};\n',
+          'export const runCheck = () => {};\nexport const runWarnCheck = () => {};\nexport const runToolCheck = () => {};\nexport const pushResult = () => {};\nexport const getResults = () => [];\nexport const getFailed = () => [];\nexport const setMode = () => {};\n' +
+            // #2104: the gate resolves a tmpfs TMPDIR before any spawn. Stubbed to null so
+            // this probe stays hermetic (no TMPDIR mutation) and host-independent.
+            'export const resolveTmpfsTmpdir = () => null;\n',
         )
         const r = spawnSync('node', [join(scriptsDir, 'check-all.mjs'), ...args], {
           encoding: 'utf-8',

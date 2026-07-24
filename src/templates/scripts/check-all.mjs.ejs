@@ -19,7 +19,20 @@ import {
   getResults,
   getFailed,
   setMode,
+  resolveTmpfsTmpdir,
 } from './lib/run-helpers.mjs';
+
+// ─── TMPDIR on tmpfs (dominant wall-clock lever for fsync-bound suites) ──────
+// Set BEFORE any child spawns so every one of them inherits it; see
+// resolveTmpfsTmpdir for the measurement and why the guard is free space, not
+// existence. An explicit TMPDIR always wins — note it also partitions Go's test
+// cache (TMPDIR is hashed into the test-input ID), so anyone running tests by
+// hand should export the same value the gate picks or they warm a second,
+// separate cache.
+if (!process.env.TMPDIR) {
+  const _tmpfs = resolveTmpfsTmpdir();
+  if (_tmpfs) process.env.TMPDIR = _tmpfs;
+}
 <% if (language === 'typescript' && enableDebtGates && coverageEnabled) { %>
 // #1319.8 — greenfield-aware coverage decision (PASS on 0 executable statements;
 // enforce threshold otherwise; FAIL on missing/malformed summary).
@@ -899,7 +912,16 @@ if (level === 'L2') {
   runCheck('spotbugs baseline (INV-44)', 'node', ['scripts/verify-spotbugs.mjs'], { soft: graceActive });
 <% } %><% if (language === 'go') { %>
 <% if (coverageEnabled) { %>
-  runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...'], { soft: graceActive });
+  // Default covermode (set), NOT atomic: the debt ratchet runs the whole suite a
+  // second time in this same gate (scripts/debt-lib.mjs, `go test
+  // -coverprofile=.coverage-tmp.out <pkgs>`) and covermode partitions Go's test
+  // cache, so pinning `atomic` here forced a full second pass — 231.4s measured on
+  // a governed project, 0.77s (52/52 packages cached) once aligned. Statement
+  // coverage is identical between the two modes (verified: 89.6% either way);
+  // atomic counters are only required under -race, a separate step that collects no
+  // coverage. Fail-safe direction anyway: a lost counter increment under `set` can
+  // only under-report, and the threshold is a floor.
+  runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', './...'], { soft: graceActive });
   const _coverThreshStart = Date.now();
   process.stdout.write('[CHECK] coverage threshold ... ');
   const coverResult = spawnSync('go', ['tool', 'cover', '-func=coverage.out'], { encoding: 'utf-8', shell: false });
