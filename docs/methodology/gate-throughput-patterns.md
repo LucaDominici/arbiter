@@ -170,7 +170,7 @@ now wired into the generated gate:
   **The sibling you talk yourself out of (#2106).** The same pin survived one more round in
   `scripts/evidence-collect.mjs`, spared on the reasoning that evidence collection runs on a
   fresh CI checkout where a cold cache makes the pin free. Nobody checked. It runs nowhere in
-  CI — the workflow jobs *named* `evidence-collect` write a summary file inline and never
+  CI — the workflow jobs _named_ `evidence-collect` write a summary file inline and never
   invoke the script; the script is operator-run, in the same working tree as the gate, against
   a warm cache. **An audit that exempts a call site on an unverified assumption about where it
   runs has not audited it.** Grep for the invocation before granting the exemption.
