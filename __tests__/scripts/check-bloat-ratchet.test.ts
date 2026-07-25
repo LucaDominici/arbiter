@@ -6,10 +6,16 @@ import { resolve } from 'node:path'
 const SCRIPT = resolve('scripts/check-bloat-ratchet.mjs')
 
 function run(env?: Record<string, string>) {
+  // ALLOW_BLOAT is a session-scoped bypass (CONTRIBUTING.md). Inherited from the
+  // ambient environment it would silence the ratchet in the child and turn the
+  // real-ratchet assertions below into a false red, so scrub it and let each case
+  // opt in explicitly via `env`.
+  const base = { ...process.env }
+  delete base.ALLOW_BLOAT
   const r = spawnSync('node', [SCRIPT], {
     encoding: 'utf-8',
     cwd: resolve('.'),
-    env: { ...process.env, ...env },
+    env: { ...base, ...env },
   })
   return {
     status: r.status ?? 1,
