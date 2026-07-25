@@ -167,6 +167,14 @@ now wired into the generated gate:
   the same work under different cache keys pay for it twice.** Audit the flags that feed a
   toolchain's cache key (covermode, feature flags, `TMPDIR` itself) for accidental divergence.
 
+  **The sibling you talk yourself out of (#2106).** The same pin survived one more round in
+  `scripts/evidence-collect.mjs`, spared on the reasoning that evidence collection runs on a
+  fresh CI checkout where a cold cache makes the pin free. Nobody checked. It runs nowhere in
+  CI — the workflow jobs *named* `evidence-collect` write a summary file inline and never
+  invoke the script; the script is operator-run, in the same working tree as the gate, against
+  a warm cache. **An audit that exempts a call site on an unverified assumption about where it
+  runs has not audited it.** Grep for the invocation before granting the exemption.
+
 **Corollary:** the same audit catches correctness bugs, not only slow ones. Pruning nested
 checkouts in `walkRepo` (a git worktree or submodule inside the working tree carries its own
 `.git` and belongs to a different commit) cut one repo's secret scan from 62,974 files to
