@@ -566,6 +566,7 @@ function buildNextConfig(
   axisFields: ReturnType<typeof resolveAxisFields>,
   language: ProjectConfig['language'],
   needsMigration: boolean,
+  projectName: string,
 ): ArbiterConfigV2 {
   const {
     archetype,
@@ -579,6 +580,14 @@ function buildNextConfig(
   } = axisFields
   return {
     ...stored,
+    // #2120: persist the RESOLVED name (same slugified form `init` writes, see
+    // build-arbiter-config.ts). `resolveProjectName` re-derives it every run from
+    // stored → package.json → git remote → basename, and never wrote step 1 back:
+    // a repo whose arbiter.json predates #1978 keeps resolving to its
+    // package.json name, so every update silently renames the project in every
+    // generated artifact. Writing it back makes arbiter.json the durable source
+    // and freezes the answer at the first update.
+    projectName,
     archetype,
     architectureStyle,
     isMultiTenant,
@@ -770,7 +779,13 @@ function prepareUpdateConfig(
   if (needsMigration) {
     log("  Migrating soloDevMode=true → collaborationMode='trunk-solo' (ADR-051)")
   }
-  const nextConfig = buildNextConfig(stored, axisFields, config.language, needsMigration)
+  const nextConfig = buildNextConfig(
+    stored,
+    axisFields,
+    config.language,
+    needsMigration,
+    projectName,
+  )
   return { config, specs, snapshot, nextConfig }
 }
 

@@ -74,6 +74,13 @@ Every file arbiter generates has a declared stability status. This determines th
 | User-editable  | Yes — this is the primary user configuration file.                                           |
 | Merge strategy | User edits are never overwritten. New fields may be added by `arbiter update` with defaults. |
 
+`projectName` is one of those fields (#2120). It is resolved on every run through the precedence chain
+`arbiter.json` → `package.json` `name` → git remote → directory basename (#1978), and `arbiter update` now
+writes the resolved value back. Until it did, a repo whose `arbiter.json` predated the key resolved to its
+`package.json` name on _every_ run — so a project named differently from its package (`acme` vs
+`acme-tooling`) was silently renamed in every generated artifact, update after update. Set the key
+explicitly to pin the name; the first `update` pins it for you otherwise.
+
 ### package.json — injected dev-dependencies (#1314)
 
 | Property       | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

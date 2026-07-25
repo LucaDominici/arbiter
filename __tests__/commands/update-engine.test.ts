@@ -79,3 +79,41 @@ describe('runUpdate — derived databaseEngine persistence (#1317)', () => {
     expect(second.keysRun?.has('*')).toBe(true)
   })
 })
+
+// ── #2120: `update` must PERSIST the resolved project name ─────────────────────
+// `resolveProjectName` has a precedence chain (stored.projectName → package.json
+// name → git remote → basename) but update never wrote step 1 back. On a repo
+// whose arbiter.json predates #1978, step 2 wins on EVERY run, so a package.json
+// named differently from the project (`acme` vs `acme-tooling`) silently
+// renames the project in every generated artifact, update after update.
+describe('runUpdate — resolved projectName persistence (#2120)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('writes the resolved name back so arbiter.json becomes the durable source', async () => {
+    // Legacy config: no projectName key at all → resolution falls to package.json.
+    writeV2Config(dir)
+    expect(readArbiterJson(dir)['projectName']).toBeUndefined()
+
+    await runUpdate({ dir, json: true, github: false })
+
+    expect(readArbiterJson(dir)['projectName']).toBe('test-project')
+  })
+
+  it('an already-stored name keeps precedence over package.json (no rename)', async () => {
+    writeV2Config(dir, { projectName: 'deliberate-name' })
+
+    await runUpdate({ dir, json: true, github: false })
+
+    expect(readArbiterJson(dir)['projectName']).toBe('deliberate-name')
+  })
+})
