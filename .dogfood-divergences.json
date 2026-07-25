@@ -480,7 +480,7 @@
     "path": "glob-walk.mjs",
     "dest": "scripts/lib",
     "reason": "Arbiter self-dogfood: the SHIPPED twin adds the Python dependency-closure SKIP_DIRS ('.venv'/'venv'/'__pycache__', #1840 F4 tranche-3) that only matter for generated Python targets; the SELF copy cannot adopt them because __tests__/conformance/skip-dirs-parity.test.ts locks its SKIP_DIRS byte-identical to src/conformance/shared.ts (#1521). The nested-.git checkout-boundary prune that used to be self-only (#1734/#1752) is NO LONGER part of this divergence: #2104 ported it to the template and unified both sides on the same cheaper form (one `entries.includes('.git')` check per directory over the entries already read, instead of an existsSync stat per subdirectory). Remaining divergence is the SKIP_DIRS set plus its comment; reconciliation tracked as follow-up, not silent drift.",
-    "diffHash": "694346ef35afa1578bb1b9bae908f8e2197a43859dd06dc874ccdd1b232ae467"
+    "diffHash": "a635875e2b289bdef85c452d04e770cd7e2f0e96b1d4b40cfd4267c3616b0a27"
   },
   {
     "path": "run-helpers.mjs",
