@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// T1 (convergence playbook, anti-erosion ratchet): a safety-class file
-// (`.claude/hooks/*.mjs`) that is STILL withheld — user-modified, and NOT
-// re-adopted — is exactly the silent-erosion case this gate exists to catch
-// (e.g. a `stop-dangerous.mjs` fix shipped upstream while the target repo's
-// modified copy never received it). `arbiter update` adopts safety-class
-// files by default (see --no-adopt-safety); this gate is the monotonic
-// backstop for the escape hatch — a divergence can never hide, it can only be
-// re-adopted or explicitly accepted (gate stays red until then).
+// T1 (convergence playbook, anti-erosion ratchet): a PROTECTED file that is
+// STILL withheld — user-modified, and NOT re-adopted — is exactly the
+// silent-erosion case this gate exists to catch. Two classes are protected:
+//   safety class  `.claude/hooks/*.mjs`  (e.g. a `stop-dangerous.mjs` fix
+//                 shipped upstream while the target repo's modified copy
+//                 never received it)
+//   gate spine    `scripts/check-all.mjs`, `scripts/lib/*.mjs` (#2109) — the
+//                 gate entrypoint and its libs are the delivery vector for
+//                 every check arbiter ships later, including this ratchet's
+//                 own wiring, so freezing them is self-sealing erosion
+// `arbiter update` adopts both by default (see --no-adopt-safety /
+// --no-adopt-gate-spine); this gate is the monotonic backstop for the escape
+// hatch — a divergence can never hide, it can only be re-adopted or explicitly
+// accepted (gate stays red until then).
 // Usage: node scripts/check-safety-adopt-ratchet.mjs [--manifest=<path>]
 
 import { readFileSync, existsSync } from 'node:fs'
@@ -39,20 +45,21 @@ try {
   const withheldSafety = Array.isArray(manifest.withheldSafety) ? manifest.withheldSafety : []
 
   if (withheldSafety.length === 0) {
-    process.stdout.write('[safety-adopt-ratchet] no withheld safety-class files — OK\n')
+    process.stdout.write('[safety-adopt-ratchet] no withheld protected files — OK\n')
     process.exit(0)
   }
 
   process.stderr.write(
-    `[safety-adopt-ratchet] ${withheldSafety.length} safety-class file(s) are withheld ` +
+    `[safety-adopt-ratchet] ${withheldSafety.length} protected file(s) are withheld ` +
       `(user-modified, template fix did NOT land):\n`,
   )
   for (const key of withheldSafety) {
     process.stderr.write(`  - ${key}\n`)
   }
   process.stderr.write(
-    `  Erosion detected: a governance/safety hook has silently diverged from the shipped\n` +
-      `  template. Run \`arbiter update --adopt-safety\` (the default) to re-adopt it, or\n` +
+    `  Erosion detected: a governance/safety hook or a gate-spine script has silently\n` +
+      `  diverged from the shipped template. Run \`arbiter update\` (both classes adopt by\n` +
+      `  default) to re-adopt it, or\n` +
       `  \`arbiter update --adopt-plan\` to preview the diff first. If this divergence is\n` +
       `  intentional, it must be a documented, dated exception — not a silent skip.\n`,
   )
