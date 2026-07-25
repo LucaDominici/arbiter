@@ -176,9 +176,9 @@ even when the on-disk copy is user-modified, both record a reversible
 backstopped by `scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as
 long as a member of either class stays withheld.
 
-| class | pattern | opt-out |
-| --- | --- | --- |
-| safety (T1) | `.claude/hooks/*.mjs` | `--no-adopt-safety` |
+| class              | pattern                                      | opt-out                 |
+| ------------------ | -------------------------------------------- | ----------------------- |
+| safety (T1)        | `.claude/hooks/*.mjs`                        | `--no-adopt-safety`     |
 | gate spine (#2109) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | `--no-adopt-gate-spine` |
 
 Both are monotonic by directory: a hook or a `scripts/lib/` helper added later is covered without the
@@ -197,7 +197,7 @@ recorded render, so a template fix could never have reached it.
 legitimately tunes its own thresholds; force-adopting those would overwrite intent rather than restore a
 fix. They stay `skipIfExists` and surface through `diff --withheld` like any other file.
 
-**Accepted cost.** A deliberate local edit to the gate spine *is* overwritten by the next `arbiter update`.
+**Accepted cost.** A deliberate local edit to the gate spine _is_ overwritten by the next `arbiter update`.
 The `local-overrides` envelope makes that reversible, not painless. The trade is deliberate: a stale gate
 spine is a silent, permanent loss of every future fix, and a loud recoverable overwrite beats that. Use
 `--adopt-plan` to preview, or `--no-adopt-gate-spine` to keep the customization and accept a red ratchet.
