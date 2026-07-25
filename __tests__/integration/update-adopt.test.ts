@@ -235,9 +235,11 @@ describe('#2109 red-path: gate-spine erosion is caught (not silent)', () => {
 
     const overridesDir = join(dir, '.arbiter/evidence/local-overrides')
     const files = readdirSync(overridesDir)
-    const record = JSON.parse(
-      readFileSync(join(overridesDir, files[0] as string), 'utf-8'),
-    ) as { path: string; priorContent: string; reason: string }
+    const record = JSON.parse(readFileSync(join(overridesDir, files[0] as string), 'utf-8')) as {
+      path: string
+      priorContent: string
+      reason: string
+    }
     expect(record.path).toBe(SPINE)
     expect(record.priorContent).toBe(userContent)
     expect(record.reason).toContain('#2109')
