@@ -47,6 +47,23 @@ describe('evidence-collect.mjs.ejs render (#241)', () => {
     expect(out).toContain("stack: 'typescript'")
   })
 
+  // #2106 — covermode is part of Go's test-cache key, so a step pinning `atomic`
+  // cannot reuse anything warmed by a default-covermode run of the same packages.
+  // No generated workflow invokes this script (the `evidence-collect` JOB in
+  // _nightly.yml/_monthly.yml writes a summary.txt inline and never calls it), so
+  // it runs where an operator runs it: the same working tree as the gate, warm
+  // cache. Statement coverage is identical between the modes; `atomic` is only
+  // required under `-race`, which collects no coverage here.
+  it('does not pin -covermode=atomic on the go coverage run', () => {
+    expect(render('go')).not.toContain('-covermode=atomic')
+  })
+
+  it('still writes the coverage profile the go tool cover step reads', () => {
+    const out = render('go')
+    expect(out).toContain("'-coverprofile=.evidence/coverage.out'")
+    expect(out).toContain("'-func=.evidence/coverage.out'")
+  })
+
   it('persists the stack field in SUMMARY.json (go)', () => {
     const out = render('go')
     expect(out).toContain("stack: 'go'")
