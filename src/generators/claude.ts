@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
+import { existsSync, readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, mergeSettingsJson, resolvedPath } from '../utils/fs.js'
@@ -107,10 +107,16 @@ function generateClaudeSettings(
     return
   }
 
-  // Existing settings.json: merge incoming defaults into the user's file. The
-  // result is compared to disk so an idempotent run skips (no churned backup) —
-  // this is the only generator with a non-trivial merge, so it computes its own
-  // prospective action rather than delegating to writeFile (#1077 F6).
+  // Existing settings.json: merge incoming defaults into the user's file. Only
+  // the MERGE is bespoke — the write is not. #2120: this generator used to
+  // compare, `copyFileSync` the backup and `writeFileSync` the result itself,
+  // which made `.claude/settings.json` the one emitted file no protection
+  // mechanism reached: not the generated manifest, not `arbiter:preserve`
+  // (#1980), not the adopt/plan machinery. Hand the merged text to `writeFile`
+  // instead and every one of them applies. The three outcomes are unchanged —
+  // byte-identical → `skipped`, otherwise `backed-up-and-replaced` writing
+  // `<path>.arbiter-backup` first (#285), nothing at all under dryRun — with
+  // an atomic temp+rename replacing the bare writeFileSync.
   const existing = parseExistingSettings(settingsPath)
   const incoming = JSON.parse(renderTemplate('claude/settings.json.ejs', data)) as Record<
     string,
@@ -119,21 +125,7 @@ function generateClaudeSettings(
   const merged = mergeSettingsJson(existing, incoming)
   const mergedText = JSON.stringify(merged, null, 2) + '\n'
 
-  if (readFileSync(settingsPath, 'utf-8') === mergedText) {
-    results.push({ path: settingsPath, action: 'skipped' })
-    return
-  }
-
-  if (dryRun) {
-    results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
-    return
-  }
-
-  // Always overwrite the backup with the current pre-merge state so users can undo
-  // this specific merge. Long-term history lives in git, not in .arbiter-backup (#285).
-  copyFileSync(settingsPath, `${settingsPath}.arbiter-backup`)
-  writeFileSync(settingsPath, mergedText, 'utf-8')
-  results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
+  results.push(writeFile(settingsPath, mergedText, { backup: true, dryRun }))
 }
 
 // L2+ advanced hooks emitted for every target (guard-done-evidence is added

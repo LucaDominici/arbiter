@@ -70,3 +70,52 @@ describe('runUpdate — preserve marker withholds overwrite (#1980)', () => {
     expect(readFileSync(target, 'utf-8')).toBe(stub)
   })
 })
+
+// ── #2120: `.claude/settings.json` was the one emitted file NO protection ─────
+// mechanism reached. `generateClaudeSettings` did its own merge, its own
+// disk-compare, its own copyFileSync backup and its own writeFileSync — so the
+// generated manifest never learned its hash, `arbiter:preserve` never applied,
+// and neither did the adopt/plan machinery. JSON has no comments, but the
+// whole-file marker is a substring test, so an ordinary key carries it.
+describe('runUpdate — .claude/settings.json honours the preserve marker (#2120)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('leaves a marked settings.json byte-identical across a full regen', async () => {
+    writeV2Config(dir)
+    await runUpdate({ dir, json: true, github: false })
+
+    const target = join(dir, '.claude', 'settings.json')
+    const stub = JSON.stringify({ _arbiter: 'arbiter:preserve', hooks: {} }, null, 2) + '\n'
+    writeFileSync(target, stub)
+
+    writeV2Config(dir, { governanceLevel: 'L3' })
+    const result = await runUpdate({ dir, json: true, github: false })
+
+    expect(result.keysRun?.has('*')).toBe(true)
+    expect(readFileSync(target, 'utf-8')).toBe(stub)
+  })
+
+  it('an unmarked settings.json still receives the merge (protection is opt-in)', async () => {
+    writeV2Config(dir)
+    await runUpdate({ dir, json: true, github: false })
+
+    const target = join(dir, '.claude', 'settings.json')
+    writeFileSync(target, JSON.stringify({ hooks: {} }, null, 2) + '\n')
+
+    writeV2Config(dir, { governanceLevel: 'L3' })
+    await runUpdate({ dir, json: true, github: false })
+
+    const after = JSON.parse(readFileSync(target, 'utf-8')) as { hooks: Record<string, unknown> }
+    expect(Object.keys(after.hooks).length).toBeGreaterThan(0)
+  })
+})

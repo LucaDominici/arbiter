@@ -47,6 +47,13 @@ Every file arbiter generates has a declared stability status. This determines th
 | User-editable  | Additive — users may add entries outside arbiter-managed keys.             |
 | Merge strategy | arbiter merges its managed keys. User-added keys survive `arbiter update`. |
 
+Only the merge is bespoke; the write is not (#2120). The merged result goes through the ordinary
+`writeFile` path, so `.claude/settings.json` is recorded in the generated manifest, honours the
+`arbiter:preserve` marker (see below) and is written atomically. Until it did, this was the one emitted
+file no protection mechanism reached — the generator compared, backed up and wrote it by hand. JSON has no
+comments, but the marker is a whole-file substring test, so an ordinary key carries it:
+`{ "_arbiter": "arbiter:preserve", … }`.
+
 ### GLOBAL_INVARIANTS.md
 
 | Property       | Value                                                                                                  |
