@@ -175,3 +175,101 @@ describe('T1 red-path: safety-class hook erosion is caught (not silent)', () => 
     expect(readFileSync(join(dir, USERMOD), 'utf-8')).not.toBe(userContent)
   })
 })
+
+// #2109 — the same red path for the GATE SPINE. The safety class above covers
+// `.claude/hooks/*.mjs`; `scripts/check-all.mjs` and `scripts/lib/*.mjs` were
+// left out of it, and they are the delivery vector for every check arbiter
+// ships later — including the wiring of the ratchet that is supposed to catch
+// this exact erosion. Frozen spine = self-sealing erosion.
+describe('#2109 red-path: gate-spine erosion is caught (not silent)', () => {
+  let dir: string
+
+  const SPINE = 'scripts/check-all.mjs'
+  const SPINE_LIB = 'scripts/lib/glob-walk.mjs'
+
+  /** Same erosion shape as erodeHook, for an arbitrary tracked key. */
+  function erode(target: string, marker: string): string {
+    const manifest = loadGeneratedManifest(dir)
+    expect(manifest[target]).toBeDefined()
+    const userContent = `// USER EDIT — ${marker}\n`
+    writeFileSync(join(dir, target), userContent)
+    saveGeneratedManifest(dir, manifest)
+    return userContent
+  }
+
+  beforeEach(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'arb-2109-spine-'))
+    initGit(dir)
+    await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('sanity: init emits the gate spine and its libs', () => {
+    expect(existsSync(join(dir, SPINE))).toBe(true)
+    expect(existsSync(join(dir, SPINE_LIB))).toBe(true)
+  })
+
+  it('the gate entrypoint is ADOPTED by default — a correctness fix reaches a touched project', async () => {
+    const userContent = erode(SPINE, 'hand-tuned gate entrypoint')
+
+    await runUpdate({ dir, github: false })
+
+    const onDisk = readFileSync(join(dir, SPINE), 'utf-8')
+    expect(onDisk).not.toBe(userContent)
+    expect(onDisk).not.toContain('USER EDIT')
+    expect(loadWithheldSafety(dir)).toEqual([])
+    expect(runRatchet(dir).status).toBe(0)
+  })
+
+  it('a scripts/lib helper is adopted too — monotonic by directory', async () => {
+    const userContent = erode(SPINE_LIB, 'hand-tuned walker')
+    await runUpdate({ dir, github: false })
+    expect(readFileSync(join(dir, SPINE_LIB), 'utf-8')).not.toBe(userContent)
+  })
+
+  it('the prior content survives in a reversible local-override record', async () => {
+    const userContent = erode(SPINE, 'hand-tuned gate entrypoint')
+    await runUpdate({ dir, github: false })
+
+    const overridesDir = join(dir, '.arbiter/evidence/local-overrides')
+    const files = readdirSync(overridesDir)
+    const record = JSON.parse(
+      readFileSync(join(overridesDir, files[0] as string), 'utf-8'),
+    ) as { path: string; priorContent: string; reason: string }
+    expect(record.path).toBe(SPINE)
+    expect(record.priorContent).toBe(userContent)
+    expect(record.reason).toContain('#2109')
+  })
+
+  it('--no-adopt-gate-spine freezes it AND the ratchet FAILS — never a silent skip', async () => {
+    const userContent = erode(SPINE, 'hand-tuned gate entrypoint')
+
+    await runUpdate({ dir, github: false, noAdoptGateSpine: true })
+
+    expect(readFileSync(join(dir, SPINE), 'utf-8')).toBe(userContent)
+    expect(loadWithheldSafety(dir)).toContain(SPINE)
+
+    const ratchet = runRatchet(dir)
+    expect(ratchet.status).toBe(1)
+    expect(ratchet.stderr).toContain(SPINE)
+  })
+
+  it('the two opt-outs are independent: freezing the spine leaves safety hooks adopted', async () => {
+    const spineContent = erode(SPINE, 'hand-tuned gate entrypoint')
+    const hookContent = erode(HOOK, 'hand-patched safety hook')
+
+    await runUpdate({ dir, github: false, noAdoptGateSpine: true })
+
+    expect(readFileSync(join(dir, SPINE), 'utf-8')).toBe(spineContent)
+    expect(readFileSync(join(dir, HOOK), 'utf-8')).not.toBe(hookContent)
+  })
+
+  it('a leaf check script is NOT in the class — a project keeps its own thresholds', async () => {
+    const LEAF = 'scripts/check-collab-mode-wired.mjs'
+    const userContent = erode(LEAF, 'project-tuned leaf check')
+    await runUpdate({ dir, github: false })
+    expect(readFileSync(join(dir, LEAF), 'utf-8')).toBe(userContent)
+  })
+})

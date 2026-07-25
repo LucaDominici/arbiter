@@ -639,6 +639,12 @@ program
       'user-modified safety hook frozen even if the shipped template fixed it — dangerous.',
   )
   .option(
+    '--no-adopt-gate-spine',
+    'Opt OUT of the default-on gate-spine adoption (scripts/check-all.mjs, ' +
+      'scripts/lib/*.mjs). Freezes a deliberately customized gate entrypoint — at the ' +
+      'cost of never receiving another correctness or security fix for it (#2109).',
+  )
+  .option(
     '--adopt-plan',
     'Two-phase preview: print what --adopt/the default safety adoption WOULD change ' +
       '(file list + line diff), without writing anything.',
@@ -660,6 +666,7 @@ program
       force: boolean
       adopt: boolean
       adoptSafety: boolean
+      adoptGateSpine: boolean
       adoptPlan: boolean
       refreshDerived: boolean
     }) => {
@@ -674,6 +681,7 @@ program
         force: opts.force,
         adopt: opts.adopt,
         noAdoptSafety: !opts.adoptSafety,
+        noAdoptGateSpine: !opts.adoptGateSpine,
         adoptPlan: opts.adoptPlan,
         refreshDerived: opts.refreshDerived,
       })

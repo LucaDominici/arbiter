@@ -298,7 +298,7 @@
     "scripts/check-pipe-tee-hazard.mjs": "50f9c9fc51c70268965c399c2eb77c9d2918dbb6e8c8621888b79a2b9baa736b",
     "scripts/check-pr-size-gate.mjs": "1155706be040cd9f108ee95a32d880e1c9cc64b4c2c8d55cd73838b61e9187fe",
     "scripts/check-render-smoke.mjs": "16d256113c1bfeb898959b19e02f0aa8436fcbd139f0b231e5a2bb406ce97e69",
-    "scripts/check-safety-adopt-ratchet.mjs": "93d3cd8ee093d5aa076cc0b40f4fd480fa31824888d552e76fbc8ce98c370280",
+    "scripts/check-safety-adopt-ratchet.mjs": "4add001b00c04538aa725b962f64e8b417a4618670b43090cf8bd7e5b427ebfe",
     "scripts/check-secret-presence.mjs": "64a9e415360d8d66cc2433174e4d9859e1cd3e539110b226325c77040ba84fae",
     "scripts/check-secret-scan.mjs": "c6e8fd2ba5f2232562f4353168b5c4f19f3acd48838e19e872dcb0dae202b036",
     "scripts/check-skip-critical-e2e.mjs": "6143440cd6e81b89689c004841a600546a11d85c3bd36e726c73d9d7a55e3a48",

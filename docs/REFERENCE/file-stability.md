@@ -160,12 +160,47 @@ any withheld fix exists, so CI can flag it without claiming `update` would rewri
 > match. This is arbiter's own formatting, not a user edit — tracked for a root fix (in-memory format
 > before hashing).
 
-> Future work (tracked separately): 3-way merge assist for withheld files, and elevating
-> gate/security-critical fixes to an explicit "force-review" action keyed off this `withheld` status.
+> Future work (tracked separately): 3-way merge assist for withheld files. The other half of this note —
+> elevating gate-critical fixes out of "withheld forever" — landed as the gate-spine protected class
+> (#2109), documented below.
 
 `update` persists the manifest before writing `arbiter.json`/`.arbiter-generated.json`, so those two are
 never recorded as manifest entries. Plugin- and `doctor`-written files keep the legacy skip-always
 behavior (out of scope for the manifest).
+
+### Protected classes — files adopted over a user edit by default
+
+Two classes of emitted file are exempt from "withheld forever". Both are force-adopted on `arbiter update`
+even when the on-disk copy is user-modified, both record a reversible
+`.arbiter/evidence/local-overrides/<slug>.json` envelope carrying the prior content verbatim, and both are
+backstopped by `scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as
+long as a member of either class stays withheld.
+
+| class | pattern | opt-out |
+| --- | --- | --- |
+| safety (T1) | `.claude/hooks/*.mjs` | `--no-adopt-safety` |
+| gate spine (#2109) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | `--no-adopt-gate-spine` |
+
+Both are monotonic by directory: a hook or a `scripts/lib/` helper added later is covered without the
+pattern changing. The two opt-outs are deliberately independent — freezing a deliberately customized gate
+entrypoint must not also disarm safety-hook adoption.
+
+**Why the gate spine is not an ordinary `skipIfExists` file.** `scripts/check-all.mjs` and the libraries it
+loads are not files that age; they are the delivery vector for every check arbiter ships afterwards.
+Frozen the first time a project edits them, the project silently stops receiving correctness and security
+fixes for its gate — permanently. The failure is self-sealing: `check-all.mjs.ejs` is also what wires
+`check-safety-adopt-ratchet.mjs` into the gate, so the guard against erosion is delivered through the
+channel the erosion blocks. Measured on a real governed project, all three spine files diverged from their
+recorded render, so a template fix could never have reached it.
+
+**Not in the class: `scripts/check-*.mjs` leaf checks.** A leaf check is exactly where a project
+legitimately tunes its own thresholds; force-adopting those would overwrite intent rather than restore a
+fix. They stay `skipIfExists` and surface through `diff --withheld` like any other file.
+
+**Accepted cost.** A deliberate local edit to the gate spine *is* overwritten by the next `arbiter update`.
+The `local-overrides` envelope makes that reversible, not painless. The trade is deliberate: a stale gate
+spine is a silent, permanent loss of every future fix, and a loud recoverable overwrite beats that. Use
+`--adopt-plan` to preview, or `--no-adopt-gate-spine` to keep the customization and accept a red ratchet.
 
 ### Refreshing codex-track derived files (`update --refresh-derived`, #1983)
 

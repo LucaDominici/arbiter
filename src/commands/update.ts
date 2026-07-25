@@ -15,7 +15,7 @@ import {
   saveGeneratedManifest,
   manifestKey,
 } from '../state/generated-manifest.js'
-import { isSafetyClassKey } from '../generators/safety-class.js'
+import { isGateSpineKey, isSafetyClassKey } from '../generators/safety-class.js'
 import { isDerivedTrackKey } from '../generators/derived-class.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
@@ -65,6 +65,14 @@ export interface UpdateOptions {
    */
   noAdoptSafety?: boolean
   /**
+   * #2109: opt OUT of the default-on gate-spine adoption
+   * (`scripts/check-all.mjs`, `scripts/lib/*.mjs`). Independent of
+   * `noAdoptSafety` on purpose: a project that deliberately maintains a custom
+   * gate entrypoint must be able to freeze it without also disarming
+   * safety-hook adoption.
+   */
+  noAdoptGateSpine?: boolean
+  /**
    * T1 (two-phase plan/apply): compute and print what `--adopt`/the default
    * safety-class adoption WOULD change — file list + diff — without writing
    * anything (config, manifest, generated files all untouched). Read-only.
@@ -99,8 +107,10 @@ function sha256(content: string): string {
 
 /**
  * Build the T1 adopt predicate from CLI flags. Safety-class files
- * (`.claude/hooks/*.mjs`) adopt by default — `noAdoptSafety` is the only way
- * to freeze one deliberately. `adopt` broadens to every withheld file.
+ * (`.claude/hooks/*.mjs`) and gate-spine files (`scripts/check-all.mjs`,
+ * `scripts/lib/*.mjs`, #2109) adopt by default — `noAdoptSafety` and
+ * `noAdoptGateSpine` are the only ways to freeze one deliberately, and they are
+ * independent. `adopt` broadens to every withheld file.
  * `refreshDerived` (#1983) broadens it to exactly the codex-track derived
  * file set, independent of `adopt`/`noAdoptSafety`. Exported for unit testing
  * independent of the filesystem.
@@ -108,9 +118,13 @@ function sha256(content: string): string {
 export function buildAdoptPredicate(options: UpdateOptions): (key: string) => boolean {
   const adoptAll = options.adopt === true
   const adoptSafety = options.noAdoptSafety !== true
+  const adoptGateSpine = options.noAdoptGateSpine !== true
   const refreshDerived = options.refreshDerived === true
   return (key: string): boolean =>
-    adoptAll || (adoptSafety && isSafetyClassKey(key)) || (refreshDerived && isDerivedTrackKey(key))
+    adoptAll ||
+    (adoptSafety && isSafetyClassKey(key)) ||
+    (adoptGateSpine && isGateSpineKey(key)) ||
+    (refreshDerived && isDerivedTrackKey(key))
 }
 
 /**
@@ -135,6 +149,13 @@ function localOverrideReason(key: string): string {
     return (
       'update --refresh-derived: codex-track derived file force-refreshed to the ' +
       'current template render (skipIfExists bypassed for this known set only)'
+    )
+  }
+  if (isGateSpineKey(key)) {
+    return (
+      'update: gate-spine file force-adopted over user-modified content — the gate ' +
+      'entrypoint and its libs are the delivery vector for every later fix ' +
+      '(#2109; see --no-adopt-gate-spine)'
     )
   }
   return (
@@ -165,10 +186,12 @@ export function recordLocalOverride(
 }
 
 /**
- * The targetDir-relative, posix-normalized keys of safety-class files that
- * are STILL withheld (user-modified, not adopted) after this run. Normally
- * empty (safety-class adopts by default); non-empty only when adoption was
- * explicitly disabled (`--no-adopt-safety`) or could not be recorded. This is
+ * The targetDir-relative, posix-normalized keys of PROTECTED files — safety
+ * class (`.claude/hooks/*.mjs`) and gate spine (`scripts/check-all.mjs`,
+ * `scripts/lib/*.mjs`, #2109) — that are STILL withheld (user-modified, not
+ * adopted) after this run. Normally empty (both classes adopt by default);
+ * non-empty only when adoption was explicitly disabled (`--no-adopt-safety` /
+ * `--no-adopt-gate-spine`) or could not be recorded. This is
  * exactly the list `check-safety-adopt-ratchet.mjs` fails on. Exported for
  * unit testing the pure decision.
  */
@@ -176,7 +199,7 @@ export function withheldSafetyKeys(results: WriteResult[], targetDir: string): s
   return results
     .filter((r) => r.withheld === true && r.adopted !== true)
     .map((r) => manifestKey(targetDir, r.path))
-    .filter((k): k is string => k !== null && isSafetyClassKey(k))
+    .filter((k): k is string => k !== null && (isSafetyClassKey(k) || isGateSpineKey(k)))
 }
 
 /** targetDir-relative keys of files force-adopted during this run (reporting). */

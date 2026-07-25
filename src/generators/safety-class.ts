@@ -24,6 +24,26 @@
 const SAFETY_CLASS_PATTERN = /^\.claude\/hooks\/[^/]+\.mjs$/
 
 /**
+ * Posix-normalized, targetDir-relative path test for a GATE-SPINE file (#2109).
+ *
+ * The gate entrypoint and the libraries it loads are not files that age — they
+ * are the delivery vector for every check arbiter ships afterwards. Frozen by
+ * `skipIfExists` the first time a project edits them, the project stops
+ * receiving correctness and security fixes permanently, and the anti-erosion
+ * ratchet cannot even report it: `check-all.mjs.ejs` is what wires
+ * `check-safety-adopt-ratchet.mjs` into the gate, so the guard is delivered
+ * through the channel the erosion blocks.
+ *
+ * Monotonic by directory, like the safety class: a helper added to
+ * `scripts/lib/` later is covered without this pattern changing.
+ *
+ * Deliberately NOT `scripts/check-*.mjs`. A leaf check is exactly where a
+ * governed project legitimately tunes its own thresholds, and force-adopting
+ * those would overwrite intent rather than restore a fix.
+ */
+const GATE_SPINE_PATTERN = /^scripts\/(?:check-all\.mjs|lib\/[^/]+\.mjs)$/
+
+/**
  * True when `key` (a manifest-style, posix-normalized, targetDir-relative
  * path — see {@link import('../state/generated-manifest.js').manifestKey})
  * names a safety-class file. Backslash paths must be normalized by the
@@ -31,4 +51,15 @@ const SAFETY_CLASS_PATTERN = /^\.claude\/hooks\/[^/]+\.mjs$/
  */
 export function isSafetyClassKey(key: string): boolean {
   return SAFETY_CLASS_PATTERN.test(key)
+}
+
+/**
+ * True when `key` names a gate-spine file (#2109). Same key contract as
+ * {@link isSafetyClassKey}. Kept a separate predicate rather than widening the
+ * safety one so the two adopt classes can be opted out of independently —
+ * freezing a custom `check-all.mjs` must never also disarm safety-hook
+ * adoption.
+ */
+export function isGateSpineKey(key: string): boolean {
+  return GATE_SPINE_PATTERN.test(key)
 }
