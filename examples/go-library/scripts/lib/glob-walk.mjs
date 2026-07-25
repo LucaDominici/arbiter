@@ -77,6 +77,20 @@ export function validateGlob(pattern) {
 }
 
 /**
+ * True when `dir` is a nested checkout — a git worktree, submodule or vendored clone — rather than
+ * part of THIS repo's tree. Such a directory carries its own `.git` entry (a FILE for a worktree, a
+ * DIRECTORY for a clone/submodule) and its files belong to a different commit, so folding them into
+ * the walk makes every walker lie: it makes a debt ratchet count another branch's TODO and go red on
+ * main, and a secret scan re-scan each worktree's copy of the whole tree (62,974 files vs 20,528 on
+ * one measured repo). `.git` itself is in SKIP_DIRS, so only the SIBLING content leaks — prune at the
+ * checkout boundary instead. `base` is exempt: the repo root has `.git` too. Takes the already-read
+ * `entries` (no extra stat per subdirectory).
+ */
+function isNestedCheckout(dir, base, entries) {
+  return dir !== base && entries.includes('.git')
+}
+
+/**
  * Walk `root` collecting repo-relative POSIX file paths, pruning SKIP_DIRS.
  * Unreadable dirs/entries are skipped silently (never throws).
  */
@@ -106,15 +120,7 @@ export function walkRepo(root) {
     } catch {
       return
     }
-    // A nested checkout — git worktree, submodule, vendored clone — carries its own
-    // `.git` entry (a FILE for a worktree, a DIRECTORY for a clone/submodule). Its files
-    // belong to a different commit, so folding them into this repo's walk makes every
-    // walker lie: on a governed project this made the debt ratchet count another branch's
-    // TODO and go red on main, and made the secret scan re-scan each worktree's copy of
-    // the whole tree (62,974 files vs 20,528). `.git` is in SKIP_DIRS, so only the sibling
-    // content leaks — prune at the checkout boundary instead. The root is exempt: it has
-    // `.git` too.
-    if (dir !== base && entries.includes('.git')) return
+    if (isNestedCheckout(dir, base, entries)) return
     for (const entry of entries) {
       if (SKIP_DIRS.has(entry)) continue
       const full = join(dir, entry)

@@ -60,6 +60,20 @@ export function validateGlob(pattern) {
 }
 
 /**
+ * True when `dir` is a nested checkout — a git worktree, submodule or vendored clone — rather than
+ * part of THIS repo's tree. Such a directory carries its own `.git` entry (a FILE for a worktree, a
+ * DIRECTORY for a clone/submodule) and its files belong to a different commit, so folding them into
+ * the walk makes every walker lie: agent worktrees materialized under `.claude/worktrees/**`
+ * produced thousands of false "broken link" hits (#1734/#1752), and downstream the same bug made a
+ * debt ratchet count another branch's TODO and go red on main. `.git` itself is in SKIP_DIRS, so
+ * only the SIBLING content leaks — prune at the checkout boundary instead. `base` is exempt: the
+ * repo root has `.git` too. Takes the already-read `entries` (no extra stat per subdirectory). #2104
+ */
+function isNestedCheckout(dir, base, entries) {
+  return dir !== base && entries.includes('.git')
+}
+
+/**
  * Walk `root` collecting repo-relative POSIX file paths, pruning SKIP_DIRS.
  * Unreadable dirs/entries are skipped silently (never throws).
  */
@@ -89,17 +103,7 @@ export function walkRepo(root) {
     } catch {
       return
     }
-    // A nested checkout — git worktree, submodule, vendored clone — carries its own
-    // `.git` entry (a FILE for a worktree, a DIRECTORY for a clone/submodule). Its files
-    // belong to a different commit, so folding them into this repo's walk makes every
-    // walker lie: agent worktrees materialized under `.claude/worktrees/**` produced
-    // thousands of false "broken link" hits here (#1734/#1752), and on a governed project
-    // the same bug made the debt ratchet count another branch's TODO and go red on main.
-    // `.git` is in SKIP_DIRS, so only the sibling content leaks — prune at the checkout
-    // boundary instead. The root is exempt: it has `.git` too. (#2104 unified this with
-    // the shipped template's form: one check per directory over the entries already read,
-    // rather than an existsSync stat per subdirectory.)
-    if (dir !== base && entries.includes('.git')) return
+    if (isNestedCheckout(dir, base, entries)) return
     for (const entry of entries) {
       if (SKIP_DIRS.has(entry)) continue
       const full = join(dir, entry)
