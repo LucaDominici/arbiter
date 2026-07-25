@@ -137,3 +137,38 @@ that as a real finding and go back to design — don't keep the fix on faith. A 
 sample from an already-favorable case (e.g. a chain that was always going to batch well)
 is not confirmation that a pattern generalizes; a second, independent sample is required
 before calling a pattern proven.
+
+---
+
+## 6. Two mechanical levers before any clever one (#2104)
+
+**Symptom:** a warm gate takes ten minutes and every diagnosis reaches for parallelism,
+sharding, or test selection first.
+
+**Mechanism:** profile the wall clock against the CPU clock before restructuring anything.
+Two mechanical causes dominated 89% of one measured warm gate, and both are one-line fixes
+now wired into the generated gate:
+
+- **Temp dirs on tmpfs.** A suite that rebuilds a DB fixture per test (migrations replayed
+  one transaction at a time) is fsync-bound, not CPU-bound. `resolveTmpfsTmpdir()` in the
+  emitted `scripts/lib/run-helpers.mjs` points `TMPDIR` at `/dev/shm` before the gate spawns
+  any child. Measured on the same `-count=1` coverage run: 210 s at 21% CPU on disk vs
+  33.7 s at 101% CPU on tmpfs, identical user CPU. **Wall clock far above user CPU is the
+  tell** — that gap is I/O wait, and no amount of parallelism recovers it.
+  The guard is FREE SPACE, never `existsSync`: `/dev/shm` exists in every Linux container
+  but defaults to 64 MB there, and `TMPDIR` also relocates Go's build work dirs when
+  `GOTMPDIR` is unset — so an existence check ENOSPCs a containerised runner while staying
+  green locally.
+- **Don't split a shared build/test cache.** The Go `coverage profile` step used to pin
+  `-covermode=atomic` while `debt-lib.mjs` re-ran the same suite with the default covermode
+  in the same gate. covermode partitions Go's test cache, so the pin turned that second pass
+  into a full 231.4 s re-run; aligned, it is a 0.77 s cache hit (52/52 packages cached) with
+  identical statement coverage. Generalises past Go: **any two steps in one gate that run
+  the same work under different cache keys pay for it twice.** Audit the flags that feed a
+  toolchain's cache key (covermode, feature flags, `TMPDIR` itself) for accidental divergence.
+
+**Corollary:** the same audit catches correctness bugs, not only slow ones. Pruning nested
+checkouts in `walkRepo` (a git worktree or submodule inside the working tree carries its own
+`.git` and belongs to a different commit) cut one repo's secret scan from 62,974 files to
+20,528 — and stopped the debt ratchet counting another branch's TODO and failing the gate on
+main. A walker that measures the wrong tree is slow AND wrong.

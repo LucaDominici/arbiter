@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // CANON-04 render tests for the #2104 gate levers, ported from the measurements taken in a
-// governed project (haben `4dd8bad` / `79cb01e`):
+// downstream governed project (see #2104 for the source commits):
 //
 //   A. resolveTmpfsTmpdir — TMPDIR on tmpfs, guarded by FREE SPACE, never by existence.
 //   B. the Go `coverage profile` step must NOT pin -covermode=atomic (debt-lib re-runs the
