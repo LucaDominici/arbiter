@@ -7,7 +7,7 @@
 // clearing the ratchet and preserving the prior content in a reversible
 // local-override record; (3) `--no-adopt-safety` is the only way to keep it
 // frozen, and doing so is what makes the ratchet fail — never a silent skip.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
@@ -273,5 +273,71 @@ describe('#2109 red-path: gate-spine erosion is caught (not silent)', () => {
     const userContent = erode(LEAF, 'project-tuned leaf check')
     await runUpdate({ dir, github: false })
     expect(readFileSync(join(dir, LEAF), 'utf-8')).toBe(userContent)
+  })
+})
+
+// #2120: `update` has three write channels and `--adopt-plan` showed one. The
+// adopt channel (`skipIfExists` + diverged + policy match) was the only thing
+// `printAdoptPlan` could see, because `runAdoptPlan` discarded the WriteResult[]
+// that already held the prospective action for every other file. An always-
+// rewrite file (`skipIfExists: false`) carrying a local fix was therefore
+// clobbered by a run whose own preview never named it.
+describe('#2120: --adopt-plan previews the regeneration channel, not only the adopt one', () => {
+  let dir: string
+  // Emitted with `skipIfExists: false, backup: true` (generators/debt-ratchet.ts)
+  // — the always-rewrite class, invisible to the plan before this fix.
+  const ALWAYS_REWRITE = 'scripts/debt-lib.mjs'
+
+  function captureStdout(): { text: () => string; restore: () => void } {
+    let buf = ''
+    const spy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((chunk: string | Uint8Array): boolean => {
+        buf += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf-8')
+        return true
+      })
+    return { text: (): string => buf, restore: (): void => spy.mockRestore() }
+  }
+
+  beforeEach(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'arb-2120-plan-'))
+    initGit(dir)
+    await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('names an always-rewrite file whose local edit the run would overwrite', async () => {
+    writeFileSync(join(dir, ALWAYS_REWRITE), '// local edit\n')
+
+    const out = captureStdout()
+    try {
+      await runUpdate({ dir, github: false, adoptPlan: true })
+    } finally {
+      out.restore()
+    }
+
+    expect(out.text()).toContain(ALWAYS_REWRITE)
+    // Still read-only: the plan must not have written anything.
+    expect(readFileSync(join(dir, ALWAYS_REWRITE), 'utf-8')).toBe('// local edit\n')
+  })
+
+  it('--json carries the same set as the text output (no channel disagrees)', async () => {
+    writeFileSync(join(dir, ALWAYS_REWRITE), '// local edit\n')
+
+    const out = captureStdout()
+    try {
+      await runUpdate({ dir, github: false, adoptPlan: true, json: true })
+    } finally {
+      out.restore()
+    }
+
+    const payload = JSON.parse(out.text()) as {
+      data: { wouldRegenerate?: string[]; withheld?: string[] }
+    }
+    expect([...(payload.data.wouldRegenerate ?? []), ...(payload.data.withheld ?? [])]).toContain(
+      ALWAYS_REWRITE,
+    )
   })
 })

@@ -442,7 +442,7 @@ function runAdoptPlan(
   stored: ArbiterConfigV2,
   targetDir: string,
   adoptPredicate: (key: string) => boolean,
-): AdoptRecord[] {
+): { records: AdoptRecord[]; results: WriteResult[] } {
   const prevManifest = loadGeneratedManifest(targetDir)
   const collected: AdoptRecord[] = []
   beginGenerationSession({
@@ -451,12 +451,16 @@ function runAdoptPlan(
     adoptPredicate,
     onAdopt: (key, priorContent, newContent) => collected.push({ key, priorContent, newContent }),
   })
+  let results: WriteResult[]
   try {
-    selectAndRun(specs, snapshot, stored, true)
+    // #2120: the dryRun already computes the prospective action for EVERY emitted
+    // file, not only the adopt-channel ones. Dropping this return value is what
+    // made the plan show one write channel out of three.
+    results = selectAndRun(specs, snapshot, stored, true).results
   } finally {
     endGenerationSession()
   }
-  return collected
+  return { records: collected, results }
 }
 
 /** Minimal built-in line diff (no dependency): lines present only on one side. */
@@ -477,13 +481,48 @@ function summarizeDiff(
   return { removed, added }
 }
 
-function printAdoptPlan(records: AdoptRecord[], json: boolean | undefined): void {
+/**
+ * #2120: the two write channels the plan used to hide. `update` has three ways
+ * to put bytes on disk and the preview only ever showed the adopt one, so a
+ * local fix in an always-rewrite file (`skipIfExists: false`) was reverted by a
+ * run whose plan never named the file. Split by meaning, not by action:
+ *   - `regenerate` — will be overwritten, no adopt decision involved (the
+ *     invisible channel: nothing warns about these today).
+ *   - `withheld` — diverged and preserved because no adopt policy matched (the
+ *     same set `arbiter diff` surfaces; kept as its own bucket so a file that
+ *     moves between the two channels never drops out of the plan entirely).
+ * `skipped` is deliberately not a bucket: it is every unchanged file, and a
+ * preview nobody reads protects nobody.
+ */
+function partitionPlanResults(results: WriteResult[]): {
+  regenerate: WriteResult[]
+  withheld: WriteResult[]
+} {
+  return {
+    regenerate: results.filter(
+      (r) =>
+        (r.action === 'replaced' || r.action === 'backed-up-and-replaced') && r.withheld !== true,
+    ),
+    withheld: results.filter((r) => r.withheld === true && r.adopted !== true),
+  }
+}
+
+function printAdoptPlan(
+  records: AdoptRecord[],
+  results: WriteResult[],
+  targetDir: string,
+  json: boolean | undefined,
+): void {
+  const { regenerate, withheld } = partitionPlanResults(results)
+  const rel = (r: WriteResult): string => manifestKey(targetDir, r.path) ?? r.path
   if (json) {
     jsonOutput('update', 'ok', {
       adoptPlan: records.map((r) => ({
         path: r.key,
         ...summarizeDiff(r.priorContent, r.newContent),
       })),
+      wouldRegenerate: regenerate.map(rel),
+      withheld: withheld.map(rel),
     })
     return
   }
@@ -491,14 +530,27 @@ function printAdoptPlan(records: AdoptRecord[], json: boolean | undefined): void
     process.stdout.write(
       '\n  adopt-plan: nothing to adopt (no withheld file matches the adopt policy).\n',
     )
-    return
+  } else {
+    process.stdout.write(`\n  adopt-plan: ${records.length} file(s) would be adopted:\n`)
+    for (const r of records) {
+      const { removed, added } = summarizeDiff(r.priorContent, r.newContent)
+      process.stdout.write(
+        `    - ${r.key}  (-${removed} +${added} lines vs. current on-disk content)\n`,
+      )
+    }
   }
-  process.stdout.write(`\n  adopt-plan: ${records.length} file(s) would be adopted:\n`)
-  for (const r of records) {
-    const { removed, added } = summarizeDiff(r.priorContent, r.newContent)
+  if (regenerate.length > 0) {
     process.stdout.write(
-      `    - ${r.key}  (-${removed} +${added} lines vs. current on-disk content)\n`,
+      `\n  would regenerate ${regenerate.length} file(s) (always-rewrite — local edits are lost, ` +
+        `prior content goes to <file>.arbiter-backup where the generator asks for a backup):\n`,
     )
+    printResults(regenerate, targetDir)
+  }
+  if (withheld.length > 0) {
+    process.stdout.write(
+      `\n  would withhold ${withheld.length} file(s) (locally diverged, no adopt policy matches):\n`,
+    )
+    for (const r of withheld) process.stdout.write(`    - ${rel(r)}\n`)
   }
   process.stdout.write('  Re-run without --adopt-plan to apply. Nothing was written.\n')
 }
@@ -787,7 +839,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const adoptPredicate = buildAdoptPredicate(options)
     if (options.adoptPlan) {
       const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, adoptPredicate)
-      printAdoptPlan(plan, options.json)
+      printAdoptPlan(plan.records, plan.results, targetDir, options.json)
       return { keysRun: null }
     }
 

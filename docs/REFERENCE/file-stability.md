@@ -168,6 +168,31 @@ any withheld fix exists, so CI can flag it without claiming `update` would rewri
 never recorded as manifest entries. Plugin- and `doctor`-written files keep the legacy skip-always
 behavior (out of scope for the manifest).
 
+### What `--adopt-plan` shows — all three write channels (#2120)
+
+**Issue:** #2120
+
+`arbiter update` puts bytes on disk through three channels, and the preview used to show one:
+
+| channel                     | condition                                           | preview before #2120 |
+| --------------------------- | --------------------------------------------------- | -------------------- |
+| adopt                       | `skipIfExists` + diverged + an adopt policy matches | shown                |
+| regenerate (always-rewrite) | `skipIfExists: false` — overwritten unconditionally | **hidden**           |
+| pristine rewrite            | `skipIfExists` + on-disk hash == manifest           | **hidden**           |
+
+The information was never missing, only discarded: the plan's dry run already resolves the prospective
+action for every emitted file (`writeFile` in `dryRun` classifies without writing), and `runAdoptPlan`
+dropped that array one line after computing it. `update --adopt-plan` now prints, alongside the adoption
+list:
+
+- **would regenerate** — files whose action resolves to `replaced` / `backed-up-and-replaced` and that are
+  not withheld. This is the channel that silently reverts a local fix in an always-rewrite file such as
+  `scripts/debt-lib.mjs`.
+- **would withhold** — diverged files no adopt policy matches, the same set `diff --withheld` reports.
+
+`skipped` is deliberately NOT a section: it is every unchanged file, and a preview nobody reads protects
+nobody. `--json` carries `wouldRegenerate` and `withheld` so the two output channels cannot disagree.
+
 ### Protected classes — files adopted over a user edit by default
 
 Two classes of emitted file are exempt from "withheld forever". Both are force-adopted on `arbiter update`
