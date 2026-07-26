@@ -238,23 +238,28 @@ Unknown provenance keeps replacing. Withholding it would make `arbiter update` a
 whose manifest predates the key — the same silence in the opposite direction, and a worse one, because it
 would stop governance propagating everywhere at once.
 
-### Protected classes — files adopted over a user edit by default
+### Protected classes — three classes, and only two of them adopt by default
 
-Three classes of emitted file are exempt from "withheld forever". All are force-adopted on `arbiter update`
-even when the on-disk copy is user-modified, and all record a reversible
-`.arbiter/evidence/local-overrides/<slug>.json` envelope carrying the prior content verbatim. The first two
-are backstopped by `scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as
-long as a member of either class stays withheld.
+Three classes of emitted file get special treatment when the on-disk copy is user-modified. **Two adopt by
+default** (safety, governance): the shipped render lands over the local edit, recording a reversible
+`.arbiter/evidence/local-overrides/<slug>.json` envelope with the prior content verbatim. **One withholds by
+default** (gate spine, since #2119) and adopts only under an explicit opt-in, with the same reversible
+envelope when it does. Safety and gate spine are both backstopped by
+`scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as long as a member of
+either class stays withheld and unmarked.
 
-| class              | pattern                                      | opt-out                        |
-| ------------------ | -------------------------------------------- | ------------------------------ |
-| safety (T1)        | `.claude/hooks/*.mjs`                        | `--no-adopt-safety`            |
-| gate spine (#2109) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | `--no-adopt-gate-spine`        |
-| governance (#2120) | `AGENTS.md`, `.claude/settings.json`         | `arbiter:preserve` marker only |
+| class              | pattern                                      | default   | flag                           |
+| ------------------ | -------------------------------------------- | --------- | ------------------------------ |
+| safety (T1)        | `.claude/hooks/*.mjs`                        | adopt     | `--no-adopt-safety` (opt out)  |
+| gate spine (#2119) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | withhold  | `--adopt-gate-spine` (opt in)  |
+| governance (#2120) | `AGENTS.md`, `.claude/settings.json`         | adopt     | `arbiter:preserve` marker only |
+
+`--no-adopt-gate-spine` is still accepted as a no-op, so a consumer script written during the #2119
+moratorium keeps working.
 
 The first two are monotonic by directory: a hook or a `scripts/lib/` helper added later is covered without
-the pattern changing. Their opt-outs are deliberately independent — freezing a deliberately customized gate
-entrypoint must not also disarm safety-hook adoption.
+the pattern changing. The two flags are deliberately independent — opting into gate-spine adoption must not
+change safety-hook policy, and vice versa.
 
 **Why governance is a class, and why it is exactly two files.** `AGENTS.md` (Iron Laws) and
 `.claude/settings.json` (the `ARBITER_*` deny list) are re-rendered on every selective update on purpose
@@ -269,22 +274,29 @@ looks governance-ish": it is bounded by what #2056 force-renders. There is no `-
 a project that genuinely wants one frozen marks it `arbiter:preserve`, which is checked ahead of every
 adopt policy and works in JSON as an ordinary key.
 
-**Why the gate spine is not an ordinary `skipIfExists` file.** `scripts/check-all.mjs` and the libraries it
-loads are not files that age; they are the delivery vector for every check arbiter ships afterwards.
-Frozen the first time a project edits them, the project silently stops receiving correctness and security
-fixes for its gate — permanently. The failure is self-sealing: `check-all.mjs.ejs` is also what wires
-`check-safety-adopt-ratchet.mjs` into the gate, so the guard against erosion is delivered through the
-channel the erosion blocks. Measured on a real governed project, all three spine files diverged from their
-recorded render, so a template fix could never have reached it.
+**Why the gate spine is withheld and not adopted (#2119 reverses #2109).** Adoption is only safe when the
+template render is a **superset** of the local file. That holds for `.claude/hooks/*.mjs`: those are whole
+files arbiter owns, and a project has no legitimate content of its own inside them. It does **not** hold for
+`scripts/check-all.mjs`, which is by construction the point where a project wires its OWN checks —
+customization *is* that file's function. #2109 read the spine as a container arbiter owns and force-adopted
+it; measured afterwards on a copy of a real governed consumer, a **bare** `arbiter update` (no `--adopt`, no
+flag at all) deleted **25 project checks, 12 of them security** — container hardening, auth-bypass, cookie
+hardening, crypto primitives, SQLi regression, distroless runtime, error disclosure, workflow hardening and
+more — and **the gate stayed green**, because the checks did not fail: they disappeared. That is why the
+default is now to withhold, and `--adopt-gate-spine` is an explicit, destructive opt-in.
 
 **Not in the class: `scripts/check-*.mjs` leaf checks.** A leaf check is exactly where a project
 legitimately tunes its own thresholds; force-adopting those would overwrite intent rather than restore a
 fix. They stay `skipIfExists` and surface through `diff --withheld` like any other file.
 
-**Accepted cost.** A deliberate local edit to the gate spine _is_ overwritten by the next `arbiter update`.
-The `local-overrides` envelope makes that reversible, not painless. The trade is deliberate: a stale gate
-spine is a silent, permanent loss of every future fix, and a loud recoverable overwrite beats that. Use
-`--adopt-plan` to preview, or `--no-adopt-gate-spine` to keep the customization and accept a red ratchet.
+**Accepted cost.** A project that customized its gate spine stops receiving spine fixes — and every check
+arbiter ships later that its `check-all.mjs` does not wire. `check-safety-adopt-ratchet.mjs` stays **red**
+for exactly that reason: the red is the register of that debt, not a bug to silence. It clears in one of
+three honest ways — wire the new checks into your own `check-all.mjs` by hand (run `arbiter diff` to see
+what the template would add), mark the file `arbiter:preserve` when the divergence is permanent (the
+documented exception the ratchet accepts), or run the destructive `arbiter update --adopt-gate-spine` after
+previewing it with `--adopt-plan`. A **pristine** spine — untouched since arbiter generated it — is
+unaffected and keeps receiving every fix automatically.
 
 ### Refreshing codex-track derived files (`update --refresh-derived`, #1983)
 

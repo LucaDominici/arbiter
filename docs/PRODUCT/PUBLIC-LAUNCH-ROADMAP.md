@@ -87,8 +87,10 @@ Questa parte del prodotto funziona. Su un repo Go pulito L1 esegue **42 check in
 
 ### 1.3 `arbiter update` non distrugge nulla? **No. Ed è peggio di come è scritto nella moratoria.**
 
-L'adozione della gate spine è **default-on**: `--no-adopt-gate-spine` serve a _disattivarla_.
-Quindi la distruzione non richiede `--adopt`: la produce un `arbiter update` nudo.
+L'adozione della gate spine **era default-on**: `--no-adopt-gate-spine` serviva a _disattivarla_.
+Quindi la distruzione non richiedeva `--adopt`: la produceva un `arbiter update` nudo.
+**#2119 ha invertito il default** — la spine ora si trattiene e si adotta solo con
+`--adopt-gate-spine`. La misura qui sotto resta com'era: è la prova datata del difetto.
 
 Su un clone usa-e-getta del **consumer Go governato**, invariante misurato = l'insieme dei nomi passati a
 `runCheck`/`runWarnCheck`:
@@ -107,9 +109,11 @@ Normalizzando i nomi (per non contare i rinomini): **24 check di progetto cancel
 `error disclosure`, `race gate`, `sqli regression`, `suppression justification`,
 `workflow hardening` — più l'intera corsia frontend.
 
-**Conseguenza operativa immediata**, già scritta su #2119: la moratoria va riformulata. Non
-"non lanciare `--adopt`" — che oggi lascia credere che un `update` nudo sia sicuro — ma
-**"lanciare solo `arbiter update --no-adopt-gate-spine` finché #2119 non è chiusa"**.
+**Conseguenza operativa, aggiornata alla chiusura di #2119:** il default *è* già trattenere,
+quindi `arbiter update` nudo non riscrive più una gate personalizzata. `--no-adopt-gate-spine`
+resta **accettato come no-op**, così gli script scritti durante la moratoria non si rompono.
+Resta invece in piedi la parte di moratoria che #2119 **non** copre (classe governance:
+`.claude/settings.json` e `AGENTS.md` sono ancora adottati di default) — issue separata.
 
 ### 1.4 Le skill e gli hook emessi sono vivi o inerti?
 
@@ -153,10 +157,10 @@ di **2**. Il commento del template corrente dice testualmente che _"any other no
 sbagliato **e** codice d'uscita non bloccante. La correzione è nel template da mesi e non è
 mai arrivata, perché `skipIfExists` congela i file localmente divergenti.
 
-E qui sta il nodo: **la cura c'è già.** `arbiter update --no-adopt-gate-spine` su <consumer-TS>
+E qui sta il nodo: **la cura c'è già.** Un `arbiter update` su <consumer-TS>
 ripara `stop-dangerous.mjs` (`resolveToolInputCommand` presente, `process.exit(2)`) e lascia
-la gate del progetto **intatta a 53 check**. Nessuno la usa perché non è il default e non è
-documentata come la via sicura.
+la gate del progetto **intatta a 53 check**. Serviva `--no-adopt-gate-spine` per ottenerlo;
+da #2119 è il comportamento di default.
 
 ### 1.5 Il reperto peggiore: il flusso di punta è impossibile nel repo che arbiter appena configura
 
@@ -419,8 +423,9 @@ frontend), e la prima gate ha **8 rossi**. → #2137. Corollario che mi era sfug
 nove** i repo della matrice si erano risolti in `archetype: library`; cinque archetipi su sei
 avevano copertura zero.
 
-**2. `--no-adopt-gate-spine` non è "la via sicura", è un laccio emostatico.** Misurato dopo il
-suo uso su un consumer governato:
+**2. `--no-adopt-gate-spine` non era "la via sicura", era un laccio emostatico.** Misurato dopo il
+suo uso su un consumer governato (#2119 ha poi invertito il default *e* riscritto la
+prescrizione del ratchet, che qui sotto è ancora quella vecchia e distruttiva):
 
 ```
 [safety-adopt-ratchet] 2 protected file(s) are withheld: scripts/check-all.mjs, scripts/lib/glob-walk.mjs

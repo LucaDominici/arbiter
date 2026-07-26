@@ -12,7 +12,8 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { spawnSync, execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { runInit } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import {
@@ -22,6 +23,8 @@ import {
 } from '../../src/state/generated-manifest.js'
 
 const HOOK = '.claude/hooks/stop-dangerous.mjs'
+/** arbiter's own repo root — the CLI is spawned from source via tsx (no build step). */
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
 function initGit(dir: string): void {
   for (const args of [
@@ -253,15 +256,19 @@ describe('#2119 red-path: the gate spine is withheld, and the ratchet cycle term
     expect(r.stderr).not.toMatch(/Run `arbiter update` \(both classes adopt by\s+default\)/)
   })
 
-  it('a scripts/lib helper is adopted too — monotonic by directory', async () => {
+  it('a scripts/lib helper follows the same policy — monotonic by directory', async () => {
     const userContent = erode(SPINE_LIB, 'hand-tuned walker')
+
     await runUpdate({ dir, github: false })
+    expect(readFileSync(join(dir, SPINE_LIB), 'utf-8')).toBe(userContent)
+
+    await runUpdate({ dir, github: false, adoptGateSpine: true })
     expect(readFileSync(join(dir, SPINE_LIB), 'utf-8')).not.toBe(userContent)
   })
 
-  it('the prior content survives in a reversible local-override record', async () => {
+  it('N4 — under --adopt-gate-spine the prior content survives in a reversible record', async () => {
     const userContent = erode(SPINE, 'hand-tuned gate entrypoint')
-    await runUpdate({ dir, github: false })
+    await runUpdate({ dir, github: false, adoptGateSpine: true })
 
     const overridesDir = join(dir, '.arbiter/evidence/local-overrides')
     const files = readdirSync(overridesDir)
@@ -275,30 +282,58 @@ describe('#2119 red-path: the gate spine is withheld, and the ratchet cycle term
     expect(record.reason).toContain('#2109')
   })
 
-  it('--no-adopt-gate-spine freezes it AND the ratchet FAILS — never a silent skip', async () => {
-    const userContent = erode(SPINE, 'hand-tuned gate entrypoint')
-
-    await runUpdate({ dir, github: false, noAdoptGateSpine: true })
-
-    expect(readFileSync(join(dir, SPINE), 'utf-8')).toBe(userContent)
-    expect(loadWithheldSafety(dir)).toContain(SPINE)
-
-    const ratchet = runRatchet(dir)
-    expect(ratchet.status).toBe(1)
-    expect(ratchet.stderr).toContain(SPINE)
+  // #2119 cost 2: the flag stays ACCEPTED so a consumer's moratorium script
+  // (`arbiter update --no-adopt-gate-spine`) does not start failing on an
+  // unknown option the day the default catches up with it.
+  it('`--no-adopt-gate-spine` is still accepted by the CLI — now a no-op', () => {
+    const r = spawnSync(
+      process.execPath,
+      [
+        '--import',
+        'tsx/esm',
+        join(REPO_ROOT, 'src/cli.ts'),
+        'update',
+        '--dir',
+        dir,
+        '--adopt-plan',
+        '--no-adopt-gate-spine',
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf-8' },
+    )
+    expect(r.stderr).not.toContain('unknown option')
+    expect(r.status).toBe(0)
   })
 
-  it('the two opt-outs are independent: freezing the spine leaves safety hooks adopted', async () => {
+  // N1 — the confinement of the fix: a PRISTINE spine (untouched since arbiter
+  // generated it) must still receive template fixes. Only a CUSTOMIZED one is
+  // frozen. Re-baselining the manifest onto the local bytes is what makes this
+  // non-vacuous: byte-identical content would never reach the provenance branch.
+  it('N1 — a pristine-stale spine is still rewritten (only customization freezes it)', async () => {
+    const pristineStale = '// pristine: matches the recorded baseline, not the current render\n'
+    writeFileSync(join(dir, SPINE), pristineStale)
+    const manifest = loadGeneratedManifest(dir)
+    manifest[SPINE] = createHash('sha256').update(pristineStale).digest('hex')
+    saveGeneratedManifest(dir, manifest)
+
+    await runUpdate({ dir, github: false })
+
+    expect(readFileSync(join(dir, SPINE), 'utf-8')).not.toBe(pristineStale)
+    expect(loadWithheldSafety(dir)).toEqual([])
+    expect(runRatchet(dir).status).toBe(0)
+  })
+
+  // N3 — the two classes point in OPPOSITE directions, with no flag at all.
+  it('N3 — one bare update withholds the spine and still adopts a safety hook', async () => {
     const spineContent = erode(SPINE, 'hand-tuned gate entrypoint')
     const hookContent = erode(HOOK, 'hand-patched safety hook')
 
-    await runUpdate({ dir, github: false, noAdoptGateSpine: true })
+    await runUpdate({ dir, github: false })
 
     expect(readFileSync(join(dir, SPINE), 'utf-8')).toBe(spineContent)
     expect(readFileSync(join(dir, HOOK), 'utf-8')).not.toBe(hookContent)
   })
 
-  it('a leaf check script is NOT in the class — a project keeps its own thresholds', async () => {
+  it('N2 — a leaf check script is still withheld too, unchanged by #2119', async () => {
     const LEAF = 'scripts/check-collab-mode-wired.mjs'
     const userContent = erode(LEAF, 'project-tuned leaf check')
     await runUpdate({ dir, github: false })

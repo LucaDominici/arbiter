@@ -31,8 +31,8 @@
   },
   {
     "file": "commands/update.ts",
-    "line": 818,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. Line shifted 378→663 by the T1 adopt/ratchet additions (convergence playbook). Line shifted 663→664 by the #1978 projectName resolution reorder. Line shifted 664→697 by wave-3 integration sweep (bypass-ceremony doctor row + other intervening additions). Line shifted 697→709 by the #2056 selective-regen governance-generator comment. Line shifted 709→732 by the #2109 gate-spine adopt class. Line shifted 732→818 by the #2120 wave: the honest adopt-plan preview (partitionPlanResults + the two extra plan sections), the projectName persistence, the governance adopt class, and the diff/update adopt-policy agreement."
+    "line": 839,
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. Line shifted 378→663 by the T1 adopt/ratchet additions (convergence playbook). Line shifted 663→664 by the #1978 projectName resolution reorder. Line shifted 664→697 by wave-3 integration sweep (bypass-ceremony doctor row + other intervening additions). Line shifted 697→709 by the #2056 selective-regen governance-generator comment. Line shifted 709→732 by the #2109 gate-spine adopt class. Line shifted 732→818 by the #2120 wave: the honest adopt-plan preview (partitionPlanResults + the two extra plan sections), the projectName persistence, the governance adopt class, and the diff/update adopt-policy agreement. Line shifted 818→839 by the #2119 gate-spine opt-in flip (inverted flag doc-comments + the reworded withheld-file warning)."
   },
   {
     "file": "commands/init.ts",

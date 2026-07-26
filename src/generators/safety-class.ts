@@ -26,13 +26,23 @@ const SAFETY_CLASS_PATTERN = /^\.claude\/hooks\/[^/]+\.mjs$/
 /**
  * Posix-normalized, targetDir-relative path test for a GATE-SPINE file (#2109).
  *
- * The gate entrypoint and the libraries it loads are not files that age — they
- * are the delivery vector for every check arbiter ships afterwards. Frozen by
- * `skipIfExists` the first time a project edits them, the project stops
- * receiving correctness and security fixes permanently, and the anti-erosion
- * ratchet cannot even report it: `check-all.mjs.ejs` is what wires
- * `check-safety-adopt-ratchet.mjs` into the gate, so the guard is delivered
- * through the channel the erosion blocks.
+ * The gate entrypoint and the libraries it loads are the delivery vector for
+ * every check arbiter ships afterwards; frozen, a project stops receiving them.
+ * #2109 concluded from that they should be force-adopted by default. #2119
+ * reversed the conclusion, not the observation: adoption is only safe when the
+ * template render is a SUPERSET of the local file. That holds for
+ * `.claude/hooks/*.mjs` (whole files arbiter owns); it does not hold for
+ * `scripts/check-all.mjs`, which is by construction the point where a project
+ * wires its OWN checks — customization *is* its function. Measured on a copy of
+ * a real governed consumer, a bare `arbiter update` deleted 25 project checks,
+ * 12 of them security, and the gate stayed green because the checks did not
+ * fail, they vanished. So the spine is WITHHELD by default and adopted only
+ * under an explicit `--adopt-gate-spine`.
+ *
+ * The class itself survives the reversal and is still needed: it selects what
+ * `--adopt-gate-spine` opts into, what `localOverrideReason` explains, and what
+ * `withheldSafetyKeys` keeps reporting so the withheld-spine debt (the checks
+ * arbiter ships that the project has not wired) can never go silent.
  *
  * Monotonic by directory, like the safety class: a helper added to
  * `scripts/lib/` later is covered without this pattern changing.
@@ -81,11 +91,11 @@ export function isSafetyClassKey(key: string): boolean {
 }
 
 /**
- * True when `key` names a gate-spine file (#2109). Same key contract as
- * {@link isSafetyClassKey}. Kept a separate predicate rather than widening the
- * safety one so the two adopt classes can be opted out of independently —
- * freezing a custom `check-all.mjs` must never also disarm safety-hook
- * adoption.
+ * True when `key` names a gate-spine file (#2109, semantics reversed by #2119).
+ * Same key contract as {@link isSafetyClassKey}. Kept a separate predicate
+ * rather than widening the safety one because the two classes now point in
+ * OPPOSITE directions: a safety hook adopts unless `--no-adopt-safety`, a gate
+ * spine withholds unless `--adopt-gate-spine`.
  */
 export function isGateSpineKey(key: string): boolean {
   return GATE_SPINE_PATTERN.test(key)

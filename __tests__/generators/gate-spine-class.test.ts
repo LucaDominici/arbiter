@@ -4,7 +4,7 @@ import { isGateSpineKey } from '../../src/generators/safety-class.js'
 import { buildAdoptPredicate, withheldSafetyKeys } from '../../src/commands/update.js'
 import type { WriteResult } from '../../src/utils/fs.js'
 
-describe('isGateSpineKey (#2109 — gate-spine adopt class)', () => {
+describe('isGateSpineKey (#2109 — gate-spine adopt class, opt-in since #2119)', () => {
   it('matches the gate entrypoint and every script it loads from scripts/lib/', () => {
     expect(isGateSpineKey('scripts/check-all.mjs')).toBe(true)
     expect(isGateSpineKey('scripts/lib/glob-walk.mjs')).toBe(true)
@@ -41,12 +41,12 @@ describe('isGateSpineKey (#2109 — gate-spine adopt class)', () => {
 
 const NO_FLAGS = { dir: undefined, github: false }
 
-describe('buildAdoptPredicate — gate spine adopts by default (#2109)', () => {
-  it('adopts a user-modified gate spine with no flags at all', () => {
+describe('buildAdoptPredicate — gate spine is opt-in (#2119)', () => {
+  it('WITHHOLDS a user-modified gate spine with no flags at all', () => {
     const predicate = buildAdoptPredicate(NO_FLAGS)
-    expect(predicate('scripts/check-all.mjs')).toBe(true)
-    expect(predicate('scripts/lib/glob-walk.mjs')).toBe(true)
-    expect(predicate('scripts/lib/run-helpers.mjs')).toBe(true)
+    expect(predicate('scripts/check-all.mjs')).toBe(false)
+    expect(predicate('scripts/lib/glob-walk.mjs')).toBe(false)
+    expect(predicate('scripts/lib/run-helpers.mjs')).toBe(false)
   })
 
   it('still leaves an ordinary skipIfExists file withheld without --adopt', () => {
@@ -55,16 +55,17 @@ describe('buildAdoptPredicate — gate spine adopts by default (#2109)', () => {
     expect(predicate('.claude/rules/50-batch-execution.md')).toBe(false)
   })
 
-  it('--no-adopt-gate-spine freezes the spine WITHOUT disarming safety-hook adoption', () => {
-    const predicate = buildAdoptPredicate({ ...NO_FLAGS, noAdoptGateSpine: true })
-    expect(predicate('scripts/check-all.mjs')).toBe(false)
+  it('--adopt-gate-spine is the explicit opt-in, and it leaves safety hooks adopted', () => {
+    const predicate = buildAdoptPredicate({ ...NO_FLAGS, adoptGateSpine: true })
+    expect(predicate('scripts/check-all.mjs')).toBe(true)
+    expect(predicate('scripts/lib/glob-walk.mjs')).toBe(true)
     expect(predicate('.claude/hooks/stop-dangerous.mjs')).toBe(true)
   })
 
-  it('--no-adopt-safety freezes safety hooks WITHOUT disarming the spine', () => {
+  it('--no-adopt-safety freezes safety hooks, and the spine stays withheld without the opt-in', () => {
     const predicate = buildAdoptPredicate({ ...NO_FLAGS, noAdoptSafety: true })
     expect(predicate('.claude/hooks/stop-dangerous.mjs')).toBe(false)
-    expect(predicate('scripts/check-all.mjs')).toBe(true)
+    expect(predicate('scripts/check-all.mjs')).toBe(false)
   })
 
   it('--adopt still broadens to everything', () => {
@@ -77,7 +78,7 @@ function withheld(path: string): WriteResult {
   return { path, action: 'skipped', withheld: true } as WriteResult
 }
 
-describe('withheldSafetyKeys — the ratchet sees a frozen spine too (#2109)', () => {
+describe('withheldSafetyKeys — the ratchet sees a frozen spine too (#2109, kept by #2119)', () => {
   it('reports a still-withheld gate-spine file, so check-safety-adopt-ratchet turns red', () => {
     const keys = withheldSafetyKeys(
       [withheld('/repo/scripts/check-all.mjs'), withheld('/repo/scripts/lib/glob-walk.mjs')],

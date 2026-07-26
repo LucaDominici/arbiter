@@ -29,6 +29,10 @@ commands:
       - --generate
       - --json
       - --strict
+  # #2119: check-safety-adopt-ratchet.mjs now tells a project with a withheld
+  # gate spine to run `arbiter diff` first — see what the template would add
+  # before wiring it by hand.
+  - command: diff
   - command: doctor
   - command: explain
   - command: gate-exec

@@ -41,9 +41,12 @@ arbiter update                      → 75 check → 67   (24 cancellati, 12 di 
 arbiter update --no-adopt-gate-spine → 75 check → 75   (file non toccato)
 ```
 
-→ #2119. Oggi la moratoria vieta `arbiter update` su tutti e tre i consumer, quindi **nessuna
-correzione di template è consegnabile a nessuno**. Non è un difetto fra i venti: è il tappo del
-tubo.
+→ #2119, **chiusa**: il default è ora trattenere la gate spine, `--adopt-gate-spine` è l'opt-in
+esplicito e distruttivo, e `--no-adopt-gate-spine` resta accettato come no-op. La misura qui
+sopra è evidenza datata di com'era, non un'istruzione. Il tappo del tubo si è ristretto ma non
+è saltato: la **classe governance** (`.claude/settings.json`, `AGENTS.md`) è ancora adottata di
+default senza flag di opt-out, quindi un `arbiter update` nudo su un consumer governato va
+ancora concordato — issue separata.
 
 ### 1.2 Il canale di distribuzione che Luca usa non è npm
 

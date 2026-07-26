@@ -639,10 +639,15 @@ program
       'user-modified safety hook frozen even if the shipped template fixed it — dangerous.',
   )
   .option(
+    '--adopt-gate-spine',
+    'Opt IN to force-adopting the gate spine (scripts/check-all.mjs, scripts/lib/*.mjs) over a ' +
+      'user-modified copy. DESTRUCTIVE: checks wired into that file by the project are replaced by ' +
+      'the template render — preview with --adopt-plan first (#2119).',
+    false,
+  )
+  .option(
     '--no-adopt-gate-spine',
-    'Opt OUT of the default-on gate-spine adoption (scripts/check-all.mjs, ' +
-      'scripts/lib/*.mjs). Freezes a deliberately customized gate entrypoint — at the ' +
-      'cost of never receiving another correctness or security fix for it (#2109).',
+    'Accepted no-op: withholding a customized gate spine is the default since #2119.',
   )
   .option(
     '--adopt-plan',
@@ -681,7 +686,7 @@ program
         force: opts.force,
         adopt: opts.adopt,
         noAdoptSafety: !opts.adoptSafety,
-        noAdoptGateSpine: !opts.adoptGateSpine,
+        adoptGateSpine: opts.adoptGateSpine,
         adoptPlan: opts.adoptPlan,
         refreshDerived: opts.refreshDerived,
       })

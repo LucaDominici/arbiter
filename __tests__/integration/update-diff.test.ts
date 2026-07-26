@@ -330,7 +330,6 @@ describe('#2120: diff and update agree on the adopt classes', () => {
   it.each([
     ['AGENTS.md', 'governance class (#2056 force-render)'],
     ['.claude/hooks/stop-dangerous.mjs', 'safety class'],
-    ['scripts/check-all.mjs', 'gate-spine class'],
   ])('reports %s as changed, not withheld — update adopts it (%s)', async (target) => {
     writeFileSync(join(dir, target), '// hand-edited\n')
 
@@ -342,13 +341,17 @@ describe('#2120: diff and update agree on the adopt classes', () => {
     expect(readFileSync(join(dir, target), 'utf-8')).not.toBe('// hand-edited\n')
   })
 
-  it('a file no adopt policy covers is still reported as withheld', async () => {
-    const LEAF = 'scripts/check-collab-mode-wired.mjs'
-    writeFileSync(join(dir, LEAF), '// hand-edited\n')
+  // #2119 put the gate spine on this side of the line: `diff` must call it
+  // withheld, because a bare `update` no longer writes it.
+  it.each([
+    ['scripts/check-collab-mode-wired.mjs', 'leaf check — no adopt policy covers it'],
+    ['scripts/check-all.mjs', 'gate spine — opt-in only since #2119'],
+  ])('reports %s as withheld, and update leaves it alone (%s)', async (target) => {
+    writeFileSync(join(dir, target), '// hand-edited\n')
 
-    expect(diffJson().files.find((f) => f.key === LEAF)?.status).toBe('withheld')
+    expect(diffJson().files.find((f) => f.key === target)?.status).toBe('withheld')
 
     await runUpdate({ dir, github: false })
-    expect(readFileSync(join(dir, LEAF), 'utf-8')).toBe('// hand-edited\n')
+    expect(readFileSync(join(dir, target), 'utf-8')).toBe('// hand-edited\n')
   })
 })

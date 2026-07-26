@@ -69,13 +69,21 @@ export interface UpdateOptions {
    */
   noAdoptSafety?: boolean
   /**
-   * #2109: opt OUT of the default-on gate-spine adoption
-   * (`scripts/check-all.mjs`, `scripts/lib/*.mjs`). Independent of
-   * `noAdoptSafety` on purpose: a project that deliberately maintains a custom
-   * gate entrypoint must be able to freeze it without also disarming
-   * safety-hook adoption.
+   * #2119 (reverses #2109): opt IN to force-adopting the gate spine
+   * (`scripts/check-all.mjs`, `scripts/lib/*.mjs`) over a user-modified copy.
+   * Withholding it is the default.
+   *
+   * #2109 modelled `check-all.mjs` as a CONTAINER arbiter owns, like a safety
+   * hook. It is not: that file is by construction the point where a project
+   * wires its OWN checks, so the template render is not a superset of the
+   * local copy and adopting it DELETES content rather than restoring a fix
+   * (measured on a copy of a real governed consumer: a bare `arbiter update`
+   * erased 25 project checks, 12 of them security, and the gate stayed green
+   * because the checks did not fail — they disappeared). Still independent of
+   * `noAdoptSafety`: a safety hook is a whole file arbiter owns, and it keeps
+   * adopting by default.
    */
-  noAdoptGateSpine?: boolean
+  adoptGateSpine?: boolean
   /**
    * T1 (two-phase plan/apply): compute and print what `--adopt`/the default
    * safety-class adoption WOULD change — file list + diff — without writing
@@ -111,20 +119,22 @@ function sha256(content: string): string {
 
 /**
  * Build the T1 adopt predicate from CLI flags. Safety-class files
- * (`.claude/hooks/*.mjs`) and gate-spine files (`scripts/check-all.mjs`,
- * `scripts/lib/*.mjs`, #2109) adopt by default — `noAdoptSafety` and
- * `noAdoptGateSpine` are the only ways to freeze one deliberately, and they are
- * independent. `adopt` broadens to every withheld file.
+ * (`.claude/hooks/*.mjs`) adopt by default — `noAdoptSafety` is the only way to
+ * freeze one deliberately. Gate-spine files (`scripts/check-all.mjs`,
+ * `scripts/lib/*.mjs`) are the opposite since #2119: WITHHELD by default,
+ * adopted only under an explicit `adoptGateSpine`, because that file is where a
+ * project wires its own checks and the template render is not a superset of it.
+ * The two stay independent. `adopt` broadens to every withheld file.
  * `refreshDerived` (#1983) broadens it to exactly the codex-track derived
  * file set, independent of `adopt`/`noAdoptSafety`. Exported for unit testing
  * independent of the filesystem.
  */
 export function buildAdoptPredicate(
-  options: Pick<UpdateOptions, 'adopt' | 'noAdoptSafety' | 'noAdoptGateSpine' | 'refreshDerived'>,
+  options: Pick<UpdateOptions, 'adopt' | 'noAdoptSafety' | 'adoptGateSpine' | 'refreshDerived'>,
 ): (key: string) => boolean {
   const adoptAll = options.adopt === true
   const adoptSafety = options.noAdoptSafety !== true
-  const adoptGateSpine = options.noAdoptGateSpine !== true
+  const adoptGateSpine = options.adoptGateSpine === true
   const refreshDerived = options.refreshDerived === true
   return (key: string): boolean =>
     adoptAll ||
@@ -174,7 +184,7 @@ function localOverrideReason(key: string): string {
     return (
       'update: gate-spine file force-adopted over user-modified content — the gate ' +
       'entrypoint and its libs are the delivery vector for every later fix ' +
-      '(#2109; see --no-adopt-gate-spine)'
+      '(#2109, reversed by #2119: this now happens only under explicit --adopt-gate-spine)'
     )
   }
   return (
@@ -208,11 +218,20 @@ export function recordLocalOverride(
  * The targetDir-relative, posix-normalized keys of PROTECTED files — safety
  * class (`.claude/hooks/*.mjs`) and gate spine (`scripts/check-all.mjs`,
  * `scripts/lib/*.mjs`, #2109) — that are STILL withheld (user-modified, not
- * adopted) after this run. Normally empty (both classes adopt by default);
- * non-empty only when adoption was explicitly disabled (`--no-adopt-safety` /
- * `--no-adopt-gate-spine`) or could not be recorded. This is
- * exactly the list `check-safety-adopt-ratchet.mjs` fails on. Exported for
- * unit testing the pure decision.
+ * adopted) after this run. A safety hook lands here only when adoption was
+ * explicitly disabled (`--no-adopt-safety`) or could not be recorded.
+ *
+ * #2119: a CUSTOMIZED GATE SPINE now stays on this list ON PURPOSE, with no
+ * flag passed at all — that is the point, not an oversight. Withholding it
+ * stops the destruction; leaving it listed is the honest register of the debt
+ * the withholding creates (every check arbiter ships later that the project's
+ * own `check-all.mjs` does not wire). Dropping it from the list would turn
+ * #2119 into #2109 pointed the other way: silent again, in the safe direction.
+ * The two exits are wiring the new checks by hand or marking the file
+ * `arbiter:preserve` — the documented exception the ratchet accepts.
+ *
+ * This is exactly the list `check-safety-adopt-ratchet.mjs` fails on. Exported
+ * for unit testing the pure decision.
  */
 export function withheldSafetyKeys(results: WriteResult[], targetDir: string): string[] {
   return results
@@ -757,9 +776,11 @@ function reportAdoption(
   const stillWithheldSafety = withheldSafetyKeys(results, targetDir)
   if (!json && stillWithheldSafety.length > 0) {
     process.stderr.write(
-      `\n  Warning: ${stillWithheldSafety.length} safety-class file(s) remain withheld ` +
-        `(user-modified, adoption disabled via --no-adopt-safety): ${stillWithheldSafety.join(', ')}\n` +
-        `  \`scripts/check-safety-adopt-ratchet.mjs\` will FAIL until these are re-adopted.\n`,
+      `\n  Warning: ${stillWithheldSafety.length} protected file(s) remain withheld ` +
+        `(user-modified; safety hooks adopt by default — a gate-spine file adopts only under ` +
+        `--adopt-gate-spine): ${stillWithheldSafety.join(', ')}\n` +
+        `  \`scripts/check-safety-adopt-ratchet.mjs\` will FAIL until each is re-adopted, wired ` +
+        `by hand, or marked \`arbiter:preserve\`.\n`,
     )
   }
   return { adopted, stillWithheldSafety }
