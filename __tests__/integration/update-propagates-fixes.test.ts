@@ -275,3 +275,78 @@ describe('#1504 manifest honesty for withheld-gate guards', () => {
     expect(loadUnwiredGuards(dir)).toEqual([])
   })
 })
+
+// #2120 — the provenance test used to exist ONLY inside the `skipIfExists`
+// branch. An always-rewrite file (`skipIfExists: false`) was therefore
+// overwritten with no provenance check at all: a local fix in
+// `scripts/debt-lib.mjs` was reverted by every `arbiter update`, and the
+// `--adopt-plan` preview never even named the file. This is the whole issue in
+// one acceptance case — no manifest manipulation, just an edit.
+describe('#2120 always-rewrite files get a provenance test', () => {
+  let dir: string
+  // Emitted with `skipIfExists: false, backup: true` (generators/debt-ratchet.ts).
+  const ALWAYS_REWRITE = 'scripts/debt-lib.mjs'
+  const LOCAL_EDIT = '// local edit\n'
+
+  beforeEach(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'arb-2120-'))
+    initGit(dir)
+    await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('the plan names it and the run does not silently revert it', async () => {
+    writeFileSync(join(dir, ALWAYS_REWRITE), LOCAL_EDIT)
+
+    const writes: string[] = []
+    const origWrite = process.stdout.write.bind(process.stdout)
+    process.stdout.write = ((s: unknown): boolean => {
+      writes.push(String(s))
+      return true
+    }) as typeof process.stdout.write
+    try {
+      await runUpdate({ dir, github: false, adoptPlan: true })
+    } finally {
+      process.stdout.write = origWrite
+    }
+    expect(writes.some((w) => w.includes(ALWAYS_REWRITE))).toBe(true)
+
+    await runUpdate({ dir, github: false })
+    expect(readFileSync(join(dir, ALWAYS_REWRITE), 'utf-8')).toBe(LOCAL_EDIT)
+  })
+
+  it('--adopt is still the way to take the shipped version', async () => {
+    writeFileSync(join(dir, ALWAYS_REWRITE), LOCAL_EDIT)
+
+    await runUpdate({ dir, github: false, adopt: true })
+
+    expect(readFileSync(join(dir, ALWAYS_REWRITE), 'utf-8')).not.toBe(LOCAL_EDIT)
+  })
+
+  it('a pristine always-rewrite file still receives template fixes', async () => {
+    // Untouched since init → pristine → the rewrite path is unchanged.
+    const before = readFileSync(join(dir, ALWAYS_REWRITE), 'utf-8')
+    await runUpdate({ dir, github: false })
+    expect(readFileSync(join(dir, ALWAYS_REWRITE), 'utf-8')).toBe(before)
+    expect(loadGeneratedManifest(dir)[ALWAYS_REWRITE]).toBeDefined()
+  })
+
+  it('the governance pair is still force-rendered over a local edit (#2056 holds)', async () => {
+    const AGENTS = 'AGENTS.md'
+    writeFileSync(join(dir, AGENTS), '# hand-written\n')
+
+    await runUpdate({ dir, github: false })
+
+    // Adopted, not frozen — and the prior bytes survive in a reversible record.
+    expect(readFileSync(join(dir, AGENTS), 'utf-8')).not.toBe('# hand-written\n')
+    const overrides = join(dir, '.arbiter/evidence/local-overrides/AGENTS.md.json')
+    const record = JSON.parse(readFileSync(overrides, 'utf-8')) as {
+      priorContent: string
+      reason: string
+    }
+    expect(record.priorContent).toBe('# hand-written\n')
+    expect(record.reason).toContain('#2120')
+  })
+})
