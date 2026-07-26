@@ -207,6 +207,13 @@ list:
 `skipped` is deliberately NOT a section: it is every unchanged file, and a preview nobody reads protects
 nobody. `--json` carries `wouldRegenerate` and `withheld` so the two output channels cannot disagree.
 
+`arbiter diff` models the same adopt policy (#2120). It used to open its generation session without an
+adopt predicate, so every file `update` force-adopts — the safety class, the gate spine, and now the
+governance pair — was reported as a preserved "withheld template fix" with a reconcile hint, when the very
+next `update` overwrites it. `diff` now reports those as `changed`, which is what they are: a file that is
+`withheld && adopted` is diverged-and-re-adopted, not preserved. `diff` stays read-only — it takes the
+classification, never the `onAdopt` side effect.
+
 ### Provenance for always-rewrite files (#2120)
 
 **Issue:** #2120

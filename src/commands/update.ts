@@ -119,7 +119,9 @@ function sha256(content: string): string {
  * file set, independent of `adopt`/`noAdoptSafety`. Exported for unit testing
  * independent of the filesystem.
  */
-export function buildAdoptPredicate(options: UpdateOptions): (key: string) => boolean {
+export function buildAdoptPredicate(
+  options: Pick<UpdateOptions, 'adopt' | 'noAdoptSafety' | 'noAdoptGateSpine' | 'refreshDerived'>,
+): (key: string) => boolean {
   const adoptAll = options.adopt === true
   const adoptSafety = options.noAdoptSafety !== true
   const adoptGateSpine = options.noAdoptGateSpine !== true

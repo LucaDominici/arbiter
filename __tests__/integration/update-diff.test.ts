@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -285,5 +285,70 @@ describe('ai-rulez detection', () => {
     // Tool-specific configs should NOT be generated
     expect(existsSync(join(dir, '.claude', 'CLAUDE.md'))).toBe(false)
     expect(existsSync(join(dir, '.agents', 'CODEX.md'))).toBe(false)
+  })
+})
+
+// #2120: `diff` must not disagree with `update` about the adopt classes. Both
+// commands resolve the SAME prospective action (that is the #1077 F1/F7
+// contract), but `diff` opened its generation session without an adopt
+// predicate — so a hand-edited file that `update` force-adopts was reported as
+// a preserved "withheld template fix" with a reconcile hint, when the very next
+// `update` would overwrite it. The provenance test (#2120) widened that lie
+// from the safety/gate-spine classes to `AGENTS.md` and `.claude/settings.json`
+// too, which `diff` used to report truthfully as `changed`.
+describe('#2120: diff and update agree on the adopt classes', () => {
+  let dir: string
+
+  beforeEach(async () => {
+    dir = tmpDir()
+    initGit(dir)
+    await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  function diffJson(): { files: { key: string; status: string }[] } {
+    const writes: string[] = []
+    const origWrite = process.stdout.write.bind(process.stdout)
+    process.stdout.write = ((s: unknown): boolean => {
+      writes.push(String(s))
+      return true
+    }) as typeof process.stdout.write
+    // runDiff exits 1 whenever there is anything to act on — expected here.
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    try {
+      runDiff({ dir, json: true })
+    } finally {
+      process.stdout.write = origWrite
+      exitSpy.mockRestore()
+    }
+    return (JSON.parse(writes.join('')) as { data: { files: { key: string; status: string }[] } })
+      .data
+  }
+
+  it.each([
+    ['AGENTS.md', 'governance class (#2056 force-render)'],
+    ['.claude/hooks/stop-dangerous.mjs', 'safety class'],
+    ['scripts/check-all.mjs', 'gate-spine class'],
+  ])('reports %s as changed, not withheld — update adopts it (%s)', async (target) => {
+    writeFileSync(join(dir, target), '// hand-edited\n')
+
+    const entry = diffJson().files.find((f) => f.key === target)
+    expect(entry?.status).toBe('changed')
+
+    // …and the claim is true: the very next update does overwrite it.
+    await runUpdate({ dir, github: false })
+    expect(readFileSync(join(dir, target), 'utf-8')).not.toBe('// hand-edited\n')
+  })
+
+  it('a file no adopt policy covers is still reported as withheld', async () => {
+    const LEAF = 'scripts/check-collab-mode-wired.mjs'
+    writeFileSync(join(dir, LEAF), '// hand-edited\n')
+
+    expect(diffJson().files.find((f) => f.key === LEAF)?.status).toBe('withheld')
+
+    await runUpdate({ dir, github: false })
+    expect(readFileSync(join(dir, LEAF), 'utf-8')).toBe('// hand-edited\n')
   })
 })

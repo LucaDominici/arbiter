@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync, execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runInit } from '../../src/commands/init.js'
@@ -339,5 +340,29 @@ describe('#2120: --adopt-plan previews the regeneration channel, not only the ad
     expect([...(payload.data.wouldRegenerate ?? []), ...(payload.data.withheld ?? [])]).toContain(
       ALWAYS_REWRITE,
     )
+  })
+
+  it('renders the "would regenerate" section for a pristine-stale always-rewrite file', async () => {
+    // The regenerate bucket needs disk == baseline but ≠ the current render:
+    // re-baseline the manifest onto the local content so provenance says
+    // "pristine" (#2120 does not withhold it) while the render still differs.
+    const local = '// pristine-stale: matches the baseline, not the template\n'
+    writeFileSync(join(dir, ALWAYS_REWRITE), local)
+    const manifest = loadGeneratedManifest(dir)
+    manifest[ALWAYS_REWRITE] = createHash('sha256').update(local).digest('hex')
+    saveGeneratedManifest(dir, manifest)
+
+    const out = captureStdout()
+    try {
+      await runUpdate({ dir, github: false, adoptPlan: true })
+    } finally {
+      out.restore()
+    }
+
+    expect(out.text()).toContain('would regenerate')
+    const section = out.text().slice(out.text().indexOf('would regenerate'))
+    expect(section).toContain(ALWAYS_REWRITE)
+    // Plan mode stays read-only.
+    expect(readFileSync(join(dir, ALWAYS_REWRITE), 'utf-8')).toBe(local)
   })
 })

@@ -10,6 +10,7 @@ import { resolve, relative, join } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { loadConfig } from '../utils/config.js'
 import { slugifyProjectName } from './init.js'
+import { buildAdoptPredicate } from './update.js'
 import { resolveProjectName } from '../config/resolve-project-name.js'
 import { resolveProjectConfig, gitHubPermitted } from '../config/resolve-project-config.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
@@ -200,7 +201,12 @@ function buildDiffFiles(results: WriteResult[], targetDir: string): DiffFile[] {
     const rel = relative(targetDir, r.path)
     // #1344: a withheld fix is a `skipped` action that would otherwise read as
     // `unchanged` — surface it as its own status so the drift is visible.
-    const status: DiffStatus = r.withheld ? 'withheld' : actionToStatus(r.action)
+    // #2120: …but a file the adopt policy WOULD take is not withheld, it is
+    // changed. `withheld && adopted` means "diverged and re-adopted" (see
+    // WriteResult.adopted), and reporting that as a preserved fix told the
+    // operator the opposite of what the next `update` does.
+    const status: DiffStatus =
+      r.withheld === true && r.adopted !== true ? 'withheld' : actionToStatus(r.action)
     return {
       key: rel,
       status,
@@ -334,7 +340,18 @@ export function runDiff(options: DiffOptions): void {
   // #1344: pass a no-op onWithheld — diff lists withheld files explicitly via the
   // returned `withheld` flag + dedicated section, so the default per-file
   // logger.warn would only double-emit noise here.
-  beginGenerationSession({ targetDir, prevHashes: prevManifest, onWithheld: () => {} })
+  // #2120: model the SAME adopt policy a default `arbiter update` applies.
+  // Without the predicate, every file `update` force-adopts (safety class,
+  // gate spine, governance pair) resolved here as a preserved "withheld
+  // template fix" with a reconcile hint — the exact opposite of what the next
+  // update does to it. No `onAdopt`: diff stays read-only, it only needs the
+  // classification.
+  beginGenerationSession({
+    targetDir,
+    prevHashes: prevManifest,
+    onWithheld: () => {},
+    adoptPredicate: buildAdoptPredicate({}),
+  })
   let results: WriteResult[]
   try {
     results = runGeneratorsFromRegistry(specs, [], { dryRun: true })
