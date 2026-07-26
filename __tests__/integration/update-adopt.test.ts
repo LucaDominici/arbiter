@@ -177,12 +177,16 @@ describe('T1 red-path: safety-class hook erosion is caught (not silent)', () => 
   })
 })
 
-// #2109 — the same red path for the GATE SPINE. The safety class above covers
-// `.claude/hooks/*.mjs`; `scripts/check-all.mjs` and `scripts/lib/*.mjs` were
-// left out of it, and they are the delivery vector for every check arbiter
-// ships later — including the wiring of the ratchet that is supposed to catch
-// this exact erosion. Frozen spine = self-sealing erosion.
-describe('#2109 red-path: gate-spine erosion is caught (not silent)', () => {
+// #2119 — the gate spine is WITHHELD by default, reversing #2109. #2109 read
+// `scripts/check-all.mjs` as a container arbiter owns; it is not. That file is
+// by construction the point where a project wires its OWN checks, so adopting
+// it deletes content instead of restoring a fix (measured on a real governed
+// consumer: 25 project checks erased, 12 of them security, by a BARE
+// `arbiter update`). The erosion class stays real for `.claude/hooks/*.mjs`,
+// which arbiter owns whole; for the spine, the honest answer is to withhold and
+// keep saying so — the ratchet's red is the debt register, and the documented
+// exception it must accept is the `arbiter:preserve` marker.
+describe('#2119 red-path: the gate spine is withheld, and the ratchet cycle terminates', () => {
   let dir: string
 
   const SPINE = 'scripts/check-all.mjs'
@@ -212,16 +216,41 @@ describe('#2109 red-path: gate-spine erosion is caught (not silent)', () => {
     expect(existsSync(join(dir, SPINE_LIB))).toBe(true)
   })
 
-  it('the gate entrypoint is ADOPTED by default — a correctness fix reaches a touched project', async () => {
+  // R1 — the measured defect: a BARE `arbiter update` must not rewrite the file
+  // in which a project wires its own checks.
+  it('the gate entrypoint is WITHHELD by default — a project keeps its own checks', async () => {
     const userContent = erode(SPINE, 'hand-tuned gate entrypoint')
+
+    await runUpdate({ dir, github: false }) // BARE — no flags at all
+
+    expect(readFileSync(join(dir, SPINE), 'utf-8')).toBe(userContent)
+  })
+
+  // R2 — the ratchet cycle must TERMINATE. Today the gate demands in writing "a
+  // documented, dated exception" and then refuses the only one that exists.
+  it('a preserve-marked spine is the documented exception the ratchet ACCEPTS', async () => {
+    writeFileSync(
+      join(dir, SPINE),
+      '// arbiter:preserve — project-owned gate entrypoint\n// USER EDIT\n',
+    )
 
     await runUpdate({ dir, github: false })
 
-    const onDisk = readFileSync(join(dir, SPINE), 'utf-8')
-    expect(onDisk).not.toBe(userContent)
-    expect(onDisk).not.toContain('USER EDIT')
-    expect(loadWithheldSafety(dir)).toEqual([])
+    expect(readFileSync(join(dir, SPINE), 'utf-8')).toContain('USER EDIT')
     expect(runRatchet(dir).status).toBe(0)
+  })
+
+  // R3 — the prescription must never point at the command that erases the
+  // project's checks. Weaker than R1/R2 on purpose: a negative assertion.
+  it('never prescribes a bare `arbiter update` for a withheld spine', async () => {
+    erode(SPINE, 'hand-tuned gate entrypoint')
+
+    await runUpdate({ dir, github: false })
+
+    const r = runRatchet(dir)
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain(SPINE)
+    expect(r.stderr).not.toMatch(/Run `arbiter update` \(both classes adopt by\s+default\)/)
   })
 
   it('a scripts/lib helper is adopted too — monotonic by directory', async () => {
