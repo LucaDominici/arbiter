@@ -248,11 +248,11 @@ envelope when it does. Safety and gate spine are both backstopped by
 `scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as long as a member of
 either class stays withheld and unmarked.
 
-| class              | pattern                                      | default   | flag                           |
-| ------------------ | -------------------------------------------- | --------- | ------------------------------ |
-| safety (T1)        | `.claude/hooks/*.mjs`                        | adopt     | `--no-adopt-safety` (opt out)  |
-| gate spine (#2119) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | withhold  | `--adopt-gate-spine` (opt in)  |
-| governance (#2120) | `AGENTS.md`, `.claude/settings.json`         | adopt     | `arbiter:preserve` marker only |
+| class              | pattern                                      | default  | flag                           |
+| ------------------ | -------------------------------------------- | -------- | ------------------------------ |
+| safety (T1)        | `.claude/hooks/*.mjs`                        | adopt    | `--no-adopt-safety` (opt out)  |
+| gate spine (#2119) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | withhold | `--adopt-gate-spine` (opt in)  |
+| governance (#2120) | `AGENTS.md`, `.claude/settings.json`         | adopt    | `arbiter:preserve` marker only |
 
 `--no-adopt-gate-spine` is still accepted as a no-op, so a consumer script written during the #2119
 moratorium keeps working.
@@ -278,7 +278,7 @@ adopt policy and works in JSON as an ordinary key.
 template render is a **superset** of the local file. That holds for `.claude/hooks/*.mjs`: those are whole
 files arbiter owns, and a project has no legitimate content of its own inside them. It does **not** hold for
 `scripts/check-all.mjs`, which is by construction the point where a project wires its OWN checks —
-customization *is* that file's function. #2109 read the spine as a container arbiter owns and force-adopted
+customization _is_ that file's function. #2109 read the spine as a container arbiter owns and force-adopted
 it; measured afterwards on a copy of a real governed consumer, a **bare** `arbiter update` (no `--adopt`, no
 flag at all) deleted **25 project checks, 12 of them security** — container hardening, auth-bypass, cookie
 hardening, crypto primitives, SQLi regression, distroless runtime, error disclosure, workflow hardening and

@@ -109,7 +109,7 @@ Normalizzando i nomi (per non contare i rinomini): **24 check di progetto cancel
 `error disclosure`, `race gate`, `sqli regression`, `suppression justification`,
 `workflow hardening` — più l'intera corsia frontend.
 
-**Conseguenza operativa, aggiornata alla chiusura di #2119:** il default *è* già trattenere,
+**Conseguenza operativa, aggiornata alla chiusura di #2119:** il default _è_ già trattenere,
 quindi `arbiter update` nudo non riscrive più una gate personalizzata. `--no-adopt-gate-spine`
 resta **accettato come no-op**, così gli script scritti durante la moratoria non si rompono.
 Resta invece in piedi la parte di moratoria che #2119 **non** copre (classe governance:
@@ -424,7 +424,7 @@ nove** i repo della matrice si erano risolti in `archetype: library`; cinque arc
 avevano copertura zero.
 
 **2. `--no-adopt-gate-spine` non era "la via sicura", era un laccio emostatico.** Misurato dopo il
-suo uso su un consumer governato (#2119 ha poi invertito il default *e* riscritto la
+suo uso su un consumer governato (#2119 ha poi invertito il default _e_ riscritto la
 prescrizione del ratchet, che qui sotto è ancora quella vecchia e distruttiva):
 
 ```
