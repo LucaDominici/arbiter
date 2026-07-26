@@ -282,24 +282,44 @@ describe('#2119 red-path: the gate spine is withheld, and the ratchet cycle term
     expect(record.reason).toContain('#2109')
   })
 
+  /** Run the real CLI from source (no build step) — the layer where the DEFAULT lives. */
+  function runCli(...args: string[]): { status: number | null; stdout: string; stderr: string } {
+    const r = spawnSync(
+      process.execPath,
+      ['--import', 'tsx/esm', join(REPO_ROOT, 'src/cli.ts'), 'update', '--dir', dir, ...args],
+      { cwd: REPO_ROOT, encoding: 'utf-8' },
+    )
+    return { status: r.status, stdout: r.stdout, stderr: r.stderr }
+  }
+
+  // The defect #2119 fixes is a wrong DEFAULT, and a default lives in commander,
+  // not in runUpdate's options object. Every other test here passes the option
+  // explicitly, so none of them would catch the two ways this silently reverts:
+  // reordering the `--adopt-gate-spine` / `--no-adopt-gate-spine` pair (commander
+  // then defaults it to true), or mistyping the cli.ts → runUpdate mapping.
+  it('the CLI default is WITHHOLD — a bare `arbiter update` leaves the spine alone', () => {
+    const userContent = erode(SPINE, 'hand-tuned gate entrypoint')
+
+    const r = runCli()
+
+    expect(r.status).toBe(0)
+    expect(readFileSync(join(dir, SPINE), 'utf-8')).toBe(userContent)
+  })
+
+  it('the CLI opt-in reaches the predicate — `--adopt-gate-spine` does overwrite', () => {
+    const userContent = erode(SPINE, 'hand-tuned gate entrypoint')
+
+    const r = runCli('--adopt-gate-spine')
+
+    expect(r.status).toBe(0)
+    expect(readFileSync(join(dir, SPINE), 'utf-8')).not.toBe(userContent)
+  })
+
   // #2119 cost 2: the flag stays ACCEPTED so a consumer's moratorium script
   // (`arbiter update --no-adopt-gate-spine`) does not start failing on an
   // unknown option the day the default catches up with it.
   it('`--no-adopt-gate-spine` is still accepted by the CLI — now a no-op', () => {
-    const r = spawnSync(
-      process.execPath,
-      [
-        '--import',
-        'tsx/esm',
-        join(REPO_ROOT, 'src/cli.ts'),
-        'update',
-        '--dir',
-        dir,
-        '--adopt-plan',
-        '--no-adopt-gate-spine',
-      ],
-      { cwd: REPO_ROOT, encoding: 'utf-8' },
-    )
+    const r = runCli('--adopt-plan', '--no-adopt-gate-spine')
     expect(r.stderr).not.toContain('unknown option')
     expect(r.status).toBe(0)
   })

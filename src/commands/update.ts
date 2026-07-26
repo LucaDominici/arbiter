@@ -779,8 +779,8 @@ function reportAdoption(
       `\n  Warning: ${stillWithheldSafety.length} protected file(s) remain withheld ` +
         `(user-modified; safety hooks adopt by default — a gate-spine file adopts only under ` +
         `--adopt-gate-spine): ${stillWithheldSafety.join(', ')}\n` +
-        `  \`scripts/check-safety-adopt-ratchet.mjs\` will FAIL until each is re-adopted, wired ` +
-        `by hand, or marked \`arbiter:preserve\`.\n`,
+        `  \`scripts/check-safety-adopt-ratchet.mjs\` will FAIL for any of these NOT marked ` +
+        `\`arbiter:preserve\` — re-adopt it, wire the new checks by hand, or mark it.\n`,
     )
   }
   return { adopted, stillWithheldSafety }
