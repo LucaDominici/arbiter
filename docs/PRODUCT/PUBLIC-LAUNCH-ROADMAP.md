@@ -11,6 +11,13 @@ related: ['docs/PRODUCT/PRD.md', 'ROADMAP.md']
 
 # Roadmap verso il pubblico
 
+> **Destinazione superata il 2026-07-26 — le misure no.** Tutto ciò che questo documento
+> misura resta valido e non è stato rifatto; è la meta che è cambiata. Il pubblico è fuori
+> sequenza: la persona _primaria_ del PRD è già l'owner, e la promessa che il PRD le fa
+> (`arbiter update` sicuro) è misurata falsa qui sotto in §1.3. Il confine attivo, con la
+> definizione di finito e i secchi ripartiti, è **`docs/PRODUCT/CONFINE.md`**. Leggi quello
+> per sapere cosa si fa; leggi questo per sapere cosa è stato misurato e come.
+
 > Questo documento nasce da una misura, non da un'opinione. Ogni affermazione qui dentro
 > ha il comando che la sostiene. Dove non ce l'ha, è scritto che non ce l'ha.
 >
