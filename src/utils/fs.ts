@@ -309,29 +309,39 @@ interface ResolvedWrite {
  *   7. exists                                   → replaced (baselineMatches)
  */
 /**
- * The `skipIfExists` branch of {@link resolveWriteAction} when a generation
- * session is active and the on-disk content is readable — extracted to keep
- * the parent function's cyclomatic complexity within the lint ceiling
- * (CANON-22). Handles cases 3/4/5 of the precedence table above.
+ * The provenance branch of {@link resolveWriteAction} when a generation session
+ * is active and the on-disk content is readable — extracted to keep the parent
+ * function's cyclomatic complexity within the lint ceiling (CANON-22). Handles
+ * cases 3/4/5 of the precedence table above, for BOTH `skipIfExists` files and
+ * (since #2120) always-rewrite ones.
  */
 function resolveSessionSkip(
   session: GenerationSession,
   filePath: string,
   content: string,
   disk: string,
-  backup: boolean,
+  opts: { backup: boolean; skipIfExists: boolean },
 ): ResolvedWrite {
+  const { backup, skipIfExists } = opts
   const key = manifestKey(session.targetDir, filePath)
   const prev = key === null ? undefined : session.prevHashes.get(key)
+  const rewrite: ResolvedWrite = {
+    action: backup ? 'backed-up-and-replaced' : 'replaced',
+    baselineMatches: true,
+    withheld: false,
+    adopted: false,
+  }
   if (prev !== undefined && sha256(disk) === prev) {
     // Pristine: unmodified since arbiter generated it → safe to rewrite.
-    return {
-      action: backup ? 'backed-up-and-replaced' : 'replaced',
-      baselineMatches: true,
-      withheld: false,
-      adopted: false,
-    }
+    return rewrite
   }
+  // #2120: an always-rewrite file (`skipIfExists: false`) reaches the divergence
+  // branch only on POSITIVE evidence — a recorded baseline that no longer matches
+  // disk. Unknown provenance (no manifest entry) keeps today's replace behavior:
+  // withholding it would turn `arbiter update` into a silent no-op on any repo
+  // whose manifest predates the key, which is the same silence in the opposite
+  // direction. `skipIfExists` is unaffected — skipping is already its safe default.
+  if (!skipIfExists && prev === undefined) return rewrite
   // User-modified or unknown provenance.
   const withheldKey = key ?? filePath
   if (session.adoptPredicate?.(withheldKey)) {
@@ -381,12 +391,17 @@ function resolveWriteAction(
     return { action: 'skipped', baselineMatches: false, withheld: true, adopted: false }
   }
 
-  if (skipIfExists) {
-    const session = generationSession
-    if (session && disk !== null)
-      return resolveSessionSkip(session, filePath, content, disk, backup)
+  // #2120: the provenance test used to live INSIDE the skipIfExists branch, so an
+  // always-rewrite file was overwritten with no provenance check at all — a local
+  // fix in e.g. `scripts/debt-lib.mjs` silently reverted on every update. Hoisting
+  // the session ahead of the branch reuses the machinery already built for the
+  // divergent case: withheld reporting, the plan section, `--adopt`, and the
+  // reversible local-override record.
+  const session = generationSession
+  if (session && disk !== null)
+    return resolveSessionSkip(session, filePath, content, disk, { backup, skipIfExists })
+  if (skipIfExists)
     return { action: 'skipped', baselineMatches: false, withheld: false, adopted: false }
-  }
 
   return {
     action: backup ? 'backed-up-and-replaced' : 'replaced',

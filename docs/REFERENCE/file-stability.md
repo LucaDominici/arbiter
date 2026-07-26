@@ -207,22 +207,60 @@ list:
 `skipped` is deliberately NOT a section: it is every unchanged file, and a preview nobody reads protects
 nobody. `--json` carries `wouldRegenerate` and `withheld` so the two output channels cannot disagree.
 
+### Provenance for always-rewrite files (#2120)
+
+**Issue:** #2120
+
+The pristine test (`sha256(disk) == manifest hash`) used to live INSIDE the `skipIfExists` branch. A file
+emitted with `skipIfExists: false` — `scripts/debt-lib.mjs`, the `scripts/gen-*.mjs` family, most emitted
+scripts — was therefore overwritten with **no provenance check at all**: a local fix was silently reverted
+by every `arbiter update`, and nothing anywhere reported it. The check now runs ahead of the branch, so an
+always-rewrite file gets exactly the same treatment as a `skipIfExists` one when it diverges: `withheld`,
+listed in `diff --withheld` and in the `--adopt-plan` preview, adoptable with `--adopt`, reversible via the
+local-override envelope.
+
+Narrowed deliberately to **positive evidence of divergence**:
+
+| manifest entry | disk vs. baseline | `skipIfExists: false` result |
+| -------------- | ----------------- | ---------------------------- |
+| present        | equal (pristine)  | rewritten (fix propagates)   |
+| present        | differs           | **withheld** (new)           |
+| absent         | —                 | rewritten (unchanged)        |
+
+Unknown provenance keeps replacing. Withholding it would make `arbiter update` a silent no-op on any repo
+whose manifest predates the key — the same silence in the opposite direction, and a worse one, because it
+would stop governance propagating everywhere at once.
+
 ### Protected classes — files adopted over a user edit by default
 
-Two classes of emitted file are exempt from "withheld forever". Both are force-adopted on `arbiter update`
-even when the on-disk copy is user-modified, both record a reversible
-`.arbiter/evidence/local-overrides/<slug>.json` envelope carrying the prior content verbatim, and both are
-backstopped by `scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as
+Three classes of emitted file are exempt from "withheld forever". All are force-adopted on `arbiter update`
+even when the on-disk copy is user-modified, and all record a reversible
+`.arbiter/evidence/local-overrides/<slug>.json` envelope carrying the prior content verbatim. The first two
+are backstopped by `scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as
 long as a member of either class stays withheld.
 
-| class              | pattern                                      | opt-out                 |
-| ------------------ | -------------------------------------------- | ----------------------- |
-| safety (T1)        | `.claude/hooks/*.mjs`                        | `--no-adopt-safety`     |
-| gate spine (#2109) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | `--no-adopt-gate-spine` |
+| class              | pattern                                      | opt-out                        |
+| ------------------ | -------------------------------------------- | ------------------------------ |
+| safety (T1)        | `.claude/hooks/*.mjs`                        | `--no-adopt-safety`            |
+| gate spine (#2109) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | `--no-adopt-gate-spine`        |
+| governance (#2120) | `AGENTS.md`, `.claude/settings.json`         | `arbiter:preserve` marker only |
 
-Both are monotonic by directory: a hook or a `scripts/lib/` helper added later is covered without the
-pattern changing. The two opt-outs are deliberately independent — freezing a deliberately customized gate
+The first two are monotonic by directory: a hook or a `scripts/lib/` helper added later is covered without
+the pattern changing. Their opt-outs are deliberately independent — freezing a deliberately customized gate
 entrypoint must not also disarm safety-hook adoption.
+
+**Why governance is a class, and why it is exactly two files.** `AGENTS.md` (Iron Laws) and
+`.claude/settings.json` (the `ARBITER_*` deny list) are re-rendered on every selective update on purpose
+(#2056) because both render from the whole config plus their templates, so either can carry updated
+governance content independent of which config field changed — leaving them stale is the root cause behind
+the #2040 downstream-consumer drift. The provenance test above would have frozen exactly these two for
+anybody who touched them, re-opening that drift through the back door. Adopting them by default keeps #2056
+working while the overwrite becomes **visible** (named in `--adopt-plan`, announced in the run summary) and
+**reversible** (prior bytes verbatim in the local-override envelope) — which the silent overwrite never
+was. The class is an explicit pair rather than a pattern so it cannot quietly grow to mean "anything that
+looks governance-ish": it is bounded by what #2056 force-renders. There is no `--no-adopt-governance` flag;
+a project that genuinely wants one frozen marks it `arbiter:preserve`, which is checked ahead of every
+adopt policy and works in JSON as an ordinary key.
 
 **Why the gate spine is not an ordinary `skipIfExists` file.** `scripts/check-all.mjs` and the libraries it
 loads are not files that age; they are the delivery vector for every check arbiter ships afterwards.

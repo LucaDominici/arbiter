@@ -44,6 +44,33 @@ const SAFETY_CLASS_PATTERN = /^\.claude\/hooks\/[^/]+\.mjs$/
 const GATE_SPINE_PATTERN = /^scripts\/(?:check-all\.mjs|lib\/[^/]+\.mjs)$/
 
 /**
+ * Posix-normalized, targetDir-relative path test for a GOVERNANCE-class file (#2120).
+ *
+ * These two files are re-rendered on EVERY selective update on purpose
+ * (`update.ts` adds the `agents-md` and `claude` generator keys to any
+ * selective run, #2056): `AGENTS.md` carries the Iron Laws and
+ * `.claude/settings.json` carries the `ARBITER_*` deny list, and both render
+ * from the whole config plus their templates, so either can carry updated
+ * governance content independent of which config field changed. Leaving them
+ * stale is the root cause behind the #2040 downstream-consumer drift.
+ *
+ * #2120 gave every always-rewrite file a provenance test, which would have
+ * frozen exactly these two for anybody who touched them — re-opening #2040
+ * through the back door. Adopting them by default keeps #2056 working while
+ * the adoption stays VISIBLE (named in `update --adopt-plan`, announced in the
+ * run summary) and REVERSIBLE (the prior bytes land verbatim in
+ * `.arbiter/evidence/local-overrides/`), which is what the silent overwrite
+ * never was.
+ *
+ * Deliberately exactly two entries, not a directory pattern: the class is
+ * bounded by what #2056 force-renders, so it cannot quietly grow to mean "any
+ * file that looks governance-ish". A project that genuinely wants one frozen
+ * marks it with `arbiter:preserve` (checked ahead of every adopt policy), which
+ * works in JSON as an ordinary key — hence no `--no-adopt-governance` flag.
+ */
+const GOVERNANCE_CLASS_KEYS = new Set(['AGENTS.md', '.claude/settings.json'])
+
+/**
  * True when `key` (a manifest-style, posix-normalized, targetDir-relative
  * path — see {@link import('../state/generated-manifest.js').manifestKey})
  * names a safety-class file. Backslash paths must be normalized by the
@@ -62,4 +89,13 @@ export function isSafetyClassKey(key: string): boolean {
  */
 export function isGateSpineKey(key: string): boolean {
   return GATE_SPINE_PATTERN.test(key)
+}
+
+/**
+ * True when `key` names a governance-class file (#2120). Same key contract as
+ * {@link isSafetyClassKey}. See {@link GOVERNANCE_CLASS_KEYS} for why the class
+ * is an explicit pair rather than a pattern.
+ */
+export function isGovernanceClassKey(key: string): boolean {
+  return GOVERNANCE_CLASS_KEYS.has(key)
 }
