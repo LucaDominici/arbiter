@@ -197,31 +197,35 @@ verificabile:
 Tutto il resto è DOPO, salvo l'obsoleto (MAI) e ciò che richiede davvero il proprietario
 (DECISIONE OWNER).
 
-### 2.1 BLOCCA IL PUBBLICO — 18 · milestone `v0.6`
+### 2.1 BLOCCA IL PUBBLICO — 20 · milestone `v0.6`
 
-**P0 (9)**
+**P0 (12)**
 
-| #        | cosa                                                                                            | misura                                  |
-| -------- | ----------------------------------------------------------------------------------------------- | --------------------------------------- |
-| **2119** | `arbiter update` nudo cancella 24 check di progetto, 12 di sicurezza                            | 75→67 sul consumer Go governato         |
-| **2051** | un commit RED genuino è impossibile nel repo che `init` appena configura                        | exit 1, commit non atterrato            |
-| **2128** | `engines.npm <11.0.0` → install impossibile con `engine-strict`                                 | exit 1 su npm 11.16.0                   |
-| **2131** | `--solo` mette su `main`, `stop-evidence-guard` esce 0 su `main`                                | exit 0 vs exit 2 su `task/`             |
-| **2135** | **la barra** — matrice anti-figuraccia eseguibile                                               | vedi §3                                 |
-| **2122** | il gate TDD legge solo lo scope del commit → vacuo                                              | shipped in `check-tdd-evidence.mjs.ejs` |
-| **2116** | l'evidenza controlla l'esistenza dell'oggetto, non la raggiungibilità                           | `git cat-file -e`                       |
-| **2054** | l'evidenza è falsificabile via Bash, la deny-list copre solo Edit/Write                         | —                                       |
-| **2121** | `update` cancella l'entry hook locale per basename: perde `$CLAUDE_PROJECT_DIR` e le virgolette | misurato su un consumer governato       |
+| #        | cosa                                                                                                                         | misura                                  |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| **2119** | `arbiter update` nudo cancella 24 check di progetto, 12 di sicurezza                                                         | 75→67 sul consumer Go governato         |
+| **2051** | un commit RED genuino è impossibile nel repo che `init` appena configura                                                     | exit 1, commit non atterrato            |
+| **2128** | `engines.npm <11.0.0` → install impossibile con `engine-strict`                                                              | exit 1 su npm 11.16.0                   |
+| **2131** | `--solo` mette su `main`, `stop-evidence-guard` esce 0 su `main`                                                             | exit 0 vs exit 2 su `task/`             |
+| **2135** | **la barra** — matrice anti-figuraccia eseguibile                                                                            | vedi §3                                 |
+| **2122** | il gate TDD legge solo lo scope del commit → vacuo                                                                           | shipped in `check-tdd-evidence.mjs.ejs` |
+| **2116** | l'evidenza controlla l'esistenza dell'oggetto, non la raggiungibilità                                                        | `git cat-file -e`                       |
+| **2054** | l'evidenza è falsificabile via Bash, la deny-list copre solo Edit/Write                                                      | —                                       |
+| **2121** | `update` cancella l'entry hook locale per basename: perde `$CLAUDE_PROJECT_DIR` e le virgolette                              | misurato su un consumer governato       |
+| **2137** | monorepo pnpm/Astro reale: `init` esce 1 **dopo** aver scritto 233 file, rileva `npm`, assegna `library`, prima gate 8 rossi | `withastro/starlight`                   |
+| **2138** | cosign/SLSA/SBOM firmano un artefatto **diverso** da quello che npm pubblica; `workflow_dispatch` raggiunge `npm publish`    | letto nel codice, non eseguito          |
+| **2139** | nessun test importa i 4 sottopercorsi pubblici **dal pacchetto installato** — solo il bin                                    | `__tests__/public-api.test.ts:1`        |
 
-**P1 (9)** — #2130 (hook morti fuori da TS) · #2134 (prima gate rossa sui repo veri) ·
+**P1 (8)** — #2130 (hook morti fuori da TS) · #2134 (prima gate rossa sui repo veri) ·
 #2129 (2 hook mai dispacciati) · #2127 (stato di task stale blocca ogni Edit/Write) ·
 #2132 (`init` dichiara Done! e suggerisce un comando che sa fallire) · #2133 (40 script di
 sviluppo pubblicati, incluso `prepare`) · #2100 (gitleaks non gira mai, in silenzio, nel
-template nightly) · #2031 (l'anti-proforma ha 3 classi di falso positivo: 19 su 19 erano
-falsi) · #2123 (due gate L2 completi per ogni push, template condiviso) · #2126 (regressione
-generator-matrix aperta senza diagnosi — si diagnostica o si chiude).
+template nightly) · #2031 (l'anti-proforma ha 3 classi di falso positivo: 19 su 19 erano falsi)
+· #2123 (due gate L2 completi per ogni push, template condiviso).
 
-Nota: sono nove voci più #2126, che è un alert da diagnosticare, non un difetto accertato.
+**#2126 non è più qui**: era un alert di bot senza diagnosi, e un alert senza verdetto non è un
+difetto accertato. Spostato in `v0.7` con il criterio "diagnosticare o chiudere". Contare
+l'ignoranza come blocco gonfia il numero e basta.
 
 ### 2.2 DOPO — 37 · milestone `v0.7` (15) e `Post-1.0` (22)
 
@@ -270,12 +274,15 @@ contenuto.
 
 | secchio            | numero | dove                                              |
 | ------------------ | ------ | ------------------------------------------------- |
-| BLOCCA IL PUBBLICO | **18** | milestone `v0.6 — Blocca il pubblico`             |
-| DOPO               | **37** | `v0.7 — Prima impressione` (15) + `Post-1.0` (22) |
+| BLOCCA IL PUBBLICO | **20** | milestone `v0.6 — Blocca il pubblico`             |
+| DOPO               | **38** | `v0.7 — Prima impressione` (16) + `Post-1.0` (22) |
 | MAI                | **4**  | chiuse con motivo, 2026-07-26                     |
 | DECISIONE OWNER    | **6**  | milestone `Icebox — decisione owner`              |
 | la barra           | **1**  | milestone `v1.0 — Public launch` (#2135)          |
-| **totale**         | **66** | 62 aperte + 4 chiuse                              |
+| **totale**         | **69** | 65 aperte + 4 chiuse                              |
+
+`#2135` è contata **una volta sola**, nella riga "la barra": è la condizione d'uscita, non un
+ventunesimo difetto.
 
 ---
 
@@ -284,21 +291,34 @@ contenuto.
 **Non è un'opinione su quando arbiter è pronto: è un comando che esce 0 o esce 1.**
 Definizione completa e sorgente della sonda: **#2135**, milestone `v1.0`.
 
-Tre asserzioni, su **nove** repo, dal **tarball impacchettato**:
+Cinque asserzioni, su **undici** repo, dal **tarball impacchettato**:
 
 1. **`init` non mente.** `arbiter init --yes` esce 0 **e** il comando che stampa subito dopo
    esce 0 — oppure `init` ha avvisato, prima di dichiarare `Done!`, di quali check falliranno
-   e perché.
+   e perché. E se dice "aborted", **non ha scritto nulla** (#2137).
 2. **La gate può fallire.** Iniettando una violazione, `check-all.mjs L1` esce 1.
 3. **Nessun hook morto o inerte.** Per ogni hook emesso: o è dispacciato e blocca sull'input su
    cui dichiara di bloccare, o è dichiarato `ADVISORY` con la giustificazione scritta accanto.
    Zero DEAD, zero UNROUTED, zero INERT non giustificati.
+4. **Il pacchetto mantiene le promesse del suo `exports`.** Ognuno dei quattro sottopercorsi
+   dichiarati è importabile **dal tarball installato**, e il test è derivato da
+   `package.json#exports`, non scritto a mano (#2139).
+5. **L'artefatto firmato è l'artefatto pubblicato.** Lo sha256 di ciò che cosign firma coincide
+   con quello del tarball che finisce su npm (#2138).
 
-La matrice minima è nove repo, e **i due OSS reali sono la parte non negoziabile**: sono la
-sola classe che il dogfood non può imitare. Sono pinnati a uno SHA.
+La matrice **minima** cresce da nove a undici righe — le due aggiunte sono quelle che la
+challenge ha dimostrato mancanti:
+
+- **un JS/TS brownfield reale non governato con pnpm/workspace** (`withastro/starlight` è
+  quello su cui il difetto è stato misurato: #2137);
+- **almeno un archetipo diverso da `library`.** Tutti e nove i repo della matrice originale si
+  sono risolti in `archetype: library`: gli altri cinque archetipi avevano copertura **zero**.
+
+I repo OSS reali restano la parte non negoziabile: sono la sola classe che il dogfood non può
+imitare. Sono pinnati a uno SHA.
 
 Condizione d'ingresso a `v1.0 — Public launch`: **milestone `v0.6` vuoto E il workflow della
-barra verde su tutti e nove i repo.** Nient'altro.
+barra verde su tutte e undici le righe.** Nient'altro.
 
 ---
 
@@ -306,8 +326,8 @@ barra verde su tutti e nove i repo.** Nient'altro.
 
 | tappa                         | contenuto                                       | condizione d'uscita                                        |
 | ----------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
-| **v0.6 — Blocca il pubblico** | i 18 difetti riprodotti fuori da arbiter        | milestone vuoto                                            |
-| **v0.7 — Prima impressione**  | 15 · brownfield, onboarding, drift              | prima gate verde su 5 repo OSS veri, non 2                 |
+| **v0.6 — Blocca il pubblico** | i 20 difetti riprodotti fuori da arbiter        | milestone vuoto                                            |
+| **v0.7 — Prima impressione**  | 16 · brownfield, onboarding, drift              | prima gate verde su 5 repo OSS veri, non 2                 |
 | **v1.0 — Public launch**      | `npm publish` + repo pubblico                   | barra #2135 verde in CI, e **richiesta** prima del publish |
 | **Post-1.0**                  | 22 · processo interno, promozioni CANON, debito | —                                                          |
 | **Icebox**                    | 6 · decisioni del proprietario                  | nessun lavoro finché non sono prese                        |
@@ -320,27 +340,36 @@ costruirla trova altri difetti.
 
 Due metodi, perché uno solo non è una stima.
 
-**Per sforzo**, sommando le voci: 3 × XS (0,1–0,2 g) + 9 × S (0,3–0,5 g) + 4 × M (1–1,5 g) +
-1 × L (#2119, 2 g) + #2135 (1,5 g) ≈ **12–13 giorni-uomo**.
+**Per sforzo**, sommando le voci: 3 × XS (0,1–0,2 g) + 8 × S (0,3–0,5 g) + 6 × M (1–1,5 g) +
+2 × L (#2119 e #2137) + #2135 ≈ **17–20 giorni-uomo**.
 
 **Per portata osservata**, dai dati del repo:
 `gh pr list --state merged --limit 60` → ciclo mediano di una PR **0,7 h**, churn mediano
 **355 righe**, e **4–5 PR mergiate al giorno** sostenute sugli ultimi 14 giorni (escludendo un
-giorno anomalo da 20). 18 issue ≈ 18–22 PR ≈ **4,5–5,5 giorni**.
+giorno anomalo da 20). 20 issue ≈ 22–26 PR ≈ **5–6,5 giorni**.
 
 I due numeri divergono perché il primo misura sforzo e il secondo conta PR, comprese le
 banali. La stima onesta è la forchetta, con la varianza dichiarata:
 
-> **10–14 giorni-uomo per v0.6**, più il **20–40 %** che la barra troverà quando gira davvero.
+> **17–22 giorni-uomo per v0.6**, più il **20–40 %** che la barra troverà quando gira davvero.
 
-La maggiorazione non è prudenza generica: questa verifica ha aperto **9 blocchi nuovi in
-mezza giornata** misurando 9 repo a mano. Un workflow che li rimisura a ogni push su una
+**La prima versione di questo documento diceva 10–14 giorni. Era ottimista, e la challenge lo
+ha dimostrato voce per voce** — vedi §6.
+
+La maggiorazione non è prudenza generica: questa verifica ha aperto **12 blocchi nuovi in
+mezza giornata** misurando 10 repo a mano. Un workflow che li rimisura a ogni push su una
 matrice pinnata ne troverà altri — è il suo scopo.
 
-Tre voci concentrano la varianza e vanno affrontate per prime dopo la barra:
-**#2051** (la via d'uscita per il RED non può diventare un `--no-verify` generico),
-**#2119** (invertire il default e costruire la guardia di sovrainsieme sui nomi `runCheck`),
-**#2134** (rilevamento brownfield più quattro sotto-difetti).
+Quattro voci concentrano la varianza e vanno affrontate per prime dopo la barra:
+
+- **#2119** — non è una regex. L'invariante deve essere un'impronta strutturale
+  `{livello, tipo di chiamata, nome, comando, argomenti, softness, condizione}` più esistenza e
+  hash degli script, più i check inline via `pushResult`, più un test a iniezione di guasto.
+- **#2137** — non è un fix: rilevamento del package manager, del framework alla radice, del
+  workspace, dell'archetipo e la semantica dell'abort sono sistemi separati.
+- **#2051** — la via d'uscita per il RED non può diventare un `--no-verify` generico.
+- **#2138** — l'identità dell'artefatto tocca il workflow di rilascio **e** il suo template
+  gemello, e va dimostrata con una verifica cosign reale, non con un test di stringa.
 
 ---
 
@@ -358,6 +387,67 @@ Onestà sulle lacune di questa stessa verifica:
   l'orchestrazione.
 - `npm i` da **git URL** (dove `prepare` _verrebbe_ eseguito) non è stato provato: #2133 lo
   dichiara esplicitamente come non misurato.
+- **Il workflow di rilascio non è mai stato eseguito.** #2138 è letto nel codice, non misurato.
+- **Nessun repo con GitHub Actions realmente eseguite**: tutti i cloni avevano `origin`
+  rimosso, e `init --yes` non attiva le chiamate GitHub senza `--github`/`ARBITER_GITHUB=1`.
+  Provisioning di label, branch protection, merge settings e project board hanno copertura
+  end-to-end **zero**.
+
+---
+
+## 6. Cosa la challenge ha demolito
+
+Prima di consegnare, la roadmap è passata sotto una review avversariale di Codex in sola
+lettura, con due domande specifiche: _quale classe di repo manca dalla matrice_ e _l'attribuzione
+causale dei 24 check persi regge, dato che entrambi i run loggavano "full regeneration"_.
+
+Ha demolito quattro cose. Tre le ho rimisurate; una l'ha vinta il documento.
+
+**1. La matrice aveva un buco che non avevo dichiarato — e ha prodotto subito il peggior
+risultato di tutti.** Codex ha predetto: manca un JS/TS brownfield reale non governato, con
+pnpm o workspace. Misurato su `withastro/starlight`: `init` esce **1 dopo aver scritto 233
+file** e aver ripuntato `core.hooksPath`, rileva `Build: npm` su un repo pnpm dando come
+rimedio "aggiorna npm", assegna `archetype: library` a un'app Astro (quindi zero corsia
+frontend), e la prima gate ha **8 rossi**. → #2137. Corollario che mi era sfuggito: **tutti e
+nove** i repo della matrice si erano risolti in `archetype: library`; cinque archetipi su sei
+avevano copertura zero.
+
+**2. `--no-adopt-gate-spine` non è "la via sicura", è un laccio emostatico.** Misurato dopo il
+suo uso su un consumer governato:
+
+```
+[safety-adopt-ratchet] 2 protected file(s) are withheld: scripts/check-all.mjs, scripts/lib/glob-walk.mjs
+  Erosion detected: ... Run `arbiter update` ... to re-adopt it
+exit 1
+```
+
+**Il gate va rosso e prescrive il comando che cancella la gate.** Il ciclo è chiuso, e va
+scritto nella moratoria: è uno stato dichiarato e datato, non uno stato stabile.
+
+**3. L'invariante che ho misurato dimostra la perdita ma non basta a impedirla.** L'insieme dei
+nomi `runCheck` non vede: il passaggio da bloccante ad avvisatorio, `{soft: graceActive}`,
+comando/argomenti/timeout, lo spostamento in un livello che non gira, i check inline via
+`pushResult` (fra cui gofmt e il gate dell'evidenza), uno script reso vacuo a nome invariato, e
+uno script mancante dietro `existsSync`. Il criterio di accettazione di #2119 è stato riscritto
+di conseguenza, e la stima di 2 giorni ritirata.
+
+**4. Due bloccanti che non erano in nessun secchio.** L'identità dell'artefatto di rilascio —
+cosign firma uno zip di `dist/`, npm pubblica un tarball ricostruito da `prepack`: **firma e
+pacchetto sono artefatti diversi**, e lo stesso difetto è nel template spedito ai consumer
+(#2138). E nessun test importa i quattro sottopercorsi dichiarati in `exports` **dal pacchetto
+installato**: solo il bin è provato, mentre `build` copia a mano cinque alberi di asset — la
+classe artefatto-pubblicato ≠ albero-di-lavoro, cioè forma (#2139).
+
+**Cosa non ha vinto.** Codex ha sostenuto che la vera terza variabile è la provenienza del
+manifest, e che `--no-adopt-gate-spine` proteggerebbe solo uno spine già divergente. Testato
+cancellando il manifest: il flag tiene comunque (75 → 75, file non toccato). E il caso "hash
+pristino" è vero nella meccanica ma vacuo nel danno: un file il cui hash combacia con quello
+registrato **è** l'output del template, quindi non ha check di progetto da perdere.
+
+**Il conteggio.** Codex ha anche contato: _"P0 ha nove voci, P1 dice nove e ne elenca dieci, e
+il totale conta #2135 due volte. L'inventario non sa contare se stesso."_ Aveva ragione su
+tutti e tre. Corretto in §2.1 e §2.5, e **#2126 è uscita dai bloccanti**: era un alert di bot
+senza diagnosi, e contare l'ignoranza come blocco gonfia il numero e basta.
 
 ---
 
