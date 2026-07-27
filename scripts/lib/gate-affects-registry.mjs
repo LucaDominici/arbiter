@@ -184,6 +184,11 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'integration suite (INV-25)', affects: ALWAYS },
   { name: 'BDD suite (INV-25)', affects: ALWAYS },
   { name: 'conformance', affects: ALWAYS },
+  // Landed on main while #2094 was in flight (#2073 acceptance anchor, #2079
+  // reuse survey). ALWAYS is the safe default the header prescribes — refine
+  // out of it only on evidence, never speculatively.
+  { name: 'acceptance anchor (INV-138)', affects: ALWAYS },
+  { name: 'reuse survey (INV-70)', affects: ALWAYS },
 ]
 
 // Any changed file matching one of these forces the full gate — config/lockfiles/

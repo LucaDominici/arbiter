@@ -52,3 +52,5 @@ When a change touches code that the duplication (jscpd), complexity, or dead-cod
 - **Fix the root cause** in the smelly/duplicated code you touch — extract the shared helper, simplify the over-complex function, delete the dead branch.
 - **OR** run `arbiter task record-tech-debt` with an explicit rationale (why the root-cause fix is out of scope now) before proceeding.
 - A symptom-only patch layered over a known smell — duplicating a helper that already exists, widening a function already over the complexity ceiling — is a stop condition, not a tradeoff. The duplication ratchet (Lehman entropy) blocks any net increase regardless of intent.
+
+synthetic drift beyond the approved divergence
