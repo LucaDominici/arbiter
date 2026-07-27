@@ -261,6 +261,12 @@ describe('check-no-placeholders — stdin-JSON protocol (no env var)', () => {
     const r = spawnHookStdin(hookPath, dir, f)
     expect(r.status).toBe(2)
   })
+
+  it('fails closed when an applicable source path cannot be read', () => {
+    const unreadable = join(dir, 'unreadable.ts')
+    mkdirSync(unreadable)
+    expect(spawnHookStdin(hookPath, dir, unreadable).status).toBe(2)
+  })
 })
 
 describe('check-no-orphan-todo — empirical fire', () => {
@@ -304,6 +310,13 @@ describe('check-no-orphan-todo — empirical fire', () => {
     const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
     expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/INV-21|orphan/i)
+  })
+
+  it('fails closed when an applicable source path cannot be read', () => {
+    const unreadable = join(dir, 'unreadable.ts')
+    mkdirSync(unreadable)
+    const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: unreadable })
+    expect(r.status).toBe(2)
   })
 })
 

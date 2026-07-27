@@ -136,10 +136,11 @@ righe, e resta verde a ogni push.
 ### 2.1 Barra operativa
 
 La barra è implementata dal workflow `consumer-reliability.yml`, eseguito soltanto da codice
-fidato su `main` o tramite dispatch manuale sul branch predefinito. La preparazione
-credentialed (`npm run consumer:prepare`) clona ciascun consumer a uno SHA immutabile con una
-deploy key read-only, rimuove remote e configurazione credenziali e termina. Un processo nuovo,
-senza credenziali, esegue poi `npm run consumer:reliability`.
+fidato su `main` o tramite dispatch manuale sul branch predefinito. Il comando
+`npm run test:consumer-reliability -- …` avvia una preparazione credentialed che clona ciascun
+consumer a uno SHA immutabile con una deploy key read-only, rimuove remote e configurazione
+credenziali e termina. Solo dopo avvia un processo verifier nuovo con un allow-list di variabili
+d'ambiente priva di credenziali.
 
 Il report usa esclusivamente gli ID generici `go`, `typescript` e `java`. Per ogni riga
 verifica:
@@ -147,8 +148,9 @@ verifica:
 - SHA detached e assenza di remote;
 - `arbiter update` con insieme dei check non decrescente e byte dei gate custom preservati;
 - routing completo degli hook emessi;
-- liveness BARE e PRIMED, contando come `BLOCKS` soltanto l'exit code 2 e richiedendo una
-  giustificazione accanto a ogni `ADVISORY`;
+- liveness BARE e PRIMED, più gli stati contestuali CLOSE e VERIFICATION dichiarati dai singoli
+  hook, contando come `BLOCKS` soltanto l'exit code 2 e richiedendo una giustificazione accanto a
+  ogni `ADVISORY`;
 - contratto universale 0=PASS, 1=FAIL e 2=ERROR.
 
 Il workflow non gira sulle pull request: i test secret-free restano nella CI ordinaria, mentre

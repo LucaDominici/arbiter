@@ -90,6 +90,7 @@
     "examples:check": "node scripts/regenerate-examples.mjs --check",
     "consumer:prepare": "node scripts/prepare-consumer-reliability.mjs",
     "consumer:reliability": "node scripts/consumer-reliability-bar.mjs",
+    "test:consumer-reliability": "node scripts/run-consumer-reliability.mjs",
     "regen": "node scripts/regen.mjs"
   },
   "dependencies": {

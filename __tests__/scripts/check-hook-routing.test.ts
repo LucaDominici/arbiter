@@ -38,6 +38,22 @@ function writeSettings(dir: string, event = 'PreToolUse', matcher = 'Bash'): voi
   )
 }
 
+function writeUnmatchedSettings(dir: string, event: string, route: string): void {
+  writeFileSync(
+    join(dir, '.claude', 'settings.json'),
+    JSON.stringify({
+      hooks: {
+        [event]: [
+          {
+            matcher: '*',
+            hooks: [{ type: 'command', command: `node .claude/hooks/hooks.mjs ${route}` }],
+          },
+        ],
+      },
+    }),
+  )
+}
+
 function run(dir: string) {
   return spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf-8' })
 }
@@ -50,6 +66,80 @@ describe('check-hook-routing target gate (AC-8)', () => {
       writeDispatcher(dir, "  'PreToolUse:Bash': ['owned.mjs'],")
       writeSettings(dir)
       expect(run(dir).status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('parses semicolonless dispatchers with unquoted event keys and wildcard matchers', () => {
+    const dir = fixture()
+    try {
+      writeFileSync(join(dir, '.claude', 'hooks', 'owned.mjs'), OWNED)
+      writeFileSync(
+        join(dir, '.claude', 'hooks', 'hooks.mjs'),
+        "const HANDLERS = {\n  Stop: ['owned.mjs'],\n}\n",
+      )
+      writeUnmatchedSettings(dir, 'Stop', 'Stop')
+      expect(run(dir).status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('accepts a complete direct wiring without requiring the dispatcher command', () => {
+    const dir = fixture()
+    try {
+      writeFileSync(join(dir, '.claude', 'hooks', 'owned.mjs'), OWNED)
+      writeDispatcher(dir, "  'PreToolUse:Bash': ['owned.mjs'],")
+      writeFileSync(
+        join(dir, '.claude', 'settings.json'),
+        JSON.stringify({
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: 'Bash',
+                hooks: [
+                  {
+                    type: 'command',
+                    command: 'node .claude/hooks/owned.mjs',
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when a directly wired hook file is missing', () => {
+    const dir = fixture()
+    try {
+      writeDispatcher(dir, "  'PreToolUse:Bash': [],")
+      writeFileSync(
+        join(dir, '.claude', 'settings.json'),
+        JSON.stringify({
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: 'Bash',
+                hooks: [
+                  {
+                    type: 'command',
+                    command: 'node .claude/hooks/missing-direct.mjs',
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('MISSING direct hook missing-direct.mjs')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -106,6 +196,48 @@ describe('check-hook-routing target gate (AC-8)', () => {
       writeDispatcher(dir, "  'PreToolUse:Bash': [],")
       writeSettings(dir)
       expect(run(dir).status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not let an incomplete generated manifest hide a marked owned hook', () => {
+    const dir = fixture()
+    try {
+      writeFileSync(
+        join(dir, '.arbiter-generated-manifest.json'),
+        '{"$schemaVersion":1,"files":{}}',
+      )
+      writeFileSync(join(dir, '.claude', 'hooks', 'owned.mjs'), OWNED)
+      writeDispatcher(dir, "  'PreToolUse:Bash': [],")
+      writeSettings(dir)
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('DEAD Arbiter-owned hook owned.mjs')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('validates Codex-only adapter routing without requiring Claude settings', () => {
+    const dir = fixture()
+    try {
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['codex'] }))
+      writeFileSync(join(dir, '.claude', 'hooks', 'owned.mjs'), OWNED)
+      mkdirSync(join(dir, '.codex'), { recursive: true })
+      writeFileSync(join(dir, '.codex', 'codex-adapter.mjs'), 'process.exit(0)\n')
+      writeFileSync(
+        join(dir, '.codex', 'config.toml'),
+        'command = "node .codex/codex-adapter.mjs .claude/hooks/owned.mjs"\n',
+      )
+      expect(run(dir).status).toBe(0)
+      writeFileSync(
+        join(dir, '.codex', 'config.toml'),
+        'command = "node .codex/codex-adapter.mjs"\n',
+      )
+      const missing = run(dir)
+      expect(missing.status).toBe(1)
+      expect(missing.stderr).toContain('DEAD Codex adapter hook owned.mjs')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

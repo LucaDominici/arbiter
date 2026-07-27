@@ -121,6 +121,15 @@ export function summarizeProbeFailures(stdout) {
   }
 }
 
+export function summarizeRoutingFailures(stderr) {
+  const findings = String(stderr)
+    .split('\n')
+    .map((line) => /^\[hook-routing\] ([A-Z]+(?: [A-Za-z0-9_.:|/-]+)+)$/.exec(line)?.[1])
+    .filter(Boolean)
+    .slice(0, 8)
+  return findings.length > 0 ? findings.join(', ') : 'hook routing failed'
+}
+
 export function redactSecrets(value, secrets) {
   let redacted = String(value).replace(/https?:\/\/[^\s'"]+/g, '[REDACTED_URL]')
   for (const secret of [...secrets]
