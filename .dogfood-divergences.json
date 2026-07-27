@@ -266,7 +266,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "5e52d8ab36e2bc9cc0a6b4e5f1210deb13fc0a7445c2603ea4dc8126394db5dc"
+    "diffHash": "5f631c056af05f43fce764a0165cad2739ff24ddd7593788e83ae8451dddc9be"
   },
   {
     "dest": "scripts",

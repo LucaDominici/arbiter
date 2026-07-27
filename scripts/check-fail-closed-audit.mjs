@@ -100,6 +100,9 @@ const SKIP_FILES = new Set([
   // (check-acceptance.mjs, issue-readiness.mjs) own the exit contract and fail closed
   // (exit 2) on malformed state / unreadable plans.
   'scripts/lib/acceptance-criteria.mjs',
+  // #2135 pure private-consumer reliability oracles; executable prepare/verifier/probe
+  // entry points own the 0/1/2 contract and convert every oracle verdict fail-closed.
+  'scripts/lib/consumer-reliability-bar.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

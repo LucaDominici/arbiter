@@ -117,6 +117,7 @@ export function summarizeProbeFailures(stdout) {
           `${String(row?.hook ?? 'unknown')}@${String(row?.state ?? 'unknown')}:${String(row?.verdict ?? 'unknown')}`,
       )
       .join(', ')
+    // FAIL-OPEN-INTENT: malformed probe output becomes an explicit failed diagnostic, never PASS.
   } catch {
     return 'probe failed without a valid report'
   }
@@ -152,28 +153,44 @@ export function classifyUpdateResult({ status, signal, stdout }) {
   if (status !== 1 || signal) {
     return { acceptable: false, status: 'FAIL', warningCount: 0 }
   }
-  const payload = String(stdout)
+  const payload = lastJsonLine(stdout)
+  const recoverable = isRecoverableUpdate(payload)
+  return {
+    acceptable: recoverable,
+    status: recoverable ? 'WARN' : 'FAIL',
+    warningCount: recoverable ? payload.warnings.length : 0,
+  }
+}
+
+function lastJsonLine(stdout) {
+  return String(stdout)
     .trim()
     .split('\n')
     .reverse()
     .map((line) => {
       try {
         return JSON.parse(line)
+        // FAIL-OPEN-INTENT: non-JSON stdout lines are skipped while locating the update payload.
       } catch {
         return null
       }
     })
     .find((value) => value !== null)
-  const recoverable =
+}
+
+function isRecoverableUpdate(payload) {
+  return hasRecoverableUpdateMetadata(payload) && hasRecoverableWarnings(payload)
+}
+
+function hasRecoverableUpdateMetadata(payload) {
+  return (
     payload?.command === 'update' &&
     payload?.version === '1' &&
     payload?.status === 'warning' &&
-    payload?.errorClass === 'recoverable' &&
-    Array.isArray(payload?.warnings) &&
-    payload.warnings.length > 0
-  return {
-    acceptable: recoverable,
-    status: recoverable ? 'WARN' : 'FAIL',
-    warningCount: recoverable ? payload.warnings.length : 0,
-  }
+    payload?.errorClass === 'recoverable'
+  )
+}
+
+function hasRecoverableWarnings(payload) {
+  return Array.isArray(payload?.warnings) && payload.warnings.length > 0
 }

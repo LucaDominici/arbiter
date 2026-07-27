@@ -86,136 +86,74 @@ function readJson(path) {
 
 function validateInputs(config, handoff, options) {
   if (!existsSync(options.arbiterCli)) throw new Error('built Arbiter CLI is missing')
-  for (const candidate of [config, handoff]) {
-    if (candidate?.$schemaVersion !== 1 || !Array.isArray(candidate.consumers)) {
-      throw new Error('consumer reliability input has an invalid shape')
-    }
-  }
+  assertReliabilityInput(config)
+  assertReliabilityInput(handoff)
   if (config.consumers.length !== 3 || handoff.consumers.length !== 3) {
     throw new Error('consumer reliability inputs must contain exactly 3 rows')
   }
   const handoffById = new Map(handoff.consumers.map((row) => [row?.id, row]))
   for (const consumer of config.consumers) {
-    if (
-      typeof consumer?.id !== 'string' ||
-      !/^[a-z][a-z0-9-]*$/.test(consumer.id) ||
-      typeof consumer.language !== 'string' ||
-      typeof consumer.sha !== 'string' ||
-      !/^[0-9a-f]{40}$/.test(consumer.sha)
-    ) {
-      throw new Error('consumer reliability config contains an invalid row')
-    }
-    const prepared = handoffById.get(consumer.id)
-    const expectedPath = join(options.workspace, consumer.id)
-    if (
-      prepared?.language !== consumer.language ||
-      prepared?.sha !== consumer.sha ||
-      prepared?.originRemoved !== true ||
-      resolve(String(prepared?.path ?? '')) !== expectedPath ||
-      !isWithin(options.workspace, expectedPath)
-    ) {
-      throw new Error(`${consumer.id}: prepared handoff does not match the pinned config`)
-    }
+    assertConsumerConfigRow(consumer)
+    assertPreparedConsumer(consumer, handoffById.get(consumer.id), options.workspace)
   }
+}
+
+function assertReliabilityInput(input) {
+  if (input?.$schemaVersion !== 1 || !Array.isArray(input.consumers)) {
+    throw new Error('consumer reliability input has an invalid shape')
+  }
+}
+
+function assertConsumerConfigRow(consumer) {
+  const validIdentity =
+    typeof consumer?.id === 'string' &&
+    /^[a-z][a-z0-9-]*$/.test(consumer.id) &&
+    typeof consumer.language === 'string'
+  const validPin = typeof consumer?.sha === 'string' && /^[0-9a-f]{40}$/.test(consumer.sha)
+  if (!validIdentity || !validPin) {
+    throw new Error('consumer reliability config contains an invalid row')
+  }
+}
+
+function assertPreparedConsumer(consumer, prepared, workspace) {
+  const expectedPath = join(workspace, consumer.id)
+  if (
+    !preparedIdentityMatches(consumer, prepared) ||
+    !preparedPathMatches(prepared, workspace, expectedPath)
+  ) {
+    throw new Error(`${consumer.id}: prepared handoff does not match the pinned config`)
+  }
+}
+
+function preparedIdentityMatches(consumer, prepared) {
+  return (
+    prepared?.language === consumer.language &&
+    prepared?.sha === consumer.sha &&
+    prepared?.originRemoved === true
+  )
+}
+
+function preparedPathMatches(prepared, workspace, expectedPath) {
+  return resolve(String(prepared?.path ?? '')) === expectedPath && isWithin(workspace, expectedPath)
 }
 
 function verifyConsumer(consumer, handoff, options) {
   const prepared = handoff.consumers.find((row) => row.id === consumer.id)
   const repo = resolve(prepared.path)
-  const report = {
-    $schemaVersion: 1,
-    id: consumer.id,
-    language: consumer.language,
-    sha: consumer.sha,
-    kind: 'error',
-    checks: {
-      originFree: { status: 'ERROR', detail: 'not evaluated' },
-      pinnedHead: { status: 'ERROR', detail: 'not evaluated' },
-      update: { status: 'ERROR', detail: 'not evaluated' },
-      gateSpine: { status: 'ERROR', detail: 'not evaluated' },
-      hookRouting: { status: 'ERROR', detail: 'not evaluated' },
-      hookLiveness: { status: 'ERROR', detail: 'not evaluated' },
-    },
-  }
+  const report = emptyReport(consumer)
 
   try {
     assertRepositoryBoundary(repo, options.workspace)
-    const origin = inspectOriginFree(repo)
-    report.checks.originFree = origin
-      ? outcome(true, 'no remotes or credential config remain')
-      : { status: 'ERROR', detail: 'prepared repository retains remote or credential config' }
-    if (!origin) {
-      report.kind = 'error'
-      return report
-    }
-    const head = run('git', ['-C', repo, 'rev-parse', 'HEAD'], repo, 30000)
-    const pinned = head.ok && head.stdout.trim() === consumer.sha
-    report.checks.pinnedHead = pinned
-      ? outcome(true, 'detached HEAD matches the configured pin')
-      : { status: 'ERROR', detail: 'prepared HEAD differs from the configured pin' }
-    if (!pinned) {
-      report.kind = 'error'
-      return report
-    }
-
-    const gatePath = join(repo, 'scripts', 'check-all.mjs')
-    const gateExisted = existsSync(gatePath)
-    const before = gateExisted ? readFileSync(gatePath, 'utf-8') : ''
-    const recordedRenderHash = gateExisted
-      ? (readRecordedHash(repo, 'scripts/check-all.mjs') ?? 'unknown-customized-baseline')
-      : null
-
-    const update = run(
-      'node',
-      [options.arbiterCli, 'update', '--dir', repo, '--force', '--json'],
-      root,
-      300000,
-    )
-    const updateResult = classifyUpdateResult(update)
-    report.checks.update =
-      updateResult.status === 'WARN'
-        ? {
-            status: 'WARN',
-            detail: `${updateResult.warningCount} recoverable warning(s); downstream preservation and wiring checks remain authoritative`,
-          }
-        : childOutcome(update, 'current Arbiter update completed')
-    if (!updateResult.acceptable) {
+    if (!recordRepositoryChecks(repo, consumer.sha, report)) return report
+    const gateBaseline = readGateBaseline(repo)
+    if (!recordUpdate(repo, options.arbiterCli, report)) {
       report.kind = report.checks.update.status === 'ERROR' ? 'error' : 'fail'
       return report
     }
-
-    if (!existsSync(gatePath)) throw new Error('update did not materialize the gate spine')
-    const after = readFileSync(gatePath, 'utf-8')
-    const gate = gateExisted
-      ? assessGateSpine({ before, after, recordedRenderHash })
-      : {
-          ok: extractCheckNames(after).size > 0,
-          detail: `absent baseline materialized with ${extractCheckNames(after).size} checks`,
-        }
-    report.checks.gateSpine = outcome(gate.ok, gate.detail)
-
-    const routing = run('node', [join(repo, 'scripts', 'check-hook-routing.mjs')], repo, 120000)
-    report.checks.hookRouting = childOutcome(routing, 'all emitted hooks are routed')
-    if (!routing.ok) {
-      report.checks.hookRouting.detail = safeDiagnostic(summarizeRoutingFailures(routing.stderr))
-    }
-
-    const liveness = run(
-      'node',
-      [join(root, 'scripts', 'probe-hooks.mjs'), '--root', repo, '--language', consumer.language],
-      root,
-      300000,
-    )
-    report.checks.hookLiveness = childOutcome(
-      liveness,
-      'all applicable HARD hooks block and every ADVISORY hook is justified',
-    )
-    if (!liveness.ok) {
-      report.checks.hookLiveness.detail = safeDiagnostic(summarizeProbeFailures(liveness.stdout))
-    }
-
-    const statuses = Object.values(report.checks).map((check) => check.status)
-    report.kind = statuses.includes('ERROR') ? 'error' : statuses.includes('FAIL') ? 'fail' : 'pass'
+    recordGateSpine(repo, gateBaseline, report)
+    recordHookChecks(repo, consumer.language, report)
+    report.kind = reportKind(report)
+    // FAIL-OPEN-INTENT: per-consumer isolation converts this exception into an ERROR report.
   } catch (error) {
     report.kind = 'error'
     report.error = safeDiagnostic(error instanceof Error ? error.message : String(error))
@@ -226,6 +164,112 @@ function verifyConsumer(consumer, handoff, options) {
     )
   }
   return report
+}
+
+function emptyReport(consumer) {
+  return {
+    $schemaVersion: 1,
+    id: consumer.id,
+    language: consumer.language,
+    sha: consumer.sha,
+    kind: 'error',
+    checks: Object.fromEntries(
+      ['originFree', 'pinnedHead', 'update', 'gateSpine', 'hookRouting', 'hookLiveness'].map(
+        (name) => [name, { status: 'ERROR', detail: 'not evaluated' }],
+      ),
+    ),
+  }
+}
+
+function recordRepositoryChecks(repo, sha, report) {
+  const originFree = inspectOriginFree(repo)
+  report.checks.originFree = originFree
+    ? outcome(true, 'no remotes or credential config remain')
+    : { status: 'ERROR', detail: 'prepared repository retains remote or credential config' }
+  if (!originFree) return false
+
+  const head = run('git', ['-C', repo, 'rev-parse', 'HEAD'], repo, 30000)
+  const pinned = head.ok && head.stdout.trim() === sha
+  report.checks.pinnedHead = pinned
+    ? outcome(true, 'detached HEAD matches the configured pin')
+    : { status: 'ERROR', detail: 'prepared HEAD differs from the configured pin' }
+  return pinned
+}
+
+function readGateBaseline(repo) {
+  const path = join(repo, 'scripts', 'check-all.mjs')
+  const existed = existsSync(path)
+  return {
+    path,
+    existed,
+    before: existed ? readFileSync(path, 'utf-8') : '',
+    recordedRenderHash: existed
+      ? (readRecordedHash(repo, 'scripts/check-all.mjs') ?? 'unknown-customized-baseline')
+      : null,
+  }
+}
+
+function recordUpdate(repo, arbiterCli, report) {
+  const update = run(
+    'node',
+    [arbiterCli, 'update', '--dir', repo, '--force', '--json'],
+    root,
+    300000,
+  )
+  const result = classifyUpdateResult(update)
+  report.checks.update =
+    result.status === 'WARN'
+      ? {
+          status: 'WARN',
+          detail: `${result.warningCount} recoverable warning(s); downstream preservation and wiring checks remain authoritative`,
+        }
+      : childOutcome(update, 'current Arbiter update completed')
+  return result.acceptable
+}
+
+function recordGateSpine(repo, baseline, report) {
+  if (!existsSync(baseline.path)) throw new Error('update did not materialize the gate spine')
+  const after = readFileSync(baseline.path, 'utf-8')
+  const checks = extractCheckNames(after)
+  const gate = baseline.existed
+    ? assessGateSpine({
+        before: baseline.before,
+        after,
+        recordedRenderHash: baseline.recordedRenderHash,
+      })
+    : {
+        ok: checks.size > 0,
+        detail: `absent baseline materialized with ${checks.size} checks`,
+      }
+  report.checks.gateSpine = outcome(gate.ok, gate.detail)
+}
+
+function recordHookChecks(repo, language, report) {
+  const routing = run('node', [join(repo, 'scripts', 'check-hook-routing.mjs')], repo, 120000)
+  report.checks.hookRouting = childOutcome(routing, 'all emitted hooks are routed')
+  if (!routing.ok) {
+    report.checks.hookRouting.detail = safeDiagnostic(summarizeRoutingFailures(routing.stderr))
+  }
+
+  const liveness = run(
+    'node',
+    [join(root, 'scripts', 'probe-hooks.mjs'), '--root', repo, '--language', language],
+    root,
+    300000,
+  )
+  report.checks.hookLiveness = childOutcome(
+    liveness,
+    'all applicable HARD hooks block and every ADVISORY hook is justified',
+  )
+  if (!liveness.ok) {
+    report.checks.hookLiveness.detail = safeDiagnostic(summarizeProbeFailures(liveness.stdout))
+  }
+}
+
+function reportKind(report) {
+  const statuses = Object.values(report.checks).map((check) => check.status)
+  if (statuses.includes('ERROR')) return 'error'
+  return statuses.includes('FAIL') ? 'fail' : 'pass'
 }
 
 function assertRepositoryBoundary(repo, workspace) {
