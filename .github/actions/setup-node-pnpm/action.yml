@@ -55,39 +55,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        abi=''
-        case "${RUNNER_OS:-unknown}" in
-          Linux)
-            if command -v getconf >/dev/null 2>&1; then
-              if detected="$(getconf GNU_LIBC_VERSION 2>/dev/null)"; then
-                abi="$detected"
-              fi
-            fi
-            if [[ -z "$abi" ]] && command -v ldd >/dev/null 2>&1; then
-              if detected="$(ldd --version 2>&1)"; then
-                abi="${detected%%$'\n'*}"
-              fi
-            fi
-            ;;
-          macOS)
-            abi="macos-$(sw_vers -productVersion)"
-            ;;
-          Windows)
-            abi="windows-$(uname -sr)"
-            ;;
-          *)
-            abi="$(uname -srm)"
-            ;;
-        esac
-        if [[ -z "$abi" ]]; then
-          echo "::error::cannot determine native ABI for node_modules cache"
-          exit 2
-        fi
-        scope="$(printf '%s' "${RUNNER_OS:-unknown}-${RUNNER_ARCH:-unknown}-$abi" | tr -c 'A-Za-z0-9._-' '-')"
-        if [[ -z "$scope" ]]; then
-          echo "::error::native ABI cache scope normalized to an empty value"
-          exit 2
-        fi
+        scope="$(bash "$GITHUB_ACTION_PATH/native-abi-scope.sh")"
         echo "scope=$scope" >> "$GITHUB_OUTPUT"
         echo "Native dependency cache scope: $scope"
     - name: Restore node_modules (exact lockfile key)
@@ -99,7 +67,7 @@ runs:
           node_modules
           website/node_modules
           packages/*/node_modules
-        key: node-modules-${{ steps.native-abi.outputs.scope }}-${{ hashFiles('package-lock.json', 'package.json', '.nvmrc') }}
+        key: node-modules-${{ steps.native-abi.outputs.scope }}-${{ hashFiles('package-lock.json', 'package.json', inputs.node-version-file) }}
     - name: Install dependencies (npm ci)
       if: ${{ inputs.install == 'true' && steps.node-modules-cache.outputs.cache-hit != 'true' }}
       shell: bash
