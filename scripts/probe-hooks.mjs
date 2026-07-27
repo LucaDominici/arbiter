@@ -2,7 +2,7 @@
 // CATALOG: empirically classifies every Arbiter-owned emitted hook in BARE and PRIMED states.
 // Static routing alone cannot prove that a reachable handler blocks its declared violation.
 // This probe is the behavioral half of the v0.6 consumer reliability bar (#2135).
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { classifyAdvisoryHookResult, classifyHookResult } from './lib/consumer-reliability-bar.mjs'
@@ -145,7 +145,7 @@ try {
   const options = parseArgs(process.argv.slice(2))
   const result = probeRepository(options.root, options.language)
   process.stdout.write(JSON.stringify(result, null, 2) + '\n')
-  process.exit(result.ok ? 0 : 1)
+  process.exit(result.exitCode)
 } catch (error) {
   process.stderr.write(
     `[probe-hooks] ERROR — ${error instanceof Error ? error.message : String(error)}\n`,
@@ -169,7 +169,7 @@ function probeRepository(root, language) {
   rmSync(temporary, { recursive: true, force: true })
   mkdirSync(temporary, { recursive: true })
   const rows = []
-  for (const state of ['BARE', 'PRIMED']) {
+  for (const state of ['BARE', 'PRIMED', 'CLOSE', 'VERIFICATION']) {
     establishState(root, state)
     for (const hook of owned) rows.push(probeOne(root, hooksDir, temporary, language, hook, state))
   }
@@ -185,17 +185,38 @@ function probeRepository(root, language) {
       'PROBE-ERROR',
     ].includes(row.verdict),
   )
-  return { ok: bad.length === 0, language, emitted: owned.length, rows, failures: bad }
+  const operationalErrors = bad.filter((row) => row.verdict === 'PROBE-ERROR')
+  const exitCode = operationalErrors.length > 0 ? 2 : bad.length > 0 ? 1 : 0
+  return {
+    ok: exitCode === 0,
+    exitCode,
+    language,
+    emitted: owned.length,
+    rows,
+    failures: bad,
+  }
 }
 
 function ownedHooks(root) {
   const manifestPath = join(root, '.arbiter-generated-manifest.json')
+  const hooksDir = join(root, '.claude', 'hooks')
   if (!existsSync(manifestPath)) throw new Error('generated manifest missing after update')
   const parsed = JSON.parse(readFileSync(manifestPath, 'utf-8'))
   if (parsed?.$schemaVersion !== 1 || typeof parsed.files !== 'object') {
     throw new Error('generated manifest has an invalid shape')
   }
-  return Object.keys(parsed.files)
+  if (
+    parsed.withheldSafety !== undefined &&
+    (!Array.isArray(parsed.withheldSafety) ||
+      !parsed.withheldSafety.every((path) => typeof path === 'string'))
+  ) {
+    throw new Error('generated manifest has invalid withheldSafety ownership')
+  }
+  const marked = readdirSync(hooksDir)
+    .filter((file) => file.endsWith('.mjs') && file !== 'hooks.mjs' && file !== 'lib.mjs')
+    .filter((file) => readFileSync(join(hooksDir, file), 'utf-8').includes('Arbiter hook:'))
+    .map((file) => `.claude/hooks/${file}`)
+  return [...new Set([...Object.keys(parsed.files), ...(parsed.withheldSafety ?? []), ...marked])]
     .filter((path) => /^\.claude\/hooks\/[^/]+\.mjs$/.test(path))
     .map((path) => path.slice('.claude/hooks/'.length))
     .filter((file) => file !== 'hooks.mjs' && file !== 'lib.mjs')

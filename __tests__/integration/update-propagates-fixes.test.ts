@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { runInit } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
@@ -15,6 +15,7 @@ import {
   loadGeneratedManifest,
   saveGeneratedManifest,
   loadUnwiredGuards,
+  loadWithheldSafety,
 } from '../../src/state/generated-manifest.js'
 
 const sha = (s: string): string => createHash('sha256').update(s).digest('hex')
@@ -102,6 +103,33 @@ describe('#1328 update propagates template fixes', () => {
 
     expect(readFileSync(retiredPath, 'utf-8')).toBe(content)
     expect(loadGeneratedManifest(dir)[retired]).toBeUndefined()
+  })
+
+  it('keeps unknown-baseline withheld hooks in the routing inventory', async () => {
+    const hook = '.claude/hooks/stop-dangerous.mjs'
+    const dispatcher = '.claude/hooks/hooks.mjs'
+    const hookPath = join(dir, hook)
+    const dispatcherPath = join(dir, dispatcher)
+    const manifest = loadGeneratedManifest(dir)
+    Reflect.deleteProperty(manifest, hook)
+    saveGeneratedManifest(dir, manifest)
+    writeFileSync(hookPath, `${readFileSync(hookPath, 'utf-8')}\n// user divergence\n`)
+    const dispatcherBefore = readFileSync(dispatcherPath, 'utf-8')
+    expect(dispatcherBefore).toContain("'stop-dangerous.mjs',")
+    const dispatcherWithoutHook = dispatcherBefore.replace(/^\s*'stop-dangerous\.mjs',\n/m, '')
+    expect(dispatcherWithoutHook).not.toContain("'stop-dangerous.mjs',")
+    writeFileSync(dispatcherPath, dispatcherWithoutHook)
+
+    await runUpdate({ dir, github: false, noAdoptSafety: true })
+
+    expect(loadGeneratedManifest(dir)[hook]).toBeUndefined()
+    expect(loadWithheldSafety(dir)).toContain(hook)
+    const routing = spawnSync('node', [join(dir, 'scripts', 'check-hook-routing.mjs')], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
+    expect(routing.status).toBe(1)
+    expect(routing.stderr).toContain('DEAD Arbiter-owned hook stop-dangerous.mjs')
   })
 
   it('AC3: diff reports a pristine-stale skipIfExists file as changed (no longer lies)', () => {

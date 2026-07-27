@@ -7,8 +7,12 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "scripts/consumer-reliability-bar.mjs",
-          "line": 86
+          "file": "scripts/run-consumer-reliability.mjs",
+          "line": 13
+        },
+        {
+          "file": "__tests__/integration/consumer-reliability-flow.test.ts",
+          "line": 34
         }
       ]
     },
@@ -17,8 +21,12 @@
       "verdict": "PASS",
       "evidence": [
         {
+          "file": "scripts/lib/consumer-reliability-bar.mjs",
+          "line": 15
+        },
+        {
           "file": "__tests__/scripts/consumer-reliability-bar.test.ts",
-          "line": 26
+          "line": 37
         }
       ]
     },
@@ -26,6 +34,10 @@
       "id": "AC-3",
       "verdict": "PASS",
       "evidence": [
+        {
+          "file": "scripts/lib/consumer-reliability-bar.mjs",
+          "line": 41
+        },
         {
           "file": "scripts/probe-hooks.mjs",
           "line": 10
@@ -38,7 +50,11 @@
       "evidence": [
         {
           "file": "scripts/probe-hooks.mjs",
-          "line": 165
+          "line": 172
+        },
+        {
+          "file": "__tests__/scripts/probe-hooks.test.ts",
+          "line": 99
         }
       ]
     },
@@ -47,8 +63,12 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "__tests__/scripts/consumer-reliability-bar.test.ts",
-          "line": 133
+          "file": "scripts/lib/consumer-reliability-bar.mjs",
+          "line": 143
+        },
+        {
+          "file": "scripts/consumer-reliability-bar.mjs",
+          "line": 223
         }
       ]
     },
@@ -58,7 +78,11 @@
       "evidence": [
         {
           "file": ".github/workflows/consumer-reliability.yml",
-          "line": 21
+          "line": 26
+        },
+        {
+          "file": ".github/workflows/consumer-reliability.yml",
+          "line": 44
         }
       ]
     },
@@ -78,7 +102,11 @@
       "evidence": [
         {
           "file": "scripts/check-hook-routing.mjs",
-          "line": 109
+          "line": 47
+        },
+        {
+          "file": "scripts/check-hook-routing.mjs",
+          "line": 152
         }
       ]
     },
@@ -87,8 +115,12 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "src/utils/render.ts",
-          "line": 12
+          "file": "src/templates/claude/hooks/check-no-orphan-todo.mjs.ejs",
+          "line": 10
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-fires.test.ts",
+          "line": 257
         }
       ]
     },
@@ -99,6 +131,10 @@
         {
           "file": "src/templates/claude/hooks/stop-evidence-guard.mjs.ejs",
           "line": 37
+        },
+        {
+          "file": "src/templates/claude/hooks/exitplanmode-banner.mjs.ejs",
+          "line": 17
         }
       ]
     }

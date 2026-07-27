@@ -11,6 +11,7 @@ import {
   redactSecrets,
   resultExitCode,
   summarizeProbeFailures,
+  summarizeRoutingFailures,
 } from '../../scripts/lib/consumer-reliability-bar.mjs'
 
 describe('consumer reliability bar oracles (#2135)', () => {
@@ -154,6 +155,18 @@ describe('consumer reliability bar oracles (#2135)', () => {
     )
     expect(summary).toBe('owned.mjs@PRIMED:PROBE-ERROR')
     expect(summary).not.toContain('private output')
+  })
+
+  it('AC-5 keeps stable routing findings while discarding arbitrary child output', () => {
+    const summary = summarizeRoutingFailures(
+      [
+        '[hook-routing] DEAD Arbiter-owned hook owned.mjs',
+        '[hook-routing] UNROUTED event PreToolUse:Bash',
+        'private child output must not survive',
+      ].join('\n'),
+    )
+    expect(summary).toBe('DEAD Arbiter-owned hook owned.mjs, UNROUTED event PreToolUse:Bash')
+    expect(summary).not.toContain('private child output')
   })
 
   it('AC-1 accepts only Arbiter-declared recoverable update warnings for further inspection', () => {

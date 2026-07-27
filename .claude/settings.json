@@ -88,6 +88,11 @@
           },
           {
             "type": "command",
+            "command": "node .claude/hooks/check-no-skipped-tests.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/check-no-pii.mjs",
             "timeout": 5
           },

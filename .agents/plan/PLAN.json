@@ -20,6 +20,7 @@
       ".claude/hooks/",
       ".arbiter/hooks-manifest.json",
       ".arbiter/evidence/tdd/#2135.json",
+      ".arbiter/evidence/ac-fit/2135.json",
       ".bloat-baseline.json",
       ".dogfood-divergences.json",
       "docs/PRODUCT/CONFINE.md",
@@ -27,6 +28,7 @@
       "scripts/check-hook-routing.mjs",
       "scripts/check-self-dogfood.mjs",
       "scripts/consumer-reliability-bar.mjs",
+      "scripts/run-consumer-reliability.mjs",
       "scripts/prepare-consumer-reliability.mjs",
       "scripts/probe-hooks.mjs",
       "scripts/lib/consumer-reliability-bar.mjs",
@@ -61,6 +63,7 @@
     { "path": "scripts/check-hardness-inventory.mjs", "operation": "modify" },
     { "path": "scripts/check-self-dogfood.mjs", "operation": "modify" },
     { "path": "scripts/consumer-reliability-bar.mjs", "operation": "create" },
+    { "path": "scripts/run-consumer-reliability.mjs", "operation": "create" },
     { "path": "scripts/prepare-consumer-reliability.mjs", "operation": "create" },
     { "path": "scripts/probe-hooks.mjs", "operation": "create" },
     { "path": "scripts/lib/consumer-reliability-bar.mjs", "operation": "create" },
@@ -68,6 +71,7 @@
     { "path": ".github/workflows/consumer-reliability.yml", "operation": "create" },
     { "path": ".arbiter/hooks-manifest.json", "operation": "modify" },
     { "path": ".arbiter/evidence/tdd/#2135.json", "operation": "create" },
+    { "path": ".arbiter/evidence/ac-fit/2135.json", "operation": "create" },
     { "path": ".bloat-baseline.json", "operation": "modify" },
     { "path": ".dogfood-divergences.json", "operation": "modify" },
     { "path": "docs/PRODUCT/CONFINE.md", "operation": "modify" },
@@ -104,6 +108,11 @@
     },
     {
       "path": "__tests__/scripts/consumer-reliability-workflow.test.ts",
+      "operation": "create",
+      "changes": { "adds_tests": true, "modifies_tests": false }
+    },
+    {
+      "path": "__tests__/integration/consumer-reliability-flow.test.ts",
       "operation": "create",
       "changes": { "adds_tests": true, "modifies_tests": false }
     }

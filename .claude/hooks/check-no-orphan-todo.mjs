@@ -23,7 +23,8 @@ let content
 try {
   content = readFileSync(file, 'utf-8')
 } catch {
-  process.exit(0)
+  process.stderr.write('[arbiter] ERROR: cannot read applicable source file\n')
+  process.exit(2)
 }
 
 // Find TODOs without task IDs like TODO(#123), in comment context only.

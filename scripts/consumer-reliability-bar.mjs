@@ -13,6 +13,7 @@ import {
   redactSecrets,
   resultExitCode,
   summarizeProbeFailures,
+  summarizeRoutingFailures,
 } from './lib/consumer-reliability-bar.mjs'
 
 const root = process.cwd()
@@ -140,13 +141,22 @@ function verifyConsumer(consumer, handoff, options) {
   try {
     assertRepositoryBoundary(repo, options.workspace)
     const origin = inspectOriginFree(repo)
-    report.checks.originFree = outcome(origin, 'no remotes or credential config remain')
+    report.checks.originFree = origin
+      ? outcome(true, 'no remotes or credential config remain')
+      : { status: 'ERROR', detail: 'prepared repository retains remote or credential config' }
+    if (!origin) {
+      report.kind = 'error'
+      return report
+    }
     const head = run('git', ['-C', repo, 'rev-parse', 'HEAD'], repo, 30000)
     const pinned = head.ok && head.stdout.trim() === consumer.sha
-    report.checks.pinnedHead = outcome(
-      pinned,
-      pinned ? 'detached HEAD matches the configured pin' : 'HEAD differs from the configured pin',
-    )
+    report.checks.pinnedHead = pinned
+      ? outcome(true, 'detached HEAD matches the configured pin')
+      : { status: 'ERROR', detail: 'prepared HEAD differs from the configured pin' }
+    if (!pinned) {
+      report.kind = 'error'
+      return report
+    }
 
     const gatePath = join(repo, 'scripts', 'check-all.mjs')
     const gateExisted = existsSync(gatePath)
@@ -186,6 +196,9 @@ function verifyConsumer(consumer, handoff, options) {
 
     const routing = run('node', [join(repo, 'scripts', 'check-hook-routing.mjs')], repo, 120000)
     report.checks.hookRouting = childOutcome(routing, 'all emitted hooks are routed')
+    if (!routing.ok) {
+      report.checks.hookRouting.detail = safeDiagnostic(summarizeRoutingFailures(routing.stderr))
+    }
 
     const liveness = run(
       'node',

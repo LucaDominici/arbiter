@@ -56,6 +56,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → Edit\|Write  | `check-no-direct-spawn.mjs`    | Block direct child_process usage (INV-12)                                                                                    |
 | `PostToolUse` → Edit\|Write  | `check-no-orphan-todo.mjs`     | Block orphan TODOs (INV-21)                                                                                                  |
 | `PostToolUse` → Edit\|Write  | `check-no-placeholders.mjs`    | Block placeholder patterns left in edited files                                                                              |
+| `PostToolUse` → Edit\|Write  | `check-no-skipped-tests.mjs`   | Block committed skipped or disabled tests                                                                                    |
 | `PostToolUse` → Edit\|Write  | `check-no-pii.mjs`             | Block PII patterns in edited files (INV-12)                                                                                  |
 | `PostToolUse` → Edit\|Write  | `check-no-unused-exports.mjs`  | Block unused TypeScript value exports after edits (type exports: see #1189)                                                  |
 | `PostToolUse` → Edit\|Write  | `check-no-any.mjs`             | Block `any` types (INV-04)                                                                                                   |

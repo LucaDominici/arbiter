@@ -9,6 +9,8 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/consumer-reliability.yml"
+      - ".nvmrc"
+      - "tsconfig.json"
   workflow_dispatch: {}
 
 permissions:
@@ -39,8 +41,8 @@ jobs:
         run: npm ci
       - name: Build current Arbiter
         run: npm run build
-      - name: Prepare detached private consumer clones
-        id: prepare
+      - name: Run detached private consumer reliability bar
+        id: consumer_bar
         env:
           ARBITER_CONSUMER_GO_REPO: ${{ secrets.ARBITER_CONSUMER_GO_REPO }}
           ARBITER_CONSUMER_GO_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_GO_DEPLOY_KEY }}
@@ -49,12 +51,7 @@ jobs:
           ARBITER_CONSUMER_JAVA_REPO: ${{ secrets.ARBITER_CONSUMER_JAVA_REPO }}
           ARBITER_CONSUMER_JAVA_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_JAVA_DEPLOY_KEY }}
         run: >-
-          node scripts/prepare-consumer-reliability.mjs
-          --output "$RUNNER_TEMP/consumer-reliability"
-      - name: Verify update and hook liveness without credentials
-        id: verify
-        run: >-
-          node scripts/consumer-reliability-bar.mjs
+          npm run test:consumer-reliability --
           --workspace "$RUNNER_TEMP/consumer-reliability"
           --report-dir "$RUNNER_TEMP/consumer-reliability-reports"
           --arbiter-cli "$GITHUB_WORKSPACE/dist/cli.js"
