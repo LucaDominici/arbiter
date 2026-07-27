@@ -285,6 +285,7 @@ function probeOne(root, hooksDir, temporary, language, hook, state) {
     exitCode: result.status,
     verdict: classifyHookResult({
       exitCode: result.status,
+      signal: result.signal,
       hardness: 'HARD',
       applicable: true,
       rationale: contract.rationale ?? '',

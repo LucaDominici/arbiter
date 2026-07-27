@@ -25,17 +25,13 @@ let exitCode = 0
 try {
   const output = outputArgument(process.argv.slice(2))
   const config = readConfig(configPath)
+  const credentials = validateConsumerCredentials(config.consumers)
   credentialDir = mkdtempSync(join(tmpdir(), 'arbiter-consumer-credentials-'))
   const knownHostsPath = join(credentialDir, 'known_hosts')
   writeFileSync(knownHostsPath, githubKnownHost, { mode: 0o600 })
   prepareOutput(output)
   const prepared = []
-  for (const consumer of config.consumers) {
-    const slug = requiredEnvironment(consumer.repoEnv)
-    const privateKey = requiredEnvironment(consumer.keyEnv)
-    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(slug)) {
-      throw new Error(`${consumer.id}: repository secret must be an owner/repository slug`)
-    }
+  for (const { consumer, slug, privateKey } of credentials) {
     const keyPath = join(credentialDir, `${consumer.id}.key`)
     writeFileSync(keyPath, `${privateKey.trim()}\n`, { mode: 0o600 })
     const sshCommand = [
@@ -152,6 +148,17 @@ function requiredEnvironment(key) {
     throw new Error(`required secret environment is missing: ${key}`)
   }
   return value.trim()
+}
+
+function validateConsumerCredentials(consumers) {
+  return consumers.map((consumer) => {
+    const slug = requiredEnvironment(consumer.repoEnv)
+    const privateKey = requiredEnvironment(consumer.keyEnv)
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(slug)) {
+      throw new Error(`${consumer.id}: repository secret must be an owner/repository slug`)
+    }
+    return { consumer, slug, privateKey }
+  })
 }
 
 function prepareOutput(path) {

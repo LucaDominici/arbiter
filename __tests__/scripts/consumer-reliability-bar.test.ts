@@ -64,6 +64,27 @@ describe('consumer reliability bar oracles (#2135)', () => {
     ).toBe('INERT')
   })
 
+  it('AC-3 classifies missing and signalled HARD hook executions as operational errors', () => {
+    expect(
+      classifyHookResult({
+        exitCode: null,
+        signal: null,
+        hardness: 'HARD',
+        applicable: true,
+        rationale: '',
+      }),
+    ).toBe('PROBE-ERROR')
+    expect(
+      classifyHookResult({
+        exitCode: null,
+        signal: 'SIGTERM',
+        hardness: 'HARD',
+        applicable: true,
+        rationale: '',
+      }),
+    ).toBe('PROBE-ERROR')
+  })
+
   it('AC-3 requires adjacent rationale for ADVISORY classifications', () => {
     expect(
       classifyHookResult({

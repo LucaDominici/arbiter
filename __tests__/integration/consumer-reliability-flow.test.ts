@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -111,12 +112,13 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     roots.push(fixture.root)
     const incomplete = { ...fixture.secrets }
     delete incomplete.ARBITER_CONSUMER_JAVA_DEPLOY_KEY
+    const workspace = join(fixture.root, 'missing-secret-workspace')
     const result = run(
       fixture,
       'run-consumer-reliability.mjs',
       [
         '--workspace',
-        join(fixture.root, 'missing-secret-workspace'),
+        workspace,
         '--report-dir',
         join(fixture.root, 'missing-secret-reports'),
         '--arbiter-cli',
@@ -126,6 +128,8 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     )
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('credentialed preparation failed')
+    expect(existsSync(workspace)).toBe(false)
+    expect(readFileSync(fixture.sshMarker, 'utf-8')).toBe('')
   })
 })
 
@@ -145,6 +149,7 @@ function createFixture(): {
   scriptsDir: string
   fakeCli: string
   updateMarker: string
+  sshMarker: string
   config: ConsumerConfig
   secrets: Record<string, string>
 } {
@@ -204,10 +209,13 @@ function createFixture(): {
   const fakeBin = join(root, 'fake-bin')
   mkdirSync(fakeBin)
   const fakeSsh = join(fakeBin, 'ssh')
+  const sshMarker = join(root, 'ssh-invocations.txt')
+  writeFileSync(sshMarker, '')
   writeFileSync(
     fakeSsh,
     [
       '#!/bin/sh',
+      `printf '%s\\n' invoked >> ${shellQuote(sshMarker)}`,
       'last=""',
       'for arg in "$@"; do last="$arg"; done',
       'case "$last" in',
@@ -242,7 +250,7 @@ function createFixture(): {
     secrets[row.repoEnv] = `owner/${row.id}`
     secrets[row.keyEnv] = `fake-private-key-${row.id}`
   }
-  return { root, scriptsDir, fakeCli, updateMarker, config, secrets }
+  return { root, scriptsDir, fakeCli, updateMarker, sshMarker, config, secrets }
 }
 
 function createConsumerRepo(dir: string): void {

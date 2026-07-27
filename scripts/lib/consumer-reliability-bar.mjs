@@ -38,8 +38,9 @@ export function assessGateSpine({ before, after, recordedRenderHash }) {
   }
 }
 
-export function classifyHookResult({ exitCode, hardness, applicable, rationale }) {
+export function classifyHookResult({ exitCode, signal, hardness, applicable, rationale }) {
   if (!applicable) return rationale.trim().length > 0 ? 'NOT-APPLICABLE' : 'INVALID-RATIONALE'
+  if (signal || exitCode === null || exitCode === undefined) return 'PROBE-ERROR'
   if (hardness === 'ADVISORY') {
     return rationale.trim().length > 0 ? 'ADVISORY' : 'INVALID-ADVISORY'
   }

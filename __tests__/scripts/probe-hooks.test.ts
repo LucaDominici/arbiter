@@ -112,6 +112,35 @@ describe('probe-hooks liveness contract (#2135)', () => {
     }
   })
 
+  it('maps a missing emitted HARD hook to operational ERROR (exit 2)', () => {
+    const dir = fixture('stop-dangerous.mjs')
+    try {
+      const result = run(dir)
+      expect(result.status).toBe(2)
+      expect(result.stdout).toContain('PROBE-ERROR')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('maps a signalled HARD child to operational ERROR (exit 2)', () => {
+    const dir = fixture('stop-dangerous.mjs', "process.kill(process.pid, 'SIGTERM')\n")
+    try {
+      const result = run(dir)
+      expect(result.status).toBe(2)
+      expect(JSON.parse(result.stdout).failures).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            verdict: 'PROBE-ERROR',
+            diagnostic: expect.stringContaining('SIGTERM'),
+          }),
+        ]),
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('fails a HARD hook that stays inert and an owned hook with no probe contract', () => {
     const inert = fixture('stop-dangerous.mjs', 'process.exit(0)\n')
     const unknown = fixture('unknown-owned-hook.mjs', 'process.exit(2)\n')
