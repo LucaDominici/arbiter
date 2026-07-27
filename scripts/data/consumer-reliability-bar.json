@@ -1,0 +1,26 @@
+{
+  "$schemaVersion": 1,
+  "consumers": [
+    {
+      "id": "go",
+      "language": "go",
+      "repoEnv": "ARBITER_CONSUMER_GO_REPO",
+      "keyEnv": "ARBITER_CONSUMER_GO_DEPLOY_KEY",
+      "sha": "1fb1e97c66211c10071cacd35d2b8a0b510b8233"
+    },
+    {
+      "id": "typescript",
+      "language": "typescript",
+      "repoEnv": "ARBITER_CONSUMER_TYPESCRIPT_REPO",
+      "keyEnv": "ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY",
+      "sha": "7c922a81a92bbe83311f3304d9c40334372d6eba"
+    },
+    {
+      "id": "java",
+      "language": "java",
+      "repoEnv": "ARBITER_CONSUMER_JAVA_REPO",
+      "keyEnv": "ARBITER_CONSUMER_JAVA_DEPLOY_KEY",
+      "sha": "b4f7d2abbe2a3813a307bd464e646a4074bde1ef"
+    }
+  ]
+}

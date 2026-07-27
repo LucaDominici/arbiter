@@ -278,5 +278,6 @@ export function readTaskState(root) {
     phase: pick(state.phase),
     plan: pick(state.plan),
     tier: pick(state.tier),
+    branch: pick(state.branch),
   }
 }

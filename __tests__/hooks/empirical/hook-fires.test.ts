@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
+import { generateClaude } from '../../../src/generators/claude.js'
 import { makeConfig, writeTaskStateFile } from '../../helpers.js'
 
 const STATIC_HOOKS_DIR = join(process.cwd(), 'src/templates/claude/hooks')
@@ -75,7 +76,7 @@ describe('stop-dangerous — empirical fire', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'npm test',
     })
-    expect(r.status).toBe(0)
+    expect(r.status, r.stderr).toBe(0)
   })
 
   // Exit 2 is the only blocking code for a PreToolUse hook (#1631) — exit 1 prints
@@ -196,11 +197,18 @@ describe('hooks.mjs dispatcher — forwards stdin JSON to handlers end-to-end', 
   let dispatcherPath: string
 
   beforeEach(() => {
-    ;({ dir, hooksDir } = makeHookDir())
-    // lib.mjs is written by makeHookDir(); add the dispatcher + a registered handler.
-    dispatcherPath = join(hooksDir, 'hooks.mjs')
-    writeFileSync(dispatcherPath, renderTemplate('claude/hooks/hooks.mjs.ejs', minConfig()))
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-hook-fires-'))
+    // Generate into the fixture directory so fail-closed dispatcher references all exist.
+    generateClaude(
+      makeConfig(dir, {
+        language: 'typescript',
+        projectName: 'hook-fires-test',
+        governanceLevel: 'L1',
+      }),
+    )
+    hooksDir = join(dir, '.claude', 'hooks')
     renderEjsHook(hooksDir, 'check-no-pii.mjs.ejs')
+    dispatcherPath = join(hooksDir, 'hooks.mjs')
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
@@ -219,27 +227,28 @@ describe('hooks.mjs dispatcher — forwards stdin JSON to handlers end-to-end', 
 
   it('aborts the chain with non-zero exit when a handler blocks a violation', () => {
     const f = join(dir, 'dirty.ts')
-    writeFileSync(f, 'const contact = "user@example.com";\n')
+    writeFileSync(f, '// ' + 'TODO: missing task id\n')
     const r = spawnDispatcher(f)
     expect(r.status).not.toBe(0)
-    expect(r.stderr).toMatch(/INV-12|PII/i)
+    expect(r.stderr).toMatch(/INV-21|orphan/i)
   })
 
   it('exits 0 through the dispatcher for a clean file', () => {
     const f = join(dir, 'clean.ts')
     writeFileSync(f, 'export const x = 1;\n')
     const r = spawnDispatcher(f)
-    expect(r.status).toBe(0)
+    expect(r.status, r.stderr).toBe(0)
   })
 })
 
-describe('check-no-placeholders (raw hook) — stdin-JSON protocol (no env var)', () => {
+describe('check-no-placeholders — stdin-JSON protocol (no env var)', () => {
   let dir: string
   let hookPath: string
 
   beforeEach(() => {
-    // Raw .mjs hook copied verbatim (no EJS render), alongside the rendered lib.mjs it imports.
-    ;({ dir, hookPath } = makeRawHook('check-no-placeholders.mjs'))
+    const setup = makeHookDir()
+    dir = setup.dir
+    hookPath = renderEjsHook(setup.hooksDir, 'check-no-placeholders.mjs.ejs')
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
@@ -259,7 +268,9 @@ describe('check-no-orphan-todo — empirical fire', () => {
   let hookPath: string
 
   beforeEach(() => {
-    ;({ dir, hookPath } = makeRawHook('check-no-orphan-todo.mjs'))
+    const setup = makeHookDir()
+    dir = setup.dir
+    hookPath = renderEjsHook(setup.hooksDir, 'check-no-orphan-todo.mjs.ejs')
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
@@ -423,7 +434,7 @@ describe('post-commit-check — stdin-JSON protocol (no env var)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('exits 1 on a non-conventional commit message delivered via stdin JSON', () => {
+  it('exits 2 on a non-conventional commit message delivered via stdin JSON', () => {
     spawnSync('git', ['init'], { cwd: dir, encoding: 'utf-8' })
     spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], { cwd: dir, encoding: 'utf-8' })
     spawnSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: dir, encoding: 'utf-8' })
@@ -432,7 +443,7 @@ describe('post-commit-check — stdin-JSON protocol (no env var)', () => {
       encoding: 'utf-8',
     })
     const r = spawnCommandHookStdin(hookPath, dir, 'git commit -m "bad commit message"')
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/INV-22/)
   })
 
@@ -522,7 +533,7 @@ describe('post-commit-check — empirical fire', () => {
     expect(r.status).toBe(0)
   })
 
-  it('exits 1 on non-conventional commit message (INV-22)', () => {
+  it('exits 2 on non-conventional commit message (INV-22)', () => {
     spawnSync('git', ['init'], { cwd: dir, encoding: 'utf-8' })
     spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], {
       cwd: dir,
@@ -539,7 +550,7 @@ describe('post-commit-check — empirical fire', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'git commit',
     })
-    expect(r.status).toBe(1)
+    expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/INV-22/)
   })
 

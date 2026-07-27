@@ -15,7 +15,7 @@ function git(args) {
 
 try {
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD'])
-  if (!branch.startsWith('task/') && !branch.startsWith('ship/')) process.exit(0)
+  if (/^(?:backup|preserve|wip)\//.test(branch)) process.exit(0)
 
   const root = git(['rev-parse', '--show-toplevel'])
   const statusPath = join(root, '.claude', '.task', 'status.json')

@@ -299,17 +299,43 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
     }
   })
 
-  it('exits 0 on a non-task/ship branch even with a completion claim', () => {
+  it('AC-10 exits 2 on main in trunk-solo when completion evidence is missing', () => {
     const { dir, hookPath } = setup()
     try {
-      git(dir, ['checkout', '-b', 'feature/x'])
+      git(dir, ['checkout', 'main'])
       const t = claimTranscript(dir)
       const r = runHook(hookPath, dir, { transcript_path: t })
-      expect(r.status).toBe(0)
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/evidence/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('AC-10 also governs ordinary feature branches', () => {
+    const { dir, hookPath } = setup()
+    try {
+      git(dir, ['checkout', '-b', 'feature/x'])
+      const r = runHook(hookPath, dir, { transcript_path: claimTranscript(dir) })
+      expect(r.status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['backup/save', 'preserve/save', 'wip/save'])(
+    'AC-10 stands down only on explicit save ref %s',
+    (branch) => {
+      const { dir, hookPath } = setup()
+      try {
+        git(dir, ['checkout', '-b', branch])
+        const r = runHook(hookPath, dir, { transcript_path: claimTranscript(dir) })
+        expect(r.status).toBe(0)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
 
   it('exits 0 when phase is already complete', () => {
     const { dir, hookPath } = setup()

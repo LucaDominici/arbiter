@@ -396,13 +396,15 @@ function seedShipState(
   root: string,
   rawTaskId: string | undefined,
   tier: string | undefined,
+  overrides: Record<string, string> | undefined,
 ): void {
   const taskId = rawTaskId !== undefined ? normalizeShipTaskId(rawTaskId) : undefined
   const existing = readUnifiedState(root)
-  if (existing === null || taskId !== undefined || tier !== undefined) {
+  if (existing === null || taskId !== undefined || tier !== undefined || overrides !== undefined) {
     writeUnifiedState(root, {
       ...(taskId !== undefined ? { taskId } : {}),
       ...(tier !== undefined ? { tier } : {}),
+      ...(overrides !== undefined ? { overrides } : {}),
     })
   }
 }
@@ -505,7 +507,7 @@ function writeVerificationCompanionEvidence(
  */
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
-  seedShipState(root, opts.taskId, opts.tier)
+  seedShipState(root, opts.taskId, opts.tier, opts.overrides)
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'

@@ -61,4 +61,25 @@ describe('exitplanmode-banner hook (#1210)', () => {
     expect(status).toBe(0)
     expect(stdout.trim()).toBe('')
   })
+
+  it('AC-10 prints the next-step banner on trunk-solo main', () => {
+    rmSync(dir, { recursive: true, force: true })
+    dir = makeRepo('main')
+    writeTaskStateFile(dir, { taskId: '#1210', phase: 'plan', branch: 'main' })
+    const { stdout, status } = runHook(dir)
+    expect(status).toBe(0)
+    expect(stdout).toMatch(/Plan mode ended/)
+  })
+
+  it.each(['backup/save', 'preserve/save', 'wip/save'])(
+    'AC-10 is silent only on explicit save ref %s',
+    (branch) => {
+      rmSync(dir, { recursive: true, force: true })
+      dir = makeRepo(branch)
+      writeTaskStateFile(dir, { taskId: '#1210', phase: 'plan', branch })
+      const { stdout, status } = runHook(dir)
+      expect(status).toBe(0)
+      expect(stdout.trim()).toBe('')
+    },
+  )
 })

@@ -84,7 +84,7 @@ function setup(planContent: string) {
   const planPath = join(dir, '.claude', 'plans', 'task.md')
   mkdirSync(join(dir, '.claude', 'plans'), { recursive: true })
   writeFileSync(planPath, planContent)
-  writeTaskStateFile(dir, { phase: 'red', plan: planPath })
+  writeTaskStateFile(dir, { taskId: '#1402', branch: 'main', phase: 'red', plan: planPath })
   return { dir, hookPath }
 }
 

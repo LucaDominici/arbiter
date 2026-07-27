@@ -58,8 +58,12 @@ export function generateCodexHooks(
     )
 
     for (const hookFile of SHARED_GUARD_HOOKS) {
+      const templateFile =
+        hookFile === 'check-no-orphan-todo.mjs' || hookFile === 'check-no-placeholders.mjs'
+          ? `${hookFile}.ejs`
+          : hookFile
       results.push(
-        writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}`, data), {
+        writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${templateFile}`, data), {
           skipIfExists: true,
           dryRun: opts.dryRun,
         }),

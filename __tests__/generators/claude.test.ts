@@ -11,7 +11,9 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawnSync } from 'node:child_process'
 import { generateClaude } from '../../src/generators/claude.js'
+import { getLanguageHooks } from '../../src/detectors/language-hooks.js'
 import { makeConfig } from '../helpers.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -153,6 +155,63 @@ describe('generateClaude', () => {
     expect(existsSync(join(hooksDir, 'exitplanmode-banner.mjs'))).toBe(true)
   })
 
+  it('AC-8 dispatches every newly emitted enforcement hook through a wired event', () => {
+    generateClaude(makeConfig(dir, { language: 'go', governanceLevel: 'L2' }))
+    const dispatcher = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    const settings = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
+    expect(dispatcher).toContain("'PreToolUse:Task|Agent'")
+    expect(dispatcher).toContain("'pre-spawn-worktree-guard.mjs'")
+    expect(dispatcher).toContain("'stop-finding-loss.mjs'")
+    expect(settings).toContain('"matcher": "Task|Agent"')
+    expect(settings).toContain('PreToolUse:Task|Agent')
+  })
+
+  it('AC-8 dispatcher fails closed when a registered handler file is missing', () => {
+    generateClaude(makeConfig(dir, { language: 'go', governanceLevel: 'L2' }))
+    rmSync(join(dir, '.claude', 'hooks', 'pre-spawn-worktree-guard.mjs'))
+    const result = spawnSync(
+      'node',
+      [join(dir, '.claude', 'hooks', 'hooks.mjs'), 'PreToolUse:Task|Agent'],
+      {
+        cwd: dir,
+        input: JSON.stringify({ tool_input: {} }),
+        encoding: 'utf-8',
+      },
+    )
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('pre-spawn-worktree-guard.mjs')
+  })
+
+  it.each([
+    ['typescript', 'check-no-any.mjs', 'unsafe.ts', 'const value: any = 1\n'],
+    ['rust', 'check-no-unwrap.mjs', 'unsafe.rs', 'fn main() { result.unwrap(); }\n'],
+    ['go', 'check-no-unchecked-err.mjs', 'unsafe.go', '_ = doWork()\n'],
+    ['python', 'check-no-bare-except.mjs', 'unsafe.py', 'try:\n  work()\nexcept:\n  pass\n'],
+    ['java', 'check-no-raw-types.mjs', 'Unsafe.java', 'class Unsafe { List values; }\n'],
+    ['java', 'check-no-mockmvc.mjs', 'UnsafeTest.java', 'class UnsafeTest { MockMvc mvc; }\n'],
+  ] as const)(
+    'AC-4 emits a blocking exit for a %s language-hook violation (%s)',
+    (language, hookName, fileName, content) => {
+      generateClaude(
+        makeConfig(dir, {
+          language,
+          governanceLevel: 'L2',
+          languageHooks: getLanguageHooks(language),
+        }),
+      )
+      const sourcePath = join(dir, fileName)
+      writeFileSync(sourcePath, content)
+
+      const result = spawnSync('node', [join(dir, '.claude', 'hooks', hookName)], {
+        cwd: dir,
+        input: JSON.stringify({ tool_input: { file_path: sourcePath } }),
+        encoding: 'utf-8',
+      })
+
+      expect(result.status).toBe(2)
+    },
+  )
+
   it('does NOT generate L2-only advanced hooks at L1', () => {
     const config = makeConfig(dir, { governanceLevel: 'L1' })
     generateClaude(config)
@@ -222,6 +281,33 @@ describe('generateClaude', () => {
     const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
     expect(dispatcherContent).toContain('check-no-placeholders.mjs')
   })
+
+  it.each([
+    ['go', '.go'],
+    ['python', '.py'],
+    ['rust', '.rs'],
+    ['java', '.java'],
+    ['kotlin', '.kt'],
+    ['multi', '.java'],
+  ] as const)(
+    'AC-9 renders both content-policy hooks to block native %s source',
+    (language, extension) => {
+      generateClaude(makeConfig(dir, { language, governanceLevel: 'L2' }))
+      const source = join(dir, `probe${extension}`)
+      const runHook = (name: string) =>
+        spawnSync('node', [join(dir, '.claude', 'hooks', name)], {
+          cwd: dir,
+          env: { ...process.env, CLAUDE_TOOL_INPUT_PATH: source },
+          encoding: 'utf-8',
+        })
+
+      writeFileSync(source, '// ' + 'TODO: missing task id\n')
+      expect(runHook('check-no-orphan-todo.mjs').status).toBe(2)
+
+      writeFileSync(source, '// FIX' + 'ME: unfinished\n')
+      expect(runHook('check-no-placeholders.mjs').status).toBe(2)
+    },
+  )
 
   it('check-no-unused-exports.mjs is emitted for TypeScript (#156)', () => {
     const config = makeConfig(dir, { language: 'typescript' })

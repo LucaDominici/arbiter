@@ -78,6 +78,7 @@ describe('#1328 update propagates template fixes', () => {
     // The manifest now records the freshly-written render for the propagated file.
     const after = loadGeneratedManifest(dir)
     expect(after[PRISTINE]).toBe(sha(origF))
+    expect(after[USERMOD]).toBe(manifest[USERMOD])
   })
 
   it('A1: update never records arbiter.json / .arbiter-generated.json as manifest keys', async () => {
@@ -86,6 +87,21 @@ describe('#1328 update propagates template fixes', () => {
     expect(manifest['arbiter.json']).toBeUndefined()
     expect(manifest['.arbiter-generated.json']).toBeUndefined()
     expect(manifest['.arbiter-generated-manifest.json']).toBeUndefined()
+  })
+
+  it('prunes retired ownership entries on a full update without deleting the brownfield file', async () => {
+    const retired = '.claude/hooks/retired-hook.mjs'
+    const retiredPath = join(dir, retired)
+    const content = '#!/usr/bin/env node\n// Arbiter hook: retired fixture\n'
+    writeFileSync(retiredPath, content)
+    const manifest = loadGeneratedManifest(dir)
+    manifest[retired] = sha(content)
+    saveGeneratedManifest(dir, manifest)
+
+    await runUpdate({ dir, github: false })
+
+    expect(readFileSync(retiredPath, 'utf-8')).toBe(content)
+    expect(loadGeneratedManifest(dir)[retired]).toBeUndefined()
   })
 
   it('AC3: diff reports a pristine-stale skipIfExists file as changed (no longer lies)', () => {

@@ -688,7 +688,7 @@ describe('cross-product: settings.json — advanced hooks governance gating', ()
       it(`${lang}+${level}: pre-edit-plan-anchor.mjs in PreToolUse`, () => {
         // settings.json uses dispatcher; hook name lives in hooks.mjs.ejs config table
         const settingsRendered = renderTemplate('claude/settings.json.ejs', configFor(lang, level))
-        expect(settingsRendered).toContain('hooks.mjs PreToolUse:Edit|Write')
+        expect(settingsRendered).toContain("hooks.mjs 'PreToolUse:Edit|Write'")
         const dispatcherRendered = renderTemplate(
           'claude/hooks/hooks.mjs.ejs',
           configFor(lang, level),

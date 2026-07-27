@@ -42,7 +42,7 @@
   {
     "path": "hooks/post-edit-dispatch.mjs",
     "reason": "Arbiter self-dogfood: hardcodes 'npx prettier --check .' (validate, not auto-fix, to avoid silent file changes) and 'npx eslint src __tests__' as the scopeCommandToFile inputs, whereas the template feeds the formatCommand/lintCommand config variables. Both scope to the single edited file via scopeCommandToFile (#1515); the divergence is only the hardcoded vs config-driven command source. (Confirmed intentional 2026-05-29, #1092; updated #1515.)",
-    "diffHash": "80076b76b73ae9c92951b19e859cfe1276ed73e512f774e924a225ab48130f2e"
+    "diffHash": "63e78167ea7378b8c30a341fbac5b6d469c2284656fb4b742aad45173f87272e"
   },
   {
     "path": "rules/90-exec-protocol.md",
@@ -52,7 +52,7 @@
   {
     "path": "settings.json",
     "reason": "Arbiter self-dogfood: includes check-no-direct-spawn.mjs (arbiter-internal hook with no .ejs template yet) and check-no-any.mjs (generated from languageHook body not .ejs template), and a different UserPromptSubmit structure with matcher:* group. These were added directly to arbiter's .claude/settings.json without being back-ported to the template. (Materialization tracked in #1090; whole-file exemption to be narrowed there.) Also wires guard-done-evidence.mjs into UserPromptSubmit (#1872) — the hook is flag-gated (inert until features.evidenceHarness: true) so wiring it is safe with the flag off. Also wires stop-finding-loss.mjs into the Stop matcher chain (#1948, E6b) per OD-14 (2026-07-17) self-first activation — the template settings.json.ejs stays minimal (advisory hook, hard only via ARBITER_FINDING_LOSS_HARD=1); template follows at promotion date. Also wires pre-spawn-worktree-guard.mjs into a new PreToolUse Task|Agent matcher (#1947, E5) per OD-14 (2026-07-17) self-first activation, same advisory-by-default/hard-via-env pattern (ARBITER_SPAWN_GUARD_HARD=1) — the template settings.json.ejs uses a generic hooks.mjs dispatcher shape (not per-hook matcher blocks) and is not updated here; template follows at promotion date.",
-    "diffHash": "5c32b238ae27dfc45c1ce61daa7e2e8ab7513ec21138e29447d7943c57303105"
+    "diffHash": "aa3a34182b8027b725ffcc342546ebc981305d1010e7f5879ed73382ad3fcf98"
   },
   {
     "path": "hooks/pre-edit-plan-anchor.mjs",
@@ -62,12 +62,12 @@
   {
     "path": "hooks/hooks.mjs",
     "reason": "Arbiter self-dogfood: hooks.mjs dispatcher (#248) not yet materialized in arbiter's own .claude/hooks/ — arbiter's settings.json continues to use individual hook wiring (see existing settings.json divergence). Materialization deferred to a dedicated regenerate pass after all Wave-1 issues land.",
-    "diffHash": "3203493315e22de1e3662195028afef5d37b523046c225d93cbe78ea2b06e9b6"
+    "diffHash": "1fb786a55d26dae31e13a90d109e33a67c7e175f36609a329cbefa01dad8548c"
   },
   {
     "path": "hooks/post-commit-check.mjs",
     "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 — static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) — intentional: arbiter's self-config is more conservative than generated target advice.",
-    "diffHash": "7317b295f76df445a1de70d0e5da5b2cf2e9fbb351a2ccd12971465fa48a0e7a"
+    "diffHash": "4ceacea62229c8d2211d03921824f44309a0dd76d05c2113eeab47ffee2b3847"
   },
   {
     "path": "hooks/enforce-gate-before-pr.mjs",
@@ -77,7 +77,7 @@
   {
     "path": "hooks/check-no-orphan-todo.mjs",
     "reason": "Arbiter self-dogfood: materialized hook adds repo-root scoping and inline-suppression support via findInlineSuppression() from lib.mjs (INV-21 directive). The shipped template omits the lib.mjs dependency, so the suppression branch cannot be back-ported without shipping arbiter-internal lib.mjs changes. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)",
-    "diffHash": "67b70d82a098aeda8dd64c3e69fc21194e665a11321fc6a4fd421de27fc3b724"
+    "diffHash": "7a9f22b53f30774d815130788c26614de3d838e9b895e6a77a47c3f5d0fa8dc5"
   },
   {
     "path": "hooks/enforce-read-only.mjs",

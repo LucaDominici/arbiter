@@ -158,6 +158,13 @@ function defaultState(): UnifiedTaskState {
   }
 }
 
+/** Normalize numeric task identities before lifecycle ownership comparisons. */
+function canonicalTaskId(raw: string): string {
+  const trimmed = raw.trim()
+  const numeric = /^#?(\d+)$/.exec(trimmed)
+  return numeric ? `#${numeric[1]}` : trimmed
+}
+
 function msg(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
@@ -231,14 +238,28 @@ export function readTaskId(root: string): string | undefined {
  */
 export function writeUnifiedState(root: string, patch: TaskStatePatch): UnifiedTaskState {
   const prev = readUnifiedState(root) ?? defaultState()
-  const merged: UnifiedTaskState = {
-    ...prev,
+  const nextTaskId = patch.taskId === undefined ? undefined : canonicalTaskId(patch.taskId)
+  const taskChanged =
+    nextTaskId !== undefined &&
+    nextTaskId.length > 0 &&
+    prev.taskId.length > 0 &&
+    canonicalTaskId(prev.taskId) !== nextTaskId
+  const base = taskChanged ? defaultState() : prev
+  const normalizedPatch: TaskStatePatch = {
     ...patch,
-    cursor: { ...prev.cursor, ...(patch.cursor ?? {}) },
-    timestamps: { ...prev.timestamps, ...(patch.timestamps ?? {}) },
+    ...(nextTaskId !== undefined ? { taskId: nextTaskId } : {}),
   }
-  if (patch.phase) {
-    merged.timestamps = { ...merged.timestamps, [patch.phase]: new Date().toISOString() }
+  const merged: UnifiedTaskState = {
+    ...base,
+    ...normalizedPatch,
+    cursor: { ...base.cursor, ...(normalizedPatch.cursor ?? {}) },
+    timestamps: { ...base.timestamps, ...(normalizedPatch.timestamps ?? {}) },
+  }
+  if (normalizedPatch.phase) {
+    merged.timestamps = {
+      ...merged.timestamps,
+      [normalizedPatch.phase]: new Date().toISOString(),
+    }
   }
   if (!merged.runId) merged.runId = `${process.pid}-${Date.now()}`
   writeFile(statusPath(root), JSON.stringify(merged, null, 2) + '\n')

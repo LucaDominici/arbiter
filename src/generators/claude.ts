@@ -142,9 +142,8 @@ const L2_ADVANCED_HOOKS = [
   // #1331: registered in hooks.mjs HANDLERS at L2+ (ExitPlanMode banner, #1210)
   // but historically never emitted — dead config (same ghost class as #1318.5).
   'exitplanmode-banner.mjs',
-  // E6b (#1948): finding-loss Stop hook — implement-but-not-activated (OD-14).
-  // Emitted at L2+ (design doc §E6b tier: advisory solo/team, hard gated-review)
-  // but NOT registered in settings.json's Stop chain; activation is owner decision.
+  // E6b (#1948): finding-loss Stop hook — activated in the dispatcher Stop chain.
+  // Emitted at L2+ (design doc §E6b tier: advisory solo/team, hard gated-review).
   'stop-finding-loss.mjs',
 ] as const
 
@@ -178,12 +177,13 @@ export function planClaudeHooks(config: ProjectConfig): ClaudeHookPlanEntry[] {
     'check-no-orphan-todo.mjs',
     'check-no-placeholders.mjs',
     'enforce-gate-before-pr.mjs',
-    // E5 (#1947): implement-but-not-activated — emitted at ALL levels (M9 never
-    // scales down, design doc §E5) but NOT wired into settings.json's PreToolUse
-    // matchers. Activation (the matcher line) is owner decision OD-14.
+    // E5 (#1947): emitted at ALL levels (M9 never scales down, design doc §E5)
+    // and wired through PreToolUse:Task|Agent.
     'pre-spawn-worktree-guard.mjs',
   ]) {
-    tpl(f, `claude/hooks/${f}`)
+    const renderedForLanguage =
+      f === 'check-no-orphan-todo.mjs' || f === 'check-no-placeholders.mjs'
+    tpl(f, `claude/hooks/${f}${renderedForLanguage ? '.ejs' : ''}`)
   }
   for (const f of ['lib.mjs', 'post-commit-check.mjs']) {
     tpl(f, `claude/hooks/${f}.ejs`)

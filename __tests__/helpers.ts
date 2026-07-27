@@ -69,7 +69,13 @@ export async function withRealRepoMutationLock<T>(fn: () => T | Promise<T>): Pro
  */
 export function writeTaskStateFile(
   dir: string,
-  fields: { phase?: string; plan?: string; tier?: string; taskId?: string } = {},
+  fields: {
+    phase?: string
+    plan?: string
+    tier?: string
+    taskId?: string
+    branch?: string
+  } = {},
 ): void {
   const taskDir = join(dir, '.claude', '.task')
   mkdirSync(taskDir, { recursive: true })
@@ -78,6 +84,7 @@ export function writeTaskStateFile(
     phase: fields.phase ?? 'preflight',
     tier: fields.tier ?? '',
     plan: fields.plan ?? '',
+    branch: fields.branch ?? '',
     cursor: { tddPhase: null, lastAction: '', nextAction: '' },
     handoffStrategy: null,
     handoffReady: false,

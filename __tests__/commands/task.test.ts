@@ -9,7 +9,7 @@ vi.mock('../../src/capabilities/host-probe.js', () => ({
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
-import { runTaskAdvance } from '../../src/commands/task.js'
+import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 
@@ -86,5 +86,21 @@ describe('runTaskAdvance', () => {
     expect(() => runTaskAdvance({ to: 'nonexistent' as never, dir })).toThrow(
       /unknown.*phase|invalid.*to/i,
     )
+  })
+
+  it('AC-7 runTaskInit normalizes a new bare id and resets stale completed state', () => {
+    writeUnifiedState(dir, {
+      taskId: '#2120',
+      phase: 'complete',
+      plan: '.claude/plans/old.md',
+      branch: 'tmp-red',
+    })
+    runTaskInit({ dir, id: '2135', tier: 'Standard', plan: '.claude/plans/2135.md' })
+    expect(readUnifiedState(dir)).toMatchObject({
+      taskId: '#2135',
+      phase: 'preflight',
+      tier: 'Standard',
+      plan: '.claude/plans/2135.md',
+    })
   })
 })

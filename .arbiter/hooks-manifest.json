@@ -20,7 +20,7 @@
       "rationale": "NI-11: skipped/disabled tests (@Disabled, .skip, xit, xtest, @pytest.mark.skip, #[ignore]) must not be committed — open a tracking issue instead"
     },
     {
-      "file": "check-no-orphan-todo.mjs",
+      "file": "check-no-orphan-todo.mjs.ejs",
       "classification": "HARD",
       "tools": [
         "claude",
@@ -36,7 +36,7 @@
       "rationale": "INV-06: bare TODO without task ID is a gate violation"
     },
     {
-      "file": "check-no-placeholders.mjs",
+      "file": "check-no-placeholders.mjs.ejs",
       "classification": "HARD",
       "tools": [
         "claude",
@@ -69,12 +69,12 @@
     },
     {
       "file": "check-no-unused-exports.mjs",
-      "classification": "HARD",
+      "classification": "ADVISORY",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "rationale": "Blocks unused TypeScript exports via knip (exits 1 if exports/types arrays non-empty). TypeScript projects only (#156)"
+      "rationale": "Per-edit knip feedback is advisory because it intentionally soft-skips when unavailable or debounced; the authoritative L1 unused-export gate remains HARD. TypeScript projects only (#156)."
     },
     {
       "file": "check-no-pii.mjs.ejs",
@@ -235,13 +235,12 @@
     },
     {
       "file": "check-circular-deps.mjs.ejs",
-      "classification": "HARD",
+      "classification": "ADVISORY",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "expectedExitCode": 2,
-      "rationale": "INV-01: circular TypeScript dependencies detected per-edit via madge; soft-skips when madge not installed. EJS template rendered at init time for TypeScript projects."
+      "rationale": "Per-edit madge feedback is advisory because it intentionally soft-skips when madge is unavailable or debounced; the authoritative L1 circular-dependency gate remains HARD. EJS template rendered for TypeScript projects."
     },
     {
       "file": "hooks.mjs.ejs",

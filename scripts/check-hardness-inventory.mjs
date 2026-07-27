@@ -43,15 +43,49 @@ async function renderHookLib() {
  * resolves when spawned in isolation. Returns the staged hook path and a cleanup fn.
  */
 async function stageHookWithLib(hookPath) {
-  const src = readFileSync(hookPath, 'utf-8')
-  // A raw .mjs hook that imports ./lib.mjs needs the sibling; .ejs hooks aren't spawned here.
+  let src = readFileSync(hookPath, 'utf-8')
+  if (hookPath.endsWith('.ejs')) {
+    const ejs = (await import('ejs')).default
+    src = ejs.render(src, {
+      projectName: 'arbiter',
+      sourceExtensions: [
+        '.ts',
+        '.tsx',
+        '.js',
+        '.jsx',
+        '.java',
+        '.py',
+        '.go',
+        '.rs',
+        '.cs',
+        '.rb',
+        '.php',
+      ],
+    })
+  }
   if (!/from\s+['"]\.\/lib\.mjs['"]/.test(src)) {
-    return { staged: hookPath, cleanup: () => {} }
+    if (!hookPath.endsWith('.ejs')) return { staged: hookPath, cleanup: () => {} }
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-hardness-hook-'))
+    const staged = join(
+      dir,
+      hookPath
+        .split('/')
+        .pop()
+        .replace(/\.ejs$/, ''),
+    )
+    writeFileSync(staged, src)
+    return { staged, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
   }
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-hardness-hook-'))
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'lib.mjs'), await renderHookLib())
-  const staged = join(dir, hookPath.split('/').pop())
+  const staged = join(
+    dir,
+    hookPath
+      .split('/')
+      .pop()
+      .replace(/\.ejs$/, ''),
+  )
   writeFileSync(staged, src)
   return { staged, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }

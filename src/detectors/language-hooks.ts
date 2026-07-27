@@ -16,7 +16,7 @@ if (!file.startsWith(repoRoot)) process.exit(0);
 if (/:\\s*any\\b/.test(readFileSync(file, 'utf-8'))) {
   process.stderr.write(\`[arbiter] INV-04: No 'any' type allowed: \${file}\\n\`);
   process.stderr.write(\`[arbiter] Run \\\`arbiter explain INV-04\\\` for details.\\n\`);
-  process.exit(1);
+  process.exit(2);
 }`,
 }
 
@@ -34,7 +34,7 @@ const repoRoot = process.cwd();
 if (!file.startsWith(repoRoot)) process.exit(0);
 if (/\\.unwrap\\(\\)/.test(readFileSync(file, 'utf-8'))) {
   process.stderr.write(\`[arbiter] INV: No .unwrap() allowed in Rust: \${file}\\n\`);
-  process.exit(1);
+  process.exit(2);
 }`,
 }
 
@@ -56,7 +56,7 @@ const offending = content.split('\\n').flatMap((line, i) =>
 if (offending.length > 0) {
   process.stderr.write(\`[arbiter] INV: Orphan TODO found (must include task ID like TODO(#123)): \${file}\\n\`);
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
-  process.exit(1);
+  process.exit(2);
 }`,
 }
 
@@ -80,7 +80,7 @@ const offending = lines.flatMap((line, i) =>
 if (offending.length > 0) {
   process.stderr.write(\`[arbiter] INV: Unchecked error (no '_ = ' patterns allowed): \${file}\\n\`);
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
-  process.exit(1);
+  process.exit(2);
 }`,
 }
 
@@ -103,7 +103,7 @@ const offending = lines.flatMap((line, i) =>
 if (offending.length > 0) {
   process.stderr.write(\`[arbiter] INV: Bare except clause found (specify exception type): \${file}\\n\`);
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
-  process.exit(1);
+  process.exit(2);
 }`,
 }
 
@@ -137,7 +137,7 @@ const offending = lines.flatMap((line, i) => {
 if (offending.length > 0) {
   process.stderr.write(\`[arbiter] INV: Raw generic type found (always use type parameters like List<String>): \${file}\\n\`);
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
-  process.exit(1);
+  process.exit(2);
 }`,
 }
 
@@ -156,7 +156,7 @@ if (!file.startsWith(repoRoot)) process.exit(0);
 const content = readFileSync(file, 'utf-8');
 if (/\\b(MockMvc|AutoConfigureMockMvc|MockMvcBuilders|MockMvcRequestBuilders|MockMvcResultMatchers)\\b/.test(content)) {
   process.stderr.write(\`[arbiter] INV-29: MockMvc is forbidden — use RestAssured for integration tests: \${file}\\n\`);
-  process.exit(1);
+  process.exit(2);
 }`,
 }
 

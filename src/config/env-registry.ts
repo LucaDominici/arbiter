@@ -121,6 +121,13 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     isGateBypass: false,
   },
   {
+    name: 'ARBITER_CONSUMER_',
+    type: 'prefix',
+    purpose:
+      'Credential namespace used only by the trusted consumer-reliability preparation process; stripped before verification.',
+    isGateBypass: false,
+  },
+  {
     name: 'ARBITER_EVIDENCE_HARNESS',
     type: 'boolean',
     default: false,

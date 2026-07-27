@@ -9,6 +9,16 @@ import type { GovernanceLevel } from '../wizard/types.js'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const TEMPLATES_DIR = join(__dirname, '..', 'templates')
 
+const SOURCE_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
+  typescript: ['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs', '.js', '.jsx'],
+  multi: ['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs', '.js', '.jsx', '.java', '.kt', '.kts'],
+  java: ['.java'],
+  kotlin: ['.kt', '.kts', '.java'],
+  rust: ['.rs'],
+  go: ['.go'],
+  python: ['.py'],
+}
+
 function isGovernanceLevel(value: unknown): value is GovernanceLevel {
   return typeof value === 'string' && (LEVEL_ORDER as readonly string[]).includes(value)
 }
@@ -119,7 +129,16 @@ export function withServiceBucket(data: object): object {
 }
 
 function withRenderDefaults(data: object): object {
-  return withServiceBucket(withLevelBooleans(withBasePackageDefault(data)))
+  const language = (data as { language?: unknown }).language
+  return withServiceBucket(
+    withLevelBooleans(
+      withBasePackageDefault({
+        ...data,
+        sourceExtensions:
+          typeof language === 'string' ? [...(SOURCE_EXTENSIONS[language] ?? [])] : [],
+      }),
+    ),
+  )
 }
 
 /**
