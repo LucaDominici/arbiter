@@ -88,6 +88,66 @@ describe('unified task-state document (#1206)', () => {
       const leftovers = readdirSync(taskStateDir(dir)).filter((f: string) => f.includes('.tmp'))
       expect(leftovers).toEqual([])
     })
+
+    it('AC-7 resets task-owned state atomically when the normalized task id changes', () => {
+      writeUnifiedState(dir, {
+        taskId: '#2120',
+        phase: 'complete',
+        tier: 'Standard',
+        plan: '.claude/plans/old.md',
+        branch: 'tmp-red',
+        cursor: { tddPhase: 'REFACTOR', lastAction: 'old', nextAction: 'stale' },
+        handoffStrategy: 'interactive',
+        handoffReady: true,
+        planningHandoffReady: '2026-07-01T00:00:00.000Z',
+        redTeamFindings: [
+          {
+            id: 'RT-OLD',
+            severity: 'HIGH',
+            summary: 'old finding',
+            auditorHint: 'bugs',
+            resolved: false,
+          },
+        ],
+        overrides: { 'automation.autonomy': 'L1' },
+      })
+
+      const next = writeUnifiedState(dir, {
+        taskId: '#2135',
+        tier: 'S',
+        branch: 'task/#2135-release-bar',
+        overrides: { 'automation.autonomy': 'L3' },
+      })
+
+      expect(next).toMatchObject({
+        taskId: '#2135',
+        phase: 'preflight',
+        tier: 'S',
+        plan: '',
+        branch: 'task/#2135-release-bar',
+        cursor: { tddPhase: null, lastAction: '', nextAction: '' },
+        handoffStrategy: null,
+        handoffReady: false,
+        overrides: { 'automation.autonomy': 'L3' },
+      })
+      expect(next.timestamps).toEqual({})
+      expect(next.gateDecisions).toEqual([])
+      expect(next.redTeamFindings).toBeUndefined()
+      expect(next.planningHandoffReady).toBeUndefined()
+    })
+
+    it('AC-7 preserves incremental fields when the task id is unchanged', () => {
+      writeUnifiedState(dir, {
+        taskId: '#2135',
+        phase: 'red',
+        plan: '.claude/plans/2135.md',
+        branch: 'task/#2135-release-bar',
+      })
+      const next = writeUnifiedState(dir, { taskId: '#2135', tier: 'Standard' })
+      expect(next.phase).toBe('red')
+      expect(next.plan).toBe('.claude/plans/2135.md')
+      expect(next.branch).toBe('task/#2135-release-bar')
+    })
   })
 
   describe('readTaskId / appendLog', () => {
