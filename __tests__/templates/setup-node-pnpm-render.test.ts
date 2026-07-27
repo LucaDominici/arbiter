@@ -84,8 +84,13 @@ describe('self node_modules cache — native ABI isolation (#2147)', () => {
       nodeVersion: 'v22.19.0',
       nodeModules: '128',
       getconf: { status: 1, output: '' },
-      ldd: { status: 1, output: 'musl libc (aarch64)' },
-      expected: ['Linux-ARM64', 'musl-libc--aarch64-', 'node-v22.19.0', 'modules-128'],
+      ldd: { status: 1, output: 'musl libc (aarch64)\nVersion 1.2.4' },
+      expected: [
+        'Linux-ARM64',
+        'musl-libc--aarch64--Version-1.2.4',
+        'node-v22.19.0',
+        'modules-128',
+      ],
     },
   ])('computes a portable scope for $name', (fixture) => {
     const result = runAbiScope(fixture)
@@ -108,6 +113,40 @@ describe('self node_modules cache — native ABI isolation (#2147)', () => {
     expect(first.status).toBe(0)
     expect(second.status).toBe(0)
     expect(first.stdout.trim()).not.toBe(second.stdout.trim())
+  })
+
+  it('changes scope when the detected musl version changes', () => {
+    const base = {
+      name: 'musl-a',
+      arch: 'ARM64',
+      nodeVersion: 'v22.19.0',
+      nodeModules: '128',
+      getconf: { status: 1, output: '' },
+      ldd: { status: 1, output: 'musl libc (aarch64)\nVersion 1.2.4' },
+      expected: [],
+    }
+    const first = runAbiScope(base)
+    const second = runAbiScope({
+      ...base,
+      ldd: { status: 1, output: 'musl libc (aarch64)\nVersion 1.2.5' },
+    })
+    expect(first.status).toBe(0)
+    expect(second.status).toBe(0)
+    expect(first.stdout.trim()).not.toBe(second.stdout.trim())
+  })
+
+  it('fails closed on unrelated output from a failing ldd', () => {
+    const result = runAbiScope({
+      name: 'ldd-error',
+      arch: 'X64',
+      nodeVersion: 'v22.18.0',
+      nodeModules: '127',
+      getconf: { status: 1, output: '' },
+      ldd: { status: 1, output: 'ldd: cannot open shared object file' },
+      expected: [],
+    })
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('cannot determine native ABI')
   })
 
   it('fails closed when no native ABI can be identified', () => {

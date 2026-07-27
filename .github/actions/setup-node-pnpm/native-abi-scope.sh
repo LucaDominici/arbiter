@@ -12,10 +12,24 @@ case "${RUNNER_OS:-unknown}" in
       fi
     fi
     if [[ -z "$abi" ]] && command -v ldd >/dev/null 2>&1; then
-      if detected="$(ldd --version 2>&1)"; then
-        abi="${detected%%$'\n'*}"
-      elif [[ -n "$detected" ]]; then
-        # musl commonly prints a usable version banner but exits non-zero.
+      ldd_status=0
+      detected="$(ldd --version 2>&1)" || ldd_status=$?
+      if [[ "$detected" =~ [Mm][Uu][Ss][Ll] ]]; then
+        musl_banner=''
+        musl_version=''
+        while IFS= read -r line; do
+          if [[ -z "$musl_banner" && "$line" =~ [Mm][Uu][Ss][Ll] ]]; then
+            musl_banner="$line"
+          fi
+          if [[ -z "$musl_version" && "$line" =~ ^Version[[:space:]]+([0-9]+(\.[0-9]+)+) ]]; then
+            musl_version="Version ${BASH_REMATCH[1]}"
+          fi
+        done <<<"$detected"
+        # A musl banner without its version cannot safely isolate native binaries.
+        if [[ -n "$musl_banner" && -n "$musl_version" ]]; then
+          abi="$musl_banner $musl_version"
+        fi
+      elif ((ldd_status == 0)); then
         abi="${detected%%$'\n'*}"
       fi
     fi
