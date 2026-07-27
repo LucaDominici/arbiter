@@ -9,6 +9,9 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --check ."
   },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@4.62.3"
+  },
   "dependencies": {
     "fastify": "^5.10.0"
   },

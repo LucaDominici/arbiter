@@ -127,6 +127,16 @@ function runGeneratedGate(dir: string, pathPrefix?: string): { status: number; o
   return { status: r.status ?? 1, output: (r.stdout ?? '') + (r.stderr ?? '') }
 }
 
+function expectPortableTypeScriptToolchain(dir: string): void {
+  const rollupManifest = join(dir, 'node_modules', 'rollup', 'package.json')
+  if (!existsSync(rollupManifest)) return
+  const rollupPackage = JSON.parse(readFileSync(rollupManifest, 'utf-8')) as { name?: string }
+  expect(
+    rollupPackage.name,
+    'functional fixtures must use Rollup WASM so the gate runs across the supported glibc range',
+  ).toBe('@rollup/wasm-node')
+}
+
 const fixtures = listFixtures('functional').sort()
 
 describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041/#1042)', () => {
@@ -178,6 +188,7 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
             expect(dep.skip, 'deps unavailable (offline) — skipping gate exec').toBeTruthy()
             return
           }
+          if (language === 'typescript') expectPortableTypeScriptToolchain(dir)
 
           const result = runGeneratedGate(dir, dep.pathPrefix)
           // Load-bearing #1041/#1042 guarantee: the gate must EXECUTE — no missing
@@ -250,6 +261,7 @@ describe.skipIf(!L2)(
           expect(dep.skip, 'deps unavailable (offline) — skipping gate exec').toBeTruthy()
           return
         }
+        expectPortableTypeScriptToolchain(dir)
 
         // Seed the violation AFTER the clean init+install the green cell above
         // already proves passes: a deliberate type error (string assigned to a
