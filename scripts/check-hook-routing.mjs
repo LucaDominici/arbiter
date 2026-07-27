@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CATALOG: validates the complete emitted-hook → dispatcher → settings route.
-// It cannot fold into emission coherence because this script is emitted into governed targets.
-// The target-side runtime inventory catches brownfield and user-preservation drift after update.
+// CATALOG: stays separate from emission coherence because this script runs in governed targets.
+// CATALOG: catches brownfield and user-preservation drift after update at target runtime.
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -48,42 +48,54 @@ function readOwnedHooks(repoRoot, dir) {
   if (!existsSync(dir)) throw new Error(`required hooks directory missing: ${dir}`)
   const marked = markedOwnedHooks(dir)
   const generatedPath = join(repoRoot, '.arbiter-generated-manifest.json')
-  if (existsSync(generatedPath)) {
-    const parsed = JSON.parse(readFileSync(generatedPath, 'utf-8'))
-    if (parsed?.$schemaVersion !== 1 || typeof parsed.files !== 'object' || parsed.files === null) {
-      throw new Error('.arbiter-generated-manifest.json has an invalid shape')
-    }
-    if (
-      parsed.withheldSafety !== undefined &&
-      (!Array.isArray(parsed.withheldSafety) ||
-        !parsed.withheldSafety.every((path) => typeof path === 'string'))
-    ) {
-      throw new Error('.arbiter-generated-manifest.json has invalid withheldSafety ownership')
-    }
-    return new Set(
-      [...Object.keys(parsed.files), ...(parsed.withheldSafety ?? []), ...marked]
-        .filter((path) => /^\.claude\/hooks\/[^/]+\.mjs$/.test(path))
-        .map((path) => path.slice('.claude/hooks/'.length))
-        .filter((file) => file !== 'hooks.mjs' && file !== 'lib.mjs'),
-    )
-  }
+  if (existsSync(generatedPath)) return readGeneratedOwnedHooks(generatedPath, marked)
 
   const hardnessPath = join(repoRoot, '.arbiter', 'hooks-manifest.json')
-  if (existsSync(hardnessPath)) {
-    const parsed = JSON.parse(readFileSync(hardnessPath, 'utf-8'))
-    if (parsed?.version !== 1 || !Array.isArray(parsed.hooks)) {
-      throw new Error('.arbiter/hooks-manifest.json has an invalid shape')
-    }
-    return new Set(
-      parsed.hooks
-        .map((entry) => entry?.file)
-        .filter((file) => typeof file === 'string' && file.endsWith('.mjs'))
-        .filter((file) => file !== 'hooks.mjs' && file !== 'lib.mjs'),
-    )
-  }
+  if (existsSync(hardnessPath)) return readHardnessOwnedHooks(hardnessPath)
 
+  return normalizeOwnedPaths(marked)
+}
+
+function readGeneratedOwnedHooks(path, marked) {
+  const parsed = JSON.parse(readFileSync(path, 'utf-8'))
+  validateGeneratedManifest(parsed)
+  return normalizeOwnedPaths([
+    ...Object.keys(parsed.files),
+    ...(parsed.withheldSafety ?? []),
+    ...marked,
+  ])
+}
+
+function validateGeneratedManifest(parsed) {
+  if (parsed?.$schemaVersion !== 1 || typeof parsed.files !== 'object' || parsed.files === null) {
+    throw new Error('.arbiter-generated-manifest.json has an invalid shape')
+  }
+  if (
+    parsed.withheldSafety !== undefined &&
+    (!Array.isArray(parsed.withheldSafety) ||
+      !parsed.withheldSafety.every((path) => typeof path === 'string'))
+  ) {
+    throw new Error('.arbiter-generated-manifest.json has invalid withheldSafety ownership')
+  }
+}
+
+function readHardnessOwnedHooks(path) {
+  const parsed = JSON.parse(readFileSync(path, 'utf-8'))
+  if (parsed?.version !== 1 || !Array.isArray(parsed.hooks)) {
+    throw new Error('.arbiter/hooks-manifest.json has an invalid shape')
+  }
   return new Set(
-    marked
+    parsed.hooks
+      .map((entry) => entry?.file)
+      .filter((file) => typeof file === 'string' && file.endsWith('.mjs'))
+      .filter((file) => file !== 'hooks.mjs' && file !== 'lib.mjs'),
+  )
+}
+
+function normalizeOwnedPaths(paths) {
+  return new Set(
+    paths
+      .filter((path) => /^\.claude\/hooks\/[^/]+\.mjs$/.test(path))
       .map((path) => path.slice('.claude/hooks/'.length))
       .filter((file) => file !== 'hooks.mjs' && file !== 'lib.mjs'),
   )
@@ -126,63 +138,77 @@ function parseWiring(source) {
   const directByEvent = new Map()
   for (const [event, entries] of Object.entries(settings.hooks)) {
     if (!Array.isArray(entries)) throw new Error(`settings hook event ${event} is not an array`)
-    for (const entry of entries) {
-      if (typeof entry !== 'object' || entry === null || !Array.isArray(entry.hooks)) continue
-      const expected =
-        typeof entry.matcher === 'string' && entry.matcher !== '*'
-          ? `${event}:${entry.matcher}`
-          : event
-      for (const hook of entry.hooks) {
-        const command = typeof hook?.command === 'string' ? hook.command : ''
-        const dispatcher = /(?:^|[/ ])hooks\.mjs["']?\s+["']?([^"' ]+)["']?/.exec(command)
-        if (dispatcher?.[1] === expected) dispatcherEvents.add(expected)
-
-        const direct = /\.claude\/hooks\/([^/"' ]+\.mjs)(?:["' ]|$)/.exec(command)
-        if (direct && direct[1] !== 'hooks.mjs') {
-          const files = directByEvent.get(expected) ?? new Set()
-          files.add(direct[1])
-          directByEvent.set(expected, files)
-        }
-      }
-    }
+    for (const entry of entries)
+      registerSettingsEntry(event, entry, dispatcherEvents, directByEvent)
   }
   return { dispatcherEvents, directByEvent }
+}
+
+function registerSettingsEntry(event, entry, dispatcherEvents, directByEvent) {
+  if (typeof entry !== 'object' || entry === null || !Array.isArray(entry.hooks)) return
+  const expected =
+    typeof entry.matcher === 'string' && entry.matcher !== '*' ? `${event}:${entry.matcher}` : event
+  for (const hook of entry.hooks) {
+    registerWiringCommand(hook?.command, expected, dispatcherEvents, directByEvent)
+  }
+}
+
+function registerWiringCommand(value, expected, dispatcherEvents, directByEvent) {
+  const command = typeof value === 'string' ? value : ''
+  const dispatcher = /(?:^|[/ ])hooks\.mjs["']?\s+["']?([^"' ]+)["']?/.exec(command)
+  if (dispatcher?.[1] === expected) dispatcherEvents.add(expected)
+
+  const direct = /\.claude\/hooks\/([^/"' ]+\.mjs)(?:["' ]|$)/.exec(command)
+  if (!direct || direct[1] === 'hooks.mjs') return
+  const files = directByEvent.get(expected) ?? new Set()
+  files.add(direct[1])
+  directByEvent.set(expected, files)
 }
 
 function inspectRoutes(owned, handlers, wiring, dir) {
   const findings = []
   const routed = new Set()
   for (const [event, files] of handlers) {
-    const direct = wiring.directByEvent.get(event) ?? new Set()
-    const ownedFiles = files.filter((file) => owned.has(file))
-    if (
-      ownedFiles.length > 0 &&
-      !wiring.dispatcherEvents.has(event) &&
-      !ownedFiles.every((file) => direct.has(file))
-    ) {
-      findings.push(`UNROUTED event ${event}`)
-    }
-    for (const file of files) {
-      if (wiring.dispatcherEvents.has(event) || direct.has(file)) routed.add(file)
-      if (
-        (wiring.dispatcherEvents.has(event) || direct.has(file) || owned.has(file)) &&
-        !existsSync(join(dir, file))
-      ) {
-        findings.push(`MISSING handler ${file} for ${event}`)
-      }
-    }
+    inspectHandlerRoute(event, files, owned, wiring, dir, findings, routed)
   }
-  for (const [event, files] of wiring.directByEvent) {
+  inspectDirectRoutes(wiring.directByEvent, dir, findings, routed)
+  inspectOwnedRoutes(owned, dir, findings, routed)
+  return [...new Set(findings)].sort()
+}
+
+function inspectHandlerRoute(event, files, owned, wiring, dir, findings, routed) {
+  const direct = wiring.directByEvent.get(event) ?? new Set()
+  const dispatcherWired = wiring.dispatcherEvents.has(event)
+  const ownedFiles = files.filter((file) => owned.has(file))
+  if (ownedFiles.length > 0 && !dispatcherWired && !ownedFiles.every((file) => direct.has(file))) {
+    findings.push(`UNROUTED event ${event}`)
+  }
+  for (const file of files)
+    inspectHandlerFile(event, file, owned, direct, dispatcherWired, dir, findings, routed)
+}
+
+function inspectHandlerFile(event, file, owned, direct, dispatcherWired, dir, findings, routed) {
+  const wired = dispatcherWired || direct.has(file)
+  if (wired) routed.add(file)
+  if ((wired || owned.has(file)) && !existsSync(join(dir, file))) {
+    findings.push(`MISSING handler ${file} for ${event}`)
+  }
+}
+
+function inspectDirectRoutes(directByEvent, dir, findings, routed) {
+  for (const [event, files] of directByEvent) {
     for (const file of files) {
       routed.add(file)
       if (!existsSync(join(dir, file))) findings.push(`MISSING direct hook ${file} for ${event}`)
     }
   }
+}
+
+function inspectOwnedRoutes(owned, dir, findings, routed) {
   for (const file of owned) {
     if (!existsSync(join(dir, file))) findings.push(`MISSING Arbiter-owned hook ${file}`)
     else if (!routed.has(file)) findings.push(`DEAD Arbiter-owned hook ${file}`)
   }
-  return [...new Set(findings)].sort()
 }
 
 function inspectCodexRoutes(owned, config, adapterPath) {

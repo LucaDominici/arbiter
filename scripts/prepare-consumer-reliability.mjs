@@ -122,24 +122,41 @@ function readConfig(path) {
   }
   const ids = new Set()
   for (const consumer of parsed.consumers) {
-    if (
-      typeof consumer?.id !== 'string' ||
-      !/^[a-z][a-z0-9-]*$/.test(consumer.id) ||
-      typeof consumer.language !== 'string' ||
-      typeof consumer.repoEnv !== 'string' ||
-      !/^ARBITER_CONSUMER_[A-Z]+_REPO$/.test(consumer.repoEnv) ||
-      typeof consumer.keyEnv !== 'string' ||
-      !/^ARBITER_CONSUMER_[A-Z]+_DEPLOY_KEY$/.test(consumer.keyEnv) ||
-      typeof consumer.sha !== 'string' ||
-      !/^[0-9a-f]{40}$/.test(consumer.sha)
-    ) {
-      throw new Error('consumer reliability config contains an invalid consumer')
-    }
+    validateConsumerRow(consumer)
     if (ids.has(consumer.id)) throw new Error(`duplicate generic consumer id: ${consumer.id}`)
     ids.add(consumer.id)
   }
   if (ids.size !== 3) throw new Error('consumer reliability config must contain exactly 3 rows')
   return parsed
+}
+
+function validateConsumerRow(consumer) {
+  if (!hasValidConsumerIdentity(consumer)) {
+    throw new Error('consumer reliability config contains an invalid consumer identity')
+  }
+  if (!hasValidConsumerEnvironment(consumer)) {
+    throw new Error('consumer reliability config contains invalid secret environment names')
+  }
+  if (typeof consumer.sha !== 'string' || !/^[0-9a-f]{40}$/.test(consumer.sha)) {
+    throw new Error('consumer reliability config contains an invalid pin')
+  }
+}
+
+function hasValidConsumerIdentity(consumer) {
+  return (
+    typeof consumer?.id === 'string' &&
+    /^[a-z][a-z0-9-]*$/.test(consumer.id) &&
+    typeof consumer.language === 'string'
+  )
+}
+
+function hasValidConsumerEnvironment(consumer) {
+  return (
+    typeof consumer.repoEnv === 'string' &&
+    /^ARBITER_CONSUMER_[A-Z]+_REPO$/.test(consumer.repoEnv) &&
+    typeof consumer.keyEnv === 'string' &&
+    /^ARBITER_CONSUMER_[A-Z]+_DEPLOY_KEY$/.test(consumer.keyEnv)
+  )
 }
 
 function requiredEnvironment(key) {

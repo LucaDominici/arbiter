@@ -327,19 +327,32 @@ function prepareSpecialState(root, temporary, contract, state) {
 }
 
 function payloadFor(root, temporary, language, contract) {
-  if (contract.kind === 'command') return { tool_input: { command: contract.value } }
-  if (contract.kind === 'prompt' || contract.kind === 'brainstorm') {
-    return { prompt: contract.kind === 'brainstorm' ? '/task #1' : contract.value }
+  const special = specialPayload(temporary, contract)
+  if (special !== null) return special
+  return filePayload(root, temporary, language, contract)
+}
+
+function specialPayload(temporary, contract) {
+  switch (contract.kind) {
+    case 'command':
+      return { tool_input: { command: contract.value } }
+    case 'prompt':
+      return { prompt: contract.value }
+    case 'brainstorm':
+      return { prompt: '/task #1' }
+    case 'bad-commit':
+      return { tool_input: { command: 'git commit -m "bad message"' } }
+    case 'stop':
+      return {
+        stop_hook_active: false,
+        transcript_path: join(temporary, 'transcript.jsonl'),
+      }
+    default:
+      return null
   }
-  if (contract.kind === 'bad-commit') {
-    return { tool_input: { command: 'git commit -m "bad message"' } }
-  }
-  if (contract.kind === 'stop') {
-    return {
-      stop_hook_active: false,
-      transcript_path: join(temporary, 'transcript.jsonl'),
-    }
-  }
+}
+
+function filePayload(root, temporary, language, contract) {
   const name =
     contract.kind === 'named-file'
       ? contract.name
