@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -28,6 +28,27 @@ function render(overrides: Record<string, unknown> = {}) {
 
 describe('01-pr-fast.yml.ejs — structural invariants (CANON-18, #1131)', () => {
   const LEVELS = ['L1', 'L2', 'L3', 'L4'] as const
+
+  it.each([
+    ['github-flow', '[main]'],
+    ['github-flow-with-develop', '[main, develop]'],
+  ])(
+    '#2149: task SHA runs once via pull_request; push retains only post-merge branches (%s)',
+    (branchingStrategy, expectedPushBranches) => {
+      const rendered = render({ branchingStrategy })
+      const pushBlock = rendered.split('  push:')[1]?.split('  pull_request:')[0] ?? ''
+      expect(pushBlock).toContain(`branches: ${expectedPushBranches}`)
+      expect(pushBlock).not.toContain('task/**')
+      expect(rendered).toContain('  pull_request:')
+      expect(rendered).toContain('  workflow_dispatch:')
+      expect(rendered).not.toMatch(/pull_request:[\s\S]{0,300}?paths-ignore:/)
+    },
+  )
+
+  it('#2149: self repo has exactly one workflow capable of reporting CI Required', () => {
+    const obsoleteShim = new URL('../../.github/workflows/_pr-fast-docs-shim.yml', import.meta.url)
+    expect(existsSync(obsoleteShim)).toBe(false)
+  })
 
   it.each(LEVELS)('typescript %s: workflow name is "PR Fast (T1)"', (governanceLevel) => {
     expect(render({ language: 'typescript', governanceLevel })).toContain('name: PR Fast (T1)')

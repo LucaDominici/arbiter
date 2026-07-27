@@ -1,48 +1,48 @@
 ---
-title: 'ADR-108: Merge method = fast-forward-only for evidence-bearing PRs'
-doc_version: '1.0.0'
+title: 'ADR-108: Exact-SHA landing for evidence-bearing PRs'
+doc_version: '2.0.0'
 status: active
-last_review: '2026-07-17'
+last_review: '2026-07-27'
 owner: ''
 canonical_id: '108'
 tags: ['audience/dev', 'kind/adr']
 related: ['052-fast-forward-merge-cosign-preservation']
 ---
 
-# ADR-108: Merge method = fast-forward-only for evidence-bearing PRs
+# ADR-108: Exact-SHA landing for evidence-bearing PRs
 
 **Project:** arbiter
-**Date:** 2026-07-17
 **Status:** Accepted
-**Issue:** #1969 (closed)
+**Issue:** #1969, corrected by #2148
 
 ## Context
 
-Issue #1969 asked whether wave/task branches carrying TDD RED-phase evidence SHAs should
-merge via GitHub's squash button, rebase button, or fast-forward. ADR-052 already mandates
-merge-commit + `required_linear_history` (fast-forward-only) repo-wide, keyed to cosign SHA
-preservation. #1969 confirms the same policy also governs evidence-bearing PRs specifically,
-for a second, independent reason: TDD RED SHAs recorded during a task must remain reachable
-from `main` after merge so evidence tooling (`check-evidence-bundle.mjs`,
-`check-tdd-evidence`) can walk the commit graph back to them. Squash merge collapses those
-commits into one new SHA, breaking reachability; rebase merge replays them with new SHAs,
-same effect.
+TDD evidence records RED and GREEN commit SHAs. Squash and rebase merge destroy their
+reachability; a merge commit preserves reachability but makes `main` point to a different,
+untested SHA. ADR-052's former merge-commit/linear-history explanation was empirically
+falsified by #2147 and is replaced by an atomic ref compare-and-swap.
 
 ## Decision
 
-Squash merge stays disabled repo-wide. Wave and task branches merge by fast-forward-push of
-the branch tip, so TDD RED-phase SHAs remain reachable from `main`. GitHub's rebase-merge
-button is reserved for evidence-free PRs only (e.g. routine dependency bumps) where no RED
-SHA needs to survive the merge.
+Every evidence-bearing `trunk-solo + pr-ff` landing atomically advances `main` from the
+observed base to the exact gated head with `force:false`. The same mutation asserts that the
+task ref still equals the gated head. Success requires:
 
-This is a confirmation and a named second rationale for the existing ADR-052 mechanism, not
-a change to it — ADR-052's merge-commit + `required_linear_history` configuration is
-unaffected.
+- all required checks green;
+- unchanged base and head snapshots;
+- live settings matching the canonical exact-SHA policy;
+- GitHub reporting the PR `MERGED`;
+- post-read `main == gatedHeadSha`;
+- recorded RED and GREEN SHAs reachable from `main`.
+
+No GitHub squash, rebase or merge-commit endpoint is an evidence-bearing landing path.
+The former “rebase is allowed for evidence-free PRs” exception is removed because it
+conflicted with repository-wide commit-identity guarantees.
 
 ## Consequences
 
-- No configuration change: ADR-052's branch-protection settings already enforce this.
-- Evidence tooling can assume TDD RED SHAs are reachable from `main` post-merge without an
-  additional check.
-- Rebase-merge remains available for the narrow evidence-free case; squash-merge remains
-  fully disabled.
+- `required_linear_history` is disabled; atomic non-force CAS enforces the stronger property.
+- A stale base or moved head rejects the whole mutation without changing `main`.
+- Local rebases are allowed only before regenerating the final evidence and gate.
+- Peer/gated exact-SHA landing needs a trusted updater/review-bypass design and is not silently
+  treated as equivalent to the trunk-solo path.

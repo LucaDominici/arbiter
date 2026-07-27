@@ -1,69 +1,85 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// CATALOG: INV-101 enforcement. Verifies that the ff-only merge policy flags are present
-// CATALOG: in both the self-script (scripts/apply-branch-protection.mjs) and the EJS
-// CATALOG: template (src/templates/scripts/apply-branch-protection.mjs.ejs).
-// CATALOG: rejected fold-in into check-collab-mode-wired.mjs (distinct concern: schema vs. cross-file merge policy scan per INV-94).
-// CATALOG: rejected fold-in into check-self-dogfood.mjs (different concern: merge flags vs. dogfood parity).
+// CATALOG: INV-101 enforcement for the exact-SHA landing contract.
+// CATALOG: validates the canonical policy plus applicator and watcher wiring.
+// CATALOG: rejected fold-in because merge mutation safety is independent of config schema checks.
 // Usage: node scripts/check-merge-method.mjs [--config=<path>]
 
-import { readFileSync, existsSync } from 'node:fs'
-import { resolve, join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
-const VALUE_PATTERNS = {
-  allow_squash_merge: /allow_squash_merge\s*[=:]\s*false/,
-  allow_rebase_merge: /allow_rebase_merge\s*[=:]\s*false/,
-  required_linear_history: /required_linear_history\s*[=:]\s*true/,
+const POLICY_PATTERNS = {
+  allow_merge_commit: /allow_merge_commit\s*:\s*true/,
+  allow_squash_merge: /allow_squash_merge\s*:\s*false/,
+  allow_rebase_merge: /allow_rebase_merge\s*:\s*false/,
+  required_linear_history: /required_linear_history\s*:\s*false/,
+  allow_force_pushes: /allow_force_pushes\s*:\s*false/,
+  allow_deletions: /allow_deletions\s*:\s*false/,
+}
+const WATCHER_REQUIRED = {
+  updateRefs: /\bupdateRefs\b/,
+  beforeOid: /\bbeforeOid\b/,
+  afterOid: /\bafterOid\b/,
+  non_force: /force\s*:\s*false/,
+  live_policy: /\bvalidateLiveExactShaPolicy\b/,
+}
+const WATCHER_FORBIDDEN = {
+  gh_pr_merge: /['"]pr['"]\s*,\s*['"]merge['"]|gh\s+pr\s+merge/,
+  rebase: /--rebase/,
+  squash: /--squash/,
 }
 
-function resolveConfigPath(args) {
-  const flag = args.find((a) => a.startsWith('--config='))
-  if (flag) return resolve(flag.slice('--config='.length))
-  return resolve(process.cwd(), 'arbiter.json')
+function configPath(args) {
+  const flag = args.find((arg) => arg.startsWith('--config='))
+  return flag ? resolve(flag.slice('--config='.length)) : resolve('arbiter.json')
 }
 
-function checkFileForFlags(filePath, label) {
-  if (!existsSync(filePath)) return [] // file absent → skip (not enforced in this project)
-  const content = readFileSync(filePath, 'utf-8')
-  const missing = Object.entries(VALUE_PATTERNS)
-    .filter(([, pattern]) => !pattern.test(content))
-    .map(([flag]) => flag)
-  return missing.map(
-    (flag) => `[INV-101] ${label} missing ff-only flag '${flag}' with correct value in ${filePath}`,
-  )
+function requireFile(path, label, errors) {
+  if (!existsSync(path)) {
+    errors.push(`${label} missing: ${path}`)
+    return ''
+  }
+  return readFileSync(path, 'utf8')
 }
 
 try {
-  const configPath = resolveConfigPath(process.argv.slice(2))
-  const cwd = resolve(process.cwd())
+  if (!existsSync(configPath(process.argv.slice(2)))) process.exit(0)
+  const root = resolve()
+  const errors = []
+  const policy = requireFile(
+    join(root, 'scripts/lib/exact-sha-policy.mjs'),
+    'canonical policy',
+    errors,
+  )
+  const watcher = requireFile(join(root, 'scripts/pr-merge-watch.mjs'), 'merge watcher', errors)
+  const applicator = requireFile(
+    join(root, 'scripts/apply-branch-protection.mjs'),
+    'branch-protection applicator',
+    errors,
+  )
 
-  if (!existsSync(configPath)) {
-    process.exit(0) // not an arbiter project — skip
+  for (const [name, pattern] of Object.entries(POLICY_PATTERNS)) {
+    if (!pattern.test(policy)) errors.push(`canonical policy missing ${name} with exact value`)
   }
-
-  const errors = [
-    ...checkFileForFlags(join(cwd, 'scripts', 'apply-branch-protection.mjs'), 'self-script'),
-    ...checkFileForFlags(
-      join(cwd, 'src', 'templates', 'scripts', 'apply-branch-protection.mjs.ejs'),
-      'EJS template',
-    ),
-  ]
+  for (const [name, pattern] of Object.entries(WATCHER_REQUIRED)) {
+    if (!pattern.test(watcher)) errors.push(`merge watcher missing ${name} exact-SHA wiring`)
+  }
+  for (const [name, pattern] of Object.entries(WATCHER_FORBIDDEN)) {
+    if (pattern.test(watcher)) errors.push(`merge watcher contains forbidden ${name} path`)
+  }
+  if (!/exact-sha-policy\.mjs/.test(applicator)) {
+    errors.push('branch-protection applicator does not import the canonical policy')
+  }
 
   if (errors.length > 0) {
-    for (const err of errors) {
-      process.stderr.write(`${err}\n`)
-    }
-    process.stderr.write(
-      `[INV-101] ff-only merge enforcement incomplete: allow_squash_merge:false, allow_rebase_merge:false, required_linear_history:true must be present in both scripts/apply-branch-protection.mjs and the EJS template.\n`,
-    )
+    for (const error of errors) process.stderr.write(`[INV-101] ${error}\n`)
     process.exit(1)
   }
-
-  process.stdout.write('ff-only merge flags present in self-script and template\n')
+  process.stdout.write('exact-SHA landing policy and watcher wiring present\n')
   process.exit(0)
-} catch (err) {
+} catch (error) {
   process.stderr.write(
-    `[INV-101] Unexpected error: ${err instanceof Error ? err.message : String(err)}\n`,
+    `[INV-101] ERROR: ${error instanceof Error ? error.message : String(error)}\n`,
   )
-  process.exit(1)
+  process.exit(2)
 }

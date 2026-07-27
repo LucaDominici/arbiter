@@ -21,6 +21,7 @@
 // Idempotent: safe to run multiple times.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
+import { EXACT_SHA_BRANCH_SETTINGS, EXACT_SHA_REPO_SETTINGS } from './lib/exact-sha-policy.mjs'
 
 // ─── Args ────────────────────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ if (!REPO) {
 //   job ci-required            → name: "CI Required"
 //   job human-approval-required → name: "Human Approval Required (INV-74)"
 // Verified via: gh api repos/LucaDominici/arbiter/commits/main/check-runs --jq '.check_runs[].name'
-const REQUIRED_CONTEXTS = ['CI Required', 'Human Approval Required (INV-74)']
+const REQUIRED_CONTEXTS = ['CI Required']
 
 const PROTECTION_PAYLOAD = {
   required_status_checks: {
@@ -78,25 +79,13 @@ const PROTECTION_PAYLOAD = {
     contexts: REQUIRED_CONTEXTS,
   },
   enforce_admins: false,
-  required_pull_request_reviews: {
-    required_approving_review_count: 1,
-    dismiss_stale_reviews: true,
-    require_code_owner_reviews: false,
-  },
+  required_pull_request_reviews: null,
   restrictions: null,
-  allow_force_pushes: false,
-  allow_deletions: false,
-  required_linear_history: true,
+  ...EXACT_SHA_BRANCH_SETTINGS,
 }
 
-// INV-101: disallow squash and rebase-merge; these rewrite SHAs and invalidate cosign attestations.
-// allow_merge_commit:true is required — GitHub 422s if all three merge methods are disabled.
-// These flags live on PATCH /repos/{owner}/{repo}, NOT on the branch protection endpoint.
-const REPO_SETTINGS_PAYLOAD = {
-  allow_merge_commit: true,
-  allow_squash_merge: false,
-  allow_rebase_merge: false,
-}
+// INV-101: the canonical executable policy is shared with pr-merge-watch.
+const REPO_SETTINGS_PAYLOAD = EXACT_SHA_REPO_SETTINGS
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -210,7 +199,7 @@ try {
   process.exit(1)
 }
 
-// Apply repo merge settings (PATCH) — INV-101: disable squash-merge and rebase-merge
+// Apply repo merge settings (PATCH) — INV-101 exact-SHA compatibility tuple.
 const repoEndpoint = `repos/${REPO}`
 log(`Applying repo merge settings via PATCH ${repoEndpoint}`)
 
@@ -221,7 +210,7 @@ try {
   log(`  Repository : ${REPO}`)
   log(`  Branch     : ${BRANCH}`)
   log(`  Checks     : ${REQUIRED_CONTEXTS.join(', ')}`)
-  log(`  Merge      : ff-only (squash-merge=false, rebase-merge=false)`)
+  log(`  Merge      : exact-SHA CAS (squash=false, rebase=false, force=false)`)
   process.exit(0)
 } catch (err) {
   process.stderr.write(`[apply-branch-protection] FAIL (repo settings): ${err.message}\n`)

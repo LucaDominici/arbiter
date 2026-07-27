@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-21'
+last_review: '2026-07-27'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -79,7 +79,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 049 | [Java Static Analysis: Baseline Audit and Wiring Fixes](049-java-static-analysis-baseline.md)                                                                         | Accepted   | 2026-05-20 |  |
 | 050 | [Pipeline Complexity Tiers — Archetype-Default + Governance Floor](050-pipeline-complexity-tiers.md)                                                                  | Accepted   | 2026-05-23 |  |
 | 051 | [Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy](051-collaboration-mode-workflow-axis.md)                                                            | Accepted   | 2026-05-28 |  |
-| 052 | [Fast-Forward Merge Policy and Cosign SHA Preservation](052-fast-forward-merge-cosign-preservation.md)                                                                | Accepted   | 2026-05-28 |  |
+| 052 | [Exact-SHA Landing and Cosign Preservation](052-fast-forward-merge-cosign-preservation.md)                                                                            | Accepted   | 2026-07-27 |  |
 | 053 | [CI Gap Closures, Per-Tier Nightly, Opt-In Selective Gates, and Local Provenance Log](053-ci-gap-closures-and-check-ladder.md)                                        | Accepted   | 2026-05-28 |  |
 | 054 | [Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](054-phase-3-5-handoff-modeled-as-status-json-fields.md)                                          | Accepted   | 2026-05-31 | Model the handoff via status.json fields (handoffStrategy, |
 | 055 | [SpotBugs security hard-block baseline script (#212)](055-spotbugs-security-hard-block-baseline-script.md)                                                            | Accepted   | 2026-05-31 | Add scripts/verify-spotbugs.mjs.ejs template — a Node.js script emitted to Java target projects. It enforce... |
@@ -134,6 +134,6 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 105 | [never-brick config migration — coercible vs fatal fields](105-never-brick-config-migration.md)                                                                       | Accepted   | 2026-07-11 |  |
 | 106 | [Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](106-codex-track-parity-contract.md)                                                 | Accepted   | 2026-07-16 |  |
 | 107 | [arbiter obsidian subcommand — thin generic orchestrator](107-obsidian-subcommand.md)                                                                                 | Accepted   | 2026-07-17 |  |
-| 108 | [Merge method = fast-forward-only for evidence-bearing PRs](108-ff-only-merge-method-evidence-bearing-prs.md)                                                         | Accepted   | 2026-07-17 |  |
+| 108 | [Exact-SHA landing for evidence-bearing PRs](108-ff-only-merge-method-evidence-bearing-prs.md)                                                                        | Accepted   | 2026-07-27 |  |
 | 109 | [constraint-map.json scaffolded + INV-115 fail-closed on a missing map](109-constraint-map-fail-closed.md)                                                            | Accepted   | 2026-07-20 |  |
 | 110 | [Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](110-acceptance-criteria-anchor.md)                                              | Accepted   | 2026-07-21 |  |

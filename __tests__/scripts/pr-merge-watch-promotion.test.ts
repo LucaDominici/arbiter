@@ -1,0 +1,219 @@
+// SPDX-License-Identifier: Apache-2.0
+// #2148: empirical exact-SHA promotion contract. The fake gh process models
+// GitHub's PR and git-ref endpoints; the real watcher process must update main
+// with force=false and must never invoke a rewriting `gh pr merge` method.
+import { afterEach, describe, expect, it } from 'vitest'
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+
+const roots: string[] = []
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+})
+
+const BASE = 'a'.repeat(40)
+const HEAD = 'b'.repeat(40)
+const WATCHER = resolve('scripts/pr-merge-watch.mjs')
+
+function runWatcher(
+  overrides: Record<string, unknown> = {},
+  config: Record<string, unknown> = {
+    collaborationMode: 'trunk-solo',
+    solo: { mergeMode: 'pr-ff' },
+  },
+) {
+  const root = mkdtempSync(join(tmpdir(), 'arbiter-ff-watch-'))
+  roots.push(root)
+  const statePath = join(root, 'state.json')
+  const ghPath = join(root, 'gh')
+  writeFileSync(join(root, 'arbiter.json'), JSON.stringify(config))
+  writeFileSync(
+    statePath,
+    JSON.stringify({
+      calls: [],
+      viewCalls: 0,
+      base: BASE,
+      head: HEAD,
+      merged: false,
+      ...overrides,
+    }),
+  )
+  writeFileSync(
+    ghPath,
+    `#!/usr/bin/env node
+const fs = require('node:fs')
+const statePath = process.env.FAKE_GH_STATE
+const state = JSON.parse(fs.readFileSync(statePath, 'utf8'))
+const args = process.argv.slice(2)
+state.calls.push(args)
+function save() { fs.writeFileSync(statePath, JSON.stringify(state)) }
+if (args[0] === 'pr' && args[1] === 'view') {
+  state.viewCalls++
+  const head = state.changeHeadAt === state.viewCalls ? 'c'.repeat(40) : state.head
+  const base = state.changeBaseAt === state.viewCalls ? 'd'.repeat(40) : state.base
+  const out = {
+    state: state.merged ? 'MERGED' : 'OPEN',
+    statusCheckRollup: [
+      {name: 'CI Required', conclusion: 'SUCCESS'},
+      {name: 'Optional', conclusion: 'SKIPPED'},
+    ],
+    headRefOid: head,
+    baseRefOid: base,
+    baseRefName: 'main',
+    headRefName: 'task/#2148-ff-watcher',
+    isCrossRepository: Boolean(state.crossRepository),
+    isDraft: false,
+    mergeable: 'MERGEABLE',
+  }
+  save()
+  process.stdout.write(JSON.stringify(out))
+} else if (args[0] === 'api' && args[1] === 'graphql') {
+  let input = ''
+  process.stdin.setEncoding('utf8')
+  process.stdin.on('data', (chunk) => { input += chunk })
+  process.stdin.on('end', () => {
+    const body = JSON.parse(input)
+    state.mutationInput = body
+    const updates = body.variables.refUpdates
+    const main = updates.find((update) => update.name === 'refs/heads/main')
+    const head = updates.find((update) => update.name === 'refs/heads/task/#2148-ff-watcher')
+    if (
+      main.beforeOid !== state.base ||
+      main.afterOid !== state.head ||
+      main.force !== false ||
+      head.beforeOid !== state.head ||
+      head.afterOid !== state.head ||
+      head.force !== false
+    ) process.exitCode = 1
+    else {
+      if (!state.dontMoveBase) {
+        state.base = main.afterOid
+        state.merged = true
+      }
+      process.stdout.write(JSON.stringify({data: {updateRefs: {clientMutationId: null}}}))
+    }
+    save()
+  })
+} else if (args[0] === 'api' && args[1] === 'repos/owner/repo') {
+  save()
+  process.stdout.write(JSON.stringify({
+    node_id: 'R_fake',
+    allow_merge_commit: true,
+    allow_squash_merge: false,
+    allow_rebase_merge: Boolean(state.allowRebase),
+  }))
+} else if (args[0] === 'api' && args[1] === 'repos/owner/repo/branches/main/protection') {
+  save()
+  process.stdout.write(JSON.stringify({
+    required_linear_history: {enabled: false},
+    required_status_checks: {strict: true, contexts: ['CI Required']},
+    enforce_admins: {enabled: false},
+    allow_force_pushes: {enabled: false},
+    allow_deletions: {enabled: false},
+  }))
+} else if (args[0] === 'api' && args[1].includes('/git/ref/heads/main')) {
+  save()
+  process.stdout.write(JSON.stringify({object: {sha: state.base}}))
+} else {
+  save()
+  process.stderr.write('unsupported fake gh call: ' + JSON.stringify(args))
+  process.exitCode = 9
+}
+`,
+  )
+  chmodSync(ghPath, 0o755)
+
+  const result = spawnSync(
+    process.execPath,
+    [WATCHER, 'owner/repo', '2148', '--timeout-min', '1', '--interval-sec', '0'],
+    {
+      cwd: root,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PATH: `${root}:${dirname(process.execPath)}`,
+        FAKE_GH_STATE: statePath,
+      },
+    },
+  )
+  return {
+    result,
+    state: JSON.parse(readFileSync(statePath, 'utf8')) as {
+      base: string
+      merged: boolean
+      mutationInput?: {
+        variables: {
+          refUpdates: Array<{
+            name: string
+            beforeOid: string
+            afterOid: string
+            force: boolean
+          }>
+        }
+      }
+      calls: string[][]
+    },
+  }
+}
+
+describe('pr-merge-watch exact-SHA promotion (#2148)', () => {
+  it('promotes the gated head with force=false and verifies the merged PR', () => {
+    const { result, state } = runWatcher()
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
+    expect(state.base).toBe(HEAD)
+    expect(state.merged).toBe(true)
+    expect(state.mutationInput?.variables.refUpdates).toEqual([
+      { name: 'refs/heads/main', beforeOid: BASE, afterOid: HEAD, force: false },
+      {
+        name: 'refs/heads/task/#2148-ff-watcher',
+        beforeOid: HEAD,
+        afterOid: HEAD,
+        force: false,
+      },
+    ])
+    expect(state.calls.some((args) => args[0] === 'pr' && args[1] === 'merge')).toBe(false)
+  })
+
+  it('fails closed without touching main when the checked head changes', () => {
+    const { result, state } = runWatcher({ changeHeadAt: 2 })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/head.*changed/i)
+    expect(state.base).toBe(BASE)
+    expect(state.mutationInput).toBeUndefined()
+  })
+
+  it('fails closed without touching main when the checked base changes', () => {
+    const { result, state } = runWatcher({ changeBaseAt: 2 })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/base.*changed/i)
+    expect(state.base).toBe(BASE)
+    expect(state.mutationInput).toBeUndefined()
+  })
+
+  it('fails closed when live GitHub settings allow rebase merge', () => {
+    const { result, state } = runWatcher({ allowRebase: true })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('allow_rebase_merge')
+    expect(state.base).toBe(BASE)
+    expect(state.mutationInput).toBeUndefined()
+  })
+
+  it('exits ERROR when mutation response is green but main does not equal the gated head', () => {
+    const { result, state } = runWatcher({ dontMoveBase: true })
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/main.*gated head/i)
+    expect(state.base).toBe(BASE)
+  })
+
+  it('fails before any GitHub call outside trunk-solo + pr-ff', () => {
+    const { result, state } = runWatcher(
+      {},
+      { collaborationMode: 'peer-review', solo: { mergeMode: 'pr-ff' } },
+    )
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('requires trunk-solo + pr-ff')
+    expect(state.calls).toEqual([])
+  })
+})

@@ -1672,14 +1672,14 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-101',
     tier: 'architectural',
-    title: 'ff-only merge is the only allowed merge method',
+    title: 'exact-SHA non-force landing for evidence-bearing changes',
     description:
-      'Every arbiter-scaffolded project must disallow squash-merge and rebase-merge. ' +
-      'Squash loses commit granularity; rebase rewrites SHAs, invalidating cosign attestations. ' +
-      'The only permitted merge path is merge-commit with required_linear_history:true (ff-only ' +
-      'enforced server-side) or direct push via git push origin HEAD:main (trunk-solo mode). ' +
-      'Repo settings: allow_merge_commit:true, allow_squash_merge:false, allow_rebase_merge:false. ' +
-      'Branch protection: required_linear_history:true, required_signatures:true (L3+).',
+      'An evidence-bearing trunk-solo + pr-ff landing atomically advances main from the observed ' +
+      'gated base to the exact gated head with updateRefs and force:false, while asserting the ' +
+      'head ref in the same transaction. Success requires live-policy validation and post-read ' +
+      'main == gatedHeadSha; GitHub PR merge methods are forbidden. Repo compatibility settings: ' +
+      'allow_merge_commit:true, allow_squash_merge:false, allow_rebase_merge:false. Branch settings: ' +
+      'required_linear_history:false, allow_force_pushes:false, allow_deletions:false.',
     alwaysActive: true,
     selfOnly: false,
     enforcement: 'scripts/check-merge-method.mjs (L1)',

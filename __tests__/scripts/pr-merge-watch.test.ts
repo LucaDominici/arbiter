@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { dirname } from 'node:path'
-import { classify, pickMergeMethod } from '../../scripts/pr-merge-watch.mjs'
+import { classify, validatePromotion } from '../../scripts/pr-merge-watch.mjs'
 
 // PATH scoped to node's OWN directory only — `gh` (and everything else) is
 // unreachable, so if --self-test ever shells out to `gh` the spawn throws
@@ -56,23 +56,67 @@ describe('classify (#2098) — green/hard-fail/pending predicate', () => {
   it('hard-fail wins over a simultaneous pending check', () => {
     expect(classify(rollup(['FAILURE', '']))).toBe('hard-fail')
   })
+
+  it('stays pending when the required CI context is absent', () => {
+    expect(classify([{ name: 'Optional', conclusion: 'SUCCESS' }], ['CI Required'])).toBe('pending')
+  })
+
+  it('accepts a green required CI context plus skipped optional checks', () => {
+    expect(
+      classify(
+        [
+          { name: 'CI Required', conclusion: 'SUCCESS' },
+          { name: 'Optional', conclusion: 'SKIPPED' },
+        ],
+        ['CI Required'],
+      ),
+    ).toBe('green')
+  })
 })
 
-describe('pickMergeMethod (#2098) — squash > rebase > merge-commit', () => {
-  it('prefers squash when allowed', () => {
-    expect(pickMergeMethod({ squash: true, rebase: true, merge: true })).toBe('squash')
+describe('validatePromotion (#2148) — exact-SHA TOCTOU guard', () => {
+  const checked = {
+    state: 'OPEN',
+    headRefOid: 'b'.repeat(40),
+    baseRefOid: 'a'.repeat(40),
+    baseRefName: 'main',
+    headRefName: 'task/#2148-ff-watcher',
+    isCrossRepository: false,
+    isDraft: false,
+    mergeable: 'MERGEABLE',
+  }
+
+  it('accepts an unchanged same-repository snapshot', () => {
+    expect(validatePromotion(checked, { ...checked })).toBeNull()
   })
 
-  it('falls back to rebase when squash is disallowed', () => {
-    expect(pickMergeMethod({ squash: false, rebase: true, merge: true })).toBe('rebase')
+  it('rejects a head SHA change after checks went green', () => {
+    expect(validatePromotion(checked, { ...checked, headRefOid: 'c'.repeat(40) })).toMatch(
+      /head.*changed/i,
+    )
   })
 
-  it('falls back to merge-commit when only merge-commit is allowed', () => {
-    expect(pickMergeMethod({ squash: false, rebase: false, merge: true })).toBe('merge')
+  it('rejects a base SHA change after checks went green', () => {
+    expect(validatePromotion(checked, { ...checked, baseRefOid: 'd'.repeat(40) })).toMatch(
+      /base.*changed/i,
+    )
   })
 
-  it('returns null when no merge method is allowed', () => {
-    expect(pickMergeMethod({ squash: false, rebase: false, merge: false })).toBeNull()
+  it('rejects cross-repository promotion', () => {
+    expect(validatePromotion(checked, { ...checked, isCrossRepository: true })).toMatch(
+      /cross-repository/i,
+    )
+  })
+
+  it('rejects a PR that is no longer open', () => {
+    expect(validatePromotion(checked, { ...checked, state: 'CLOSED' })).toMatch(/not OPEN/)
+  })
+
+  it('rejects draft and conflicting PRs', () => {
+    expect(validatePromotion(checked, { ...checked, isDraft: true })).toMatch(/draft/)
+    expect(validatePromotion(checked, { ...checked, mergeable: 'CONFLICTING' })).toMatch(
+      /mergeable/,
+    )
   })
 })
 

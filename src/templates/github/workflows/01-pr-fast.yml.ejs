@@ -7,10 +7,11 @@ permissions:
 on:
   push:
 <% if (_bs === 'github-flow-with-develop') { %>
-    branches: [main, develop, "task/**"]
+    branches: [main, develop]
 <% } else { %>
-    branches: [main, "task/**"]
+    branches: [main]
 <% } %>
+  workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened, labeled, ready_for_review, unlabeled]
 <% if (_bs === 'github-flow-with-develop') { %>
@@ -18,12 +19,6 @@ on:
 <% } else { %>
     branches: [main]
 <% } %>
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '.gitignore'
-      - '.editorconfig'
-
 # Cancel in-progress runs on the same ref; main always completes (#357).
 concurrency:
   group: pr-fast-${{ github.head_ref || github.ref }}
@@ -1109,4 +1104,4 @@ jobs:
       failure_summary: Post-merge L2 gate failed on main — a change merged without full verification.
       status: failure
 <% } %>
-<% } %>
+<% } -%>

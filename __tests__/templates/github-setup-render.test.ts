@@ -62,15 +62,23 @@ describe('apply-branch-protection.mjs.ejs rendering (CANON-04)', () => {
     )
   }
 
-  it('ci-required and human-approval-required contexts present', () => {
+  it('uses the actual GitHub check names for peer-review', () => {
     const content = renderBP({ governanceLevel: 'L2' })
-    expect(content).toContain('ci-required')
-    expect(content).toContain('human-approval-required')
+    expect(content).toContain('CI Required')
+    expect(content).toContain('Human Approval Required (INV-74)')
   })
 
-  it('allow_force_pushes: false present', () => {
+  it('trunk-solo drops the impossible self-approval context and review rule', () => {
+    const content = renderBP({ governanceLevel: 'L2', collaborationMode: 'trunk-solo' })
+    expect(content).toContain('CI Required')
+    expect(content).not.toContain('Human Approval Required (INV-74)')
+    expect(content).toContain('required_pull_request_reviews: null')
+  })
+
+  it('imports the canonical exact-SHA branch settings', () => {
     const content = renderBP({ governanceLevel: 'L2' })
-    expect(content).toContain('allow_force_pushes')
+    expect(content).toContain('EXACT_SHA_BRANCH_SETTINGS')
+    expect(content).toContain('./lib/exact-sha-policy.mjs')
   })
 
   it('L3: require_code_owner_reviews is true', () => {
@@ -335,6 +343,15 @@ describe('check-merge-method.mjs.ejs rendering + runtime (CANON-04, INV-101, #10
         join(dir, 'scripts', 'apply-branch-protection.mjs'),
         render('apply-branch-protection.mjs.ejs', { useGitHub: true, governanceLevel: 'L2' }),
       )
+      mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+      writeFileSync(
+        join(dir, 'scripts', 'lib', 'exact-sha-policy.mjs'),
+        render('lib/exact-sha-policy.mjs.ejs', { useGitHub: true, governanceLevel: 'L2' }),
+      )
+      writeFileSync(
+        join(dir, 'scripts', 'pr-merge-watch.mjs'),
+        render('pr-merge-watch.mjs.ejs', { useGitHub: true, governanceLevel: 'L2' }),
+      )
       writeFileSync(
         join(dir, 'scripts', 'check-merge-method.mjs'),
         render('check-merge-method.mjs.ejs', { useGitHub: true, governanceLevel: 'L2' }),
@@ -344,7 +361,7 @@ describe('check-merge-method.mjs.ejs rendering + runtime (CANON-04, INV-101, #10
         cwd: dir,
         encoding: 'utf-8',
       })
-      expect(out).toContain('ff-only merge flags present')
+      expect(out).toContain('exact-SHA landing policy')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

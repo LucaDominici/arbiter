@@ -12,7 +12,9 @@
 // Usage: pr-merge-watch <owner/repo> <pr-number> [--timeout-min 90] [--interval-sec 30]
 //        pr-merge-watch --self-test   (pure predicate fixtures, no `gh` calls)
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
 
 const HARD_FAIL = new Set([
   'FAILURE',
@@ -30,26 +32,42 @@ const GREEN_OK = new Set(['SUCCESS', 'SKIPPED', 'NEUTRAL'])
  * - 'green' requires a NON-EMPTY rollup where every conclusion is in
  *   {SUCCESS, SKIPPED, NEUTRAL} — an empty conclusion ('') means the check
  *   is still queued/in-progress, which is 'pending', not 'green'.
- * @param {Array<{conclusion: string}>} rollup
+ * @param {Array<{conclusion: string, name?: string, context?: string}>} rollup
+ * @param {string[]} required
  * @returns {'green'|'hard-fail'|'pending'}
  */
-export function classify(rollup) {
+export function classify(rollup, required = []) {
   if (!Array.isArray(rollup) || rollup.length === 0) return 'pending'
   if (rollup.some((c) => HARD_FAIL.has(c.conclusion))) return 'hard-fail'
+  const names = new Set(rollup.map((check) => check.name ?? check.context).filter(Boolean))
+  if (required.some((name) => !names.has(name))) return 'pending'
   return rollup.every((c) => GREEN_OK.has(c.conclusion)) ? 'green' : 'pending'
 }
 
 /**
- * Merge method preference: squash > rebase > merge-commit, restricted to
- * what the repo's branch-protection settings actually allow.
- * @param {{squash: boolean, rebase: boolean, merge: boolean}} flags
- * @returns {'squash'|'rebase'|'merge'|null}
+ * Fail-closed guard between the checked PR snapshot and the atomic promotion.
+ * @param {Record<string, unknown>} checked
+ * @param {Record<string, unknown>} current
+ * @returns {string|null}
  */
-export function pickMergeMethod(flags) {
-  if (flags.squash) return 'squash'
-  if (flags.rebase) return 'rebase'
-  if (flags.merge) return 'merge'
-  return null
+export function validatePromotion(checked, current) {
+  const checks = [
+    [checked.state !== 'OPEN' || current.state !== 'OPEN', 'PR is not OPEN'],
+    [
+      checked.isCrossRepository || current.isCrossRepository,
+      'cross-repository PRs cannot use exact-SHA promotion',
+    ],
+    [checked.isDraft || current.isDraft, 'draft PR cannot be promoted'],
+    [checked.mergeable !== 'MERGEABLE' || current.mergeable !== 'MERGEABLE', 'PR is not mergeable'],
+    [checked.headRefOid !== current.headRefOid, 'head SHA changed after checks went green'],
+    [checked.baseRefOid !== current.baseRefOid, 'base SHA changed after checks went green'],
+    [checked.headRefName !== current.headRefName, 'head ref changed after checks went green'],
+    [checked.baseRefName !== current.baseRefName, 'base ref changed after checks went green'],
+    [!/^[0-9a-f]{40}$/.test(String(current.headRefOid)), 'head SHA is invalid'],
+    [!/^[0-9a-f]{40}$/.test(String(current.baseRefOid)), 'base SHA is invalid'],
+    [current.baseRefName !== 'main', 'base ref is not main'],
+  ]
+  return checks.find(([failed]) => failed)?.[1] ?? null
 }
 
 const SELF_TEST_FIXTURES = [
@@ -105,8 +123,12 @@ function parseArgs(argv) {
   return { ownerRepo, prNumber, timeoutMin, intervalSec, selfTest }
 }
 
-function ghJson(args) {
-  const out = execFileSync('gh', args, { encoding: 'utf-8', timeout: 30_000 })
+function ghJson(args, input) {
+  const out = execFileSync('gh', args, {
+    encoding: 'utf-8',
+    timeout: 30_000,
+    ...(input === undefined ? {} : { input: JSON.stringify(input) }),
+  })
   return JSON.parse(out)
 }
 
@@ -114,26 +136,130 @@ function sleep(ms) {
   return new Promise((res) => setTimeout(res, ms))
 }
 
-/** Green path: pick the repo's preferred merge method and merge, or exit 1 if none is allowed. */
-function mergeAndExit(ownerRepo, prNumber) {
-  const flags = ghJson([
-    'api',
-    `repos/${ownerRepo}`,
-    '--jq',
-    '{squash:.allow_squash_merge,rebase:.allow_rebase_merge,merge:.allow_merge_commit}',
+function fetchPr(ownerRepo, prNumber) {
+  return ghJson([
+    'pr',
+    'view',
+    String(prNumber),
+    '-R',
+    ownerRepo,
+    '--json',
+    'state,statusCheckRollup,headRefOid,baseRefOid,baseRefName,headRefName,isCrossRepository,isDraft,mergeable',
   ])
-  const method = pickMergeMethod(flags)
-  if (!method) {
-    process.stderr.write(`pr-merge-watch: repo allows no merge method: ${JSON.stringify(flags)}\n`)
+}
+
+function assertSoloPrFf() {
+  let config
+  try {
+    config = JSON.parse(readFileSync('arbiter.json', 'utf8'))
+  } catch (error) {
+    process.stderr.write(`pr-merge-watch: cannot read arbiter.json: ${error.message}\n`)
+    process.exit(2)
+  }
+  if (config.collaborationMode !== 'trunk-solo' || config.solo?.mergeMode !== 'pr-ff') {
+    process.stderr.write('pr-merge-watch: exact-SHA promotion requires trunk-solo + pr-ff\n')
     process.exit(1)
   }
-  process.stdout.write(`pr-merge-watch: green — merging PR #${prNumber} via --${method}\n`)
-  execFileSync(
-    'gh',
-    ['pr', 'merge', String(prNumber), '-R', ownerRepo, '--admin', '--delete-branch', `--${method}`],
-    { stdio: 'inherit' },
+}
+
+const UPDATE_REFS_MUTATION = `mutation PromoteExactSha(
+  $repositoryId: ID!,
+  $refUpdates: [RefUpdate!]!
+) {
+  updateRefs(input: {repositoryId: $repositoryId, refUpdates: $refUpdates}) {
+    clientMutationId
+  }
+}`
+
+function readPromotionPolicy(ownerRepo) {
+  const repository = ghJson(['api', `repos/${ownerRepo}`])
+  const repositoryId = repository.node_id
+  if (!repositoryId) {
+    process.stderr.write('pr-merge-watch: repository node ID is missing\n')
+    process.exit(2)
+  }
+  const protection = ghJson(['api', `repos/${ownerRepo}/branches/main/protection`])
+  const policyErrors = validateLiveExactShaPolicy(repository, protection)
+  if (policyErrors.length > 0) {
+    process.stderr.write(
+      `pr-merge-watch: live INV-101 policy drift:\n${policyErrors.map((e) => `- ${e}`).join('\n')}\n`,
+    )
+    process.exit(1)
+  }
+  return repositoryId
+}
+
+function buildRefUpdates(current) {
+  return [
+    {
+      name: `refs/heads/${current.baseRefName}`,
+      beforeOid: current.baseRefOid,
+      afterOid: current.headRefOid,
+      force: false,
+    },
+    {
+      name: `refs/heads/${current.headRefName}`,
+      beforeOid: current.headRefOid,
+      afterOid: current.headRefOid,
+      force: false,
+    },
+  ]
+}
+
+function updateRefs(repositoryId, refUpdates) {
+  process.stdout.write(
+    `pr-merge-watch: green — atomically promoting exact SHA ${refUpdates[0].afterOid} (force=false)\n`,
   )
-  process.exit(0)
+  try {
+    const response = ghJson(['api', 'graphql', '--input', '-'], {
+      query: UPDATE_REFS_MUTATION,
+      variables: { repositoryId, refUpdates },
+    })
+    if (!response?.data?.updateRefs) throw new Error('updateRefs returned no success payload')
+  } catch (error) {
+    process.stderr.write(`pr-merge-watch: exact-SHA promotion failed: ${error.message}\n`)
+    process.exit(1)
+  }
+}
+
+function verifyMain(ownerRepo, expectedHead) {
+  const mainRef = ghJson(['api', `repos/${ownerRepo}/git/ref/heads/main`])
+  if (mainRef?.object?.sha !== expectedHead) {
+    process.stderr.write(
+      'pr-merge-watch: ERROR — main does not equal the gated head after updateRefs\n',
+    )
+    process.exit(2)
+  }
+}
+
+async function verifyMerged(ownerRepo, prNumber, expectedHead, deadline, intervalSec, timeoutMin) {
+  for (;;) {
+    const verified = fetchPr(ownerRepo, prNumber)
+    if (verified.state === 'MERGED' && verified.headRefOid === expectedHead) {
+      process.stdout.write(`pr-merge-watch: merged PR #${prNumber}; main=${expectedHead}\n`)
+      process.exit(0)
+    }
+    if (Date.now() >= deadline) {
+      process.stderr.write(
+        `pr-merge-watch: timeout after ${timeoutMin}min verifying GitHub marked PR #${prNumber} MERGED\n`,
+      )
+      process.exit(2)
+    }
+    await sleep(intervalSec * 1000)
+  }
+}
+
+async function promoteExactSha(ownerRepo, prNumber, checked, deadline, intervalSec, timeoutMin) {
+  const current = fetchPr(ownerRepo, prNumber)
+  const rejection = validatePromotion(checked, current)
+  if (rejection) {
+    process.stderr.write(`pr-merge-watch: promotion rejected — ${rejection}\n`)
+    process.exit(1)
+  }
+  const repositoryId = readPromotionPolicy(ownerRepo)
+  updateRefs(repositoryId, buildRefUpdates(current))
+  verifyMain(ownerRepo, current.headRefOid)
+  await verifyMerged(ownerRepo, prNumber, current.headRefOid, deadline, intervalSec, timeoutMin)
 }
 
 /**
@@ -144,16 +270,7 @@ function mergeAndExit(ownerRepo, prNumber) {
 async function fetchRollupWithRetry(ownerRepo, prNumber, deadline, intervalSec, timeoutMin) {
   for (;;) {
     try {
-      const view = ghJson([
-        'pr',
-        'view',
-        String(prNumber),
-        '-R',
-        ownerRepo,
-        '--json',
-        'state,statusCheckRollup',
-      ])
-      return view.statusCheckRollup ?? []
+      return fetchPr(ownerRepo, prNumber)
     } catch (e) {
       process.stderr.write(`pr-merge-watch: gh pr view failed, retrying: ${e.message}\n`)
       if (Date.now() >= deadline) {
@@ -183,17 +300,19 @@ async function main() {
     )
     process.exit(2)
   }
+  assertSoloPrFf()
 
   const deadline = Date.now() + timeoutMin * 60_000
   for (;;) {
-    const rollup = await fetchRollupWithRetry(
+    const snapshot = await fetchRollupWithRetry(
       ownerRepo,
       prNumber,
       deadline,
       intervalSec,
       timeoutMin,
     )
-    const status = classify(rollup)
+    const rollup = snapshot.statusCheckRollup ?? []
+    const status = classify(rollup, ['CI Required'])
 
     if (status === 'hard-fail') {
       process.stderr.write(
@@ -203,7 +322,7 @@ async function main() {
     }
 
     if (status === 'green') {
-      mergeAndExit(ownerRepo, prNumber)
+      await promoteExactSha(ownerRepo, prNumber, snapshot, deadline, intervalSec, timeoutMin)
     }
 
     if (Date.now() >= deadline) {
@@ -221,6 +340,6 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url)
 if (isMain) {
   main().catch((e) => {
     process.stderr.write(`pr-merge-watch: unexpected error: ${e.stack ?? e}\n`)
-    process.exit(1)
+    process.exit(2)
   })
 }

@@ -27,6 +27,11 @@ export function generatePrTooling(
 ): PrToolingResult {
   const files: WriteResult[] = [
     writeFile(
+      resolvedPath(config.targetDir, 'scripts', 'lib', 'exact-sha-policy.mjs'),
+      renderTemplate('scripts/lib/exact-sha-policy.mjs.ejs', config),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+    writeFile(
       resolvedPath(config.targetDir, 'scripts', 'lib', 'waiter-count.mjs'),
       renderTemplate('scripts/lib/waiter-count.mjs.ejs', config),
       { skipIfExists: true, dryRun: opts.dryRun },

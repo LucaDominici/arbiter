@@ -43,6 +43,9 @@ const SKIP_FILES = new Set([
   'scripts/lib/run-helpers.mjs',
   'scripts/lib/parse-check-args.mjs',
   'scripts/lib/glob-walk.mjs', // #1366: pure glob/tree-walk helper; consumers own the exit contract
+  // #2148 pure exact-SHA policy declarations/validation; the watcher and branch
+  // protection applicator own all I/O and convert validation errors fail-closed.
+  'scripts/lib/exact-sha-policy.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

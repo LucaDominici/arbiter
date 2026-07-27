@@ -54,10 +54,10 @@ describe('apply-branch-protection.mjs (#868)', () => {
       expect(output).toContain('CI Required')
     })
 
-    it('shows Human Approval Required in the dry-run output', () => {
+    it('does not require the impossible self-approval context in trunk-solo', () => {
       const result = run(['--dry-run', '--repo', 'owner/repo'])
       const output = result.stdout + result.stderr
-      expect(output).toContain('Human Approval Required')
+      expect(output).not.toContain('Human Approval Required')
     })
 
     it('prints Dry-run complete at end', () => {
@@ -108,12 +108,12 @@ describe('apply-branch-protection.mjs (#868)', () => {
       expect(parsed.branchProtection.required_status_checks.contexts).toContain('CI Required')
     })
 
-    it('dry-run --json branchProtection includes Human Approval Required (INV-74) context (job name, not job id)', () => {
+    it('dry-run --json omits Human Approval Required in trunk-solo', () => {
       const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
       const parsed = JSON.parse(result.stdout.trim()) as {
         branchProtection: { required_status_checks: { contexts: string[] } }
       }
-      expect(parsed.branchProtection.required_status_checks.contexts).toContain(
+      expect(parsed.branchProtection.required_status_checks.contexts).not.toContain(
         'Human Approval Required (INV-74)',
       )
     })
@@ -148,12 +148,12 @@ describe('apply-branch-protection.mjs (#868)', () => {
       expect(parsed.repoSettings.allow_rebase_merge).toBe(false)
     })
 
-    it('dry-run --json branchProtection has required_linear_history: true (INV-101)', () => {
+    it('dry-run --json disables linear-history; exact SHA is enforced by atomic CAS (INV-101)', () => {
       const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
       const parsed = JSON.parse(result.stdout.trim()) as {
         branchProtection: { required_linear_history: boolean }
       }
-      expect(parsed.branchProtection.required_linear_history).toBe(true)
+      expect(parsed.branchProtection.required_linear_history).toBe(false)
     })
   })
 

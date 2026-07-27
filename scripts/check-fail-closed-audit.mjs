@@ -103,6 +103,9 @@ const SKIP_FILES = new Set([
   // #2135 pure private-consumer reliability oracles; executable prepare/verifier/probe
   // entry points own the 0/1/2 contract and convert every oracle verdict fail-closed.
   'scripts/lib/consumer-reliability-bar.mjs',
+  // #2148 pure exact-SHA policy declarations/validation; the watcher and branch
+  // protection applicator own all I/O and convert validation errors fail-closed.
+  'scripts/lib/exact-sha-policy.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

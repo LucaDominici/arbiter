@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2149",
+  "test_path": "__tests__/templates/01-pr-fast-render.test.ts",
+  "test_commit_sha": "d228efb6bce48e004c9fc8a57a107cefa935d4ac",
+  "test_run_log": "RUN v4.1.10\nFAIL #2149: task SHA runs once via pull_request; push retains only post-merge branches\nexpected push branches [main], received [main, task/**]\nexpected push branches [main, develop], received [main, develop, task/**]\n\nRUN v4.1.10\nFAIL #2149: self repo has exactly one workflow capable of reporting CI Required\nexpected obsolete docs shim to be absent, received present",
+  "observed_failure": "task branches were wired to both push and pull_request T1 triggers; after removing paths-ignore, the legacy docs shim remained a second premature CI Required reporter",
+  "recorded_at": "2026-07-27T14:59:19.000Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/templates/01-pr-fast-render.test.ts"
+  ]
+}

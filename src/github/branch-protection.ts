@@ -36,7 +36,7 @@ export function applyBranchProtection(
           restrictions: null,
           allow_force_pushes: false,
           allow_deletions: false,
-          required_linear_history: true,
+          required_linear_history: false,
         }
       : {
           required_status_checks: {
@@ -51,7 +51,7 @@ export function applyBranchProtection(
           restrictions: null,
           allow_force_pushes: false,
           allow_deletions: false,
-          required_linear_history: true,
+          required_linear_history: false,
         },
   )
 

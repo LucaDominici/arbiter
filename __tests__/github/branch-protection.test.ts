@@ -56,7 +56,7 @@ describe('applyBranchProtection (#1082, INV-101)', () => {
     expect(payload.allow_rebase_merge).toBe(false)
   })
 
-  it('PUT payload includes required_linear_history:true for all modes', async () => {
+  it('PUT payload disables GitHub linear-history mode; exact SHA is enforced by CAS', async () => {
     const { applyBranchProtection } = await import('../../src/github/branch-protection.js')
     for (const mode of ['trunk-solo', 'peer-review', 'gated-review'] as const) {
       vi.resetAllMocks()
@@ -71,8 +71,8 @@ describe('applyBranchProtection (#1082, INV-101)', () => {
       expect(putCall, `PUT call missing for mode ${mode}`).toBeDefined()
       const input = putCall?.[2]?.input as string
       const payload = JSON.parse(input) as Record<string, unknown>
-      expect(payload.required_linear_history, `required_linear_history missing for ${mode}`).toBe(
-        true,
+      expect(payload.required_linear_history, `required_linear_history wrong for ${mode}`).toBe(
+        false,
       )
     }
   })

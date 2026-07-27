@@ -286,9 +286,9 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `scripts/check-collab-mode-wired.mjs` (L1)
   - Every arbiter-scaffolded project must declare `collaborationMode` in `arbiter.json`. Valid values: `trunk-solo`, `peer-review`, `gated-review`. Absent collaborationMode falls back to deprecated `soloDevMode` inference. Run `arbiter update` to auto-migrate.
 
-- **INV-101:** ff-only merge is the only allowed merge method
+- **INV-101:** exact-SHA non-force landing for evidence-bearing changes
   - _Enforcement:_ `scripts/check-merge-method.mjs` (L1)
-  - Every arbiter-scaffolded project must disallow squash-merge and rebase-merge. Squash loses commit granularity; rebase rewrites SHAs, invalidating cosign attestations. The only permitted merge path is merge-commit with `required_linear_history:true` (ff-only enforced server-side) or direct push via `git push origin HEAD:main` (trunk-solo mode). Repo settings: `allow_merge_commit:true`, `allow_squash_merge:false`, `allow_rebase_merge:false`. Branch protection: `required_linear_history:true`, `required_signatures:true` (L3+).
+  - An evidence-bearing `trunk-solo + pr-ff` landing atomically advances `main` from the observed gated base to the exact gated head with GraphQL `updateRefs`, including a same-transaction head-ref assertion and `force:false`. Success requires live-policy validation and post-verification `main == gatedHeadSha`; GitHub PR merge methods are forbidden. Repo compatibility settings are `allow_merge_commit:true`, `allow_squash_merge:false`, `allow_rebase_merge:false`; branch protection uses `required_linear_history:false`, `allow_force_pushes:false`, and `allow_deletions:false`. Linearity comes from the non-force compare-and-swap, not GitHub's inoperable linear-history/merge-method tuple.
 
 - **INV-106:** i18n parity — all locale files must have identical key sets
   - _Enforcement:_ Generated `scripts/verify-i18n-parity.mjs` + `scripts/i18n-literal-scanner.mjs` (L2, frontend-spa and frontend-lane projects)

@@ -255,7 +255,8 @@ a redo is rework data:
 
 
 
-**peer-review / gated-review (or pr-ff):** open a PR and merge once checks pass:
+**trunk-solo + pr-ff:** open a PR as the check/audit carrier, then atomically
+fast-forward `main` to the exact gated head SHA:
 
 ```bash
 gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
@@ -274,8 +275,9 @@ gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
 Closes #NNN
 PRBODY
 )"
-gh pr checks --watch
-gh pr merge --rebase --admin
+node scripts/pr-merge-watch.mjs \
+  "$(gh repo view --json nameWithOwner -q .nameWithOwner)" \
+  "$(gh pr view --json number -q .number)"
 ```
 
 

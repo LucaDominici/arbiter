@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2148",
+  "test_path": "__tests__/scripts/pr-merge-watch-promotion.test.ts",
+  "test_commit_sha": "d228efb6bce48e004c9fc8a57a107cefa935d4ac",
+  "test_run_log": "RUN v4.1.10\nFAIL pr-merge-watch exact-SHA promotion (#2148) > promotes the gated head with force=false\nunsupported fake gh call: [\"api\",\"repos/owner/repo\",\"--jq\",\"{squash:.allow_squash_merge,rebase:.allow_rebase_merge,merge:.allow_merge_commit}\"]\nexpected exit 0, received 1",
+  "observed_failure": "watcher invoked repository PR merge-method selection instead of exact-SHA ref promotion",
+  "recorded_at": "2026-07-27T14:59:19.000Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/pr-merge-watch-promotion.test.ts"
+  ]
+}

@@ -296,7 +296,15 @@ describe('claude commands: ship.md — merge step branching', () => {
   it('peer-review mode: merge step uses gh pr create/merge', () => {
     const content = renderShip('typescript', 'L2', 'peer-review', 'pr-ff')
     expect(content).toContain('gh pr create')
-    expect(content).toContain('gh pr merge')
+    expect(content).toContain('gh pr merge --merge')
+    expect(content).not.toContain('gh pr merge --rebase')
+  })
+
+  it('trunk-solo pr-ff uses the exact-SHA watcher, never a GitHub PR merge method', () => {
+    const content = renderShip('typescript', 'L2', 'trunk-solo', 'pr-ff')
+    expect(content).toContain('gh pr create')
+    expect(content).toContain('scripts/pr-merge-watch.mjs')
+    expect(content).not.toContain('gh pr merge')
   })
 })
 

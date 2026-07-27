@@ -1,260 +1,121 @@
 // SPDX-License-Identifier: Apache-2.0
-// TDD guard for #1082 — ff-only merge enforcement (INV-101).
-import { describe, it, expect } from 'vitest'
-import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs'
+// #2148: INV-101 must validate executable policy and mutation wiring, not
+// permissive flag fragments in unrelated files.
+import { describe, expect, it } from 'vitest'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 
 const SCRIPT = resolve('scripts/check-merge-method.mjs')
+const REAL_POLICY = readFileSync(resolve('scripts/lib/exact-sha-policy.mjs'), 'utf8')
+const VALID_WATCHER = `
+import { validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
+const mutation = 'updateRefs'
+const updates = [{ beforeOid: 'a', afterOid: 'b', force: false }]
+`
+const VALID_APPLICATOR = `import { EXACT_SHA_REPO_SETTINGS } from './lib/exact-sha-policy.mjs'`
 
-function run(
-  dir: string,
-  env: Record<string, string> = {},
-): { status: number; stdout: string; stderr: string } {
-  const result = spawnSync('node', [SCRIPT], {
-    encoding: 'utf-8',
-    cwd: dir,
-    env: { ...process.env, ...env },
-  })
-  return { status: result.status ?? 1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
+function fixture(
+  overrides: {
+    policy?: string | null
+    watcher?: string | null
+    applicator?: string | null
+  } = {},
+) {
+  const root = mkdtempSync(join(tmpdir(), 'check-merge-method-'))
+  writeFileSync(join(root, 'arbiter.json'), JSON.stringify({ collaborationMode: 'trunk-solo' }))
+  mkdirSync(join(root, 'scripts/lib'), { recursive: true })
+  const files = {
+    policy: overrides.policy === undefined ? REAL_POLICY : overrides.policy,
+    watcher: overrides.watcher === undefined ? VALID_WATCHER : overrides.watcher,
+    applicator: overrides.applicator === undefined ? VALID_APPLICATOR : overrides.applicator,
+  }
+  if (files.policy !== null)
+    writeFileSync(join(root, 'scripts/lib/exact-sha-policy.mjs'), files.policy)
+  if (files.watcher !== null) writeFileSync(join(root, 'scripts/pr-merge-watch.mjs'), files.watcher)
+  if (files.applicator !== null) {
+    writeFileSync(join(root, 'scripts/apply-branch-protection.mjs'), files.applicator)
+  }
+  return root
 }
 
-function makeDir(): { dir: string; cleanup: () => void } {
-  const dir = mkdtempSync(join(tmpdir(), 'check-merge-method-'))
-  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
+function run(root: string) {
+  const result = spawnSync(process.execPath, [SCRIPT], { cwd: root, encoding: 'utf8' })
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
 
-const FF_ONLY_SCRIPT_CONTENT = `
-const payload = JSON.stringify({
-  allow_merge_commit: true,
-  allow_squash_merge: false,
-  allow_rebase_merge: false,
-  required_linear_history: true,
-})
-`
-
-// Alias used by some tests
-const FF_ONLY_SELF_SCRIPT_CONTENT = FF_ONLY_SCRIPT_CONTENT
-const FF_ONLY_TEMPLATE_CONTENT = FF_ONLY_SCRIPT_CONTENT
-
-const MISSING_ALL_FLAGS_SCRIPT = `
-const payload = JSON.stringify({
-  enforce_admins: false,
-})
-`
-
-// Isolated: has rebase + linear but NOT squash
-const MISSING_SQUASH_SCRIPT = `
-const settings = {
-  allow_merge_commit: true,
-  allow_rebase_merge: false,
-  required_linear_history: true,
-}
-`
-
-// Isolated: has squash + linear but NOT rebase
-const MISSING_REBASE_SCRIPT = `
-const settings = {
-  allow_merge_commit: true,
-  allow_squash_merge: false,
-  required_linear_history: true,
-}
-`
-
-// Isolated: has squash + rebase but NOT linear history
-const MISSING_LINEAR_SCRIPT = `
-const settings = {
-  allow_merge_commit: true,
-  allow_squash_merge: false,
-  allow_rebase_merge: false,
-}
-`
-
-// Flag present but wrong value (squash=true instead of false)
-const WRONG_VALUE_SCRIPT = `
-const settings = {
-  allow_squash_merge: true,
-  allow_rebase_merge: false,
-  required_linear_history: true,
-}
-`
-
-describe('check-merge-method.mjs (#1082, INV-101)', () => {
-  it('exits 0 when no arbiter.json (not an arbiter project)', () => {
-    const { dir, cleanup } = makeDir()
+describe('check-merge-method.mjs (#2148, INV-101)', () => {
+  it('skips only an ungoverned directory without arbiter.json', () => {
+    const root = mkdtempSync(join(tmpdir(), 'check-merge-method-'))
     try {
-      const result = run(dir)
-      expect(result.status).toBe(0)
+      expect(run(root).status).toBe(0)
     } finally {
-      cleanup()
+      rmSync(root, { recursive: true, force: true })
     }
   })
 
-  it('exits 1 when scripts/apply-branch-protection.mjs missing allow_squash_merge flag', () => {
-    const { dir, cleanup } = makeDir()
+  it('passes the canonical exact-SHA policy and CAS watcher', () => {
+    const root = fixture()
     try {
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'peer-review' }))
-      mkdirSync(join(dir, 'scripts'))
-      // Isolated: has rebase + linear but NOT squash — verifies squash check specifically
-      writeFileSync(join(dir, 'scripts', 'apply-branch-protection.mjs'), MISSING_SQUASH_SCRIPT)
-      mkdirSync(join(dir, 'src', 'templates', 'scripts'), { recursive: true })
-      writeFileSync(
-        join(dir, 'src', 'templates', 'scripts', 'apply-branch-protection.mjs.ejs'),
-        FF_ONLY_TEMPLATE_CONTENT,
-      )
-      const result = run(dir)
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain('[INV-101]')
-      expect(result.stderr).toContain('allow_squash_merge')
+      const result = run(root)
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toContain('exact-SHA')
     } finally {
-      cleanup()
+      rmSync(root, { recursive: true, force: true })
     }
   })
 
-  it('exits 1 when scripts/apply-branch-protection.mjs missing allow_rebase_merge flag', () => {
-    const { dir, cleanup } = makeDir()
+  it.each([
+    ['policy', { policy: null }],
+    ['watcher', { watcher: null }],
+    ['applicator', { applicator: null }],
+  ] as const)('fails closed when %s is missing', (_label, override) => {
+    const root = fixture(override)
     try {
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'peer-review' }))
-      mkdirSync(join(dir, 'scripts'))
-      // Isolated: has squash + linear but NOT rebase — verifies rebase check specifically
-      writeFileSync(join(dir, 'scripts', 'apply-branch-protection.mjs'), MISSING_REBASE_SCRIPT)
-      mkdirSync(join(dir, 'src', 'templates', 'scripts'), { recursive: true })
-      writeFileSync(
-        join(dir, 'src', 'templates', 'scripts', 'apply-branch-protection.mjs.ejs'),
-        FF_ONLY_TEMPLATE_CONTENT,
-      )
-      const result = run(dir)
+      expect(run(root).status).toBe(1)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects policy drift that enables rebase', () => {
+    const root = fixture({
+      policy: REAL_POLICY.replace('allow_rebase_merge: false', 'allow_rebase_merge: true'),
+    })
+    try {
+      const result = run(root)
       expect(result.status).toBe(1)
-      expect(result.stderr).toContain('[INV-101]')
       expect(result.stderr).toContain('allow_rebase_merge')
     } finally {
-      cleanup()
+      rmSync(root, { recursive: true, force: true })
     }
   })
 
-  it('exits 1 when scripts/apply-branch-protection.mjs missing required_linear_history flag', () => {
-    const { dir, cleanup } = makeDir()
+  it('rejects a watcher that invokes the PR rebase endpoint', () => {
+    const root = fixture({ watcher: `${VALID_WATCHER}\ngh pr merge --rebase\n` })
     try {
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'peer-review' }))
-      mkdirSync(join(dir, 'scripts'))
-      // Isolated: has squash + rebase but NOT linear history
-      writeFileSync(join(dir, 'scripts', 'apply-branch-protection.mjs'), MISSING_LINEAR_SCRIPT)
-      mkdirSync(join(dir, 'src', 'templates', 'scripts'), { recursive: true })
-      writeFileSync(
-        join(dir, 'src', 'templates', 'scripts', 'apply-branch-protection.mjs.ejs'),
-        FF_ONLY_TEMPLATE_CONTENT,
-      )
-      const result = run(dir)
+      const result = run(root)
       expect(result.status).toBe(1)
-      expect(result.stderr).toContain('[INV-101]')
-      expect(result.stderr).toContain('required_linear_history')
+      expect(result.stderr).toMatch(/gh_pr_merge|rebase/)
     } finally {
-      cleanup()
+      rmSync(root, { recursive: true, force: true })
     }
   })
 
-  it('exits 1 when flag present with wrong value (allow_squash_merge:true fails value-aware check)', () => {
-    const { dir, cleanup } = makeDir()
+  it('rejects an applicator disconnected from the canonical policy', () => {
+    const root = fixture({ applicator: 'const settings = {}' })
     try {
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'peer-review' }))
-      mkdirSync(join(dir, 'scripts'))
-      writeFileSync(join(dir, 'scripts', 'apply-branch-protection.mjs'), WRONG_VALUE_SCRIPT)
-      mkdirSync(join(dir, 'src', 'templates', 'scripts'), { recursive: true })
-      writeFileSync(
-        join(dir, 'src', 'templates', 'scripts', 'apply-branch-protection.mjs.ejs'),
-        FF_ONLY_TEMPLATE_CONTENT,
-      )
-      const result = run(dir)
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain('[INV-101]')
-      expect(result.stderr).toContain('allow_squash_merge')
+      expect(run(root).status).toBe(1)
     } finally {
-      cleanup()
+      rmSync(root, { recursive: true, force: true })
     }
   })
 
-  it('exits 1 when template missing ff-only flags', () => {
-    const { dir, cleanup } = makeDir()
-    try {
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'peer-review' }))
-      mkdirSync(join(dir, 'scripts'))
-      writeFileSync(
-        join(dir, 'scripts', 'apply-branch-protection.mjs'),
-        FF_ONLY_SELF_SCRIPT_CONTENT,
-      )
-      mkdirSync(join(dir, 'src', 'templates', 'scripts'), { recursive: true })
-      writeFileSync(
-        join(dir, 'src', 'templates', 'scripts', 'apply-branch-protection.mjs.ejs'),
-        MISSING_ALL_FLAGS_SCRIPT,
-      )
-      const result = run(dir)
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain('[INV-101]')
-    } finally {
-      cleanup()
-    }
-  })
-
-  it('exits 0 when both scripts have all required ff-only flags', () => {
-    const { dir, cleanup } = makeDir()
-    try {
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'peer-review' }))
-      mkdirSync(join(dir, 'scripts'))
-      writeFileSync(
-        join(dir, 'scripts', 'apply-branch-protection.mjs'),
-        FF_ONLY_SELF_SCRIPT_CONTENT,
-      )
-      mkdirSync(join(dir, 'src', 'templates', 'scripts'), { recursive: true })
-      writeFileSync(
-        join(dir, 'src', 'templates', 'scripts', 'apply-branch-protection.mjs.ejs'),
-        FF_ONLY_TEMPLATE_CONTENT,
-      )
-      const result = run(dir)
-      expect(result.status).toBe(0)
-    } finally {
-      cleanup()
-    }
-  })
-
-  it('exits 0 when scripts directory absent (generated project without apply script)', () => {
-    const { dir, cleanup } = makeDir()
-    try {
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'trunk-solo' }))
-      // no scripts dir at all
-      const result = run(dir)
-      expect(result.status).toBe(0)
-    } finally {
-      cleanup()
-    }
-  })
-
-  it('script source has CATALOG marker block (INV-94 compliance)', () => {
-    const source = readFileSync(SCRIPT, 'utf-8')
-    const catalogLines = source.split('\n').filter((l) => l.startsWith('// CATALOG:'))
-    expect(catalogLines.length).toBeGreaterThanOrEqual(3)
-  })
-
-  it('stderr prefix is [INV-101] on all failure messages', () => {
-    const { dir, cleanup } = makeDir()
-    try {
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ collaborationMode: 'peer-review' }))
-      mkdirSync(join(dir, 'scripts'))
-      writeFileSync(join(dir, 'scripts', 'apply-branch-protection.mjs'), MISSING_ALL_FLAGS_SCRIPT)
-      mkdirSync(join(dir, 'src', 'templates', 'scripts'), { recursive: true })
-      writeFileSync(
-        join(dir, 'src', 'templates', 'scripts', 'apply-branch-protection.mjs.ejs'),
-        FF_ONLY_TEMPLATE_CONTENT,
-      )
-      const result = run(dir)
-      for (const line of result.stderr.split('\n').filter(Boolean)) {
-        if (!line.startsWith('[INV-101]')) {
-          // allow non-prefixed blank lines or system messages
-          expect(line).toMatch(/^\s*$|^node:/)
-        }
-      }
-    } finally {
-      cleanup()
-    }
+  it('has an INV-94 CATALOG marker block', () => {
+    const lines = readFileSync(SCRIPT, 'utf8')
+      .split('\n')
+      .filter((line) => line.startsWith('// CATALOG:'))
+    expect(lines).toHaveLength(3)
   })
 })

@@ -4,8 +4,16 @@
 // Requires: gh CLI authenticated with admin access to the repository
 <%
 const _requireCodeOwners = isL3Plus;
+const _isSolo = typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo';
+const _contexts = _isSolo
+  ? ['CI Required']
+  : ['CI Required', 'Human Approval Required (INV-74)'];
 %>
 import { spawnSync } from 'node:child_process'
+import {
+  EXACT_SHA_BRANCH_SETTINGS,
+  EXACT_SHA_REPO_SETTINGS,
+} from './lib/exact-sha-policy.mjs'
 
 function gh(...args) {
   const result = spawnSync('gh', args, { encoding: 'utf8' })
@@ -35,32 +43,28 @@ console.log(`Applying branch protection to ${repo} main branch...`)
 const payload = JSON.stringify({
   required_status_checks: {
     strict: true,
-    contexts: ['ci-required', 'human-approval-required'],
+    contexts: <%- JSON.stringify(_contexts) %>,
   },
   enforce_admins: false,
+<% if (_isSolo) { %>
+  required_pull_request_reviews: null,
+<% } else { %>
   required_pull_request_reviews: {
     required_approving_review_count: 1,
     dismiss_stale_reviews: true,
     require_code_owner_reviews: <%= _requireCodeOwners %>,
   },
+<% } %>
   restrictions: null,
-  allow_force_pushes: false,
-  allow_deletions: false,
-  required_linear_history: true,
+  ...EXACT_SHA_BRANCH_SETTINGS,
 })
 
 ghApi(`repos/${repo}/branches/main/protection`, 'PUT', JSON.parse(payload))
 
-// INV-101: disable squash-merge and rebase-merge to preserve cosign SHA attestations.
-// allow_merge_commit:true is required — GitHub 422s if all three methods are disabled.
-// These settings live on PATCH /repos/{owner}/{repo}, not on the branch protection endpoint.
-const repoSettings = JSON.stringify({
-  allow_merge_commit: true,
-  allow_squash_merge: false,
-  allow_rebase_merge: false,
-})
+// INV-101: canonical executable policy shared with pr-merge-watch.
+const repoSettings = JSON.stringify(EXACT_SHA_REPO_SETTINGS)
 
 ghApi(`repos/${repo}`, 'PATCH', JSON.parse(repoSettings))
 
 console.log('Branch protection and merge settings applied.')
-console.log('  Merge method: ff-only (squash-merge=false, rebase-merge=false)')
+console.log('  Merge method: exact-SHA CAS (squash=false, rebase=false, force=false)')

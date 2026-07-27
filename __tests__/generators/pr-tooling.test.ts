@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // CANON-05: generator unit test for src/generators/pr-tooling.ts (#2098).
-// CANON-04: render test for the 3 scripts/*.ejs templates it emits.
+// CANON-04: render test for the scripts/*.ejs templates it emits.
 // CANON-11: brownfield / skipIfExists test for the file-emitting generator.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -22,6 +22,7 @@ afterEach(() => {
 })
 
 const EMITTED = [
+  'scripts/lib/exact-sha-policy.mjs',
   'scripts/lib/waiter-count.mjs',
   'scripts/pr-merge-watch.mjs',
   'scripts/capacity-probe.mjs',
@@ -30,7 +31,7 @@ const EMITTED = [
 // ─── CANON-05: generator unit tests ──────────────────────────────────────────
 
 describe('generatePrTooling (#2098, CANON-05)', () => {
-  it('emits all 3 files to the target project', () => {
+  it('emits every declared file to the target project', () => {
     const config = makeConfig(dir)
     const result = generatePrTooling(config)
     for (const rel of EMITTED) {
@@ -40,10 +41,10 @@ describe('generatePrTooling (#2098, CANON-05)', () => {
     }
   })
 
-  it('emits exactly 3 files', () => {
+  it('emits exactly 4 files', () => {
     const config = makeConfig(dir)
     const result = generatePrTooling(config)
-    expect(result.files).toHaveLength(3)
+    expect(result.files).toHaveLength(4)
   })
 
   it.each(EMITTED)('%s contains SPDX header', (rel) => {
@@ -53,12 +54,13 @@ describe('generatePrTooling (#2098, CANON-05)', () => {
     expect(content).toContain('SPDX-License-Identifier: Apache-2.0')
   })
 
-  it('emitted pr-merge-watch.mjs references gh pr merge and --self-test', () => {
+  it('emitted watcher uses atomic updateRefs and never the PR merge endpoint', () => {
     const config = makeConfig(dir)
     generatePrTooling(config)
     const content = readFileSync(join(dir, 'scripts/pr-merge-watch.mjs'), 'utf-8')
     expect(content).toContain("'gh'")
-    expect(content).toContain("'merge'")
+    expect(content).toContain('updateRefs')
+    expect(content).not.toContain("'pr', 'merge'")
     expect(content).toContain('--self-test')
   })
 

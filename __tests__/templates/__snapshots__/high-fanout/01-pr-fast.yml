@@ -7,18 +7,13 @@ permissions:
 on:
   push:
 
-    branches: [main, "task/**"]
+    branches: [main]
 
+  workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened, labeled, ready_for_review, unlabeled]
 
     branches: [main]
-
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '.gitignore'
-      - '.editorconfig'
 
 # Cancel in-progress runs on the same ref; main always completes (#357).
 concurrency:
@@ -588,5 +583,4 @@ jobs:
       run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       failure_summary: Post-merge L2 gate failed on main — a change merged without full verification.
       status: failure
-
 

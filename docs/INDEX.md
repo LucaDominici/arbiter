@@ -106,7 +106,7 @@
 | [ADR-049 — Java Static Analysis: Baseline Audit and Wiring Fixes](internal/ADR/049-java-static-analysis-baseline.md) | 049 | active | kind/adr |
 | [ADR-050: Pipeline Complexity Tiers — Archetype-Default + Governance Floor](internal/ADR/050-pipeline-complexity-tiers.md) | 050 | active | kind/adr |
 | [ADR-051: Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy](internal/ADR/051-collaboration-mode-workflow-axis.md) | 051 | active | kind/adr |
-| [ADR-052: Fast-Forward Merge Policy and Cosign SHA Preservation](internal/ADR/052-fast-forward-merge-cosign-preservation.md) | 052 | active | kind/adr |
+| [ADR-052: Exact-SHA Landing and Cosign Preservation](internal/ADR/052-fast-forward-merge-cosign-preservation.md) | 052 | active | kind/adr |
 | [ADR-053: CI Gap Closures, Per-Tier Nightly, Opt-In Selective Gates, and Local Provenance Log](internal/ADR/053-ci-gap-closures-and-check-ladder.md) | 053 | active | kind/adr |
 | [ADR-054: Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](internal/ADR/054-phase-3-5-handoff-modeled-as-status-json-fields.md) | 054 | active | kind/adr |
 | [ADR-055: SpotBugs security hard-block baseline script (#212)](internal/ADR/055-spotbugs-security-hard-block-baseline-script.md) | 055 | active | kind/adr |
@@ -161,7 +161,7 @@
 | [ADR-105: never-brick config migration — coercible vs fatal fields](internal/ADR/105-never-brick-config-migration.md) | 105 | active | kind/adr |
 | [ADR-106: Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](internal/ADR/106-codex-track-parity-contract.md) | 106 | active | kind/adr |
 | [ADR-107: arbiter obsidian subcommand — thin generic orchestrator](internal/ADR/107-obsidian-subcommand.md) | 107 | active | kind/adr |
-| [ADR-108: Merge method = fast-forward-only for evidence-bearing PRs](internal/ADR/108-ff-only-merge-method-evidence-bearing-prs.md) | 108 | active | kind/adr |
+| [ADR-108: Exact-SHA landing for evidence-bearing PRs](internal/ADR/108-ff-only-merge-method-evidence-bearing-prs.md) | 108 | active | kind/adr |
 | [ADR-109: constraint-map.json scaffolded + INV-115 fail-closed on a missing map](internal/ADR/109-constraint-map-fail-closed.md) | 109 | active | kind/adr |
 | [ADR-110: Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](internal/ADR/110-acceptance-criteria-anchor.md) | 110 | active | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-000_template.md) | — | draft | kind/adr |

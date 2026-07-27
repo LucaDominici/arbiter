@@ -40,7 +40,8 @@ name: PR Fast (T1)
 
 on:
   push:
-    branches: [main, 'task/**']
+    branches: [main]
+  workflow_dispatch:
   pull_request:
     branches: [main]
 
@@ -206,6 +207,10 @@ test suites, debt gates) **only** when `classify-changes` succeeded and reported
 Any other skip, a cancelled job, or a failed/errored classification fails the
 aggregator (fail-closed). The classify script's error path reports
 `docs_only=false` so a broken classification always runs everything.
+
+`01-pr-fast.yml` also runs on docs-only pull requests and is the sole workflow
+allowed to report the required `CI Required` context. A companion docs shim
+would create a premature duplicate context and is therefore prohibited.
 
 ## Related
 

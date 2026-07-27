@@ -289,13 +289,6 @@
     "diffHash": "ec30d5f71845995b157b5cf083b5c828d0b3aee1847b7ef6e2cfeb6f6ec1781a"
   },
   {
-    "path": "check-merge-method.mjs",
-    "dest": "scripts",
-    "reason": "Self carries the INV-94 (selfOnly) CATALOG-comment block and checks BOTH scripts/apply-branch-protection.mjs AND the EJS template itself for the ff-only merge flags (a self-referential check that only makes sense inside the arbiter repo); the shipped template only checks the generated apply-branch-protection.mjs. Same INV-101 enforcement, narrower self-repo scope on the template side. Tracked under #1900.",
-    "expires": "2026-08-15",
-    "diffHash": "e303aa6c6fbfef56c7d9775181e9cb1ff315a52f5000883a138e3b9053d7afa4"
-  },
-  {
     "path": "check-muted-test.mjs",
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
