@@ -44,6 +44,52 @@ runs:
     # Paths cover every tree `npm ci` writes in this workspace layout (root +
     # nested workspace node_modules). Gate semantics unchanged — only the
     # dependency install is memoized.
+    #
+    # The cache contains native optional dependencies (for example Rollup).
+    # `runner.os` alone is unsafe for a heterogeneous self-hosted Linux pool:
+    # a binary cached on newer glibc can fail to load on an older slot. Detect
+    # the native ABI before restore so incompatible runners never share a tree.
+    - name: Detect native ABI cache scope
+      id: native-abi
+      if: ${{ inputs.install == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        abi=''
+        case "${RUNNER_OS:-unknown}" in
+          Linux)
+            if command -v getconf >/dev/null 2>&1; then
+              if detected="$(getconf GNU_LIBC_VERSION 2>/dev/null)"; then
+                abi="$detected"
+              fi
+            fi
+            if [[ -z "$abi" ]] && command -v ldd >/dev/null 2>&1; then
+              if detected="$(ldd --version 2>&1)"; then
+                abi="${detected%%$'\n'*}"
+              fi
+            fi
+            ;;
+          macOS)
+            abi="macos-$(sw_vers -productVersion)"
+            ;;
+          Windows)
+            abi="windows-$(uname -sr)"
+            ;;
+          *)
+            abi="$(uname -srm)"
+            ;;
+        esac
+        if [[ -z "$abi" ]]; then
+          echo "::error::cannot determine native ABI for node_modules cache"
+          exit 2
+        fi
+        scope="$(printf '%s' "${RUNNER_OS:-unknown}-${RUNNER_ARCH:-unknown}-$abi" | tr -c 'A-Za-z0-9._-' '-')"
+        if [[ -z "$scope" ]]; then
+          echo "::error::native ABI cache scope normalized to an empty value"
+          exit 2
+        fi
+        echo "scope=$scope" >> "$GITHUB_OUTPUT"
+        echo "Native dependency cache scope: $scope"
     - name: Restore node_modules (exact lockfile key)
       id: node-modules-cache
       if: ${{ inputs.install == 'true' }}
@@ -53,7 +99,7 @@ runs:
           node_modules
           website/node_modules
           packages/*/node_modules
-        key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json', '.nvmrc') }}
+        key: node-modules-${{ steps.native-abi.outputs.scope }}-${{ hashFiles('package-lock.json', 'package.json', '.nvmrc') }}
     - name: Install dependencies (npm ci)
       if: ${{ inputs.install == 'true' && steps.node-modules-cache.outputs.cache-hit != 'true' }}
       shell: bash
