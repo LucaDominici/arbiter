@@ -1,0 +1,68 @@
+name: Consumer Reliability Bar
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/consumer-reliability.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: consumer-reliability-main
+  cancel-in-progress: false
+
+jobs:
+  consumer_reliability:
+    name: Consumer Reliability Bar
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Build current Arbiter
+        run: npm run build
+      - name: Prepare detached private consumer clones
+        id: prepare
+        env:
+          ARBITER_CONSUMER_GO_REPO: ${{ secrets.ARBITER_CONSUMER_GO_REPO }}
+          ARBITER_CONSUMER_GO_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_GO_DEPLOY_KEY }}
+          ARBITER_CONSUMER_TYPESCRIPT_REPO: ${{ secrets.ARBITER_CONSUMER_TYPESCRIPT_REPO }}
+          ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY }}
+          ARBITER_CONSUMER_JAVA_REPO: ${{ secrets.ARBITER_CONSUMER_JAVA_REPO }}
+          ARBITER_CONSUMER_JAVA_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_JAVA_DEPLOY_KEY }}
+        run: >-
+          node scripts/prepare-consumer-reliability.mjs
+          --output "$RUNNER_TEMP/consumer-reliability"
+      - name: Verify update and hook liveness without credentials
+        id: verify
+        run: >-
+          node scripts/consumer-reliability-bar.mjs
+          --workspace "$RUNNER_TEMP/consumer-reliability"
+          --report-dir "$RUNNER_TEMP/consumer-reliability-reports"
+          --arbiter-cli "$GITHUB_WORKSPACE/dist/cli.js"
+      - name: Upload per-consumer reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: consumer-reliability-reports
+          path: ${{ runner.temp }}/consumer-reliability-reports
+          if-no-files-found: error
+          retention-days: 14

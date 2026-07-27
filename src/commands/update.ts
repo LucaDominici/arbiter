@@ -458,12 +458,26 @@ function selectAndRunWithManifest(
   // exists to kill). Mirrors the post-update warning surfaced in runUpdate.
   const unwired = unwiredGuardKeys(out.results, targetDir)
   const stillWithheldSafety = withheldSafetyKeys(out.results, targetDir)
-  saveGeneratedManifest(
-    targetDir,
-    { ...prevManifest, ...generatedHashes },
-    unwired,
-    stillWithheldSafety,
+  // A full registry run is also the authoritative ownership inventory. Keeping
+  // prior-only keys here leaves retired hooks permanently marked as Arbiter-owned,
+  // so routing audits report a false-but-actionable DEAD hook after every update.
+  // A visited-but-withheld file is still Arbiter-emitted even though its user-modified
+  // bytes cannot establish a new render baseline. Retain only those visited ownership
+  // entries; dropping them would let routing/liveness checks silently ignore the file.
+  // Partial, config-impacted runs still merge because untouched generators were
+  // not visited and their ownership entries remain valid.
+  const fullRegistryRun = out.keysRun === null || out.keysRun.has('*')
+  const retainedWithheldHashes = Object.fromEntries(
+    out.results.flatMap((result) => {
+      if (result.withheld !== true || result.adopted === true) return []
+      const key = manifestKey(targetDir, result.path)
+      return key !== null && prevManifest[key] !== undefined ? [[key, prevManifest[key]]] : []
+    }),
   )
+  const nextHashes = fullRegistryRun
+    ? { ...retainedWithheldHashes, ...generatedHashes }
+    : { ...prevManifest, ...generatedHashes }
+  saveGeneratedManifest(targetDir, nextHashes, unwired, stillWithheldSafety)
   return out
 }
 

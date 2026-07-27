@@ -7,6 +7,20 @@ import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 import { computeMetricsProfile } from '../../src/generators/debt-ratchet.js'
 
+describe('check-hook-routing.mjs.ejs rendering (#2129)', () => {
+  it('renders the fail-closed reverse-routing gate without EJS leakage', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-hook-routing.mjs.ejs', data)
+    expect(content).toContain('Arbiter hook:')
+    expect(content).toContain('UNROUTED')
+    expect(content).toContain('process.exit(2)')
+    expect(content).not.toContain('<%')
+  })
+})
+
 describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
   it('renders inline suppressions check when enableSuppressions=true (#367)', () => {
     const data = makeConfig('/tmp/test', {

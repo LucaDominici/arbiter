@@ -1,8 +1,8 @@
 ---
 title: 'Il confine — arbiter è affidabile sui tre consumer reali'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-07-26'
+last_review: '2026-07-27'
 owner: 'LucaDominici'
 canonical_id: ''
 tags: ['audience/maintainer', 'kind/plan']
@@ -132,6 +132,27 @@ Perché questa e non un'altra:
 
 Non è finito quando "funziona". È finito quando quel comando esce 0 in CI, su tutte e tre le
 righe, e resta verde a ogni push.
+
+### 2.1 Barra operativa
+
+La barra è implementata dal workflow `consumer-reliability.yml`, eseguito soltanto da codice
+fidato su `main` o tramite dispatch manuale sul branch predefinito. La preparazione
+credentialed (`npm run consumer:prepare`) clona ciascun consumer a uno SHA immutabile con una
+deploy key read-only, rimuove remote e configurazione credenziali e termina. Un processo nuovo,
+senza credenziali, esegue poi `npm run consumer:reliability`.
+
+Il report usa esclusivamente gli ID generici `go`, `typescript` e `java`. Per ogni riga
+verifica:
+
+- SHA detached e assenza di remote;
+- `arbiter update` con insieme dei check non decrescente e byte dei gate custom preservati;
+- routing completo degli hook emessi;
+- liveness BARE e PRIMED, contando come `BLOCKS` soltanto l'exit code 2 e richiedendo una
+  giustificazione accanto a ogni `ADVISORY`;
+- contratto universale 0=PASS, 1=FAIL e 2=ERROR.
+
+Il workflow non gira sulle pull request: i test secret-free restano nella CI ordinaria, mentre
+le credenziali cross-repository non vengono mai esposte a codice non ancora integrato.
 
 ---
 

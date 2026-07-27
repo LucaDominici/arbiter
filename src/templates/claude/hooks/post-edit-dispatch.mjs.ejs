@@ -5,17 +5,6 @@
 // Skips non-source files (docs, config, lock files, generated dirs)
 // Format/lint are scoped to the EDITED file (#1515) — never a whole-repo scan.
 // Always exits 0 (non-blocking, informational)
-<%
-// EJS render-time: compute source extensions for this language
-const EXT_MAP = {
-  typescript: ['.ts', '.tsx', '.js', '.jsx'],
-  java:       ['.java'],
-  rust:       ['.rs'],
-  go:         ['.go'],
-  python:     ['.py'],
-};
-const sourceExts = EXT_MAP[language] || [];
-%>
 import { getRepoRoot, logInfo, logWarn, resolveToolInputPath, scopeCommandToFile } from './lib.mjs';
 import { existsSync } from 'node:fs';
 import { extname } from 'node:path';
@@ -42,7 +31,7 @@ const SKIP_DIRS = /\/(node_modules|build|dist|target|\.git|\.cache|__pycache__|\
 if (SKIP_PATTERNS.test(filePath) || SKIP_DIRS.test(filePath)) process.exit(0);
 
 // Only process source files for this language
-const SOURCE_EXTS = <%- JSON.stringify(sourceExts) %>;
+const SOURCE_EXTS = <%- JSON.stringify(sourceExtensions) %>;
 if (SOURCE_EXTS.length > 0 && !SOURCE_EXTS.includes(extname(filePath).toLowerCase())) process.exit(0);
 
 if (!existsSync(filePath)) process.exit(0);

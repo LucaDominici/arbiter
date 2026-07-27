@@ -34,7 +34,14 @@ beforeAll(() => {
     'pre-edit-ssot-guard.mjs',
     'stop-dangerous.mjs',
   ]) {
-    writeFileSync(join(HOOKS_DIR, name), readFileSync(join(TPL_DIR, name), 'utf-8'))
+    const content =
+      name === 'check-no-orphan-todo.mjs'
+        ? renderTemplate(
+            'claude/hooks/check-no-orphan-todo.mjs.ejs',
+            makeConfig(process.cwd(), { projectName: 'arbiter', language: 'typescript' }),
+          )
+        : readFileSync(join(TPL_DIR, name), 'utf-8')
+    writeFileSync(join(HOOKS_DIR, name), content)
   }
   ORPHAN_TODO_HOOK = join(HOOKS_DIR, 'check-no-orphan-todo.mjs')
   SSOT_GUARD_HOOK = join(HOOKS_DIR, 'pre-edit-ssot-guard.mjs')

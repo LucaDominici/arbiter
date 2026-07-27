@@ -119,6 +119,12 @@ describe('ship id normalization (#1280)', () => {
     expect(readUnifiedState(dir)?.taskId).toBe('#1280')
   })
 
+  it('persists override-only resume state across the next ship invocation', () => {
+    runTaskShip({ dir, taskId: '#1280', tier: 'XS' })
+    runTaskShip({ dir, overrides: { 'automation.autonomy': 'L3' } })
+    expect(readUnifiedState(dir)?.overrides).toEqual({ 'automation.autonomy': 'L3' })
+  })
+
   it('rejects a non-numeric id loudly instead of silently coercing', () => {
     expect(() => runTaskShip({ dir, taskId: 'abc' })).toThrow(/[Ii]nvalid.*task id/)
   })
@@ -133,6 +139,25 @@ describe('ship id normalization (#1280)', () => {
     const r = runTaskShip({ dir, advance: true })
     expect(r.phase).toBe('green')
     expect(r.advanced).toBe(true)
+  })
+
+  it('AC-7 a new ship id cannot inherit a prior task complete phase or plan', () => {
+    writeUnifiedState(dir, {
+      taskId: '#2120',
+      phase: 'complete',
+      tier: 'Standard',
+      plan: '.claude/plans/old.md',
+      branch: 'tmp-red',
+    })
+    const result = runTaskShip({ dir, taskId: '2135', tier: 'S' })
+    expect(result.phase).toBe('preflight')
+    expect(result.done).toBe(false)
+    expect(readUnifiedState(dir)).toMatchObject({
+      taskId: '#2135',
+      phase: 'preflight',
+      tier: 'S',
+      plan: '',
+    })
   })
 })
 

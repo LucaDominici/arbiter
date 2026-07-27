@@ -49,9 +49,9 @@ function setup(phase: string, planContent: string | null, planPath?: string) {
   if (planContent !== null) {
     mkdirSync(join(dir, '.claude', 'plans'), { recursive: true })
     writeFileSync(resolvedPlanPath, planContent)
-    writeTaskStateFile(dir, { phase, plan: resolvedPlanPath })
+    writeTaskStateFile(dir, { taskId: '#1', phase, plan: resolvedPlanPath, branch: 'main' })
   } else {
-    writeTaskStateFile(dir, { phase })
+    writeTaskStateFile(dir, { taskId: '#1', phase, branch: 'main' })
   }
 
   return { dir, hookPath }
@@ -100,7 +100,12 @@ describe('pre-edit-plan-anchor', () => {
       hookPath,
       renderTemplate('claude/hooks/pre-edit-plan-anchor.mjs.ejs', configFor()),
     )
-    writeTaskStateFile(dir, { phase: 'red', plan: '/nonexistent/path/to/plan.md' })
+    writeTaskStateFile(dir, {
+      taskId: '#1',
+      phase: 'red',
+      plan: '/nonexistent/path/to/plan.md',
+      branch: 'main',
+    })
     try {
       const result = run(hookPath, dir)
       expect(result.status).toBe(2)
@@ -125,6 +130,69 @@ describe('pre-edit-plan-anchor', () => {
     const { dir, hookPath } = setup('red', null)
     try {
       expect(run(hookPath, dir, { ARBITER_PLAN_BYPASS: '1' }).status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-7 disarms stale branch state on main with a causal diagnostic', () => {
+    const { dir, hookPath } = setup('red', '# stale plan\n')
+    try {
+      writeTaskStateFile(dir, {
+        taskId: '#2120',
+        phase: 'red',
+        plan: '.claude/plans/task.md',
+        branch: 'tmp-red',
+      })
+      const result = run(hookPath, dir)
+      expect(result.status).toBe(0)
+      expect(result.stderr).toContain('.claude/.task/status.json')
+      expect(result.stderr).toContain('#2120')
+      expect(result.stderr).toContain('.claude/plans/task.md')
+      expect(result.stderr).toContain('tmp-red')
+      expect(result.stderr).toContain('main')
+      expect(result.stderr).toMatch(/task init|realign/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-7 keeps a coherent trunk-solo task on main governed', () => {
+    const { dir, hookPath } = setup('red', null)
+    try {
+      writeTaskStateFile(dir, { taskId: '#2135', phase: 'red', branch: 'main' })
+      const result = run(hookPath, dir)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('#2135')
+      expect(result.stderr).toContain('main')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-7 keeps a coherent task branch governed', () => {
+    const { dir, hookPath } = setup('red', null)
+    try {
+      execFileSync('git', ['checkout', '-b', 'task/#2135-probe'], { cwd: dir, stdio: 'ignore' })
+      writeTaskStateFile(dir, {
+        taskId: '#2135',
+        phase: 'red',
+        branch: 'task/#2135-probe',
+      })
+      expect(run(hookPath, dir).status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-7 fails closed when the current Git branch cannot be resolved', () => {
+    const { dir, hookPath } = setup('red', '# plan\n')
+    try {
+      writeTaskStateFile(dir, { taskId: '#2135', phase: 'red', branch: 'main' })
+      rmSync(join(dir, '.git'), { recursive: true, force: true })
+      const result = run(hookPath, dir)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/branch.*resolve|git/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -100,9 +100,18 @@ function runHook(
   const claudeDir = join(tmpDir, '.claude')
   const planFile = join(tmpDir, 'plan.md')
 
+  execFileSync('git', ['init', '-b', 'task/#689-context-block'], {
+    cwd: tmpDir,
+    stdio: 'ignore',
+  })
   mkdirSync(claudeDir, { recursive: true })
   writeFileSync(planFile, planContent)
-  writeTaskStateFile(tmpDir, { phase: 'red', plan: planFile })
+  writeTaskStateFile(tmpDir, {
+    taskId: '#689',
+    branch: 'task/#689-context-block',
+    phase: 'red',
+    plan: planFile,
+  })
 
   const env = {
     ...process.env,

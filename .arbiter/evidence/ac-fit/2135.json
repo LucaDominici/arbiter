@@ -1,0 +1,106 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2135",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/consumer-reliability-bar.mjs",
+          "line": 86
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/consumer-reliability-bar.test.ts",
+          "line": 26
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/probe-hooks.mjs",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/probe-hooks.mjs",
+          "line": 165
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/consumer-reliability-bar.test.ts",
+          "line": 133
+        }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".github/workflows/consumer-reliability.yml",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "id": "AC-7",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-state.ts",
+          "line": 239
+        }
+      ]
+    },
+    {
+      "id": "AC-8",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-hook-routing.mjs",
+          "line": 109
+        }
+      ]
+    },
+    {
+      "id": "AC-9",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/utils/render.ts",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "id": "AC-10",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/claude/hooks/stop-evidence-guard.mjs.ejs",
+          "line": 37
+        }
+      ]
+    }
+  ]
+}

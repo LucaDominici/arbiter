@@ -88,6 +88,10 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-collab-mode-wired.mjs'],
     tpl: 'scripts/check-collab-mode-wired.mjs.ejs',
   },
+  {
+    rel: ['scripts', 'check-hook-routing.mjs'],
+    tpl: 'scripts/check-hook-routing.mjs.ejs',
+  },
   { rel: ['scripts', 'check-constraint-scan.mjs'], tpl: 'scripts/check-constraint-scan.mjs.ejs' },
   // #2037 (INV-115): scaffold the map alongside its checker so the gate never runs
   // against an absent map by construction. skipIfExists — a project's curated

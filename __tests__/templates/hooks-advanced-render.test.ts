@@ -57,6 +57,28 @@ function configFor(lang: Language, level: GovernanceLevel = 'L2'): Record<string
   }) as unknown as Record<string, unknown>
 }
 
+describe('language-aware source guards (#2130)', () => {
+  it.each([
+    ['typescript', '.ts'],
+    ['java', '.java'],
+    ['kotlin', '.kt'],
+    ['multi', '.java'],
+    ['rust', '.rs'],
+    ['go', '.go'],
+    ['python', '.py'],
+  ] as const)('renders source-guard extensions for %s', (language, extension) => {
+    const config = configFor(language)
+    for (const template of [
+      'claude/hooks/check-no-orphan-todo.mjs.ejs',
+      'claude/hooks/check-no-placeholders.mjs.ejs',
+    ]) {
+      const out = renderTemplate(template, config)
+      expect(out).toContain(extension)
+      expect(out).not.toContain('<%')
+    }
+  })
+})
+
 // ─── pre-compact.mjs.ejs ──────────────────────────────────────────────────────
 
 describe('hooks/pre-compact.mjs.ejs', () => {
@@ -530,9 +552,9 @@ describe('hooks/post-commit-check.mjs.ejs', () => {
     expect(out).toContain('INV-22')
   })
 
-  it('contains exit(1) for non-conventional messages', () => {
+  it('contains blocking exit(2) for non-conventional messages', () => {
     const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', configFor('typescript'))
-    expect(out).toContain('process.exit(1)')
+    expect(out).toContain('process.exit(2)')
   })
 
   it('contains conventional commit regex', () => {

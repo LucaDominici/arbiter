@@ -26,7 +26,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 37 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + constraint-map (#2037) + test-pyramid + api-e2e + render-smoke + glob-walk + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + doc-set + doc-freshness (T4) + anti-fake-green + todo-max-age + module-coverage + mutation-baseline + safety-adopt-ratchet (T1) + 4 file-scan guards + 9 anti-context-rot twins (E1-E7 #1943) + check-smoke-journeys (INV-137, #2080) + 3 acceptance-anchor tools (ADR-110)) — conformance.mjs/gold-audit.mjs are emitted by their dedicated owners (#1578)', () => {
+  it('emits exactly 38 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -58,7 +58,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(37)
+    expect(result.files).toHaveLength(38)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/acceptance-criteria.mjs'))).toBe(
@@ -248,6 +248,17 @@ describe('generateCheckAll', () => {
     expect(script).toContain('collaborationMode')
     const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     expect(checkAll).toContain('check-collab-mode-wired.mjs')
+  })
+
+  it('AC-8 emits and L1-wires the target reverse hook-routing gate', () => {
+    const result = generateCheckAll(makeConfig(dir, { language: 'go', governanceLevel: 'L2' }))
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('scripts/check-hook-routing.mjs'))).toBe(true)
+    const script = readFileSync(join(dir, 'scripts', 'check-hook-routing.mjs'), 'utf-8')
+    expect(script).toContain('Arbiter hook:')
+    const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(checkAll).toContain("runCheck('hook routing")
+    expect(checkAll).toContain('scripts/check-hook-routing.mjs')
   })
 
   it('emits run-helpers.mjs with the trinity exports (#351)', () => {

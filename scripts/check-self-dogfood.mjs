@@ -50,8 +50,6 @@ export const REQUIRED_RAW_HOOKS = [
   'stop-dangerous.mjs',
   'enforce-read-only.mjs',
   'pre-edit-ssot-guard.mjs',
-  'check-no-orphan-todo.mjs',
-  'check-no-placeholders.mjs',
   'enforce-gate-before-pr.mjs',
   'check-no-unused-exports.mjs',
   'check-no-skipped-tests.mjs',
@@ -88,11 +86,22 @@ export function buildRenderContext(cfg = {}) {
   const buildTool = cfg.buildTool ?? 'npm'
   const tools = cfg.tools ?? ['claude']
   const features = cfg.features ?? {}
+  const sourceExtensions =
+    {
+      typescript: ['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs', '.js', '.jsx'],
+      multi: ['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs', '.js', '.jsx', '.java', '.kt', '.kts'],
+      java: ['.java'],
+      kotlin: ['.kt', '.kts', '.java'],
+      rust: ['.rs'],
+      go: ['.go'],
+      python: ['.py'],
+    }[language] ?? []
 
   return {
     projectName: cfg.projectName ?? 'arbiter',
     description: cfg.description ?? 'arbiter project',
     language,
+    sourceExtensions,
     framework: cfg.framework ?? null,
     archetype: cfg.archetype ?? 'library',
     architectureStyle: cfg.architectureStyle ?? 'none',
