@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
@@ -10,6 +12,7 @@ import { makeConfig } from '../helpers.js'
 
 // Canonical setup-node pin the composite consolidates to (v7.0.0).
 const CANONICAL_SETUP_NODE = 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020'
+const SELF_ACTION = readFileSync(resolve('.github/actions/setup-node-pnpm/action.yml'), 'utf-8')
 
 function renderAction(overrides: Record<string, unknown> = {}) {
   return renderTemplate(
@@ -46,5 +49,16 @@ describe('setup-node-pnpm/action.yml.ejs — structural invariants (CANON-18, #1
     const rendered = renderAction()
     expect(rendered).toContain('node-version-file')
     expect(rendered).toContain('cache: npm')
+  })
+})
+
+describe('self node_modules cache — native ABI isolation (#2147)', () => {
+  it('scopes the cache by detected native ABI instead of runner OS alone', () => {
+    expect(SELF_ACTION).toContain('id: native-abi')
+    expect(SELF_ACTION).toContain('getconf GNU_LIBC_VERSION')
+    expect(SELF_ACTION).toContain('steps.native-abi.outputs.scope')
+    expect(SELF_ACTION).not.toContain(
+      "key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json', '.nvmrc') }}",
+    )
   })
 })
