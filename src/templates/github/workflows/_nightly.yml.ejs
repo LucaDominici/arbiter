@@ -113,7 +113,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         if: matrix.stack == 'go'
         with:
           go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
@@ -175,7 +175,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         if: matrix.stack == 'go'
         with:
           go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
@@ -235,7 +235,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
 
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
           cache-dependency-path: __tests__/fixtures/real-projects/go-library/go.mod
@@ -333,7 +333,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
 <% } else if (language === 'python') { %>
@@ -492,7 +492,7 @@ jobs:
           cp -r target/coverage/. coverage/ 2>/dev/null || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - run: go test -coverprofile=coverage.out -covermode=atomic ./...
