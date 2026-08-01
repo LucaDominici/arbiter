@@ -47,6 +47,29 @@ describe('check-feature-matrix.mjs.ejs render tests', () => {
     expect(result).toContain('process.exit(1)')
     expect(result).toContain('process.exit(2)')
   })
+
+  // #2163: source_ref upward resolution + tests_ref glob ban — portable paths
+  it('resolves source_ref anchors against portable paths (docs/PRD.md, docs/adr), not arbiter-internal ones', () => {
+    const result = renderTemplate('scripts/check-feature-matrix.mjs.ejs', BASE_DATA)
+    expect(result).toContain("PRD_PATH = resolve(ROOT, 'docs', 'PRD.md')")
+    expect(result).toContain("ADR_DIR_PATH = resolve(ROOT, 'docs', 'adr')")
+    expect(result).not.toContain("'docs', 'PRODUCT', 'PRD.md'")
+    expect(result).not.toContain("'docs', 'internal', 'ADR'")
+  })
+
+  it('has a portable dotfile glob-baseline path (no scripts/data/ template in target projects)', () => {
+    const result = renderTemplate('scripts/check-feature-matrix.mjs.ejs', BASE_DATA)
+    expect(result).toContain(
+      "GLOB_BASELINE_PATH = resolve(ROOT, '.feature-matrix-glob-baseline.json')",
+    )
+  })
+
+  it('wires --update-baseline and the tests_ref glob-ban check', () => {
+    const result = renderTemplate('scripts/check-feature-matrix.mjs.ejs', BASE_DATA)
+    expect(result).toContain('UPDATE_BASELINE')
+    expect(result).toContain('checkTestRefGlobBan')
+    expect(result).toContain('checkSourceRefAnchor')
+  })
 })
 
 describe('gen-gap.mjs.ejs render tests', () => {

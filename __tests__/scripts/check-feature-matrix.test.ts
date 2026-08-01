@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync } from 'node:fs'
+import { join, resolve, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const SCRIPT = resolve('scripts/check-feature-matrix.mjs')
@@ -52,7 +52,11 @@ interface RunResult {
   stdout: string
 }
 
-function run(args: string[], matrixContent?: string): RunResult {
+function run(
+  args: string[],
+  matrixContent?: string,
+  extraFiles: Record<string, string> = {},
+): RunResult {
   const dir = mkdtempSync(join(tmpdir(), 'check-fm-test-'))
   try {
     if (matrixContent !== undefined) {
@@ -74,6 +78,11 @@ function run(args: string[], matrixContent?: string): RunResult {
       categoryRef: 'architecture',
     }))
     writeFileSync(join(dir, 'src', 'kit', 'catalog.json'), JSON.stringify(dims), 'utf-8')
+    for (const [relPath, content] of Object.entries(extraFiles)) {
+      const abs = join(dir, relPath)
+      mkdirSync(dirname(abs), { recursive: true })
+      writeFileSync(abs, content, 'utf-8')
+    }
     const r = spawnSync('node', [SCRIPT, '--check', ...args], {
       encoding: 'utf-8',
       cwd: dir,
@@ -87,6 +96,23 @@ function run(args: string[], matrixContent?: string): RunResult {
 function runWithMatrix(content: string, extraArgs: string[] = []): RunResult {
   return run(extraArgs, content)
 }
+
+// ── Fixtures for source_ref upward resolution (#2163) ──
+const AGENTS_MD_FIXTURE = [
+  '# arbiter — AGENTS.md',
+  '',
+  '- **INV-42:** A real invariant used by the fixture',
+].join('\n')
+
+const ADR_README_FIXTURE = [
+  '# Architectural Decision Records',
+  '',
+  '| # | Title | Status | Date | Superseded by |',
+  '|---|---|---|---|---|',
+  '| 007 | [A real ADR](007-a-real-adr.md) | Accepted | 2026-01-01 |  |',
+].join('\n')
+
+const PRD_MD_FIXTURE = ['# PRD', '', '## 5. Deployment shapes', '', 'Some content.'].join('\n')
 
 describe('check-feature-matrix.mjs --check', () => {
   it('exits 2 when FEATURE_MATRIX.md is missing', () => {
@@ -283,5 +309,178 @@ describe('KIT catalog error handling (#1196)', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+})
+
+describe('source_ref upward resolution (#2163)', () => {
+  const FIXTURES = {
+    'AGENTS.md': AGENTS_MD_FIXTURE,
+    'docs/internal/ADR/README.md': ADR_README_FIXTURE,
+    'docs/PRODUCT/PRD.md': PRD_MD_FIXTURE,
+  }
+
+  function runWithSourceRef(sourceRefCell: string): RunResult {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | | ${sourceRefCell} |`,
+    ])
+    return run([], matrix, FIXTURES)
+  }
+
+  it('INV-NN resolving to a real AGENTS.md entry exits 0', () => {
+    const { status } = runWithSourceRef('INV-42')
+    expect(status).toBe(0)
+  })
+
+  it('INV-NN with no matching AGENTS.md entry exits 1, naming row and anchor', () => {
+    const { status, stdout } = runWithSourceRef('INV-99')
+    expect(status).toBe(1)
+    expect(stdout).toContain('REQ-001')
+    expect(stdout).toContain('INV-99')
+  })
+
+  it('ADR-NNN resolving to a real ADR README index row exits 0', () => {
+    const { status } = runWithSourceRef('ADR-007')
+    expect(status).toBe(0)
+  })
+
+  it('ADR-NNN with no matching ADR README row exits 1, naming row and anchor', () => {
+    const { status, stdout } = runWithSourceRef('ADR-999')
+    expect(status).toBe(1)
+    expect(stdout).toContain('REQ-001')
+    expect(stdout).toContain('ADR-999')
+  })
+
+  it('PRD §N resolving to a real numbered PRD heading exits 0', () => {
+    const { status } = runWithSourceRef('PRD §5')
+    expect(status).toBe(0)
+  })
+
+  it('PRD §N with no matching PRD heading exits 1, naming row and anchor', () => {
+    const { status, stdout } = runWithSourceRef('PRD §99')
+    expect(status).toBe(1)
+    expect(stdout).toContain('REQ-001')
+    expect(stdout).toContain('PRD §99')
+  })
+
+  it('issue-form (#NNN) source_ref is format-only — never a false red', () => {
+    const { status } = runWithSourceRef('#123')
+    expect(status).toBe(0)
+  })
+
+  it('freeform/legacy-declared source_ref text is format-only — never a false red', () => {
+    const { status } = runWithSourceRef('legacy: some prose anchor')
+    expect(status).toBe(0)
+  })
+
+  it('multiple comma-separated anchors: only the unresolvable one fails', () => {
+    const { status, stdout } = runWithSourceRef('INV-42, ADR-999')
+    expect(status).toBe(1)
+    expect(stdout).toContain('ADR-999')
+    expect(stdout).not.toContain('INV-42:')
+  })
+
+  it('empty source_ref cell (10-column row, backward compatible) exits 0', () => {
+    // Real 10-column rows already produce a trailing empty 11th cell artifact —
+    // must not be misread as an anchor to resolve.
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | no issue tracked |`,
+    ])
+    const { status } = run([], matrix, FIXTURES)
+    expect(status).toBe(0)
+  })
+})
+
+describe('tests_ref glob ban (#2163)', () => {
+  const GLOB_BASELINE_PATH = 'scripts/data/feature-matrix-glob-baseline.json'
+  const GLOB_TEST_REF = 'modules/trip/*Test.java'
+
+  function baselineFile(entries: string[]): string {
+    return JSON.stringify(
+      {
+        schema: 'arbiter-feature-matrix-glob-baseline-v1',
+        generated_at: '2026-01-01T00:00:00.000Z',
+        doctrine: 'fixture',
+        entries,
+      },
+      null,
+      2,
+    )
+  }
+
+  it('Verified row with a glob test_ref FAILs even with a matching baseline entry (D4)', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Verified | src/foo.ts | ${GLOB_TEST_REF} | docs/foo.md | #1 | |`,
+    ])
+    const { status } = run([], matrix, {
+      [GLOB_BASELINE_PATH]: baselineFile([`REQ-001::${GLOB_TEST_REF}`]),
+    })
+    expect(status).toBe(1)
+  })
+
+  it('Done row with a new glob test_ref (absent from baseline) FAILs', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Done | src/foo.ts | ${GLOB_TEST_REF} | docs/foo.md | | |`,
+    ])
+    const { status } = run([], matrix, { [GLOB_BASELINE_PATH]: baselineFile([]) })
+    expect(status).toBe(1)
+  })
+
+  it('Done row with a glob test_ref already present in the baseline PASSes (ratchet)', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Done | src/foo.ts | ${GLOB_TEST_REF} | docs/foo.md | | |`,
+    ])
+    const { status } = run([], matrix, {
+      [GLOB_BASELINE_PATH]: baselineFile([`REQ-001::${GLOB_TEST_REF}`]),
+      // Done requires code_ref/doc_ref to exist on disk (existence check, unrelated
+      // to the glob-ban ratchet under test) — real files so only the glob rule is exercised.
+      'src/foo.ts': '',
+      'docs/foo.md': '',
+    })
+    expect(status).toBe(0)
+  })
+
+  it('--update-baseline recomputes the baseline from current Done-glob rows and exits 0', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'check-fm-baseline-'))
+    try {
+      mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
+      const matrix = makeMatrix([
+        `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Done | src/foo.ts | ${GLOB_TEST_REF} | docs/foo.md | | |`,
+      ])
+      writeFileSync(join(dir, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md'), matrix, 'utf-8')
+      mkdirSync(join(dir, 'src', 'kit'), { recursive: true })
+      writeFileSync(join(dir, 'src', 'kit', 'catalog.json'), '[]', 'utf-8')
+      const r = spawnSync('node', [SCRIPT, '--update-baseline'], { encoding: 'utf-8', cwd: dir })
+      expect(r.status ?? 1).toBe(0)
+      const written = JSON.parse(readFileSync(join(dir, GLOB_BASELINE_PATH), 'utf-8')) as {
+        entries: string[]
+      }
+      expect(written.entries).toContain(`REQ-001::${GLOB_TEST_REF}`)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('corrupt baseline JSON on --check exits 2', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Done | src/foo.ts | src/foo.test.ts | docs/foo.md | | |`,
+    ])
+    const { status } = run([], matrix, { [GLOB_BASELINE_PATH]: '{ not valid json' })
+    expect(status).toBe(2)
+  })
+})
+
+describe('determinism (#2163)', () => {
+  it('failures are reported in sorted order regardless of row order', () => {
+    const matrix = makeMatrix([
+      `| REQ-002 | Architecture | ${ALL_DIMS} | L2 | Missing | | | | | |`,
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Missing | | | | | |`,
+    ])
+    const { status, stdout } = runWithMatrix(matrix)
+    expect(status).toBe(1)
+    const idxReq001 = stdout.indexOf('REQ-001:')
+    const idxReq002 = stdout.indexOf('REQ-002:')
+    expect(idxReq001).toBeGreaterThan(-1)
+    expect(idxReq002).toBeGreaterThan(-1)
+    expect(idxReq001).toBeLessThan(idxReq002)
   })
 })
