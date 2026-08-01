@@ -102,9 +102,11 @@ function listWorkflowFiles(dir: string): string[] {
   return entries.filter((f) => f.endsWith('.yml') || f.endsWith('.yaml')).map((f) => join(wfDir, f))
 }
 
-/** Dedupe pins by tool: same tool pinned at multiple sites → one row, keep the
- * first file:line, take the max-version pin if sites disagree, and mark
- * blocking if ANY site for that tool is blocking. */
+/** Dedupe pins by tool: same tool pinned at multiple sites → one row. Takes the
+ * max-version pin if sites disagree — and its file:line travel WITH it, so the
+ * cited `workflow:line` always names where the reported (winning) version
+ * actually lives, never a lower-version site (AC-1: the citation must not
+ * lie). Marks blocking if ANY site for that tool is blocking. */
 function dedupePins(pins: ToolPin[]): ToolPin[] {
   const byTool = new Map<string, ToolPin>()
   for (const pin of pins) {
@@ -113,9 +115,9 @@ function dedupePins(pins: ToolPin[]): ToolPin[] {
       byTool.set(pin.tool, pin)
       continue
     }
+    const pinWins = compareSemVer(pin.version, existing.version) > 0
     const merged: ToolPin = {
-      ...existing,
-      version: compareSemVer(pin.version, existing.version) > 0 ? pin.version : existing.version,
+      ...(pinWins ? pin : existing),
       blocking: existing.blocking || pin.blocking,
     }
     byTool.set(pin.tool, merged)

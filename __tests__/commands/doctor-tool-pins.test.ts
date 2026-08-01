@@ -393,6 +393,11 @@ describe('runDoctorToolPins', () => {
     expect(rows).toHaveLength(1) // deduped to one row, not two
     // max version (0.71.0) wins over the lower 0.60.0 site, and blocking=true wins over false.
     expect(rows[0]?.detail).toContain('0.71.0')
+    // The cited workflow:line must point at the SITE the reported (winning) version actually
+    // came from (gate.yml, 0.71.0) — never the lower-version site (advisory.yml, 0.60.0). A
+    // false citation here defeats the whole tool's thesis (AC-1: name the real pin site).
+    expect(rows[0]?.detail).toContain('gate.yml')
+    expect(rows[0]?.detail).not.toContain('advisory.yml')
     expect(rows[0]?.status).toBe('FAIL') // 0.65.0 < 0.71.0, and the merged row is blocking
   })
 
