@@ -22,11 +22,21 @@ level, with what evidence. Update this file as your implementation matures._
 
 Promotion is fail-closed (cannot skip a step).
 
+`source_ref` (optional, 11th column): upward anchor(s) toward the
+requirement's origin (`INV-NN`, `ADR-NNN`, `PRD §N(.M)*`, comma-separated).
+Validated whenever non-empty, regardless of status. Non-canonical forms (an
+issue reference, free prose, a legacy-declared anchor) are format-only and
+never resolved (no false red). `test_ref` glob patterns (`*`/`**`) are
+banned on `Done`/`Verified` rows unless grandfathered in the committed
+ratchet baseline (`.feature-matrix-glob-baseline.json`, regenerated
+deliberately via `--update-baseline`); a `Verified` row is never
+baseline-exemptible.
+
 ---
 
 <!-- FEATURE_MATRIX_START -->
-| feature_id | capability | kit_dims | level | status | code_ref | test_ref | doc_ref | issue_ref | note |
-|---|---|---|---|---|---|---|---|---|---|
+| feature_id | capability | kit_dims | level | status | code_ref | test_ref | doc_ref | issue_ref | note | source_ref |
+|---|---|---|---|---|---|---|---|---|---|---|
 | REQ-001 | Architecture enforcement | N01,N02,N03,N04,N05,N06,N07 | L2 | Missing | | | | #1 | Replace with your architecture enforcement ref |
 | REQ-002 | Static analysis & linting | N09,N10,N11,N12,N13,N14,N15,N16 | L2 | Missing | | | | #2 | Replace with your static analysis ref |
 | REQ-003 | Test framework | N17,N18,N19,N20,N21,N22,N23 | L2 | Missing | | | | #3 | Replace with your test framework ref |

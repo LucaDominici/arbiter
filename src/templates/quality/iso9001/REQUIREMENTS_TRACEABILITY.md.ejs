@@ -23,6 +23,14 @@ requirement traces to the test that verifies it. Update as your implementation m
 
 Promotion is fail-closed (cannot skip a step).
 
+This RTM shares its schema with FEATURE_MATRIX.md but does not carry the optional
+`source_ref` (upward anchor) column or the `test_ref` glob-ban ratchet added there for
+arbiter #2163 — both are validated by `scripts/check-feature-matrix.mjs`, not
+`scripts/check-iso9001.mjs`. A project that wants upward traceability and glob-ban
+enforcement on this RTM's own rows should adopt those rules directly in
+`FEATURE_MATRIX.md`; retrofitting them into this ISO 9001 overlay's separate gate is a
+future, separately-scoped change.
+
 ---
 
 <!-- ISO9001_RTM_START -->
