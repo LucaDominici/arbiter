@@ -13,6 +13,7 @@ import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/w
 import { runWorktreePrune } from './commands/worktree-prune.js'
 import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
+import { formatProvenance } from './evidence/provenance.js'
 import { runGoldAudit } from './commands/gold-audit.js'
 import { runDocSet } from './commands/doc-set.js'
 import { runDocSetPlanApply } from './generators/doc-set.js'
@@ -1108,6 +1109,9 @@ verify
           exitCode: result.exitCode,
           ...(result.skipped !== undefined ? { skipped: result.skipped } : {}),
           ...(result.reason !== undefined ? { reason: result.reason } : {}),
+          // #2164: present only when SUMMARY.json carries a valid provenance block —
+          // never a hard failure from `verify evidence` on missing provenance.
+          ...(result.provenance !== undefined ? { provenance: result.provenance } : {}),
         },
         result.status === 'error' && result.reason !== undefined ? [result.reason] : undefined,
       )
@@ -1115,6 +1119,11 @@ verify
       const label = result.status === 'ok' ? 'OK' : result.status.toUpperCase()
       const tail = result.reason ? ` — ${result.reason}` : ''
       process.stdout.write(`verify evidence: ${label}${tail}\n`)
+      if (result.provenance !== undefined) {
+        for (const line of formatProvenance(result.provenance)) {
+          process.stdout.write(`${line}\n`)
+        }
+      }
     }
     process.exit(result.exitCode)
   })

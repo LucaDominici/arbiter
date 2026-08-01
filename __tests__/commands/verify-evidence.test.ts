@@ -334,4 +334,34 @@ describe('runVerifyEvidence (#238)', () => {
     expect(result.status).toBe('error')
     expect(result.reason).toMatch(/not found/)
   })
+
+  // ─── provenance (#2164) ───────────────────────────────────────────────────
+
+  it('attaches provenance when SUMMARY.json carries a valid block', () => {
+    const { serialised } = makeSummary({
+      provenance: { agent_harness: 'claude-code', session_id: 'sess-1' },
+    })
+    writeFileSync(join(dir, '.evidence', 'SUMMARY.json'), serialised)
+    const result = runVerifyEvidence({ dir })
+    expect(result.exitCode).toBe(0)
+    expect(result.provenance).toEqual({ agent_harness: 'claude-code', session_id: 'sess-1' })
+  })
+
+  it('leaves provenance absent from the result when SUMMARY.json has none', () => {
+    const { serialised } = makeSummary()
+    writeFileSync(join(dir, '.evidence', 'SUMMARY.json'), serialised)
+    const result = runVerifyEvidence({ dir })
+    expect(result.exitCode).toBe(0)
+    expect(result.provenance).toBeUndefined()
+  })
+
+  it('fails schema validation (exit 1, not a hard crash) when provenance is malformed', () => {
+    const { serialised } = makeSummary({ provenance: { unexpected_field: 'x' } })
+    writeFileSync(join(dir, '.evidence', 'SUMMARY.json'), serialised)
+    const result = runVerifyEvidence({ dir })
+    expect(result.exitCode).toBe(1)
+    expect(result.status).toBe('error')
+    expect(result.reason).toContain('provenance')
+    expect(result.provenance).toBeUndefined()
+  })
 })

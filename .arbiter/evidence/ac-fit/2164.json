@@ -1,0 +1,66 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2164",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "schemas/evidence-bundle.schema.json",
+          "line": 42
+        },
+        {
+          "file": "scripts/check-evidence-bundle.mjs",
+          "line": 306
+        },
+        {
+          "file": "__tests__/scripts/check-evidence-bundle.test.ts",
+          "line": 226
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/provenance.ts",
+          "line": 186
+        },
+        {
+          "file": ".evidence/task-#2164/bundle.json",
+          "line": 8
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/summary.ts",
+          "line": 41
+        },
+        {
+          "file": "src/cli.ts",
+          "line": 1121
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/provenance.ts",
+          "line": 96
+        },
+        {
+          "file": "__tests__/evidence/provenance.test.ts",
+          "line": 269
+        }
+      ]
+    }
+  ]
+}

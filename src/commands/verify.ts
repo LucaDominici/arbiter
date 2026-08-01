@@ -16,6 +16,7 @@ import {
 import type { Language } from '../wizard/types.js'
 import { loadSummaryFile } from '../evidence/load.js'
 import { validateSummarySchema } from '../evidence/summary.js'
+import type { Provenance } from '../evidence/provenance.js'
 
 export interface VerifyOptions {
   dir?: string | undefined
@@ -30,6 +31,9 @@ export interface VerifyEvidenceResult {
   /** Aggregate risk level across SUMMARY.json `files[]`. Absent when the
    *  summary has no `files` field or no skip-applicable path was reached. */
   riskLevel?: ClassifyResult
+  /** Author provenance (#2164), attached on the success path when
+   *  SUMMARY.json's `provenance` field is present and validates cleanly. */
+  provenance?: Provenance
 }
 
 const FRESHNESS_DAYS = 7
@@ -348,6 +352,12 @@ export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
 
   const result: VerifyEvidenceResult = { status: 'ok', exitCode: 0 }
   if (riskLevel !== null) result.riskLevel = riskLevel
+  // #2164: `provenance` already validated cleanly above (folded into
+  // validateSummarySchema's errors, which would have short-circuited to exit 1
+  // otherwise) — safe to attach as-is here.
+  if (loaded['provenance'] !== undefined) {
+    result.provenance = loaded['provenance'] as Provenance
+  }
   return result
 }
 

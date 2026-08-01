@@ -63,4 +63,26 @@ describe('validateSummarySchema (#241)', () => {
     const result = validateSummarySchema(makeBody({ obs_gate: 'FAIL' }))
     expect(result.ok).toBe(true)
   })
+
+  // ─── provenance (#2164) ───────────────────────────────────────────────────
+
+  it('accepts a body with a valid provenance block', () => {
+    const result = validateSummarySchema(
+      makeBody({
+        provenance: {
+          agent_harness: 'claude-code',
+          session_id: 'sess-1',
+        },
+      }),
+    )
+    expect(result.ok).toBe(true)
+  })
+
+  it('rejects a body with a malformed provenance block', () => {
+    const result = validateSummarySchema(makeBody({ provenance: { unexpected_field: 'x' } }))
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes('provenance'))).toBe(true)
+    }
+  })
 })

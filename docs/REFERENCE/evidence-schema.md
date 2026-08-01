@@ -92,6 +92,28 @@ Optional list of supplementary files. An empty array `[]` is valid.
 | `path`     | yes      | string | Relative path from repo root, e.g. `"coverage/lcov.info"` |
 | `mimeType` | no       | string | Optional MIME type, e.g. `"text/plain"`, `"text/html"`    |
 
+### `provenance` (optional, #2164)
+
+Type: `Provenance` object — author provenance, i.e. *what produced* this bundle
+(model/harness/config/gate snapshot/session), so a gate regression weeks later can be
+traced back to a code change vs. an agent/prompt/model change.
+
+| Field                | Required | Type     | Description                                                                    |
+| -------------------- | -------- | -------- | -------------------------------------------------------------------------------- |
+| `model_id`           | no       | string   | Model identifier, only when derivable from the harness environment — never guessed |
+| `agent_harness`      | no       | string   | Agent harness name, e.g. `"claude-code"`                                          |
+| `harness_version`    | no       | string   | Harness version, structurally parsed from the harness executable path            |
+| `gate_manifest_hash` | no       | string   | sha256 of `scripts/check-all.mjs` — fingerprints which gates ran                  |
+| `session_id`         | no       | string   | Opaque agent session id — not a transcript                                       |
+| `config_hashes`      | no       | object   | `{agents_md?, claude_md?, skills?}` — sha256 digests of governing config files    |
+
+Every field is an opaque id or a sha256 hex digest — never file content or transcript
+text (no secrets/PII). Built by `buildProvenance()` in `src/evidence/provenance.ts`, shared
+with the `.evidence/SUMMARY.json` path (see `docs/REFERENCE/evidence-summary-schema.md`).
+If present but malformed, validation **exits 2** (dominant over any other violation in the
+same run); absent is a pass. Use the optional `provenance_note` (string) field to record
+why provenance was omitted.
+
 ---
 
 ## Validation
@@ -101,7 +123,8 @@ The gate script `scripts/check-evidence-bundle.mjs`:
 - Scans `.evidence/task-*/` for `*.json` files
 - Validates each against the schema
 - Exits 0 with a vacuous pass message when no bundles exist
-- Exits 1 and reports all errors when any bundle is invalid
+- Exits 1 and reports all errors when any bundle is invalid (no provenance violation involved)
+- Exits 2 when any bundle's `provenance` block is present but malformed (#2164; dominant)
 
 ### Running manually
 

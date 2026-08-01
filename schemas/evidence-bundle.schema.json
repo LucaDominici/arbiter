@@ -38,6 +38,14 @@
       "items": {
         "$ref": "#/$defs/Artifact"
       }
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance",
+      "description": "Optional author provenance (#2164): what produced this bundle (model/harness/config/gate snapshot/session). Omitted when not derivable in the current environment; never invented."
+    },
+    "provenance_note": {
+      "type": "string",
+      "description": "Optional free-text note explaining why provenance is absent (#2164)."
     }
   },
   "$defs": {
@@ -59,6 +67,58 @@
         "mimeType": {
           "type": "string",
           "description": "Optional MIME type of the artifact (e.g. 'text/plain', 'application/json')."
+        }
+      }
+    },
+    "Provenance": {
+      "type": "object",
+      "description": "Author provenance (#2164). Every field is an opaque id or a sha256 hex digest — never file content or transcript text.",
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "type": "string",
+          "description": "Model identifier, when derivable from the harness environment. Omitted when not observable — never guessed."
+        },
+        "agent_harness": {
+          "type": "string",
+          "description": "Agent harness name, e.g. 'claude-code'."
+        },
+        "harness_version": {
+          "type": "string",
+          "description": "Harness version, structurally parsed from the harness executable path."
+        },
+        "gate_manifest_hash": {
+          "type": "string",
+          "description": "sha256 of the gate orchestrator script (scripts/check-all.mjs) — fingerprints which gates ran."
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Opaque agent session id — not a transcript."
+        },
+        "config_hashes": {
+          "$ref": "#/$defs/ConfigHashes"
+        }
+      }
+    },
+    "ConfigHashes": {
+      "type": "object",
+      "description": "sha256 digests of governing config files, never their raw content.",
+      "additionalProperties": false,
+      "properties": {
+        "agents_md": {
+          "type": "string",
+          "description": "sha256 of AGENTS.md."
+        },
+        "claude_md": {
+          "type": "string",
+          "description": "sha256 of .claude/CLAUDE.md."
+        },
+        "skills": {
+          "type": "array",
+          "description": "sha256 digests of every .claude/skills/*/SKILL.md.",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

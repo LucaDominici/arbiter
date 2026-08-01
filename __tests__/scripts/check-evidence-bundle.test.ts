@@ -218,6 +218,120 @@ describe('check-evidence-bundle.mjs', () => {
     expect(result.exitCode).toBe(1)
   })
 
+  // ─── Provenance (#2164) ───────────────────────────────────────────────────
+
+  it('exits 0 for a valid bundle with a fully populated provenance block', () => {
+    const taskDir = join(tmpDir, '.evidence', 'task-#883')
+    mkdirSync(taskDir, { recursive: true })
+    const bundle = {
+      taskId: '#883',
+      timestamp: '2026-05-19T10:00:00.000Z',
+      gateResult: 'pass',
+      redTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      greenTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      artifacts: [],
+      provenance: {
+        agent_harness: 'claude-code',
+        harness_version: '2.1.220',
+        gate_manifest_hash: 'a'.repeat(64),
+        session_id: 'sess-1',
+        config_hashes: {
+          agents_md: 'b'.repeat(64),
+          claude_md: 'c'.repeat(64),
+          skills: ['d'.repeat(64)],
+        },
+      },
+    }
+    writeFileSync(join(taskDir, 'bundle.json'), JSON.stringify(bundle, null, 2))
+    const result = runScript(join(tmpDir, '.evidence'))
+    expect(result.exitCode).toBe(0)
+  })
+
+  it('exits 0 for a bundle with provenance absent and a provenance_note', () => {
+    const taskDir = join(tmpDir, '.evidence', 'task-#883')
+    mkdirSync(taskDir, { recursive: true })
+    const bundle = {
+      taskId: '#883',
+      timestamp: '2026-05-19T10:00:00.000Z',
+      gateResult: 'pass',
+      redTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      greenTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      artifacts: [],
+      provenance_note: 'no harness env vars available in this run',
+    }
+    writeFileSync(join(taskDir, 'bundle.json'), JSON.stringify(bundle, null, 2))
+    const result = runScript(join(tmpDir, '.evidence'))
+    expect(result.exitCode).toBe(0)
+  })
+
+  it('exits 2 when provenance has an unknown field (malformed)', () => {
+    const taskDir = join(tmpDir, '.evidence', 'task-#883')
+    mkdirSync(taskDir, { recursive: true })
+    const bundle = {
+      taskId: '#883',
+      timestamp: '2026-05-19T10:00:00.000Z',
+      gateResult: 'pass',
+      redTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      greenTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      artifacts: [],
+      provenance: { bogus_field: 'x' },
+    }
+    writeFileSync(join(taskDir, 'bundle.json'), JSON.stringify(bundle, null, 2))
+    const result = runScript(join(tmpDir, '.evidence'))
+    expect(result.exitCode).toBe(2)
+  })
+
+  it('exits 2 when provenance has a wrong-typed flat field', () => {
+    const taskDir = join(tmpDir, '.evidence', 'task-#883')
+    mkdirSync(taskDir, { recursive: true })
+    const bundle = {
+      taskId: '#883',
+      timestamp: '2026-05-19T10:00:00.000Z',
+      gateResult: 'pass',
+      redTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      greenTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      artifacts: [],
+      provenance: { session_id: 12345 },
+    }
+    writeFileSync(join(taskDir, 'bundle.json'), JSON.stringify(bundle, null, 2))
+    const result = runScript(join(tmpDir, '.evidence'))
+    expect(result.exitCode).toBe(2)
+  })
+
+  it('exits 2 when provenance.config_hashes has a wrong-typed nested field', () => {
+    const taskDir = join(tmpDir, '.evidence', 'task-#883')
+    mkdirSync(taskDir, { recursive: true })
+    const bundle = {
+      taskId: '#883',
+      timestamp: '2026-05-19T10:00:00.000Z',
+      gateResult: 'pass',
+      redTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      greenTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      artifacts: [],
+      provenance: { config_hashes: { agents_md: 42 } },
+    }
+    writeFileSync(join(taskDir, 'bundle.json'), JSON.stringify(bundle, null, 2))
+    const result = runScript(join(tmpDir, '.evidence'))
+    expect(result.exitCode).toBe(2)
+  })
+
+  it('exits 2 (dominant) when provenance is malformed AND a required top-level field is missing', () => {
+    const taskDir = join(tmpDir, '.evidence', 'task-#883')
+    mkdirSync(taskDir, { recursive: true })
+    const bundle = {
+      // taskId missing (would otherwise be exit 1)
+      timestamp: '2026-05-19T10:00:00.000Z',
+      gateResult: 'pass',
+      redTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      greenTestPath: '__tests__/scripts/check-evidence-bundle.test.ts',
+      artifacts: [],
+      provenance: { bogus_field: 'x' },
+    }
+    writeFileSync(join(taskDir, 'bundle.json'), JSON.stringify(bundle, null, 2))
+    const result = runScript(join(tmpDir, '.evidence'))
+    expect(result.exitCode).toBe(2)
+  })
+
   // ─── Output format ────────────────────────────────────────────────────────
 
   it('prints OK message on success', () => {

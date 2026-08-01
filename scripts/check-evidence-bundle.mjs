@@ -7,7 +7,9 @@
 //
 // Exit codes:
 //   0 — all bundles valid (or no bundles found — vacuous pass)
-//   1 — one or more bundles failed schema validation
+//   1 — one or more bundles failed schema validation (no provenance violation involved)
+//   2 — any bundle's `provenance` block is present but malformed (#2164; dominant — wins
+//       over exit 1 even when non-provenance violations are also present)
 //
 // Arguments:
 //   --evidence-dir=<path>   Override evidence directory (default: .evidence/)
@@ -250,6 +252,11 @@ if (taskDirs.length === 0) {
 
 let totalBundles = 0
 let violations = 0
+// #2164: a malformed `provenance` block is dominant — it exits 2 even when other,
+// non-provenance violations are also present in the same or another bundle. Any other
+// violation (with no provenance violation anywhere in the run) keeps the pre-existing
+// exit 1.
+let provenanceViolation = false
 
 for (const taskDir of taskDirs) {
   /** @type {string[]} */
@@ -282,8 +289,12 @@ for (const taskDir of taskDirs) {
 
     const errors = validate(parsed, schema, schema, filePath)
     if (errors.length > 0) {
+      const provenancePrefix = `${filePath}.provenance`
       for (const err of errors) {
         process.stdout.write(`[check-evidence-bundle] FAIL: ${err}\n`)
+        if (err.startsWith(provenancePrefix)) {
+          provenanceViolation = true
+        }
       }
       violations++
     }
@@ -291,6 +302,13 @@ for (const taskDir of taskDirs) {
 }
 
 // ─── Result ───────────────────────────────────────────────────────────────────
+
+if (provenanceViolation) {
+  process.stdout.write(
+    `[check-evidence-bundle] FAIL: malformed provenance block (${violations} bundle(s) failed, ${totalBundles} checked)\n`,
+  )
+  process.exit(2)
+}
 
 if (violations > 0) {
   process.stdout.write(
