@@ -299,6 +299,37 @@ jobs:
   })
 })
 
+// ─── check-unwired-guards.mjs.ejs ────────────────────────────────────────────
+
+describe('check-unwired-guards.mjs.ejs rendering (CANON-04, INV-89)', () => {
+  it('renders shebang and INV-89 citation', () => {
+    const content = renderTemplate('scripts/check-unwired-guards.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+    expect(content).toContain('INV-89')
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-unwired-guards.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it('renders the CATALOG marker (INV-94) with the non-fold-in rationale', () => {
+    const content = renderTemplate('scripts/check-unwired-guards.mjs.ejs', makeData())
+    const catalogLines = content.split('\n').filter((l) => /^\/\/\s*CATALOG:/i.test(l))
+    expect(catalogLines.length).toBeGreaterThanOrEqual(3)
+    expect(content).toContain('check-emission-coherence')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-unwired-guards.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
 // ─── F4: check-validator-helptext.mjs.ejs ────────────────────────────────────
 
 describe('check-validator-helptext.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
