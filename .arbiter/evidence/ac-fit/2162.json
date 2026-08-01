@@ -6,27 +6,27 @@
       "id": "AC-1",
       "verdict": "PASS",
       "evidence": [
-        { "file": "src/commands/doctor/tool-pins.ts", "line": 151 },
-        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 125 }
+        { "file": "src/commands/doctor/tool-pins.ts", "line": 153 },
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 137 }
       ]
     },
     {
       "id": "AC-2",
       "verdict": "PASS",
       "evidence": [
-        { "file": "src/commands/doctor/tool-pins.ts", "line": 133 },
-        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 150 },
-        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 171 }
+        { "file": "src/commands/doctor/tool-pins.ts", "line": 135 },
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 162 },
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 183 }
       ]
     },
     {
       "id": "AC-3",
       "verdict": "PASS",
       "evidence": [
-        { "file": "src/commands/doctor/fail-open-census.ts", "line": 152 },
-        { "file": "src/commands/doctor/fail-open-census.ts", "line": 200 },
-        { "file": "__tests__/commands/doctor-fail-open-census.test.ts", "line": 39 },
-        { "file": "__tests__/commands/doctor-fail-open-census.test.ts", "line": 82 }
+        { "file": "src/commands/doctor/fail-open-census.ts", "line": 154 },
+        { "file": "src/commands/doctor/fail-open-census.ts", "line": 202 },
+        { "file": "__tests__/commands/doctor-fail-open-census.test.ts", "line": 32 },
+        { "file": "__tests__/commands/doctor-fail-open-census.test.ts", "line": 73 }
       ]
     },
     {
@@ -35,7 +35,7 @@
       "evidence": [
         { "file": "src/commands/doctor/tool-pins.ts", "line": 14 },
         { "file": "src/commands/doctor/fail-open-census.ts", "line": 17 },
-        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 279 }
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 458 }
       ]
     }
   ]
