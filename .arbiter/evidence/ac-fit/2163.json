@@ -1,0 +1,39 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2163",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/check-feature-matrix.mjs", "line": 186 },
+        { "file": "__tests__/scripts/check-feature-matrix.test.ts", "line": 315 }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/check-feature-matrix.mjs", "line": 243 },
+        { "file": "__tests__/scripts/check-feature-matrix.test.ts", "line": 393 }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/check-feature-matrix.mjs", "line": 134 },
+        { "file": "__tests__/scripts/check-feature-matrix.test.ts", "line": 365 }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/check-feature-matrix.mjs", "line": 601 },
+        { "file": "src/templates/scripts/check-feature-matrix.mjs.ejs", "line": 545 },
+        { "file": "__tests__/scripts/check-feature-matrix.test.ts", "line": 472 }
+      ]
+    }
+  ]
+}
