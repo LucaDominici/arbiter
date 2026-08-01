@@ -1,0 +1,6 @@
+{
+  "schema": "arbiter-feature-matrix-glob-baseline-v1",
+  "generated_at": "2026-08-01T22:00:37.783Z",
+  "doctrine": "INV-112 / #2163 — grandfathered Done-status test_ref globs at baseline freeze. Verified rows are NEVER exemptible (a promoted-to-Verified glob is always a FAIL). Regenerate deliberately with `node scripts/check-feature-matrix.mjs --update-baseline`.",
+  "entries": []
+}

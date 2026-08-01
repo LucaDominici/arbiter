@@ -19,13 +19,14 @@
  *
  * NOTE: This script runs without a build step and cannot import from src/.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
 
 const ROOT = process.cwd()
 
 // ─── CLI args ────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2)
+const UPDATE_BASELINE = args.includes('--update-baseline')
 const CHECK = !args.includes('--write')
 const _levelEqArg = args.find((a) => a.startsWith('--level='))?.split('=')[1] ?? null
 const _levelIdx = args.indexOf('--level')
@@ -33,6 +34,10 @@ const _levelNextArg = _levelIdx >= 0 ? (args[_levelIdx + 1] ?? null) : null
 const levelArg = _levelEqArg ?? (_levelNextArg?.match(/^L[1-4]$/) ? _levelNextArg : null)
 const MATRIX_PATH = resolve(ROOT, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md')
 const KIT_CATALOG_PATH = resolve(ROOT, 'src', 'kit', 'catalog.json')
+const GLOB_BASELINE_PATH = resolve(ROOT, 'scripts', 'data', 'feature-matrix-glob-baseline.json')
+const AGENTS_MD_PATH = resolve(ROOT, 'AGENTS.md')
+const ADR_README_PATH = resolve(ROOT, 'docs', 'internal', 'ADR', 'README.md')
+const PRD_PATH = resolve(ROOT, 'docs', 'PRODUCT', 'PRD.md')
 
 // ─── Sentinel markers ────────────────────────────────────────────────────────
 const START_MARKER = '<!-- FEATURE_MATRIX_START -->'
@@ -104,6 +109,171 @@ function checkAllRefs(row, projectRoot, failures, id) {
   }
 }
 
+// ─── source_ref upward resolution (D1-D3, #2163) ────────────────────────────
+
+/**
+ * Split a source_ref cell into individual anchors. Deliberately NOT
+ * normalizeRef/splitRefs (D1): those strip trailing `#...`/`:\d+` file-ref
+ * suffixes, which would silently mangle an issue-form anchor (`#123`) into
+ * an empty string for the wrong reason.
+ */
+function splitSourceRefs(cell) {
+  if (!cell || !cell.trim()) return []
+  return cell
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+/**
+ * Classify a source_ref anchor into one of the three canonical resolvable
+ * forms (D2). Anything else (issue form `#NNN`, free prose, an unrecognized
+ * numbering scheme) is `kind: null` — format-only, never resolved, never a
+ * false red (AC-3).
+ */
+function classifySourceAnchor(anchor) {
+  let m
+  if ((m = /^INV-(\d+)$/.exec(anchor))) return { kind: 'inv', num: m[1] }
+  if ((m = /^ADR-(\d+)$/.exec(anchor))) return { kind: 'adr', num: m[1] }
+  if ((m = /^PRD\s*§\s*(\d+(?:\.\d+)*)$/.exec(anchor))) return { kind: 'prd', num: m[1] }
+  return { kind: null }
+}
+
+let _agentsMdCache
+function readAgentsMdOnce() {
+  if (_agentsMdCache === undefined) {
+    _agentsMdCache = existsSync(AGENTS_MD_PATH) ? readFileSync(AGENTS_MD_PATH, 'utf-8') : null
+  }
+  return _agentsMdCache
+}
+
+let _adrReadmeCache
+function readAdrReadmeOnce() {
+  if (_adrReadmeCache === undefined) {
+    _adrReadmeCache = existsSync(ADR_README_PATH) ? readFileSync(ADR_README_PATH, 'utf-8') : null
+  }
+  return _adrReadmeCache
+}
+
+let _prdCache
+function readPrdOnce() {
+  if (_prdCache === undefined) {
+    _prdCache = existsSync(PRD_PATH) ? readFileSync(PRD_PATH, 'utf-8') : null
+  }
+  return _prdCache
+}
+
+/** heading text (post `#+` strip) starts with the numeric anchor, e.g. "5.7 Foo" for anchor "5.7". */
+function prdHasNumberedHeading(text, num) {
+  const escaped = num.replace(/\./g, '\\.')
+  const headingRe = new RegExp(`^${escaped}\\.?(\\s|$)`)
+  return text.split('\n').some((line) => {
+    const m = /^#+\s*(.*)$/.exec(line.trim())
+    return m !== null && headingRe.test(m[1].trim())
+  })
+}
+
+/**
+ * Resolve one source_ref anchor against its target document (D3's internal
+ * path column) and push a failure naming the row and anchor on a miss
+ * (AC-1). No-op for non-canonical anchors (D2/AC-3).
+ *
+ * ponytail: internal-only doc paths/formats (AGENTS.md bullet, ADR README
+ * index table, docs/PRODUCT/PRD.md numbered headings) — a target project
+ * with a genuinely different convention needs a configurable path/format
+ * (arbiter.json), out of scope here (arbiter's own two scripts only).
+ */
+function checkSourceRefAnchor(anchor, id, failures) {
+  const classified = classifySourceAnchor(anchor)
+  if (classified.kind === null) return
+
+  if (classified.kind === 'inv') {
+    const text = readAgentsMdOnce()
+    if (text === null || !text.includes(`**INV-${classified.num}:**`)) {
+      failures.push(
+        `${id}: source_ref ${anchor} — no matching **INV-${classified.num}:** entry in AGENTS.md`,
+      )
+    }
+    return
+  }
+
+  if (classified.kind === 'adr') {
+    const text = readAdrReadmeOnce()
+    const rowRe = new RegExp(`^\\|\\s*0*${classified.num}\\s*\\|`, 'm')
+    if (text === null || !rowRe.test(text)) {
+      failures.push(
+        `${id}: source_ref ${anchor} — no matching ADR index row in docs/internal/ADR/README.md`,
+      )
+    }
+    return
+  }
+
+  if (classified.kind === 'prd') {
+    const text = readPrdOnce()
+    if (text === null || !prdHasNumberedHeading(text, classified.num)) {
+      failures.push(
+        `${id}: source_ref ${anchor} — no matching "${classified.num}" heading in docs/PRODUCT/PRD.md`,
+      )
+    }
+  }
+}
+
+// ─── tests_ref glob ban (D4, #2163) ──────────────────────────────────────────
+
+/** Load the committed glob-ratchet baseline as a Set of "featureId::ref" keys. Missing file → empty (no grandfathering). Corrupt JSON → exit 2. */
+function loadGlobBaseline(path) {
+  if (!existsSync(path)) return new Set()
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf-8'))
+    return new Set(Array.isArray(raw?.entries) ? raw.entries : [])
+  } catch (err) {
+    process.stdout.write(
+      `  check-feature-matrix: ERROR — cannot read/parse glob baseline at ${path}: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
+  }
+}
+
+/**
+ * A glob test_ref matches always, making forward coverage infalsifiable.
+ * Verified rows are NEVER baseline-exemptible (D4) — the one rule that
+ * actually closes the class of bug #2163 describes. Only Done rows can be
+ * grandfathered via a committed baseline entry keyed `${featureId}::${ref}`.
+ */
+function checkTestRefGlobBan(rows, baselineSet, failures) {
+  for (const row of rows) {
+    if (row.status !== 'Done' && row.status !== 'Verified') continue
+    for (const ref of splitRefs(row.testRef)) {
+      if (!ref.includes('*')) continue
+      if (row.status === 'Verified') {
+        failures.push(
+          `${row.featureId}: test_ref glob ban — Verified status forbids a glob test_ref (never baseline-exemptible): ${ref}`,
+        )
+        continue
+      }
+      const key = `${row.featureId}::${ref}`
+      if (!baselineSet.has(key)) {
+        failures.push(
+          `${row.featureId}: test_ref glob ban — new glob test_ref not in baseline: ${ref}`,
+        )
+      }
+    }
+  }
+}
+
+/** Recompute the glob baseline from current Done-status glob test_refs, sorted, deterministic. */
+function computeGlobBaseline(rows) {
+  const entries = []
+  for (const row of rows) {
+    if (row.status !== 'Done') continue
+    for (const ref of splitRefs(row.testRef)) {
+      if (ref.includes('*')) entries.push(`${row.featureId}::${ref}`)
+    }
+  }
+  entries.sort()
+  return entries
+}
+
 /** Parse the table rows from within the sentinel block. */
 function parseTableRows(text) {
   const start = text.indexOf(START_MARKER)
@@ -138,6 +308,10 @@ function parseTableRows(text) {
       note,
     ] = cells
     if (!featureId || !status) continue
+    // 11th column, optional (D1): today's 10-column rows already produce a
+    // trailing empty cell artifact at this index (verified empirically), so
+    // this is backward compatible with every existing row — zero migration.
+    const sourceRef = cells[10] ?? ''
 
     rows.push({
       featureId: featureId ?? '',
@@ -153,6 +327,7 @@ function parseTableRows(text) {
       docRef: docRef ?? '',
       issueRef: issueRef ?? '',
       note: note ?? '',
+      sourceRef,
     })
   }
   return rows
@@ -234,6 +409,26 @@ if (rows.length === 0) {
   process.exit(2)
 }
 
+// ─── --update-baseline: its own top-level action (D4), checked before --write ──
+if (UPDATE_BASELINE) {
+  const entries = computeGlobBaseline(rows)
+  const payload = {
+    schema: 'arbiter-feature-matrix-glob-baseline-v1',
+    generated_at: new Date().toISOString(),
+    doctrine:
+      'INV-112 / #2163 — grandfathered Done-status test_ref globs at baseline freeze. ' +
+      'Verified rows are NEVER exemptible (a promoted-to-Verified glob is always a FAIL). ' +
+      'Regenerate deliberately with `node scripts/check-feature-matrix.mjs --update-baseline`.',
+    entries,
+  }
+  mkdirSync(dirname(GLOB_BASELINE_PATH), { recursive: true })
+  writeFileSync(GLOB_BASELINE_PATH, JSON.stringify(payload, null, 2) + '\n', 'utf-8')
+  process.stdout.write(
+    `  check-feature-matrix: baseline updated → ${GLOB_BASELINE_PATH} (${entries.length} entries)\n`,
+  )
+  process.exit(0)
+}
+
 // ─── WRITE mode: regenerate summary section ───────────────────────────────────
 if (!CHECK) {
   const statusCounts = { Verified: 0, Done: 0, Partial: 0, Missing: 0 }
@@ -270,6 +465,13 @@ for (const row of rows) {
   const id = row.featureId
   const status = row.status
   const projectRoot = ROOT
+
+  // source_ref upward resolution (D1): validated whenever the cell is
+  // non-empty, regardless of row status — a stale source anchor is a real
+  // defect on a Partial row too, not just a promotion-gated one.
+  for (const anchor of splitSourceRefs(row.sourceRef)) {
+    checkSourceRefAnchor(anchor, id, failures)
+  }
 
   if (!['Missing', 'Partial', 'Done', 'Verified'].includes(status)) {
     failures.push(`${id}: unknown status "${status}"`)
@@ -391,7 +593,13 @@ if (partialNoIssue.length > 0) {
   )
 }
 
+// 7. tests_ref glob ban (D4, #2163): infalsifiable glob coverage on Done/Verified rows
+const globBaseline = loadGlobBaseline(GLOB_BASELINE_PATH)
+checkTestRefGlobBan(rows, globBaseline, failures)
+
 // ─── Report ──────────────────────────────────────────────────────────────────
+failures.sort() // D5: deterministic output regardless of row order
+
 if (failures.length === 0) {
   process.stdout.write(
     `  check-feature-matrix: OK — ${rows.length} rows, all KIT dims covered, level=${effectiveLevel}\n`,

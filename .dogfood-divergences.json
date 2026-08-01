@@ -272,7 +272,7 @@
     "dest": "scripts",
     "path": "check-feature-matrix.mjs",
     "reason": "#1887-B: self's own scripts/check-feature-matrix.mjs validates arbiter's OWN docs/internal/PRODUCT/FEATURE_MATRIX.md against arbiter's OWN src/kit/catalog.json (KIT-dimension coverage + L4 audit_trail DoD) — the shipped template (src/templates/scripts/check-feature-matrix.mjs.ejs) is a deliberately SCOPED-DOWN port for target projects, which have no docs/internal/PRODUCT/ tree or KIT catalog equivalent. The two files validate structurally different documents at different paths by design; this is not staleness to reconcile.",
-    "diffHash": "157a9f5b4a13a1905c4485e6d4e6ac4866c5ef40da7a32f201d5211da416a659"
+    "diffHash": "c8fbe85833dda18ac70cf18f2b4e4a9d03c8bdd91d93ecc15d7930acfd45aef1"
   },
   {
     "path": "check-grace-window.mjs",
