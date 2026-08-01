@@ -1,0 +1,42 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2162",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/doctor/tool-pins.ts", "line": 151 },
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 125 }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/doctor/tool-pins.ts", "line": 133 },
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 150 },
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 171 }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/doctor/fail-open-census.ts", "line": 152 },
+        { "file": "src/commands/doctor/fail-open-census.ts", "line": 200 },
+        { "file": "__tests__/commands/doctor-fail-open-census.test.ts", "line": 39 },
+        { "file": "__tests__/commands/doctor-fail-open-census.test.ts", "line": 82 }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/doctor/tool-pins.ts", "line": 14 },
+        { "file": "src/commands/doctor/fail-open-census.ts", "line": 17 },
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 279 }
+      ]
+    }
+  ]
+}

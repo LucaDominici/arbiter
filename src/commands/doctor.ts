@@ -18,9 +18,13 @@
 // - `recover-lock`: Force-releases a stale `.arbiter/.lock` file.
 // - `clean`: Removes stray backup files.
 // - `--prove-gates`: Runs negative proofs for every tier-1 conformance gate (#1817, A5).
+// - `tool-pins`: Local toolchain vs CI workflow version pins (#2162).
+// - `fail-open-census`: Census of `command -v X || <fail-open>` gate scripts (#2162).
 export { runDoctorHealth } from './doctor/health.js'
 export type { HealthCheck } from './doctor/health.js'
 export { runDoctorRepairState } from './doctor/repair-state.js'
 export { runDoctorRecoverLock } from './doctor/recover-lock.js'
 export { runDoctorClean } from './doctor/clean.js'
 export { runDoctorProveGates } from './doctor/prove-gates.js'
+export { runDoctorToolPins } from './doctor/tool-pins.js'
+export { runDoctorFailOpenCensus } from './doctor/fail-open-census.js'

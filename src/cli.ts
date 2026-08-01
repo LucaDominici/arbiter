@@ -26,6 +26,8 @@ import {
   runDoctorRecoverLock,
   runDoctorClean,
   runDoctorProveGates,
+  runDoctorToolPins,
+  runDoctorFailOpenCensus,
 } from './commands/doctor.js'
 import { jsonOutput } from './utils/json-output.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
@@ -1416,6 +1418,56 @@ doctor
       process.stderr.write(`  Error: ${msg}\n`)
       process.exit(1)
     }
+  })
+
+doctor
+  .command('tool-pins')
+  .description(
+    'Compare local tool versions against CI workflow pins (see `check-ci-tool-parity.mjs` ' +
+      'for CI-internal manifest parity — a different, non-overlapping check)',
+  )
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((_opts: { dir?: string; json: boolean }, cmd: Command) => {
+    // #2162: `doctor` (parent) declares --dir/--json too, and commander only
+    // binds a same-named flag to whichever command it's first defined on when
+    // the two collide — `cmd.opts()` silently drops what was typed here.
+    // `optsWithGlobals()` is the documented escape hatch (merges this
+    // command's own values with every ancestor's). Systemic collision on the
+    // sibling doctor subcommands (repair-state/recover-lock/clean) tracked
+    // separately — not this issue's blocking scope.
+    const opts = cmd.optsWithGlobals<{ dir?: string; json: boolean }>()
+    const result = runDoctorToolPins({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
+    })
+    if (result.exitCode !== 0) process.exit(result.exitCode)
+  })
+
+doctor
+  .command('fail-open-census')
+  .description(
+    'Census `command -v X || <fail-open>` gate-script presence-gates (see ' +
+      '`check-fail-closed-audit.mjs` for a different pattern class — `|| true` / swallowed ' +
+      "catch — self-scoped to arbiter's own repo)",
+  )
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .option(
+    '--allowlist <path>',
+    'Override allowlist path (default: .arbiter/fail-open-allowlist.json)',
+  )
+  .action((_opts: { dir?: string; json: boolean; allowlist?: string }, cmd: Command) => {
+    // #2162: see the tool-pins action above for why optsWithGlobals() (not the
+    // first `opts` param) is required here — --dir/--json collide with the
+    // parent `doctor` command's own same-named options.
+    const opts = cmd.optsWithGlobals<{ dir?: string; json: boolean; allowlist?: string }>()
+    const result = runDoctorFailOpenCensus({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
+      ...(opts.allowlist !== undefined ? { allowlistPath: opts.allowlist } : {}),
+    })
+    if (result.exitCode !== 0) process.exit(result.exitCode)
   })
 
 const task = program.command('task').description('Manage task lifecycle state')
