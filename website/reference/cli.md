@@ -315,6 +315,44 @@ arbiter doctor repair-state [--dir <dir>] [--json]
 
 Writes only `.arbiter-generated.json` — `arbiter.json` is never modified.
 
+### `arbiter doctor tool-pins`
+
+Compare the locally installed toolchain against the version pins recorded in the target's own
+`.github/workflows/*.yml` (download-url, `FOO_VERSION:` env-pin, and `uses: owner/repo@vX.Y.Z`
+action-tag shapes). Motivating failure mode: a local tool older than the CI pin still runs and
+prints PASSED — worse than a missing tool, because it lies instead of warning.
+
+```
+arbiter doctor tool-pins [--dir <dir>] [--json]
+```
+
+- Local version older than the pin → **FAIL**, naming the tool, local version, pin version, and
+  `workflow:line`.
+- Tool absent, required by a job with no `continue-on-error` → **FAIL**; absent but only required
+  by an advisory (`continue-on-error: true`) job → **WARN**.
+- Read-only: only ever reads workflow files and runs `<tool> --version`.
+
+This is local-vs-CI parity for an arbitrary target repo — a different axis from
+`scripts/check-ci-tool-parity.mjs`, which checks arbiter's own CI-internal manifest/gate/workflow
+alignment and is not applicable to a target project.
+
+### `arbiter doctor fail-open-census`
+
+Census `command -v <tool> || <fail-open>` presence-gate patterns (brace form, bare `exit 0` form,
+and `if ! command -v` guard form) across the target's `scripts/` and `.githooks/`.
+
+```
+arbiter doctor fail-open-census [--dir <dir>] [--json] [--allowlist <path>]
+```
+
+- Findings are listed deterministically as `file:line`.
+- Legitimate exceptions go in `.arbiter/fail-open-allowlist.json`
+  (`{ "entries": [{ "file", "line", "reason" }] }`); an entry missing `reason` exits **2**.
+- Read-only: never writes to the target (the allowlist is hand-authored, not auto-updated).
+
+This censuses a different pattern class than `scripts/check-fail-closed-audit.mjs` (`|| true`,
+swallowed `catch {}`, missing `set -euo pipefail`), which is self-scoped to arbiter's own repo.
+
 ---
 
 ## `arbiter explain`
@@ -537,6 +575,8 @@ Diagnose and repair arbiter state.
 - `arbiter doctor repair-state` — Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)
 - `arbiter doctor recover-lock` — Force-release a stale .arbiter/.lock file left by a crashed process
 - `arbiter doctor clean` — Remove arbiter backup files (_.arbiter-backup, .arbiter-generated.json.bak._)
+- `arbiter doctor tool-pins` — Compare local tool versions against CI workflow pins
+- `arbiter doctor fail-open-census` — Census `command -v X || <fail-open>` gate-script presence-gates
 
 **Options:**
 

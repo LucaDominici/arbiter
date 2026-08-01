@@ -68,6 +68,25 @@ into the gate via the `check-anti-fake-green.mjs` aggregate (class `gh-audit` = 
   `src/commands/doctor.ts` (`runDoctorProveGates`), tests in
   `__tests__/conformance/gate-proofs.test.ts` + `__tests__/commands/doctor-prove-gates.test.ts`.
 
+## `arbiter doctor` diagnostics for target repos (#2162)
+
+The guards above catch arbiter faking green on **its own** gate. `arbiter doctor tool-pins` and
+`arbiter doctor fail-open-census` catch the same doctrine failure in an arbitrary **target**
+repo's local dev loop, one layer below CI:
+
+- **`tool-pins`**: a local gate tool older than the CI-pinned version still runs and prints
+  PASSED — worse than a missing tool, because it lies instead of warning. Extracts pins from the
+  target's own `.github/workflows/*.yml` and compares against a real `<tool> --version` probe.
+- **`fail-open-census`**: censuses the `command -v X || <fail-open>` presence-gate pattern (a
+  gate that silently no-ops when its tool is absent, rather than failing closed) across the
+  target's `scripts/` and `.githooks/`. Non-negotiable allowlist contract: an entry with no
+  `reason` is a malformed exemption, not a normal finding, and exits `2` per the same
+  Exit-code contract (INV-53) below.
+
+Both are read-only diagnostics (no writes to the target) — see `website/reference/cli.md` for the
+full flag reference. Impl: `src/commands/doctor/tool-pins.ts`, `tool-pin-extract.ts`,
+`fail-open-census.ts`.
+
 ### Rollout note (downstream generation)
 
 The three file-scan guards (#1, #6, E10) are **selfOnly** for now — they run against the arbiter
