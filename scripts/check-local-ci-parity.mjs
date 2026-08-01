@@ -195,6 +195,8 @@ const CI_COVERAGE = new Map([
   ['no work refs', 'gate-full'],
   ['private paths ignored', 'gate-full'],
   ['no tracked artifacts (INV-117)', 'gate-full'],
+  // #2159: found unwired by check-unwired-guards.mjs's own self-run.
+  ['hook routing (#2129)', 'gate-full'],
   ['greenfield smoke', 'gate-full'],
   ['placeholders', 'gate-full'],
   ['i18n raw strings', 'gate-full'],
@@ -268,6 +270,7 @@ const CI_COVERAGE = new Map([
   ['anti-drift: pr size gate', 'gate-full'],
   ['anti-drift: validator helptext', 'gate-full'],
   ['anti-drift: tier coverage', 'gate-full'],
+  ['anti-drift: unwired guards (#2159)', 'gate-full'],
   ['anti-drift: docker action runner safety (#1756)', 'gate-full'],
   ['nightly freshness (INV-93)', 'gate-full'],
   ['monthly freshness (INV-82)', 'gate-full'],

@@ -15,14 +15,14 @@ related: []
 
 # Anti-Drift Validator Family Reference (INV-89)
 
-The anti-drift validator family is a set of up to 21 `check-*.mjs` scripts that detect
+The anti-drift validator family is a set of up to 22 `check-*.mjs` scripts that detect
 configuration drift, secret leakage, suppression quality issues, and workflow structural problems
 in arbiter-generated projects.
 
 These scripts are emitted by `src/generators/anti-drift-validators.ts` (Track B); the dual-track
 ones are also wired directly in arbiter's own `scripts/check-all.mjs` L1 gate (Track A — see the
-Track column). The exact per-target count depends on configuration: **16** for a github-enabled
-L2/L3 target, **19** at L1 or github-off (the github-trio fallback is added), and **21** at
+Track column). The exact per-target count depends on configuration: **17** for a github-enabled
+L2/L3 target, **20** at L1 or github-off (the github-trio fallback is added), and **22** at
 L1/github-off + self-validation-off (the exit-code-contract + pipe-tee-hazard fallbacks are added
 too — #1835, closing a crash-class ghost where check-pipe-tee-hazard.mjs was referenced unguarded
 in check-all.mjs.ejs with no fallback emitter). The generator emit arrays are the SSOT; this table
@@ -35,29 +35,30 @@ is diffed against them by the `#1674` prose-parity self-gate.
 The `Condition` column states when each script is emitted: _always_ (every target), or a fallback
 emitted only when the dedicated owner generator is disabled.
 
-| Script                              | Wave | Track       | Gate Level | Condition                           | Purpose                                                     |
-| ----------------------------------- | ---- | ----------- | ---------- | ----------------------------------- | ----------------------------------------------------------- |
-| `check-suppression-rationale.mjs`   | W6   | A+B         | L1         | always                              | Every suppression has a rationale comment                   |
-| `check-suppression-expiry.mjs`      | W6   | A+B         | L1         | always                              | Every Trivy suppression has a future expiry date            |
-| `check-secret-scan.mjs`             | W6   | A+B         | L1         | always                              | Gitleaks secret scan                                        |
-| `check-drift.mjs`                   | W6   | A+B         | L1         | always                              | Catalog/template/workflow trio consistency                  |
-| `check-workflow-runners.mjs`        | W6   | A+B         | L1         | always                              | Runner labels match allowed set                             |
-| `check-workflow-docs-sync.mjs`      | W6   | A+B         | L1         | always                              | Workflow file list matches docs reference                   |
-| `check-workflow-test-integrity.mjs` | W6   | A+B         | L1         | always                              | No test step has continue-on-error: true                    |
-| `check-secret-presence.mjs`         | W6   | A+B         | L1         | always                              | Empty-secret skip needs an explicit opt-out (#1497)         |
-| `check-continue-on-error.mjs`       | W6   | A+B         | L1         | always                              | Gating step must not swallow failure via const-true (#1497) |
-| `check-test-scope-tier.mjs`         | W6   | A+B         | L1         | always                              | Each required test tier is run by a gate step (#1497)       |
-| `check-pr-size-gate.mjs`            | W6   | A+B         | L1         | always                              | sensitive-paths.txt patterns are valid globs                |
-| `check-claude-md-lint.mjs`          | W6   | A+B         | L1         | always                              | CLAUDE.md/AGENTS.md context-file linter (#1266)             |
-| `check-workflow-sha-pinning.mjs`    | W6   | B only      | —          | always                              | All action refs are SHA-pinned                              |
-| `check-workflow-job-naming.mjs`     | W6   | B only      | —          | always                              | Job naming convention (kebab-case)                          |
-| `check-min-test-execution.mjs`      | W6   | B only      | —          | always                              | Test runner collects >0 tests (#1497)                       |
-| `check-validator-helptext.mjs`      | F4   | A+B         | L1         | always                              | All anti-drift scripts support --help flag                  |
-| `check-action-pins.mjs`             | F4   | B only (fb) | —          | github-setup off (L1 or github-off) | GitHub Actions SHA-pin gate (INV-76)                        |
-| `check-workflow-perms.mjs`          | F4   | B only (fb) | —          | github-setup off (L1 or github-off) | Workflows declare top-level permissions                     |
-| `check-ci-tiers.mjs`                | F4   | B only (fb) | —          | github-setup off (L1 or github-off) | All required CI tier workflows exist                        |
-| `check-exit-code-contract.mjs`      | F4   | B only (fb) | —          | self-validation off                 | Scripts use 0=PASS/1=FAIL/2=ERROR only                      |
-| `check-pipe-tee-hazard.mjs`         | F4   | B only (fb) | —          | self-validation off                 | Pipe/tee hazard advisory scan (#1835)                       |
+| Script                              | Wave | Track       | Gate Level | Condition                           | Purpose                                                         |
+| ----------------------------------- | ---- | ----------- | ---------- | ----------------------------------- | --------------------------------------------------------------- |
+| `check-suppression-rationale.mjs`   | W6   | A+B         | L1         | always                              | Every suppression has a rationale comment                       |
+| `check-suppression-expiry.mjs`      | W6   | A+B         | L1         | always                              | Every Trivy suppression has a future expiry date                |
+| `check-secret-scan.mjs`             | W6   | A+B         | L1         | always                              | Gitleaks secret scan                                            |
+| `check-drift.mjs`                   | W6   | A+B         | L1         | always                              | Catalog/template/workflow trio consistency                      |
+| `check-workflow-runners.mjs`        | W6   | A+B         | L1         | always                              | Runner labels match allowed set                                 |
+| `check-workflow-docs-sync.mjs`      | W6   | A+B         | L1         | always                              | Workflow file list matches docs reference                       |
+| `check-workflow-test-integrity.mjs` | W6   | A+B         | L1         | always                              | No test step has continue-on-error: true                        |
+| `check-secret-presence.mjs`         | W6   | A+B         | L1         | always                              | Empty-secret skip needs an explicit opt-out (#1497)             |
+| `check-continue-on-error.mjs`       | W6   | A+B         | L1         | always                              | Gating step must not swallow failure via const-true (#1497)     |
+| `check-test-scope-tier.mjs`         | W6   | A+B         | L1         | always                              | Each required test tier is run by a gate step (#1497)           |
+| `check-pr-size-gate.mjs`            | W6   | A+B         | L1         | always                              | sensitive-paths.txt patterns are valid globs                    |
+| `check-claude-md-lint.mjs`          | W6   | A+B         | L1         | always                              | CLAUDE.md/AGENTS.md context-file linter (#1266)                 |
+| `check-unwired-guards.mjs`          | W6   | A+B         | L1         | always                              | Every guard script is referenced from a gate entrypoint (#2159) |
+| `check-workflow-sha-pinning.mjs`    | W6   | B only      | —          | always                              | All action refs are SHA-pinned                                  |
+| `check-workflow-job-naming.mjs`     | W6   | B only      | —          | always                              | Job naming convention (kebab-case)                              |
+| `check-min-test-execution.mjs`      | W6   | B only      | —          | always                              | Test runner collects >0 tests (#1497)                           |
+| `check-validator-helptext.mjs`      | F4   | A+B         | L1         | always                              | All anti-drift scripts support --help flag                      |
+| `check-action-pins.mjs`             | F4   | B only (fb) | —          | github-setup off (L1 or github-off) | GitHub Actions SHA-pin gate (INV-76)                            |
+| `check-workflow-perms.mjs`          | F4   | B only (fb) | —          | github-setup off (L1 or github-off) | Workflows declare top-level permissions                         |
+| `check-ci-tiers.mjs`                | F4   | B only (fb) | —          | github-setup off (L1 or github-off) | All required CI tier workflows exist                            |
+| `check-exit-code-contract.mjs`      | F4   | B only (fb) | —          | self-validation off                 | Scripts use 0=PASS/1=FAIL/2=ERROR only                          |
+| `check-pipe-tee-hazard.mjs`         | F4   | B only (fb) | —          | self-validation off                 | Pipe/tee hazard advisory scan (#1835)                           |
 
 `(fb)` = conditional **fallback**: anti-drift emits the script only when its dedicated owner
 generator is disabled, so the script is never double-written.

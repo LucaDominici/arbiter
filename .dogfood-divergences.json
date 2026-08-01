@@ -369,7 +369,7 @@
     "path": "check-local-ci-parity.mjs",
     "dest": "scripts",
     "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder.",
-    "diffHash": "73eec7e5dbd9a8484613b6a2a61c4ae5e491e917e959d510d2a7ca00482e61d6"
+    "diffHash": "710bff1d12ab1c1868acf079948feddb4f348d77096f2818cec1337cf5a3b8b5"
   },
   {
     "path": "check-suppression-expiry.mjs",

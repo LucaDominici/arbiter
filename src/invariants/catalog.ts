@@ -1411,6 +1411,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-workflow-docs-sync.mjs (L1) + ' +
       'scripts/check-workflow-test-integrity.mjs (L1) + ' +
       'scripts/check-pr-size-gate.mjs (L1) + ' +
+      'scripts/check-unwired-guards.mjs (L1) + ' +
       'scripts/check-validator-helptext.mjs (L1) + ' +
       'scripts/check-tier-coverage.mjs (L1) + ' +
       'src/generators/anti-drift-validators.ts (Track B, 20 scripts)',

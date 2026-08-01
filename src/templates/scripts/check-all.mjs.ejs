@@ -407,6 +407,8 @@ runCheck('suppression expiry (anti-drift)', 'node', ['scripts/check-suppression-
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
 // ─── L1: Context-file lint (anti-drift, INV-89, #1266) ───────────────────────
 runCheck('claude-md lint', 'node', ['scripts/check-claude-md-lint.mjs']);
+// ─── L1: Unwired guard-script detector (anti-drift, INV-89, #2159) ───────────
+runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
 // ─── L1: Workflow runner label enforcement (#191, inlined) ───────────────────
 {
   const _wrStart = Date.now();

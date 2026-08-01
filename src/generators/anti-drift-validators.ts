@@ -41,6 +41,11 @@ function emitW6DualTrack(
     'check-pr-size-gate.mjs',
     // #1266: thin context-file linter (CLAUDE.md/AGENTS.md) — dual-track (arbiter self-gate + target).
     'check-claude-md-lint.mjs',
+    // #2159: unwired guard-script detector — a check-*.sh/verify-*.sh/scripts/qa/check-*
+    // script that exists on disk but is never referenced by check-all.mjs/run.sh/another
+    // script/a workflow is a false sense of coverage. Dual-track (arbiter self-gate +
+    // target). Self-contained (no lib import) so it runs in any generated project.
+    'check-unwired-guards.mjs',
   ]
   return scripts.map((name) =>
     writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
@@ -153,11 +158,12 @@ function emitF4Validators(
 /**
  * W6+F4 Anti-Drift Validator Family (INV-89)
  *
- * Emits check-*.mjs scripts for target projects (#1152, #1266, #1318.2, #1497):
- * - W6 batch (15 scripts):
- *   - 12 dual-track scripts (check-pii-scan excluded — duplicates native pii-scan;
+ * Emits check-*.mjs scripts for target projects (#1152, #1266, #1318.2, #1497, #2159):
+ * - W6 batch (16 scripts):
+ *   - 13 dual-track scripts (check-pii-scan excluded — duplicates native pii-scan;
  *     check-claude-md-lint added #1266 — thin CLAUDE.md/AGENTS.md context-file linter;
- *     check-secret-presence + check-continue-on-error + check-test-scope-tier added #1497)
+ *     check-secret-presence + check-continue-on-error + check-test-scope-tier added #1497;
+ *     check-unwired-guards added #2159 — unwired guard-script detector, INV-89)
  *   - 3 Track-B-only scripts (not wired in arbiter's own gate; check-min-test-execution added #1497)
  * - F4 batch: check-validator-helptext (anti-drift is sole owner) + the
  *   github-owned trio (check-action-pins/check-workflow-perms/check-ci-tiers) as

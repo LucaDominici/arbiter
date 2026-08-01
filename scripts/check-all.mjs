@@ -145,6 +145,11 @@ if (isMain) {
   runCheck('no work refs', 'node', ['scripts/check-no-work-refs.mjs', 'all'])
   runCheck('private paths ignored', 'node', ['scripts/check-private-paths-ignored.mjs'])
   runCheck('no tracked artifacts (INV-117)', 'node', ['scripts/check-no-tracked-artifacts.mjs'])
+  // #2159: found unwired by check-unwired-guards.mjs's own self-run — an
+  // UNCONDITIONAL_EMISSIONS sibling of check-collab-mode-wired/check-constraint-scan/
+  // check-no-tracked-artifacts (all wired above/below) that was never wired into
+  // arbiter's own gate. Validates arbiter's OWN .claude/hooks routing (#2129).
+  runCheck('hook routing (#2129)', 'node', ['scripts/check-hook-routing.mjs'])
   runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
   runCheck('format', 'npx', ['prettier', '--check', '.'])
   // #1523: scripts/ (the gate-enforcement layer) is linted alongside src/ and
@@ -282,6 +287,7 @@ if (isMain) {
     'scripts/check-workflow-parallelism.mjs',
   ])
   runCheck('anti-drift: pr size gate', 'node', ['scripts/check-pr-size-gate.mjs'])
+  runCheck('anti-drift: unwired guards (#2159)', 'node', ['scripts/check-unwired-guards.mjs'])
   runCheck('anti-drift: validator helptext', 'node', ['scripts/check-validator-helptext.mjs'])
   runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'])
   runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])

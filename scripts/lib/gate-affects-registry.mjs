@@ -97,6 +97,8 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'no work refs', affects: ALWAYS },
   { name: 'private paths ignored', affects: ALWAYS },
   { name: 'no tracked artifacts (INV-117)', affects: ALWAYS },
+  // #2159: found unwired by check-unwired-guards.mjs itself — see check-all.mjs.
+  { name: 'hook routing (#2129)', affects: ALWAYS },
   { name: 'typecheck', affects: ALWAYS },
   { name: 'format', affects: ALWAYS },
   { name: 'lint', affects: ALWAYS },
@@ -142,6 +144,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'anti-drift: drift manifest', affects: ALWAYS },
   { name: 'anti-drift: validator helptext', affects: ALWAYS },
   { name: 'anti-drift: tier coverage', affects: ALWAYS },
+  { name: 'anti-drift: unwired guards (#2159)', affects: ALWAYS },
   { name: 'no passWithNoTests (INV-25)', affects: ALWAYS },
   { name: 'hook doc parity (CANON-10, #1838)', affects: ALWAYS },
   { name: 'feature matrix (INV-112)', affects: ALWAYS },
