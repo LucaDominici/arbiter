@@ -35,7 +35,7 @@
       "evidence": [
         { "file": "src/commands/doctor/tool-pins.ts", "line": 14 },
         { "file": "src/commands/doctor/fail-open-census.ts", "line": 17 },
-        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 458 }
+        { "file": "__tests__/commands/doctor-tool-pins.test.ts", "line": 463 }
       ]
     }
   ]
