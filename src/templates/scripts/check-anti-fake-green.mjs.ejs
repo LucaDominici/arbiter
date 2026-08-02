@@ -37,6 +37,9 @@ const GUARDS = [
   { name: 'grace-window', script: 'scripts/check-grace-window.mjs' },
   { name: 'secret-presence', script: 'scripts/check-secret-presence.mjs' },
   { name: 'continue-on-error', script: 'scripts/check-continue-on-error.mjs' },
+  // #2160: conditional on an E2E (Playwright) harness — absent for library/cli targets, so the
+  // `absent` bucket below reports it rather than fabricating a pass (AC-4).
+  { name: 'oracle-discrimination', script: 'scripts/check-oracle-discrimination.mjs' },
 ]
 
 function main() {

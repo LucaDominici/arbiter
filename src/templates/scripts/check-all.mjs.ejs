@@ -640,6 +640,13 @@ runCheck('muted gate test (anti-fake-green)', 'node', ['scripts/check-muted-test
 runCheck('skipped critical e2e (anti-fake-green)', 'node', ['scripts/check-skip-critical-e2e.mjs']);
 runCheck('stub redirect husk (anti-fake-green)', 'node', ['scripts/check-no-stub-redirects.mjs']);
 runCheck('grace window (anti-fake-green)', 'node', ['scripts/check-grace-window.mjs']);
+// #2160: oracle-discrimination.mjs is emitted by check-all.ts ONLY where an E2E (Playwright)
+// harness is applicable (archetype frontend-spa or backend-web-db, same predicate as
+// generateE2eConstitution) — reference it only where it is actually emitted (mirrors the
+// merge-method ff-only precedent, #1331).
+<% if (archetype === 'frontend-spa' || archetype === 'backend-web-db') { %>
+runCheck('oracle discrimination (anti-fake-green)', 'node', ['scripts/check-oracle-discrimination.mjs']);
+<% } %>
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
 <% if (enableSecurityScanning) { %>

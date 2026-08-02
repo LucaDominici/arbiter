@@ -418,6 +418,10 @@ export function generateCheckAll(
   // #1367 (INV-126): domain<->API surface-completeness gate.
   results.push(...emitDomainApiSurface(base, config, data, opts))
 
+  // #2160: oracle-discrimination guard — conditional on an E2E (Playwright) harness being
+  // applicable, same predicate as generateE2eConstitution (e2e-constitution.ts).
+  results.push(...emitOracleDiscrimination(base, config, data, opts))
+
   // #1127 / #1330: frontend gate scripts (boundary purity + per-lane subtree gate).
   results.push(...emitFrontendChecks(base, config, data, opts))
 
@@ -481,6 +485,40 @@ function emitDomainApiSurface(
     writeFile(
       resolvedPath(base, 'domain-api-surface.json'),
       renderTemplate('scripts/domain-api-surface.json.ejs', data),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+  ]
+}
+
+/**
+ * #2160 (port of viafera's scripts/qa/check-oracle-discrimination.mjs): emit the
+ * oracle-discrimination guard + its seeded-empty ratchet baseline ONLY where an E2E
+ * (Playwright) harness is applicable — same predicate as generateE2eConstitution
+ * (e2e-constitution.ts): archetype frontend-spa or backend-web-db. A library/cli/embedded
+ * target never gets the file, so check-anti-fake-green.mjs's generic existsSync-guarded
+ * roster loop reports it `absent` rather than fabricating a pass (AC-4). The baseline is
+ * seeded empty (skipIfExists: true, same brownfield-companion shape as
+ * muted-tests-baseline.json) — the guard's OWN runtime never writes it except under an
+ * explicit --update-baseline flag (AC-2 fail-closed-on-missing stays a human act, not an
+ * emission-time convenience).
+ */
+function emitOracleDiscrimination(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  const hasE2eHarness = config.archetype === 'frontend-spa' || config.archetype === 'backend-web-db'
+  if (!hasE2eHarness) return []
+  return [
+    writeFile(
+      resolvedPath(base, 'scripts', 'check-oracle-discrimination.mjs'),
+      renderTemplate('scripts/check-oracle-discrimination.mjs.ejs', data),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+    writeFile(
+      resolvedPath(base, 'oracle-discrimination-baseline.json'),
+      renderTemplate('scripts/oracle-discrimination-baseline.json.ejs', data),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
   ]

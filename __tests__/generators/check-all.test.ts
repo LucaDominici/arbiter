@@ -46,6 +46,8 @@ describe('generateCheckAll', () => {
     // + verify-mutation-baseline.mjs (#1508)
     // + check-muted-test.mjs + check-skip-critical-e2e.mjs + check-no-stub-redirects.mjs
     //   + check-grace-window.mjs (anti-fake-green file-scan guards, A5, #1497)
+    // (oracle-discrimination.mjs, #2160, is NOT here — conditional on an E2E harness, library
+    //   archetype default does not qualify, see the dedicated describe block below)
     // + muted-tests-baseline.json (brownfield grandfathering for check-muted-test, #1835-class)
     // + check-safety-adopt-ratchet.mjs (T1, anti-erosion ratchet — convergence playbook)
     // + check-smoke-journeys.mjs (INV-137 smoke-journey acceptance floor, #2080)
@@ -1258,6 +1260,42 @@ describe('generateCheckAll', () => {
       )
       const paths = result.files.map((f) => f.path)
       expect(paths.some((p) => p.endsWith('scripts/check-consumer-audit.mjs'))).toBe(false)
+    })
+  })
+
+  describe('oracle-discrimination guard (#2160) — conditional on an E2E harness', () => {
+    it('emits the guard + seeded-empty baseline for a frontend-spa archetype', () => {
+      const result = generateCheckAll(makeConfig(dir, { archetype: 'frontend-spa' }))
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-oracle-discrimination.mjs'))).toBe(true)
+      expect(paths.some((p) => p.endsWith('oracle-discrimination-baseline.json'))).toBe(true)
+      const seeded = JSON.parse(
+        readFileSync(
+          result.files.find((f) => f.path.endsWith('oracle-discrimination-baseline.json'))!.path,
+          'utf-8',
+        ),
+      )
+      expect(seeded.count).toBe(0)
+      expect(seeded.sites).toEqual([])
+    })
+
+    it('emits the guard for a backend-web-db archetype', () => {
+      const result = generateCheckAll(makeConfig(dir, { archetype: 'backend-web-db' }))
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-oracle-discrimination.mjs'))).toBe(true)
+    })
+
+    it('does NOT emit the guard for a library archetype (no E2E harness applicable)', () => {
+      const result = generateCheckAll(makeConfig(dir, { archetype: 'library' }))
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-oracle-discrimination.mjs'))).toBe(false)
+      expect(paths.some((p) => p.endsWith('oracle-discrimination-baseline.json'))).toBe(false)
+    })
+
+    it('does NOT emit the guard for a cli archetype', () => {
+      const result = generateCheckAll(makeConfig(dir, { archetype: 'cli' }))
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-oracle-discrimination.mjs'))).toBe(false)
     })
   })
 })
