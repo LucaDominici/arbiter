@@ -5,6 +5,8 @@ coverage/
 report/
 .arbiter/
 .claude/worktrees/
+# Worktrees are self-contained checkouts; the parent repo must not lint/track them.
+arbiter.worktrees/
 docs/PLAN/
 # Python cache directories (#1686)
 .pytest_cache/

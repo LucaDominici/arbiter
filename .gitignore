@@ -68,6 +68,8 @@ __tests__/**/target/
 
 # Fixture worktree pollution from test runs
 __tests__/fixtures/**/.arbiter/work/
+# Worktrees are self-contained checkouts; the parent repo must not lint/track them.
+arbiter.worktrees/
 .evidence/
 report/
 
