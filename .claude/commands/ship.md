@@ -106,6 +106,11 @@ the file-path-matched auditor set computed by the existing router —
 **not** the tier's vertical floor: Standard's floor lists those same verticals as breadth for every
 Standard change, so reading the escalation off the floor would make "Standard=2" unreachable. Same
 mechanism, read without the size floor — no new classifier.
+Where `scripts/route-auditors.mjs` and `.claude/auditor-routing.json` exist (arbiter's own tree), run
+the router without `--size-floor` and read its `active` array; where they do not exist — every
+generated project, since neither file is emitted — apply the same rule by inspecting changed paths
+for auth/authz, crypto and secret material, database migrations and SQL, and CI workflow and
+permission config. A missing router is never a "no security surface" verdict.
 
 Red-team agent counts (XS=1, S=2, Standard=3) are **unchanged**: the study measured code review
 only, so there is no evidence to move them.
@@ -267,6 +272,15 @@ every still-`resolved:false` finding caps its mapped auditor's verdict score and
 
 Dispatch a single self-review agent covering: bugs & logic errors, type safety, domain consistency
 (AGENTS.md / ADRs), silent failures (swallowed exceptions, wrong fallbacks).
+
+Security escalation applies in trunk-solo too: when the escalation fires, the agent writes
+`"count":3` and the three reviewer names into the `printf` instead of `1` and `["self-review"]`
+in `.arbiter/agents-dispatched.json` (#2177). Where `scripts/route-auditors.mjs` and
+`.claude/auditor-routing.json` exist (arbiter's own tree), run the router without `--size-floor`
+and read its `active` array; where they do not exist — every generated project, since neither file
+is emitted — apply the same rule by inspecting changed paths for auth/authz, crypto and secret
+material, database migrations and SQL, and CI workflow and permission config. A missing router is
+never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
