@@ -1226,3 +1226,39 @@ describe('check-all.mjs.ejs rendering — feature-matrix/gap wiring (#1887-B)', 
     expect(content).not.toContain('gen-gap.mjs')
   })
 })
+
+// #2160 (AC-5): oracle-discrimination.mjs is emitted by emitOracleDiscrimination
+// (check-all.ts) ONLY for an E2E-harness archetype — the check-all.mjs.ejs reference must be
+// gated by the IDENTICAL predicate so a library/cli render never carries a dangling
+// reference to a file that was never emitted (the emission-coherence ghost class, #1331).
+describe('check-all.mjs.ejs rendering — oracle-discrimination emission↔wiring parity (#2160)', () => {
+  it('references check-oracle-discrimination.mjs for a frontend-spa archetype (matches emission)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/check-oracle-discrimination.mjs')
+  })
+
+  it('references check-oracle-discrimination.mjs for a backend-web-db archetype', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'backend-web-db',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/check-oracle-discrimination.mjs')
+  })
+
+  it('does NOT reference check-oracle-discrimination.mjs for a library archetype (never emitted there)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'library',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-oracle-discrimination.mjs')
+  })
+})

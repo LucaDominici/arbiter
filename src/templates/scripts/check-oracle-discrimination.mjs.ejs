@@ -166,7 +166,7 @@ function findViolations(file) {
 function main() {
   const specs = []
   collectE2eSpecs(ROOT, specs, false)
-  const violations = [] // RED (#2160): detection not wired up yet
+  const violations = specs.flatMap(findViolations)
   const key = (v) => `${v.file}:${v.line}`
 
   if (UPDATE) {
