@@ -217,12 +217,47 @@ function verificationSelfOnlyChecks(profile: ShipProfile): string[] {
   return profile.isArbiterSelf ? [...SELF_ONLY_GATES] : []
 }
 
+type ReviewPhase = 'red-team-review' | 'red-team-rework' | 'refactor'
+const RED_TEAM_REVIEW_PHASE: ReviewPhase = 'red-team-review'
+const RED_TEAM_REWORK_PHASE: ReviewPhase = 'red-team-rework'
+const REFACTOR_PHASE: ReviewPhase = 'refactor'
+
+function isReviewPhase(phase: TaskPhase): phase is ReviewPhase {
+  return (
+    phase === RED_TEAM_REVIEW_PHASE || phase === RED_TEAM_REWORK_PHASE || phase === REFACTOR_PHASE
+  )
+}
+
+function reviewPhaseStepBody(phase: ReviewPhase, t: ShipTier): Omit<ShipStep, 'verticals'> {
+  if (phase === RED_TEAM_REVIEW_PHASE) {
+    return {
+      phase,
+      action: `Dispatch ${REDTEAM_AGENTS[t]} red-team agent(s); route CRITICAL findings to red-team-rework.`,
+      reviewAgents: REDTEAM_AGENTS[t],
+    }
+  }
+  if (phase === RED_TEAM_REWORK_PHASE) {
+    return {
+      phase,
+      action: 'Revise the plan for CRITICAL findings, then re-run red-team-review.',
+      reviewAgents: 0,
+    }
+  }
+  return {
+    phase,
+    action: `Clean up, then dispatch ${REVIEW_AGENTS[t]} code-review agent(s) + 1 adversarial verifier.`,
+    reviewAgents: REVIEW_AGENTS[t],
+  }
+}
+
 /** The phase body (count + action), before the size-derived vertical floor is attached. */
 function shipStepBody(
   phase: TaskPhase,
   t: ShipTier,
   profile: ShipProfile,
 ): Omit<ShipStep, 'verticals'> {
+  if (isReviewPhase(phase)) return reviewPhaseStepBody(phase, t)
+
   switch (phase) {
     case 'preflight':
       return {
@@ -241,18 +276,6 @@ function shipStepBody(
         command: 'arbiter verify plan <plan-file>',
         reviewAgents: 0,
       }
-    case 'red-team-review':
-      return {
-        phase,
-        action: `Dispatch ${REDTEAM_AGENTS[t]} red-team agent(s); route CRITICAL findings to red-team-rework.`,
-        reviewAgents: REDTEAM_AGENTS[t],
-      }
-    case 'red-team-rework':
-      return {
-        phase,
-        action: 'Revise the plan for CRITICAL findings, then re-run red-team-review.',
-        reviewAgents: 0,
-      }
     case 'red':
       return {
         phase,
@@ -265,12 +288,6 @@ function shipStepBody(
         phase,
         action: greenAction(profile),
         reviewAgents: 0,
-      }
-    case 'refactor':
-      return {
-        phase,
-        action: `Clean up, then dispatch ${REVIEW_AGENTS[t]} code-review agent(s) + 1 adversarial verifier.`,
-        reviewAgents: REVIEW_AGENTS[t],
       }
     case 'verification':
       return {
@@ -511,6 +528,25 @@ function writeVerificationCompanionEvidence(
   writeCompanionEvidence(root, taskId, profile, opts)
 }
 
+function shipTierFor(
+  root: string,
+  state: ReturnType<typeof readUnifiedState>,
+  opts: TaskShipOptions,
+): ShipTier {
+  // #2180 / Study C (#2176): text-only triage reached only 75.6% adjacent accuracy and 20%
+  // fail-dangerous L→S errors. Routing therefore accepts deterministic signals only, and their
+  // one-way floors can widen XS→S→Standard but can never narrow the caller's tier. Standard is
+  // the widest tier, therefore a fixed point of this widen-only function: gathering its signals
+  // cannot affect routing and is skipped to avoid an unnecessary graph parse and GitHub request.
+  const base = normTier(opts.tier ?? state?.tier)
+  return base === 'Standard'
+    ? base
+    : widenTier(
+        base,
+        (opts.gatherTierSignals ?? gatherTierSignals)(root, state?.taskId ?? opts.taskId),
+      )
+}
+
 /**
  * Compute (and optionally advance to) the current ship step. Returns the step descriptor the agent
  * loop should execute next. With `advance`, advances one phase via runTaskAdvance — gate-green is
@@ -522,19 +558,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'
-  // #2180 / Study C (#2176): text-only triage reached only 75.6% adjacent accuracy and 20%
-  // fail-dangerous L→S errors. Routing therefore accepts deterministic signals only, and their
-  // one-way floors can widen XS→S→Standard but can never narrow the caller's tier. Standard is
-  // the widest tier, therefore a fixed point of this widen-only function: gathering its signals
-  // cannot affect routing and is skipped to avoid an unnecessary graph parse and GitHub request.
-  const base = normTier(opts.tier ?? state?.tier)
-  const tier =
-    base === 'Standard'
-      ? base
-      : widenTier(
-          base,
-          (opts.gatherTierSignals ?? gatherTierSignals)(root, state?.taskId ?? opts.taskId),
-        )
+  const tier = shipTierFor(root, state, opts)
 
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.

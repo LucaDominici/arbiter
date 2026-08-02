@@ -295,7 +295,7 @@ function readDispatchSidecar() {
   try {
     const parsed = JSON.parse(readFileSync(sidecarPath, 'utf-8'))
     if (!isSidecar(parsed)) throw new Error('sidecar must contain count, branch, and sha')
-    return { sidecar: parsed }
+    return { sidecar: parsed } // FAIL-OPEN-INTENT: error value is returned and surfaced by the caller, which exits non-zero.
   } catch (err) {
     return { error: errorMessage(err) }
   }
