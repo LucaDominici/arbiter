@@ -56,30 +56,63 @@ const schemaPath = arg('schema', argv)
 
 /**
  * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isRecord(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is number}
+ */
+function isNonNegativeInteger(value) {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.length > 0
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is string[]}
+ */
+function isValidAgentList(value) {
+  if (!Array.isArray(value)) return false
+  return value.every((agent) => isNonEmptyString(agent))
+}
+
+/**
+ * @param {Record<string, unknown>} record
+ * @returns {boolean}
+ */
+function hasValidSidecarFields(record) {
+  if (!isNonNegativeInteger(record['count'])) return false
+  if (!isNonEmptyString(record['branch'])) return false
+  return isNonEmptyString(record['sha'])
+}
+
+/**
+ * @param {Record<string, unknown>} record
+ * @returns {boolean}
+ */
+function hasValidOptionalAgents(record) {
+  if (!('agents' in record)) return true
+  return isValidAgentList(record['agents'])
+}
+
+/**
+ * @param {unknown} value
  * @returns {value is DispatchSidecar}
  */
 function isSidecar(value) {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const record = /** @type {Record<string, unknown>} */ (value)
-  if (
-    typeof record['count'] !== 'number' ||
-    !Number.isInteger(record['count']) ||
-    record['count'] < 0 ||
-    typeof record['branch'] !== 'string' ||
-    record['branch'].length === 0 ||
-    typeof record['sha'] !== 'string' ||
-    record['sha'].length === 0
-  ) {
-    return false
-  }
-  if (
-    'agents' in record &&
-    (!Array.isArray(record['agents']) ||
-      record['agents'].some((agent) => typeof agent !== 'string' || agent.length === 0))
-  ) {
-    return false
-  }
-  return true
+  if (!isRecord(value)) return false
+  return hasValidSidecarFields(value) && hasValidOptionalAgents(value)
 }
 
 /**
@@ -88,6 +121,14 @@ function isSidecar(value) {
  */
 function sanitizeTask(task) {
   return task.replace(/[#/]/g, '')
+}
+
+/**
+ * @param {unknown} err
+ * @returns {string}
+ */
+function errorMessage(err) {
+  return err instanceof Error ? err.message : String(err)
 }
 
 /**
@@ -152,6 +193,124 @@ function readEnvelopes(files, schema) {
   return valid
 }
 
+/**
+ * @param {string} file
+ * @param {string} agent
+ * @returns {boolean}
+ */
+function isAgentEnvelopeFile(file, agent) {
+  const basename = file.slice(file.lastIndexOf('/') + 1)
+  return basename === `${agent}.json` || basename.startsWith(`${agent}-`)
+}
+
+/**
+ * @param {string} agent
+ * @param {DispatchSidecar} sidecar
+ * @param {string[]} files
+ * @param {Record<string, unknown>[]} valid
+ * @returns {string | null}
+ */
+function checkAgentEnvelope(agent, sidecar, files, valid) {
+  const matchingFiles = files.filter((file) => isAgentEnvelopeFile(file, agent))
+  const matching = valid.filter((envelope) => envelope['agent'] === agent)
+  const branchMatch = matching.find((envelope) => envelope['branch'] === sidecar.branch)
+  if (branchMatch) return null
+  if (matching.length > 0) {
+    const observed = String(matching[0]['branch'])
+    return `${agent}: provenance mismatch — expected branch ${sidecar.branch}, observed ${observed}`
+  }
+  if (matchingFiles.length > 0) {
+    return `${agent}: missing, empty, malformed, or schema-invalid return envelope`
+  }
+  return `${agent}: missing return envelope`
+}
+
+/**
+ * @param {DispatchSidecar} sidecar
+ * @param {string[]} files
+ * @param {Record<string, unknown>[]} valid
+ * @returns {string[]}
+ */
+function checkNamedAgentEnvelopes(sidecar, files, valid) {
+  const failures = []
+  if (sidecar.agents.length < sidecar.count) {
+    failures.push(
+      `sidecar declares ${sidecar.count} dispatched agent(s) but only ${sidecar.agents.length} named agent(s)`,
+    )
+  }
+  for (const agent of sidecar.agents) {
+    const failure = checkAgentEnvelope(agent, sidecar, files, valid)
+    if (failure) failures.push(failure)
+  }
+  return failures
+}
+
+/**
+ * @param {DispatchSidecar} sidecar
+ * @param {Record<string, unknown>[]} valid
+ * @returns {string[]}
+ */
+function checkLegacyReviewerCount(sidecar, valid) {
+  const reviewerCount = valid.filter((envelope) => envelope['role'] === 'reviewer').length
+  if (reviewerCount < sidecar.count) {
+    return [
+      `legacy dispatch expects ${sidecar.count} reviewer envelope(s) but found ${reviewerCount}`,
+    ]
+  }
+  return []
+}
+
+/**
+ * @param {DispatchSidecar} sidecar
+ * @param {string[]} files
+ * @param {Record<string, unknown>[]} valid
+ * @returns {string[]}
+ */
+function collectReviewFailures(sidecar, files, valid) {
+  if (Array.isArray(sidecar.agents)) return checkNamedAgentEnvelopes(sidecar, files, valid)
+  return checkLegacyReviewerCount(sidecar, valid)
+}
+
+/**
+ * @param {string[]} failures
+ * @returns {number}
+ */
+function reportReviewFailures(failures) {
+  if (failures.length === 0) {
+    process.stdout.write('[check-review-completion] OK — review completion reconciled\n')
+    return 0
+  }
+  for (const failure of failures)
+    process.stdout.write(`[check-review-completion] FAIL: ${failure}\n`)
+  process.stdout.write(
+    '[check-review-completion] Re-dispatch ONLY the named agent(s) exactly once, persist their returns, and re-run this check.\n',
+  )
+  return 1
+}
+
+/**
+ * @returns {{ sidecar: DispatchSidecar } | { error: string }}
+ */
+function readDispatchSidecar() {
+  try {
+    const parsed = JSON.parse(readFileSync(sidecarPath, 'utf-8'))
+    if (!isSidecar(parsed)) throw new Error('sidecar must contain count, branch, and sha')
+    return { sidecar: parsed }
+  } catch (err) {
+    return { error: errorMessage(err) }
+  }
+}
+
+/**
+ * @param {DispatchSidecar} sidecar
+ * @returns {string | null}
+ */
+function sidecarTask(sidecar) {
+  if (typeof sidecar.task === 'string') return sidecar.task
+  if (typeof sidecar.taskId === 'string') return sidecar.taskId
+  return null
+}
+
 function main() {
   if (!existsSync(sidecarPath)) {
     // FAIL-OPEN-INTENT: no dispatch sidecar means no review dispatch was recorded, so this task-scoped reconciliation has no subject.
@@ -161,26 +320,16 @@ function main() {
     return 0
   }
 
-  /** @type {DispatchSidecar} */
-  let sidecar
-  try {
-    const parsed = JSON.parse(readFileSync(sidecarPath, 'utf-8'))
-    if (!isSidecar(parsed)) throw new Error('sidecar must contain count, branch, and sha')
-    sidecar = parsed
-  } catch (err) {
+  const sidecarResult = readDispatchSidecar()
+  if ('error' in sidecarResult) {
     process.stderr.write(
-      `[check-review-completion] ERROR: cannot read sidecar ${sidecarPath}: ${err instanceof Error ? err.message : String(err)}\n`,
+      `[check-review-completion] ERROR: cannot read sidecar ${sidecarPath}: ${sidecarResult.error}\n`,
     )
     return 2
   }
+  const { sidecar } = sidecarResult
 
-  const taskFromSidecar =
-    typeof sidecar.task === 'string'
-      ? sidecar.task
-      : typeof sidecar.taskId === 'string'
-        ? sidecar.taskId
-        : null
-  const task = requestedTask ?? taskFromSidecar
+  const task = requestedTask ?? sidecarTask(sidecar)
   if (!task) {
     // FAIL-OPEN-INTENT: check-all has no task context and the legacy sidecar has no task id; avoid reconciling unrelated historical evidence.
     process.stdout.write('[check-review-completion] OK — task id unavailable, vacuous pass\n')
@@ -199,7 +348,7 @@ function main() {
     schema = loadSchema(schemaPath)
   } catch (err) {
     process.stderr.write(
-      `[check-review-completion] ERROR: cannot load schema: ${err instanceof Error ? err.message : String(err)}\n`,
+      `[check-review-completion] ERROR: cannot load schema: ${errorMessage(err)}\n`,
     )
     return 2
   }
@@ -212,60 +361,12 @@ function main() {
     return 2
   }
   const valid = readEnvelopes(listed.files, schema)
-
-  /** @type {string[]} */
-  const failures = []
-  if (Array.isArray(sidecar.agents)) {
-    if (sidecar.agents.length < sidecar.count) {
-      failures.push(
-        `sidecar declares ${sidecar.count} dispatched agent(s) but only ${sidecar.agents.length} named agent(s)`,
-      )
-    }
-    for (const agent of sidecar.agents) {
-      const matchingFiles = listed.files.filter((file) => {
-        const basename = file.slice(file.lastIndexOf('/') + 1)
-        return basename === `${agent}.json` || basename.startsWith(`${agent}-`)
-      })
-      const matching = valid.filter((envelope) => envelope['agent'] === agent)
-      const branchMatch = matching.find((envelope) => envelope['branch'] === sidecar.branch)
-      if (branchMatch) continue
-      if (matching.length > 0) {
-        const observed = String(matching[0]['branch'])
-        failures.push(
-          `${agent}: provenance mismatch — expected branch ${sidecar.branch}, observed ${observed}`,
-        )
-      } else if (matchingFiles.length > 0) {
-        failures.push(`${agent}: missing, empty, malformed, or schema-invalid return envelope`)
-      } else {
-        failures.push(`${agent}: missing return envelope`)
-      }
-    }
-  } else {
-    const reviewerCount = valid.filter((envelope) => envelope['role'] === 'reviewer').length
-    if (reviewerCount < sidecar.count) {
-      failures.push(
-        `legacy dispatch expects ${sidecar.count} reviewer envelope(s) but found ${reviewerCount}`,
-      )
-    }
-  }
-
-  if (failures.length > 0) {
-    for (const failure of failures)
-      process.stdout.write(`[check-review-completion] FAIL: ${failure}\n`)
-    process.stdout.write(
-      '[check-review-completion] Re-dispatch ONLY the named agent(s) exactly once, persist their returns, and re-run this check.\n',
-    )
-    return 1
-  }
-  process.stdout.write('[check-review-completion] OK — review completion reconciled\n')
-  return 0
+  return reportReviewFailures(collectReviewFailures(sidecar, listed.files, valid))
 }
 
 try {
   process.exit(main())
 } catch (err) {
-  process.stderr.write(
-    `[check-review-completion] ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
-  )
+  process.stderr.write(`[check-review-completion] ERROR: ${errorMessage(err)}\n`)
   process.exit(2)
 }

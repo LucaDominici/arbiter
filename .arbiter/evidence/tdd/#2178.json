@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2178",
+  "test_path": "__tests__/commands/task-ship.test.ts",
+  "test_commit_sha": "96dd060e951daf0e2dc4531ab447a38d52d67371",
+  "test_run_log": " FAIL  __tests__/commands/task-ship.test.ts > ship sequencing — pure plan > derives code-review count from the final, post-widening tier (AC-3)\nAssertionError: expected 4 to be 2 // Object.is equality\n- Expected\n+ Received\n- 2\n+ 4\n ❯ __tests__/commands/task-ship.test.ts:71:7\n     69|         widenTier('XS', { blastRadius: 75, labels: [], milestoneBundle…\n     70|       ).reviewAgents,\n     71|     ).toBe(2)\n       |       ^\n     72|     expect(\n     73|       shipStepFor(\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯\n FAIL  __tests__/commands/task-ship.test.ts > self /ship documentation coherence (#2178) > states the recalibrated code-review minimums by tier\nAssertionError: expected false to be true // Object.is equality\n- Expected\n+ Received\n- true\n+ false\n ❯ __tests__/commands/task-ship.test.ts:123:7\n    121|     expect(\n    122|       shipCommand.includes('Review-agent minimums by tier: XS=1, S=1, …\n    123|     ).toBe(true)\n       |       ^\n    124|   })\n    125|\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯\n FAIL  __tests__/commands/task-ship.test.ts > self /ship documentation coherence (#2178) > reserves three code-review agents for the file-path-matched auditor set\nAssertionError: expected false to be true // Object.is equality\n- Expected\n+ Received\n- true\n+ false\n ❯ __tests__/commands/task-ship.test.ts:127:58\n    125|\n    126|   it('reserves three code-review agents for the file-path-matched audi…\n    127|     expect(shipCommand.includes('3 code-review agents')).toBe(true)\n       |                                                          ^\n    128|     expect(shipCommand.includes('file-path-matched auditor set')).toBe…\n    129|     expect(shipCommand.includes('scripts/route-auditors.mjs')).toBe(tr…\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯\n FAIL  __tests__/commands/task-ship.test.ts > self /ship documentation coherence (#2178) > names review completion as the precondition that makes a single reviewer safe\nAssertionError: expected false to be true // Object.is equality\n- Expected\n+ Received\n- true\n+ false\n ❯ __tests__/commands/task-ship.test.ts:134:58\n    132|   it('names review completion as the precondition that makes a single …\n    133|     expect(shipCommand.includes('scripts/check-review-completion.mjs')…\n    134|     expect(shipCommand.includes('single reviewer safe')).toBe(true)\n       |                                                          ^\n    135|   })\n    136| })\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯\n Test Files  1 failed (1)\n      Tests  5 failed | 33 passed (38)\n   Start at  23:47:20\n   Duration  1.03s (transform 165ms, setup 13ms, import 213ms, tests 714ms, environment 0ms)\n",
+  "observed_failure": "FAIL  __tests__/commands/task-ship.test.ts",
+  "recorded_at": "2026-08-02T21:44:21.682Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/task-ship.test.ts"
+  ],
+  "repin_note": "evidence created at epic close from a real red run at the red commit (lead omitted the force-add); rerun 2026-08-02 in a detached worktree at the pinned sha"
+}
