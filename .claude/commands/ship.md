@@ -101,12 +101,12 @@ completion gate is ever removed, XS/S must go back to a panel.
 includes `security`, `data-integrity` or `silent-failures`, dispatch 3 code-review agents
 regardless of tier (study: security-class defects — singles 82-83%, panels 97-99%). The trigger is
 the file-path-matched auditor set computed by the existing router —
-`git diff --name-only ... | node scripts/route-auditors.mjs --diff-stdin` run **without**
+the router `route-auditors.mjs` over `git diff --name-only ...` with `--diff-stdin`, run **without**
 `--size-floor`, whose `active` array comes from `.claude/auditor-routing.json` path matching. It is
 **not** the tier's vertical floor: Standard's floor lists those same verticals as breadth for every
 Standard change, so reading the escalation off the floor would make "Standard=2" unreachable. Same
 mechanism, read without the size floor — no new classifier.
-Where `scripts/route-auditors.mjs` and `.claude/auditor-routing.json` exist (arbiter's own tree), run
+Where `route-auditors.mjs` and `.claude/auditor-routing.json` exist (arbiter's own tree), run
 the router without `--size-floor` and read its `active` array; where they do not exist — every
 generated project, since neither file is emitted — apply the same rule by inspecting changed paths
 for auth/authz, crypto and secret material, database migrations and SQL, and CI workflow and
@@ -275,7 +275,7 @@ Dispatch a single self-review agent covering: bugs & logic errors, type safety, 
 
 Security escalation applies in trunk-solo too: when the escalation fires, the agent writes
 `"count":3` and the three reviewer names into the `printf` instead of `1` and `["self-review"]`
-in `.arbiter/agents-dispatched.json` (#2177). Where `scripts/route-auditors.mjs` and
+in `.arbiter/agents-dispatched.json` (#2177). Where `route-auditors.mjs` and
 `.claude/auditor-routing.json` exist (arbiter's own tree), run the router without `--size-floor`
 and read its `active` array; where they do not exist — every generated project, since neither file
 is emitted — apply the same rule by inspecting changed paths for auth/authz, crypto and secret
