@@ -236,6 +236,11 @@ graph TB
 then to the widest tier (`Standard`) as a fail-safe (`ship.md.ejs:89`; `task-ship.ts:81-84`).
 There is **no model-tier gating** anywhere in arbiter — the earlier model-selection machinery was
 deliberately removed and is refused re-entry (`AGENTS.md` §Model-Pyramid; `task-ship.ts:86-90`).
+The selected tier may be widened by two deterministic signals: a FRESH `graphify-out/graph.json`
+blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle
+(floor: Standard). Signals may only widen the tier, never narrow it. Tier/routing gates MUST NOT
+be driven by text-only LLM classification of issue text (Study C, epic #2176: 75.6% adjacent
+accuracy, 20% fail-dangerous L→S on 45 real issues).
 
 **2. Four distinct count-axes all derive from tier — do not conflate them:**
 

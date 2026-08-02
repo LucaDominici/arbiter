@@ -1755,7 +1755,7 @@ program
           },
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         })
-        const lines = buildShipStepLines(result, effectiveTier)
+        const lines = buildShipStepLines(result)
         process.stdout.write(lines.join('\n') + '\n')
       } catch (err) {
         if (err instanceof HandoffRequiredError) {

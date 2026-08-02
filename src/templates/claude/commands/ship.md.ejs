@@ -87,6 +87,8 @@ arbiter task advance --to plan
 The tier (XS / S / Standard) sets the number of review agents dispatched per review phase.
 
 `arbiter ship` **always auto-computes the issue size** (no flag) and selects this tier from it: the change diff (files + LOC), falling back to the plan unit estimate, then to the widest tier as a fail-safe. `--tier` stays a rare manual override. Size drives BOTH the review-agent **count** (above) AND the **orthogonal vertical breadth** — larger size widens the set of review verticals (`bugs`, `type-safety`, `domain` → `+test-quality` → `+security`, `+data-integrity`, `+silent-failures`). Treat the selected tier as the floor for review breadth: widen the active verticals to match the size, not just the agent count.
+
+The selected tier may be widened by deterministic signals only: a FRESH `graphify-out/graph.json` blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle (floor: Standard). Signals may only widen, never narrow. Tier/routing selection MUST NOT be driven by text-only LLM classification (Study C, #2176: 75.6% adjacent accuracy, 20% fail-dangerous L→S).
 <% } %>
 
 | Phase | What `/ship` does | Review agents |

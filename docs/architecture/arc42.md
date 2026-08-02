@@ -292,6 +292,11 @@ tmp+rename and stamps a per-phase transition timestamp.
 `arbiter ship` computes change size (files + LOC), falls back to the plan's unit estimate, then to
 the widest tier (`Standard`) as a fail-safe (`ship.md.ejs:89`; `task-ship.ts:81-84`). There is **no**
 model-tier gating anywhere (see §11.6).
+The selected tier may be widened by two deterministic signals: a FRESH `graphify-out/graph.json`
+blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle
+(floor: Standard). These signals may only widen the tier, never narrow it. Tier/routing gates MUST
+NOT be driven by text-only LLM classification of issue text: Study C (epic #2176) measured 75.6%
+adjacent accuracy and 20% fail-dangerous L→S on 45 real issues.
 
 **Four count-axes, all derived from tier — do not conflate them:**
 

@@ -30,6 +30,15 @@ import {
 } from './ship-profile.js'
 import { companionGreenInstruction, companionStatusLine } from '../integrations/companions.js'
 import { runCli } from '../utils/run-cli.js'
+import {
+  gatherTierSignals,
+  normTier,
+  widenTier,
+  type ShipTier,
+  type TierSignals,
+} from './ship-tier.js'
+
+export { normTier, type ShipTier } from './ship-tier.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
@@ -50,7 +59,6 @@ function normalizeShipTaskId(raw: string): string {
   return id
 }
 
-type ShipTier = 'XS' | 'S' | 'Standard'
 type CompanionDiffStats = { files: number; insertions: number; deletions: number }
 
 const CompanionEvidenceV1 = z.object({
@@ -77,11 +85,6 @@ type CompanionEvidenceV1 = z.infer<typeof CompanionEvidenceV1>
 const REDTEAM_AGENTS: Record<ShipTier, number> = { XS: 1, S: 2, Standard: 3 }
 /** Post-implementation code-review agents per tier (mirrors /task Phase 6 minimums). */
 const REVIEW_AGENTS: Record<ShipTier, number> = { XS: 3, S: 3, Standard: 4 }
-
-function normTier(tier: string | undefined): ShipTier {
-  if (tier === 'XS' || tier === 'S') return tier
-  return 'Standard'
-}
 
 /**
  * #1260's orthogonal vertical FLOOR, inlined (A8 — guidance, not machinery; the git-diff
@@ -333,6 +336,8 @@ export interface TaskShipOptions {
   profileOverride?: ShipProfile
   /** Test seam for deterministic companion evidence diff stats. */
   gatherCompanionDiffStats?: (repoDir: string) => CompanionDiffStats
+  /** Test seam for deterministic tier-routing signals without graphify or GitHub CLI state. */
+  gatherTierSignals?: (root: string, taskId: string | undefined) => TierSignals
   /** Test seam for deterministic companion evidence timestamps. */
   recordedAt?: string
 }
@@ -342,6 +347,8 @@ export interface ShipResult {
   step: ShipStep
   advanced: boolean
   done: boolean
+  /** The effective tier after deterministic widening. Present on all real ship invocations. */
+  tier?: ShipTier
   /** #1288 — the ship profile resolved from the target repo's arbiter.json. */
   profile: ShipProfile
 }
@@ -351,7 +358,8 @@ export interface ShipResult {
  * #1260 tier + vertical-breadth summary. Kept here (not inline in the CLI action) so the
  * action stays simple and the formatting is unit-testable.
  */
-export function buildShipStepLines(result: ShipResult, tier: string): string[] {
+export function buildShipStepLines(result: ShipResult, legacyTier?: string): string[] {
+  const tier = result.tier ?? normTier(legacyTier)
   const lines = [
     `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
     `Action: ${result.step.action}`,
@@ -511,7 +519,19 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'
-  const tier = opts.tier ?? state?.tier
+  // #2180 / Study C (#2176): text-only triage reached only 75.6% adjacent accuracy and 20%
+  // fail-dangerous L→S errors. Routing therefore accepts deterministic signals only, and their
+  // one-way floors can widen XS→S→Standard but can never narrow the caller's tier. Standard is
+  // the widest tier, therefore a fixed point of this widen-only function: gathering its signals
+  // cannot affect routing and is skipped to avoid an unnecessary graph parse and GitHub request.
+  const base = normTier(opts.tier ?? state?.tier)
+  const tier =
+    base === 'Standard'
+      ? base
+      : widenTier(
+          base,
+          (opts.gatherTierSignals ?? gatherTierSignals)(root, state?.taskId ?? opts.taskId),
+        )
 
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.
@@ -525,6 +545,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
     step: shipStepFor(phase, tier, profile),
     advanced: advancedPhase.advanced,
     done: phase === 'complete',
+    tier,
     profile,
   }
 }
