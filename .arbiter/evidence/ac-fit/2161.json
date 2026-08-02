@@ -16,7 +16,7 @@
       "verdict": "PASS",
       "evidence": [
         { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 207 },
-        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 141 },
+        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 146 },
         { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 103 },
         { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 120 },
         {

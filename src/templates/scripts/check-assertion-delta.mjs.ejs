@@ -127,12 +127,17 @@ function fileDelta(repoRoot, range, file) {
   return { assertionsAdded, assertionsRemoved, skipAdded, skipRemoved }
 }
 
-/** The tip commit's full message, so an override trailer can be read. */
-function tipMessage(repoRoot, range) {
-  const tip = range.includes('..') ? range.split('..').pop() : range
+/**
+ * Every commit message in `range`, so an override trailer on ANY commit of the range is honored —
+ * not just the tip. Mirrors check-commit-footer-rationale.mjs (INV-119), which scans the whole
+ * range rather than only HEAD: a reviewer amending/rewording only the tip to add a trailer is not
+ * how commit history normally works, and requiring it would make the override impossible to use
+ * without a rebase.
+ */
+function rangeMessages(repoRoot, range) {
   try {
-    return git(repoRoot, ['log', '--format=%B', '-1', tip || 'HEAD'])
-    // FAIL-OPEN-INTENT: unresolvable tip ref → no trailer read → no override found (fail-CLOSED).
+    return git(repoRoot, ['log', '--format=%B%x00', range])
+    // FAIL-OPEN-INTENT: unresolvable range → no messages read → no override found (fail-CLOSED).
   } catch {
     return ''
   }
@@ -207,7 +212,7 @@ function main() {
     violations.push(`skip-marker count increased (+${skipAdded} / -${skipRemoved})`)
   }
 
-  const message = tipMessage(repoRoot, range)
+  const message = rangeMessages(repoRoot, range)
   const overridden = violations.length > 0 && OVERRIDE_RE.test(message)
 
   const result = violations.length === 0 ? 'PASS' : overridden ? 'OVERRIDDEN' : 'FAIL'
