@@ -26,7 +26,10 @@ function stage(): string {
   writeFileSync(join(dir, 'scripts', 'check-oracle-discrimination.mjs'), render())
   return dir
 }
-const run = (dir: string, argv: string[] = []): { status: number; stdout: string; stderr: string } => {
+const run = (
+  dir: string,
+  argv: string[] = [],
+): { status: number; stdout: string; stderr: string } => {
   const r = spawnSync('node', [join('scripts', 'check-oracle-discrimination.mjs'), ...argv], {
     cwd: dir,
     encoding: 'utf-8',
@@ -34,7 +37,10 @@ const run = (dir: string, argv: string[] = []): { status: number; stdout: string
   return { status: r.status ?? 1, stdout: r.stdout, stderr: r.stderr }
 }
 const seedBaseline = (dir: string) =>
-  writeFileSync(join(dir, 'oracle-discrimination-baseline.json'), JSON.stringify({ count: 0, sites: [] }))
+  writeFileSync(
+    join(dir, 'oracle-discrimination-baseline.json'),
+    JSON.stringify({ count: 0, sites: [] }),
+  )
 
 describe('check-oracle-discrimination.mjs.ejs render (#2160)', () => {
   it('renders as a self-contained, tag-free guard with no lib import', () => {
@@ -44,6 +50,23 @@ describe('check-oracle-discrimination.mjs.ejs render (#2160)', () => {
     expect(content).not.toContain('<%')
     expect(content).not.toContain('%>')
     expect(content).not.toContain("from './lib/")
+  })
+
+  it('scripts/oracle-discrimination-baseline.json.ejs renders a valid seeded-empty baseline (INV-48)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/oracle-discrimination-baseline.json.ejs', data)
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+    const parsed = JSON.parse(content)
+    expect(parsed).toEqual({
+      _comment: expect.any(String),
+      _generated: expect.any(String),
+      count: 0,
+      sites: [],
+    })
   })
 
   it('AC-2: a missing baseline is fail-closed (exit 1), never auto-generated', () => {
@@ -68,7 +91,7 @@ describe('check-oracle-discrimination.mjs.ejs render (#2160)', () => {
       writeFileSync(
         spec,
         "test('flow', async ({ page }) => {\n" +
-          "  await expect(\n" +
+          '  await expect(\n' +
           "    page.getByTestId('list').or(page.getByTestId('error-state')),\n" +
           '  ).toBeVisible()\n' +
           '})\n',
@@ -79,7 +102,7 @@ describe('check-oracle-discrimination.mjs.ejs render (#2160)', () => {
     }
   })
 
-  it('AC-1: fires on a non-discriminating oracle — NEUTRAL VARIABLE form (false-negative demonstrated in viafera, spool N63)', () => {
+  it('AC-1: fires on a non-discriminating oracle — NEUTRAL VARIABLE form (false-negative demonstrated in the source project, spool N63)', () => {
     const dir = stage()
     try {
       seedBaseline(dir)
@@ -134,7 +157,9 @@ describe('check-oracle-discrimination.mjs.ejs render (#2160)', () => {
       )
       const upd = run(dir, ['--update-baseline'])
       expect(upd.status).toBe(0)
-      const baseline = JSON.parse(readFileSync(join(dir, 'oracle-discrimination-baseline.json'), 'utf-8'))
+      const baseline = JSON.parse(
+        readFileSync(join(dir, 'oracle-discrimination-baseline.json'), 'utf-8'),
+      )
       expect(baseline.count).toBe(1)
       // Now the SAME (unbaselined-growth) run passes — it's the known site, not a regression.
       expect(run(dir).status).toBe(0)

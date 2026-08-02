@@ -6,7 +6,7 @@
       "id": "AC-1",
       "verdict": "PASS",
       "evidence": [
-        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 202 },
+        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 222 },
         { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 74 },
         { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 88 }
       ]
@@ -15,14 +15,14 @@
       "id": "AC-2",
       "verdict": "PASS",
       "evidence": [
-        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 207 },
-        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 146 },
+        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 225 },
+        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 166 },
         { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 103 },
         { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 120 },
         {
           "file": "scripts/check-assertion-delta.mjs",
           "line": 1,
-          "note": "arbiter's own dogfooded run on this branch genuinely tripped +2/-0 (fixture string literals); the tip commit's Assertion-Delta-Override trailer is the override path exercised live, not simulated."
+          "note": "arbiter's own dogfooded run on this branch genuinely tripped +2/-0 (fixture string literals); a commit in the range carrying the Assertion-Delta-Override trailer is the override path exercised live, not simulated — checked across the WHOLE range, not just the tip (see the WHOLE-range fix commit)."
         }
       ]
     },

@@ -497,7 +497,7 @@ function emitDomainApiSurface(
 }
 
 /**
- * #2160 (port of viafera's scripts/qa/check-oracle-discrimination.mjs): emit the
+ * #2160 (port of a proven oracle-discrimination guard from a downstream consumer project): emit the
  * oracle-discrimination guard + its seeded-empty ratchet baseline ONLY where an E2E
  * (Playwright) harness is applicable — same predicate as generateE2eConstitution
  * (e2e-constitution.ts): archetype frontend-spa or backend-web-db. A library/cli/embedded

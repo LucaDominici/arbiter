@@ -62,24 +62,44 @@ const SKIP_MARKER_RE = /@Disabled\b|\.skip\s*\(|\bxit\s*\(|\bxtest\s*\(|\bxdescr
 // Test files this guard considers in scope.
 const TEST_FILE_RE = /\.(?:spec|test)\.(?:ts|tsx|js|jsx|mjs)$|(?:Test|Tests)\.java$/
 
+// name -> [key in the parsed result, value transform]
+const FLAG_SPECS = [
+  ['--range', 'range', (v) => v],
+  ['--repo-root', 'repoRoot', (v) => resolve(v)],
+  ['--evidence-dir', 'evidenceDir', (v) => resolve(v)],
+]
+
+/** `--flag=value` or `--flag value` for one flag spec; returns null if `arg` doesn't match. */
+function matchFlag(spec, arg, raw, i) {
+  const [name, key, transform] = spec
+  if (arg.startsWith(`${name}=`))
+    return { key, value: transform(arg.slice(name.length + 1)), consumed: 0 }
+  if (arg === name && i + 1 < raw.length) return { key, value: transform(raw[i + 1]), consumed: 1 }
+  return null
+}
+
 function parseArgs() {
   const raw = process.argv.slice(2)
-  let range = 'origin/main..HEAD'
-  let repoRoot = process.cwd()
-  let evidenceDir = null
-  let help = false
+  const out = {
+    range: 'origin/main..HEAD',
+    repoRoot: process.cwd(),
+    evidenceDir: null,
+    help: false,
+  }
   for (let i = 0; i < raw.length; i++) {
     const arg = raw[i]
-    if (arg === '--help' || arg === '-h') help = true
-    else if (arg.startsWith('--range=')) range = arg.slice('--range='.length)
-    else if (arg === '--range' && i + 1 < raw.length) range = raw[++i]
-    else if (arg.startsWith('--repo-root=')) repoRoot = resolve(arg.slice('--repo-root='.length))
-    else if (arg === '--repo-root' && i + 1 < raw.length) repoRoot = resolve(raw[++i])
-    else if (arg.startsWith('--evidence-dir=')) evidenceDir = resolve(arg.slice('--evidence-dir='.length))
-    else if (arg === '--evidence-dir' && i + 1 < raw.length) evidenceDir = resolve(raw[++i])
+    if (arg === '--help' || arg === '-h') {
+      out.help = true
+      continue
+    }
+    const hit = FLAG_SPECS.map((spec) => matchFlag(spec, arg, raw, i)).find(Boolean)
+    if (!hit) continue
+    out[hit.key] = hit.value
+    i += hit.consumed
   }
-  if (!evidenceDir) evidenceDir = join(repoRoot, '.arbiter', 'evidence', 'assertion-delta')
-  return { range, repoRoot, evidenceDir, help }
+  if (!out.evidenceDir)
+    out.evidenceDir = join(out.repoRoot, '.arbiter', 'evidence', 'assertion-delta')
+  return out
 }
 
 function git(repoRoot, args) {
@@ -100,6 +120,16 @@ function changedTestFiles(repoRoot, range) {
   }
 }
 
+const DIFF_HEADER_RE = /^(?:\+\+\+|---|@@)/
+
+/** 'added' | 'removed' | null (header line or context line) for one unified-diff line. */
+function classifyDiffLine(line) {
+  if (DIFF_HEADER_RE.test(line)) return null
+  if (line.startsWith('+')) return 'added'
+  if (line.startsWith('-')) return 'removed'
+  return null
+}
+
 /** Count assertion/skip-marker lines added vs removed for one file's diff in `range`. */
 function fileDelta(repoRoot, range, file) {
   let diff
@@ -109,22 +139,19 @@ function fileDelta(repoRoot, range, file) {
   } catch {
     return { assertionsAdded: 0, assertionsRemoved: 0, skipAdded: 0, skipRemoved: 0 }
   }
-  let assertionsAdded = 0,
-    assertionsRemoved = 0,
-    skipAdded = 0,
-    skipRemoved = 0
+  const counts = { assertionsAdded: 0, assertionsRemoved: 0, skipAdded: 0, skipRemoved: 0 }
   for (const line of diff.split('\n')) {
-    if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('@@')) continue
-    const added = line.startsWith('+')
-    const removed = line.startsWith('-')
-    if (!added && !removed) continue
+    const kind = classifyDiffLine(line)
+    if (!kind) continue
     const body = line.slice(1)
-    const isAssertion = ASSERTION_PATTERNS.some((p) => p.re.test(body))
-    const isSkip = SKIP_MARKER_RE.test(body)
-    if (isAssertion) added ? assertionsAdded++ : assertionsRemoved++
-    if (isSkip) added ? skipAdded++ : skipRemoved++
+    if (ASSERTION_PATTERNS.some((p) => p.re.test(body))) {
+      counts[kind === 'added' ? 'assertionsAdded' : 'assertionsRemoved']++
+    }
+    if (SKIP_MARKER_RE.test(body)) {
+      counts[kind === 'added' ? 'skipAdded' : 'skipRemoved']++
+    }
   }
-  return { assertionsAdded, assertionsRemoved, skipAdded, skipRemoved }
+  return counts
 }
 
 /**
@@ -157,83 +184,70 @@ function writeEvidence(evidenceDir, data) {
   }
 }
 
-function main() {
-  const { range, repoRoot, evidenceDir, help } = parseArgs()
-  if (help) {
-    process.stdout.write(HELP + '\n')
-    return 0
-  }
+function skipUnresolvedRange(evidenceDir, range) {
+  process.stderr.write(
+    `check-assertion-delta: WARN — range '${range}' could not be resolved (origin unreachable?). Skipping.\n`,
+  )
+  writeEvidence(evidenceDir, {
+    schema: 'arbiter-assertion-delta-v1',
+    generated_at: new Date().toISOString(),
+    range,
+    result: 'SKIP',
+    note: 'git range unavailable',
+  })
+  return 0
+}
 
-  const files = changedTestFiles(repoRoot, range)
-  if (files === null) {
-    process.stderr.write(
-      `check-assertion-delta: WARN — range '${range}' could not be resolved (origin unreachable?). Skipping.\n`,
-    )
-    writeEvidence(evidenceDir, {
-      schema: 'arbiter-assertion-delta-v1',
-      generated_at: new Date().toISOString(),
-      range,
-      result: 'SKIP',
-      note: 'git range unavailable',
-    })
-    return 0
-  }
-  if (files.length === 0) {
-    process.stdout.write('check-assertion-delta: OK — no test files touched in range.\n')
-    writeEvidence(evidenceDir, {
-      schema: 'arbiter-assertion-delta-v1',
-      generated_at: new Date().toISOString(),
-      range,
-      files_scanned: 0,
-      result: 'PASS',
-    })
-    return 0
-  }
+function passNoTestFilesTouched(evidenceDir, range) {
+  process.stdout.write('check-assertion-delta: OK — no test files touched in range.\n')
+  writeEvidence(evidenceDir, {
+    schema: 'arbiter-assertion-delta-v1',
+    generated_at: new Date().toISOString(),
+    range,
+    files_scanned: 0,
+    result: 'PASS',
+  })
+  return 0
+}
 
-  let assertionsAdded = 0,
-    assertionsRemoved = 0,
-    skipAdded = 0,
-    skipRemoved = 0
+/** Sum per-file deltas across every changed test file. */
+function collectDeltas(repoRoot, range, files) {
+  const totals = { assertionsAdded: 0, assertionsRemoved: 0, skipAdded: 0, skipRemoved: 0 }
   for (const f of files) {
     const d = fileDelta(repoRoot, range, f)
-    assertionsAdded += d.assertionsAdded
-    assertionsRemoved += d.assertionsRemoved
-    skipAdded += d.skipAdded
-    skipRemoved += d.skipRemoved
+    totals.assertionsAdded += d.assertionsAdded
+    totals.assertionsRemoved += d.assertionsRemoved
+    totals.skipAdded += d.skipAdded
+    totals.skipRemoved += d.skipRemoved
   }
+  return totals
+}
 
+function detectViolations(
+  { assertionsAdded, assertionsRemoved, skipAdded, skipRemoved },
+  fileCount,
+) {
   const violations = []
   if (assertionsRemoved > 0 && assertionsAdded === 0) {
     violations.push(
-      `${assertionsRemoved} assertion(s) removed across ${files.length} test file(s), none added`,
+      `${assertionsRemoved} assertion(s) removed across ${fileCount} test file(s), none added`,
     )
   }
   if (skipAdded > skipRemoved) {
     violations.push(`skip-marker count increased (+${skipAdded} / -${skipRemoved})`)
   }
+  return violations
+}
 
-  const message = rangeMessages(repoRoot, range)
-  const overridden = violations.length > 0 && OVERRIDE_RE.test(message)
-
-  const result = violations.length === 0 ? 'PASS' : overridden ? 'OVERRIDDEN' : 'FAIL'
-  writeEvidence(evidenceDir, {
-    schema: 'arbiter-assertion-delta-v1',
-    generated_at: new Date().toISOString(),
-    range,
-    files_scanned: files.length,
-    assertions_added: assertionsAdded,
-    assertions_removed: assertionsRemoved,
-    skip_added: skipAdded,
-    skip_removed: skipRemoved,
-    violations,
-    result,
-  })
-
-  if (violations.length === 0) {
-    process.stdout.write(`check-assertion-delta: OK — ${files.length} test file(s) scanned, no reward-hacking shape.\n`)
+/** Emit the stdout/stderr verdict for a resolved (non-SKIP) run and return the process exit code. */
+function reportResult(result, violations, fileCount) {
+  if (result === 'PASS') {
+    process.stdout.write(
+      `check-assertion-delta: OK — ${fileCount} test file(s) scanned, no reward-hacking shape.\n`,
+    )
     return 0
   }
-  if (overridden) {
+  if (result === 'OVERRIDDEN') {
     process.stdout.write(
       `check-assertion-delta: OVERRIDDEN — ${violations.join('; ')} — Assertion-Delta-Override trailer present.\n`,
     )
@@ -245,6 +259,38 @@ function main() {
       'Assertion-Delta-Override: <reason>\n',
   )
   return 1
+}
+
+function main() {
+  const { range, repoRoot, evidenceDir, help } = parseArgs()
+  if (help) {
+    process.stdout.write(HELP + '\n')
+    return 0
+  }
+
+  const files = changedTestFiles(repoRoot, range)
+  if (files === null) return skipUnresolvedRange(evidenceDir, range)
+  if (files.length === 0) return passNoTestFilesTouched(evidenceDir, range)
+
+  const deltas = collectDeltas(repoRoot, range, files)
+  const violations = detectViolations(deltas, files.length)
+  const overridden = violations.length > 0 && OVERRIDE_RE.test(rangeMessages(repoRoot, range))
+  const result = violations.length === 0 ? 'PASS' : overridden ? 'OVERRIDDEN' : 'FAIL'
+
+  writeEvidence(evidenceDir, {
+    schema: 'arbiter-assertion-delta-v1',
+    generated_at: new Date().toISOString(),
+    range,
+    files_scanned: files.length,
+    assertions_added: deltas.assertionsAdded,
+    assertions_removed: deltas.assertionsRemoved,
+    skip_added: deltas.skipAdded,
+    skip_removed: deltas.skipRemoved,
+    violations,
+    result,
+  })
+
+  return reportResult(result, violations, files.length)
 }
 
 try {

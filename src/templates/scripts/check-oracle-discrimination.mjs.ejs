@@ -9,9 +9,9 @@
 // fine — it is the right way to avoid a blind timeout — PROVIDED the code immediately after
 // discriminates WHICH state actually appeared and fails naming it.
 //
-// Port of viafera's scripts/qa/check-oracle-discrimination.mjs (spool N61/N63/N79), generalized: the
-// spec directory is discovered the same way check-skip-critical-e2e.mjs finds e2e specs (any
-// directory named e2e/playwright/cypress/integration-e2e), not a hardcoded project path.
+// Port of a proven oracle-discrimination guard from a downstream consumer project (#2160),
+// generalized: the spec directory is discovered the same way check-skip-critical-e2e.mjs finds
+// e2e specs (any directory named e2e/playwright/cypress/integration-e2e), not a hardcoded project path.
 //
 // RATCHET, NOT A WALL: pre-existing non-discriminating oracles live in a baseline. The gate fails
 // only if the count GROWS or a new, unbaselined site appears. Fixing a site shrinks the baseline —
@@ -108,7 +108,7 @@ function namesIn(text) {
 /**
  * Map `const name = ...getByTestId('some-id')...` for the whole file. Without this a locator
  * assigned to a neutrally-named variable (`errore`, `ko`, `alt`) would slip past the inline-testid
- * scan — a demonstrated false negative, not a hypothetical one (viafera reference, spool N63).
+ * scan — a demonstrated false negative from the source project, not a hypothetical one (spool N63).
  */
 function locatorTestIds(src) {
   const map = new Map()
