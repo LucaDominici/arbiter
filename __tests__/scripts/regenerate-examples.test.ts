@@ -7,7 +7,7 @@
 // workflow's "Living examples drift" step (`.github/workflows/
 // generator-matrix.yml`), which has the toolchain and a built dist/. This
 // suite stays offline/fast so it runs at L1.
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -35,6 +35,12 @@ describe('regenerate-examples — LIVING_EXAMPLES (#1840 tranche-2 GA stacks)', 
       // Directory/fixture naming convention: `<language>-library` mirrors the
       // `<language>-<archetype>` convention documented in examples/README.md.
       expect(example.name).toBe(example.fixture)
+    }
+  })
+
+  it('keeps every living fixture on the current generated script surface (AC-2126.1, AC-2126.2)', () => {
+    for (const example of LIVING_EXAMPLES) {
+      expect(existsSync(join('examples', example.name, 'scripts', 'pr-merge-watch.mjs'))).toBe(true)
     }
   })
 })
