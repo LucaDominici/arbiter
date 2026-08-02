@@ -31,7 +31,7 @@ Issues: #2128, #2133, #2132, #2126
 
 - #2128: `package.json`, `package-lock.json`, test sul pack artifact.
 - #2133: `package.json`, helper publish-manifest, `scripts/check-tarball-contents.mjs`, test sul pack artifact.
-- #2132: `src/commands/init.ts`, `src/i18n/en.json`, inventario i18n, README, test comando init e fixture d'integrazione che ora dichiarano esplicitamente TypeScript.
+- #2132: `src/commands/init.ts`, `src/i18n/en.json`, inventario i18n, README, test comando init e fixture CLI/d'integrazione che ora dichiarano esplicitamente TypeScript.
 - #2126: `examples/go-library/**`, `examples/python-library/**`, `examples/ts-library/**`, `__tests__/scripts/regenerate-examples.test.ts`.
 
 ## TDD Units

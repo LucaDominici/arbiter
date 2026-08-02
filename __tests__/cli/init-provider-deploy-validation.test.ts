@@ -64,6 +64,8 @@ describe('init provider/deploy-target flag validation (#1676/#1677)', () => {
         '--yes',
         '--level',
         'L1',
+        '--language',
+        'typescript',
         '--no-verify',
         '--deploy-target',
         'gcp-cloud-run',
