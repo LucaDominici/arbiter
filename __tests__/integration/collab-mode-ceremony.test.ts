@@ -201,8 +201,8 @@ describe('collaborationMode — ceremony divergence (#1119)', () => {
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
-    // peer-review uses tier reviewAgentCount from DEFAULT_TASK_TIERS (3/3/4)
-    expect(shipMd).toMatch(/XS=3.*S=3.*Standard=4|XS|Standard/s)
+    // peer-review uses tier reviewAgentCount from DEFAULT_TASK_TIERS (1/1/2)
+    expect(shipMd).toContain('Review-agent minimums by tier: XS=1, S=1, Standard=2.')
   })
 })
 

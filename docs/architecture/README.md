@@ -36,7 +36,7 @@ rules_ for launching challenge/verify agents and orchestrating work:
 - **The `/ship` next-action loop** — a deterministic engine that computes the next step and advances
   only on a green gate, driving a model-side loop that does the reasoning
   (`src/commands/task-ship.ts`). → [arc42 §6.1](arc42.md#61-the-ship-loop--a-deterministic-next-action-computer-driving-a-model-loop)
-- **Tier-driven, size-computed dispatch** — four count-axes (red-team 1/2/3, review 3/3/4, reviewers
+- **Tier-driven, size-computed dispatch** — four count-axes (red-team 1/2/3, review 1/1/2, reviewers
   3/3/5, verticals 3/4/7), auto-computed from issue _size_, never from model identity
   (`task-ship.ts:77-100`). → [arc42 §6.2](arc42.md#62-the-dynamic-dispatch-rules-the-crown-jewels)
 - **Weighted auditor routing** — 7 weighted auditors, an `always_on` floor, a glob `tag_map`, and a
