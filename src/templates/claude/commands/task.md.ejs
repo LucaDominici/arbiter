@@ -11,7 +11,7 @@ tags: ['audience/agent', 'audience/dev', 'kind/internal']
 related: []
 ---
 <% const _backend = (typeof decompositionBackend !== 'undefined' ? decompositionBackend : null) ?? (useGitHub ? 'github' : 'markdown'); %>
-<% const _safetyNet = { XS: { planDepth: 'minimal', reviewAgentCount: 3 }, S: { planDepth: 'brief', reviewAgentCount: 3 }, Standard: { planDepth: 'full', reviewAgentCount: 4 } }; %>
+<% const _safetyNet = { XS: { planDepth: 'minimal', reviewAgentCount: 1 }, S: { planDepth: 'brief', reviewAgentCount: 1 }, Standard: { planDepth: 'full', reviewAgentCount: 2 } }; %>
 <% const _tiers = (typeof taskTiers !== 'undefined' && taskTiers) ? taskTiers : _safetyNet; %>
 <% const _collaborationMode = (typeof collaborationMode !== 'undefined' && collaborationMode) ? collaborationMode : 'peer-review'; %>
 <% const _mergeMode = (typeof mergeMode !== 'undefined' && mergeMode) ? mergeMode : 'pr-ff'; %>

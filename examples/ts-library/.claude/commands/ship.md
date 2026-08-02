@@ -20,6 +20,7 @@ related: []
 
 
 
+
 # /ship #NNN
 
 `/ship` is the **single orchestration entrypoint** — it drives an issue to a reviewed, merged PR by
@@ -92,12 +93,12 @@ arbiter task advance --to plan
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
 | `red` | Write failing tests (TDD red) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
-| `refactor` | Clean up; dispatch 4 code-review agents + 1 adversarial verifier | 4 (Standard) |
+| `refactor` | Clean up; dispatch 2 code-review agents + 1 adversarial verifier | 2 (Standard) |
 | `verification` | Run the gate: `npm run test` then `node scripts/check-all.mjs check` | — |
 | `complete` | Commit, push, open/merge PR, close issue, clean up | — |
 
 
-Review-agent minimums by tier: XS=3, S=3, Standard=4.
+Review-agent minimums by tier: XS=1, S=1, Standard=2.
 
 
 ---

@@ -10,6 +10,7 @@ import {
   shipStepFor,
   nextPhase,
   buildShipStepLines,
+  REVIEW_AGENTS_SECURITY_SURFACE,
   type ShipResult,
 } from '../../src/commands/task-ship.js'
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
@@ -119,7 +120,10 @@ describe('self /ship documentation coherence (#2178)', () => {
 
   it('states the recalibrated code-review minimums by tier', () => {
     expect(
-      shipCommand.includes('Review-agent minimums by tier: XS=1, S=1, Standard=2.'),
+      shipCommand.includes('XS=1, S=1, Standard=2') &&
+        shipCommand.includes(
+          `Security escalation — ${REVIEW_AGENTS_SECURITY_SURFACE} code-review agents.`,
+        ),
     ).toBe(true)
   })
 

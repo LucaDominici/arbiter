@@ -86,9 +86,33 @@ arbiter task advance --to plan
 
 The tier (XS / S / Standard) sets the number of review agents dispatched per review phase.
 
+**Code-review agents per tier: XS=1, S=1, Standard=2.** Recalibrated from the #2176 controlled
+study: 1 reviewer catches 77% of known defects intent-to-treat but **88% per-protocol** (stage
+actually completed), 2 reviewers 87.5%, 3 reviewers 90.1% — half a panel's value is
+fault-tolerance, not extra eyes, and false positives grow with panel size.
+
+**XS/S=1 depends on the completion gate.** A single reviewer is only safe because
+`scripts/check-review-completion.mjs` (#2177) fails the stage when a dispatched reviewer returned
+no envelope and re-dispatches exactly that agent once — that gate plus its single targeted retry
+is what makes a single reviewer safe (it is what turns 77% ITT into 88% per-protocol). If the
+completion gate is ever removed, XS/S must go back to a panel.
+
+**Security escalation — 3 code-review agents.** When the change's **file-path-matched auditor set**
+includes `security`, `data-integrity` or `silent-failures`, dispatch 3 code-review agents
+regardless of tier (study: security-class defects — singles 82-83%, panels 97-99%). The trigger is
+the file-path-matched auditor set computed by the existing router —
+`git diff --name-only ... | node scripts/route-auditors.mjs --diff-stdin` run **without**
+`--size-floor`, whose `active` array comes from `.claude/auditor-routing.json` path matching. It is
+**not** the tier's vertical floor: Standard's floor lists those same verticals as breadth for every
+Standard change, so reading the escalation off the floor would make "Standard=2" unreachable. Same
+mechanism, read without the size floor — no new classifier.
+
+Red-team agent counts (XS=1, S=2, Standard=3) are **unchanged**: the study measured code review
+only, so there is no evidence to move them.
+
 `arbiter ship` **always auto-computes the issue size** (no flag) and selects this tier from it: the change diff (files + LOC), falling back to the plan unit estimate, then to the widest tier as a fail-safe. `--tier` stays a rare manual override. Size drives BOTH the review-agent **count** (above) AND the **orthogonal vertical breadth** — larger size widens the set of review verticals (`bugs`, `type-safety`, `domain` → `+test-quality` → `+security`, `+data-integrity`, `+silent-failures`). Treat the selected tier as the floor for review breadth: widen the active verticals to match the size, not just the agent count.
 
-The selected tier may be widened by deterministic signals only: a FRESH `graphify-out/graph.json` blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle (floor: Standard). Signals may only widen, never narrow. Tier/routing selection MUST NOT be driven by text-only LLM classification (Study C, #2176: 75.6% adjacent accuracy, 20% fail-dangerous L→S).
+The selected tier may be widened by deterministic signals only: a FRESH `graphify-out/graph.json` blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle (floor: Standard). Signals may only widen, never narrow. Tier/routing selection MUST NOT be driven by text-only LLM classification (Study C, #2176: 75.6% adjacent accuracy, 20% fail-dangerous L→S). The review count follows the **final** tier — a widened tier gets the widened tier's count — and the security escalation only ever widens it further; nothing narrows it.
 
 
 | Phase | What `/ship` does | Review agents |

@@ -81,10 +81,13 @@ const CompanionEvidenceV1 = z.object({
 
 type CompanionEvidenceV1 = z.infer<typeof CompanionEvidenceV1>
 
-/** Pre-implementation red-team agents per tier (mirrors /task Phase 3.5). */
+/** Pre-implementation red-team agents per tier (mirrors /task Phase 3.5; #2176 did not measure red-team). */
 const REDTEAM_AGENTS: Record<ShipTier, number> = { XS: 1, S: 2, Standard: 3 }
-/** Post-implementation code-review agents per tier (mirrors /task Phase 6 minimums). */
-const REVIEW_AGENTS: Record<ShipTier, number> = { XS: 3, S: 3, Standard: 4 }
+/** #2178/#2176: post-implementation code-review agents per tier (mirrors /task Phase 6 minimums). */
+const REVIEW_AGENTS: Record<ShipTier, number> = { XS: 1, S: 1, Standard: 2 }
+/** #2178: a diff whose file-path-matched auditors include security/data-integrity/silent-failures
+    escalates the code review to a panel (study: singles 82-83%, panels 97-99%). */
+export const REVIEW_AGENTS_SECURITY_SURFACE = 3
 
 /**
  * #1260's orthogonal vertical FLOOR, inlined (A8 — guidance, not machinery; the git-diff

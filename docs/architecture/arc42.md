@@ -303,12 +303,14 @@ adjacent accuracy and 20% fail-dangerous L→S on 45 real issues.
 | Axis                           | XS  | S   | Standard | Source                                     |
 | ------------------------------ | --- | --- | -------- | ------------------------------------------ |
 | Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77` (`REDTEAM_AGENTS`)       |
-| Refactor-phase review agents   | 3   | 3   | 4        | `task-ship.ts:79` (`REVIEW_AGENTS`)        |
+| Refactor-phase review agents   | 1   | 1   | 2        | `task-ship.ts:79` (`REVIEW_AGENTS`)        |
 | `/review-code` reviewers       | 3   | 3   | 5        | `.claude/commands/review-code.md`          |
 | Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100` (`verticalsForTier`) |
 
 Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`; Standard =
 `+security, data-integrity, silent-failures`.
+
+A file-path-matched security/data-integrity surface escalates refactor-phase review to 3 agents (#2178).
 
 **Which verticals actually fire is resolved UNION-only, fail-safe toward MORE review.** Two SSOT
 config files drive it:

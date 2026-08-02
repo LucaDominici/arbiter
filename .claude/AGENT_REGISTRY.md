@@ -40,7 +40,7 @@ Source of truth: `.claude/agents/<name>.md`. Update this file whenever an agent 
 1. Code complete → `codebase-scanner` (verify no duplicate symbols)
 2. `context-checker` (Phase 1 verification)
 3. `bridge-reviewer` (Phase 2 combined verdict)
-4. Standard review agents dispatched per tier (XS: 3, S: 3, Standard: 4)
+4. Standard review agents dispatched per tier (XS: 1, S: 1, Standard: 2)
 
 ### Bot-authored PR review
 

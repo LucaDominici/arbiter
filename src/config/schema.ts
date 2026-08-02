@@ -73,9 +73,9 @@ export interface FeatureFlags {
 export type DecompositionBackendId = 'github' | 'markdown'
 
 export const DEFAULT_TASK_TIERS: TaskTiers = {
-  XS: { planDepth: 'minimal', reviewAgentCount: 3 },
-  S: { planDepth: 'brief', reviewAgentCount: 3 },
-  Standard: { planDepth: 'full', reviewAgentCount: 4 },
+  XS: { planDepth: 'minimal', reviewAgentCount: 1 },
+  S: { planDepth: 'brief', reviewAgentCount: 1 },
+  Standard: { planDepth: 'full', reviewAgentCount: 2 },
 }
 
 interface DecompositionConfig {

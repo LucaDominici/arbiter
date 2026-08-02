@@ -195,7 +195,7 @@ graph TB
       tierR["<b>Tier Resolver</b><br/>size(diff files+LOC) → XS/S/Standard<br/>fallback: plan units → widest tier"]
       step["<b>shipStepFor(phase,tier,profile)</b><br/>→ ShipStep{action, reviewAgents,<br/>verticals, command}"]
       adv["advanceShipPhase<br/>runTaskAdvance → phase gate<br/>throws if RED (never advances)"]
-      counts["<b>Count tables</b><br/>REDTEAM_AGENTS XS1/S2/Std3<br/>REVIEW_AGENTS XS3/S3/Std4<br/>verticalsForTier 3/4/7"]
+      counts["<b>Count tables</b><br/>REDTEAM_AGENTS XS1/S2/Std3<br/>REVIEW_AGENTS XS1/S1/Std2<br/>verticalsForTier 3/4/7"]
     end
 
     subgraph route["DISPATCH ORACLE (drift-proof config SSOT)"]
@@ -247,12 +247,14 @@ accuracy, 20% fail-dangerous L→S on 45 real issues).
 | Axis                           | XS  | S   | Standard | Source                            |
 | ------------------------------ | --- | --- | -------- | --------------------------------- |
 | Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77`                 |
-| Refactor-phase review agents   | 3   | 3   | 4        | `task-ship.ts:79`                 |
+| Refactor-phase review agents   | 1   | 1   | 2        | `task-ship.ts:79`                 |
 | `/review-code` reviewers       | 3   | 3   | 5        | `.claude/commands/review-code.md` |
 | Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100`             |
 
 Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`; Standard =
 `+security, data-integrity, silent-failures`.
+
+A file-path-matched security/data-integrity surface escalates refactor-phase review to 3 agents (#2178).
 
 **3. Which verticals actually fire is resolved UNION-only, fail-safe toward MORE review.**
 `agent-dispatch-matrix.json` resolves `tier × track × review_mode × pr_type` additively and never

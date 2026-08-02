@@ -17,17 +17,17 @@ export interface LabelSpec {
 export const TASK_SIZE_LABELS: readonly LabelSpec[] = [
   {
     name: 'size:XS',
-    description: 'Tiny task — single file, minimal plan, 3 review agents',
+    description: 'Tiny task — single file, minimal plan, 1 review agent',
     color: 'c2e0c6',
   },
   {
     name: 'size:S',
-    description: 'Small task — 2–5 files, brief plan, 3 review agents',
+    description: 'Small task — 2–5 files, brief plan, 1 review agent',
     color: 'fef2c0',
   },
   {
     name: 'size:Standard',
-    description: 'Standard task — multi-file, full plan, 5 review agents',
+    description: 'Standard task — multi-file, full plan, 2 review agents',
     color: 'fbca04',
   },
 ] as const
