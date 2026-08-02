@@ -251,7 +251,7 @@ describe('runWorktreeClose', () => {
     mockWorkingTreeDirty.mockReturnValue(true)
     const { runWorktreeClose } = await import('../../src/commands/worktree.js')
     expect(() => runWorktreeClose({ taskId: '123', cwd: gitRoot, noFetch: true })).toThrow(
-      'uncommitted changes',
+      /Untracked files also block close[\s\S]*Use --force to close anyway/,
     )
   })
 

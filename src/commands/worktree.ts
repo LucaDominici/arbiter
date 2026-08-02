@@ -267,7 +267,7 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
     )
   }
 
-  if (workingTreeDirty(cwd)) {
+  if (workingTreeDirty(cwd, 'exclude')) {
     throw new Error(
       'Working tree has uncommitted changes. ' +
         'Commit or stash your changes before opening a worktree.',
@@ -492,7 +492,8 @@ function validateBeforeClose(params: CloseValidationParams): void {
   const { worktreePath, branch, baseBranch, gitRoot, force, harvestAll, noFetch } = params
   if (workingTreeDirty(worktreePath) && !force && !harvestAll) {
     throw new Error(
-      `Worktree has uncommitted changes at: ${worktreePath}\n` +
+      `Worktree has uncommitted or untracked changes at: ${worktreePath}\n` +
+        'Untracked files also block close to protect never-added work. ' +
         'Commit or stash your changes, then retry. Use --force to close anyway.',
     )
   }

@@ -13,14 +13,24 @@ export function isRunningFromMainRepo(gitRoot: string): boolean {
   return statSync(gitPath).isDirectory()
 }
 
+/** Controls whether untracked files count as working-tree changes. */
+export type UntrackedFilesMode = 'include' | 'exclude'
+
 /**
  * Returns true when the working tree at `cwd` has any uncommitted changes
- * (staged or unstaged).
+ * (staged, unstaged, or, by default, untracked). Worktree teardown must use
+ * the strict default so it cannot destroy never-added work. Creation is the
+ * sole lenient caller: it explicitly excludes local-only files such as .env
+ * and node_modules.
  */
-export function workingTreeDirty(cwd: string): boolean {
-  // --untracked-files=no excludes untracked/gitignored files (e.g. .env, node_modules)
-  // so untracked files don't block worktree creation on a real project.
-  const result = runCli('git', ['status', '--porcelain', '--untracked-files=no'], { cwd })
+export function workingTreeDirty(
+  cwd: string,
+  untrackedFiles: UntrackedFilesMode = 'include',
+): boolean {
+  const untrackedArg = untrackedFiles === 'include' ? 'all' : 'no'
+  const result = runCli('git', ['status', '--porcelain', `--untracked-files=${untrackedArg}`], {
+    cwd,
+  })
   return result.stdout.trim().length > 0
 }
 

@@ -149,6 +149,26 @@ describe('runWorktreeClose', () => {
     expect(entry['force']).toBe(false)
   })
 
+  it('keeps untracked work safe on close while open remains lenient (#2203)', async () => {
+    // Opening must remain possible when the main tree has local-only files.
+    writeFileSync(join(repoRoot, '.env.local'), 'LOCAL_ONLY=1')
+    const wtPath = await openAndMerge('#2203', 'untracked-safety')
+    expect(existsSync(wtPath)).toBe(true)
+
+    // A real untracked file in a real worktree must block normal teardown.
+    const untrackedPath = join(wtPath, 'never-added.txt')
+    writeFileSync(untrackedPath, 'do not destroy')
+
+    expect(() =>
+      runWorktreeClose({ taskId: '#2203', cwd: repoRoot, noFetch: true }),
+    ).toThrow(/untracked files.*--force/i)
+    expect(existsSync(untrackedPath)).toBe(true)
+
+    // The explicit escape hatch intentionally permits removal.
+    runWorktreeClose({ taskId: '#2203', cwd: repoRoot, noFetch: true, force: true })
+    expect(existsSync(wtPath)).toBe(false)
+  })
+
   it('refuses to close an unmerged branch without --force', async () => {
     await runWorktreeOpen({
       taskId: '#999',
@@ -196,8 +216,8 @@ describe('runWorktreeClose', () => {
   })
 
   it('detects dangling symlinks and reports them (does not throw)', async () => {
-    // .env is untracked (as in a real project where it's gitignored).
-    // The dirty check uses --untracked-files=no, so this doesn't block opening.
+    // .env is untracked (as in a real project where it's gitignored), so open
+    // must permit it. Removing the target leaves a dangling, untracked symlink.
     const envPath = join(repoRoot, '.env')
     writeFileSync(envPath, 'SECRET=1')
 
@@ -211,6 +231,7 @@ describe('runWorktreeClose', () => {
       taskId: '#999',
       cwd: repoRoot,
       noFetch: true,
+      force: true,
       onWarning: (w) => warnings.push(w),
     })
 
