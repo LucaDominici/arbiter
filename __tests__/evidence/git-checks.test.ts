@@ -16,12 +16,12 @@ import { runCli } from '../../src/utils/run-cli.js'
 const mockedRunCli = vi.mocked(runCli)
 
 describe('shaExistsOnBranch()', () => {
-  it('returns true when git cat-file exits 0', () => {
+  it('returns true when git merge-base confirms the SHA is an ancestor of HEAD', () => {
     mockedRunCli.mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
     expect(shaExistsOnBranch('a'.repeat(40))).toBe(true)
   })
 
-  it('returns false when git cat-file exits non-zero', () => {
+  it('returns false when git merge-base rejects a SHA outside HEAD history', () => {
     mockedRunCli.mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 1, durationMs: 5 })
     expect(shaExistsOnBranch('deadbeef')).toBe(false)
   })

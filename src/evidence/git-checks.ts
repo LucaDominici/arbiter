@@ -10,7 +10,7 @@ export function gitCwd(dir?: string): string {
 
 export function shaExistsOnBranch(sha: string, dir?: string): boolean {
   try {
-    const result = runCli('git', ['cat-file', '-e', sha], {
+    const result = runCli('git', ['merge-base', '--is-ancestor', sha, 'HEAD'], {
       cwd: gitCwd(dir),
       timeoutMs: 5000,
     })
