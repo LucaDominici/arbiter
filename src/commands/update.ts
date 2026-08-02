@@ -290,7 +290,10 @@ function isNewlyLandedCheckScript(r: WriteResult): boolean {
  */
 function unwiredGuardResults(results: WriteResult[]): WriteResult[] {
   const checkAllWithheld = results.some(
-    (r) => r.withheld === true && r.path.replace(/\\/g, '/').endsWith('/scripts/check-all.mjs'),
+    (r) =>
+      r.withheld === true &&
+      r.adopted !== true &&
+      r.path.replace(/\\/g, '/').endsWith('/scripts/check-all.mjs'),
   )
   if (!checkAllWithheld) return []
   return results.filter(isNewlyLandedCheckScript)
