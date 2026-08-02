@@ -193,6 +193,17 @@ describe('GATE_AFFECTS_REGISTRY — real registry coverage + representative samp
     expect(skipped.has('typecheck')).toBe(false) // ALWAYS bucket
   })
 
+  it('review-completion contract changes select its advisory gate (#2177)', () => {
+    for (const changedFile of [
+      'scripts/check-review-completion.mjs',
+      'schemas/agent-return.schema.json',
+      '.claude/commands/ship.md',
+    ]) {
+      const skipped = computeSkipped([changedFile], GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST)
+      expect(skipped.has('review completion (#2177)')).toBe(false)
+    }
+  })
+
   it('ALWAYS-bucket checks are never skipped by any single-category change', () => {
     for (const files of [['docs/foo.md'], ['.github/workflows/x.yml'], ['src/templates/y.ejs']]) {
       const skipped = computeSkipped(files, GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST)

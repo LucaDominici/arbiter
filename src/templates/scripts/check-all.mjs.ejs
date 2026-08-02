@@ -1202,6 +1202,9 @@ if (level === 'L2') {
   if (existsSync('scripts/check-agent-return.mjs')) {
     runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
   }
+  if (existsSync('scripts/check-review-completion.mjs')) {
+    runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
+  }
   if (existsSync('scripts/check-refutation-verdicts.mjs')) {
     runWarnCheck('refutation majority (E2 #1943)', 'node', ['scripts/check-refutation-verdicts.mjs'])
   }

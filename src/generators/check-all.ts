@@ -310,6 +310,10 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
 const DEBT_GATED_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string }> = [
   { rel: ['scripts', 'check-agent-return.mjs'], tpl: 'scripts/check-agent-return.mjs.ejs' },
   {
+    rel: ['scripts', 'check-review-completion.mjs'],
+    tpl: 'scripts/check-review-completion.mjs.ejs',
+  },
+  {
     rel: ['scripts', 'check-refutation-verdicts.mjs'],
     tpl: 'scripts/check-refutation-verdicts.mjs.ejs',
   },

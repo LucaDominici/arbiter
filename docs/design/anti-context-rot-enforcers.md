@@ -142,6 +142,15 @@ rejects malformed stdin with exit 1 and writes nothing (fail-closed).
   skill/command templates (`src/templates/claude/commands/ship.md.ejs`, agents `*.md.ejs`) carry
   the same producer lines. Self side materialized in the same PR (CANON-14).
 
+### E1a — Review-completion reconciliation (#2177)
+
+`scripts/check-review-completion.mjs` consumes the dispatch sidecar's additive `agents[]` field
+and reconciles that task's return envelopes against the dispatch branch, naming only missing or
+malformed reviewers. `/ship` re-dispatches each named reviewer once, then hard-stops; an agent
+that exhausted its turn budget but wrote its envelope is **COMPLETED** and is never re-dispatched.
+This implements the #2176 study finding: one reviewer reached 77% ITT versus 88% per-protocol,
+so completion reconciliation recovers roughly 11 percentage points without blind retry.
+
 **Tier.** Solo/L1: recorder available, gate not wired (methodology §3: solo keeps
 tdd-evidence + gate-pass shapes only). Team/L2+: advisory gate wired. Gated-review/L4:
 `runCheck` + `--enforce` (dispatch cross-check active). **Proposed INV-138** on promotion.

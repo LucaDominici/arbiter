@@ -226,10 +226,22 @@ Dispatch a single self-review agent covering: bugs & logic errors, type safety, 
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-mkdir -p .arbiter && printf '{"count":1,"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+mkdir -p .arbiter && printf '{"count":1,"agents":["self-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 
 **HARD STOP** if self-review agent was not actually dispatched.
+
+**Persist.** The reviewer hands back an `arbiter-agent-return-v1` envelope with `role: "reviewer"`
+and `agent: "self-review"`, piped through `node scripts/record-agent-return.mjs --task '#NNN'`.
+
+```bash
+node scripts/check-review-completion.mjs --task '#NNN'
+```
+
+On non-zero: re-dispatch ONLY the agent(s) named by the failure exactly ONCE, persist their returns
+the same way, and re-run the check. If it still fails → **HARD STOP**; do not advance, report the
+blocked agent. An agent that exhausted its turn budget but wrote its findings counts as COMPLETED —
+it is never re-dispatched; only a missing or malformed artifact is.
 
 
 

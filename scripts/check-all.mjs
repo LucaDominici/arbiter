@@ -409,6 +409,7 @@ if (isMain) {
     // E1-E6a #1943 (anti-context-rot enforcers, advisory at land-time per design §0; promote
     // to runCheck at gated-review). Vacuous-pass when no evidence — wired now so the path is real.
     runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
+    runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
     runWarnCheck('refutation majority (E2 #1943)', 'node', [
       'scripts/check-refutation-verdicts.mjs',
     ])
