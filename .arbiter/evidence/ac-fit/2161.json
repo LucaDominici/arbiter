@@ -1,0 +1,45 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2161",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 202 },
+        { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 74 },
+        { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 88 }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 207 },
+        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 141 },
+        { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 103 },
+        { "file": "__tests__/templates/check-assertion-delta-render.test.ts", "line": 120 },
+        {
+          "file": "scripts/check-assertion-delta.mjs",
+          "line": 1,
+          "note": "arbiter's own dogfooded run on this branch genuinely tripped +2/-0 (fixture string literals); the tip commit's Assertion-Delta-Override trailer is the override path exercised live, not simulated."
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/scripts/check-assertion-delta.mjs.ejs", "line": 51 }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/scripts/check-anti-fake-green.mjs.ejs", "line": 61 },
+        { "file": "__tests__/templates/check-anti-fake-green-guards-render.test.ts", "line": 114 }
+      ]
+    }
+  ]
+}
