@@ -94,7 +94,7 @@ The selected tier may be widened by deterministic signals only: a FRESH `graphif
 | Phase | What `/ship` does | Review agents |
 |-------|-------------------|---------------|
 | `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), STOP the ship. The `[ -f … ]` guard makes the step a no-op on brownfield trees that predate the script's emission (ADR-110) — a missing script is never a not-ready verdict; seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
+| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`); the plan MUST carry the mandatory sections (see §Plan contents) | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
 | `red` | Write failing tests (TDD red) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
@@ -136,7 +136,7 @@ constraint → rewrite → repeat).
 - **Threat model & abuse cases** — who can abuse this and how. May be `n/a — no security surface` ONLY with a one-line justification; a bare `n/a` is a plan-review FAIL.
 - **Input validation** — what is validated, where the trust boundary is, what happens on invalid input.
 - **Idiomatic patterns & pitfalls** — the recommended stdlib/framework APIs for this change and the known traps to avoid.
-- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases; extend the existing `## Acceptance Criteria` anchor, never a rival heading.
+- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4`; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
 - **Test strategy** — which TDD units prove which AC, and at which level (unit/integration/gate).
 - **Risks** — what can go wrong, with the mitigation or the accepted residual.
 

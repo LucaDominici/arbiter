@@ -177,6 +177,7 @@ describe('claude commands - ship.md mandatory plan sections (B1L, #2179)', () =>
         'Threat model & abuse cases',
         'Input validation',
         'Idiomatic patterns & pitfalls',
+        'Acceptance criteria (merged)',
         'Test strategy',
         'Risks',
         'draft, then revise once',
