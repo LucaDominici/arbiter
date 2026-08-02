@@ -57,7 +57,7 @@ export async function withRealRepoMutationLock<T>(fn: () => T | Promise<T>): Pro
       }
     } catch (e) {
       const code = e instanceof Error ? (e as Error & { code?: string }).code : undefined
-      if (code !== 'E_LOCK_BUSY' || Date.now() > deadline) throw e
+      if ((code !== 'E_LOCK_BUSY' && code !== 'E_LOCK_CONFLICT') || Date.now() > deadline) throw e
       await sleep(100)
     }
   }

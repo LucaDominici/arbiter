@@ -66,6 +66,6 @@ describe('withRealRepoMutationLock (#2169)', () => {
 
     await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined])
     expect(completed).toEqual(['first', 'second'])
-    expect(mockedAcquireLock).toHaveBeenCalledTimes(3)
+    expect(mockedAcquireLock).toHaveBeenCalledTimes(4)
   })
 })
