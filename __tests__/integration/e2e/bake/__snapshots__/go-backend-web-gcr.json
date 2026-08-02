@@ -345,7 +345,7 @@
     "scripts/lib/run-helpers.mjs": "5e0489d21fda15fcfa28d36ea8df28dcdba25c1bf8752de6f0e32a073cef39cb",
     "scripts/lib/waiter-count.mjs": "6994cef80fe2331c43a0f273f03242458079089c623fbacd1d02083cdbc3dfc9",
     "scripts/optional-emissions.json": "2d1ba14d2025858bb5f1acd46085f7d4dcd9908b05365746d9d9ab2bf37a2295",
-    "scripts/pr-merge-watch.mjs": "78cd13dad5e500ab008eb1ccda8d103ee17748228572a059e0c8fa07e173218f",
+    "scripts/pr-merge-watch.mjs": "f40b8bbc41a7c221b4cf6e5719753b49b246dc86402f0e9bdf8c1e88642ed1ab",
     "scripts/record-agent-return.mjs": "e4046ed65b5cd72cfada8b92ac289db54e4c8e04f37f9194602f192023a62aae",
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
     "scripts/self-validation.mjs": "371bf749b0846563956e1e5320a1618898a4bd4369e65f275ec76fb9e5dff7e8",
