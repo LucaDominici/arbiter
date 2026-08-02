@@ -13,7 +13,7 @@ import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/w
 import { runWorktreePrune } from './commands/worktree-prune.js'
 import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
-import { formatProvenance } from './evidence/provenance.js'
+import { formatProvenance, type Provenance } from './evidence/provenance.js'
 import { runGoldAudit } from './commands/gold-audit.js'
 import { runDocSet } from './commands/doc-set.js'
 import { runDocSetPlanApply } from './generators/doc-set.js'
@@ -1080,6 +1080,14 @@ program
     },
   )
 
+/** #2164: print formatProvenance() lines when a provenance block is present; no-op otherwise. */
+function printProvenanceLines(provenance: Provenance | undefined): void {
+  if (provenance === undefined) return
+  for (const line of formatProvenance(provenance)) {
+    process.stdout.write(`${line}\n`)
+  }
+}
+
 const verify = program
   .command('validate')
   .alias('verify')
@@ -1119,11 +1127,7 @@ verify
       const label = result.status === 'ok' ? 'OK' : result.status.toUpperCase()
       const tail = result.reason ? ` — ${result.reason}` : ''
       process.stdout.write(`verify evidence: ${label}${tail}\n`)
-      if (result.provenance !== undefined) {
-        for (const line of formatProvenance(result.provenance)) {
-          process.stdout.write(`${line}\n`)
-        }
-      }
+      printProvenanceLines(result.provenance)
     }
     process.exit(result.exitCode)
   })
