@@ -197,13 +197,13 @@ function main() {
     skipRemoved += d.skipRemoved
   }
 
-  const violations = [] // RED (#2161): detection not wired up yet
-  if (false && assertionsRemoved > 0 && assertionsAdded === 0) {
+  const violations = []
+  if (assertionsRemoved > 0 && assertionsAdded === 0) {
     violations.push(
       `${assertionsRemoved} assertion(s) removed across ${files.length} test file(s), none added`,
     )
   }
-  if (false && skipAdded > skipRemoved) {
+  if (skipAdded > skipRemoved) {
     violations.push(`skip-marker count increased (+${skipAdded} / -${skipRemoved})`)
   }
 
