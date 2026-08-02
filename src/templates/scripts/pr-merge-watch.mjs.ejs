@@ -222,13 +222,17 @@ function updateRefs(repositoryId, refUpdates) {
   }
 }
 
-function verifyMain(ownerRepo, expectedHead) {
-  const mainRef = ghJson(['api', `repos/${ownerRepo}/git/ref/heads/main`])
-  if (mainRef?.object?.sha !== expectedHead) {
-    process.stderr.write(
-      'pr-merge-watch: ERROR — main does not equal the gated head after updateRefs\n',
-    )
-    process.exit(2)
+async function verifyMain(ownerRepo, expectedHead, deadline, intervalSec, timeoutMin) {
+  for (;;) {
+    const mainRef = ghJson(['api', `repos/${ownerRepo}/git/ref/heads/main`])
+    if (mainRef?.object?.sha === expectedHead) return
+    if (Date.now() >= deadline) {
+      process.stderr.write(
+        `pr-merge-watch: ERROR — main did not equal the gated head within ${timeoutMin}min after updateRefs\n`,
+      )
+      process.exit(2)
+    }
+    await sleep(intervalSec * 1000)
   }
 }
 
@@ -258,7 +262,7 @@ async function promoteExactSha(ownerRepo, prNumber, checked, deadline, intervalS
   }
   const repositoryId = readPromotionPolicy(ownerRepo)
   updateRefs(repositoryId, buildRefUpdates(current))
-  verifyMain(ownerRepo, current.headRefOid)
+  await verifyMain(ownerRepo, current.headRefOid, deadline, intervalSec, timeoutMin)
   await verifyMerged(ownerRepo, prNumber, current.headRefOid, deadline, intervalSec, timeoutMin)
 }
 

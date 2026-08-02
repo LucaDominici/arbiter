@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2171",
+  "test_path": "__tests__/scripts/pr-merge-watch-promotion.test.ts",
+  "test_commit_sha": "85bca7f7492375f6a9aa618bdd8cb4ee16b1d451",
+  "test_run_log": "\n RUN  v4.1.10 /home/luca/work/repos/arbiter/arbiter.worktrees/chain-smallfix\n\n ❯ __tests__/scripts/pr-merge-watch-promotion.test.ts (7 tests | 1 failed) 647ms\n     × retries a stale post-updateRefs ref read before accepting the exact promoted SHA (#2171, #2152) 145ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 6 passed (7)\n   Start at  19:13:11\n   Duration  745ms (transform 18ms, setup 14ms, import 17ms, tests 647ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/pr-merge-watch-promotion.test.ts > pr-merge-watch exact-SHA promotion (#2148) > retries a stale post-updateRefs ref read before accepting the exact promoted SHA (#2171, #2152)\nAssertionError: stdout:\npr-merge-watch: green — atomically promoting exact SHA bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb (force=false)\n\nstderr:\npr-merge-watch: ERROR — main does not equal the gated head after updateRefs\n: expected 2 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 2\n\n ❯ __tests__/scripts/pr-merge-watch-promotion.test.ts:217:83\n    215|   it('retries a stale post-updateRefs ref read before accepting the ex…\n    216|     const { result, state } = runWatcher({ staleRefReads: 1 })\n    217|     expect(result.status, `stdout:\\n${result.stdout}\\nstderr:\\n${resul…\n       |                                                                                   ^\n    218|     expect(state.base).toBe(HEAD)\n    219|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/pr-merge-watch-promotion.test.ts",
+  "recorded_at": "2026-08-02T17:13:11.889Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/pr-merge-watch-promotion.test.ts"
+  ]
+}
