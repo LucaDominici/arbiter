@@ -24,7 +24,13 @@
  *   2 — could not run `npm pack` / parse its output
  */
 import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gunzipSync } from 'node:zlib'
+
+export const CONSUMER_SCRIPT_ALLOWLIST = new Set()
 
 /**
  * Forbidden-path matchers. Each entry has a human `label` and a `test(path)` predicate
@@ -107,39 +113,94 @@ export function findMissingRequired(paths) {
   return missing
 }
 
+/** Return development-only lifecycle commands leaked into the packed manifest. */
+export function findUnexpectedPublishedScripts(manifest) {
+  const scripts = manifest?.scripts
+  if (scripts === undefined) return []
+  if (scripts === null || typeof scripts !== 'object' || Array.isArray(scripts)) {
+    return ['<invalid scripts field>']
+  }
+  return Object.keys(scripts).filter((name) => !CONSUMER_SCRIPT_ALLOWLIST.has(name))
+}
+
+function tarEntryName(tar, offset) {
+  const readString = (start, length) =>
+    tar
+      .subarray(offset + start, offset + start + length)
+      .toString('utf-8')
+      .replace(/\0.*$/s, '')
+  const name = readString(0, 100)
+  const prefix = readString(345, 155)
+  return prefix === '' ? name : `${prefix}/${name}`
+}
+
+function readPackedManifest(tarballPath) {
+  const tar = gunzipSync(readFileSync(tarballPath))
+  let offset = 0
+  while (offset + 512 <= tar.length) {
+    const name = tarEntryName(tar, offset)
+    if (name === '') break
+    const sizeText = tar
+      .subarray(offset + 124, offset + 136)
+      .toString('ascii')
+      .replace(/\0.*$/s, '')
+      .trim()
+    const size = Number.parseInt(sizeText || '0', 8)
+    const contentStart = offset + 512
+    if (name === 'package/package.json') {
+      return JSON.parse(tar.subarray(contentStart, contentStart + size).toString('utf-8'))
+    }
+    offset = contentStart + Math.ceil(size / 512) * 512
+  }
+  throw new Error('package/package.json missing from tarball')
+}
+
+function packForInspection() {
+  const destination = mkdtempSync(join(tmpdir(), 'arbiter-tarball-check-'))
+  const result = spawnSync('npm', ['pack', '--json', '--pack-destination', destination], {
+    encoding: 'utf-8',
+  })
+  if (result.status !== 0) {
+    rmSync(destination, { recursive: true, force: true })
+    return { error: `npm pack failed\n${result.stderr}` }
+  }
+  try {
+    const packed = JSON.parse(result.stdout)
+    const entry = packed[0] ?? {}
+    const files = Array.isArray(entry.files) ? entry.files.map((f) => f.path) : null
+    if (!files || typeof entry.filename !== 'string') {
+      return { error: 'file list or filename missing from npm pack output' }
+    }
+    const manifest = readPackedManifest(join(destination, entry.filename))
+    return { files, manifest }
+  } catch (error) {
+    return {
+      error: `failed to inspect npm pack output: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  } finally {
+    rmSync(destination, { recursive: true, force: true })
+  }
+}
+
 /**
- * Runs `npm pack --dry-run --json`, classifies the manifest, writes a report, and
- * returns the exit code. Does not call process.exit so it stays importable/testable.
+ * Runs `npm pack --json`, classifies both the file list and packed package.json,
+ * writes a report, and returns the exit code. Does not call process.exit so it
+ * stays importable/testable.
  *
  * @returns {number} exit code
  */
 export function checkTarballContents() {
-  const result = spawnSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf-8' })
-
-  if (result.status !== 0) {
-    process.stderr.write(`check-tarball-contents: npm pack failed\n${result.stderr}\n`)
+  const packed = packForInspection()
+  if (packed.error) {
+    process.stderr.write(`check-tarball-contents: ${packed.error}\n`)
     return 2
   }
-
-  let packed
-  try {
-    packed = JSON.parse(result.stdout)
-  } catch {
-    process.stderr.write(`check-tarball-contents: failed to parse npm pack JSON output\n`)
-    return 2
-  }
-
-  const entry = packed[0] ?? {}
-  const files = Array.isArray(entry.files) ? entry.files.map((f) => f.path) : null
-  if (!files) {
-    process.stderr.write(`check-tarball-contents: file list missing from npm pack output\n`)
-    return 2
-  }
-
+  const { files, manifest } = packed
   const violations = classifyTarball(files)
   const missing = findMissingRequired(files)
+  const unexpectedScripts = findUnexpectedPublishedScripts(manifest)
 
-  if (violations.length > 0 || missing.length > 0) {
+  if (violations.length > 0 || missing.length > 0 || unexpectedScripts.length > 0) {
     if (violations.length > 0) {
       process.stderr.write(
         `check-tarball-contents: FAIL — ${violations.length} forbidden path(s) would ship:\n`,
@@ -165,11 +226,18 @@ export function checkTarballContents() {
           `that package.json "files" ships the dist subtree.\n`,
       )
     }
+    if (unexpectedScripts.length > 0) {
+      process.stderr.write(
+        `check-tarball-contents: FAIL — published package.json exposes development scripts:\n` +
+          unexpectedScripts.map((name) => `  ${name}\n`).join('') +
+          `\nOnly the explicit consumer allowlist may ship: ${[...CONSUMER_SCRIPT_ALLOWLIST].join(', ') || '(empty)'}.\n`,
+      )
+    }
     return 1
   }
 
   process.stdout.write(
-    `check-tarball-contents: OK (${files.length} files, no forbidden paths, ${REQUIRED.length} required asset(s) present)\n`,
+    `check-tarball-contents: OK (${files.length} files, no forbidden paths, ${REQUIRED.length} required asset(s) present, consumer scripts clean)\n`,
   )
   return 0
 }
