@@ -20,7 +20,7 @@ let packedManifest: PackedManifest
 beforeAll(() => {
   const raw = execFileSync(
     'npm',
-    ['pack', '--json', '--ignore-scripts', '--pack-destination', packDir],
+    ['pack', '--json', '--pack-destination', packDir],
     { cwd: resolve('.'), encoding: 'utf-8' },
   )
   const packed = JSON.parse(raw) as Array<{ filename: string }>
@@ -46,5 +46,15 @@ describe('published package hygiene', () => {
     expect(packedManifest.engines?.node).toBe(source.engines?.node)
     expect(packedManifest.engines?.npm).toBeDefined()
     expect(packedManifest.engines?.npm).not.toMatch(/<\s*11(?:\.0\.0)?/)
+  })
+
+  it('ships no development scripts and preserves consumer-critical fields (AC-2133.1, AC-2133.2, AC-2133.3)', () => {
+    const source = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as PackedManifest
+
+    expect(source.scripts?.prepare).toContain('core.hooksPath')
+    expect(Object.keys(packedManifest.scripts ?? {})).toEqual([])
+    for (const field of ['bin', 'exports', 'main', 'engines', 'files'] as const) {
+      expect(packedManifest[field]).toEqual(source[field])
+    }
   })
 })
