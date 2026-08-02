@@ -88,7 +88,11 @@ function main() {
         let parsed
         try {
           parsed = JSON.parse(document)
-        } catch {
+        } catch (err) {
+          process.stderr.write(
+            `check-fixture-isolation: malformed JSON in ${relative(ROOT, file)} — ${err?.message ?? err}\n`,
+          )
+          findings.push({ file, jsonPath: '$', value: '<malformed JSON document>' })
           continue
         }
         collectViolations(parsed, '$', findings, file)

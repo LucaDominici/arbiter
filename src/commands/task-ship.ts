@@ -38,7 +38,7 @@ import {
   type TierSignals,
 } from './ship-tier.js'
 
-export { normTier, type ShipTier } from './ship-tier.js'
+export { type ShipTier } from './ship-tier.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
