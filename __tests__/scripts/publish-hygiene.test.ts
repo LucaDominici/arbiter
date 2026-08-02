@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { basename, join, resolve } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+interface PackedManifest {
+  engines?: Record<string, string>
+  scripts?: Record<string, string>
+  bin?: unknown
+  exports?: unknown
+  main?: unknown
+  files?: unknown
+}
+
+const packDir = mkdtempSync(join(tmpdir(), 'arbiter-publish-hygiene-'))
+let packedManifest: PackedManifest
+
+beforeAll(() => {
+  const raw = execFileSync(
+    'npm',
+    ['pack', '--json', '--ignore-scripts', '--pack-destination', packDir],
+    { cwd: resolve('.'), encoding: 'utf-8' },
+  )
+  const packed = JSON.parse(raw) as Array<{ filename: string }>
+  const filename = packed[0]?.filename
+  if (!filename) throw new Error('npm pack did not report a tarball filename')
+  const manifestJson = execFileSync(
+    'tar',
+    ['-xOzf', join(packDir, basename(filename)), 'package/package.json'],
+    { encoding: 'utf-8' },
+  )
+  packedManifest = JSON.parse(manifestJson) as PackedManifest
+})
+
+afterAll(() => {
+  rmSync(packDir, { recursive: true, force: true })
+})
+
+describe('published package hygiene', () => {
+  it('admits npm 11 while preserving the Node engine contract (AC-2128.1, AC-2128.2, AC-2128.3)', () => {
+    const source = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as PackedManifest
+
+    expect(packedManifest.engines?.node).toBe('>=22.0.0')
+    expect(packedManifest.engines?.node).toBe(source.engines?.node)
+    expect(packedManifest.engines?.npm).toBeDefined()
+    expect(packedManifest.engines?.npm).not.toMatch(/<\s*11(?:\.0\.0)?/)
+  })
+})
