@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const packagePath = resolve(root, 'package.json')
-const backupPath = resolve(root, 'node_modules/.cache/arbiter/package.json.prepack')
+const backupPath = resolve(root, '.arbiter/package.json.prepack')
 
 function writeAtomically(path, content) {
   const temporary = `${path}.tmp`

@@ -173,6 +173,7 @@ function packForInspection() {
     }
     const manifest = readPackedManifest(join(destination, entry.filename))
     return { files, manifest }
+    // FAIL-OPEN-INTENT: converted to an explicit error result; checkTarballContents surfaces it and exits 2.
   } catch (error) {
     return {
       error: `failed to inspect npm pack output: ${error instanceof Error ? error.message : String(error)}`,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -15,14 +15,31 @@ interface PackedManifest {
 }
 
 const packDir = mkdtempSync(join(tmpdir(), 'arbiter-publish-hygiene-'))
+const workspaceDir = join(packDir, 'workspace')
 let packedManifest: PackedManifest
 
 beforeAll(() => {
-  const raw = execFileSync(
-    'npm',
-    ['pack', '--json', '--pack-destination', packDir],
-    { cwd: resolve('.'), encoding: 'utf-8' },
-  )
+  mkdirSync(workspaceDir)
+  for (const path of [
+    'package.json',
+    'package-lock.json',
+    'tsconfig.json',
+    'scripts',
+    'src',
+    'README.md',
+    'LICENSE',
+    'NOTICE',
+    'CHANGELOG.md',
+    'PRIVACY.md',
+    'THIRD_PARTY_LICENSES.md',
+  ]) {
+    cpSync(resolve(path), join(workspaceDir, path), { recursive: true })
+  }
+  symlinkSync(resolve('node_modules'), join(workspaceDir, 'node_modules'), 'dir')
+  const raw = execFileSync('npm', ['pack', '--json', '--pack-destination', packDir], {
+    cwd: workspaceDir,
+    encoding: 'utf-8',
+  })
   const packed = JSON.parse(raw) as Array<{ filename: string }>
   const filename = packed[0]?.filename
   if (!filename) throw new Error('npm pack did not report a tarball filename')
@@ -32,7 +49,7 @@ beforeAll(() => {
     { encoding: 'utf-8' },
   )
   packedManifest = JSON.parse(manifestJson) as PackedManifest
-})
+}, 60_000)
 
 afterAll(() => {
   rmSync(packDir, { recursive: true, force: true })
