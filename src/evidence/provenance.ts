@@ -131,6 +131,7 @@ function hashFile(path: string): string | undefined {
   if (!existsSync(path)) return undefined
   try {
     return createHash('sha256').update(readFileSync(path)).digest('hex')
+    // FAIL-OPEN-INTENT: an unreadable file just means this provenance field stays omitted.
   } catch {
     return undefined
   }
@@ -145,6 +146,7 @@ function hashSkills(root: string): string[] | undefined {
     entries = readdirSync(skillsDir, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
+    // FAIL-OPEN-INTENT: an unreadable skills dir just means skills stay omitted.
   } catch {
     return undefined
   }
@@ -213,11 +215,10 @@ export function buildProvenance(
 /** Render populated provenance fields as text lines (CLI `verify evidence` output). */
 export function formatProvenance(p: Provenance): string[] {
   const lines: string[] = []
-  if (p.model_id) lines.push(`provenance.model_id: ${p.model_id}`)
-  if (p.agent_harness) lines.push(`provenance.agent_harness: ${p.agent_harness}`)
-  if (p.harness_version) lines.push(`provenance.harness_version: ${p.harness_version}`)
-  if (p.session_id) lines.push(`provenance.session_id: ${p.session_id}`)
-  if (p.gate_manifest_hash) lines.push(`provenance.gate_manifest_hash: ${p.gate_manifest_hash}`)
+  for (const field of PROVENANCE_STRING_FIELDS) {
+    const val = p[field]
+    if (val) lines.push(`provenance.${field}: ${val}`)
+  }
   if (p.config_hashes?.agents_md) {
     lines.push(`provenance.config_hashes.agents_md: ${p.config_hashes.agents_md}`)
   }

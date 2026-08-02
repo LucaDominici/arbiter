@@ -94,18 +94,18 @@ Optional list of supplementary files. An empty array `[]` is valid.
 
 ### `provenance` (optional, #2164)
 
-Type: `Provenance` object — author provenance, i.e. *what produced* this bundle
+Type: `Provenance` object — author provenance, i.e. _what produced_ this bundle
 (model/harness/config/gate snapshot/session), so a gate regression weeks later can be
 traced back to a code change vs. an agent/prompt/model change.
 
-| Field                | Required | Type     | Description                                                                    |
-| -------------------- | -------- | -------- | -------------------------------------------------------------------------------- |
-| `model_id`           | no       | string   | Model identifier, only when derivable from the harness environment — never guessed |
-| `agent_harness`      | no       | string   | Agent harness name, e.g. `"claude-code"`                                          |
-| `harness_version`    | no       | string   | Harness version, structurally parsed from the harness executable path            |
-| `gate_manifest_hash` | no       | string   | sha256 of `scripts/check-all.mjs` — fingerprints which gates ran                  |
-| `session_id`         | no       | string   | Opaque agent session id — not a transcript                                       |
-| `config_hashes`      | no       | object   | `{agents_md?, claude_md?, skills?}` — sha256 digests of governing config files    |
+| Field                | Required | Type   | Description                                                                        |
+| -------------------- | -------- | ------ | ---------------------------------------------------------------------------------- |
+| `model_id`           | no       | string | Model identifier, only when derivable from the harness environment — never guessed |
+| `agent_harness`      | no       | string | Agent harness name, e.g. `"claude-code"`                                           |
+| `harness_version`    | no       | string | Harness version, structurally parsed from the harness executable path              |
+| `gate_manifest_hash` | no       | string | sha256 of `scripts/check-all.mjs` — fingerprints which gates ran                   |
+| `session_id`         | no       | string | Opaque agent session id — not a transcript                                         |
+| `config_hashes`      | no       | object | `{agents_md?, claude_md?, skills?}` — sha256 digests of governing config files     |
 
 Every field is an opaque id or a sha256 hex digest — never file content or transcript
 text (no secrets/PII). Built by `buildProvenance()` in `src/evidence/provenance.ts`, shared

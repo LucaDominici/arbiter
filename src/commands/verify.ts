@@ -352,13 +352,19 @@ export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
 
   const result: VerifyEvidenceResult = { status: 'ok', exitCode: 0 }
   if (riskLevel !== null) result.riskLevel = riskLevel
-  // #2164: `provenance` already validated cleanly above (folded into
-  // validateSummarySchema's errors, which would have short-circuited to exit 1
-  // otherwise) — safe to attach as-is here.
+  attachProvenance(result, loaded)
+  return result
+}
+
+/**
+ * #2164: `provenance` already validated cleanly above (folded into
+ * validateSummarySchema's errors, which would have short-circuited to exit 1
+ * otherwise) — safe to attach as-is here.
+ */
+function attachProvenance(result: VerifyEvidenceResult, loaded: Record<string, unknown>): void {
   if (loaded['provenance'] !== undefined) {
     result.provenance = loaded['provenance'] as Provenance
   }
-  return result
 }
 
 export function runVerify(opts: VerifyOptions): void {
