@@ -14,5 +14,5 @@ const offending = lines.flatMap((line, i) =>
 if (offending.length > 0) {
   process.stderr.write(`[arbiter] INV: Unchecked error (no '_ = ' patterns allowed): ${file}\n`);
   offending.slice(0, 3).forEach(l => process.stderr.write(`  ${l}\n`));
-  process.exit(1);
+  process.exit(2);
 }

@@ -60,6 +60,42 @@
     {
       "path": "scripts/check-touched-vs-manifest.mjs",
       "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs \u2014 check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
+    },
+    {
+      "path": "scripts/check-ci-tiers.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'ci tiers') in check-all.mjs only inside the useGitHub block (INV-73). Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-action-pins.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'action pins') in check-all.mjs only inside the useGitHub block (INV-75). Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-workflow-perms.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'workflow perms') in check-all.mjs only inside the useGitHub block (INV-76). Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-workflow-runners.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89, #1152), but wired (runCheck 'workflow runners') in check-all.mjs only inside the useGitHub block. Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-workflow-docs-sync.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'workflow docs sync') in check-all.mjs only inside the useGitHub block. Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-workflow-test-integrity.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'workflow test integrity') in check-all.mjs only inside the useGitHub block. Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-workflow-sha-pinning.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'workflow sha pinning') in check-all.mjs only inside the useGitHub block. Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-workflow-job-naming.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'workflow job naming') in check-all.mjs only inside the useGitHub block. Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
+    },
+    {
+      "path": "scripts/check-pr-size-gate.mjs",
+      "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'pr size gate') in check-all.mjs only inside the useGitHub block. Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
     }
   ]
 }

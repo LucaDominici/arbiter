@@ -14,6 +14,9 @@
     "test:behavioral": "vitest run --passWithNoTests __tests__/behavioral",
     "prepare": "git config core.hooksPath .githooks"
   },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@4.62.3"
+  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",

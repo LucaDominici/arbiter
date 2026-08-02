@@ -2,7 +2,7 @@
 title: 'GLOSSARY'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-07-25'
+last_review: '2026-08-02'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']

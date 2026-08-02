@@ -31,7 +31,7 @@ if (!CONVENTIONAL.test(msg)) {
     `[arbiter] Expected: type(scope): summary (e.g., feat(auth): add login)\n`,
   );
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-22\` for details.\n`);
-  process.exit(1);
+  process.exit(2);
 }
 
 // Track-aware post-commit checklist (#724)

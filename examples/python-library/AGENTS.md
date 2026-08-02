@@ -84,7 +84,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-06:** No unused imports or variables (ruff `F401,F811`, zero findings)
 - **INV-99:** deployTarget must be a known cloud or "none"
 - **INV-100:** collaborationMode must be set in arbiter.json
-- **INV-101:** ff-only merge is the only allowed merge method
+- **INV-101:** exact-SHA non-force landing for evidence-bearing changes
 
 ### Tier 5: Governance
 

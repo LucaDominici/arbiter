@@ -9,6 +9,7 @@
 import { readTaskState, getRepoRoot, resolveToolInputPath } from './lib.mjs';
 import { readFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { join, basename, resolve, relative, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 if (process.env.ARBITER_PLAN_BYPASS === '1') {
   // Best-effort bypass accounting (#1949 handoff) — never blocks, never changes
@@ -46,10 +47,41 @@ if (process.env.ARBITER_PLAN_BYPASS === '1') {
 const targetRaw = resolveToolInputPath();
 
 const root = getRepoRoot();
-const { phase, plan } = readTaskState(root);
+const { taskId, phase, plan, branch: recordedBranch } = readTaskState(root);
 
 const IMPL_PHASES = new Set(['red', 'green', 'refactor']);
 if (!IMPL_PHASES.has(phase)) process.exit(0);
+
+const statusFile = join(root, '.claude', '.task', 'status.json');
+const branchResult = spawnSync(
+  'git',
+  ['branch', '--show-current'],
+  { cwd: root, encoding: 'utf-8', timeout: 5000 },
+);
+const currentBranch = branchResult.status === 0 ? branchResult.stdout.trim() : '';
+if (!currentBranch) {
+  process.stderr.write(
+    `[arbiter] PLAN ANCHOR: cannot resolve current Git branch while ${statusFile} ` +
+    `claims task=${taskId} phase=${phase} branch=${recordedBranch}. ` +
+    `Failing closed; run \`arbiter task init --id ${taskId} --plan ${plan}\` after restoring Git state.\n`,
+  );
+  process.exit(2);
+}
+
+const branchTask = /^(?:task|ship)\/#?(\d+)(?:-|$)/.exec(currentBranch);
+const branchTaskId = branchTask ? `#${branchTask[1]}` : null;
+const staleBranch =
+  recordedBranch === 'unknown' ||
+  recordedBranch !== currentBranch ||
+  (branchTaskId !== null && branchTaskId !== taskId);
+if (staleBranch) {
+  process.stderr.write(
+    `[arbiter] PLAN ANCHOR: stale task state disarmed. status=${statusFile} task=${taskId} ` +
+    `plan=${plan} recordedBranch=${recordedBranch} currentBranch=${currentBranch}. ` +
+    `Realign with \`arbiter task init --id <current-issue> --plan <current-plan>\`.\n`,
+  );
+  process.exit(0);
+}
 
 // During implementation phases (red/green/refactor), plan is required
 const planPath = (!plan || plan === 'unknown')
@@ -58,7 +90,9 @@ const planPath = (!plan || plan === 'unknown')
 
 if (!planPath || !existsSync(planPath)) {
   process.stderr.write(
-    `[arbiter] PLAN ANCHOR: ${phase} phase requires a plan pointer to an existing plan file.\n` +
+    `[arbiter] PLAN ANCHOR: ${phase} phase requires a plan pointer to an existing plan file. ` +
+    `status=${statusFile} task=${taskId} plan=${plan} ` +
+    `recordedBranch=${recordedBranch} currentBranch=${currentBranch}.\n` +
     `Set via: arbiter task init --plan <path> (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
   );
   process.stderr.write(`[arbiter] Run \`arbiter explain CANON-14\` for details.\n`);

@@ -202,7 +202,9 @@ commit (L1) and before push (L2).
 
 
 
-**peer-review / gated-review (or pr-ff):** open a PR and merge once checks pass:
+
+**peer-review / gated-review:** open a PR and merge without rewriting its commits:
+
 
 ```bash
 gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
@@ -221,8 +223,10 @@ gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
 Closes #NNN
 PRBODY
 )"
+
 gh pr checks --watch
-gh pr merge --rebase --admin
+gh pr merge --merge --admin
+
 ```
 
 

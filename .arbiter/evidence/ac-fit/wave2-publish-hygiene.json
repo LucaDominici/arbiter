@@ -1,0 +1,78 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "wave2-publish-hygiene",
+  "criteria": [
+    {
+      "id": "AC-2128.1",
+      "verdict": "PASS",
+      "evidence": [{ "file": "package.json", "line": 148 }]
+    },
+    {
+      "id": "AC-2128.2",
+      "verdict": "PASS",
+      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 42 }]
+    },
+    {
+      "id": "AC-2128.3",
+      "verdict": "PASS",
+      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 45 }]
+    },
+    {
+      "id": "AC-2133.1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/publish-package-json.mjs", "line": 28 },
+        { "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 51 }
+      ]
+    },
+    {
+      "id": "AC-2133.2",
+      "verdict": "PASS",
+      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 56 }]
+    },
+    {
+      "id": "AC-2133.3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 20 },
+        { "file": "scripts/check-tarball-contents.mjs", "line": 192 }
+      ]
+    },
+    {
+      "id": "AC-2132.1",
+      "verdict": "PASS",
+      "evidence": [{ "file": "src/commands/init.ts", "line": 88 }]
+    },
+    {
+      "id": "AC-2132.2",
+      "verdict": "PASS",
+      "evidence": [{ "file": "__tests__/commands/init.test.ts", "line": 204 }]
+    },
+    {
+      "id": "AC-2132.3",
+      "verdict": "PASS",
+      "evidence": [{ "file": "__tests__/commands/init.test.ts", "line": 222 }]
+    },
+    {
+      "id": "AC-2126.1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/regenerate-examples.mjs", "line": 227 },
+        { "file": "examples/go-library/scripts/pr-merge-watch.mjs", "line": 1 }
+      ]
+    },
+    {
+      "id": "AC-2126.2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "__tests__/scripts/regenerate-examples.test.ts", "line": 41 },
+        { "file": "scripts/regenerate-examples.mjs", "line": 216 }
+      ]
+    },
+    {
+      "id": "AC-2126.3",
+      "verdict": "PASS",
+      "evidence": [{ "file": "scripts/regenerate-examples.mjs", "line": 215 }]
+    }
+  ]
+}

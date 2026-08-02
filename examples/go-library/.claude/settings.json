@@ -16,7 +16,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/hooks.mjs PreToolUse:Edit|Write",
+            "command": "node .claude/hooks/hooks.mjs 'PreToolUse:Edit|Write'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Task|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/hooks.mjs 'PreToolUse:Task|Agent'",
             "timeout": 10
           }
         ]
@@ -38,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/hooks.mjs PostToolUse:Edit|Write",
+            "command": "node .claude/hooks/hooks.mjs 'PostToolUse:Edit|Write'",
             "timeout": 90
           }
         ]

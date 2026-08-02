@@ -14,5 +14,5 @@ const offending = lines.flatMap((line, i) =>
 if (offending.length > 0) {
   process.stderr.write(`[arbiter] INV: Bare except clause found (specify exception type): ${file}\n`);
   offending.slice(0, 3).forEach(l => process.stderr.write(`  ${l}\n`));
-  process.exit(1);
+  process.exit(2);
 }

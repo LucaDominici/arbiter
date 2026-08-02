@@ -10,5 +10,5 @@ if (!file.startsWith(repoRoot)) process.exit(0);
 if (/:\s*any\b/.test(readFileSync(file, 'utf-8'))) {
   process.stderr.write(`[arbiter] INV-04: No 'any' type allowed: ${file}\n`);
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-04\` for details.\n`);
-  process.exit(1);
+  process.exit(2);
 }

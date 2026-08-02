@@ -232,6 +232,8 @@ runCheck('suppression expiry (anti-drift)', 'node', ['scripts/check-suppression-
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
 // ─── L1: Context-file lint (anti-drift, INV-89, #1266) ───────────────────────
 runCheck('claude-md lint', 'node', ['scripts/check-claude-md-lint.mjs']);
+// ─── L1: Unwired guard-script detector (anti-drift, INV-89, #2159) ───────────
+runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
 // ─── L1: Workflow runner label enforcement (#191, inlined) ───────────────────
 {
   const _wrStart = Date.now();
@@ -372,6 +374,8 @@ runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs']);
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs']);
 // ─── L1: collaborationMode wired (INV-100, #1093) ────────────────────────────
 runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs']);
+// ─── L1: emitted hook → dispatcher → settings reverse routing (#2129) ─────────
+runCheck('hook routing (#2129)', 'node', ['scripts/check-hook-routing.mjs']);
 // ─── L1: safety-class adopt ratchet (T1, anti-erosion) ───────────────────────
 runCheck('safety adopt ratchet', 'node', ['scripts/check-safety-adopt-ratchet.mjs']);
 // ─── L1: governance constraint scan (INV-115, #1214) ─────────────────────────
@@ -428,6 +432,13 @@ runCheck('muted gate test (anti-fake-green)', 'node', ['scripts/check-muted-test
 runCheck('skipped critical e2e (anti-fake-green)', 'node', ['scripts/check-skip-critical-e2e.mjs']);
 runCheck('stub redirect husk (anti-fake-green)', 'node', ['scripts/check-no-stub-redirects.mjs']);
 runCheck('grace window (anti-fake-green)', 'node', ['scripts/check-grace-window.mjs']);
+// #2161: assertion-delta is emitted unconditionally (diff-based, any test stack).
+runCheck('assertion delta (anti-fake-green)', 'node', ['scripts/check-assertion-delta.mjs']);
+// #2160: oracle-discrimination.mjs is emitted by check-all.ts ONLY where an E2E (Playwright)
+// harness is applicable (archetype frontend-spa or backend-web-db, same predicate as
+// generateE2eConstitution) — reference it only where it is actually emitted (mirrors the
+// merge-method ff-only precedent, #1331).
+
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
 
@@ -524,13 +535,24 @@ if (_failedCount === 0 && !_inspect) {
       return (typeof _s.taskId === 'string' && _s.taskId.length > 0) ? _s.taskId : 'unknown';
     } catch { return 'unknown'; }
   })();
+  // #2085: record whether the TRACKED tree was clean when the gate ran, so the
+  // generated pre-push hook can reuse this green evidence only when the stamp
+  // corresponds to a committed (clean) tree. Untracked files ('??') are ignored,
+  // matching the hook's porcelain semantics. Fail-closed: any error → false.
+  const _treeWasClean = (() => {
+    try {
+      const _p = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf-8' });
+      if (_p.status !== 0 || typeof _p.stdout !== 'string') return false;
+      return _p.stdout.split('\n').every((l) => l === '' || l.startsWith('??'));
+    } catch { return false; }
+  })();
   const _markerPath = resolve(process.cwd(), '.arbiter/gate-pass.json');
   try {
     mkdirSync(dirname(_markerPath), { recursive: true });
     writeFileSync(
       _markerPath,
       JSON.stringify(
-        { head_sha: _headSha, branch: _branch, task_id: _taskId, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser },
+        { head_sha: _headSha, branch: _branch, task_id: _taskId, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser, tree_was_clean_at_run_time: _treeWasClean },
         null,
         2,
       ) + '\n',

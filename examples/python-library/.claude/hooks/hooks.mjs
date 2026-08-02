@@ -27,6 +27,9 @@ const HANDLERS = {
     'pre-edit-ssot-guard.mjs',
     'pre-edit-plan-anchor.mjs',
   ],
+  'PreToolUse:Task|Agent': [
+    'pre-spawn-worktree-guard.mjs',
+  ],
   'PostToolUse:Bash': [
     'post-commit-check.mjs',
   ],
@@ -58,7 +61,10 @@ try {
 
 for (const handler of handlers) {
   const handlerPath = join(__dirname, handler);
-  if (!existsSync(handlerPath)) continue;
+  if (!existsSync(handlerPath)) {
+    process.stderr.write(`[hooks.mjs] Registered handler is missing: ${handlerPath}\n`);
+    process.exit(2);
+  }
 
   const result = spawnSync('node', [handlerPath], {
     input: stdinData,
@@ -71,6 +77,6 @@ for (const handler of handlers) {
   }
   if (result.signal) {
     process.stderr.write(`[hooks.mjs] Handler ${handler} killed by signal ${result.signal}\n`);
-    process.exit(1);
+    process.exit(2);
   }
 }
