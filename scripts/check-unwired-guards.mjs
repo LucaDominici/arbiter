@@ -9,11 +9,18 @@
 // CATALOG: verify-*.sh, and scripts/qa/check-* (the motivating incident: a
 // CATALOG: 375-line hand-authored verify-requirements-matrix.sh never seen by
 // CATALOG: a .mjs-only scan); (2) it never recognizes run.sh as a gate
-// CATALOG: entrypoint; (3) a malformed allowlist here is its own exit-2 schema
+// CATALOG: entrypoint; (3) a malformed manifest here is its own exit-2 schema
 // CATALOG: class, not folded into the exit-1 problem list. Reference corpus is
 // CATALOG: the same surfaces (check-all.mjs, scripts/**, .claude/hooks/**,
 // CATALOG: settings.json, Makefile, githooks, workflows, commands) plus run.sh
-// CATALOG: and package.json — a superset, not a narrower scan.
+// CATALOG: and package.json — a superset, not a narrower scan. Allowlisting
+// CATALOG: (below) deliberately REUSES scripts/optional-emissions.json rather
+// CATALOG: than inventing a second exceptions file: it is the canonical,
+// CATALOG: already-emitted-to-every-target INV-123 manifest for precisely this
+// CATALOG: "emitted unconditionally, wired only sometimes" concept (its own
+// CATALOG: $comment documents the REVERSE #1518 direction this check exists
+// CATALOG: to enforce) — one shared list for both checks, not two that can
+// CATALOG: drift apart.
 //
 // Detects a "guard script" (scripts/check-*.mjs, scripts/check-*.sh,
 // scripts/verify-*.sh, scripts/qa/check-*) that exists on disk but is never
@@ -21,11 +28,11 @@
 // false sense of coverage: the script never runs, yet its existence reads as
 // "this class of drift is checked".
 //
-// Allowlist: scripts/data/unwired-guards-allowlist.json —
-//   { "schema": "arbiter-unwired-guards-allowlist-v1",
-//     "entries": [{ "path": "scripts/qa/check-foo.sh", "rationale": "..." }] }
+// Allowlist: scripts/optional-emissions.json (shared with check-emission-
+// coherence.mjs, INV-123) —
+//   { "optional": [{ "path": "scripts/qa/check-foo.sh", "rationale": "..." }] }
 // Absent file = empty allowlist (no error, day-1 safe). A malformed file (bad
-// JSON / missing "entries" array / entry missing path or rationale) is a
+// JSON / missing "optional" array / entry missing path or rationale) is a
 // SCHEMA error (exit 2) — never silently downgraded to a normal FAIL, and
 // never a silent allowlist-without-reason.
 //
@@ -38,7 +45,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const SELF_NAME = 'check-unwired-guards.mjs'
-const ALLOWLIST_REL = 'scripts/data/unwired-guards-allowlist.json'
+const ALLOWLIST_REL = 'scripts/optional-emissions.json'
 
 const HELP = `Usage: node scripts/check-unwired-guards.mjs [options]
 
@@ -49,9 +56,10 @@ scripts/** file, .claude/hooks/**, .claude/settings.json, Makefile,
 .githooks/*, package.json, .claude/commands/*.md, or a
 .github/workflows/*.yml). Exits 1 naming the file(s) when found unreferenced.
 
-An allowlist entry (scripts/data/unwired-guards-allowlist.json) with a
-non-empty rationale silences one candidate (printed as ALLOWLISTED, still
-visible for auditability). A malformed allowlist is a schema error (exit 2).
+An entry in scripts/optional-emissions.json (shared with the INV-123
+emission-coherence gate) with a non-empty rationale silences one candidate
+(printed as ALLOWLISTED, still visible for auditability). A malformed
+manifest is a schema error (exit 2).
 
 Options:
   --help, -h      Show this help and exit
@@ -175,8 +183,8 @@ function schemaError(msg) {
   process.exit(2)
 }
 
-// Parse the allowlist JSON and return its "entries" array. Any malformed shape
-// calls schemaError(), which exits 2 and never returns.
+// Parse the allowlist JSON and return its "optional" array. Any malformed
+// shape calls schemaError(), which exits 2 and never returns.
 function parseAllowlistJson(raw) {
   let parsed
   try {
@@ -189,10 +197,10 @@ function parseAllowlistJson(raw) {
     )
     process.exit(2)
   }
-  if (!Array.isArray(parsed?.entries)) {
-    schemaError(`${ALLOWLIST_REL} must have an "entries" array`)
+  if (!Array.isArray(parsed?.optional)) {
+    schemaError(`${ALLOWLIST_REL} must have an "optional" array`)
   }
-  return parsed.entries
+  return parsed.optional
 }
 
 // A valid entry has a non-empty "path" and a non-empty "rationale"; otherwise

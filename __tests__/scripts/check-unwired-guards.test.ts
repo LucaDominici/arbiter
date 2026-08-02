@@ -80,16 +80,15 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
     }
   })
 
-  it('exits 0 with ALLOWLISTED stdout when the orphan is listed with a rationale', () => {
+  it('exits 0 with ALLOWLISTED stdout when the orphan is listed in optional-emissions.json (shared with INV-123)', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
       writeFileSync(join(dir, 'scripts', 'check-orphan.mjs'), '// orphan\n')
       writeFileSync(
-        join(dir, 'scripts', 'data', 'unwired-guards-allowlist.json'),
+        join(dir, 'scripts', 'optional-emissions.json'),
         JSON.stringify({
-          schema: 'arbiter-unwired-guards-allowlist-v1',
-          entries: [{ path: 'scripts/check-orphan.mjs', rationale: 'intentional overlay, #0000' }],
+          optional: [{ path: 'scripts/check-orphan.mjs', rationale: 'intentional overlay, #0000' }],
         }),
       )
       const result = run(dir)
@@ -101,13 +100,13 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
     }
   })
 
-  it('exits 2 when an allowlist entry has an empty rationale', () => {
+  it('exits 2 when an optional-emissions.json entry has an empty rationale', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
       writeFileSync(
-        join(dir, 'scripts', 'data', 'unwired-guards-allowlist.json'),
-        JSON.stringify({ entries: [{ path: 'scripts/check-orphan.mjs', rationale: '' }] }),
+        join(dir, 'scripts', 'optional-emissions.json'),
+        JSON.stringify({ optional: [{ path: 'scripts/check-orphan.mjs', rationale: '' }] }),
       )
       const result = run(dir)
       expect(result.status).toBe(2)
@@ -117,11 +116,11 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
     }
   })
 
-  it('exits 2 when the allowlist JSON is malformed', () => {
+  it('exits 2 when optional-emissions.json is malformed', () => {
     const { dir, cleanup } = makeTemp()
     try {
-      mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
-      writeFileSync(join(dir, 'scripts', 'data', 'unwired-guards-allowlist.json'), '{not json')
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(join(dir, 'scripts', 'optional-emissions.json'), '{not json')
       const result = run(dir)
       expect(result.status).toBe(2)
       expect(result.stderr).toContain('not valid JSON')
