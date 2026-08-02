@@ -23,7 +23,9 @@ function runWatcher(
     collaborationMode: 'trunk-solo',
     solo: { mergeMode: 'pr-ff' },
   },
+  options: { timeoutMin?: number; intervalSec?: number } = {},
 ) {
+  const { timeoutMin = 1, intervalSec = 0 } = options
   const root = mkdtempSync(join(tmpdir(), 'arbiter-ff-watch-'))
   roots.push(root)
   const statePath = join(root, 'state.json')
@@ -37,6 +39,7 @@ function runWatcher(
       base: BASE,
       head: HEAD,
       merged: false,
+      refReads: 0,
       ...overrides,
     }),
   )
@@ -114,8 +117,10 @@ if (args[0] === 'pr' && args[1] === 'view') {
     allow_deletions: {enabled: false},
   }))
 } else if (args[0] === 'api' && args[1].includes('/git/ref/heads/main')) {
+  state.refReads++
   save()
-  process.stdout.write(JSON.stringify({object: {sha: state.base}}))
+  const sha = state.refReads <= (state.staleRefReads || 0) ? state.staleRefSha || '${BASE}' : state.base
+  process.stdout.write(JSON.stringify({object: {sha}}))
 } else {
   save()
   process.stderr.write('unsupported fake gh call: ' + JSON.stringify(args))
@@ -127,7 +132,7 @@ if (args[0] === 'pr' && args[1] === 'view') {
 
   const result = spawnSync(
     process.execPath,
-    [WATCHER, 'owner/repo', '2148', '--timeout-min', '1', '--interval-sec', '0'],
+    [WATCHER, 'owner/repo', '2148', '--timeout-min', String(timeoutMin), '--interval-sec', String(intervalSec)],
     {
       cwd: root,
       encoding: 'utf-8',
@@ -201,10 +206,16 @@ describe('pr-merge-watch exact-SHA promotion (#2148)', () => {
   })
 
   it('exits ERROR when mutation response is green but main does not equal the gated head', () => {
-    const { result, state } = runWatcher({ dontMoveBase: true })
+    const { result, state } = runWatcher({ dontMoveBase: true }, undefined, { timeoutMin: 0 })
     expect(result.status).toBe(2)
     expect(result.stderr).toMatch(/main.*gated head/i)
     expect(state.base).toBe(BASE)
+  })
+
+  it('retries a stale post-updateRefs ref read before accepting the exact promoted SHA (#2171, #2152)', () => {
+    const { result, state } = runWatcher({ staleRefReads: 1 })
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
+    expect(state.base).toBe(HEAD)
   })
 
   it('fails before any GitHub call outside trunk-solo + pr-ff', () => {
