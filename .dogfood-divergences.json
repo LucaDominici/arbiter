@@ -140,7 +140,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "a19a485cc120c88806b4bfd055ec4f4606c24639c01f83a8ce6285cb53ea6882"
+    "diffHash": "abe991738871e8c9a1b1736dcdab3dc476cad2b1990417ed3cb4cbe016eb376c"
   },
   {
     "path": "check-anti-proforma.mjs",

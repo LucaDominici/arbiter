@@ -139,6 +139,27 @@ const plantManifestRepo = (d, touchedFile) => {
 const pkg = (testScript) =>
   JSON.stringify({ name: 'fx', version: '0.0.0', scripts: { 'test:unit': testScript } }, null, 2)
 
+/**
+ * Plant an assertion-delta fixture repo (#2161): a `base` branch with two assertions, then a
+ * HEAD commit that either drops one with nothing added (bad) or keeps both and adds a third
+ * (clean, net-positive delta — a legitimate strengthening refactor).
+ */
+const plantAssertionDeltaRepo = (d, keepBoth) => {
+  const repo = join(d, 'repo')
+  const two = "it('x', () => {\n  expect(1).toBe(1)\n  expect(2).toBe(2)\n})\n"
+  write(repo, join('src', 'a.test.ts'), two)
+  git(repo, 'init', '-q')
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'base')
+  git(repo, 'branch', 'base')
+  const next = keepBoth
+    ? "it('x', () => {\n  expect(1).toBe(1)\n  expect(2).toBe(2)\n  expect(3).toBe(3)\n})\n"
+    : "it('x', () => {\n  expect(1).toBe(1)\n})\n"
+  write(repo, join('src', 'a.test.ts'), next)
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'test: refactor')
+}
+
 /** The discrimination proofs, keyed by guard name (must cover every entry in GUARDS). */
 export const FLIP_REGISTRY = {
   // ── gh-audit guards: proven via their pure classifiers ────────────────────────────────────
@@ -290,5 +311,15 @@ export const FLIP_REGISTRY = {
     // HEAD touches src/b.ts while the manifest declares only src/a.ts → outside the write set.
     plantBad: (d) => plantManifestRepo(d, join('src', 'b.ts')),
     plantClean: (d) => plantManifestRepo(d, join('src', 'a.ts')),
+  },
+
+  // ── assertion-delta (#2161): proven on a real fixture repo (diff-based, needs real git history) ─
+  'assertion-delta': {
+    kind: 'file-scan',
+    argv: (d) => ['--repo-root', join(d, 'repo'), '--range', 'base..HEAD'],
+    // HEAD drops one of the two base assertions, adds none — the reward-hacking shape.
+    plantBad: (d) => plantAssertionDeltaRepo(d, false),
+    // HEAD keeps both base assertions and adds a third — net-positive, legitimate.
+    plantClean: (d) => plantAssertionDeltaRepo(d, true),
   },
 }

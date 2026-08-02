@@ -44,6 +44,13 @@ export const GUARDS = [
   // exit fails the aggregate). It stays individually wired in check-all too, so the named INV-25
   // gate remains visible + parity-tracked. NO-DATA (no offending scripts) is a PASS.
   { name: 'no-empty-suite', script: 'scripts/check-no-passwithnotests.mjs', class: 'file-scan' },
+  // assertion-delta (#2161) — a diff removes test assertions with none added, or the skip-marker
+  // count rises, without an Assertion-Delta-Override trailer: the reward-hacking shape
+  // ImpossibleBench (arxiv 2510.20270) found models reach for most. Applies to any test stack
+  // (unlike oracle-discrimination, which is Playwright-only and therefore NOT in this self/flip
+  // SSOT — see src/generators/check-all.ts emitOracleDiscrimination and its doc comment).
+  // NO-DATA (range unresolvable, or no test files touched) is a PASS.
+  { name: 'assertion-delta', script: 'scripts/check-assertion-delta.mjs', class: 'file-scan' },
 ]
 
 // Anti-context-rot gate roster (E1-E7 #1943, M11 flip-coverage — design doc

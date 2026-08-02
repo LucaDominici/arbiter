@@ -26,7 +26,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 38 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 39 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -46,8 +46,9 @@ describe('generateCheckAll', () => {
     // + verify-mutation-baseline.mjs (#1508)
     // + check-muted-test.mjs + check-skip-critical-e2e.mjs + check-no-stub-redirects.mjs
     //   + check-grace-window.mjs (anti-fake-green file-scan guards, A5, #1497)
-    // (oracle-discrimination.mjs, #2160, is NOT here — conditional on an E2E harness, library
-    //   archetype default does not qualify, see the dedicated describe block below)
+    // + check-assertion-delta.mjs (anti-fake-green file-scan guard, #2161 — unconditional, any
+    //   test stack; oracle-discrimination, #2160, is NOT here — conditional on an E2E harness,
+    //   library archetype default does not qualify, see the dedicated describe block below)
     // + muted-tests-baseline.json (brownfield grandfathering for check-muted-test, #1835-class)
     // + check-safety-adopt-ratchet.mjs (T1, anti-erosion ratchet — convergence playbook)
     // + check-smoke-journeys.mjs (INV-137 smoke-journey acceptance floor, #2080)
@@ -60,7 +61,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(38)
+    expect(result.files).toHaveLength(39)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/acceptance-criteria.mjs'))).toBe(
@@ -1296,6 +1297,20 @@ describe('generateCheckAll', () => {
       const result = generateCheckAll(makeConfig(dir, { archetype: 'cli' }))
       const paths = result.files.map((f) => f.path)
       expect(paths.some((p) => p.endsWith('scripts/check-oracle-discrimination.mjs'))).toBe(false)
+    })
+  })
+
+  describe('assertion-delta guard (#2161) — unconditional (any test stack)', () => {
+    it('emits the guard for a library archetype', () => {
+      const result = generateCheckAll(makeConfig(dir, { archetype: 'library' }))
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-assertion-delta.mjs'))).toBe(true)
+    })
+
+    it('emits the guard for a frontend-spa archetype too', () => {
+      const result = generateCheckAll(makeConfig(dir, { archetype: 'frontend-spa' }))
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-assertion-delta.mjs'))).toBe(true)
     })
   })
 })

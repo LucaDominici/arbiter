@@ -1262,3 +1262,28 @@ describe('check-all.mjs.ejs rendering — oracle-discrimination emission↔wirin
     expect(content).not.toContain('check-oracle-discrimination.mjs')
   })
 })
+
+// #2161: check-assertion-delta.mjs is emitted UNCONDITIONALLY (any test stack) — the
+// check-all.mjs.ejs reference must be present regardless of archetype (matches its
+// UNCONDITIONAL_EMISSIONS membership, unlike oracle-discrimination above).
+describe('check-all.mjs.ejs rendering — assertion-delta emission↔wiring parity (#2161)', () => {
+  it('references check-assertion-delta.mjs for a library archetype', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'library',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/check-assertion-delta.mjs')
+  })
+
+  it('references check-assertion-delta.mjs for a frontend-spa archetype too', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('scripts/check-assertion-delta.mjs')
+  })
+})

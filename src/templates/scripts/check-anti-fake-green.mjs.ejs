@@ -40,6 +40,8 @@ const GUARDS = [
   // #2160: conditional on an E2E (Playwright) harness — absent for library/cli targets, so the
   // `absent` bucket below reports it rather than fabricating a pass (AC-4).
   { name: 'oracle-discrimination', script: 'scripts/check-oracle-discrimination.mjs' },
+  // #2161: diff-based, applies to any test stack — emitted unconditionally like the six above.
+  { name: 'assertion-delta', script: 'scripts/check-assertion-delta.mjs' },
 ]
 
 function main() {
