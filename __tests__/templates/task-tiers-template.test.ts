@@ -39,9 +39,11 @@ function dispatchedReviewers(rendered: string): { count: number; names: string[]
 describe('ship.md.ejs taskTiers rendering (#237, #1216)', () => {
   it('renders default tier guidance when taskTiers is undefined', () => {
     const out = render(undefined)
-    // Default falls back to canonical XS=3, S=3, Standard=4
-    // In ship.md the tier minimums appear in the phase map note
-    expect(out).toMatch(/XS=3.*S=3.*Standard=4|XS|Standard/)
+    // Default falls back to the canonical recalibrated minima in the non-solo phase map.
+    expect(out.includes('Review-agent minimums by tier: XS=1, S=1, Standard=2.')).toBe(
+      true,
+    )
+    expect(out).toMatch(/\| `refactor` \|.*\| 2 \(Standard\) \|/)
   })
 
   it('renders refactor row with review agent count', () => {

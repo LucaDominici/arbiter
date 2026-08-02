@@ -64,8 +64,8 @@ describe('shipStepFor — normTier + per-phase bodies', () => {
   })
 
   it('refactor review-agent count tracks the tier table', () => {
-    expect(shipStepFor('refactor', 'XS').reviewAgents).toBe(3)
-    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(4)
+    expect(shipStepFor('refactor', 'XS').reviewAgents).toBe(1)
+    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(2)
   })
 
   it('covers every phase body case, including the lateral red-team-rework', () => {

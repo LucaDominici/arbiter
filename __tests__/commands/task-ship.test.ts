@@ -15,6 +15,7 @@ import {
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
+import { widenTier } from '../../src/commands/ship-tier.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
 
 // Gates that would otherwise require a real repo / model switch
@@ -56,8 +57,24 @@ describe('ship sequencing — pure plan', () => {
   })
 
   it('dispatches tier-N code-review agents at refactor', () => {
-    expect(shipStepFor('refactor', 'XS').reviewAgents).toBe(3)
-    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(4)
+    expect(shipStepFor('refactor', 'XS').reviewAgents).toBe(1)
+    expect(shipStepFor('refactor', 'S').reviewAgents).toBe(1)
+    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(2)
+  })
+
+  it('derives code-review count from the final, post-widening tier (AC-3)', () => {
+    expect(
+      shipStepFor(
+        'refactor',
+        widenTier('XS', { blastRadius: 75, labels: [], milestoneBundled: false }),
+      ).reviewAgents,
+    ).toBe(2)
+    expect(
+      shipStepFor(
+        'refactor',
+        widenTier('XS', { blastRadius: 25, labels: [], milestoneBundled: false }),
+      ).reviewAgents,
+    ).toBe(1)
   })
 
   // #1260 — size (via tier) drives BOTH the review-agent COUNT and the orthogonal
@@ -94,6 +111,27 @@ describe('ship sequencing — pure plan', () => {
     expect(nextPhase('plan')).toBe('red-team-review')
     expect(nextPhase('red-team-review')).toBe('red')
     expect(nextPhase('complete')).toBeNull()
+  })
+})
+
+describe('self /ship documentation coherence (#2178)', () => {
+  const shipCommand = readFileSync(join(process.cwd(), '.claude', 'commands', 'ship.md'), 'utf-8')
+
+  it('states the recalibrated code-review minimums by tier', () => {
+    expect(
+      shipCommand.includes('Review-agent minimums by tier: XS=1, S=1, Standard=2.'),
+    ).toBe(true)
+  })
+
+  it('reserves three code-review agents for the file-path-matched auditor set', () => {
+    expect(shipCommand.includes('3 code-review agents')).toBe(true)
+    expect(shipCommand.includes('file-path-matched auditor set')).toBe(true)
+    expect(shipCommand.includes('scripts/route-auditors.mjs')).toBe(true)
+  })
+
+  it('names review completion as the precondition that makes a single reviewer safe', () => {
+    expect(shipCommand.includes('scripts/check-review-completion.mjs')).toBe(true)
+    expect(shipCommand.includes('single reviewer safe')).toBe(true)
   })
 })
 

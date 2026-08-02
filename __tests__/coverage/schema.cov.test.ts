@@ -50,7 +50,9 @@ describe('exported constants', () => {
   it('exposes a stable schema version and tier/threshold defaults', () => {
     expect(CURRENT_CONFIG_SCHEMA_VERSION).toBe(4)
     expect(DEFAULT_TASK_TIERS.XS.planDepth).toBe('minimal')
-    expect(DEFAULT_TASK_TIERS.Standard.reviewAgentCount).toBe(4)
+    expect(DEFAULT_TASK_TIERS.XS.reviewAgentCount).toBe(1)
+    expect(DEFAULT_TASK_TIERS.S.reviewAgentCount).toBe(1)
+    expect(DEFAULT_TASK_TIERS.Standard.reviewAgentCount).toBe(2)
     expect(DEFAULT_THRESHOLDS.L1.lineCoverage).toBe(60)
     expect(DEFAULT_THRESHOLDS.L4.cyclomaticComplexity).toBe(10)
   })
