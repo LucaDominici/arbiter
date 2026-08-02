@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 import { extractFailureSignature, writeTddEvidence, type TddEvidence } from '../evidence/tdd.js'
 import { currentBranch, hasDirtyTestPaths, pathExistsInCommit } from '../evidence/git-checks.js'
@@ -48,6 +48,20 @@ function clampTimeout(ms: number | undefined): number {
   if (!Number.isFinite(ms) || ms < 1000) return 1000
   if (ms > MAX_RECORD_RED_TIMEOUT_MS) return MAX_RECORD_RED_TIMEOUT_MS
   return Math.floor(ms)
+}
+
+/** Replace the recording worktree prefix with a portable repository-relative path (#2174). */
+function repositoryRelativeLog(log: string, dir: string): string {
+  const root = resolve(dir)
+  const roots = [root, root.replaceAll('\\', '/')]
+  return roots.reduce(
+    (relative, prefix) =>
+      relative
+        .replaceAll(`${prefix}/`, '')
+        .replaceAll(`${prefix}\\`, '')
+        .replaceAll(prefix, '.'),
+    log,
+  )
 }
 
 function toGoPackageDir(dir: string): string {
@@ -227,7 +241,7 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
   const testCmd = opts.testCmd ?? selectRunner(resolveLanguage(dir), opts.testPath)
   const logOrErr = captureTestOutput(String(testCmd[0]), testCmd.slice(1), dir, timeoutMs)
   if (typeof logOrErr === 'object' && 'ok' in logOrErr) return logOrErr
-  const log = logOrErr
+  const log = repositoryRelativeLog(logOrErr, dir)
 
   const sig = extractFailureSignature(log)
   if (sig === null) {
