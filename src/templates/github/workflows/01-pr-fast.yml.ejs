@@ -316,6 +316,9 @@ jobs:
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # TDD evidence can name an older commit; reachability requires history.
+          fetch-depth: 0
       - uses: ./.github/actions/setup-node-pnpm
 <% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
         uses: ./.github/actions/build-cache

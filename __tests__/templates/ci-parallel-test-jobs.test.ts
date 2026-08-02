@@ -49,6 +49,17 @@ describe('01-pr-fast.yml.ejs — parallel test category jobs (#219)', () => {
       const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('test:unit')
     })
+
+    it('checks out full history for TDD evidence reachability', () => {
+      const data = makeConfig('/tmp/test', {
+        language: 'typescript',
+        governanceLevel: 'L2',
+      }) as unknown as Record<string, unknown>
+      const fast = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+      const extended = renderTemplate('github/workflows/02-pr-extended.yml.ejs', data)
+      expect(fast.match(/unit-tests:[\s\S]*?fetch-depth: 0/)).not.toBeNull()
+      expect(extended.match(/behavioral-tests:[\s\S]*?fetch-depth: 0/)).not.toBeNull()
+    })
   })
 
   describe('Rust L2 — ci-required must NOT reference unit-tests', () => {
