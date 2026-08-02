@@ -70,7 +70,7 @@ export function gatherTierSignals(root: string, taskId: string | undefined): Tie
   try {
     const issue = gatherIssueSignals(root, taskId)
     return { ...issue, blastRadius: gatherBlastRadius(root) }
-  // FAIL-OPEN-INTENT: optional routing signals only ever WIDEN the tier; an unreadable source degrades to the neutral no-signal value so /ship keeps its size-derived fail-safe tier instead of crashing.
+    // FAIL-OPEN-INTENT: optional routing signals only ever WIDEN the tier; an unreadable source degrades to the neutral no-signal value so /ship keeps its size-derived fail-safe tier instead of crashing.
   } catch {
     return { blastRadius: null, labels: [], milestoneBundled: false }
   }
@@ -95,7 +95,7 @@ function gatherIssueSignals(
       labels: response.labels.map((label) => label.name.toLowerCase()),
       milestoneBundled: response.milestone !== null,
     }
-  // FAIL-OPEN-INTENT: `gh issue view` is optional and offline/unauthenticated hosts are expected; no labels means no widening signal, never a narrower tier.
+    // FAIL-OPEN-INTENT: `gh issue view` is optional and offline/unauthenticated hosts are expected; no labels means no widening signal, never a narrower tier.
   } catch {
     return { labels: [], milestoneBundled: false }
   }
@@ -116,7 +116,7 @@ function gatherBlastRadius(root: string): number | null {
     }
 
     return countBlastRadius(JSON.parse(readFileSync(graphPath, 'utf-8')) as unknown, manifest)
-  // FAIL-OPEN-INTENT: the graphify graph is optional and may be absent, stale or malformed; a null blast radius means no widening signal, never a narrower tier.
+    // FAIL-OPEN-INTENT: the graphify graph is optional and may be absent, stale or malformed; a null blast radius means no widening signal, never a narrower tier.
   } catch {
     return null
   }

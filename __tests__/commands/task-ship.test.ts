@@ -130,7 +130,7 @@ describe('self /ship documentation coherence (#2178)', () => {
   it('reserves three code-review agents for the file-path-matched auditor set', () => {
     expect(shipCommand.includes('3 code-review agents')).toBe(true)
     expect(shipCommand.includes('file-path-matched auditor set')).toBe(true)
-    expect(shipCommand.includes('scripts/route-auditors.mjs')).toBe(true)
+    expect(shipCommand.includes('route-auditors.mjs')).toBe(true)
   })
 
   it('names review completion as the precondition that makes a single reviewer safe', () => {

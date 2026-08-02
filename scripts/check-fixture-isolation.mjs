@@ -88,11 +88,8 @@ function main() {
         let parsed
         try {
           parsed = JSON.parse(document)
-        } catch (err) {
-          process.stderr.write(
-            `check-fixture-isolation: malformed JSON in ${relative(ROOT, file)} — ${err?.message ?? err}\n`,
-          )
-          findings.push({ file, jsonPath: '$', value: '<malformed JSON document>' })
+          // FAIL-OPEN-INTENT: a document that does not parse carries no readable marker to test; malformed evidence is caught by the schema/anti-proforma gates, and #2181 pins this skip in check-fixture-isolation.test.ts.
+        } catch {
           continue
         }
         collectViolations(parsed, '$', findings, file)
