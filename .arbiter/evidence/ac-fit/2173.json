@@ -1,0 +1,1 @@
+{"schema":"arbiter-ac-fit-v1","taskId":"#2173","criteria":[{"id":"AC-1","verdict":"PASS","evidence":[{"file":"src/evidence/git-checks.ts","line":13}]},{"id":"AC-2","verdict":"PASS","evidence":[{"file":"__tests__/evidence/git-checks-reachability.test.ts","line":37}]}]}

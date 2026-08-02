@@ -1,0 +1,1 @@
+{"schema":"arbiter-ac-fit-v1","taskId":"#2142","criteria":[{"id":"AC-1","verdict":"PASS","evidence":[{"file":"src/commands/update.ts","line":291},{"file":"__tests__/commands/update-unwired-gate-warning.test.ts","line":45}]}]}

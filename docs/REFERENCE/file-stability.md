@@ -374,6 +374,14 @@ in its content (a comment is the natural place, e.g. `<!-- arbiter:preserve -->`
   re-derive the manifest (hashes are not a function of config). It warns accordingly; re-run
   `arbiter update` if you suspect drift.
 
+Doctor subcommands accept `--dir` and `--json` after the subcommand name. These options apply to
+the selected operation (for example, `arbiter doctor repair-state --dir /repo --json` repairs that
+repository and emits its JSON envelope), rather than falling back to the caller's working directory.
+
+When `arbiter update --adopt-gate-spine` force-adopts a withheld `scripts/check-all.mjs`, the spine
+has landed and is not reported as an unwired gate. A warning remains for the distinct case where a
+user-modified spine was actually withheld and newly generated checks could not be connected.
+
 ### Threat model
 
 The manifest is trusted **because it is committed** — integrity is the repo's git history, not an in-file

@@ -1,0 +1,1 @@
+{"schema":"arbiter-ac-fit-v1","taskId":"#2169","criteria":[{"id":"AC-1","verdict":"PASS","evidence":[{"file":"__tests__/helpers.ts","line":60}]},{"id":"AC-2","verdict":"PASS","evidence":[{"file":"__tests__/helpers.test.ts","line":44}]},{"id":"AC-3","verdict":"PASS","evidence":[{"file":"__tests__/helpers.ts","line":60}]}]}

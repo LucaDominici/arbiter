@@ -56,10 +56,7 @@ function repositoryRelativeLog(log: string, dir: string): string {
   const roots = [root, root.replaceAll('\\', '/')]
   return roots.reduce(
     (relative, prefix) =>
-      relative
-        .replaceAll(`${prefix}/`, '')
-        .replaceAll(`${prefix}\\`, '')
-        .replaceAll(prefix, '.'),
+      relative.replaceAll(`${prefix}/`, '').replaceAll(`${prefix}\\`, '').replaceAll(prefix, '.'),
     log,
   )
 }

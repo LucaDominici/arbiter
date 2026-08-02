@@ -19,9 +19,12 @@
       "src/commands/update.ts",
       "__tests__/commands/update.test.ts",
       "__tests__/commands/update-unwired-gate-warning.test.ts",
+      "__tests__/i18n/_migration-inventory.json",
+      "docs/REFERENCE/file-stability.md",
       ".agents/plan/PLAN.json",
       ".arbiter/evidence/tdd/",
-      ".arbiter/evidence/ac-fit/"
+      ".arbiter/evidence/ac-fit/",
+      ".claude/plans/chain-smallfix-*.md"
     ]
   },
   "files": [
@@ -41,9 +44,12 @@
     { "path": "src/commands/update.ts", "operation": "modify" },
     { "path": "__tests__/commands/update.test.ts", "operation": "modify" },
     { "path": "__tests__/commands/update-unwired-gate-warning.test.ts", "operation": "modify" },
+    { "path": "__tests__/i18n/_migration-inventory.json", "operation": "modify" },
+    { "path": "docs/REFERENCE/file-stability.md", "operation": "modify" },
     { "path": ".agents/plan/PLAN.json", "operation": "modify" },
     { "path": ".arbiter/evidence/tdd/", "operation": "create" },
-    { "path": ".arbiter/evidence/ac-fit/", "operation": "create" }
+    { "path": ".arbiter/evidence/ac-fit/", "operation": "create" },
+    { "path": ".claude/plans/chain-smallfix-*.md", "operation": "create" }
   ],
   "invariants": {
     "ui_language": "EN",

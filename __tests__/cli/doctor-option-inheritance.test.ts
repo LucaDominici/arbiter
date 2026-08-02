@@ -31,11 +31,14 @@ describe('doctor subcommand option inheritance (#2165)', () => {
     expect(JSON.parse(result.stdout).command).toBe('doctor repair-state')
   })
 
-  it.each(['recover-lock', 'clean'])('emits the real JSON envelope for doctor %s --json', (command) => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-doctor-json-'))
-    roots.push(root)
-    const result = run(['doctor', command, '--json'], root)
-    expect(result.status, result.stderr).toBe(0)
-    expect(JSON.parse(result.stdout).command).toBe(`doctor ${command}`)
-  })
+  it.each(['recover-lock', 'clean'])(
+    'emits the real JSON envelope for doctor %s --json',
+    (command) => {
+      const root = mkdtempSync(join(tmpdir(), 'arbiter-doctor-json-'))
+      roots.push(root)
+      const result = run(['doctor', command, '--json'], root)
+      expect(result.status, result.stderr).toBe(0)
+      expect(JSON.parse(result.stdout).command).toBe(`doctor ${command}`)
+    },
+  )
 })

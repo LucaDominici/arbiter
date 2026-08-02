@@ -132,7 +132,15 @@ if (args[0] === 'pr' && args[1] === 'view') {
 
   const result = spawnSync(
     process.execPath,
-    [WATCHER, 'owner/repo', '2148', '--timeout-min', String(timeoutMin), '--interval-sec', String(intervalSec)],
+    [
+      WATCHER,
+      'owner/repo',
+      '2148',
+      '--timeout-min',
+      String(timeoutMin),
+      '--interval-sec',
+      String(intervalSec),
+    ],
     {
       cwd: root,
       encoding: 'utf-8',
