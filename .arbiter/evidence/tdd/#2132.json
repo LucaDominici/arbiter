@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2132",
+  "test_path": "__tests__/commands/init.test.ts",
+  "test_commit_sha": "0fe445d7797cfb065a5501f07eedbe26f9da9eec",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n\n  Arbiter — AI Development Governance Framework\n\n  Detecting project...\n  ├── Language: unknown (no markers found)\n  ├── Build: npm\n  ├── Git: no\n\n  Generating...\n\n  Markdown backend: scaffolded .arbiter/work/\n\n  Done! 0 files created, 0 skipped.\n\n  Run: node scripts/check-all.mjs L1  to verify\n\n\n  Arbiter — AI Development Governance Framework\n\n  Detecting project...\n  ├── Language: typescript (detected from package.json)\n  ├── Build: npm\n  ├── Git: no\n\n  Generating...\n\n  Markdown backend: scaffolded .arbiter/work/\n\n  Done! 0 files created, 0 skipped.\n\n  Run: node scripts/check-all.mjs L1  to verify\n\n ❯ __tests__/commands/init.test.ts (46 tests | 1 failed | 44 skipped) 226ms\n     × fails honestly before generation when language detection is unknown (AC-2132.1, AC-2132.2) 165ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed | 44 skipped (46)\n   Start at  21:11:08\n   Duration  403ms (transform 145ms, setup 13ms, import 101ms, tests 226ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/commands/init.test.ts > runInit > fails honestly before generation when language detection is unknown (AC-2132.1, AC-2132.2)\nAssertionError: promise resolved \"undefined\" instead of rejecting\n\n- Expected:\nError {\n  \"message\": \"rejected promise\",\n}\n\n+ Received:\nundefined\n\n ❯ __tests__/commands/init.test.ts:218:6\n    216|         noVerify: true,\n    217|       }),\n    218|     ).rejects.toThrow(/unknown.*test naming.*test pyramid.*--language …\n       |      ^\n    219|     expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()\n    220|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/commands/init.test.ts",
+  "recorded_at": "2026-08-02T19:11:08.911Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/init.test.ts",
+    "-t",
+    "language detection is unknown|recognized-language init path"
+  ]
+}
