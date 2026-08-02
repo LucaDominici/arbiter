@@ -35,6 +35,7 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 ### Method
 
 - `docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md` — Real-Project Testing
+- `docs/internal/METHOD/ADJUDICATION.md` — Adjudication with Audit — arbiter
 - `docs/internal/METHOD/ENGINEERING_DEFAULTS.md` — Engineering Defaults — arbiter
 - `docs/internal/METHOD/PATTERNS_CATALOG.md` — arbiter Patterns Catalog
 - `docs/internal/METHOD/PROCESS.md` — Process — arbiter

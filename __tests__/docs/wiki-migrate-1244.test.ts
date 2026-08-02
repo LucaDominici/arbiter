@@ -194,14 +194,17 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
   // 2026-07-23 legitimately added docs/methodology/gate-throughput-patterns.md
   // (`kind/governance`, a sibling normative operating standard to the agent-orchestration doc
   // above — see gate-throughput-patterns.md's own header for the incident it codifies).
+  // 2026-08-02 (#2182) legitimately added docs/internal/METHOD/ADJUDICATION.md
+  // (`kind/method`, a backbone kind — the adjudication-with-audit protocol extracted from the
+  // epic #2176 /ship v2 study; it sits alongside PROCESS/TESTING as a normative METHOD doc).
   // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
   // the pre-growth ceiling. Bound updated to the current real count so the budget still
   // catches future unbounded growth.
-  it('selectSsotDocs returns at most 25 canonical core docs', () => {
+  it('selectSsotDocs returns at most 26 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(25)
+    ).toBeLessThanOrEqual(26)
   })
 })

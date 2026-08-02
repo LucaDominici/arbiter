@@ -57,6 +57,8 @@ Single-reviewer verdicts inherit the reviewer's blind spots and a "reviewing to 
 
 `scripts/check-refutation-verdicts.mjs` (advisory `runWarnCheck` at L2+, promoted to `runCheck` at gated-review): marker present ⇒ every finding in `findings` must have ≥ N skeptic verdicts AND a strict UPHELD majority. No marker ⇒ nothing to adjudicate (PASS — the scope condition is itself checked, not a skip).
 
+When a mechanical matcher — rather than this gate's structural check — has to decide whether LLM-authored text matches a ground-truth item, the sampled-audit-then-judge protocol in `docs/internal/METHOD/ADJUDICATION.md` applies.
+
 ## Tier right-sizing
 
 Fan-out never exceeds `min(--max-parallel, nproc-2)` (wave-drain cap). Solo never pays N=3 for a typo fix — N=1 is the red-team. Standard pays 3; gated-review pays the full vertical set. N is a declaration in the dispatch SSOT, not a runtime guess.
