@@ -1,0 +1,51 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2160",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/scripts/check-oracle-discrimination.mjs.ejs", "line": 160 },
+        { "file": "__tests__/templates/check-oracle-discrimination-render.test.ts", "line": 62 },
+        { "file": "__tests__/templates/check-oracle-discrimination-render.test.ts", "line": 82 },
+        { "file": "__tests__/templates/check-oracle-discrimination-render.test.ts", "line": 102 }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/scripts/check-oracle-discrimination.mjs.ejs", "line": 192 },
+        { "file": "__tests__/templates/check-oracle-discrimination-render.test.ts", "line": 49 },
+        { "file": "__tests__/templates/check-oracle-discrimination-render.test.ts", "line": 123 }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/scripts/check-anti-fake-green.mjs.ejs", "line": 59 },
+        { "file": "__tests__/templates/check-anti-fake-green-guards-render.test.ts", "line": 114 }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/generators/check-all.ts", "line": 511 },
+        { "file": "src/templates/scripts/check-anti-fake-green.mjs.ejs", "line": 51 },
+        { "file": "__tests__/generators/check-all.test.ts", "line": 1266 }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/scripts/check-anti-fake-green.mjs.ejs", "line": 40 },
+        { "file": "__tests__/templates/check-all-render.test.ts", "line": 1234 },
+        { "file": "__tests__/generators/check-all.test.ts", "line": 1266 }
+      ]
+    }
+  ]
+}
