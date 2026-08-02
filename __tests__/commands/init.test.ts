@@ -201,6 +201,40 @@ describe('runInit', () => {
     expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
   })
 
+  it('fails honestly before generation when language detection is unknown (AC-2132.1, AC-2132.2)', async () => {
+    mockDetectLanguageWithSource.mockReturnValueOnce({ language: 'unknown', source: null })
+    const { runInit } = await import('../../src/commands/init.js')
+
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L1',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toThrow(/unknown.*test naming.*test pyramid.*--language <lang>/i)
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+  })
+
+  it('keeps the recognized-language init path unchanged (AC-2132.3)', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L1',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+
+    expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+  })
+
   it('calls wizard when not using --yes flag', async () => {
     const config = makeConfig(dir, { tools: ['claude'] })
     mockRunWizard.mockResolvedValue(config)
