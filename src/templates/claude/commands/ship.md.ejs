@@ -128,6 +128,26 @@ constraint → rewrite → repeat).
 
 ---
 
+## Plan contents (mandatory sections)
+
+/ship plans with a SINGLE planner; these mandatory sections make that one plan carry what a multi-specialist panel would have produced (#2176 study: union-of-specialists prompt reproduced 3-specialist content at +19% cost vs +69% for real orchestration, equal quality — multi-specialist planning is NOT adopted).
+
+- **Approach & decomposition** — module boundaries and data flow of the change.
+- **Threat model & abuse cases** — who can abuse this and how. May be `n/a — no security surface` ONLY with a one-line justification; a bare `n/a` is a plan-review FAIL.
+- **Input validation** — what is validated, where the trust boundary is, what happens on invalid input.
+- **Idiomatic patterns & pitfalls** — the recommended stdlib/framework APIs for this change and the known traps to avoid.
+- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases; extend the existing `## Acceptance Criteria` anchor, never a rival heading.
+- **Test strategy** — which TDD units prove which AC, and at which level (unit/integration/gate).
+- **Risks** — what can go wrong, with the mitigation or the accepted residual.
+
+Write it in one pass — draft, then revise once before finalizing: the revise pass was part of the measured treatment, not optional polish.
+
+These sections EXPAND the Merge Contract's six sources (merged ACs ⊃ source 1, test strategy ⊃ source 3, threat model ⊃ source 5, decomposition ⊃ source 6) — derive the contract once, express it here.
+
+Plan-review agents verify every mandatory section is present and non-empty; a missing or empty section is a FAIL verdict in `.arbiter/evidence/plan-review/<id>/latest.json`. No separate gate script exists for this — the reviewers are the check.
+
+---
+
 ## Companion plugins
 
 `arbiter ship` is **companion-aware**. If a known companion plugin (first-class: **ponytail**, a

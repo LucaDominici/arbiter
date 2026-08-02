@@ -15,6 +15,8 @@ related: []
 
 Every plan file under `.claude/plans/` must begin with a Context Block — a YAML front-matter section
 validated by the `pre-edit-plan-anchor` hook. Plans without a Context Block are rejected at edit time.
+Beyond the Context Block, the plan body must carry the mandatory sections listed in /ship's
+`## Plan contents (mandatory sections)`.
 
 ---
 

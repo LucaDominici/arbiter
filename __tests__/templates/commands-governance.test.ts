@@ -172,7 +172,15 @@ describe('claude commands - ship.md mandatory plan sections (B1L, #2179)', () =>
     const levels: GovernanceLevel[] = ['L1', 'L2', 'L3']
     for (const level of levels) {
       const content = renderShipForLevel(level)
-      for (const marker of ['Approach & decomposition', 'Threat model & abuse cases', 'Input validation', 'Idiomatic patterns & pitfalls', 'Test strategy', 'Risks', 'draft, then revise once']) {
+      for (const marker of [
+        'Approach & decomposition',
+        'Threat model & abuse cases',
+        'Input validation',
+        'Idiomatic patterns & pitfalls',
+        'Test strategy',
+        'Risks',
+        'draft, then revise once',
+      ]) {
         expect(content).toContain(marker)
       }
     }
