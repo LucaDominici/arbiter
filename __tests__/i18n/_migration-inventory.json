@@ -36,7 +36,7 @@
   },
   {
     "file": "commands/init.ts",
-    "line": 373,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. Line shifted 781→372 by the #1839 init.ts command-group split (F3 friction cut). Line shifted 372→373 by the #1978 resolve-project-name extraction."
+    "line": 379,
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. Line shifted 781→372 by the #1839 init.ts command-group split (F3 friction cut). Line shifted 372→373 by the #1978 resolve-project-name extraction. Line shifted 373→379 by the #2132 explicit unknown-language guard."
   }
 ]

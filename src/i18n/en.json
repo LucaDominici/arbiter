@@ -55,6 +55,7 @@
     "E_INIT_GITHUB_SETUP": "Failed to set up GitHub Actions.",
     "E_INIT_WRITE": "Failed to write initialization files.",
     "E_INIT_DETECT": "Failed to detect project structure.",
+    "E_INIT_UNKNOWN_LANGUAGE": "Language is unknown: test naming and test pyramid checks cannot be configured. Re-run `arbiter init --language <lang>` with the project language; governance files were not generated.",
     "E_INIT_DIRTY_TREE": "Working tree has uncommitted changes. Commit or stash first, or use --force to override.",
     "E_INIT_PLUGIN_FAILURES": "Plugin(s) failed:\n  {failures}",
     "E_TARGET_REQUIRED": "--target is required. Specify L2, L3, or L4.",

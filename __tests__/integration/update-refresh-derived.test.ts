@@ -15,7 +15,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { runInit } from '../../src/commands/init.js'
+import { runInit as runInitCommand } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../../src/state/generated-manifest.js'
 import { PRESERVE_MARKER } from '../../src/utils/fs.js'
@@ -31,6 +31,10 @@ function initGit(dir: string): void {
   ]) {
     execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
   }
+}
+
+function runInit(options: Parameters<typeof runInitCommand>[0]) {
+  return runInitCommand({ ...options, language: 'typescript' })
 }
 
 /** Simulate template drift: disk still holds an OLD render (stale, pre-fix

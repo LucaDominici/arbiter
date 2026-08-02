@@ -10,32 +10,32 @@
     {
       "id": "AC-2128.2",
       "verdict": "PASS",
-      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 42 }]
+      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 59 }]
     },
     {
       "id": "AC-2128.3",
       "verdict": "PASS",
-      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 45 }]
+      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 62 }]
     },
     {
       "id": "AC-2133.1",
       "verdict": "PASS",
       "evidence": [
         { "file": "scripts/publish-package-json.mjs", "line": 28 },
-        { "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 51 }
+        { "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 68 }
       ]
     },
     {
       "id": "AC-2133.2",
       "verdict": "PASS",
-      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 56 }]
+      "evidence": [{ "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 73 }]
     },
     {
       "id": "AC-2133.3",
       "verdict": "PASS",
       "evidence": [
-        { "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 20 },
-        { "file": "scripts/check-tarball-contents.mjs", "line": 192 }
+        { "file": "__tests__/scripts/publish-hygiene.test.ts", "line": 46 },
+        { "file": "scripts/check-tarball-contents.mjs", "line": 33 }
       ]
     },
     {

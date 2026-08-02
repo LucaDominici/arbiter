@@ -87,10 +87,7 @@ function assertNotNativeWindows(): void {
 
 function assertKnownLanguage(language: Language): void {
   if (language !== 'unknown') return
-  throw new UserFacingError(
-    'Language is unknown: test naming and test pyramid checks cannot be configured. ' +
-      'Re-run `arbiter init --language <lang>` with the project language; governance files were not generated.',
-  )
+  throw ArbiterError.fromKey('E_INIT_UNKNOWN_LANGUAGE', 'errors.E_INIT_UNKNOWN_LANGUAGE')
 }
 
 // Run git guards BEFORE any FS mutation (#1039 fix): creating .arbiter/ would

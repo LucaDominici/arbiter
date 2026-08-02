@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { runInit } from '../../src/commands/init.js'
+import { runInit as runInitCommand } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { runDiff } from '../../src/commands/diff.js'
 import { loadConfig } from '../../src/utils/config.js'
@@ -22,6 +22,10 @@ function initGit(dir: string): void {
     cwd: dir,
     stdio: 'ignore',
   })
+}
+
+function runInit(options: Parameters<typeof runInitCommand>[0]) {
+  return runInitCommand({ ...options, language: 'typescript' })
 }
 
 describe('arbiter update', () => {

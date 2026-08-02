@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { runInit } from '../../src/commands/init.js'
+import { runInit as runInitCommand } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { runDiff } from '../../src/commands/diff.js'
 
@@ -23,6 +23,10 @@ function initGit(dir: string): void {
   execFileSync('git', ['init'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir, stdio: 'ignore' })
+}
+
+function runInit(options: Parameters<typeof runInitCommand>[0]) {
+  return runInitCommand({ ...options, language: 'typescript' })
 }
 
 interface DiffFile {

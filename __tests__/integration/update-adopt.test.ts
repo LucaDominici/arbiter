@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { runInit } from '../../src/commands/init.js'
+import { runInit as runInitCommand } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import {
   loadGeneratedManifest,
@@ -34,6 +34,10 @@ function initGit(dir: string): void {
   ]) {
     execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
   }
+}
+
+function runInit(options: Parameters<typeof runInitCommand>[0]) {
+  return runInitCommand({ ...options, language: 'typescript' })
 }
 
 /** Erode the hook: disk holds user-edited content, manifest baseline still

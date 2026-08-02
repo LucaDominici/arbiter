@@ -22,6 +22,11 @@ related: []
 npx @arbiter/cli init
 ```
 
+Run init in a repository that already contains a supported language marker. In a new empty
+directory, pass it explicitly (for example, `npx @arbiter/cli init --language typescript`):
+arbiter exits non-zero when the language is unknown because the naming and test-pyramid checks
+cannot be configured honestly.
+
 ![Terminal demo: arbiter init scaffolds governance for a TypeScript project, then the L1 gate runs clean](docs/assets/demo.svg)
 
 Coding agents are great at writing code and even better at claiming it works.

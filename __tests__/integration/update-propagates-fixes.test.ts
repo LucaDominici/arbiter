@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { runInit } from '../../src/commands/init.js'
+import { runInit as runInitCommand } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { runDiff } from '../../src/commands/diff.js'
 import {
@@ -32,6 +32,10 @@ function initGit(dir: string): void {
   ]) {
     execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
   }
+}
+
+function runInit(options: Parameters<typeof runInitCommand>[0]) {
+  return runInitCommand({ ...options, language: 'typescript' })
 }
 
 describe('#1328 update propagates template fixes', () => {
