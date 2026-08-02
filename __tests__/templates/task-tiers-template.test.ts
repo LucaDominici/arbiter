@@ -5,7 +5,7 @@ import { DEFAULT_TASK_TIERS } from '../../src/config/schema.js'
 
 // #1216: Tier classification moved from task.md to ship.md (orchestration entrypoint).
 
-function render(taskTiers?: unknown): string {
+function render(taskTiers?: unknown, collaborationMode = 'peer-review'): string {
   const config = makeConfig('/tmp/test', {
     governanceLevel: 'L2',
     testCommand: 'npm test',
@@ -13,9 +13,27 @@ function render(taskTiers?: unknown): string {
   const data = {
     ...(config as unknown as Record<string, unknown>),
     taskTiers,
+    collaborationMode,
   }
   // Tiers are now in ship.md (orchestration), not task.md (engine ref)
   return renderTemplate('claude/commands/ship.md.ejs', data)
+}
+
+function dispatchedReviewers(rendered: string): { count: number; names: string[] } {
+  const namesMatch = rendered.match(/review_agents='([^']*)'/)
+  const countMatch = rendered.match(/printf '\{"count":(\d+),"agents":\[%s\]/)
+
+  if (namesMatch === null || countMatch === null) {
+    throw new Error('Expected the non-solo review-dispatch sidecar block')
+  }
+
+  const names = namesMatch[1].match(/"[^"]+"/g) ?? []
+  const count = Number.parseInt(countMatch[1], 10)
+  const sidecar = `{"count":${count},"agents":[${namesMatch[1]}],"branch":"b","sha":"s"}`
+
+  expect(() => JSON.parse(sidecar)).not.toThrow()
+
+  return { count, names }
 }
 
 describe('ship.md.ejs taskTiers rendering (#237, #1216)', () => {
@@ -42,6 +60,20 @@ describe('ship.md.ejs taskTiers rendering (#237, #1216)', () => {
     const out = render(custom)
     // Custom Standard count should appear in the refactor row or tier note
     expect(out).toMatch(/6/)
+  })
+
+  it('declares exactly one valid sidecar agent name per non-solo reviewer', () => {
+    const custom = {
+      XS: { planDepth: 'minimal', reviewAgentCount: 2 },
+      S: { planDepth: 'brief', reviewAgentCount: 5 },
+      Standard: { planDepth: 'full', reviewAgentCount: 6 },
+    }
+
+    for (const taskTiers of [DEFAULT_TASK_TIERS, custom]) {
+      const { count, names } = dispatchedReviewers(render(taskTiers, 'peer-review'))
+
+      expect(names).toHaveLength(count)
+    }
   })
 })
 

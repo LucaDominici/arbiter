@@ -259,7 +259,7 @@ wrong fallbacks, conditions producing no output, unhandled promise rejections.
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
 # review_agents: the exact reviewer names you dispatched — one per agent, same names the envelopes carry.
-review_agents='<%- ['bugs','type-safety','domain','test-quality','silent-failures'].slice(0, _tiers.Standard.reviewAgentCount).map((n) => `"${n}"`).join(',') %>'
+review_agents='<%- Array.from({ length: _tiers.Standard.reviewAgentCount }, (_, i) => `"${['bugs','type-safety','domain','test-quality','security','data-integrity','silent-failures'][i] ?? `reviewer-${i + 1}`}"`).join(',') %>'
 mkdir -p .arbiter && printf '{"count":<%= _tiers.Standard.reviewAgentCount %>,"agents":[%s],"branch":"%s","sha":"%s"}\n' "$review_agents" "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 
