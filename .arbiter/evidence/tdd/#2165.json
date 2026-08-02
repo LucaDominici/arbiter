@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2165",
+  "test_path": "__tests__/cli/doctor-option-inheritance.test.ts",
+  "test_commit_sha": "fe9b619c0bb8dbff68a721f59e099df285aa87ed",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/cli/doctor-option-inheritance.test.ts (3 tests | 3 failed) 2600ms\n     × uses subcommand --dir and --json for repair-state instead of the caller cwd 854ms\n     × emits the real JSON envelope for doctor recover-lock --json 863ms\n     × emits the real JSON envelope for doctor clean --json 881ms\n\n Test Files  1 failed (1)\n      Tests  3 failed (3)\n   Start at  19:18:03\n   Duration  2.70s (transform 15ms, setup 13ms, import 9ms, tests 2.60s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/cli/doctor-option-inheritance.test.ts > doctor subcommand option inheritance (#2165) > uses subcommand --dir and --json for repair-state instead of the caller cwd\nAssertionError: Error: arbiter.json not found at /tmp/arbiter-doctor-options-c2ITjf/outside/arbiter.json — cannot repair snapshot without source-of-truth config. Run `arbiter init` first.\n: expected 2 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 2\n\n ❯ __tests__/cli/doctor-option-inheritance.test.ts:30:42\n     28|\n     29|     const result = run(['doctor', 'repair-state', '--dir', target, '--…\n     30|     expect(result.status, result.stderr).toBe(0)\n       |                                          ^\n     31|     expect(JSON.parse(result.stdout).command).toBe('doctor repair-stat…\n     32|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯\n\n FAIL  __tests__/cli/doctor-option-inheritance.test.ts > doctor subcommand option inheritance (#2165) > emits the real JSON envelope for doctor recover-lock --json\nSyntaxError: Unexpected token 'N', \"  No lock fi\"... is not valid JSON\n ❯ __tests__/cli/doctor-option-inheritance.test.ts:39:17\n     37|     const result = run(['doctor', command, '--json'], root)\n     38|     expect(result.status, result.stderr).toBe(0)\n     39|     expect(JSON.parse(result.stdout).command).toBe(`doctor ${command}`)\n       |                 ^\n     40|   })\n     41| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯\n\n FAIL  __tests__/cli/doctor-option-inheritance.test.ts > doctor subcommand option inheritance (#2165) > emits the real JSON envelope for doctor clean --json\nSyntaxError: Unexpected end of JSON input\n ❯ __tests__/cli/doctor-option-inheritance.test.ts:39:17\n     37|     const result = run(['doctor', command, '--json'], root)\n     38|     expect(result.status, result.stderr).toBe(0)\n     39|     expect(JSON.parse(result.stdout).command).toBe(`doctor ${command}`)\n       |                 ^\n     40|   })\n     41| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/cli/doctor-option-inheritance.test.ts",
+  "recorded_at": "2026-08-02T17:18:06.439Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/cli/doctor-option-inheritance.test.ts"
+  ]
+}

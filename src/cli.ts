@@ -1382,7 +1382,8 @@ doctor
   .description('Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; json: boolean }) => {
+  .action((_opts: { dir?: string; json: boolean }, cmd: Command) => {
+    const opts = cmd.optsWithGlobals<{ dir?: string; json: boolean }>()
     runDoctorRepairState({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
@@ -1402,7 +1403,8 @@ doctor
   .description('Force-release a stale .arbiter/.lock file left by a crashed process')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; json: boolean }) => {
+  .action((_opts: { dir?: string; json: boolean }, cmd: Command) => {
+    const opts = cmd.optsWithGlobals<{ dir?: string; json: boolean }>()
     runDoctorRecoverLock({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
@@ -1419,7 +1421,8 @@ doctor
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--dry-run', 'List files without deleting', false)
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; dryRun: boolean; json: boolean }) => {
+  .action((_opts: { dir?: string; dryRun: boolean; json: boolean }, cmd: Command) => {
+    const opts = cmd.optsWithGlobals<{ dir?: string; dryRun: boolean; json: boolean }>()
     try {
       runDoctorClean({
         ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
