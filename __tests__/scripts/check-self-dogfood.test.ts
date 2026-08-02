@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll, afterEach } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -14,6 +14,17 @@ import {
   hashDiff,
   classifyDivergence,
 } from '../../scripts/check-self-dogfood.mjs'
+
+const shipSupervisorPath = fileURLToPath(
+  new URL('../../.arbiter/ship/supervisor.sh', import.meta.url),
+)
+const shipSupervisorOriginal = readFileSync(shipSupervisorPath)
+
+function restoreShipSupervisor() {
+  const current = readFileSync(shipSupervisorPath)
+  if (!current.equals(shipSupervisorOriginal))
+    writeFileSync(shipSupervisorPath, shipSupervisorOriginal)
+}
 
 // ─── buildRenderContext ───────────────────────────────────────────────────────
 
@@ -406,6 +417,9 @@ describe('allowlisted-file drift detection is non-vacuous (CANON-14, #1838)', ()
 // checker, and require it to go red; finally restores the original bytes.
 
 describe('ship-family drift detection is non-vacuous (#1290)', () => {
+  afterEach(restoreShipSupervisor)
+  afterAll(restoreShipSupervisor)
+
   it(
     'a mutated .arbiter/ship/supervisor.sh turns the gate red',
     () =>
@@ -418,7 +432,7 @@ describe('ship-family drift detection is non-vacuous (#1290)', () => {
           const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
             cwd: repoRoot,
             encoding: 'utf-8',
-            timeout: 120_000,
+            timeout: 300_000,
           })
           expect(r.status).not.toBe(0)
           expect(r.stdout + r.stderr).toContain('supervisor.sh')
@@ -426,6 +440,6 @@ describe('ship-family drift detection is non-vacuous (#1290)', () => {
           writeFileSync(target, original, 'utf-8')
         }
       }),
-    150_000,
+    360_000,
   )
 })

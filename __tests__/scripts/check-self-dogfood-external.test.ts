@@ -9,7 +9,7 @@
 // class (a file that exists in both places moved on one side without the
 // other) — reusing the same CANON-14 pinned-diff mechanism as the rest of this
 // gate.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterAll, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -25,6 +25,20 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..', '..')
+const externalDriftTargets = [
+  join(repoRoot, '.github/workflows/01-pr-fast.yml'),
+  join(repoRoot, 'scripts/check-drift.mjs'),
+]
+const externalDriftOriginals = new Map(
+  externalDriftTargets.map((target) => [target, readFileSync(target)]),
+)
+
+function restoreExternalDriftTargets() {
+  for (const [target, original] of externalDriftOriginals) {
+    const current = readFileSync(target)
+    if (!current.equals(original)) writeFileSync(target, original)
+  }
+}
 
 // ─── EXTERNAL_CI_FAMILIES ─────────────────────────────────────────────────────
 
@@ -245,10 +259,13 @@ describe('checkExternalCiSurfaceParity', () => {
 // running the test suite.
 
 describe('external CI-surface parity is non-vacuous against the real repo (#1900)', () => {
-  // Per-test timeout raised past the spawnSync's own 120_000ms bound below (the default global
+  afterEach(restoreExternalDriftTargets)
+  afterAll(restoreExternalDriftTargets)
+
+  // Per-test timeout raised past the spawnSync's own 300_000ms bound below (the default global
   // 30_000ms testTimeout is shorter than the child process's own allowance, so under load this
   // test could time out at the vitest level while the still-running child would have finished
-  // fine within its budget — flaky-red, not a real regression). 150s gives the child's 120s a
+  // fine within its budget — flaky-red, not a real regression). 360s gives the child's 300s a
   // margin for process spawn/teardown overhead.
   it(
     'a mutated pinned workflow (.github/workflows/01-pr-fast.yml) turns the gate red',
@@ -261,7 +278,7 @@ describe('external CI-surface parity is non-vacuous against the real repo (#1900
           const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
             cwd: repoRoot,
             encoding: 'utf-8',
-            timeout: 120_000,
+            timeout: 300_000,
           })
           expect(r.status).not.toBe(0)
           expect(r.stdout + r.stderr).toContain('01-pr-fast.yml')
@@ -270,7 +287,7 @@ describe('external CI-surface parity is non-vacuous against the real repo (#1900
           writeFileSync(target, original, 'utf-8')
         }
       }),
-    150_000,
+    360_000,
   )
 
   it(
@@ -284,7 +301,7 @@ describe('external CI-surface parity is non-vacuous against the real repo (#1900
           const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
             cwd: repoRoot,
             encoding: 'utf-8',
-            timeout: 120_000,
+            timeout: 300_000,
           })
           expect(r.status).not.toBe(0)
           expect(r.stdout + r.stderr).toContain('check-drift.mjs')
@@ -293,7 +310,7 @@ describe('external CI-surface parity is non-vacuous against the real repo (#1900
           writeFileSync(target, original, 'utf-8')
         }
       }),
-    150_000,
+    360_000,
   )
 
   it(
