@@ -18,6 +18,7 @@
       "__tests__/cli/doctor-option-inheritance.test.ts",
       "src/commands/update.ts",
       "__tests__/commands/update.test.ts",
+      "__tests__/commands/update-unwired-gate-warning.test.ts",
       ".agents/plan/PLAN.json",
       ".arbiter/evidence/tdd/",
       ".arbiter/evidence/ac-fit/"
@@ -39,6 +40,7 @@
     { "path": "__tests__/cli/doctor-option-inheritance.test.ts", "operation": "create" },
     { "path": "src/commands/update.ts", "operation": "modify" },
     { "path": "__tests__/commands/update.test.ts", "operation": "modify" },
+    { "path": "__tests__/commands/update-unwired-gate-warning.test.ts", "operation": "modify" },
     { "path": ".agents/plan/PLAN.json", "operation": "modify" },
     { "path": ".arbiter/evidence/tdd/", "operation": "create" },
     { "path": ".arbiter/evidence/ac-fit/", "operation": "create" }

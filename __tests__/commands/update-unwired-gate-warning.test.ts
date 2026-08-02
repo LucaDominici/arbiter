@@ -42,6 +42,15 @@ describe('detectUnwiredGateWarning (#1410)', () => {
     expect(detectUnwiredGateWarning(results)).toBeNull()
   })
 
+  it('does NOT warn when an adopted gate spine landed despite its original withheld status (#2142)', () => {
+    const results: WriteResult[] = [
+      { path: '/p/scripts/check-foo.mjs', action: 'created' },
+      { path: '/p/scripts/check-all.mjs', action: 'backed-up-and-replaced', withheld: true, adopted: true },
+    ]
+    expect(detectUnwiredGateWarning(results)).toBeNull()
+    expect(unwiredGuardKeys(results, '/p')).toEqual([])
+  })
+
   it('does NOT warn when no new check-*.mjs was emitted (only check-all withheld)', () => {
     const results: WriteResult[] = [
       { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld: true },
