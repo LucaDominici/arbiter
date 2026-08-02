@@ -2556,4 +2556,29 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'ADR-110 follow-up. exit 0=PASS/SKIP, 1=FAIL, 2=ERROR per INV-53.',
     adr: 'ADR-110',
   },
+  {
+    id: 'INV-139',
+    tier: 'governance',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'Fixture and smoke output must never land in real evidence directories',
+    description:
+      'A smoke or fixture run must never write into a real evidence root (.arbiter/evidence, .evidence). ' +
+      'The origin is the #2176 /ship-v2 study, where two contaminated runs carrying `fake-*` finding IDs ' +
+      'reached the real result set, passed every mechanical guard, and were caught only by the semantic judge. ' +
+      'Detection is ANCHORED-SCALAR over parsed .json/.jsonl: whitespace-free string values and object keys ' +
+      'matching /^fake-/ or containing STUDY_FAKE, deliberately NOT a substring grep because the live corpus ' +
+      'legitimately contains 158 `fake-green`/`fake-db` occurrences inside multi-line diff and log blobs. ' +
+      'An unparseable document is skipped, non-JSON artifacts are out of scope, and NO-DATA is a PASS so fresh ' +
+      'clones and ungoverned repos never false-fail. The guard scans the FILESYSTEM rather than the git index ' +
+      'so contamination is caught before it is committed; selfOnly because the marker set is arbiter-study ' +
+      'vocabulary and would be a false-positive minefield in an arbitrary target project — the Track-B mirror ' +
+      'waits on a project-configurable marker set.',
+    enforcement:
+      'scripts/check-fixture-isolation.mjs (L1 gate, self) — wired in scripts/check-all.mjs and ' +
+      'also enrolled in the anti-fake-green aggregate roster (scripts/lib/anti-fake-green-guards.mjs, ' +
+      'class file-scan, so a broken guard fails the aggregate) with a discrimination proof in ' +
+      'scripts/lib/guard-flip-registry.mjs. Verified by __tests__/scripts/check-fixture-isolation.test.ts ' +
+      '(red→green). exit 0=PASS/NO-DATA, 1=contamination, 2=ERROR per INV-53 (#2181).',
+  },
 ]

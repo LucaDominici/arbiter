@@ -150,6 +150,10 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'feature matrix (INV-112)', affects: ALWAYS },
   { name: 'anti-proforma (INV-118)', affects: ALWAYS },
   { name: 'anti-fake-green (#1412)', affects: ALWAYS },
+  {
+    name: 'fixture isolation (INV-139)',
+    affects: ['.arbiter/evidence/**', '.evidence/**', 'scripts/check-fixture-isolation.mjs'],
+  },
   { name: 'test pyramid (INV-124)', affects: ALWAYS },
   { name: 'test scope-tier (INV-124)', affects: ALWAYS },
   { name: 'domain-api surface (INV-125)', affects: ALWAYS },

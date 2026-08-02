@@ -306,6 +306,7 @@ if (isMain) {
   runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs', '--check'])
   runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs'])
   runCheck('anti-fake-green (#1412)', 'node', ['scripts/check-anti-fake-green.mjs'])
+  runCheck('fixture isolation (INV-139)', 'node', ['scripts/check-fixture-isolation.mjs'])
   runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs'])
   runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mjs'])
   runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs'])

@@ -808,3 +808,13 @@ A green gate certifies mechanics (tests pass, lint clean), never intent — rewo
 **Enforcement:** `scripts/check-acceptance.mjs` (L1, flag-gated, `--plan` mode for wave integrate; selfOnly — the orchestration tools are emitted to targets via UNCONDITIONAL_EMISSIONS, the gate wiring in generated check-all is the tracked ADR-110 follow-up) — wired `runCheck` in `scripts/check-all.mjs`. Pure core: `scripts/lib/acceptance-criteria.mjs`. Exit codes per INV-53: 0=PASS/SKIP, 1=FAIL, 2=ERROR.
 
 ---
+
+### INV-139: Fixture and smoke output must never land in real evidence directories
+
+A smoke or fixture run must never write into a real evidence root (`.arbiter/evidence`, `.evidence`). The origin is the #2176 `/ship-v2` study, where two contaminated runs carrying `fake-*` finding ids reached the real result set, passed every mechanical guard, and were caught only by the semantic judge. Detection is ANCHORED-SCALAR over parsed `.json`/`.jsonl`: whitespace-free string values and object keys matching `/^fake-/` or containing `STUDY_FAKE`, deliberately NOT a substring grep, because the live corpus legitimately carries 158 `fake-green`/`fake-db` occurrences inside multi-line diff and log blobs and a naive grep would be born red.
+
+Unparseable documents are skipped, non-JSON artifacts are out of scope, and NO-DATA (no evidence roots) is a PASS so fresh clones and ungoverned repos never false-fail. The guard scans the FILESYSTEM rather than the git index so contamination is caught before it is committed; it is also enrolled in the anti-fake-green aggregate roster (class `file-scan`, so a broken guard fails the aggregate) with a planted bad/clean discrimination proof. selfOnly because `STUDY_FAKE` and bare `fake-` are arbiter-study vocabulary that would false-positive in an arbitrary target project — the Track-B mirror waits on a project-configurable marker set.
+
+**Enforcement:** `scripts/check-fixture-isolation.mjs` (L1, self) — wired in `scripts/check-all.mjs` and enrolled in the anti-fake-green aggregate roster (`scripts/lib/anti-fake-green-guards.mjs`, class `file-scan`) with a discrimination proof in `scripts/lib/guard-flip-registry.mjs`. Verified by `__tests__/scripts/check-fixture-isolation.test.ts` (red→green). Exit codes per INV-53: 0=PASS/NO-DATA, 1=contamination, 2=ERROR.
+
+---

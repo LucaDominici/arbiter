@@ -55,7 +55,11 @@ describe('check-fixture-isolation (anti-fake-green, #2181)', () => {
   it('fake scalar in .arbiter/evidence → FAIL', () => {
     const { dir, cleanup } = makeRepo()
     try {
-      writeFixture(dir, '.arbiter/evidence/study/results.json', JSON.stringify({ findings: [{ id: 'fake-001', title: 'leaked' }] }))
+      writeFixture(
+        dir,
+        '.arbiter/evidence/study/results.json',
+        JSON.stringify({ findings: [{ id: 'fake-001', title: 'leaked' }] }),
+      )
       const r = run(dir)
       expect(r.status).toBe(1)
       expect(r.stderr).toContain('fake-001')
@@ -68,7 +72,11 @@ describe('check-fixture-isolation (anti-fake-green, #2181)', () => {
   it('STUDY_FAKE scalar → FAIL', () => {
     const { dir, cleanup } = makeRepo()
     try {
-      writeFixture(dir, '.arbiter/evidence/run/meta.json', JSON.stringify({ harness: 'STUDY_FAKE' }))
+      writeFixture(
+        dir,
+        '.arbiter/evidence/run/meta.json',
+        JSON.stringify({ harness: 'STUDY_FAKE' }),
+      )
       const r = run(dir)
       expect(r.status).toBe(1)
       expect(r.stderr).toContain('STUDY_FAKE')
@@ -113,11 +121,15 @@ describe('check-fixture-isolation (anti-fake-green, #2181)', () => {
   it('realistic multi-line evidence blobs with fake-green words → PASS', () => {
     const { dir, cleanup } = makeRepo()
     try {
-      writeFixture(dir, '.arbiter/evidence/tdd/clean.json', JSON.stringify({
-        id: '2181-ac1',
-        test_run_log: `The anti-fake-green audit was exercised against a fake-green fixture.
+      writeFixture(
+        dir,
+        '.arbiter/evidence/tdd/clean.json',
+        JSON.stringify({
+          id: '2181-ac1',
+          test_run_log: `The anti-fake-green audit was exercised against a fake-green fixture.
 The fake-db transcript is retained here as ordinary multi-line test evidence.`,
-      }))
+        }),
+      )
       const r = run(dir)
       expect(r.status).toBe(0)
     } finally {

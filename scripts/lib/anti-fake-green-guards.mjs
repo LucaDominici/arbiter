@@ -51,6 +51,10 @@ export const GUARDS = [
   // SSOT — see src/generators/check-all.ts emitOracleDiscrimination and its doc comment).
   // NO-DATA (range unresolvable, or no test files touched) is a PASS.
   { name: 'assertion-delta', script: 'scripts/check-assertion-delta.mjs', class: 'file-scan' },
+  // fixture-isolation (#2181) — fixture/smoke output must never land in a real evidence root:
+  // the #2176 study found fake-* finding IDs leaked into real results, caught only by the semantic
+  // judge. NO-DATA (no evidence roots) is a PASS.
+  { name: 'fixture-isolation', script: 'scripts/check-fixture-isolation.mjs', class: 'file-scan' },
 ]
 
 // Anti-context-rot gate roster (E1-E7 #1943, M11 flip-coverage — design doc

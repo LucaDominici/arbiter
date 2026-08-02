@@ -20,10 +20,10 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 136
+const EXPECTED_TOTAL_ENTRIES = 137
 const EXPECTED_TIER4_OPERATIONAL = 49
-const EXPECTED_TIER5_GOVERNANCE = 51
-const EXPECTED_SELFONLY = 30
+const EXPECTED_TIER5_GOVERNANCE = 52
+const EXPECTED_SELFONLY = 31
 
 // ---------------------------------------------------------------------------
 // INVARIANT_CATALOG structure
@@ -59,6 +59,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1817: +1 (INV-136 tier-assignment rule, operational/Tier-4, all-languages)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, operational/Tier-4, all-languages)
     // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
+    // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
     expect(INVARIANT_CATALOG).toHaveLength(EXPECTED_TOTAL_ENTRIES)
   })
 
@@ -82,9 +83,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1456: +1 (INV-133)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor)
     // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
+    // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(136)
+    expect(unique.size).toBe(137)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -199,6 +201,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance, all-languages)
+    // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
     expect(tier5).toHaveLength(EXPECTED_TIER5_GOVERNANCE)
   })
@@ -747,13 +750,14 @@ describe('getFilteredInvariants', () => {
     }
   })
 
-  it(`catalog has exactly ${EXPECTED_SELFONLY} selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110)`, () => {
+  it(`catalog has exactly ${EXPECTED_SELFONLY} selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110, INV-139)`, () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
     // Updated #1206: +1 (INV-113 single authoritative task-phase document)
     // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly)
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly)
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, selfOnly)
+    // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
     expect(selfOnly).toHaveLength(EXPECTED_SELFONLY)
     const ids = selfOnly.map((inv) => inv.id)

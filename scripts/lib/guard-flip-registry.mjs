@@ -259,6 +259,26 @@ export const FLIP_REGISTRY = {
     plantBad: (d) => write(d, 'package.json', pkg('vitest run --passWithNoTests')),
     plantClean: (d) => write(d, 'package.json', pkg('vitest run')),
   },
+  'fixture-isolation': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) =>
+      write(
+        d,
+        join('.arbiter', 'evidence', 'study', 'results.json'),
+        JSON.stringify({ findings: [{ id: 'fake-001' }] }),
+      ),
+    plantClean: (d) =>
+      write(
+        d,
+        join('.arbiter', 'evidence', 'tdd', 'clean.json'),
+        JSON.stringify({
+          id: '2181-ac1',
+          test_run_log:
+            'the anti-fake-green audit ran against a fake-green fixture\nwith a fake-db transcript',
+        }),
+      ),
+  },
 
   // ── anti-context-rot gates (E1-E7 #1943): proven via bespoke-argv fixtures ────────────────
   'agent-return': {
