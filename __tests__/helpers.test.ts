@@ -1,6 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { tmpdir } from 'node:os'
-import { dogfoodRepoMutationLockPath } from './helpers.js'
+import { dogfoodRepoMutationLockPath, withRealRepoMutationLock } from './helpers.js'
+import { acquireLock } from '../src/utils/file-lock.js'
+
+vi.mock('../src/utils/file-lock.js', () => ({ acquireLock: vi.fn() }))
+
+const mockedAcquireLock = vi.mocked(acquireLock)
 
 // ─── dogfoodRepoMutationLockPath (#2026) ──────────────────────────────────────
 //
@@ -32,5 +37,35 @@ describe('dogfoodRepoMutationLockPath', () => {
   it('keeps the recognizable lock filename prefix for discoverability', () => {
     const path = dogfoodRepoMutationLockPath('/home/luca/work/repos/arbiter')
     expect(path).toMatch(/arbiter-check-self-dogfood-repo-mutation-[0-9a-f]+\.lock$/)
+  })
+})
+
+describe('withRealRepoMutationLock (#2169)', () => {
+  it('lets a concurrent contender retry E_LOCK_CONFLICT until the holder releases', async () => {
+    let held = false
+    const completed: string[] = []
+    mockedAcquireLock.mockImplementation(async () => {
+      if (held) throw Object.assign(new Error('contended'), { code: 'E_LOCK_CONFLICT' })
+      held = true
+      return {
+        path: 'test.lock',
+        pid: process.pid,
+        release: async () => {
+          held = false
+        },
+      }
+    })
+
+    const first = withRealRepoMutationLock(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 125))
+      completed.push('first')
+    })
+    const second = withRealRepoMutationLock(async () => {
+      completed.push('second')
+    })
+
+    await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined])
+    expect(completed).toEqual(['first', 'second'])
+    expect(mockedAcquireLock).toHaveBeenCalledTimes(3)
   })
 })
