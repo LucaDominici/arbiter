@@ -396,6 +396,27 @@ describe('runTaskRecordRed()', () => {
     expect(ev.test_run_log).toBe('FAIL src/foo.test.ts\n1 failed')
   })
 
+  it('writes repository-relative paths instead of the absolute worktree path into test_run_log (#2174)', () => {
+    const dir = tmpRepo()
+    const absoluteTestPath = join(dir, 'sensitive-worktree', 'src', 'foo.test.ts')
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: `FAIL ${absoluteTestPath}\n1 failed`,
+      stderr: '',
+      exitCode: 1,
+      durationMs: 5,
+    })
+
+    expect(runTaskRecordRed({ testPath: 'src/foo.test.ts', dir }).ok).toBe(true)
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_run_log).not.toContain(dir)
+    expect(ev.test_run_log).toContain('sensitive-worktree/src/foo.test.ts')
+  })
+
   it('stringifies a non-Error launch failure into the reason', () => {
     const dir = tmpRepo()
     mockBranch()
