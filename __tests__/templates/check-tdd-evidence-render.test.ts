@@ -70,7 +70,9 @@ function validEvidence(sha: string, overrides: Record<string, unknown> = {}) {
 function runScenario(opts: {
   taskCommit?: boolean
   skipTrailer?: boolean
-  evidence?: (featureSha: string) => string | null
+  /** Leave an orphaned (unreachable but still present) commit object behind, as a rebase does. */
+  orphan?: boolean
+  evidence?: (featureSha: string, orphanSha: string) => string | null
 }): number {
   const scriptDir = mkdtempSync(join(tmpdir(), 'tdd-s-'))
   const repo = mkdtempSync(join(tmpdir(), 'tdd-r-'))
@@ -97,10 +99,19 @@ function runScenario(opts: {
         : 'feat(#42): add foo'
       g(['commit', '-m', msg])
     }
+    let orphanSha = ''
+    if (opts.orphan) {
+      // A rebase leaves the pre-rebase commit as a live OBJECT that is no longer
+      // reachable from the branch. Reproduce that shape exactly.
+      writeFileSync(join(repo, 'src', 'foo.test.ts'), 'test("foo", () => {})\n// pre-rebase\n')
+      g(['commit', '-am', 'feat(#42): pre-rebase red'])
+      orphanSha = g(['rev-parse', 'HEAD'])
+      g(['reset', '--hard', 'HEAD~1'])
+    }
     const featureSha = g(['rev-parse', 'HEAD'])
 
     if (opts.evidence) {
-      const body = opts.evidence(featureSha)
+      const body = opts.evidence(featureSha, orphanSha)
       if (body !== null) {
         mkdirSync(join(repo, '.arbiter', 'evidence', 'tdd'), { recursive: true })
         writeFileSync(join(repo, '.arbiter', 'evidence', 'tdd', '#42.json'), body)
@@ -170,6 +181,19 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
   it('C: FAIL (exit 1) on the forbidden ARBITER-SKIP-TDD trailer', () => {
     expect(
       runScenario({ taskCommit: true, skipTrailer: true, evidence: (sha) => validEvidence(sha) }),
+    ).toBe(1)
+  })
+
+  // #2116: object existence is not reachability. The pre-rebase commit survives as an
+  // object for as long as the stale branch is pushed, so `cat-file -e` kept verifying
+  // evidence against history nobody can reach.
+  it('C: FAIL (exit 1) when test_commit_sha exists as an object but is unreachable', () => {
+    expect(
+      runScenario({
+        taskCommit: true,
+        orphan: true,
+        evidence: (_sha, orphanSha) => validEvidence(orphanSha),
+      }),
     ).toBe(1)
   })
 

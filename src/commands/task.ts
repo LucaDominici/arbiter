@@ -23,7 +23,7 @@ import {
   currentBranch,
   headSha,
   pathExistsInCommit,
-  shaExistsOnBranch,
+  resolveEvidenceCommit,
 } from '../evidence/git-checks.js'
 import { detectHostCapabilities } from '../capabilities/host-probe.js'
 
@@ -551,16 +551,20 @@ function checkTddEvidenceGate(dir: string, claudeDir: string): void {
     )
   }
 
-  if (!shaExistsOnBranch(ev.test_commit_sha, dir)) {
+  // #2116: resolve through the rebase-stable blob pin — a rebased branch keeps the RED
+  // test's content even though every commit sha on it was rewritten.
+  const resolved = resolveEvidenceCommit(ev, dir)
+  if (resolved === null) {
     throw new Error(
-      `TDD evidence gate: test_commit_sha "${ev.test_commit_sha}" not found in git history. ` +
-        `Ensure the test was committed before running \`arbiter task record-red\`.`,
+      `TDD evidence gate: test_commit_sha "${ev.test_commit_sha}" is not reachable from HEAD. ` +
+        `Ensure the test was committed before running \`arbiter task record-red\`, or re-record ` +
+        `the evidence after a rebase.`,
     )
   }
 
-  if (!pathExistsInCommit(ev.test_commit_sha, ev.test_path, dir)) {
+  if (!pathExistsInCommit(resolved.sha, ev.test_path, dir)) {
     throw new Error(
-      `TDD evidence gate: test_path "${ev.test_path}" not found in commit ${ev.test_commit_sha}. ` +
+      `TDD evidence gate: test_path "${ev.test_path}" not found in commit ${resolved.sha}. ` +
         `Verify the test file was committed at that sha.`,
     )
   }

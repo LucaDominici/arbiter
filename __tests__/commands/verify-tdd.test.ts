@@ -8,11 +8,20 @@ import { runVerifyTdd } from '../../src/commands/verify-tdd.js'
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
+  resolveEvidenceCommit: vi.fn((ev: { test_commit_sha: string }) => ({
+    sha: ev.test_commit_sha,
+    healed: false,
+  })),
 }))
 
-import { shaExistsOnBranch, pathExistsInCommit } from '../../src/evidence/git-checks.js'
+import {
+  shaExistsOnBranch,
+  pathExistsInCommit,
+  resolveEvidenceCommit,
+} from '../../src/evidence/git-checks.js'
 const mockedShaExists = vi.mocked(shaExistsOnBranch)
 const mockedPathExists = vi.mocked(pathExistsInCommit)
+const mockedResolveCommit = vi.mocked(resolveEvidenceCommit)
 
 // The red-execution check (#1957) spawns real git worktrees + subprocesses —
 // out of scope for these orchestration-level unit tests, which only assert
@@ -156,15 +165,34 @@ describe('runVerifyTdd()', () => {
     expect(reExecCheck?.pass).toBe(false)
   })
 
-  it('returns status FAIL when the test commit sha is not in git history', () => {
+  it('returns status FAIL when the test commit cannot be resolved on this branch', () => {
     const dir = tmpRepo()
     writeEvidence(dir, VALID_EVIDENCE)
-    mockedShaExists.mockReturnValueOnce(false)
+    mockedResolveCommit.mockReturnValueOnce(null)
     const result = runVerifyTdd({ taskId: '#551', dir })
     expect(result.status).toBe('FAIL')
-    expect(result.reason).toMatch(/not found in git history/)
+    expect(result.reason).toMatch(/not reachable/)
     const check = result.checks?.find((c) => c.name === 'sha-on-branch')
     expect(check?.pass).toBe(false)
+  })
+
+  // #2116: after a rebase the pinned sha is gone, but the RED test's content is not.
+  it('verifies against the rebase-healed commit when the pinned sha is orphaned', () => {
+    const dir = tmpRepo()
+    writeEvidence(dir, { ...VALID_EVIDENCE, test_blob_sha: 'd'.repeat(40) })
+    const healedSha = 'e'.repeat(40)
+    mockedResolveCommit.mockReturnValueOnce({ sha: healedSha, healed: true })
+
+    const result = runVerifyTdd({ taskId: '#551', dir })
+    expect(result.status).toBe('PASS')
+    // every downstream check must run against the healed commit, not the dead pin
+    expect(mockedPathExists).toHaveBeenCalledWith(healedSha, VALID_EVIDENCE.test_path, dir)
+    expect(mockedVerifyRedExecution).toHaveBeenCalledWith(
+      expect.objectContaining({ test_commit_sha: healedSha }),
+      dir,
+    )
+    const check = result.checks?.find((c) => c.name === 'sha-on-branch')
+    expect(check?.reason).toMatch(/rebase/i)
   })
 
   it('returns status FAIL when the test path does not exist in the recorded commit', () => {

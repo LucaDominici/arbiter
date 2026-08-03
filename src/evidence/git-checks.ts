@@ -71,3 +71,51 @@ export function currentBranch(dir?: string): string {
 export function headSha(dir?: string): string {
   return gitValue(['rev-parse', 'HEAD'], dir)
 }
+
+/** Blob sha of `path` at `sha`, or null when the path is absent there (#2116). */
+export function blobShaInCommit(sha: string, path: string, dir?: string): string | null {
+  const out = gitValue(['rev-parse', `${sha}:${path}`], dir)
+  return /^[0-9a-f]{40}$/i.test(out) ? out : null
+}
+
+/** Minimal evidence shape the commit resolution needs. */
+export interface EvidenceCommitRef {
+  test_commit_sha: string
+  test_path: string
+  test_blob_sha?: string | undefined
+}
+
+/**
+ * The commit this evidence is about, resolved against the CURRENT branch (#2116).
+ *
+ * A rebase rewrites every commit sha on a branch but never the test's content, so a
+ * sha-only pin becomes unresolvable the moment the branch is rebased — and the RED can
+ * rarely be re-recorded afterwards, because the fix is already in the tree. The blob sha
+ * of the RED test IS rebase-stable, so when the pinned sha is no longer reachable the
+ * history of the test path is searched for the commit carrying identical content.
+ *
+ * The OLDEST matching commit wins: that is the one that introduced the content — the
+ * rebased RED commit itself, not a later commit that merely inherited it.
+ *
+ * Returns null when neither path resolves. Evidence recorded before the blob pin existed
+ * cannot be healed, which is exactly the pre-#2116 behaviour: a loud failure.
+ */
+export function resolveEvidenceCommit(
+  ev: EvidenceCommitRef,
+  dir?: string,
+): { sha: string; healed: boolean } | null {
+  if (shaExistsOnBranch(ev.test_commit_sha, dir)) {
+    return { sha: ev.test_commit_sha, healed: false }
+  }
+  const blob = ev.test_blob_sha
+  if (blob === undefined) return null
+  const touching = gitValue(['log', '--format=%H', '--max-count=200', '--', ev.test_path], dir)
+  if (touching === 'unknown') return null
+  // `git log` is newest-first; reverse so the introducing commit is inspected first.
+  for (const sha of touching.split('\n').reverse()) {
+    if (sha.length === 40 && blobShaInCommit(sha, ev.test_path, dir) === blob) {
+      return { sha, healed: true }
+    }
+  }
+  return null
+}

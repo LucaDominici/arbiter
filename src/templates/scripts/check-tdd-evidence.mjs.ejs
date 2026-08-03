@@ -87,9 +87,16 @@ function validateSchema(ev) {
   return { ok: true }
 }
 
+/**
+ * #2116: REACHABILITY, not object existence. `cat-file -e` passes for any object still
+ * present in the repo — including the pre-rebase commit of a branch that was rebased
+ * before merging, whose evidence then "verifies" against history nobody can reach, and
+ * turns unverifiable the day the stale branch is deleted. A rebase must fail loudly here
+ * (re-record the evidence) instead of silently passing.
+ */
 function shaExists(sha) {
   try {
-    git(['cat-file', '-e', sha])
+    git(['merge-base', '--is-ancestor', sha, 'HEAD'])
     return true
   } catch {
     return false

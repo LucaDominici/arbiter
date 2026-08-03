@@ -2,7 +2,12 @@
 import { dirname, resolve } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 import { extractFailureSignature, writeTddEvidence, type TddEvidence } from '../evidence/tdd.js'
-import { currentBranch, hasDirtyTestPaths, pathExistsInCommit } from '../evidence/git-checks.js'
+import {
+  blobShaInCommit,
+  currentBranch,
+  hasDirtyTestPaths,
+  pathExistsInCommit,
+} from '../evidence/git-checks.js'
 import { readTaskId } from './task-state.js'
 import { loadConfig } from '../utils/config.js'
 import { detectLanguage } from '../detectors/language.js'
@@ -292,11 +297,16 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
     }
   }
 
+  // #2116: pin the test's CONTENT as well as the commit. The sha dies at the next
+  // rebase; the blob survives it and lets the RED commit be re-resolved from it.
+  const blob = blobShaInCommit(sha, opts.testPath, dir)
+
   const evidence: TddEvidence = {
     $schemaVersion: 1,
     task_id: taskId,
     test_path: opts.testPath,
     test_commit_sha: sha,
+    ...(blob !== null ? { test_blob_sha: blob } : {}),
     test_run_log: log,
     observed_failure: sig.match,
     recorded_at: new Date().toISOString(),

@@ -9,6 +9,13 @@ export const TddEvidenceV1 = z.object({
   task_id: z.string().regex(/^#\d+$/, 'task_id must start with # followed by digits'),
   test_path: z.string().min(1),
   test_commit_sha: z.string().length(40, 'test_commit_sha must be exactly 40 hex characters'),
+  // #2116: rebase-stable pin. A rebase rewrites test_commit_sha out of the branch but
+  // never the test's content, so the blob sha lets the RED commit be re-resolved.
+  // Optional — evidence recorded before #2116 carries no blob and cannot be healed.
+  test_blob_sha: z
+    .string()
+    .length(40, 'test_blob_sha must be exactly 40 hex characters')
+    .optional(),
   test_run_log: z.string(),
   observed_failure: z.string().min(1, 'observed_failure must not be empty'),
   recorded_at: z.iso.datetime({ message: 'recorded_at must be ISO8601' }),

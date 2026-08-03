@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
-import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
+import { resolveEvidenceCommit, pathExistsInCommit } from '../evidence/git-checks.js'
 import { verifyRedExecution } from '../evidence/tdd-reexecute.js'
 
 interface VerifyTddCheck {
@@ -55,27 +55,44 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
   }
   checks.push({ name: 'failure-signature', pass: true })
 
-  // Check 4: test commit sha exists in git history
-  const shaExists = shaExistsOnBranch(ev.test_commit_sha, dir)
-  if (!shaExists) {
-    const reason = `test_commit_sha ${ev.test_commit_sha} not found in git history`
+  // Check 4: the RED commit is reachable from HEAD — resolved through the rebase-stable
+  // blob pin when the recorded sha was rewritten away by a rebase (#2116).
+  const resolved = resolveEvidenceCommit(ev, dir)
+  if (resolved === null) {
+    const reason =
+      `test_commit_sha ${ev.test_commit_sha} is not reachable from HEAD` +
+      (ev.test_blob_sha === undefined
+        ? ` and this evidence predates the rebase-stable blob pin — re-record it with ` +
+          `\`arbiter task record-red --test-path ${ev.test_path}\``
+        : ` and no commit on this branch carries the recorded RED test content`)
     return fail(taskId, reason, [...checks, { name: 'sha-on-branch', pass: false, reason }])
   }
-  checks.push({ name: 'sha-on-branch', pass: true })
+  const redSha = resolved.sha
+  checks.push({
+    name: 'sha-on-branch',
+    pass: true,
+    ...(resolved.healed
+      ? {
+          reason:
+            `pinned sha ${ev.test_commit_sha} was rewritten (rebase) — resolved to ${redSha} ` +
+            `via the recorded RED test blob`,
+        }
+      : {}),
+  })
 
   // Check 5: test path exists in that commit
-  const pathExists = pathExistsInCommit(ev.test_commit_sha, ev.test_path, dir)
+  const pathExists = pathExistsInCommit(redSha, ev.test_path, dir)
   if (!pathExists) {
-    const reason = `test_path "${ev.test_path}" not found in commit ${ev.test_commit_sha}`
+    const reason = `test_path "${ev.test_path}" not found in commit ${redSha}`
     return fail(taskId, reason, [...checks, { name: 'test-path-in-commit', pass: false, reason }])
   }
   checks.push({ name: 'test-path-in-commit', pass: true })
 
   // Check 6: the recorded test_command genuinely reproduces observed_failure
-  // when re-run from source at test_commit_sha (#1957). The only check that
+  // when re-run from source at the resolved RED commit (#1957). The only check that
   // catches evidence naming a test that did not exist — or was not yet
   // failing — at the recorded commit (a real false-green found downstream).
-  const reExec = verifyRedExecution(ev, dir)
+  const reExec = verifyRedExecution({ ...ev, test_commit_sha: redSha }, dir)
   if (!reExec.ok) {
     const reason = reExec.reason ?? 'red-phase re-execution failed'
     return fail(taskId, reason, [...checks, { name: 'red-execution', pass: false, reason }])

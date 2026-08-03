@@ -114,6 +114,36 @@ describe('runTaskRecordRed()', () => {
     expect(ev.$schemaVersion).toBe(1)
   })
 
+  // #2116: a rebase rewrites test_commit_sha out of existence; the test's blob sha
+  // survives it, so evidence pins the content too and can be re-resolved after a rebase.
+  it('records the rebase-stable blob sha of the RED test', () => {
+    const dir = tmpRepo()
+    const testPath = '__tests__/evidence/tdd.test.ts'
+
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks(testPath)
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 failed',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 500,
+    })
+    // git rev-parse <sha>:<test path> → blob sha
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'c'.repeat(40),
+      stderr: '',
+      exitCode: 0,
+      durationMs: 5,
+    })
+
+    expect(runTaskRecordRed({ testPath, dir }).ok).toBe(true)
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_blob_sha).toBe('c'.repeat(40))
+  })
+
   it('returns ok:false when test passes (no failure signature)', () => {
     const dir = tmpRepo()
     mockBranch()
@@ -524,8 +554,8 @@ describe('runTaskRecordRed()', () => {
       force: true,
     })
     expect(result.ok).toBe(true)
-    // branch(1) + rev-parse(1) + test run(1) = 3.
-    expect(mockedRunCli).toHaveBeenCalledTimes(3)
+    // branch(1) + rev-parse(1) + test run(1) + blob pin(1, #2116) = 4.
+    expect(mockedRunCli).toHaveBeenCalledTimes(4)
   })
 
   it('refuses when the recorded test_path is absent from HEAD (#1988)', () => {
@@ -563,8 +593,8 @@ describe('runTaskRecordRed()', () => {
     })
     expect(result.ok).toBe(true)
     // Under --force, neither the dirty-check nor the HEAD-presence check runs:
-    // branch(1) + rev-parse(1) + the test run itself(1) = 3 calls total.
-    expect(mockedRunCli).toHaveBeenCalledTimes(3)
+    // branch(1) + rev-parse(1) + the test run itself(1) + blob pin(1, #2116) = 4.
+    expect(mockedRunCli).toHaveBeenCalledTimes(4)
   })
 
   it('records evidence when __tests__/** is clean and the test path exists in HEAD (#1988)', () => {
