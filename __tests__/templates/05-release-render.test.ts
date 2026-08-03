@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
@@ -655,5 +657,113 @@ describe('05-release.yml.ejs — lib archetype per-language publish', () => {
     const rendered = renderRelease({ archetype: 'library', language: 'rust', buildTool: 'cargo' })
     const publishSection = rendered.split('publish-package:')[1] ?? ''
     expect(publishSection).toContain('cargo publish')
+  })
+})
+
+// ─── #2138: artifact identity + tag-only publish, template AND materialized ──
+//
+// The release pipeline was verified BY CONSTRUCTION: the tests asserted that the
+// string `npm publish --provenance` appeared somewhere, never that the artifact
+// cosign/SLSA/SBOM signed was the artifact npm uploads. It was not — the signed
+// blob was `zip -r release-artifact.zip dist/`, while the publish job re-ran
+// `npm ci` + `npm publish`, whose `prepack` REBUILT dist/, so the provenance
+// covered bytes nobody ever installed.
+//
+// The materialized twin diverged further (workflow_dispatch + release:published
+// triggers reaching `npm publish` from any branch) and check-self-dogfood could
+// not see it: 05-release.yml carries a PINNED whole-file divergence, so the
+// trigger drift lived inside an already-approved diff hash.
+
+const TS_LIB = { archetype: 'library', language: 'typescript', buildTool: 'npm' } as const
+
+function publishJobOf(workflow: string): string {
+  return workflow.split('publish-package:')[1] ?? ''
+}
+
+function triggerBlockOf(workflow: string): string {
+  // The `on:` block — everything between the `on:` line and the next top-level key.
+  const afterOn = workflow.split(/^on:$/m)[1] ?? ''
+  return afterOn.split(/^[a-z]/m)[0] ?? ''
+}
+
+describe('05-release.yml.ejs — signed artifact IS the published artifact (#2138)', () => {
+  it('typescript library: packs the npm tarball instead of zipping dist/', () => {
+    const rendered = renderRelease(TS_LIB)
+    expect(rendered).toContain('npm pack')
+    expect(rendered).toContain('release-artifact.tgz')
+    expect(rendered).not.toContain('zip -r release-artifact.zip dist/')
+  })
+
+  it('typescript library: cosign signs the tarball that gets published', () => {
+    const rendered = renderRelease(TS_LIB)
+    const signSection = rendered.split('cosign-sign:')[1] ?? ''
+    expect(signSection).toContain('cosign sign-blob --yes release-artifact.tgz')
+  })
+
+  it('typescript library: publish uploads the downloaded tarball, never a rebuild', () => {
+    const publish = publishJobOf(renderRelease(TS_LIB))
+    expect(publish).toContain('npm publish --provenance --access public release-artifact.tgz')
+  })
+
+  it('typescript library: publish re-verifies the tarball hash before uploading', () => {
+    const publish = publishJobOf(renderRelease(TS_LIB))
+    expect(publish).toContain('sha256sum -c sha256sums.txt')
+  })
+
+  it('typescript library: publish is reachable only from a release tag', () => {
+    const publish = publishJobOf(renderRelease(TS_LIB))
+    expect(publish).toContain("startsWith(github.ref, 'refs/tags/v')")
+  })
+
+  it('non-npm stacks keep the zip artifact (no accidental .tgz rename)', () => {
+    const rendered = renderRelease({ archetype: 'library', language: 'go', buildTool: 'go' })
+    expect(rendered).toContain('zip -r release-artifact.zip')
+    expect(rendered).not.toContain('release-artifact.tgz')
+  })
+})
+
+describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
+  const materialized = readFileSync(
+    resolve(process.cwd(), '.github/workflows/05-release.yml'),
+    'utf-8',
+  )
+
+  it('has no workflow_dispatch trigger (npm publish must not be reachable by hand)', () => {
+    expect(materialized).not.toContain('workflow_dispatch')
+  })
+
+  it('has no release:published trigger — the tag push is the only entrypoint', () => {
+    expect(materialized).not.toContain('types: [published]')
+  })
+
+  it('triggers on release tags only', () => {
+    expect(materialized).toContain("- 'v*'")
+    expect(materialized).toContain("- '!v0.0.0-verify-*'")
+  })
+
+  it('publish-package is guarded to a release tag ref', () => {
+    expect(publishJobOf(materialized)).toContain("startsWith(github.ref, 'refs/tags/v')")
+  })
+
+  it('signs and publishes the SAME npm tarball', () => {
+    expect(materialized).toContain('npm pack')
+    expect(materialized).not.toContain('zip -r release-artifact.zip')
+    expect(materialized).toContain('cosign sign-blob --yes release-artifact.tgz')
+    expect(publishJobOf(materialized)).toContain(
+      'npm publish --provenance --access public release-artifact.tgz',
+    )
+  })
+
+  it('re-verifies the artifact hash in the publish job before uploading', () => {
+    expect(publishJobOf(materialized)).toContain('sha256sum -c sha256sums.txt')
+  })
+
+  // Targeted parity on the exact surface that drifted. check-self-dogfood pins a
+  // whole-file diff hash for 05-release.yml, which is precisely why the trigger
+  // divergence stayed invisible — this asserts the triggers themselves match the
+  // template rendered with arbiter's own profile.
+  it('trigger block matches the template rendered for arbiter own profile', () => {
+    const rendered = renderRelease({ ...TS_LIB, governanceLevel: 'L2' })
+    expect(triggerBlockOf(materialized).trim()).toBe(triggerBlockOf(rendered).trim())
   })
 })
