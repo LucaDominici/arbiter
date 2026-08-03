@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const SCRIPT = resolve('scripts/probe-hooks.mjs')
 const ADVISORY_HOOK = 'debug-state-on-failure.mjs'
+const COMMIT_MSG_TEMPLATE = readFileSync(resolve('src/templates/githooks/commit-msg.ejs'), 'utf-8')
 
 function fixture(hook = ADVISORY_HOOK, hookBody?: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-probe-hooks-'))
@@ -37,6 +38,40 @@ function run(dir: string) {
     cwd: dir,
     encoding: 'utf-8',
   })
+}
+
+// A fixture that reproduces a virgin `arbiter init` render: the emitted
+// `.githooks/commit-msg` is live via `core.hooksPath`, so any git commit the
+// probe itself attempts with a non-conventional message is rejected (#2227).
+function gitHooksFixture(hook: string, hookBody: string): string {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-probe-hooks-githooks-'))
+  mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
+  mkdirSync(join(dir, '.githooks'), { recursive: true })
+  writeFileSync(
+    join(dir, '.arbiter-generated-manifest.json'),
+    JSON.stringify({
+      $schemaVersion: 1,
+      files: { [`.claude/hooks/${hook}`]: 'recorded-render-hash' },
+    }),
+  )
+  writeFileSync(join(dir, '.claude', 'hooks', hook), hookBody)
+  writeFileSync(join(dir, '.githooks', 'commit-msg'), COMMIT_MSG_TEMPLATE)
+  chmodSync(join(dir, '.githooks', 'commit-msg'), 0o755) // setup-hooks.sh does `chmod +x .githooks/*`
+  execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['config', 'user.email', 'probe' + '@' + 'example.invalid'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+  execFileSync('git', ['config', 'user.name', 'Probe'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['add', '.'], { cwd: dir, stdio: 'ignore' })
+  // The fixture's own initial commit bypasses the emitted commit-msg (the
+  // probe is what is under test, not the fixture's setup commit).
+  execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'commit', '-m', 'test: fixture'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+  return dir
 }
 
 describe('probe-hooks liveness contract (#2135)', () => {
@@ -191,6 +226,38 @@ describe('probe-hooks liveness contract (#2135)', () => {
             row.state !== applicableState && row.verdict !== 'NOT-APPLICABLE',
         ),
       ).toEqual([])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('classifies hooks when the emitted commit-msg is live via core.hooksPath (#2227)', () => {
+    const dir = gitHooksFixture('post-commit-check.mjs', 'process.exit(2)\n')
+    try {
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      const report = JSON.parse(result.stdout)
+      expect(report.failures).toEqual([])
+      expect(report.rows).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ hook: 'post-commit-check.mjs', state: 'PRIMED', verdict: 'BLOCKS' }),
+        ]),
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('tolerates a dirty working tree when establishing probe state (#2227)', () => {
+    const dir = fixture('post-commit-check.mjs', 'process.exit(2)\n')
+    try {
+      writeFileSync(join(dir, 'tracked.txt'), 'line\n')
+      execFileSync('git', ['add', 'tracked.txt'], { cwd: dir, stdio: 'ignore' })
+      execFileSync('git', ['commit', '-m', 'tracked file'], { cwd: dir, stdio: 'ignore' })
+      writeFileSync(join(dir, 'tracked.txt'), 'user edit\n')
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout).failures).toEqual([])
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
