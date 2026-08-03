@@ -1,11 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const SCRIPT = resolve('scripts/debt-report.mjs')
+const CAPTURE_SCRIPT = resolve('scripts/capture-debt-baseline.mjs')
+const DEBT_LIB = resolve('scripts/debt-lib.mjs')
+const GLOB_WALK = resolve('scripts/lib/glob-walk.mjs')
 
 function run(cwd: string, args: string[] = []) {
   const r = spawnSync('node', [SCRIPT, ...args], {
@@ -62,6 +74,48 @@ describe('debt-report.mjs (gate: debt ratchet enforcement)', () => {
   // runner) and environment-dependent. Both cases above early-return before
   // collectMetrics, giving fast, deterministic coverage of the script's own
   // guard logic; the metric-comparison path is exercised by the real gate run.
+})
+
+describe('capture-debt-baseline.mjs (collection failures)', () => {
+  it('fails closed and leaves no baseline when vitest ran without producing its summary (#2202)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const scriptsDir = join(dir, 'scripts')
+      const binDir = join(dir, 'bin')
+      mkdirSync(join(scriptsDir, 'lib'), { recursive: true })
+      mkdirSync(join(dir, 'src'), { recursive: true })
+      mkdirSync(binDir)
+      copyFileSync(CAPTURE_SCRIPT, join(scriptsDir, 'capture-debt-baseline.mjs'))
+      copyFileSync(DEBT_LIB, join(scriptsDir, 'debt-lib.mjs'))
+      copyFileSync(GLOB_WALK, join(scriptsDir, 'lib', 'glob-walk.mjs'))
+      writeFileSync(join(dir, 'src', 'fixture.ts'), 'export const fixture = 1\n')
+      writeFileSync(join(dir, '.jscpd.json'), JSON.stringify({ path: ['src'], reporters: ['json'] }))
+      writeFileSync(
+        join(binDir, 'npx'),
+        `#!/bin/sh
+case "$1" in
+  vitest) exit 0 ;;
+  eslint) printf '[]' ;;
+  knip) printf '{}' ;;
+esac
+exit 0
+`,
+      )
+      chmodSync(join(binDir, 'npx'), 0o755)
+
+      const result = spawnSync('node', [join(scriptsDir, 'capture-debt-baseline.mjs')], {
+        cwd: dir,
+        encoding: 'utf-8',
+        env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('collection FAILURE for coverageLine')
+      expect(existsSync(join(scriptsDir, 'debt-baseline.json'))).toBe(false)
+    } finally {
+      cleanup()
+    }
+  })
 })
 
 // ─── jscpdScan (#1286 — jscpd v5 fail-closed fileset contract) ────────────────

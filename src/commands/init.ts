@@ -225,7 +225,14 @@ export async function runInit(options: InitOptions): Promise<void> {
 
     checkL3MaturityGates(config)
     checkCollaborationCoherenceGate(config)
-    await generateAndFinalize(config, targetDir, options, log, isBrownfield(existing))
+    await generateAndFinalize(
+      config,
+      targetDir,
+      options,
+      log,
+      isBrownfield(existing),
+      packageManager?.name,
+    )
   } finally {
     await lock.release()
   }
@@ -305,6 +312,7 @@ async function generateAndFinalize(
   options: InitOptions,
   log: (msg: string) => void,
   brownfieldDetected: boolean,
+  packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun',
 ): Promise<void> {
   log('\n  Generating...')
   const committed: WriteResult[] = []
@@ -374,7 +382,7 @@ async function generateAndFinalize(
     }
     log(`\n  Done! ${created} files created, ${skipped} skipped.`)
 
-    maybeCaptureBaseline(config, targetDir, options.brownfield)
+    maybeCaptureBaseline(config, targetDir, options.brownfield, packageManager)
 
     activateGitHooks(targetDir, log)
 

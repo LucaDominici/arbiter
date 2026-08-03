@@ -181,9 +181,21 @@ export function resolveJscpdSpawn(cwd, opts = {}) {
  * @param {object} [opts]
  * @returns {import('child_process').SpawnSyncReturns<string> | null}
  */
+/**
+ * Whether npx declined to run because its requested package is unavailable.
+ * This is the npx equivalent of an ENOENT spawn failure: no measurement was
+ * attempted, so callers must omit the metric rather than fabricate a value or
+ * report a failed collection.
+ * @param {import('child_process').SpawnSyncReturns<string>} result
+ * @returns {boolean}
+ */
+export function isNpxMissingPackages(result) {
+  return (result.status ?? 0) !== 0 && /npx canceled due to missing packages/.test(result.stderr ?? '')
+}
+
 export function spawnOrSkip(name, tool, cmd, args, opts) {
   const r = run(cmd, args, opts ?? {})
-  if (r.error?.code === 'ENOENT') {
+  if (r.error?.code === 'ENOENT' || isNpxMissingPackages(r)) {
     process.stderr.write(`[baseline] skip ${name} — ${tool} not installed\n`)
     return null
   }
@@ -243,7 +255,7 @@ export function jscpdScan(cwd, opts = {}) {
   // `npx --no-install` exits 1 (not ENOENT) when the package is absent — that is
   // the tool-not-installed case (greenfield target without jscpd), same contract
   // as spawnOrSkip: skip the collector, never a failed-scan error.
-  if ((r.status ?? 0) !== 0 && /npx canceled due to missing packages/.test(r.stderr ?? '')) {
+  if (isNpxMissingPackages(r)) {
     process.stderr.write('[baseline] skip duplicationPercentage — jscpd not installed\n')
     return { skipped: true }
   }
@@ -430,7 +442,9 @@ export function collectMetrics(cwd, collectionErrors = []) {
   const metrics = {}
 
   // ── Coverage (vitest json reporter) ───────────────────────────────────────
-  run(
+  const coverageRaw = spawnOrSkip(
+    'coverageLine',
+    'vitest',
     'npx',
     [
       'vitest',
@@ -441,23 +455,30 @@ export function collectMetrics(cwd, collectionErrors = []) {
     ],
     { cwd },
   )
-  try {
-    const summary = JSON.parse(
-      readFileSync(resolve(cwd, '.coverage-tmp/coverage-summary.json'), 'utf-8'),
-    )
-    metrics.coverageLine = {
-      value: summary.total.lines.pct,
-      unit: 'percent',
-      direction: 'higher-is-better',
-    }
+  if (coverageRaw !== null) {
+    try {
+      const summary = JSON.parse(
+        readFileSync(resolve(cwd, '.coverage-tmp/coverage-summary.json'), 'utf-8'),
+      )
+      if (typeof summary.total?.lines?.pct !== 'number') {
+        throw new Error('coverage summary has no numeric total.lines.pct')
+      }
+      metrics.coverageLine = {
+        value: summary.total.lines.pct,
+        unit: 'percent',
+        direction: 'higher-is-better',
+      }
 
-    metrics.coverageBranch = {
-      value: summary.total.branches?.pct ?? 0,
-      unit: 'percent',
-      direction: 'higher-is-better',
+      metrics.coverageBranch = {
+        value: summary.total.branches?.pct ?? 0,
+        unit: 'percent',
+        direction: 'higher-is-better',
+      }
+    } catch (err) {
+      const reason = `vitest coverage summary unreadable: ${err instanceof Error ? err.message : String(err)}`
+      collectionErrors.push({ metric: 'coverageLine', reason })
+      process.stderr.write(`[baseline] ERROR: ${reason}\n`)
     }
-  } catch {
-    metrics.coverageLine = { value: 0, unit: 'percent', direction: 'higher-is-better' }
   }
 
   // ── ESLint errors (severity 2) ────────────────────────────────────────────
@@ -476,8 +497,10 @@ export function collectMetrics(cwd, collectionErrors = []) {
         unit: 'count',
         direction: 'lower-is-better',
       }
-    } catch {
-      metrics.eslintErrors = { value: 0, unit: 'count', direction: 'lower-is-better' }
+    } catch (err) {
+      const reason = `eslint report unreadable: ${err instanceof Error ? err.message : String(err)}`
+      collectionErrors.push({ metric: 'eslintErrors', reason })
+      process.stderr.write(`[baseline] ERROR: ${reason}\n`)
     }
   }
 
@@ -512,8 +535,10 @@ export function collectMetrics(cwd, collectionErrors = []) {
         unit: 'count',
         direction: 'lower-is-better',
       }
-    } catch {
-      metrics.complexityViolations = { value: 0, unit: 'count', direction: 'lower-is-better' }
+    } catch (err) {
+      const reason = `eslint complexity report unreadable: ${err instanceof Error ? err.message : String(err)}`
+      collectionErrors.push({ metric: 'complexityViolations', reason })
+      process.stderr.write(`[baseline] ERROR: ${reason}\n`)
     }
   }
 
@@ -527,8 +552,10 @@ export function collectMetrics(cwd, collectionErrors = []) {
         unit: 'count',
         direction: 'lower-is-better',
       }
-    } catch {
-      metrics.deadCode = { value: 0, unit: 'count', direction: 'lower-is-better' }
+    } catch (err) {
+      const reason = `knip report unreadable: ${err instanceof Error ? err.message : String(err)}`
+      collectionErrors.push({ metric: 'deadCode', reason })
+      process.stderr.write(`[baseline] ERROR: ${reason}\n`)
     }
   }
 
@@ -558,13 +585,21 @@ export function collectMetrics(cwd, collectionErrors = []) {
 
   // ── Public API surface (library archetype — count of top-level exports) ───
   {
-    const grepOut = run('grep', ['-rh', '--include=*.ts', '--include=*.mts', '^export', 'src/'], {
-      cwd,
-    })
-    metrics.publicApiSurface = {
-      value: grepOut.stdout ? grepOut.stdout.split('\n').filter(Boolean).length : 0,
-      unit: 'count',
-      direction: 'lower-is-better',
+    if (existsSync(resolve(cwd, 'src'))) {
+      const grepOut = run('grep', ['-rh', '--include=*.ts', '--include=*.mts', '^export', 'src/'], {
+        cwd,
+      })
+      if (grepOut.error || (grepOut.status !== 0 && grepOut.status !== 1)) {
+        const reason = `public API grep failed${grepOut.error?.message ? `: ${grepOut.error.message}` : ` (exit ${grepOut.status})`}`
+        collectionErrors.push({ metric: 'publicApiSurface', reason })
+        process.stderr.write(`[baseline] ERROR: ${reason}\n`)
+      } else {
+        metrics.publicApiSurface = {
+          value: grepOut.stdout ? grepOut.stdout.split('\n').filter(Boolean).length : 0,
+          unit: 'count',
+          direction: 'lower-is-better',
+        }
+      }
     }
   }
 

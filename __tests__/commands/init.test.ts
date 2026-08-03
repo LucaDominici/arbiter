@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 
 // Module-level mocks must be at top level (hoisted by vitest)
@@ -309,7 +309,7 @@ describe('runInit', () => {
       runInit({
         yes: true,
         tools: 'claude',
-        level: 'L2',
+        level: 'L3',
         dir,
         dryRun: false,
         brownfield: false,
@@ -330,6 +330,34 @@ describe('runInit', () => {
       noVerify: true,
     })
     expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+  })
+
+  it('defers TS brownfield baseline capture until npm install creates node_modules (#2202)', async () => {
+    let stdout = ''
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      stdout += String(chunk)
+      return true
+    })
+    try {
+      const { runInit } = await import('../../src/commands/init.js')
+      await runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L3',
+        dir,
+        dryRun: false,
+        brownfield: true,
+        noVerify: true,
+      })
+
+      expect(mockRunCli).not.toHaveBeenCalled()
+      expect(existsSync(`${dir}/scripts/debt-baseline.json`)).toBe(false)
+      expect(stdout).toContain('Debt baseline NOT captured: node_modules is absent')
+      expect(stdout).toContain('Run npm install, then: node scripts/capture-debt-baseline.mjs')
+      expect(exitSpy).not.toHaveBeenCalledWith(1)
+    } finally {
+      stdoutSpy.mockRestore()
+    }
   })
 
   it('runs toolchain verify when noVerify is false', async () => {

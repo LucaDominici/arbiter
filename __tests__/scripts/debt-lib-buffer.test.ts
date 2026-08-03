@@ -11,10 +11,11 @@
  * could never see a real regression. This guard asserts `run()` (via the exported
  * `spawnOrSkip`) returns the FULL output for >1 MiB payloads instead of aborting.
  */
-import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { spawnOrSkip } from '../../scripts/debt-lib.mjs'
+import { describe, it, expect, vi } from 'vitest'
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { delimiter, join } from 'node:path'
+import { collectMetrics, spawnOrSkip } from '../../scripts/debt-lib.mjs'
 
 const ROOT = join(__dirname, '..', '..')
 
@@ -38,5 +39,101 @@ describe('debt-lib complexity ratchet scope (#1523/#1542)', () => {
     // The complexityViolations collector must pass both paths so the gate code is
     // ratcheted alongside product code.
     expect(source).toMatch(/'eslint',\s*'src',\s*'scripts'/)
+  })
+})
+
+function makeMetricsFixture(): { dir: string; binDir: string; cleanup: () => void } {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-debt-lib-2202-'))
+  const binDir = join(dir, 'bin')
+  mkdirSync(join(dir, 'src'), { recursive: true })
+  mkdirSync(binDir)
+  writeFileSync(join(dir, 'src', 'fixture.ts'), 'export const fixture = 1\n')
+  writeFileSync(join(dir, '.jscpd.json'), JSON.stringify({ path: ['src'], reporters: ['json'] }))
+  writeFileSync(
+    join(binDir, 'npx'),
+    `#!/bin/sh
+case "$1" in
+  vitest) exit 0 ;;
+  eslint) printf '[]' ;;
+  knip) printf '{}' ;;
+esac
+exit 0
+`,
+  )
+  writeFileSync(join(binDir, 'grep'), '#!/bin/sh\nexit 1\n')
+  chmodSync(join(binDir, 'npx'), 0o755)
+  chmodSync(join(binDir, 'grep'), 0o755)
+  return { dir, binDir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
+}
+
+function withPath<T>(path: string, fn: () => T, appendPrior = true): T {
+  const prior = process.env.PATH
+  process.env.PATH = appendPrior ? `${path}${delimiter}${prior ?? ''}` : path
+  try {
+    return fn()
+  } finally {
+    process.env.PATH = prior
+  }
+}
+
+describe('debt-lib collection failures (#2202)', () => {
+  it('omits coverage and reports a collection error when vitest ran without a coverage summary', () => {
+    const { dir, binDir, cleanup } = makeMetricsFixture()
+    try {
+      const errors: Array<{ metric: string; reason: string }> = []
+
+      const metrics = withPath(binDir, () => collectMetrics(dir, errors))
+
+      expect(metrics.coverageLine).toBeUndefined()
+      expect(errors).toContainEqual(expect.objectContaining({ metric: 'coverageLine' }))
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('soft-skips vitest when npx is not installed without recording a collection error', () => {
+    const { dir, cleanup } = makeMetricsFixture()
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try {
+      const errors: Array<{ metric: string; reason: string }> = []
+      // Deliberately omit npx from PATH while retaining grep for the independent
+      // public-API scan and direct jscpd execution.
+      const noNpxDir = join(dir, 'no-npx')
+      mkdirSync(noNpxDir)
+      writeFileSync(join(noNpxDir, 'grep'), '#!/bin/sh\nexit 1\n')
+      chmodSync(join(noNpxDir, 'grep'), 0o755)
+
+      const metrics = withPath(noNpxDir, () => collectMetrics(dir, errors), false)
+
+      expect(metrics.coverageLine).toBeUndefined()
+      expect(errors).not.toContainEqual(expect.objectContaining({ metric: 'coverageLine' }))
+      expect(stderr).toHaveBeenCalledWith('[baseline] skip coverageLine — vitest not installed\n')
+    } finally {
+      stderr.mockRestore()
+      cleanup()
+    }
+  })
+
+  it('soft-skips vitest when npx reports missing packages without recording a collection error', () => {
+    const { dir, binDir, cleanup } = makeMetricsFixture()
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try {
+      writeFileSync(
+        join(binDir, 'npx'),
+        '#!/bin/sh\necho "npm error npx canceled due to missing packages and no YES option" 1>&2\nexit 1\n',
+      )
+      chmodSync(join(binDir, 'npx'), 0o755)
+      const errors: Array<{ metric: string; reason: string }> = []
+
+      const metrics = withPath(binDir, () => collectMetrics(dir, errors))
+
+      expect(metrics.coverageLine).toBeUndefined()
+      expect(metrics.coverageBranch).toBeUndefined()
+      expect(errors).not.toContainEqual(expect.objectContaining({ metric: 'coverageLine' }))
+      expect(stderr).toHaveBeenCalledWith('[baseline] skip coverageLine — vitest not installed\n')
+    } finally {
+      stderr.mockRestore()
+      cleanup()
+    }
   })
 })

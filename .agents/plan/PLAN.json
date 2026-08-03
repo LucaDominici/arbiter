@@ -1,49 +1,29 @@
 {
-  "task_id": "#2137",
+  "task_id": "#2202",
   "scope": {
     "track": "A",
     "paths": [
-      "src/commands/init.ts",
-      "src/commands/init/generate.ts",
-      "src/commands/init/resolve-config.ts",
-      "src/commands/init/build-arbiter-config.ts",
-      "src/commands/adopt-policy.ts",
-      "src/commands/update.ts",
-      "src/commands/diff.ts",
-      "src/compatibility/probe.ts",
-      "src/config/schema.ts",
-      "src/config/resolve-project-config.ts",
-      "src/detectors/package-manager.ts",
-      "src/detectors/build.ts",
-      "src/detectors/framework.ts",
-      "src/detectors/lanes.ts",
-      "src/detectors/existing.ts",
-      "src/wizard/types.ts",
-      "src/wizard/prompts.ts",
-      "src/templates/scripts/check-all.mjs.ejs",
-      "src/templates/scripts/debt-lib.mjs.ejs",
       "scripts/debt-lib.mjs",
-      "__tests__/**"
+      "src/templates/scripts/debt-lib.mjs.ejs",
+      "src/commands/init/generate.ts",
+      "__tests__/scripts/debt-lib-buffer.test.ts",
+      "__tests__/scripts/debt-report.test.ts",
+      "__tests__/commands/init*.test.ts"
     ]
   },
   "files": [
-    { "path": "src/commands/init.ts", "operation": "modify" },
-    { "path": "src/detectors/package-manager.ts", "operation": "create" },
-    { "path": "src/detectors/build.ts", "operation": "modify" },
-    { "path": "src/detectors/framework.ts", "operation": "modify" },
-    { "path": "src/detectors/lanes.ts", "operation": "modify" },
-    { "path": "src/detectors/existing.ts", "operation": "modify" },
-    { "path": "src/compatibility/probe.ts", "operation": "modify" },
-    { "path": "src/commands/adopt-policy.ts", "operation": "create" },
     { "path": "scripts/debt-lib.mjs", "operation": "modify" },
-    { "path": "src/templates/scripts/check-all.mjs.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/debt-lib.mjs.ejs", "operation": "modify" }
+    { "path": "src/templates/scripts/debt-lib.mjs.ejs", "operation": "modify" },
+    { "path": "src/commands/init/generate.ts", "operation": "modify" },
+    { "path": "__tests__/scripts/debt-lib-buffer.test.ts", "operation": "modify" },
+    { "path": "__tests__/scripts/debt-report.test.ts", "operation": "modify" },
+    { "path": "__tests__/commands/init.test.ts", "operation": "modify" }
   ],
   "invariants": {
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": ["INV-01", "INV-02", "INV-04", "INV-06", "INV-17", "INV-22", "INV-23", "INV-24", "INV-25", "INV-26", "INV-27"],
+  "invariant_ids": ["INV-04", "INV-06", "INV-17", "INV-24", "INV-26", "INV-45", "INV-53"],
   "review_bridge": {
     "enabled": true,
     "reviewer": "bridge-reviewer",
