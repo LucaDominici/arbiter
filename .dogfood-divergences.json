@@ -469,6 +469,6 @@
     "path": "run-helpers.mjs",
     "dest": "scripts/lib",
     "reason": "Arbiter self-dogfood: the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. #2104 additionally adds `resolveTmpfsTmpdir` (TMPDIR on tmpfs) to the SHIPPED twin only: the 210s->33.7s measurement behind it is a Go/SQLite fsync-bound workload, arbiter's own gate is Node/TS and the lever is unmeasured there — and an exported-but-unwired helper would trip the unused-export guard. #2197 adds emitted-guard manifest classification only to the SHIPPED helper because arbiter's self gate calls its two committed guards unconditionally. Reconciliation tracked as follow-up, not silent drift. #2032 adds the failed-check dump TAIL (DUMP_TAIL_LINES/tail()) to BOTH twins with equivalent semantics; the divergence remains the same self-vs-shipped prose and semicolon style. Re-pinned 2026-08-03 (#2010): isMainModule() was added identically to BOTH sides; the residual delta is the node:path import line (self needs only resolve, the template also needs join).",
-    "diffHash": "22c9ea05df9ae193c6f07ed2a8b16eab08e836ab306530f304d4c4c7fa6845e5"
+    "diffHash": "19fb128b30aa8e43ce5eca3972f96f56e54661943bc6c3eded5229340c9fe068"
   }
 ]
