@@ -388,7 +388,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
+        with:
+          # The debt ratchet's coverage collection runs the full unit suite; the
+          # TypeScript suite needs the built CLI (behavioral tests spawn dist/cli.js)
+          # and full git history (TDD-evidence sha reachability) — without both,
+          # vitest exits 1, no coverage summary is written, and the gate fails
+          # closed (#2226).
+          fetch-depth: 0
+
       - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Build
+        run: npm run build
 
       - name: Run debt ratchet
         run: node scripts/debt-report.mjs --gate
