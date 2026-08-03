@@ -40,8 +40,14 @@ const allowlist = new Set()
 if (inventoryPath && existsSync(inventoryPath)) {
   const raw = JSON.parse(readFileSync(inventoryPath, 'utf-8'))
   for (const entry of raw) {
-    if (entry.file && entry.line) {
-      allowlist.add(`${entry.file}:${entry.line}`)
+    if (typeof entry.text !== 'string') {
+      console.error(
+        `check-no-raw-strings: malformed inventory entry at ${entry.file ?? '<unknown file>'}:${entry.line ?? '<unknown line>'}: missing text`,
+      )
+      process.exit(1)
+    }
+    if (entry.file) {
+      allowlist.add(`${entry.file}::${entry.text.trim()}`)
     }
   }
 }
@@ -64,7 +70,7 @@ function scanFile(filePath) {
     const line = lines[i]
     const lineNum = i + 1
     const rel = relative(srcDir, filePath)
-    const key = `${rel}:${lineNum}`
+    const key = `${rel}::${line.trim()}`
 
     const isRawConsole = RAW_CONSOLE.test(line) && !I18N_CALL.test(line)
     const isRawThrow = RAW_THROW.test(line) && !I18N_THROW.test(line)

@@ -87,15 +87,18 @@ describe('check-no-raw-strings scanner (#656)', () => {
     }
   })
 
-  it('exits 0 when call-site is in inventory allowlist', () => {
+  it('exits 0 when an unchanged call-site is correctly allowlisted', () => {
     const { dir, cleanup } = makeDir()
     try {
       const file = join(dir, 'allowed.ts')
-      writeFileSync(file, 'console.log("intentional dev-only output")\n')
+      const text = 'console.log("intentional dev-only output")'
+      writeFileSync(file, `${text}\n`)
       const inventoryPath = join(dir, 'inventory.json')
       writeFileSync(
         inventoryPath,
-        JSON.stringify([{ file: 'allowed.ts', line: 1, justification: 'dev-only debug output' }]),
+        JSON.stringify([
+          { file: 'allowed.ts', line: 1, text, justification: 'dev-only debug output' },
+        ]),
       )
       const result = runScanner(dir, inventoryPath)
       expect(result.status).toBe(0)
@@ -115,10 +118,64 @@ describe('check-no-raw-strings scanner (#656)', () => {
       const inventoryPath = join(dir, 'inventory.json')
       writeFileSync(
         inventoryPath,
-        JSON.stringify([{ file: 'mixed.ts', line: 1, justification: 'allowed' }]),
+        JSON.stringify([
+          {
+            file: 'mixed.ts',
+            line: 1,
+            text: 'console.log("allowed")',
+            justification: 'allowed',
+          },
+        ]),
       )
       const result = runScanner(dir, inventoryPath)
       expect(result.status).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('allowlist survives a line insertion above the allowlisted site', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const file = join(dir, 'shifted.ts')
+      const text = 'console.log("intentional dev-only output")'
+      writeFileSync(file, `${text}\n`)
+      const inventoryPath = join(dir, 'inventory.json')
+      writeFileSync(
+        inventoryPath,
+        JSON.stringify([
+          { file: 'shifted.ts', line: 1, text, justification: 'dev-only debug output' },
+        ]),
+      )
+
+      writeFileSync(file, `\n\n\n${text}\n`)
+
+      const result = runScanner(dir, inventoryPath)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('allowlist stops covering a line whose content changed', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const file = join(dir, 'changed.ts')
+      const text = 'console.log("intentional dev-only output")'
+      writeFileSync(file, `${text}\n`)
+      const inventoryPath = join(dir, 'inventory.json')
+      writeFileSync(
+        inventoryPath,
+        JSON.stringify([
+          { file: 'changed.ts', line: 1, text, justification: 'dev-only debug output' },
+        ]),
+      )
+
+      writeFileSync(file, 'console.log("different raw string")\n')
+
+      const result = runScanner(dir, inventoryPath)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('changed.ts:1  console.log("different raw string")')
     } finally {
       cleanup()
     }
