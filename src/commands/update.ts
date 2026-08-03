@@ -252,7 +252,9 @@ export function recordLocalOverride(
  * for unit testing the pure decision.
  */
 export function withheldSafetyKeys(results: WriteResult[], targetDir: string): string[] {
-  return withheldKeys(results, targetDir).filter((key) => isSafetyClassKey(key) || isGateSpineKey(key))
+  return withheldKeys(results, targetDir).filter(
+    (key) => isSafetyClassKey(key) || isGateSpineKey(key),
+  )
 }
 
 /** TargetDir-relative governance-class keys still withheld after this run. */

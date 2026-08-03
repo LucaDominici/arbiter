@@ -250,11 +250,11 @@ opt-in, with the same reversible envelope when they do. Safety and gate spine ar
 `scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as long as a member of
 either class stays withheld and unmarked.
 
-| class              | pattern                                      | default  | flag                           |
-| ------------------ | -------------------------------------------- | -------- | ------------------------------ |
-| safety (T1)        | `.claude/hooks/*.mjs`                        | adopt    | `--no-adopt-safety` (opt out)  |
-| gate spine (#2119) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | withhold | `--adopt-gate-spine` (opt in)  |
-| governance (#2141) | `AGENTS.md`, `.claude/settings.json`         | withhold | `--adopt-governance` (opt in)  |
+| class              | pattern                                      | default  | flag                          |
+| ------------------ | -------------------------------------------- | -------- | ----------------------------- |
+| safety (T1)        | `.claude/hooks/*.mjs`                        | adopt    | `--no-adopt-safety` (opt out) |
+| gate spine (#2119) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | withhold | `--adopt-gate-spine` (opt in) |
+| governance (#2141) | `AGENTS.md`, `.claude/settings.json`         | withhold | `--adopt-governance` (opt in) |
 
 `--no-adopt-gate-spine` is still accepted as a no-op, so a consumer script written during the #2119
 moratorium keeps working.

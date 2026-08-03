@@ -150,7 +150,9 @@ describe('arbiter update', () => {
     // These template-aged copies are still pristine: record their hashes so
     // the update may refresh them. A user-diverged file must be withheld.
     const manifest = loadGeneratedManifest(dir)
-    manifest['AGENTS.md'] = createHash('sha256').update(readFileSync(agentsPath, 'utf-8')).digest('hex')
+    manifest['AGENTS.md'] = createHash('sha256')
+      .update(readFileSync(agentsPath, 'utf-8'))
+      .digest('hex')
     manifest['.claude/settings.json'] = createHash('sha256')
       .update(readFileSync(settingsPath, 'utf-8'))
       .digest('hex')

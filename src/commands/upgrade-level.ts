@@ -107,6 +107,30 @@ function captureBaselineIfPresent(dir: string): void {
   }
 }
 
+/** Reject upgrades other than the supported L1-to-L2 grace-period transition. */
+function rejectUnsupportedUpgradeTarget(
+  current: GovernanceLevel,
+  target: GovernanceLevel,
+  json: boolean | undefined,
+): boolean {
+  if (current === 'L1' && target === 'L2') return false
+
+  const error = ArbiterError.fromKey(
+    'E_GRACE_NOT_SUPPORTED',
+    'errors.E_GRACE_NOT_SUPPORTED',
+    {},
+    {
+      hint: 'To move to a higher level, run `arbiter configure --set governanceLevel=<L3|L4>` followed by `arbiter update`.',
+    },
+  )
+  if (json) {
+    jsonOutput('upgrade-level', 'error', {}, [error.message])
+    process.exit(1)
+    return true
+  }
+  throw error
+}
+
 export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> {
   assertValidGraceDays(opts.days)
 
@@ -170,23 +194,7 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
     )
   }
 
-  if (current !== 'L1' || target !== 'L2') {
-    const error = ArbiterError.fromKey(
-      'E_GRACE_NOT_SUPPORTED',
-      'errors.E_GRACE_NOT_SUPPORTED',
-      {},
-      {
-        hint:
-          'To move to a higher level, run `arbiter configure --set governanceLevel=<L3|L4>` followed by `arbiter update`.',
-      },
-    )
-    if (opts.json) {
-      jsonOutput('upgrade-level', 'error', {}, [error.message])
-      process.exit(1)
-      return
-    }
-    throw error
-  }
+  if (rejectUnsupportedUpgradeTarget(current, target, opts.json)) return
 
   const days = opts.days ?? DEFAULT_GRACE_DAYS
   // Clamp + warn in one place; effectiveDays is what messaging/JSON must report

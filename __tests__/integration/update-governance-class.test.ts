@@ -100,8 +100,7 @@ describe('#2141: a diverged governance file is withheld unless explicitly adopte
 
   function divergeGateSpine(): string {
     const localContent =
-      readFileSync(join(dir, GATE_SPINE), 'utf-8') +
-      '\n// Local gate extension: do not erase.\n'
+      readFileSync(join(dir, GATE_SPINE), 'utf-8') + '\n// Local gate extension: do not erase.\n'
     writeFileSync(join(dir, GATE_SPINE), localContent)
     return localContent
   }
@@ -168,7 +167,10 @@ describe('#2141: a diverged governance file is withheld unless explicitly adopte
     expect(combined).toContain(AGENTS)
     expect(combined).toContain('--adopt-governance')
     expect(combined).toContain(GATE_SPINE)
-    const warnings = output.stderr().split('\n').filter((line) => line.includes('Warning:'))
+    const warnings = output
+      .stderr()
+      .split('\n')
+      .filter((line) => line.includes('Warning:'))
     expect(warnings).toHaveLength(2)
     for (const warning of warnings) {
       expect(warning).toContain('arbiter diff --withheld')

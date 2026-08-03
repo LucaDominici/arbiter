@@ -137,7 +137,7 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
     level = upperLevel as GovernanceLevel
   } else {
     throw new Error(
-      `arbiter.json governanceLevel must be one of L1, L2, L3, L4 — got ${String(rawLevel)}`,
+      `arbiter.json governanceLevel must be one of L1, L2, L3, L4 — got ${typeof rawLevel === 'string' ? rawLevel : JSON.stringify(rawLevel)}`,
     )
   }
 
