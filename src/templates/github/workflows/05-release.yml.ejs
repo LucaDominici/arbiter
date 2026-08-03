@@ -273,9 +273,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
-      # gitleaks-action downloads to a HARDCODED /tmp/gitleaks.tmp; on a self-hosted
-      # runner a leftover from an interrupted download fails every later install for
-      # good ("Destination file path /tmp/gitleaks.tmp already exists"), #2100.
+      # gitleaks-action downloads to a HARDCODED /tmp/gitleaks.tmp. On a self-hosted
+      # runner /tmp survives between jobs, so a leftover from an interrupted download
+      # fails every later install after both internal retries ("Destination file path
+      # /tmp/gitleaks.tmp already exists" then "parameter 'file' is required") — the
+      # cause of #2100.
+      # ponytail: unconditional delete — one gitleaks job per workflow run, so nothing
+      # else is mid-download. If gitleaks ever runs in parallel jobs on one runner,
+      # switch to the curl -> $RUNNER_TEMP/bin install shape used in 01-pr-fast.
       - name: Clear stale gitleaks download temp
         run: rm -f /tmp/gitleaks.tmp
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e  # v3.0.0

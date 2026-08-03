@@ -21,10 +21,13 @@ function runFailingCheck(lines: number): string {
     const driver = join(dir, 'driver.mjs')
     writeFileSync(
       driver,
+      // `process.exitCode`, never `process.exit()`: exiting outright discards stdout writes
+      // still queued on the pipe, which truncates the child's output nondeterministically
+      // under parallel test load — the very failure mode this dump is meant to expose.
       `import { runCheck } from ${JSON.stringify(HELPERS)}
 runCheck('noisy', process.execPath, [
   '-e',
-  'for (let i = 1; i <= ${lines}; i++) console.log("line " + i); process.exit(1)',
+  'for (let i = 1; i <= ${lines}; i++) console.log("line " + i); process.exitCode = 1',
 ])
 `,
     )

@@ -147,9 +147,14 @@ jobs:
           name: semgrep-sarif
           path: semgrep.sarif
           retention-days: 30
-      # gitleaks-action downloads to a HARDCODED /tmp/gitleaks.tmp; on a self-hosted
-      # runner a leftover from an interrupted download fails every later install for
-      # good ("Destination file path /tmp/gitleaks.tmp already exists"), #2100.
+      # gitleaks-action downloads to a HARDCODED /tmp/gitleaks.tmp. On a self-hosted
+      # runner /tmp survives between jobs, so a leftover from an interrupted download
+      # fails every later install after both internal retries ("Destination file path
+      # /tmp/gitleaks.tmp already exists" then "parameter 'file' is required") — the
+      # cause of #2100.
+      # ponytail: unconditional delete — one gitleaks job per workflow run, so nothing
+      # else is mid-download. If gitleaks ever runs in parallel jobs on one runner,
+      # switch to the curl -> $RUNNER_TEMP/bin install shape used in 01-pr-fast.
       - name: Clear stale gitleaks download temp
         run: rm -f /tmp/gitleaks.tmp
       - name: Gitleaks full history scan
