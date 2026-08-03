@@ -540,12 +540,29 @@ jobs:
         # if any pattern survives its re-scan, so a leak blocks the upload instead
         # of shipping inside it. No-op where that scrubber is not present.
         run: |
-          if [ -d .arbiter/evidence ] && [ -f scripts/publish-evidence-snapshot.mjs ]; then
+          if [ ! -d .arbiter/evidence ]; then
+            echo "no evidence to publish (no .arbiter/evidence)"
+          elif [ -f scripts/publish-evidence-snapshot.mjs ]; then
             node scripts/publish-evidence-snapshot.mjs \
               --input .arbiter/evidence \
               --output nightly-evidence/evidence
+          elif node --input-type=module -e '
+            import { existsSync, readFileSync } from "node:fs";
+            const path = "scripts/publish-evidence-snapshot.mjs";
+            const manifestPath = ".arbiter-generated-manifest.json";
+            if (!existsSync(manifestPath)) process.exit(0);
+            let manifest;
+            try { manifest = JSON.parse(readFileSync(manifestPath, "utf8")); }
+            catch (err) { console.error(`invalid ${manifestPath}: ${err.message}`); process.exit(2); }
+            if (manifest?.$schemaVersion !== 1 || !manifest.files || typeof manifest.files !== "object") {
+              console.error(`invalid ${manifestPath} shape`); process.exit(2);
+            }
+            process.exit(Object.hasOwn(manifest.files, path) ? 1 : 0);
+          '; then
+            echo "no evidence scrubber emitted for this project"
           else
-            echo "no evidence to publish (no .arbiter/evidence, or no scrubber in this project)"
+            echo "ERROR: scripts/publish-evidence-snapshot.mjs was emitted by arbiter but is now missing"
+            exit 1
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # Supplementary artifact — never let an Artifacts-quota hiccup fail this

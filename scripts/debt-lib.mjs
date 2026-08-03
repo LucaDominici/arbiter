@@ -443,7 +443,7 @@ export function getCommit(cwd) {
 export function collectMetrics(cwd, collectionErrors = []) {
   const metrics = {}
 
-  // ── Coverage (vitest json reporter) ───────────────────────────────────────
+  // ── Coverage (vitest json-summary reporter) ───────────────────────────────
   const coverageRaw = spawnOrSkip(
     'coverageLine',
     'vitest',
@@ -452,7 +452,7 @@ export function collectMetrics(cwd, collectionErrors = []) {
       'vitest',
       'run',
       '--coverage',
-      '--coverage.reporter=json',
+      '--coverage.reporter=json-summary',
       '--coverage.reportsDirectory=.coverage-tmp',
     ],
     { cwd },

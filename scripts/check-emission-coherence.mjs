@@ -109,6 +109,14 @@ function isShellGuarded(content, scriptPath) {
   return new RegExp(`\\[\\s*-[fx]\\s+["']?${esc}["']?\\s*\\]`).test(content)
 }
 
+// Workflow scripts that are optional at generation time need a stronger guard than
+// a plain `[ -f ]`: that probe alone also hides an artifact deleted after delivery.
+// The generated-manifest probe makes the workflow skip only when the artifact was
+// never emitted; a manifest-owned missing path fails the workflow instead.
+function isManifestAwareWorkflowGuarded(content, scriptPath) {
+  return isShellGuarded(content, scriptPath) && content.includes('.arbiter-generated-manifest.json')
+}
+
 function checkCheckAll(dir, optional, problems) {
   const checkAll = read(dir, 'scripts/check-all.mjs')
   if (checkAll === null) {
@@ -197,35 +205,52 @@ function checkNpmRunReferences(content, label, scripts, problems) {
   }
 }
 
-function checkWorkflow(dir, file, scripts, problems) {
-  const c = read(dir, `.github/workflows/${file}`)
-  if (c === null) return
-  checkNpmRunReferences(c, file, scripts, problems)
-  for (const m of c.matchAll(/uses:\s*([\w./-]+(?::\/\/[\w./:-]+)?)@([\w.-]+)/g)) {
+function checkWorkflowHygiene(content, file, scripts, problems) {
+  checkNpmRunReferences(content, file, scripts, problems)
+  for (const m of content.matchAll(/uses:\s*([\w./-]+(?::\/\/[\w./:-]+)?)@([\w.-]+)/g)) {
     const ref = m[1]
     // Local composite actions (./...) and container actions (docker://...) carry
     // no 40-hex commit pin — they are legitimately not SHA-pinnable (RT-01).
     if (ref.startsWith('./') || ref.startsWith('docker://')) continue
     if (!/^[0-9a-f]{40}$/.test(m[2])) problems.push(`${file}: non-SHA pin ${ref}@${m[2]}`)
   }
-  const jobsBlock = c.split(/(?:^|\n)jobs:[ \t]*\n/)[1]
+  const jobsBlock = content.split(/(?:^|\n)jobs:[ \t]*\n/)[1]
   if (jobsBlock != null) {
     for (const jm of jobsBlock.matchAll(/^ {2}([\w-]+):\s*\n((?: {2,}.*\n?|\s*\n)*)/gm)) {
       if (!/^ {4}name:/m.test(jm[2])) problems.push(`${file}: job "${jm[1]}" has no name:`)
     }
   }
-  for (const m of c.matchAll(/node\s+(scripts\/[\w./-]+\.mjs)/g)) {
-    if (!existsSync(join(dir, m[1]))) problems.push(`${file} invokes missing ${m[1]}`)
+}
+
+function checkWorkflowScriptReferences(dir, file, content, optional, problems) {
+  for (const m of content.matchAll(/node\s+(scripts\/[\w./-]+\.mjs)/g)) {
+    const ref = m[1]
+    if (existsSync(join(dir, ref))) continue
+    if (isManifestAwareWorkflowGuarded(content, ref) && optional.has(ref)) continue
+    if (isManifestAwareWorkflowGuarded(content, ref)) {
+      problems.push(
+        `${file} guards missing ${ref} but it is not declared in optional-emissions.json`,
+      )
+      continue
+    }
+    problems.push(`${file} invokes missing ${ref}`)
   }
 }
 
-function checkWorkflows(dir, problems) {
+function checkWorkflow(dir, file, scripts, optional, problems) {
+  const c = read(dir, `.github/workflows/${file}`)
+  if (c === null) return
+  checkWorkflowHygiene(c, file, scripts, problems)
+  checkWorkflowScriptReferences(dir, file, c, optional, problems)
+}
+
+function checkWorkflows(dir, optional, problems) {
   const wfDir = join(dir, '.github/workflows')
   if (!existsSync(wfDir)) return
   const scripts = emittedNpmScripts(dir)
   for (const f of readdirSync(wfDir)) {
     if (!/\.ya?ml$/.test(f)) continue
-    checkWorkflow(dir, f, scripts, problems)
+    checkWorkflow(dir, f, scripts, optional, problems)
   }
 }
 
@@ -389,7 +414,7 @@ export function checkEmissionCoherence(dir) {
   checkUnreferencedScripts(dir, optional, problems)
   checkHooks(dir, problems)
   checkGithooks(dir, optional, problems)
-  checkWorkflows(dir, problems)
+  checkWorkflows(dir, optional, problems)
   checkSettings(dir, problems)
   checkCodexConfig(dir, problems)
   checkMakefile(dir, problems)

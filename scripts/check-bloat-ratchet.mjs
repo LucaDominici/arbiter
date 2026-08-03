@@ -81,37 +81,43 @@ function gitOutput(args) {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim()
-    // FAIL-OPEN-INTENT: callers surface the unavailable Git state as an explicit
-    // non-applicable merge-result check; repositories without origin/main are valid.
+    // FAIL-OPEN-INTENT: callers surface the unavailable Git state as an explicit non-applicable merge-result check; repositories without origin/main are valid.
   } catch {
     return null
   }
 }
 
-function checkMergeResult() {
-  if (gitOutput(['rev-parse', '--verify', '--quiet', 'origin/main']) === null) {
+function hasMergeResultToCheck() {
+  const originMain = gitOutput(['rev-parse', '--verify', '--quiet', 'origin/main'])
+  if (originMain === null) {
     process.stdout.write('[bloat] merge result check skipped: origin/main does not exist\n')
-    return
+    return false
   }
   if (gitOutput(['merge-base', '--is-ancestor', 'origin/main', 'HEAD']) !== null) {
     process.stdout.write('[bloat] merge result check skipped: HEAD already contains origin/main\n')
-    return
+    return false
   }
+  return true
+}
 
+function mergeResultPaths() {
   const tree = gitOutput(['merge-tree', '--write-tree', 'origin/main', 'HEAD'])
   if (!tree || !/^[0-9a-f]{40,64}$/.test(tree)) {
     process.stdout.write(
       '[bloat] merge result check skipped: merge tree unavailable or conflicted\n',
     )
-    return
+    return null
   }
   const paths = gitOutput(['ls-tree', '-r', '--name-only', tree])
   if (paths === null) {
     process.stdout.write('[bloat] merge result check skipped: could not list merge tree\n')
-    return
+    return null
   }
+  return paths ? paths.split('\n') : []
+}
 
-  const counts = countBucketPaths(paths ? paths.split('\n') : [])
+function recordMergeResultViolations(paths) {
+  const counts = countBucketPaths(paths)
   for (const [bucket, { thresholds: thr }] of Object.entries(BLOAT_BUCKETS)) {
     const base = baseline.buckets?.[bucket]
     if (!base) continue
@@ -123,6 +129,13 @@ function checkMergeResult() {
       )
     }
   }
+}
+
+function checkMergeResult() {
+  if (!hasMergeResultToCheck()) return
+  const paths = mergeResultPaths()
+  if (paths === null) return
+  recordMergeResultViolations(paths)
 }
 
 checkMergeResult()

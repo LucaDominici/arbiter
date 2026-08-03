@@ -64,6 +64,12 @@ describe('all stacks: shared invariants', () => {
 
 // ─── TypeScript-specific ──────────────────────────────────────────────────────
 describe('typescript metrics', () => {
+  it('typescript: debt-lib requests the coverage summary it reads', () => {
+    const { lib } = renderAll({ language: 'typescript' })
+    expect(lib).toContain('--coverage.reporter=json-summary')
+    expect(lib).toContain('.coverage-tmp/coverage-summary.json')
+  })
+
   it('typescript: debt-lib contains eslintErrors', () => {
     const { lib } = renderAll({ language: 'typescript' })
     expect(lib).toContain('eslintErrors')

@@ -18,6 +18,10 @@
       "rationale": "Emitted by the github-setup generator (L2+ only); referenced by .githooks/pre-push behind a shell `[ -f ]` guard. Absent on L1 projects, where the pre-push guard skips it gracefully."
     },
     {
+      "path": "scripts/publish-evidence-snapshot.mjs",
+      "rationale": "Arbiter's own nightly evidence job uses this scrubber, but ordinary governed targets do not emit it. The nightly workflow probes the generated-file manifest: never-emitted skips cleanly, while a manifest-owned scrubber later deleted from disk fails before evidence can leave the repository."
+    },
+    {
       "path": "scripts/check-iso9001.mjs",
       "rationale": "Emitted only for the iso9001 industry-compliance overlay (QMS RTM + doc-control + CAPA). Absent on projects without that overlay."
     },

@@ -151,6 +151,42 @@ describe('checkEmissionCoherence (#1331)', () => {
     }
   })
 
+  it('a workflow ref guarded against a never-emitted artifact and listed in the manifest PASSes', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'scripts/optional-emissions.json': JSON.stringify({
+        optional: [
+          { path: 'scripts/publish-evidence-snapshot.mjs', rationale: 'optional scrubber' },
+        ],
+      }),
+      '.github/workflows/nightly.yml': `jobs:\n  evidence:\n    name: Evidence\n    steps:\n      - run: |\n          if [ -f scripts/publish-evidence-snapshot.mjs ]; then\n            node scripts/publish-evidence-snapshot.mjs\n          elif node -e 'read .arbiter-generated-manifest.json'; then\n            echo never emitted\n          else\n            exit 1\n          fi`,
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('does not treat a plain workflow [ -f ] probe as a manifest-aware guard', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'scripts/optional-emissions.json': JSON.stringify({
+        optional: [
+          { path: 'scripts/publish-evidence-snapshot.mjs', rationale: 'optional scrubber' },
+        ],
+      }),
+      '.github/workflows/nightly.yml': `jobs:\n  evidence:\n    name: Evidence\n    steps:\n      - run: |\n          if [ -f scripts/publish-evidence-snapshot.mjs ]; then\n            node scripts/publish-evidence-snapshot.mjs\n          fi`,
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('publish-evidence-snapshot.mjs'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('a githook node ref guarded by [ -f ] but NOT in the manifest still FAILs', () => {
     const { dir, cleanup } = makeTree({
       'scripts/check-all.mjs': '// none',

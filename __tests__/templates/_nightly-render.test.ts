@@ -95,6 +95,17 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).toContain('retention-days: 90')
   })
 
+  it('keeps the optional evidence scrubber manifest-aware (#2018)', () => {
+    const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
+    const evidenceJob = rendered.slice(
+      rendered.indexOf('evidence-collect:'),
+      rendered.indexOf('nightly-required:'),
+    )
+    expect(evidenceJob).toContain('scripts/publish-evidence-snapshot.mjs')
+    expect(evidenceJob).toContain('.arbiter-generated-manifest.json')
+    expect(evidenceJob).toContain('was emitted by arbiter but is now missing')
+  })
+
   it.each(STACKS)('$language: nightly-required aggregator present', ({ language, buildTool }) => {
     const rendered = renderNightlyPartial({ language, buildTool })
     expect(rendered).toContain('nightly-required:')
