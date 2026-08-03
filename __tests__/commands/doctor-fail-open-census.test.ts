@@ -145,6 +145,7 @@ describe('runDoctorFailOpenCensus', () => {
         '  gitleaks detect --no-git',
         'else',
         '  echo "WARNING: gitleaks is not installed"',
+        '  echo "Install: https://github.com/gitleaks/gitleaks#installing"',
         'fi',
         '',
       ].join('\n'),
@@ -152,6 +153,45 @@ describe('runDoctorFailOpenCensus', () => {
     const result = runDoctorFailOpenCensus({ dir })
     expect(result.findings).toHaveLength(1)
     expect(result.findings[0]?.tool).toBe('gitleaks')
+  })
+
+  it('a fallback else that does the work with another tool is not a finding', () => {
+    const dir = tmpDir()
+    writeScript(
+      dir,
+      'scripts/lib/seed-common.sh',
+      [
+        'date_offset() {',
+        '  local days="$1"',
+        '  if command -v gdate &>/dev/null; then',
+        '    gdate -d "${days} days" +"%Y-%m-%d"',
+        '  else',
+        '    date -d "${days} days" +"%Y-%m-%d" 2>/dev/null || date -v "${days}d" +"%Y-%m-%d"',
+        '  fi',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    const result = runDoctorFailOpenCensus({ dir })
+    expect(result.findings).toHaveLength(0)
+    expect(result.exitCode).toBe(0)
+  })
+
+  it('an elif in a presence-fallback chain is not reported as its own guard', () => {
+    const dir = tmpDir()
+    writeScript(
+      dir,
+      'scripts/gate.sh',
+      [
+        'if command -v sha256sum &>/dev/null; then _sha256() { sha256sum; }',
+        'elif command -v shasum &>/dev/null; then _sha256() { shasum -a 256; }',
+        "else echo 'ERROR: none found' >&2; exit 1; fi",
+        '',
+      ].join('\n'),
+    )
+    const result = runDoctorFailOpenCensus({ dir })
+    expect(result.findings).toHaveLength(0)
+    expect(result.exitCode).toBe(0)
   })
 
   it('does not find a positive command -v guard whose absence exits 1', () => {

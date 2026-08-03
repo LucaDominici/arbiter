@@ -90,15 +90,15 @@ const BARE_FORM_RE = /command\s+-v\s+(\S+)[^\n]*\|\|\s*exit\s+0\b/g
 // for `return 0`/`exit 0` before the matching `fi` (simple depth counter).
 const IF_GUARD_RE = /if\s*!\s*command\s+-v\s+(\S+)/g
 
-// Detector 4: positive `if command -v X` guard form — skips blocking work when absent.
-const POSITIVE_IF_GUARD_RE = /if\s+command\s+-v\s+(\S+)/g
+// Detector 4: positive `if command -v X` guard form — skips blocking work when absent, except when an else performs fallback work.
+const POSITIVE_IF_GUARD_RE = /(?<!el)\bif\s+command\s+-v\s+(\S+)/g
 
 function findMatchingFi(lines: string[], startLine: number): number {
   let depth = 1
   for (let i = startLine; i < lines.length; i++) {
     const line = lines[i] ?? ''
     if (/\bif\b(?!\s*!\s*command)/.test(line) && /;\s*then\s*$|then\s*$/.test(line)) depth++
-    if (/^\s*fi\b/.test(line)) {
+    if (/(?:^|[;\s])fi(?:[;\s]|$)/.test(line)) {
       depth--
       if (depth === 0) return i
     }
@@ -137,12 +137,19 @@ function hasNoBlockingElse(blockLines: string[]): boolean {
   for (let i = 1; i < blockLines.length; i++) {
     const line = blockLines[i] ?? ''
     if (/\bif\b(?!\s*!\s*command)/.test(line) && /;\s*then\s*$|then\s*$/.test(line)) depth++
-    if (/^\s*(?:else|elif)\b/.test(line) && depth === 1) elseIdx = i
-    if (/^\s*fi\b/.test(line)) depth--
+    if (/^\s*else\b/.test(line) && depth === 1) elseIdx = i
+    if (/(?:^|[;\s])fi(?:[;\s]|$)/.test(line)) depth--
   }
   if (elseIdx === -1) return true
-  const elseBody = blockLines.slice(elseIdx + 1, -1).join('\n')
-  return !/\b(?:return|exit)\s+[1-9]\d*\b/.test(elseBody)
+  const elseLines = blockLines.slice(elseIdx)
+  elseLines[0] = elseLines[0]?.replace(/^\s*else\b/, '') ?? ''
+  const last = elseLines.length - 1
+  elseLines[last] = elseLines[last]?.replace(/(?:^|;)\s*fi(?:[;\s]|$).*$/, '') ?? ''
+  const elseBody = elseLines.join('\n').trim()
+  if (elseBody === '') return true
+  return elseBody
+    .split(/[;\n]/)
+    .every((command) => /^(?:#.*|(?:echo|printf)\b.*|:\s*(?:#.*)?)$/.test(command.trim()))
 }
 
 /** Scan one file's text for all four fail-open detector shapes. */
