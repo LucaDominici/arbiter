@@ -112,7 +112,7 @@ additionally verify SSOT (Single Source of Truth) alignment:
 | **Registry completeness** | If a new generator is added, is it registered in `src/generators/registry.ts`? Is its key in `GeneratorKey`? Is it in `PATH_TO_KEYS` if config-driven? |
 | **Template test coverage** | Does every new `.ejs` template have a render test in `__tests__/templates/`? (CANON-04 ratchet) |
 | **Opt-in wiring** | If a feature adds an opt-in flag, is the flag: (a) on `ProjectConfig`, (b) used in the generator's `enabled` condition, and (c) documented in the ADR? |
-| **ADR currency** | Does `docs/SYSTEM/DECISIONS.md` have an ADR for the change? Is the ADR in newest-first order? |
+| **ADR currency** | Does `docs/adr/` have an ADR for the change? Is the ADR in newest-first order? |
 | **Changeset present** | Is a `.changeset/*.md` present for user-visible changes? Does it correctly classify `minor` (feature) or `patch` (fix)? |
 | **Bloat ratchet** | Was the bloat baseline updated? If templates grew >+3 without a baseline update, flag as HIGH. |
 | **Debt ratchet** | Was the debt baseline recaptured if `publicApiSurface` or other metrics changed? |

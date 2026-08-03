@@ -8,13 +8,21 @@
 // target needs no local arbiter install. Scoped to commits since
 // `git merge-base origin/main HEAD` (branch-relative). Rejects the ARBITER-SKIP-TDD: 1
 // commit trailer (forbidden at L2+). Self-SKIPs (exit 0) when origin/main is
-// unavailable (local-only branch) or no task-ID commits exist (vacuous pass).
+// unavailable (local-only branch) and for a branch that neither carries a task-ID commit
+// nor changes src/ (vacuous pass).
+//
+// A branch with no task id in any commit SUBJECT that changes src/ must still carry ONE
+// verified evidence among the tasks its commit BODIES cite (`Refs #NNN`) — evidence is
+// owed per CHANGE, not per commit (#2217).
 //
 // For each task #NNN it loads .arbiter/evidence/tdd/#NNN.json and asserts:
 //   1. evidence file present + schema valid (v1)
 //   2. evidence task_id matches the commit's task id
 //   3. a recognised test-runner FAILURE signature appears in test_run_log (proves RED)
-//   4. test_commit_sha (40 hex) exists in git history
+//   4. test_commit_sha (40 hex) is REACHABLE from HEAD — not merely present as an object,
+//      which a pre-rebase commit behind a stale branch would be (#2116). A rebase must
+//      fail here loudly; re-record the evidence. (Re-resolving a rewritten sha from the
+//      RED test's blob is arbiter's own `verify tdd`, not this self-contained gate.)
 //   5. test_path exists in that commit
 //
 // Exit codes (INV-53): 0 = all verified / vacuous · 1 = missing/inconsistent evidence
@@ -32,14 +40,17 @@ const ROOT = parseDir(process.argv.slice(2))
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf-8' }).trim()
 
 // ─── Branch-relative task discovery ───────────────────────────────────────────
-/** Unique task ids from conventional-commit subjects, e.g. "feat(#551 #552): ...". */
+/** Unique task ids from conventional-commit scopes or trailing subject tails, e.g. "feat(#551 #552): ..." or "... (#551)". */
 function parseTaskIds(subjectLog) {
   const seen = new Set()
   const ids = []
   for (const line of subjectLog.split('\n')) {
     const scope = line.match(/^\w+\(([^)]+)\):/)
-    if (!scope) continue
-    for (const m of scope[1].matchAll(/#(\d+)/g)) {
+    const matches = [
+      ...(scope?.[1].matchAll(/#(\d+)/g) ?? []),
+      ...line.matchAll(/\(#(\d+)\)$/g),
+    ]
+    for (const m of matches) {
       const full = `#${m[1]}`
       if (!seen.has(full)) {
         seen.add(full)
@@ -49,6 +60,45 @@ function parseTaskIds(subjectLog) {
   }
   return ids
 }
+
+/**
+ * #2217: task ids referenced in commit BODIES (`Refs #NNN`, `Closes #NNN`, ...) — the
+ * convention for a commit with no TDD cycle of its own. Keyword-anchored so a bare
+ * `#NNN` in prose (a PR, a cross-reference) is not mistaken for authorship. These are
+ * NOT verified per commit; they are the candidate set for the branch floor.
+ */
+function parseBodyTaskIds(bodyLog) {
+  const seen = new Set()
+  const ids = []
+  for (const m of bodyLog.matchAll(/\b(?:refs?|closes?|fixes?|fixed|resolves?|part of)\s+#(\d+)/gi)) {
+    const full = `#${m[1]}`
+    if (!seen.has(full)) {
+      seen.add(full)
+      ids.push(full)
+    }
+  }
+  return ids
+}
+
+/**
+ * True when the branch changes governed source — the unit the TDD invariant is about.
+ *
+ * `src/` covers the TypeScript, Python (src-layout), Rust and Java/Kotlin
+ * (`src/main/...`) trees. A Go project laid out as `cmd/` + `internal/` is NOT covered:
+ * such a branch keeps today's vacuous pass rather than a wrong failure. Widening the
+ * prefix is the upgrade path if a target needs it.
+ */
+function touchesGovernedSource(changedPaths) {
+  return changedPaths.split('\n').some((p) => p.trim().startsWith('src/'))
+}
+
+/** The two legitimate ways to satisfy the branch floor (#2217). */
+const FLOOR_REMEDY =
+  '  Two ways forward:\n' +
+  '    1. record real red→green evidence for one cited task:\n' +
+  '         arbiter task record-red --test-path <path>\n' +
+  '    2. move the source change onto its own branch whose commit SUBJECT carries the\n' +
+  '       task id (fix(#NNN): ...) — that commit is then verified individually.\n'
 
 const hasSkipTrailer = (body) => /^ARBITER-SKIP-TDD: 1$/m.test(body)
 
@@ -61,6 +111,7 @@ const FAILURE_SIGNATURES = [
   /FAILED\s*$|BUILD FAILED/m, // gradle
   /test result: FAILED/m, // cargo
   /--- FAIL:/m, // go
+  /^# fail [1-9]\d*/m, // tap (node:test)
 ]
 const hasFailureSignature = (log) => FAILURE_SIGNATURES.some((re) => re.test(log))
 
@@ -83,9 +134,16 @@ function validateSchema(ev) {
   return { ok: true }
 }
 
+/**
+ * #2116: REACHABILITY, not object existence. `cat-file -e` passes for any object still
+ * present in the repo — including the pre-rebase commit of a branch that was rebased
+ * before merging, whose evidence then "verifies" against history nobody can reach, and
+ * turns unverifiable the day the stale branch is deleted. A rebase must fail loudly here
+ * (re-record the evidence) instead of silently passing.
+ */
 function shaExists(sha) {
   try {
-    git(['cat-file', '-e', sha])
+    git(['merge-base', '--is-ancestor', sha, 'HEAD'])
     return true
   } catch {
     return false
@@ -141,18 +199,42 @@ try {
 }
 
 const taskIds = parseTaskIds(subjectLog)
-if (taskIds.length === 0) {
-  process.stdout.write('check-tdd-evidence: no task-ID commits found, vacuous pass\n')
-  process.exit(0)
-}
 
-// Reject the skip trailer — forbidden at L2+.
 let bodyLog = ''
 try {
   bodyLog = git(['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'])
 } catch {
   bodyLog = ''
 }
+
+// #2217 — the branch floor. Subject-scoped ids are verified per commit (below). A branch
+// whose commits cite issues only in their BODIES (`Refs #NNN`, the convention for a
+// commit with no TDD cycle of its own) parsed to zero ids and passed VACUOUSLY, whatever
+// it changed. Evidence is owed per CHANGE: a branch that touches source must carry at
+// least ONE verified evidence among the tasks it cites.
+let floorIds = []
+if (taskIds.length === 0) {
+  let changed = ''
+  try {
+    changed = git(['diff', '--name-only', `${mergeBase}..HEAD`])
+  } catch {
+    changed = ''
+  }
+  if (!touchesGovernedSource(changed)) {
+    process.stdout.write('check-tdd-evidence: no task-ID commits and no source change, vacuous pass\n')
+    process.exit(0)
+  }
+  floorIds = parseBodyTaskIds(bodyLog)
+  if (floorIds.length === 0) {
+    process.stderr.write(
+      '\ncheck-tdd-evidence: FAIL — this branch changes src/ but cites no task id in any ' +
+        'commit subject or body, so no TDD evidence can back it (#2217).\n' + FLOOR_REMEDY,
+    )
+    process.exit(1)
+  }
+}
+
+// Reject the skip trailer — forbidden at L2+.
 for (const block of bodyLog.split('\x00').filter(Boolean)) {
   const lines = block.trim().split('\n')
   const sha = lines[0]?.trim()
@@ -162,6 +244,30 @@ for (const block of bodyLog.split('\x00').filter(Boolean)) {
   process.stderr.write(
     `\ncheck-tdd-evidence: FAIL — commit ${sha.slice(0, 12)} (task ${ids[0] ?? '<unknown>'}) ` +
       'carries ARBITER-SKIP-TDD: 1, forbidden at L2+. Remove it or record TDD evidence.\n',
+  )
+  process.exit(1)
+}
+
+// Floor path: the branch owes ONE verified evidence, not one per cited issue — a docs
+// or chore commit that merely references an issue owes nothing.
+if (taskIds.length === 0) {
+  for (const taskId of floorIds) {
+    // NOTE — arbiter's own gate additionally requires the evidence file to have been
+    // COMMITTED on this branch, so a long-closed task's inherited evidence cannot
+    // satisfy the floor. That guard is deliberately NOT applied here: the generated
+    // .gitignore ignores `.arbiter/` wholesale, so in a target the evidence file is
+    // typically untracked and the check would reject every branch. Un-ignore
+    // `.arbiter/evidence/tdd/*.json` (as arbiter does for itself) to close the gap.
+    const r = verifyTask(taskId)
+    process.stdout.write(`  ${taskId}: ${r.ok ? 'PASS' : `FAIL — ${r.reason}`}\n`)
+    if (r.ok) {
+      process.stdout.write('check-tdd-evidence: OK — branch floor satisfied (#2217)\n')
+      process.exit(0)
+    }
+  }
+  process.stderr.write(
+    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${floorIds.join(', ')} in ` +
+      'commit bodies, but none of them has verified TDD evidence (#2217).\n' + FLOOR_REMEDY,
   )
   process.exit(1)
 }

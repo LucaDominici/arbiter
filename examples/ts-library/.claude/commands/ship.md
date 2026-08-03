@@ -89,7 +89,7 @@ arbiter task advance --to plan
 | Phase | What `/ship` does | Review agents |
 |-------|-------------------|---------------|
 | `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), STOP the ship. The `[ -f … ]` guard makes the step a no-op on brownfield trees that predate the script's emission (ADR-110) — a missing script is never a not-ready verdict; seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`) | — |
+| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`); the plan MUST carry the mandatory sections (see §Plan contents) | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
 | `red` | Write failing tests (TDD red) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
@@ -120,6 +120,26 @@ issue. Six sources:
 Adversarial review runs against this contract **before push**. Pricing the constraint set
 in before the first line is what kills accordion PRs (write → review reveals a missed
 constraint → rewrite → repeat).
+
+---
+
+## Plan contents (mandatory sections)
+
+/ship plans with a SINGLE planner; these mandatory sections make that one plan carry what a multi-specialist panel would have produced (#2176 study: union-of-specialists prompt reproduced 3-specialist content at +19% cost vs +69% for real orchestration, equal quality — multi-specialist planning is NOT adopted).
+
+- **Approach & decomposition** — module boundaries and data flow of the change.
+- **Threat model & abuse cases** — who can abuse this and how. May be `n/a — no security surface` ONLY with a one-line justification; a bare `n/a` is a plan-review FAIL.
+- **Input validation** — what is validated, where the trust boundary is, what happens on invalid input.
+- **Idiomatic patterns & pitfalls** — the recommended stdlib/framework APIs for this change and the known traps to avoid.
+- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4`; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
+- **Test strategy** — which TDD units prove which AC, and at which level (unit/integration/gate).
+- **Risks** — what can go wrong, with the mitigation or the accepted residual.
+
+Never one-shot it — draft, then revise once before finalizing: the revise pass was part of the measured treatment, not optional polish.
+
+These sections EXPAND the Merge Contract's six sources (merged ACs ⊃ source 1, test strategy ⊃ source 3, threat model ⊃ source 5, decomposition ⊃ source 6) — derive the contract once, express it here.
+
+Plan-review agents verify every mandatory section is present and non-empty; a missing or empty section is a FAIL verdict in `.arbiter/evidence/plan-review/<id>/latest.json`. No separate gate script exists for this — the reviewers are the check.
 
 ---
 

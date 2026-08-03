@@ -10,6 +10,7 @@
     "backend": "markdown"
   },
   "language": "typescript",
+  "packageManager": "npm",
   "features": {
     "debtGates": false,
     "suppressions": true,

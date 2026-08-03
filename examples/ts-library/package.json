@@ -12,6 +12,8 @@
     "test:contract": "vitest run --passWithNoTests __tests__/contract",
     "test:integration": "vitest run --passWithNoTests __tests__/integrations",
     "test:behavioral": "vitest run --passWithNoTests __tests__/behavioral",
+    "lint": "eslint .",
+    "build": "tsc -p tsconfig.json",
     "prepare": "git config core.hooksPath .githooks"
   },
   "overrides": {

@@ -86,6 +86,11 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-100:** collaborationMode must be set in arbiter.json
 - **INV-101:** exact-SHA non-force landing for evidence-bearing changes
 
+### Tier 3: Security & Compliance
+
+- **INV-11:** No secrets in source code
+- **INV-12:** No PII in code, tests, or logs
+
 ### Tier 5: Governance
 
 - **INV-21:** Every TODO comment must reference a task ID: `TODO(#NNN)`

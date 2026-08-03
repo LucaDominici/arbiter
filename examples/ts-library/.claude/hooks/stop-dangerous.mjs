@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Arbiter hook: block dangerous bash commands
 // Fires on: PreToolUse → Bash
+// Delegated Agent-tool sessions do not run the `.claude/settings.json` hook chain.
+// This hook is defence-in-depth/advisory there; CI plus branch protection enforce.
+// See `docs/internal/SYSTEM/HOOK-CONTRACTS.md#scope-and-threat-model` (#2022).
 import { resolveToolInputCommand } from './lib.mjs'
 
 // Resolve the command from stdin-JSON (real Claude Code) or the env var (Codex).
@@ -25,6 +28,24 @@ for (const pattern of DANGEROUS_PATTERNS) {
     // Exit 2 is the ONLY blocking code for a PreToolUse hook (#1631): it aborts the
     // Bash call and feeds stderr to the agent. Any other non-zero exit (incl. 1) is
     // non-blocking — the dangerous command would run anyway.
+    process.exit(2)
+  }
+}
+
+// ponytail: string-level pattern guard — obfuscation (base64, $VAR indirection, helper
+// script) and separators inside quoted strings defeat it by design; the enforced boundary is
+// the CI gate, see
+// docs/design/anti-context-rot-enforcers.md.
+const protectedPathPattern =
+  /(?:^|[\s"'`])((?:\.\/|\/[^\s"'`]*)?\.arbiter\/(?:gate-pass\.json|status\.json|evidence(?:\/[^\s"'`]*)?))(?=$|[\s"'`,;)&|])/
+const writeIntentPattern =
+  /\d?(?:>>|>)\s*(?:\.\/|\/[^\s"'`]*)?\.arbiter\/(?:gate-pass\.json|status\.json|evidence(?:\/[^\s"'`]*)?)(?=$|[\s"'`,;)&|])|(?:^|[\s;|&])(?:cp|mv|tee|sed\s+-i\S*|truncate|rm|unlink|python3?\s+-c|node\s+-e)(?=$|[\s;|&])/
+
+const commandParts = command.split(/&&|\|\||;|\|/).map((part) => part.trim())
+for (const commandPart of commandParts) {
+  const protectedPath = commandPart.match(protectedPathPattern)?.[1]
+  if (protectedPath && writeIntentPattern.test(commandPart)) {
+    process.stderr.write(`[arbiter] Blocked protected Arbiter state write: ${protectedPath}\n`)
     process.exit(2)
   }
 }

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Claude hook: blocks unused TypeScript exports in files being written/edited.
+// Claude hook: blocks unused TypeScript value-level exports in files being written/edited.
 // Fires on: PostToolUse → Edit|Write (TypeScript projects only)
 import { existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
+import { resolve } from 'node:path'
 import { resolveToolInputPath, debounceHook } from './lib.mjs'
 
 const file = resolveToolInputPath()
@@ -46,7 +47,7 @@ try {
 if (!Array.isArray(report?.issues)) process.exit(0)
 
 const fileIssues = report.issues.filter(
-  (f) => (f.exports?.length ?? 0) + (f.types?.length ?? 0) > 0,
+  (f) => resolve(f.file) === file && (f.exports?.length ?? 0) + (f.types?.length ?? 0) > 0,
 )
 if (fileIssues.length === 0) process.exit(0)
 

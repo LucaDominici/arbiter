@@ -10,6 +10,7 @@
     "backend": "markdown"
   },
   "language": "python",
+  "packageManager": "npm",
   "features": {
     "debtGates": false,
     "suppressions": true,

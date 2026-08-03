@@ -20,6 +20,7 @@ import {
   getFailed,
   setMode,
   resolveTmpfsTmpdir,
+  gateFileState,
 } from './lib/run-helpers.mjs';
 
 // ─── TMPDIR on tmpfs (dominant wall-clock lever for fsync-bound suites) ──────
@@ -36,6 +37,40 @@ if (!process.env.TMPDIR) {
 
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
+// Guard an arbiter-emitted gate artifact using the emission-time manifest rather
+// than filesystem existence alone. A missing optional artifact that was never
+// emitted stays a normal skip; a delivered guard later deleted is a gate failure.
+function gateFilePresent(_path, _label, _neverEmittedLine = null, _alternatePaths = []) {
+  if (_alternatePaths.some((_alternatePath) => existsSync(_alternatePath))) return true;
+  const _state = gateFileState(_path);
+  if (_state === 'present') return true;
+  if (_state === 'never-emitted') {
+    if (_neverEmittedLine) console.log(_neverEmittedLine);
+    return false;
+  }
+  if (_state === 'deleted') {
+    // Keep the prerequisite in the same inspection contract as runCheck: a
+    // single-check rerun ignores another check's guard, and a dry-run reports
+    // what a normal gate would do without changing its result to FAIL.
+    if (only !== null && only !== _label) return false;
+    if (dryRun) {
+      console.log(
+        `[CHECK] ${_label} ... DRY-RUN (would FAIL — ${_path} was emitted by arbiter and is now missing)`,
+      );
+      return false;
+    }
+    console.error(
+      `[CHECK] ${_label} ... FAIL — ${_path} was emitted by arbiter and is now missing; run arbiter update or restore it from git.`,
+    );
+    pushResult(_label, 'FAIL', 0);
+    return false;
+  }
+  console.error(
+    `[CHECK] ${_label} ... DEGRADED — cannot determine whether ${_path} was emitted because .arbiter-generated-manifest.json is unavailable or invalid; run arbiter update or restore the manifest.`,
+  );
+  return false;
+}
 
 // >>> ARG-PARSE-START (#1504) — robust, fail-loud gate-arg parsing.
 // Accept EVERY invocation form arbiter emits: the positional level
@@ -179,6 +214,11 @@ console.log('');
 console.log(`=== python-library Quality Gate: ${level} ===`);
 console.log('');
 
+
+// ─── Early-fail: PII scan (INV-12, HARD — no grace period) ────────────────────
+runCheck('PII scan', 'node', ['scripts/pii-scan.mjs']);
+// ─── L1: Secret-pattern drift (anti-drift, INV-89, #1152) ────────────────────
+runCheck('secret scan', 'node', ['scripts/check-secret-scan.mjs']);
 
 // ─── L1: Fast checks ──────────────────────────────────────────────────────────
 
@@ -378,6 +418,8 @@ runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wire
 runCheck('hook routing (#2129)', 'node', ['scripts/check-hook-routing.mjs']);
 // ─── L1: safety-class adopt ratchet (T1, anti-erosion) ───────────────────────
 runCheck('safety adopt ratchet', 'node', ['scripts/check-safety-adopt-ratchet.mjs']);
+// ─── L1: emission parity — every emitted file still on disk (#2110) ──────────
+runCheck('emission parity (#2110)', 'node', ['scripts/check-emission-parity.mjs']);
 // ─── L1: governance constraint scan (INV-115, #1214) ─────────────────────────
 runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs']);
 // ─── L1: wiki lint gate (INV-116, #1241) ─────────────────────────────────────
@@ -412,11 +454,11 @@ runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs'
 runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.mjs']);
 
 // ─── L1: ISO 9001 quality-process overlay gate (#1253) — present only when overlay selected
-if (existsSync('scripts/check-iso9001.mjs')) {
+if (gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')) {
   runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);
 }
 // ─── L1: regulated / high-assurance overlay gate — present only when overlay selected
-if (existsSync('scripts/check-regulated-overlay.mjs')) {
+if (gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')) {
   runCheck('regulated overlay (SoD + retention + signing + mutation)', 'node', [
     'scripts/check-regulated-overlay.mjs',
   ]);

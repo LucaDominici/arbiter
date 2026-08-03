@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Flat ESLint config (ESLint v9+) — the `lint` gate runs `eslint src` and loads
+// Flat ESLint config (ESLint v9+) — the `lint` gate runs `eslint .` and loads
 // this file. Kept intentionally lean so a freshly-scaffolded project lints GREEN
 // on first run: type-aware rules (which need a tsconfig project reference and a
 // full type-check pass) live in the optional strict layer you can enable later.
@@ -12,7 +12,17 @@ import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'build/**', 'coverage/**', 'node_modules/**'],
+    ignores: [
+      'dist/**',
+      'build/**',
+      'coverage/**',
+      'node_modules/**',
+      '.claude/**',
+      '.githooks/**',
+      'scripts/**',
+      'pacts/**',
+      '.dependency-cruiser.cjs',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

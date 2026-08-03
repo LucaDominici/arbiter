@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // Arbiter hook: block gh pr create unless gate marker is fresh (R1.S5)
+// FAIL-OPEN-INTENT: hook exits 0 for non-PR commands; gate-fail exits 2 explicitly
 // Fires on: PreToolUse → Bash
 // Exit 2: block — stderr returned to Claude as error context
+// Delegated Agent-tool sessions do not run the `.claude/settings.json` hook chain.
+// This hook is defence-in-depth/advisory there; CI plus branch protection enforce.
+// See `docs/internal/SYSTEM/HOOK-CONTRACTS.md#scope-and-threat-model` (#2022).
 //
 // #1990: worktree-aware. A session cwd on repo root must not gate a `gh pr
 // create` that actually targets a different worktree (`cd <dir> && gh pr

@@ -14,6 +14,23 @@ case "$_phase" in
     echo "ERROR: .claude/.task/status.json is corrupt — fix or delete it before committing." >&2
     exit 1
     ;;
+  red)
+    # #2051: a genuine RED commit contains a test that FAILS — the L1 gate blocks
+    # exactly the commit `arbiter task record-red` must point at. The deadlock is
+    # resolved for that one commit shape only: phase=red AND every staged path is a
+    # test. Anything else (source staged alongside, or any other phase) still runs the
+    # gate, and the GREEN commit that follows runs it over the whole tree.
+    # ponytail: path-name heuristic for "is a test" — language-agnostic, and tight enough
+    # to reject latest/protest/testing, but a genuine source file named src/.../test.ts
+    # would ride along gate-free in this one commit. Upgrade path: ask the project's test
+    # config for its test globs. Bounded by the GREEN commit's whole-tree gate.
+    _staged_red=$(git diff --cached --name-only)
+    if [ -n "$_staged_red" ] && ! printf '%s\n' "$_staged_red" |
+      grep -qivE '(^|[^[:alpha:]])(tests?|specs?)([^[:alpha:]]|$)'; then
+      echo "[pre-commit] phase=red, staged paths are tests only — L1 gate skipped so the failing RED test can land (#2051)."
+      _skip_gate=1
+    fi
+    ;;
 esac
 
 
@@ -46,6 +63,11 @@ if command -v yamllint >/dev/null 2>&1; then
       echo "$_yml" | xargs yamllint -d relaxed || exit 1
     fi
   fi
+fi
+# #2051: the RED commit is exempt from the gate only — lint and secret scanning above
+# still applied to it.
+if [ "${_skip_gate:-0}" = "1" ]; then
+  exit 0
 fi
 
 

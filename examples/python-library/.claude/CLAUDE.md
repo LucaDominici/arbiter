@@ -27,7 +27,7 @@ Configured in `.claude/settings.json`. Active hooks:
 
 | Event | Hook | Purpose |
 |-------|------|---------|
-| `PreToolUse` → Bash | `stop-dangerous.mjs` | Block dangerous commands (rm -rf, force push) |
+| `PreToolUse` → Bash | `stop-dangerous.mjs` | Block dangerous commands and obvious writes to protected Arbiter state |
 | `PreToolUse` → Edit\|Write | `enforce-read-only.mjs` | Guard read-only files |
 | `PreToolUse` → Edit\|Write | `pre-edit-ssot-guard.mjs` | Prevent unauthorized SSOT edits |
 | `PostToolUse` → Bash | `post-commit-check.mjs` | Verify commit format after git commits |

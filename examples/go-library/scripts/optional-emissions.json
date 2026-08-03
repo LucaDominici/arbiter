@@ -14,12 +14,12 @@
       "rationale": "REVERSE (#1518): emitted unconditionally as an advisory aggregate thin-runner, but wired (runWarnCheck 'anti-fake-green') in check-all.mjs only at L2+ (INV-135). At L1 it ships present-but-unwired, available for manual/CI invocation."
     },
     {
-      "path": "scripts/check-secret-scan.mjs",
-      "rationale": "REVERSE (#1518): emitted to every target by the anti-drift family (INV-89), but wired (runCheck 'secret scan') in check-all.mjs only when enableSecurityScanning is true. With security scanning disabled it ships present-but-unwired, available for manual/CI invocation."
-    },
-    {
       "path": "scripts/ci-classify-changes.mjs",
       "rationale": "Emitted by the github-setup generator (L2+ only); referenced by .githooks/pre-push behind a shell `[ -f ]` guard. Absent on L1 projects, where the pre-push guard skips it gracefully."
+    },
+    {
+      "path": "scripts/publish-evidence-snapshot.mjs",
+      "rationale": "Arbiter's own nightly evidence job uses this scrubber, but ordinary governed targets do not emit it. The nightly workflow probes the generated-file manifest: never-emitted skips cleanly, while a manifest-owned scrubber later deleted from disk fails before evidence can leave the repository."
     },
     {
       "path": "scripts/check-iso9001.mjs",
@@ -55,7 +55,7 @@
     },
     {
       "path": "scripts/check-regulated-overlay.mjs",
-      "rationale": "Emitted only when the opt-in regulated/high-assurance governance overlay is selected (#1497). check-all.mjs references it behind existsSync(); a project without the overlay skips it gracefully. Absent on projects without that overlay."
+      "rationale": "Emitted only when the opt-in regulated/high-assurance governance overlay is selected (#1497). check-all.mjs references it through gateFilePresent(), so a project without the overlay skips it gracefully while a later deletion fails. Absent on projects without that overlay."
     },
     {
       "path": "scripts/check-touched-vs-manifest.mjs",

@@ -10,7 +10,24 @@
 //
 // Imported by scripts/check-all.mjs. Plain ESM (.mjs).
 import { spawnSync } from 'node:child_process';
-import { statfsSync } from 'node:fs';
+import { existsSync, readFileSync, statfsSync } from 'node:fs';
+import { join, resolve as resolvePath } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/**
+ * True when `importMetaUrl` names the module Node was actually invoked with — the ESM
+ * equivalent of CommonJS `require.main === module`. Pass `import.meta.url`:
+ *
+ *   if (isMainModule(import.meta.url)) main();
+ *
+ * Null-safe (argv[1] is absent under `node --eval`) and path-normalized, so a relative
+ * or non-canonical argv[1] still matches (#2010).
+ */
+export function isMainModule(importMetaUrl) {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return resolvePath(entry) === fileURLToPath(importMetaUrl);
+}
 
 // resolveTmpfsTmpdir returns a RAM-backed dir to use as TMPDIR, or null.
 //
@@ -39,6 +56,50 @@ export function resolveTmpfsTmpdir({
   } catch {
     return null; // absent, unmounted, or non-Linux — keep the platform default
   }
+}
+
+// Emission-time provenance lets the gate distinguish an optional guard that was
+// never delivered from a delivered guard that was later deleted. Cache by target
+// directory: a normal gate run has one cwd and therefore reads this manifest once.
+// A missing, malformed, or wrong-shape manifest deliberately degrades rather than
+// throwing: without a trustworthy record, the caller cannot make that distinction.
+const gateManifestCache = new Map();
+
+function gateManifestFiles(cwd) {
+  if (gateManifestCache.has(cwd)) return gateManifestCache.get(cwd);
+  let files = null;
+  try {
+    const manifestPath = join(cwd, '.arbiter-generated-manifest.json');
+    if (existsSync(manifestPath)) {
+      const parsed = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        typeof parsed.files === 'object' &&
+        parsed.files !== null &&
+        !Array.isArray(parsed.files)
+      ) {
+        files = parsed.files;
+      }
+    }
+  } catch {
+    files = null;
+  }
+  gateManifestCache.set(cwd, files);
+  return files;
+}
+
+/**
+ * Classify a gate artifact using its exact target-relative manifest key.
+ *
+ * `deleted` is deliberately reserved for a missing path explicitly recorded in
+ * `.arbiter-generated-manifest.json#files`; no filesystem convention is inferred.
+ */
+export function gateFileState(path, cwd = process.cwd()) {
+  if (existsSync(join(cwd, path))) return 'present';
+  const files = gateManifestFiles(cwd);
+  if (files === null) return 'unknown-no-manifest';
+  return Object.prototype.hasOwnProperty.call(files, path) ? 'deleted' : 'never-emitted';
 }
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -107,10 +168,25 @@ function spawn(name, cmd, args, opts) {
   return { r, elapsed: Date.now() - start };
 }
 
+// #2032: the dump of a failed check is truncated by whatever reads it (GitHub caps a
+// step's log), and what gets dropped is the END — where a test runner prints the actual
+// failure. So dump the TAIL, not the head.
+const DUMP_TAIL_LINES = 400;
+
+function tail(str) {
+  const lines = str.split('\n');
+  if (lines.length <= DUMP_TAIL_LINES) return str;
+  return (
+    `[... ${lines.length - DUMP_TAIL_LINES} earlier line(s) truncated — ` +
+    `showing the last ${DUMP_TAIL_LINES}, where the failure is]\n` +
+    lines.slice(-DUMP_TAIL_LINES).join('\n')
+  );
+}
+
 function emitOutput(r) {
   const noColor = NO_COLOR();
-  if (r.stdout) process.stdout.write(noColor ? stripAnsi(r.stdout) : r.stdout);
-  if (r.stderr) process.stderr.write(noColor ? stripAnsi(r.stderr) : r.stderr);
+  if (r.stdout) process.stdout.write(tail(noColor ? stripAnsi(r.stdout) : r.stdout));
+  if (r.stderr) process.stderr.write(tail(noColor ? stripAnsi(r.stderr) : r.stderr));
 }
 
 function recordFail(name, elapsed, msg) {

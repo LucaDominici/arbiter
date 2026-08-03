@@ -36,6 +36,9 @@ const MANIFEST_PATH = manifestArg >= 0 && args[manifestArg + 1]
 
 if (!existsSync(MANIFEST_PATH)) {
   process.stdout.write('check-drift: SKIP — no drift manifest found (.arbiter/drift-manifest.json)\n');
+  // #2052/#2012: recognized marker so runCheck surfaces SKIP, not PASS. Without it a
+  // manifest-less repo reports PASS on every gate run while verifying nothing.
+  process.stdout.write('[SKIP] no drift manifest found (.arbiter/drift-manifest.json)\n');
   process.exit(0);
 }
 
