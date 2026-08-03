@@ -27,9 +27,11 @@
 // Behind VITEST_L2=1 (nightly-tier, like its siblings): npm pack + two full
 // npm installs + a full generated-project L1 gate run is not cheap.
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { hasBinary, isOfflineFailure, stageFixture } from '../helpers.js'
 
@@ -39,7 +41,24 @@ const REPO_ROOT = process.cwd()
 type DepResult = { skip: string } | { ok: true }
 type PackResult = { skip: string } | { tarball: string }
 
-function npmPack(destDir: string): PackResult {
+// #2138: the release workflow packs ONCE and signs that tarball. When it points
+// this variable at the packed artifact, every assertion below measures the exact
+// bytes that get signed and published — never a fresh pack that merely resembles
+// them. Set-but-missing is a hard error: a silent re-pack would reintroduce the
+// artifact-identity bug this file exists to catch.
+function prepackedTarball(): string | null {
+  const provided = process.env.ARBITER_PACKED_TARBALL
+  if (!provided) return null
+  if (!existsSync(provided)) {
+    throw new Error(`ARBITER_PACKED_TARBALL is set but the file does not exist: ${provided}`)
+  }
+  return provided
+}
+
+function npmPack(destDir: string, ignoreOverride = false): PackResult {
+  const provided = ignoreOverride ? null : prepackedTarball()
+  if (provided) return { tarball: provided }
+  mkdirSync(destDir, { recursive: true })
   const r = spawnSync('npm', ['pack', '--json', '--pack-destination', destDir], {
     cwd: REPO_ROOT,
     encoding: 'utf-8',
@@ -234,5 +253,234 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
       expect(advanceGreen.status, `advance --to green failed:\n${advanceGreen.output}`).toBe(0)
     },
     600_000,
+  )
+})
+
+// ─── #2138/#2139: measure the artifact, do not assume it ─────────────────────
+//
+// The release pipeline was verified BY CONSTRUCTION — the workflow contained the
+// right strings, so it was believed to sign what it publishes and to ship what it
+// declares. Neither was measured. These tests measure both, over ONE tarball:
+// the same bytes the release run signs (via ARBITER_PACKED_TARBALL) or a fresh
+// `npm pack` when run locally/nightly.
+
+type ExportTarget = { types?: string; import?: string }
+
+function declaredExports(): Array<{ subpath: string; target: ExportTarget }> {
+  const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as {
+    name: string
+    exports: Record<string, ExportTarget>
+  }
+  return Object.entries(pkg.exports).map(([subpath, target]) => ({ subpath, target }))
+}
+
+function packageName(): string {
+  return (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { name: string })
+    .name
+}
+
+function sha256(file: string): string {
+  return createHash('sha256').update(readFileSync(file)).digest('hex')
+}
+
+describe.skipIf(!L2)('published package — signed bytes and declared surface (#2138/#2139)', () => {
+  let workDir: string
+
+  beforeEach(() => {
+    workDir = mkdtempSync(join(tmpdir(), 'arbiter-pkg-surface-'))
+  })
+
+  afterEach(() => {
+    if (workDir != null) rmSync(workDir, { recursive: true, force: true })
+  })
+
+  // #2138: the design "pack in job A, sign it, publish that same file in job B"
+  // is only sound if packing is reproducible — otherwise a rebuild anywhere in
+  // the chain silently swaps the bytes, which is exactly the defect.
+  it.skipIf(!hasBinary('npm'))(
+    'npm pack is byte-reproducible (a rebuild cannot silently swap the artifact)',
+    () => {
+      const first = npmPack(join(workDir, 'a'), true)
+      if ('skip' in first) {
+        expect(first.skip).toBeTruthy()
+        return
+      }
+      const second = npmPack(join(workDir, 'b'), true)
+      if ('skip' in second) {
+        expect(second.skip).toBeTruthy()
+        return
+      }
+      expect(sha256(second.tarball)).toBe(sha256(first.tarball))
+    },
+    600_000,
+  )
+
+  // #2138 AC: the sha256 of the artifact we sign is the sha256 of the artifact
+  // npm uploads. `npm publish <tarball>` reports the exact digests of the file it
+  // would send — assert they are this file's digests, so signing this file and
+  // publishing it cover the same bytes.
+  it.skipIf(!hasBinary('npm'))(
+    'npm publishes the signed tarball byte-for-byte (no repack between sign and publish)',
+    () => {
+      const pack = npmPack(join(workDir, 'pack'))
+      if ('skip' in pack) {
+        expect(pack.skip).toBeTruthy()
+        return
+      }
+      const bytes = readFileSync(pack.tarball)
+      const signedSha256 = createHash('sha256').update(bytes).digest('hex')
+
+      const r = spawnSync(
+        'npm',
+        ['publish', '--dry-run', '--json', '--ignore-scripts', '--access', 'public', pack.tarball],
+        { cwd: REPO_ROOT, encoding: 'utf-8', timeout: 300_000 },
+      )
+      const out = (r.stdout ?? '') + (r.stderr ?? '')
+      if (r.status !== 0) {
+        if (isOfflineFailure(out)) {
+          expect(out, 'npm publish --dry-run unavailable (offline)').toBeTruthy()
+          return
+        }
+        throw new Error(`npm publish --dry-run failed (not offline):\n${out.slice(-2000)}`)
+      }
+      const manifest = JSON.parse(r.stdout) as {
+        size: number
+        shasum: string
+        integrity: string
+        filename: string
+      }
+
+      expect(manifest.size).toBe(bytes.length)
+      expect(manifest.shasum).toBe(createHash('sha1').update(bytes).digest('hex'))
+      expect(manifest.integrity).toBe(
+        `sha512-${createHash('sha512').update(bytes).digest('base64')}`,
+      )
+      // The file we hashed is still the file on disk — nothing repacked it.
+      expect(sha256(pack.tarball)).toBe(signedSha256)
+    },
+    600_000,
+  )
+
+  // #2139: every subpath the PACKAGE declares must import from the INSTALLED
+  // package. Derived from package.json#exports — adding an export without a
+  // working build target fails here, which a source-tree import never would.
+  it.skipIf(!hasBinary('npm') || !hasBinary('node'))(
+    'every declared exports subpath imports from the installed tarball',
+    () => {
+      const pack = npmPack(join(workDir, 'pack'))
+      if ('skip' in pack) {
+        expect(pack.skip).toBeTruthy()
+        return
+      }
+      const consumer = join(workDir, 'consumer')
+      mkdirSync(consumer, { recursive: true })
+      writeFileSync(
+        join(consumer, 'package.json'),
+        JSON.stringify({ name: 'consumer', version: '1.0.0', private: true, type: 'module' }),
+      )
+      const install = npmInstall(consumer, pack.tarball)
+      if ('skip' in install) {
+        expect(install.skip).toBeTruthy()
+        return
+      }
+
+      const name = packageName()
+      const subpaths = declaredExports()
+      expect(subpaths.length, 'package.json declares no exports').toBeGreaterThan(0)
+
+      for (const { subpath, target } of subpaths) {
+        const specifier = subpath === '.' ? name : `${name}${subpath.slice(1)}`
+
+        // Resolution first, with no side effects: the exports map must point at a
+        // file that the build actually emitted into the tarball. (`.` maps to the
+        // CLI entrypoint, which RUNS on import — resolving it separately is the
+        // only way to prove it shipped without executing it.)
+        const resolved = spawnSync(
+          'node',
+          [
+            '--input-type=module',
+            '-e',
+            `process.stdout.write('RESOLVED:' + import.meta.resolve(${JSON.stringify(specifier)}))`,
+          ],
+          { cwd: consumer, encoding: 'utf-8', timeout: 120_000 },
+        )
+        const resolveOut = (resolved.stdout ?? '') + (resolved.stderr ?? '')
+        expect(
+          resolved.status,
+          `"${specifier}" does not resolve from the installed package:\n${resolveOut}`,
+        ).toBe(0)
+        const resolvedFile = fileURLToPath(
+          resolveOut.slice(resolveOut.indexOf('RESOLVED:') + 'RESOLVED:'.length).trim(),
+        )
+        expect(existsSync(resolvedFile), `"${specifier}" resolves to a missing file`).toBe(true)
+
+        // #2139 AC: the declared `types` entry must exist inside the tarball.
+        const types = target.types
+        expect(types, `exports["${subpath}"] declares no types entry`).toBeTruthy()
+        const typesPath = join(
+          consumer,
+          'node_modules',
+          name,
+          (types as string).replace(/^\.\//, ''),
+        )
+        expect(existsSync(typesPath), `declared types missing from the package: ${types}`).toBe(true)
+
+        // `.` is the CLI entrypoint: dist/cli.js runs `_main()` and exits on
+        // import, and dist/cli.d.ts declares nothing. Assert it IS the bin the
+        // package promises rather than pretending it is an importable library —
+        // finding recorded under #2139 (docs/REFERENCE/api.md advertises `.` as
+        // a stable API surface it is not).
+        if (subpath === '.') {
+          const bin = join(consumer, 'node_modules', name, 'dist', 'cli.js')
+          expect(resolvedFile, 'root export is not the CLI entrypoint').toBe(bin)
+          continue
+        }
+
+        const imported = spawnSync(
+          'node',
+          [
+            '--input-type=module',
+            '-e',
+            `import * as m from ${JSON.stringify(specifier)}
+             process.stdout.write('EXPORTS:' + JSON.stringify(Object.keys(m)))`,
+          ],
+          { cwd: consumer, encoding: 'utf-8', timeout: 120_000 },
+        )
+        const out = (imported.stdout ?? '') + (imported.stderr ?? '')
+        expect(
+          imported.status,
+          `import "${specifier}" from the installed package failed:\n${out}`,
+        ).toBe(0)
+        const runtimeKeys = JSON.parse(
+          out.slice(out.indexOf('EXPORTS:') + 'EXPORTS:'.length),
+        ) as string[]
+
+        // Expected symbols are DERIVED from the shipped .d.ts, never hand-listed:
+        // every value the declaration promises must exist at runtime. (A types-only
+        // entrypoint like ./plugin promises interfaces and no values — its runtime
+        // module is legitimately `export {}`, but its declarations must be there.)
+        const dts = readFileSync(typesPath, 'utf-8')
+        const declaredValues = [
+          ...dts.matchAll(/^export \{([^}]*)\}/gm),
+          ...dts.matchAll(/^export declare (?:const|function|class|enum) (\w+)/gm),
+        ].flatMap((m) =>
+          (m[1] ?? '')
+            .split(',')
+            .map((s) => s.trim().split(/\s+as\s+/).pop()?.trim() ?? '')
+            .filter(Boolean),
+        )
+        expect(
+          dts.replace(/^export \{\};?$/m, '').includes('export'),
+          `"${specifier}" ships a declaration file that declares nothing: ${types}`,
+        ).toBe(true)
+        for (const symbol of declaredValues) {
+          expect(
+            runtimeKeys,
+            `"${specifier}" declares ${symbol} in ${types} but the installed module does not export it`,
+          ).toContain(symbol)
+        }
+      }
+    },
+    900_000,
   )
 })
