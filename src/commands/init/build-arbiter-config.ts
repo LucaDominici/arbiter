@@ -155,6 +155,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     permitGitHub: config.useGitHub,
     decomposition: { backend },
     ...buildLanguageField(config),
+    packageManager: config.packageManager ?? 'npm',
     features: {
       debtGates: config.enableDebtGates,
       suppressions: config.enableSuppressions,

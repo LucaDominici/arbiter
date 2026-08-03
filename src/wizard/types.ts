@@ -232,6 +232,8 @@ export interface ProjectConfig {
   hasPublicApi: boolean
   /** e.g. "npm", "gradle", "cargo" */
   buildTool: string
+  /** JavaScript package manager detected during project discovery. */
+  packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun'
   buildCommand: string
   testCommand: string
   lintCommand: string

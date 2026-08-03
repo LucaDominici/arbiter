@@ -54,6 +54,32 @@ describe('check-all.mjs.ejs rendering — database integration lane (#2193)', ()
   })
 })
 
+describe('check-all.mjs.ejs rendering — detected package manager (#2137)', () => {
+  it('uses pnpm for script checks, skips npm-only checks, and preserves the absent-local default', () => {
+    const withoutPackageManager = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      enableSecurityScanning: true,
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const pnpm = renderTemplate('scripts/check-all.mjs.ejs', {
+      ...withoutPackageManager,
+      packageManager: 'pnpm',
+    })
+    const npm = renderTemplate('scripts/check-all.mjs.ejs', {
+      ...withoutPackageManager,
+      packageManager: 'npm',
+    })
+    const defaulted = renderTemplate('scripts/check-all.mjs.ejs', withoutPackageManager)
+
+    expect(pnpm).toContain("runCheck('unit tests', 'pnpm', ['run', 'test:unit'])")
+    expect(pnpm).not.toMatch(/runCheck\([^\n]*'npm', \['run',/)
+    expect(pnpm).toContain('[CHECK] npm-ci drift ... SKIP (project uses pnpm)')
+    expect(pnpm).toContain('[CHECK] audit ... SKIP (project uses pnpm)')
+    expect(defaulted).toBe(npm)
+  })
+})
+
 describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
   it('renders inline suppressions check when enableSuppressions=true (#367)', () => {
     const data = makeConfig('/tmp/test', {

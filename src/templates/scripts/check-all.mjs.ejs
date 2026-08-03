@@ -34,7 +34,7 @@ if (!process.env.TMPDIR) {
   const _tmpfs = resolveTmpfsTmpdir();
   if (_tmpfs) process.env.TMPDIR = _tmpfs;
 }
-<% if (language === 'typescript' && enableDebtGates && coverageEnabled) { %>
+<% const packageManager = locals.packageManager ?? 'npm'; if (language === 'typescript' && enableDebtGates && coverageEnabled) { %>
 // #1319.8 — greenfield-aware coverage decision (PASS on 0 executable statements;
 // enforce threshold otherwise; FAIL on missing/malformed summary).
 import { evaluateCoverageGate } from './lib/coverage-gate.mjs';
@@ -246,8 +246,8 @@ if (gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] stat
 if (gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')) {
   runCheck('no-fake-db imports (INV-34)', 'npx', ['eslint', '--config', 'eslint.config.no-fake-db.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', '.']);
 }
-runCheck('unit tests', 'npm', ['run', 'test:unit']);
-// ─── L1: npm-ci lockfile drift under the pinned npm (#1684) ────────────────────
+runCheck('unit tests', '<%= packageManager %>', ['run', 'test:unit']);
+<% if (packageManager === 'npm') { %>// ─── L1: npm-ci lockfile drift under the pinned npm (#1684) ────────────────────
 // Verifies `npm ci` would succeed under the npm pinned in package.json#packageManager,
 // catching the local/Dependabot-vs-CI npm-major skew that rejects the lock repo-wide.
 // Invokes the pinned npm EXPLICITLY (npx npm@<pin>) — ambient npm may be a newer major
@@ -279,7 +279,10 @@ runCheck('unit tests', 'npm', ['run', 'test:unit']);
     console.log('SKIP (' + (_e && _e.message ? _e.message : 'unreadable package.json') + ')');
   }
   pushResult('npm-ci drift', _driftStatus, Date.now() - _driftStart);
-}
+}<% } else { %>
+console.log('[CHECK] npm-ci drift ... SKIP (project uses <%= packageManager %>)');
+pushResult('npm-ci drift', 'SKIP', 0);
+<% } %>
 <% } %><% if (language === 'rust') { %>
 runCheck('fmt', 'cargo', ['fmt', '--check']);
 runCheck('clippy', 'cargo', ['clippy', '--', '-D', 'warnings']);
@@ -689,8 +692,11 @@ if (level === 'L2') {
   runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1'], { soft: graceActive });
 <% } %>
 <% if (language === 'typescript') { %>
-<% if (enableSecurityScanning) { %>
+<% if (enableSecurityScanning && packageManager === 'npm') { %>
   runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+<% } else if (enableSecurityScanning) { %>
+  console.log('[CHECK] audit ... SKIP (project uses <%= packageManager %>)');
+  pushResult('audit', 'SKIP', 0);
 <% } %>
 <% if (archetype === 'library' && governanceLevel !== 'L1') { %>
   // #1737 (Track-B counterpart of arbiter-self's #1718): consumer-resolution audit —
@@ -705,11 +711,11 @@ if (level === 'L2') {
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
-  runCheck('contract tests', 'npm', ['run', 'test:contract'], { soft: graceActive });
-  runCheck('integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
-  runCheck('behavioral tests', 'npm', ['run', 'test:behavioral'], { soft: graceActive });
+  runCheck('contract tests', '<%= packageManager %>', ['run', 'test:contract'], { soft: graceActive });
+  runCheck('integration tests', '<%= packageManager %>', ['run', 'test:integration'], { soft: graceActive });
+  runCheck('behavioral tests', '<%= packageManager %>', ['run', 'test:behavioral'], { soft: graceActive });
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('db integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
+  runCheck('db integration tests', '<%= packageManager %>', ['run', 'test:integration'], { soft: graceActive });
 <% } %>
 <% if (_isFE && governanceLevel !== 'L1') { %>
   // ─── L2: FE boundary purity gate (INV-102/103/104, #1127) ─────────────────
@@ -906,7 +912,7 @@ if (level === 'L2') {
   // under jscpd v5, making the gate vacuous on fileset drift.
   runCheck('duplication', 'node', ['scripts/check-duplication.mjs'], { soft: graceActive });
   runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts,tsx,js,jsx', 'src'], { soft: graceActive });
-  runCheck('arch boundaries', 'npm', ['run', 'check:arch'], { soft: graceActive });
+  runCheck('arch boundaries', '<%= packageManager %>', ['run', 'check:arch'], { soft: graceActive });
 <% } %><% if (language === 'rust') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>'], { soft: graceActive });

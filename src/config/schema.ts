@@ -186,6 +186,8 @@ export interface ArbiterConfigV2 {
    * migrations and re-runs language-gated generators.
    */
   language?: Language
+  /** JavaScript package manager used by generated package-script gate checks. */
+  packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun'
   archetype?: Archetype
   architectureStyle?: ArchitectureStyle
   isMultiTenant?: boolean
@@ -504,6 +506,13 @@ const STRICTNESS_TIER_VALUES: Record<StrictnessTier, true> = { practical: true, 
 // #1693: runnerProfile axis runtime mirror (ADR-101).
 type RunnerProfileUnion = NonNullable<ArbiterConfigV2['runnerProfile']>
 const RUNNER_PROFILE_VALUES: Record<RunnerProfileUnion, true> = { solo: true, fleet: true }
+type PackageManagerUnion = NonNullable<ArbiterConfigV2['packageManager']>
+const PACKAGE_MANAGER_VALUES: Record<PackageManagerUnion, true> = {
+  npm: true,
+  pnpm: true,
+  yarn: true,
+  bun: true,
+}
 const THRESHOLD_PROFILE_VALUES: Record<ThresholdProfile, true> = { scaled: true, fixed: true }
 const CONTRACT_TYPE_VALUES: Record<ContractType, true> = {
   'rest-owned': true,
@@ -549,6 +558,7 @@ const OBSERVABILITY_PROVIDER_VALUES: Record<ObservabilityProvider, true> = {
 export const DATABASE_ENGINES: ReadonlySet<string> = new Set(Object.keys(DATABASE_ENGINE_VALUES))
 export const STRICTNESS_TIERS: ReadonlySet<string> = new Set(Object.keys(STRICTNESS_TIER_VALUES))
 export const RUNNER_PROFILES: ReadonlySet<string> = new Set(Object.keys(RUNNER_PROFILE_VALUES))
+export const PACKAGE_MANAGERS: ReadonlySet<string> = new Set(Object.keys(PACKAGE_MANAGER_VALUES))
 export const THRESHOLD_PROFILES: ReadonlySet<string> = new Set(
   Object.keys(THRESHOLD_PROFILE_VALUES),
 )
@@ -769,6 +779,7 @@ function validateOptionalEnums(raw: Record<string, unknown>, errors: string[]): 
     ['contractType', CONTRACT_TYPES],
     // #1693: runnerProfile axis (ADR-101).
     ['runnerProfile', RUNNER_PROFILES],
+    ['packageManager', PACKAGE_MANAGERS],
   ]
   for (const [field, allowed] of checks) {
     if (field in raw && raw[field] !== undefined) {

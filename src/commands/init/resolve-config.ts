@@ -227,6 +227,7 @@ function buildDefaultConfig(opts: {
     hasDatabase,
     hasPublicApi,
     buildTool: opts.buildCmds.buildTool,
+    packageManager: opts.buildCmds.packageManager ?? 'npm',
     buildCommand: opts.buildCmds.buildCommand,
     testCommand: opts.buildCmds.testCommand,
     lintCommand: opts.buildCmds.lintCommand,

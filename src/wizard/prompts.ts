@@ -703,6 +703,7 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     hasDatabase: answers.hasDatabase,
     hasPublicApi: answers.hasPublicApi,
     buildTool: input.buildCmds.buildTool,
+    packageManager: input.buildCmds.packageManager ?? 'npm',
     buildCommand: input.buildCmds.buildCommand,
     testCommand: input.buildCmds.testCommand,
     lintCommand: input.buildCmds.lintCommand,

@@ -31,6 +31,7 @@ export interface DetectorFields {
   language: ReturnType<typeof resolveLanguage>
   framework: string | null
   buildTool: string
+  packageManager: NonNullable<ProjectConfig['packageManager']>
   buildCommand: string
   testCommand: string
   lintCommand: string
@@ -242,6 +243,7 @@ export function resolveProjectConfig(
     language,
     framework,
     buildTool: buildCmds.buildTool,
+    packageManager: stored.packageManager ?? buildCmds.packageManager ?? 'npm',
     buildCommand: buildCmds.buildCommand,
     testCommand: buildCmds.testCommand,
     lintCommand: buildCmds.lintCommand,
