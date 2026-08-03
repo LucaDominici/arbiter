@@ -144,8 +144,8 @@ On `arbiter update` (and the read-only `arbiter diff`), for each `skipIfExists` 
   the template changed → **rewritten** to the new render. The fix propagates. `diff` reports `changed`.
 - **on-disk hash ≠ the recorded manifest hash** (you edited it) → **preserved**, and the withheld fix is
   surfaced (#1344): `diff` reports the file with status `withheld` (no longer a lying `unchanged`), and
-  `update`'s summary counts it (`… N withheld`). Delete the file and re-run `arbiter update` to take the
-  current template, or merge the upstream change manually.
+  `update`'s summary counts it (`… N withheld`). Inspect it with `arbiter diff --withheld`; re-adopt all
+  withheld files with `arbiter update --adopt`, or merge the upstream change manually.
 
 ### Visibility of withheld fixes (`diff --withheld`)
 
@@ -162,6 +162,8 @@ withheld set is now a first-class, reviewable signal:
   list for deciding which upstream changes to merge into your customised files.
 - `arbiter update` reports the withheld tally in its summary so an operator running `update` sees the
   drift directly, not just a buried per-file warning.
+- To take every withheld template again, run `arbiter update --adopt`; the prior content is preserved in
+  a local-override record.
 
 A withheld fix does **not** count as a pending write: `hasChanges` (the run-update hint and the
 idempotence contract) stays write-only, so `update` → `diff` remains idempotent. Withheld drift is
@@ -257,6 +259,9 @@ either class stays withheld and unmarked.
 `--no-adopt-gate-spine` is still accepted as a no-op, so a consumer script written during the #2119
 moratorium keeps working.
 
+For any withheld file, use `arbiter diff --withheld` to review the exact set; `arbiter update --adopt`
+is the broad force-adopt, while the table flags target their respective classes.
+
 The first two are monotonic by directory: a hook or a `scripts/lib/` helper added later is covered without
 the pattern changing. The three flags are deliberately independent — opting into one class must not change
 another class's policy.
@@ -288,7 +293,8 @@ default is now to withhold, and `--adopt-gate-spine` is an explicit, destructive
 
 **Not in the class: `scripts/check-*.mjs` leaf checks.** A leaf check is exactly where a project
 legitimately tunes its own thresholds; force-adopting those would overwrite intent rather than restore a
-fix. They stay `skipIfExists` and surface through `diff --withheld` like any other file.
+fix. They stay `skipIfExists`, surface through `arbiter diff --withheld` like any other file, and are
+included only in the broad `arbiter update --adopt` force-adopt.
 
 **Accepted cost.** A project that customized its gate spine stops receiving spine fixes — and every check
 arbiter ships later that its `check-all.mjs` does not wire. `check-safety-adopt-ratchet.mjs` stays **red**

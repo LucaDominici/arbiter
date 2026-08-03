@@ -18,6 +18,7 @@ import { runUpdate, type UpdateOptions } from '../../src/commands/update.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../../src/state/generated-manifest.js'
 
 const AGENTS = 'AGENTS.md'
+const GATE_SPINE = 'scripts/check-all.mjs'
 
 /** #2141 red phase: the pending CLI option, declared only in this test. */
 interface UpdateWithAdoptGovernance extends UpdateOptions {
@@ -97,6 +98,14 @@ describe('#2141: a diverged governance file is withheld unless explicitly adopte
     return localContent
   }
 
+  function divergeGateSpine(): string {
+    const localContent =
+      readFileSync(join(dir, GATE_SPINE), 'utf-8') +
+      '\n// Local gate extension: do not erase.\n'
+    writeFileSync(join(dir, GATE_SPINE), localContent)
+    return localContent
+  }
+
   it('a nude update leaves a diverged AGENTS.md byte-identical', async () => {
     const localContent = divergeAgents()
 
@@ -145,8 +154,9 @@ describe('#2141: a diverged governance file is withheld unless explicitly adopte
     expect(output.stderr()).not.toContain(AGENTS)
   })
 
-  it('names a withheld AGENTS.md and --adopt-governance in run output', async () => {
+  it('names reconciliation and broad adoption commands in every withheld warning', async () => {
     divergeAgents()
+    divergeGateSpine()
     const output = captureOutput()
     try {
       await runUpdate({ dir, github: false })
@@ -157,5 +167,12 @@ describe('#2141: a diverged governance file is withheld unless explicitly adopte
     const combined = output.text() + output.stderr()
     expect(combined).toContain(AGENTS)
     expect(combined).toContain('--adopt-governance')
+    expect(combined).toContain(GATE_SPINE)
+    const warnings = output.stderr().split('\n').filter((line) => line.includes('Warning:'))
+    expect(warnings).toHaveLength(2)
+    for (const warning of warnings) {
+      expect(warning).toContain('arbiter diff --withheld')
+      expect(warning).toContain('arbiter update --adopt')
+    }
   })
 })

@@ -822,8 +822,9 @@ function reportAdoption(
   if (!json && stillWithheldSafety.length > 0) {
     process.stderr.write(
       `\n  Warning: ${stillWithheldSafety.length} protected file(s) remain withheld ` +
-        `(user-modified; safety hooks adopt by default — a gate-spine file adopts only under ` +
-        `--adopt-gate-spine): ${stillWithheldSafety.join(', ')}\n` +
+        `(inspect with \`arbiter diff --withheld\`; re-adopt all with \`arbiter update --adopt\`, ` +
+        `a gate spine with \`--adopt-gate-spine\`, or keep safety hooks withheld with ` +
+        `\`--no-adopt-safety\`): ${stillWithheldSafety.join(', ')}\n` +
         `  \`scripts/check-safety-adopt-ratchet.mjs\` will FAIL for any of these NOT marked ` +
         `\`arbiter:preserve\` — re-adopt it, wire the new checks by hand, or mark it.\n`,
     )
@@ -832,7 +833,8 @@ function reportAdoption(
   if (!json && stillWithheldGovernance.length > 0) {
     process.stderr.write(
       `  Warning: governance file(s) withheld: ${stillWithheldGovernance.join(', ')} — ` +
-        '`--adopt-governance` is the explicit destructive opt-in; mark a file ' +
+        'inspect with `arbiter diff --withheld`; re-adopt all with `arbiter update --adopt` or ' +
+        'governance only with `--adopt-governance`; mark a file ' +
         '`arbiter:preserve` for a permanent freeze.\n',
     )
   }
