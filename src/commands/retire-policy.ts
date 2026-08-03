@@ -59,6 +59,7 @@ export function diskHasher(targetDir: string): (key: string) => string | null {
     if (!existsSync(path)) return null
     try {
       return createHash('sha256').update(readFileSync(path)).digest('hex')
+      // FAIL-OPEN-INTENT: an unreadable file is not proven pristine, so retirement leaves it untouched.
     } catch {
       return null
     }
@@ -117,6 +118,7 @@ export function applyRetirement(targetDir: string, plan: RetirementPlan): void {
   for (const key of [...plan.retire]) {
     try {
       unlinkSync(join(targetDir, key))
+      // FAIL-OPEN-INTENT: unlink failure is surfaced as a reported orphan in the caller's retirement warning.
     } catch {
       plan.retire = plan.retire.filter((k) => k !== key)
       plan.orphans = [...plan.orphans, key].sort(byKey)

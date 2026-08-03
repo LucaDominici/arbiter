@@ -148,88 +148,160 @@ export function makeRunner(runFn) {
 const defaultRun = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: 'utf-8', ...opts }).trim()
 
-/** @param {{ runFn?: typeof defaultRun, exitFn?: (code: number) => never }} opts */
-export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {}) {
-  const run = makeRunner(runFn)
-
-  // ARBITER_SKIP_TDD=1 → L1-only bypass; gate still fails at L2 if trailer present
-  const envSkip = process.env.ARBITER_SKIP_TDD === '1'
-
-  let mergeBase
+function mergeBaseOrSkip(run, envSkip) {
   try {
-    mergeBase = run('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: repoRoot })
+    return run('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: repoRoot })
   } catch {
-    // If origin/main is unavailable (e.g. local-only branch), skip gracefully
     if (envSkip) {
       process.stdout.write('check-tdd-evidence: ARBITER_SKIP_TDD=1, skipping (no origin/main)\n')
-      return exitFn(0)
+    } else {
+      process.stdout.write(
+        'check-tdd-evidence: cannot determine merge-base (no origin/main), skipping\n',
+      )
     }
-    process.stdout.write(
-      'check-tdd-evidence: cannot determine merge-base (no origin/main), skipping\n',
-    )
-    return exitFn(0)
+    return null
   }
+}
 
-  // Get one-liner subjects for task-ID parsing
-  let subjectLog
+function subjectLogOrPass(run, mergeBase) {
   try {
-    subjectLog = run('git', ['log', `${mergeBase}..HEAD`, '--format=%s'], { cwd: repoRoot })
+    return run('git', ['log', `${mergeBase}..HEAD`, '--format=%s'], { cwd: repoRoot })
   } catch {
     process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
-    return exitFn(0)
+    return null
   }
+}
 
-  const taskIds = parseTaskIdsFromLog(subjectLog)
-
-  // Collect full commit bodies — needed for the skip-trailer check AND for the
-  // branch-level floor below.
-  let bodyLog
+function bodyLogOrEmpty(run, mergeBase) {
   try {
-    bodyLog = run('git', ['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'], { cwd: repoRoot })
+    return run('git', ['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'], { cwd: repoRoot })
   } catch {
-    bodyLog = ''
+    return ''
   }
+}
 
-  // #2217 — the branch floor. Subject-scoped IDs are verified per commit (below). A
-  // branch whose commits cite issues only in their BODIES used to parse to zero IDs and
-  // pass VACUOUSLY, whatever it changed. Evidence is now owed per CHANGE: a branch that
-  // touches src/ must carry at least ONE verified TDD evidence among the tasks it cites.
-  let floorIds = []
-  if (taskIds.length === 0) {
-    let changed = ''
-    try {
-      changed = run('git', ['diff', '--name-only', `${mergeBase}..HEAD`], { cwd: repoRoot })
-    } catch {
-      changed = ''
-    }
-    if (!touchesGovernedSource(changed)) {
-      process.stdout.write(
-        'check-tdd-evidence: no task-ID commits and no src/ change, vacuous pass\n',
-      )
-      return exitFn(0)
-    }
-    floorIds = parseTaskIdsFromBodies(bodyLog)
-    if (floorIds.length === 0) {
-      process.stderr.write(formatUncitedSourceError())
-      return exitFn(1)
-    }
+function branchFloor(run, mergeBase, taskIds, bodyLog) {
+  if (taskIds.length > 0) return { exitCode: null, ids: [] }
+  let changed = ''
+  try {
+    changed = run('git', ['diff', '--name-only', `${mergeBase}..HEAD`], { cwd: repoRoot })
+  } catch {
+    changed = ''
   }
+  if (!touchesGovernedSource(changed)) {
+    process.stdout.write(
+      'check-tdd-evidence: no task-ID commits and no src/ change, vacuous pass\n',
+    )
+    return { exitCode: 0, ids: [] }
+  }
+  const ids = parseTaskIdsFromBodies(bodyLog)
+  if (ids.length > 0) return { exitCode: null, ids }
+  process.stderr.write(formatUncitedSourceError())
+  return { exitCode: 1, ids: [] }
+}
 
-  // Check for skip trailers — forbidden at L2+
-  const commitBlocks = bodyLog.split('\x00').filter(Boolean)
+function skipTrailerErrors(bodyLog) {
   const errors = []
-  for (const block of commitBlocks) {
+  for (const block of bodyLog.split('\x00').filter(Boolean)) {
     const lines = block.trim().split('\n')
     const sha = lines[0]?.trim()
     if (!sha || sha.length < 7) continue
     const body = lines.slice(1).join('\n')
     if (!hasSkipTrailer(body)) continue
-    // Find which task IDs this commit touches
     const subject = lines[1] ?? ''
     const ids = parseTaskIdsFromLog(subject)
-    const label = ids.length > 0 ? ids[0] : '<unknown>'
-    errors.push(formatSkipError(sha.slice(0, 12), label))
+    errors.push(formatSkipError(sha.slice(0, 12), ids.length > 0 ? ids[0] : '<unknown>'))
   }
+  return errors
+}
+
+function verifyOne(run, taskId) {
+  const tsxBin = resolve(scriptRoot, 'node_modules/.bin/tsx')
+  const cliSrc = resolve(scriptRoot, 'src/cli.ts')
+  process.stdout.write(`  checking ${taskId}... `)
+  try {
+    const out = run(tsxBin, [cliSrc, 'verify', 'tdd', taskId, '--dir', repoRoot], {
+      cwd: repoRoot,
+    })
+    process.stdout.write('PASS\n')
+    if (out) process.stdout.write(`    ${out.replace(/\n/g, '\n    ')}\n`)
+    return true
+  } catch (err) {
+    process.stdout.write('FAIL\n')
+    const msg =
+      err && typeof err === 'object' && ('stderr' in err || 'stdout' in err)
+        ? err.stderr || err.stdout
+        : String(err)
+    process.stderr.write(`    ${String(msg).replace(/\n/g, '\n    ')}\n`)
+    return false
+  }
+}
+
+function evidenceProducedHere(run, mergeBase, taskId) {
+  let touched = ''
+  try {
+    touched = run(
+      'git',
+      ['log', '--format=%H', `${mergeBase}..HEAD`, '--', `.arbiter/evidence/tdd/${taskId}.json`],
+      { cwd: repoRoot },
+    )
+  } catch {
+    touched = ''
+  }
+  if (touched.length > 0) return true
+  process.stdout.write(`  ${taskId}: evidence inherited from main, not produced on this branch\n`)
+  return false
+}
+
+function verifyBranchFloor(run, mergeBase, floorIds) {
+  const producedHere = floorIds.filter((taskId) => evidenceProducedHere(run, mergeBase, taskId))
+  if (producedHere.some((taskId) => verifyOne(run, taskId))) {
+    process.stdout.write(
+      'check-tdd-evidence: branch floor satisfied (src/ change backed by verified evidence)\n',
+    )
+    return 0
+  }
+  process.stderr.write(formatFloorError(floorIds))
+  return 1
+}
+
+function mainOptions(opts) {
+  return {
+    runFn: opts?.runFn ?? defaultRun,
+    exitFn: opts?.exitFn ?? ((code) => process.exit(code)),
+  }
+}
+
+/** @param {{ runFn?: typeof defaultRun, exitFn?: (code: number) => never }} opts */
+export function main(opts) {
+  const { runFn, exitFn } = mainOptions(opts)
+  const run = makeRunner(runFn)
+
+  // ARBITER_SKIP_TDD=1 → L1-only bypass; gate still fails at L2 if trailer present
+  const envSkip = process.env.ARBITER_SKIP_TDD === '1'
+
+  const mergeBase = mergeBaseOrSkip(run, envSkip)
+  if (mergeBase === null) return exitFn(0)
+
+  // Get one-liner subjects for task-ID parsing
+  const subjectLog = subjectLogOrPass(run, mergeBase)
+  if (subjectLog === null) return exitFn(0)
+
+  const taskIds = parseTaskIdsFromLog(subjectLog)
+
+  // Collect full commit bodies — needed for the skip-trailer check AND for the
+  // branch-level floor below.
+  const bodyLog = bodyLogOrEmpty(run, mergeBase)
+
+  // #2217 — the branch floor. Subject-scoped IDs are verified per commit (below). A
+  // branch whose commits cite issues only in their BODIES used to parse to zero IDs and
+  // pass VACUOUSLY, whatever it changed. Evidence is now owed per CHANGE: a branch that
+  // touches src/ must carry at least ONE verified TDD evidence among the tasks it cites.
+  const floor = branchFloor(run, mergeBase, taskIds, bodyLog)
+  if (floor.exitCode !== null) return exitFn(floor.exitCode)
+
+  // Check for skip trailers — forbidden at L2+
+  const errors = skipTrailerErrors(bodyLog)
 
   if (errors.length > 0) {
     for (const e of errors) process.stderr.write(`\n${e}\n`)
@@ -242,71 +314,16 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
     return exitFn(0)
   }
 
-  // Run arbiter verify tdd for each task ID
-  // Use tsx (dev) to avoid requiring a build artifact; tsx is always available in devDeps
-  const tsxBin = resolve(scriptRoot, 'node_modules/.bin/tsx')
-  const cliSrc = resolve(scriptRoot, 'src/cli.ts')
-  const verifyOne = (taskId) => {
-    process.stdout.write(`  checking ${taskId}... `)
-    try {
-      const out = run(tsxBin, [cliSrc, 'verify', 'tdd', taskId, '--dir', repoRoot], {
-        cwd: repoRoot,
-      })
-      process.stdout.write('PASS\n')
-      if (out) process.stdout.write(`    ${out.replace(/\n/g, '\n    ')}\n`)
-      return true
-    } catch (err) {
-      process.stdout.write('FAIL\n')
-      const msg =
-        err && typeof err === 'object' && ('stderr' in err || 'stdout' in err)
-          ? err.stderr || err.stdout
-          : String(err)
-      process.stderr.write(`    ${String(msg).replace(/\n/g, '\n    ')}\n`)
-      return false
-    }
-  }
-
   // Floor path: the branch owes ONE verified evidence, not one per cited issue —
   // docs and chore commits that merely reference an issue owe nothing.
   if (taskIds.length === 0) {
     // ...and the evidence must have been PRODUCED here. Without this the floor is
     // theatre: cite any long-closed task whose evidence sits on main and the branch
     // "proves" a red→green cycle it never ran.
-    const producedHere = (taskId) => {
-      let touched = ''
-      try {
-        touched = run(
-          'git',
-          [
-            'log',
-            '--format=%H',
-            `${mergeBase}..HEAD`,
-            '--',
-            `.arbiter/evidence/tdd/${taskId}.json`,
-          ],
-          { cwd: repoRoot },
-        )
-      } catch {
-        touched = ''
-      }
-      if (touched.length > 0) return true
-      process.stdout.write(
-        `  ${taskId}: evidence inherited from main, not produced on this branch\n`,
-      )
-      return false
-    }
-
-    if (floorIds.filter(producedHere).some(verifyOne)) {
-      process.stdout.write(
-        `check-tdd-evidence: branch floor satisfied (src/ change backed by verified evidence)\n`,
-      )
-      return exitFn(0)
-    }
-    process.stderr.write(formatFloorError(floorIds))
-    return exitFn(1)
+    return exitFn(verifyBranchFloor(run, mergeBase, floor.ids))
   }
 
-  const results = taskIds.map(verifyOne)
+  const results = taskIds.map((taskId) => verifyOne(run, taskId))
   if (results.includes(false)) {
     process.stderr.write(
       `\ncheck-tdd-evidence: one or more task IDs failed TDD evidence verification.\n` +

@@ -59,26 +59,11 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
   // blob pin when the recorded sha was rewritten away by a rebase (#2116).
   const resolved = resolveEvidenceCommit(ev, dir)
   if (resolved === null) {
-    const reason =
-      `test_commit_sha ${ev.test_commit_sha} is not reachable from HEAD` +
-      (ev.test_blob_sha === undefined
-        ? ` and this evidence predates the rebase-stable blob pin — re-record it with ` +
-          `\`arbiter task record-red --test-path ${ev.test_path}\``
-        : ` and no commit on this branch carries the recorded RED test content`)
+    const reason = unresolvedCommitReason(ev)
     return fail(taskId, reason, [...checks, { name: 'sha-on-branch', pass: false, reason }])
   }
   const redSha = resolved.sha
-  checks.push({
-    name: 'sha-on-branch',
-    pass: true,
-    ...(resolved.healed
-      ? {
-          reason:
-            `pinned sha ${ev.test_commit_sha} was rewritten (rebase) — resolved to ${redSha} ` +
-            `via the recorded RED test blob`,
-        }
-      : {}),
-  })
+  checks.push(reachableCommitCheck(ev, resolved))
 
   // Check 5: test path exists in that commit
   const pathExists = pathExistsInCommit(redSha, ev.test_path, dir)
@@ -104,4 +89,33 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
 
 function fail(taskId: string, reason: string, checks: VerifyTddCheck[]): VerifyTddResult {
   return { status: 'FAIL', exitCode: 1, taskId, reason, checks }
+}
+
+function unresolvedCommitReason(ev: {
+  test_commit_sha: string
+  test_blob_sha?: string | undefined
+  test_path: string
+}): string {
+  const prefix = `test_commit_sha ${ev.test_commit_sha} is not reachable from HEAD`
+  if (ev.test_blob_sha !== undefined) {
+    return `${prefix} and no commit on this branch carries the recorded RED test content`
+  }
+  return (
+    `${prefix} and this evidence predates the rebase-stable blob pin — re-record it with ` +
+    `\`arbiter task record-red --test-path ${ev.test_path}\``
+  )
+}
+
+function reachableCommitCheck(
+  ev: { test_commit_sha: string },
+  resolved: { sha: string; healed: boolean },
+): VerifyTddCheck {
+  if (!resolved.healed) return { name: 'sha-on-branch', pass: true }
+  return {
+    name: 'sha-on-branch',
+    pass: true,
+    reason:
+      `pinned sha ${ev.test_commit_sha} was rewritten (rebase) — resolved to ${resolved.sha} ` +
+      `via the recorded RED test blob`,
+  }
 }

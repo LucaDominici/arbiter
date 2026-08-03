@@ -670,46 +670,73 @@ function emitUpdateOutcome(
 ): void {
   const generatorErrorLines = generatorErrors.map((e) => `${e.key}: ${e.message}`)
   if (options.json) {
-    const status =
-      generatorErrorLines.length > 0 ? 'error' : backendWarnings.length > 0 ? 'warning' : 'ok'
-    const jsonOpts: JsonOutputOpts = {}
-    if (backendWarnings.length > 0) jsonOpts.warnings = backendWarnings
-    if (status === 'error') jsonOpts.errorClass = 'fatal'
-    else if (status === 'warning') jsonOpts.errorClass = 'recoverable'
-    jsonOutput(
-      'update',
-      status,
-      summary,
-      generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
-      status !== 'ok' || backendWarnings.length > 0 ? jsonOpts : undefined,
-    )
-    if (status !== 'ok') process.exit(statusToExitCode(status))
+    emitJsonUpdateOutcome(summary, generatorErrorLines, backendWarnings)
     return
   }
   if (generatorErrorLines.length > 0) {
-    process.stdout.write(
-      `\n  Generator failures (${generatorErrorLines.length}):\n${generatorErrorLines
-        .map((line) => `    - ${line}`)
-        .join('\n')}\n`,
-    )
-    if (backendWarnings.length > 0) {
-      process.stderr.write(
-        `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
-          .map((w) => `    - ${w}`)
-          .join('\n')}\n`,
-      )
-    }
+    printGeneratorFailures(generatorErrorLines, backendWarnings)
     process.exit(statusToExitCode('error'))
   }
   if (backendWarnings.length > 0) {
-    process.stderr.write(
-      `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
-        .map((w) => `    - ${w}`)
-        .join('\n')}\n`,
-    )
+    printBackendWarnings(backendWarnings)
     process.exit(statusToExitCode('warning'))
   }
   process.stdout.write(`${t('cli.update.verify_hint')}\n`)
+}
+
+function emitJsonUpdateOutcome(
+  summary: UpdateSummary,
+  generatorErrorLines: string[],
+  backendWarnings: string[],
+): void {
+  const status = updateOutcomeStatus(generatorErrorLines, backendWarnings)
+  const jsonOpts = jsonOutcomeOpts(status, backendWarnings)
+  jsonOutput(
+    'update',
+    status,
+    summary,
+    generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
+    jsonOpts,
+  )
+  if (status !== 'ok') process.exit(statusToExitCode(status))
+}
+
+function updateOutcomeStatus(
+  generatorErrorLines: string[],
+  backendWarnings: string[],
+): 'error' | 'warning' | 'ok' {
+  if (generatorErrorLines.length > 0) return 'error'
+  if (backendWarnings.length > 0) return 'warning'
+  return 'ok'
+}
+
+function jsonOutcomeOpts(
+  status: 'error' | 'warning' | 'ok',
+  backendWarnings: string[],
+): JsonOutputOpts | undefined {
+  if (status === 'ok' && backendWarnings.length === 0) return undefined
+  const jsonOpts: JsonOutputOpts = {}
+  if (backendWarnings.length > 0) jsonOpts.warnings = backendWarnings
+  if (status === 'error') jsonOpts.errorClass = 'fatal'
+  if (status === 'warning') jsonOpts.errorClass = 'recoverable'
+  return jsonOpts
+}
+
+function printBackendWarnings(backendWarnings: string[]): void {
+  process.stderr.write(
+    `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
+      .map((w) => `    - ${w}`)
+      .join('\n')}\n`,
+  )
+}
+
+function printGeneratorFailures(generatorErrorLines: string[], backendWarnings: string[]): void {
+  process.stdout.write(
+    `\n  Generator failures (${generatorErrorLines.length}):\n${generatorErrorLines
+      .map((line) => `    - ${line}`)
+      .join('\n')}\n`,
+  )
+  if (backendWarnings.length > 0) printBackendWarnings(backendWarnings)
 }
 
 /**
@@ -806,13 +833,50 @@ function handleAdverseState(
   )
 }
 
+function updateLogger(json: boolean | undefined): (msg: string) => void {
+  if (json) return (): void => {}
+  return (msg: string): void => {
+    process.stdout.write(`${msg}\n`)
+  }
+}
+
+function missingConfigResult(options: UpdateOptions, log: (msg: string) => void): UpdateResult {
+  if (options.json) {
+    jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'], {
+      errorClass: 'config',
+    })
+  } else {
+    log('  No arbiter.json found. Run `arbiter init` first.\n')
+  }
+  process.exit(78)
+  return { keysRun: null }
+}
+
+function saveValidatedConfig(
+  options: UpdateOptions,
+  nextConfig: ArbiterConfigV2,
+  targetDir: string,
+): void {
+  const validation = validateConfig(nextConfig)
+  if (!validation.ok) {
+    if (options.json) {
+      jsonOutput('update', 'error', {}, [
+        `Config invalid after update: ${validation.errors.join('; ')}`,
+      ])
+    } else {
+      process.stderr.write(
+        `${t('cli.update.config_invalid', { errors: validation.errors.join('; ') })}\n`,
+      )
+    }
+    process.exit(2)
+    return
+  }
+  saveConfigAndSnapshot(targetDir, validation.config)
+}
+
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const log: (msg: string) => void = options.json
-    ? (): void => {}
-    : (msg: string): void => {
-        process.stdout.write(`${msg}\n`)
-      }
+  const log = updateLogger(options.json)
 
   log('\n  Arbiter — update\n')
 
@@ -821,15 +885,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   try {
     const stored = loadConfig(targetDir)
     if (!stored) {
-      if (options.json) {
-        jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'], {
-          errorClass: 'config',
-        })
-      } else {
-        log('  No arbiter.json found. Run `arbiter init` first.\n')
-      }
-      process.exit(78)
-      return { keysRun: null }
+      return missingConfigResult(options, log)
     }
     // #1978: resolve via the durable-source precedence chain (stored name →
     // package.json → git remote → cwd basename) — NEVER the cwd basename
@@ -906,21 +962,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       ...(legacyCollisionWarning ? [legacyCollisionWarning] : []),
     ]
 
-    const validation = validateConfig(nextConfig)
-    if (!validation.ok) {
-      if (options.json) {
-        jsonOutput('update', 'error', {}, [
-          `Config invalid after update: ${validation.errors.join('; ')}`,
-        ])
-      } else {
-        process.stderr.write(
-          `${t('cli.update.config_invalid', { errors: validation.errors.join('; ') })}\n`,
-        )
-      }
-      process.exit(2)
-    }
-
-    saveConfigAndSnapshot(targetDir, validation.config)
+    saveValidatedConfig(options, nextConfig, targetDir)
 
     const summary: UpdateSummary = {
       created: results.filter((r) => r.action === 'created').length,

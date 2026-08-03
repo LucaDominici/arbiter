@@ -387,7 +387,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "187d0e187b26f1b43e200fbd80fd7ded3e22bef40222a4405fe8b50c4dce7892"
+    "diffHash": "6ab67f0f5a948ae9c0150d49655c744e4ee16170bc110dffd90570fd9124b8ff"
   },
   {
     "path": "check-test-naming.mjs",
