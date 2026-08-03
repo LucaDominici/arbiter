@@ -182,6 +182,9 @@ describe('stop-dangerous — empirical fire', () => {
   })
 
   it.each([
+    'git diff .arbiter/status.json && rm /tmp/scratch',
+    'cp dist/a dist/b && ls .arbiter/evidence',
+    'cp a b && cat .arbiter/status.json',
     'cat .arbiter/gate-pass.json',
     'cat .arbiter/gate-pass.json 2>&1',
     'jq . .arbiter/status.json',

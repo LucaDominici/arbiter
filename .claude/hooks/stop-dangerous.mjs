@@ -33,15 +33,19 @@ for (const pattern of DANGEROUS_PATTERNS) {
 }
 
 // ponytail: string-level pattern guard — obfuscation (base64, $VAR indirection, helper
-// script) defeats it by design; the enforced boundary is the CI gate, see
+// script) and separators inside quoted strings defeat it by design; the enforced boundary is
+// the CI gate, see
 // docs/design/anti-context-rot-enforcers.md.
 const protectedPathPattern =
   /(?:^|[\s"'`])((?:\.\/|\/[^\s"'`]*)?\.arbiter\/(?:gate-pass\.json|status\.json|evidence(?:\/[^\s"'`]*)?))(?=$|[\s"'`,;)&|])/
 const writeIntentPattern =
   /\d?(?:>>|>)\s*(?:\.\/|\/[^\s"'`]*)?\.arbiter\/(?:gate-pass\.json|status\.json|evidence(?:\/[^\s"'`]*)?)(?=$|[\s"'`,;)&|])|(?:^|[\s;|&])(?:cp|mv|tee|sed\s+-i\S*|truncate|rm|unlink|python3?\s+-c|node\s+-e)(?=$|[\s;|&])/
 
-const protectedPath = command.match(protectedPathPattern)?.[1]
-if (protectedPath && writeIntentPattern.test(command)) {
-  process.stderr.write(`[arbiter] Blocked protected Arbiter state write: ${protectedPath}\n`)
-  process.exit(2)
+const segments = command.split(/&&|\|\||;|\|/).map((segment) => segment.trim())
+for (const segment of segments) {
+  const protectedPath = segment.match(protectedPathPattern)?.[1]
+  if (protectedPath && writeIntentPattern.test(segment)) {
+    process.stderr.write(`[arbiter] Blocked protected Arbiter state write: ${protectedPath}\n`)
+    process.exit(2)
+  }
 }
