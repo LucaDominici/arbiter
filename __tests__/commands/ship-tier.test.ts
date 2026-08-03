@@ -2,8 +2,10 @@
 //
 // Deterministic /ship tier widening (#2180): graph + issue metadata can only widen routing.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { existsSync, mkdirSync, utimesSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
 import { cleanupTestProject, createTestProject } from '../helpers.js'
 import { runTaskShip, shipStepFor } from '../../src/commands/task-ship.js'
 import { writeUnifiedState } from '../../src/commands/task-state.js'
@@ -248,5 +250,89 @@ describe('runTaskShip deterministic widening (#2180)', () => {
     })
 
     expect(gatherSignals).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ─── #2207 / #2184: tier ORIGINATION is human-only, and survives a bare ship ───
+// Root cause of #2207: src/cli.ts baked `opts.tier ?? 'Standard'` at the CLI
+// boundary, so the `tier` key was ALWAYS present in the patch handed to
+// seedShipState -> writeUnifiedState, whose merge only preserves fields the
+// patch omits. Every other call site (init, task init) omits the key when the
+// flag is absent. #2184 decision: (a) human-only origination — a persisted tier
+// is a human's explicit choice at `task init --tier`, so it must survive.
+describe('#2207 — bare `ship <id>` respects the persisted tier', () => {
+  const CLI = resolve(import.meta.dirname, '../../dist/cli.js')
+
+  function shipDir(): string {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-2207-'))
+    mkdirSync(join(dir, '.claude', '.task'), { recursive: true })
+    return dir
+  }
+
+  function persistTier(dir: string, tier: string): void {
+    writeFileSync(
+      join(dir, '.claude', '.task', 'status.json'),
+      JSON.stringify({
+        taskId: '#123',
+        phase: 'preflight',
+        tier,
+        plan: '',
+        cursor: { step: 0 },
+        overrides: {},
+      }),
+      'utf-8',
+    )
+  }
+
+  function readTier(dir: string): string {
+    return (
+      JSON.parse(readFileSync(join(dir, '.claude', '.task', 'status.json'), 'utf-8')) as {
+        tier: string
+      }
+    ).tier
+  }
+
+  function ship(dir: string, args: readonly string[]): string {
+    const result = spawnSync(process.execPath, [CLI, 'ship', '#123', '--dir', dir, ...args], {
+      encoding: 'utf-8',
+      timeout: 60_000,
+    })
+    return result.stdout ?? ''
+  }
+
+  it('preserves a persisted narrow tier and reports it as effective', () => {
+    const dir = shipDir()
+    try {
+      persistTier(dir, 'S')
+      const stdout = ship(dir, [])
+      expect(stdout).toMatch(/Tier: S\b/)
+      expect(readTier(dir)).toBe('S')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('still falls back to the widest tier when nothing is persisted', () => {
+    const dir = shipDir()
+    try {
+      persistTier(dir, '')
+      const stdout = ship(dir, [])
+      expect(stdout).toMatch(/Tier: Standard\b/)
+      expect(readTier(dir)).toBe('Standard')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('lets an explicit --tier override AND persist over the stored value', () => {
+    const dir = shipDir()
+    try {
+      persistTier(dir, 'S')
+      const stdout = ship(dir, ['--tier', 'XS'])
+      expect(stdout).toMatch(/Tier: XS\b/)
+      expect(readTier(dir)).toBe('XS')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
