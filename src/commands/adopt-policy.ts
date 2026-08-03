@@ -14,6 +14,19 @@ export interface AdoptPolicyOptions {
   adopt?: boolean
   noAdoptSafety?: boolean
   adoptGateSpine?: boolean
+  /**
+   * #2141 (mirrors #2119): opt IN to force-adopting the governance class
+   * (`AGENTS.md`, `.claude/settings.json`) over a user-modified copy.
+   * Withholding it is the default.
+   *
+   * The template render is not a superset of a governed consumer's file.
+   * Measured on one such consumer, a nude update stripped `$CLAUDE_PROJECT_DIR`
+   * from 9 hook registrations, unquoted `PreToolUse:Edit|Write` so its pipe
+   * became a shell pipe and the hooks stopped firing, and dropped about 175
+   * lines from `AGENTS.md`. This explicit, destructive opt-in preserves the
+   * #2119 superset principle while a pristine governance file still refreshes.
+   */
+  adoptGovernance?: boolean
   refreshDerived?: boolean
 }
 
@@ -38,7 +51,10 @@ function sha256(content: string): string {
  * `scripts/lib/*.mjs`) are the opposite since #2119: WITHHELD by default,
  * adopted only under an explicit `adoptGateSpine`, because that file is where a
  * project wires its own checks and the template render is not a superset of it.
- * The two stay independent. `adopt` broadens to every withheld file.
+ * Governance-class files (`AGENTS.md`, `.claude/settings.json`) follow the
+ * same #2119 superset principle since #2141: they are WITHHELD by default and
+ * adopted only under explicit `adoptGovernance`. The classes stay independent.
+ * `adopt` broadens to every withheld file.
  * `refreshDerived` (#1983) broadens it to exactly the codex-track derived
  * file set, independent of `adopt`/`noAdoptSafety`. Exported for unit testing
  * independent of the filesystem.
@@ -47,16 +63,13 @@ export function buildAdoptPredicate(options: AdoptPolicyOptions): (key: string) 
   const adoptAll = options.adopt === true
   const adoptSafety = options.noAdoptSafety !== true
   const adoptGateSpine = options.adoptGateSpine === true
+  const adoptGovernance = options.adoptGovernance === true
   const refreshDerived = options.refreshDerived === true
   return (key: string): boolean =>
     adoptAll ||
     (adoptSafety && isSafetyClassKey(key)) ||
     (adoptGateSpine && isGateSpineKey(key)) ||
-    // #2120: no opt-out flag. These two are force-rendered on every selective
-    // update by #2056, so the new provenance test would otherwise freeze them
-    // and re-open the #2040 drift. `arbiter:preserve` is the deliberate freeze,
-    // and it is checked ahead of every adopt policy.
-    isGovernanceClassKey(key) ||
+    (adoptGovernance && isGovernanceClassKey(key)) ||
     (refreshDerived && isDerivedTrackKey(key))
 }
 
@@ -86,10 +99,10 @@ function localOverrideReason(key: string): string {
   }
   if (isGovernanceClassKey(key)) {
     return (
-      'update: governance file force-adopted over locally-modified content — ' +
+      'update --adopt-governance: governance file force-adopted over locally-modified content — ' +
       'AGENTS.md carries the Iron Laws and .claude/settings.json the ARBITER_* ' +
-      'deny list, and both are re-rendered on every update so they cannot go ' +
-      'stale (#2056, #2120; mark the file `arbiter:preserve` to freeze it)'
+      'deny list; this now happens only under explicit --adopt-governance ' +
+      '(#2056, #2120, #2141; mark the file `arbiter:preserve` to freeze it)'
     )
   }
   if (isGateSpineKey(key)) {

@@ -11,8 +11,9 @@ import type {
   Language,
   Archetype,
 } from '../../wizard/types.js'
+import type { AdoptPolicyOptions } from '../adopt-policy.js'
 
-export interface InitOptions {
+export interface InitOptions extends Pick<AdoptPolicyOptions, 'adoptGovernance'> {
   yes: boolean
   tools: string | undefined
   level: string | undefined

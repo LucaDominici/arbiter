@@ -79,6 +79,19 @@ export interface UpdateOptions {
    */
   adoptGateSpine?: boolean
   /**
+   * #2141 (mirrors #2119): opt IN to force-adopting the governance class
+   * (`AGENTS.md`, `.claude/settings.json`) over a user-modified copy.
+   * Withholding it is the default.
+   *
+   * The template render is not a superset of a governed consumer's file.
+   * Measured on one such consumer, a nude update stripped `$CLAUDE_PROJECT_DIR`
+   * from 9 hook registrations, unquoted `PreToolUse:Edit|Write` so its pipe
+   * became a shell pipe and the hooks stopped firing, and dropped about 175
+   * lines from `AGENTS.md`. This explicit, destructive opt-in preserves the
+   * #2119 superset principle while a pristine governance file still refreshes.
+   */
+  adoptGovernance?: boolean
+  /**
    * T1 (two-phase plan/apply): compute and print what `--adopt`/the default
    * safety-class adoption WOULD change — file list + diff — without writing
    * anything (config, manifest, generated files all untouched). Read-only.

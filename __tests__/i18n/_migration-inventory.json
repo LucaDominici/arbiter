@@ -2,41 +2,49 @@
   {
     "file": "generators/contract-testing.ts",
     "line": 225,
+    "text": "const applyPactDeps = safeApplyFromSnippet(base, 'config/pact-deps.gradle')",
     "justification": "Internal generator diagnostic prefixed with [contract-testing] — not user-facing terminal output"
   },
   {
     "file": "generators/debt-gates.ts",
     "line": 19,
+    "text": "// `--project`): the generated vitest.config.ts defines no `projects`, so",
     "justification": "Internal generator diagnostic prefixed with [injectTestScripts] — parse failure note for maintainers only"
   },
   {
     "file": "generators/debt-gates.ts",
     "line": 49,
+    "text": "",
     "justification": "Internal generator diagnostic prefixed with [injectDepCruiserPackageJson] — parse failure note for maintainers only"
   },
   {
     "file": "generators/registry.ts",
     "line": 358,
+    "text": "{",
     "justification": "Internal generator error sink — prefixed with [registry]; surfaced in logs only when a generator throws"
   },
   {
     "file": "utils/safe-read.ts",
     "line": 15,
+    "text": "if (isEnoent(err)) return ''",
     "justification": "Internal [arbiter] prefixed read-failure warning — debug diagnostic, not a user-visible CLI message"
   },
   {
     "file": "utils/safe-read.ts",
     "line": 31,
+    "text": "if (isEnoent(err)) return {}",
     "justification": "Internal [arbiter] prefixed parse-failure warning — debug diagnostic, not a user-visible CLI message"
   },
   {
     "file": "commands/update.ts",
-    "line": 739,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. It moved to the shared adopt-policy extraction's post-prune position on #2137; this is not a new user-facing string."
+    "line": 752,
+    "text": "throw new UserFacingError(",
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. Line shifted 378→663 by the T1 adopt/ratchet additions (convergence playbook). Line shifted 663→664 by the #1978 projectName resolution reorder. Line shifted 664→697 by wave-3 integration sweep (bypass-ceremony doctor row + other intervening additions). Line shifted 697→709 by the #2056 selective-regen governance-generator comment. Line shifted 709→732 by the #2109 gate-spine adopt class. Line shifted 732→818 by the #2120 wave: the honest adopt-plan preview (partitionPlanResults + the two extra plan sections), the projectName persistence, the governance adopt class, and the diff/update adopt-policy agreement. Line shifted 818→839 by the #2119 gate-spine opt-in flip (inverted flag doc-comments + the reworded withheld-file warning). Line shifted 839→853 by #2135 retired generated-ownership pruning plus preservation of visited withheld ownership."
   },
   {
     "file": "commands/init.ts",
     "line": 210,
-    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. The #2137 init orchestration extraction moved this existing dynamic error site."
+    "text": "throw new UserFacingError(",
+    "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains. Line shifted 781→372 by the #1839 init.ts command-group split (F3 friction cut). Line shifted 372→373 by the #1978 resolve-project-name extraction. Line shifted 373→379 by the #2132 explicit unknown-language guard."
   }
 ]

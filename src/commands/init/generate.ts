@@ -55,7 +55,9 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
     beginGenerationSession({
       targetDir,
       prevHashes: prevManifest,
-      adoptPredicate: buildAdoptPredicate({}),
+      adoptPredicate: buildAdoptPredicate({
+        adoptGovernance: initOptions.adoptGovernance === true,
+      }),
       onAdopt: (key, priorContent, newContent): void => {
         recordLocalOverride(targetDir, { key, priorContent, newContent })
       },
