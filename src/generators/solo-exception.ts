@@ -24,29 +24,6 @@ export interface SoloExceptionResult {
 }
 
 /**
- * Input to the reactivation-trigger predicate.
- * Exported for unit-testability (no I/O in this function).
- */
-export interface ReactivationInput {
-  /** Number of distinct author emails in the trailing 30-day git log. */
-  distinctAuthorCount: number
-  /** True when EXTERNAL_AUDIT=true env var is set. */
-  externalAudit: boolean
-}
-
-/**
- * Pure predicate: returns true when the single-developer exception should
- * be reactivated (i.e., the project must switch to peer-review mode).
- *
- * Trigger conditions (either is sufficient):
- *  - distinctAuthorCount ≥ 3 (≥3 active authors trailing 30d)
- *  - externalAudit === true
- */
-export function shouldReactivate(input: ReactivationInput): boolean {
-  return input.distinctAuthorCount >= 3 || input.externalAudit
-}
-
-/**
  * Generate the regulated mono-dev pack for trunk-solo ≥ L3 projects.
  *
  * Emits nothing and returns { files: [] } for non-qualifying configs

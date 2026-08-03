@@ -1,87 +1,132 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Unit tests — solo reactivation trigger logic (#1250)
- * Tests the author-counting and external-audit-flag logic in isolation.
+ * Behavioural tests — rendered solo reactivation gate (#1250 §11.10(k))
  */
-import { describe, it, expect } from 'vitest'
-import { shouldReactivate, type ReactivationInput } from '../../src/generators/solo-exception.js'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, afterEach, describe, expect, it } from 'vitest'
+import { renderTemplate } from '../../src/utils/render.js'
+import { makeConfig } from '../helpers.js'
 
-// ─── Core reactivation logic ─────────────────────────────────────────────────
+const SCRIPT_NAME = 'check-solo-reactivation.mjs'
+const renderedScript = renderTemplate(
+  'scripts/check-solo-reactivation.mjs.ejs',
+  makeConfig('/tmp/x', {
+    collaborationMode: 'trunk-solo',
+    governanceLevel: 'L3',
+  }) as unknown as Record<string, unknown>,
+)
 
-describe('shouldReactivate — author count threshold', () => {
-  it('fires at exactly 3 distinct authors (threshold)', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 3,
-      externalAudit: false,
-    }
-    expect(shouldReactivate(input)).toBe(true)
+interface CommandResult {
+  status: number
+  stdout: string
+  stderr: string
+}
+
+const repoDirs: string[] = []
+
+function testEmail(localPart: string): string {
+  return `${localPart}${'@'}example.invalid`
+}
+
+function makeTempDir(): string {
+  const repoDir = mkdtempSync(join(tmpdir(), 'solo-reactivation-'))
+  repoDirs.push(repoDir)
+  return repoDir
+}
+
+function makeRepo(authorEmails: string[]): string {
+  const repoDir = makeTempDir()
+  const init = spawnSync('git', ['init', '-q'], { cwd: repoDir, encoding: 'utf-8' })
+  if (init.status !== 0) throw new Error(`git init failed: ${init.stderr}`)
+
+  for (const email of authorEmails) {
+    const commit = spawnSync(
+      'git',
+      [
+        '-c',
+        'user.name=Test Author',
+        '-c',
+        `user.email=${email}`,
+        'commit',
+        '--allow-empty',
+        '-q',
+        '-m',
+        'x',
+      ],
+      { cwd: repoDir, encoding: 'utf-8' },
+    )
+    if (commit.status !== 0) throw new Error(`git commit failed: ${commit.stderr}`)
+  }
+
+  writeFileSync(join(repoDir, SCRIPT_NAME), renderedScript)
+  return repoDir
+}
+
+function run(repoDir: string, env: NodeJS.ProcessEnv = {}): CommandResult {
+  const processEnv = { ...process.env, ...env }
+  if (env.EXTERNAL_AUDIT === undefined) {
+    delete processEnv.EXTERNAL_AUDIT
+  }
+  const r = spawnSync('node', [join(repoDir, SCRIPT_NAME)], {
+    cwd: repoDir,
+    encoding: 'utf-8',
+    env: processEnv,
   })
+  return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+}
 
-  it('fires at 4 distinct authors (above threshold)', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 4,
-      externalAudit: false,
-    }
-    expect(shouldReactivate(input)).toBe(true)
-  })
+function cleanupRepos(): void {
+  for (const repoDir of repoDirs.splice(0)) {
+    rmSync(repoDir, { recursive: true, force: true })
+  }
+}
 
-  it('silent at 2 distinct authors (below threshold)', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 2,
-      externalAudit: false,
-    }
-    expect(shouldReactivate(input)).toBe(false)
-  })
+afterEach(cleanupRepos)
+afterAll(cleanupRepos)
 
-  it('silent at 1 author (solo mode)', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 1,
-      externalAudit: false,
-    }
-    expect(shouldReactivate(input)).toBe(false)
-  })
+describe('scripts/check-solo-reactivation.mjs (#1250 §11.10(k)) — rendered gate behaviour', () => {
+  it('passes for one distinct author without an external audit', () => {
+    const r = run(makeRepo([testEmail('one')]), { EXTERNAL_AUDIT: undefined })
+    expect(r.status).toBe(0)
+    expect(r.stdout).toMatch(/OK/)
+    expect(r.stdout).toMatch(/1 distinct author/)
+  }, 20_000)
 
-  it('silent at 0 authors (new repo, empty git log)', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 0,
-      externalAudit: false,
-    }
-    expect(shouldReactivate(input)).toBe(false)
-  })
-})
+  it('passes for two distinct authors below the threshold', () => {
+    const r = run(makeRepo([testEmail('one'), testEmail('two')]), {
+      EXTERNAL_AUDIT: undefined,
+    })
+    expect(r.status).toBe(0)
+  }, 20_000)
 
-describe('shouldReactivate — external audit flag', () => {
-  it('fires when externalAudit=true regardless of author count', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 1,
-      externalAudit: true,
-    }
-    expect(shouldReactivate(input)).toBe(true)
-  })
+  it('triggers for three distinct authors', () => {
+    const r = run(makeRepo([testEmail('one'), testEmail('two'), testEmail('three')]), {
+      EXTERNAL_AUDIT: undefined,
+    })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/REACTIVATION TRIGGERED/)
+    expect(r.stderr).toMatch(/3 distinct author/)
+  }, 20_000)
 
-  it('fires when externalAudit=true and author count=0', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 0,
-      externalAudit: true,
-    }
-    expect(shouldReactivate(input)).toBe(true)
-  })
+  it('triggers for an external audit', () => {
+    const r = run(makeRepo([testEmail('one')]), { EXTERNAL_AUDIT: 'true' })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/EXTERNAL_AUDIT/)
+  }, 20_000)
 
-  it('does not fire when externalAudit=false and count=2', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 2,
-      externalAudit: false,
-    }
-    expect(shouldReactivate(input)).toBe(false)
-  })
-})
+  it('passes when EXTERNAL_AUDIT is false', () => {
+    const r = run(makeRepo([testEmail('one')]), { EXTERNAL_AUDIT: 'false' })
+    expect(r.status).toBe(0)
+  }, 20_000)
 
-describe('shouldReactivate — combined conditions', () => {
-  it('fires when both threshold exceeded and externalAudit=true', () => {
-    const input: ReactivationInput = {
-      distinctAuthorCount: 5,
-      externalAudit: true,
-    }
-    expect(shouldReactivate(input)).toBe(true)
-  })
+  it('fails closed outside a git repository', () => {
+    const repoDir = makeTempDir()
+    writeFileSync(join(repoDir, SCRIPT_NAME), renderedScript)
+    const r = run(repoDir, { EXTERNAL_AUDIT: undefined })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/git/i)
+  }, 20_000)
 })
