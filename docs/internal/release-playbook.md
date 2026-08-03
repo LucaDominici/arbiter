@@ -23,7 +23,7 @@ related: []
 | L2 gate green locally | Dev | [ ] |
 | Full CI green on `main` | Dev | [ ] |
 | `CHANGELOG.md` updated | Dev | [ ] |
-| Manual QA checklist signed off (`docs/internal/qa-checklist.md`) | QA | [ ] |
+| Manual QA checklist signed off (`docs/internal/METHOD/TESTING.md`) | QA | [ ] |
 
 ---
 

@@ -98,8 +98,15 @@ report/
 /.env.example
 /scripts/setup-hooks.sh
 
-# Private maintainer docs (enforcement runbooks, internal notes)
-docs/internal/
+# Private maintainer docs (#2053). This was `docs/internal/` — a blanket rule over a
+# directory that is 99% AUTHORED, TRACKED content (ADRs, METHOD, SYSTEM, PRODUCT,
+# architecture: 137 tracked files). Everything under it predating the rule stayed tracked
+# only because it was force-added at creation; every NEW file needed `git add -f` or it
+# silently never entered git history. Narrowed to the two files that are genuinely private.
+# Enforced both ways by scripts/check-private-paths-ignored.mjs — add a line here AND a
+# MUST_IGNORE row there when a new maintainer-private doc is introduced.
+docs/internal/coc-enforcement-runbook.md
+docs/internal/KIT-GOLD-STANDARD.md
 .coverage-tmp/
 
 # Kit Gold Standard — gitignored build artifact and private source attachments
