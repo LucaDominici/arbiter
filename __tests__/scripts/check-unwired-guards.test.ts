@@ -158,4 +158,142 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
       cleanup()
     }
   })
+
+  // ─── #2228 — .claude/hooks/*.mjs widened candidate set ───────────────────────
+
+  it('#2228 exits 1 and names the hook when a .claude/hooks/*.mjs file is wired nowhere', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+      writeFileSync(join(dir, '.claude/hooks', 'check-orphan-hook.mjs'), '// orphan hook\n')
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('.claude/hooks/check-orphan-hook.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('#2228 exits 0 once the same hook is wired in .claude/settings.json (full-path match)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+      writeFileSync(join(dir, '.claude/hooks', 'check-orphan-hook.mjs'), '// orphan hook\n')
+      writeFileSync(
+        join(dir, '.claude/settings.json'),
+        JSON.stringify({
+          hooks: {
+            PostToolUse: [
+              {
+                matcher: 'Edit|Write',
+                hooks: [
+                  {
+                    type: 'command',
+                    command: 'node .claude/hooks/check-orphan-hook.mjs',
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('#2228 exits 0 when a hook is wired by bare name in the hooks.mjs HANDLERS table', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+      writeFileSync(join(dir, '.claude/hooks', 'check-dispatcher-hook.mjs'), '// hook\n')
+      writeFileSync(
+        join(dir, '.claude/hooks', 'hooks.mjs'),
+        "const HANDLERS = { 'PostToolUse:Edit|Write': ['check-dispatcher-hook.mjs'] }\n",
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('#2228 never flags hooks.mjs or lib.mjs as unwired (dispatcher/helper excluded by name)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+      writeFileSync(join(dir, '.claude/hooks', 'hooks.mjs'), '// dispatcher entrypoint\n')
+      writeFileSync(join(dir, '.claude/hooks', 'lib.mjs'), '// shared helper\n')
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).not.toContain('hooks.mjs')
+      expect(result.stdout).not.toContain('lib.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('#2228 exits 0 when a hook is imported (relative specifier) by a hook that is itself wired', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+      writeFileSync(join(dir, '.claude/hooks', 'check-importer.mjs'), '// wired hook\n')
+      writeFileSync(
+        join(dir, '.claude/hooks', 'check-imported.mjs'),
+        "// imported helper\nimport { helper } from './check-importer.mjs'\n",
+      )
+      writeFileSync(
+        join(dir, '.claude/settings.json'),
+        JSON.stringify({
+          hooks: {
+            PostToolUse: [
+              {
+                matcher: 'Edit|Write',
+                hooks: [
+                  {
+                    type: 'command',
+                    command: 'node .claude/hooks/check-importer.mjs',
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('#2228 exits 0 with ALLOWLISTED stdout when an unwired hook is listed in optional-emissions.json', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+      writeFileSync(join(dir, '.claude/hooks', 'check-language-hook.mjs'), '// language-specific hook\n')
+      writeFileSync(
+        join(dir, 'scripts', 'optional-emissions.json'),
+        JSON.stringify({
+          optional: [
+            {
+              path: '.claude/hooks/check-language-hook.mjs',
+              rationale: 'language-inapplicable to this repo, #2228',
+            },
+          ],
+        }),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('ALLOWLISTED')
+      expect(result.stdout).toContain('.claude/hooks/check-language-hook.mjs')
+    } finally {
+      cleanup()
+    }
+  })
 })
