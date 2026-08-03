@@ -15,6 +15,7 @@
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
+import { jsonOutput } from '../utils/json-output.js'
 
 /** The engine's `--json` audit payload (scripts/check-doc-set.mjs). */
 export interface DocSetPayload {
@@ -182,10 +183,19 @@ export function runDocSet(opts: DocSetOptions = {}): DocSetResult {
 
   const { stdout, stderr, exitCode } = runEngine(script, buildEngineArgs(opts), repo)
 
+  const payload = parsePayload(stdout, Boolean(opts.json))
   if (!opts.quiet) {
-    if (stdout) process.stdout.write(stdout)
+    if (opts.json) {
+      jsonOutput(
+        'doc-set',
+        exitCode === 0 ? 'ok' : exitCode === 1 ? 'warning' : 'error',
+        payload === null ? {} : { ...payload },
+      )
+    } else if (stdout) {
+      process.stdout.write(stdout)
+    }
     if (stderr) process.stderr.write(stderr)
   }
 
-  return { exitCode, payload: parsePayload(stdout, Boolean(opts.json)) }
+  return { exitCode, payload }
 }

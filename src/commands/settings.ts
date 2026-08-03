@@ -6,6 +6,7 @@
 // configure.ts ALLOWED_PATHS — drift is a build failure.
 
 import { loadConfig } from '../utils/config.js'
+import { jsonOutput } from '../utils/json-output.js'
 
 interface SettingField {
   /** Dotted path as accepted by `arbiter configure --set path=value`. */
@@ -156,7 +157,7 @@ export function runSettings(opts: SettingsOptions = {}): void {
         value: resolveSettingValue(config, f.path) ?? null,
       })),
     }))
-    process.stdout.write(`${JSON.stringify(out, null, 2)}\n`)
+    jsonOutput('settings', 'ok', { groups: out })
     return
   }
 

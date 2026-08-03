@@ -2,8 +2,9 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { runProbes } from '../compatibility/probe.js'
-import { formatText, formatJson } from '../compatibility/report.js'
+import { formatText } from '../compatibility/report.js'
 import { loadConfig } from '../utils/config.js'
+import { jsonOutput } from '../utils/json-output.js'
 import { detectLanguage } from '../detectors/language.js'
 import { verifySummarySha } from '../risk/sha-check.js'
 import {
@@ -379,7 +380,11 @@ export function runVerify(opts: VerifyOptions): void {
       ...report,
       effectiveConfig: cfg,
     }
-    process.stdout.write(formatJson(enriched) + '\n')
+    jsonOutput(
+      'validate',
+      report.hasFailures ? 'error' : report.hasWarnings ? 'warning' : 'ok',
+      enriched,
+    )
   } else {
     process.stdout.write(formatText(report) + '\n')
   }

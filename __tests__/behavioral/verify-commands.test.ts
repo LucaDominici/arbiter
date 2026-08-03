@@ -58,8 +58,8 @@ describe('arbiter verify — sub-command surface', () => {
     const { status, stdout, stderr } = spawn(['verify', '--json'])
     expect(status, `stdout: ${stdout}\nstderr: ${stderr}`).toBe(0)
     const parsed = JSON.parse(stdout)
-    expect(parsed).toHaveProperty('stack')
-    expect(parsed).toHaveProperty('probes')
+    expect(parsed.data).toHaveProperty('stack')
+    expect(parsed.data).toHaveProperty('probes')
   })
 
   it('verify tdd --help exits 0 and mentions task-id', () => {

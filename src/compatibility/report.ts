@@ -61,7 +61,3 @@ export function formatText(report: VerifyReport): string {
   }
   return lines.join('\n')
 }
-
-export function formatJson(report: VerifyReport): string {
-  return JSON.stringify(report, null, 2)
-}

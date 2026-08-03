@@ -16,6 +16,7 @@ import { runCli, CliError } from '../utils/run-cli.js'
 import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
 import type { BrownfieldClass } from '../kit/thresholds.js'
 import { paint, colorEnabled, asciiOnly, type Sgr } from '../utils/tty.js'
+import { jsonOutput } from '../utils/json-output.js'
 
 /** Per-check verdict + evidence, as emitted by the engine. */
 interface GoldCheck {
@@ -430,7 +431,8 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
     stdout = runCli('node', [script, ...args], { cwd: repo }).stdout
   } catch (err) {
     const detail = err instanceof CliError ? err.message : String(err)
-    process.stderr.write(`gold-audit: engine failed — ${detail}\n`)
+    if (opts.json) jsonOutput('gold-audit', 'error', {}, [`gold-audit: engine failed — ${detail}`])
+    else process.stderr.write(`gold-audit: engine failed — ${detail}\n`)
     return { exitCode: 1, payload: null }
   }
 
@@ -438,7 +440,7 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
   // The engine emits a SKIP line (no registry) that is not JSON — treat as a clean exit-0 skip.
   if (!text.startsWith('{')) {
     if (!opts.quiet) {
-      if (opts.json) process.stdout.write(stdout)
+      if (opts.json) jsonOutput('gold-audit', 'ok', {})
       else process.stdout.write(text + '\n')
     }
     return { exitCode: 0, payload: null }
@@ -448,12 +450,14 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
   try {
     payload = JSON.parse(text) as GoldAuditPayload
   } catch (err) {
-    process.stderr.write(`gold-audit: engine emitted invalid JSON — ${(err as Error).message}\n`)
+    const message = `gold-audit: engine emitted invalid JSON — ${(err as Error).message}`
+    if (opts.json) jsonOutput('gold-audit', 'error', {}, [message])
+    else process.stderr.write(message + '\n')
     return { exitCode: 1, payload: null }
   }
 
   if (!opts.quiet) {
-    if (opts.json) process.stdout.write(JSON.stringify(payload, null, 2) + '\n')
+    if (opts.json) jsonOutput('gold-audit', 'ok', { ...payload })
     else process.stdout.write(renderReport(payload))
   }
   return { exitCode: 0, payload }

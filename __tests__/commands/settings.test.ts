@@ -101,8 +101,8 @@ describe('runSettings', () => {
       return true
     })
     runSettings({ dir: projectWith({ hasDatabase: true }), json: true })
-    const parsed = JSON.parse(out.join('')) as Array<{ group: string }>
-    expect(parsed.map((g) => g.group)).toContain('Project shape')
+    const parsed = JSON.parse(out.join('')) as { data: { groups: Array<{ group: string }> } }
+    expect(parsed.data.groups.map((g) => g.group)).toContain('Project shape')
   })
 
   // #1261: absent automation block renders (unset) — the label documents absent=L0.

@@ -10,11 +10,13 @@ interface JsonEnvelope {
   errors?: string[]
   warnings?: string[]
   errorClass?: JsonErrorClass
+  code?: string
 }
 
 export interface JsonOutputOpts {
   warnings?: string[]
   errorClass?: JsonErrorClass
+  code?: string
 }
 
 /**
@@ -39,6 +41,7 @@ export function jsonOutput(
       ? { warnings: opts.warnings }
       : {}),
     ...(opts?.errorClass !== undefined ? { errorClass: opts.errorClass } : {}),
+    ...(opts?.code !== undefined ? { code: opts.code } : {}),
   }
   process.stdout.write(JSON.stringify(envelope) + '\n')
 }

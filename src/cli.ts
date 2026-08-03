@@ -217,9 +217,9 @@ const _profileFlag = consumeFlag('--profile')
 const _noReplayFlag = consumeFlag('--no-replay')
 const _logLevelFlag = consumeFlagValue('--log-level')
 const _logFormatFlag = consumeFlagValue('--log-format')
-const _seedFlag = consumeFlagValue('--seed')
 // --channel is consumed early so doctor/update can read it without re-scanning argv
 const _channelFlag = consumeFlagValue('--channel')
+const _jsonRequested = process.argv.includes('--json')
 if (_channelFlag !== undefined && !['latest', 'beta', 'canary'].includes(_channelFlag)) {
   process.stderr.write(
     `[arbiter] error: --channel "${_channelFlag}" is not a valid channel.\n` +
@@ -242,10 +242,6 @@ setRootLogger({
   format: _resolvedLogger.format,
   runId: _runId,
 })
-
-if (_seedFlag !== undefined) {
-  process.env.ARBITER_SEED = _seedFlag
-}
 
 let _replayHandle: ReplayHandle | null = null
 if (!_noReplayFlag) {
@@ -435,10 +431,6 @@ program
   .option('--log-level <level>', 'Log level: error|warn|info|debug|trace (default: info)')
   .option('--log-format <format>', 'Log format: text|json (default: text)')
   .option('--debug', 'Enable debug-level logging (implies --log-level=debug)')
-  .option(
-    '--seed <n>',
-    'Deterministic seed for generators (overrides arbiter.json-derived default)',
-  )
   .option('--no-replay', 'Disable replay log capture for this invocation')
   .option('--profile', 'Capture a V8 CPU profile to ~/.arbiter/profiles/<runId>.cpuprofile')
   // #662 — channel flag: overrides channel field in arbiter.json for this invocation.
@@ -812,7 +804,7 @@ program
         json: opts.json,
       })
       if (opts.json) {
-        process.stdout.write(JSON.stringify(result) + '\n')
+        jsonOutput('obsidian', result.status, { ...result })
       } else if (result.reason) {
         process.stdout.write(`obsidian: ${result.reason}\n`)
       } else {
@@ -1911,7 +1903,9 @@ review
         opts.base !== undefined ? res(opts.base) : pjoin(dir, '.arbiter', 'graph-base.json')
 
       if (!efs(headPath)) {
-        process.stderr.write(`review diff: FAIL — head graph not found at ${headPath}\n`)
+        const message = `review diff: FAIL — head graph not found at ${headPath}`
+        if (opts.json) jsonOutput('review diff', 'error', { headPath }, [message])
+        else process.stderr.write(message + '\n')
         process.exit(2)
       }
       if (!efs(basePath)) {
@@ -1926,14 +1920,18 @@ review
       // exit 2, not an uncaught `snapshot.nodes is not iterable`.
       const headOutcome = loadGraph(headPath)
       if (!headOutcome.ok) {
-        process.stderr.write(`review diff: FAIL — ${headOutcome.reason}\n`)
+        const message = `review diff: FAIL — ${headOutcome.reason}`
+        if (opts.json) jsonOutput('review diff', 'error', { headPath }, [message])
+        else process.stderr.write(message + '\n')
         process.exit(2)
       }
       let base: import('./graph/model.js').GraphSnapshot = { nodes: [], edges: [] }
       if (efs(basePath)) {
         const baseOutcome = loadGraph(basePath)
         if (!baseOutcome.ok) {
-          process.stderr.write(`review diff: FAIL — ${baseOutcome.reason}\n`)
+          const message = `review diff: FAIL — ${baseOutcome.reason}`
+          if (opts.json) jsonOutput('review diff', 'error', { basePath }, [message])
+          else process.stderr.write(message + '\n')
           process.exit(2)
         }
         base = baseOutcome.snapshot
@@ -2033,6 +2031,25 @@ program
   })
 
 function _writeArbiterError(err: ArbiterError, prefix = 'Error'): void {
+  if (_jsonRequested) {
+    jsonOutput(
+      'arbiter',
+      'error',
+      {},
+      [err.message],
+      {
+        code: err.code,
+        ...(err instanceof FatalError
+          ? { errorClass: 'fatal' as const }
+          : err instanceof ConfigError
+            ? { errorClass: 'config' as const }
+            : err instanceof RecoverableError
+              ? { errorClass: 'recoverable' as const }
+              : {}),
+      },
+    )
+    return
+  }
   process.stderr.write(`\n${prefix} [${err.code}]: ${err.message}\n`)
   if (err.hint) process.stderr.write(`  Hint: ${err.hint}\n`)
   if (err.docUrl) process.stderr.write(`  Docs: ${err.docUrl}\n`)
@@ -2046,7 +2063,7 @@ function _writeStackIfVerbose(err: Error): void {
 
 function _handleTopLevelError(err: unknown): void {
   if (err instanceof FatalError) {
-    if (err.recoverableContext?.length) {
+    if (!_jsonRequested && err.recoverableContext?.length) {
       process.stderr.write(
         `\n  Recoverable errors before fatal:\n${err.recoverableContext.map((w) => `    - ${w}`).join('\n')}\n`,
       )

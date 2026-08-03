@@ -60,13 +60,16 @@ describe('exit-code contract — config errors (spawn, exit 78)', () => {
     expect(status).toBe(78)
   })
 
-  it('(c-malformed-json) malformed arbiter.json + --json → still exit 78 (ConfigError bypasses JSON mode)', () => {
+  it('(c-malformed-json) malformed arbiter.json + --json → envelope and exit 78', () => {
     // ConfigError is thrown during config parse, before the command's --json handler
-    // runs. The top-level handler writes to stderr (text) and exits 78 regardless of --json.
+    // runs. The top-level handler therefore emits the canonical error envelope.
     writeFileSync(join(dir, 'arbiter.json'), '{bad json here')
-    const { status, stderr } = spawn(['update', '--json'], dir)
+    const { status, stdout } = spawn(['update', '--json'], dir)
     expect(status).toBe(78)
-    expect(stderr).toMatch(/[Cc]onfig|E_CONFIG/)
+    const parsed = JSON.parse(stdout) as Record<string, unknown>
+    expect(parsed.status).toBe('error')
+    expect(parsed.errorClass).toBe('config')
+    expect(String(parsed.code)).toMatch(/^E_/)
   })
 }, 60_000)
 

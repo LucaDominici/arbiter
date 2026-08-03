@@ -64,12 +64,6 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     isGateBypass: false,
   },
   {
-    name: 'ARBITER_SEED',
-    type: 'string',
-    purpose: 'Reproducibility seed passed to stochastic subsystems (mirrors --seed).',
-    isGateBypass: false,
-  },
-  {
     name: 'ARBITER_LOG_LEVEL',
     type: 'enum',
     enumValues: ['error', 'warn', 'info', 'debug', 'trace'],
