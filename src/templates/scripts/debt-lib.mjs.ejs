@@ -9,11 +9,11 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { walkRepo } from './lib/glob-walk.mjs';
 
-// The `eslint <paths> --format json` report can exceed the Node spawnSync
-// default maxBuffer (1 MiB); without a raised ceiling the child aborts with
-// ENOBUFS, stdout is truncated, the JSON fails to parse, and the metric collapses
-// to 0 — the complexity ratchet would then compare 0 vs 0 forever. 64 MiB covers
-// the full eslint/knip JSON reports.
+// The `eslint <paths> --format json` output for this repo exceeds the Node
+// spawnSync default maxBuffer (1 MiB); without a raised ceiling the child aborts
+// with ENOBUFS, stdout is silently truncated, the JSON fails to parse, and the
+// metric collapses to 0 (the dormant complexityViolations ratchet root cause,
+// #1542). 64 MiB comfortably covers the full-repo eslint/knip JSON reports.
 const RUN_MAX_BUFFER = 64 * 1024 * 1024;
 
 function run(cmd, args, opts) {
@@ -27,9 +27,9 @@ function run(cmd, args, opts) {
 
 // jscpd v5 ships its scanner as a prebuilt native `cpd` binary selected per
 // platform by `jscpd/run-jscpd.js` (#1304). On glibc Linux it installs the
-// `cpd-linux-x64-gnu` package, but that binary is built against GLIBC ≥ 2.34; on
-// an older CI image (glibc < 2.32) the loader rejects it — exit 1, no report —
-// so the duplication scan failed closed even though jscpd "is installed". The
+// `cpd-linux-x64-gnu` package, but that binary is built against GLIBC ≥ 2.34;
+// on an older CI image (glibc < 2.32) the loader rejects it — exit 1, no report
+// — so the duplication scan failed closed even though jscpd "is installed". The
 // `cpd-linux-x64-musl` variant is a *static-pie* ELF with no libc dependency, so
 // it runs on any Linux regardless of glibc age. npm refuses to install a
 // `libc:["musl"]` optional dep on a glibc host, so we materialise it on demand
@@ -39,8 +39,8 @@ const JSCPD_STATIC_PKG = 'cpd-linux-x64-musl';
 /**
  * Materialise jscpd's static (musl, libc-independent) `cpd` binary into a local
  * cache and return its path, or null if unavailable (no network / not Linux-x64
- * / npm absent). Idempotent: a cached binary is reused. Pinned to the installed
- * jscpd version so the static binary always matches the gnu one (#1304).
+ * / npm absent). Idempotent: a cached binary is reused. The version is pinned to
+ * the installed jscpd so the static binary always matches the gnu one (#1304).
  * @param {string} jscpdPkgDir - dir of the resolved jscpd package (has version)
  * @returns {string | null}
  */
@@ -53,6 +53,7 @@ function resolveStaticCpd(jscpdPkgDir) {
   const cacheRoot = resolve(jscpdPkgDir, '..', '.cache', 'jscpd-static', version);
   const cpdPath = join(cacheRoot, 'cpd');
   if (existsSync(cpdPath)) return cpdPath;
+  // Fetch the version-pinned static package tarball and extract its binary.
   let tmp;
   try {
     mkdirSync(cacheRoot, { recursive: true });
@@ -90,14 +91,15 @@ export function isGlibcIncompatible(r) {
 /**
  * Resolve the default jscpd spawn (#1304). jscpd v5 runs a prebuilt native `cpd`
  * binary chosen per platform by `jscpd/run-jscpd.js`. This resolves the installed
- * jscpd launcher and runs it directly with the current node. On an older CI image
- * the glibc `cpd-linux-x64-gnu` binary (built against GLIBC ≥ 2.34) is rejected by
- * a glibc < 2.32 loader (exit 1, no report) and the scan failed closed even though
- * jscpd is installed. On that glibc-too-old failure the spawn retries once with the
- * static (musl, libc-independent) `cpd` — materialised on demand by resolveStaticCpd
- * — so the scan actually runs and writes a report. If jscpd cannot be resolved at
- * all (target without the devDependency) it falls back to the `npx --no-install
- * jscpd` skip-spawn, preserving the tool-not-installed (`{skipped:true}`) contract.
+ * jscpd launcher and runs it directly with the current node. On the docker-ci-build
+ * runner the glibc `cpd-linux-x64-gnu` binary is built against GLIBC ≥ 2.34 but the
+ * image's glibc is < 2.32, so the loader rejects it (exit 1, no report) and the scan
+ * failed closed even though jscpd is installed. On that glibc-too-old failure the
+ * spawn retries once with the static (musl, libc-independent) `cpd` — materialised
+ * on demand by resolveStaticCpd — so the scan actually runs and writes a report.
+ * If jscpd cannot be resolved at all (greenfield/baseline target without the
+ * devDependency) it falls back to the `npx --no-install jscpd` skip-spawn, whose
+ * missing-packages result drives the tool-not-installed (`{skipped:true}`) contract.
  *
  * The returned spawn accepts the SAME argv the caller built for the npx path
  * (`['--no-install','jscpd',...paths,'--silent']`); the direct-binary path strips
@@ -106,13 +108,16 @@ export function isGlibcIncompatible(r) {
  * so tests never shell to a real npx or native binary.
  * @param {string} cwd
  * @param {{resolveBin?: (cwd: string) => string, resolveStatic?: () => string | null}} [opts]
+ * @returns {(dir: string, args: string[], callOpts?: {spawnFn?: (cmd: string, args: string[], o: object) => {status: number|null, stdout: string, stderr: string}}) => ({status: number|null, stdout: string, stderr: string} | null)}
  */
 export function resolveJscpdSpawn(cwd, opts = {}) {
   const resolveBin =
     opts.resolveBin ??
     ((dir) => {
       // Resolve from the scanned project first (its node_modules), then fall
-      // back to this module's own require context.
+      // back to this module's own require context — the self repo installs jscpd
+      // as a devDependency reachable from here even when the scan dir has no
+      // local node_modules (e.g. a temp fixture or a nested workspace).
       let pkgPath;
       try {
         pkgPath = createRequire(join(resolve(dir), 'package.json')).resolve('jscpd/package.json');
@@ -144,9 +149,9 @@ export function resolveJscpdSpawn(cwd, opts = {}) {
   // Direct binary: drop the npx-only prefix tokens so jscpd sees only its own
   // positional args (paths + flags). The launcher (run-jscpd.js) selects the
   // platform-native `cpd`; if that binary is glibc-incompatible on this runner
-  // (#1304) retry once with the static (musl, libc-independent) `cpd` so the scan
-  // ACTUALLY runs and writes a report — fail-closed stays intact when even the
-  // static binary is unavailable (the error path is unchanged).
+  // (#1304) retry once with the static (musl, libc-independent) `cpd` so the
+  // scan ACTUALLY runs and writes a report — fail-closed stays intact when even
+  // the static binary is unavailable (the error path is unchanged).
   return (dir, args, callOpts = {}) => {
     const jscpdArgs = args.filter((a) => a !== '--no-install' && a !== 'jscpd');
     const spawnFn = callOpts.spawnFn ?? ((cmd, a, o) => run(cmd, a, o));
@@ -225,21 +230,22 @@ export function getCommit(cwd) {
 }
 
 // ── Finding-hygiene metrics (#1405) ──────────────────────────────────────────
-// The incidental-findings spool (`.arbiter/findings/*.jsonl`) is the SSOT for
-// un-promoted findings. These metrics make the debt ratchet reward DRAINING the
-// spool (lower-is-better) and never let merely FILING findings inflate a green
-// signal (anti-gaming). Spool ABSENT → both metrics are OMITTED (not-applicable),
-// NEVER recorded as a regression. Language-agnostic.
+// The incidental-findings spool (`.arbiter/findings/*.jsonl`, #1401) is the SSOT
+// for un-promoted findings. These metrics make the debt ratchet reward DRAINING
+// the spool (lower-is-better) and never let merely FILING findings inflate a
+// green signal (anti-gaming, INV-114). Spool ABSENT → both metrics are OMITTED
+// (treated as not-applicable / "missing tool"), NEVER recorded as a regression.
 
-/** Relative path of the per-shard findings spool directory. */
+/** Relative path of the per-shard findings spool directory (#1401). */
 const FINDINGS_DIR = '.arbiter/findings';
 
 /**
  * Read the findings spool and return open (un-promoted) finding metrics.
- * Returns `{}` when the spool directory is absent (metric omitted = NA). When
- * present: openFindingsCount (distinct fingerprints, dedup-safe) and
- * unpromotedFindingsAge (age in whole days of the oldest open finding; 0 drained).
- * Malformed JSONL lines are skipped.
+ * Returns `{}` when the spool directory is absent (metric omitted = NA, never a
+ * regression). When present:
+ *   - openFindingsCount    — distinct fingerprints across all shards (dedup-safe)
+ *   - unpromotedFindingsAge — age in whole days of the OLDEST open finding (0 when drained)
+ * Malformed JSONL lines are skipped; a missing/empty spool yields count 0, age 0.
  * @param {string} cwd
  * @returns {Record<string, {value: number, unit: string, direction: string}>}
  */
@@ -268,7 +274,7 @@ export function collectFindingsMetrics(cwd) {
       try {
         entry = JSON.parse(trimmed);
       } catch {
-        continue;
+        continue; // malformed line — resilient skip
       }
       if (entry === null || typeof entry !== 'object') continue;
       const fp = typeof entry.fingerprint === 'string' ? entry.fingerprint : trimmed;
@@ -285,9 +291,10 @@ export function collectFindingsMetrics(cwd) {
 }
 
 /**
- * Baseline key-drop guard: a recapture must never silently delete a metric
- * the prior baseline tracked (e.g. a tool hiccup during capture would remove
- * the key and disable its ratchet). New keys are always allowed.
+ * Baseline key-drop guard (#1286): a recapture must never silently delete a
+ * metric that the prior baseline tracked (e.g. a jscpd hiccup during capture
+ * would otherwise remove duplicationPercentage and disable the ratchet).
+ * New keys are always allowed.
  * @param {Record<string, unknown>} priorMetrics
  * @param {Record<string, unknown>} nextMetrics
  */
@@ -307,7 +314,7 @@ export function assertKeyParity(priorMetrics, nextMetrics) {
 
 <% if (language === 'typescript') { %>
 /**
- * Fail-closed jscpd v5 scan. jscpd v5 silently ignores the config
+ * Fail-closed jscpd v5 scan (#1286). jscpd v5 silently ignores the config
  * `pattern`/`path` keys and exits 0 on a 0-file scan, writing a 0% report —
  * so the fileset MUST be passed as positional CLI args. `.jscpd.json#path`
  * is the script-private SSOT for that fileset (jscpd itself disregards the
@@ -315,6 +322,7 @@ export function assertKeyParity(priorMetrics, nextMetrics) {
  * A scan that ran but covered 0 sources is an ERROR, never a recorded 0%.
  * @param {string} cwd
  * @param {{spawn?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string}}} [opts]
+ *   spawn is injectable for tests; production default shells `npx --no-install jscpd`.
  * @returns {{error?: string, skipped?: boolean, legacyNoReport?: boolean, status?: number, sources?: number, percentage?: number}}
  */
 export function jscpdScan(cwd, opts = {}) {
@@ -329,17 +337,16 @@ export function jscpdScan(cwd, opts = {}) {
   if (paths.length === 0) {
     return {
       error: cfg.pattern
-        ? 'legacy jscpd v4 .jscpd.json: `pattern` is silently ignored by jscpd v5 — ' +
-          'replace it with a "path" array (the scan fileset, passed as positional args). ' +
-          'Re-run `arbiter update` or migrate the config by hand.'
-        : '.jscpd.json has no "path" array — required as the jscpd v5 fileset SSOT.',
+        ? 'legacy v4 .jscpd.json: `pattern` is silently ignored by jscpd v5 — ' +
+          'replace it with a "path" array (the scan fileset, passed as positional args). See #1286.'
+        : '.jscpd.json has no "path" array — required as the jscpd v5 fileset SSOT (#1286).',
     };
   }
   // Without the json reporter, v5 exits 0 writing no report — indistinguishable
   // from the v4 zero-clones case, so exit-0-plus-no-report could no longer be
-  // trusted as a v4 signal. Reject the config up front (fail-closed).
+  // trusted as a v4 signal. Reject the config up front (fail-closed, #1286).
   if (!Array.isArray(cfg.reporters) || !cfg.reporters.includes('json')) {
-    return { error: '.jscpd.json "reporters" must include "json" — the scan is parsed from report/jscpd-report.json.' };
+    return { error: '.jscpd.json "reporters" must include "json" — the scan is parsed from report/jscpd-report.json (#1286).' };
   }
   // Honor a custom `output` dir; default matches jscpd's `report/`.
   const reportPath = resolve(cwd, typeof cfg.output === 'string' ? cfg.output : 'report', 'jscpd-report.json');
@@ -350,8 +357,8 @@ export function jscpdScan(cwd, opts = {}) {
   const r = spawn(cwd, ['--no-install', 'jscpd', ...paths, '--silent']);
   if (r === null) return { skipped: true };
   // `npx --no-install` exits 1 (not ENOENT) when the package is absent — that is
-  // the tool-not-installed case (target without jscpd), same contract as
-  // spawnOrSkip: skip the collector, never a failed-scan error.
+  // the tool-not-installed case (greenfield target without jscpd), same contract
+  // as spawnOrSkip: skip the collector, never a failed-scan error.
   if (isNpxMissingPackages(r)) {
     process.stderr.write('[baseline] skip duplicationPercentage — jscpd not installed\n');
     return { skipped: true };
@@ -359,16 +366,17 @@ export function jscpdScan(cwd, opts = {}) {
   if (!existsSync(reportPath)) {
     if ((r.status ?? 0) === 0) {
       // jscpd v4 writes the json report only when clones exist; v5 always
-      // writes it. Exit 0 + no report can only be a v4 binary (project not
-      // yet bumped to v5) with zero clones.
+      // writes it. Exit 0 + no report can only be a v4 binary (brownfield
+      // project not yet bumped) with zero clones.
       return { legacyNoReport: true, status: 0 };
     }
     // Surface jscpd's own stderr so the cause is visible in the gate output
     // (e.g. a glibc-too-old runner image, #1304) instead of an opaque exit code.
     const why = (r.stderr ?? '').trim().split('\n').slice(0, 3).join(' | ');
     return {
-      error: `jscpd failed (exit ${r.status}) and wrote no report — fail-closed`
-        + (why ? `: ${why}` : ''),
+      error:
+        `jscpd failed (exit ${r.status}) and wrote no report — fail-closed (#1286)` +
+        (why ? `: ${why}` : ''),
     };
   }
   let dup;
@@ -383,12 +391,15 @@ export function jscpdScan(cwd, opts = {}) {
     return {
       error:
         'jscpd scanned 0 source files — fileset/config drift; refusing to record 0% ' +
-        '(fail-closed). Check the .jscpd.json "path" entries exist in this project.',
+        '(fail-closed, CANON-22 / #1286). Check .jscpd.json "path" entries exist.',
       status: r.status ?? 0,
     };
   }
   if (typeof total.percentage !== 'number') {
-    return { error: 'jscpd report has no numeric statistics.total.percentage — schema drift; refusing to record 0%.' };
+    return {
+      error:
+        'jscpd report has no numeric statistics.total.percentage — schema drift; refusing to record 0% (#1286).',
+    };
   }
   return { status: r.status ?? 0, sources, percentage: total.percentage };
 }
@@ -445,7 +456,7 @@ function coverageFailureReason(err, raw, cwd) {
  * @param {Array<{metric: string, reason: string}>} [collectionErrors]
  *   Sink for tool-ran-but-collection-failed events (distinct from
  *   tool-not-installed, which soft-skips). debt-report --gate hard-fails on
- *   any entry (fail-closed).
+ *   any entry (#1286, fail-closed).
  * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null}} [opts]
  *   spawnCoverage is injectable for tests, mirroring jscpdScan's opts.spawn
  *   seam: it replaces the `npx vitest run --coverage` invocation so a unit test
@@ -508,8 +519,12 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   }
 
   // ── Complexity violations (eslint rule) ───────────────────────────────────
+  // Scan `scripts` alongside `src`: the gate-enforcement layer is the
+  // highest-leverage code in the repo and was previously exempt from the
+  // complexity ratchet (#1523/#1542). The baseline grandfathers the current
+  // offenders; the ratchet blocks any net increase and admits gradual burn-down.
   const eslintComplexRaw = spawnOrSkip('complexityViolations', 'eslint', 'npx',
-    ['eslint', 'src', '--format', 'json', '--rule', '{"complexity":["warn",10]}'], { cwd });
+    ['eslint', 'src', 'scripts', '--format', 'json', '--rule', '{"complexity":["warn",10]}'], { cwd });
   if (eslintComplexRaw !== null) {
     try {
       const report = JSON.parse(eslintComplexRaw.stdout || '[]');
@@ -544,7 +559,7 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   // jscpdScan handles the v5 fileset contract (positional paths from
   // .jscpd.json#path, stale-report cleanup, 0-source rejection). A scan that
   // ran but failed is surfaced via collectionErrors so debt-report --gate can
-  // hard-fail instead of soft-skipping as "missing tool" (fail-closed).
+  // hard-fail instead of soft-skipping as "missing tool" (#1286, fail-closed).
   {
     const scan = jscpdScan(cwd);
     if (scan.skipped) {
@@ -582,7 +597,9 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   // ── Public API surface (library archetype — count of top-level exports) ───
   {
     if (existsSync(resolve(cwd, 'src'))) {
-      const grepOut = run('grep', ['-rh', '--include=*.ts', '--include=*.mts', '^export', 'src/'], { cwd });
+      const grepOut = run('grep', ['-rh', '--include=*.ts', '--include=*.mts', '^export', 'src/'], {
+        cwd,
+      });
       if (grepOut.error || (grepOut.status !== 0 && grepOut.status !== 1)) {
         const reason = `public API grep failed${grepOut.error?.message ? `: ${grepOut.error.message}` : ` (exit ${grepOut.status})`}`;
         collectionErrors.push({ metric: 'publicApiSurface', reason });
@@ -598,6 +615,9 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
 <% } %>
 
   // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
+  // Language-agnostic: reads `.arbiter/findings/*.jsonl`. Spool absent → omitted
+  // (NA), so a project that never filed a finding is not penalised. Rewards
+  // DRAINING (lower-is-better); filing more findings is a regression (anti-gaming).
   Object.assign(metrics, collectFindingsMetrics(cwd));
 
   return metrics;

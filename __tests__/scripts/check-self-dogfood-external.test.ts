@@ -85,10 +85,20 @@ describe('EXTERNAL_CI_FAMILIES', () => {
     expect(scripts.include('record-agent-return')).toBe(true)
   })
 
-  it('check-scripts family only includes check-*/record-*.mjs, not the wider scripts/ corpus', () => {
+  it('check-scripts family admits the debt-toolchain twins (debt-lib / debt-report / capture-debt-baseline, #2229)', () => {
     const scripts = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'check-scripts')
-    expect(scripts.include('debt-lib')).toBe(false)
+    expect(scripts.include('debt-lib')).toBe(true)
+    expect(scripts.include('debt-report')).toBe(true)
+    expect(scripts.include('capture-debt-baseline')).toBe(true)
+    expect(matchedFamilyBasenames(repoRoot, scripts)).toEqual(
+      expect.arrayContaining(['debt-lib', 'debt-report', 'capture-debt-baseline']),
+    )
+  })
+
+  it('check-scripts family only includes the twin-emitting script families, not the wider scripts/ corpus', () => {
+    const scripts = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'check-scripts')
     expect(scripts.include('evidence-collect')).toBe(false)
+    expect(scripts.include('check-all')).toBe(false)
   })
 
   it('script-libs family basename-intersects scripts/lib with its shipped twins', () => {

@@ -4,112 +4,156 @@
 // Run from project root: node scripts/debt-report.mjs [--gate] [--require-improvement]
 // --gate: exit non-zero if any metric regressed vs baseline
 // --require-improvement: exit non-zero if no metric improved (L3 mode)
-import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { collectMetrics, countTodos } from './debt-lib.mjs';
+import { readFileSync, existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { collectMetrics, countTodos } from './debt-lib.mjs'
 
-const gateMode = process.argv.includes('--gate');
-const requireImprovement = process.argv.includes('--require-improvement');
-const cwd = process.cwd();
-const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json');
+const gateMode = process.argv.includes('--gate')
+const requireImprovement = process.argv.includes('--require-improvement')
+const cwd = process.cwd()
+const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json')
 
 // ─── Load baseline ────────────────────────────────────────────────────────────
 if (!existsSync(BASELINE_FILE)) {
 <% if (isL3Plus) { %>
-  process.stderr.write('[arbiter] GATE FAIL: debt-baseline.json not found. Run: node scripts/capture-debt-baseline.mjs\n');
+  process.stderr.write('[arbiter] GATE FAIL: debt-baseline.json not found. Run: node scripts/capture-debt-baseline.mjs\n')
   process.exit(1);
 <% } else { %>
-  console.warn('[arbiter] WARN: debt-baseline.json not found.\n  Run: node scripts/capture-debt-baseline.mjs\n  Until baseline is captured, debt ratchet is INACTIVE.');
-  process.exit(0);
+  console.warn(
+    '[arbiter] WARN: debt-baseline.json not found.\n  Run: node scripts/capture-debt-baseline.mjs\n  Until baseline is captured, debt ratchet is INACTIVE.',
+  )
+  process.exit(0)
 <% } %>
 }
 
-const rawBaseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'));
+const rawBaseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'))
 
 // ─── Schema version check ─────────────────────────────────────────────────────
 if (rawBaseline.version !== 2) {
-  const ver = rawBaseline.version ?? 'unknown';
-  console.log(`[arbiter] Baseline is schema v${ver}; run: node scripts/capture-debt-baseline.mjs to migrate to v2.`);
-  process.exit(0);
+  const ver = rawBaseline.version ?? 'unknown'
+  process.stdout.write(
+    `[arbiter] Baseline is schema v${ver}; run: node scripts/capture-debt-baseline.mjs to migrate to v2.\n`,
+  )
+  process.exit(0)
 }
 
-const baseline = rawBaseline;
+const baseline = rawBaseline
 
 // ─── Collect current metrics ──────────────────────────────────────────────────
 // collectionErrors receives tool-RAN-but-collection-failed events (distinct
 // from tool-not-installed soft-skips). In --gate mode these are hard failures:
 // treating them as "missing tool" would let fileset/config drift silently
-// disable a ratchet metric (fail-closed).
-const collectionErrors = [];
-const current = collectMetrics(cwd, collectionErrors);
-current.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' };
+// disable a ratchet metric (#1286, fail-closed CANON-22).
+const collectionErrors = []
+const current = collectMetrics(cwd, collectionErrors)
+current.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' }
 
 if (collectionErrors.length > 0) {
   for (const e of collectionErrors) {
-    console.log(`[arbiter] collection FAILURE for ${e.metric}: ${e.reason}`);
+    process.stdout.write(`[arbiter] collection FAILURE for ${e.metric}: ${e.reason}\n`)
   }
   if (gateMode) {
-    console.log('[arbiter] ❌ debt gate FAILED: metric collection error (fail-closed)');
-    process.exit(1);
+    process.stdout.write('[arbiter] ❌ debt gate FAILED: metric collection error (fail-closed)\n')
+    process.exit(1)
   }
 }
 
 // ─── Compare ──────────────────────────────────────────────────────────────────
-const rows = [];
-let regressions = 0;
-let improvements = 0;
+const rows = []
+let regressions = 0
+let improvements = 0
 
 for (const [key, base] of Object.entries(baseline.metrics)) {
-  const curr = current[key];
+  const curr = current[key]
   if (!curr) {
     // Tool missing on this machine — soft warn, never fail gate
-    rows.push({ key, base: base.value, curr: 'N/A', delta: '?', status: '⚠️  missing tool', unit: base.unit, items: base.items ?? [] });
-    continue;
+    rows.push({
+      key,
+      base: base.value,
+      curr: 'N/A',
+      delta: '?',
+      status: '⚠️  missing tool',
+      unit: base.unit,
+      items: base.items ?? [],
+    })
+    continue
   }
-  const delta = curr.value - base.value;
-  let status;
+  const delta = curr.value - base.value
+  let status
   if (base.direction === 'higher-is-better') {
-    if (curr.value > base.value) { status = '✅ improved'; improvements++; }
-    else if (curr.value < base.value) { status = '❌ regressed'; regressions++; }
-    else { status = '➡️  unchanged'; }
+    if (curr.value > base.value) {
+      status = '✅ improved'
+      improvements++
+    } else if (curr.value < base.value) {
+      status = '❌ regressed'
+      regressions++
+    } else {
+      status = '➡️  unchanged'
+    }
   } else {
-    if (curr.value < base.value) { status = '✅ improved'; improvements++; }
-    else if (curr.value > base.value) { status = '❌ regressed'; regressions++; }
-    else { status = '➡️  unchanged'; }
+    if (curr.value < base.value) {
+      status = '✅ improved'
+      improvements++
+    } else if (curr.value > base.value) {
+      status = '❌ regressed'
+      regressions++
+    } else {
+      status = '➡️  unchanged'
+    }
   }
-  rows.push({ key, base: base.value, curr: curr.value, delta: delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1), status, unit: base.unit, items: base.items ?? [] });
+  rows.push({
+    key,
+    base: base.value,
+    curr: curr.value,
+    delta: delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1),
+    status,
+    unit: base.unit,
+    items: base.items ?? [],
+  })
 }
 
 // New metrics not yet in baseline — informational only
 for (const [key, curr] of Object.entries(current)) {
   if (!baseline.metrics[key]) {
-    rows.push({ key, base: 'new', curr: curr.value, delta: 'new', status: '✨ new metric', unit: curr.unit, items: [] });
+    rows.push({
+      key,
+      base: 'new',
+      curr: curr.value,
+      delta: 'new',
+      status: '✨ new metric',
+      unit: curr.unit,
+      items: [],
+    })
   }
 }
 
 // ─── Render report ────────────────────────────────────────────────────────────
-console.log('\n## Debt Ratchet Report\n');
-console.log(`Baseline: v${baseline.version} — captured ${baseline.capturedAt} @ ${baseline.commit} | archetype: ${baseline.archetype}\n`);
-console.log('| Metric | Baseline | Current | Delta | Status |');
-console.log('|--------|----------|---------|-------|--------|');
+process.stdout.write('\n## Debt Ratchet Report\n\n')
+process.stdout.write(
+  `Baseline: v${baseline.version} — captured ${baseline.capturedAt} @ ${baseline.commit} | archetype: ${baseline.archetype}\n\n`,
+)
+process.stdout.write('| Metric | Baseline | Current | Delta | Status |\n')
+process.stdout.write('|--------|----------|---------|-------|--------|\n')
 for (const r of rows) {
-  const suffix = r.unit === 'percent' ? '%' : '';
-  const baseStr = typeof r.base === 'number' ? `${r.base}${suffix}` : r.base;
-  const currStr = typeof r.curr === 'number' ? `${r.curr}${suffix}` : r.curr;
-  console.log(`| ${r.key} | ${baseStr} | ${currStr} | ${r.delta} | ${r.status} |`);
+  const suffix = r.unit === 'percent' ? '%' : ''
+  const baseStr = typeof r.base === 'number' ? `${r.base}${suffix}` : r.base
+  const currStr = typeof r.curr === 'number' ? `${r.curr}${suffix}` : r.curr
+  process.stdout.write(`| ${r.key} | ${baseStr} | ${currStr} | ${r.delta} | ${r.status} |
+`)
   if (r.items && r.items.length > 0) {
-    console.log(`|   ↳ items | \`${r.items.join('`, `')}\` | | | |`);
+    process.stdout.write(`|   ↳ items | \`${r.items.join('`, `')}\` | | | |
+`)
   }
 }
-console.log('');
+process.stdout.write('\n')
 
 // ─── Gate enforcement ─────────────────────────────────────────────────────────
 if (gateMode && regressions > 0) {
-  console.error(`[arbiter] GATE FAIL: ${regressions} metric(s) regressed vs baseline.`);
-  process.exit(1);
+  console.error(`[arbiter] GATE FAIL: ${regressions} metric(s) regressed vs baseline.`)
+  process.exit(1)
 }
 if (requireImprovement && improvements === 0) {
-  console.error('[arbiter] GATE FAIL: No metrics improved (--require-improvement mode).');
-  process.exit(1);
+  console.error('[arbiter] GATE FAIL: No metrics improved (--require-improvement mode).')
+  process.exit(1)
 }
-process.exit(0);
+process.exit(0)

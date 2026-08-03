@@ -513,8 +513,17 @@ export const EXTERNAL_CI_FAMILIES = [
     // (record-agent-return.mjs) is a shipped twin exactly like the gates —
     // excluding it from parity scope would let the write path silently drift
     // from the emitted copy while the read path stays pinned.
+    // debt-lib / debt-report / capture-debt-baseline admitted alongside them
+    // (#2229): the debt toolchain ships .ejs twins whose R-02 render now
+    // supplies metricsProfile — a single-sided edit to the materialized debt
+    // scripts must trip parity exactly like any gate twin.
     include: (base) =>
-      (base.startsWith('check-') || base.startsWith('record-')) && base !== 'check-all',
+      (base.startsWith('check-') ||
+        base.startsWith('record-') ||
+        base === 'debt-lib' ||
+        base === 'debt-report' ||
+        base === 'capture-debt-baseline') &&
+      base !== 'check-all',
   },
   // #1943 residual c: the E1-E7 enforcer twins import shared helpers from
   // scripts/lib/ — a helper that drifts (self vs shipped) changes gate behavior
@@ -823,11 +832,17 @@ async function main() {
     const { loadConfig } = await import(distUrl('utils/config.js'))
     const { resolveProjectConfig } = await import(distUrl('config/resolve-project-config.js'))
     const { renderTemplate } = await import(distUrl('utils/render.js'))
+    const { computeMetricsProfile } = await import(distUrl('generators/debt-ratchet.js'))
     const stored = loadConfig(repoRoot)
     if (!stored) throw new Error('arbiter.json not found')
     const { config: projectConfig } = resolveProjectConfig(repoRoot, 'arbiter', stored)
+    // Script twins render under their owning generators' data contract, not a
+    // bare ProjectConfig: the debt toolchain twins use metricsProfile.* keys
+    // that only the debt generator derives (#2229). The extra key is harmless
+    // to every other script twin (they never reference it).
+    const renderData = { ...projectConfig, metricsProfile: computeMetricsProfile(projectConfig) }
     external = await checkExternalCiSurfaceParity(repoRoot, divergences, (relPath) =>
-      renderTemplate(relPath, projectConfig),
+      renderTemplate(relPath, renderData),
     )
   } catch (err) {
     externalCheckFailed = true
