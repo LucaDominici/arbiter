@@ -197,14 +197,17 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
   // 2026-08-02 (#2182) legitimately added docs/internal/METHOD/ADJUDICATION.md
   // (`kind/method`, a backbone kind — the adjudication-with-audit protocol extracted from the
   // epic #2176 /ship v2 study; it sits alongside PROCESS/TESTING as a normative METHOD doc).
+  // 2026-08-03 legitimately added docs/methodology/backlog-drain-playbook.md
+  // (`kind/method`, a backbone kind — the wave-drain playbook distilled from the 41-issue
+  // drain run; a normative operating standard alongside the two methodology docs above).
   // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
   // the pre-growth ceiling. Bound updated to the current real count so the budget still
   // catches future unbounded growth.
-  it('selectSsotDocs returns at most 26 canonical core docs', () => {
+  it('selectSsotDocs returns at most 27 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(26)
+    ).toBeLessThanOrEqual(27)
   })
 })

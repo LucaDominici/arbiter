@@ -42,6 +42,7 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `docs/internal/METHOD/REUSE_REGISTRY.md` — arbiter Reuse Registry
 - `docs/internal/METHOD/TESTING.md` — Testing — arbiter
 - `docs/internal/SYSTEM/HOOK-CONTRACTS.md` — Hook Contracts — `.claude/hooks/*.mjs`
+- `docs/methodology/backlog-drain-playbook.md` — Backlog drain playbook — analyse, order, cluster, execute
 
 ### Entrypoints
 
