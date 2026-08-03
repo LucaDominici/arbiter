@@ -123,7 +123,7 @@ describe('INVARIANT_CATALOG', () => {
   })
 
   it('Tier 2, 4 invariants are NOT alwaysActive', () => {
-    // INV-11/12/13 (security tier) are intentionally alwaysActive=true at L2+ (M24 upgrade)
+    // INV-11/12/13 (security tier) are intentionally alwaysActive=true.
     const optional = INVARIANT_CATALOG.filter(
       (inv) => inv.tier === 'data' || inv.tier === 'operational',
     )
@@ -133,12 +133,16 @@ describe('INVARIANT_CATALOG', () => {
     }
   })
 
-  it('security-tier alwaysActive invariants are alwaysActive with minGovernanceLevel L2 (M24, #1635)', () => {
-    // INV-11/12/13 (M24) + INV-14/15/44/74/76/77/78/79/91/92 (#1635): baseline security
-    // hygiene that must hold from L2 up — bypass the tier preset, floored at L2 so L1 stays clean.
+  it('security-tier alwaysActive invariants use their intended governance-level floor (M24, #1635, #2199)', () => {
+    // #2199 promotes the pure-Node secret and PII scanners to the L1 baseline. The remaining
+    // always-active security invariants stay floored at L2 because their enforcement requires L2.
+    for (const id of ['INV-11', 'INV-12']) {
+      const inv = INVARIANT_CATALOG.find((i) => i.id === id)
+      expect(inv?.alwaysActive, `${id} should be alwaysActive`).toBe(true)
+      expect(inv?.minGovernanceLevel, `${id} should require L1`).toBe('L1')
+    }
+
     for (const id of [
-      'INV-11',
-      'INV-12',
       'INV-13',
       'INV-14',
       'INV-15',
@@ -689,10 +693,14 @@ describe('getFilteredInvariants', () => {
     expect(tiers.has('architectural')).toBe(true)
     expect(tiers.has('governance')).toBe(true)
     expect(tiers.has('data')).toBe(false)
-    expect(tiers.has('security')).toBe(false)
+    // #2199: pure-Node secret and PII scanners are part of the L1 baseline.
+    expect(tiers.has('security')).toBe(true)
     expect(tiers.has('operational')).toBe(false)
-    // #1635: the 10 alwaysActive security invariants are floored at L2, so absent at L1 by ID
+    // All other always-active security invariants remain floored at L2.
     const ids = result.map((inv) => inv.id)
+    expect(ids).toContain('INV-11')
+    expect(ids).toContain('INV-12')
+    expect(ids).not.toContain('INV-13')
     expect(ids).not.toContain('INV-14')
     expect(ids).not.toContain('INV-15')
     expect(ids).not.toContain('INV-78')

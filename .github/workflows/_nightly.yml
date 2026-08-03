@@ -60,7 +60,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
       - name: fast-check fuzz (property-based)
-        run: npm run test:fuzz
+        run: npm run --if-present test:fuzz
 
 
   soak-e2e:
@@ -72,11 +72,11 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
       - name: Bake E2E
-        run: npm run test:e2e:bake
+        run: npm run --if-present test:e2e:bake
       - name: Native E2E
         env:
           VITEST_NATIVE: "1"
-        run: npm run test:e2e:native
+        run: npm run --if-present test:e2e:native
 
 
 

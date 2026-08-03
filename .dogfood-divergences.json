@@ -110,9 +110,9 @@
   {
     "path": "02-pr-extended.yml",
     "dest": ".github/workflows",
-    "reason": "Self runs `node scripts/build-kit.mjs` before `npm run test:e2e:bake` (the bake fixtures need arbiter's own kit catalog); the generic template's e2e:bake step does not need a kit build (kit is an arbiter-self concept, not something a generated target project has). Tracked under #1900.",
+    "reason": "Self runs `node scripts/build-kit.mjs` before `npm run --if-present test:e2e:bake` (the bake fixtures need arbiter's own kit catalog); the generic template's e2e:bake step does not need a kit build (kit is an arbiter-self concept, not something a generated target project has). Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "025fc7e88eba3f3857b4ea93adf22085d7dc4d34737cff7ca95befb3414b7f24"
+    "diffHash": "0817c33a46f92562b0499b6259a2c1b1dc9e5f8907d06abc56274048fa7a940a"
   },
   {
     "path": "05-release.yml",

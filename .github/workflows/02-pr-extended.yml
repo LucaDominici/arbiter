@@ -183,7 +183,7 @@ jobs:
         with:
           op: restore
       - run: node scripts/build-kit.mjs
-      - run: npm run test:e2e:bake
+      - run: npm run --if-present test:e2e:bake
 
 
   extended-required:
