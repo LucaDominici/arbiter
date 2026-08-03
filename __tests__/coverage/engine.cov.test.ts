@@ -859,7 +859,7 @@ describe('version_consistency ladder', () => {
     expect(r.detail).toContain('!=')
   })
 
-  it('P (empty version file) when VERSION is blank', () => {
+  it('N (empty version file) when VERSION is blank', () => {
     const root = tmpRoot()
     writeFileSync(join(root, 'VERSION'), '   \n')
     writeFileSync(join(root, 'CHANGELOG.md'), '## [1.2.3]\n')
@@ -872,7 +872,7 @@ describe('version_consistency ladder', () => {
         changelog_pattern: '^## \\[([0-9.]+)\\]',
       },
     })
-    expect(r.verdict).toBe('P')
+    expect(r.verdict).toBe('N')
     expect(r.detail).toContain('empty version file')
   })
 
@@ -891,6 +891,23 @@ describe('version_consistency ladder', () => {
     })
     expect(r.verdict).toBe('P')
     expect(r.detail).toContain('no changelog entry')
+  })
+
+  it('N when CHANGELOG is blank', () => {
+    const root = tmpRoot()
+    writeFileSync(join(root, 'VERSION'), '1.0.0\n')
+    writeFileSync(join(root, 'CHANGELOG.md'), ' \n')
+    const r = verdictOf(root, {
+      id: 'VC',
+      type: 'version_consistency',
+      args: {
+        version_file: 'VERSION',
+        changelog_file: 'CHANGELOG.md',
+        changelog_pattern: '^## \\[([0-9.]+)\\]',
+      },
+    })
+    expect(r.verdict).toBe('N')
+    expect(r.detail).toContain('present but empty')
   })
 
   it('P when the changelog pattern is an invalid regex (no match ⇒ indeterminate)', () => {

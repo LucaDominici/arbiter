@@ -531,7 +531,7 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
           changelog_pattern: '^##\\s*\\[?(\\d+\\.\\d+\\.\\d+)',
         },
       },
-      // an empty trimmed VERSION must be P (indeterminate), never a false Y.
+      // an empty trimmed VERSION must be N (zero credit), never a false Y.
       {
         id: 'E-EMPTY',
         type: 'version_consistency',
@@ -575,8 +575,8 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
     expect(tsById['E-DOTDOT-NAME'].verdict).toBe('Y')
     // a true traversal escape ⇒ N in BOTH
     expect(tsById['E-ESCAPE'].verdict).toBe('N')
-    // empty trimmed VERSION ⇒ P (never a false Y)
-    expect(tsById['E-EMPTY'].verdict).toBe('P')
+    // empty trimmed VERSION ⇒ N (zero credit, never a false Y)
+    expect(tsById['E-EMPTY'].verdict).toBe('N')
     // verdict AND evidence.detail byte-identical across the two engines
     expect(mjsById).toEqual(tsById)
   })

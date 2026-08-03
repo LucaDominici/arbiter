@@ -171,9 +171,9 @@ checks:
       const byId: Record<string, { verdict: string; evidence: { detail?: string } }> =
         Object.fromEntries(j.checks.map((c: { id: string }) => [c.id, c]))
 
-      expect(byId.EMPTY).toMatchObject({ verdict: 'P', evidence: { detail: 'present but empty' } })
+      expect(byId.EMPTY).toMatchObject({ verdict: 'N', evidence: { detail: 'present but empty' } })
       expect(byId.WHITESPACE).toMatchObject({
-        verdict: 'P',
+        verdict: 'N',
         evidence: { detail: 'present but empty' },
       })
       expect(byId.CONTENT).toMatchObject({ verdict: 'Y' })

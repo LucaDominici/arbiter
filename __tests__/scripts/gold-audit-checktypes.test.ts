@@ -84,6 +84,14 @@ describe('version_consistency check type (#1470)', () => {
     expect(byId['GA-REL-01'].verdict).toBe('P')
   })
 
+  it('N when the CHANGELOG is empty (no substantive consistency evidence)', () => {
+    const { byId } = audit(VC_REGISTRY, { VERSION: '1.4.0\n', 'CHANGELOG.md': '  \n' })
+    expect(byId['GA-REL-01']).toMatchObject({
+      verdict: 'N',
+      evidence: { detail: 'present but empty' },
+    })
+  })
+
   it('N when the VERSION file is missing', () => {
     const { byId } = audit(VC_REGISTRY, {
       'CHANGELOG.md': '# Changelog\n\n## [1.4.0]\n',
@@ -120,9 +128,9 @@ describe('version_consistency check type (#1470)', () => {
     }
   })
 
-  it('empty/whitespace VERSION is P, never a false Y (anti-fake-green regression)', () => {
+  it('empty/whitespace VERSION is N, never a false Y (anti-fake-green regression)', () => {
     const { byId } = audit(VC_REGISTRY, { VERSION: '   \n', 'CHANGELOG.md': '## [1.4.0]\n' })
-    expect(byId['GA-REL-01'].verdict).toBe('P')
+    expect(byId['GA-REL-01'].verdict).toBe('N')
   })
 
   it('a v-prefixed VERSION diverges from a bare-numeric capture → P (not a false Y)', () => {

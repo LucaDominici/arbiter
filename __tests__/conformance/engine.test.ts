@@ -99,9 +99,9 @@ describe('evaluate() — core (#1393 unit 1)', () => {
     const result = evaluate(registry, new Set<string>(), root)
     const byId = Object.fromEntries(result.checks.map((check) => [check.id, check]))
 
-    expect(byId.EMPTY).toMatchObject({ verdict: 'P', evidence: { detail: 'present but empty' } })
+    expect(byId.EMPTY).toMatchObject({ verdict: 'N', evidence: { detail: 'present but empty' } })
     expect(byId.WHITESPACE).toMatchObject({
-      verdict: 'P',
+      verdict: 'N',
       evidence: { detail: 'present but empty' },
     })
     expect(byId.CONTENT).toMatchObject({ verdict: 'Y' })

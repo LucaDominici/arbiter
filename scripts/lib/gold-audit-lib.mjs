@@ -8,8 +8,8 @@
 //
 // Verdicts (per check):
 //   Y  — verified true by code, with evidence (file [+ line])
-//   P  — partial (a count_matches check met some but not all of its target, or a file_exists
-//        check found a present-but-empty file)
+//   P  — partial (a count_matches check met some but not all of its target, or a
+//        version_consistency check found real-but-divergent substance)
 //   N  — verified false by code, with evidence (the path/pattern that was absent)
 //   NA — not applicable (applies_if overlay disabled)
 //   NV — not verified by code (manual / attestation-required check)
@@ -557,10 +557,20 @@ function extractJsonString(text, select) {
   return typeof node === 'string' && node !== '' ? node : null
 }
 
+/** Classify an unusable declared version without letting an empty artifact earn partial credit. */
+function invalidVersionResult(version, vFile, vSelect) {
+  if (version === null)
+    return { verdict: 'P', evidence: { file: vFile, detail: `no ${vSelect} in version file` } }
+  if (version === '')
+    return { verdict: 'N', evidence: { file: vFile, detail: 'empty version file' } }
+  return null
+}
+
 /**
  * version_consistency evaluator. Y = the declared version equals the latest CHANGELOG entry; P =
- * both present but divergent OR no changelog entry matches the pattern OR the version is
- * indeterminate (indeterminate — never a false Y); N = a required file is missing/unreadable.
+ * both present and substantively divergent OR no substantive changelog entry matches the pattern
+ * OR the version is indeterminate (indeterminate — never a false Y); N = a required file is
+ * missing, unreadable, or empty.
  * The version comes from a plain-text file (trimmed) or, when `version_select` is set, from a
  * dotted JSON path inside `version_file` (e.g. version_file: package.json, version_select: version).
  */
@@ -583,13 +593,11 @@ function evalVersionConsistency(args, root) {
     return { verdict: 'N', evidence: { file: cFile, detail } }
   }
   const cText = cRead.text
+  if (cText.trim() === '')
+    return { verdict: 'N', evidence: { file: cFile, detail: 'present but empty' } }
   const version = vSelect !== '' ? extractJsonString(vText, vSelect) : vText.trim()
-  if (version === null) {
-    return { verdict: 'P', evidence: { file: vFile, detail: `no ${vSelect} in version file` } }
-  }
-  if (version === '') {
-    return { verdict: 'P', evidence: { file: vFile, detail: 'empty version file' } }
-  }
+  const invalidVersion = invalidVersionResult(version, vFile, vSelect)
+  if (invalidVersion !== null) return invalidVersion
   const latest = latestChangelogVersion(cText, args.changelog_pattern)
   if (latest === null) {
     return {
@@ -609,7 +617,7 @@ function evalVersionConsistency(args, root) {
 // ── Per-type check evaluators (extracted to mirror src/conformance/engine.ts) ────
 // The dispatch in evalCheck stays a thin if-chain over these handlers so the two engines keep an
 // identical structure (parity) and no single function grows past the complexity ceiling as types
-// are added. file_exists rejects directories, returns P for empty files, and returns identical
+// are added. file_exists rejects directories, returns N for empty files, and returns identical
 // evidence to the TS engine (removes previously-tolerated directory/evidence divergence).
 
 function evalFileExists(abs, rel) {
@@ -622,8 +630,10 @@ function evalFileExists(abs, rel) {
   }
   const text = readText(abs)
   if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
+  // A presence check asks whether content exists: empty artifacts earn nothing. P is reserved for
+  // version_consistency's real-but-divergent substance, not an empty file that touch can create.
   if (text.trim() === '')
-    return { verdict: 'P', evidence: { file: rel, detail: 'present but empty' } }
+    return { verdict: 'N', evidence: { file: rel, detail: 'present but empty' } }
   return { verdict: 'Y', evidence: { file: rel } }
 }
 
