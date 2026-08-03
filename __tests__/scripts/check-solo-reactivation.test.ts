@@ -56,7 +56,18 @@ function makeRepo(authorEmails: string[]): string {
         '-m',
         'x',
       ],
-      { cwd: repoDir, encoding: 'utf-8' },
+      // Git identity environment variables override -c user.email; pin them so ambient values cannot collapse this fixture's distinct authors.
+      {
+        cwd: repoDir,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: 'Test Author',
+          GIT_COMMITTER_NAME: 'Test Author',
+          GIT_AUTHOR_EMAIL: email,
+          GIT_COMMITTER_EMAIL: email,
+        },
+      },
     )
     if (commit.status !== 0) throw new Error(`git commit failed: ${commit.stderr}`)
   }
