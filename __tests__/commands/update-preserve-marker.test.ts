@@ -71,13 +71,12 @@ describe('runUpdate — preserve marker withholds overwrite (#1980)', () => {
   })
 })
 
-// ── #2120: `.claude/settings.json` was the one emitted file NO protection ─────
-// mechanism reached. `generateClaudeSettings` did its own merge, its own
-// disk-compare, its own copyFileSync backup and its own writeFileSync — so the
-// generated manifest never learned its hash, `arbiter:preserve` never applied,
-// and neither did the adopt/plan machinery. JSON has no comments, but the
+// ── #2141: settings are withheld by default; governance adoption is explicit ─
+// A DIVERGED, unmarked settings.json must survive a nude update byte-identical
+// and be re-rendered only under `adoptGovernance`. The preserve marker remains
+// a permanent freeze ahead of every adopt policy. JSON has no comments, but the
 // whole-file marker is a substring test, so an ordinary key carries it.
-describe('runUpdate — .claude/settings.json honours the preserve marker (#2120)', () => {
+describe('runUpdate — .claude/settings.json preserves local governance overrides (#2141)', () => {
   let dir: string
 
   beforeEach(() => {
@@ -105,15 +104,21 @@ describe('runUpdate — .claude/settings.json honours the preserve marker (#2120
     expect(readFileSync(target, 'utf-8')).toBe(stub)
   })
 
-  it('an unmarked settings.json still receives the merge (protection is opt-in)', async () => {
+  it('withholds an unmarked DIVERGED settings.json by default and merges it under adoptGovernance (#2141)', async () => {
     writeV2Config(dir)
     await runUpdate({ dir, json: true, github: false })
 
     const target = join(dir, '.claude', 'settings.json')
-    writeFileSync(target, JSON.stringify({ hooks: {} }, null, 2) + '\n')
+    const localOverride = JSON.stringify({ hooks: {} }, null, 2) + '\n'
+    writeFileSync(target, localOverride)
 
     writeV2Config(dir, { governanceLevel: 'L3' })
     await runUpdate({ dir, json: true, github: false })
+
+    // #2141: naked updates preserve a DIVERGED governance file.
+    expect(readFileSync(target, 'utf-8')).toBe(localOverride)
+
+    await runUpdate({ dir, json: true, github: false, adoptGovernance: true })
 
     const after = JSON.parse(readFileSync(target, 'utf-8')) as { hooks: Record<string, unknown> }
     expect(Object.keys(after.hooks).length).toBeGreaterThan(0)
