@@ -1,0 +1,20 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2193",
+  "test_path": "__tests__/integration/e2e/functional/fixture-functional.test.ts",
+  "test_commit_sha": "3b70a8ee293414a0169d58ef0966e9d3e49f120a",
+  "test_run_log": "\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/integration/e2e/functional/fixture-functional.test.ts > functional harness — day-1 L2 emission smoke (#2193/#2194) > ts-backend-web-db: generated L1 gate passes after L2 init\nAssertionError: generated L1 gate failed:\n            PASS    121ms\nconfig drift                             PASS    16ms\nvalidator help text                      PASS    19ms\nsuppressions expiry                      PASS    15ms\nsuppression rationale                    PASS    16ms\nsuppression expiry (anti-drift)          PASS    14ms\ninline suppressions                      PASS    20ms\nclaude-md lint                           PASS    16ms\nunwired guards                           PASS    25ms\nworkflow runners                         PASS    0ms\nci alignment                             PASS    0ms\nssot core set                            PASS    15ms\ndoc links                                PASS    15ms\nknowledge map                            PASS    14ms\ncanonical paths                          PASS    17ms\ncollab mode wired (INV-100)              PASS    16ms\nhook routing (#2129)                     PASS    16ms\nsafety adopt ratchet                     PASS    15ms\nconstraint scan (INV-115)                PASS    20ms\nwiki lint (INV-116)                      PASS    15ms\nanti-proforma (INV-118)                  PASS    18ms\ntest pyramid (INV-124)                   PASS    18ms\ntest scope-tier (INV-124)                PASS    15ms\napi e2e (INV-126)                        PASS    17ms\ndomain-api surface (INV-125)             PASS    16ms\nrender smoke presence (INV-127)          SKIP    14ms\nsmoke journeys (INV-137)                 PASS    15ms\nstack conformity (INV-121)               PASS    14ms\nmuted gate test (anti-fake-green)        PASS    23ms\nskipped critical e2e (anti-fake-green)   PASS    17ms\nstub redirect husk (anti-fake-green)     PASS    19ms\ngrace window (anti-fake-green)           PASS    15ms\nassertion delta (anti-fake-green)        PASS    23ms\noracle discrimination (anti-fake-green)  PASS    18ms\n--------------------------------------------------------\nTotal                                            6312ms\n\n[warn] src/test/contracts/pact-consumer.test.ts",
+  "observed_failure": "FAIL  __tests__/integration/e2e/functional/fixture-functional.test.ts",
+  "recorded_at": "2026-08-03T04:28:41.684Z",
+  "test_command": [
+    "env",
+    "VITEST_L2=1",
+    "npx",
+    "vitest",
+    "run",
+    "--config",
+    "vitest.integration.config.ts",
+    "__tests__/integration/e2e/functional/fixture-functional.test.ts"
+  ],
+  "repin_note": "VITEST_L2=1 is part of the recorded command: the L2 lane is opt-in and the suite skips (exit 0) without it"
+}
