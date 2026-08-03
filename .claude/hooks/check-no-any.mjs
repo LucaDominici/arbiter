@@ -21,6 +21,8 @@ try {
 
 const lines = content.split('\n')
 const offending = lines.flatMap((line, i) => {
+  const t = line.trimStart()
+  if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return []
   if (!/:\s*any\b/.test(line)) return []
   if (findInlineSuppression(content, i, 'INV-04')) return []
   return [`${i + 1}: ${line.trim()}`]

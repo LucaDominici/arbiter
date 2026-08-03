@@ -602,7 +602,7 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
     for (const incomingEntry of incomingEntries) {
       const existingEntry = merged.find((e) => e.matcher === incomingEntry.matcher)
       if (existingEntry) {
-        mergeHookEntry(existingEntry, incomingEntry)
+        mergeHookEntry(existingEntry, incomingEntry, event)
       } else {
         merged.push(incomingEntry)
       }
@@ -614,17 +614,36 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
   return result
 }
 
-function mergeHookEntry(existingEntry: HookEntry, incomingEntry: HookEntry): void {
+function mergeHookEntry(existingEntry: HookEntry, incomingEntry: HookEntry, event: string): void {
   const hasDispatcherIncoming = incomingEntry.hooks.some((h) => isDispatcherCommand(h.command))
 
   for (const hook of incomingEntry.hooks) {
     if (hasDispatcherIncoming && isDispatcherCommand(hook.command)) {
       // Dispatcher upgrade: remove all previously arbiter-managed hook entries
-      // so old individual hook commands don't persist alongside the new dispatcher.
+      // so old individual hook commands don't persist alongside the dispatcher.
+      const existingDispatcher = existingEntry.hooks.find((h) => isDispatcherCommand(h.command))
       existingEntry.hooks = existingEntry.hooks.filter((h) => {
         const basename = extractHookBasename(h.command)
-        return basename === null || !ARBITER_HOOK_BASENAMES.has(basename)
+        return (
+          isDispatcherCommand(h.command) ||
+          basename === null ||
+          !ARBITER_HOOK_BASENAMES.has(basename)
+        )
       })
+      if (existingDispatcher && existingDispatcher.command !== hook.command) {
+        getLogger().warn(
+          'fs.hook_command_preserved',
+          {
+            hook_event: event,
+            matcher: existingEntry.matcher,
+            existing_command: existingDispatcher.command,
+            incoming_command: hook.command,
+          },
+          `settings.json merge preserved your existing dispatcher command for matcher ` +
+            `${existingEntry.matcher}; arbiter's dispatcher command was NOT applied.`,
+        )
+        continue
+      }
     } else {
       const incomingBasename = extractHookBasename(hook.command)
       if (incomingBasename) {

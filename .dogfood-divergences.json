@@ -2,7 +2,7 @@
   {
     "path": "CLAUDE.md",
     "reason": "Arbiter self-dogfood: hooks table contains additional rows for check-no-any.mjs, check-no-placeholders.mjs, check-no-skipped-tests.mjs, check-no-unused-exports.mjs, check-circular-deps.mjs, pre-edit-plan-anchor.mjs, check-no-direct-spawn.mjs, check-no-pii.mjs, post-edit-dispatch.mjs, skill-forced-eval.mjs, debug-state-on-failure.mjs, pre-compact.mjs and slash commands /status and /replay phase. These arbiter-internal extensions are not shipped to target projects. (Confirmed intentional 2026-05-29, #1092; skipped-test wiring repaired under #2129.) Also documents guard-done-evidence.mjs (#1872), which IS shipped to targets when evidenceHarness is on but has no corresponding row in the CLAUDE.md.ejs template's hooks table (a template documentation gap, not a self-only hook); the materialized hook is flag-gated and inert until features.evidenceHarness: true. stop-finding-loss.mjs (#1948, E6b) was ACTIVATED per OD-14 (2026-07-17) into the Stop matcher chain and moved to the active hooks table — the template's CLAUDE.md.ejs and settings.json.ejs stay minimal (self-first activation; template follows at promotion date). pre-spawn-worktree-guard.mjs (#1947, E5) was likewise ACTIVATED advisory per OD-14 (2026-07-17) into the PreToolUse Task|Agent matcher and moved to the active hooks table — same self-first-activation class as stop-finding-loss.mjs, which is the source of this file's divergence.",
-    "diffHash": "668f6f508b1bfd9f7467b1fb28ccb775fdee17a5e37ea80a3906d266fa6af640"
+    "diffHash": "9743ca3b1a4b5bb633c06d06422e7e4881ea145b66d3ef1518de3c42efa474ab"
   },
   {
     "path": "commands/wt-close.md",
@@ -70,11 +70,6 @@
     "diffHash": "4ceacea62229c8d2211d03921824f44309a0dd76d05c2113eeab47ffee2b3847"
   },
   {
-    "path": "hooks/enforce-gate-before-pr.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook carries one extra FAIL-OPEN-INTENT documentation comment clarifying the exit-code contract (0 for non-PR commands, 2 on explicit gate-fail). Comment-only divergence, no behavioural difference. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry that was dropped from the merged commit.)",
-    "diffHash": "cf01ba0c8bb2846420a3c87ebe959ae2091cc07961db3dbc51c48933e67a1ecf"
-  },
-  {
     "path": "hooks/check-no-orphan-todo.mjs",
     "reason": "Arbiter self-dogfood: materialized hook adds repo-root scoping and inline-suppression support via findInlineSuppression() from lib.mjs (INV-21 directive). The shipped template omits the lib.mjs dependency, so the suppression branch cannot be back-ported without shipping arbiter-internal lib.mjs changes. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)",
     "diffHash": "7a9f22b53f30774d815130788c26614de3d838e9b895e6a77a47c3f5d0fa8dc5"
@@ -83,11 +78,6 @@
     "path": "hooks/enforce-read-only.mjs",
     "reason": "Arbiter self-dogfood: materialized hook scopes enforcement to the repo root and drops AGENTS.md from READ_ONLY_PATTERNS because arbiter AUTHORS its own AGENTS.md (it is the source), whereas a target project's AGENTS.md is generated and must stay read-only. Back-porting the repo-root bypass was empirically proven to break the INV-36 HARD-hook contract. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)",
     "diffHash": "53440c660dfa5e9711f93c26b5d8026031125e40e004c9f21be6ab16e9da9d05"
-  },
-  {
-    "path": "hooks/check-no-unused-exports.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook scopes the unused-export check to the single edited file for fast per-edit execution in arbiter's own repo; the shipped template runs the broader project-wide check. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)",
-    "diffHash": "3c1bc1015fba407d15f3b295fe32d4e6ef696727aab9b107e0eb126a3c9fce8b"
   },
   {
     "path": "hooks/wiki-on-commit.mjs",

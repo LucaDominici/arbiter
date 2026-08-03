@@ -1,8 +1,8 @@
 ---
 title: 'Hook Contracts — `.claude/hooks/*.mjs`'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-08-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/method']
@@ -16,6 +16,37 @@ related: []
 > Mismatch → gate failure.
 
 Generated from audit #615. Last updated: 2026-05-17.
+
+---
+
+## Scope and threat model (#2022)
+
+Issue #2022 investigated why settings-hook guards were silent for delegated Agent-tool sessions.
+
+**Q1 — Do `.claude/settings.json` PreToolUse hooks apply to subagent Bash calls?** Observed:
+no. Two independent data points show both event classes are silent: `enforce-gate-before-pr.mjs`
+did not intercept real subagent `gh pr create` calls, and `wiki-on-commit.mjs` did not run after a
+subagent `git commit`.
+
+**Q2 — Is hook resolution cwd- or worktree-sensitive?** Not the operative cause observed here.
+The same hook chain is silent for both events, while the pre-PR hook blocks correctly when driven
+directly with its crafted stdin payload. The distinguishing observation is the delegated session,
+not its cwd; no unobserved harness-internal resolution claim is made.
+
+**Q3 — What is the threat model when delegated sessions are structurally un-hooked?** The
+following boundary statement applies.
+
+- The **ENFORCED** boundary is CI plus branch protection: `gate` and `gate-full` in
+  `.github/workflows/01-pr-fast.yml`, with `gate-full` running
+  `node scripts/check-all.mjs L2 --json gate-result.json`.
+- Local `.claude/settings.json` PreToolUse and PostToolUse hooks are defence-in-depth. They are
+  advisory for delegated sessions because the harness does not run that hook chain there.
+- Git hooks are distinct: `git config core.hooksPath .githooks` makes them git-level hooks, which
+  do fire for delegated-session `git commit` and `git push` commands. They are the local control
+  that survives delegation.
+- The #2054 Bash-channel pattern guard in `stop-dangerous.mjs` uses this same settings-hook chain
+  and inherits the delegated-session limitation.
+- Therefore, no Arbiter enforcement claim may rest on a `.claude/settings.json` hook alone.
 
 ---
 

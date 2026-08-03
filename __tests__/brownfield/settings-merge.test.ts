@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateClaude } from '../../src/generators/claude.js'
 import { getLanguageHooks } from '../../src/detectors/language-hooks.js'
+import { mergeSettingsJson } from '../../src/utils/fs.js'
+import { getLogger } from '../../src/utils/logger.js'
 
 describe('brownfield: settings.json merge', () => {
   let dir: string
@@ -38,6 +40,68 @@ describe('brownfield: settings.json merge', () => {
       },
     })
   }
+
+  it('preserves an existing customized dispatcher command during the dispatcher upgrade', () => {
+    const existingDispatcher =
+      'node "$CLAUDE_PROJECT_DIR/.claude/hooks/hooks.mjs" \'PreToolUse:Edit|Write\''
+    const incomingDispatcher = "node .claude/hooks/hooks.mjs 'PreToolUse:Edit|Write'"
+    const warnSpy = vi.spyOn(getLogger(), 'warn').mockImplementation(() => {})
+
+    try {
+      const result = mergeSettingsJson(
+        {
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: 'Edit|Write',
+                hooks: [
+                  { type: 'command', command: existingDispatcher, timeout: 30 },
+                  { type: 'command', command: 'node .claude/hooks/stop-dangerous.mjs' },
+                  { type: 'command', command: 'bash .claude/hooks/my-custom-hook.sh' },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: 'Edit|Write',
+                hooks: [{ type: 'command', command: incomingDispatcher, timeout: 10 }],
+              },
+            ],
+          },
+        },
+      ) as {
+        hooks: Record<
+          string,
+          Array<{
+            matcher: string
+            hooks: Array<{ type: string; command: string; timeout?: number }>
+          }>
+        >
+      }
+
+      const hooks = result.hooks.PreToolUse?.[0]?.hooks ?? []
+      expect(hooks).toEqual([
+        { type: 'command', command: existingDispatcher, timeout: 30 },
+        { type: 'command', command: 'bash .claude/hooks/my-custom-hook.sh' },
+      ])
+      expect(warnSpy).toHaveBeenCalledWith(
+        'fs.hook_command_preserved',
+        {
+          hook_event: 'PreToolUse',
+          matcher: 'Edit|Write',
+          existing_command: existingDispatcher,
+          incoming_command: incomingDispatcher,
+        },
+        expect.any(String),
+      )
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
 
   it('merges custom hooks with arbiter hooks', () => {
     const claudeDir = join(dir, '.claude')

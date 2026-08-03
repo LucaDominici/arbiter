@@ -45,7 +45,7 @@ Configured in `.claude/settings.json`. Active hooks:
 
 | Event                        | Hook                           | Purpose                                                                                                                      |
 | ---------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `PreToolUse` → Bash          | `stop-dangerous.mjs`           | Block dangerous commands (rm -rf, force push)                                                                                |
+| `PreToolUse` → Bash          | `stop-dangerous.mjs`           | Block dangerous commands and obvious writes to protected Arbiter state                                                       |
 | `PreToolUse` → Bash          | `enforce-gate-before-pr.mjs`   | Block `gh pr create` without valid gate-pass.json                                                                            |
 | `PreToolUse` → Edit\|Write   | `enforce-read-only.mjs`        | Guard read-only files                                                                                                        |
 | `PreToolUse` → Edit\|Write   | `pre-edit-load-memory.mjs`     | Inject memory-impl.md gotchas when glob matches                                                                              |

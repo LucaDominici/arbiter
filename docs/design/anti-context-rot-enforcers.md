@@ -32,11 +32,17 @@ landed on main and are **not** re-designed here:
   `scripts/build-kernel-plugin.mjs`. Remaining work is playbook §T1 polish, not net-new design.
 - **Bypass env out of agent reach (M15, half of the T1 target)** — the bypass env vars are
   already permission-denied in both the self settings (`.claude/settings.json:205-221`,
-  `Bash(*ARBITER_GATE_BYPASS*)` etc., plus `Edit(.arbiter/evidence/**)` and
-  `gate-pass.json`) and the emitted template (`src/templates/claude/settings.json.ejs:139`).
+  `Bash(*ARBITER_GATE_BYPASS*)` etc., plus `Edit(.arbiter/evidence/**)`,
+  `Edit(.arbiter/gate-pass.json)`, and `Edit(.arbiter/status.json)`) and the emitted template
+  (`src/templates/claude/settings.json.ejs:139`).
   (#2048: the twin `Write(...)` deny entries were removed — Claude Code only matches
-  file-editing tools via `Edit(path)`, so the `Write(...)` rules were dead weight; the
-  `Edit(...)` rules alone already carry the protection.)
+  file-editing tools via `Edit(path)`, so the `Write(...)` rules were dead weight.) The
+  `Edit(...)` deny entries bind the Edit/Write tools only; they do not constrain broadly
+  allowed Bash commands. `stop-dangerous.mjs` is a best-effort defence-in-depth Bash pattern
+  guard for obvious writes to those paths, not an enforcement boundary: a determined caller
+  can evade it with base64, shell-variable indirection, or a helper script. The ENFORCED
+  boundary is CI and branch protection: the `gate` / `gate-full` jobs in
+  `.github/workflows/01-pr-fast.yml` run `node scripts/check-all.mjs L2`.
   What remains of M15 is the **ceremony detector** (E4 below) — plus one real gap found while
   cross-checking: see E4 "legacy silent bypass".
 

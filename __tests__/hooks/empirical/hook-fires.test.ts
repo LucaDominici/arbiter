@@ -57,6 +57,17 @@ function spawnHook(
   })
 }
 
+function spawnCommandThroughStdin(hookPath: string, dir: string, command: string) {
+  return spawnSync('node', [hookPath], {
+    cwd: dir,
+    encoding: 'utf-8',
+    input: JSON.stringify({ tool_input: { command } }),
+    // Claude Code supplies the Bash command in stdin JSON, not this compatibility env var.
+    env: { ...process.env, CLAUDE_TOOL_INPUT_COMMAND: '' },
+    timeout: 5000,
+  })
+}
+
 // ── static hooks ──────────────────────────────────────────────────────────────
 
 describe('stop-dangerous — empirical fire', () => {
@@ -94,6 +105,102 @@ describe('stop-dangerous — empirical fire', () => {
       CLAUDE_TOOL_INPUT_COMMAND: 'git push --force origin main',
     })
     expect(r.status).toBe(2)
+  })
+
+  it('blocks a redirect write to gate-pass.json delivered through stdin JSON', () => {
+    const command = "echo '{}' > .arbiter/gate-pass.json"
+    const r = spawnCommandThroughStdin(hookPath, dir, command)
+    expect(r.status, r.stderr).toBe(2)
+    expect(r.stderr).toContain('[arbiter]')
+    expect(r.stderr).toContain('.arbiter/gate-pass.json')
+  })
+
+  it.each([
+    ['append redirect', 'echo x >> .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
+    ['copy', 'cp /tmp/fake.json .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
+    ['move', 'mv /tmp/fake.json .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
+    ['tee', 'tee .arbiter/gate-pass.json < /tmp/fake.json', '.arbiter/gate-pass.json'],
+    ['sed in-place', "sed -i 's/false/true/' .arbiter/gate-pass.json", '.arbiter/gate-pass.json'],
+    ['truncate', 'truncate -s 0 .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
+    [
+      'python inline',
+      "python3 -c \"open('.arbiter/gate-pass.json','w').write('{}')\"",
+      '.arbiter/gate-pass.json',
+    ],
+    [
+      'node inline',
+      "node -e \"require('fs').writeFileSync('.arbiter/gate-pass.json','{}')\"",
+      '.arbiter/gate-pass.json',
+    ],
+    ['delete', 'rm .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
+    ['append redirect', 'echo x >> .arbiter/status.json', '.arbiter/status.json'],
+    ['copy', 'cp /tmp/fake.json .arbiter/status.json', '.arbiter/status.json'],
+    ['move', 'mv /tmp/fake.json .arbiter/status.json', '.arbiter/status.json'],
+    ['tee', 'tee .arbiter/status.json < /tmp/fake.json', '.arbiter/status.json'],
+    ['sed in-place', "sed -i 's/false/true/' .arbiter/status.json", '.arbiter/status.json'],
+    ['truncate', 'truncate -s 0 .arbiter/status.json', '.arbiter/status.json'],
+    [
+      'python inline',
+      "python3 -c \"open('.arbiter/status.json','w').write('{}')\"",
+      '.arbiter/status.json',
+    ],
+    [
+      'node inline',
+      "node -e \"require('fs').writeFileSync('.arbiter/status.json','{}')\"",
+      '.arbiter/status.json',
+    ],
+    ['delete', 'rm .arbiter/status.json', '.arbiter/status.json'],
+    ['append redirect', 'echo x >> .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
+    ['copy', 'cp /tmp/fake.json .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
+    ['move', 'mv /tmp/fake.json .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
+    ['tee', 'tee .arbiter/evidence/x.json < /tmp/fake.json', '.arbiter/evidence/x.json'],
+    ['sed in-place', "sed -i 's/false/true/' .arbiter/evidence/x.json", '.arbiter/evidence/x.json'],
+    ['truncate', 'truncate -s 0 .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
+    [
+      'python inline',
+      "python3 -c \"open('.arbiter/evidence/x.json','w').write('{}')\"",
+      '.arbiter/evidence/x.json',
+    ],
+    [
+      'node inline',
+      "node -e \"require('fs').writeFileSync('.arbiter/evidence/x.json','{}')\"",
+      '.arbiter/evidence/x.json',
+    ],
+    ['delete', 'rm .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
+    ['compound redirect', 'cd foo && echo x > .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
+    ['dot-slash redirect', 'echo x > ./.arbiter/status.json', '.arbiter/status.json'],
+    [
+      'absolute redirect',
+      'echo x > /tmp/project/.arbiter/evidence/x.json',
+      '.arbiter/evidence/x.json',
+    ],
+  ])('blocks protected %s writes', (_kind, command, protectedPath) => {
+    const r = spawnCommandThroughStdin(hookPath, dir, command)
+    expect(r.status, r.stderr).toBe(2)
+    expect(r.stderr).toContain('[arbiter]')
+    expect(r.stderr).toContain(protectedPath)
+  })
+
+  it.each([
+    'cat .arbiter/gate-pass.json',
+    'cat .arbiter/gate-pass.json 2>&1',
+    'jq . .arbiter/status.json',
+    'jq . .arbiter/status.json 1>/dev/null',
+    'ls .arbiter/evidence',
+    'git diff .arbiter/status.json',
+    'npm test',
+    'git status',
+  ])('allows read-only or unrelated command: %s', (command) => {
+    const r = spawnCommandThroughStdin(hookPath, dir, command)
+    expect(r.status, r.stderr).toBe(0)
+    expect(r.stderr).toBe('')
+  })
+
+  it('keeps the existing dangerous-command message unchanged', () => {
+    const command = 'git reset --hard'
+    const r = spawnCommandThroughStdin(hookPath, dir, command)
+    expect(r.status).toBe(2)
+    expect(r.stderr).toBe(`[arbiter] Blocked dangerous command: ${command}\n`)
   })
 })
 
