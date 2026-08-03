@@ -397,7 +397,7 @@
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "a1e1634d3728b5a96b7d50699abee6e9b5ac130362b39c8fc0598ad01e131349"
+    "diffHash": "3baeb09079c6c337393f49e5bc4e8715bee152b3e8cd8ee0eb2873ff4f96f9d4"
   },
   {
     "path": "check-test-naming.mjs",
@@ -478,7 +478,7 @@
   {
     "path": "run-helpers.mjs",
     "dest": "scripts/lib",
-    "reason": "Arbiter self-dogfood: the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. #2104 additionally adds `resolveTmpfsTmpdir` (TMPDIR on tmpfs) to the SHIPPED twin only: the 210s->33.7s measurement behind it is a Go/SQLite fsync-bound workload, arbiter's own gate is Node/TS and the lever is unmeasured there — and an exported-but-unwired helper would trip the unused-export guard. Reconciliation tracked as follow-up, not silent drift.",
-    "diffHash": "9df013402cb313e40c4839c557927d0ff308ab253fe6aabe2d3b6ebbe44c27c6"
+    "reason": "Arbiter self-dogfood: the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. #2104 additionally adds `resolveTmpfsTmpdir` (TMPDIR on tmpfs) to the SHIPPED twin only: the 210s->33.7s measurement behind it is a Go/SQLite fsync-bound workload, arbiter's own gate is Node/TS and the lever is unmeasured there — and an exported-but-unwired helper would trip the unused-export guard. #2197 adds emitted-guard manifest classification only to the SHIPPED helper because arbiter's self gate calls its two committed guards unconditionally. Reconciliation tracked as follow-up, not silent drift.",
+    "diffHash": "09e391ce55dbab317911804c4063e68a09b95ffdbf22efdb01d46fd043431e34"
   }
 ]
