@@ -9,7 +9,7 @@
 // Usage:
 //   node scripts/gen-wiki.mjs               # build wiki/ from docs/
 //   node scripts/gen-wiki.mjs --check       # fail if wiki/ is stale
-//   node scripts/gen-wiki.mjs --changed     # incremental: only pages whose source changed
+//   node scripts/gen-wiki.mjs --changed     # incremental: only stale or missing pages
 //   node scripts/gen-wiki.mjs query <terms> # keyword search over wiki pages
 //   node scripts/gen-wiki.mjs --wiki-dir <dir> # write/check a non-default vault dir (#1979)
 
@@ -111,18 +111,13 @@ try {
     }
   }
 
-  // ── Changed source paths since last generation ────────────────────────────────
-
-  function getChangedSources() {
-    try {
-      const diff = execFileSync('git', ['diff', '--name-only', 'HEAD~1', 'HEAD', '--', 'docs/'], {
-        encoding: 'utf-8',
-        cwd: ROOT,
-      }).trim()
-      return new Set(diff.split('\n').filter(Boolean))
-    } catch {
-      return new Set()
-    }
+  function staleSources(sources) {
+    return sources.filter((src) => {
+      const wikiPage = join(WIKI_DIR, `${pageSlug(src)}.md`)
+      if (!existsSync(wikiPage)) return true
+      const pageFm = parseFrontmatter(readFileSync(wikiPage, 'utf-8'))
+      return pageFm['source_sha'] !== gitHash(join(ROOT, src))
+    })
   }
 
   // ── Build [[wikilinks]] from related: frontmatter field ──────────────────────
@@ -196,24 +191,17 @@ ${seeAlso ? `## See Also\n\n${seeAlso}\n` : ''}`.trimEnd() + '\n'
       process.exit(1)
     }
     const sources = collectSourceDocs()
-    let stale = false
-    for (const src of sources) {
+    const stale = staleSources(sources)
+    for (const src of stale) {
       const slug = pageSlug(src)
       const wikiPage = join(WIKI_DIR, `${slug}.md`)
       if (!existsSync(wikiPage)) {
         process.stdout.write(`  gen-wiki --check: wiki/${slug}.md missing (source: ${src})\n`)
-        stale = true
         continue
       }
-      const pageText = readFileSync(wikiPage, 'utf-8')
-      const pageFm = parseFrontmatter(pageText)
-      const currentSha = gitHash(join(ROOT, src))
-      if (pageFm['source_sha'] !== currentSha) {
-        process.stdout.write(`  gen-wiki --check: wiki/${slug}.md is stale (source: ${src})\n`)
-        stale = true
-      }
+      process.stdout.write(`  gen-wiki --check: wiki/${slug}.md is stale (source: ${src})\n`)
     }
-    if (stale) {
+    if (stale.length > 0) {
       process.stdout.write('  Run: node scripts/gen-wiki.mjs\n')
       process.exit(1)
     }
@@ -267,7 +255,7 @@ ${seeAlso ? `## See Also\n\n${seeAlso}\n` : ''}`.trimEnd() + '\n'
   mkdirSync(WIKI_DIR, { recursive: true })
 
   const sources = collectSourceDocs()
-  const changedSources = isChanged ? getChangedSources() : null
+  const changedSources = isChanged ? new Set(staleSources(sources)) : null
 
   // Build slug map first (for cross-linking)
   const allSlugs = new Set(sources.map(pageSlug))
@@ -307,7 +295,7 @@ ${seeAlso ? `## See Also\n\n${seeAlso}\n` : ''}`.trimEnd() + '\n'
   writeFileSync(join(WIKI_DIR, '.wiki-log.json'), JSON.stringify(log, null, 2) + '\n', 'utf-8')
 
   process.stdout.write(
-    `  gen-wiki: ${generated > 0 ? generated : sources.length} page(s) written to wiki/ (${sources.length} source docs)\n`,
+    `  gen-wiki: ${generated} page(s) written to wiki/ (${sources.length} source docs)\n`,
   )
   process.exit(0)
 } catch (err) {

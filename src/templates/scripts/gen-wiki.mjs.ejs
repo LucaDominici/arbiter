@@ -82,6 +82,15 @@ function gitHash(absPath) {
   }
 }
 
+function staleSources(sources) {
+  return sources.filter((src) => {
+    const wikiPage = join(WIKI_DIR, `${pageSlug(src)}.md`);
+    if (!existsSync(wikiPage)) return true;
+    const pageFm = parseFrontmatter(readFileSync(wikiPage, 'utf-8'));
+    return pageFm['source_sha'] !== gitHash(join(ROOT, src));
+  });
+}
+
 function generatePage(sourcePath, allSlugs) {
   const absSource = join(ROOT, sourcePath);
   if (!existsSync(absSource)) return null;
@@ -110,15 +119,14 @@ function generatePage(sourcePath, allSlugs) {
 if (isCheck) {
   if (!existsSync(WIKI_DIR)) { process.stdout.write('  gen-wiki: wiki/ not found\n'); process.exit(1); }
   const sources = collectSourceDocs();
-  let stale = false;
-  for (const src of sources) {
+  const stale = staleSources(sources);
+  for (const src of stale) {
     const sl = pageSlug(src);
     const wikiPage = join(WIKI_DIR, `${sl}.md`);
-    if (!existsSync(wikiPage)) { process.stdout.write(`  gen-wiki --check: wiki/${sl}.md missing\n`); stale = true; continue; }
-    const pageFm = parseFrontmatter(readFileSync(wikiPage, 'utf-8'));
-    if (pageFm['source_sha'] !== gitHash(join(ROOT, src))) { process.stdout.write(`  gen-wiki --check: wiki/${sl}.md is stale\n`); stale = true; }
+    if (!existsSync(wikiPage)) { process.stdout.write(`  gen-wiki --check: wiki/${sl}.md missing\n`); continue; }
+    process.stdout.write(`  gen-wiki --check: wiki/${sl}.md is stale\n`);
   }
-  if (stale) { process.stdout.write('  Run: node scripts/gen-wiki.mjs\n'); process.exit(1); }
+  if (stale.length > 0) { process.stdout.write('  Run: node scripts/gen-wiki.mjs\n'); process.exit(1); }
   process.stdout.write(`  gen-wiki: wiki/ is up to date\n`); process.exit(0);
 }
 
@@ -142,7 +150,7 @@ if (isQuery) {
 
 mkdirSync(WIKI_DIR, { recursive: true });
 const sources = collectSourceDocs();
-const changedSources = isChanged ? new Set(execFileSync('git', ['diff', '--name-only', 'HEAD~1', 'HEAD', '--', 'docs/'], { encoding: 'utf-8', cwd: ROOT }).trim().split('\n').filter(Boolean)) : null;
+const changedSources = isChanged ? new Set(staleSources(sources)) : null;
 const allSlugs = new Set(sources.map(pageSlug));
 const log = { generated_at: new Date().toISOString(), pages: [] };
 let generated = 0;
@@ -159,5 +167,5 @@ const indexLines = ['---', 'generated: true', `last_updated: '${new Date().toISO
 for (const s of [...allSlugs].sort()) indexLines.push(`- [[${s}]]`);
 writeFileSync(join(WIKI_DIR, 'INDEX.md'), indexLines.join('\n') + '\n', 'utf-8');
 writeFileSync(join(WIKI_DIR, '.wiki-log.json'), JSON.stringify(log, null, 2) + '\n', 'utf-8');
-process.stdout.write(`  gen-wiki: ${generated > 0 ? generated : sources.length} page(s) written to wiki/\n`);
+process.stdout.write(`  gen-wiki: ${generated} page(s) written to wiki/\n`);
 process.exit(0);
