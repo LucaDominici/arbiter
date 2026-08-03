@@ -16,6 +16,10 @@ vi.mock('../../src/capabilities/host-probe.js', () => ({
 // Stub the git sha/path checks so the TDD-evidence green gate does not need a real repo.
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
+  resolveEvidenceCommit: vi.fn((ev: { test_commit_sha: string }) => ({
+    sha: ev.test_commit_sha,
+    healed: false,
+  })),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
 }))
 
@@ -549,13 +553,13 @@ describe('checkTddEvidenceGate (advance --to green)', () => {
     expect(() => runTaskAdvance({ to: 'green', dir })).toThrow(/failure signature/)
   })
 
-  it('sha not on branch (git-check returns false) → throws "not found in git history"', async () => {
+  it('RED commit unresolvable on this branch → throws "not reachable from HEAD"', async () => {
     const dir = tmpRepo()
     seedRed(dir)
     writeEvidence(dir, VALID_EVIDENCE)
-    const { shaExistsOnBranch } = vi.mocked(await import('../../src/evidence/git-checks.js'))
-    shaExistsOnBranch.mockReturnValueOnce(false)
-    expect(() => runTaskAdvance({ to: 'green', dir })).toThrow(/not found in git history/)
+    const { resolveEvidenceCommit } = vi.mocked(await import('../../src/evidence/git-checks.js'))
+    resolveEvidenceCommit.mockReturnValueOnce(null)
+    expect(() => runTaskAdvance({ to: 'green', dir })).toThrow(/not reachable from HEAD/)
   })
 
   it('path not in commit (git-check returns false) → throws "not found in commit"', async () => {

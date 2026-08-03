@@ -10,6 +10,10 @@ import { readUnifiedState } from '../../src/commands/task-state.js'
 // Stub git SHA check — migration tests don't exercise a real repo
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
+  resolveEvidenceCommit: vi.fn((ev: { test_commit_sha: string }) => ({
+    sha: ev.test_commit_sha,
+    healed: false,
+  })),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
   currentBranch: vi.fn().mockReturnValue('task/549-phase-marker'),
   headSha: vi.fn().mockReturnValue('b'.repeat(40)),

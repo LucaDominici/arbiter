@@ -203,7 +203,9 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
       changed = ''
     }
     if (!touchesGovernedSource(changed)) {
-      process.stdout.write('check-tdd-evidence: no task-ID commits and no src/ change, vacuous pass\n')
+      process.stdout.write(
+        'check-tdd-evidence: no task-ID commits and no src/ change, vacuous pass\n',
+      )
       return exitFn(0)
     }
     floorIds = parseTaskIdsFromBodies(bodyLog)
@@ -288,7 +290,9 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
         touched = ''
       }
       if (touched.length > 0) return true
-      process.stdout.write(`  ${taskId}: evidence inherited from main, not produced on this branch\n`)
+      process.stdout.write(
+        `  ${taskId}: evidence inherited from main, not produced on this branch\n`,
+      )
       return false
     }
 

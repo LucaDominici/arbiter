@@ -14,12 +14,7 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
   })),
 }))
 
-import {
-  shaExistsOnBranch,
-  pathExistsInCommit,
-  resolveEvidenceCommit,
-} from '../../src/evidence/git-checks.js'
-const mockedShaExists = vi.mocked(shaExistsOnBranch)
+import { pathExistsInCommit, resolveEvidenceCommit } from '../../src/evidence/git-checks.js'
 const mockedPathExists = vi.mocked(pathExistsInCommit)
 const mockedResolveCommit = vi.mocked(resolveEvidenceCommit)
 

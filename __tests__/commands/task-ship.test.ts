@@ -25,6 +25,10 @@ vi.mock('../../src/capabilities/host-probe.js', () => ({
 }))
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
+  resolveEvidenceCommit: vi.fn((ev: { test_commit_sha: string }) => ({
+    sha: ev.test_commit_sha,
+    healed: false,
+  })),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
   currentBranch: vi.fn().mockReturnValue('task/1206-gate-marker'),
   headSha: vi.fn().mockReturnValue('b'.repeat(40)),
