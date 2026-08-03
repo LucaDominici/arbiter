@@ -2,7 +2,7 @@
 // Red phase: all tests must FAIL until scripts/check-anti-proforma.mjs is implemented.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -368,5 +368,27 @@ describe('check-anti-proforma.mjs — #2031 false-positive classes', () => {
     } finally {
       cleanup()
     }
+  })
+})
+
+// #2007: the flip is only worth anything if the gate actually invokes --enforce. Without
+// it the scanner exits 0 while printing findings, and runCheck records PASS — a gate that
+// reports green on the same run in which it reported violations.
+describe('anti-proforma is wired into the self gate as a hard block (#2007)', () => {
+  it('check-all.mjs invokes the scanner with --enforce', () => {
+    const gate = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
+    const call = gate.split('\n').find((l) => l.includes("'scripts/check-anti-proforma.mjs'"))
+    expect(call).toBeTruthy()
+    expect(call).toContain("'--enforce'")
+  })
+
+  it('the real tree is clean under --enforce, so the flip does not red the gate', () => {
+    const r = spawnSync('node', [SCRIPT, '--enforce'], {
+      encoding: 'utf-8',
+      cwd: resolve('.'),
+      timeout: 300_000,
+    })
+    expect(r.stderr ?? '').not.toContain('PROFORMA:')
+    expect(r.status).toBe(0)
   })
 })

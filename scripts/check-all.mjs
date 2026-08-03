@@ -304,7 +304,11 @@ if (isMain) {
   // in .claude/CLAUDE.md's hooks table, and vice versa.
   runCheck('hook doc parity (CANON-10, #1838)', 'node', ['scripts/check-hook-doc-parity.mjs'])
   runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs', '--check'])
-  runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs'])
+  // #2007: --enforce, not warn-default. Without it the scanner exits 0 even while printing
+  // findings, so runCheck recorded PASS on a gate that had just reported violations — the
+  // masked-PASS class. Flipped only after #2031 removed the scanner's three false-positive
+  // classes; enforcing a scanner that cries wolf is worse than not enforcing at all.
+  runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs', '--enforce'])
   runCheck('anti-fake-green (#1412)', 'node', ['scripts/check-anti-fake-green.mjs'])
   runCheck('fixture isolation (INV-139)', 'node', ['scripts/check-fixture-isolation.mjs'])
   runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs'])
