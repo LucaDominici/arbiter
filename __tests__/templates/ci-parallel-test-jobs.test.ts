@@ -73,7 +73,9 @@ describe('01-pr-fast.yml.ejs — parallel test category jobs (#219)', () => {
       const nightly = renderTemplate('github/workflows/_nightly.yml.ejs', data)
       // Scoped to the job's own block: an unbounded `[\s\S]*?` would happily match a
       // fetch-depth belonging to a LATER job and assert nothing.
-      const block = nightly.slice(nightly.indexOf('\n  coverage-report:')).split(/\n {2}\w[\w-]*:/)[1]
+      const block = nightly
+        .slice(nightly.indexOf('\n  coverage-report:'))
+        .split(/\n {2}\w[\w-]*:/)[1]
       expect(block).toBeDefined()
       expect(block).toContain('fetch-depth: 0')
     })
