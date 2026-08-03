@@ -450,7 +450,7 @@
     "scripts/capture-debt-baseline.mjs": "a265ebc8cb84794ef6f14cdd852b198f9acf4964724adba107ab2067075b88fb",
     "scripts/check-action-pins.mjs": "92f04bea45a117ab7920d72d1de2d916e3e97228514be586e5511b163d635719",
     "scripts/check-agent-return.mjs": "101e590a63f542da08e3090c291b44ca5cdc79d31bdb1c37d0cae6a6c38ab185",
-    "scripts/check-all.mjs": "0365ceeb4dffdf12d22439acbf7d6c933e4206fd106f3c71c50ffd24d2d63b11",
+    "scripts/check-all.mjs": "ea1cd274cbed6c1d14f40faf6547548d75f063493535e206d1df2dd3d0bba9f8",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "8ffe260ab5797cd874f21138250f61d2d310bdd768496efd9d72860b0f0b0710",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",

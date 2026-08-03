@@ -263,7 +263,7 @@
     "schemas/agent-return.schema.json": "69fe56ce67bc8be9b7b59da385cb211a2039fceb23c81757cbc328065d341622",
     "scripts/capacity-probe.mjs": "8e00e0caa6400bce5d5c230142597734297accd48454c72627a8196c8b6a5601",
     "scripts/check-action-pins.mjs": "c496a12f21a5a34b21de504fa625b476877dc6eea3f17af6b5a63ef2321d9248",
-    "scripts/check-all.mjs": "ff6eb0431d5c385ef79f328aa7958d2460a4db67cd4dff01ab5f81ba49ca5032",
+    "scripts/check-all.mjs": "f4720618281c6df89c91175c488662508dcd1801f85e844f9bc4a02dcc0a1314",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "13c4ac32a5227824add9004d8755acc877d2b72bd11d378c1701fcbad72f958c",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",

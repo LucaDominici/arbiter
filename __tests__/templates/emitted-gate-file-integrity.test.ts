@@ -16,13 +16,14 @@ function tempDir(prefix: string): string {
   return dir
 }
 
-function render(template: string): string {
+function render(template: string, overrides: Record<string, unknown> = {}): string {
   return renderTemplate(
     template,
     makeConfig('/tmp/arbiter-2197', {
       language: 'typescript',
       governanceLevel: 'L1',
       coverageEnabled: false,
+      ...overrides,
     }) as unknown as Record<string, unknown>,
   )
 }
@@ -40,7 +41,7 @@ async function renderedHelpers(dir: string): Promise<{
 function writeSuccessfulCommandStubs(dir: string): string {
   const bin = join(dir, 'bin')
   mkdirSync(bin, { recursive: true })
-  for (const command of ['node', 'npx', 'npm']) {
+  for (const command of ['node', 'npx', 'npm', 'gitleaks']) {
     const path = join(bin, command)
     writeFileSync(path, '#!/bin/sh\nexit 0\n')
     chmodSync(path, 0o755)
@@ -48,13 +49,17 @@ function writeSuccessfulCommandStubs(dir: string): string {
   return bin
 }
 
-function runRenderedGate(dir: string) {
+function runRenderedGate(
+  dir: string,
+  overrides: Record<string, unknown> = {},
+  args: string[] = ['L1'],
+) {
   const scripts = join(dir, 'scripts')
   mkdirSync(join(scripts, 'lib'), { recursive: true })
-  writeFileSync(join(scripts, 'check-all.mjs'), render('scripts/check-all.mjs.ejs'))
+  writeFileSync(join(scripts, 'check-all.mjs'), render('scripts/check-all.mjs.ejs', overrides))
   writeFileSync(join(scripts, 'lib', 'run-helpers.mjs'), render('scripts/lib/run-helpers.mjs.ejs'))
   const bin = writeSuccessfulCommandStubs(dir)
-  return spawnSync(process.execPath, [join(scripts, 'check-all.mjs'), 'L1'], {
+  return spawnSync(process.execPath, [join(scripts, 'check-all.mjs'), ...args], {
     cwd: dir,
     encoding: 'utf-8',
     shell: false,
@@ -130,5 +135,136 @@ describe('rendered check-all — emitted guard deletion (#2197)', () => {
 
     expect(output).toContain('[CHECK] static analysis ... SKIP (run: arbiter update)')
     expect(output).not.toContain('emitted by arbiter and is now missing')
+  })
+
+  it('fails when the emitted frontend stylelint config was deleted (AC-4)', () => {
+    const dir = tempDir('arbiter-2197-stylelint-deleted-')
+    writeFileSync(
+      join(dir, '.arbiter-generated-manifest.json'),
+      JSON.stringify({ $schemaVersion: 1, files: { '.stylelintrc.json': 'sha256' } }),
+    )
+
+    const result = runRenderedGate(dir, { archetype: 'frontend-spa' })
+    const output = result.stdout + result.stderr
+
+    expect(result.status).not.toBe(0)
+    expect(output).toContain('.stylelintrc.json')
+    expect(output).toContain('emitted by arbiter and is now missing')
+    expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
+  })
+
+  it.each(['.stylelintrc.json', '.stylelintrc'])(
+    'runs lint:css when %s is present (AC-5)',
+    (stylelintConfig) => {
+      const dir = tempDir('arbiter-2197-stylelint-present-')
+      writeFileSync(join(dir, stylelintConfig), '{}')
+
+      const result = runRenderedGate(dir, { archetype: 'frontend-spa' })
+      const output = result.stdout + result.stderr
+
+      expect(result.status).toBe(0)
+      expect(output).toContain('[CHECK] lint:css ... PASS')
+    },
+  )
+
+  it('silently skips lint:css when no stylelint config was ever emitted (AC-6)', () => {
+    const dir = tempDir('arbiter-2197-stylelint-never-')
+    writeFileSync(
+      join(dir, '.arbiter-generated-manifest.json'),
+      JSON.stringify({ $schemaVersion: 1, files: {} }),
+    )
+
+    const result = runRenderedGate(dir, { archetype: 'frontend-spa' })
+    const output = result.stdout + result.stderr
+
+    expect(result.status).toBe(0)
+    expect(output).not.toContain('lint:css')
+  })
+
+  it('degrades loudly but preserves the lint:css skip when the manifest is unavailable (AC-7)', () => {
+    const dir = tempDir('arbiter-2197-stylelint-unknown-')
+
+    const result = runRenderedGate(dir, { archetype: 'frontend-spa' })
+    const output = result.stdout + result.stderr
+
+    expect(result.status).toBe(0)
+    expect(output).toContain(
+      '[CHECK] lint:css ... DEGRADED — cannot determine whether .stylelintrc.json was emitted',
+    )
+  })
+
+  it('fails when the emitted bundle budget was deleted while its gate script remains (AC-8)', () => {
+    const dir = tempDir('arbiter-2197-bundle-budget-deleted-')
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'check-bundle-size.mjs'), '')
+    writeFileSync(
+      join(dir, '.arbiter-generated-manifest.json'),
+      JSON.stringify({
+        $schemaVersion: 1,
+        files: {
+          'scripts/check-bundle-size.mjs': 'sha256',
+          'bundle-budget.json': 'sha256',
+        },
+      }),
+    )
+
+    const result = runRenderedGate(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }, [
+      'L2',
+    ])
+    const output = result.stdout + result.stderr
+
+    expect(result.status).not.toBe(0)
+    expect(output).toContain('bundle-budget.json')
+    expect(output).toContain('emitted by arbiter and is now missing')
+    expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
+  })
+
+  it('does not fail an unselected gate for its deleted emitted guard (AC-9)', () => {
+    const dir = tempDir('arbiter-2197-unselected-guard-deleted-')
+    writeFileSync(
+      join(dir, '.arbiter-generated-manifest.json'),
+      JSON.stringify({ $schemaVersion: 1, files: { 'eslint.config.static.mjs': 'sha256' } }),
+    )
+
+    const result = runRenderedGate(dir, {}, ['L1', '--gate', 'typecheck'])
+    const output = result.stdout + result.stderr
+
+    expect(result.status).toBe(0)
+    expect(output).not.toContain(
+      'eslint.config.static.mjs was emitted by arbiter and is now missing',
+    )
+    expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
+  })
+
+  it('fails a selected gate for its deleted emitted guard (AC-10)', () => {
+    const dir = tempDir('arbiter-2197-selected-guard-deleted-')
+    writeFileSync(
+      join(dir, '.arbiter-generated-manifest.json'),
+      JSON.stringify({ $schemaVersion: 1, files: { 'eslint.config.static.mjs': 'sha256' } }),
+    )
+
+    const result = runRenderedGate(dir, {}, ['L1', '--gate', 'static analysis'])
+    const output = result.stdout + result.stderr
+
+    expect(result.status).not.toBe(0)
+    expect(output).toContain('eslint.config.static.mjs was emitted by arbiter and is now missing')
+    expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
+  })
+
+  it('reports but does not fail a deleted emitted guard during dry-run (AC-11)', () => {
+    const dir = tempDir('arbiter-2197-dry-run-guard-deleted-')
+    writeFileSync(
+      join(dir, '.arbiter-generated-manifest.json'),
+      JSON.stringify({ $schemaVersion: 1, files: { 'eslint.config.static.mjs': 'sha256' } }),
+    )
+
+    const result = runRenderedGate(dir, {}, ['L1', '--dry-run'])
+    const output = result.stdout + result.stderr
+
+    expect(result.status).toBe(0)
+    expect(output).toContain(
+      '[CHECK] static analysis ... DRY-RUN (would FAIL — eslint.config.static.mjs was emitted by arbiter and is now missing)',
+    )
+    expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
   })
 })

@@ -45,7 +45,8 @@ const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
 // Guard an arbiter-emitted gate artifact using the emission-time manifest rather
 // than filesystem existence alone. A missing optional artifact that was never
 // emitted stays a normal skip; a delivered guard later deleted is a gate failure.
-function gateFilePresent(_path, _label, _neverEmittedLine = null) {
+function gateFilePresent(_path, _label, _neverEmittedLine = null, _alternatePaths = []) {
+  if (_alternatePaths.some((_alternatePath) => existsSync(_alternatePath))) return true;
   const _state = gateFileState(_path);
   if (_state === 'present') return true;
   if (_state === 'never-emitted') {
@@ -53,6 +54,16 @@ function gateFilePresent(_path, _label, _neverEmittedLine = null) {
     return false;
   }
   if (_state === 'deleted') {
+    // Keep the prerequisite in the same inspection contract as runCheck: a
+    // single-check rerun ignores another check's guard, and a dry-run reports
+    // what a normal gate would do without changing its result to FAIL.
+    if (only !== null && only !== _label) return false;
+    if (dryRun) {
+      console.log(
+        `[CHECK] ${_label} ... DRY-RUN (would FAIL — ${_path} was emitted by arbiter and is now missing)`,
+      );
+      return false;
+    }
     console.error(
       `[CHECK] ${_label} ... FAIL — ${_path} was emitted by arbiter and is now missing; run arbiter update or restore it from git.`,
     );

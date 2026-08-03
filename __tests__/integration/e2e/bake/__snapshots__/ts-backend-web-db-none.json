@@ -300,7 +300,7 @@
     "schemas/agent-return.schema.json": "69fe56ce67bc8be9b7b59da385cb211a2039fceb23c81757cbc328065d341622",
     "scripts/capacity-probe.mjs": "8e00e0caa6400bce5d5c230142597734297accd48454c72627a8196c8b6a5601",
     "scripts/check-action-pins.mjs": "42cd98d64f1f8093d1c1c585337d4b584738bd852b80cf02b718ccf267ec4f5d",
-    "scripts/check-all.mjs": "634dfcd454614a92b9290ddffe77552d1ff7905a4d56e54fba8259c1dedec47e",
+    "scripts/check-all.mjs": "02a8bec30ba76a15d43799f3bcb61324d1bc4b8df91a47cbc6c9739c6e500a12",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "4045e62f81e76bd828ba8aab27593ad6d23d5ccbabe2f70732e8fa423ad11fe5",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",

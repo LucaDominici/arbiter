@@ -632,7 +632,9 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
       "runToolCheck('lint:css', 'npx', ['stylelint', '--allow-empty-input', 'src/**/*.css']",
     )
     // gate-on-present: non-frontend/partial targets won't have .stylelintrc, so CI must not FAIL when it is absent (#352 config emitted by frontend-quality for FE-TS targets, PR #1138)
-    expect(content).toContain("if (existsSync('.stylelintrc.json') || existsSync('.stylelintrc'))")
+    expect(content).toContain(
+      "gateFilePresent('.stylelintrc.json', 'lint:css', null, ['.stylelintrc'])",
+    )
   })
 
   it('TS library L1: does NOT emit stylelint step (archetype gate)', () => {

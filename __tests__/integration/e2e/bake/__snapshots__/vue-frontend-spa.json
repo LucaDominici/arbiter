@@ -314,7 +314,7 @@
     "schemas/agent-return.schema.json": "69fe56ce67bc8be9b7b59da385cb211a2039fceb23c81757cbc328065d341622",
     "scripts/capacity-probe.mjs": "8e00e0caa6400bce5d5c230142597734297accd48454c72627a8196c8b6a5601",
     "scripts/check-action-pins.mjs": "d40a59dc4501085aab11b5bef9f2f6608e36c29b5ce9ea6d6941d12870f54435",
-    "scripts/check-all.mjs": "c2a54470f214b7289e489f6929d3d2fbdc2b3f6b6c23952ab11206129f742c27",
+    "scripts/check-all.mjs": "6de61e62913e5073c6a62573ee95eda368e72f4b07b525bcb20c95cae361cd56",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "eb6fda1e7c8542325636cea5a85b98c80591563dfce2a1aefb885d37b29af44f",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",
