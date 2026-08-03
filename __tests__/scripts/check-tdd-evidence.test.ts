@@ -34,8 +34,25 @@ describe('parseTaskIdsFromLog', () => {
   })
 
   it('handles multiple IDs in a single commit subject (space-separated)', () => {
-    const log = 'feat(#551 #552): bundle commit'
+    const log = 'feat(#551 #552): x'
     expect(parseTaskIdsFromLog(log)).toEqual(['#551', '#552'])
+  })
+
+  it('extracts a task ID from a conventional-commit subject tail', () => {
+    const log = 'feat(pr-tooling): merge-watch + capacity-probe + gate-exec advisory (#2098)'
+    expect(parseTaskIdsFromLog(log)).toEqual(['#2098'])
+  })
+
+  it('does not extract IDs from non-conventional subjects', () => {
+    expect(parseTaskIdsFromLog('chore: harvest PR #2101')).toEqual([])
+  })
+
+  it('does not extract IDs from reverted conventional-commit subjects', () => {
+    expect(parseTaskIdsFromLog('Revert "feat(#123): x"')).toEqual([])
+  })
+
+  it('deduplicates task IDs across scope and subject-tail forms', () => {
+    expect(parseTaskIdsFromLog('fix(#42): thing (#42)')).toEqual(['#42'])
   })
 })
 

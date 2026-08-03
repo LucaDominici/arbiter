@@ -21,18 +21,20 @@ const repoRoot = resolve(__dirname, '..')
 
 /**
  * Parse unique task IDs from git log subject lines.
- * Matches conventional-commit prefix form: type(#NNN): or type(#NNN #MMM):
+ * Matches conventional-commit scope form: type(#NNN): or type(#NNN #MMM):,
+ * and trailing subject-tail form: ... (#NNN)
  */
 export function parseTaskIdsFromLog(log) {
   const seen = new Set()
   const results = []
   for (const line of log.split('\n')) {
-    // Match all #NNN inside the parenthesised scope of a conventional commit subject
-    // e.g. "feat(#551 #552): ..."
+    // Match all #NNN inside a conventional-commit scope and a trailing subject tail.
     const scopeMatch = line.match(/^\w+\(([^)]+)\):/)
-    if (!scopeMatch) continue
-    const scope = scopeMatch[1]
-    for (const id of scope.matchAll(/#(\d+)/g)) {
+    const matches = [
+      ...(scopeMatch?.[1].matchAll(/#(\d+)/g) ?? []),
+      ...line.matchAll(/\(#(\d+)\)$/g),
+    ]
+    for (const id of matches) {
       const full = `#${id[1]}`
       if (!seen.has(full)) {
         seen.add(full)

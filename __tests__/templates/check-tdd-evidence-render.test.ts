@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -19,6 +20,29 @@ function render(tpl: string, overrides: Record<string, unknown> = {}): string {
 }
 const renderGate = () => render('scripts/check-tdd-evidence.mjs.ejs')
 const renderCheckAll = (o: Record<string, unknown> = {}) => render('scripts/check-all.mjs.ejs', o)
+
+function parseRenderedTaskIds(subjectLog: string): string[] {
+  const scriptDir = mkdtempSync(join(tmpdir(), 'tdd-p-'))
+  const parserModule = join(scriptDir, 'parser.mjs')
+  try {
+    const rendered = renderGate().replace(/\ntry \{\n[ ]{2}run\(\)\n\} catch \(err\) \{[\s\S]*$/, '\n')
+    writeFileSync(parserModule, `${rendered}\nexport { parseTaskIds }\n`)
+    const result = spawnSync(
+      'node',
+      [
+        '--input-type=module',
+        '--eval',
+        `import { parseTaskIds } from ${JSON.stringify(pathToFileURL(parserModule).href)}; ` +
+          `process.stdout.write(JSON.stringify(parseTaskIds(${JSON.stringify(subjectLog)})))`,
+      ],
+      { encoding: 'utf-8' },
+    )
+    expect(result.status).toBe(0)
+    return JSON.parse(result.stdout)
+  } finally {
+    rmSync(scriptDir, { recursive: true, force: true })
+  }
+}
 
 const FAIL_LOG = ' FAIL  __tests__/foo.test.ts > foo > does the thing\nexpected 1 to equal 2\n'
 
@@ -103,6 +127,14 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     expect(content).not.toContain('src/cli')
     expect(content).not.toContain('tsx')
     expect(content).not.toContain('npx arbiter')
+  })
+
+  it('extracts task IDs from conventional-commit subject tails', () => {
+    expect(
+      parseRenderedTaskIds(
+        'feat(pr-tooling): merge-watch + capacity-probe + gate-exec advisory (#2098)',
+      ),
+    ).toEqual(['#2098'])
   })
 
   // ── A/B/C fail-closed harness ───────────────────────────────────────────────

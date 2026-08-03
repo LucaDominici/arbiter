@@ -32,14 +32,17 @@ const ROOT = parseDir(process.argv.slice(2))
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf-8' }).trim()
 
 // ─── Branch-relative task discovery ───────────────────────────────────────────
-/** Unique task ids from conventional-commit subjects, e.g. "feat(#551 #552): ...". */
+/** Unique task ids from conventional-commit scopes or trailing subject tails, e.g. "feat(#551 #552): ..." or "... (#551)". */
 function parseTaskIds(subjectLog) {
   const seen = new Set()
   const ids = []
   for (const line of subjectLog.split('\n')) {
     const scope = line.match(/^\w+\(([^)]+)\):/)
-    if (!scope) continue
-    for (const m of scope[1].matchAll(/#(\d+)/g)) {
+    const matches = [
+      ...(scope?.[1].matchAll(/#(\d+)/g) ?? []),
+      ...line.matchAll(/\(#(\d+)\)$/g),
+    ]
+    for (const m of matches) {
       const full = `#${m[1]}`
       if (!seen.has(full)) {
         seen.add(full)
