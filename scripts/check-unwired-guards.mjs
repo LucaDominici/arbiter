@@ -23,10 +23,10 @@
 // CATALOG: drift apart.
 //
 // Detects a "guard script" (scripts/check-*.mjs, scripts/check-*.sh,
-// scripts/verify-*.sh, scripts/qa/check-*) that exists on disk but is never
-// referenced from any recognized gate entrypoint. Emitted-but-unwired gives a
-// false sense of coverage: the script never runs, yet its existence reads as
-// "this class of drift is checked".
+// scripts/verify-*.sh, scripts/qa/check-*, .claude/hooks/*.mjs) that exists
+// on disk but is never referenced from any recognized gate entrypoint.
+// Emitted-but-unwired gives a false sense of coverage: the script never runs,
+// yet its existence reads as "this class of drift is checked".
 //
 // Allowlist: scripts/optional-emissions.json (shared with check-emission-
 // coherence.mjs, INV-123) —
@@ -37,8 +37,8 @@
 // never a silent allowlist-without-reason.
 //
 // Exit codes (INV-53): 0 = every candidate referenced, allowlisted, or no
-// scripts/ directory at all (vacuous SKIP). 1 = >=1 unreferenced guard script
-// (not allowlisted). 2 = allowlist schema error.
+// scripts/ directory or .claude/hooks/ directory at all (vacuous SKIP). 1 =
+// >=1 unreferenced guard script (not allowlisted). 2 = allowlist schema error.
 //
 // Usage: node scripts/check-unwired-guards.mjs [--help]
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -50,10 +50,10 @@ const ALLOWLIST_REL = 'scripts/optional-emissions.json'
 const HELP = `Usage: node scripts/check-unwired-guards.mjs [options]
 
 Detects a guard script (scripts/check-*.mjs, scripts/check-*.sh,
-scripts/verify-*.sh, scripts/qa/check-*) that is emitted but never referenced
-by any recognized gate entrypoint (scripts/check-all.mjs, run.sh, another
-scripts/** file, .claude/hooks/**, .claude/settings.json, Makefile,
-.githooks/*, package.json, .claude/commands/*.md, or a
+scripts/verify-*.sh, scripts/qa/check-*, .claude/hooks/*.mjs) that is emitted
+but never referenced by any recognized gate entrypoint (scripts/check-all.mjs,
+run.sh, another scripts/** file, .claude/hooks/**, .claude/settings.json,
+Makefile, .githooks/*, package.json, .claude/commands/*.md, or a
 .github/workflows/*.yml). Exits 1 naming the file(s) when found unreferenced.
 
 An entry in scripts/optional-emissions.json (shared with the INV-123
@@ -65,7 +65,7 @@ Options:
   --help, -h      Show this help and exit
 
 Exit codes:
-  0   every candidate referenced, allowlisted, or no scripts/ dir (vacuous SKIP)
+  0   every candidate referenced, allowlisted, or no scripts/ or .claude/hooks/ dir (vacuous SKIP)
   1   >=1 unreferenced guard script
   2   allowlist schema error
 `
@@ -151,18 +151,34 @@ function collectQaCandidates(scriptsDir, candidates) {
   }
 }
 
-// Candidate guard scripts: scripts/check-*.{mjs,sh}, scripts/verify-*.sh, and
-// (any extension) scripts/qa/check-*.
+// Candidate guard scripts: scripts/check-*.{mjs,sh}, scripts/verify-*.sh,
+// (any extension) scripts/qa/check-*, and direct-child .claude/hooks/*.mjs
+// except dispatcher hooks.mjs and shared helper lib.mjs.
 function collectCandidates(dir) {
   const scriptsDir = join(dir, 'scripts')
-  if (!existsSync(scriptsDir)) return null
+  const hooksDir = join(dir, '.claude/hooks')
+  if (!existsSync(scriptsDir) && !existsSync(hooksDir)) return null
   const candidates = new Set()
-  for (const entry of readdirSync(scriptsDir, { withFileTypes: true })) {
-    if (entry.isFile() && isTopLevelCandidate(entry.name)) {
-      candidates.add(`scripts/${entry.name}`)
+  if (existsSync(scriptsDir)) {
+    for (const entry of readdirSync(scriptsDir, { withFileTypes: true })) {
+      if (entry.isFile() && isTopLevelCandidate(entry.name)) {
+        candidates.add(`scripts/${entry.name}`)
+      }
+    }
+    collectQaCandidates(scriptsDir, candidates)
+  }
+  if (existsSync(hooksDir)) {
+    for (const entry of readdirSync(hooksDir, { withFileTypes: true })) {
+      if (
+        entry.isFile() &&
+        entry.name.endsWith('.mjs') &&
+        entry.name !== 'hooks.mjs' &&
+        entry.name !== 'lib.mjs'
+      ) {
+        candidates.add(`.claude/hooks/${entry.name}`)
+      }
     }
   }
-  collectQaCandidates(scriptsDir, candidates)
   return [...candidates].sort()
 }
 
@@ -176,6 +192,55 @@ function isReferenced(candidateRel, corpus) {
     if (content.includes(candidateRel)) return true
   }
   return false
+}
+
+// Return .mjs handler basenames registered in the optional hooks.mjs
+// dispatcher table. Its only .mjs string literals are handler filenames.
+function handlersTableWiredNames(corpus) {
+  const source = corpus.get('.claude/hooks/hooks.mjs')
+  const names = new Set()
+  if (!source) return names
+  for (const match of source.matchAll(/['"]([^'"]+\.mjs)['"]/g)) {
+    names.add(match[1])
+  }
+  return names
+}
+
+// Compute the transitive wired set for direct-child hook candidates. A hook is
+// initially wired by a full-path reference or by the hooks.mjs HANDLERS table;
+// relative hook-import relationships then propagate that wiring to closure.
+function computeWiredHookBasenames(corpus, hookCandidates) {
+  const names = new Set(hookCandidates.map((rel) => rel.slice('.claude/hooks/'.length)))
+  const wired = new Set()
+  const handlers = handlersTableWiredNames(corpus)
+  const imports = new Map()
+
+  for (const name of names) {
+    const rel = `.claude/hooks/${name}`
+    if (isReferenced(rel, corpus) || handlers.has(name)) wired.add(name)
+
+    const imported = new Set()
+    const source = corpus.get(rel) ?? ''
+    for (const match of source.matchAll(/from\s+['"]\.\/([^'"]+)['"]/g)) {
+      const importedName = match[1].endsWith('.mjs') ? match[1] : `${match[1]}.mjs`
+      if (names.has(importedName)) imported.add(importedName)
+    }
+    imports.set(name, imported)
+  }
+
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const [importer, importedNames] of imports) {
+      for (const imported of importedNames) {
+        if (wired.has(importer) && !wired.has(imported)) {
+          wired.add(imported)
+          changed = true
+        }
+      }
+    }
+  }
+  return wired
 }
 
 function schemaError(msg) {
@@ -232,13 +297,22 @@ function main() {
   const allowlist = loadAllowlist(dir)
   const candidates = collectCandidates(dir)
   if (candidates === null) {
-    process.stdout.write('check-unwired-guards: SKIP — no scripts/ directory\n')
+    process.stdout.write('check-unwired-guards: SKIP — no scripts/ or .claude/hooks/ directory\n')
     process.exit(0)
   }
   const corpus = buildCorpus(dir)
+  const hookCandidates = candidates.filter((rel) => rel.startsWith('.claude/hooks/'))
+  const wiredHookBasenames = computeWiredHookBasenames(corpus, hookCandidates)
   const problems = []
   for (const rel of candidates) {
-    if (isReferenced(rel, corpus)) continue
+    const isHook = rel.startsWith('.claude/hooks/')
+    if (
+      isHook
+        ? wiredHookBasenames.has(rel.slice('.claude/hooks/'.length))
+        : isReferenced(rel, corpus)
+    ) {
+      continue
+    }
     const rationale = allowlist.get(rel)
     if (rationale) {
       process.stdout.write(`[ALLOWLISTED] ${rel} — ${rationale}\n`)

@@ -11,6 +11,14 @@
     {
       "path": "scripts/check-touched-vs-manifest.mjs",
       "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs \u2014 check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
+    },
+    {
+      "path": ".claude/hooks/check-no-mockmvc.mjs",
+      "rationale": "Java-language hook inapplicable to this TypeScript repo \u2014 by language, not by deferral (#2228). Wired in the emitted hooks.mjs dispatcher HANDLERS table for Java/Spring targets; arbiter self is TypeScript so the guard never applies here."
+    },
+    {
+      "path": ".claude/hooks/check-no-raw-types.mjs",
+      "rationale": "Java-language hook inapplicable to this TypeScript repo \u2014 by language, not by deferral (#2228). Wired in the emitted hooks.mjs dispatcher HANDLERS table for Java targets; arbiter self is TypeScript so the guard never applies here."
     }
   ]
 }
