@@ -100,7 +100,6 @@
     "scripts/debt-report.mjs",
     "scripts/detect-track.mjs",
     "scripts/docs-add-frontmatter.mjs",
-    "scripts/docs-backfill-tags.mjs",
     "scripts/emit-context-pack.mjs",
     "scripts/evidence-prune.mjs",
     "scripts/evidence-rotate.mjs",
