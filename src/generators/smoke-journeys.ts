@@ -19,6 +19,7 @@
 // skipIfExists: true — teams customise the manifest/starter after init.
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { renderTemplate } from '../utils/render.js'
+import { formatContent } from '../utils/prettier-format.js'
 import type { Archetype, Language, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -110,10 +111,15 @@ export function generateSmokeJourneys(
 
   // Day-1-green via a real starter (mirrors api-e2e.ts): every required journey is carried by
   // this scaffolded spec, so `required` is never a lie on a fresh project.
+  const smokeSpecPath = resolvedPath(base, 'tests', 'smoke', 'smoke-journeys.spec.ts')
   files.push(
     writeFile(
-      resolvedPath(base, 'tests', 'smoke', 'smoke-journeys.spec.ts'),
-      renderTemplate('e2e/smoke-journeys/journeys.spec.ts.ejs', config),
+      smokeSpecPath,
+      formatContent(
+        renderTemplate('e2e/smoke-journeys/journeys.spec.ts.ejs', config),
+        smokeSpecPath,
+        base,
+      ),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )

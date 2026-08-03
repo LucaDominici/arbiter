@@ -320,7 +320,8 @@ describe('generateContractTesting', () => {
       hasPublicApi: true,
     })
     generateContractTesting(config)
-    expect(existsSync(join(dir, 'src', 'test', 'contracts', 'pact-consumer.test.ts'))).toBe(true)
+    expect(existsSync(join(dir, '__tests__', 'contract', 'pact-consumer.test.ts'))).toBe(true)
+    expect(existsSync(join(dir, 'src', 'test', 'contracts', 'pact-consumer.test.ts'))).toBe(false)
   })
 
   // ─── rest-owned × java: 3 files ──────────────────────────────────────────
@@ -1122,7 +1123,7 @@ describe('generateContractTesting', () => {
   })
 
   it('skips language-specific file when it already exists (brownfield)', () => {
-    const contractDir = join(dir, 'src', 'test', 'contracts')
+    const contractDir = join(dir, '__tests__', 'contract')
     mkdirSync(contractDir, { recursive: true })
     const testPath = join(contractDir, 'pact-consumer.test.ts')
     writeFileSync(testPath, 'existing pact content', 'utf-8')

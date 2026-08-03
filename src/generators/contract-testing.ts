@@ -2,6 +2,7 @@
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { mutatePackageJson } from '../utils/pkg.js'
+import { formatContent } from '../utils/prettier-format.js'
 import { getLogger } from '../utils/logger.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
@@ -50,21 +51,37 @@ interface ContractFileOptions {
   rustFile: string
   goFile: string
   pyFile: string
+  tsPathSegments?: string[]
+  formatTs?: boolean
   extraFiles?: WriteResult[]
   dryRun: boolean
 }
 
 function contractFile(cfOpts: ContractFileOptions): WriteResult[] {
-  const { base, config, data, templateDir, tsFile, javaFile, rustFile, goFile, pyFile, dryRun } =
-    cfOpts
+  const {
+    base,
+    config,
+    data,
+    templateDir,
+    tsFile,
+    javaFile,
+    rustFile,
+    goFile,
+    pyFile,
+    dryRun,
+    tsPathSegments = ['src', 'test', 'contracts'],
+    formatTs = false,
+  } = cfOpts
   const out: WriteResult[] = cfOpts.extraFiles ?? []
   const skip = { skipIfExists: true, dryRun } as const
 
   if (config.language === 'typescript' || config.language === 'multi') {
+    const tsPath = resolvedPath(base, ...tsPathSegments, tsFile)
+    const tsContent = renderTemplate(`contract-testing/${templateDir}/${tsFile}.ejs`, data)
     out.push(
       writeFile(
-        resolvedPath(base, 'src', 'test', 'contracts', tsFile),
-        renderTemplate(`contract-testing/${templateDir}/${tsFile}.ejs`, data),
+        tsPath,
+        formatTs ? formatContent(tsContent, tsPath, base) : tsContent,
         skip,
       ),
     )
@@ -260,6 +277,8 @@ function generateRestOwned(
     rustFile: 'pact_consumer_test.rs',
     goFile: 'pact_consumer_test.go',
     pyFile: 'test_pact_consumer.py',
+    tsPathSegments: ['__tests__', 'contract'],
+    formatTs: true,
     extraFiles: extra,
     dryRun,
   })

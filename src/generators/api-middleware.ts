@@ -25,6 +25,16 @@ function injectExpressPackageJson(targetDir: string, dryRun: boolean): void {
       pkg.devDependencies = devDeps
       changed = true
     }
+    if (!devDeps['supertest']) {
+      devDeps['supertest'] = '^7.1.4'
+      pkg.devDependencies = devDeps
+      changed = true
+    }
+    if (!devDeps['@types/supertest']) {
+      devDeps['@types/supertest'] = '^6.0.3'
+      pkg.devDependencies = devDeps
+      changed = true
+    }
     return changed
   })
 }

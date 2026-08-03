@@ -85,6 +85,17 @@ describe('contract-testing render: rest-owned', () => {
     expect(content).toContain('@pact-foundation/pact')
   })
 
+  it('pact-consumer.test.ts.ejs: uses the Pact v16 V3 API with explicit vitest imports', () => {
+    const content = renderTemplate('contract-testing/rest-owned/pact-consumer.test.ts.ejs', {
+      ...baseData,
+      contractType: 'rest-owned',
+    })
+    expect(content).toContain('PactV3')
+    expect(content).toContain('MatchersV3')
+    expect(content).toContain("from 'vitest'")
+    expect(content).toContain('executeTest')
+  })
+
   it("pact-consumer.test.ts.ejs: contains projectName interpolation 'my-project'", () => {
     const content = renderTemplate('contract-testing/rest-owned/pact-consumer.test.ts.ejs', {
       ...baseData,

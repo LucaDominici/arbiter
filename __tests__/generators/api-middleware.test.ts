@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateApiMiddleware } from '../../src/generators/api-middleware.js'
@@ -78,6 +78,19 @@ describe('generateApiMiddleware (#215)', () => {
     expect(existsSync(join(dir, '__tests__', 'contract', 'error-shape.contract.test.ts'))).toBe(
       true,
     )
+  })
+
+  it('declares supertest types with the contract test that imports them', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      hasPublicApi: true,
+    })
+    generateApiMiddleware(config)
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8')) as {
+      devDependencies: Record<string, string>
+    }
+    expect(pkg.devDependencies.supertest).toBeDefined()
+    expect(pkg.devDependencies['@types/supertest']).toBeDefined()
   })
 
   it('Java + hasPublicApi but no basePackage: silently skips Java file with no crash', () => {

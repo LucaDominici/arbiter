@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { formatContent } from '../utils/prettier-format.js'
 import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -122,10 +123,15 @@ export function generateIntegrationTesting(
     results.push(...emitJavaIntegrationTesting(config, base, data, opts.dryRun))
   }
   if (config.language === 'typescript' || config.language === 'multi') {
+    const testSetupPath = resolvedPath(base, '__tests__', 'integrations', 'test-setup.ts')
     results.push(
       writeFile(
-        resolvedPath(base, 'src', 'test', 'test-setup.ts'),
-        renderTemplate('integration-testing/test-setup.ts.ejs', data),
+        testSetupPath,
+        formatContent(
+          renderTemplate('integration-testing/test-setup.ts.ejs', data),
+          testSetupPath,
+          base,
+        ),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
@@ -139,10 +145,15 @@ export function generateIntegrationTesting(
     // #1887-D: flat-config sibling (INV-34) — ESLint v9 cannot load the legacy
     // .eslintrc-no-fake-db.json above (eslintrc support removed), so it was
     // inert. Mirrors eslint.config.static.mjs's precedent.
+    const noFakeDbConfigPath = resolvedPath(base, 'eslint.config.no-fake-db.mjs')
     results.push(
       writeFile(
-        resolvedPath(base, 'eslint.config.no-fake-db.mjs'),
-        renderTemplate('integration-testing/eslint.config.no-fake-db.mjs.ejs', data),
+        noFakeDbConfigPath,
+        formatContent(
+          renderTemplate('integration-testing/eslint.config.no-fake-db.mjs.ejs', data),
+          noFakeDbConfigPath,
+          base,
+        ),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )

@@ -90,7 +90,8 @@ describe('generateIntegrationTesting', () => {
       language: 'typescript',
     })
     generateIntegrationTesting(config)
-    expect(existsSync(join(dir, 'src', 'test', 'test-setup.ts'))).toBe(true)
+    expect(existsSync(join(dir, '__tests__', 'integrations', 'test-setup.ts'))).toBe(true)
+    expect(existsSync(join(dir, 'src', 'test', 'test-setup.ts'))).toBe(false)
   })
 
   it('generates eslint-no-fake-db.json for typescript', () => {
@@ -148,8 +149,9 @@ describe('generateIntegrationTesting', () => {
       language: 'typescript',
     })
     generateIntegrationTesting(config)
-    const content = readFileSync(join(dir, 'src', 'test', 'test-setup.ts'), 'utf-8')
+    const content = readFileSync(join(dir, '__tests__', 'integrations', 'test-setup.ts'), 'utf-8')
     expect(content).toContain('PostgreSqlContainer')
+    expect(content).toContain('@testcontainers/postgresql')
   })
 
   // ─── TypeScript: also passes at L3 ───────────────────────────────────────────
