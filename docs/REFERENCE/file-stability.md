@@ -273,6 +273,29 @@ Unknown provenance keeps replacing. Withholding it would make `arbiter update` a
 whose manifest predates the key — the same silence in the opposite direction, and a worse one, because it
 would stop governance propagating everywhere at once.
 
+### Provenance-gated adoption and the shrunken always-rewrite set (#2220)
+
+**Issue:** #2220
+
+Two refinements, both measured on a real self-checkout regression (a no-manifest tree where a manual
+`init`/`update` flattened ~40 hand-customized tracked files):
+
+1. **Adoption is provenance-gated.** The adopt predicate (`--adopt`, the safety-class default, gate-spine,
+   governance, derived refresh) now applies only to files arbiter previously emitted — those with a
+   recorded manifest baseline. A file with **unknown provenance** (no manifest entry) is never force-
+   adopted; it is withheld and preserved instead. This closes the no-manifest-tree clobber: a tree that
+   never committed `.arbiter-generated-manifest.json` (e.g. the self checkout, or a repo predating #1328)
+   no longer has its hand-customized `.claude/hooks/*.mjs` force-adopted back to the template render.
+2. **`.claude/CLAUDE.md` left the always-rewrite set.** It was emitted `{ backup: true }` (unconditional
+   rewrite + `.arbiter-backup` residue); it is now `{ skipIfExists: true }`, i.e. hand-customizable like
+   the other Claude-track files. A pristine file still refreshes through the #1328 provenance path; a
+   user-modified one is withheld unless explicitly adopted (`arbiter update --adopt`). `--adopt-plan`
+   previews the adoption; the local-override envelope records the prior content.
+
+Net effect for both: a governed project that hand-customizes a file arbiter previously emitted keeps the
+anti-erosion contract (the divergence is surfaced and adoptable), while a file arbiter never emitted — or a
+tree with no provenance at all — is preserved, never flattened.
+
 ### Retirement — taking back what the framework retired (#2221)
 
 **Issue:** #2221

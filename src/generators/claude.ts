@@ -42,12 +42,14 @@ export function generateClaude(
   const base = config.targetDir
   const data = buildRenderContext(config)
 
-  // CLAUDE.md — always rewrite (thin pointer)
+  // CLAUDE.md is hand-customizable and routes through the adopt policy. A pristine
+  // file still refreshes through the #1328 provenance path; a user-modified one is
+  // withheld unless explicitly adopted.
   results.push(
     writeFile(
       resolvedPath(base, '.claude', 'CLAUDE.md'),
       renderTemplate('claude/CLAUDE.md.ejs', data),
-      { backup: true, dryRun: opts.dryRun },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 

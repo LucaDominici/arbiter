@@ -58,6 +58,11 @@ function sha256(content: string): string {
  * `refreshDerived` (#1983) broadens it to exactly the codex-track derived
  * file set, independent of `adopt`/`noAdoptSafety`. Exported for unit testing
  * independent of the filesystem.
+ *
+ * The predicate is consulted by fs.ts only for files arbiter previously emitted
+ * (a recorded manifest baseline exists). Files with unknown provenance — no
+ * manifest entry — are never force-adopted; they are withheld and preserved
+ * (#2220).
  */
 export function buildAdoptPredicate(options: AdoptPolicyOptions): (key: string) => boolean {
   const adoptAll = options.adopt === true

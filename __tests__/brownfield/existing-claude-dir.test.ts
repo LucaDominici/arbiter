@@ -57,7 +57,7 @@ describe('brownfield: existing .claude/ directory', () => {
     expect(content).toBe(customHook)
   })
 
-  it('replaces CLAUDE.md with backup when pre-existing', () => {
+  it('preserves a pre-existing CLAUDE.md (no backup) when pre-existing', () => {
     const claudeDir = join(dir, '.claude')
     mkdirSync(claudeDir, { recursive: true })
     const original = '# My Custom CLAUDE.md\nThis was hand-written.'
@@ -66,14 +66,11 @@ describe('brownfield: existing .claude/ directory', () => {
     const config = configWithExistingClaude()
     runGenerators(config)
 
-    // Backup should exist
-    expect(existsSync(join(claudeDir, 'CLAUDE.md.arbiter-backup'))).toBe(true)
-    const backup = readFileSync(join(claudeDir, 'CLAUDE.md.arbiter-backup'), 'utf-8')
-    expect(backup).toBe(original)
-
-    // New CLAUDE.md should reference AGENTS.md
-    const newContent = readFileSync(join(claudeDir, 'CLAUDE.md'), 'utf-8')
-    expect(newContent).toContain('AGENTS.md')
+    // #2220: CLAUDE.md is hand-customizable (skipIfExists) — a pre-existing
+    // file is preserved, not backed-up-and-replaced. The generated render is
+    // available via `arbiter update --adopt` (adopt-policy governs it).
+    expect(existsSync(join(claudeDir, 'CLAUDE.md.arbiter-backup'))).toBe(false)
+    expect(readFileSync(join(claudeDir, 'CLAUDE.md'), 'utf-8')).toBe(original)
   })
 
   it('preserves custom rules (skipIfExists)', () => {
