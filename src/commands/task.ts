@@ -19,7 +19,12 @@ import {
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
-import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
+import {
+  currentBranch,
+  headSha,
+  pathExistsInCommit,
+  shaExistsOnBranch,
+} from '../evidence/git-checks.js'
 import { detectHostCapabilities } from '../capabilities/host-probe.js'
 
 export class HandoffRequiredError extends Error {
@@ -390,6 +395,72 @@ function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOp
   void claudeDir
 }
 
+type GatePassMarker = {
+  head_sha?: unknown
+  branch?: unknown
+  tree_was_clean_at_run_time?: unknown
+}
+
+function isGatePassMarker(value: unknown): value is GatePassMarker {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** Require a current, clean-tree gate pass before entering a post-implementation phase. */
+function checkGatePassMarkerGate(dir: string): void {
+  const inCi = process.env.CI === 'true'
+  const envBypass = getBoolFlag('ARBITER_SKIP_GATE_MARKER')
+  if (envBypass && !inCi) {
+    // writeBypassRecord is intentionally plan-review-specific in both path and record shape.
+    process.stderr.write(
+      'WARNING: gate-pass marker gate bypassed (reason=env, ARBITER_SKIP_GATE_MARKER=1)\n',
+    )
+    return
+  }
+
+  const markerPath = join(dir, '.arbiter', 'gate-pass.json')
+  if (!existsSync(markerPath)) {
+    throw new Error(
+      `gate-pass marker missing at ${markerPath}. Run \`node scripts/check-all.mjs L2\` first.`,
+    )
+  }
+
+  let marker: GatePassMarker
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(markerPath, 'utf-8'))
+    if (!isGatePassMarker(parsed)) throw new Error('marker must be a JSON object')
+    marker = parsed
+  } catch (err) {
+    throw new Error(
+      `gate-pass marker corrupt at ${markerPath}: ${err instanceof Error ? err.message : String(err)}. ` +
+        'Run `node scripts/check-all.mjs L2` first.',
+      { cause: err },
+    )
+  }
+
+  const currentHead = headSha(dir)
+  if (marker.head_sha !== currentHead) {
+    throw new Error(
+      `gate-pass marker head_sha mismatch: expected current HEAD "${currentHead}", got "${String(marker.head_sha)}". ` +
+        'Run `node scripts/check-all.mjs L2` again.',
+    )
+  }
+
+  const branch = currentBranch(dir)
+  if (marker.branch !== branch) {
+    throw new Error(
+      `gate-pass marker branch mismatch: expected current branch "${branch}", got "${String(marker.branch)}". ` +
+        'Run `node scripts/check-all.mjs L2` again.',
+    )
+  }
+
+  if (marker.tree_was_clean_at_run_time !== true) {
+    throw new Error(
+      'gate-pass marker tree_was_clean_at_run_time must be true. ' +
+        'Run `node scripts/check-all.mjs L2` again from a clean tree.',
+    )
+  }
+}
+
 export function runTaskAdvance(opts: TaskAdvanceOptions): void {
   const dir = opts.dir ?? process.cwd()
   const claudeDir = join(dir, '.claude')
@@ -435,6 +506,15 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     },
     green: () => {
       checkTddEvidenceGate(dir, claudeDir)
+    },
+    verification: () => {
+      checkGatePassMarkerGate(dir)
+    },
+    close: () => {
+      checkGatePassMarkerGate(dir)
+    },
+    complete: () => {
+      checkGatePassMarkerGate(dir)
     },
   }
   phaseGates[to]?.()

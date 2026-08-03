@@ -10,7 +10,8 @@
 //
 // Imported by scripts/check-all.mjs. Plain ESM (.mjs).
 import { spawnSync } from 'node:child_process';
-import { statfsSync } from 'node:fs';
+import { existsSync, readFileSync, statfsSync } from 'node:fs';
+import { join } from 'node:path';
 
 // resolveTmpfsTmpdir returns a RAM-backed dir to use as TMPDIR, or null.
 //
@@ -39,6 +40,50 @@ export function resolveTmpfsTmpdir({
   } catch {
     return null; // absent, unmounted, or non-Linux — keep the platform default
   }
+}
+
+// Emission-time provenance lets the gate distinguish an optional guard that was
+// never delivered from a delivered guard that was later deleted. Cache by target
+// directory: a normal gate run has one cwd and therefore reads this manifest once.
+// A missing, malformed, or wrong-shape manifest deliberately degrades rather than
+// throwing: without a trustworthy record, the caller cannot make that distinction.
+const gateManifestCache = new Map();
+
+function gateManifestFiles(cwd) {
+  if (gateManifestCache.has(cwd)) return gateManifestCache.get(cwd);
+  let files = null;
+  try {
+    const manifestPath = join(cwd, '.arbiter-generated-manifest.json');
+    if (existsSync(manifestPath)) {
+      const parsed = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        typeof parsed.files === 'object' &&
+        parsed.files !== null &&
+        !Array.isArray(parsed.files)
+      ) {
+        files = parsed.files;
+      }
+    }
+  } catch {
+    files = null;
+  }
+  gateManifestCache.set(cwd, files);
+  return files;
+}
+
+/**
+ * Classify a gate artifact using its exact target-relative manifest key.
+ *
+ * `deleted` is deliberately reserved for a missing path explicitly recorded in
+ * `.arbiter-generated-manifest.json#files`; no filesystem convention is inferred.
+ */
+export function gateFileState(path, cwd = process.cwd()) {
+  if (existsSync(join(cwd, path))) return 'present';
+  const files = gateManifestFiles(cwd);
+  if (files === null) return 'unknown-no-manifest';
+  return Object.prototype.hasOwnProperty.call(files, path) ? 'deleted' : 'never-emitted';
 }
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;

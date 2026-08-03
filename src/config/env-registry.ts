@@ -326,7 +326,8 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     name: 'ARBITER_SKIP_GATE_MARKER',
     type: 'boolean',
     default: false,
-    purpose: 'Bypass the gate-pass marker requirement in the enforce-gate-before-pr hook.',
+    purpose:
+      'Bypass the gate-pass marker requirement in the pre-PR hook and task phase gate. Refused under CI.',
     isGateBypass: true,
   },
   {

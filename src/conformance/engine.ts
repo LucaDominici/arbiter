@@ -186,6 +186,10 @@ function evalFileExists(abs: string, rel: string): EvalCheckResult {
   } catch {
     return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
   }
+  const text = readText(abs)
+  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
+  if (text.trim() === '')
+    return { verdict: 'P', evidence: { file: rel, detail: 'present but empty' } }
   return { verdict: 'Y', evidence: { file: rel } }
 }
 

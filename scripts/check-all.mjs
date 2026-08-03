@@ -434,15 +434,12 @@ if (isMain) {
     runCheck('BDD suite (INV-25)', 'npm', ['run', 'test:bdd'])
 
     // Advisory (#1397/C5): conformance scorecard ratchet — informational, never blocks gate.
-    if (existsSync('scripts/conformance.mjs')) {
-      runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
-    }
+    // The script is committed in arbiter itself, so a missing file must fail rather than vanish.
+    runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
 
     // Strict (#1481/INV-135): doc-set mandatory-doc completeness — a missing mandatory doc
     // fails the gate (--strict). Recommended-tier gaps remain advisory inside the script.
-    if (existsSync('scripts/check-doc-set.mjs')) {
-      runCheck('doc-set presence', 'node', ['scripts/check-doc-set.mjs', '--strict'])
-    }
+    runCheck('doc-set presence', 'node', ['scripts/check-doc-set.mjs', '--strict'])
   }
 
   // ─── Summary ─────────────────────────────────────────────────────────────────

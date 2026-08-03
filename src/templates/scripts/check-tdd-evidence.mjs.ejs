@@ -61,6 +61,7 @@ const FAILURE_SIGNATURES = [
   /FAILED\s*$|BUILD FAILED/m, // gradle
   /test result: FAILED/m, // cargo
   /--- FAIL:/m, // go
+  /^# fail [1-9]\d*/m, // tap (node:test)
 ]
 const hasFailureSignature = (log) => FAILURE_SIGNATURES.some((re) => re.test(log))
 

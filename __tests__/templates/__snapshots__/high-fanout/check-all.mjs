@@ -20,6 +20,7 @@ import {
   getFailed,
   setMode,
   resolveTmpfsTmpdir,
+  gateFileState,
 } from './lib/run-helpers.mjs';
 
 // ─── TMPDIR on tmpfs (dominant wall-clock lever for fsync-bound suites) ──────
@@ -40,6 +41,29 @@ import { evaluateCoverageGate } from './lib/coverage-gate.mjs';
 
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
+// Guard an arbiter-emitted gate artifact using the emission-time manifest rather
+// than filesystem existence alone. A missing optional artifact that was never
+// emitted stays a normal skip; a delivered guard later deleted is a gate failure.
+function gateFilePresent(_path, _label, _neverEmittedLine = null) {
+  const _state = gateFileState(_path);
+  if (_state === 'present') return true;
+  if (_state === 'never-emitted') {
+    if (_neverEmittedLine) console.log(_neverEmittedLine);
+    return false;
+  }
+  if (_state === 'deleted') {
+    console.error(
+      `[CHECK] ${_label} ... FAIL — ${_path} was emitted by arbiter and is now missing; run arbiter update or restore it from git.`,
+    );
+    pushResult(_label, 'FAIL', 0);
+    return false;
+  }
+  console.error(
+    `[CHECK] ${_label} ... DEGRADED — cannot determine whether ${_path} was emitted because .arbiter-generated-manifest.json is unavailable or invalid; run arbiter update or restore the manifest.`,
+  );
+  return false;
+}
 
 // >>> ARG-PARSE-START (#1504) — robust, fail-loud gate-arg parsing.
 // Accept EVERY invocation form arbiter emits: the positional level
@@ -200,17 +224,15 @@ runCheck('lint', 'npx', ['eslint', 'src']);
 // not merge with the project's main eslint.config.mjs. The legacy eslintrc path
 // (--no-eslintrc -c .eslintrc-static.json) was removed: ESLint v9 disabled it and
 // v10 deleted it, so it crashed the gate on a fresh install (B4, #1491).
-if (existsSync('eslint.config.static.mjs')) {
+if (gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] static analysis ... SKIP (run: arbiter update)')) {
   runCheck('static analysis', 'npx', ['eslint', '--config', 'eslint.config.static.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src']);
-} else {
-  console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
 }
 // ─── L1: No fake-db imports in test files (INV-34, #1887-D) ─────────────────
 // Isolated flat config, same reasoning as static analysis above — the legacy
 // .eslintrc-no-fake-db.json cannot be loaded by ESLint v9. Emitted by
 // generateIntegrationTesting only when hasDatabase, so the guard is graceful
 // on a project without a database (never emitted there).
-if (existsSync('eslint.config.no-fake-db.mjs')) {
+if (gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')) {
   runCheck('no-fake-db imports (INV-34)', 'npx', ['eslint', '--config', 'eslint.config.no-fake-db.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', '.']);
 }
 runCheck('unit tests', 'npm', ['run', 'test:unit']);
@@ -486,11 +508,11 @@ runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs'
 runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.mjs']);
 
 // ─── L1: ISO 9001 quality-process overlay gate (#1253) — present only when overlay selected
-if (existsSync('scripts/check-iso9001.mjs')) {
+if (gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')) {
   runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);
 }
 // ─── L1: regulated / high-assurance overlay gate — present only when overlay selected
-if (existsSync('scripts/check-regulated-overlay.mjs')) {
+if (gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')) {
   runCheck('regulated overlay (SoD + retention + signing + mutation)', 'node', [
     'scripts/check-regulated-overlay.mjs',
   ]);
@@ -662,7 +684,7 @@ if (level === 'L2') {
   // Enforceable controls→gates for the `industryOverlay: gdpr` overlay. existsSync-
   // guarded so it only runs for projects where the gdpr generator emitted the gate;
   // language-neutral (the controls are documentation artifacts, not stack-specific).
-  if (existsSync('scripts/check-gdpr-controls.mjs')) {
+  if (gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')) {
     runCheck('gdpr controls (#1251)', 'node', ['scripts/check-gdpr-controls.mjs'], { soft: graceActive });
   }
 
@@ -692,31 +714,31 @@ if (level === 'L2') {
   runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check']);
 
   // Advisory (#1398/C6, INV-128): conformance scorecard ratchet — informational, never blocks gate.
-  if (existsSync('scripts/conformance.mjs')) {
+  if (gateFilePresent('scripts/conformance.mjs', 'conformance')) {
     runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
   }
   // Advisory (#1419): gold-audit no-regress ratchet — informational, never blocks gate.
   // Plain --check bootstraps a missing baseline (exit 0); the strict require-baseline hard
   // guard is NEVER passed downstream (it hard-fails a fresh consumer = day-1 red; self-only).
-  if (existsSync('scripts/gold-audit.mjs')) {
+  if (gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')) {
     runWarnCheck('gold-audit', 'node', ['scripts/gold-audit.mjs', '--check'])
   }
   // Advisory (#1428, INV-135): doc-set presence audit — informational, never blocks gate.
   // Plain --check runs the engine in its default advisory mode (exit 0 unless --strict), so a
   // fresh consumer bootstraps with no day-1 redness; the strict hard guard is never passed here.
-  if (existsSync('scripts/check-doc-set.mjs')) {
+  if (gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')) {
     runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check'])
   }
   // Advisory (#1428, INV-135): anti-fake-green guard aggregate — informational, never blocks gate.
   // The gh-audit guards fail OPEN (advisory) when `gh` is absent; --enforce is NEVER passed here
   // (it would promote advisory findings to hard fails = day-1 red for a fresh consumer).
-  if (existsSync('scripts/check-anti-fake-green.mjs')) {
+  if (gateFilePresent('scripts/check-anti-fake-green.mjs', 'anti-fake-green')) {
     runWarnCheck('anti-fake-green', 'node', ['scripts/check-anti-fake-green.mjs'])
   }
   // Advisory (#1457, INV-134): per-module coverage non-regression ratchet — start-warn,
   // promote-later. Informational (runWarnCheck) so it never blocks the gate while the
   // ±0.5pp per-module baseline beds in. Self-SKIPs when no coverage summary exists.
-  if (existsSync('scripts/verify-module-coverage.mjs')) {
+  if (gateFilePresent('scripts/verify-module-coverage.mjs', 'module coverage ratchet')) {
     runWarnCheck('module coverage ratchet', 'node', ['scripts/verify-module-coverage.mjs'])
   }
   // Advisory (E1-E6a #1943): anti-context-rot enforcers — advisory at land-time per the
@@ -725,19 +747,19 @@ if (level === 'L2') {
   // promotion discipline (advisory-is-a-stage-not-a-destination): promote to runCheck at
   // gated-review once the producer paths are routinely populated. check-touched-vs-manifest
   // is deliberately NOT here — it is a per-group harvest-time gate needing --plan/--group/--base.
-  if (existsSync('scripts/check-agent-return.mjs')) {
+  if (gateFilePresent('scripts/check-agent-return.mjs', 'agent-return envelope (E1 #1943)')) {
     runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
   }
-  if (existsSync('scripts/check-review-completion.mjs')) {
+  if (gateFilePresent('scripts/check-review-completion.mjs', 'review completion (#2177)')) {
     runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
   }
-  if (existsSync('scripts/check-refutation-verdicts.mjs')) {
+  if (gateFilePresent('scripts/check-refutation-verdicts.mjs', 'refutation majority (E2 #1943)')) {
     runWarnCheck('refutation majority (E2 #1943)', 'node', ['scripts/check-refutation-verdicts.mjs'])
   }
-  if (existsSync('scripts/check-audit-dry-pass.mjs')) {
+  if (gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')) {
     runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
   }
-  if (existsSync('scripts/check-handoff-doc.mjs')) {
+  if (gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')) {
     runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
   }
 

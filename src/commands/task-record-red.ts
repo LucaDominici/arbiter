@@ -102,24 +102,61 @@ function selectRunner(language: Language, testPath: string): readonly string[] {
   }
 }
 
+interface CapturedTestOutput {
+  log: string
+  exitCode: number
+}
+
+interface CliOutputError {
+  stdout: string
+  stderr: string
+  exitCode?: number
+  timedOut?: boolean
+  notFound?: boolean
+}
+
+function combineTestOutput(stdout: string, stderr: string): string {
+  return stdout + (stderr ? `\n${stderr}` : '')
+}
+
+function isCliOutputError(err: unknown): err is CliOutputError {
+  return (
+    err !== null &&
+    typeof err === 'object' &&
+    'stdout' in err &&
+    typeof err.stdout === 'string' &&
+    'stderr' in err &&
+    typeof err.stderr === 'string'
+  )
+}
+
+function testCommandLaunchFailure(err: unknown): RecordRedFailure {
+  return {
+    ok: false,
+    reason: `test command failed to launch: ${err instanceof Error ? err.message : String(err)}`,
+  }
+}
+
 function captureTestOutput(
   cmd: string,
   args: string[],
   dir: string,
   timeoutMs: number,
-): string | RecordRedFailure {
+): CapturedTestOutput | RecordRedFailure {
   try {
     const r = runCli(cmd, args, { cwd: dir, timeoutMs })
-    return r.stdout + (r.stderr ? `\n${r.stderr}` : '')
+    return { log: combineTestOutput(r.stdout, r.stderr), exitCode: r.exitCode }
   } catch (err: unknown) {
-    if (err && typeof err === 'object' && 'stdout' in err && 'stderr' in err) {
-      const e = err as { stdout: string; stderr: string }
-      return e.stdout + (e.stderr ? `\n${e.stderr}` : '')
+    if (
+      isCliOutputError(err) &&
+      typeof err.exitCode === 'number' &&
+      err.exitCode > 0 &&
+      err.timedOut !== true &&
+      err.notFound !== true
+    ) {
+      return { log: combineTestOutput(err.stdout, err.stderr), exitCode: err.exitCode }
     }
-    return {
-      ok: false,
-      reason: `test command failed to launch: ${err instanceof Error ? err.message : String(err)}`,
-    }
+    return testCommandLaunchFailure(err)
   }
 }
 
@@ -236,9 +273,16 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
   // users can scope an exact command (e.g. `go test -run TestFoo ./pkg`) — the
   // command is passed verbatim to spawnSync (shell:false), never interpolated.
   const testCmd = opts.testCmd ?? selectRunner(resolveLanguage(dir), opts.testPath)
-  const logOrErr = captureTestOutput(String(testCmd[0]), testCmd.slice(1), dir, timeoutMs)
-  if (typeof logOrErr === 'object' && 'ok' in logOrErr) return logOrErr
-  const log = repositoryRelativeLog(logOrErr, dir)
+  const outputOrErr = captureTestOutput(String(testCmd[0]), testCmd.slice(1), dir, timeoutMs)
+  if ('ok' in outputOrErr) return outputOrErr
+  if (outputOrErr.exitCode === 0) {
+    return {
+      ok: false,
+      reason:
+        'test command exited 0 (suite passed) — a RED phase requires a failing run; refusing to mint RED evidence',
+    }
+  }
+  const log = repositoryRelativeLog(outputOrErr.log, dir)
 
   const sig = extractFailureSignature(log)
   if (sig === null) {
