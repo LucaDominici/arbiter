@@ -267,6 +267,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      # gitleaks-action downloads to a HARDCODED /tmp/gitleaks.tmp. On a self-hosted
+      # runner /tmp survives between jobs, so a leftover from an interrupted download
+      # makes every later install fail after both internal retries ("Destination file
+      # path /tmp/gitleaks.tmp already exists" -> "parameter 'file' is required") — the
+      # cause of #2100, red every night since 2026-07-24.
+      # ponytail: unconditional delete, safe because `concurrency: nightly` plus the
+      # single CI build slot means no concurrent download; if gitleaks ever runs in
+      # parallel jobs, switch to the curl -> $RUNNER_TEMP/bin install used in 01-pr-fast.
+      - name: Clear stale gitleaks download temp
+        run: rm -f /tmp/gitleaks.tmp
       - name: Gitleaks full history scan
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e  # v3.0.0
         env:
