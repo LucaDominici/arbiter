@@ -726,6 +726,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 <% if (language === 'typescript') { %>
+        with:
+          # The debt ratchet's coverage collection runs the full unit suite; the
+          # TypeScript suite needs the built CLI (behavioral tests spawn dist/cli.js)
+          # and full git history (TDD-evidence sha reachability) — without both,
+          # vitest exits 1, no coverage summary is written, and the gate fails
+          # closed (#2226).
+          fetch-depth: 0
+<% } %><% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
 <% } %><% if (language === 'rust') { %>
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
@@ -743,6 +751,9 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       - run: pip install -e ".[dev]"
+<% } %><% if (language === 'typescript') { %>
+      - name: Build
+        run: npm run build
 <% } %>
       - name: Run debt ratchet
         run: node scripts/debt-report.mjs<% if (isL3Plus) { %> --require-improvement<% } else { %> --gate<% } %>
