@@ -111,6 +111,23 @@ for low-level engine control or recovery (`arbiter task advance`, `record-red`, 
   and `.claude/.task/status.json` disagree on the active task; `record-red` fails closed rather
   than guess, to avoid overwriting another task's evidence. Run `arbiter task init --id #NNN`
   to realign the task document with the branch, then re-run (#2064).
+- Gate red on `this branch changes src/ but ... no verified TDD evidence` → evidence is owed
+  per CHANGE, not per commit subject (#2217). Ids in a commit SUBJECT are still verified one
+  by one; a branch with no such id that touches `src/` must carry **one** verified evidence
+  among the tasks its commit BODIES cite (`Refs #NNN`), produced on this branch rather than
+  inherited from `main`. Docs- and chore-only branches stay vacuous. Two ways forward: record
+  real evidence for a cited task, or move the source change onto its own branch whose subject
+  carries the id (`fix(#NNN): ...`).
+- Gate red on `test_commit_sha ... is not reachable from HEAD` after a rebase → evidence also
+  pins `test_blob_sha`, the RED test's content, which a rebase preserves; the RED commit is
+  re-resolved from it automatically (#2116). Evidence recorded before that pin existed cannot
+  be healed — re-record it with `arbiter task record-red`.
+- Cannot commit the failing RED test because the pre-commit gate blocks it → `--no-verify` is
+  no longer the answer (#2051). While `phase=red`, a commit whose staged paths are ALL tests
+  skips the L1 gate (secret scanning and lint still run). Stage source alongside and the full
+  gate runs, as it does for the GREEN commit that follows.
+- `node scripts/check-tdd-evidence.mjs --dir <repo>` runs the gate against another checkout —
+  useful to reproduce a governed target's evidence failure locally.
 - Machine-readable verification → `arbiter verify tdd '#NNN' --json` emits the standard
   envelope with the six per-check verdicts (#1992); plain output unchanged without the flag
 - `verify evidence`/`verify graph`/`verify plan` honor `--json` the same way (#1994) —
