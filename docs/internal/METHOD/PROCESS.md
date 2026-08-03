@@ -132,9 +132,7 @@ Track names are a closed vocabulary. To change it:
 3. Update `.github/labels.yml` (and the EJS source) to add/remove the
    matching `track: <name>` label.
 4. Update CODEOWNERS to add/remove the owner pattern.
-5. Update `src/templates/root/docs/METHOD/TRACK_MODEL.md.ejs` to keep the
-   Level B template in lockstep.
-6. Run `node scripts/knowledge-map-update.mjs` after merging.
+5. Run `node scripts/knowledge-map-update.mjs` after merging.
 
 Renaming a track is a breaking change. Existing labels and frontmatter
 references must be migrated in the same PR.
