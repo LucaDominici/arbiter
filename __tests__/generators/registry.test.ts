@@ -64,6 +64,9 @@ describe('buildRegistry — gemini/windsurf/aider wired (#295)', () => {
           geminiDir: false,
           windsurfRules: false,
           aiderConf: false,
+          tests: false,
+          ciWorkflows: false,
+          lintConfig: false,
         },
       }),
     )

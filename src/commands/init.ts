@@ -19,7 +19,7 @@ import { detectBuildCommands } from '../detectors/build.js'
 import { detectPackageManager } from '../detectors/package-manager.js'
 import { detectFramework } from '../detectors/framework.js'
 import { detectGitInfo, detectAdverseGitState } from '../detectors/git.js'
-import { detectExisting } from '../detectors/existing.js'
+import { detectExisting, isBrownfield } from '../detectors/existing.js'
 import { detectGithubAccess } from '../detectors/github.js'
 import { detectLanes } from '../detectors/lanes.js'
 import { saveConfig, loadConfig } from '../utils/config.js'
@@ -225,7 +225,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 
     checkL3MaturityGates(config)
     checkCollaborationCoherenceGate(config)
-    await generateAndFinalize(config, targetDir, options, log)
+    await generateAndFinalize(config, targetDir, options, log, isBrownfield(existing))
   } finally {
     await lock.release()
   }
@@ -304,6 +304,7 @@ async function generateAndFinalize(
   targetDir: string,
   options: InitOptions,
   log: (msg: string) => void,
+  brownfieldDetected: boolean,
 ): Promise<void> {
   log('\n  Generating...')
   const committed: WriteResult[] = []
@@ -364,6 +365,13 @@ async function generateAndFinalize(
     const allResults = committed
     const created = allResults.filter((r) => r.action === 'created').length
     const skipped = allResults.filter((r) => r.action === 'skipped').length
+    const brownfieldWarning =
+      brownfieldDetected && !options.brownfield
+        ? 'Existing project detected (tests, CI workflows, lint config). The first gate run will measure your project as it is today. To select brownfield initialization, re-run with --brownfield. To capture a debt baseline when debt gates are enabled, run: node scripts/capture-debt-baseline.mjs.'
+        : undefined
+    if (brownfieldWarning !== undefined && !options.json) {
+      log(`\n  ${brownfieldWarning}`)
+    }
     log(`\n  Done! ${created} files created, ${skipped} skipped.`)
 
     maybeCaptureBaseline(config, targetDir, options.brownfield)
@@ -371,7 +379,15 @@ async function generateAndFinalize(
     activateGitHooks(targetDir, log)
 
     const generatorErrorLines = generatorErrors.map((e) => `${e.key}: ${e.message}`)
-    emitInitOutput(options.json, generatorErrorLines, backendResult.warnings, created, skipped)
+    emitInitOutput(
+      options.json,
+      generatorErrorLines,
+      brownfieldWarning === undefined
+        ? backendResult.warnings
+        : [...backendResult.warnings, brownfieldWarning],
+      created,
+      skipped,
+    )
   } catch (err) {
     process.stderr.write('\n  Generation failed — attempting rollback...\n')
     rollbackGeneration(committed)

@@ -51,7 +51,11 @@ vi.mock('../../src/detectors/existing.js', () => ({
     geminiDir: false,
     windsurfRules: false,
     aiderConf: false,
+    tests: false,
+    ciWorkflows: false,
+    lintConfig: false,
   }),
+  isBrownfield: vi.fn().mockReturnValue(false),
 }))
 vi.mock('../../src/detectors/github.js', () => ({
   detectGithubAccess: vi.fn().mockReturnValue({ authenticated: false }),
@@ -190,6 +194,9 @@ describe('init basePackage detection (#1659)', () => {
         geminiDir: false,
         windsurfRules: false,
         aiderConf: false,
+        tests: false,
+        ciWorkflows: false,
+        lintConfig: false,
       },
       languageHooks: [],
       // basePackage deliberately UNSET — the wizard never collects it.

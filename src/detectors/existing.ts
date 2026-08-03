@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, type Dirent } from 'node:fs'
 import { join } from 'node:path'
+
+const MAX_TEST_SCAN_DEPTH = 4
+const MAX_TEST_SCAN_ENTRIES = 500
+const EXCLUDED_TEST_SCAN_DIRECTORIES = new Set([
+  '.git',
+  'build',
+  'dist',
+  'node_modules',
+  'target',
+  'vendor',
+])
 
 export interface ExistingState {
   agentsMd: boolean
@@ -12,6 +23,9 @@ export interface ExistingState {
   geminiDir: boolean
   windsurfRules: boolean
   aiderConf: boolean
+  tests: boolean
+  ciWorkflows: boolean
+  lintConfig: boolean
 }
 
 export function detectExisting(dir: string): ExistingState {
@@ -27,5 +41,111 @@ export function detectExisting(dir: string): ExistingState {
     geminiDir: existsSync(join(dir, '.gemini')),
     windsurfRules: existsSync(join(dir, 'windsurf-instructions.md')),
     aiderConf: existsSync(join(dir, '.aider.conf.yml')),
+    tests: detectTests(dir),
+    ciWorkflows: detectCiWorkflows(dir),
+    lintConfig: detectLintConfig(dir),
+  }
+}
+
+export function isBrownfield(state: ExistingState): boolean {
+  return state.tests || state.ciWorkflows || state.lintConfig
+}
+
+function detectTests(dir: string): boolean {
+  let scannedEntries = 0
+  const pending = [{ path: dir, depth: 0 }]
+
+  while (pending.length > 0 && scannedEntries < MAX_TEST_SCAN_ENTRIES) {
+    const current = pending.pop()
+    if (current === undefined) break
+
+    let entries: Dirent<string>[]
+    try {
+      entries = readdirSync(current.path, { withFileTypes: true })
+    } catch {
+      continue
+    }
+
+    for (const entry of entries) {
+      scannedEntries += 1
+      if (scannedEntries > MAX_TEST_SCAN_ENTRIES) return false
+
+      if (entry.isDirectory()) {
+        if (isTestDirectory(entry.name)) return true
+        if (
+          current.depth < MAX_TEST_SCAN_DEPTH &&
+          !EXCLUDED_TEST_SCAN_DIRECTORIES.has(entry.name)
+        ) {
+          pending.push({ path: join(current.path, entry.name), depth: current.depth + 1 })
+        }
+        continue
+      }
+
+      if (entry.isFile() && isTestFile(entry.name)) return true
+    }
+  }
+
+  return false
+}
+
+function isTestDirectory(name: string): boolean {
+  return name === 'test' || name === 'tests' || name === '__tests__' || name === 'spec'
+}
+
+function isTestFile(name: string): boolean {
+  return (
+    name.endsWith('_test.go') ||
+    /^test_.*\.py$/.test(name) ||
+    /_test\.py$/.test(name) ||
+    /\.test\.(?:ts|tsx|js|jsx)$/.test(name) ||
+    /\.spec\.[^.]+$/.test(name)
+  )
+}
+
+function detectCiWorkflows(dir: string): boolean {
+  const workflowsDir = join(dir, '.github', 'workflows')
+  if (!existsSync(workflowsDir)) return false
+
+  try {
+    return readdirSync(workflowsDir, { withFileTypes: true }).some(
+      (entry) => entry.isFile() && /\.ya?ml$/.test(entry.name),
+    )
+  } catch {
+    return false
+  }
+}
+
+function detectLintConfig(dir: string): boolean {
+  let entries: Dirent<string>[]
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return false
+  }
+
+  const names = new Set(entries.map((entry) => entry.name))
+  if (
+    [...names].some((name) => name.startsWith('.eslintrc') || name.startsWith('eslint.config.')) ||
+    [
+      '.golangci.yml',
+      '.golangci.yaml',
+      'ruff.toml',
+      '.ruff.toml',
+      'setup.cfg',
+      '.flake8',
+      'tox.ini',
+      '.rubocop.yml',
+      'clippy.toml',
+      'checkstyle.xml',
+    ].some((name) => names.has(name))
+  ) {
+    return true
+  }
+
+  if (!names.has('pyproject.toml')) return false
+  try {
+    return /^\s*\[tool\.(ruff|black)\]\s*$/m.test(readFileSync(join(dir, 'pyproject.toml'), 'utf8'))
+  } catch {
+    return false
   }
 }

@@ -42,6 +42,9 @@ describe('brownfield: ai-rulez coexistence', () => {
         geminiDir: false,
         windsurfRules: false,
         aiderConf: false,
+        tests: false,
+        ciWorkflows: false,
+        lintConfig: false,
       },
     })
   }

@@ -258,6 +258,9 @@ export interface ProjectConfig {
     geminiDir: boolean
     windsurfRules: boolean
     aiderConf: boolean
+    tests: boolean
+    ciWorkflows: boolean
+    lintConfig: boolean
   }
 
   languageHooks: LanguageHook[]

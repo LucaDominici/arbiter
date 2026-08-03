@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { detectExisting } from '../../src/detectors/existing.js'
+import { dirname, join } from 'node:path'
+import { detectExisting, isBrownfield } from '../../src/detectors/existing.js'
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'arbiter-test-'))
@@ -68,5 +68,62 @@ describe('detectExisting', () => {
   it('detects .aider.conf.yml', () => {
     writeFileSync(join(dir, '.aider.conf.yml'), 'model: gpt-4o')
     expect(detectExisting(dir).aiderConf).toBe(true)
+  })
+
+  it('detects bounded brownfield signals', () => {
+    const cases: Array<{
+      name: string
+      files: string[]
+      expected: { tests: boolean; ciWorkflows: boolean; lintConfig: boolean }
+    }> = [
+      {
+        name: 'Go test files',
+        files: ['go.mod', 'foo_test.go'],
+        expected: { tests: true, ciWorkflows: false, lintConfig: false },
+      },
+      {
+        name: 'Python tests directory',
+        files: ['tests/test_x.py'],
+        expected: { tests: true, ciWorkflows: false, lintConfig: false },
+      },
+      {
+        name: 'GitHub workflow',
+        files: ['.github/workflows/ci.yml'],
+        expected: { tests: false, ciWorkflows: true, lintConfig: false },
+      },
+      {
+        name: 'golangci lint configuration',
+        files: ['.golangci.yml'],
+        expected: { tests: false, ciWorkflows: false, lintConfig: true },
+      },
+      {
+        name: 'bare repository',
+        files: [],
+        expected: { tests: false, ciWorkflows: false, lintConfig: false },
+      },
+      {
+        name: 'node_modules is excluded from the bounded scan',
+        files: ['node_modules/pkg/x.test.js'],
+        expected: { tests: false, ciWorkflows: false, lintConfig: false },
+      },
+    ]
+
+    for (const testCase of cases) {
+      const caseDir = tmpDir()
+      try {
+        for (const file of testCase.files) {
+          mkdirSync(dirname(join(caseDir, file)), { recursive: true })
+          writeFileSync(join(caseDir, file), '')
+        }
+
+        const state = detectExisting(caseDir)
+        expect(state, testCase.name).toMatchObject(testCase.expected)
+        expect(isBrownfield(state), testCase.name).toBe(
+          testCase.expected.tests || testCase.expected.ciWorkflows || testCase.expected.lintConfig,
+        )
+      } finally {
+        rmSync(caseDir, { recursive: true, force: true })
+      }
+    }
   })
 })

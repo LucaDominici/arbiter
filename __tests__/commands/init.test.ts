@@ -45,6 +45,7 @@ vi.mock('../../src/detectors/existing.js', () => ({
     windsurfRules: false,
     aiderConf: false,
   }),
+  isBrownfield: vi.fn().mockReturnValue(false),
 }))
 vi.mock('../../src/detectors/github.js', () => ({
   detectGithubAccess: vi.fn().mockReturnValue({
