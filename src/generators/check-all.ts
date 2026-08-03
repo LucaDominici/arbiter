@@ -92,6 +92,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-hook-routing.mjs'],
     tpl: 'scripts/check-hook-routing.mjs.ejs',
   },
+  // #2110: emission parity — every file recorded in `.arbiter-generated-manifest.json`
+  // is still on disk. Reads the committed manifest, so it needs no arbiter install:
+  // arbiter is not a dependency of the projects it governs, and a check that shelled
+  // out to its generators would SKIP exactly where it matters.
+  {
+    rel: ['scripts', 'check-emission-parity.mjs'],
+    tpl: 'scripts/check-emission-parity.mjs.ejs',
+  },
   { rel: ['scripts', 'check-constraint-scan.mjs'], tpl: 'scripts/check-constraint-scan.mjs.ejs' },
   // #2037 (INV-115): scaffold the map alongside its checker so the gate never runs
   // against an absent map by construction. skipIfExists — a project's curated

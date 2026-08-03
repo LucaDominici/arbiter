@@ -135,6 +135,39 @@ Arbiter now records a per-file content-hash **manifest** so it can tell the two 
 | Committed?   | **Yes — commit it.** It must travel with the repo or the governed fleet cannot inherit fixes. It is intentionally NOT under `.arbiter/`. |
 | Shape        | `{ "$schemaVersion": 1, "files": { "<posix-relpath>": "<sha256-of-arbiter's-last-render>" } }`                                           |
 
+### Emission parity in the project's own gate (`scripts/check-emission-parity.mjs`, #2110)
+
+**Issue:** #2110
+
+The manifest is only consulted when someone runs `arbiter update`. Between updates a governed repo can
+lose a delivered guard — deleted in a cleanup, dropped in a merge — and nothing notices, because at
+runtime "never emitted" and "deleted after emission" are indistinguishable. Every governed project now
+emits `scripts/check-emission-parity.mjs`, wired at L1, which compares the committed manifest against
+disk on every gate run.
+
+It needs **no arbiter install**, which is the whole point of the design: arbiter is not a dependency of
+the projects it governs, so a check that shelled out to arbiter's generators would SKIP exactly where it
+matters, and a gate that skips is a green light with nothing behind it. Reading the committed manifest
+needs nothing but Node.
+
+| finding                                      | result                                           |
+| -------------------------------------------- | ------------------------------------------------ |
+| a recorded file is GONE                      | **FAIL** — the delivered protection vanished     |
+| a recorded file DIVERGED in content          | PASS, reported and counted                       |
+| no `.arbiter-generated-manifest.json` at all | **FAIL** — no provenance record to check against |
+| manifest present but malformed               | ERROR (exit 2)                                   |
+
+Divergence deliberately does not fail. It is the normal state of a governed repo — the project customizes
+`check-all.mjs`, `AGENTS.md`, its rules — and it is already governed at write time by the adopt policy and
+at read time by `check-safety-adopt-ratchet.mjs`. Measured on three real governed consumers, a
+fail-on-divergence gate would have reported 158, 51 and 21 violations on its first run: a gate nobody can
+keep green teaches everyone to ignore it. What it catches instead is the case with no legitimate reading —
+21, 8 and 243 recorded files that are simply gone.
+
+This is the weaker of the two possible checks and knowingly so: it detects LOCAL drift from the last
+render, never "the template moved on since your last update". The strong version needs arbiter present in
+the consumer, which is a prerequisite this issue deliberately refused to impose.
+
 ### Update / diff semantics for `skipIfExists` files
 
 On `arbiter update` (and the read-only `arbiter diff`), for each `skipIfExists` file that already exists:

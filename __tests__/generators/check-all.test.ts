@@ -32,7 +32,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 39 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 40 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -64,10 +64,11 @@ describe('generateCheckAll', () => {
     //   lib/agent-return-validate, schemas/agent-return.schema.json
     // + the 3 acceptance-anchor orchestration tools (INV-138, ADR-110):
     //   issue-readiness.mjs + rework-log.mjs + lib/acceptance-criteria.mjs
+    // + check-emission-parity.mjs (#2110 — manifest-vs-disk parity in the project's own gate)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(39)
+    expect(result.files).toHaveLength(40)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/acceptance-criteria.mjs'))).toBe(
@@ -77,6 +78,9 @@ describe('generateCheckAll', () => {
       result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
     ).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-smoke-journeys.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-emission-parity.mjs'))).toBe(
+      true,
+    )
     expect(result.files.some((f) => f.path.endsWith('scripts/check-todo-max-age.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/verify-module-coverage.mjs'))).toBe(
       true,

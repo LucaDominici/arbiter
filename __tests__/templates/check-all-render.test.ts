@@ -1351,3 +1351,28 @@ describe('check-all.mjs.ejs rendering — assertion-delta emission↔wiring pari
     expect(content).toContain('scripts/check-assertion-delta.mjs')
   })
 })
+
+describe('check-emission-parity.mjs.ejs rendering (#2110)', () => {
+  it('renders a gate that reads the committed manifest and never shells out to arbiter', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-emission-parity.mjs.ejs', data)
+    expect(content).toContain('.arbiter-generated-manifest.json')
+    expect(content).toContain('MISSING emitted file')
+    // No arbiter install required — the whole point of the manifest-based design.
+    expect(content).not.toContain('spawnSync')
+    expect(content).toContain('process.exit(2)')
+    expect(content).not.toContain('<%')
+  })
+
+  it('is wired into the emitted gate spine at L1', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runCheck('emission parity (#2110)'")
+  })
+})

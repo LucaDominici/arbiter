@@ -473,6 +473,8 @@ runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wire
 runCheck('hook routing (#2129)', 'node', ['scripts/check-hook-routing.mjs']);
 // ─── L1: safety-class adopt ratchet (T1, anti-erosion) ───────────────────────
 runCheck('safety adopt ratchet', 'node', ['scripts/check-safety-adopt-ratchet.mjs']);
+// ─── L1: emission parity — every emitted file still on disk (#2110) ──────────
+runCheck('emission parity (#2110)', 'node', ['scripts/check-emission-parity.mjs']);
 // ─── L1: governance constraint scan (INV-115, #1214) ─────────────────────────
 runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs']);
 // ─── L1: wiki lint gate (INV-116, #1241) ─────────────────────────────────────
