@@ -308,7 +308,9 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'security',
-      enabled: config.enableSecurityScanning,
+      // generateSecurity always emits the pure-Node PII baseline; gitleaks,
+      // hooks, and ZAP remain internally gated by enableSecurityScanning.
+      enabled: true,
       run: (opts) => generateSecurity(config, opts).files,
     },
     {

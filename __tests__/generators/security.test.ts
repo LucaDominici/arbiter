@@ -23,9 +23,12 @@ describe('generateSecurity', () => {
     cleanupTestProject(dir)
   })
 
-  it('returns empty when enableSecurityScanning is false', () => {
+  it('emits only the PII baseline when enableSecurityScanning is false', () => {
     const config = makeConfig(dir, { enableSecurityScanning: false })
-    expect(generateSecurity(config).files).toHaveLength(0)
+    expect(generateSecurity(config).files).toHaveLength(1)
+    expect(existsSync(join(dir, 'scripts', 'pii-scan.mjs'))).toBe(true)
+    expect(existsSync(join(dir, '.gitleaks.toml'))).toBe(false)
+    expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-pii.mjs'))).toBe(false)
   })
 
   it('generates 3 files for non-Java stacks', () => {

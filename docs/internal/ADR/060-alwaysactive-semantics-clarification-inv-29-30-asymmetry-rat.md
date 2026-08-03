@@ -29,6 +29,12 @@ related: []
 
 **3. INV-29/30 asymmetry is intentional.** INV-29 (Java — never use MockMvc in unit tests) is an architectural constraint with zero setup cost. It should apply even at L1 governance where quality bars are low — bad test practices are equally bad at any level. INV-30 (Java — mutation testing with PITest) requires a dedicated CI job, slow test runs, and a passing threshold. It is appropriate only at L2+ where the project has invested in deep quality gates. The asymmetry in `alwaysActive` + `minGovernanceLevel` correctly captures this intent.
 
+## Partial supersession (2026-08-03, #2199)
+
+Decision 2 is superseded for INV-11 and INV-12: their pure-Node secret and PII
+scanners are now mandatory L1 baseline checks. INV-13 remains L2+ because its
+dependency-audit tools still require the non-trivial external-tool setup described above.
+
 **Consequences:** No behavior change. JSDoc and filter comment updated for accuracy. Future contributors can reason clearly about `alwaysActive` without misreading it as "visible at all governance levels."
 
 ## Extension (2026-06-30, #1635)

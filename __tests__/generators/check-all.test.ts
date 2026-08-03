@@ -827,7 +827,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain('eslint.config.frontend-spa.mjs')
   })
 
-  it('enableSecurityScanning=false: no gitleaks, govulncheck, or trivy fs dep-audit step', () => {
+  it('enableSecurityScanning=false: PII baseline remains while gitleaks and dep audit stay absent', () => {
     generateCheckAll(
       makeConfig(dir, {
         language: 'java',
@@ -839,7 +839,7 @@ describe('generateCheckAll', () => {
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     expect(content).not.toContain('gitleaks')
     expect(content).not.toContain("'dep audit (trivy fs)'")
-    expect(content).not.toContain('pii-scan.mjs')
+    expect(content).toContain('pii-scan.mjs')
   })
 
   it('enableSecurityScanning=false: typescript npm audit absent', () => {

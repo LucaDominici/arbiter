@@ -166,10 +166,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'configuration files committed to version control, or log output. Use environment ' +
       'variables or secret managers (Vault, AWS Secrets Manager, etc.).',
     alwaysActive: true,
-    minGovernanceLevel: 'L2',
+    minGovernanceLevel: 'L1',
     enforcement:
       'CI (gitleaks secrets scan — security-early-fail job, runs before lint-and-test); ' +
-      'local gate: `gitleaks detect --source . --baseline-path suppressions/.gitleaksignore` (L2 block)',
+      'local gate: `node scripts/check-secret-scan.mjs` (L1 baseline) + ' +
+      '`gitleaks detect --source . --baseline-path suppressions/.gitleaksignore` (L2 block)',
   },
 
   {
@@ -182,7 +183,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Required for GDPR/NIS2 compliance. Enforced by static scan (pii-scan.mjs) as a HARD ' +
       'early-fail gate — no grace-period exception applies.',
     alwaysActive: true,
-    minGovernanceLevel: 'L2',
+    minGovernanceLevel: 'L1',
     enforcement:
       'CI (pii-scan.mjs — security-early-fail job, HARD early-fail, no grace period); ' +
       'local gate: `node scripts/pii-scan.mjs` runs before all L1 checks; ' +
@@ -1407,7 +1408,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement:
       'scripts/check-suppression-rationale.mjs (L1) + ' +
       'scripts/check-suppression-expiry.mjs (L1) + ' +
-      'scripts/check-pii-scan.mjs (L1) + ' +
+      'scripts/pii-scan.mjs (L1) + ' +
       'scripts/check-secret-scan.mjs (L1) + ' +
       'scripts/check-drift.mjs (L1) + ' +
       'scripts/check-workflow-runners.mjs (L1) + ' +

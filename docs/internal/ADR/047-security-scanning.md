@@ -65,6 +65,10 @@ Trivy is a container/filesystem scanner appropriate for nightly pipelines (M25),
 
 With INV-11/12/13 as `alwaysActive: true`, they appear in AGENTS.md and GLOBAL_INVARIANTS.md for all presets at L2+ — even if "security" tier is not explicitly selected. This is intentional: security scanning is not opt-in at L2+.
 
+**Update (2026-08-03, #2199):** the pure-Node PII and secret-pattern scanners are also
+mandatory at L1. PII remains the first hard early-fail in `check-all.mjs`; gitleaks and
+dependency audit remain conditional L2 security tooling.
+
 ### 9. Three-way scan split — secrets vs PII-in-text vs data/state files (#1407/#1408, INV-129)
 
 Repository content hygiene is enforced by three **non-overlapping** scanners, each owning a distinct failure class. The split exists because no single scanner catches all three, and the gaps between them are exactly where real leaks hide:
@@ -83,7 +87,7 @@ INV-117 stays the selfOnly `*.tgz` build-artifact rule (arbiter's own npm-pack h
 
 ## Consequences
 
-- Every L2+ project generates PII scan, gitleaks, and dep audit wired into both local gate and CI.
+- Every L1 project generates and wires the PII and secret-pattern scans; every L2+ project additionally generates gitleaks and dep audit wired into local gate and CI.
 - Security tier now appears in AGENTS.md/GLOBAL_INVARIANTS.md for standard and essential presets at L2+ (previously only appeared for full preset).
 - INV-12 now covers static scanning of source code, not just runtime log safety.
 - Trivy (container scan) remains ungenerated until M25.

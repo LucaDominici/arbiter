@@ -1020,7 +1020,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
       }
     })
 
-    it(`${lang}+L1: no gitleaks or dep-audit step (security gates are L2+)`, () => {
+    it(`${lang}+L1: PII baseline runs without gitleaks or dep-audit`, () => {
       const thresholds = computeThresholds(0, 'fixed', 'L1')
       const cfg = {
         ...configFor(lang, 'L1'),
@@ -1033,7 +1033,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
       expect(content).not.toContain('gitleaks')
       expect(content).not.toContain('govulncheck')
       expect(content).not.toContain("'dep audit (trivy fs)'")
-      expect(content).not.toContain('pii-scan.mjs')
+      expect(content).toContain('pii-scan.mjs')
     })
   }
 })

@@ -385,5 +385,47 @@ describe.skipIf(!L2)(
       },
       240_000,
     )
+
+    it.skipIf(skipReason != null)(
+      'ts-library (typescript): a seeded AWS key makes the generated L1 gate exit non-zero',
+      async () => {
+        await runInit({
+          yes: true,
+          tools: 'claude',
+          level: 'L1',
+          dir,
+          dryRun: false,
+          brownfield: false,
+          noVerify: true,
+          language: 'typescript',
+          archetype: 'library',
+        })
+        execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+        execFileSync('git', ['commit', '-m', 'chore: post-init', '--no-verify'], {
+          cwd: dir,
+          stdio: 'ignore',
+        })
+
+        const dep = installDeps(dir, language)
+        if ('skip' in dep) {
+          expect(dep.skip, 'deps unavailable (offline) — skipping gate exec').toBeTruthy()
+          return
+        }
+        expectPortableTypeScriptToolchain(dir)
+
+        writeFileSync(
+          join(dir, 'src', 'leak.ts'),
+          'export const _awsKey = "AKIAIOSFODNN7EXAMPLE";\n',
+        )
+
+        const result = runGeneratedGate(dir, dep.pathPrefix)
+        expect(
+          result.status,
+          `seeded AWS key did not turn the gate red:\n${result.output.slice(-2000)}`,
+        ).not.toBe(0)
+        expect(result.output).toContain('[CHECK] secret scan ... FAIL')
+      },
+      240_000,
+    )
   },
 )

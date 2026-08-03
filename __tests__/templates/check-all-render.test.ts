@@ -21,6 +21,22 @@ describe('check-hook-routing.mjs.ejs rendering (#2129)', () => {
   })
 })
 
+describe('check-all.mjs.ejs rendering — L1 security baseline (#2199)', () => {
+  for (const language of ['typescript', 'python'] as const) {
+    it(`${language} L1 renders PII and secret scans when security extras are disabled`, () => {
+      const data = makeConfig('/tmp/test', {
+        language,
+        governanceLevel: 'L1',
+        enableSecurityScanning: false,
+      }) as unknown as Record<string, unknown>
+      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+
+      expect(content).toContain("runCheck('PII scan'")
+      expect(content).toContain("runCheck('secret scan'")
+    })
+  }
+})
+
 describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
   it('renders inline suppressions check when enableSuppressions=true (#367)', () => {
     const data = makeConfig('/tmp/test', {

@@ -218,12 +218,12 @@ console.log('');
 console.log(`=== <%= projectName %> Quality Gate: ${level} ===`);
 console.log('');
 
-<% if (enableSecurityScanning) { %>
+
 // ─── Early-fail: PII scan (INV-12, HARD — no grace period) ────────────────────
 runCheck('PII scan', 'node', ['scripts/pii-scan.mjs']);
 // ─── L1: Secret-pattern drift (anti-drift, INV-89, #1152) ────────────────────
 runCheck('secret scan', 'node', ['scripts/check-secret-scan.mjs']);
-<% } %>
+
 // ─── L1: Fast checks ──────────────────────────────────────────────────────────
 <% if (language === 'typescript') { %>
 runCheck('typecheck', 'npx', ['tsc', '--noEmit']);

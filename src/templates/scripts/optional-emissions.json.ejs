@@ -14,10 +14,6 @@
       "rationale": "REVERSE (#1518): emitted unconditionally as an advisory aggregate thin-runner, but wired (runWarnCheck 'anti-fake-green') in check-all.mjs only at L2+ (INV-135). At L1 it ships present-but-unwired, available for manual/CI invocation."
     },
     {
-      "path": "scripts/check-secret-scan.mjs",
-      "rationale": "REVERSE (#1518): emitted to every target by the anti-drift family (INV-89), but wired (runCheck 'secret scan') in check-all.mjs only when enableSecurityScanning is true. With security scanning disabled it ships present-but-unwired, available for manual/CI invocation."
-    },
-    {
       "path": "scripts/ci-classify-changes.mjs",
       "rationale": "Emitted by the github-setup generator (L2+ only); referenced by .githooks/pre-push behind a shell `[ -f ]` guard. Absent on L1 projects, where the pre-push guard skips it gracefully."
     },

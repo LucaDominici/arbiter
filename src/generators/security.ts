@@ -23,8 +23,6 @@ export function generateSecurity(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): SecurityGeneratorResult {
-  if (!config.enableSecurityScanning) return { files: [] }
-
   const base = config.targetDir
   const data = config
   const results: WriteResult[] = []
@@ -37,6 +35,10 @@ export function generateSecurity(
       { skipIfExists: false, dryRun: opts.dryRun },
     ),
   )
+
+  // The remaining security suite needs external tooling or user configuration,
+  // so it stays opt-in above the L1 baseline scanner.
+  if (!config.enableSecurityScanning) return { files: results }
 
   // Gitleaks config — references .gitleaksignore suppression file
   results.push(
