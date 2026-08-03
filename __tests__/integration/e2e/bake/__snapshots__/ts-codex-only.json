@@ -151,7 +151,7 @@
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/lib.mjs": "0c36b6cf422ef08c7e70c09d354a06e8f66041c50c3c2e1df7678834b0bfbf44",
     ".claude/hooks/pre-edit-ssot-guard.mjs": "2e6de8399a477e29ae0f1c5b59924b5008fe9771525c42c429447bcf31652b3e",
-    ".claude/hooks/stop-dangerous.mjs": "6c727ed722a899660a2e82237f6c1ea2e698fd31d7b0725503fd925060eb7e91",
+    ".claude/hooks/stop-dangerous.mjs": "f2896a9bc48e44dd9e201a766a9880cd18a39c446605ca3fe2b6adad16425a34",
     ".codex/codex-adapter.mjs": "d8c4cc343332e519c2daf9d065e5fb2fb4112406b3865c2d17a2afdd4fc864bd",
     ".codex/config.toml": "1d25dc5de704bf305fac45510abde83bbc97ba4d0af3b32dcb85bc9c28a87cef",
     ".env.example": "37bd176675e9c72ced2f6f62ddbf68189b0dc7dc2656f902180aceaa1b50f734",

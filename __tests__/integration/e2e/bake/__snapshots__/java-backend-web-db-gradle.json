@@ -231,7 +231,7 @@
     ".claude/hooks/pre-edit-plan-anchor.mjs": "81519f50ddb52f9b07382a9b32580d43f72526b69539d4092f11a5938e724e1a",
     ".claude/hooks/pre-edit-ssot-guard.mjs": "2e6de8399a477e29ae0f1c5b59924b5008fe9771525c42c429447bcf31652b3e",
     ".claude/hooks/pre-spawn-worktree-guard.mjs": "54ce4d9030ced33a855befa3525dcd9d8f34d390525ee98a84a0ed1676c842ff",
-    ".claude/hooks/stop-dangerous.mjs": "6c727ed722a899660a2e82237f6c1ea2e698fd31d7b0725503fd925060eb7e91",
+    ".claude/hooks/stop-dangerous.mjs": "f2896a9bc48e44dd9e201a766a9880cd18a39c446605ca3fe2b6adad16425a34",
     ".claude/knowledge-map.json": "3081af0f6017beb4c506301865cff078b2eca5bdca7e0758fe7c740f1725d875",
     ".claude/rules/05-agent-lifecycle.md": "0cfaa8a26aace5594a65ce4bf01395cdeae1581fe77cbd2b4ec79e3d8181e910",
     ".claude/rules/25-todo-folder-policy.md": "4db8c0a73cc7397b65e1755dc77d2b85172495e66d434513ed5f3a01f3572a1d",
