@@ -16,6 +16,7 @@ import { runProbes } from '../compatibility/probe.js'
 import { formatText } from '../compatibility/report.js'
 import { detectLanguageWithSource } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
+import { detectPackageManager } from '../detectors/package-manager.js'
 import { detectFramework } from '../detectors/framework.js'
 import { detectGitInfo, detectAdverseGitState } from '../detectors/git.js'
 import { detectExisting } from '../detectors/existing.js'
@@ -169,6 +170,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     }
     const framework = detectFramework(targetDir, language)
     const buildCmds = detectBuildCommands(targetDir, language)
+    const packageManager = buildCmds.packageManager ? detectPackageManager(targetDir) : null
     const gitInfo = detectGitInfo(targetDir)
     const existing = detectExisting(targetDir)
     const githubAccess = detectGithubAccess()
@@ -178,6 +180,11 @@ export async function runInit(options: InitOptions): Promise<void> {
       `  ├── Language: ${language}${formatLangHint(languageLocked, languageSource)}${framework ? ` / ${framework}` : ''}`,
     )
     log(`  ├── Build: ${buildCmds.buildTool}`)
+    if (packageManager) {
+      log(
+        `  ├── Package manager: ${packageManager.name} (${formatPackageManagerSource(packageManager)})${packageManager.isWorkspace ? ' — workspace' : ''}`,
+      )
+    }
     log(
       `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
     )
@@ -221,6 +228,24 @@ export async function runInit(options: InitOptions): Promise<void> {
     await generateAndFinalize(config, targetDir, options, log)
   } finally {
     await lock.release()
+  }
+}
+
+function formatPackageManagerSource(
+  packageManager: ReturnType<typeof detectPackageManager>,
+): string {
+  if (packageManager.source === 'packageManager-field') return 'package.json#packageManager'
+  if (packageManager.source === 'default') return 'default'
+
+  switch (packageManager.name) {
+    case 'pnpm':
+      return 'pnpm-lock.yaml'
+    case 'yarn':
+      return 'yarn.lock'
+    case 'bun':
+      return 'bun lockfile'
+    case 'npm':
+      return 'package-lock.json'
   }
 }
 

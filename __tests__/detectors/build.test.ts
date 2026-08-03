@@ -29,6 +29,23 @@ describe('detectBuildCommands', () => {
       expect(result.formatCommand).toBe('npx prettier --check .')
     })
 
+    it('uses pnpm commands while retaining the npm build ecosystem key', () => {
+      writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify({
+          packageManager: 'pnpm@11',
+          scripts: { build: 'tsc', lint: 'eslint .' },
+          devDependencies: { prettier: '^3.0.0' },
+        }),
+      )
+
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.buildCommand).toBe('pnpm run build')
+      expect(result.lintCommand).toBe('pnpm run lint')
+      expect(result.formatCommand).toBe('pnpm exec prettier --check .')
+      expect(result.buildTool).toBe('npm')
+    })
+
     it('falls back when no scripts exist', () => {
       writeFileSync(join(dir, 'package.json'), '{}')
       const result = detectBuildCommands(dir, 'typescript')

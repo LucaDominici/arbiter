@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { detectLanguage } from '../detectors/language.js'
+import { detectPackageManager } from '../detectors/package-manager.js'
 import { matches, UnparseableConstraintError, validateRanges } from './matcher.js'
 import {
   parseNodeVersion,
@@ -447,10 +448,18 @@ function matrixEntriesFor(lang: Language): MatrixEntry[] {
  */
 export function runProbes(dir: string): VerifyReport {
   const lang = detectLanguage(dir)
+  const packageManager = detectPackageManager(dir)
 
   const entries: MatrixEntry[] = matrixEntriesFor(lang)
 
   const probes: ProbeResult[] = entries.map(({ tool, range }) => {
+    if (tool === 'npm' && packageManager.name !== 'npm') {
+      return {
+        tool: 'npm',
+        status: 'skipped',
+        reason: `package-manager: ${packageManager.name} is configured for this project — the npm probe does not apply`,
+      }
+    }
     const spec = TOOL_SPECS[tool]
     if (!spec) {
       return { tool, status: 'failed', reason: `no spec for tool: ${tool}` }

@@ -4,9 +4,13 @@ import { join } from 'node:path'
 import type { Language } from '../wizard/types.js'
 import { readPackageJsonSafe } from '../utils/safe-read.js'
 import { jvmRoot } from './language.js'
+import { detectPackageManager } from './package-manager.js'
+import type { PackageManager } from './package-manager.js'
 
 export interface BuildCommands {
   buildTool: string
+  /** JavaScript package manager selected for TypeScript command invocation. */
+  packageManager?: PackageManager
   buildCommand: string
   testCommand: string
   lintCommand: string
@@ -60,6 +64,7 @@ export function detectBuildCommands(dir: string, language: Language): BuildComma
 
 function detectTypescriptCommands(dir: string): BuildCommands {
   const pkg = readPackageJson(dir)
+  const packageManager = detectPackageManager(dir).name
   const hasEslint = hasScript(pkg, 'lint')
   // Substring match on the serialized package.json mistakenly counted
   // `eslint-config-prettier`, `prettier-eslint`, scripts mentioning "prettier",
@@ -69,12 +74,15 @@ function detectTypescriptCommands(dir: string): BuildCommands {
   const hasPrettier = hasPrettierDependency(pkg)
   return {
     buildTool: 'npm',
-    buildCommand: getScript(pkg, 'build') ?? 'npm run build',
-    testCommand: getScript(pkg, 'test') ?? 'npm test',
+    packageManager,
+    buildCommand: getScript(pkg, 'build', packageManager) ?? runScript(packageManager, 'build'),
+    testCommand: getScript(pkg, 'test', packageManager) ?? runTest(packageManager),
     lintCommand: hasEslint
-      ? (getScript(pkg, 'lint') ?? 'npm run lint')
+      ? (getScript(pkg, 'lint', packageManager) ?? runScript(packageManager, 'lint'))
       : 'echo "no lint configured"',
-    formatCommand: hasPrettier ? 'npx prettier --check .' : 'echo "no formatter configured"',
+    formatCommand: hasPrettier
+      ? prettierCommand(packageManager)
+      : 'echo "no formatter configured"',
   }
 }
 
@@ -141,11 +149,36 @@ function hasPrettierDependency(pkg: Record<string, unknown>): boolean {
   return false
 }
 
-function getScript(pkg: Record<string, unknown>, name: string): string | null {
+function getScript(
+  pkg: Record<string, unknown>,
+  name: string,
+  packageManager: PackageManager,
+): string | null {
   const scripts = pkg['scripts']
   if (typeof scripts === 'object' && scripts !== null && name in scripts) {
     const val = (scripts as Record<string, unknown>)[name]
-    return typeof val === 'string' ? `npm run ${name}` : null
+    return typeof val === 'string' ? runScript(packageManager, name) : null
   }
   return null
+}
+
+function runScript(packageManager: PackageManager, name: string): string {
+  return `${packageManager} run ${name}`
+}
+
+function runTest(packageManager: PackageManager): string {
+  return `${packageManager} test`
+}
+
+function prettierCommand(packageManager: PackageManager): string {
+  switch (packageManager) {
+    case 'pnpm':
+      return 'pnpm exec prettier --check .'
+    case 'yarn':
+      return 'yarn exec prettier --check .'
+    case 'bun':
+      return 'bunx prettier --check .'
+    case 'npm':
+      return 'npx prettier --check .'
+  }
 }

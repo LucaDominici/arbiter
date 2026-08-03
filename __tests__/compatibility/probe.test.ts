@@ -1,5 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { MockInstance } from 'vitest'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 // Mock runCli before importing probe (module-level mock)
 vi.mock('../../src/utils/run-cli.js', () => ({
@@ -576,6 +579,38 @@ describe('runProbes — unknown stack coverage gap', () => {
     const builds = report.probes.filter((p) => p.kind === 'build')
     expect(builds.map((p) => p.tool)).toEqual(['tsc:noEmit', 'gradlew:version'])
     expect(builds.every((p) => p.status === 'passed')).toBe(true)
+  })
+})
+
+describe('runProbes — non-npm package manager', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-pnpm-probe-'))
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@11.1.1' }))
+    mockDetectLanguage.mockReturnValue('typescript')
+    mockExistsSync.mockReturnValue(false)
+    mockRunCli.mockImplementation((cmd: string) => {
+      if (cmd === 'node') return { stdout: 'v22.0.0', stderr: '', exitCode: 0, durationMs: 5 }
+      if (cmd === 'npm') throw new Error('npm probe must not run for pnpm projects')
+      throw new Error(`unexpected runCli invocation: ${cmd}`)
+    })
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('skips the npm version probe with a pnpm-specific reason', () => {
+    const report = runProbes(dir)
+    const npmProbe = report.probes.find((probe) => probe.tool === 'npm')
+
+    expect(npmProbe).toEqual({
+      tool: 'npm',
+      status: 'skipped',
+      reason: 'package-manager: pnpm is configured for this project — the npm probe does not apply',
+    })
+    expect(report.probes.some((probe) => probe.tool === 'npm' && probe.status === 'failed')).toBe(false)
   })
 })
 
