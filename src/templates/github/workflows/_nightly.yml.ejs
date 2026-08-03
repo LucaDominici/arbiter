@@ -533,6 +533,20 @@ jobs:
           mkdir -p nightly-evidence
           echo "Nightly run: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > nightly-evidence/summary.txt
           echo "Ref: ${{ github.sha }}" >> nightly-evidence/summary.txt
+      - name: Scrub repo evidence before it leaves the repo (#2018)
+        # The artifact used to carry a timestamp and nothing else: the evidence
+        # the repo actually holds (.arbiter/evidence/**) never travelled with it.
+        # publish-evidence-snapshot strips tokens/keys/JWTs/PII and FAILS CLOSED
+        # if any pattern survives its re-scan, so a leak blocks the upload instead
+        # of shipping inside it. No-op where that scrubber is not present.
+        run: |
+          if [ -d .arbiter/evidence ] && [ -f scripts/publish-evidence-snapshot.mjs ]; then
+            node scripts/publish-evidence-snapshot.mjs \
+              --input .arbiter/evidence \
+              --output nightly-evidence/evidence
+          else
+            echo "no evidence to publish (no .arbiter/evidence, or no scrubber in this project)"
+          fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         # Supplementary artifact — never let an Artifacts-quota hiccup fail this
         # best-effort evidence job (#2058-class).
