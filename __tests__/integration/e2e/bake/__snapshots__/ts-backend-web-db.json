@@ -345,7 +345,7 @@
     "scripts/check-test-scope-tier.mjs": "593b9beaec9929ef2862b57c67987cd481efd660caa1b4b15cafab959ccefdef",
     "scripts/check-todo-max-age.mjs": "925a903f83c0966ae42899a95211e5c573d3f3ee4e3aa9a3f1579a37ae38dac1",
     "scripts/check-touched-vs-manifest.mjs": "7eadf04fd9fd392b812ee4c8f75aba9dae48b84fb2161537cce00be8d7643dcf",
-    "scripts/check-unwired-guards.mjs": "e7a05f38ace656dc7bd5c47160bd46a4bbfc6610310a78512d893308406289c8",
+    "scripts/check-unwired-guards.mjs": "0b54097644a9ea9c1b2100774912e2f6b53bd7c1c570ebf4c04f7a9e3de4bb7f",
     "scripts/check-validator-helptext.mjs": "3a3e3cc6a9dad0c85b9df559db5bf86fd0dae5e6d93016b30b6dd64647f399cf",
     "scripts/check-workflow-docs-sync.mjs": "1d423b2d7e54d83bf22a61d24db540aa7e9e90e477eb82b7980b726894cc8ab5",
     "scripts/check-workflow-job-naming.mjs": "fcf97cd2b44e4e78247ca33733fb77b676c81da92dd6a1499064d4e71d816360",
