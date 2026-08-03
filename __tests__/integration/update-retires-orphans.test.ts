@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto'
 import { runInit } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../../src/state/generated-manifest.js'
+import { RETIRED_RENDERS } from '../../src/state/retired-renders.js'
 
 const ORPHAN = '.claude/hooks/pre-task-track-detect.mjs'
 // The `Arbiter hook:` marker is what `check-hook-routing.mjs` uses to claim
@@ -96,6 +97,37 @@ describe('#2221 update retires framework-retired arbiter-owned files', () => {
 
     expect(existsSync(join(dir, ORPHAN))).toBe(true)
     expect(readFileSync(join(dir, ORPHAN), 'utf-8')).toBe(edited)
+  })
+
+  // The go consumer shape: the orphan is on disk and the repo has NO manifest
+  // entry for it — the manifest-only rule never reaches it. Ownership is proved
+  // instead by byte-identity to a render arbiter itself emitted.
+  it('AC4: retires an unrecorded orphan whose bytes match a known arbiter render', async () => {
+    const known = readFileSync(
+      join(process.cwd(), '__tests__', 'fixtures', 'retired-renders', 'pre-task-track-detect.mjs'),
+      'utf-8',
+    )
+    // The fixture IS the render the registry pins — if this drifts, the registry
+    // hash is wrong and every claim built on it is void.
+    expect(sha(known)).toBe(RETIRED_RENDERS[ORPHAN]?.[0])
+    writeFileSync(join(dir, ORPHAN), known)
+    const manifest = loadGeneratedManifest(dir)
+    expect(manifest[ORPHAN]).toBeUndefined()
+
+    const before = routingCheck(dir)
+    expect(before.status).toBe(1)
+    expect(before.stderr).toContain('DEAD Arbiter-owned hook pre-task-track-detect.mjs')
+
+    await runUpdate({ dir, github: false })
+
+    expect(existsSync(join(dir, ORPHAN))).toBe(false)
+    expect(routingCheck(dir).status).toBe(0)
+  })
+
+  it('AC5: an unrecorded orphan that matches no known render is preserved', async () => {
+    writeFileSync(join(dir, ORPHAN), `${ORPHAN_BODY}// hand-written by the project\n`)
+    await runUpdate({ dir, github: false })
+    expect(existsSync(join(dir, ORPHAN))).toBe(true)
   })
 
   it('AC3: a still-emitted hook is untouched by retirement', async () => {

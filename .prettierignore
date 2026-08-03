@@ -65,3 +65,9 @@ examples/go-library/
 # the snapshot no longer matches its own source of truth. Same reasoning as
 # the examples/ ignores above.
 __tests__/templates/__snapshots__/high-fanout/
+
+# #2221: byte-exact archive of a render arbiter once emitted for a now-retired
+# path. Its sha256 IS the assertion (it must equal the hash pinned in
+# src/state/retired-renders.ts), so reformatting it would silently void the
+# proof this fixture exists to provide. Same reasoning as the approval snapshots.
+__tests__/fixtures/retired-renders/

@@ -7,6 +7,7 @@
 // removed; anything outside the safety class is reported only.
 import { describe, it, expect } from 'vitest'
 import { planRetirement, retirementWarning } from '../../src/commands/retire-policy.js'
+import { RETIRED_RENDERS } from '../../src/state/retired-renders.js'
 import type { WriteResult } from '../../src/utils/fs.js'
 
 const DEAD = '.claude/hooks/pre-task-track-detect.mjs'
@@ -52,7 +53,7 @@ describe('planRetirement (#2221)', () => {
     const result = plan({
       prevManifest: { 'scripts/check-legacy.mjs': 'h', 'docs/OLD.md': 'h' },
       results: [],
-      diskHash: () => 'h',
+      diskHash: (key) => (key.startsWith('scripts/') || key.startsWith('docs/') ? 'h' : null),
     })
     expect(result.retire).toEqual([])
     expect(result.stale).toEqual(['docs/OLD.md', 'scripts/check-legacy.mjs'])
@@ -62,7 +63,7 @@ describe('planRetirement (#2221)', () => {
     const result = plan({
       prevManifest: { [LIVE]: 'livehash' },
       results: [{ path: '/p/.claude/hooks/stop-dangerous.mjs', action: 'skipped', withheld: true }],
-      diskHash: () => 'livehash',
+      diskHash: (key) => (key === LIVE ? 'livehash' : null),
     })
     expect(result.retire).toEqual([])
     expect(result.orphans).toEqual([])
@@ -72,7 +73,7 @@ describe('planRetirement (#2221)', () => {
     const result = plan({
       prevManifest: { 'GLOBAL_INVARIANTS.md': 'h' },
       results: [{ path: '/p/GLOBAL_INVARIANTS.md', action: 'skipped', reason: 'not-applicable' }],
-      diskHash: () => 'h',
+      diskHash: (key) => (key === 'GLOBAL_INVARIANTS.md' ? 'h' : null),
     })
     expect(result.stale).toEqual([])
   })
@@ -112,5 +113,41 @@ describe('retirementWarning (#2221)', () => {
     const warning = retirementWarning({ retire: [], orphans: [], stale: ['docs/OLD.md'] })
     expect(warning).toContain('docs/OLD.md')
     expect(warning).not.toContain('removed')
+  })
+})
+
+// #2221 (second pass): the manifest proves ownership only where a manifest
+// exists. The go consumer that reddens the bar has the orphan hook on disk with
+// NO provenance record at all, so manifest-only retirement never reaches it.
+// Byte-identity to a render arbiter itself emitted is the second proof.
+describe('planRetirement — known retired renders (#2221)', () => {
+  const KNOWN = RETIRED_RENDERS[DEAD]?.[0] as string
+
+  it('retires an orphan that matches a known arbiter render even with NO manifest entry', () => {
+    const result = plan({
+      prevManifest: {},
+      results: [],
+      diskHash: () => KNOWN,
+    })
+    expect(result.retire).toEqual([DEAD])
+  })
+
+  it('REPORTS an unattributable orphan whose bytes match no known render', () => {
+    const result = plan({
+      prevManifest: {},
+      results: [],
+      diskHash: () => 'some-user-edited-hash',
+    })
+    expect(result.retire).toEqual([])
+    expect(result.orphans).toEqual([DEAD])
+  })
+
+  it('does not touch a registry path a generator still emitted this run', () => {
+    const result = plan({
+      prevManifest: {},
+      results: [{ path: `/p/${DEAD}`, action: 'created' }],
+      diskHash: () => KNOWN,
+    })
+    expect(result).toEqual({ retire: [], orphans: [], stale: [] })
   })
 })
