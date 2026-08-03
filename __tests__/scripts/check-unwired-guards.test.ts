@@ -249,7 +249,10 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
         join(dir, '.claude/hooks', 'check-main.mjs'),
         "// wired hook\nimport { helper } from './check-helper.mjs'\n",
       )
-      writeFileSync(join(dir, '.claude/hooks', 'check-helper.mjs'), '// helper, not directly wired\n')
+      writeFileSync(
+        join(dir, '.claude/hooks', 'check-helper.mjs'),
+        '// helper, not directly wired\n',
+      )
       writeFileSync(
         join(dir, '.claude/settings.json'),
         JSON.stringify({
@@ -315,7 +318,10 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
     try {
       mkdirSync(join(dir, 'scripts'), { recursive: true })
       mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
-      writeFileSync(join(dir, '.claude/hooks', 'check-language-hook.mjs'), '// language-specific hook\n')
+      writeFileSync(
+        join(dir, '.claude/hooks', 'check-language-hook.mjs'),
+        '// language-specific hook\n',
+      )
       writeFileSync(
         join(dir, 'scripts', 'optional-emissions.json'),
         JSON.stringify({

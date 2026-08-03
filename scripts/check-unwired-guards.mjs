@@ -306,7 +306,11 @@ function main() {
   const problems = []
   for (const rel of candidates) {
     const isHook = rel.startsWith('.claude/hooks/')
-    if (isHook ? wiredHookBasenames.has(rel.slice('.claude/hooks/'.length)) : isReferenced(rel, corpus)) {
+    if (
+      isHook
+        ? wiredHookBasenames.has(rel.slice('.claude/hooks/'.length))
+        : isReferenced(rel, corpus)
+    ) {
       continue
     }
     const rationale = allowlist.get(rel)

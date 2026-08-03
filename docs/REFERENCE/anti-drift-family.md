@@ -49,7 +49,7 @@ emitted only when the dedicated owner generator is disabled.
 | `check-test-scope-tier.mjs`         | W6   | A+B         | L1         | always                              | Each required test tier is run by a gate step (#1497)           |
 | `check-pr-size-gate.mjs`            | W6   | A+B         | L1         | always                              | sensitive-paths.txt patterns are valid globs                    |
 | `check-claude-md-lint.mjs`          | W6   | A+B         | L1         | always                              | CLAUDE.md/AGENTS.md context-file linter (#1266)                 |
-| `check-unwired-guards.mjs`          | W6   | A+B         | L1         | always                              | Every guard script is referenced from a gate entrypoint (#2159) |
+| `check-unwired-guards.mjs`          | W6   | A+B         | L1         | always                              | Every guard script is referenced from a gate entrypoint (#2159); candidate set also covers `.claude/hooks/*.mjs` (wired via settings.json full-path, hooks.mjs HANDLERS bare-name, or relative import by a wired hook) (#2228) |
 | `check-workflow-sha-pinning.mjs`    | W6   | B only      | —          | always                              | All action refs are SHA-pinned                                  |
 | `check-workflow-job-naming.mjs`     | W6   | B only      | —          | always                              | Job naming convention (kebab-case)                              |
 | `check-min-test-execution.mjs`      | W6   | B only      | —          | always                              | Test runner collects >0 tests (#1497)                           |
