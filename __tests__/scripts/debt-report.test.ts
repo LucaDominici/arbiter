@@ -119,6 +119,55 @@ exit 0
       cleanup()
     }
   })
+
+  it("does not read a stale .coverage-tmp/coverage-summary.json left by a previous run (stale-report poisoning, mirrors jscpd's guard)", () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const scriptsDir = join(dir, 'scripts')
+      const binDir = join(dir, 'bin')
+      mkdirSync(join(scriptsDir, 'lib'), { recursive: true })
+      mkdirSync(join(dir, 'src'), { recursive: true })
+      mkdirSync(join(dir, '.coverage-tmp'), { recursive: true })
+      mkdirSync(binDir)
+      copyFileSync(CAPTURE_SCRIPT, join(scriptsDir, 'capture-debt-baseline.mjs'))
+      copyFileSync(DEBT_LIB, join(scriptsDir, 'debt-lib.mjs'))
+      copyFileSync(GLOB_WALK, join(scriptsDir, 'lib', 'glob-walk.mjs'))
+      writeFileSync(join(dir, 'src', 'fixture.ts'), 'export const fixture = 1\n')
+      writeFileSync(
+        join(dir, '.jscpd.json'),
+        JSON.stringify({ path: ['src'], reporters: ['json'] }),
+      )
+      writeFileSync(
+        join(dir, '.coverage-tmp', 'coverage-summary.json'),
+        JSON.stringify({ total: { lines: { pct: 999 }, branches: { pct: 999 } } }),
+      )
+      writeFileSync(
+        join(binDir, 'npx'),
+        `#!/bin/sh
+case "$1" in
+  vitest) exit 0 ;;
+  eslint) printf '[]' ;;
+  knip) printf '{}' ;;
+esac
+exit 0
+`,
+      )
+      chmodSync(join(binDir, 'npx'), 0o755)
+
+      const result = spawnSync('node', [join(scriptsDir, 'capture-debt-baseline.mjs')], {
+        cwd: dir,
+        encoding: 'utf-8',
+        env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('collection FAILURE for coverageLine')
+      expect(existsSync(join(scriptsDir, 'debt-baseline.json'))).toBe(false)
+      expect(existsSync(join(dir, '.coverage-tmp', 'coverage-summary.json'))).toBe(false)
+    } finally {
+      cleanup()
+    }
+  })
 })
 
 // ─── jscpdScan (#1286 — jscpd v5 fail-closed fileset contract) ────────────────

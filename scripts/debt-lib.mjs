@@ -444,6 +444,8 @@ export function collectMetrics(cwd, collectionErrors = []) {
   const metrics = {}
 
   // ── Coverage (vitest json-summary reporter) ───────────────────────────────
+  // Stale-report poisoning guard, mirroring jscpdScan's reportPath guard above: a leftover .coverage-tmp from a previous run (this box's self-hosted CI workdir persists between jobs) must never be read as this run's output.
+  rmSync(resolve(cwd, '.coverage-tmp'), { recursive: true, force: true })
   const coverageRaw = spawnOrSkip(
     'coverageLine',
     'vitest',
@@ -477,7 +479,16 @@ export function collectMetrics(cwd, collectionErrors = []) {
         direction: 'higher-is-better',
       }
     } catch (err) {
-      const reason = `vitest coverage summary unreadable: ${err instanceof Error ? err.message : String(err)}`
+      const why = (coverageRaw.stderr ?? '').trim().split('\n').slice(0, 3).join(' | ')
+      const outcome = [
+        coverageRaw.status !== null ? `exit ${coverageRaw.status}` : '',
+        coverageRaw.signal ? `signal ${coverageRaw.signal}` : '',
+      ]
+        .filter(Boolean)
+        .join(', ')
+      const reason =
+        `vitest coverage summary unreadable: ${err instanceof Error ? err.message : String(err)}` +
+        (outcome || why ? ` (${outcome}${why ? `${outcome ? ': ' : ''}${why}` : ''})` : '')
       collectionErrors.push({ metric: 'coverageLine', reason })
       process.stderr.write(`[baseline] ERROR: ${reason}\n`)
     }
