@@ -40,9 +40,9 @@ describe('countLockWaiters (#2098)', () => {
     dir = mkdtempSync(join(tmpdir(), 'waiter-count-'))
     const lockPath = join(dir, 'gate.lock')
     spawnSync('touch', [lockPath])
-    // Background holder: `flock -- <lock> sleep 2` — the exact argv shape
+    // Background holder: `flock -o -- <lock> sleep 2` — the exact argv shape
     // gate-exec.ts's gateExecArgv() composes.
-    const holder = spawn('flock', ['--', lockPath, 'sleep', '2'], { stdio: 'ignore' })
+    const holder = spawn('flock', ['-o', '--', lockPath, 'sleep', '2'], { stdio: 'ignore' })
     try {
       // Give the holder time to acquire the lock.
       const start = Date.now()

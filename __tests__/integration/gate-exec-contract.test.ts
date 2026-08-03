@@ -16,10 +16,13 @@ import { gateExecArgv } from '../../src/commands/gate-exec.js'
 function spawnGate(
   lockPath: string,
   shellScript: string,
-  opts: { detached?: boolean } = {},
+  opts: { detached?: boolean; timeoutSeconds?: number } = {},
 ): ReturnType<typeof spawn> {
   const [bin, ...args] = gateExecArgv(lockPath, ['sh', '-c', shellScript])
-  return spawn(bin as string, args, {
+  const command = opts.timeoutSeconds === undefined ? (bin as string) : 'timeout'
+  const commandArgs =
+    opts.timeoutSeconds === undefined ? args : [`${opts.timeoutSeconds}s`, bin as string, ...args]
+  return spawn(command, commandArgs, {
     stdio: 'ignore',
     detached: opts.detached ?? false,
   })
@@ -65,6 +68,25 @@ async function waitUntilExists(path: string, timeoutMs: number): Promise<boolean
     await sleep(50)
   }
   return existsSync(path)
+}
+
+/** Poll until a process is gone, so a failed regression never leaks its child. */
+async function waitUntilExited(pid: number, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0)
+    } catch {
+      return true
+    }
+    await sleep(25)
+  }
+  try {
+    process.kill(pid, 0)
+    return false
+  } catch {
+    return true
+  }
 }
 
 describe('gate-exec mutex contract (#1873 T3)', () => {
@@ -129,4 +151,38 @@ describe('gate-exec mutex contract (#1873 T3)', () => {
     expect(code).toBe(0)
     expect(elapsed).toBeLessThan(5_000)
   }, 30_000)
+
+  it('does not leave the mutex held when the gate backgrounds a child', async () => {
+    const childPidPath = join(dir, 'background-child.pid')
+    let backgroundPid: number | undefined
+    try {
+      // The backgrounded sleep outlives its shell. Without flock --close (-o),
+      // it inherits flock's lock fd and makes the next gate wait behind it.
+      const first = spawnGate(lockPath, `sleep 30 & echo $! > "${childPidPath}"; exit 0`)
+      expect(await waitExit(first)).toBe(0)
+      expect(await waitUntilExists(childPidPath, 5_000)).toBe(true)
+      backgroundPid = Number(readFileSync(childPidPath, 'utf-8').trim())
+
+      // Run the exact argv from gateExecArgv under a bounded outer timeout so
+      // the red regression fails loudly instead of holding the suite hostage.
+      const start = Date.now()
+      const second = spawnGate(lockPath, 'true', { timeoutSeconds: 1 })
+      const code = await waitExit(second)
+      const elapsed = Date.now() - start
+      expect(code).toBe(0)
+      expect(elapsed).toBeLessThan(500)
+    } finally {
+      if (backgroundPid === undefined && existsSync(childPidPath)) {
+        backgroundPid = Number(readFileSync(childPidPath, 'utf-8').trim())
+      }
+      if (backgroundPid !== undefined && Number.isInteger(backgroundPid) && backgroundPid > 0) {
+        try {
+          process.kill(backgroundPid, 'SIGKILL')
+        } catch {
+          // The process may have already exited; cleanup is best effort.
+        }
+        expect(await waitUntilExited(backgroundPid, 5_000)).toBe(true)
+      }
+    }
+  }, 15_000)
 })

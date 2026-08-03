@@ -160,6 +160,78 @@ describe('runDoctorHealth (#539)', () => {
     expect(c?.status).toBe('PASS')
   })
 
+  it('reports the gate mutex path and queued waiters without making doctor fail (#2196)', async () => {
+    mockRunCli.mockImplementation((command, args) => {
+      if (command === 'node' && args[0]?.endsWith('waiter-count.mjs')) {
+        return { stdout: '2\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      if (command === 'git' && args[0] === 'rev-parse') {
+        return { stdout: '.git\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      return { stdout: 'ok\n', stderr: '', exitCode: 0, durationMs: 0 }
+    })
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'lib', 'waiter-count.mjs'), '// shared helper')
+
+    const result = await runDoctorHealth({ dir, json: true })
+    const check = result.checks.find((c) => c.id === 'gate-mutex')
+    expect(check?.status).toBe('WARN')
+    expect(check?.detail).toMatch(/gate\.lock/)
+    expect(check?.detail).toMatch(/2/)
+    expect(check?.hint).toMatch(/backgrounded daemon/i)
+    expect(result.fail).toBe(0)
+  })
+
+  it('PASSes when the gate mutex is free or has only one holder (#2196)', async () => {
+    mockRunCli.mockImplementation((command, args) => {
+      if (command === 'node' && args[0]?.endsWith('waiter-count.mjs')) {
+        return { stdout: '1\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      if (command === 'git' && args[0] === 'rev-parse') {
+        return { stdout: '.git\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      return { stdout: 'ok\n', stderr: '', exitCode: 0, durationMs: 0 }
+    })
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'lib', 'waiter-count.mjs'), '// shared helper')
+
+    const result = await runDoctorHealth({ dir, json: true })
+    const check = result.checks.find((c) => c.id === 'gate-mutex')
+    expect(check?.status).toBe('PASS')
+    expect(check?.detail).toMatch(/gate\.lock/)
+    expect(check?.detail).toMatch(/1/)
+  })
+
+  it('WARNs rather than throws when gate mutex inspection is unavailable (#2196)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+
+    const result = await runDoctorHealth({ dir, json: true })
+    const check = result.checks.find((c) => c.id === 'gate-mutex')
+    expect(check?.status).toBe('WARN')
+    expect(check?.detail).toMatch(/waiter-count helper/i)
+    expect(result.fail).toBe(0)
+  })
+
+  it('WARNs rather than throws when flock is unavailable for gate mutex inspection (#2196)', async () => {
+    mockRunCli.mockImplementation((command, args) => {
+      if (command === 'flock') throw new Error('flock not found')
+      if (command === 'git' && args[0] === 'rev-parse') {
+        return { stdout: '.git\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      return { stdout: 'ok\n', stderr: '', exitCode: 0, durationMs: 0 }
+    })
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+
+    const result = await runDoctorHealth({ dir, json: true })
+    const check = result.checks.find((c) => c.id === 'gate-mutex')
+    expect(check?.status).toBe('WARN')
+    expect(check?.detail).toMatch(/flock\(1\) is unavailable/i)
+    expect(result.fail).toBe(0)
+  })
+
   // #1835: field evidence — 11 scripts/check-*.mjs scripts orphaned in a real
   // arbiter-generated project (0 consumers, ~1133 LOC). doctor must catch this
   // for ANY project it is pointed at, including ones generated long ago.

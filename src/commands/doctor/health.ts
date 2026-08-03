@@ -28,6 +28,7 @@ import {
   validateTrunkSoloParityCoherence,
 } from '../wizard/coherence.js'
 import { resolveCollaborationMode } from '../../config/collaboration-mode-defaults.js'
+import { deriveGateKey, gateLockPath } from '../gate-exec.js'
 
 /**
  * #1524: the raw shape the coherence checks read from arbiter.json. Reuses the
@@ -162,6 +163,7 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
 
   out.push(checkGateScript(dir))
   out.push(checkGateToolchain(dir))
+  out.push(checkGateMutex(dir))
   out.push(checkScaffoldWiringHealth(dir))
   out.push(...checkLockfiles(dir))
   out.push(checkCollaborationCoherence(dir))
@@ -277,6 +279,88 @@ function checkGateToolchain(dir: string): HealthCheck {
     'Install the gate toolchain (e.g. `npm install` for the declared devDependencies) ' +
     'before running `node scripts/check-all.mjs L1`.'
   return check
+}
+
+/**
+ * #2196: report the live per-repo gate mutex, without attempting to modify it.
+ * The count comes from the same target-project `waiter-count.mjs` helper used
+ * by gate-exec's queue advisory; doctor remains advisory when either flock or
+ * that helper cannot be inspected.
+ */
+function checkGateMutex(dir: string): HealthCheck {
+  const id = 'gate-mutex'
+  const label = 'gate-exec mutex'
+  let lockPath: string
+  try {
+    lockPath = gateLockPath(deriveGateKey(dir))
+  } catch (err) {
+    return {
+      id,
+      label,
+      status: 'WARN',
+      detail: `could not derive gate mutex path: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  try {
+    runCli('flock', ['--version'], { cwd: dir, timeoutMs: 3_000 })
+  } catch {
+    return {
+      id,
+      label,
+      status: 'WARN',
+      detail: `mutex ${lockPath}; flock(1) is unavailable, so holder/waiter count cannot be inspected`,
+      hint: 'Install util-linux flock to inspect the gate mutex.',
+    }
+  }
+
+  const helperPath = resolve(dir, 'scripts', 'lib', 'waiter-count.mjs')
+  if (!existsSync(helperPath)) {
+    return {
+      id,
+      label,
+      status: 'WARN',
+      detail: `mutex ${lockPath}; waiter-count helper is missing at ${helperPath}`,
+      hint: 'Run `arbiter update` to restore scripts/lib/waiter-count.mjs.',
+    }
+  }
+
+  try {
+    const { stdout } = runCli('node', [helperPath, lockPath], { cwd: dir, timeoutMs: 5_000 })
+    const count = Number(stdout.trim())
+    if (!Number.isInteger(count) || count < 0) {
+      return {
+        id,
+        label,
+        status: 'WARN',
+        detail: `mutex ${lockPath}; waiter-count helper returned invalid output: ${JSON.stringify(stdout.trim())}`,
+        hint: 'Run `arbiter update` to restore scripts/lib/waiter-count.mjs.',
+      }
+    }
+    if (count >= 2) {
+      return {
+        id,
+        label,
+        status: 'WARN',
+        detail: `mutex ${lockPath}; ${count} holder/waiter process(es) currently have the lock open`,
+        hint: 'A backgrounded daemon from a previous gate can be the holder; inspect it before starting another gate.',
+      }
+    }
+    return {
+      id,
+      label,
+      status: 'PASS',
+      detail: `mutex ${lockPath}; ${count} holder/waiter process(es) currently have the lock open`,
+    }
+  } catch {
+    return {
+      id,
+      label,
+      status: 'WARN',
+      detail: `mutex ${lockPath}; waiter-count helper could not be run`,
+      hint: 'Run `arbiter update` to restore scripts/lib/waiter-count.mjs.',
+    }
+  }
 }
 
 /**

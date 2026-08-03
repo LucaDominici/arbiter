@@ -8,8 +8,10 @@
  * release to `flock(1)`:
  *
  *   - the wait is kernel-side and blocking (no poll, no backoff);
- *   - the release is guaranteed on fd death — including SIGKILL/OOM-kill of
- *     the holder, the hole that Node `process.on('exit')`/signal handlers
+ *   - `flock --close` closes the lock fd before it execs the gate command, so
+ *     a backgrounded descendant cannot inherit the mutex beyond the gate;
+ *   - the release is guaranteed on the flock holder's fd death — including
+ *     SIGKILL/OOM-kill, the hole that Node `process.on('exit')`/signal handlers
  *     cannot cover (red-team finding #1 on #1873). No 1h stale-lock stall.
  *
  * Key: hash of `git rev-parse --git-common-dir` — every worktree of a repo
@@ -75,13 +77,15 @@ export function assertFlockAvailable(env: NodeJS.ProcessEnv = process.env): void
 }
 
 /**
- * The exact argv gate-exec executes: blocking flock, exit-code passthrough.
- * `--` goes BEFORE the lock file (ends flock's own option parsing); flock
- * takes everything after the file verbatim as the command, so child flags
+ * The exact argv gate-exec executes: blocking close-on-exec flock, exit-code
+ * passthrough. `-o` is flock's own `--close` option and MUST precede `--`; it
+ * closes the lock fd before the gate command is exec'd, preventing the command
+ * and its descendants from retaining the mutex. `--` ends flock's option
+ * parsing, so it takes everything after the lock file verbatim and child flags
  * (e.g. `npm test --run`) are never eaten by flock.
  */
 export function gateExecArgv(lockPath: string, cmdArgs: readonly string[]): string[] {
-  return ['flock', '--', lockPath, ...cmdArgs]
+  return ['flock', '-o', '--', lockPath, ...cmdArgs]
 }
 
 export interface GateExecOptions {

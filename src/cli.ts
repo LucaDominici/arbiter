@@ -941,7 +941,7 @@ program
   .description(
     'Run a command under the per-repo gate mutex (#1873, ADR-103): every worktree of ' +
       'the same repo converges on ONE flock(1) lock, the wait is kernel-side (blocking), ' +
-      'and the lock releases even on SIGKILL/OOM of the holder. Usage: ' +
+      'and flock closes the lock fd before the command and its descendants run. Usage: ' +
       'arbiter gate-exec [--key K] -- <cmd> [args...]. Exit code: passthrough of the ' +
       'command; 2 on gate-exec errors (e.g. flock missing — fail-closed).',
   )

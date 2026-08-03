@@ -104,9 +104,9 @@ describe('gate-exec (#1873 T3)', () => {
 
   // ── argv composition (what gate-exec execs) ────────────────────────────────
 
-  it('composes a blocking flock argv: flock -- <lock> <cmd...>', () => {
+  it('composes a blocking close-on-exec flock argv: flock -o -- <lock> <cmd...>', () => {
     const argv = gateExecArgv('/run/arbiter/k-gate.lock', ['npm', 'test'])
-    expect(argv).toEqual(['flock', '--', '/run/arbiter/k-gate.lock', 'npm', 'test'])
+    expect(argv).toEqual(['flock', '-o', '--', '/run/arbiter/k-gate.lock', 'npm', 'test'])
   })
 
   // ── execution: exit-code passthrough under the real flock ─────────────────
