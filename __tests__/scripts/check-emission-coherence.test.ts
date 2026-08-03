@@ -77,6 +77,21 @@ describe('checkEmissionCoherence (#1331)', () => {
     }
   })
 
+  it('a gateFilePresent-guarded missing reference listed in the manifest PASSes (#2197)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': `if (gateFilePresent('scripts/check-overlay.mjs', 'overlay')) { runCheck('o','node',['scripts/check-overlay.mjs']); }`,
+      'scripts/optional-emissions.json': JSON.stringify({
+        optional: [{ path: 'scripts/check-overlay.mjs', rationale: 'industry overlay only' }],
+      }),
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
   it('the manifest can NEVER silence an UNGUARDED missing reference (RT-02)', () => {
     const { dir, cleanup } = makeTree({
       'scripts/check-all.mjs': `runCheck('g', 'node', ['scripts/check-ghost.mjs'])`,

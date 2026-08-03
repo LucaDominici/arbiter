@@ -28,8 +28,9 @@
 //   - GUARDED missing reference    → FAIL unless declared in
 //     `scripts/optional-emissions.json` (intentional optional, e.g. an
 //     industry/frontend overlay script only emitted for some configs).
-//   A reference is "guarded" iff `existsSync('<path>')` for the same path appears
-//   in the referencing file. The manifest can NEVER silence an unguarded ref —
+//   A reference is "guarded" iff `existsSync('<path>')` or the manifest-aware
+//   `gateFilePresent('<path>', ...)` helper for the same path appears in the
+//   referencing file. The manifest can NEVER silence an unguarded ref —
 //   it is strictly weaker than a suppression. Manifest entries require a
 //   non-empty `rationale` (RT-03).
 //
@@ -90,11 +91,12 @@ export function loadOptionalManifest(dir) {
   return { paths, problems }
 }
 
-// A `scripts/X.mjs` reference is guarded iff existsSync('scripts/X.mjs') (single
-// OR double quoted) appears anywhere in the referencing file.
+// A `scripts/X.mjs` reference is guarded iff existsSync('scripts/X.mjs') or the
+// emitted check-all's manifest-aware gateFilePresent('scripts/X.mjs', ...) helper
+// (single OR double quoted) appears anywhere in the referencing file.
 function isGuarded(content, scriptPath) {
   const esc = scriptPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`existsSync\\(\\s*['"\`]${esc}['"\`]`).test(content)
+  return new RegExp(`(?:existsSync|gateFilePresent)\\(\\s*['"\`]${esc}['"\`]`).test(content)
 }
 
 // A githook `node X.mjs` invocation is guarded iff a shell file/exec test for the

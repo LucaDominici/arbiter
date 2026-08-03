@@ -55,7 +55,7 @@
     },
     {
       "path": "scripts/check-regulated-overlay.mjs",
-      "rationale": "Emitted only when the opt-in regulated/high-assurance governance overlay is selected (#1497). check-all.mjs references it behind existsSync(); a project without the overlay skips it gracefully. Absent on projects without that overlay."
+      "rationale": "Emitted only when the opt-in regulated/high-assurance governance overlay is selected (#1497). check-all.mjs references it through gateFilePresent(), so a project without the overlay skips it gracefully while a later deletion fails. Absent on projects without that overlay."
     },
     {
       "path": "scripts/check-touched-vs-manifest.mjs",
