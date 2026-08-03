@@ -77,9 +77,12 @@ repo's local dev loop, one layer below CI:
 - **`tool-pins`**: a local gate tool older than the CI-pinned version still runs and prints
   PASSED — worse than a missing tool, because it lies instead of warning. Extracts pins from the
   target's own `.github/workflows/*.yml` and compares against a real `<tool> --version` probe.
-- **`fail-open-census`**: censuses the `command -v X || <fail-open>` presence-gate pattern (a
-  gate that silently no-ops when its tool is absent, rather than failing closed) across the
-  target's `scripts/` and `.githooks/`. Non-negotiable allowlist contract: an entry with no
+- **`fail-open-census`**: censuses presence-gate patterns — a gate that silently no-ops when its
+  tool is absent instead of failing closed — across the target's `scripts/` and `.githooks/`.
+  Both spellings count: the explicit `command -v X || <fail-open>` forms, and the positive
+  `if command -v X … then … fi` form where the skip is the implicit empty else (an else that only
+  warns is still a skip; an else that falls back to another tool is not).
+  Non-negotiable allowlist contract: an entry with no
   `reason` is a malformed exemption, not a normal finding, and exits `2` per the same
   Exit-code contract (INV-53) below.
 

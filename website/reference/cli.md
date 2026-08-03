@@ -339,7 +339,8 @@ alignment and is not applicable to a target project.
 ### `arbiter doctor fail-open-census`
 
 Census `command -v <tool> || <fail-open>` presence-gate patterns (brace form, bare `exit 0` form,
-and `if ! command -v` guard form) across the target's `scripts/` and `.githooks/`.
+and `if ! command -v` guard form) and positive `if command -v <tool>; then ... fi` presence gates
+across the target's `scripts/` and `.githooks/`.
 
 ```
 arbiter doctor fail-open-census [--dir <dir>] [--json] [--allowlist <path>]
@@ -577,7 +578,7 @@ Diagnose and repair arbiter state.
 - `arbiter doctor recover-lock` — Force-release a stale .arbiter/.lock file left by a crashed process
 - `arbiter doctor clean` — Remove arbiter backup files (_.arbiter-backup, .arbiter-generated.json.bak._)
 - `arbiter doctor tool-pins` — Compare local tool versions against CI workflow pins
-- `arbiter doctor fail-open-census` — Census `command -v X || <fail-open>` gate-script presence-gates
+- `arbiter doctor fail-open-census` — Census `command -v X || <fail-open>` and positive `if command -v X; then ... fi` gate-script presence-gates
 
 **Options:**
 

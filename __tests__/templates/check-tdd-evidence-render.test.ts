@@ -25,7 +25,10 @@ function parseRenderedTaskIds(subjectLog: string): string[] {
   const scriptDir = mkdtempSync(join(tmpdir(), 'tdd-p-'))
   const parserModule = join(scriptDir, 'parser.mjs')
   try {
-    const rendered = renderGate().replace(/\ntry \{\n[ ]{2}run\(\)\n\} catch \(err\) \{[\s\S]*$/, '\n')
+    const rendered = renderGate().replace(
+      /\ntry \{\n[ ]{2}run\(\)\n\} catch \(err\) \{[\s\S]*$/,
+      '\n',
+    )
     writeFileSync(parserModule, `${rendered}\nexport { parseTaskIds }\n`)
     const result = spawnSync(
       'node',
