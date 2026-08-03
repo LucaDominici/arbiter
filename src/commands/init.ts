@@ -143,6 +143,10 @@ export async function runInit(options: InitOptions): Promise<void> {
   assertNotNativeWindows()
   runPreMutationGitGuards(targetDir, options)
 
+  if (!options.noVerify && !options.dryRun) {
+    runToolchainVerify(targetDir, Boolean(options.json))
+  }
+
   mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
   try {
@@ -341,10 +345,6 @@ async function generateAndFinalize(
 
     activateGitHooks(targetDir, log)
 
-    if (!options.noVerify) {
-      runToolchainVerify(targetDir, Boolean(options.json))
-    }
-
     const generatorErrorLines = generatorErrors.map((e) => `${e.key}: ${e.message}`)
     emitInitOutput(options.json, generatorErrorLines, backendResult.warnings, created, skipped)
   } catch (err) {
@@ -470,7 +470,7 @@ function runToolchainVerify(targetDir: string, jsonMode = false): void {
     const msg = err instanceof Error ? err.message : String(err)
     process.stderr.write(
       `\n  Toolchain verification failed unexpectedly: ${msg}\n` +
-        '  Generated files are on disk. Use --no-verify to skip verification.\n',
+        '  No files were generated or modified. Use --no-verify to skip verification.\n',
     )
     process.exit(1)
   }

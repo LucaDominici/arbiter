@@ -20,7 +20,7 @@ export interface InitOptions {
   dryRun: boolean
   /** Auto-capture debt baseline after generation (brownfield day-0 lock-in). */
   brownfield: boolean
-  /** Skip toolchain compatibility probes after generation. */
+  /** Skip toolchain compatibility probes before generation. */
   noVerify: boolean
   /** Allow L3 generation with beta-maturity tools. Persisted in arbiter.json for audit. */
   acceptBetaTools?: boolean
