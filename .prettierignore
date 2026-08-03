@@ -30,12 +30,20 @@ docs/internal/PRODUCT/FEATURE_MATRIX.md
 # #1721: generated agent-native root index — gen-llms-txt.mjs owns the bytes; no
 # prettier parser exists for .txt (an explicit path would hard-error)
 llms.txt
-# ADR index (gen-adr-readme.mjs) and DECISIONS digest — generators own table formatting
+# ADR index (gen-adr-readme.mjs) and DECISIONS digest — generators own table formatting.
+# #2053: the docs/* spellings below are arbiter's SELF files as they were BEFORE the SSOT
+# move to docs/internal/, kept because the dogfood run emits a target tree at those paths.
+# The docs/internal/* twins are the live self paths; they were protected only by the
+# docs/internal/ blanket gitignore, so narrowing that rule left them unlisted and prettier
+# reformatted them out of parity with their generators (INV-107 red).
 docs/ADR/README.md
 docs/SYSTEM/DECISIONS.md
+docs/internal/ADR/README.md
+docs/internal/SYSTEM/DECISIONS.md
 # #1100: generated inventory region — gen-ssot-core.mjs owns formatting; keep
 # prettier from fighting the generator over markdown in doc titles (*, _, |, etc.)
 docs/METHOD/SSOT_CORE_SET.md
+docs/internal/METHOD/SSOT_CORE_SET.md
 # Generated LLM wiki (gen-wiki.mjs, INV-116) — the generator owns markdown
 # formatting; check-wiki-lint.mjs verifies it. Keep prettier from fighting the
 # generated tables/titles (pre-existing format-gate red on main, surfaced by #1304).
