@@ -41,6 +41,7 @@ import { join, relative, dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
 import { checkDistFresh } from './lib/dist-staleness.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const defaultRepoRoot = join(__dirname, '..')
@@ -945,7 +946,7 @@ async function main() {
 }
 
 // Run only when executed directly (not imported by tests)
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   main().catch((err) => {
     console.error('[dogfood] Fatal error:', err.message)

@@ -269,3 +269,46 @@ describe('run-helpers — pushResult (custom-classified gates)', () => {
     expect(payload.results[0]).toEqual({ name: 'custom-skip', status: 'SKIP', elapsed: 3 })
   })
 })
+
+// #2010: isMainModule — the ESM `require.main === module`. ~37 gate scripts each
+// hand-rolled it, in four mutually-inconsistent shapes (unguarded ===, `&&`-guarded,
+// `!= null`-guarded, resolve()-normalized). One helper, one semantics.
+describe('run-helpers — isMainModule (#2010)', () => {
+  function runProbe(argv1: string | null, moduleUrl: string) {
+    const script = `
+      import { isMainModule } from ${JSON.stringify(HELPERS)};
+      console.log(JSON.stringify(isMainModule(${JSON.stringify(moduleUrl)})));
+    `
+    const args = ['--input-type=module', '-e', script]
+    if (argv1 !== null) args.push(argv1)
+    // `node --input-type=module -e <src> <arg>` puts <arg> at argv[1].
+    return spawnSync(process.execPath, args, { encoding: 'utf-8', shell: false })
+  }
+
+  const SELF = resolve('scripts/lib/run-helpers.mjs')
+
+  it('is true when argv[1] is the module path', () => {
+    const r = runProbe(SELF, pathToFileURL(SELF).href)
+    expect(JSON.parse(r.stdout.trim())).toBe(true)
+  })
+
+  it('is false when argv[1] is a different module (imported, not invoked)', () => {
+    const r = runProbe(resolve('scripts/check-all.mjs'), pathToFileURL(SELF).href)
+    expect(JSON.parse(r.stdout.trim())).toBe(false)
+  })
+
+  it('is false — not a crash — when argv[1] is absent', () => {
+    const r = runProbe(null, pathToFileURL(SELF).href)
+    expect(r.status).toBe(0)
+    expect(JSON.parse(r.stdout.trim())).toBe(false)
+  })
+
+  it('normalizes a relative argv[1] against cwd', () => {
+    const r = runProbe('scripts/lib/run-helpers.mjs', pathToFileURL(SELF).href)
+    expect(JSON.parse(r.stdout.trim())).toBe(true)
+  })
+
+  it('is exported as a function', () => {
+    expect(typeof (runHelpersMod as Record<string, unknown>).isMainModule).toBe('function')
+  })
+})

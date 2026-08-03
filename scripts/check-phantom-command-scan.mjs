@@ -58,9 +58,9 @@
 //   node scripts/check-phantom-command-scan.mjs --cli=path --roots=a,b,c --ledger=path   (fixtures)
 import { readFileSync, existsSync, statSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 import {
   extractTopLevelCommandNames,
   extractCommandAliases,
@@ -321,7 +321,7 @@ function relPath(abs) {
   return abs.startsWith(CWD + sep) ? abs.slice(CWD.length + 1) : abs
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   try {
     main()

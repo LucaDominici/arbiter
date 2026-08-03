@@ -12,8 +12,8 @@
 //
 // Usage: npm run regen
 import { execFileSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import { DERIVED_ARTIFACTS } from './lib/derived-artifacts.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 /** Ordered plan: `npm run build` first, then every artifact's writeCmd. */
 export function buildPlan(artifacts = DERIVED_ARTIFACTS) {
@@ -23,7 +23,7 @@ export function buildPlan(artifacts = DERIVED_ARTIFACTS) {
   ]
 }
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   try {
     for (const { name, cmd, args } of buildPlan()) {

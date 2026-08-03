@@ -19,6 +19,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 /** Rebuild an object without `workspaces`, preserving key order. */
 export function withoutWorkspaces(pkg) {
@@ -73,8 +74,7 @@ export function versionWithRoot({ pkgPath, runChangeset, readFile, writeFile }) 
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
-const isMain =
-  process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const dryRun = process.argv.includes('--dry-run')
   const pkgPath = resolve('package.json')

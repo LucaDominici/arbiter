@@ -16,8 +16,8 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, sep, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const CWD = process.cwd()
 
@@ -214,6 +214,6 @@ function main() {
 }
 
 // Only run main when invoked as CLI (not imported in tests).
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main()
 }

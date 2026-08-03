@@ -24,8 +24,8 @@
 // CATALOG: rejected fold-in into check-evidence-bundle.mjs because evidence bundles are per-task artifact BUNDLES under .evidence/ with their own JSON schema file, whereas ac-fit is a single per-criterion verdict artifact coupled to plan parsing (scripts/lib/acceptance-criteria.mjs) that bundle validation knows nothing about.
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const PRE_PHASES = new Set(['preflight', 'plan', 'red-team-review', 'red-team-rework', 'complete'])
 const IMPL_PHASES = new Set(['red', 'green', 'refactor'])
@@ -275,7 +275,7 @@ function validateFitFile(absPath, criteriaIds, requireAllPass, expectedTaskId) {
   return validateAcFit(json, criteriaIds, { requireAllPass, expectedTaskId })
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   try {
     process.exit(main())
   } catch (err) {

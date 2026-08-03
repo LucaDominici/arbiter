@@ -17,6 +17,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const SCRIPTS_DIR = join(ROOT, 'scripts')
@@ -151,7 +152,7 @@ function main() {
   process.exit(0)
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   // Top-level fail-closed guard: the FINDINGS are advisory (main() exits 0), but
   // an unexpected internal crash (e.g. scripts/ unreadable) is a real ERROR and
   // must surface as exit 2 — never a silent fail-open. (INV-96)

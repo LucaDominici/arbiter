@@ -50,6 +50,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const DIST_CLI = join(ROOT, 'dist', 'cli.js')
@@ -246,7 +247,7 @@ function main(argv) {
   return 0
 }
 
-const isMain = process.argv[1] != null && fileURLToPath(import.meta.url) === process.argv[1]
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   try {
     process.exit(main(process.argv.slice(2)))

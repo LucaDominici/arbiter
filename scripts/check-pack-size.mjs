@@ -35,7 +35,7 @@
  *   HARD_CAP_BYTES  = 5,242,880  (5 MB, per issue #511 — UNCHANGED)
  */
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 export const WARN_BYTES = 4_980_736
 export const HARD_CAP_BYTES = 5 * 1024 * 1024
@@ -128,6 +128,6 @@ function parseMode(argv) {
 }
 
 // Only run when invoked directly (not when imported by tests).
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMainModule(import.meta.url)) {
   process.exit(checkPackSize(parseMode(process.argv)))
 }

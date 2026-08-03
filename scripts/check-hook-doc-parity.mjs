@@ -18,7 +18,7 @@
 //   node scripts/check-hook-doc-parity.mjs --settings=path --doc=path  (test fixtures)
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const settingsArg = process.argv.find((a) => a.startsWith('--settings='))
 const docArg = process.argv.find((a) => a.startsWith('--doc='))
@@ -129,7 +129,7 @@ function main() {
   )
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   try {
     main()

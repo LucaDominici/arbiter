@@ -27,8 +27,8 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 export const CONSUMER_SCRIPT_ALLOWLIST = new Set()
 
@@ -246,7 +246,7 @@ export function checkTarballContents() {
 // Only run when invoked directly (not when imported by tests). Wrapped so any
 // unexpected error fails CLOSED (exit 1) rather than crashing with an unhandled
 // rejection that a CI step might treat as a soft skip (INV-96 / FAIL_CLOSED.md).
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMainModule(import.meta.url)) {
   try {
     process.exit(checkTarballContents())
   } catch (err) {

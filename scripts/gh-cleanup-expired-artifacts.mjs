@@ -22,7 +22,7 @@
 // swallowed). The nightly job this runs in is standalone and excluded from
 // nightly-required's aggregation, so a red exit here never blocks the gate.
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // ── Pure logic (unit-tested without live gh) ──────────────────────────────────
 
@@ -118,7 +118,7 @@ export function main(exitFn = process.exit) {
 }
 
 // Only run main when invoked as CLI (not imported in tests).
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   try {
     main()
   } catch (err) {

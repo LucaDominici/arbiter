@@ -27,7 +27,6 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { minimatch } from 'minimatch'
 import {
   runCheck,
@@ -36,12 +35,13 @@ import {
   getResults,
   getFailed,
   setSkippedChecks,
+  isMainModule,
 } from './lib/run-helpers.mjs'
 import { parseCheckArgs } from './lib/parse-check-args.mjs'
 import { GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST } from './lib/gate-affects-registry.mjs'
 
 // isMain guard so computeSkipped can be imported without running checks.
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 
 /**
  * Compute which checks to skip given a set of changed files (opt-in selective gating).

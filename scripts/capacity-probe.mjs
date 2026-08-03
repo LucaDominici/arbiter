@@ -13,8 +13,8 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { cpus, loadavg, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { countLockWaiters } from './lib/waiter-count.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // ── local load — Node stdlib covers this, no /proc parsing or `nproc` shell-out needed ──
 
@@ -147,7 +147,7 @@ async function main() {
   process.exit(verdict.saturated ? 1 : 0)
 }
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   try {
     await main()

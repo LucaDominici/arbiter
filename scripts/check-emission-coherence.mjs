@@ -44,7 +44,7 @@
 // CLI: node scripts/check-emission-coherence.mjs [generated-dir]
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 function read(dir, rel) {
   try {
@@ -422,7 +422,7 @@ export function checkEmissionCoherence(dir) {
   return { problems: [...new Set(problems)].sort() }
 }
 
-const isMain = process.argv[1] != null && fileURLToPath(import.meta.url) === process.argv[1]
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const target = process.argv[2] ?? '.'
   const { problems } = checkEmissionCoherence(target)

@@ -18,8 +18,8 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // Directories under docs/ whose contents are excluded from the inventory.
 const SKIP_SEGMENTS = new Set(['report'])
@@ -202,7 +202,7 @@ export async function runCli(docsDir, indexPath, check) {
 // CLI entry point — guarded so imports don't trigger side-effects
 // ---------------------------------------------------------------------------
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 
 if (isMain) {
   // Use process.cwd() as repo root (matches check-doc-links.mjs and other gate scripts)

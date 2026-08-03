@@ -5,8 +5,8 @@
 // Usage: node scripts/check-template-tests.mjs [--templates=path] [--tests=path] [--baseline=file]
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { resolve, join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 /**
  * Collect every `.ejs` file under `dir` (recursively). Traversal is delegated to the shared
@@ -97,6 +97,6 @@ export function main() {
 }
 
 // Only run main when invoked as CLI (not imported in tests).
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main()
 }

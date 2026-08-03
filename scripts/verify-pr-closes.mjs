@@ -21,8 +21,8 @@
 //   runCli(prNumber, io, dryRun)             → Promise<0|1|2>  (INV-53: 0=all closed/no refs,
 //                                              1=stragglers found in --dry-run, 2=error)
 
-import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // ---------------------------------------------------------------------------
 // Exported API
@@ -182,7 +182,7 @@ export async function runCli(prNumber, io, dryRun) {
 // CLI entry point — guarded so imports don't trigger side-effects
 // ---------------------------------------------------------------------------
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 
 if (isMain) {
   const argv = process.argv.slice(2)

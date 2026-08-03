@@ -233,9 +233,9 @@
   {
     "path": "check-drift.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
+    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-pinned 2026-08-03 (#2012): self additionally carries the SELF-EXEMPTION header recording why arbiter ships no .arbiter/drift-manifest.json; the [SKIP] marker itself landed on BOTH sides.",
     "expires": "2026-08-15",
-    "diffHash": "3beb8b8c634e4e91d634644e94de155a8b7c71b8b4543f71e81a17d9a76ab170"
+    "diffHash": "c824690bbe3d9191543217843511cc414f44b91d0c089763cdeb7b914aef2b78"
   },
   {
     "path": "check-duplication.mjs",
@@ -316,9 +316,9 @@
   {
     "path": "check-pr-size-gate.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
+    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-pinned 2026-08-03 (#2012): self additionally carries the SELF-EXEMPTION header recording why arbiter configures no PR-size gate.",
     "expires": "2026-08-15",
-    "diffHash": "34338d285d575e1b8229ac49e3d2021c3effb625f1cf1c00b761e8acd73d97ad"
+    "diffHash": "a50a71ca616d2600837e9aa3856416d70980b8576b46719b5815e8e2446dc6fa"
   },
   {
     "path": "check-secret-presence.mjs",
@@ -468,7 +468,7 @@
   {
     "path": "run-helpers.mjs",
     "dest": "scripts/lib",
-    "reason": "Arbiter self-dogfood: the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. #2104 additionally adds `resolveTmpfsTmpdir` (TMPDIR on tmpfs) to the SHIPPED twin only: the 210s->33.7s measurement behind it is a Go/SQLite fsync-bound workload, arbiter's own gate is Node/TS and the lever is unmeasured there — and an exported-but-unwired helper would trip the unused-export guard. #2197 adds emitted-guard manifest classification only to the SHIPPED helper because arbiter's self gate calls its two committed guards unconditionally. Reconciliation tracked as follow-up, not silent drift. #2032 adds the failed-check dump TAIL (DUMP_TAIL_LINES/tail()) to BOTH twins with equivalent semantics; the divergence remains the same self-vs-shipped prose and semicolon style.",
+    "reason": "Arbiter self-dogfood: the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. #2104 additionally adds `resolveTmpfsTmpdir` (TMPDIR on tmpfs) to the SHIPPED twin only: the 210s->33.7s measurement behind it is a Go/SQLite fsync-bound workload, arbiter's own gate is Node/TS and the lever is unmeasured there — and an exported-but-unwired helper would trip the unused-export guard. #2197 adds emitted-guard manifest classification only to the SHIPPED helper because arbiter's self gate calls its two committed guards unconditionally. Reconciliation tracked as follow-up, not silent drift. #2032 adds the failed-check dump TAIL (DUMP_TAIL_LINES/tail()) to BOTH twins with equivalent semantics; the divergence remains the same self-vs-shipped prose and semicolon style. Re-pinned 2026-08-03 (#2010): isMainModule() was added identically to BOTH sides; the residual delta is the node:path import line (self needs only resolve, the template also needs join).",
     "diffHash": "22c9ea05df9ae193c6f07ed2a8b16eab08e836ab306530f304d4c4c7fa6845e5"
   }
 ]

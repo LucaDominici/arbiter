@@ -19,9 +19,9 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { fmField, readdirSafe, prettify } from './lib/gen-doc-helpers.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // ---------------------------------------------------------------------------
 // Types (JSDoc for editor support)
@@ -389,7 +389,7 @@ export async function runCli(root, gapPath, check) {
 // CLI entry point
 // ---------------------------------------------------------------------------
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 
 if (isMain) {
   const repoRoot = resolve('.')

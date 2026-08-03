@@ -14,7 +14,7 @@
 // Usage: node scripts/check-brownfield-tests.mjs [--generators=path] [--tests=path] [--baseline=file]
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { resolve, join, basename } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 function collectTestContent(dir) {
   const content = []
@@ -90,7 +90,7 @@ export function main() {
   )
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   try {
     main()
   } catch (err) {

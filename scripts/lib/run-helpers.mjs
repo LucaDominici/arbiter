@@ -28,6 +28,23 @@
 // cannot pull from src/. Direct spawnSync use is the documented exception
 // to INV-12 for the gate runner itself (see scripts/check-all.mjs header).
 import { spawnSync } from 'node:child_process'
+import { resolve as resolvePath } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/**
+ * True when `importMetaUrl` names the module Node was actually invoked with — the ESM
+ * equivalent of CommonJS `require.main === module`. Pass `import.meta.url`:
+ *
+ *   if (isMainModule(import.meta.url)) main()
+ *
+ * Null-safe (argv[1] is absent under `node --eval`) and path-normalized, so a relative
+ * or non-canonical argv[1] still matches (#2010).
+ */
+export function isMainModule(importMetaUrl) {
+  const entry = process.argv[1]
+  if (!entry) return false
+  return resolvePath(entry) === fileURLToPath(importMetaUrl)
+}
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 // Explicit spawnSync output ceiling. Node's default is 1 MB; verbose checks

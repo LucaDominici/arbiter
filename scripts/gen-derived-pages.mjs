@@ -24,7 +24,7 @@
 // Exit codes (INV-53): 0 = OK / 1 = drift / 2 = invocation error
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const CHECK = process.argv.includes('--check')
 
@@ -183,7 +183,7 @@ async function main() {
   )
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   try {
     await main()

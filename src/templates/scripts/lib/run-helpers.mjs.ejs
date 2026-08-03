@@ -11,7 +11,23 @@
 // Imported by scripts/check-all.mjs. Plain ESM (.mjs).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statfsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve as resolvePath } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/**
+ * True when `importMetaUrl` names the module Node was actually invoked with — the ESM
+ * equivalent of CommonJS `require.main === module`. Pass `import.meta.url`:
+ *
+ *   if (isMainModule(import.meta.url)) main();
+ *
+ * Null-safe (argv[1] is absent under `node --eval`) and path-normalized, so a relative
+ * or non-canonical argv[1] still matches (#2010).
+ */
+export function isMainModule(importMetaUrl) {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return resolvePath(entry) === fileURLToPath(importMetaUrl);
+}
 
 // resolveTmpfsTmpdir returns a RAM-backed dir to use as TMPDIR, or null.
 //

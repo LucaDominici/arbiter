@@ -22,7 +22,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // ---------------------------------------------------------------------------
 // Exported API
@@ -187,7 +187,7 @@ export async function runCli(configPath, indexPath, outPath, check) {
 // CLI entry point — guarded so imports don't trigger side-effects
 // ---------------------------------------------------------------------------
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 
 if (isMain) {
   // Allow overriding paths via --config=/--index=/--out= (used by tests with fixtures).

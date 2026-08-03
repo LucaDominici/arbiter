@@ -20,11 +20,11 @@
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { join, resolve } from 'node:path'
 import { GUARDS, CONTEXT_ROT_GATES } from './lib/anti-fake-green-guards.mjs'
 import { FLIP_REGISTRY } from './lib/guard-flip-registry.mjs'
 import { V } from './lib/anti-fake-green-core.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // Completeness surface = the aggregate roster PLUS the anti-context-rot gate roster
 // (E1-E7 #1943, M11): the latter is aggregate-exempt (bespoke argv, already wired
@@ -126,8 +126,7 @@ function main() {
 }
 
 // Auto-run only when invoked directly (not when imported by the self-test).
-const invokedDirectly =
-  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+const invokedDirectly = isMainModule(import.meta.url)
 if (invokedDirectly) {
   try {
     process.exit(main())

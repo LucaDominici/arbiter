@@ -13,8 +13,8 @@
 //        pr-merge-watch --self-test   (pure predicate fixtures, no `gh` calls)
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const HARD_FAIL = new Set([
   'FAILURE',
@@ -340,7 +340,7 @@ async function main() {
   }
 }
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   main().catch((e) => {
     process.stderr.write(`pr-merge-watch: unexpected error: ${e.stack ?? e}\n`)

@@ -26,8 +26,8 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const BEGIN_MARKER = '<!-- BEGIN GENERATED INVENTORY -->'
 const END_MARKER = '<!-- END GENERATED INVENTORY -->'
@@ -226,7 +226,7 @@ export async function runCli(repoRoot, ssotPath, check) {
 // CLI entry point
 // ---------------------------------------------------------------------------
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const repoRoot = resolve('.')
   const ssotPath = join(repoRoot, 'docs', 'internal', 'METHOD', 'SSOT_CORE_SET.md')

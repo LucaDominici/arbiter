@@ -20,7 +20,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 function argPath(flag, fallback) {
   const arg = process.argv.find((a) => a.startsWith(`--${flag}=`))
@@ -98,7 +98,7 @@ function main() {
   )
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   try {
     main()

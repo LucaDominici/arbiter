@@ -34,6 +34,7 @@ import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { runParityCheck, scanTrackRoots, readJsonIfExists } from './lib/codex-parity-lib.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
@@ -334,6 +335,6 @@ function report(result) {
   )
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main()
 }

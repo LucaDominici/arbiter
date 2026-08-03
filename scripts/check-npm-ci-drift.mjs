@@ -28,7 +28,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 /**
  * Parse the pinned npm version from a `packageManager` spec.
@@ -188,7 +188,7 @@ function main(argv) {
   return 1
 }
 
-const isMain = process.argv[1] != null && fileURLToPath(import.meta.url) === process.argv[1]
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   try {
     process.exit(main(process.argv.slice(2)))

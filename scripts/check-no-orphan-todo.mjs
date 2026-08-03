@@ -11,8 +11,8 @@
 // walkRepo's SKIP_DIRS already covers node_modules/.git/dist (plus build/coverage/.coverage).
 import { readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // Match // TODO or /* TODO or * TODO (in comment context), but NOT TODO(#NNN)
 // Exported so .claude/hooks/check-no-orphan-todo.mjs can reuse the same reference
@@ -71,6 +71,6 @@ export function main(exitFn = process.exit) {
 }
 
 // Only run main when invoked as CLI (not imported in tests).
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMainModule(import.meta.url)) {
   main()
 }
