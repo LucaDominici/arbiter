@@ -13,3 +13,27 @@ describe('#987 gitleaks install uses RUNNER_TEMP not /usr/local/bin', () => {
     expect(ejs).not.toMatch(/-C \/usr\/local\/bin gitleaks/)
   })
 })
+
+// #2100: gitleaks-action downloads to a HARDCODED /tmp/gitleaks.tmp. On the self-hosted
+// runner /tmp survives between jobs, so a leftover from an interrupted download makes
+// every later install fail after both internal retries:
+//   "Destination file path /tmp/gitleaks.tmp already exists" → "parameter 'file' is required"
+// (nightly run 30781101329, job "Secret scan (full history)"). Every site that uses the
+// action must clear the stale file first.
+describe('#2100 gitleaks-action sites clear the stale /tmp/gitleaks.tmp first', () => {
+  const SITES = [
+    '.github/workflows/_nightly.yml',
+    '.github/workflows/05-release.yml',
+    'src/templates/github/workflows/_nightly.yml.ejs',
+    'src/templates/github/workflows/05-release.yml.ejs',
+    'src/templates/github/workflows/07-weekly-lite.yml.ejs',
+  ]
+
+  it.each(SITES)('%s removes /tmp/gitleaks.tmp before every gitleaks-action use', (file) => {
+    const content = readFileSync(file, 'utf-8')
+    const actionUses = content.match(/uses:\s*gitleaks\/gitleaks-action@/g) ?? []
+    expect(actionUses.length).toBeGreaterThan(0)
+    const guards = content.match(/rm -f \/tmp\/gitleaks\.tmp/g) ?? []
+    expect(guards.length).toBe(actionUses.length)
+  })
+})

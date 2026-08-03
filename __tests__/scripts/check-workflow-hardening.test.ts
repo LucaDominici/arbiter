@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -336,5 +336,69 @@ jobs:
     } finally {
       t.cleanup()
     }
+  })
+
+  // #2123 (recurrence of #1987): `github.head_ref || github.ref` yields TWO different
+  // group strings for the same branch — `task/x` on pull_request vs `refs/heads/task/x`
+  // on push — so cancel-in-progress never fires across the pair and both runs execute
+  // the full gate concurrently. `github.ref_name` strips `refs/heads/`, unifying them.
+  it('fails when a concurrency group falls back to github.ref instead of github.ref_name', () => {
+    const t = makeTemp()
+    try {
+      write(
+        t.wf,
+        '01-pr.yml',
+        HARDENED.replace(
+          'group: ${{ github.workflow }}-${{ github.ref }}',
+          'group: pr-fast-${{ github.head_ref || github.ref }}',
+        ),
+      )
+      const r = run(t.dir, t.out)
+      expect(r.status).toBe(1)
+      expect(report(t.out).concurrencyGroupRefFallback).toBeGreaterThanOrEqual(1)
+    } finally {
+      t.cleanup()
+    }
+  })
+
+  it('accepts a concurrency group that falls back to github.ref_name', () => {
+    const t = makeTemp()
+    try {
+      write(
+        t.wf,
+        '01-pr.yml',
+        HARDENED.replace(
+          'group: ${{ github.workflow }}-${{ github.ref }}',
+          'group: pr-fast-${{ github.head_ref || github.ref_name }}',
+        ),
+      )
+      const r = run(t.dir, t.out)
+      expect(r.status).toBe(0)
+      expect(report(t.out).concurrencyGroupRefFallback).toBe(0)
+    } finally {
+      t.cleanup()
+    }
+  })
+})
+
+// The gate above scans .github/workflows (what runs in arbiter's own CI). The same
+// defect ships to every governed project through the EJS templates, which that gate
+// never sees — this ratchet covers the emitted side (CANON-18 render parity).
+describe('#2123 workflow templates never fall back to github.ref in a concurrency group', () => {
+  function walkEjs(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory()
+        ? walkEjs(join(dir, e.name))
+        : e.name.endsWith('.ejs')
+          ? [join(dir, e.name)]
+          : [],
+    )
+  }
+
+  it('every head_ref fallback in a workflow template uses github.ref_name', () => {
+    const offenders = walkEjs(resolve('src/templates/github/workflows')).filter((f) =>
+      /github\.head_ref\s*\|\|\s*github\.ref\s*}}/.test(readFileSync(f, 'utf-8')),
+    )
+    expect(offenders).toEqual([])
   })
 })
