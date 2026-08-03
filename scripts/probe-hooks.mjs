@@ -224,6 +224,9 @@ function ownedHooks(root) {
 }
 
 function establishState(root, state) {
+  if (gitPorcelain(root) !== '') {
+    runGit(root, ['stash', 'push', '--message', 'arbiter-probe autostash'])
+  }
   runGit(root, ['checkout', '-B', state === 'BARE' ? 'main' : 'task/#1-probe'])
   const taskDir = join(root, '.claude', '.task')
   rmSync(taskDir, { recursive: true, force: true })
@@ -392,8 +395,15 @@ function runHook(root, hookPath, payload) {
   })
 }
 
+function gitPorcelain(root) {
+  const result = spawnSync('git', ['-C', root, 'status', '--porcelain'], {
+    encoding: 'utf-8',
+  })
+  return result.status === 0 ? result.stdout : ''
+}
+
 function runGit(root, args) {
-  const result = spawnSync('git', ['-C', root, ...args], {
+  const result = spawnSync('git', ['-c', 'core.hooksPath=/dev/null', '-C', root, ...args], {
     encoding: 'utf-8',
     timeout: 30000,
     env: {
