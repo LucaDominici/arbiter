@@ -504,4 +504,79 @@ describe('generateGithooks — empirical fail-fast spawn', () => {
 
     expect(result.status).not.toBe(0)
   })
+
+  // ── #2051: the RED commit the TDD evidence must point at ────────────────────
+  //
+  // A genuine RED commit contains a test that FAILS. The L1 gate blocks exactly
+  // that commit, so `arbiter task record-red` could never point at a real one.
+  // While phase=red, a commit whose staged paths are ALL tests is let through.
+
+  /** Repo with hooks + a check-all stub that always fails, and phase=red on disk. */
+  function seedRedPhaseRepo(): void {
+    const config = makeConfig(dir, { language: 'typescript' })
+    generateGithooks(config)
+    generateCheckAll(config)
+
+    const nodeModulesTarget = join(new URL('../../', import.meta.url).pathname, 'node_modules')
+    expect(existsSync(nodeModulesTarget)).toBe(true)
+    symlinkSync(nodeModulesTarget, join(dir, 'node_modules'))
+
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(
+      join(dir, 'scripts', 'check-all.mjs'),
+      '#!/usr/bin/env node\nprocess.exit(1);\n',
+      'utf-8',
+    )
+
+    mkdirSync(join(dir, '.claude', '.task'), { recursive: true })
+    writeFileSync(
+      join(dir, '.claude', '.task', 'status.json'),
+      JSON.stringify({ phase: 'red' }),
+      'utf-8',
+    )
+  }
+
+  function stage(relPath: string): void {
+    const abs = join(dir, relPath)
+    mkdirSync(join(abs, '..'), { recursive: true })
+    writeFileSync(abs, '// staged\n', 'utf-8')
+    execFileSync('git', ['add', relPath], { cwd: dir, stdio: 'ignore' })
+  }
+
+  function runPreCommit(): { status: number | null; out: string } {
+    const r = spawnSync('bash', [join(dir, '.githooks', 'pre-commit')], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
+    return { status: r.status, out: `${r.stdout}${r.stderr}` }
+  }
+
+  it('pre-commit lets a test-only commit through while phase=red (#2051)', () => {
+    seedRedPhaseRepo()
+    stage('__tests__/thing.test.ts')
+
+    const { status, out } = runPreCommit()
+    expect(status).toBe(0)
+    expect(out).toMatch(/#2051/)
+  })
+
+  it('pre-commit still runs the gate for a red-phase commit that stages source (#2051)', () => {
+    seedRedPhaseRepo()
+    stage('__tests__/thing.test.ts')
+    stage('src/thing.ts')
+
+    expect(runPreCommit().status).not.toBe(0)
+  })
+
+  it('pre-commit runs the gate for a test-only commit outside phase=red (#2051)', () => {
+    seedRedPhaseRepo()
+    writeFileSync(
+      join(dir, '.claude', '.task', 'status.json'),
+      JSON.stringify({ phase: 'green' }),
+      'utf-8',
+    )
+    stage('__tests__/thing.test.ts')
+
+    expect(runPreCommit().status).not.toBe(0)
+  })
 })

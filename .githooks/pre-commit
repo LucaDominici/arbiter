@@ -21,6 +21,20 @@ fi
 # independent temp repositories without GIT_DIR poisoning their git calls.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 
+# #2051: a genuine RED commit contains a test that FAILS — the L1 gate blocks exactly
+# the commit `arbiter task record-red` must point at. Let that one commit shape through:
+# phase=red AND every staged path is a test. The secret scan above still ran, and the
+# GREEN commit that follows runs the full gate over the whole tree.
+_phase=$(node -e "const f=require('fs'),p='.claude/.task/status.json';if(!f.existsSync(p)){process.stdout.write('unknown')}else{try{process.stdout.write(JSON.parse(f.readFileSync(p,'utf-8')).phase||'unknown')}catch{process.stdout.write('corrupt')}}" 2>/dev/null || echo "unknown")
+if [ "$_phase" = "red" ]; then
+  _staged_red=$(git diff --cached --name-only)
+  if [ -n "$_staged_red" ] && ! printf '%s\n' "$_staged_red" |
+    grep -qivE '(^|[^[:alpha:]])(tests?|specs?)([^[:alpha:]]|$)'; then
+    echo "[pre-commit] phase=red, staged paths are tests only — L1 gate skipped so the failing RED test can land (#2051)."
+    exit 0
+  fi
+fi
+
 # In git worktrees, node_modules is a symlink to the main repo's node_modules.
 # This causes `npm ls` to report all packages with `file:` resolved paths, which
 # breaks gen-third-party-licenses and its tests (#1695). Skip the L1 gate in
