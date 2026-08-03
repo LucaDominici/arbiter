@@ -137,3 +137,56 @@ describe('debt-lib collection failures (#2202)', () => {
     }
   })
 })
+
+// ─── Injectable coverage spawn seam (#2226) ───────────────────────────────────
+// The Debt Ratchet's ENOENT (`vitest coverage summary unreadable: ... .coverage-tmp/
+// coverage-summary.json`) was CI-only and NOT reproducible locally — the coverage
+// path in collectMetrics had no injection seam, so a unit test could not simulate
+// "vitest ran but wrote no summary" / "vitest exited 1 with a provider error"
+// deterministically. Mirror jscpdScan's `opts.spawn` seam: `opts.spawnCoverage`
+// replaces the `npx vitest run --coverage` invocation, and the enriched diagnostic
+// names the real cause from the run's own stdout/stderr instead of a bare ENOENT.
+describe('debt-lib coverage collection — injectable spawn seam (#2226)', () => {
+  it('uses the injected spawn; shim exits 0 writing no summary → collection error, no coverage metric', () => {
+    const { dir, binDir, cleanup } = makeMetricsFixture()
+    try {
+      const shim = vi.fn(() => ({ status: 0, stdout: '', stderr: '' }))
+      const errors: Array<{ metric: string; reason: string }> = []
+
+      const metrics = withPath(binDir, () => collectMetrics(dir, errors, { spawnCoverage: shim }))
+
+      // Before the seam (#2226) the third arg was ignored and the shim never ran.
+      expect(shim).toHaveBeenCalled()
+      expect(metrics.coverageLine).toBeUndefined()
+      expect(errors).toContainEqual(expect.objectContaining({ metric: 'coverageLine' }))
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('enriched reason names the failing test, vitest version, provider error and .coverage-tmp probe', () => {
+    const { dir, binDir, cleanup } = makeMetricsFixture()
+    try {
+      const shim = vi.fn(() => ({
+        status: 1,
+        stdout:
+          'RUN v4.1.10 /tmp/runner/work/arbiter/arbiter\n\nFailed Tests: 1\nverify-commands.test.ts > verify tdd #551',
+        stderr: 'Error: coverage provider v8 failed to start',
+      }))
+      const errors: Array<{ metric: string; reason: string }> = []
+
+      withPath(binDir, () => collectMetrics(dir, errors, { spawnCoverage: shim }))
+
+      const entry = errors.find((e) => e.metric === 'coverageLine')
+      expect(entry).toBeDefined()
+      // The stderr-only tail once captured a PASSING test's incidental stderr and
+      // misled the wave-1 diagnosis (#2226) — the real cause lives in stdout.
+      expect(entry?.reason).toContain('verify-commands.test.ts')
+      expect(entry?.reason).toContain('v4.1.10')
+      expect(entry?.reason).toContain('coverage provider v8 failed to start')
+      expect(entry?.reason).toContain('.coverage-tmp NOT created')
+    } finally {
+      cleanup()
+    }
+  })
+})
