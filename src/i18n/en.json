@@ -25,7 +25,6 @@
     "E_WORK_NO_CONFIG": "No arbiter.json found. Run `arbiter init` first.",
     "E_WORK_NO_PHASE": "Cannot advance: no active task phase.",
     "E_WORK_INVALID_PHASE": "Invalid task phase: {phase}.",
-    "E_WORK_NOT_FOUND": "Work unit \"{id}\" not found.",
     "E_PLUGIN_NOT_FOUND": "Plugin not found: {name}.",
     "E_PLUGIN_INSTALL": "Failed to install plugin: {name}.",
     "E_PLUGIN_REMOVE": "Failed to remove plugin: {name}.",
@@ -74,8 +73,7 @@
     "E_UNSUPPORTED_PATH_DEPTH": "Unsupported path depth: {path}",
     "E_INIT_WIN32": "arbiter does not support native Win32. Install WSL2 and run arbiter inside it. Setup guide: https://docs.arbiter.dev/install/windows",
     "E_INVALID_LEVEL": "Unknown governance level: \"{level}\". Valid: L1, L2, L3, L4",
-    "E_INVALID_LANGUAGE": "Unknown language: \"{language}\". Valid: typescript, java, kotlin, rust, python, go, multi",
-    "E_FEATURE_MATRIX_NOT_FOUND": "FEATURE_MATRIX.md not found at {path}. Run the feature-matrix generator or pass --matrix-path to point at an existing file."
+    "E_INVALID_LANGUAGE": "Unknown language: \"{language}\". Valid: typescript, java, kotlin, rust, python, go, multi"
   },
   "cli": {
     "shared": {
@@ -220,8 +218,8 @@
       "interrupted": "Plugin \"{name}\" was interrupted by signal",
       "crashed": "Plugin \"{name}\" crashed (exit code {code})",
       "load_error": "Failed to load plugin \"{name}\": {message}\n  arbiter.json was not modified.\n  {hint}",
-      "retry_network": "Network issue detected. Retry: `arbiter plugin add {name}`",
-      "retry_local": "Verify the package is installed (`npm install {name}`) then retry: `arbiter plugin add {name}`",
+      "retry_network": "Network issue detected. Remove the plugin from arbiter.json's `plugins` array, then re-run `arbiter update`.",
+      "retry_local": "Verify the package is installed (`npm install {name}`), or remove it from arbiter.json's `plugins` array and re-run `arbiter update`.",
       "security_advisory": "  Security advisory: Plugin {name} will execute Node code during `arbiter update`. Verify source before use."
     },
     "diff": {

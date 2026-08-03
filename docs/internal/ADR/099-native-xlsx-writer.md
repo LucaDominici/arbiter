@@ -15,6 +15,10 @@ related: []
 **Date:** 2026-06-30
 **Status:** Accepted
 
+> **Superseded in part:** Commit 3bd2f1db removed the native xlsx writer and the
+> `feature-matrix` export command as part of the CLI surface reduction. This ADR
+> records the prior decision and does not describe live code.
+
 ## Context
 
 `@arbiter/cli` shipped `exceljs` as a runtime `dependency` so the

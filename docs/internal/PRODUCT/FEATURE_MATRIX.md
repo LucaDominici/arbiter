@@ -17,7 +17,7 @@ related: ['AGENTS.md', 'src/kit/catalog.json', 'scripts/check-feature-matrix.mjs
 > **Gate:** `scripts/check-feature-matrix.mjs --check` (L1, fail-closed). To regenerate the
 > table block run `node scripts/check-feature-matrix.mjs --write`.
 >
-> **Export:** `arbiter feature-matrix export --format csv|xlsx` for PM/stakeholder views.
+> **Export:** (planned) CSV/XLSX export for PM/stakeholder views — not yet shipped as a CLI command.
 
 ---
 

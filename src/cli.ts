@@ -54,7 +54,8 @@ import { runTaskNote } from './commands/task-note.js'
 import { runTaskMark } from './commands/task-mark.js'
 import { isTddPhase } from './commands/task-state.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
-import { runVerifyGraph } from './commands/graph.js'
+import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
+import type { GraphFormat } from './commands/graph.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
 import { confirmChannelDowngrade } from './utils/confirm-downgrade.js'
 import type { ReleaseChannel } from './utils/channel.js'
@@ -983,6 +984,45 @@ program
 
 const review = program.command('review').description('Semantic diff between graph snapshots (#262)')
 
+const graph = program
+  .command('graph', { hidden: true })
+  .description('Manage the provenance graph (#259)')
+
+graph
+  .command('build')
+  .description('Build the provenance graph from invariants and write .arbiter/graph.json')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--output <path>', 'Override output path (default: <dir>/.arbiter/graph.json)')
+  .option('--format <fmt>', 'Output format: json | dot | mermaid (default: json)', 'json')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; output?: string; format: string; json: boolean }) => {
+    const buildOpts: import('./commands/graph.js').GraphBuildOptions = {}
+    if (opts.dir !== undefined) buildOpts.dir = opts.dir
+    if (opts.output !== undefined) buildOpts.output = opts.output
+    buildOpts.format = opts.format as GraphFormat
+    const result = runGraphBuild(buildOpts)
+    if (opts.json) {
+      jsonOutput(
+        'graph build',
+        result.status,
+        {
+          exitCode: result.exitCode,
+          path: result.path,
+          nodes: result.nodes,
+          edges: result.edges,
+        },
+        result.reason !== undefined ? [result.reason] : undefined,
+      )
+    } else if (result.status === 'ok') {
+      process.stdout.write(
+        `graph build: wrote ${result.path} (${result.nodes} nodes, ${result.edges} edges)\n`,
+      )
+    } else {
+      process.stderr.write(`graph build: FAIL — ${result.reason ?? 'unknown error'}\n`)
+    }
+    process.exit(result.exitCode)
+  })
+
 program
   .command('gold-audit [repo]')
   .description('Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)')
@@ -1237,9 +1277,10 @@ verify
     // #1994: same parent/child --json shadowing #1992 fixed for `verify tdd` —
     // opts.json reads the verify/validate parent's default; optsWithGlobals()
     // reflects the flag actually passed.
-    const json = Boolean(cmd.optsWithGlobals().json)
+    const commandOpts = cmd.optsWithGlobals<{ dir?: string; json?: boolean }>()
+    const json = Boolean(commandOpts.json)
     const verifyOpts: import('./commands/graph.js').VerifyGraphOptions = {}
-    if (opts.dir !== undefined) verifyOpts.dir = opts.dir
+    if (commandOpts.dir !== undefined) verifyOpts.dir = commandOpts.dir
     if (opts.input !== undefined) verifyOpts.input = opts.input
     const result = runVerifyGraph(verifyOpts)
     if (json) {
@@ -1361,6 +1402,55 @@ program
     },
   )
 
+function runDoctorHealthAction(
+  _opts: {
+    dir?: string
+    json: boolean
+    repair: boolean
+    interactive: boolean
+    proveGates: boolean
+  },
+  cmd: Command,
+): void {
+  const opts = cmd.optsWithGlobals<{
+    dir?: string
+    json: boolean
+    repair: boolean
+    interactive: boolean
+    proveGates: boolean
+  }>()
+  if (opts.proveGates) {
+    const result = runDoctorProveGates({ json: opts.json })
+    if (result.exitCode !== 0) process.exit(result.exitCode)
+    return
+  }
+  if (opts.interactive && !opts.json && process.stdin.isTTY) {
+    void import('./commands/doctor-interactive.js')
+      .then(({ runInteractiveDoctor }) =>
+        runInteractiveDoctor({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }),
+      )
+      .catch((err: unknown) => {
+        process.stderr.write(`  Error: ${err instanceof Error ? err.message : String(err)}\n`)
+        process.exit(1)
+      })
+    return
+  }
+  runDoctorHealth({
+    ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    json: opts.json,
+    repair: opts.repair,
+    ...(_channelFlag !== undefined ? { channelFlag: _channelFlag } : {}),
+  })
+    .then((result) => {
+      if (result.exitCode !== 0) process.exit(result.exitCode)
+    })
+    .catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    })
+}
+
 const doctor = program
   .command('doctor')
   .description('Diagnose and repair arbiter state')
@@ -1377,46 +1467,25 @@ const doctor = program
     'Run negative proofs for every tier-1 conformance gate; report any gate that does not bite (#1817, A5)',
     false,
   )
-  .action(
-    (opts: {
-      dir?: string
-      json: boolean
-      repair: boolean
-      interactive: boolean
-      proveGates: boolean
-    }) => {
-      if (opts.proveGates) {
-        const result = runDoctorProveGates({ json: opts.json })
-        if (result.exitCode !== 0) process.exit(result.exitCode)
-        return
-      }
-      if (opts.interactive && !opts.json && process.stdin.isTTY) {
-        void import('./commands/doctor-interactive.js')
-          .then(({ runInteractiveDoctor }) =>
-            runInteractiveDoctor({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }),
-          )
-          .catch((err: unknown) => {
-            process.stderr.write(`  Error: ${err instanceof Error ? err.message : String(err)}\n`)
-            process.exit(1)
-          })
-        return
-      }
-      runDoctorHealth({
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-        json: opts.json,
-        repair: opts.repair,
-        ...(_channelFlag !== undefined ? { channelFlag: _channelFlag } : {}),
-      })
-        .then((result) => {
-          if (result.exitCode !== 0) process.exit(result.exitCode)
-        })
-        .catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err)
-          process.stderr.write(`  Error: ${msg}\n`)
-          process.exit(1)
-        })
-    },
+  .action(runDoctorHealthAction)
+
+doctor
+  .command('health')
+  .description('Run arbiter health checks')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .option(
+    '--repair',
+    'Auto-release stale .arbiter/.lock files detected by the health check (#824)',
+    false,
   )
+  .option('--interactive', 'Guided health check with one-key repair on a TTY (#1168)', false)
+  .option(
+    '--prove-gates',
+    'Run negative proofs for every tier-1 conformance gate; report any gate that does not bite (#1817, A5)',
+    false,
+  )
+  .action(runDoctorHealthAction)
 
 doctor
   .command('repair-state')

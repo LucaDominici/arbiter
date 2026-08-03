@@ -180,18 +180,8 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       summary: 'One or more plugins failed during init',
       detail: 'A third-party arbiter plugin threw an error during the init run.',
       recovery:
-        'Check the error details above. Remove the failing plugin with `arbiter plugin remove <name>` and retry.',
+        'Remove the failing plugin from the `plugins` array in arbiter.json, then re-run `arbiter update`.',
       docUrl: 'https://arbiter.dev/reference/cli#plugin',
-    },
-  ],
-  [
-    'E_WORK_NOT_FOUND',
-    {
-      code: 'E_WORK_NOT_FOUND',
-      summary: 'Work unit not found',
-      detail: 'The requested work unit ID does not exist in the current decomposition.',
-      recovery: 'Run `arbiter work list` to see available work unit IDs.',
-      docUrl: 'https://arbiter.dev/reference/cli#work',
     },
   ],
   [
@@ -269,20 +259,8 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       detail:
         'A plugin raised a fatal error during generator execution (e.g. missing dependency, load failure, or runtime exception). The command was halted.',
       recovery:
-        'Check that the plugin package is installed and compatible with the current arbiter version. Run `npm ls` to verify plugin dependencies.',
+        'Remove the failing plugin from the `plugins` array in arbiter.json, then re-run `arbiter update`.',
       docUrl: 'https://arbiter.dev/reference/cli#plugins',
-    },
-  ],
-  [
-    'E_FEATURE_MATRIX_NOT_FOUND',
-    {
-      code: 'E_FEATURE_MATRIX_NOT_FOUND',
-      summary: 'FEATURE_MATRIX.md not found',
-      detail:
-        'The `arbiter feature-matrix export` command could not find docs/PRODUCT/FEATURE_MATRIX.md (or the path passed via --matrix-path).',
-      recovery:
-        'Generate the matrix first, or pass --matrix-path to point at an existing FEATURE_MATRIX.md.',
-      docUrl: 'https://arbiter.dev/reference/cli#feature-matrix',
     },
   ],
   // #1735 (CANON-17): every errno translated by FS_ERROR_KEYS in src/utils/fs.ts

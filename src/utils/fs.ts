@@ -487,11 +487,11 @@ export function writeFile(
 /**
  * Write a file directly (one-shot, no atomic temp+rename, no skipIfExists / backup /
  * generation-session semantics), translating fs errno failures into an ArbiterError
- * (CANON-17). Accepts string OR binary content so text (csv) and binary (xlsx) exports
- * share one errno-translation path. Unlike {@link writeFile}, this does NOT mkdir the
- * parent directory — a missing output directory surfaces as a translated ENOENT rather
- * than being silently created. For a CLI export's `--out` path, not a generator-emitted
- * repo file.
+ * (CANON-17). This is the approved facade for direct CLI-output writes, accepting string
+ * or binary content through one errno-translation path. Unlike {@link writeFile}, this
+ * does NOT mkdir the parent directory — a missing output directory surfaces as a
+ * translated ENOENT rather than being silently created. It is not for generator-emitted
+ * repo files.
  */
 export function writeFileTranslated(path: string, data: string | Uint8Array): void {
   try {
