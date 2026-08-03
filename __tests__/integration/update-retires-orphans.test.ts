@@ -18,7 +18,8 @@ const ORPHAN = '.claude/hooks/pre-task-track-detect.mjs'
 // The `Arbiter hook:` marker is what `check-hook-routing.mjs` uses to claim
 // ownership of an on-disk file, independent of the manifest — which is why
 // dropping the manifest key alone never clears the DEAD finding.
-const ORPHAN_BODY = '#!/usr/bin/env node\n// Arbiter hook: retired track detector\nprocess.exit(0)\n'
+const ORPHAN_BODY =
+  '#!/usr/bin/env node\n// Arbiter hook: retired track detector\nprocess.exit(0)\n'
 
 const sha = (s: string): string => createHash('sha256').update(s).digest('hex')
 
@@ -56,7 +57,14 @@ describe('#2221 update retires framework-retired arbiter-owned files', () => {
   beforeEach(async () => {
     dir = mkdtempSync(join(tmpdir(), 'arb-2221-'))
     initGit(dir)
-    await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true, language: 'typescript' })
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      noVerify: true,
+      language: 'typescript',
+    })
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })

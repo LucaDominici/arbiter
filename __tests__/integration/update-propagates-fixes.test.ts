@@ -3,7 +3,7 @@
 // (unmodified-since-generation) skipIfExists files, preserves user-modified ones,
 // and `arbiter diff` reports the pristine-stale file as changed (no longer lies).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -94,7 +94,11 @@ describe('#1328 update propagates template fixes', () => {
     expect(manifest['.arbiter-generated-manifest.json']).toBeUndefined()
   })
 
-  it('prunes retired ownership entries on a full update without deleting the brownfield file', async () => {
+  // #2221 supersedes the #2135 contract this test used to pin (prune the ownership
+  // entry, leave the file). Pruning alone never cleared the orphan: the routing
+  // check also claims ownership from the on-disk `Arbiter hook:` marker, so a
+  // retired hook stayed DEAD forever. A PRISTINE one is now deleted outright.
+  it('deletes a pristine retired hook and prunes its ownership entry on a full update', async () => {
     const retired = '.claude/hooks/retired-hook.mjs'
     const retiredPath = join(dir, retired)
     const content = '#!/usr/bin/env node\n// Arbiter hook: retired fixture\n'
@@ -105,8 +109,22 @@ describe('#1328 update propagates template fixes', () => {
 
     await runUpdate({ dir, github: false })
 
-    expect(readFileSync(retiredPath, 'utf-8')).toBe(content)
+    expect(existsSync(retiredPath)).toBe(false)
     expect(loadGeneratedManifest(dir)[retired]).toBeUndefined()
+  })
+
+  it('#2221: never deletes a TRUE brownfield hook — no ownership record, no removal', async () => {
+    const brownfield = '.claude/hooks/project-own-hook.mjs'
+    const brownfieldPath = join(dir, brownfield)
+    // Carries the ownership marker the routing check reads, but arbiter never
+    // recorded a render for it — provenance is unknown, so it is not arbiter's
+    // to delete.
+    const content = '#!/usr/bin/env node\n// Arbiter hook: hand-written by the project\n'
+    writeFileSync(brownfieldPath, content)
+
+    await runUpdate({ dir, github: false })
+
+    expect(readFileSync(brownfieldPath, 'utf-8')).toBe(content)
   })
 
   it('keeps unknown-baseline withheld hooks in the routing inventory', async () => {

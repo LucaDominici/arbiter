@@ -61,9 +61,7 @@ describe('planRetirement (#2221)', () => {
   it('does NOT retire a WITHHELD hook — withheld means visited, not retired', () => {
     const result = plan({
       prevManifest: { [LIVE]: 'livehash' },
-      results: [
-        { path: '/p/.claude/hooks/stop-dangerous.mjs', action: 'skipped', withheld: true },
-      ],
+      results: [{ path: '/p/.claude/hooks/stop-dangerous.mjs', action: 'skipped', withheld: true }],
       diskHash: () => 'livehash',
     })
     expect(result.retire).toEqual([])
@@ -73,9 +71,7 @@ describe('planRetirement (#2221)', () => {
   it('does NOT retire a file the generator deliberately did not emit (not-applicable)', () => {
     const result = plan({
       prevManifest: { 'GLOBAL_INVARIANTS.md': 'h' },
-      results: [
-        { path: '/p/GLOBAL_INVARIANTS.md', action: 'skipped', reason: 'not-applicable' },
-      ],
+      results: [{ path: '/p/GLOBAL_INVARIANTS.md', action: 'skipped', reason: 'not-applicable' }],
       diskHash: () => 'h',
     })
     expect(result.stale).toEqual([])

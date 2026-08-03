@@ -36,6 +36,13 @@ import type { ProjectConfig } from '../wizard/types.js'
 import type { ArbiterConfigV2 } from '../utils/config.js'
 import { buildAdoptPredicate, recordLocalOverride } from './adopt-policy.js'
 import type { AdoptRecord } from './adopt-policy.js'
+import {
+  applyRetirement,
+  diskHasher,
+  planRetirement,
+  retirementWarning,
+  type RetirementPlan,
+} from './retire-policy.js'
 
 export { buildAdoptPredicate } from './adopt-policy.js'
 
@@ -375,7 +382,27 @@ function selectAndRunWithManifest(
   const nextHashes = fullRegistryRun
     ? { ...retainedWithheldHashes, ...generatedHashes }
     : { ...prevManifest, ...generatedHashes }
+  // #2221: dropping a retired key from the manifest is not enough — the FILE is
+  // what `check-hook-routing.mjs` finds (it also claims ownership from the
+  // `Arbiter hook:` marker on disk), so the orphan must be deleted, not merely
+  // forgotten. Delete BEFORE persisting the manifest: a failed unlink after the
+  // ownership record is gone would leave an unattributable orphan forever.
+  const retirement = planRetirement({
+    prevManifest,
+    results: out.results,
+    targetDir,
+    fullRegistryRun,
+    diskHash: diskHasher(targetDir),
+  })
+  applyRetirement(targetDir, retirement)
   saveGeneratedManifest(targetDir, nextHashes, unwired, stillWithheldSafety)
+  // Reported on stderr — the same channel as a withheld fix, and never
+  // suppressed, because a deletion in someone else's repo is exactly the event
+  // that must not be silent. It stays OUT of the warnings channel that drives
+  // the exit code: retiring a pristine file arbiter itself wrote is lossless,
+  // not a fault, and every CI caller reads that exit code.
+  const report = retirementWarning(retirement)
+  if (report !== null) process.stderr.write(`\n  ${report}\n`)
   return out
 }
 
@@ -392,7 +419,7 @@ function runAdoptPlan(
   stored: ArbiterConfigV2,
   targetDir: string,
   adoptPredicate: (key: string) => boolean,
-): { records: AdoptRecord[]; results: WriteResult[] } {
+): { records: AdoptRecord[]; results: WriteResult[]; retirement: RetirementPlan } {
   const prevManifest = loadGeneratedManifest(targetDir)
   const collected: AdoptRecord[] = []
   beginGenerationSession({
@@ -401,16 +428,25 @@ function runAdoptPlan(
     adoptPredicate,
     onAdopt: (key, priorContent, newContent) => collected.push({ key, priorContent, newContent }),
   })
-  let results: WriteResult[]
+  let out: ReturnType<typeof selectAndRun>
   try {
     // #2120: the dryRun already computes the prospective action for EVERY emitted
     // file, not only the adopt-channel ones. Dropping this return value is what
     // made the plan show one write channel out of three.
-    results = selectAndRun(specs, snapshot, stored, true).results
+    out = selectAndRun(specs, snapshot, stored, true)
   } finally {
     endGenerationSession()
   }
-  return { records: collected, results }
+  // #2221: retirement DELETES files, so the read-only plan must show it too —
+  // an unpreviewed destructive channel is the #2120 complaint pointed the other way.
+  const retirement = planRetirement({
+    prevManifest,
+    results: out.results,
+    targetDir,
+    fullRegistryRun: out.keysRun === null || out.keysRun.has('*'),
+    diskHash: diskHasher(targetDir),
+  })
+  return { records: collected, results: out.results, retirement }
 }
 
 /** Minimal built-in line diff (no dependency): lines present only on one side. */
@@ -460,6 +496,7 @@ function partitionPlanResults(results: WriteResult[]): {
 function printAdoptPlan(
   records: AdoptRecord[],
   results: WriteResult[],
+  retirement: RetirementPlan,
   targetDir: string,
   json: boolean | undefined,
 ): void {
@@ -473,8 +510,18 @@ function printAdoptPlan(
       })),
       wouldRegenerate: regenerate.map(rel),
       withheld: withheld.map(rel),
+      wouldRetire: retirement.retire,
+      orphans: retirement.orphans,
+      stale: retirement.stale,
     })
     return
+  }
+  if (retirement.retire.length > 0) {
+    process.stdout.write(
+      `\n  would retire ${retirement.retire.length} file(s) (arbiter-owned, no longer emitted, ` +
+        `unmodified since arbiter wrote them — they are DELETED):\n` +
+        retirement.retire.map((k) => `    - ${k}\n`).join(''),
+    )
   }
   if (records.length === 0) {
     process.stdout.write(
@@ -806,7 +853,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const adoptPredicate = buildAdoptPredicate(options)
     if (options.adoptPlan) {
       const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, adoptPredicate)
-      printAdoptPlan(plan.records, plan.results, targetDir, options.json)
+      printAdoptPlan(plan.records, plan.results, plan.retirement, targetDir, options.json)
       return { keysRun: null }
     }
 
