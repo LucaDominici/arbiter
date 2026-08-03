@@ -3,10 +3,12 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { runInit as runInitCommand } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { runDiff } from '../../src/commands/diff.js'
 import { loadConfig } from '../../src/utils/config.js'
+import { loadGeneratedManifest, saveGeneratedManifest } from '../../src/state/generated-manifest.js'
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'arbiter-update-test-'))
@@ -69,16 +71,15 @@ describe('arbiter update', () => {
     expect(existsSync(agentsPath + '.arbiter-backup')).toBe(false)
   })
 
-  it('update DOES back up AGENTS.md when its content actually changed (#1077)', async () => {
+  it('update WITHHOLDS a diverged AGENTS.md instead of backing it up (#2141)', async () => {
     const agentsPath = join(dir, 'AGENTS.md')
     // Simulate user edit so the regenerated content differs from disk.
     writeFileSync(agentsPath, 'user-edited AGENTS.md\n', 'utf-8')
 
     await runUpdate({ dir, github: false })
 
-    // Now content differs → backup is written, file replaced.
-    expect(existsSync(agentsPath + '.arbiter-backup')).toBe(true)
-    expect(readFileSync(agentsPath + '.arbiter-backup', 'utf-8')).toBe('user-edited AGENTS.md\n')
+    expect(readFileSync(agentsPath, 'utf-8')).toBe('user-edited AGENTS.md\n')
+    expect(existsSync(agentsPath + '.arbiter-backup')).toBe(false)
   })
 
   // T1 (convergence playbook, anti-erosion): `.claude/hooks/*.mjs` are safety-
@@ -119,7 +120,7 @@ describe('arbiter update', () => {
   // routine `arbiter update` (e.g. toggling securityScanning) leaves stale
   // governance content in place, the root cause behind the downstream-consumer
   // staleness #2040 was filed for.
-  it('selective regen for an unrelated config change still refreshes AGENTS.md Iron Laws + settings.json deny-list (#2056)', async () => {
+  it('selective regen refreshes pristine-stale AGENTS.md Iron Laws + settings.json deny-list (#2056, #2141)', async () => {
     const agentsPath = join(dir, 'AGENTS.md')
     const settingsPath = join(dir, '.claude', 'settings.json')
     const IRON_LAW = 'Worktree Isolation Is Mandatory For Parallel Agents'
@@ -138,14 +139,22 @@ describe('arbiter update', () => {
     // Simulate governance sections that predate a template update (stale on disk).
     writeFileSync(
       agentsPath,
-      readFileSync(agentsPath, 'utf-8').replace(IRON_LAW, 'STALE PLACEHOLDER'),
+      readFileSync(agentsPath, 'utf-8').replace(IRON_LAW, 'STALE STANDIN'),
       'utf-8',
     )
     writeFileSync(
       settingsPath,
-      readFileSync(settingsPath, 'utf-8').replace(DENY_ENTRY, 'STALE_PLACEHOLDER'),
+      readFileSync(settingsPath, 'utf-8').replace(DENY_ENTRY, 'STALE_STANDIN'),
       'utf-8',
     )
+    // These template-aged copies are still pristine: record their hashes so
+    // the update may refresh them. A user-diverged file must be withheld.
+    const manifest = loadGeneratedManifest(dir)
+    manifest['AGENTS.md'] = createHash('sha256').update(readFileSync(agentsPath, 'utf-8')).digest('hex')
+    manifest['.claude/settings.json'] = createHash('sha256')
+      .update(readFileSync(settingsPath, 'utf-8'))
+      .digest('hex')
+    saveGeneratedManifest(dir, manifest)
 
     // Change an UNRELATED config field whose PATH_TO_KEYS mapping does NOT include
     // agents-md/claude (features.securityScanning → ['security']) → selective regen.
@@ -299,8 +308,9 @@ describe('ai-rulez detection', () => {
 // a preserved "withheld template fix" with a reconcile hint, when the very next
 // `update` would overwrite it. The provenance test (#2120) widened that lie
 // from the safety/gate-spine classes to `AGENTS.md` and `.claude/settings.json`
-// too, which `diff` used to report truthfully as `changed`.
-describe('#2120: diff and update agree on the adopt classes', () => {
+// too. #2141 applies #2119's superset principle, so diverged governance files
+// now belong with the withheld cases.
+describe('#2120/#2141: diff and update agree on the adopt classes', () => {
   let dir: string
 
   beforeEach(async () => {
@@ -331,25 +341,26 @@ describe('#2120: diff and update agree on the adopt classes', () => {
       .data
   }
 
-  it.each([
-    ['AGENTS.md', 'governance class (#2056 force-render)'],
-    ['.claude/hooks/stop-dangerous.mjs', 'safety class'],
-  ])('reports %s as changed, not withheld — update adopts it (%s)', async (target) => {
-    writeFileSync(join(dir, target), '// hand-edited\n')
+  it.each([['.claude/hooks/stop-dangerous.mjs', 'safety class']])(
+    'reports %s as changed, not withheld — update adopts it (%s)',
+    async (target) => {
+      writeFileSync(join(dir, target), '// hand-edited\n')
 
-    const entry = diffJson().files.find((f) => f.key === target)
-    expect(entry?.status).toBe('changed')
+      const entry = diffJson().files.find((f) => f.key === target)
+      expect(entry?.status).toBe('changed')
 
-    // …and the claim is true: the very next update does overwrite it.
-    await runUpdate({ dir, github: false })
-    expect(readFileSync(join(dir, target), 'utf-8')).not.toBe('// hand-edited\n')
-  })
+      // …and the claim is true: the very next update does overwrite it.
+      await runUpdate({ dir, github: false })
+      expect(readFileSync(join(dir, target), 'utf-8')).not.toBe('// hand-edited\n')
+    },
+  )
 
   // #2119 put the gate spine on this side of the line: `diff` must call it
   // withheld, because a bare `update` no longer writes it.
   it.each([
     ['scripts/check-collab-mode-wired.mjs', 'leaf check — no adopt policy covers it'],
     ['scripts/check-all.mjs', 'gate spine — opt-in only since #2119'],
+    ['AGENTS.md', 'governance class — opt-in only since #2141'],
   ])('reports %s as withheld, and update leaves it alone (%s)', async (target) => {
     writeFileSync(join(dir, target), '// hand-edited\n')
 

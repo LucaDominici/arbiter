@@ -381,13 +381,16 @@ describe('#2120 always-rewrite files get a provenance test', () => {
     expect(loadGeneratedManifest(dir)[ALWAYS_REWRITE]).toBeDefined()
   })
 
-  it('the governance pair is still force-rendered over a local edit (#2056 holds)', async () => {
+  it('the governance pair withholds a local edit until explicitly adopted (#2141)', async () => {
     const AGENTS = 'AGENTS.md'
     writeFileSync(join(dir, AGENTS), '# hand-written\n')
 
     await runUpdate({ dir, github: false })
 
-    // Adopted, not frozen — and the prior bytes survive in a reversible record.
+    expect(readFileSync(join(dir, AGENTS), 'utf-8')).toBe('# hand-written\n')
+
+    await runUpdate({ dir, github: false, adoptGovernance: true })
+
     expect(readFileSync(join(dir, AGENTS), 'utf-8')).not.toBe('# hand-written\n')
     const overrides = join(dir, '.arbiter/evidence/local-overrides/AGENTS.md.json')
     const record = JSON.parse(readFileSync(overrides, 'utf-8')) as {
@@ -395,6 +398,6 @@ describe('#2120 always-rewrite files get a provenance test', () => {
       reason: string
     }
     expect(record.priorContent).toBe('# hand-written\n')
-    expect(record.reason).toContain('#2120')
+    expect(record.reason).toContain('#2141')
   })
 })

@@ -66,17 +66,18 @@ const GATE_SPINE_PATTERN = /^scripts\/(?:check-all\.mjs|lib\/[^/]+\.mjs)$/
  *
  * #2120 gave every always-rewrite file a provenance test, which would have
  * frozen exactly these two for anybody who touched them — re-opening #2040
- * through the back door. Adopting them by default keeps #2056 working while
- * the adoption stays VISIBLE (named in `update --adopt-plan`, announced in the
- * run summary) and REVERSIBLE (the prior bytes land verbatim in
- * `.arbiter/evidence/local-overrides/`), which is what the silent overwrite
- * never was.
+ * through the back door. #2141 applies #2119's superset principle: the class
+ * survives, but its default reverses. A pristine file still re-renders through
+ * #2056; a diverged one is WITHHELD unless explicitly force-adopted with
+ * `--adopt-governance`, because the template render is not a superset of the
+ * governed consumer's content. That opt-in remains visible and reversible via
+ * `.arbiter/evidence/local-overrides/`.
  *
  * Deliberately exactly two entries, not a directory pattern: the class is
  * bounded by what #2056 force-renders, so it cannot quietly grow to mean "any
  * file that looks governance-ish". A project that genuinely wants one frozen
  * marks it with `arbiter:preserve` (checked ahead of every adopt policy), which
- * works in JSON as an ordinary key — hence no `--no-adopt-governance` flag.
+ * works in JSON as an ordinary key.
  */
 const GOVERNANCE_CLASS_KEYS = new Set(['AGENTS.md', '.claude/settings.json'])
 

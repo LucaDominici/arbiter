@@ -238,13 +238,13 @@ Unknown provenance keeps replacing. Withholding it would make `arbiter update` a
 whose manifest predates the key — the same silence in the opposite direction, and a worse one, because it
 would stop governance propagating everywhere at once.
 
-### Protected classes — three classes, and only two of them adopt by default
+### Protected classes — three classes, and only one adopts by default
 
-Three classes of emitted file get special treatment when the on-disk copy is user-modified. **Two adopt by
-default** (safety, governance): the shipped render lands over the local edit, recording a reversible
-`.arbiter/evidence/local-overrides/<slug>.json` envelope with the prior content verbatim. **One withholds by
-default** (gate spine, since #2119) and adopts only under an explicit opt-in, with the same reversible
-envelope when it does. Safety and gate spine are both backstopped by
+Three classes of emitted file get special treatment when the on-disk copy is user-modified. **Safety adopts by
+default**: the shipped render lands over the local edit, recording a reversible
+`.arbiter/evidence/local-overrides/<slug>.json` envelope with the prior content verbatim. **Gate spine and
+governance withhold by default** (since #2119 and #2141 respectively) and adopt only under an explicit
+opt-in, with the same reversible envelope when they do. Safety and gate spine are both backstopped by
 `scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as long as a member of
 either class stays withheld and unmarked.
 
@@ -252,27 +252,28 @@ either class stays withheld and unmarked.
 | ------------------ | -------------------------------------------- | -------- | ------------------------------ |
 | safety (T1)        | `.claude/hooks/*.mjs`                        | adopt    | `--no-adopt-safety` (opt out)  |
 | gate spine (#2119) | `scripts/check-all.mjs`, `scripts/lib/*.mjs` | withhold | `--adopt-gate-spine` (opt in)  |
-| governance (#2120) | `AGENTS.md`, `.claude/settings.json`         | adopt    | `arbiter:preserve` marker only |
+| governance (#2141) | `AGENTS.md`, `.claude/settings.json`         | withhold | `--adopt-governance` (opt in)  |
 
 `--no-adopt-gate-spine` is still accepted as a no-op, so a consumer script written during the #2119
 moratorium keeps working.
 
 The first two are monotonic by directory: a hook or a `scripts/lib/` helper added later is covered without
-the pattern changing. The two flags are deliberately independent — opting into gate-spine adoption must not
-change safety-hook policy, and vice versa.
+the pattern changing. The three flags are deliberately independent — opting into one class must not change
+another class's policy.
 
 **Why governance is a class, and why it is exactly two files.** `AGENTS.md` (Iron Laws) and
 `.claude/settings.json` (the `ARBITER_*` deny list) are re-rendered on every selective update on purpose
 (#2056) because both render from the whole config plus their templates, so either can carry updated
 governance content independent of which config field changed — leaving them stale is the root cause behind
 the #2040 downstream-consumer drift. The provenance test above would have frozen exactly these two for
-anybody who touched them, re-opening that drift through the back door. Adopting them by default keeps #2056
-working while the overwrite becomes **visible** (named in `--adopt-plan`, announced in the run summary) and
-**reversible** (prior bytes verbatim in the local-override envelope) — which the silent overwrite never
-was. The class is an explicit pair rather than a pattern so it cannot quietly grow to mean "anything that
-looks governance-ish": it is bounded by what #2056 force-renders. There is no `--no-adopt-governance` flag;
-a project that genuinely wants one frozen marks it `arbiter:preserve`, which is checked ahead of every
-adopt policy and works in JSON as an ordinary key.
+anybody who touched them, re-opening that drift through the back door. #2141 resolves the conflict with the
+#2119 superset principle: a **pristine** governance file still re-renders on every update, while only a
+**diverged** one is withheld and announced by name. `--adopt-governance` is the explicit, destructive opt-in;
+the prior bytes remain reversible in the local-override envelope, and `arbiter:preserve` is the permanent
+freeze. The class is an explicit pair rather than a pattern so it cannot quietly grow to mean "anything that
+looks governance-ish": it is bounded by what #2056 force-renders. The consequence is intentionally loud: a
+withheld `.claude/settings.json` does not register a newly shipped hook, and the emitted
+`check-hook-routing.mjs` gate goes RED (`UNROUTED`) rather than silently freezing it.
 
 **Why the gate spine is withheld and not adopted (#2119 reverses #2109).** Adoption is only safe when the
 template render is a **superset** of the local file. That holds for `.claude/hooks/*.mjs`: those are whole

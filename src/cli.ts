@@ -654,6 +654,13 @@ program
     false,
   )
   .option(
+    '--adopt-governance',
+    'Opt IN to force-adopting governance files (AGENTS.md, .claude/settings.json) over a user-modified ' +
+      'copy. DESTRUCTIVE: the template render is not a superset of governed consumer content — preview ' +
+      'with --adopt-plan first (#2141).',
+    false,
+  )
+  .option(
     '--no-adopt-gate-spine',
     'Accepted no-op: withholding a customized gate spine is the default since #2119.',
   )
@@ -680,6 +687,7 @@ program
       adopt: boolean
       adoptSafety: boolean
       adoptGateSpine: boolean
+      adoptGovernance: boolean
       adoptPlan: boolean
       refreshDerived: boolean
     }) => {
@@ -695,6 +703,7 @@ program
         adopt: opts.adopt,
         noAdoptSafety: !opts.adoptSafety,
         adoptGateSpine: opts.adoptGateSpine,
+        adoptGovernance: opts.adoptGovernance,
         adoptPlan: opts.adoptPlan,
         refreshDerived: opts.refreshDerived,
       })
