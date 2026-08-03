@@ -3,17 +3,24 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Lane } from '../wizard/types.js'
 
-const FE_FRAMEWORKS = new Set([
-  'react',
-  'vue',
-  'svelte',
-  '@angular/core',
-  'solid-js',
-  'preact',
-  'next',
-  'nuxt',
-  'astro',
-  'vite',
+/**
+ * Frontend package dependencies and their framework-detection slugs.
+ *
+ * `hasFrontendLane` deliberately inspects only `frontend/package.json`; root
+ * dependency detection belongs to `framework.ts`. Keep that separate scope while
+ * sharing this dependency catalog between both consumers.
+ */
+export const FE_FRAMEWORKS: ReadonlyMap<string, string> = new Map([
+  ['react', 'react'],
+  ['vue', 'vue'],
+  ['next', 'next'],
+  ['astro', 'astro'],
+  ['nuxt', 'nuxt'],
+  ['@angular/core', 'angular'],
+  ['svelte', 'svelte'],
+  ['solid-js', 'solid'],
+  ['preact', 'preact'],
+  ['vite', 'vite'],
 ])
 
 const BE_MANIFEST_FILES = [

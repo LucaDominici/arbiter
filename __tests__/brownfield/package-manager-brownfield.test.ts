@@ -3,6 +3,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { detectPackageManager } from '../../src/detectors/package-manager.js'
+import { resolveAxisFields } from '../../src/detectors/axis.js'
+import { detectFramework } from '../../src/detectors/framework.js'
+import { detectLanguage } from '../../src/detectors/language.js'
 
 describe('brownfield: pnpm workspace package-manager detection', () => {
   let dir: string
@@ -37,5 +40,14 @@ describe('brownfield: pnpm workspace package-manager detection', () => {
       source: 'packageManager-field',
       isWorkspace: true,
     })
+  })
+
+  it('classifies the root Astro app away from library', () => {
+    const language = detectLanguage(dir)
+    const framework = detectFramework(dir, language)
+
+    expect(language).toBe('typescript')
+    expect(framework).toBe('astro')
+    expect(resolveAxisFields(null, dir, language, framework).archetype).not.toBe('library')
   })
 })

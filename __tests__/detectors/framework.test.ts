@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { detectFramework, detectArchetypeHint } from '../../src/detectors/framework.js'
+import { FE_FRAMEWORKS } from '../../src/detectors/lanes.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
 describe('detectFramework', () => {
@@ -124,9 +125,57 @@ describe('detectFramework', () => {
       expect(detectFramework(dir, 'typescript')).toBe('vue')
     })
 
+    it.each([
+      ['astro', 'astro', 'backend-web-db'],
+      ['nuxt', 'nuxt', 'backend-web-db'],
+      ['@angular/core', 'angular', 'frontend-spa'],
+      ['svelte', 'svelte', 'frontend-spa'],
+      ['@sveltejs/kit', 'sveltekit', 'backend-web-db'],
+      ['solid-js', 'solid', 'frontend-spa'],
+      ['preact', 'preact', 'frontend-spa'],
+      ['vite', 'vite', 'frontend-spa'],
+    ] as const)('detects root %s and maps it away from library', (dependency, framework, archetype) => {
+      writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify({ devDependencies: { [dependency]: '^1.0.0' } }),
+      )
+
+      expect(detectFramework(dir, 'typescript')).toBe(framework)
+      expect(detectArchetypeHint(dir, 'typescript', framework)).toBe(archetype)
+      expect(detectArchetypeHint(dir, 'typescript', framework)).not.toBe('library')
+    })
+
+    it('keeps react ahead of vite', () => {
+      writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify({ dependencies: { react: '^18.0.0', vite: '^6.0.0' } }),
+      )
+      expect(detectFramework(dir, 'typescript')).toBe('react')
+    })
+
+    it('keeps next ahead of react', () => {
+      writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify({ dependencies: { next: '^15.0.0', react: '^18.0.0' } }),
+      )
+      expect(detectFramework(dir, 'typescript')).toBe('next')
+    })
+
+    it.each(Array.from(FE_FRAMEWORKS))(
+      'recognizes every shared frontend dependency: %s',
+      (dependency, framework) => {
+        writeFileSync(
+          join(dir, 'package.json'),
+          JSON.stringify({ dependencies: { [dependency]: '^1.0.0' } }),
+        )
+        expect(detectFramework(dir, 'typescript')).toBe(framework)
+      },
+    )
+
     it('returns null for empty package.json', () => {
       writeFileSync(join(dir, 'package.json'), '{}')
       expect(detectFramework(dir, 'typescript')).toBeNull()
+      expect(detectArchetypeHint(dir, 'typescript', null)).toBe('library')
     })
   })
 
@@ -284,6 +333,9 @@ describe('detectArchetypeHint', () => {
       ['typescript', 'express+react'],
       ['typescript', 'express+vue'],
       ['typescript', 'fastify'],
+      ['typescript', 'astro'],
+      ['typescript', 'nuxt'],
+      ['typescript', 'sveltekit'],
     ]
     for (const [lang, fw] of backendCases) {
       it(`${lang}:${fw} → backend-web-db`, () => {
@@ -299,6 +351,11 @@ describe('detectArchetypeHint', () => {
       ['typescript', 'tauri'],
       ['typescript', 'react'],
       ['typescript', 'vue'],
+      ['typescript', 'angular'],
+      ['typescript', 'svelte'],
+      ['typescript', 'solid'],
+      ['typescript', 'preact'],
+      ['typescript', 'vite'],
       ['rust', 'tauri'],
     ]
     for (const [lang, fw] of frontendCases) {

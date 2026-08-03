@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type { Archetype, Language } from '../wizard/types.js'
 import { readFileSafe, readPackageJsonSafe } from '../utils/safe-read.js'
 import { jvmRoot } from './language.js'
+import { FE_FRAMEWORKS } from './lanes.js'
 
 export function detectFramework(dir: string, language: Language): string | null {
   if (language === 'multi') return detectMultiFramework(dir)
@@ -52,6 +53,16 @@ function detectTypescriptFramework(dir: string): string | null {
   if (hasFastify) return 'fastify'
   if (hasVue) return 'vue'
   if (hasReact) return 'react'
+  return detectAdditionalTypescriptFramework(deps)
+}
+
+function detectAdditionalTypescriptFramework(deps: ReadonlySet<string>): string | null {
+  // SvelteKit is not in FE_FRAMEWORKS because frontend-lane detection must retain
+  // its established dependency set; framework detection recognises it at the root.
+  if (deps.has('@sveltejs/kit')) return 'sveltekit'
+  for (const [dependency, framework] of FE_FRAMEWORKS) {
+    if (deps.has(dependency)) return framework
+  }
   return null
 }
 
@@ -80,6 +91,9 @@ function detectJavaFramework(dir: string): string | null {
 
 const readPackageJson = readPackageJsonSafe
 
+const BACKEND_WEB_DB: Archetype = 'backend-web-db'
+const FRONTEND_SPA: Archetype = 'frontend-spa'
+
 function getAllDeps(pkg: Record<string, unknown>): Set<string> {
   const deps = new Set<string>()
   for (const key of ['dependencies', 'devDependencies', 'peerDependencies']) {
@@ -95,19 +109,27 @@ function getAllDeps(pkg: Record<string, unknown>): Set<string> {
 // Keyed by `${language}:${framework}`. Languages without a reliable mapping (go, python,
 // unknown) are not present — callers default to "library". See ADR-021.
 const FRAMEWORK_ARCHETYPE_MAP: ReadonlyMap<string, Archetype> = new Map([
-  ['java:spring-boot', 'backend-web-db'],
-  ['java:quarkus', 'backend-web-db'],
-  ['typescript:next', 'backend-web-db'],
-  ['typescript:express', 'backend-web-db'],
-  ['typescript:express+react', 'backend-web-db'],
-  ['typescript:express+vue', 'backend-web-db'],
-  ['typescript:fastify', 'backend-web-db'],
-  ['typescript:tauri+react', 'frontend-spa'],
-  ['typescript:tauri+vue', 'frontend-spa'],
-  ['typescript:tauri', 'frontend-spa'],
-  ['typescript:react', 'frontend-spa'],
-  ['typescript:vue', 'frontend-spa'],
-  ['rust:tauri', 'frontend-spa'],
+  ['java:spring-boot', BACKEND_WEB_DB],
+  ['java:quarkus', BACKEND_WEB_DB],
+  ['typescript:next', BACKEND_WEB_DB],
+  ['typescript:astro', BACKEND_WEB_DB],
+  ['typescript:nuxt', BACKEND_WEB_DB],
+  ['typescript:sveltekit', BACKEND_WEB_DB],
+  ['typescript:express', BACKEND_WEB_DB],
+  ['typescript:express+react', BACKEND_WEB_DB],
+  ['typescript:express+vue', BACKEND_WEB_DB],
+  ['typescript:fastify', BACKEND_WEB_DB],
+  ['typescript:tauri+react', FRONTEND_SPA],
+  ['typescript:tauri+vue', FRONTEND_SPA],
+  ['typescript:tauri', FRONTEND_SPA],
+  ['typescript:react', FRONTEND_SPA],
+  ['typescript:vue', FRONTEND_SPA],
+  ['typescript:angular', FRONTEND_SPA],
+  ['typescript:svelte', FRONTEND_SPA],
+  ['typescript:solid', FRONTEND_SPA],
+  ['typescript:preact', FRONTEND_SPA],
+  ['typescript:vite', FRONTEND_SPA],
+  ['rust:tauri', FRONTEND_SPA],
 ])
 
 // Languages where "no matching framework" still yields a reliable archetype.
@@ -115,7 +137,7 @@ const LANGUAGE_FALLBACK_ARCHETYPE: ReadonlyMap<Language, Archetype> = new Map([
   ['java', 'library'],
   ['typescript', 'library'],
   ['rust', 'library'],
-  ['multi', 'backend-web-db'],
+  ['multi', BACKEND_WEB_DB],
 ])
 
 /**
@@ -149,7 +171,7 @@ function detectMultiCompositeArchetype(framework: string): Archetype | null {
   const tsArchetype = FRAMEWORK_ARCHETYPE_MAP.get(`typescript:${tsFramework}`) ?? null
   const javaArchetype = FRAMEWORK_ARCHETYPE_MAP.get(`java:${last}`) ?? null
   if (tsArchetype !== null && tsArchetype === javaArchetype) return tsArchetype
-  if (tsArchetype === 'backend-web-db' || javaArchetype === 'backend-web-db')
-    return 'backend-web-db'
+  if (tsArchetype === BACKEND_WEB_DB || javaArchetype === BACKEND_WEB_DB)
+    return BACKEND_WEB_DB
   return tsArchetype ?? javaArchetype
 }
