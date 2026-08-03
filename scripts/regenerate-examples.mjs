@@ -50,6 +50,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { checkDistFresh } from './lib/dist-staleness.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
@@ -202,6 +203,13 @@ function generateOne(example) {
 
 function main(argv) {
   const { check, stack } = parseArgs(argv)
+  if (check) {
+    const distFreshness = checkDistFresh(ROOT)
+    if (!distFreshness.fresh) {
+      process.stderr.write(`  ERROR examples — ${distFreshness.reason}\n`)
+      return 2
+    }
+  }
   const examples = stack ? LIVING_EXAMPLES.filter((e) => e.language === stack) : LIVING_EXAMPLES
   if (examples.length === 0) {
     process.stderr.write(`  ERROR examples — no living example matches --stack=${stack}\n`)

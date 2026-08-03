@@ -161,6 +161,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'render smoke presence (INV-127)', affects: ALWAYS },
   { name: 'smoke journeys (INV-137)', affects: ALWAYS },
   { name: 'dogfood', affects: ALWAYS },
+  { name: 'examples drift (#2222)', affects: ALWAYS },
   { name: 'coverage', affects: ALWAYS },
   { name: 'coverage ratchet (#1483)', affects: ALWAYS },
   { name: 'dead code', affects: ALWAYS },

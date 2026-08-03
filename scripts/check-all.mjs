@@ -323,6 +323,8 @@ if (isMain) {
   runCheck('build-cache strategy (C3)', 'node', ['scripts/check-build-cache-strategy.mjs'])
   // #1744 (INV-45): template<->materialized drift is caught at COMMIT time, not push time.
   runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
+  // #2222: cheap (~2s) check catches example drift at commit time instead of after the weekly lane.
+  runCheck('examples drift (#2222)', 'node', ['scripts/regenerate-examples.mjs', '--check'])
 
   // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
   // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still
