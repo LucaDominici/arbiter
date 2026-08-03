@@ -109,6 +109,10 @@ export function resolveEvidenceCommit(
   }
   const blob = ev.test_blob_sha
   if (blob === undefined) return null
+  // Searched from HEAD, not from the merge-base: a squash-merged or re-branched history
+  // can leave the introducing commit below the base, and a match there is still the RED
+  // this evidence describes. It cannot manufacture a false green — the re-execution check
+  // runs the recorded command at whatever commit resolves here and fails if it passes.
   const touching = gitValue(['log', '--format=%H', '--max-count=200', '--', ev.test_path], dir)
   if (touching === 'unknown') return null
   // `git log` is newest-first; reverse so the introducing commit is inspected first.

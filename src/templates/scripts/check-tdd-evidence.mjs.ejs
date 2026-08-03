@@ -8,13 +8,21 @@
 // target needs no local arbiter install. Scoped to commits since
 // `git merge-base origin/main HEAD` (branch-relative). Rejects the ARBITER-SKIP-TDD: 1
 // commit trailer (forbidden at L2+). Self-SKIPs (exit 0) when origin/main is
-// unavailable (local-only branch) or no task-ID commits exist (vacuous pass).
+// unavailable (local-only branch) and for a branch that neither carries a task-ID commit
+// nor changes src/ (vacuous pass).
+//
+// A branch with no task id in any commit SUBJECT that changes src/ must still carry ONE
+// verified evidence among the tasks its commit BODIES cite (`Refs #NNN`) — evidence is
+// owed per CHANGE, not per commit (#2217).
 //
 // For each task #NNN it loads .arbiter/evidence/tdd/#NNN.json and asserts:
 //   1. evidence file present + schema valid (v1)
 //   2. evidence task_id matches the commit's task id
 //   3. a recognised test-runner FAILURE signature appears in test_run_log (proves RED)
-//   4. test_commit_sha (40 hex) exists in git history
+//   4. test_commit_sha (40 hex) is REACHABLE from HEAD — not merely present as an object,
+//      which a pre-rebase commit behind a stale branch would be (#2116). A rebase must
+//      fail here loudly; re-record the evidence. (Re-resolving a rewritten sha from the
+//      RED test's blob is arbiter's own `verify tdd`, not this self-contained gate.)
 //   5. test_path exists in that commit
 //
 // Exit codes (INV-53): 0 = all verified / vacuous · 1 = missing/inconsistent evidence
@@ -149,23 +157,6 @@ function pathInCommit(sha, path) {
   }
 }
 
-/** True when this task's evidence file was written on THIS branch, not inherited. */
-function evidenceProducedOnBranch(taskId, mergeBase) {
-  try {
-    return (
-      git([
-        'log',
-        '--format=%H',
-        `${mergeBase}..HEAD`,
-        '--',
-        `.arbiter/evidence/tdd/${taskId}.json`,
-      ]).length > 0
-    )
-  } catch {
-    return false
-  }
-}
-
 /** Run the 5 checks for one task id — returns { ok, reason }. */
 function verifyTask(taskId) {
   const p = join(ROOT, '.arbiter', 'evidence', 'tdd', `${taskId}.json`)
@@ -261,13 +252,12 @@ for (const block of bodyLog.split('\x00').filter(Boolean)) {
 // or chore commit that merely references an issue owes nothing.
 if (taskIds.length === 0) {
   for (const taskId of floorIds) {
-    // The evidence must have been PRODUCED here. Otherwise the floor is theatre: cite
-    // any long-closed task whose evidence sits on the base branch and this branch
-    // "proves" a red→green cycle it never ran.
-    if (!evidenceProducedOnBranch(taskId, mergeBase)) {
-      process.stdout.write(`  ${taskId}: evidence inherited from the base branch, not produced here\n`)
-      continue
-    }
+    // NOTE — arbiter's own gate additionally requires the evidence file to have been
+    // COMMITTED on this branch, so a long-closed task's inherited evidence cannot
+    // satisfy the floor. That guard is deliberately NOT applied here: the generated
+    // .gitignore ignores `.arbiter/` wholesale, so in a target the evidence file is
+    // typically untracked and the check would reject every branch. Un-ignore
+    // `.arbiter/evidence/tdd/*.json` (as arbiter does for itself) to close the gap.
     const r = verifyTask(taskId)
     process.stdout.write(`  ${taskId}: ${r.ok ? 'PASS' : `FAIL — ${r.reason}`}\n`)
     if (r.ok) {

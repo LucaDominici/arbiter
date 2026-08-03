@@ -254,14 +254,18 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     expect(runScenario({ uncitedSourceCommit: true })).toBe(1)
   })
 
-  it('FAIL (exit 1) when the cited task’s evidence was not produced on this branch', () => {
+  // The generated .gitignore ignores `.arbiter/` wholesale, so a target's evidence file
+  // is normally UNTRACKED. The produced-on-this-branch guard that arbiter applies to
+  // itself would therefore reject every target branch — it stays out of the shipped gate,
+  // and an uncommitted evidence file still satisfies the floor here.
+  it('PASS (exit 0) for a cited task whose evidence file is untracked in the target', () => {
     expect(
       runScenario({
         bodyRefsCommit: true,
         inheritedEvidence: true,
         evidence: (sha) => validEvidence(sha),
       }),
-    ).toBe(1)
+    ).toBe(0)
   })
 })
 

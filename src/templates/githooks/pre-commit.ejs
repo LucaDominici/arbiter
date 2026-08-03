@@ -20,6 +20,10 @@ case "$_phase" in
     # resolved for that one commit shape only: phase=red AND every staged path is a
     # test. Anything else (source staged alongside, or any other phase) still runs the
     # gate, and the GREEN commit that follows runs it over the whole tree.
+    # ponytail: path-name heuristic for "is a test" — language-agnostic, and tight enough
+    # to reject latest/protest/testing, but a genuine source file named src/.../test.ts
+    # would ride along gate-free in this one commit. Upgrade path: ask the project's test
+    # config for its test globs. Bounded by the GREEN commit's whole-tree gate.
     _staged_red=$(git diff --cached --name-only)
     if [ -n "$_staged_red" ] && ! printf '%s\n' "$_staged_red" |
       grep -qivE '(^|[^[:alpha:]])(tests?|specs?)([^[:alpha:]]|$)'; then

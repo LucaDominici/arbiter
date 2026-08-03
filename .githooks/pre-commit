@@ -27,6 +27,9 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 # GREEN commit that follows runs the full gate over the whole tree.
 _phase=$(node -e "const f=require('fs'),p='.claude/.task/status.json';if(!f.existsSync(p)){process.stdout.write('unknown')}else{try{process.stdout.write(JSON.parse(f.readFileSync(p,'utf-8')).phase||'unknown')}catch{process.stdout.write('corrupt')}}" 2>/dev/null || echo "unknown")
 if [ "$_phase" = "red" ]; then
+  # ponytail: path-name heuristic for "is a test" — rejects latest/protest/testing, but a
+  # genuine source file named .../test.ts would ride along gate-free in this one commit.
+  # Upgrade path: ask vitest for its test globs. Bounded by the GREEN commit's full gate.
   _staged_red=$(git diff --cached --name-only)
   if [ -n "$_staged_red" ] && ! printf '%s\n' "$_staged_red" |
     grep -qivE '(^|[^[:alpha:]])(tests?|specs?)([^[:alpha:]]|$)'; then
