@@ -10,8 +10,7 @@ import { loadConfig } from '../../utils/config.js'
 import type { ArbiterConfig } from '../../utils/config.js'
 import { runCli } from '../../utils/run-cli.js'
 import type { RunCliResult } from '../../utils/run-cli.js'
-import { forceReleaseLock } from '../../utils/file-lock.js'
-import type { LockInfo } from '../../utils/file-lock.js'
+import { forceReleaseLock, isLockStale, readLockInfo } from '../../utils/file-lock.js'
 import { ArbiterError } from '../../utils/errors.js'
 import { resolveChannel } from '../../utils/channel.js'
 import { detectLanguage } from '../../detectors/language.js'
@@ -601,38 +600,8 @@ function checkAutonomyCoherence(dir: string): HealthCheck {
   return check
 }
 
-/**
- * #618 — doctor reports stale `.arbiter/.lock` files.
- * Treats a lock as stale if PID is not alive (same-host only) or age > 6h.
- */
-function readLockInfoForHealth(lockPath: string): LockInfo | null {
-  try {
-    const raw = readFileSync(lockPath, 'utf-8')
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const ok =
-      typeof parsed.pid === 'number' &&
-      typeof parsed.hostname === 'string' &&
-      typeof parsed.bootId === 'string' &&
-      typeof parsed.startedAt === 'string' &&
-      typeof parsed.cmd === 'string' &&
-      typeof parsed.nonce === 'string'
-    return ok ? (parsed as unknown as LockInfo) : null
-  } catch {
-    return null
-  }
-}
-
-function probePidAlive(pid: number): boolean | null {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (e) {
-    const code = (e as NodeJS.ErrnoException).code
-    return code === 'EPERM' ? null : false
-  }
-}
-
 const LOCK_CHECK_ID = 'arbiter-lock'
+const DOCTOR_LOCK_STALE_AGE_MS = 6 * 3600_000
 
 /**
  * The advisory locks arbiter manages under `.arbiter/`. `.lock` guards the
@@ -657,7 +626,7 @@ function checkLockHealth(dir: string, rel: string, id: string): HealthCheck {
       detail: 'no leftover lock file',
     }
   }
-  const info = readLockInfoForHealth(lockPath)
+  const info = readLockInfo(lockPath)
   if (info === null) {
     return {
       id,
@@ -667,18 +636,16 @@ function checkLockHealth(dir: string, rel: string, id: string): HealthCheck {
       hint: `Run \`arbiter doctor recover-lock\` to remove it.`,
     }
   }
-  const sameHost = info.hostname === os.hostname()
   const ageMs = Date.now() - new Date(info.startedAt).getTime()
   const ageH = Math.round(ageMs / 36e5)
-  const pidAlive = sameHost ? probePidAlive(info.pid) : null
-  const stale = sameHost && (pidAlive === false || ageMs > 6 * 3600_000)
+  const sameHost = info.hostname === os.hostname()
+  const stale = isLockStale(info, DOCTOR_LOCK_STALE_AGE_MS)
   if (stale) {
-    const aliveLabel = pidAlive === false ? 'not alive' : `age ${ageH}h`
     return {
       id,
       label: `${rel} stale`,
       status: 'WARN',
-      detail: `pid ${info.pid} (${aliveLabel}), cmd: ${info.cmd}`,
+      detail: `pid ${info.pid}, age ${ageH}h, cmd: ${info.cmd}`,
       hint: 'Run `arbiter doctor recover-lock` to clean up.',
     }
   }
@@ -953,7 +920,7 @@ async function repairStaleLockInChecks(
     if (!lockCheck || lockCheck.status !== 'WARN') continue
 
     const lockPath = join(dir, rel)
-    const info = readLockInfoForHealth(lockPath)
+    const info = readLockInfo(lockPath)
     if (!info) continue
 
     try {

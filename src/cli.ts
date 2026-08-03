@@ -1422,11 +1422,13 @@ doctor
   .command('recover-lock')
   .description('Force-release a stale .arbiter/.lock file left by a crashed process')
   .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--force', 'Release a live or unconfirmed lock deliberately', false)
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((_opts: { dir?: string; json: boolean }, cmd: Command) => {
-    const opts = cmd.optsWithGlobals<{ dir?: string; json: boolean }>()
+  .action((_opts: { dir?: string; force: boolean; json: boolean }, cmd: Command) => {
+    const opts = cmd.optsWithGlobals<{ dir?: string; force: boolean; json: boolean }>()
     runDoctorRecoverLock({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      force: opts.force,
       json: opts.json,
     }).catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err)

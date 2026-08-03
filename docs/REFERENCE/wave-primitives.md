@@ -71,7 +71,7 @@ reaper detects candidates from REAL state (open log + git), never memory:
   commits is not reaped.
 - Unreadable branches are skipped fail-closed (`branch-missing`), never guessed.
 
-## `isStale` liveness-first (file-lock)
+## `isLockStale` liveness-first (file-lock)
 
 `src/utils/file-lock.ts` staleness order is liveness-first: a LIVE same-boot holder is
 never stolen on age alone (the double-gate hole — a legitimate >1h gate used to be taken

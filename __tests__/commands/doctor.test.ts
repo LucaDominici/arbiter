@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import os from 'node:os'
 import { join } from 'node:path'
@@ -12,7 +13,30 @@ import {
 } from '../../src/commands/doctor.js'
 import { saveConfig, saveConfigAndSnapshot } from '../../src/utils/config.js'
 import { defaultConfig } from '../helpers/default-config.js'
+import { acquireLock } from '../../src/utils/file-lock.js'
 import type { LockInfo } from '../../src/utils/file-lock.js'
+
+function realBootId(): string {
+  try {
+    return readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+  } catch {
+    return 'unknown'
+  }
+}
+
+function spawnLiveHolder(): ReturnType<typeof spawn> {
+  return spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })
+}
+
+function waitForExit(child: ReturnType<typeof spawn>): Promise<void> {
+  return new Promise((resolve) => child.once('exit', () => resolve()))
+}
+
+async function killChild(child: ReturnType<typeof spawn>): Promise<void> {
+  if (child.exitCode !== null) return
+  child.kill('SIGKILL')
+  await waitForExit(child)
+}
 
 vi.mock('../../src/utils/run-cli.js', () => ({
   runCli: vi.fn(),
@@ -497,16 +521,17 @@ describe('runDoctorHealth (#539)', () => {
     expect(lockCheck?.hint).toMatch(/recover-lock/)
   })
 
-  it('WARN arbiter-lock when lock age exceeds 6h on same host (#618)', async () => {
+  it('PASS arbiter-lock when a live same-boot lock age exceeds 6h (#2210)', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
     writeLock(dir, {
       pid: process.pid,
+      bootId: realBootId(),
       startedAt: new Date(Date.now() - 7 * 3600_000).toISOString(),
     })
     const result = await runDoctorHealth({ dir, json: true })
     const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
-    expect(lockCheck?.status).toBe('WARN')
+    expect(lockCheck?.status).toBe('PASS')
   })
 
   it('PASS arbiter-lock when lock from a different host (#618)', async () => {
@@ -557,10 +582,67 @@ describe('runDoctorHealth (#539)', () => {
   it('--repair is a no-op when lock is active (PASS, not WARN) (#824)', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
-    writeLock(dir, { pid: process.pid })
+    writeLock(dir, { pid: process.pid, bootId: realBootId() })
     const result = await runDoctorHealth({ dir, json: true, repair: true })
     expect(result.repaired).toBeUndefined()
     expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(true)
+  })
+
+  it('--repair does not release a real live lock backdated past 6h (#2210)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    const holder = spawnLiveHolder()
+    try {
+      const pid = holder.pid as number
+      writeLock(dir, {
+        pid,
+        bootId: realBootId(),
+        startedAt: new Date(Date.now() - 7 * 3600_000).toISOString(),
+        cmd: 'real live holder',
+      })
+      const result = await runDoctorHealth({ dir, json: true, repair: true })
+      expect(result.repaired).toBeUndefined()
+      expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(true)
+      expect(() => process.kill(pid, 0)).not.toThrow()
+    } finally {
+      await killChild(holder)
+    }
+  })
+
+  it('--repair releases a real dead lock younger than 6h (#2210)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    const holder = spawnLiveHolder()
+    const pid = holder.pid as number
+    await killChild(holder)
+    expect(() => process.kill(pid, 0)).toThrow()
+    writeLock(dir, { pid, bootId: realBootId(), startedAt: new Date().toISOString() })
+    const result = await runDoctorHealth({ dir, json: true, repair: true })
+    expect(result.repaired?.pid).toBe(pid)
+    expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(false)
+  })
+
+  it('reports a corrupt lock and recover-lock restores acquisition (#2210)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    const lockPath = join(dir, '.arbiter', '.lock')
+    writeFileSync(lockPath, 'not json at all', 'utf-8')
+
+    const health = await runDoctorHealth({ dir, json: true })
+    expect(health.checks.find((check) => check.id === 'arbiter-lock')?.detail).toMatch(
+      /unreadable|valid JSON/i,
+    )
+
+    const recovery = await runDoctorRecoverLock({ dir, json: true })
+    expect(recovery.found).toBe(true)
+    expect(recovery.released).toBe(true)
+    expect(recovery.corrupt).toBe(true)
+    expect(existsSync(lockPath)).toBe(false)
+
+    const handle = await acquireLock(lockPath)
+    expect(existsSync(lockPath)).toBe(true)
+    await handle.release()
   })
 
   // #1517 — doctor must also detect/repair a stale `kit.lock` (guards saveConfig).
@@ -790,6 +872,47 @@ describe('runDoctorRecoverLock (#618)', () => {
     writeFileSync(realFile, JSON.stringify(lockInfo), 'utf-8')
     symlinkSync(realFile, join(lockDir, '.lock'))
     await expect(runDoctorRecoverLock({ dir, json: false })).rejects.toThrow(/symlink/i)
+  })
+
+  it('refuses a real live holder without --force and leaves it running (#2210)', async () => {
+    const holder = spawnLiveHolder()
+    try {
+      const pid = holder.pid as number
+      writeLock({ pid, bootId: realBootId(), cmd: 'real live holder' })
+      await expect(runDoctorRecoverLock({ dir, json: true })).rejects.toThrow(
+        /live holder|--force|pid/i,
+      )
+      expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(true)
+      expect(() => process.kill(pid, 0)).not.toThrow()
+    } finally {
+      await killChild(holder)
+    }
+  })
+
+  it('releases a real live holder with --force (#2210)', async () => {
+    const holder = spawnLiveHolder()
+    try {
+      const pid = holder.pid as number
+      writeLock({ pid, bootId: realBootId(), cmd: 'real live holder' })
+      const result = await runDoctorRecoverLock({ dir, json: true, force: true })
+      expect(result.released).toBe(true)
+      expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(false)
+      expect(() => process.kill(pid, 0)).not.toThrow()
+    } finally {
+      await killChild(holder)
+    }
+  })
+
+  it('releases a lock whose real holder process has been killed (#2210)', async () => {
+    const holder = spawnLiveHolder()
+    const pid = holder.pid as number
+    await killChild(holder)
+    expect(() => process.kill(pid, 0)).toThrow()
+    writeLock({ pid, bootId: realBootId(), startedAt: new Date().toISOString() })
+
+    const result = await runDoctorRecoverLock({ dir, json: true })
+    expect(result.released).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(false)
   })
 })
 

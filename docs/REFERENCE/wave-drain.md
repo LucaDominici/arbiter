@@ -75,7 +75,7 @@ rest of the wave.
   `gh` before their agent writes code; cost (3 agent-runs/issue) is explicit.
 - **Primitives:** see [wave-primitives](wave-primitives.md) for `arbiter gate-exec`, the
   `symlink-children` strategy, `arbiter worktree prune --stale`, and the liveness-first
-  `isStale` fix.
+  `isLockStale` fix.
 
 ## Iron law
 

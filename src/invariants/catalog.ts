@@ -1171,14 +1171,17 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Long-running commands that mutate `.arbiter/` MUST acquire `.arbiter/.lock` ' +
       'via `src/utils/file-lock.ts` (acquireLock) before any state mutation, ' +
       'and release it on completion or crash. The lock records pid, hostname, ' +
-      'bootId, cmd, startedAt, and a nonce. A lock is considered stale only ' +
-      'when same-host AND (pid not alive OR age > 1h). Cross-host coordination ' +
+      'bootId, cmd, startedAt, and a nonce. Same-host, same-boot live pids are ' +
+      'never stale regardless of age; dead pids are stale immediately; and an ' +
+      'unprobeable EPERM pid uses the configured age as a backstop. A changed ' +
+      'bootId is stale immediately. Cross-host coordination ' +
       'is out of scope. Force-release MUST go through `forceReleaseLock` which ' +
-      'verifies the path is within the project root, refuses symlinks, and ' +
-      'requires a matching expectedPid. Bypassing the lock (direct unlink, ' +
+      'always enforces path and symlink guards and requires a matching expectedPid ' +
+      'except for explicit corrupt-lock recovery. Bypassing the lock (direct unlink, ' +
       'parallel mutators, ignoring the stale signal) corrupts the project ' +
       'snapshot and the file-stability log. Stale locks are surfaced by ' +
-      '`doctor health` and auto-released by `doctor health --repair` (#824).',
+      '`doctor health` and auto-released by `doctor health --repair` (#824); ' +
+      'a corrupt lock is recoverable through `doctor recover-lock`.',
     alwaysActive: true,
     selfOnly: true,
     enforcement: 'doctor health check + code review for any new `.arbiter/` mutator',

@@ -109,7 +109,12 @@ function sanitize(s: string): string {
     .slice(0, 200)
 }
 
-function readLockInfo(path: string): LockInfo | null {
+/**
+ * Read and validate a lock record without changing it. `null` means either the
+ * path is absent or its contents are unreadable/invalid; callers that need to
+ * distinguish those cases must check `existsSync(path)` themselves.
+ */
+export function readLockInfo(path: string): LockInfo | null {
   try {
     const raw = readFileSync(path, 'utf-8')
     const parsed = JSON.parse(raw) as Record<string, unknown>
@@ -158,7 +163,7 @@ function isPidAlive(pid: number): boolean | 'unknown-user' {
  *   - dead pid            → stale immediately, regardless of age;
  *   - EPERM (another user's pid — liveness unknowable) → age backstop only.
  */
-function isStale(info: LockInfo, staleAgeMs: number): boolean {
+export function isLockStale(info: LockInfo, staleAgeMs: number): boolean {
   if (info.hostname !== os.hostname()) return false
   if (info.bootId !== currentBootId()) return true
   const alive = isPidAlive(info.pid)
@@ -203,7 +208,7 @@ function buildLockInfo(): LockInfo {
 
 function tryTakeover(lockPath: string, info: LockInfo, staleAgeMs: number): boolean {
   if (info.hostname !== os.hostname()) return false
-  if (!isStale(info, staleAgeMs)) return false
+  if (!isLockStale(info, staleAgeMs)) return false
 
   const staleMarker = `${lockPath}.stale-${process.pid}-${randomBytes(4).toString('hex')}`
   try {
@@ -318,10 +323,16 @@ export function inspectLock(lockPath: string): Promise<LockInfo | null> {
   return Promise.resolve(readLockInfo(lockPath))
 }
 
+export interface ForceReleaseLockOptions {
+  /** Permit recovery of a present lock file whose contents cannot be parsed. */
+  allowUnreadable?: boolean
+}
+
 export function forceReleaseLock(
   lockPath: string,
   expectedPid: number,
   _rootDir?: string,
+  opts: ForceReleaseLockOptions = {},
 ): Promise<void> {
   const cwd = _rootDir ?? process.cwd()
   const resolved = resolve(lockPath)
@@ -340,13 +351,13 @@ export function forceReleaseLock(
   }
 
   const info = readLockInfo(lockPath)
-  if (!info) {
+  if (!info && !opts.allowUnreadable) {
     return Promise.reject(
       ArbiterError.fromKey('E_LOCK_UNREADABLE', 'errors.E_LOCK_UNREADABLE', { path: lockPath }),
     )
   }
 
-  if (info.pid !== expectedPid) {
+  if (info && info.pid !== expectedPid) {
     return Promise.reject(
       ArbiterError.fromKey('E_LOCK_PID_CHANGED', 'errors.E_LOCK_PID_CHANGED', {
         expected: expectedPid,
