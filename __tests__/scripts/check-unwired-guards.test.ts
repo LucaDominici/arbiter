@@ -242,10 +242,47 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
     try {
       mkdirSync(join(dir, 'scripts'), { recursive: true })
       mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
-      writeFileSync(join(dir, '.claude/hooks', 'check-importer.mjs'), '// wired hook\n')
+      // The WIRED hook imports the otherwise-unwired helper — importing a module
+      // runs its top-level code, so the imported hook fires whenever the wired
+      // importer runs and is therefore wired too.
       writeFileSync(
-        join(dir, '.claude/hooks', 'check-imported.mjs'),
-        "// imported helper\nimport { helper } from './check-importer.mjs'\n",
+        join(dir, '.claude/hooks', 'check-main.mjs'),
+        "// wired hook\nimport { helper } from './check-helper.mjs'\n",
+      )
+      writeFileSync(join(dir, '.claude/hooks', 'check-helper.mjs'), '// helper, not directly wired\n')
+      writeFileSync(
+        join(dir, '.claude/settings.json'),
+        JSON.stringify({
+          hooks: {
+            PostToolUse: [
+              {
+                matcher: 'Edit|Write',
+                hooks: [
+                  {
+                    type: 'command',
+                    command: 'node .claude/hooks/check-main.mjs',
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('#2228 exits 1 when an unwired hook merely IMPORTS a wired hook (wiring is not transitive-in-reverse)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+      writeFileSync(join(dir, '.claude/hooks', 'check-wired.mjs'), '// wired hook\n')
+      writeFileSync(
+        join(dir, '.claude/hooks', 'check-unwired-importer.mjs'),
+        "// unwired hook that imports a wired one\nimport { helper } from './check-wired.mjs'\n",
       )
       writeFileSync(
         join(dir, '.claude/settings.json'),
@@ -257,7 +294,7 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
                 hooks: [
                   {
                     type: 'command',
-                    command: 'node .claude/hooks/check-importer.mjs',
+                    command: 'node .claude/hooks/check-wired.mjs',
                   },
                 ],
               },
@@ -265,7 +302,9 @@ describe('check-unwired-guards.mjs (INV-89, #2159)', () => {
           },
         }),
       )
-      expect(run(dir).status).toBe(0)
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('.claude/hooks/check-unwired-importer.mjs')
     } finally {
       cleanup()
     }

@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2228",
+  "test_path": "__tests__/scripts/check-unwired-guards.test.ts",
+  "test_commit_sha": "ec1eb631806dba46b699937fb06aeabbab405703",
+  "test_blob_sha": "657a0b65d58b6c5c729e587689387acff95de10c",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/check-unwired-guards.test.ts (16 tests | 2 failed) 269ms\n     × #2228 exits 1 and names the hook when a .claude/hooks/*.mjs file is wired nowhere 18ms\n     × #2228 exits 0 with ALLOWLISTED stdout when an unwired hook is listed in optional-emissions.json 16ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 14 passed (16)\n   Start at  20:30:53\n   Duration  379ms (transform 28ms, setup 21ms, import 16ms, tests 269ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-unwired-guards.test.ts > check-unwired-guards.mjs (INV-89, #2159) > #2228 exits 1 and names the hook when a .claude/hooks/*.mjs file is wired nowhere\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-unwired-guards.test.ts:171:29\n    169|       writeFileSync(join(dir, '.claude/hooks', 'check-orphan-hook.mjs'…\n    170|       const result = run(dir)\n    171|       expect(result.status).toBe(1)\n       |                             ^\n    172|       expect(result.stdout).toContain('.claude/hooks/check-orphan-hook…\n    173|     } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/scripts/check-unwired-guards.test.ts > check-unwired-guards.mjs (INV-89, #2159) > #2228 exits 0 with ALLOWLISTED stdout when an unwired hook is listed in optional-emissions.json\nAssertionError: expected 'check-unwired-guards: OK — every guar…' to contain 'ALLOWLISTED'\n\n- Expected\n+ Received\n\n- ALLOWLISTED\n+ check-unwired-guards: OK — every guard script is referenced or allowlisted\n+\n\n ❯ __tests__/scripts/check-unwired-guards.test.ts:293:29\n    291|       const result = run(dir)\n    292|       expect(result.status).toBe(0)\n    293|       expect(result.stdout).toContain('ALLOWLISTED')\n       |                             ^\n    294|       expect(result.stdout).toContain('.claude/hooks/check-language-ho…\n    295|     } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-unwired-guards.test.ts",
+  "recorded_at": "2026-08-03T18:30:53.998Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-unwired-guards.test.ts"
+  ]
+}
