@@ -26,6 +26,12 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
+  it('wires the generated docs index drift check at L2+ (#2214)', () => {
+    generateCheckAll(makeConfig(dir, { governanceLevel: 'L2' }))
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
+  })
+
   it('emits exactly 39 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)

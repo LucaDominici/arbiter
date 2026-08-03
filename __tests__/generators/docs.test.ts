@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { generateDocs } from '../../src/generators/docs.js'
+import { generateCheckAll } from '../../src/generators/check-all.js'
 import { generateStrideEnforcement } from '../../src/generators/stride-enforcement.js'
 import { makeConfig } from '../helpers.js'
 
@@ -15,6 +17,44 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
+})
+
+describe('generateDocs — target doc generators (#2214)', () => {
+  // Deliberately does NOT create a README.md. A virgin `arbiter init` target has no README,
+  // and gen-llms-txt fails CLOSED (exit 2) on any config path that does not resolve — seeding
+  // README.md made the emitted generator die on its very first run in a real target. Writing
+  // one here would mask exactly the defect this test exists to catch.
+  it('emits doc-index and llms.txt generators that RUN on a virgin L2 target', () => {
+    writeFileSync(join(dir, 'AGENTS.md'), '# Agent instructions\n')
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    generateDocs(config)
+    generateCheckAll(config)
+
+    const indexGenerator = join(dir, 'scripts', 'gen-doc-index.mjs')
+    const llmsGenerator = join(dir, 'scripts', 'gen-llms-txt.mjs')
+    expect(existsSync(indexGenerator)).toBe(true)
+    expect(existsSync(llmsGenerator)).toBe(true)
+    expect(existsSync(join(dir, 'llms-txt.config.json'))).toBe(true)
+
+    const index = spawnSync('node', [indexGenerator], { cwd: dir, encoding: 'utf-8' })
+    expect(index.status, index.stderr).toBe(0)
+    const llms = spawnSync('node', [llmsGenerator], { cwd: dir, encoding: 'utf-8' })
+    expect(llms.status, llms.stderr).toBe(0)
+    expect(existsSync(join(dir, 'llms.txt'))).toBe(true)
+  })
+
+  // Both drift checks must be guarded on their OUTPUT artifact, never on the script: an
+  // unguarded --check reds every virgin target on day one, because arbiter init does not
+  // pre-generate docs/INDEX.md or llms.txt. Shipping red-by-construction enforcement to
+  // targets is the failure mode #2214 removes, not one to reintroduce.
+  it('guards both doc drift checks on their output artifact, never red on day one', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    generateCheckAll(config)
+    const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(checkAll).toContain("['scripts/gen-doc-index.mjs', '--check']")
+    expect(checkAll).toContain("existsSync('docs/INDEX.md')")
+    expect(checkAll).toContain("existsSync('llms.txt')")
+  })
 })
 
 describe('generateDocs — ADR template (#192)', () => {

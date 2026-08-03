@@ -5,6 +5,7 @@
 // "> **STUB — fill me in.**" banner (scripts/check-doc-set.mjs `stubFor()`).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateGoldKit } from '../../src/generators/gold-kit.js'
@@ -263,5 +264,24 @@ describe('runDocSetPlanApply — the arbiter doc-set --plan/--apply CLI path', (
     } finally {
       cleanupTestProject(fresh)
     }
+  })
+
+  it('--apply exits non-zero for missing unbound rows, while --plan remains advisory (#2214)', () => {
+    const manifest = join(dir, 'standards', 'unbound-doc-set.yml')
+    writeFileSync(
+      manifest,
+      `version: '1.1.0'\nprofile: tooling\nchecks:\n  - path: docs/mystery.md\n    tier: mandatory\n    applies: always\n`,
+    )
+    const cli = join(process.cwd(), 'dist', 'cli.js')
+    const plan = spawnSync('node', [cli, 'doc-set', dir, '--plan', '--manifest', manifest], {
+      encoding: 'utf-8',
+    })
+    const apply = spawnSync('node', [cli, 'doc-set', dir, '--apply', '--manifest', manifest], {
+      encoding: 'utf-8',
+    })
+
+    expect(plan.status, plan.stderr).toBe(0)
+    expect(apply.status, apply.stderr).not.toBe(0)
+    expect(apply.stdout).toContain('scripts/check-doc-set.mjs --generate')
   })
 })
