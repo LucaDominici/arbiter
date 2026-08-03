@@ -105,6 +105,8 @@ for low-level engine control or recovery (`arbiter task advance`, `record-red`, 
 - Gate red on tests → run the failing test in isolation; do not bypass with `--no-verify`
 - Gate red on TDD evidence (#NNN.json missing) → `arbiter task record-red --test-path <file>`
   (commit the RED test first — `record-red` refuses on a dirty/uncommitted `__tests__/**`, #1988)
+- `record-red` refuses a test runner that exits 0; Node `node:test`/TAP failures are recognized
+  from the `# fail N` summary line.
 - `record-red: FAIL — branch/task-document mismatch` → the current git branch (`task/#NNN-*`)
   and `.claude/.task/status.json` disagree on the active task; `record-red` fails closed rather
   than guess, to avoid overwriting another task's evidence. Run `arbiter task init --id #NNN`

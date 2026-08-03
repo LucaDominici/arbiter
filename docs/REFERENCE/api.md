@@ -118,11 +118,12 @@ ARBITER_LOG_FORMAT=json ARBITER_LOG_LEVEL=debug arbiter task advance --to green
 
 ### Task lifecycle
 
-| Variable                   | Format | Default | Purpose                                                                                                                                                                 | Read in                                  |
-| -------------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `ARBITER_SKIP_PLAN_REVIEW` | `1`    | —       | Bypass the plan-review gate and write an audit bypass record. **Refused under CI** (`CI=true`). Use `--skip-plan-review` flag instead when possible.                    | `src/commands/task.ts`                   |
-| `ARBITER_PLAN_BYPASS`      | `1`    | —       | Bypass the pre-edit plan-anchor hook (CANON-14). Allows edits in implementation phases without a valid `.task-plan` pointer. For emergency use only — bypass is logged. | `.claude/hooks/pre-edit-plan-anchor.mjs` |
-| `ARBITER_POST_CLEAR`       | `1`    | —       | Signal that this invocation is a post-`/clear` re-entry. Equivalent to the `--post-clear` CLI flag; controls the task handoff strategy.                                 | `src/commands/task.ts`                   |
+| Variable                   | Format | Default | Purpose                                                                                                                                                                 | Read in                                                                    |
+| -------------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `ARBITER_SKIP_PLAN_REVIEW` | `1`    | —       | Bypass the plan-review gate and write an audit bypass record. **Refused under CI** (`CI=true`). Use `--skip-plan-review` flag instead when possible.                    | `src/commands/task.ts`                                                     |
+| `ARBITER_PLAN_BYPASS`      | `1`    | —       | Bypass the pre-edit plan-anchor hook (CANON-14). Allows edits in implementation phases without a valid `.task-plan` pointer. For emergency use only — bypass is logged. | `.claude/hooks/pre-edit-plan-anchor.mjs`                                   |
+| `ARBITER_POST_CLEAR`       | `1`    | —       | Signal that this invocation is a post-`/clear` re-entry. Equivalent to the `--post-clear` CLI flag; controls the task handoff strategy.                                 | `src/commands/task.ts`                                                     |
+| `ARBITER_SKIP_GATE_MARKER` | `1`    | —       | Bypass the current `gate-pass.json` requirement for task phase transitions and the pre-PR hook. **Refused under CI** (`CI=true`).                                       | `src/commands/task.ts`, `packages/kernel/hooks/enforce-gate-before-pr.mjs` |
 
 **Example — bypass plan-review in a local one-off run:**
 

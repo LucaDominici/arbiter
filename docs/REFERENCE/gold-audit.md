@@ -35,7 +35,8 @@ byte-identical output.
 Every check resolves to exactly one verdict, with evidence (file + line) attached:
 
 - **Y** — verified true by code.
-- **P** — partial (a `count_matches` check met some, not all, of its target).
+- **P** — partial (a `count_matches` check met some, not all, of its target, or a
+  `file_exists` check found a present but empty or whitespace-only file).
 - **N** — verified false by code (the path/pattern was absent).
 - **NA** — not applicable (`applies_if` overlay disabled).
 - **NV** — not verified by code (a `manual` / attestation-required check).
@@ -45,9 +46,12 @@ cannot verify.
 
 ## Check types
 
-`file_exists`, `file_contains`, `count_matches`, `value`, `manual`. Each non-manual check's
-`args.path` is resolved **inside** the repo root; traversal (`..`) and absolute paths are
-rejected and scored `N`.
+`file_exists`, `file_contains`, `count_matches`, `value`, `manual`. For `file_exists`, a present
+non-empty regular file is `Y`; a present empty or whitespace-only file is `P`; a missing,
+directory, or unreadable path is `N`. The `file_exists` form used as an `applies_if`
+precondition remains pure existence: any present path satisfies it, regardless of content.
+Each non-manual check's `args.path` is resolved **inside** the repo root; traversal (`..`) and
+absolute paths are rejected and scored `N`.
 
 The **CLI path flags** (`--registry`, `--profile`, `--baseline`, `--thresholds`, `--json`), by
 contrast, accept both relative (resolved against CWD) and **absolute** paths — so arbiter can audit

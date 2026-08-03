@@ -74,6 +74,10 @@ it drives an issue to a reviewed, merged PR by auto-sequencing
 Use `/task` subcommands (`arbiter task advance`, `record-red`, etc.) only for recovery or manual
 phase control; the `/ship` loop auto-advances phases when their gates are green.
 
+`arbiter task record-red --test-path <path>` records only a genuinely failing test run. A runner
+that exits 0 is rejected, and Node's `node:test`/TAP failure summary is recognized via `# fail N`.
+Commit the RED test before recording it so the evidence can be correlated to the test commit.
+
 The positional `<id>` accepts both `1280` and `#1280`: it is normalized to the canonical `#NNN`
 form once at parse (#1280), so the persisted task id always matches the TDD-evidence schema
 (`^#\d+$`) and its identity check. Non-numeric ids are rejected with an error.
@@ -131,16 +135,17 @@ git commit -m "CHECKPOINT(#694): refactor dispatch.ts before context window fill
 
 ## Phase Recovery Table
 
-| Phase                        | What Happened                                         | Recovery Action                                                                                                                        |
-| ---------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `preflight`                  | Task not started                                      | Run `/task #NNN` to initialize branch and plan                                                                                         |
-| `plan`                       | Plan being written                                    | Check `.claude/plans/` for draft — await user GO                                                                                       |
-| `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter task advance --to red-team-rework`; clear → `--to red`          |
-| _(handoff boundary)_         | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter ship #NNN --advance --post-clear --units <N>`; see `docs/REFERENCE/recipes/cost-optimized-phase-handoff.md` |
-| `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter task advance --to red-team-review`; or full replan: `--to plan`                                    |
-| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter task resume` (lands on the cursor if one was set — see the known gap above); run `node scripts/check-all.mjs L1`              |
-| `verification`               | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; fix failures; commit and push                                                                  |
-| `complete`                   | Task done                                             | Verify PR created: `gh pr list --head $(git branch --show-current)`; confirm issue closed                                              |
+| Phase                        | What Happened                                         | Recovery Action                                                                                                                                                                  |
+| ---------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preflight`                  | Task not started                                      | Run `/task #NNN` to initialize branch and plan                                                                                                                                   |
+| `plan`                       | Plan being written                                    | Check `.claude/plans/` for draft — await user GO                                                                                                                                 |
+| `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter task advance --to red-team-rework`; clear → `--to red`                                                    |
+| _(handoff boundary)_         | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter ship #NNN --advance --post-clear --units <N>`; see `docs/REFERENCE/recipes/cost-optimized-phase-handoff.md`                                           |
+| `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter task advance --to red-team-review`; or full replan: `--to plan`                                                                              |
+| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter task resume` (lands on the cursor if one was set — see the known gap above); run `node scripts/check-all.mjs L1`                                                        |
+| `verification`               | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; a current `.arbiter/gate-pass.json` must match HEAD and branch and report `tree_was_clean_at_run_time: true` before the phase is written |
+| `close`                      | CLOSER mode                                           | The same current gate-pass marker is required before entering the phase; commit, push, and land the PR                                                                           |
+| `complete`                   | Task done                                             | The same current gate-pass marker is required before entering the phase; verify PR created: `gh pr list --head $(git branch --show-current)` and confirm issue closed            |
 
 ---
 
@@ -197,3 +202,8 @@ update merges all prior fields (a phase advance never clobbers the cursor or cos
 is registered for SIGTERM/SIGINT cleanup (#613). Shell consumers read fields via
 `arbiter task get --field <phase|taskId|tier|plan|tddPhase|lastAction|nextAction>` and seed state via
 `arbiter task init --id #NNN --tier <tier> --plan <path>`.
+
+The verification, close, and complete transitions validate `.arbiter/gate-pass.json` before writing
+the phase. The marker must be valid for the current HEAD and branch and have
+`tree_was_clean_at_run_time: true`; missing, corrupt, stale, or dirty-tree markers fail closed.
+`ARBITER_SKIP_GATE_MARKER=1` is a local emergency bypass and is refused when `CI=true`.
