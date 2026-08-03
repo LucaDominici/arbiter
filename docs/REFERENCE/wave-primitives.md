@@ -41,15 +41,19 @@ Serializes expensive gates across N parallel worktree agents of the same repo.
 
 Directory link strategy (now the `node_modules` default in `WorktreeConfig.links`): the
 destination is a **real directory**; every top-level child of the source is symlinked
-absolute, EXCEPT the shared cache dirs `.vite` and `.cache`, which each worktree creates
-locally. A whole-dir `node_modules` symlink shares Vite/esbuild caches across all
-worktrees — N concurrent builds corrupt them into non-deterministic spurious reds that
+absolute, EXCEPT transient, tool-owned directories that their owner can delete. The current
+exclusions are `.vite`, `.cache`, `.vite-temp`, and `.arbiter-test-scratch`; each worktree
+creates these locally. A whole-dir `node_modules` symlink shares Vite/esbuild caches across
+all worktrees — N concurrent builds corrupt them into non-deterministic spurious reds that
 waste fix-on-red strikes.
 
 - Idempotent and healing: re-running links children added to the main repo later.
 - Fail-closed migration: a whole-dir symlink left by the old `symlink` strategy is refused
   with an explicit remove-and-retry message.
 - Explicit `strategy: 'symlink'` / `'copy'` configs are unchanged.
+- `arbiter worktree relink <task-id>` re-runs the configured link materialization for an
+  already-open worktree, healing missing child links and warning about links whose source still
+  does not exist.
 
 ## `arbiter worktree prune [--stale <hours>] [--execute]` — zombie reaper
 

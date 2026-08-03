@@ -253,7 +253,8 @@
       "harvest_protected": "  protected-untracked: {file}",
       "no_harvest": "No files to harvest (worktree has no changes).",
       "branch_deleted": "Branch {branch} deleted.",
-      "closed": "\nWorktree closed: {path}"
+      "closed": "\nWorktree closed: {path}",
+      "relinked": "\nWorktree relinked: {path}"
     },
     "wizard": {
       "migration_plan": "\n  Migration plan:",

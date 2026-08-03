@@ -153,6 +153,8 @@ export interface WorktreeOpenOptions {
   sibling?: string
   /** Also materialize build-artifact links (WorktreeConfig.buildLinks). */
   withBuildLinks?: boolean
+  /** Receive warning lines instead of printing them (used in tests). */
+  onWarning?: (msg: string) => void
 }
 
 export interface WorktreeCloseOptions {
@@ -177,6 +179,16 @@ export interface WorktreeListOptions {
   cwd?: string
   /** Receive output lines instead of printing them (used in tests). */
   onLine?: (line: string) => void
+  json?: boolean | undefined
+}
+
+export interface WorktreeRelinkOptions {
+  taskId: string
+  cwd?: string
+  /** Also materialize build-artifact links (WorktreeConfig.buildLinks). */
+  withBuildLinks?: boolean
+  /** Receive warning lines instead of printing them (used in tests). */
+  onWarning?: (msg: string) => void
   json?: boolean | undefined
 }
 
@@ -258,6 +270,11 @@ function resolveEffectiveBase(baseBranch: string, gitRoot: string): string {
 
 export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> {
   const cwd = opts.cwd ?? process.cwd()
+  const warn =
+    opts.onWarning ??
+    ((msg: string): void => {
+      process.stdout.write(`${msg}\n`)
+    })
   const gitRoot = getGitRoot(cwd)
 
   if (!isRunningFromMainRepo(gitRoot)) {
@@ -318,6 +335,7 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
     ? [...wtConfig.links, ...(wtConfig.buildLinks ?? [])]
     : wtConfig.links
   const linkSummary = materializeLinks(linkSpecs, gitRoot, worktreePath)
+  warnDanglingLinks(linkSpecs, worktreePath, warn)
 
   const arbiterDir = arbiterLogDir(gitRoot)
   mkdirSync(arbiterDir, { recursive: true })
@@ -618,6 +636,46 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   })
 
   emitCloseResult(opts.json, { worktreePath, branch, taskId })
+}
+
+// ---------------------------------------------------------------------------
+// relink
+// ---------------------------------------------------------------------------
+
+/** Re-materialize configured links for an existing logged worktree (#2206). */
+export function runWorktreeRelink(opts: WorktreeRelinkOptions): void {
+  const cwd = opts.cwd ?? process.cwd()
+  const warn =
+    opts.onWarning ??
+    ((msg: string): void => {
+      process.stdout.write(`${msg}\n`)
+    })
+  const gitRoot = getGitRoot(cwd)
+
+  if (!isRunningFromMainRepo(gitRoot)) {
+    throw new Error("Must run 'worktree relink' from the main repository, not a worktree.")
+  }
+
+  const taskId = sanitizeTaskId(opts.taskId)
+  const entry = resolveOpenEntry(join(arbiterLogDir(gitRoot), 'worktree-open.log.json'), taskId)
+  const config = loadConfig(gitRoot)
+  const wtConfig = config?.worktree ?? defaultWorktreeConfig()
+  const linkSpecs = opts.withBuildLinks
+    ? [...wtConfig.links, ...(wtConfig.buildLinks ?? [])]
+    : wtConfig.links
+  const linkSummary = materializeLinks(linkSpecs, gitRoot, entry.worktreePath)
+
+  if (opts.json) {
+    jsonOutput('worktree-relink', 'ok', {
+      taskId,
+      worktreePath: entry.worktreePath,
+      linkSummary,
+    })
+  } else {
+    process.stdout.write(`${t('cli.worktree.relinked', { path: entry.worktreePath })}\n`)
+    printLinkSummary(linkSummary)
+  }
+  warnDanglingLinks(linkSpecs, entry.worktreePath, warn)
 }
 
 interface HarvestAuditEntry {

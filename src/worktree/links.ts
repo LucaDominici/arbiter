@@ -18,12 +18,16 @@ type LinkResult =
 
 /**
  * Children NEVER symlinked by the 'symlink-children' strategy (#1873 T4, M1):
- * Vite's default cacheDir is node_modules/.vite and esbuild/dep-optimizers
- * write node_modules/.cache — shared through a whole-dir symlink, N parallel
- * worktree builds corrupt them into non-deterministic spurious reds. Each
- * worktree creates these locally instead.
+ * a transient, tool-owned directory that its owner can delete must be created
+ * locally per worktree. Sharing it through an absolute child symlink makes the
+ * link dangle after the owner cleans its main-repository copy.
  */
-const SYMLINK_CHILDREN_EXCLUSIONS: ReadonlySet<string> = new Set(['.vite', '.cache'])
+const SYMLINK_CHILDREN_EXCLUSIONS: ReadonlySet<string> = new Set([
+  '.vite',
+  '.cache',
+  '.vite-temp',
+  '.arbiter-test-scratch',
+])
 
 export interface MaterializeResult {
   spec: WorktreeLinkSpec

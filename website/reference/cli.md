@@ -431,6 +431,7 @@ Manage git worktrees for parallel task development.
 arbiter worktree open <task-id> [slug] [options]
 arbiter worktree close <task-id> [options]
 arbiter worktree list
+arbiter worktree relink <task-id> [options]
 ```
 
 ---
@@ -719,6 +720,7 @@ Manage git worktrees for parallel task development.
 - `arbiter worktree open` — Create a sibling worktree with a task branch and symlinked local files
 - `arbiter worktree close` — Tear down a task worktree after its branch is merged
 - `arbiter worktree list` — List open task worktrees
+- `arbiter worktree relink` — Re-materialize configured links for an existing task worktree
 - `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive
 
 ## Experimental Commands

@@ -9,7 +9,12 @@ import { runDiff } from './commands/diff.js'
 import { runObsidian } from './commands/obsidian.js'
 import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
-import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
+import {
+  runWorktreeOpen,
+  runWorktreeClose,
+  runWorktreeList,
+  runWorktreeRelink,
+} from './commands/worktree.js'
 import { runWorktreePrune } from './commands/worktree-prune.js'
 import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
@@ -877,6 +882,21 @@ worktree
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { json: boolean }) => {
     runWorktreeList({ json: opts.json })
+  })
+
+worktree
+  .command('relink <task-id>')
+  .description('Re-materialize configured links for an existing task worktree')
+  .option('--with-build-links', 'Also materialize buildLinks from config', false)
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((taskId: string, opts: { withBuildLinks: boolean; json: boolean }) => {
+    try {
+      runWorktreeRelink({ taskId, withBuildLinks: opts.withBuildLinks, json: opts.json })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    }
   })
 
 worktree

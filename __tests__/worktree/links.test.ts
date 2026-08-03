@@ -214,11 +214,9 @@ describe('materializeLink — directory type', () => {
   })
 })
 
-// #1873 T4 (M1): whole-dir node_modules symlinks share Vite/esbuild caches
-// (node_modules/.vite, node_modules/.cache) across ALL worktrees — N
-// concurrent builds corrupt them into non-deterministic spurious reds. The
-// symlink-children strategy symlinks each top-level child EXCEPT the cache
-// dirs, which each worktree creates locally.
+// #1873 T4 (M1): whole-dir node_modules symlinks share transient tool-owned
+// directories across ALL worktrees. The symlink-children strategy leaves
+// owner-deleted transient directories local to each worktree.
 describe('materializeLink — symlink-children strategy (#1873 T4)', () => {
   function seedNodeModules(): void {
     mkdirSync(join(mainRepo, 'node_modules', 'pkg-a'), { recursive: true })
@@ -228,6 +226,8 @@ describe('materializeLink — symlink-children strategy (#1873 T4)', () => {
     mkdirSync(join(mainRepo, 'node_modules', '.vite', 'deps'), { recursive: true })
     writeFileSync(join(mainRepo, 'node_modules', '.vite', 'deps', 'chunk.js'), 'cache')
     mkdirSync(join(mainRepo, 'node_modules', '.cache'), { recursive: true })
+    mkdirSync(join(mainRepo, 'node_modules', '.vite-temp'), { recursive: true })
+    mkdirSync(join(mainRepo, 'node_modules', '.arbiter-test-scratch'), { recursive: true })
   }
 
   const spec: WorktreeLinkSpec = {
@@ -236,7 +236,7 @@ describe('materializeLink — symlink-children strategy (#1873 T4)', () => {
     strategy: 'symlink-children',
   }
 
-  it('symlinks each top-level child, EXCLUDING .vite and .cache', () => {
+  it('leaves transient tool-owned children local (AC-2206.1)', () => {
     seedNodeModules()
 
     const result = materializeLink(spec, mainRepo, worktree)
@@ -250,9 +250,11 @@ describe('materializeLink — symlink-children strategy (#1873 T4)', () => {
     expect(lstatSync(join(dest, 'pkg-a')).isSymbolicLink()).toBe(true)
     expect(readlinkSync(join(dest, 'pkg-a'))).toBe(resolve(mainRepo, 'node_modules', 'pkg-a'))
     expect(lstatSync(join(dest, '.bin')).isSymbolicLink()).toBe(true)
-    // Cache dirs are NOT shared: absent in the worktree.
+    // Transient tool-owned directories are NOT shared: absent in the worktree.
     expect(existsSync(join(dest, '.vite'))).toBe(false)
     expect(existsSync(join(dest, '.cache'))).toBe(false)
+    expect(existsSync(join(dest, '.vite-temp'))).toBe(false)
+    expect(existsSync(join(dest, '.arbiter-test-scratch'))).toBe(false)
   })
 
   it('leaves the local cache dir location writable per worktree', () => {
