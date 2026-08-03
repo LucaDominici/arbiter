@@ -159,7 +159,7 @@ export function loadConfig(dir: string): ArbiterConfig | null {
     let validation = validateConfig(withEnv)
     // Never-brick fallback (T0): a first-pass validation failure is not
     // immediately fatal. A closed set of axis/identity fields (contractType,
-    // databaseEngine, governanceLevel, tools, …) is safe to coerce to a
+    // databaseEngine, tools, …) is safe to coerce to a
     // documented default — see sanitizeCoercibleFields for the exact set and
     // rationale. Only when the config is STILL invalid after that pass — i.e.
     // the failure is in a field this fallback does not know how to repair —

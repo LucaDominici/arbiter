@@ -956,8 +956,9 @@ export interface SanitizeResult {
  *     `runnerProfile`, `industryOverlay` — unknown/removed enum value → the
  *     field is dropped (becomes absent/"not configured").
  *   - `lanes` — invalid entries are filtered out; valid entries are kept.
- *   - `governanceLevel` — missing/unrecognized → defaults to `'L2'` (the
- *     same default `migrateV1ToV2` already applies).
+ *   - `governanceLevel` — absent → defaults to `'L2'`. A present but invalid
+ *     value is FATAL: this field defines what “green” means, so it must fail
+ *     closed like a syntax error rather than silently weakening governance.
  *   - `tools` — unknown entries filtered to the known `AI_TOOLS` set;
  *     falls back to `['claude', 'codex']` if that would empty the array.
  *   - `useGitHub`/`permitGitHub` — neither present as a boolean → defaults
@@ -996,8 +997,7 @@ export function sanitizeCoercibleFields(raw: Record<string, unknown>): SanitizeR
   }
 
   const rawLevel = draft['governanceLevel']
-  const upperLevel = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
-  if (typeof upperLevel !== 'string' || !GOVERNANCE_LEVELS.has(upperLevel)) {
+  if (rawLevel === undefined) {
     report.push({ field: 'governanceLevel', from: rawLevel, to: 'L2' })
     draft['governanceLevel'] = 'L2'
   }

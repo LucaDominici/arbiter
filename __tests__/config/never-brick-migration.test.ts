@@ -22,8 +22,9 @@
  *      longer throws on a strict-validation failure; it warns and defers.
  *   2. src/config/schema.ts::sanitizeCoercibleFields — the generic, single
  *      source of truth for which fields are safe to default (axis/identity
- *      fields only — never features/thresholds/decomposition/... which
- *      directly gate CI strictness).
+ *      fields only — except governanceLevel, which defines green and is
+ *      fail-closed; never features/thresholds/decomposition/... which directly
+ *      gate CI strictness).
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -76,10 +77,16 @@ describe('sanitizeCoercibleFields', () => {
     expect(report).toEqual([])
   })
 
-  it('defaults an unrecognized governanceLevel to L2', () => {
+  it('leaves a present invalid governanceLevel untouched for fatal validation', () => {
     const { draft, report } = sanitizeCoercibleFields({ governanceLevel: 'L99' })
+    expect(draft['governanceLevel']).toBe('L99')
+    expect(report.some((entry) => entry.field === 'governanceLevel')).toBe(false)
+  })
+
+  it('defaults an absent governanceLevel to L2', () => {
+    const { draft, report } = sanitizeCoercibleFields({})
     expect(draft['governanceLevel']).toBe('L2')
-    expect(report).toContainEqual({ field: 'governanceLevel', from: 'L99', to: 'L2' })
+    expect(report).toContainEqual({ field: 'governanceLevel', from: undefined, to: 'L2' })
   })
 
   it('filters unknown tools and falls back to claude+codex if the result would be empty', () => {

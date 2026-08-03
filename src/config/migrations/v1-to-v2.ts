@@ -17,6 +17,7 @@ import {
   type ThresholdsV2,
   AI_TOOLS,
   DEFAULT_THRESHOLDS,
+  GOVERNANCE_LEVELS,
   validateConfig,
 } from '../schema.js'
 import { getLogger } from '../../utils/logger.js'
@@ -128,10 +129,17 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
 
   // ── v1 ("0.1") → v2 ("0.2") ──────────────────────────────────────────────
   const rawLevel = raw['governanceLevel']
-  const level: GovernanceLevel =
-    rawLevel === 'L1' || rawLevel === 'L2' || rawLevel === 'L3' || rawLevel === 'L4'
-      ? rawLevel
-      : 'L2'
+  const upperLevel = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
+  let level: GovernanceLevel
+  if (rawLevel === undefined) {
+    level = 'L2'
+  } else if (typeof upperLevel === 'string' && GOVERNANCE_LEVELS.has(upperLevel)) {
+    level = upperLevel as GovernanceLevel
+  } else {
+    throw new Error(
+      `arbiter.json governanceLevel must be one of L1, L2, L3, L4 — got ${String(rawLevel)}`,
+    )
+  }
 
   const features: FeatureFlags = deriveFeatureFlags(raw, level)
   const thresholds: ThresholdsV2 = DEFAULT_THRESHOLDS[level]

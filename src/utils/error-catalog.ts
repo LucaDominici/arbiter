@@ -29,7 +29,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       code: 'E_CONFIG_INVALID',
       summary: 'arbiter.json is invalid and could not be auto-migrated',
       detail:
-        'A closed set of stale/renamed fields (e.g. an old contractType flavor, a legacy governanceLevel or tools value) is coerced to a safe default automatically — that path only logs a WARN, it never throws. This error means the failure is outside that coercible set: JSON is unparseable, arbiter.json is not an object, or a field that directly controls gate/threshold strictness (features, thresholds, decomposition, frontend, automation, …) has an unrecoverable shape.',
+        'A closed set of stale/renamed fields (e.g. an old contractType flavor or tools value) is coerced to a safe default automatically — that path only logs a WARN, it never throws. This error also covers a present invalid governanceLevel: because it defines what “green” means, it fails closed like a JSON syntax error. Other fatal cases include arbiter.json not being an object or a field that directly controls gate/threshold strictness (features, thresholds, decomposition, frontend, automation, …) having an unrecoverable shape.',
       recovery:
         'Fix the configuration errors listed above, or delete arbiter.json and re-run `arbiter init`. If a WARN about coerced fields appeared on a previous run, run `arbiter configure` to persist the cleaned-up values.',
       docUrl: 'https://arbiter.dev/reference/cli#configure',
