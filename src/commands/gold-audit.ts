@@ -405,6 +405,18 @@ function runGoldAuditCockpit(
   return { exitCode: 0, payload: env.payload }
 }
 
+/** Emit the successful gold-audit result in the requested presentation format. */
+function emitGoldAuditResult(opts: GoldAuditOptions, result: GoldAuditPayload | string): void {
+  if (opts.quiet) return
+  if (opts.json) {
+    jsonOutput('gold-audit', 'ok', typeof result === 'string' ? {} : { ...result })
+  } else if (typeof result === 'string') {
+    process.stdout.write(result + '\n')
+  } else {
+    process.stdout.write(renderReport(result))
+  }
+}
+
 /**
  * Run the gold-audit engine and present the level band + gap report.
  * Reuses the engine (no second engine); returns the enriched payload for callers/tests.
@@ -439,10 +451,7 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
   const text = stdout.trim()
   // The engine emits a SKIP line (no registry) that is not JSON — treat as a clean exit-0 skip.
   if (!text.startsWith('{')) {
-    if (!opts.quiet) {
-      if (opts.json) jsonOutput('gold-audit', 'ok', {})
-      else process.stdout.write(text + '\n')
-    }
+    emitGoldAuditResult(opts, text)
     return { exitCode: 0, payload: null }
   }
 
@@ -456,9 +465,6 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
     return { exitCode: 1, payload: null }
   }
 
-  if (!opts.quiet) {
-    if (opts.json) jsonOutput('gold-audit', 'ok', { ...payload })
-    else process.stdout.write(renderReport(payload))
-  }
+  emitGoldAuditResult(opts, payload)
   return { exitCode: 0, payload }
 }

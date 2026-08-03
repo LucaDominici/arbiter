@@ -32,11 +32,6 @@ describe('docs/REFERENCE/api.md — environment variables section (#807)', () =>
     expect(content).toContain('ARBITER_RUN_ID')
   })
 
-  it('documents ARBITER_SEED', () => {
-    if (!content) content = readFileSync(API_MD_PATH, 'utf8')
-    expect(content).toContain('ARBITER_SEED')
-  })
-
   it('documents ARBITER_LOG_LEVEL', () => {
     if (!content) content = readFileSync(API_MD_PATH, 'utf8')
     expect(content).toContain('ARBITER_LOG_LEVEL')

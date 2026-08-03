@@ -4,7 +4,7 @@
 // existing __tests__/commands/verify-evidence.test.ts leaves uncovered:
 //
 //   runVerify (the probe-driven CLI path):
-//     - opts.json truthy  → formatJson(enriched) + loadConfig branch
+//     - opts.json truthy  → canonical envelope(enriched) + loadConfig branch
 //     - opts.json falsy   → formatText branch
 //     - report.hasFailures true  → process.exit(1)
 //     - report.hasFailures false → no exit
@@ -18,7 +18,7 @@
 //     - classifyFiles: non-string entries skipped; all-non-string → null (no riskLevel)
 //     - checkFreshness: missing timestamp / non-string ts / non-finite ts → null (fresh)
 //
-// runProbes / formatText / formatJson / loadConfig are module-mocked because they
+// runProbes / formatText / loadConfig are module-mocked because they
 // shell out / read project config; the evidence path runs against a real temp
 // fixture. process.exit is stubbed to THROW a sentinel so the runner is never killed.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -33,21 +33,19 @@ vi.mock('../../src/compatibility/probe.js', () => ({
 }))
 vi.mock('../../src/compatibility/report.js', () => ({
   formatText: vi.fn(() => 'TEXT_REPORT'),
-  formatJson: vi.fn(() => 'JSON_REPORT'),
 }))
 vi.mock('../../src/utils/config.js', () => ({
   loadConfig: vi.fn(() => ({ governanceLevel: 'standard' })),
 }))
 
 import { runProbes } from '../../src/compatibility/probe.js'
-import { formatText, formatJson } from '../../src/compatibility/report.js'
+import { formatText } from '../../src/compatibility/report.js'
 import { loadConfig } from '../../src/utils/config.js'
 import { computeSummarySha } from '../../src/risk/sha-check.js'
 import { runVerify, runVerifyEvidence } from '../../src/commands/verify.js'
 
 const mockRunProbes = vi.mocked(runProbes)
 const mockFormatText = vi.mocked(formatText)
-const mockFormatJson = vi.mocked(formatJson)
 const mockLoadConfig = vi.mocked(loadConfig)
 
 // ---- typed factory: satisfy the FULL VerifyReport shape ----------------------
@@ -95,7 +93,6 @@ describe('runVerify (probe-driven CLI path)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockFormatText.mockReturnValue('TEXT_REPORT')
-    mockFormatJson.mockReturnValue('JSON_REPORT')
     mockLoadConfig.mockReturnValue({ governanceLevel: 'standard' } as unknown as ReturnType<
       typeof loadConfig
     >)
@@ -115,23 +112,22 @@ describe('runVerify (probe-driven CLI path)', () => {
     runVerify({ dir: '/some/dir' })
     expect(mockRunProbes).toHaveBeenCalledOnce()
     expect(mockFormatText).toHaveBeenCalledOnce()
-    expect(mockFormatJson).not.toHaveBeenCalled()
     expect(mockLoadConfig).not.toHaveBeenCalled()
     expect(writeSpy).toHaveBeenCalledWith('TEXT_REPORT\n')
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
-  it('json path: json=true → loadConfig + formatJson(enriched)', () => {
+  it('json path: json=true → loadConfig + canonical envelope(enriched)', () => {
     mockRunProbes.mockReturnValue(report({ hasFailures: false }))
     runVerify({ dir: '/some/dir', json: true })
     expect(mockLoadConfig).toHaveBeenCalledOnce()
-    expect(mockFormatJson).toHaveBeenCalledOnce()
     expect(mockFormatText).not.toHaveBeenCalled()
-    // the enriched envelope carries effectiveConfig spread over the report
-    const arg = mockFormatJson.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(arg['effectiveConfig']).toEqual({ governanceLevel: 'standard' })
-    expect(arg['stack']).toBe('typescript')
-    expect(writeSpy).toHaveBeenCalledWith('JSON_REPORT\n')
+    const envelope = JSON.parse(String(writeSpy.mock.calls[0]?.[0])) as Record<string, unknown>
+    expect(envelope).toMatchObject({ command: 'validate', version: '1', status: 'ok' })
+    // The enriched report is preserved under the canonical envelope's data field.
+    const data = envelope['data'] as Record<string, unknown>
+    expect(data['effectiveConfig']).toEqual({ governanceLevel: 'standard' })
+    expect(data['stack']).toBe('typescript')
     expect(exitSpy).not.toHaveBeenCalled()
   })
 

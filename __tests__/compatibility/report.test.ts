@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatText, formatJson } from '../../src/compatibility/report.js'
+import { formatText } from '../../src/compatibility/report.js'
 import type { VerifyReport } from '../../src/compatibility/schema.js'
 
 const passed: VerifyReport = {
@@ -121,22 +121,5 @@ describe('formatText — warning probes', () => {
   it('does not render warning summary line when hasWarnings is false', () => {
     const out = formatText(passed)
     expect(out).not.toContain('warning(s):')
-  })
-})
-
-describe('formatJson', () => {
-  it('serializes the full report', () => {
-    const obj = JSON.parse(formatJson(passed)) as VerifyReport
-    expect(obj.stack).toBe('typescript')
-    expect(obj.hasFailures).toBe(false)
-    expect(obj.probes).toHaveLength(2)
-  })
-
-  it('includes failure info', () => {
-    const obj = JSON.parse(formatJson(mixed)) as VerifyReport
-    expect(obj.hasFailures).toBe(true)
-    const mvn = obj.probes.find((p) => p.tool === 'mvn')
-    expect(mvn?.status).toBe('failed')
-    expect(mvn?.reason).toContain('outside')
   })
 })

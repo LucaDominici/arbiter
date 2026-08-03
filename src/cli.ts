@@ -1873,6 +1873,18 @@ program
 
 // ── review diff (#262) ───────────────────────────────────────────────────────
 
+/** Emit a review-diff failure in the selected output format, then terminate. */
+function exitReviewDiffFailure(
+  json: boolean,
+  exitCode: number,
+  data: Record<string, string>,
+  message: string,
+): never {
+  if (json) jsonOutput('review diff', 'error', data, [message])
+  else process.stderr.write(message + '\n')
+  process.exit(exitCode)
+}
+
 review
   .command('diff')
   .description('Semantic diff between two graph snapshots (#262)')
@@ -1904,9 +1916,7 @@ review
 
       if (!efs(headPath)) {
         const message = `review diff: FAIL — head graph not found at ${headPath}`
-        if (opts.json) jsonOutput('review diff', 'error', { headPath }, [message])
-        else process.stderr.write(message + '\n')
-        process.exit(2)
+        exitReviewDiffFailure(opts.json, 2, { headPath }, message)
       }
       if (!efs(basePath)) {
         // No base — use empty snapshot
@@ -1921,18 +1931,14 @@ review
       const headOutcome = loadGraph(headPath)
       if (!headOutcome.ok) {
         const message = `review diff: FAIL — ${headOutcome.reason}`
-        if (opts.json) jsonOutput('review diff', 'error', { headPath }, [message])
-        else process.stderr.write(message + '\n')
-        process.exit(2)
+        exitReviewDiffFailure(opts.json, 2, { headPath }, message)
       }
       let base: import('./graph/model.js').GraphSnapshot = { nodes: [], edges: [] }
       if (efs(basePath)) {
         const baseOutcome = loadGraph(basePath)
         if (!baseOutcome.ok) {
           const message = `review diff: FAIL — ${baseOutcome.reason}`
-          if (opts.json) jsonOutput('review diff', 'error', { basePath }, [message])
-          else process.stderr.write(message + '\n')
-          process.exit(2)
+          exitReviewDiffFailure(opts.json, 2, { basePath }, message)
         }
         base = baseOutcome.snapshot
       }
@@ -2032,22 +2038,16 @@ program
 
 function _writeArbiterError(err: ArbiterError, prefix = 'Error'): void {
   if (_jsonRequested) {
-    jsonOutput(
-      'arbiter',
-      'error',
-      {},
-      [err.message],
-      {
-        code: err.code,
-        ...(err instanceof FatalError
-          ? { errorClass: 'fatal' as const }
-          : err instanceof ConfigError
-            ? { errorClass: 'config' as const }
-            : err instanceof RecoverableError
-              ? { errorClass: 'recoverable' as const }
-              : {}),
-      },
-    )
+    jsonOutput('arbiter', 'error', {}, [err.message], {
+      code: err.code,
+      ...(err instanceof FatalError
+        ? { errorClass: 'fatal' as const }
+        : err instanceof ConfigError
+          ? { errorClass: 'config' as const }
+          : err instanceof RecoverableError
+            ? { errorClass: 'recoverable' as const }
+            : {}),
+    })
     return
   }
   process.stderr.write(`\n${prefix} [${err.code}]: ${err.message}\n`)

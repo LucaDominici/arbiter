@@ -51,24 +51,30 @@ describe('runVerify (#174)', () => {
     expect(exitSpy).toHaveBeenCalledWith(1)
   })
 
-  it('uses formatJson when opts.json is true', async () => {
+  it('writes the canonical JSON envelope when opts.json is true', async () => {
     probesSpy.mockReturnValue(makeReport())
-    const jsonSpy = vi.spyOn(report, 'formatJson').mockReturnValue('{"ok":true}')
 
     const { runVerify } = await import('../../src/commands/verify.js')
     runVerify({ json: true })
 
-    expect(jsonSpy).toHaveBeenCalled()
-    expect(stdoutSpy).toHaveBeenCalledWith('{"ok":true}\n')
+    const envelope = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0])) as Record<string, unknown>
+    expect(envelope).toMatchObject({ command: 'validate', version: '1', status: 'ok' })
+    const data = envelope['data'] as Record<string, unknown>
+    expect(data['stack']).toBe('typescript')
+    expect(data['probes']).toEqual([])
   })
 
   it('calls process.exit(1) when json mode has failures', async () => {
     probesSpy.mockReturnValue(makeReport({ hasFailures: true }))
-    vi.spyOn(report, 'formatJson').mockReturnValue('{"err":true}')
 
     const { runVerify } = await import('../../src/commands/verify.js')
     runVerify({ json: true })
 
+    const envelope = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0])) as Record<string, unknown>
+    expect(envelope).toMatchObject({ command: 'validate', version: '1', status: 'error' })
+    const data = envelope['data'] as Record<string, unknown>
+    expect(data['stack']).toBe('typescript')
+    expect(data['probes']).toEqual([])
     expect(exitSpy).toHaveBeenCalledWith(1)
   })
 
@@ -106,9 +112,10 @@ describe('runVerify (#174)', () => {
     const { runVerify } = await import('../../src/commands/verify.js')
     runVerify({ json: true })
 
-    const joined = captured.join('')
-    expect(joined).toContain('effectiveConfig')
-    expect(joined).toContain('"governanceLevel": "L2"')
+    const envelope = JSON.parse(captured.join('')) as Record<string, unknown>
+    expect(envelope).toMatchObject({ command: 'validate', version: '1', status: 'ok' })
+    const data = envelope['data'] as Record<string, unknown>
+    expect(data['effectiveConfig']).toMatchObject({ governanceLevel: 'L2' })
   })
 
   it('resolves dir relative to cwd when opts.dir is provided', async () => {

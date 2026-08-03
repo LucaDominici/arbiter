@@ -138,7 +138,8 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
     id: 'integrations',
     label: 'Skill integrations discoverable',
     status: 'PASS',
-    detail: 'advisory — review the detected and recommended skills in your configured integrations.',
+    detail:
+      'advisory — review the detected and recommended skills in your configured integrations.',
     hint: 'Review your configured integrations and installed skills.',
   })
 

@@ -130,16 +130,19 @@ afterEach(() => {
 
 const stdout = (): string => outChunks.join('')
 const stderr = (): string => errChunks.join('')
+const jsonEnvelope = (): Record<string, unknown> => JSON.parse(stdout()) as Record<string, unknown>
 
 // ── default --json / human path (runGoldAudit core) ─────────────────────────────
 describe('runGoldAudit default path (#1414)', () => {
-  it('json mode pretty-prints the payload and returns exit 0', () => {
+  it('json mode emits the canonical envelope with the payload and returns exit 0', () => {
     mockRunCli.mockReturnValue(ok(JSON.stringify(PAYLOAD)))
     const res = runGoldAudit({ repo: '/tmp/x', json: true, class: 'gold' })
     expect(res.exitCode).toBe(0)
     expect(res.payload).toBeTruthy()
-    // pretty JSON (2-space indent) was written
-    expect(stdout()).toContain('"registryVersion": "1.0.0"')
+    const envelope = jsonEnvelope()
+    expect(envelope).toMatchObject({ command: 'gold-audit', version: '1', status: 'ok' })
+    const data = envelope['data'] as Record<string, unknown>
+    expect(data['registryVersion']).toBe('1.0.0')
   })
 
   it('human mode renders the level + "what is missing" report (gaps present)', () => {
@@ -245,11 +248,12 @@ describe('runGoldAudit SKIP (no registry)', () => {
     expect(stdout()).toContain('SKIP — no registry')
   })
 
-  it('non-JSON stdout in json mode forwards the raw stdout', () => {
+  it('non-JSON stdout in json mode emits an empty canonical envelope', () => {
     mockRunCli.mockReturnValue(ok('gold-audit: SKIP — no registry\n'))
     const res = runGoldAudit({ repo: '/tmp/x', json: true })
     expect(res.exitCode).toBe(0)
-    expect(stdout()).toContain('SKIP — no registry')
+    expect(res.payload).toBeNull()
+    expect(jsonEnvelope()).toEqual({ command: 'gold-audit', version: '1', status: 'ok', data: {} })
   })
 
   it('non-JSON stdout with quiet prints nothing', () => {
@@ -262,31 +266,34 @@ describe('runGoldAudit SKIP (no registry)', () => {
 
 // ── engine-failure / invalid-JSON branches ──────────────────────────────────────
 describe('runGoldAudit error paths', () => {
-  it('CliError from the engine ⇒ exit 1, null payload, message on stderr', () => {
+  it('CliError from the engine ⇒ exit 1, null payload, message in the error envelope', () => {
     mockRunCli.mockImplementation(() => {
       throw cliErr({ exitCode: 1, stderr: 'boom' })
     })
     const res = runGoldAudit({ repo: '/tmp/x', json: true })
     expect(res.exitCode).toBe(1)
     expect(res.payload).toBeNull()
-    expect(stderr()).toContain('gold-audit: engine failed')
+    const envelope = jsonEnvelope()
+    expect(envelope).toMatchObject({ command: 'gold-audit', version: '1', status: 'error', data: {} })
+    expect((envelope['errors'] as string[]).join('\n')).toContain('gold-audit: engine failed')
   })
 
-  it('a non-CliError thrown ⇒ String(err) fallback on stderr, exit 1', () => {
+  it('a non-CliError thrown ⇒ String(err) fallback in the error envelope, exit 1', () => {
     mockRunCli.mockImplementation(() => {
       throw new Error('plain failure')
     })
     const res = runGoldAudit({ repo: '/tmp/x', json: true })
     expect(res.exitCode).toBe(1)
-    expect(stderr()).toContain('plain failure')
+    expect(res.payload).toBeNull()
+    expect((jsonEnvelope()['errors'] as string[]).join('\n')).toContain('plain failure')
   })
 
-  it('engine emits JSON-looking-but-invalid output ⇒ exit 1 with parse error', () => {
+  it('engine emits JSON-looking-but-invalid output ⇒ exit 1 with envelope parse error', () => {
     mockRunCli.mockReturnValue(ok('{not valid json'))
     const res = runGoldAudit({ repo: '/tmp/x', json: true })
     expect(res.exitCode).toBe(1)
     expect(res.payload).toBeNull()
-    expect(stderr()).toContain('invalid JSON')
+    expect((jsonEnvelope()['errors'] as string[]).join('\n')).toContain('invalid JSON')
   })
 })
 
