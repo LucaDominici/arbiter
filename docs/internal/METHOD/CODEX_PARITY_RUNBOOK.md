@@ -39,10 +39,10 @@ make gate                          # identical: the Makefile target delegates to
 Both invocations are equivalent (INV-59 local↔CI parity); the CI counterpart
 is the `gate-full` job. Exit codes follow the repo contract (INV-53):
 
-| Exit | Meaning |
-| ---- | ------- |
-| 0    | PASS — parity surface 100% classified, no findings |
-| 1    | FAIL — at least one parity violation (see playbook below) |
+| Exit | Meaning                                                                                               |
+| ---- | ----------------------------------------------------------------------------------------------------- |
+| 0    | PASS — parity surface 100% classified, no findings                                                    |
+| 1    | FAIL — at least one parity violation (see playbook below)                                             |
 | 2    | ERROR — environment/config problem, **fail-closed** (e.g. merge-base unresolvable, missing data file) |
 
 Sample failure output:
@@ -57,19 +57,19 @@ check-codex-parity: FAIL — 1 finding(s); see website/problems/codex-parity.md 
 
 ## What each check proves
 
-| Check (finding kind) | Bug-class it prevents |
-| -------------------- | --------------------- |
-| `derived-drift` | A shared rule's Codex copy silently diverging from the canonical Claude template — the exact #1966 incident (Codex `90-exec-protocol` lost the CANON-22 hard stop) |
-| `golden-mismatch` / `golden-unjustified` | Generated-vs-generated circularity: output is compared to committed, reviewed goldens; goldens rewritten without a canonical-source change are refused (hardening 6/15) |
-| `unclassified` | A new emission nobody classified — the silent-gap class that let 14 Claude hooks go undocumented |
-| `multi-class` | Ambiguous classification resolved by precedence instead of review (hardening 4) |
-| `stale-allowlist` / `allowlist-hash-mismatch` | An "intentional divergence" entry outliving (or drifting beyond) the divergence it approved |
-| `stale-exclusive` | A BY-DESIGN-EXCLUSIVE declaration surviving the file it declared |
-| `manifest-extra` / `manifest-missing` | Generator output escaping the registry view, or registered files not actually emitted (hardening 2: scan is the independent denominator) |
-| `known-limitations-missing` / `known-limitations-stale` | The CODEX.md Known Limitations table drifting from the ACTUAL baked hook inventory (it documented 10 hooks while 24 were emitted) |
-| `empty-track` | A vacuously green run over zero files (hardening 3) |
-| `baseline-drift` / `baseline-removed` | Unreviewed surface changes; shrinkage is compared against the baseline **at merge-base** so editing output and baseline in the same change stays red without a removal record (hardening 14) |
-| `schema` | Malformed data files driving the checks |
+| Check (finding kind)                                    | Bug-class it prevents                                                                                                                                                                        |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `derived-drift`                                         | A shared rule's Codex copy silently diverging from the canonical Claude template — the exact #1966 incident (Codex `90-exec-protocol` lost the CANON-22 hard stop)                           |
+| `golden-mismatch` / `golden-unjustified`                | Generated-vs-generated circularity: output is compared to committed, reviewed goldens; goldens rewritten without a canonical-source change are refused (hardening 6/15)                      |
+| `unclassified`                                          | A new emission nobody classified — the silent-gap class that let 14 Claude hooks go undocumented                                                                                             |
+| `multi-class`                                           | Ambiguous classification resolved by precedence instead of review (hardening 4)                                                                                                              |
+| `stale-allowlist` / `allowlist-hash-mismatch`           | An "intentional divergence" entry outliving (or drifting beyond) the divergence it approved                                                                                                  |
+| `stale-exclusive`                                       | A BY-DESIGN-EXCLUSIVE declaration surviving the file it declared                                                                                                                             |
+| `manifest-extra` / `manifest-missing`                   | Generator output escaping the registry view, or registered files not actually emitted (hardening 2: scan is the independent denominator)                                                     |
+| `known-limitations-missing` / `known-limitations-stale` | The CODEX.md Known Limitations table drifting from the ACTUAL baked hook inventory (it documented 10 hooks while 24 were emitted)                                                            |
+| `empty-track`                                           | A vacuously green run over zero files (hardening 3)                                                                                                                                          |
+| `baseline-drift` / `baseline-removed`                   | Unreviewed surface changes; shrinkage is compared against the baseline **at merge-base** so editing output and baseline in the same change stays red without a removal record (hardening 14) |
+| `schema`                                                | Malformed data files driving the checks                                                                                                                                                      |
 
 ---
 
@@ -210,10 +210,10 @@ a missing or unimportable `dist/` fails closed with exit 2; run
 `.codex/**`, and requires every repo file under those roots to be exactly one
 of:
 
-| Class | Meaning |
-| ----- | ------- |
-| EMITTED-MATCH | normalized content equals today's fresh emission |
-| PINNED | intentional divergence, pinned in `scripts/data/codex-self-parity-divergences.json` (dated rationale + content hash, CANON-14 pin semantics) |
+| Class            | Meaning                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| EMITTED-MATCH    | normalized content equals today's fresh emission                                                                                                 |
+| PINNED           | intentional divergence, pinned in `scripts/data/codex-self-parity-divergences.json` (dated rationale + content hash, CANON-14 pin semantics)     |
 | RUNTIME-ARTIFACT | repo-runtime file the generator never emits, declared in `scripts/data/codex-self-parity-runtime-artifacts.json` (e.g. `.agents/plan/PLAN.json`) |
 
 Inside the repo gate it runs at **L2**, immediately after
@@ -223,17 +223,17 @@ emission failure ⇒ 2).
 
 ### Finding classes
 
-| Finding | Meaning |
-| ------- | ------- |
-| `STALE` | A repo file's normalized content diverges from the fresh emission and no pin covers it — the `skipIfExists` rot class |
-| `MISSING` | The generator emits a file today that has no counterpart under the repo roots (e.g. a newly derived rule never materialized) |
-| `UNCLASSIFIED` | A repo file under the roots that is neither emitted-match, pinned, nor a declared runtime artifact |
-| `DRIFTED-PIN` | A pinned file moved beyond the pinned content hash — the divergence no longer matches what was reviewed |
-| `HEALED-PIN` | A pin whose divergence no longer exists (file now matches the emission) — the pin has outlived its reason |
-| `DEAD-PIN` | A pin referencing a path that no longer exists under the roots |
-| `DEAD-ARTIFACT` | A runtime-artifact declaration matching no repo file — ledger rot, symmetric with `DEAD-PIN` |
-| `CONTRADICTORY-ARTIFACT` | A declared runtime artifact that the generator emits — the declaration is contradictory and must be removed |
-| `UNREADABLE` | A track entry that is not a readable regular file (symlink, FIFO, permission error) — every file on the parity surface must be a plain readable file |
+| Finding                  | Meaning                                                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STALE`                  | A repo file's normalized content diverges from the fresh emission and no pin covers it — the `skipIfExists` rot class                                |
+| `MISSING`                | The generator emits a file today that has no counterpart under the repo roots (e.g. a newly derived rule never materialized)                         |
+| `UNCLASSIFIED`           | A repo file under the roots that is neither emitted-match, pinned, nor a declared runtime artifact                                                   |
+| `DRIFTED-PIN`            | A pinned file moved beyond the pinned content hash — the divergence no longer matches what was reviewed                                              |
+| `HEALED-PIN`             | A pin whose divergence no longer exists (file now matches the emission) — the pin has outlived its reason                                            |
+| `DEAD-PIN`               | A pin referencing a path that no longer exists under the roots                                                                                       |
+| `DEAD-ARTIFACT`          | A runtime-artifact declaration matching no repo file — ledger rot, symmetric with `DEAD-PIN`                                                         |
+| `CONTRADICTORY-ARTIFACT` | A declared runtime artifact that the generator emits — the declaration is contradictory and must be removed                                          |
+| `UNREADABLE`             | A track entry that is not a readable regular file (symlink, FIFO, permission error) — every file on the parity surface must be a plain readable file |
 
 ### Failure playbook (self-track)
 

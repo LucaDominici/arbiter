@@ -33,7 +33,7 @@ Grepped `gen-wiki`, `check-wiki-lint`, `obsidian` across `src/`:
   scripts (`skipIfExists`) into a consumer repo's `scripts/` directory as part
   of template generation. It never invokes them; its lifecycle ends at
   `arbiter update`/`init` time.
-- No existing command runs the emitted scripts against a repo's *current*
+- No existing command runs the emitted scripts against a repo's _current_
   state (post-emission orchestration). This is a distinct responsibility —
   "did the vault should-be-in-sync check pass right now" — not template
   drift, so folding it into `wiki.ts` would conflate a generator (writes
@@ -60,7 +60,7 @@ checker — that logic stays exactly once, in the scripts themselves.
 - **`--validate-only`:** spawns `check-wiki-lint.mjs --wiki-dir <vault>`,
   parses its `[broken-link]` / `[orphan]` / `[stale]` / `[citation]`-tagged
   output into a structured `validation` object. Any violation → `status:
-  'error'`, exit 1 (INV-53: 0/1/2, not a launch failure).
+'error'`, exit 1 (INV-53: 0/1/2, not a launch failure).
 - **`--sync`:** spawns `gen-wiki.mjs --wiki-dir <vault>` (write), then
   re-validates — fail-closed, so a regen that leaves the vault broken still
   reports `error`/exit 1, not a false `ok`.

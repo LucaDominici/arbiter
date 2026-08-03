@@ -1059,7 +1059,7 @@ The parity contract is machine-verified by `scripts/check-local-ci-parity.mjs`. 
 | CI workflow     | `.github/workflows/*.yml` (arbiter-self) + `src/templates/github/workflows/*.ejs`  | Generator emits per tier                        |
 | Generator       | `src/generators/*.ts`                                                              | `arbiter init` invokes                          |
 | Template        | `src/templates/**/*.ejs`                                                           | EJS render via generator                        |
-| Stack adapter   | RETIRED (#1837) — test-only scaffold, zero runtime callers; removed                | n/a                                              |
+| Stack adapter   | RETIRED (#1837) — test-only scaffold, zero runtime callers; removed                | n/a                                             |
 | Evidence        | `.evidence/<batch>/`                                                               | `scripts/evidence-rotate.mjs`                   |
 | KIT catalog     | `src/kit/catalog.ts`                                                               | `scripts/check-kit-catalog-parity.mjs` (INV-86) |
 | Makefile target | `Makefile` (arbiter-self) + `src/templates/local-wrapper/Makefile.ejs`             | `check-local-ci-parity.mjs`                     |
@@ -1078,8 +1078,8 @@ For every primitive introduced in W2-W11, both tracks ship in the same PR:
 | Gate script   | `scripts/check-*.mjs`                     | `src/templates/scripts/*.mjs.ejs`                          | `src/generators/anti-drift-validators.ts` | `docs/REFERENCE/dim-NN-*.md`                 | INV-NN in catalog    |
 | CI workflow   | `.github/workflows/*.yml`                 | `src/templates/github/workflows/*.yml.ejs`                 | `src/generators/github-workflows.ts`      | `docs/REFERENCE/ci-tier-workflows.md`        | INV-73 update        |
 | Makefile      | `Makefile`                                | `src/templates/local-wrapper/Makefile.ejs`                 | `src/generators/local-wrapper.ts`         | `docs/REFERENCE/local-wrapper-contract.md`   | INV-87               |
-| Stack adapter | RETIRED (#1837)                           | n/a                                                          | n/a                                        | n/a                                            | INV-88 (retired)      |
-| KIT catalog   | `src/kit/catalog.ts`                      | n/a (RETIRED, #2015)                                        | `scripts/gen-derived-pages.mjs`           | `docs/REFERENCE/dim-001-*.md … dim-078-*.md` | INV-86               |
+| Stack adapter | RETIRED (#1837)                           | n/a                                                        | n/a                                       | n/a                                          | INV-88 (retired)     |
+| KIT catalog   | `src/kit/catalog.ts`                      | n/a (RETIRED, #2015)                                       | `scripts/gen-derived-pages.mjs`           | `docs/REFERENCE/dim-001-*.md … dim-078-*.md` | INV-86               |
 | Evidence      | `.evidence/<batch>/`                      | `src/templates/evidence/*.ejs`                             | `src/generators/test-taxonomy.ts`         | `docs/REFERENCE/evidence-schema.md`          | INV-90               |
 | Supply chain  | `.github/workflows/05-release.yml`        | `src/templates/github/workflows/05-release.yml.ejs`        | `src/generators/github-workflows.ts`      | `docs/REFERENCE/supply-chain.md`             | INV-92               |
 | AI-PR gate    | `.github/workflows/_label-on-approve.yml` | `src/templates/github/workflows/_label-on-approve.yml.ejs` | `src/generators/github-workflows.ts`      | `docs/REFERENCE/ai-pr-gate.md`               | INV-91               |

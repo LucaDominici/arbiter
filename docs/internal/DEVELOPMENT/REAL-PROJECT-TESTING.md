@@ -94,10 +94,10 @@ Four fields are required: `language`, `archetype`, `levels`, and `tier`. `buildT
 
 The `tier` field selects which E2E layer exercises the fixture:
 
-| Tier         | What runs against the fixture                                                   | Use when                                             |
-| ------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `snapshot`   | Manifest validation only — no `arbiter init`, no exec                           | Pure data/docs fixtures (`markdown-only`); also a non-GA stack declassified pre-publish (`kotlin-backend-web-db-gradle`, #1840 F4 tranche-2, 2026-07-09 — re-promotion path: #1803) |
-| `bake`       | `arbiter init` → structural snapshot diff → parse generated manifests (no exec) | Most fixtures (`backend-*`, `bdd`, `frontend-spa` …) |
+| Tier         | What runs against the fixture                                                   | Use when                                                                                                                                                                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `snapshot`   | Manifest validation only — no `arbiter init`, no exec                           | Pure data/docs fixtures (`markdown-only`); also a non-GA stack declassified pre-publish (`kotlin-backend-web-db-gradle`, #1840 F4 tranche-2, 2026-07-09 — re-promotion path: #1803)                                                                                                                                       |
+| `bake`       | `arbiter init` → structural snapshot diff → parse generated manifests (no exec) | Most fixtures (`backend-*`, `bdd`, `frontend-spa` …)                                                                                                                                                                                                                                                                      |
 | `functional` | `bake` + execute the generated project's own L1 gate inside a clean tmpdir copy | Cheapest fixture per stack (`*-library`); promoted to the dedicated `generator-matrix.yml` workflow (dispatchable + weekly + pre-release, #1840 F4 tranche-2). Also the `backend-web-db` archetype's 3 GA fixtures (`ts-backend-web-db`, `python-backend-web`, `go-backend-web-gcr`) as of #1840 F4 tranche-3 — see below |
 
 The bake-and-run harness lives in `__tests__/e2e/bake/` and `__tests__/e2e/functional/`. Industry pattern reference: Nx (`create-nx-workspace` Verdaccio), Cookiecutter (`pytest-cookies`), Spring Initializr (`initializr-generator-test`).
@@ -128,11 +128,11 @@ project (same category as `kit-self-canary.yml` / `probe-writer-audit.yml`).
 
 Cells (closed list, per the #1840 tranche-2 decision comment, 2026-07-09):
 
-| Stack      | Test                                                          |
-| ---------- | -------------------------------------------------------------- |
+| Stack      | Test                                                              |
+| ---------- | ----------------------------------------------------------------- |
 | TypeScript | `packaged-artifact.test.ts` (#1770 T8, outsider npm-pack install) |
-| Python     | `fixture-functional.test.ts -t python`                          |
-| Go         | `fixture-functional.test.ts -t go`                               |
+| Python     | `fixture-functional.test.ts -t python`                            |
+| Go         | `fixture-functional.test.ts -t go`                                |
 | Rust       | `fixture-functional.test.ts -t rust`                              |
 | Java       | `fixture-functional.test.ts -t java` (post-#1858 un-skip)         |
 
@@ -152,7 +152,7 @@ tests; `go-backend-web-gcr`: net/http + an in-memory `ItemStore` behind an inter
 integration tests; `ts-backend-web-db` already had real content) and flips all three to
 `tier: functional`.
 
-Actually *executing* the generated L1 gate for `backend-web-db` for the first time (bake tier
+Actually _executing_ the generated L1 gate for `backend-web-db` for the first time (bake tier
 never runs it) surfaced several arbiter-side gaps that were never observable before — fixed in
 the same tranche because a fixture promotion that doesn't survive its own gate is not a
 promotion:
@@ -170,7 +170,7 @@ promotion:
   arbiter's internal style (single-quote, no semicolons) and were written straight to disk —
   any project whose `.prettierrc` differs (the common case) fails its own generated `format`
   gate on arbiter's OWN files. Fixed by running each through `formatContent` (`src/utils/
-  prettier-format.ts`, #933 F13 — the same post-emit reformat `commitlint.config.js` already
+prettier-format.ts`, #933 F13 — the same post-emit reformat `commitlint.config.js` already
   used, #1325) before `writeFile`.
 - **Generated middleware tripped the generated lint gates.** `error-handler.ts`'s
   Express-required `_next` param tripped `@typescript-eslint/no-unused-vars` (no
@@ -218,7 +218,7 @@ inventing a new one:
   side effect of the invocation itself — a runtime audit log, not generator output. Suppressed
   at the source with `--no-evidence` (the flag already existed) rather than post-hoc-excluded.
 - `.arbiter/detected-integrations.json` is written only when the CALLING MACHINE's `$HOME/
-  .claude` has skills installed — present on a dev host, absent in CI. No CLI flag suppresses
+.claude` has skills installed — present on a dev host, absent in CI. No CLI flag suppresses
   the detection itself, so `regenerate-examples.mjs` deletes it post-generation, reusing the
   SAME exclusion the bake harness already applies to this exact file
   (`__tests__/integration/e2e/helpers.ts` `EXCLUDE_RELS`, #1685).

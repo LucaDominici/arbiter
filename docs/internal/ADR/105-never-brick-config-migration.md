@@ -41,7 +41,7 @@ Split every config-validation failure into exactly two classes:
   errors: there is no default that vests a genuinely broken/from-the-future
   file with meaning.
 - **COERCIBLE** — a closed set of "axis/identity" fields whose job is only to
-  steer template/generator *selection*, never gate/threshold strictness:
+  steer template/generator _selection_, never gate/threshold strictness:
   `contractType`, `databaseEngine`, `strictnessTier`, `thresholdProfile`,
   `runnerProfile`, `industryOverlay` (unknown/removed enum value → field
   dropped, becomes "not configured"), `lanes` (invalid entries filtered),
@@ -49,7 +49,7 @@ Split every config-validation failure into exactly two classes:
   default), `tools` (unknown entries filtered to `AI_TOOLS`; falls back to
   `['claude', 'codex']` if that would empty the array), and
   `useGitHub`/`permitGitHub` (neither present as boolean → `permitGitHub:
-  false`). Each default is already precedented elsewhere in the codebase
+false`). Each default is already precedented elsewhere in the codebase
   (`migrateV1ToV2`, `defaultConfig()` test fixture) — this ADR does not invent
   new defaults, it makes the existing ones reachable from the strict-load
   path instead of only from fresh `init`.
@@ -60,7 +60,7 @@ malformed): `features`, `thresholds`, `decomposition`, `frontend`,
 `conformanceThresholds`, `channel`. Every one of these directly controls gate
 strictness or CI composition — silently defaulting a broken shape there could
 mask a real misconfiguration instead of repairing a stale migration. Never-
-brick is a promise about *legacy drift on identity/classification fields*, not
+brick is a promise about _legacy drift on identity/classification fields_, not
 a general license to swallow any invalid config.
 
 Implementation (mechanical, `src/config/schema.ts` +
@@ -77,7 +77,7 @@ Implementation (mechanical, `src/config/schema.ts` +
    there is exactly one source of truth). Returns `{ draft, report }`, never
    mutates its input, and is a no-op (empty report) on an already-valid config.
 3. `loadConfig`: on a first `validateConfig` failure, call
-   `sanitizeCoercibleFields` and re-validate. Only if it is *still* invalid —
+   `sanitizeCoercibleFields` and re-validate. Only if it is _still_ invalid —
    i.e. the failure is outside the coercible set — is `E_CONFIG_INVALID`
    thrown. A successful coercion is surfaced as a single `getLogger().warn`
    listing every field touched (`from` → `to`), never a silent swallow.

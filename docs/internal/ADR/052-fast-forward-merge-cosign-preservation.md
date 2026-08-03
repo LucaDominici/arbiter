@@ -24,8 +24,7 @@ therefore implements the stronger contract `main == gatedHeadSha`.
 
 The previous revision incorrectly claimed that `allow_merge_commit:true` plus
 `required_linear_history:true` produced a true fast-forward. The GitHub API disproved that
-claim: with linear history enabled, disabling both squash and rebase is rejected with HTTP
-422. PR #2147 then exposed the false green in production: gated head
+claim: with linear history enabled, disabling both squash and rebase is rejected with HTTP 422. PR #2147 then exposed the false green in production: gated head
 `231ad2ed13758a6607e58849562bacd9da985a8d` was merged through rebase and landed as
 `d228efb6bce48e004c9fc8a57a107cefa935d4ac`. The gated SHA is not an ancestor of the landed
 SHA. That historical evidence is recorded as `preservation: LOST`; `main` must not be

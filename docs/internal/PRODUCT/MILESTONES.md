@@ -975,14 +975,14 @@ M11's #28/#34/#40, MA-ML's #82-#93, M22-M33, plus epic #81) was checked with
 live board, which matches or is consistent with every milestone this document
 marks `✅ DONE` / `✓ SHIPPED` / `✓`.
 
-| M | Issue | Status (doc) | Status (real) | Note |
-| --- | --- | --- | --- | --- |
-| M23 | #71 | *(no header marker)* | CLOSED | Header carries no ✅/✓ despite the issue being closed — cosmetic omission, not a false claim. |
-| M24 | #72 | *(no header marker; inline "Status: COMPLETE (2026-04-17)")* | CLOSED | Consistent — inline status is correct, only the header checkmark is missing. |
-| M29 | #77 | *(no header marker)* | CLOSED | Same pattern as M23. |
-| M31 | #79 | *(no header marker)* | CLOSED | Same pattern as M23. |
-| M32 | #80 | *(no header marker)* | CLOSED | Same pattern as M23. |
-| M33 | #95 | *(no header marker)* | CLOSED | Same pattern as M23. |
+| M   | Issue | Status (doc)                                                 | Status (real) | Note                                                                                          |
+| --- | ----- | ------------------------------------------------------------ | ------------- | --------------------------------------------------------------------------------------------- |
+| M23 | #71   | _(no header marker)_                                         | CLOSED        | Header carries no ✅/✓ despite the issue being closed — cosmetic omission, not a false claim. |
+| M24 | #72   | _(no header marker; inline "Status: COMPLETE (2026-04-17)")_ | CLOSED        | Consistent — inline status is correct, only the header checkmark is missing.                  |
+| M29 | #77   | _(no header marker)_                                         | CLOSED        | Same pattern as M23.                                                                          |
+| M31 | #79   | _(no header marker)_                                         | CLOSED        | Same pattern as M23.                                                                          |
+| M32 | #80   | _(no header marker)_                                         | CLOSED        | Same pattern as M23.                                                                          |
+| M33 | #95   | _(no header marker)_                                         | CLOSED        | Same pattern as M23.                                                                          |
 
 No issue referenced by this document was found open, and no issue number
 referenced was missing/nonexistent on the board. The five rows above are flagged
@@ -994,21 +994,21 @@ call — not rewritten per the append-only rule for this run.
 
 **Open epics:**
 
-| Epic | Title | State |
-| --- | --- | --- |
-| #1491 | Release-readiness remediation — pre-public-launch fix waves | OPEN |
-| #1770 | Release v0.1 — public-launch wave (audit 2026-07-04) | OPEN |
-| #1943 | Anti-context-rot enforcers E1-E7 (M8/M12/M13/M14/M9/M1/M4/M6 TO-CREATE debt) — untracked | OPEN |
+| Epic  | Title                                                                                    | State |
+| ----- | ---------------------------------------------------------------------------------------- | ----- |
+| #1491 | Release-readiness remediation — pre-public-launch fix waves                              | OPEN  |
+| #1770 | Release v0.1 — public-launch wave (audit 2026-07-04)                                     | OPEN  |
+| #1943 | Anti-context-rot enforcers E1-E7 (M8/M12/M13/M14/M9/M1/M4/M6 TO-CREATE debt) — untracked | OPEN  |
 
 **Milestone 7 — "GAP remediation (run #2000)":** 20 open issues, 2 closed.
 
 **Open PRs (human-gated):**
 
-| PR | Title | State |
-| --- | --- | --- |
-| #2002 | fix(wave): wave-5 integration — anti-context-rot twins, spawn-guard knob, compliance flags, T9 demo | OPEN |
-| #2019 | docs(ssot): retarget stale governance paths to docs/internal/... | OPEN |
-| #2024 | docs(gap): land GAP.md — verified claim inventory (run #2000) | OPEN |
+| PR    | Title                                                                                               | State |
+| ----- | --------------------------------------------------------------------------------------------------- | ----- |
+| #2002 | fix(wave): wave-5 integration — anti-context-rot twins, spawn-guard knob, compliance flags, T9 demo | OPEN  |
+| #2019 | docs(ssot): retarget stale governance paths to docs/internal/...                                    | OPEN  |
+| #2024 | docs(gap): land GAP.md — verified claim inventory (run #2000)                                       | OPEN  |
 
 **Verified-claim inventory:** `docs/internal/SYSTEM/GAP.md` (landing via #2024, not
 yet on `main` as of this reconciliation; not to be confused with the generated

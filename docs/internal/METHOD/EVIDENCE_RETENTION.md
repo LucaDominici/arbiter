@@ -18,13 +18,14 @@ is absent or unreadable — a missing flag never hard-blocks completion claims.
 
 ## Scripts
 
-| Script | Purpose | When to run |
-| --- | --- | --- |
+| Script                      | Purpose                                                                                                                 | When to run                                                                  |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `scripts/done-evidence.mjs` | Run the L4 gate, then capture SHA-256 of load-bearing source files + gate state into `.claude/.last-done-evidence.json` | Before claiming a task done — the `guard-done-evidence` hook reads this file |
 
 ## Hook
 
 `guard-done-evidence.mjs` (UserPromptSubmit) activates only when all of:
+
 - `features.evidenceHarness: true` (or `ARBITER_EVIDENCE_HARNESS=1`),
 - task phase is `verification`, and
 - the prompt contains a completion claim (`task complete`, `pr merged`, …).

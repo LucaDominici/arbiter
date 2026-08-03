@@ -48,7 +48,7 @@ Replace OWASP Dependency-Check with Trivy fs as the JVM dependency-audit tool ev
 arbiter scaffolds it:
 
 - **Pattern:** `trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --ignorefile
-  .trivyignore .` — `HIGH,CRITICAL` + `exit-code 1` is the Trivy-fs equivalent of OWASP DC's
+.trivyignore .` — `HIGH,CRITICAL` + `exit-code 1` is the Trivy-fs equivalent of OWASP DC's
   `--failOnCVSS 7` (INV-13: CVSS ≥ 7.0 blocks).
 - **CI:** the shared `_partials/trivy-fs-java.ejs` partial (renamed from
   `owasp-dependency-check-java.ejs`) runs `aquasecurity/trivy-action` (the same pinned
@@ -59,7 +59,7 @@ arbiter scaffolds it:
   cross-language-matrix declaring JVM dependency scanning for it; the trivy fs step is now
   wired into `check-all.mjs.ejs`'s kotlin branch too.
 - **Suppressions:** `.trivyignore` (CVE allowlist with mandatory `exp:YYYY-MM-DD # reason=…
-  owner=@…` metadata, INV-31) moves to the project ROOT — every existing Trivy step already
+owner=@…` metadata, INV-31) moves to the project ROOT — every existing Trivy step already
   reads `trivyignores: .trivyignore` there — and its emission condition broadens from
   "JVM only" to "JVM or service archetype", since the container-scan Trivy steps read the
   same root file for services of every language, not just JVM. `owasp-suppressions.xml` and

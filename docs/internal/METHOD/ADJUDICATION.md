@@ -49,11 +49,11 @@ Run the rungs in order. Enter each rung only when the previous rung fails.
    same audit sample: a matcher tuned on its own audit sample has no remaining
    out-of-sample evidence.
 
-| Rung | What runs | Pass condition | Cost |
-| ---- | --------- | -------------- | ---- |
-| 1 | Mechanical matcher over the full set | Matcher emits a reproducible verdict | Cheap |
-| 2 | Pre-registered stratified sample, decided independently by hand | Precision meets the registered threshold | Moderate |
-| 3 | Independent LLM judges over the entire set | Re-adjudicated verdicts satisfy the adjudication record | Highest |
+| Rung | What runs                                                       | Pass condition                                          | Cost     |
+| ---- | --------------------------------------------------------------- | ------------------------------------------------------- | -------- |
+| 1    | Mechanical matcher over the full set                            | Matcher emits a reproducible verdict                    | Cheap    |
+| 2    | Pre-registered stratified sample, decided independently by hand | Precision meets the registered threshold                | Moderate |
+| 3    | Independent LLM judges over the entire set                      | Re-adjudicated verdicts satisfy the adjudication record | Highest  |
 
 Pre-registration is what makes rung 2 a gate. A threshold chosen after seeing
 the numbers is not a gate.

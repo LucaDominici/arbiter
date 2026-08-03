@@ -162,7 +162,7 @@ dogfooding "where arbiter's governance level qualifies" — not unconditionally:
 - **`contractTesting` — closed, no-op-verified.** `generateContractTesting` short-circuits
   whenever `contractType === 'none'` or `hasPublicApi === false` (ADR-028), both true for
   arbiter's own config (a CLI library with no owned/consumed API). Confirmed via `arbiter
-  diff` in an isolated sandbox: flipping the flag to `true` produces **zero** file changes.
+diff` in an isolated sandbox: flipping the flag to `true` produces **zero** file changes.
   Flag flipped to `true` in this amendment's PR — matches the tool-wide default
   (`enableContractTesting !== false`) at zero risk.
 - **`evidenceHarness` — deliberately deferred, not neglected.** This ADR's own Decision

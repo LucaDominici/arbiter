@@ -76,7 +76,7 @@ lines where the context string appears (e.g., `Keycloak-compatible IdP` exempts 
 ### R-08 Amendment: Import-Provenance Rules (Rules 5–7)
 
 **Finding:** the original W2 join (this ADR, above) copied `canonical_id`/`name` from the catalog
-onto the mapping *positionally* (row *i* ↔ catalog dim *i*), but `detail`, `planning_evidence_paths`,
+onto the mapping _positionally_ (row _i_ ↔ catalog dim _i_), but `detail`, `planning_evidence_paths`,
 `framework_realization`, and `planning_notes` were never re-keyed — they stayed at their pre-join
 row index, which followed the original XLSX import-list ordering, not the catalog's. Because
 the catalog and the import list are different orderings of a similar-but-not-identical taxonomy,
@@ -98,7 +98,7 @@ consistency):
   (no import-era payload — either the catalog dimension has no import-era counterpart, or its
   import-era payload was reattached elsewhere by the crosswalk).
 - `unmapped_import_dims: Array<{import_id, import_name, detail, planning_evidence_paths,
-  framework_realization, planning_notes}>` (top-level) — import-era payloads with no canonical home
+framework_realization, planning_notes}>` (top-level) — import-era payloads with no canonical home
   (no data loss: every `import_id` not attached via `import_source` lives here instead).
 - `import_total: number` (top-level) — the size of the original import-era dimension list (76).
   Rule 7 is gated on this field's presence so mapping fixtures that predate the R-08 crosswalk (or
@@ -121,7 +121,7 @@ enforcement. Rule 6 is skipped when there is no `src/` directory at the check ro
 `framework_realization` paths point into the dev source tree, which never ships in a published
 install (#1575) — the check is meaningless without a source tree to verify against.
 
-*Open decision (not resolved by Rule 6):* whether the 53 `planned:`-prefixed paths should
+_Open decision (not resolved by Rule 6):_ whether the 53 `planned:`-prefixed paths should
 eventually be built (real templates/generators/validators) or deleted from the mapping. Rule 6
 takes the conservative default — mark, don't delete or fail — pending that call.
 

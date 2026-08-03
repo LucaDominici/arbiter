@@ -40,8 +40,11 @@ describe('check-private-paths-ignored.mjs (private paths gitignore enforcement)'
       // Write a .gitignore that ignores the private paths
       writeFileSync(
         join(dir, '.gitignore'),
+        // #2053: named-file rules, NOT a `docs/internal/` blanket — the blanket swallowed every
+        // newly authored ADR/METHOD/SYSTEM doc. This fixture mirrors the real .gitignore.
         `.arbiter/private/
 docs/internal/KIT-GOLD-STANDARD.md
+docs/internal/coc-enforcement-runbook.md
 src/kit/derived.json
 `,
       )
@@ -53,6 +56,7 @@ src/kit/derived.json
       writeFileSync(join(dir, '.arbiter', 'private', 'REDACTION-LEXICON.md'), 'private')
       mkdirSync(join(dir, 'docs', 'internal'), { recursive: true })
       writeFileSync(join(dir, 'docs', 'internal', 'KIT-GOLD-STANDARD.md'), 'private')
+      writeFileSync(join(dir, 'docs', 'internal', 'coc-enforcement-runbook.md'), 'private')
       mkdirSync(join(dir, 'src', 'kit'), { recursive: true })
       writeFileSync(join(dir, 'src', 'kit', 'derived.json'), 'private')
 

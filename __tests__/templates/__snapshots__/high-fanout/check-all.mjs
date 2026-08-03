@@ -481,6 +481,18 @@ runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mj
 // virgin L1 project never emits scripts/check-wiki-lint.mjs. Gating this runCheck
 // to match the generator predicate prevents a MODULE_NOT_FOUND RED on `check-all L1`.
 runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
+// #2214: docs.ts emits gen-doc-index.mjs / gen-llms-txt.mjs only at L2+, matching this
+// guard. Both runChecks are additionally guarded on their OUTPUT artifact, never on the
+// script: docs/INDEX.md and llms.txt are target-OWNED artifacts that `arbiter init` does
+// not pre-generate, so an unguarded --check reds every virgin target on day one — shipping
+// exactly the red-by-construction enforcement this issue exists to remove. Once the target
+// runs `node scripts/gen-doc-index.mjs` once, drift is gated on every run thereafter.
+if (existsSync('docs/INDEX.md')) {
+  runCheck('documentation index drift', 'node', ['scripts/gen-doc-index.mjs', '--check']);
+}
+if (existsSync('llms.txt')) {
+  runCheck('llms.txt drift', 'node', ['scripts/gen-llms-txt.mjs', '--check']);
+}
 
 // ─── L1: anti-proforma test gate (INV-118, #1249) ────────────────────────────
 runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
