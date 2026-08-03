@@ -47,6 +47,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | ---------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | `PreToolUse` → Bash          | `stop-dangerous.mjs`           | Block dangerous commands and obvious writes to protected Arbiter state                                                       |
 | `PreToolUse` → Bash          | `enforce-gate-before-pr.mjs`   | Block `gh pr create` without valid gate-pass.json                                                                            |
+| `PreToolUse` → Bash          | `closer-mode-guard.mjs`        | CLOSER-mode Rule 1/2 enforcement, active only in the `close` phase (#A11, #2014)                                             |
 | `PreToolUse` → Edit\|Write   | `enforce-read-only.mjs`        | Guard read-only files                                                                                                        |
 | `PreToolUse` → Edit\|Write   | `pre-edit-load-memory.mjs`     | Inject memory-impl.md gotchas when glob matches                                                                              |
 | `PreToolUse` → Edit\|Write   | `pre-edit-ssot-guard.mjs`      | Prevent unauthorized SSOT edits                                                                                              |

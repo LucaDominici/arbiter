@@ -13,6 +13,11 @@
             "type": "command",
             "command": "node .claude/hooks/enforce-gate-before-pr.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/closer-mode-guard.mjs",
+            "timeout": 5
           }
         ]
       },
