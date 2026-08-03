@@ -158,15 +158,16 @@ describe('githooks/commit-msg.ejs', () => {
     expect(out).not.toContain('%>')
   })
 
-  it('typescript: runs commitlint unconditionally', () => {
+  it('typescript: uses a local commitlint binary only', () => {
     const out = renderTemplate('githooks/commit-msg.ejs', tsConfig())
-    expect(out).toContain('npx commitlint --edit')
+    expect(out).toContain('node_modules/.bin/commitlint --edit "$1"')
+    expect(out).not.toContain('npx commitlint')
   })
 
-  it('typescript: does not guard on npx presence', () => {
+  it('typescript: guards on a commitlint configuration', () => {
     const out = renderTemplate('githooks/commit-msg.ejs', tsConfig())
-    // TS path: unconditional commitlint; non-TS path has the guard
-    expect(out).not.toContain('command -v npx')
+    expect(out).toContain('COMMITLINT_CONFIG_FOUND=false')
+    expect(out).toContain('commitlint config missing')
   })
 
   it('rust: mentions commitlint', () => {
@@ -174,9 +175,9 @@ describe('githooks/commit-msg.ejs', () => {
     expect(out).toContain('commitlint')
   })
 
-  it('rust: guards on npx availability', () => {
+  it('rust: guards on a local commitlint install', () => {
     const out = renderTemplate('githooks/commit-msg.ejs', rustConfig())
-    expect(out).toContain('command -v npx')
+    expect(out).toContain('[ ! -x node_modules/.bin/commitlint ]')
   })
 
   it('emits conventional-commits regex check that runs without Node (#355)', () => {
@@ -212,10 +213,11 @@ describe('githooks/commit-msg.ejs', () => {
       const msgPath = join(tmpdir, 'msg')
       writeFileSync(hookPath, rendered)
       writeFileSync(msgPath, msg + '\n')
-      // Strip PATH so Layer 2 (npx/commitlint) is skipped — we only validate Layer 1.
-      // Create an empty dir and use it as the sole PATH entry so no commands resolve.
+      // Run outside the project so Layer 2 is skipped for its missing config; this
+      // isolates the Layer 1 behavior under test.
       const emptyPathDir = mkdtempSync(join(tmpdir_(), 'empty-path-'))
       const result = spawnSync('/usr/bin/bash', ['--noprofile', '--norc', hookPath, msgPath], {
+        cwd: tmpdir,
         encoding: 'utf-8',
         env: { PATH: emptyPathDir },
       })

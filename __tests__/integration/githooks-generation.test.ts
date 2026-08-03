@@ -105,11 +105,44 @@ describe('generateGithooks — typescript stack', () => {
     expect(isExecutable(join(dir, '.githooks', 'commit-msg'))).toBe(true)
   })
 
-  it('.githooks/commit-msg runs commitlint', () => {
+  it('.githooks/commit-msg uses only the local commitlint binary', () => {
     const config = makeConfig(dir, { language: 'typescript' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'commit-msg'), 'utf-8')
-    expect(content).toContain('commitlint')
+    expect(content).toContain('node_modules/.bin/commitlint --edit "$1"')
+    expect(content).not.toContain('npx commitlint')
+  })
+
+  it('commit-msg accepts a valid message without commitlint config when node_modules exists', () => {
+    const config = makeConfig(dir, { language: 'typescript' })
+    generateGithooks(config)
+    mkdirSync(join(dir, 'node_modules'))
+    const messagePath = join(dir, 'message')
+    writeFileSync(messagePath, 'chore: post-init\n')
+
+    const result = spawnSync('bash', ['.githooks/commit-msg', messagePath], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('commit-msg layer 2 skipped: commitlint config missing')
+  })
+
+  it('commit-msg rejects a malformed message through layer 1 without commitlint config', () => {
+    const config = makeConfig(dir, { language: 'typescript' })
+    generateGithooks(config)
+    mkdirSync(join(dir, 'node_modules'))
+    const messagePath = join(dir, 'message')
+    writeFileSync(messagePath, 'not a conventional message\n')
+
+    const result = spawnSync('bash', ['.githooks/commit-msg', messagePath], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
+
+    expect(result.status).not.toBe(0)
+    expect(result.stdout).toContain('commit-msg rejected: subject must look like')
   })
 
   it('injects prepare script into package.json for TS', () => {
@@ -211,13 +244,12 @@ describe('generateGithooks — rust stack', () => {
     expect(isExecutable(join(dir, 'scripts', 'setup-hooks.sh'))).toBe(true)
   })
 
-  it('commit-msg uses soft commitlint check for rust', () => {
+  it('commit-msg uses the same local-only commitlint check for rust', () => {
     const config = makeConfig(dir, { language: 'rust', buildTool: 'cargo' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'commit-msg'), 'utf-8')
-    // Non-TS: soft check with command -v npx
-    expect(content).toContain('command -v npx')
-    expect(content).toContain('commitlint')
+    expect(content).toContain('node_modules/.bin/commitlint --edit "$1"')
+    expect(content).not.toContain('npx commitlint')
   })
 })
 

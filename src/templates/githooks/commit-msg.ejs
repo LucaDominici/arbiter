@@ -29,20 +29,32 @@ if [[ ! "$MSG" =~ ^(build|chore|ci|cluster|docs|feat|fix|perf|refactor|revert|st
   exit 1
 fi
 
-<% if (language === 'typescript') { %>
-# Layer 2: richer commitlint validation (TypeScript projects)
-if [ ! -d "node_modules" ]; then
-  echo "Skipping commit-msg layer 2: node_modules not installed. Run npm install."
+# Layer 2: richer commitlint validation is optional on every stack. Only run it
+# when this repository supplies both a configuration and a local executable.
+COMMITLINT_CONFIG_FOUND=false
+for COMMITLINT_CONFIG in \
+  commitlint.config.js commitlint.config.cjs commitlint.config.mjs commitlint.config.ts \
+  .commitlintrc .commitlintrc.json .commitlintrc.yml .commitlintrc.yaml \
+  .commitlintrc.js .commitlintrc.cjs .commitlintrc.mjs .commitlintrc.ts; do
+  if [ -f "$COMMITLINT_CONFIG" ]; then
+    COMMITLINT_CONFIG_FOUND=true
+    break
+  fi
+done
+
+if [ "$COMMITLINT_CONFIG_FOUND" = false ] && [ -f package.json ] && \
+  grep -Eq '"commitlint"[[:space:]]*:' package.json; then
+  COMMITLINT_CONFIG_FOUND=true
+fi
+
+if [ "$COMMITLINT_CONFIG_FOUND" = false ]; then
+  echo "commit-msg layer 2 skipped: commitlint config missing"
   exit 0
 fi
 
-npx commitlint --edit "$1"
-<% } else { %>
-# Layer 2: richer commitlint validation is optional on non-Node stacks —
-# skip gracefully if npx is absent.
-if command -v npx >/dev/null 2>&1; then
-  npx commitlint --edit "$1"
-else
-  echo "commitlint skip: npx not available"
+if [ ! -x node_modules/.bin/commitlint ]; then
+  echo "commit-msg layer 2 skipped: commitlint not installed"
+  exit 0
 fi
-<% } %>
+
+node_modules/.bin/commitlint --edit "$1"
