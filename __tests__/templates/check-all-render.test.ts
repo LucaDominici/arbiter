@@ -37,6 +37,23 @@ describe('check-all.mjs.ejs rendering — L1 security baseline (#2199)', () => {
   }
 })
 
+describe('check-all.mjs.ejs rendering — database integration lane (#2193)', () => {
+  it('routes TypeScript database integration tests through the generated npm script', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      hasDatabase: true,
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+
+    expect(content).toContain("runCheck('db integration tests', 'npm', ['run', 'test:integration']")
+    expect(content).not.toContain(
+      "runCheck('db integration tests', 'npx', ['vitest', 'run', 'integration']",
+    )
+  })
+})
+
 describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
   it('renders inline suppressions check when enableSuppressions=true (#367)', () => {
     const data = makeConfig('/tmp/test', {

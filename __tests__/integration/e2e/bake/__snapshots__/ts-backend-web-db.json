@@ -377,7 +377,7 @@
     "src/middleware/410-gone-handler.ts": "32893e29a831cc60c1ecfbfd0a9d625a843fd609678f8f698084eba20527ad5e",
     "src/middleware/correlation-id.ts": "e142745d935a8ca8e9d1e6ec1cc8f04b6843eed329febadb74c49560b9a8d7d8",
     "src/middleware/deprecation.ts": "3e1fae4a32e5afd357bdfc680244c406fba1f52b6bf84b38988737df43616efe",
-    "src/middleware/error-handler.ts": "99bc3f557a2c2c1bfb329ec6b04e7fa0520b56718826205d3354554d9e4935fa",
+    "src/middleware/error-handler.ts": "c42c51ea3552f1481df6951623ccf9ea0c9c59466851d616cec11364966b35f1",
     "src/middleware/payload-size-limit.ts": "dddc78cb03da1dca47ebff57e43034f01bb1fa7797bdda5765a035be79e33e07",
     "src/test/example.behavioral.test.ts": "e8a887f452fcca7c4c2f7738b111c45535526bfb24b8454bf0a972f7274c7ebf",
     "standards/doc-profile": "54db4a778d47862a6896b74b4346d4b415aec1046b1f4001cb25076fcd866a38",

@@ -33,13 +33,49 @@ describe('debt-gates config templates — rendering', () => {
     expect(render('cli').entry).toEqual(['src/cli.ts!'])
   })
 
+  it('knip.json.ejs treats emitted TypeScript API middleware as entries (#2193)', () => {
+    const api = JSON.parse(
+      renderTemplate(
+        'static-analysis/knip.json.ejs',
+        makeConfig('/tmp/test', {
+          language: 'typescript',
+          archetype: 'backend-web-db',
+          hasPublicApi: true,
+          enableDebtGates: true,
+        }) as unknown as Record<string, unknown>,
+      ),
+    ) as { entry: string[] }
+    const nonApi = JSON.parse(
+      renderTemplate(
+        'static-analysis/knip.json.ejs',
+        makeConfig('/tmp/test', {
+          language: 'typescript',
+          archetype: 'backend-web-db',
+          hasPublicApi: false,
+          enableDebtGates: true,
+        }) as unknown as Record<string, unknown>,
+      ),
+    ) as { entry: string[] }
+
+    expect(api.entry).toEqual(
+      expect.arrayContaining([
+        'src/middleware/deprecation.ts!',
+        'src/middleware/410-gone-handler.ts!',
+        'src/middleware/error-handler.ts!',
+        'src/middleware/correlation-id.ts!',
+        'src/middleware/payload-size-limit.ts!',
+      ]),
+    )
+    expect(nonApi.entry).not.toContain('src/middleware/deprecation.ts!')
+  })
+
   it('knip.json.ejs ignores framework-injected toolchain (jscpd + license-name binaries) (#1324)', () => {
     const parsed = JSON.parse(
       renderTemplate(
         'static-analysis/knip.json.ejs',
         makeConfig('/tmp/test', {
           language: 'typescript',
-          archetype: 'library',
+          archetype: 'backend-web-db',
           enableDebtGates: true,
         }) as unknown as Record<string, unknown>,
       ),
@@ -47,6 +83,9 @@ describe('debt-gates config templates — rendering', () => {
     // jscpd is injected by the duplication gate and invoked via npx — knip cannot
     // trace it, so it must be ignored or it fails `dead code` out of the box.
     expect(parsed.ignoreDependencies).toContain('jscpd')
+    // Playwright specs are emitted as an opt-in e2e scaffold, without forcing
+    // every target to install a browser test runner.
+    expect(parsed.ignoreDependencies).toContain('@playwright/test')
     // license-checker's allow-list (Apache-2.0, BSD-*, …) is misparsed by knip as
     // unlisted binaries from the generated workflow — mirror arbiter's own ignores.
     expect(parsed.ignoreBinaries).toContain('license-checker')

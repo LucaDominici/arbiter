@@ -897,7 +897,7 @@ describe('generateCheckAll', () => {
 
   describe('M26 hasDatabase integration steps', () => {
     // TypeScript
-    it('TypeScript: includes vitest integration step at L2 when hasDatabase=true', () => {
+    it('TypeScript: runs the generated integration script at L2 when hasDatabase=true', () => {
       generateCheckAll(
         makeConfig(dir, {
           language: 'typescript',
@@ -906,10 +906,10 @@ describe('generateCheckAll', () => {
         }),
       )
       const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-      expect(content).toContain("'vitest', 'run', 'integration'")
+      expect(content).toContain("'npm', ['run', 'test:integration']")
     })
 
-    it('TypeScript: omits vitest integration step at L2 when hasDatabase=false', () => {
+    it('TypeScript: omits the integration script at L2 when hasDatabase=false', () => {
       generateCheckAll(
         makeConfig(dir, {
           language: 'typescript',
@@ -918,7 +918,7 @@ describe('generateCheckAll', () => {
         }),
       )
       const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-      expect(content).not.toContain("'vitest', 'run', 'integration'")
+      expect(content).not.toContain("runCheck('db integration tests'")
     })
 
     it('TypeScript: omits vitest integration step at L1 even when hasDatabase=true', () => {

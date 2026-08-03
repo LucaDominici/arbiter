@@ -585,7 +585,7 @@ if (level === 'L2') {
   runCheck('integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
   runCheck('behavioral tests', 'npm', ['run', 'test:behavioral'], { soft: graceActive });
 
-  runCheck('db integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
+  runCheck('db integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
 
 
 

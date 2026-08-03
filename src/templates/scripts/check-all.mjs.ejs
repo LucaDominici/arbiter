@@ -709,7 +709,7 @@ if (level === 'L2') {
   runCheck('integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
   runCheck('behavioral tests', 'npm', ['run', 'test:behavioral'], { soft: graceActive });
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('db integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
+  runCheck('db integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
 <% } %>
 <% if (_isFE && governanceLevel !== 'L1') { %>
   // ─── L2: FE boundary purity gate (INV-102/103/104, #1127) ─────────────────

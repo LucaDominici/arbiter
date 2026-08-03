@@ -56,6 +56,9 @@ describe('generateApiMiddleware (#215)', () => {
     expect(result.files.some((f) => f.path.endsWith('correlation-id.ts'))).toBe(true)
     expect(existsSync(join(dir, 'src', 'middleware', 'error-handler.ts'))).toBe(true)
     expect(existsSync(join(dir, 'src', 'middleware', 'correlation-id.ts'))).toBe(true)
+    expect(readFileSync(join(dir, 'src', 'middleware', 'error-handler.ts'), 'utf-8')).not.toContain(
+      'export interface ProblemDetails',
+    )
   })
 
   it('emits payload-size-limit.ts for TypeScript API projects (#222)', () => {

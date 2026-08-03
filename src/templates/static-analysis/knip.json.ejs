@@ -1,8 +1,15 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": [<%- archetype === 'cli' ? '"src/cli.ts!"' : '"src/index.ts!"' %>],
+  "entry": [
+    <%- archetype === 'cli' ? '"src/cli.ts!"' : '"src/index.ts!"' %><% if (hasPublicApi && (language === 'typescript' || language === 'multi')) { %>,
+    "src/middleware/deprecation.ts!",
+    "src/middleware/410-gone-handler.ts!",
+    "src/middleware/error-handler.ts!",
+    "src/middleware/correlation-id.ts!",
+    "src/middleware/payload-size-limit.ts!"<% } %>
+  ],
   "project": ["src/**/*.ts!"],
-  "ignoreDependencies": ["jscpd"],
+  "ignoreDependencies": ["jscpd"<% if ((language === 'typescript' || language === 'multi') && (archetype === 'frontend-spa' || archetype === 'backend-web-db')) { %>, "@playwright/test"<% } %>],
   "ignoreBinaries": [
     "knip",
     "madge",
