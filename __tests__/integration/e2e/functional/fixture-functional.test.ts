@@ -216,9 +216,10 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
 
 // Day-1 regression net for #2193/#2194: these defects escaped because the
 // functional fixture cells only emitted L1 and committed with --no-verify. This
-// requires network access for npm install and skips only on a genuine network
-// failure. It exercises L2 EMISSION through the generated L1 gate; it does not
-// run the target's L2 gate, which additionally requires Docker/Playwright browsers.
+// The generated L1 gate assertion requires network access for npm install and
+// skips only on a genuine network failure; the two commit-smoke assertions run
+// offline as well. It exercises L2 EMISSION through the generated L1 gate; it
+// does not run the target's L2 gate, which additionally requires Docker/Playwright browsers.
 describe.skipIf(!L2)('functional harness — day-1 L2 emission smoke (#2193/#2194)', () => {
   const fixture = 'ts-backend-web-db'
   const language = 'typescript'
@@ -272,11 +273,6 @@ describe.skipIf(!L2)('functional harness — day-1 L2 emission smoke (#2193/#219
   it.skipIf(skipReason != null)(
     'ts-backend-web-db: emitted commit-msg hook accepts valid and rejects malformed messages',
     () => {
-      if ('skip' in dep) {
-        expect(dep.skip, 'deps unavailable (offline) — skipping day-1 smoke').toBeTruthy()
-        return
-      }
-
       const msgFile = join(dir, '.git', 'day-1-commit-message')
       const hook = join(dir, '.githooks', 'commit-msg')
       writeFileSync(msgFile, 'chore: day-1 smoke\n')
@@ -298,11 +294,6 @@ describe.skipIf(!L2)('functional harness — day-1 L2 emission smoke (#2193/#219
   it.skipIf(skipReason != null)(
     'ts-backend-web-db: a real conventional commit passes emitted githooks',
     () => {
-      if ('skip' in dep) {
-        expect(dep.skip, 'deps unavailable (offline) — skipping day-1 smoke').toBeTruthy()
-        return
-      }
-
       writeFileSync(join(dir, 'day-1-smoke.txt'), 'day-1 smoke\n')
       execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
       const commit = spawnSync('git', ['commit', '-m', 'chore: day-1 smoke'], {

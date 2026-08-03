@@ -56,7 +56,8 @@ describe('generateApiMiddleware (#215)', () => {
     expect(result.files.some((f) => f.path.endsWith('correlation-id.ts'))).toBe(true)
     expect(existsSync(join(dir, 'src', 'middleware', 'error-handler.ts'))).toBe(true)
     expect(existsSync(join(dir, 'src', 'middleware', 'correlation-id.ts'))).toBe(true)
-    expect(readFileSync(join(dir, 'src', 'middleware', 'error-handler.ts'), 'utf-8')).not.toContain(
+    // Consumers must import their handler return shape; Knip permits this entry point via emitted knip.json.
+    expect(readFileSync(join(dir, 'src', 'middleware', 'error-handler.ts'), 'utf-8')).toContain(
       'export interface ProblemDetails',
     )
   })

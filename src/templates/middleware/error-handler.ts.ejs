@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from "express";
  * RFC 7807 Problem Details shape.
  * https://datatracker.ietf.org/doc/html/rfc7807
  */
-interface ProblemDetails {
+export interface ProblemDetails {
   type: string;
   title: string;
   status: number;
