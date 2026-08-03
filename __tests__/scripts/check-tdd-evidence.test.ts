@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import {
   parseTaskIdsFromLog,
+  parseTaskIdsFromBodies,
+  touchesGovernedSource,
   hasSkipTrailer,
   formatSkipError,
   main,
@@ -53,6 +59,38 @@ describe('parseTaskIdsFromLog', () => {
 
   it('deduplicates task IDs across scope and subject-tail forms', () => {
     expect(parseTaskIdsFromLog('fix(#42): thing (#42)')).toEqual(['#42'])
+  })
+})
+
+// ── #2217: the branch floor ───────────────────────────────────────────────────
+// Task IDs in a commit SUBJECT are verified per commit. The repo convention for a
+// commit without its own TDD cycle is `Refs #NNN` in the BODY — which parsed to zero
+// IDs, so such a branch passed the gate VACUOUSLY no matter what it changed.
+
+describe('parseTaskIdsFromBodies', () => {
+  it('extracts ids from the Refs/Closes/Fixes family in a commit body', () => {
+    const bodies = 'fix(cli): thing\n\nRefs #2218\n\x00chore: other\n\nCloses #2051\n\x00'
+    expect(parseTaskIdsFromBodies(bodies)).toEqual(['#2218', '#2051'])
+  })
+
+  it('ignores bare issue mentions that are not a reference keyword', () => {
+    expect(parseTaskIdsFromBodies('chore: harvest\n\nsee the discussion in PR #2101\n')).toEqual([])
+  })
+
+  it('deduplicates ids cited by several commits', () => {
+    expect(parseTaskIdsFromBodies('a\n\nRefs #7\n\x00b\n\nrefs #7\n\x00')).toEqual(['#7'])
+  })
+})
+
+describe('touchesGovernedSource', () => {
+  it('is true for any change under src/, templates included', () => {
+    expect(touchesGovernedSource('docs/x.md\nsrc/commands/task.ts')).toBe(true)
+    expect(touchesGovernedSource('src/templates/scripts/check-all.mjs.ejs')).toBe(true)
+  })
+
+  it('is false for a branch that changes no source', () => {
+    expect(touchesGovernedSource('docs/x.md\n__tests__/foo.test.ts\nREADME.md')).toBe(false)
+    expect(touchesGovernedSource('')).toBe(false)
   })
 })
 
@@ -161,6 +199,71 @@ describe('main()', () => {
     expect(exitFn).toHaveBeenCalledWith(0)
   })
 
+  // ── #2217: the branch floor ─────────────────────────────────────────────────
+  const BODY_ONLY = `${'a'.repeat(40)}\nfix(cli): thing\n\nRefs #2218\n\x00`
+
+  function floorRun(opts: { changed: string; verifyFails?: boolean; inherited?: boolean }) {
+    return (_cmd: string, args: string[]) => {
+      const key = args.join(' ')
+      if (key.includes('merge-base')) return 'deadbeef'
+      if (key.includes('--format=%s')) return 'fix(cli): thing'
+      if (key.includes('--format=%H')) return BODY_ONLY
+      if (key.includes('diff --name-only')) return opts.changed
+      // "was this task's evidence produced on THIS branch?"
+      if (key.includes('evidence/tdd')) return opts.inherited ? '' : 'c'.repeat(40)
+      if (opts.verifyFails) {
+        throw Object.assign(new Error('FAIL'), { stderr: 'evidence not found', stdout: '' })
+      }
+      return 'PASS'
+    }
+  }
+
+  it('exits 0 when a body-refs branch touching src/ has verified evidence for a cited task', () => {
+    exitFn.mockReset()
+    main({ runFn: floorRun({ changed: 'src/cli.ts' }) as never, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(0)
+  })
+
+  it('exits 1 when a body-refs branch touching src/ has no verified evidence at all', () => {
+    exitFn.mockReset()
+    main({
+      runFn: floorRun({ changed: 'src/cli.ts', verifyFails: true }) as never,
+      exitFn: exitFn as never,
+    })
+    expect(exitFn).toHaveBeenCalledWith(1)
+  })
+
+  // Without this, the floor is theatre: cite any long-closed task whose evidence sits on
+  // main and the branch "proves" a red→green cycle it never ran.
+  it('exits 1 when the only evidence for a cited task was inherited from main', () => {
+    exitFn.mockReset()
+    main({
+      runFn: floorRun({ changed: 'src/cli.ts', inherited: true }) as never,
+      exitFn: exitFn as never,
+    })
+    expect(exitFn).toHaveBeenCalledWith(1)
+  })
+
+  it('exits 0 for a body-refs branch that changes no source — docs stay vacuous', () => {
+    exitFn.mockReset()
+    main({ runFn: floorRun({ changed: 'docs/x.md' }) as never, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(0)
+  })
+
+  it('exits 1 when src/ changes cite no task at all, in subject or body', () => {
+    exitFn.mockReset()
+    const runFn = (_cmd: string, args: string[]) => {
+      const key = args.join(' ')
+      if (key.includes('merge-base')) return 'deadbeef'
+      if (key.includes('--format=%s')) return 'chore: untraceable change'
+      if (key.includes('--format=%H')) return `${'a'.repeat(40)}\nchore: untraceable change\n\x00`
+      if (key.includes('diff --name-only')) return 'src/cli.ts'
+      return 'PASS'
+    }
+    main({ runFn: runFn as never, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(1)
+  })
+
   it('exits 1 when a task ID fails verification', () => {
     exitFn.mockReset()
     const runFn = (_cmd: string, args: string[]) => {
@@ -173,5 +276,57 @@ describe('main()', () => {
     }
     main({ runFn: runFn as never, exitFn: exitFn as never })
     expect(exitFn).toHaveBeenCalledWith(1)
+  })
+})
+
+// ── The gate, end to end, against a real branch (#2217) ───────────────────────
+// Injected-runFn tests prove the decision logic; this proves the whole script —
+// git queries included — on a synthetic branch shaped like the one that exposed
+// the hole. Requires `--dir`, so the gate can be pointed at a repo that is not
+// arbiter's own checkout.
+describe('check-tdd-evidence.mjs --dir <repo>', () => {
+  const repos: string[] = []
+  afterEach(() => {
+    for (const r of repos.splice(0)) rmSync(r, { recursive: true, force: true })
+  })
+
+  const GATE = resolve(new URL('../../scripts/check-tdd-evidence.mjs', import.meta.url).pathname)
+
+  /** Repo with origin/main + one commit whose task id lives only in the body. */
+  function seedRepo(changed: string): string {
+    const repo = mkdtempSync(join(tmpdir(), 'tdd-gate-e2e-'))
+    repos.push(repo)
+    const g = (args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf-8' })
+    g(['init', '-b', 'main'])
+    g(['config', 'user.email', ['tester', 'example.invalid'].join('@')])
+    g(['config', 'user.name', 'tester'])
+    g(['config', 'commit.gpgsign', 'false'])
+    writeFileSync(join(repo, 'README.md'), '# base\n')
+    g(['add', '.'])
+    g(['commit', '-m', 'chore: base'])
+    g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
+
+    mkdirSync(join(repo, join(changed, '..')), { recursive: true })
+    writeFileSync(join(repo, changed), 'export const x = 1\n')
+    g(['add', '.'])
+    g(['commit', '-m', 'chore: tidy up'])
+    return repo
+  }
+
+  function runGate(repo: string): { status: number | null; out: string } {
+    const r = spawnSync('node', [GATE, '--dir', repo], { encoding: 'utf-8', timeout: 60_000 })
+    return { status: r.status, out: `${r.stdout}${r.stderr}` }
+  }
+
+  it('fails a branch that changes src/ while citing no task id', () => {
+    const { status, out } = runGate(seedRepo('src/thing.ts'))
+    expect(status).toBe(1)
+    expect(out).toMatch(/#2217/)
+    expect(out).toMatch(/record-red/)
+  })
+
+  it('passes vacuously for a branch that changes no source', () => {
+    const { status } = runGate(seedRepo('docs/note.md'))
+    expect(status).toBe(0)
   })
 })
