@@ -74,4 +74,17 @@ describe('check-drift.mjs (generated file drift detection, INV-89)', () => {
       cleanup()
     }
   })
+
+  // #2012: exit 0 + a prose "SKIP" line is recorded as PASS by runCheck — the
+  // dead-green class. Only the machine-readable marker matched by
+  // scripts/lib/run-helpers.mjs SELF_SKIP_RE surfaces the check as SKIP.
+  it('emits the [SKIP] marker line recognized by run-helpers when the manifest is absent', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const result = run(join(dir, 'nonexistent.json'), dir)
+      expect(/^\[SKIP\][ \t]*(.*)$/m.test(result.stdout)).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
 })

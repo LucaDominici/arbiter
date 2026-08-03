@@ -5,6 +5,12 @@
 // Exits 0 when PR size gate config is valid; exits 1 when config is missing or invalid.
 // Part of the anti-drift validator family (W6).
 //
+// SELF-EXEMPTION (#2012): arbiter itself ships no config/pr-size-config.json and no
+// workflow referencing pr-size/size-check, so this check self-skips on arbiter's own
+// gate. That is deliberate: a PR-size gate has no subject in a repo whose current
+// integration regime merges to main directly rather than through pull requests. The
+// check remains fully live for generated consumer projects, which do gate on PRs.
+//
 // Usage: node scripts/check-pr-size-gate.mjs [--help]
 
 import { existsSync, readFileSync } from 'node:fs'

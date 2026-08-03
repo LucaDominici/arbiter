@@ -6,6 +6,14 @@
 // Exits 0 when no drift found; exits 1 when generated content has drifted.
 // Part of the anti-drift validator family (W6).
 //
+// SELF-EXEMPTION (#2012): arbiter itself ships no .arbiter/drift-manifest.json, so this
+// check self-skips on every run of arbiter's own gate. That is deliberate, not an
+// oversight: arbiter's generated content is verified by stronger, generator-executing
+// gates — check-self-dogfood.mjs (template vs materialized parity) plus eleven
+// `gen-*.mjs --check` regeneration gates in scripts/check-all.mjs. A hash manifest would
+// re-assert a weaker property those gates already cover. The self-skip is now visible as
+// SKIP in the gate summary (see the [SKIP] marker below) rather than masquerading as PASS.
+//
 // Usage: node scripts/check-drift.mjs [--manifest <path>] [--dir <path>] [--help]
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -45,6 +53,9 @@ if (!existsSync(MANIFEST_PATH)) {
   process.stdout.write(
     'check-drift: SKIP — no drift manifest found (.arbiter/drift-manifest.json)\n',
   )
+  // #2052/#2012: recognized marker so runCheck surfaces SKIP, not PASS. Without it a
+  // manifest-less repo reports PASS on every gate run while verifying nothing.
+  process.stdout.write('[SKIP] no drift manifest found (.arbiter/drift-manifest.json)\n')
   process.exit(0)
 }
 
