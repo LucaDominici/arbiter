@@ -18,6 +18,13 @@ docs/REFERENCE/coverage/dim-*.md
 docs/REFERENCE/GLOBAL_KIT.md
 docs/REFERENCE/SELF-KIT-AUDIT.md
 docs/INDEX.md
+# #2053: the RTM's test_ref / source_ref cells hold bare `__tests__/...` paths, and
+# prettier reads leading `__` as markdown bold-underscore and rewrites them to
+# `**tests**/...` — silently corrupting every path check-feature-matrix.mjs resolves
+# (INV-112 goes red with a "glob test_ref" that is really mangled markdown). This file
+# was protected only by the docs/internal/ blanket gitignore; that rule is now narrowed,
+# so the protection has to be stated here instead of inherited by accident.
+docs/internal/PRODUCT/FEATURE_MATRIX.md
 # Generated slash command file — template system (ship.md.ejs) owns formatting
 .claude/commands/ship.md
 # #1721: generated agent-native root index — gen-llms-txt.mjs owns the bytes; no
