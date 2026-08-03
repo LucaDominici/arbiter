@@ -1282,7 +1282,7 @@ verify
 program
   .command('upgrade-level', { hidden: true })
   .description('Upgrade governance level with a grace period for new gates')
-  .option('--target <level>', 'Target level (L2, L3, or L4)')
+  .option('--target <level>', 'Target level (L2 or L3)')
   .option('--extend', 'Extend an existing active grace period by --days (default: 30)', false)
   // #1607: keep the raw string here (validate in the action) so the error can
   // echo the actual typo; bare `parseInt` silently yielded NaN for `--days abc`.
@@ -1315,8 +1315,8 @@ program
         json: opts.json,
       }
       if (opts.target) {
-        if (opts.target !== 'L2' && opts.target !== 'L3' && opts.target !== 'L4') {
-          printCliError(`invalid --target "${opts.target}". Valid values: L2, L3, L4.`)
+        if (opts.target !== 'L2' && opts.target !== 'L3') {
+          printCliError(`invalid --target "${opts.target}". Valid values: L2, L3.`)
           getLogger().error('invalid_target', { value: opts.target ?? null })
           process.exit(1)
         }

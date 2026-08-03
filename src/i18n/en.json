@@ -58,9 +58,10 @@
     "E_INIT_UNKNOWN_LANGUAGE": "Language is unknown: test naming and test pyramid checks cannot be configured. Re-run `arbiter init --language <lang>` with the project language; governance files were not generated.",
     "E_INIT_DIRTY_TREE": "Working tree has uncommitted changes. Commit or stash first, or use --force to override.",
     "E_INIT_PLUGIN_FAILURES": "Plugin(s) failed:\n  {failures}",
-    "E_TARGET_REQUIRED": "--target is required. Specify L2, L3, or L4.",
+    "E_TARGET_REQUIRED": "--target is required. Specify L2 or L3.",
     "E_ALREADY_AT_LEVEL": "Already at {level}. Nothing to upgrade.",
     "E_DOWNGRADE_NOT_SUPPORTED": "Downgrade not supported. Edit arbiter.json manually and run arbiter update.",
+    "E_GRACE_NOT_SUPPORTED": "The grace period is implemented for L1→L2 only (ADR-028). To move to a higher level, run `arbiter configure --set governanceLevel=<L3|L4>` followed by `arbiter update`.",
     "E_UPGRADE_CONFIG_INVALID": "Config invalid after upgrade: {errors}.",
     "E_NO_GRACE_PERIOD": "No grace period to extend (none set or already expired).",
     "E_GRACE_LOG_MALFORMED": "grace-log.json is malformed — delete {path} to reset extend history.",
@@ -176,8 +177,6 @@
     },
     "upgrade_level": {
       "grace_ends_warn": "Grace ends {date} ({days} days). {target} gates will WARN until then.",
-      "upgraded": "Upgraded to {target}. Grace period recorded until {date} ({days} days).",
-      "grace_warn_note": "  Note: grace-period warn mode is L1→L2 only in this release; {target} gates activate immediately.",
       "grace_extended": "Grace extended to {date} (+{days} days).",
       "grace_capped": "Grace window capped at {max} days (requested {requested}). The generated gate ignores any grace longer than {max} days.",
       "grace_extend_capped": "Grace window capped at {max} days from now (extend by {requested} would exceed it). The generated gate ignores any grace longer than {max} days."

@@ -24,13 +24,13 @@ afterEach(() => vi.clearAllMocks())
 
 describe('runInteractiveUpgradeLevel (#1168)', () => {
   it('delegates to runUpgradeLevel with the chosen target on confirm', async () => {
-    select.mockResolvedValueOnce('L3')
+    select.mockResolvedValueOnce('L2')
     confirm.mockResolvedValueOnce(true)
     const { runInteractiveUpgradeLevel } =
       await import('../../src/commands/upgrade-level-interactive.js')
     await runInteractiveUpgradeLevel({ dir: '/tmp/x' })
     expect(runUpgradeLevel).toHaveBeenCalledWith(
-      expect.objectContaining({ target: 'L3', dir: '/tmp/x', extend: false, json: false }),
+      expect.objectContaining({ target: 'L2', dir: '/tmp/x', extend: false, json: false }),
     )
   })
 

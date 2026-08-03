@@ -170,6 +170,24 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
     )
   }
 
+  if (current !== 'L1' || target !== 'L2') {
+    const error = ArbiterError.fromKey(
+      'E_GRACE_NOT_SUPPORTED',
+      'errors.E_GRACE_NOT_SUPPORTED',
+      {},
+      {
+        hint:
+          'To move to a higher level, run `arbiter configure --set governanceLevel=<L3|L4>` followed by `arbiter update`.',
+      },
+    )
+    if (opts.json) {
+      jsonOutput('upgrade-level', 'error', {}, [error.message])
+      process.exit(1)
+      return
+    }
+    throw error
+  }
+
   const days = opts.days ?? DEFAULT_GRACE_DAYS
   // Clamp + warn in one place; effectiveDays is what messaging/JSON must report
   // so the user is never told "9999 days" when only GRACE_MAX_DAYS were persisted.
@@ -211,16 +229,9 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
   }
 
   const endsDate = graceEndsAt.slice(0, 10)
-  if (current === 'L1' && target === 'L2') {
-    process.stdout.write(
-      `${t('cli.upgrade_level.grace_ends_warn', { date: endsDate, days: effectiveDays, target })}\n`,
-    )
-  } else {
-    process.stdout.write(
-      `${t('cli.upgrade_level.upgraded', { target, date: endsDate, days: effectiveDays })}\n`,
-    )
-    process.stdout.write(`${t('cli.upgrade_level.grace_warn_note', { target })}\n`)
-  }
+  process.stdout.write(
+    `${t('cli.upgrade_level.grace_ends_warn', { date: endsDate, days: effectiveDays, target })}\n`,
+  )
 }
 
 async function handleExtend(

@@ -142,6 +142,18 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     },
   ],
   [
+    'E_GRACE_NOT_SUPPORTED',
+    {
+      code: 'E_GRACE_NOT_SUPPORTED',
+      summary: 'Grace periods are only supported for L1 to L2 upgrades',
+      detail:
+        'The generated gate implements grace-period warning mode only when a project moves from L1 to L2 (ADR-028).',
+      recovery:
+        'To move to a higher level, run `arbiter configure --set governanceLevel=<L3|L4>` followed by `arbiter update`.',
+      docUrl: 'https://arbiter.dev/reference/cli#upgrade-level',
+    },
+  ],
+  [
     'E_NO_GRACE_PERIOD',
     {
       code: 'E_NO_GRACE_PERIOD',

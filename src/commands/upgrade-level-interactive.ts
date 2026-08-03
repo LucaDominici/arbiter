@@ -13,8 +13,6 @@ export interface InteractiveUpgradeOptions {
 
 const LEVELS: { value: GovernanceLevel; label: string }[] = [
   { value: 'L2', label: 'L2 — standard governance (tests, gates, coverage)' },
-  { value: 'L3', label: 'L3 — hardened (mutation, contract, serious-test DoD)' },
-  { value: 'L4', label: 'L4 — regulated (audit-trail, full evidence chain)' },
 ]
 
 /**

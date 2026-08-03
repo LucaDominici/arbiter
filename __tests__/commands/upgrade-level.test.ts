@@ -305,16 +305,12 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(saved?.graceEndsAt).toBeDefined()
   })
 
-  it('L1→L3 upgrade does NOT say "will WARN" — warn mode is L1→L2 only (#309)', async () => {
+  it('rejects L1→L3 because grace mode only supports L1→L2 (#2201)', async () => {
     seedConfig('L1')
-    const logs: string[] = []
-    vi.spyOn(console, 'log').mockImplementation((msg: string) => {
-      logs.push(msg)
+    await expect(runUpgradeLevel({ dir, target: 'L3' })).rejects.toMatchObject({
+      code: 'E_GRACE_NOT_SUPPORTED',
     })
-    await runUpgradeLevel({ dir, target: 'L3' })
-    const combined = logs.join('\n')
-    expect(combined).not.toContain('will WARN')
-    expect(combined).toContain('immediately')
+    expect(loadConfig(dir)?.governanceLevel).toBe('L1')
   })
 
   it('L1→L2 upgrade DOES say gates will WARN (#309)', async () => {
