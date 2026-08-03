@@ -66,6 +66,11 @@ related: []
 | `docs/ADR/031-plugin-api-v1.md`               | `docs/internal/ADR/031-plugin-api-v1.md` | 2026-07-04 |
 | `docs/SYSTEM/DECISIONS.md`                    | `docs/internal/SYSTEM/DECISIONS.md`   | 2026-07-04 |
 | `docs/SYSTEM/CANON.md`                        | `docs/internal/SYSTEM/CANON.md`       | 2026-07-04 |
+| `docs/adr`                                    | `docs/internal/ADR`                   | 2026-08-03 |
+| `docs/ARCHITECTURE.md`                        | `docs/internal/architecture/ARCHITECTURE.md` | 2026-08-03 |
+| `docs/METHOD`                                 | `docs/internal/METHOD`                | 2026-08-03 |
+| `docs/METHOD/SSOT_CORE_SET.md`                | `docs/internal/METHOD/SSOT_CORE_SET.md` | 2026-08-03 |
+| `docs/METHOD/CANONICAL_PATHS.md`              | `docs/internal/METHOD/CANONICAL_PATHS.md` | 2026-08-03 |
 
 ---
 
