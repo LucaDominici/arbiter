@@ -85,6 +85,50 @@ describe('closer-mode-guard hook', () => {
     expect(result.stderr).toContain('Rule 1')
   })
 
+  it('exits 2 for branch switches while in the close phase (Rule 1: single named target)', () => {
+    const branchSwitchCommands = [
+      'git checkout main',
+      'git switch main',
+      'git checkout task/#9-other-thing',
+      'git checkout -',
+      'git switch -',
+    ]
+
+    for (const command of branchSwitchCommands) {
+      const dir = track(setupGitRepo())
+      writeTaskStateFile(dir, { phase: 'close' })
+      const result = runHook(dir, command)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('Rule 1')
+    }
+  })
+
+  it('exits 0 for path restores while in the close phase (Rule 1 permits routine conflict resolution)', () => {
+    const pathRestoreCommands = [
+      'git checkout -- src/foo.ts',
+      'git checkout .',
+      'git checkout HEAD -- src/foo.ts',
+      'git checkout --ours src/foo.ts',
+      'git checkout --theirs src/foo.ts',
+      'git checkout -p src/foo.ts',
+      'git restore src/foo.ts',
+    ]
+
+    for (const command of pathRestoreCommands) {
+      const dir = track(setupGitRepo())
+      writeTaskStateFile(dir, { phase: 'close' })
+      const result = runHook(dir, command)
+      expect(result.status).toBe(0)
+    }
+  })
+
+  it('exits 0 for `git checkout main` outside the close phase (Rule 1 branch-switch block is phase-scoped)', () => {
+    const dir = track(setupGitRepo())
+    writeTaskStateFile(dir, { phase: 'green' })
+    const result = runHook(dir, 'git checkout main')
+    expect(result.status).toBe(0)
+  })
+
   it('exits 2 for `rm` on an untracked file while in the close phase (Rule 2)', () => {
     const dir = track(setupGitRepo())
     writeTaskStateFile(dir, { phase: 'close' })
