@@ -4,8 +4,9 @@
 // Compare: fail if any bucket grows >threshold% OR >N files vs baseline.
 // Bypass: ALLOW_BLOAT=1 env var (intentional escape hatch, session-scoped).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
-import { countFiles, countFilesShallow, countLOC } from './bloat-lib.mjs'
+import { BLOAT_BUCKETS, countBucketPaths, snapshotBuckets } from './bloat-lib.mjs'
 
 if (process.env.ALLOW_BLOAT === '1') {
   process.stdout.write('[bloat] ALLOW_BLOAT=1 — skipping ratchet check\n')
@@ -14,28 +15,10 @@ if (process.env.ALLOW_BLOAT === '1') {
 
 const cwd = process.cwd()
 const BASELINE_FILE = resolve(cwd, '.bloat-baseline.json')
-const EXTS = ['.ts', '.mjs', '.js']
 
 // ─── Measure current state ────────────────────────────────────────────────────
 function snapshot() {
-  return {
-    srcDirect: {
-      files: countFilesShallow(resolve(cwd, 'src'), EXTS),
-      loc: countLOC(resolve(cwd, 'src'), EXTS, false),
-    },
-    generators: {
-      files: countFiles(resolve(cwd, 'src/generators'), EXTS),
-      loc: countLOC(resolve(cwd, 'src/generators'), EXTS),
-    },
-    commands: {
-      files: countFiles(resolve(cwd, 'src/commands'), EXTS),
-      loc: countLOC(resolve(cwd, 'src/commands'), EXTS),
-    },
-    templates: {
-      files: countFiles(resolve(cwd, 'src/templates'), ['.ejs', '.ts', '.mjs', '.js']),
-      loc: countLOC(resolve(cwd, 'src/templates'), ['.ejs', '.ts', '.mjs', '.js']),
-    },
-  }
+  return snapshotBuckets(cwd)
 }
 
 const current = snapshot()
@@ -60,19 +43,10 @@ try {
   process.exit(1)
 }
 
-// ─── Thresholds ───────────────────────────────────────────────────────────────
-// src/templates gets tighter limits (jscpd can't scan EJS — extra vigilance)
-const THRESHOLDS = {
-  srcDirect: { pct: 10, files: 5 },
-  generators: { pct: 10, files: 5 },
-  commands: { pct: 10, files: 5 },
-  templates: { pct: 5, files: 3 },
-}
-
 // ─── Compare ──────────────────────────────────────────────────────────────────
 const violations = []
 
-for (const [bucket, thr] of Object.entries(THRESHOLDS)) {
+for (const [bucket, { thresholds: thr }] of Object.entries(BLOAT_BUCKETS)) {
   const base = baseline.buckets?.[bucket]
   const cur = current[bucket]
   if (!base) continue
@@ -97,6 +71,59 @@ for (const [bucket, thr] of Object.entries(THRESHOLDS)) {
     )
   }
 }
+
+// ponytail: ceiling — merge-result LOC is intentionally not measured because it needs blob reads;
+// upgrade via `git cat-file --batch` if merge-result LOC becomes necessary.
+function gitOutput(args) {
+  try {
+    return execFileSync('git', args, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim()
+  } catch {
+    return null
+  }
+}
+
+function checkMergeResult() {
+  if (gitOutput(['rev-parse', '--verify', '--quiet', 'origin/main']) === null) {
+    process.stdout.write('[bloat] merge result check skipped: origin/main does not exist\n')
+    return
+  }
+  if (gitOutput(['merge-base', '--is-ancestor', 'origin/main', 'HEAD']) !== null) {
+    process.stdout.write('[bloat] merge result check skipped: HEAD already contains origin/main\n')
+    return
+  }
+
+  const tree = gitOutput(['merge-tree', '--write-tree', 'origin/main', 'HEAD'])
+  if (!tree || !/^[0-9a-f]{40,64}$/.test(tree)) {
+    process.stdout.write(
+      '[bloat] merge result check skipped: merge tree unavailable or conflicted\n',
+    )
+    return
+  }
+  const paths = gitOutput(['ls-tree', '-r', '--name-only', tree])
+  if (paths === null) {
+    process.stdout.write('[bloat] merge result check skipped: could not list merge tree\n')
+    return
+  }
+
+  const counts = countBucketPaths(paths ? paths.split('\n') : [])
+  for (const [bucket, { thresholds: thr }] of Object.entries(BLOAT_BUCKETS)) {
+    const base = baseline.buckets?.[bucket]
+    if (!base) continue
+    const delta = counts[bucket] - base.files
+    const pct = base.files > 0 ? (delta / base.files) * 100 : 0
+    if (delta > thr.files || pct > thr.pct) {
+      violations.push(
+        `  merge result ${bucket}: +${delta} files (limit +${thr.files}; ${pct.toFixed(1)}% growth, limit ${thr.pct}%); baseline=${base.files}, merge result=${counts[bucket]}`,
+      )
+    }
+  }
+}
+
+checkMergeResult()
 
 if (violations.length > 0) {
   process.stderr.write('[bloat] RATCHET VIOLATION — src/ grew beyond baseline:\n')

@@ -5,6 +5,37 @@ import { join, extname } from 'node:path'
 
 const TEST_RE = /(?:^|\/)__tests__(?:\/|$)|\.(test|spec)\.[cm]?[jt]s$/
 
+const CODE_EXTS = ['.ts', '.mjs', '.js']
+
+/** Shared bloat bucket contract for snapshots, baseline updates, and merge trees. */
+export const BLOAT_BUCKETS = Object.freeze({
+  srcDirect: Object.freeze({
+    path: 'src',
+    exts: CODE_EXTS,
+    recursive: false,
+    thresholds: { pct: 10, files: 5 },
+  }),
+  generators: Object.freeze({
+    path: 'src/generators',
+    exts: CODE_EXTS,
+    recursive: true,
+    thresholds: { pct: 10, files: 5 },
+  }),
+  commands: Object.freeze({
+    path: 'src/commands',
+    exts: CODE_EXTS,
+    recursive: true,
+    thresholds: { pct: 10, files: 5 },
+  }),
+  templates: Object.freeze({
+    path: 'src/templates',
+    exts: ['.ejs', ...CODE_EXTS],
+    recursive: true,
+    // jscpd cannot scan EJS, so templates get tighter limits.
+    thresholds: { pct: 5, files: 3 },
+  }),
+})
+
 /**
  * Recursively count files matching exts under dir, excluding test paths.
  * @param {string} dir
@@ -76,4 +107,38 @@ export function countFilesShallow(dir, exts) {
   return entries.filter(
     (e) => e.isFile() && exts.includes(extname(e.name)) && !TEST_RE.test(e.name),
   ).length
+}
+
+/** Measure all shared buckets in a working tree. */
+export function snapshotBuckets(cwd) {
+  return Object.fromEntries(
+    Object.entries(BLOAT_BUCKETS).map(([name, bucket]) => {
+      const dir = join(cwd, bucket.path)
+      return [
+        name,
+        {
+          files: bucket.recursive
+            ? countFiles(dir, bucket.exts)
+            : countFilesShallow(dir, bucket.exts),
+          loc: countLOC(dir, bucket.exts, bucket.recursive),
+        },
+      ]
+    }),
+  )
+}
+
+/** Count shared buckets from git ls-tree's repository-relative path list. */
+export function countBucketPaths(paths) {
+  const counts = Object.fromEntries(Object.keys(BLOAT_BUCKETS).map((name) => [name, 0]))
+  for (const path of paths) {
+    if (TEST_RE.test(path)) continue
+    for (const [name, bucket] of Object.entries(BLOAT_BUCKETS)) {
+      const prefix = `${bucket.path}/`
+      if (!path.startsWith(prefix) || !bucket.exts.includes(extname(path))) continue
+      const remainder = path.slice(prefix.length)
+      if (!bucket.recursive && remainder.includes('/')) continue
+      counts[name]++
+    }
+  }
+  return counts
 }
