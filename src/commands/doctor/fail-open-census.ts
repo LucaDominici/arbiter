@@ -2,7 +2,8 @@
 //
 // #2162 — `arbiter doctor fail-open-census`: scans a target's `scripts/` and
 // `.githooks/` (the bash/gate-script surfaces) for the `command -v X ||
-// <fail-open>` presence-gate anti-pattern. Motivating field evidence: 13
+// <fail-open>` and positive `if command -v X; then ... fi` presence-gate
+// anti-patterns. Motivating field evidence: 13
 // censused points where a gate silently skips on an absent binary — including
 // one that disarms itself on a `gh auth status` token expiry.
 //
@@ -89,6 +90,9 @@ const BARE_FORM_RE = /command\s+-v\s+(\S+)[^\n]*\|\|\s*exit\s+0\b/g
 // for `return 0`/`exit 0` before the matching `fi` (simple depth counter).
 const IF_GUARD_RE = /if\s*!\s*command\s+-v\s+(\S+)/g
 
+// Detector 4: positive `if command -v X` guard form — skips blocking work when absent.
+const POSITIVE_IF_GUARD_RE = /if\s+command\s+-v\s+(\S+)/g
+
 function findMatchingFi(lines: string[], startLine: number): number {
   let depth = 1
   for (let i = startLine; i < lines.length; i++) {
@@ -102,24 +106,46 @@ function findMatchingFi(lines: string[], startLine: number): number {
   return lines.length - 1
 }
 
-function findIfGuardFindings(text: string, file: string): FailOpenFinding[] {
+function findGuardFindings(
+  text: string,
+  file: string,
+  re: RegExp,
+  isFailOpen: (blockLines: string[]) => boolean,
+): FailOpenFinding[] {
   const lines = text.split('\n')
   const findings: FailOpenFinding[] = []
-  for (const m of text.matchAll(IF_GUARD_RE)) {
+  for (const m of text.matchAll(re)) {
     const tool = m[1]
     if (!tool) continue
     const startLine = lineOf(text, m.index)
-    const blockStartIdx = startLine // 1-based line -> 0-based index of the `if` line itself
+    const blockStartIdx = startLine
     const fiIdx = findMatchingFi(lines, blockStartIdx)
-    const body = lines.slice(blockStartIdx, fiIdx + 1).join('\n')
-    if (/\b(?:return|exit)\s+0\b/.test(body)) {
+    if (isFailOpen(lines.slice(blockStartIdx, fiIdx + 1))) {
       findings.push({ file, line: startLine, tool })
     }
   }
   return findings
 }
 
-/** Scan one file's text for all three fail-open detector shapes. */
+function hasZeroExit(blockLines: string[]): boolean {
+  return /\b(?:return|exit)\s+0\b/.test(blockLines.join('\n'))
+}
+
+function hasNoBlockingElse(blockLines: string[]): boolean {
+  let depth = 1
+  let elseIdx = -1
+  for (let i = 1; i < blockLines.length; i++) {
+    const line = blockLines[i] ?? ''
+    if (/\bif\b(?!\s*!\s*command)/.test(line) && /;\s*then\s*$|then\s*$/.test(line)) depth++
+    if (/^\s*(?:else|elif)\b/.test(line) && depth === 1) elseIdx = i
+    if (/^\s*fi\b/.test(line)) depth--
+  }
+  if (elseIdx === -1) return true
+  const elseBody = blockLines.slice(elseIdx + 1, -1).join('\n')
+  return !/\b(?:return|exit)\s+[1-9]\d*\b/.test(elseBody)
+}
+
+/** Scan one file's text for all four fail-open detector shapes. */
 function scanFileText(text: string, file: string): FailOpenFinding[] {
   // Join `\`-continued lines first so the same-line forms aren't split by a backslash wrap.
   const joined = text.replace(/\\\n/g, ' ')
@@ -132,7 +158,8 @@ function scanFileText(text: string, file: string): FailOpenFinding[] {
     const tool = m[1]
     if (tool) findings.push({ file, line: lineOf(joined, m.index), tool })
   }
-  findings.push(...findIfGuardFindings(joined, file))
+  findings.push(...findGuardFindings(joined, file, IF_GUARD_RE, hasZeroExit))
+  findings.push(...findGuardFindings(joined, file, POSITIVE_IF_GUARD_RE, hasNoBlockingElse))
   return findings
 }
 

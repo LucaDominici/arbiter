@@ -1485,7 +1485,7 @@ doctor
 doctor
   .command('fail-open-census')
   .description(
-    'Census `command -v X || <fail-open>` gate-script presence-gates (see ' +
+    'Census `command -v X || <fail-open>` and positive `if command -v X; then ... fi` gate-script presence-gates (see ' +
       '`check-fail-closed-audit.mjs` for a different pattern class — `|| true` / swallowed ' +
       "catch — self-scoped to arbiter's own repo)",
   )

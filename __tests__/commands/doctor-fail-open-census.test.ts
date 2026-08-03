@@ -94,6 +94,86 @@ describe('runDoctorFailOpenCensus', () => {
     expect(result.exitCode).toBe(0)
   })
 
+  it('finds a positive command -v guard with no else because absence skips blocking work', () => {
+    const dir = tmpDir()
+    writeScript(
+      dir,
+      'scripts/gate.sh',
+      [
+        'if command -v shellcheck >/dev/null 2>&1; then',
+        '  shellcheck scripts/*.sh',
+        'fi',
+        '',
+      ].join('\n'),
+    )
+    const result = runDoctorFailOpenCensus({ dir })
+    expect(result.findings).toHaveLength(1)
+    expect(result.findings[0]?.tool).toBe('shellcheck')
+  })
+
+  it('a nested else inside the guard body does not mask the finding', () => {
+    const dir = tmpDir()
+    writeScript(
+      dir,
+      'scripts/gate.sh',
+      [
+        'if command -v yamllint >/dev/null 2>&1; then',
+        '  _yml=$(echo "$_staged" | grep -E \'.ya?ml$\' || true)',
+        '  if [ -n "$_yml" ]; then',
+        '    if [ -f .yamllint.yml ]; then',
+        '      echo "$_yml" | xargs yamllint || exit 1',
+        '    else',
+        '      echo "$_yml" | xargs yamllint -d relaxed || exit 1',
+        '    fi',
+        '  fi',
+        'fi',
+        '',
+      ].join('\n'),
+    )
+    const result = runDoctorFailOpenCensus({ dir })
+    expect(result.findings).toHaveLength(1)
+    expect(result.findings[0]?.tool).toBe('yamllint')
+  })
+
+  it('finds a positive command -v guard whose else only warns because absence is non-fatal', () => {
+    const dir = tmpDir()
+    writeScript(
+      dir,
+      'scripts/gate.sh',
+      [
+        'if command -v gitleaks &>/dev/null; then',
+        '  gitleaks detect --no-git',
+        'else',
+        '  echo "WARNING: gitleaks is not installed"',
+        'fi',
+        '',
+      ].join('\n'),
+    )
+    const result = runDoctorFailOpenCensus({ dir })
+    expect(result.findings).toHaveLength(1)
+    expect(result.findings[0]?.tool).toBe('gitleaks')
+  })
+
+  it('does not find a positive command -v guard whose absence exits 1', () => {
+    const dir = tmpDir()
+    writeScript(
+      dir,
+      'scripts/gate.sh',
+      [
+        'if command -v yamllint >/dev/null 2>&1; then',
+        '  yamllint .',
+        'else',
+        '  echo "yamllint required" >&2',
+        '  exit 1',
+        'fi',
+        '',
+      ].join('\n'),
+    )
+    const result = runDoctorFailOpenCensus({ dir })
+    expect(result.findings).toHaveLength(0)
+    expect(result.exitCode).toBe(0)
+  })
+
   it('honors a custom --allowlist path override', () => {
     const dir = tmpDir()
     writeScript(dir, 'scripts/gate.sh', ['command -v gh >/dev/null 2>&1 || exit 0', ''].join('\n'))
