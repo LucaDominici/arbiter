@@ -7,7 +7,7 @@
     ".claude/agents/agent-write-classes.json": "0a9be89cbc2549479d4b4cf549465cd350a2b1ef4b3adb4ccb49bc943f1b9761",
     ".claude/agents/bridge-reviewer.md": "6d839cc85c623fbd8ef50c2651f5593489fb2a3b4bf671894833e51989a0fd5f",
     ".claude/agents/codebase-scanner.md": "9671620d3be14324bcd2a08451b16406d0df6a8d5288629a67c080a44b2a4147",
-    ".claude/agents/context-checker.md": "e1b066c4000b1f31a3797ee64b463f99911e144158fc3634934bb1ed9afc63a2",
+    ".claude/agents/context-checker.md": "43424f5dbe9986e9a9b62985bd0b1f47456e56f60e7eaa5eb2e6c818fd467731",
     ".claude/agents/red-team.md": "fd1c4d201319aa2a6ba1f3d0d5a0d1b3924128a4e99a80d2d0ca28fc22ccc5e1",
     ".claude/commands/close-gold-gap.md": "f73b1a0ee9e7a051bdeb1a2e0e4bff6dc4fd488c874fce7bf2626051aa824231",
     ".claude/commands/drain.md": "181569f01a712a35becfd97641aca80a3e88ecdfefa41b9fae3c53d0f590b485",
