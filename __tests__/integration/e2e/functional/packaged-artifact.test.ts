@@ -423,7 +423,9 @@ describe.skipIf(!L2)('published package — signed bytes and declared surface (#
           name,
           (types as string).replace(/^\.\//, ''),
         )
-        expect(existsSync(typesPath), `declared types missing from the package: ${types}`).toBe(true)
+        expect(existsSync(typesPath), `declared types missing from the package: ${types}`).toBe(
+          true,
+        )
 
         // `.` is the CLI entrypoint: dist/cli.js runs `_main()` and exits on
         // import, and dist/cli.d.ts declares nothing. Assert it IS the bin the
@@ -466,7 +468,14 @@ describe.skipIf(!L2)('published package — signed bytes and declared surface (#
         ].flatMap((m) =>
           (m[1] ?? '')
             .split(',')
-            .map((s) => s.trim().split(/\s+as\s+/).pop()?.trim() ?? '')
+            .map(
+              (s) =>
+                s
+                  .trim()
+                  .split(/\s+as\s+/)
+                  .pop()
+                  ?.trim() ?? '',
+            )
             .filter(Boolean),
         )
         expect(
