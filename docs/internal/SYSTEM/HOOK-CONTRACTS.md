@@ -33,20 +33,38 @@ The same hook chain is silent for both events, while the pre-PR hook blocks corr
 directly with its crafted stdin payload. The distinguishing observation is the delegated session,
 not its cwd; no unobserved harness-internal resolution claim is made.
 
+**Verification (AC-2022.1, re-checked 2026-08-03):** the measured answers above still hold. No
+harness-level fix exists or is expected — the harness is a closed-source external binary, and the
+delegated session is the factor, not the checkout cwd. Evidence: run #2000 canary report (issue
+#2000 thread, PR #2021 bypass-test) — two real subagent `gh pr create` Bash invocations in a
+dedicated worktree were not intercepted by the PreToolUse chain, while the same hook exits 2 when
+driven directly with its crafted stdin payload (verified twice in run #2000: A1a audit + canary).
+
 **Q3 — What is the threat model when delegated sessions are structurally un-hooked?** The
 following boundary statement applies.
 
 - The **ENFORCED** boundary is CI plus branch protection: `gate` and `gate-full` in
   `.github/workflows/01-pr-fast.yml`, with `gate-full` running
-  `node scripts/check-all.mjs L2 --json gate-result.json`.
+  `node scripts/check-all.mjs L2 --json gate-result.json` as the required `CI Required` status
+  check — the backstop that kept PR #2021 unmergeable despite the silent subagent.
 - Local `.claude/settings.json` PreToolUse and PostToolUse hooks are defence-in-depth. They are
   advisory for delegated sessions because the harness does not run that hook chain there.
 - Git hooks are distinct: `git config core.hooksPath .githooks` makes them git-level hooks, which
-  do fire for delegated-session `git commit` and `git push` commands. They are the local control
-  that survives delegation.
+  do fire for delegated-session `git commit` and `git push` commands (`.githooks/pre-push` runs
+  the L2 gate and exits 1 on failure). They are the local control that survives delegation.
+- Bot-authored PRs are additionally gated by the AI-PR gate (INV-91): `_ai-draft-check.yml`
+  fails CI (`core.setFailed`) for a bot-authored PR that lacks the `approved-by-human` label.
 - The #2054 Bash-channel pattern guard in `stop-dangerous.mjs` uses this same settings-hook chain
   and inherits the delegated-session limitation.
 - Therefore, no Arbiter enforcement claim may rest on a `.claude/settings.json` hook alone.
+
+**Enforcement verification (AC-2022.2/3, 2026-08-03):** all three compensating controls are wired
+and fail-closed, verified on this tree — `core.hooksPath=.githooks` (`commit-msg`/`pre-commit`/
+`pre-push` present, pre-push runs L2 and exits 1), `_ai-draft-check.yml` INV-91 fails closed for
+bot-authored PRs, and branch protection requires `CI Required` (gate-full L2). Residual gap:
+nothing local prevents a delegated session from running `gh pr create` without gate-pass.json —
+only the CI boundary closes it. Tracked as follow-up issue #2233 (enforcement surface: a
+per-session PreToolUse hook contract, or moving the PR-create guard into the git pre-push chain).
 
 ---
 
