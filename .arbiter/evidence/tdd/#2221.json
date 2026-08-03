@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2221",
+  "test_path": "__tests__/commands/update-retire-orphans.test.ts",
+  "test_commit_sha": "93b0c6165770def57843c0675f019d84bd34e6ff",
+  "test_run_log": "⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/commands/update-retire-orphans.test.ts [ __tests__/commands/update-retire-orphans.test.ts ]\nError: Cannot find module '../../src/commands/retire-policy.js' imported from /tmp/red2221-rJRC/wt/__tests__/commands/update-retire-orphans.test.ts\n ❯ __tests__/commands/update-retire-orphans.test.ts:9:1\n      7| // removed; anything outside the safety class is reported only.\n      8| import { describe, it, expect } from 'vitest'\n      9| import { planRetirement, retirementWarning } from '../../src/commands/…\n       | ^\n     10| import type { WriteResult } from '../../src/utils/fs.js'\n     11|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  16:05:44\n   Duration  201ms (transform 51ms, setup 39ms, import 0ms, tests 0ms, environment 0ms)\n\n",
+  "observed_failure": "FAIL  __tests__/commands/update-retire-orphans.test.ts",
+  "recorded_at": "2026-08-03T14:06:15.751Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/update-retire-orphans.test.ts"
+  ],
+  "repin_note": "recorded at integration from a real run at the red commit; the red is a missing-module failure because src/commands/retire-policy.ts did not exist yet — the correct RED state for a new module",
+  "test_blob_sha": "bb9e66f49467f3fc99d11c574f39e57e8e5bde7b"
+}
