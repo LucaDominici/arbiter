@@ -137,7 +137,9 @@ describe('worktree link integrity recovery (#2206)', () => {
       worktree: {
         base: null,
         links: [],
-        buildLinks: [{ path: 'dist', required: false, type: 'directory', strategy: 'symlink-children' }],
+        buildLinks: [
+          { path: 'dist', required: false, type: 'directory', strategy: 'symlink-children' },
+        ],
         closeHook: null,
       },
     } as ReturnType<typeof loadConfig>)

@@ -256,6 +256,11 @@
       "closed": "\nWorktree closed: {path}",
       "relinked": "\nWorktree relinked: {path}"
     },
+    "doctor": {
+      "recover_lock": {
+        "refused": "Refusing to release live or unconfirmed lock holder(s): {holders}. Use `arbiter doctor recover-lock --force` to override deliberately."
+      }
+    },
     "wizard": {
       "migration_plan": "\n  Migration plan:",
       "replace_entry": "  ├── Replace (backed up): {entry}",

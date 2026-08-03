@@ -10,11 +10,12 @@ import { walkRepo } from './lib/glob-walk.mjs'
 
 // console.(log|warn|error)( followed by a quote character (start of raw string)
 const RAW_CONSOLE = /\bconsole\.(log|warn|error)\(\s*['"`]/
-// throw new ArbiterError( or throw new UserFacingError( (not fromKey)
+// throw new ArbiterError( or throw new UserFacingError( with a raw message
 const RAW_THROW = /\bthrow\s+new\s+(ArbiterError|UserFacingError)\s*\(/
 
 // Exclusion: console.log(t( or console.log(resolveLocale( — already using i18n
 const I18N_CALL = /\bconsole\.(log|warn|error)\(\s*(t|resolveLocale)\s*[(`]/
+const I18N_THROW = /\bthrow\s+new\s+(ArbiterError|UserFacingError)\s*\(\s*t\s*\(/
 
 const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
 const SKIP_EXTS = new Set(['.d.ts'])
@@ -66,7 +67,7 @@ function scanFile(filePath) {
     const key = `${rel}:${lineNum}`
 
     const isRawConsole = RAW_CONSOLE.test(line) && !I18N_CALL.test(line)
-    const isRawThrow = RAW_THROW.test(line)
+    const isRawThrow = RAW_THROW.test(line) && !I18N_THROW.test(line)
 
     if ((isRawConsole || isRawThrow) && !allowlist.has(key)) {
       violations.push({ file: rel, line: lineNum, snippet: line.trim() })

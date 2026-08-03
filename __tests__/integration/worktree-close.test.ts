@@ -159,9 +159,9 @@ describe('runWorktreeClose', () => {
     const untrackedPath = join(wtPath, 'never-added.txt')
     writeFileSync(untrackedPath, 'do not destroy')
 
-    expect(() =>
-      runWorktreeClose({ taskId: '#2203', cwd: repoRoot, noFetch: true }),
-    ).toThrow(/untracked files.*--force/i)
+    expect(() => runWorktreeClose({ taskId: '#2203', cwd: repoRoot, noFetch: true })).toThrow(
+      /untracked files.*--force/i,
+    )
     expect(existsSync(untrackedPath)).toBe(true)
 
     // The explicit escape hatch intentionally permits removal.

@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import os from 'node:os'
 import { jsonOutput } from '../../utils/json-output.js'
+import { t } from '../../i18n/index.js'
 import { inspectLock, forceReleaseLock, isLockStale } from '../../utils/file-lock.js'
 import type { LockInfo } from '../../utils/file-lock.js'
 import { UserFacingError } from '../../utils/errors.js'
@@ -38,7 +39,57 @@ interface ManagedLockRecovery extends DoctorRecoverLockResult {
   refusal?: LockRefusal
 }
 
+interface RecoverySummary {
+  released: boolean
+  firstInfo: LockInfo | undefined
+  corrupt: boolean
+}
+
 const RECOVER_LOCK_STALE_AGE_MS = 6 * 3600_000
+
+function formatRefusalHolders(refusals: LockRefusal[]): string {
+  return refusals
+    .map(({ rel, pid, cmd, age }) => `${rel} (pid ${pid}, cmd: ${cmd}, age: ${age}s)`)
+    .join('; ')
+}
+
+function emitRefusedRecovery(
+  opts: DoctorRecoverLockOptions,
+  refusalMessage: string,
+  summary: RecoverySummary,
+  refusals: LockRefusal[],
+): void {
+  if (!opts.json) return
+  jsonOutput(
+    'doctor recover-lock',
+    'error',
+    {
+      found: true,
+      released: summary.released,
+      ...(summary.firstInfo ? { info: summary.firstInfo } : {}),
+      ...(summary.corrupt ? { corrupt: true } : {}),
+      refused: refusals,
+    },
+    [refusalMessage],
+  )
+}
+
+function emitRecoveryResult(
+  opts: DoctorRecoverLockOptions,
+  targetDir: string,
+  result: DoctorRecoverLockResult,
+): void {
+  if (opts.json) {
+    jsonOutput('doctor recover-lock', 'ok', {
+      found: result.found,
+      released: result.released,
+      ...(result.info ? { info: result.info } : {}),
+      ...(result.corrupt ? { corrupt: true } : {}),
+    })
+  } else if (!result.found) {
+    process.stdout.write(`  No lock file found in ${join(targetDir, '.arbiter')}\n`)
+  }
+}
 
 async function recoverManagedLock(
   lockPath: string,
@@ -106,49 +157,24 @@ export async function runDoctorRecoverLock(
   }
 
   if (refusals.length > 0) {
-    const refusalMessage =
-      `Refusing to release live or unconfirmed lock holder(s): ${refusals
-        .map(({ rel, pid, cmd, age }) => `${rel} (pid ${pid}, cmd: ${cmd}, age: ${age}s)`)
-        .join('; ')}. ` +
-      'Use `arbiter doctor recover-lock --force` to override deliberately.'
-    if (opts.json) {
-      jsonOutput(
-        'doctor recover-lock',
-        'error',
-        {
-          found: true,
-          released,
-          ...(firstInfo ? { info: firstInfo } : {}),
-          ...(corrupt ? { corrupt: true } : {}),
-          refused: refusals,
-        },
-        [refusalMessage],
-      )
-    }
-    throw new UserFacingError(refusalMessage)
+    const holders = formatRefusalHolders(refusals)
+    const refusalMessage = t('cli.doctor.recover_lock.refused', { holders })
+    emitRefusedRecovery(opts, refusalMessage, { released, firstInfo, corrupt }, refusals)
+    throw new UserFacingError(t('cli.doctor.recover_lock.refused', { holders }))
   }
 
   if (!firstInfo && !corrupt) {
-    if (opts.json) {
-      jsonOutput('doctor recover-lock', 'ok', { found: false, released: false })
-    } else {
-      process.stdout.write(`  No lock file found in ${join(targetDir, '.arbiter')}\n`)
-    }
-    return { found: false, released: false }
+    const result = { found: false, released: false }
+    emitRecoveryResult(opts, targetDir, result)
+    return result
   }
 
-  if (opts.json) {
-    jsonOutput('doctor recover-lock', 'ok', {
-      found: true,
-      released,
-      ...(firstInfo ? { info: firstInfo } : {}),
-      ...(corrupt ? { corrupt: true } : {}),
-    })
-  }
-  return {
+  const result = {
     found: true,
     released,
     ...(firstInfo ? { info: firstInfo } : {}),
     ...(corrupt ? { corrupt: true } : {}),
   }
+  emitRecoveryResult(opts, targetDir, result)
+  return result
 }

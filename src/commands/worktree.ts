@@ -264,6 +264,25 @@ function resolveEffectiveBase(baseBranch: string, gitRoot: string): string {
   }
 }
 
+function resolveOpenWorktreePath(
+  opts: WorktreeOpenOptions,
+  gitRoot: string,
+  worktreeConfig: WorktreeConfig,
+  taskId: string,
+  slug: string | undefined,
+): string {
+  if (opts.sibling !== undefined) {
+    const siblingSlug = opts.sibling || worktreeDirectoryName(taskId, slug)
+    return siblingWorktreePathFor(gitRoot, siblingSlug)
+  }
+  const worktreeBase = resolveWorktreeBase(
+    gitRoot,
+    worktreeConfig.base,
+    opts.worktreesDir ?? process.env['ARBITER_WORKTREES_DIR'],
+  )
+  return worktreePathFor(worktreeBase, taskId, slug)
+}
+
 // ---------------------------------------------------------------------------
 // open
 // ---------------------------------------------------------------------------
@@ -300,18 +319,7 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
   const wtConfig = config?.worktree ?? defaultWorktreeConfig()
 
   // Resolve worktree path: --sibling takes precedence over normal base resolution.
-  let worktreePath: string
-  if (opts.sibling !== undefined) {
-    const siblingSlug = opts.sibling || worktreeDirectoryName(taskId, slug)
-    worktreePath = siblingWorktreePathFor(gitRoot, siblingSlug)
-  } else {
-    const worktreeBase = resolveWorktreeBase(
-      gitRoot,
-      wtConfig.base,
-      opts.worktreesDir ?? process.env['ARBITER_WORKTREES_DIR'],
-    )
-    worktreePath = worktreePathFor(worktreeBase, taskId, slug)
-  }
+  const worktreePath = resolveOpenWorktreePath(opts, gitRoot, wtConfig, taskId, slug)
 
   if (existsSync(worktreePath)) {
     throw new Error(

@@ -73,6 +73,20 @@ describe('check-no-raw-strings scanner (#656)', () => {
     }
   })
 
+  it('accepts a UserFacingError message resolved through t()', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeFileSync(
+        join(dir, 'ok.ts'),
+        'throw new UserFacingError(t("cli.doctor.recover_lock.refused"))\n',
+      )
+      const result = runScanner(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('exits 0 when call-site is in inventory allowlist', () => {
     const { dir, cleanup } = makeDir()
     try {

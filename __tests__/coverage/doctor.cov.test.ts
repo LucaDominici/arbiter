@@ -477,11 +477,17 @@ describe('runDoctorRecoverLock — human-readable + host branches', () => {
     expect(cap.out).toMatch(/Lock released\./)
   })
 
-  it('reports "this host: no" for a different-host lock (non-JSON)', async () => {
+  it('reports "this host: no", refuses a foreign-host lock, and force-releases it (non-JSON)', async () => {
+    // #2210: foreign-host liveness is unknowable, so default recovery refuses;
+    // only an explicit --force can deliberately release the remote holder's lock.
     writeLockFile(dir, { pid: process.pid, hostname: 'some-other-host-not-real', cmd: 'x' })
-    const result = await runDoctorRecoverLock({ dir })
-    expect(result.found).toBe(true)
+    await expect(runDoctorRecoverLock({ dir })).rejects.toThrow(/Refusing to release/)
     expect(cap.out).toMatch(/this host: no/)
+    expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(true)
+
+    const forced = await runDoctorRecoverLock({ dir, force: true })
+    expect(forced).toMatchObject({ found: true, released: true })
+    expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(false)
   })
 })
 

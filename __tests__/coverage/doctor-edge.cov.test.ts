@@ -26,7 +26,7 @@
  * process.exit is never reached (no command path calls it); no real network/git.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import os from 'node:os'
 import { join } from 'node:path'
@@ -182,6 +182,14 @@ function writeLockFile(dir: string, overrides: Partial<LockInfo> = {}): LockInfo
   return info
 }
 
+function currentBootId(): string {
+  try {
+    return readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+  } catch {
+    return 'unknown'
+  }
+}
+
 function findCheck(checks: HealthCheck[], id: string): HealthCheck | undefined {
   return checks.find((c: HealthCheck) => c.id === id)
 }
@@ -305,8 +313,8 @@ describe('checkLockfile — malformed-shape + EPERM pid-probe branches', () => {
   })
 
   it('treats an EPERM pid-probe as alive-unknown (null) → an active same-host lock is PASS', async () => {
-    // Stub process.kill so the same-host pid probe throws EPERM → probePidAlive
-    // returns null → pidAlive===null, fresh startedAt → not stale → active PASS.
+    // #2210: use the current boot ID so this fixture reaches the EPERM liveness
+    // branch rather than correctly short-circuiting as stale after a reboot.
     const realKill = process.kill.bind(process)
     const killSpy = vi.spyOn(process, 'kill').mockImplementation((pid: number, signal?) => {
       if (signal === 0) {
@@ -317,7 +325,11 @@ describe('checkLockfile — malformed-shape + EPERM pid-probe branches', () => {
       return realKill(pid, signal)
     })
     try {
-      writeLockFile(dir, { pid: 4242, startedAt: new Date(Date.now() - 1000).toISOString() })
+      writeLockFile(dir, {
+        pid: 4242,
+        bootId: currentBootId(),
+        startedAt: new Date(Date.now() - 1000).toISOString(),
+      })
       const result = await runDoctorHealth({ dir, json: true })
       const lock = findCheck(result.checks, 'arbiter-lock')
       expect(lock?.status).toBe('PASS')
@@ -325,6 +337,14 @@ describe('checkLockfile — malformed-shape + EPERM pid-probe branches', () => {
     } finally {
       killSpy.mockRestore()
     }
+  })
+
+  it('WARNs when a same-host lock belongs to a previous boot (#2210)', async () => {
+    writeLockFile(dir, { pid: process.pid, bootId: 'previous-boot-id' })
+    const result = await runDoctorHealth({ dir, json: true })
+    const lock = findCheck(result.checks, 'arbiter-lock')
+    expect(lock?.status).toBe('WARN')
+    expect(lock?.label).toMatch(/stale/)
   })
 })
 
