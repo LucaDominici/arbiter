@@ -41,10 +41,10 @@ const protectedPathPattern =
 const writeIntentPattern =
   /\d?(?:>>|>)\s*(?:\.\/|\/[^\s"'`]*)?\.arbiter\/(?:gate-pass\.json|status\.json|evidence(?:\/[^\s"'`]*)?)(?=$|[\s"'`,;)&|])|(?:^|[\s;|&])(?:cp|mv|tee|sed\s+-i\S*|truncate|rm|unlink|python3?\s+-c|node\s+-e)(?=$|[\s;|&])/
 
-const segments = command.split(/&&|\|\||;|\|/).map((segment) => segment.trim())
-for (const segment of segments) {
-  const protectedPath = segment.match(protectedPathPattern)?.[1]
-  if (protectedPath && writeIntentPattern.test(segment)) {
+const commandParts = command.split(/&&|\|\||;|\|/).map((part) => part.trim())
+for (const commandPart of commandParts) {
+  const protectedPath = commandPart.match(protectedPathPattern)?.[1]
+  if (protectedPath && writeIntentPattern.test(commandPart)) {
     process.stderr.write(`[arbiter] Blocked protected Arbiter state write: ${protectedPath}\n`)
     process.exit(2)
   }

@@ -81,6 +81,8 @@ function gitOutput(args) {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim()
+    // FAIL-OPEN-INTENT: callers surface the unavailable Git state as an explicit
+    // non-applicable merge-result check; repositories without origin/main are valid.
   } catch {
     return null
   }

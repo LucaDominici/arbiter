@@ -187,35 +187,32 @@ function checkSourceRefAnchor(anchor, id, failures) {
   const classified = classifySourceAnchor(anchor)
   if (classified.kind === null) return
 
-  if (classified.kind === 'inv') {
-    const text = readAgentsMdOnce()
-    if (text === null || !text.includes(`**INV-${classified.num}:**`)) {
-      failures.push(
-        `${id}: source_ref ${anchor} — no matching **INV-${classified.num}:** entry in AGENTS.md`,
-      )
-    }
-    return
-  }
+  const failure = sourceAnchorFailure(classified, anchor, id)
+  if (failure !== null) failures.push(failure)
+}
 
-  if (classified.kind === 'adr') {
-    const text = readAdrReadmeOnce()
-    const rowRe = new RegExp(`^\\|\\s*0*${classified.num}\\s*\\|`, 'm')
-    if (text === null || !rowRe.test(text)) {
-      failures.push(
-        `${id}: source_ref ${anchor} — no matching ADR index row in docs/internal/ADR/README.md`,
-      )
-    }
-    return
+function sourceAnchorFailure(classified, anchor, id) {
+  const { kind, num } = classified
+  const checks = {
+    inv: () => {
+      const text = readAgentsMdOnce()
+      return text !== null && text.includes(`**INV-${num}:**`)
+    },
+    adr: () => {
+      const text = readAdrReadmeOnce()
+      return text !== null && new RegExp(`^\\|\\s*0*${num}\\s*\\|`, 'm').test(text)
+    },
+    prd: () => {
+      const text = readPrdOnce()
+      return text !== null && prdHasNumberedHeading(text, num)
+    },
   }
-
-  if (classified.kind === 'prd') {
-    const text = readPrdOnce()
-    if (text === null || !prdHasNumberedHeading(text, classified.num)) {
-      failures.push(
-        `${id}: source_ref ${anchor} — no matching "${classified.num}" heading in docs/PRODUCT/PRD.md`,
-      )
-    }
+  const descriptions = {
+    inv: `no matching **INV-${num}:** entry in AGENTS.md`,
+    adr: 'no matching ADR index row in docs/internal/ADR/README.md',
+    prd: `no matching "${num}" heading in docs/PRODUCT/PRD.md`,
   }
+  return checks[kind]() ? null : `${id}: source_ref ${anchor} — ${descriptions[kind]}`
 }
 
 // ─── tests_ref glob ban (D4, #2163) ──────────────────────────────────────────

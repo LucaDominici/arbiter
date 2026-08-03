@@ -15,7 +15,7 @@ export function generateCiTier(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): CiTierGeneratorResult {
-  if (!(config.permitGitHub ?? config.useGitHub)) return { files: [] }
+  if (!githubGenerationIsEnabled(config)) return { files: [] }
 
   const data = config
   const githubDir = resolvedPath(config.targetDir, '.github')
@@ -46,7 +46,7 @@ export function generateCiTier(
 
   // #943: opt-in post-merge CODEOWNERS email notification (L2+ only).
   // Requires MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD secrets and MAIL_DOMAIN_ALLOWLIST var.
-  if (config.governanceLevel !== 'L1' && config.enableCodeownersNotify === true) {
+  if (shouldGenerateCodeownersNotification(config)) {
     files.push(
       writeFile(
         join(workflowsDir, '_post-merge-notify.yml'),
@@ -62,7 +62,7 @@ export function generateCiTier(
   // the Maven/Gradle cache, language-agnostic at the build-tool level. Needed by
   // 02-pr-extended.yml.ejs's license-scan and 05-release.yml.ejs's sbom job, both
   // of which now also cover kotlin.
-  if (config.language === 'java' || config.language === 'kotlin') {
+  if (usesJavaBuildAction(config)) {
     files.push(
       writeFile(
         join(actionsDir, 'setup-java-maven', 'action.yml'),
@@ -78,11 +78,7 @@ export function generateCiTier(
   // run-id artifact key and a non-blocking rebuild fallback. Emitted for the
   // archetypes the strategy supports; Rust uses Swatinem/rust-cache instead and
   // is intentionally excluded. skipIfExists preserves user customisation (CANON-11).
-  if (
-    config.language === 'typescript' ||
-    config.language === 'python' ||
-    config.language === 'java'
-  ) {
+  if (supportsCrossJobBuildCache(config)) {
     files.push(
       writeFile(
         join(actionsDir, 'build-cache', 'action.yml'),
@@ -93,4 +89,20 @@ export function generateCiTier(
   }
 
   return { files }
+}
+
+function githubGenerationIsEnabled(config: ProjectConfig): boolean {
+  return config.permitGitHub ?? config.useGitHub
+}
+
+function shouldGenerateCodeownersNotification(config: ProjectConfig): boolean {
+  return config.governanceLevel !== 'L1' && config.enableCodeownersNotify === true
+}
+
+function usesJavaBuildAction(config: ProjectConfig): boolean {
+  return config.language === 'java' || config.language === 'kotlin'
+}
+
+function supportsCrossJobBuildCache(config: ProjectConfig): boolean {
+  return ['typescript', 'python', 'java'].includes(config.language)
 }

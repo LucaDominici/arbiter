@@ -430,7 +430,8 @@ function defaultWithheldWarn(key: string): void {
   getLogger().warn(
     'fs.fix_withheld',
     { path: key },
-    `user-modified, template fix NOT applied: ${key} (delete it to let \`arbiter update\` re-apply the current template)`,
+    `user-modified, template fix NOT applied: ${key} (review with \`arbiter diff --withheld\`; ` +
+      `adopt every withheld fix with \`arbiter update --adopt\`)`,
   )
 }
 

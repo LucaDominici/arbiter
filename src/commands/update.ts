@@ -37,8 +37,7 @@ import type { ArbiterConfigV2 } from '../utils/config.js'
 import { buildAdoptPredicate, recordLocalOverride } from './adopt-policy.js'
 import type { AdoptRecord } from './adopt-policy.js'
 
-export { buildAdoptPredicate, recordLocalOverride } from './adopt-policy.js'
-export type { AdoptRecord } from './adopt-policy.js'
+export { buildAdoptPredicate } from './adopt-policy.js'
 
 export interface UpdateOptions {
   dir: string | undefined

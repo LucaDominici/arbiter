@@ -62,8 +62,11 @@ function detectTests(dir: string): boolean {
     let entries: Dirent[]
     try {
       entries = readdirSync(current.path, { withFileTypes: true })
-    } catch {
-      continue
+    } catch (err) {
+      // FAIL-OPEN-INTENT: an absent target directory is valid during config
+      // projection and proves no test evidence; all inspection errors surface.
+      if (isMissingPath(err)) continue
+      throw new Error(`Cannot scan ${current.path} for tests`, { cause: err })
     }
 
     for (const entry of entries) {
@@ -110,8 +113,8 @@ function detectCiWorkflows(dir: string): boolean {
     return readdirSync(workflowsDir, { withFileTypes: true }).some(
       (entry) => entry.isFile() && /\.ya?ml$/.test(entry.name),
     )
-  } catch {
-    return false
+  } catch (err) {
+    throw new Error(`Cannot inspect CI workflows in ${workflowsDir}`, { cause: err })
   }
 }
 
@@ -119,8 +122,11 @@ function detectLintConfig(dir: string): boolean {
   let entries: Dirent[]
   try {
     entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
-    return false
+  } catch (err) {
+    // FAIL-OPEN-INTENT: an absent target directory is valid during config
+    // projection and proves no lint-configuration evidence; other errors surface.
+    if (isMissingPath(err)) return false
+    throw new Error(`Cannot inspect lint configuration in ${dir}`, { cause: err })
   }
 
   const names = new Set(entries.map((entry) => entry.name))
@@ -145,7 +151,16 @@ function detectLintConfig(dir: string): boolean {
   if (!names.has('pyproject.toml')) return false
   try {
     return /^\s*\[tool\.(ruff|black)\]\s*$/m.test(readFileSync(join(dir, 'pyproject.toml'), 'utf8'))
-  } catch {
-    return false
+  } catch (err) {
+    throw new Error(`Cannot read pyproject.toml in ${dir}`, { cause: err })
   }
+}
+
+function isMissingPath(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === 'ENOENT'
+  )
 }

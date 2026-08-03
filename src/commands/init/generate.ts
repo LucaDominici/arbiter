@@ -361,30 +361,44 @@ export function maybeCaptureBaseline(
   packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun',
 ): void {
   const fatal = levelAtLeast(config.governanceLevel, 'L3') && config.enableDebtGates
-  const requestedBrownfieldCapture = brownfield && config.enableDebtGates
-  if (!fatal && !requestedBrownfieldCapture) return
+  if (!shouldCaptureBaseline(fatal, brownfield, config.enableDebtGates)) return
 
   // The JS/TS collectors are npx-based. Before dependencies are installed they
   // cannot measure the project, so attempting capture would produce a missing
   // baseline (or, historically, a phantom zero baseline). This is a deferral,
   // not a fatal capture failure: make the remediation explicit and leave the
   // absent baseline discoverable to the user and later debt gate.
-  if (config.language === 'typescript' && !existsSync(join(targetDir, 'node_modules'))) {
-    const installCommand = `${packageManager ?? config.packageManager ?? 'npm'} install`
-    process.stdout.write(
-      `  Debt baseline NOT captured: node_modules is absent, so the collectors cannot measure this project yet. Run ${installCommand}, then: node scripts/capture-debt-baseline.mjs\n`,
-    )
+  if (typescriptDependenciesAreMissing(config, targetDir)) {
+    reportMissingTypescriptDependencies(config, packageManager)
     return
   }
 
   // #1732 Step 3: floor check (not `=== 'L3'`) — the generated debt-report.mjs
   // is fail-closed at `isL3Plus` (L3 and L4), so init must fatally capture the
   // baseline at L4 too; a hand-rolled `=== 'L3'` literal silently skipped it.
-  if (fatal) {
-    runBrownfieldCapture(targetDir, { fatal: true })
-  } else if (requestedBrownfieldCapture) {
-    runBrownfieldCapture(targetDir)
-  }
+  runBrownfieldCapture(targetDir, fatal ? { fatal: true } : undefined)
+}
+
+function shouldCaptureBaseline(
+  fatal: boolean,
+  brownfield: boolean,
+  debtGatesEnabled: boolean,
+): boolean {
+  return fatal || (brownfield && debtGatesEnabled)
+}
+
+function typescriptDependenciesAreMissing(config: ProjectConfig, targetDir: string): boolean {
+  return config.language === 'typescript' && !existsSync(join(targetDir, 'node_modules'))
+}
+
+function reportMissingTypescriptDependencies(
+  config: ProjectConfig,
+  packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun',
+): void {
+  const installCommand = `${packageManager ?? config.packageManager ?? 'npm'} install`
+  process.stdout.write(
+    `  Debt baseline NOT captured: node_modules is absent, so the collectors cannot measure this project yet. Run ${installCommand}, then: node scripts/capture-debt-baseline.mjs\n`,
+  )
 }
 
 function runBrownfieldCapture(

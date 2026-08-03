@@ -165,12 +165,11 @@ describe('#2141: a diverged governance file is withheld unless explicitly adopte
 
     const combined = output.text() + output.stderr()
     expect(combined).toContain(AGENTS)
-    expect(combined).toContain('--adopt-governance')
     expect(combined).toContain(GATE_SPINE)
     const warnings = output
       .stderr()
       .split('\n')
-      .filter((line) => line.includes('Warning:'))
+      .filter((line) => line.includes('[warn] fs.fix_withheld'))
     expect(warnings).toHaveLength(2)
     for (const warning of warnings) {
       expect(warning).toContain('arbiter diff --withheld')
