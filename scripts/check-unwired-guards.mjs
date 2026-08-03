@@ -160,26 +160,36 @@ function collectCandidates(dir) {
   if (!existsSync(scriptsDir) && !existsSync(hooksDir)) return null
   const candidates = new Set()
   if (existsSync(scriptsDir)) {
-    for (const entry of readdirSync(scriptsDir, { withFileTypes: true })) {
-      if (entry.isFile() && isTopLevelCandidate(entry.name)) {
-        candidates.add(`scripts/${entry.name}`)
-      }
-    }
+    collectTopLevelCandidates(scriptsDir, candidates)
     collectQaCandidates(scriptsDir, candidates)
   }
-  if (existsSync(hooksDir)) {
-    for (const entry of readdirSync(hooksDir, { withFileTypes: true })) {
-      if (
-        entry.isFile() &&
-        entry.name.endsWith('.mjs') &&
-        entry.name !== 'hooks.mjs' &&
-        entry.name !== 'lib.mjs'
-      ) {
-        candidates.add(`.claude/hooks/${entry.name}`)
-      }
+  if (existsSync(hooksDir)) collectHookCandidates(hooksDir, candidates)
+  return [...candidates].sort()
+}
+
+// scripts/check-*/verify-* direct-child candidates (except check-all.mjs and
+// this script's own filename). No-op when scripts/ absent.
+function collectTopLevelCandidates(scriptsDir, candidates) {
+  for (const entry of readdirSync(scriptsDir, { withFileTypes: true })) {
+    if (entry.isFile() && isTopLevelCandidate(entry.name)) {
+      candidates.add(`scripts/${entry.name}`)
     }
   }
-  return [...candidates].sort()
+}
+
+// Direct-child .claude/hooks/*.mjs candidates, except the dispatcher hooks.mjs
+// and shared helper lib.mjs. No-op when .claude/hooks/ absent.
+function collectHookCandidates(hooksDir, candidates) {
+  for (const entry of readdirSync(hooksDir, { withFileTypes: true })) {
+    if (
+      entry.isFile() &&
+      entry.name.endsWith('.mjs') &&
+      entry.name !== 'hooks.mjs' &&
+      entry.name !== 'lib.mjs'
+    ) {
+      candidates.add(`.claude/hooks/${entry.name}`)
+    }
+  }
 }
 
 // A candidate is referenced iff its full repo-relative path appears as a
@@ -213,21 +223,32 @@ function computeWiredHookBasenames(corpus, hookCandidates) {
   const names = new Set(hookCandidates.map((rel) => rel.slice('.claude/hooks/'.length)))
   const wired = new Set()
   const handlers = handlersTableWiredNames(corpus)
-  const imports = new Map()
-
   for (const name of names) {
-    const rel = `.claude/hooks/${name}`
-    if (isReferenced(rel, corpus) || handlers.has(name)) wired.add(name)
+    if (isReferenced(`.claude/hooks/${name}`, corpus) || handlers.has(name)) wired.add(name)
+  }
+  propagateWiringToClosure(wired, collectHookImports(corpus, names))
+  return wired
+}
 
+// Direct hook-to-hook relative imports (`.mjs`-only, same directory) keyed by
+// importer basename. Used by the closure pass below to propagate wiring.
+function collectHookImports(corpus, names) {
+  const imports = new Map()
+  for (const name of names) {
     const imported = new Set()
-    const source = corpus.get(rel) ?? ''
+    const source = corpus.get(`.claude/hooks/${name}`) ?? ''
     for (const match of source.matchAll(/from\s+['"]\.\/([^'"]+)['"]/g)) {
       const importedName = match[1].endsWith('.mjs') ? match[1] : `${match[1]}.mjs`
       if (names.has(importedName)) imported.add(importedName)
     }
     imports.set(name, imported)
   }
+  return imports
+}
 
+// Wiring propagates to closure: an already-wired hook wires everything it
+// imports, transitively, until no new hooks are reached.
+function propagateWiringToClosure(wired, imports) {
   let changed = true
   while (changed) {
     changed = false
@@ -240,7 +261,6 @@ function computeWiredHookBasenames(corpus, hookCandidates) {
       }
     }
   }
-  return wired
 }
 
 function schemaError(msg) {
