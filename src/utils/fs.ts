@@ -183,10 +183,12 @@ interface GenerationSession {
   /**
    * T1: when a `skipIfExists` file would be withheld (user-modified), this
    * predicate decides whether to force-adopt it instead (write the shipped
-   * content over the user-modified one) rather than preserve it. Domain-
-   * agnostic on purpose — `fs.ts` has no notion of "safety-class"; the caller
-   * (`update.ts`) supplies the policy so this shared, heavily-depended-on
-   * module stays a generic file-write primitive.
+   * content over the user-modified one) rather than preserve it. Adoption is
+   * provenance-gated: only files arbiter previously emitted (a recorded
+   * manifest baseline exists) are eligible; unknown-provenance files are
+   * preserved (#2220). Domain-agnostic on purpose — `fs.ts` has no notion of
+   * "safety-class"; the caller (`update.ts`) supplies the policy so this shared,
+   * heavily-depended-on module stays a generic file-write primitive.
    */
   adoptPredicate?: (key: string) => boolean
   /**
@@ -299,7 +301,8 @@ interface ResolvedWrite {
  *   2. exists + byte-identical content          → skipped (baselineMatches; idempotent)
  *   3. exists + skipIfExists + session + pristine (sha256(disk)==prevHash) + differs
  *                                               → replaced (propagate fix, #1328; baselineMatches)
- *   4. exists + skipIfExists + session + user-modified/unknown + adoptPredicate matches
+ *   4. exists + skipIfExists + session + provenance-known user-modified
+ *      + adoptPredicate matches
  *                                               → replaced/backed-up-and-replaced (T1
  *                                                  force-adopt; baselineMatches; withheld+adopted)
  *   5. exists + skipIfExists (no session | unknown | user-modified, no adopt)
@@ -344,10 +347,11 @@ function resolveSessionSkip(
   if (!skipIfExists && prev === undefined) return rewrite
   // User-modified or unknown provenance.
   const withheldKey = key ?? filePath
-  if (session.adoptPredicate?.(withheldKey)) {
-    // T1: force-adopt — the shipped fix lands over the user-modified
-    // content. The caller (update.ts) is responsible for persisting a
-    // reversible local-override record with `disk` (prior content).
+  if (prev !== undefined && session.adoptPredicate?.(withheldKey)) {
+    // T1: force-adopt only a file arbiter previously emitted — the shipped fix
+    // lands over the user-modified content. Unknown provenance (no manifest
+    // entry) is preserved, never clobbered (#2220). The caller (update.ts) is
+    // responsible for persisting a reversible local-override record with `disk`.
     session.onAdopt?.(withheldKey, disk, content)
     return {
       action: backup ? 'backed-up-and-replaced' : 'replaced',

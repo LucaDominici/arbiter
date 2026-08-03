@@ -141,6 +141,26 @@ describe('fs generation session (#1328 hash-aware skipIfExists)', () => {
   })
 
   describe('T1: force-adopt (adoptPredicate/onAdopt)', () => {
+    it('unknown-provenance files are withheld, not adopted (#2220)', () => {
+      const p = join(dir, '.claude', 'hooks', 'unknown-hook.mjs')
+      writeFile(p, '// user file\n')
+      beginGenerationSession({
+        targetDir: dir,
+        prevHashes: {},
+        adoptPredicate: () => true,
+      })
+
+      try {
+        const result = writeFile(p, '// template render\n', { skipIfExists: true })
+        expect(result.action).toBe('skipped')
+        expect(result.withheld).toBe(true)
+        expect(result.adopted).not.toBe(true)
+        expect(readFileSync(p, 'utf-8')).toBe('// user file\n')
+      } finally {
+        endGenerationSession()
+      }
+    })
+
     it('adoptPredicate matches → force-writes over user-modified content (adopted:true)', () => {
       const p = join(dir, 'hook.mjs')
       writeFileSync(p, 'USER-EDITED')
