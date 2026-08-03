@@ -41,6 +41,17 @@ describe('isGateSpineKey (#2109 — gate-spine adopt class, opt-in since #2119)'
 
 const NO_FLAGS = { dir: undefined, github: false }
 
+/**
+ * #2141 red phase: this local test-only extension expresses the pending CLI
+ * option without changing the production UpdateOptions contract before the
+ * implementation lands.
+ */
+interface AdoptGovernanceOptions {
+  dir: undefined
+  github: false
+  adoptGovernance: true
+}
+
 describe('buildAdoptPredicate — gate spine is opt-in (#2119)', () => {
   it('WITHHOLDS a user-modified gate spine with no flags at all', () => {
     const predicate = buildAdoptPredicate(NO_FLAGS)
@@ -71,6 +82,50 @@ describe('buildAdoptPredicate — gate spine is opt-in (#2119)', () => {
   it('--adopt still broadens to everything', () => {
     const predicate = buildAdoptPredicate({ ...NO_FLAGS, adopt: true })
     expect(predicate('scripts/check-bloat-ratchet.mjs')).toBe(true)
+  })
+})
+
+describe('buildAdoptPredicate — governance files are opt-in (#2141)', () => {
+  it('WITHHOLDS a user-modified AGENTS.md with no flags at all', () => {
+    const predicate = buildAdoptPredicate(NO_FLAGS)
+
+    expect(predicate('AGENTS.md')).toBe(false)
+  })
+
+  it('WITHHOLDS a user-modified .claude/settings.json with no flags at all', () => {
+    const predicate = buildAdoptPredicate(NO_FLAGS)
+
+    expect(predicate('.claude/settings.json')).toBe(false)
+  })
+
+  it('--adopt-governance is the explicit opt-in for both governance files', () => {
+    const options: AdoptGovernanceOptions = { ...NO_FLAGS, adoptGovernance: true }
+    const predicate = buildAdoptPredicate(options)
+
+    expect(predicate('AGENTS.md')).toBe(true)
+    expect(predicate('.claude/settings.json')).toBe(true)
+  })
+
+  it('adoptGovernance leaves a gate-spine key withheld and keeps safety hooks adopted', () => {
+    const governanceOptions: AdoptGovernanceOptions = { ...NO_FLAGS, adoptGovernance: true }
+    const governancePredicate = buildAdoptPredicate(governanceOptions)
+
+    expect(governancePredicate('scripts/check-all.mjs')).toBe(false)
+    expect(governancePredicate('.claude/hooks/stop-dangerous.mjs')).toBe(true)
+  })
+
+  it('adoptGateSpine leaves AGENTS.md withheld and keeps safety hooks adopted', () => {
+    const gateSpinePredicate = buildAdoptPredicate({ ...NO_FLAGS, adoptGateSpine: true })
+
+    expect(gateSpinePredicate('AGENTS.md')).toBe(false)
+    expect(gateSpinePredicate('.claude/hooks/stop-dangerous.mjs')).toBe(true)
+  })
+
+  it('adoptGateSpine leaves .claude/settings.json withheld and keeps safety hooks adopted', () => {
+    const gateSpinePredicate = buildAdoptPredicate({ ...NO_FLAGS, adoptGateSpine: true })
+
+    expect(gateSpinePredicate('.claude/settings.json')).toBe(false)
+    expect(gateSpinePredicate('.claude/hooks/stop-dangerous.mjs')).toBe(true)
   })
 })
 
