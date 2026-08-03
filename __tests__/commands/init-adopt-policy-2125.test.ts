@@ -22,7 +22,7 @@ function initGit(dir: string): void {
   }
 }
 
-async function runInit(dir: string): Promise<void> {
+async function runInit(dir: string, adoptGovernance = false): Promise<void> {
   await runInitCommand({
     yes: true,
     tools: 'claude',
@@ -30,6 +30,7 @@ async function runInit(dir: string): Promise<void> {
     language: 'typescript',
     dir,
     noVerify: true,
+    adoptGovernance,
   })
 }
 
@@ -46,7 +47,7 @@ describe('#2125 init adopts the same force-rendered classes as update', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('adopts governance and safety files with reversible records, while preserving non-adopted and explicitly preserved files', async () => {
+  it('withholds governance files by default, while adopting safety files and preserving non-adopted files', async () => {
     const governancePrior = '# hand-written\n'
     const safetyPrior = '// locally patched safety hook\n'
     const nonAdoptedPrior = '// locally patched ordinary generated file\n'
@@ -65,9 +66,13 @@ describe('#2125 init adopts the same force-rendered classes as update', () => {
 
     const governanceAfter = readFileSync(governancePath, 'utf-8')
     const safetyAfter = readFileSync(safetyPath, 'utf-8')
-    expect(governanceAfter).not.toBe(governancePrior)
+    expect(governanceAfter).toBe(governancePrior)
     expect(safetyAfter).not.toBe(safetyPrior)
     expect(readFileSync(nonAdoptedPath, 'utf-8')).toBe(nonAdoptedPrior)
+
+    await runInit(dir, true)
+    const adoptedGovernance = readFileSync(governancePath, 'utf-8')
+    expect(adoptedGovernance).not.toBe(governancePrior)
 
     const overridesDir = join(dir, '.arbiter/evidence/local-overrides')
     const records = readdirSync(overridesDir).map(
@@ -83,7 +88,7 @@ describe('#2125 init adopts the same force-rendered classes as update', () => {
         expect.objectContaining({
           path: GOVERNANCE_FILE,
           priorContent: governancePrior,
-          newContent: governanceAfter,
+          newContent: adoptedGovernance,
         }),
         expect.objectContaining({
           path: SAFETY_FILE,

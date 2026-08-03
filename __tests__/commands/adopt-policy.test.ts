@@ -27,9 +27,11 @@ describe('buildAdoptPredicate', () => {
     expect(buildAdoptPredicate({ adoptGateSpine: true })(gateSpine)).toBe(true)
   })
 
-  it('always adopts governance-class files, even when safety adoption is disabled', () => {
-    expect(buildAdoptPredicate({ noAdoptSafety: true })('AGENTS.md')).toBe(true)
-    expect(buildAdoptPredicate({ noAdoptSafety: true })('.claude/settings.json')).toBe(true)
+  it('adopts governance-class files only under --adopt-governance', () => {
+    expect(buildAdoptPredicate({ noAdoptSafety: true })('AGENTS.md')).toBe(false)
+    expect(buildAdoptPredicate({ noAdoptSafety: true })('.claude/settings.json')).toBe(false)
+    expect(buildAdoptPredicate({ adoptGovernance: true })('AGENTS.md')).toBe(true)
+    expect(buildAdoptPredicate({ adoptGovernance: true })('.claude/settings.json')).toBe(true)
   })
 
   it('adopts derived-track files only when --refresh-derived is selected', () => {
