@@ -4,7 +4,7 @@
 // loading, dry-run preview, and rollback/verification of generation output. Pure
 // extraction, no behavior change.
 import { existsSync, copyFileSync, unlinkSync } from 'node:fs'
-import { resolve, join, normalize, isAbsolute, sep } from 'node:path'
+import { resolve, join, normalize, isAbsolute, sep, basename } from 'node:path'
 import { ArbiterError } from '../../utils/errors.js'
 import { t } from '../../i18n/index.js'
 import { getLogger } from '../../utils/logger.js'
@@ -17,11 +17,200 @@ import { loadPlugin } from '../../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../../utils/render.js'
 import { writeFile } from '../../utils/fs.js'
 import type { WriteResult } from '../../utils/fs.js'
-import { runCli } from '../../utils/run-cli.js'
+import { runCli, CliError } from '../../utils/run-cli.js'
 import type { ProjectConfig } from '../../wizard/types.js'
+import type { InitOptions } from './types.js'
+import { buildArbiterConfig } from './build-arbiter-config.js'
+import { runBackendSetup } from './github-setup.js'
+import { loadConfig, saveConfig } from '../../utils/config.js'
+import { beginGenerationSession, endGenerationSession } from '../../utils/fs.js'
+import { loadGeneratedManifest, saveGeneratedManifest } from '../../state/generated-manifest.js'
+import { buildAdoptPredicate, recordLocalOverride } from '../adopt-policy.js'
+import { detectInstalledSkills } from '../../integrations/skill-detector.js'
+import { computeSkipReport, excludeOwnEmittedSkills } from '../../generators/skills.js'
+import { jsonOutput, statusToExitCode } from '../../utils/json-output.js'
 
 export function runGenerators(config: ProjectConfig): WriteResult[] {
   return runGeneratorsFromRegistry(buildRegistry(config), [], { dryRun: false })
+}
+
+export interface GenerateAndFinalizeOptions {
+  config: ProjectConfig
+  targetDir: string
+  initOptions: InitOptions
+  log: (message: string) => void
+  brownfieldDetected: boolean
+  packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun'
+}
+
+/** Run generation, persistence, plugins, and the post-write baseline flow. */
+export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Promise<void> {
+  const { config, targetDir, initOptions, log, brownfieldDetected, packageManager } = args
+  log('\n  Generating...')
+  const committed: WriteResult[] = []
+
+  try {
+    const installedSkills = detectAndAuditSkills(targetDir)
+    const prevManifest = loadGeneratedManifest(targetDir)
+    beginGenerationSession({
+      targetDir,
+      prevHashes: prevManifest,
+      adoptPredicate: buildAdoptPredicate({}),
+      onAdopt: (key, priorContent, newContent): void => {
+        recordLocalOverride(targetDir, { key, priorContent, newContent })
+      },
+    })
+    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config, installedSkills)
+    const generatedHashes = endGenerationSession()
+    saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes })
+    committed.push(...results)
+
+    const newConfig = buildArbiterConfig(config)
+    const backendResult = runBackendSetup(config, log)
+    const storedBefore = loadConfig(targetDir)
+    await saveConfig(targetDir, newConfig)
+
+    const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
+    committed.push(...(await runPlugins(targetDir, plugins, newConfig)))
+
+    if (!initOptions.json) printResults(committed, targetDir)
+    printBrownfieldConflicts(committed, initOptions, log)
+    assertEmittedFilesPresent(committed)
+    printGreenfieldConflicts(committed, initOptions, log)
+
+    const created = committed.filter((result) => result.action === 'created').length
+    const skipped = committed.filter((result) => result.action === 'skipped').length
+    const brownfieldWarning =
+      brownfieldDetected && !initOptions.brownfield ? t('cli.init.brownfield_route') : undefined
+    if (brownfieldWarning !== undefined && !initOptions.json) log(`\n  ${brownfieldWarning}`)
+    log(`\n  Done! ${created} files created, ${skipped} skipped.`)
+
+    maybeCaptureBaseline(config, targetDir, initOptions.brownfield, packageManager)
+    activateGitHooks(targetDir, log)
+    emitInitOutput(
+      initOptions.json,
+      generatorErrors.map((error) => `${error.key}: ${error.message}`),
+      brownfieldWarning === undefined
+        ? backendResult.warnings
+        : [...backendResult.warnings, brownfieldWarning],
+      created,
+      skipped,
+    )
+  } catch (err) {
+    process.stderr.write('\n  Generation failed — attempting rollback...\n')
+    rollbackGeneration(committed)
+    process.stderr.write('  Rollback complete. Review arbiter.json if it was partially written.\n')
+    throw err
+  } finally {
+    endGenerationSession()
+  }
+}
+
+function detectAndAuditSkills(targetDir: string): ReturnType<typeof detectInstalledSkills> {
+  const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
+  const installedSkills = excludeOwnEmittedSkills(detectInstalledSkills({ targetDir, claudeHome }))
+  const skipReport = computeSkipReport(installedSkills)
+  if (installedSkills.length > 0) {
+    writeFile(
+      join(targetDir, '.arbiter', 'detected-integrations.json'),
+      JSON.stringify({ detectedSkills: installedSkills, skippedGenerators: skipReport }, null, 2) +
+        '\n',
+    )
+  }
+  return installedSkills
+}
+
+function printBrownfieldConflicts(
+  committed: WriteResult[],
+  options: InitOptions,
+  log: (message: string) => void,
+): void {
+  if (!options.brownfield || options.json) return
+  const conflicts = committed.filter((result) => result.action === 'skipped')
+  if (conflicts.length > 0) {
+    log(`\n  Brownfield conflicts: ${conflicts.length} existing file(s) kept unchanged.`)
+    log('  Use --force to replace them with arbiter governance files.\n')
+  }
+}
+
+function printGreenfieldConflicts(
+  committed: WriteResult[],
+  options: InitOptions,
+  log: (message: string) => void,
+): void {
+  if (options.brownfield || options.json) return
+  const skippedFiles = committed.filter(
+    (result) => result.action === 'skipped' && result.reason !== 'not-applicable',
+  )
+  if (skippedFiles.length > 0) {
+    const names = skippedFiles.map((result) => basename(result.path)).join(', ')
+    log(`\n  ${skippedFiles.length} file(s) already exist: ${names}`)
+    log('  Re-run with --force to overwrite existing files.\n')
+  }
+}
+
+function emitInitOutput(
+  json: boolean | undefined,
+  errorLines: string[],
+  warnings: string[],
+  created: number,
+  skipped: number,
+): void {
+  if (json) {
+    const status = errorLines.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'ok'
+    jsonOutput(
+      'init',
+      status,
+      { created, skipped },
+      errorLines.length > 0 ? errorLines : undefined,
+      warnings.length > 0 ? { warnings } : undefined,
+    )
+    if (status !== 'ok') process.exit(statusToExitCode(status))
+    return
+  }
+  if (errorLines.length > 0) {
+    process.stdout.write(
+      `\n  Generator failures (${errorLines.length}):\n${errorLines
+        .map((line) => `    - ${line}`)
+        .join(
+          '\n',
+        )}\n\n  See https://github.com/arbiter-framework/arbiter/issues/483 for context.\n`,
+    )
+    process.exit(statusToExitCode('error'))
+  }
+  process.stdout.write(`${t('cli.init.verify_hint')}\n`)
+}
+
+function activateGitHooks(targetDir: string, log: (message: string) => void): void {
+  if (!existsSync(join(targetDir, '.githooks', 'pre-commit'))) return
+  let current = ''
+  try {
+    current = runCli('git', ['config', '--get', 'core.hooksPath'], { cwd: targetDir }).stdout.trim()
+  } catch (err) {
+    if (err instanceof CliError && err.notFound) return
+  }
+  if (current === '.githooks') return
+  if (current !== '') {
+    getLogger().warn(
+      'init.hookspath_external',
+      { current },
+      `core.hooksPath is set to '${current}'; arbiter's hooks (.githooks) are NOT active. ` +
+        `To use the gate guards, run: git config core.hooksPath .githooks`,
+    )
+    return
+  }
+  try {
+    runCli('git', ['config', 'core.hooksPath', '.githooks'], { cwd: targetDir })
+    log(
+      '  ✓ Git hooks activated (core.hooksPath → .githooks) — the gate now guards every commit and push.',
+    )
+  } catch {
+    getLogger().warn(
+      'init.hookspath_set_failed',
+      {},
+      'Could not set core.hooksPath automatically. Activate manually: git config core.hooksPath .githooks',
+    )
+  }
 }
 
 /**

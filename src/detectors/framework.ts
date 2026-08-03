@@ -171,7 +171,6 @@ function detectMultiCompositeArchetype(framework: string): Archetype | null {
   const tsArchetype = FRAMEWORK_ARCHETYPE_MAP.get(`typescript:${tsFramework}`) ?? null
   const javaArchetype = FRAMEWORK_ARCHETYPE_MAP.get(`java:${last}`) ?? null
   if (tsArchetype !== null && tsArchetype === javaArchetype) return tsArchetype
-  if (tsArchetype === BACKEND_WEB_DB || javaArchetype === BACKEND_WEB_DB)
-    return BACKEND_WEB_DB
+  if (tsArchetype === BACKEND_WEB_DB || javaArchetype === BACKEND_WEB_DB) return BACKEND_WEB_DB
   return tsArchetype ?? javaArchetype
 }

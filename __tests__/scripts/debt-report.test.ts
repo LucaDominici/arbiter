@@ -89,7 +89,10 @@ describe('capture-debt-baseline.mjs (collection failures)', () => {
       copyFileSync(DEBT_LIB, join(scriptsDir, 'debt-lib.mjs'))
       copyFileSync(GLOB_WALK, join(scriptsDir, 'lib', 'glob-walk.mjs'))
       writeFileSync(join(dir, 'src', 'fixture.ts'), 'export const fixture = 1\n')
-      writeFileSync(join(dir, '.jscpd.json'), JSON.stringify({ path: ['src'], reporters: ['json'] }))
+      writeFileSync(
+        join(dir, '.jscpd.json'),
+        JSON.stringify({ path: ['src'], reporters: ['json'] }),
+      )
       writeFileSync(
         join(binDir, 'npx'),
         `#!/bin/sh

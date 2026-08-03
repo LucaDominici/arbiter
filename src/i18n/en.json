@@ -106,6 +106,7 @@
       "dry_run_file_update": "  [update] {path}",
       "dry_run_file_skip": "  [skip]   {path}",
       "brownfield_detected": "Brownfield project detected. Applying safe defaults.",
+      "brownfield_route": "Existing project detected (tests, CI workflows, lint config). The first gate run will measure your project as it is today. To select brownfield initialization, re-run with --brownfield. To capture a debt baseline when debt gates are enabled, run: node scripts/capture-debt-baseline.mjs.",
       "already_exists": "arbiter.json already exists. Use --force to reinitialize.",
       "prompt_confirm": "Proceed with initialization?",
       "prompt_level": "Select governance level:",

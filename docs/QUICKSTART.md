@@ -1,8 +1,8 @@
 ---
 title: 'Quickstart — arbiter'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-07-04'
+last_review: '2026-08-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/user', 'kind/reference']
@@ -38,6 +38,22 @@ AI tools you use (Claude Code, Codex) and which governance level to start at.
 When in doubt, start at **L2** — see [CONCEPTS.md](CONCEPTS.md#gate-blocked-task-lifecycle)
 for what each level gates.
 
+### What init detects before it writes
+
+`init` verifies the local toolchain **before creating or changing any file**. A failed
+verification therefore leaves the target untouched; fix the reported tool issue and re-run,
+or explicitly use `--no-verify` when that is appropriate for your setup.
+
+For TypeScript projects, init also resolves the package manager from `package.json`'s
+`packageManager` field first, then from lockfiles (`pnpm-lock.yaml`, `bun.lock`/`bun.lockb`,
+`yarn.lock`, `package-lock.json`), falling back to npm. Generated build, test, lint, and
+format gate commands invoke that detected manager rather than assuming `npm`.
+
+Framework detection reads root-level dependency signals. React, Vue, Angular, Svelte, Solid,
+Preact, Vite, and Tauri map to the `frontend-spa` archetype; Next, Astro, Nuxt, SvelteKit,
+Express, and Fastify map to `backend-web-db`. The archetype in turn selects the applicable
+generators and gate families (for example SPA render-smoke/i18n checks versus public-API checks).
+
 ## 2. What gets generated
 
 | Path                           | Purpose                                       |
@@ -51,6 +67,14 @@ for what each level gates.
 Re-running `arbiter init` on an already-initialized repo is safe: `AGENTS.md` and
 pointer files are refreshed (with a `.arbiter-backup`), `settings.json` is
 deep-merged, and any hooks/rules/templates you've customized are left alone.
+
+Init also recognizes a brownfield project from existing tests, CI workflows, or lint
+configuration. If it finds one without `--brownfield`, it says so and proposes the explicit
+baseline route instead of silently treating the repository as greenfield. For debt-enabled
+JavaScript/TypeScript projects without `node_modules`, baseline capture is deliberately deferred:
+run the detected manager's install command, then `node scripts/capture-debt-baseline.mjs`.
+This is distinct from debt collection: an unavailable optional collector is a loud soft-skip,
+while a collector that runs but cannot produce a trustworthy result is fail-closed.
 
 ## 3. Run your first gated task
 

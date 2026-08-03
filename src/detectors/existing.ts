@@ -59,7 +59,7 @@ function detectTests(dir: string): boolean {
     const current = pending.pop()
     if (current === undefined) break
 
-    let entries: Dirent<string>[]
+    let entries: Dirent[]
     try {
       entries = readdirSync(current.path, { withFileTypes: true })
     } catch {
@@ -116,7 +116,7 @@ function detectCiWorkflows(dir: string): boolean {
 }
 
 function detectLintConfig(dir: string): boolean {
-  let entries: Dirent<string>[]
+  let entries: Dirent[]
   try {
     entries = readdirSync(dir, { withFileTypes: true })
   } catch {

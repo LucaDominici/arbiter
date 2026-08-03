@@ -25,10 +25,10 @@
 // fixture. process.exit is stubbed to throw a sentinel so it never kills the
 // runner; every exit path is asserted via the thrown sentinel.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, mkdirSync, symlinkSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { VerifyReport } from '../../src/compatibility/schema.js'
 
 // --- module mocks (only the ones that shell out / hit the network) -----------
@@ -51,11 +51,19 @@ vi.mock('../../src/github/project-board.js', () => ({
 vi.mock('../../src/utils/plugin-loader.js', () => ({
   loadPlugin: vi.fn(),
 }))
+vi.mock('../../src/utils/run-cli.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/utils/run-cli.js')>(
+    '../../src/utils/run-cli.js',
+  )
+  return { ...actual, runCli: vi.fn(actual.runCli) }
+})
 
 import { runProbes } from '../../src/compatibility/probe.js'
 import { runInit } from '../../src/commands/init.js'
+import { runCli } from '../../src/utils/run-cli.js'
 
 const mockRunProbes = vi.mocked(runProbes)
+const mockRunCli = vi.mocked(runCli)
 
 class ProcessExit extends Error {
   constructor(public code: number) {
@@ -241,11 +249,32 @@ describe('runInit — checkL3MaturityGates blocked branch', () => {
   // silently skipped baseline capture entirely (neither fatal nor warn branch
   // fires, since L4 also fails the `brownfield` disjunct). L4 must inherit the
   // L3 fatal-capture behavior, not lose it.
-  it('captures the baseline at L4 the same way it does at L3 (#1732)', async () => {
+  it('defers L4 baseline capture until dependencies are installed, then captures it (#1732, #2202)', async () => {
     tsFixture(dir)
     await runInit(baseOpts({ language: 'typescript', level: 'L4', dryRun: false }))
     expect(existsSync(join(dir, 'arbiter.json'))).toBe(true)
-    expect(existsSync(join(dir, 'scripts', 'debt-baseline.json'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'debt-baseline.json'))).toBe(false)
+    const output = stdoutSpy.mock.calls.map((call: unknown[]) => String(call[0])).join('')
+    expect(output).toContain('Debt baseline NOT captured: node_modules is absent')
+    expect(exitSpy).not.toHaveBeenCalled()
+
+    // The L4 floor remains fail-closed once collectors are available: #1732's
+    // L3-or-higher behavior must not regress into an L3-only literal check.
+    symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
+    const actualRunCli = mockRunCli.getMockImplementation()
+    mockRunCli.mockImplementation((command, args, callOptions) => {
+      if (command === 'node' && args[0] === 'scripts/capture-debt-baseline.mjs') {
+        return { stdout: '', stderr: '' }
+      }
+      if (actualRunCli === undefined) throw new Error('runCli mock lost its implementation')
+      return actualRunCli(command, args, callOptions)
+    })
+    await runInit(baseOpts({ language: 'typescript', level: 'L4', dryRun: false }))
+    expect(mockRunCli).toHaveBeenCalledWith(
+      'node',
+      ['scripts/capture-debt-baseline.mjs'],
+      { cwd: dir, timeoutMs: 600_000 },
+    )
     expect(exitSpy).not.toHaveBeenCalled()
   }, 60_000)
 })

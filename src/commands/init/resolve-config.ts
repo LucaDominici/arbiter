@@ -4,14 +4,16 @@
 // wizard vs non-interactive fast path, preset/recipe/tier application, default config
 // derivation). Pure extraction, no behavior change.
 import { ArbiterError } from '../../utils/errors.js'
-import { jvmRoot } from '../../detectors/language.js'
+import { detectLanguageWithSource, jvmRoot } from '../../detectors/language.js'
 import { detectBuildCommands } from '../../detectors/build.js'
-import { detectArchetypeHint } from '../../detectors/framework.js'
+import { detectArchetypeHint, detectFramework } from '../../detectors/framework.js'
 import { detectGitInfo } from '../../detectors/git.js'
 import { detectExisting } from '../../detectors/existing.js'
 import { detectBasePackage } from '../../detectors/package.js'
 import { detectGithubAccess } from '../../detectors/github.js'
 import { getLanguageHooks } from '../../detectors/language-hooks.js'
+import { detectPackageManager } from '../../detectors/package-manager.js'
+import { detectLanes } from '../../detectors/lanes.js'
 import { runWizard } from '../../wizard/prompts.js'
 import { DEFAULT_THRESHOLDS } from '../../config/schema.js'
 import type { AutomationConfig } from '../../config/schema.js'
@@ -103,6 +105,87 @@ function buildNonInteractiveConfig(args: {
 export function formatLangHint(locked: boolean, source: string | null): string {
   if (locked) return ''
   return source ? ` (detected from ${source})` : ' (no markers found)'
+}
+
+export interface InitProjectDetection {
+  language: Language
+  languageLocked: boolean
+  languageSource: string | null
+  framework: string | null
+  buildCmds: ReturnType<typeof detectBuildCommands>
+  packageManager: ReturnType<typeof detectPackageManager> | null
+  gitInfo: ReturnType<typeof detectGitInfo>
+  existing: ReturnType<typeof detectExisting>
+  githubAccess: ReturnType<typeof detectGithubAccess>
+  lanes: ReturnType<typeof detectLanes>['lanes']
+}
+
+/** Detect and report the project inputs that feed init config resolution. */
+export function detectProjectForInit(
+  targetDir: string,
+  options: InitOptions,
+  log: (message: string) => void,
+): InitProjectDetection {
+  const languageOverride = parseLanguage(options.language)
+  const languageLocked = languageOverride !== undefined
+  const languageDetection =
+    languageOverride === undefined ? detectLanguageWithSource(targetDir) : null
+  const language = languageOverride ?? languageDetection?.language ?? 'unknown'
+  const languageSource = languageDetection?.source ?? null
+  const framework = detectFramework(targetDir, language)
+  const buildCmds = detectBuildCommands(targetDir, language)
+  const packageManager = buildCmds.packageManager ? detectPackageManager(targetDir) : null
+  const gitInfo = detectGitInfo(targetDir)
+  const existing = detectExisting(targetDir)
+  const githubAccess = detectGithubAccess()
+  const lanes = detectLanes(targetDir).lanes
+
+  log(
+    `  ├── Language: ${language}${formatLangHint(languageLocked, languageSource)}${framework ? ` / ${framework}` : ''}`,
+  )
+  log(`  ├── Build: ${buildCmds.buildTool}`)
+  if (packageManager) {
+    log(
+      `  ├── Package manager: ${packageManager.name} (${formatPackageManagerSource(packageManager)})${packageManager.isWorkspace ? ' — workspace' : ''}`,
+    )
+  }
+  log(
+    `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
+  )
+  if (githubAccess.authenticated) {
+    log(`  ├── GitHub: authenticated as ${githubAccess.username ?? 'unknown'}`)
+  }
+
+  return {
+    language,
+    languageLocked,
+    languageSource,
+    framework,
+    buildCmds,
+    packageManager,
+    gitInfo,
+    existing,
+    githubAccess,
+    lanes,
+  }
+}
+
+function formatPackageManagerSource(
+  packageManager: ReturnType<typeof detectPackageManager>,
+): string {
+  if (packageManager.source === 'packageManager-field') return 'package.json#packageManager'
+  if (packageManager.source === 'default') return 'default'
+
+  switch (packageManager.name) {
+    case 'pnpm':
+      return 'pnpm-lock.yaml'
+    case 'yarn':
+      return 'yarn.lock'
+    case 'bun':
+      return 'bun lockfile'
+    case 'npm':
+      return 'package-lock.json'
+  }
 }
 
 function resolveToolsAndLevel(

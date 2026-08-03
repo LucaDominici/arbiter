@@ -80,9 +80,7 @@ function detectTypescriptCommands(dir: string): BuildCommands {
     lintCommand: hasEslint
       ? (getScript(pkg, 'lint', packageManager) ?? runScript(packageManager, 'lint'))
       : 'echo "no lint configured"',
-    formatCommand: hasPrettier
-      ? prettierCommand(packageManager)
-      : 'echo "no formatter configured"',
+    formatCommand: hasPrettier ? prettierCommand(packageManager) : 'echo "no formatter configured"',
   }
 }
 

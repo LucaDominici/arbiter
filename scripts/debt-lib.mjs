@@ -190,7 +190,9 @@ export function resolveJscpdSpawn(cwd, opts = {}) {
  * @returns {boolean}
  */
 export function isNpxMissingPackages(result) {
-  return (result.status ?? 0) !== 0 && /npx canceled due to missing packages/.test(result.stderr ?? '')
+  return (
+    (result.status ?? 0) !== 0 && /npx canceled due to missing packages/.test(result.stderr ?? '')
+  )
 }
 
 export function spawnOrSkip(name, tool, cmd, args, opts) {

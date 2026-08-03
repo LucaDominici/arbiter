@@ -610,7 +610,9 @@ describe('runProbes — non-npm package manager', () => {
       status: 'skipped',
       reason: 'package-manager: pnpm is configured for this project — the npm probe does not apply',
     })
-    expect(report.probes.some((probe) => probe.tool === 'npm' && probe.status === 'failed')).toBe(false)
+    expect(report.probes.some((probe) => probe.tool === 'npm' && probe.status === 'failed')).toBe(
+      false,
+    )
   })
 })
 

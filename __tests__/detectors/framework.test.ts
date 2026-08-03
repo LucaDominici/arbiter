@@ -134,16 +134,19 @@ describe('detectFramework', () => {
       ['solid-js', 'solid', 'frontend-spa'],
       ['preact', 'preact', 'frontend-spa'],
       ['vite', 'vite', 'frontend-spa'],
-    ] as const)('detects root %s and maps it away from library', (dependency, framework, archetype) => {
-      writeFileSync(
-        join(dir, 'package.json'),
-        JSON.stringify({ devDependencies: { [dependency]: '^1.0.0' } }),
-      )
+    ] as const)(
+      'detects root %s and maps it away from library',
+      (dependency, framework, archetype) => {
+        writeFileSync(
+          join(dir, 'package.json'),
+          JSON.stringify({ devDependencies: { [dependency]: '^1.0.0' } }),
+        )
 
-      expect(detectFramework(dir, 'typescript')).toBe(framework)
-      expect(detectArchetypeHint(dir, 'typescript', framework)).toBe(archetype)
-      expect(detectArchetypeHint(dir, 'typescript', framework)).not.toBe('library')
-    })
+        expect(detectFramework(dir, 'typescript')).toBe(framework)
+        expect(detectArchetypeHint(dir, 'typescript', framework)).toBe(archetype)
+        expect(detectArchetypeHint(dir, 'typescript', framework)).not.toBe('library')
+      },
+    )
 
     it('keeps react ahead of vite', () => {
       writeFileSync(

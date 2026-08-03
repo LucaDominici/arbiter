@@ -21,7 +21,8 @@ export function detectPackageManager(dir: string): PackageManagerInfo {
 
   return {
     name,
-    source: configured === null ? (lockfile === null ? 'default' : 'lockfile') : 'packageManager-field',
+    source:
+      configured === null ? (lockfile === null ? 'default' : 'lockfile') : 'packageManager-field',
     isWorkspace: isWorkspace(dir, pkg),
   }
 }

@@ -1,8 +1,8 @@
 ---
 title: 'Generated File Format Stability Map'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-08-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -263,6 +263,11 @@ since #2141.
 
 For any withheld file, use `arbiter diff --withheld` to review the exact set; `arbiter update --adopt`
 is the broad force-adopt, while the table flags target their respective classes.
+
+The same policy applies to a governed `arbiter init` re-run (#2125), not only to
+`arbiter update`: safety hooks and the governance pair are adopted with a reversible
+local-override record, while the gate spine remains withheld unless explicitly selected. An
+`arbiter:preserve` marker is the deliberate freeze and wins before every adoption decision.
 
 The first two are monotonic by directory: a hook or a `scripts/lib/` helper added later is covered without
 the pattern changing. The three flags are deliberately independent — opting into one class must not change
