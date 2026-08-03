@@ -28,6 +28,7 @@ import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile, beginGenerationSession, endGenerationSession } from '../utils/fs.js'
 import type { WriteResult } from '../utils/fs.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
+import { buildAdoptPredicate, recordLocalOverride } from './adopt-policy.js'
 import { runCli, CliError } from '../utils/run-cli.js'
 import type { ProjectConfig, Language } from '../wizard/types.js'
 import type { InitOptions } from './init/types.js'
@@ -323,7 +324,14 @@ async function generateAndFinalize(
     // file's render hash is recorded into the manifest (first-run baseline). The
     // session ends + the manifest persists BEFORE saveConfig/runPlugins (A1/A6).
     const prevManifest = loadGeneratedManifest(targetDir)
-    beginGenerationSession({ targetDir, prevHashes: prevManifest })
+    beginGenerationSession({
+      targetDir,
+      prevHashes: prevManifest,
+      adoptPredicate: buildAdoptPredicate({}),
+      onAdopt: (key, priorContent, newContent): void => {
+        recordLocalOverride(targetDir, { key, priorContent, newContent })
+      },
+    })
     const { results, errors: generatorErrors } = runGeneratorsWithErrors(config, installedSkills)
     const generatedHashes = endGenerationSession()
     saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes })

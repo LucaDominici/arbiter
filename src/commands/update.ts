@@ -1,26 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdirSync } from 'node:fs'
-import { createHash } from 'node:crypto'
 import { resolve, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, FatalError } from '../utils/errors.js'
-import {
-  beginGenerationSession,
-  endGenerationSession,
-  writeFileTranslated,
-  type WriteResult,
-} from '../utils/fs.js'
+import { beginGenerationSession, endGenerationSession, type WriteResult } from '../utils/fs.js'
 import {
   loadGeneratedManifest,
   saveGeneratedManifest,
   manifestKey,
 } from '../state/generated-manifest.js'
-import {
-  isGateSpineKey,
-  isGovernanceClassKey,
-  isSafetyClassKey,
-} from '../generators/safety-class.js'
-import { isDerivedTrackKey } from '../generators/derived-class.js'
+import { isGateSpineKey, isSafetyClassKey } from '../generators/safety-class.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
@@ -45,6 +34,11 @@ import {
 import type { GeneratorKey } from '../config/diff.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { ArbiterConfigV2 } from '../utils/config.js'
+import { buildAdoptPredicate, recordLocalOverride } from './adopt-policy.js'
+import type { AdoptRecord } from './adopt-policy.js'
+
+export { buildAdoptPredicate, recordLocalOverride } from './adopt-policy.js'
+export type { AdoptRecord } from './adopt-policy.js'
 
 export interface UpdateOptions {
   dir: string | undefined
@@ -85,19 +79,6 @@ export interface UpdateOptions {
    */
   adoptGateSpine?: boolean
   /**
-   * #2141 (mirrors #2119): opt IN to force-adopting the governance class
-   * (`AGENTS.md`, `.claude/settings.json`) over a user-modified copy.
-   * Withholding it is the default.
-   *
-   * The template render is not a superset of a governed consumer's file.
-   * Measured on one such consumer, a nude update stripped `$CLAUDE_PROJECT_DIR`
-   * from 9 hook registrations, unquoted `PreToolUse:Edit|Write` so its pipe
-   * became a shell pipe and the hooks stopped firing, and dropped about 175
-   * lines from `AGENTS.md`. This explicit, destructive opt-in preserves the
-   * #2119 superset principle while a pristine governance file still refreshes.
-   */
-  adoptGovernance?: boolean
-  /**
    * T1 (two-phase plan/apply): compute and print what `--adopt`/the default
    * safety-class adoption WOULD change — file list + diff — without writing
    * anything (config, manifest, generated files all untouched). Read-only.
@@ -116,120 +97,6 @@ export interface UpdateOptions {
   refreshDerived?: boolean
 }
 
-/** One captured adopt decision: a withheld file that the adopt predicate matched. */
-export interface AdoptRecord {
-  /** targetDir-relative, posix-normalized path. */
-  key: string
-  /** The user-modified content that was on disk before adoption. */
-  priorContent: string
-  /** The shipped template content that replaced it (or would, in plan mode). */
-  newContent: string
-}
-
-function sha256(content: string): string {
-  return createHash('sha256').update(content).digest('hex')
-}
-
-/**
- * Build the T1 adopt predicate from CLI flags. Safety-class files
- * (`.claude/hooks/*.mjs`) adopt by default — `noAdoptSafety` is the only way to
- * freeze one deliberately. Gate-spine files (`scripts/check-all.mjs`,
- * `scripts/lib/*.mjs`) are the opposite since #2119: WITHHELD by default,
- * adopted only under an explicit `adoptGateSpine`, because that file is where a
- * project wires its own checks and the template render is not a superset of it.
- * Governance-class files (`AGENTS.md`, `.claude/settings.json`) follow the
- * same #2119 superset principle since #2141: they are WITHHELD by default and
- * adopted only under explicit `adoptGovernance`. The classes stay independent.
- * `adopt` broadens to every withheld file.
- * `refreshDerived` (#1983) broadens it to exactly the codex-track derived
- * file set, independent of `adopt`/`noAdoptSafety`. Exported for unit testing
- * independent of the filesystem.
- */
-export function buildAdoptPredicate(
-  options: Pick<
-    UpdateOptions,
-    'adopt' | 'noAdoptSafety' | 'adoptGateSpine' | 'adoptGovernance' | 'refreshDerived'
-  >,
-): (key: string) => boolean {
-  const adoptAll = options.adopt === true
-  const adoptSafety = options.noAdoptSafety !== true
-  const adoptGateSpine = options.adoptGateSpine === true
-  const adoptGovernance = options.adoptGovernance === true
-  const refreshDerived = options.refreshDerived === true
-  return (key: string): boolean =>
-    adoptAll ||
-    (adoptSafety && isSafetyClassKey(key)) ||
-    (adoptGateSpine && isGateSpineKey(key)) ||
-    (adoptGovernance && isGovernanceClassKey(key)) ||
-    (refreshDerived && isDerivedTrackKey(key))
-}
-
-/**
- * Persist an explicit, reversible local-override record for a force-adopted
- * file (T1). Deliberately human-inspectable JSON, not a stray `.arbiter-
- * backup` sibling: both the prior (user-modified) and new (shipped) content
- * are stored verbatim so the adoption is fully reversible without re-running
- * arbiter or digging through git history.
- */
-function localOverrideSlug(key: string): string {
-  return key.replace(/^\.+/, '').replace(/[/\\]+/g, '__')
-}
-
-/**
- * #1983: the local-override reason must name the actual trigger — a derived-
- * track file refreshed via `--refresh-derived` was not necessarily "user-
- * modified" (it may simply predate a template fix), so the `--adopt` wording
- * would misdescribe it.
- */
-function localOverrideReason(key: string): string {
-  if (isDerivedTrackKey(key)) {
-    return (
-      'update --refresh-derived: codex-track derived file force-refreshed to the ' +
-      'current template render (skipIfExists bypassed for this known set only)'
-    )
-  }
-  if (isGovernanceClassKey(key)) {
-    return (
-      'update --adopt-governance: governance file force-adopted over locally-modified content — ' +
-      'AGENTS.md carries the Iron Laws and .claude/settings.json the ARBITER_* ' +
-      'deny list; this now happens only under explicit --adopt-governance ' +
-      '(#2056, #2120, #2141; mark the file `arbiter:preserve` to freeze it)'
-    )
-  }
-  if (isGateSpineKey(key)) {
-    return (
-      'update: gate-spine file force-adopted over user-modified content — the gate ' +
-      'entrypoint and its libs are the delivery vector for every later fix ' +
-      '(#2109, reversed by #2119: this now happens only under explicit --adopt-gate-spine)'
-    )
-  }
-  return (
-    'update --adopt: template fix force-adopted over user-modified content ' +
-    '(safety-class files adopt by default; see --no-adopt-safety)'
-  )
-}
-
-export function recordLocalOverride(
-  targetDir: string,
-  record: AdoptRecord,
-  now: () => Date = () => new Date(),
-): string {
-  const dir = join(targetDir, '.arbiter', 'evidence', 'local-overrides')
-  mkdirSync(dir, { recursive: true })
-  const envelope = {
-    path: record.key,
-    adoptedAt: now().toISOString(),
-    reason: localOverrideReason(record.key),
-    priorContent: record.priorContent,
-    priorContentSha256: sha256(record.priorContent),
-    newContent: record.newContent,
-    newContentSha256: sha256(record.newContent),
-  }
-  const file = join(dir, `${localOverrideSlug(record.key)}.json`)
-  writeFileTranslated(file, JSON.stringify(envelope, null, 2) + '\n')
-  return file
-}
-
 /**
  * The targetDir-relative, posix-normalized keys of PROTECTED files — safety
  * class (`.claude/hooks/*.mjs`) and gate spine (`scripts/check-all.mjs`,
@@ -246,28 +113,14 @@ export function recordLocalOverride(
  * The two exits are wiring the new checks by hand or marking the file
  * `arbiter:preserve` — the documented exception the ratchet accepts.
  *
- * This is exactly the list `check-safety-adopt-ratchet.mjs` fails on. Do NOT
- * add governance-class keys here: a consumer-customized `AGENTS.md` or
- * settings file must warn by name, not redden every governed consumer. Exported
+ * This is exactly the list `check-safety-adopt-ratchet.mjs` fails on. Exported
  * for unit testing the pure decision.
  */
 export function withheldSafetyKeys(results: WriteResult[], targetDir: string): string[] {
-  return withheldKeys(results, targetDir).filter(
-    (key) => isSafetyClassKey(key) || isGateSpineKey(key),
-  )
-}
-
-/** TargetDir-relative governance-class keys still withheld after this run. */
-export function withheldGovernanceKeys(results: WriteResult[], targetDir: string): string[] {
-  return withheldKeys(results, targetDir).filter(isGovernanceClassKey)
-}
-
-/** Shared manifest-key pipeline for withheld-file reporting classes. */
-function withheldKeys(results: WriteResult[], targetDir: string): string[] {
   return results
     .filter((r) => r.withheld === true && r.adopted !== true)
     .map((r) => manifestKey(targetDir, r.path))
-    .filter((key): key is string => key !== null)
+    .filter((k): k is string => k !== null && (isSafetyClassKey(k) || isGateSpineKey(k)))
 }
 
 /** targetDir-relative keys of files force-adopted during this run (reporting). */
@@ -824,20 +677,10 @@ function reportAdoption(
   if (!json && stillWithheldSafety.length > 0) {
     process.stderr.write(
       `\n  Warning: ${stillWithheldSafety.length} protected file(s) remain withheld ` +
-        `(inspect with \`arbiter diff --withheld\`; re-adopt all with \`arbiter update --adopt\`, ` +
-        `a gate spine with \`--adopt-gate-spine\`, or keep safety hooks withheld with ` +
-        `\`--no-adopt-safety\`): ${stillWithheldSafety.join(', ')}\n` +
+        `(user-modified; safety hooks adopt by default — a gate-spine file adopts only under ` +
+        `--adopt-gate-spine): ${stillWithheldSafety.join(', ')}\n` +
         `  \`scripts/check-safety-adopt-ratchet.mjs\` will FAIL for any of these NOT marked ` +
         `\`arbiter:preserve\` — re-adopt it, wire the new checks by hand, or mark it.\n`,
-    )
-  }
-  const stillWithheldGovernance = withheldGovernanceKeys(results, targetDir)
-  if (!json && stillWithheldGovernance.length > 0) {
-    process.stderr.write(
-      `  Warning: governance file(s) withheld: ${stillWithheldGovernance.join(', ')} — ` +
-        'inspect with `arbiter diff --withheld`; re-adopt all with `arbiter update --adopt` or ' +
-        'governance only with `--adopt-governance`; mark a file ' +
-        '`arbiter:preserve` for a permanent freeze.\n',
     )
   }
   return { adopted, stillWithheldSafety }
