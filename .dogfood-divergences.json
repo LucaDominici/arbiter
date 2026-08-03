@@ -135,9 +135,9 @@
   {
     "path": "check-anti-proforma.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
+    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-pinned 2026-08-03 (#2031): the scanner rewrite (literal masking + paren-matched extents + helper attribution + tautology denylist) landed on BOTH sides and the divergence NARROWED to three lines — the projectName banner, ROOT (repo root vs process.cwd()), and the import.meta entrypoint guard the emitted script does not need.",
     "expires": "2026-08-15",
-    "diffHash": "afc2ea898cc1ac699ead9be7b31b7592c608a91e0a032fd3a96512020780ccd6"
+    "diffHash": "ea62ef5005cf55cffdd5ccd7537e587e6b1edf4e59b5d952455112cfb16e5c61"
   },
   {
     "path": "check-canonical-paths.mjs",
