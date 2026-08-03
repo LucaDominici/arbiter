@@ -68,9 +68,28 @@ export function main() {
     ? parseInt(readFileSync(baselineFile, 'utf-8').trim(), 10)
     : 0
 
+  // #2013: a bare count hides how wide the grandfathered gap really is. Always print the
+  // denominator and the percentage, so "54" reads as "54/85 (64%)".
+  const total = generators.length
+  const scale = `${currentCount}/${total} (${total === 0 ? 0 : Math.round((currentCount / total) * 100)}%)`
+
+  // #2013: blocking only the widening direction left slack — an unbanked improvement
+  // freed slots that could be silently re-filled up to the stale baseline. Banking is
+  // mandatory: a gap narrower than the baseline fails until the baseline follows it down.
+  // Introduced at currentCount === baseline, so it is a no-op on this tree.
+  if (currentCount < baseline) {
+    process.stdout.write(
+      `[check-brownfield-tests] FAIL: unbanked improvement — ${scale} generators without brownfield coverage, below the baseline of ${baseline}.\n`,
+    )
+    process.stdout.write(
+      '  Bank it so the recovered slots cannot be silently re-filled: node scripts/check-brownfield-tests.mjs --update-baseline\n',
+    )
+    process.exit(1)
+  }
+
   if (currentCount > baseline) {
     process.stdout.write(
-      `[check-brownfield-tests] FAIL: regression — ${currentCount} generators without brownfield coverage (baseline: ${baseline})\n`,
+      `[check-brownfield-tests] FAIL: regression — ${scale} generators without brownfield coverage (baseline: ${baseline})\n`,
     )
     process.stdout.write('  New uncovered generators (compared to baseline):\n')
     for (const f of missing.slice(0, 10)) {
@@ -86,7 +105,7 @@ export function main() {
   }
 
   process.stdout.write(
-    `[check-brownfield-tests] OK — ${currentCount} generators without brownfield coverage (baseline: ${baseline})\n`,
+    `[check-brownfield-tests] OK — ${scale} generators without brownfield coverage (baseline: ${baseline})\n`,
   )
 }
 

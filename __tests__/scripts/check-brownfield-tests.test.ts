@@ -120,3 +120,47 @@ describe('check-brownfield-tests.mjs (CANON-11)', () => {
     expect(result.status).toBe(0)
   })
 })
+
+// #2013: the ratchet was honest about direction but not about magnitude, and it left
+// slack. A bare "54 without coverage" hides the denominator, and `current > baseline`
+// alone lets an improvement go unbanked — freeing the recovered slots for silent
+// re-widening later.
+describe('check-brownfield-tests.mjs — honest ratchet (#2013)', () => {
+  function setup(dir: string, generators: string[], covered: string[], baseline: string) {
+    const genDir = join(dir, 'generators')
+    const testDir = join(dir, 'brownfield')
+    const baselineFile = join(dir, 'baseline.txt')
+    mkdirSync(genDir)
+    mkdirSync(testDir)
+    for (const g of generators) writeFileSync(join(genDir, `${g}.ts`), '')
+    writeFileSync(join(testDir, 'x-brownfield.test.ts'), covered.join('\n'))
+    writeFileSync(baselineFile, baseline)
+    return { genDir, testDir, baselineFile }
+  }
+
+  it('reports the uncovered count with its denominator and percentage', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const s = setup(dir, ['a', 'b', 'c', 'd'], ['a'], '3')
+      const r = run(s.genDir, s.testDir, s.baselineFile)
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('3/4')
+      expect(r.stdout).toContain('75%')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when coverage improved but the baseline was not banked', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      // 1 uncovered against a baseline of 3 — two slots of free re-widening.
+      const s = setup(dir, ['a', 'b'], ['a'], '3')
+      const r = run(s.genDir, s.testDir, s.baselineFile)
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('--update-baseline')
+    } finally {
+      cleanup()
+    }
+  })
+})
