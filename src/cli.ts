@@ -59,7 +59,7 @@ import type { GraphFormat } from './commands/graph.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
 import { confirmChannelDowngrade } from './utils/confirm-downgrade.js'
 import type { ReleaseChannel } from './utils/channel.js'
-import { appendEvidenceLine } from './utils/evidence-log.js'
+import { appendEvidenceLine, evidenceLogTarget } from './utils/evidence-log.js'
 import { getBoolFlag } from './config/env-registry.js'
 import {
   AUTH_PROVIDERS,
@@ -377,15 +377,22 @@ process.on('exit', (code) => {
   }
   if (_evidenceLogged || _noEvidence) return
   _evidenceLogged = true
+  // #2218: informational commands write nothing, and the log lands in the current
+  // PROJECT's root (or nowhere, outside a project) — never in an arbitrary cwd.
+  const _evidenceDir = evidenceLogTarget(process.cwd(), _parsedCmd.cmd)
+  if (_evidenceDir === null) return
   try {
-    appendEvidenceLine({
-      ts: new Date().toISOString(),
-      cmd: _parsedCmd.cmd,
-      args: _parsedCmd.args,
-      exit: code,
-      durationMs: Date.now() - _startMs,
-      headSha: _headSha,
-    })
+    appendEvidenceLine(
+      {
+        ts: new Date().toISOString(),
+        cmd: _parsedCmd.cmd,
+        args: _parsedCmd.args,
+        exit: code,
+        durationMs: Date.now() - _startMs,
+        headSha: _headSha,
+      },
+      { dir: _evidenceDir },
+    )
   } catch {
     // evidence log write can fail during ENOSPC or signal-driven exit; log entry lost
     process.stderr.write('[arbiter] warning: evidence log write failed on exit — log entry lost\n')

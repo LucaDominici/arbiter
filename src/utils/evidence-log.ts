@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 
 /** Schema of a single JSONL entry written to .evidence/cmd-log.jsonl */
 export interface EvidenceEntry {
@@ -14,6 +14,38 @@ export interface EvidenceEntry {
 
 const LOG_FILENAME = 'cmd-log.jsonl'
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
+
+/**
+ * Commands that only print and exit. They must never touch the filesystem —
+ * `arbiter --version` in an empty directory used to leave a `.evidence/` behind (#2218).
+ * The empty string is the bare `arbiter` invocation (Commander prints help).
+ */
+const INFORMATIONAL_COMMANDS: ReadonlySet<string> = new Set([
+  '',
+  '-V',
+  '--version',
+  '-h',
+  '--help',
+  'help',
+])
+
+/**
+ * Directory the command log belongs to, or `null` when nothing may be written (#2218).
+ *
+ * Evidence belongs to a PROJECT: the nearest ancestor of `cwd` holding an `arbiter.json`.
+ * Outside a project there is nothing to attach evidence to, and writing would scatter
+ * `.evidence/` into unrelated repositories. Informational commands never write at all.
+ */
+export function evidenceLogTarget(cwd: string, cmd: string): string | null {
+  if (INFORMATIONAL_COMMANDS.has(cmd)) return null
+  let dir = resolve(cwd)
+  for (;;) {
+    if (existsSync(join(dir, 'arbiter.json'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return null
+    dir = parent
+  }
+}
 
 /**
  * Process-local monotonic rotation counter. Combined with the pid it makes every

@@ -13,7 +13,11 @@ import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
-import { appendEvidenceLine, type EvidenceEntry } from '../../src/utils/evidence-log.js'
+import {
+  appendEvidenceLine,
+  evidenceLogTarget,
+  type EvidenceEntry,
+} from '../../src/utils/evidence-log.js'
 
 function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), 'evidence-log-test-'))
@@ -25,6 +29,36 @@ function listBackups(evidenceDir: string): string[] {
     .filter((f) => f.startsWith('cmd-log.jsonl.'))
     .sort()
 }
+
+describe('evidenceLogTarget (#2218)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = makeTempDir()
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('returns null outside an arbiter project — no project, no evidence', () => {
+    expect(evidenceLogTarget(dir, 'init')).toBeNull()
+  })
+
+  it('returns null for informational commands even inside a project', () => {
+    writeFileSync(join(dir, 'arbiter.json'), '{}', 'utf-8')
+    for (const cmd of ['--version', '-V', '--help', '-h', 'help', '']) {
+      expect(evidenceLogTarget(dir, cmd)).toBeNull()
+    }
+  })
+
+  it('returns the project root, not the cwd, for a real command', () => {
+    writeFileSync(join(dir, 'arbiter.json'), '{}', 'utf-8')
+    const sub = join(dir, 'packages', 'api')
+    mkdirSync(sub, { recursive: true })
+    expect(evidenceLogTarget(sub, 'task get')).toBe(dir)
+  })
+})
 
 describe('appendEvidenceLine', () => {
   let dir: string
