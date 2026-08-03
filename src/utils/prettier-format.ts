@@ -38,15 +38,18 @@ function resolveOwnPrettierBin(): string | null {
 // keep this in sync with the template if that file's values change.
 const ARBITER_DEFAULT_PRETTIER_ARGS = ['--single-quote', '--no-semi', '--print-width', '100']
 
-// Resolve the prettier invocation (binary + base args + config args) for targetDir.
-// Prefers arbiter's own dependency-tree prettier (deterministic — it ships as a runtime
-// dependency, and a fresh target scaffold has no node_modules yet); falls back to the
-// target's prettier via `npx --no-install` only in a degraded tree.
-function resolvePrettierInvocation(targetDir: string): {
-  cmd: string
-  baseArgs: string[]
-  configArgs: string[]
-} {
+// Resolve the prettier invocation (binary + config args) for targetDir, or null when the
+// bundled binary is not resolvable. STRICTLY arbiter's own dependency-tree prettier: it
+// ships as a runtime dependency, and a fresh target scaffold has no node_modules, so the
+// target's own prettier was never a usable second source anyway. The former
+// `npx --no-install prettier` fallback let npm resolve a REGISTRY version instead of the
+// pinned one and printed `npx canceled due to missing packages ... ["prettier@x.y.z"]`
+// into the gate dump — registry-driven version resolution is nondeterminism by design (#2032).
+function resolvePrettierInvocation(
+  targetDir: string,
+): { bin: string; configArgs: string[] } | null {
+  const ownBin = resolveOwnPrettierBin()
+  if (ownBin === null) return null
   const prettierRc = join(targetDir, '.prettierrc')
   const prettierRcJson = join(targetDir, '.prettierrc.json')
   const configFile = existsSync(prettierRc)
@@ -55,11 +58,7 @@ function resolvePrettierInvocation(targetDir: string): {
       ? prettierRcJson
       : null
   const configArgs: string[] = configFile ? ['--config', configFile] : ARBITER_DEFAULT_PRETTIER_ARGS
-  const ownBin = resolveOwnPrettierBin()
-  const [cmd, baseArgs]: [string, string[]] = ownBin
-    ? ['node', [ownBin]]
-    : ['npx', ['--no-install', 'prettier']]
-  return { cmd, baseArgs, configArgs }
+  return { bin: ownBin, configArgs }
 }
 
 /**
@@ -73,9 +72,11 @@ function resolvePrettierInvocation(targetDir: string): {
  * the format fails (e.g. a non-prettier file type), so callers never break.
  */
 export function formatContent(content: string, filePath: string, targetDir: string): string {
-  const { cmd, baseArgs, configArgs } = resolvePrettierInvocation(targetDir)
+  const invocation = resolvePrettierInvocation(targetDir)
+  if (invocation === null) return content
+  const { bin, configArgs } = invocation
   try {
-    const { stdout } = runCli(cmd, [...baseArgs, '--stdin-filepath', filePath, ...configArgs], {
+    const { stdout } = runCli('node', [bin, '--stdin-filepath', filePath, ...configArgs], {
       cwd: targetDir,
       timeoutMs: 30_000,
       input: content,

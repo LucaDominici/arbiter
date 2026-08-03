@@ -107,10 +107,26 @@ function spawn(name, cmd, args, opts) {
   return { r, elapsed: Date.now() - start }
 }
 
+// #2032: the dump of a failed check is truncated by whatever reads it (GitHub caps a
+// step's log), and what gets dropped is the END — where a test runner prints the actual
+// failure. Across four episodes of #2027 the vitest error line was unrecoverable from CI
+// and only a local run exposed it. So dump the TAIL, not the head.
+const DUMP_TAIL_LINES = 400
+
+function tail(str) {
+  const lines = str.split('\n')
+  if (lines.length <= DUMP_TAIL_LINES) return str
+  return (
+    `[... ${lines.length - DUMP_TAIL_LINES} earlier line(s) truncated — ` +
+    `showing the last ${DUMP_TAIL_LINES}, where the failure is]\n` +
+    lines.slice(-DUMP_TAIL_LINES).join('\n')
+  )
+}
+
 function emitOutput(r) {
   const noColor = NO_COLOR()
-  if (r.stdout) process.stdout.write(noColor ? stripAnsi(r.stdout) : r.stdout)
-  if (r.stderr) process.stderr.write(noColor ? stripAnsi(r.stderr) : r.stderr)
+  if (r.stdout) process.stdout.write(tail(noColor ? stripAnsi(r.stdout) : r.stdout))
+  if (r.stderr) process.stderr.write(tail(noColor ? stripAnsi(r.stderr) : r.stderr))
 }
 
 function recordFail(name, elapsed, msg) {
