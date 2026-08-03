@@ -240,7 +240,11 @@ describe('probe-hooks liveness contract (#2135)', () => {
       expect(report.failures).toEqual([])
       expect(report.rows).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ hook: 'post-commit-check.mjs', state: 'PRIMED', verdict: 'BLOCKS' }),
+          expect.objectContaining({
+            hook: 'post-commit-check.mjs',
+            state: 'PRIMED',
+            verdict: 'BLOCKS',
+          }),
         ]),
       )
     } finally {
