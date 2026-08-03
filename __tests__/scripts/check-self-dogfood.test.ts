@@ -448,3 +448,36 @@ describe('ship-family drift detection is non-vacuous (#1290)', () => {
     }
   }, 360_000)
 })
+
+// ─── debt-toolchain twin drift is non-vacuous (#2229) ────────────────────────
+// The debt toolchain (debt-lib / debt-report / capture-debt-baseline) ships a
+// .ejs twin under src/templates/scripts/ but falls outside the check-scripts
+// family's check-/record- basename filter. A single-sided edit to the
+// materialized script is therefore undetected — the exact drift class #2229
+// widens the family to catch.
+
+describe('debt-toolchain twin drift is non-vacuous (#2229)', () => {
+  it('a single-sided edit to scripts/debt-lib.mjs (without the .ejs twin) turns the gate red', () => {
+    const root = createDogfoodProbeRoot()
+    const target = join(root, 'scripts/debt-lib.mjs')
+    const original = readFileSync(target, 'utf-8')
+    try {
+      writeFileSync(target, original + 'synthetic debt-lib drift sentinel\n', 'utf-8')
+      const r = runDogfoodProbe(root, 300_000)
+      expect(r.status).not.toBe(0)
+      expect(r.stdout + r.stderr).toContain('debt-lib')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 360_000)
+
+  it('an in-sync debt pair passes (no drift)', () => {
+    const root = createDogfoodProbeRoot()
+    try {
+      const r = runDogfoodProbe(root, 300_000)
+      expect(r.status).toBe(0)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 360_000)
+})
