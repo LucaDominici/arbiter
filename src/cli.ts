@@ -665,6 +665,11 @@ program
     'Accepted no-op: withholding a customized gate spine is the default since #2119.',
   )
   .option(
+    '--no-adopt-governance',
+    'Accepted no-op: withholding a diverged governance file is the default since #2141.',
+    (_value, previous) => previous,
+  )
+  .option(
     '--adopt-plan',
     'Two-phase preview: print what --adopt/the default safety adoption WOULD change ' +
       '(file list + line diff), without writing anything.',

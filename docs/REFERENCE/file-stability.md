@@ -258,6 +258,8 @@ either class stays withheld and unmarked.
 
 `--no-adopt-gate-spine` is still accepted as a no-op, so a consumer script written during the #2119
 moratorium keeps working.
+`--no-adopt-governance` is accepted as a no-op, because withholding a diverged governance file is the default
+since #2141.
 
 For any withheld file, use `arbiter diff --withheld` to review the exact set; `arbiter update --adopt`
 is the broad force-adopt, while the table flags target their respective classes.

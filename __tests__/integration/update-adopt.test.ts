@@ -328,6 +328,22 @@ describe('#2119 red-path: the gate spine is withheld, and the ratchet cycle term
     expect(r.status).toBe(0)
   })
 
+  // #2141 mirrors #2119: its legacy negated spelling must be accepted without
+  // cancelling the destructive opt-in, whichever order a consumer script uses.
+  it('`--no-adopt-governance` is a no-op beside `--adopt-governance`, in either order', () => {
+    for (const args of [
+      ['--adopt-governance', '--no-adopt-governance'],
+      ['--no-adopt-governance', '--adopt-governance'],
+    ]) {
+      const userContent = erode('AGENTS.md', 'hand-tuned governance contract')
+
+      const r = runCli(...args)
+
+      expect(r.status).toBe(0)
+      expect(readFileSync(join(dir, 'AGENTS.md'), 'utf-8')).not.toBe(userContent)
+    }
+  })
+
   // N1 — the confinement of the fix: a PRISTINE spine (untouched since arbiter
   // generated it) must still receive template fixes. Only a CUSTOMIZED one is
   // frozen. Re-baselining the manifest onto the local bytes is what makes this
