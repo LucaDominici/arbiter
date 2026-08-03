@@ -340,6 +340,10 @@ if (isMain) {
   // Capture L1 boundary for parityContentHash computation (INV-59)
   const l1EndIdx = getResults().length
 
+  // Bake golden masters (e2e/bake/fixture-bake.test.ts, 27 fixtures) are gated by the L2
+  // integration suite (INV-25), hence at pre-push and in CI (#2190), but stay out of L1:
+  // they run `arbiter init` 27 times — far too expensive for the every-commit partition.
+
   // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
   if (subcommand !== 'check') {
     runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
