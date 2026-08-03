@@ -207,10 +207,11 @@ describe('main()', () => {
       const key = args.join(' ')
       if (key.includes('merge-base')) return 'deadbeef'
       if (key.includes('--format=%s')) return 'fix(cli): thing'
+      // "was this task's evidence produced on THIS branch?" — checked before the
+      // body-log pattern, which this query also matches.
+      if (key.includes('evidence/tdd')) return opts.inherited ? '' : 'c'.repeat(40)
       if (key.includes('--format=%H')) return BODY_ONLY
       if (key.includes('diff --name-only')) return opts.changed
-      // "was this task's evidence produced on THIS branch?"
-      if (key.includes('evidence/tdd')) return opts.inherited ? '' : 'c'.repeat(40)
       if (opts.verifyFails) {
         throw Object.assign(new Error('FAIL'), { stderr: 'evidence not found', stdout: '' })
       }

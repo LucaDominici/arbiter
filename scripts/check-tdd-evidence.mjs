@@ -1,21 +1,36 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // scripts/check-tdd-evidence.mjs
-// L2 gate: verify TDD evidence for every task-ID commit on the current branch.
+// L2 gate: verify TDD evidence for the change on the current branch.
 //
 // Scopes to commits since git merge-base origin/main HEAD (branch-relative).
+// Every task id in a commit SUBJECT is verified individually. A branch with no such id
+// that changes src/ must still carry at least one verified evidence among the tasks its
+// commit BODIES cite (#2217) — refs-in-the-body is no longer a vacuous pass.
 // Rejects any commit with ARBITER-SKIP-TDD: 1 trailer at L2+.
-// Exits 0 if no task commits found (non-task branches pass vacuously).
 // Exits 1 on any failure.
 //
-// Exports for unit tests: parseTaskIdsFromLog, hasSkipTrailer, formatSkipError
+// Usage: node scripts/check-tdd-evidence.mjs [--dir <repo>]
+//   --dir points the gate at another repository (default: arbiter's own checkout).
+//
+// Exports for unit tests: parseTaskIdsFromLog, parseTaskIdsFromBodies,
+// touchesGovernedSource, hasSkipTrailer, formatSkipError, formatFloorError,
+// formatUncitedSourceError
 
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = resolve(__dirname, '..')
+/** Where the gate's own tooling (tsx, src/cli.ts) lives. */
+const scriptRoot = resolve(__dirname, '..')
+
+/** The repository under inspection — arbiter's own checkout unless --dir says otherwise. */
+function parseDir(argv) {
+  const i = argv.indexOf('--dir')
+  return i !== -1 && argv[i + 1] ? resolve(argv[i + 1]) : scriptRoot
+}
+const repoRoot = parseDir(process.argv.slice(2))
 
 // ─── Exported helpers (unit-testable) ────────────────────────────────────────
 
@@ -46,6 +61,40 @@ export function parseTaskIdsFromLog(log) {
 }
 
 /**
+ * Task IDs referenced in commit BODIES via a reference keyword (`Refs #NNN`,
+ * `Closes #NNN`, ...) — this repo's convention for a commit carrying no TDD cycle of
+ * its own. Deliberately keyword-anchored: a bare `#NNN` in prose is usually a PR or a
+ * cross-reference, not a claim of authorship (#2217).
+ *
+ * These IDs are NOT verified per commit — that would demand TDD evidence of every docs
+ * and chore commit. They are the candidate set for the branch-level floor below.
+ */
+export function parseTaskIdsFromBodies(bodyLog) {
+  const seen = new Set()
+  const results = []
+  for (const m of bodyLog.matchAll(
+    /\b(?:refs?|closes?|fixes?|fixed|resolves?|part of)\s+#(\d+)/gi,
+  )) {
+    const full = `#${m[1]}`
+    if (!seen.has(full)) {
+      seen.add(full)
+      results.push(full)
+    }
+  }
+  return results
+}
+
+/**
+ * True when the branch changes governed source — the unit the TDD invariant is about.
+ *
+ * `src/templates/**` counts: templates ARE the product shipped to governed targets, so
+ * exempting them would leave the hole open exactly where generated enforcement lives.
+ */
+export function touchesGovernedSource(changedPaths) {
+  return changedPaths.split('\n').some((p) => p.trim().startsWith('src/'))
+}
+
+/**
  * Returns true if the commit full message contains the ARBITER-SKIP-TDD: 1 trailer.
  */
 export function hasSkipTrailer(body) {
@@ -59,6 +108,34 @@ export function formatSkipError(sha, taskId) {
   return (
     `Commit ${sha} (task ${taskId}) carries ARBITER-SKIP-TDD: 1 trailer.\n` +
     `This bypass is forbidden at L2+. Remove the trailer or record TDD evidence instead.`
+  )
+}
+
+/** The two legitimate ways to satisfy the branch floor (#2217). */
+const FLOOR_REMEDY =
+  `  Two ways forward:\n` +
+  `    1. record real red→green evidence for one cited task:\n` +
+  `         arbiter task record-red --test-path <path>\n` +
+  `    2. move the src/ change onto its own branch whose commit SUBJECT carries the\n` +
+  `       task id (fix(#NNN): ...) — that commit is then verified individually.\n`
+
+/** Branch changes src/ but cites no task at all — nothing to attach evidence to. */
+export function formatUncitedSourceError() {
+  return (
+    `\ncheck-tdd-evidence: FAIL — this branch changes src/ but cites no task id,\n` +
+    `in any commit subject or body. A source change with no traceable task cannot\n` +
+    `carry TDD evidence (#2217).\n${FLOOR_REMEDY}`
+  )
+}
+
+/** Branch changes src/, cites tasks in commit bodies, but no evidence verifies. */
+export function formatFloorError(ids) {
+  return (
+    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${ids.join(', ')} in\n` +
+    `commit bodies, but none of them has verified TDD evidence (#2217).\n` +
+    `Refs in a commit BODY are not verified per commit — otherwise every docs and chore\n` +
+    `commit would owe a red→green cycle — so the branch as a whole owes one verified\n` +
+    `evidence for the source it changes.\n${FLOOR_REMEDY}`
   )
 }
 
@@ -104,17 +181,36 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
 
   const taskIds = parseTaskIdsFromLog(subjectLog)
 
-  if (taskIds.length === 0) {
-    process.stdout.write('check-tdd-evidence: no task-ID commits found, vacuous pass\n')
-    return exitFn(0)
-  }
-
-  // Collect full commit bodies to detect skip trailers
+  // Collect full commit bodies — needed for the skip-trailer check AND for the
+  // branch-level floor below.
   let bodyLog
   try {
     bodyLog = run('git', ['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'], { cwd: repoRoot })
   } catch {
     bodyLog = ''
+  }
+
+  // #2217 — the branch floor. Subject-scoped IDs are verified per commit (below). A
+  // branch whose commits cite issues only in their BODIES used to parse to zero IDs and
+  // pass VACUOUSLY, whatever it changed. Evidence is now owed per CHANGE: a branch that
+  // touches src/ must carry at least ONE verified TDD evidence among the tasks it cites.
+  let floorIds = []
+  if (taskIds.length === 0) {
+    let changed = ''
+    try {
+      changed = run('git', ['diff', '--name-only', `${mergeBase}..HEAD`], { cwd: repoRoot })
+    } catch {
+      changed = ''
+    }
+    if (!touchesGovernedSource(changed)) {
+      process.stdout.write('check-tdd-evidence: no task-ID commits and no src/ change, vacuous pass\n')
+      return exitFn(0)
+    }
+    floorIds = parseTaskIdsFromBodies(bodyLog)
+    if (floorIds.length === 0) {
+      process.stderr.write(formatUncitedSourceError())
+      return exitFn(1)
+    }
   }
 
   // Check for skip trailers — forbidden at L2+
@@ -146,18 +242,17 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
 
   // Run arbiter verify tdd for each task ID
   // Use tsx (dev) to avoid requiring a build artifact; tsx is always available in devDeps
-  const tsxBin = resolve(repoRoot, 'node_modules/.bin/tsx')
-  const cliSrc = resolve(repoRoot, 'src/cli.ts')
-  let anyFail = false
-
-  for (const taskId of taskIds) {
+  const tsxBin = resolve(scriptRoot, 'node_modules/.bin/tsx')
+  const cliSrc = resolve(scriptRoot, 'src/cli.ts')
+  const verifyOne = (taskId) => {
     process.stdout.write(`  checking ${taskId}... `)
     try {
-      const out = run(tsxBin, [cliSrc, 'verify', 'tdd', taskId], {
+      const out = run(tsxBin, [cliSrc, 'verify', 'tdd', taskId, '--dir', repoRoot], {
         cwd: repoRoot,
       })
       process.stdout.write('PASS\n')
       if (out) process.stdout.write(`    ${out.replace(/\n/g, '\n    ')}\n`)
+      return true
     } catch (err) {
       process.stdout.write('FAIL\n')
       const msg =
@@ -165,11 +260,50 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
           ? err.stderr || err.stdout
           : String(err)
       process.stderr.write(`    ${String(msg).replace(/\n/g, '\n    ')}\n`)
-      anyFail = true
+      return false
     }
   }
 
-  if (anyFail) {
+  // Floor path: the branch owes ONE verified evidence, not one per cited issue —
+  // docs and chore commits that merely reference an issue owe nothing.
+  if (taskIds.length === 0) {
+    // ...and the evidence must have been PRODUCED here. Without this the floor is
+    // theatre: cite any long-closed task whose evidence sits on main and the branch
+    // "proves" a red→green cycle it never ran.
+    const producedHere = (taskId) => {
+      let touched = ''
+      try {
+        touched = run(
+          'git',
+          [
+            'log',
+            '--format=%H',
+            `${mergeBase}..HEAD`,
+            '--',
+            `.arbiter/evidence/tdd/${taskId}.json`,
+          ],
+          { cwd: repoRoot },
+        )
+      } catch {
+        touched = ''
+      }
+      if (touched.length > 0) return true
+      process.stdout.write(`  ${taskId}: evidence inherited from main, not produced on this branch\n`)
+      return false
+    }
+
+    if (floorIds.filter(producedHere).some(verifyOne)) {
+      process.stdout.write(
+        `check-tdd-evidence: branch floor satisfied (src/ change backed by verified evidence)\n`,
+      )
+      return exitFn(0)
+    }
+    process.stderr.write(formatFloorError(floorIds))
+    return exitFn(1)
+  }
+
+  const results = taskIds.map(verifyOne)
+  if (results.includes(false)) {
     process.stderr.write(
       `\ncheck-tdd-evidence: one or more task IDs failed TDD evidence verification.\n` +
         `Run: arbiter task record-red --test-path <path>\n`,

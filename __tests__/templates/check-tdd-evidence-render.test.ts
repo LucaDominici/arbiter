@@ -72,6 +72,14 @@ function runScenario(opts: {
   skipTrailer?: boolean
   /** Leave an orphaned (unreachable but still present) commit object behind, as a rebase does. */
   orphan?: boolean
+  /** Commit whose task id lives only in the BODY (`Refs #42`) — the #2217 shape. */
+  bodyRefsCommit?: boolean
+  /** With bodyRefsCommit: change docs only, never src/. */
+  sourceless?: boolean
+  /** A src/ change that cites no task id at all — untraceable. */
+  uncitedSourceCommit?: boolean
+  /** Leave the evidence file uncommitted, as if inherited rather than produced here. */
+  inheritedEvidence?: boolean
   evidence?: (featureSha: string, orphanSha: string) => string | null
 }): number {
   const scriptDir = mkdtempSync(join(tmpdir(), 'tdd-s-'))
@@ -99,6 +107,27 @@ function runScenario(opts: {
         : 'feat(#42): add foo'
       g(['commit', '-m', msg])
     }
+
+    // #2217: the repo convention for a commit with no TDD cycle of its own — the task
+    // id lives in the BODY, so the subject parses to zero ids.
+    if (opts.bodyRefsCommit) {
+      if (opts.sourceless) {
+        mkdirSync(join(repo, 'docs'), { recursive: true })
+        writeFileSync(join(repo, 'docs', 'note.md'), '# note\n')
+      } else {
+        mkdirSync(join(repo, 'src'), { recursive: true })
+        writeFileSync(join(repo, 'src', 'foo.test.ts'), 'test("foo", () => {})\n')
+      }
+      g(['add', '.'])
+      g(['commit', '-m', 'fix(cli): tidy things up\n\nRefs #42'])
+    }
+
+    if (opts.uncitedSourceCommit) {
+      mkdirSync(join(repo, 'src'), { recursive: true })
+      writeFileSync(join(repo, 'src', 'untraceable.ts'), 'export const x = 1\n')
+      g(['add', '.'])
+      g(['commit', '-m', 'chore: tidy up'])
+    }
     let orphanSha = ''
     if (opts.orphan) {
       // A rebase leaves the pre-rebase commit as a live OBJECT that is no longer
@@ -115,6 +144,11 @@ function runScenario(opts: {
       if (body !== null) {
         mkdirSync(join(repo, '.arbiter', 'evidence', 'tdd'), { recursive: true })
         writeFileSync(join(repo, '.arbiter', 'evidence', 'tdd', '#42.json'), body)
+        // Committed on the branch — evidence this branch PRODUCED, not inherited (#2217).
+        if (!opts.inheritedEvidence) {
+          g(['add', '.arbiter'])
+          g(['commit', '-m', 'chore: record evidence'])
+        }
       }
     }
     const r = spawnSync('node', [join(scriptDir, 'check-tdd-evidence.mjs'), '--dir', repo], {
@@ -199,6 +233,35 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
 
   it('vacuous PASS (exit 0) when there are no task-ID commits', () => {
     expect(runScenario({ taskCommit: false })).toBe(0)
+  })
+
+  // ── #2217: the branch floor ────────────────────────────────────────────────
+  // `Refs #NNN` in the BODY parses to zero task ids, so a branch could change source
+  // and pass VACUOUSLY while citing issues everywhere.
+  it('FAIL (exit 1) when a body-refs branch changes src/ with no evidence at all', () => {
+    expect(runScenario({ bodyRefsCommit: true, evidence: () => null })).toBe(1)
+  })
+
+  it('PASS (exit 0) when a body-refs branch changing src/ has evidence for the cited task', () => {
+    expect(runScenario({ bodyRefsCommit: true, evidence: (sha) => validEvidence(sha) })).toBe(0)
+  })
+
+  it('vacuous PASS (exit 0) for a body-refs branch that changes no source', () => {
+    expect(runScenario({ bodyRefsCommit: true, sourceless: true, evidence: () => null })).toBe(0)
+  })
+
+  it('FAIL (exit 1) when src/ changes cite no task id anywhere', () => {
+    expect(runScenario({ uncitedSourceCommit: true })).toBe(1)
+  })
+
+  it('FAIL (exit 1) when the cited task’s evidence was not produced on this branch', () => {
+    expect(
+      runScenario({
+        bodyRefsCommit: true,
+        inheritedEvidence: true,
+        evidence: (sha) => validEvidence(sha),
+      }),
+    ).toBe(1)
   })
 })
 
