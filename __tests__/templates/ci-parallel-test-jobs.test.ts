@@ -60,6 +60,23 @@ describe('01-pr-fast.yml.ejs — parallel test category jobs (#219)', () => {
       expect(fast.match(/unit-tests:[\s\S]*?fetch-depth: 0/)).not.toBeNull()
       expect(extended.match(/behavioral-tests:[\s\S]*?fetch-depth: 0/)).not.toBeNull()
     })
+
+    // #2100: the nightly coverage job runs the SAME suite on a default shallow
+    // checkout, so `verify tdd`'s sha-on-branch check cannot reach the evidence
+    // commit and the envelope carries 4 verdicts instead of 6 — red every night,
+    // while the deep-checkout gate-full-nightly job passed on the same commit.
+    it('the nightly coverage job checks out full history too', () => {
+      const data = makeConfig('/tmp/test', {
+        language: 'typescript',
+        governanceLevel: 'L2',
+      }) as unknown as Record<string, unknown>
+      const nightly = renderTemplate('github/workflows/_nightly.yml.ejs', data)
+      // Scoped to the job's own block: an unbounded `[\s\S]*?` would happily match a
+      // fetch-depth belonging to a LATER job and assert nothing.
+      const block = nightly.slice(nightly.indexOf('\n  coverage-report:')).split(/\n  \w[\w-]*:/)[1]
+      expect(block).toBeDefined()
+      expect(block).toContain('fetch-depth: 0')
+    })
   })
 
   describe('Rust L2 — ci-required must NOT reference unit-tests', () => {

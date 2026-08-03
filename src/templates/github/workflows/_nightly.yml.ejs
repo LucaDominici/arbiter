@@ -394,6 +394,10 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The full suite includes TDD-evidence checks that resolve an older
+          # commit; reachability needs history, not a shallow clone (#2100).
+          fetch-depth: 0
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
 <% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
