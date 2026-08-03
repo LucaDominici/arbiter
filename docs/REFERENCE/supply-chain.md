@@ -25,6 +25,15 @@ Build → Trivy CRITICAL scan → cosign sign-blob → SBOM attest → GitHub re
 All stages are declared in `src/templates/github/workflows/05-release.yml.ejs` and emitted when
 `ciTierMode` is not `'baseline'` (i.e., `full` mode, which is the default).
 
+### Artifact identity (#2138)
+
+The artifact that is signed **is** the artifact that is published — one file, packed once. For an
+npm library, `build-superset` runs `npm pack` and every downstream stage (sha256 → SLSA subject →
+cosign → SBOM attest → `npm publish <tarball>`) carries that same `.tgz`; the publish job re-checks
+`sha256sums.txt` and fails closed before uploading. Repacking anywhere in the chain would rerun
+`prepack` and produce bytes the attestations do not cover — the defect this rule exists to prevent.
+Publishing is reachable only from a `refs/tags/v*` ref.
+
 ## Components
 
 ### 1. Trivy Filesystem Scan (`trivy-fs-scan` job)
@@ -41,7 +50,7 @@ All stages are declared in `src/templates/github/workflows/05-release.yml.ejs` a
 - **Tool:** `sigstore/cosign-installer` + `cosign sign-blob --yes`
 - **Method:** OIDC keyless signing via GitHub Actions OIDC token → Fulcio CA → Rekor transparency log
 - **No private keys required** — identity is bound to the GitHub Actions OIDC claim
-- **Output:** `release-artifact.zip.bundle` (uploaded as artifact, attached to GitHub release)
+- **Output:** `<artifact>.bundle` (uploaded as artifact, attached to GitHub release)
 - **Related:** INV-79 — cosign sign-blob required for every release artifact
 
 ### 3. SBOM Generation and Attestation (`sbom` + `sbom-attest` jobs)

@@ -11,6 +11,12 @@ const _isBatch = isBatch;
 // contradicts docs/SYSTEM/CI-TIER-MODEL.md:100-102 ("L4 = L3 + SLSA L3 provenance…").
 const _slsaL3 = isL3Plus;
 const _verifyOnSign = governanceLevel !== 'L1';
+// #2138: for an npm library the SIGNED artifact must BE the published tarball.
+// A zip of the build output is a different artifact from the one `npm publish`
+// uploads (prepack rebuilds it), so cosign/SLSA/SBOM would attest bytes nobody
+// installs. Pack once with `npm pack`, sign that .tgz, publish that same file.
+const _npmLib = language === 'typescript' && !_isService && !_isCli && !_isBatch;
+const _artifact = _npmLib ? 'release-artifact.tgz' : 'release-artifact.zip';
 %>name: Release (T3)
 
 # E3: release machinery is PROD-only. The full sign / SBOM / SLSA / attest /
@@ -43,25 +49,35 @@ jobs:
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - run: npm run build
+<% if (_npmLib) { %>
+      - name: Package artifact (#2138 — pack ONCE, this exact tarball is signed and published)
+        # `npm pack` produces the same bytes `npm publish` would upload. Everything
+        # downstream (hash → SLSA subject → cosign → SBOM attest → publish) carries
+        # THIS file, so the attestation covers what a consumer installs.
+        run: |
+          TARBALL=$(npm pack --silent --pack-destination .)
+          mv "$TARBALL" <%= _artifact %>
+<% } else { %>
       - name: Package artifact
-        run: zip -r release-artifact.zip dist/
+        run: zip -r <%= _artifact %> dist/
+<% } %>
 <%# #1803: kotlin shares this branch — `gradlew build`/`mvn package` compile
     Kotlin sources identically to Java in the same reactor (confirmed during
     the #1724 cross-language-matrix audit). The sbom job below `needs:
     build-superset`, so kotlin coverage here is a prerequisite for its own
     kotlin coverage to actually run (a build-superset that never emits
-    release-artifact.zip would fail the hash step and skip sbom entirely). -%>
+    the release artifact would fail the hash step and skip sbom entirely). -%>
 <% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
       - run: ./gradlew build -x test
       - name: Package artifact
-        run: zip -r release-artifact.zip build/libs/
+        run: zip -r <%= _artifact %> build/libs/
 <% } else { %>
       - run: mvn -B package -DskipTests
       - name: Package artifact
-        run: zip -r release-artifact.zip target/
+        run: zip -r <%= _artifact %> target/
 <% } %>
 <% } else if (language === 'go') { %>
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
@@ -69,7 +85,7 @@ jobs:
           go-version-file: go.mod
       - run: go build -o dist/app ./...
       - name: Package artifact
-        run: zip -r release-artifact.zip dist/
+        run: zip -r <%= _artifact %> dist/
 <% } else if (language === 'python') { %>
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
@@ -77,24 +93,24 @@ jobs:
       - run: pip install build
       - run: python -m build
       - name: Package artifact
-        run: zip -r release-artifact.zip dist/
+        run: zip -r <%= _artifact %> dist/
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - run: cargo build --release
       - name: Package artifact
-        run: zip -r release-artifact.zip target/release/
+        run: zip -r <%= _artifact %> target/release/
 <% } %>
       - name: Compute artifact hash
         id: hash
         run: |
-          sha256sum release-artifact.zip > sha256sums.txt
+          sha256sum <%= _artifact %> > sha256sums.txt
           echo "hashes=$(base64 -w0 sha256sums.txt)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: release-artifact
           path: |
-            release-artifact.zip
+            <%= _artifact %>
             sha256sums.txt
           retention-days: 30
 
@@ -345,20 +361,20 @@ jobs:
           fi
           echo "sigstore-status=$STATUS"
       - name: Sign artifact (keyless OIDC)
-        run: cosign sign-blob --yes release-artifact.zip --bundle release-artifact.zip.bundle
+        run: cosign sign-blob --yes <%= _artifact %> --bundle <%= _artifact %>.bundle
 <% if (_verifyOnSign) { %>
       - name: Verify signature (L2+ strict)
         run: |
           cosign verify-blob \
-            --bundle release-artifact.zip.bundle \
+            --bundle <%= _artifact %>.bundle \
             --certificate-identity-regexp ".*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            release-artifact.zip
+            <%= _artifact %>
 <% } %>
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: cosign-bundle
-          path: release-artifact.zip.bundle
+          path: <%= _artifact %>.bundle
           retention-days: 90
 
   slsa-provenance:
@@ -390,7 +406,7 @@ jobs:
           name: release-artifact
       - uses: actions/attest-build-provenance@520aba26e2f010aaab88f4a9c58cdbb3f3965fc2  # v2
         with:
-          subject-path: release-artifact.zip
+          subject-path: <%= _artifact %>
 
 <% if (_isService) { %>
   trivy-strict-release:
@@ -599,10 +615,10 @@ jobs:
       - name: Create release manifest
         run: |
           cat <<EOF > manifest.json
-          {"version":"${{ github.ref_name }}","sha":"${{ github.sha }}","artifact":"release-artifact.zip","sbom":"sbom.cdx.json"}
+          {"version":"${{ github.ref_name }}","sha":"${{ github.sha }}","artifact":"<%= _artifact %>","sbom":"sbom.cdx.json"}
           EOF
       - name: Bundle with manifest
-        run: tar -czf batch-bundle.tar.gz release-artifact.zip manifest.json sbom.cdx.*
+        run: tar -czf batch-bundle.tar.gz <%= _artifact %> manifest.json sbom.cdx.*
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6  # v4.1.2
       - name: Sign batch bundle (keyless)
         run: cosign sign-blob --yes batch-bundle.tar.gz --bundle batch-bundle.tar.gz.bundle
@@ -627,7 +643,10 @@ jobs:
   publish-package:
     name: Publish package (lib)
     needs: [cosign-sign, attest-build-provenance, slsa-provenance]
-    if: github.event_name != 'pull_request'
+    # #2138: publishing is reachable ONLY from a release tag. `github.event_name
+    # != 'pull_request'` was not a guard — any other event (a manual dispatch on
+    # an arbitrary branch) walked straight into the publish step.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     permissions:
@@ -638,6 +657,10 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: release-artifact
+      - name: Verify the downloaded artifact is the one that was signed (#2138)
+        # Fail closed if the bytes differ from the ones hashed in build-superset,
+        # signed by cosign and carried as the SLSA subject.
+        run: sha256sum -c sha256sums.txt
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
@@ -646,7 +669,9 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - name: Publish to npm (with provenance)
-        run: npm publish --provenance --access public
+        # Publishes the SIGNED tarball itself. Packing here instead would rerun
+        # `prepack` and upload a rebuilt artifact the attestations do not cover.
+        run: npm publish --provenance --access public <%= _artifact %>
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 <% } else if (language === 'java') { %>
@@ -672,7 +697,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Create GitHub release
-        run: gh release create ${{ github.ref_name }} release-artifact.zip sha256sums.txt --generate-notes
+        run: gh release create ${{ github.ref_name }} <%= _artifact %> sha256sums.txt --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 <% } else if (language === 'python') { %>

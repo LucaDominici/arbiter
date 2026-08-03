@@ -107,9 +107,9 @@
   {
     "path": "05-release.yml",
     "dest": ".github/workflows",
-    "reason": "Self is the typescript/library archetype's own release: it runs npm-package-publishing guards (check-pack-size.mjs, check-tarball-contents.mjs, `zip -r release-artifact.zip`) that only apply to the @arbiter/cli tarball, absent from the generic multi-archetype template render for this profile. Large diff (many other-archetype release steps this profile doesn't hit) — NOT individually audited line-by-line; R-01/R-09 (census) already track 05-release template↔self parity as a dedicated follow-up. Tracked under #1900.",
+    "reason": "Self is the typescript/library archetype's own release: it runs npm-package-publishing guards (check-pack-size.mjs, check-tarball-contents.mjs) plus a self-only packaged-export smoke (#2139) over the just-packed tarball — all specific to the @arbiter/cli tarball and absent from the generic multi-archetype template render for this profile. Large diff (many other-archetype release steps this profile doesn't hit) — NOT individually audited line-by-line; R-01/R-09 (census) already track 05-release template↔self parity as a dedicated follow-up. Re-pinned under #2138 once BOTH sides were fixed to pack once and sign/publish the same npm tarball and the triggers were reconciled to tag-only; the trigger block and the publish-path shape are now asserted directly in __tests__/templates/05-release-render.test.ts, so neither can hide inside this pin again. Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "67071a7eb5145c902048ec8895d8cc9af811622f7f35545d2b1fd81bc7a2abb5"
+    "diffHash": "04340bf2be3285330469da18c3178d8ff72c96201f74de3a09dc1497c67a62b2"
   },
   {
     "path": "_nightly.yml",
