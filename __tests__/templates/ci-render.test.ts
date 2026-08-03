@@ -43,7 +43,7 @@ describe('01-pr-fast.yml.ejs rendering', () => {
     const data = makeConfig('/tmp/test', {}) as unknown as Record<string, unknown>
     const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('concurrency:')
-    expect(rendered).toContain('group: pr-fast-${{ github.head_ref || github.ref }}')
+    expect(rendered).toContain('group: pr-fast-${{ github.head_ref || github.ref_name }}')
     // Default strategy (github-flow): no develop branch in cancel condition
     expect(rendered).toMatch(/cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/)
   })
@@ -191,7 +191,7 @@ describe('01-pr-fast.yml.ejs — T1 structural features (CANON-18)', () => {
       unknown
     >
     const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
-    expect(rendered).toContain('group: pr-fast-${{ github.head_ref || github.ref }}')
+    expect(rendered).toContain('group: pr-fast-${{ github.head_ref || github.ref_name }}')
   })
 
   it.each(STACKS)('$language: includes human-approval-required job', ({ language, buildTool }) => {

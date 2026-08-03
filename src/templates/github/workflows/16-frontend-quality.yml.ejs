@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: frontend-quality-${{ github.head_ref || github.ref }}
+  group: frontend-quality-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:

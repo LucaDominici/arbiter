@@ -26,7 +26,7 @@ on:
       - '.editorconfig'
 
 concurrency:
-  group: pr-extended-${{ github.head_ref || github.ref }}
+  group: pr-extended-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:

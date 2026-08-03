@@ -41,7 +41,7 @@ describe('02-pr-extended.yml.ejs — structural invariants (CANON-18)', () => {
 
   it.each(STACKS)('$language: concurrency group uses head_ref', ({ language, buildTool }) => {
     const rendered = renderExt({ language, buildTool })
-    expect(rendered).toContain('group: pr-extended-${{ github.head_ref || github.ref }}')
+    expect(rendered).toContain('group: pr-extended-${{ github.head_ref || github.ref_name }}')
   })
 
   it.each(STACKS)('$language: check-trigger job present', ({ language, buildTool }) => {

@@ -260,7 +260,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: codeql-\${{ github.head_ref || github.ref }}
+  group: codeql-\${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
   analyze:

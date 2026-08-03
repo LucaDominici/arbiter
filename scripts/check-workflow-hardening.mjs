@@ -5,7 +5,10 @@
 // CATALOG:   gold-audit D-ACTIONS dimension (value report-metric). Gated metrics (fail the gate
 // CATALOG:   when > 0): unpinnedActions (non-40-hex `uses:` ref), workflowsMissingPermissions
 // CATALOG:   (no top-level `permissions:`), prPushWorkflowsMissingConcurrency (a pull_request/push
-// CATALOG:   triggered workflow with no `concurrency:`), jobsMissingTimeout (numbered-tier jobs
+// CATALOG:   triggered workflow with no `concurrency:`), concurrencyGroupRefFallback (a group
+// CATALOG:   falling back to `github.ref` instead of `github.ref_name`, which splits push and
+// CATALOG:   pull_request for one branch into two groups so neither cancels the other, #2123),
+// CATALOG:   jobsMissingTimeout (numbered-tier jobs
 // CATALOG:   lacking timeout-minutes — a hung job otherwise runs to GitHub's 6h default, #1485),
 // CATALOG:   cancellableDeployAuditWorkflows (a deploy/audit/release-class workflow that is NOT
 // CATALOG:   pull_request-triggered yet has cancellable concurrency — a silently-cancelled required
@@ -176,6 +179,22 @@ function isCancellableConcurrency(lines) {
 }
 
 /**
+ * Count concurrency groups that fall back to `github.ref` when `github.head_ref` is empty
+ * (#2123, recurrence of #1987). `head_ref` is set only on pull_request events and holds the
+ * bare branch name; on push the fallback yields `refs/heads/<branch>`. Two different group
+ * strings for one branch means cancel-in-progress never fires across the push/PR pair and
+ * both runs execute the full gate concurrently on the same runner. `github.ref_name` is the
+ * same value without the `refs/heads/` prefix, so it unifies the two events.
+ */
+function countRefFallbackGroups(lines) {
+  // `group:` under `concurrency:` is the only such key in workflow YAML (top-level or
+  // job-level), so matching the key alone needs no block tracking.
+  return lines.filter(
+    (l) => /^\s*group:/.test(l) && /github\.head_ref\s*\|\|\s*github\.ref\s*}}/.test(l),
+  ).length
+}
+
+/**
  * Count numbered-tier jobs (files matching `0N-*.yml`) that lack `timeout-minutes`. A job whose
  * body is a reusable-workflow call (job-level `uses:`) is exempt — GitHub forbids timeout-minutes
  * there. Visibility-only: reported, not gated, until the timeout-hardening follow-up.
@@ -223,6 +242,7 @@ function main() {
     unpinnedActions: 0,
     workflowsMissingPermissions: 0,
     prPushWorkflowsMissingConcurrency: 0,
+    concurrencyGroupRefFallback: 0,
     jobsMissingTimeout: 0,
     cancellableDeployAuditWorkflows: 0,
   }
@@ -244,6 +264,15 @@ function main() {
     if (isPrPushTriggered(content) && !hasConcurrency(lines)) {
       metrics.prPushWorkflowsMissingConcurrency++
       violations.push(`${rel}: pull_request/push workflow without concurrency`)
+    }
+    const refFallback = countRefFallbackGroups(lines)
+    if (refFallback > 0) {
+      metrics.concurrencyGroupRefFallback += refFallback
+      violations.push(
+        `${rel}: ${refFallback} concurrency group(s) falling back to github.ref — use ` +
+          `github.ref_name, or push and pull_request land in different groups for the same ` +
+          `branch and both run the full gate (#2123, recurrence of #1987)`,
+      )
     }
     metrics.jobsMissingTimeout += countJobsMissingTimeout(file, lines)
     if (
@@ -273,6 +302,7 @@ function main() {
     metrics.unpinnedActions +
     metrics.workflowsMissingPermissions +
     metrics.prPushWorkflowsMissingConcurrency +
+    metrics.concurrencyGroupRefFallback +
     metrics.jobsMissingTimeout +
     metrics.cancellableDeployAuditWorkflows
   if (gated > 0) {

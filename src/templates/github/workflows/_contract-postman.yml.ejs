@@ -21,7 +21,7 @@ on:
 
 # Cancel in-progress contract runs on the same branch — re-runs on each push.
 concurrency:
-  group: contract-postman-${{ github.head_ref || github.ref }}
+  group: contract-postman-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:

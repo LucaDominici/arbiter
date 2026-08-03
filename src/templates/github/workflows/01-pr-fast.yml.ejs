@@ -21,7 +21,7 @@ on:
 <% } %>
 # Cancel in-progress runs on the same ref; main always completes (#357).
 concurrency:
-  group: pr-fast-${{ github.head_ref || github.ref }}
+  group: pr-fast-${{ github.head_ref || github.ref_name }}
 <% if (_bs === 'github-flow-with-develop') { %>
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 <% } else { %>

@@ -13,7 +13,7 @@ permissions:
 
 # Cancel in-progress runs on the same ref; a new push supersedes the stale one.
 concurrency:
-  group: ci-${{ github.head_ref || github.ref }}
+  group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
