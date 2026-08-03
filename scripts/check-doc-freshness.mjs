@@ -141,6 +141,11 @@ function evaluateDoc(check, filePath, bars, cwd) {
   if (SKIP_FILENAMES.has(basename(filePath))) {
     return { ...base, exempt: 'generated-no-frontmatter', verdict: 'fresh' }
   }
+  // changesets' prependFile uses the first line as its insertion anchor; top-of-file frontmatter
+  // would be spliced into by every future release, corrupting the metadata block.
+  if (basename(filePath) === 'CHANGELOG.md') {
+    return { ...base, exempt: 'changesets-managed', verdict: 'fresh' }
+  }
 
   const abs = resolve(cwd, filePath)
   const content = readFileSync(abs, 'utf-8')

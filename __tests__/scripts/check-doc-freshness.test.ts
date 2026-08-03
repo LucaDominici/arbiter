@@ -222,6 +222,22 @@ describe('check-doc-freshness (T4, #H4)', () => {
     }
   })
 
+  it('exemption: CHANGELOG.md is changesets-managed, never graded for frontmatter', () => {
+    const manifest = `checks:
+  - path: CHANGELOG.md
+    tier: mandatory
+    applies: always
+`
+    const { dir, cleanup } = makeRepo(manifest)
+    try {
+      writeFileSync(join(dir, 'CHANGELOG.md'), '# Changelog\n\nNo frontmatter here.\n')
+      const r = run(dir)
+      expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it("a check with no applicable/present file is simply not graded (presence is check-doc-set.mjs's job)", () => {
     const manifest = `checks:
   - path: docs/never-written.md

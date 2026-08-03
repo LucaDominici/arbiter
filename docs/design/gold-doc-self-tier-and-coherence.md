@@ -2,7 +2,7 @@
 title: 'Gold-Doc Addendum — self-tier floor & CLI-surface coherence'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-07-12'
+last_review: '2026-08-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']

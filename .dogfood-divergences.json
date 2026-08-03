@@ -214,7 +214,7 @@
     "dest": "scripts",
     "reason": "T4 (gold-doc-tranches-t3-t5.md, design doc §2.3), by design (not drift), R-02 dogfood-parity rollout (#1900): self runs the REAL engine (frontmatter parsing, per-class bars, git change-coupling — scripts/check-doc-freshness.mjs) while the shipped template counterpart is a THIN runner that only shells `npx --no-install arbiter doc-set --freshness`, mirroring the pre-existing check-doc-set.mjs / check-doc-set.mjs.ejs split (the row directly above this one) so governed repos never take the `yaml` dependency.",
     "expires": "2026-08-15",
-    "diffHash": "1cb31735f9e33dafc9cf9526616ec38271686897268cdc7ca0a2717067cefa1e"
+    "diffHash": "66e8c3086abc85f839bb24e9565033da8e9334a317759558fdb56fe8d9854176"
   },
   {
     "path": "check-docs.mjs",
@@ -359,7 +359,7 @@
     "path": "check-local-ci-parity.mjs",
     "dest": "scripts",
     "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder.",
-    "diffHash": "ccb09707db285472d37385a53ca8724dda1ee906947f4b12721f276ffc3f9182"
+    "diffHash": "85ebb39bb586a51e5e723b7d3b855582b98de766cd2dd22f4b9b888423c16a40"
   },
   {
     "path": "check-suppression-expiry.mjs",

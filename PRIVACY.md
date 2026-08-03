@@ -1,3 +1,14 @@
+---
+title: 'Privacy Policy'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-06-22'
+owner: ''
+canonical_id: ''
+tags: ['audience/dev', 'kind/security']
+related: []
+---
+
 # Privacy Policy
 
 **Arbiter collects zero telemetry and makes zero unsolicited network calls.**

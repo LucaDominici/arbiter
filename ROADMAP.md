@@ -1,3 +1,14 @@
+---
+title: 'arbiter Roadmap'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-16'
+owner: ''
+canonical_id: ''
+tags: ['audience/dev', 'kind/product']
+related: []
+---
+
 # arbiter Roadmap
 
 **Issue:** #566
