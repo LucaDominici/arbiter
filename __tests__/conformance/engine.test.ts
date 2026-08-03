@@ -83,6 +83,31 @@ describe('evaluate() — core (#1393 unit 1)', () => {
     expect(result.checks[0]?.evidence?.detail).toBe('missing')
   })
 
+  it('file_exists distinguishes empty, whitespace-only, substantive, and missing files', () => {
+    const root = tmpDir()
+    writeFileSync(join(root, 'empty.md'), '')
+    writeFileSync(join(root, 'whitespace.md'), '\n\n  \n')
+    writeFileSync(join(root, 'content.md'), '# substantive\n')
+    const registry: RegistryInput = {
+      checks: [
+        { id: 'EMPTY', type: 'file_exists', args: { path: 'empty.md' } },
+        { id: 'WHITESPACE', type: 'file_exists', args: { path: 'whitespace.md' } },
+        { id: 'CONTENT', type: 'file_exists', args: { path: 'content.md' } },
+        { id: 'MISSING', type: 'file_exists', args: { path: 'missing.md' } },
+      ],
+    }
+    const result = evaluate(registry, new Set<string>(), root)
+    const byId = Object.fromEntries(result.checks.map((check) => [check.id, check]))
+
+    expect(byId.EMPTY).toMatchObject({ verdict: 'P', evidence: { detail: 'present but empty' } })
+    expect(byId.WHITESPACE).toMatchObject({
+      verdict: 'P',
+      evidence: { detail: 'present but empty' },
+    })
+    expect(byId.CONTENT).toMatchObject({ verdict: 'Y' })
+    expect(byId.MISSING).toMatchObject({ verdict: 'N', evidence: { detail: 'missing' } })
+  })
+
   it('file_contains returns Y when pattern is found', () => {
     const root = tmpDir()
     writeFileSync(join(root, 'config.ts'), 'export const VERSION = "1.0.0"')

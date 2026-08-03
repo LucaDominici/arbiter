@@ -336,7 +336,7 @@ describe('runTaskRecordRed()', () => {
     expect(testCallOpts.timeoutMs).toBe(expected)
   })
 
-  it('records evidence when the failure signature appears only on stderr of a zero-exit run', () => {
+  it('refuses a zero-exit suite even when stderr contains a failure signature', () => {
     const dir = tmpRepo()
     mockBranch()
     mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
@@ -348,12 +348,9 @@ describe('runTaskRecordRed()', () => {
       durationMs: 50,
     })
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
-    expect(result.ok).toBe(true)
-    const ev = JSON.parse(
-      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
-    )
-    expect(ev.test_run_log).toContain('suite started')
-    expect(ev.test_run_log).toContain('FAIL src/foo.test.ts')
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/exited 0.*suite passed.*RED phase/i)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'))).toBe(false)
   })
 
   it('captures both stdout and stderr from a failing (throwing) test run', () => {
@@ -366,6 +363,7 @@ describe('runTaskRecordRed()', () => {
       throw Object.assign(new Error('exit 1'), {
         stdout: 'FAIL src/foo.test.ts\n1 failed',
         stderr: 'deprecation warning: old flag',
+        exitCode: 1,
       })
     })
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
@@ -386,6 +384,7 @@ describe('runTaskRecordRed()', () => {
       throw Object.assign(new Error('exit 1'), {
         stdout: 'FAIL src/foo.test.ts\n1 failed',
         stderr: '',
+        exitCode: 1,
       })
     })
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })

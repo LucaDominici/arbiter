@@ -11,6 +11,8 @@ import { readUnifiedState } from '../../src/commands/task-state.js'
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
+  currentBranch: vi.fn().mockReturnValue('task/549-phase-marker'),
+  headSha: vi.fn().mockReturnValue('b'.repeat(40)),
 }))
 
 vi.mock('../../src/capabilities/host-probe.js', () => ({
@@ -34,6 +36,33 @@ function writeEvidence(dir: string): void {
   const evDir = join(dir, '.arbiter', 'evidence', 'tdd')
   mkdirSync(evDir, { recursive: true })
   writeFileSync(join(evDir, '#549.json'), JSON.stringify(VALID_EVIDENCE), 'utf-8')
+}
+
+function writeGatePassMarker(
+  dir: string,
+  overrides: Partial<{
+    head_sha: string
+    branch: string
+    tree_was_clean_at_run_time: boolean
+  }> = {},
+): void {
+  const markerDir = join(dir, '.arbiter')
+  mkdirSync(markerDir, { recursive: true })
+  writeFileSync(
+    join(markerDir, 'gate-pass.json'),
+    JSON.stringify({
+      head_sha: 'b'.repeat(40),
+      branch: 'task/549-phase-marker',
+      task_id: '#549',
+      timestamp: '2026-08-03T00:00:00.000Z',
+      level: 'L2',
+      node_version: process.version,
+      git_user: 'test-user',
+      tree_was_clean_at_run_time: true,
+      ...overrides,
+    }),
+    'utf-8',
+  )
 }
 
 function captureStdout(fn: () => void): string {
@@ -107,9 +136,85 @@ describe('legacy → unified migration (#1206, #549)', () => {
     expect(phaseOf()).toBe('refactor')
   })
 
-  it('refactor → verification succeeds', () => {
+  it('refactor → verification rejects a missing gate-pass marker and leaves the phase unchanged', () => {
     seedLegacy('refactor')
+    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/missing.*gate-pass\.json/i)
+    expect(phaseOf()).toBe('refactor')
+  })
+
+  it('refactor → verification rejects a corrupt gate-pass marker', () => {
+    seedLegacy('refactor')
+    const markerDir = join(dir, '.arbiter')
+    mkdirSync(markerDir, { recursive: true })
+    writeFileSync(join(markerDir, 'gate-pass.json'), '{not-json', 'utf-8')
+    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(
+      /corrupt.*node scripts\/check-all\.mjs L2/i,
+    )
+    expect(phaseOf()).toBe('refactor')
+  })
+
+  it('refactor → verification rejects a stale head_sha marker', () => {
+    seedLegacy('refactor')
+    writeGatePassMarker(dir, { head_sha: 'a'.repeat(40) })
+    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/head_sha/i)
+    expect(phaseOf()).toBe('refactor')
+  })
+
+  it('refactor → verification rejects a marker for another branch', () => {
+    seedLegacy('refactor')
+    writeGatePassMarker(dir, { branch: 'task/other-branch' })
+    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/branch/i)
+    expect(phaseOf()).toBe('refactor')
+  })
+
+  it('refactor → verification rejects a marker recorded over a dirty tree', () => {
+    seedLegacy('refactor')
+    writeGatePassMarker(dir, { tree_was_clean_at_run_time: false })
+    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/tree_was_clean_at_run_time/i)
+    expect(phaseOf()).toBe('refactor')
+  })
+
+  it('refactor → verification accepts a fresh correlated marker and writes the phase', () => {
+    seedLegacy('refactor')
+    writeGatePassMarker(dir)
     expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
+    expect(phaseOf()).toBe('verification')
+  })
+
+  it('verification → close rejects a missing gate-pass marker', () => {
+    seedLegacy('verification')
+    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/missing.*gate-pass\.json/i)
+    expect(phaseOf()).toBe('verification')
+  })
+
+  it('close → complete rejects a missing gate-pass marker', () => {
+    seedLegacy('close')
+    expect(() => runTaskAdvance({ to: 'complete', dir })).toThrow(/missing.*gate-pass\.json/i)
+    expect(phaseOf()).toBe('close')
+  })
+
+  it('ARBITER_SKIP_GATE_MARKER bypasses the marker gate outside CI', () => {
+    vi.stubEnv('ARBITER_SKIP_GATE_MARKER', '1')
+    vi.stubEnv('CI', 'false')
+    try {
+      seedLegacy('refactor')
+      expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
+      expect(phaseOf()).toBe('verification')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('ARBITER_SKIP_GATE_MARKER is refused under CI', () => {
+    vi.stubEnv('ARBITER_SKIP_GATE_MARKER', '1')
+    vi.stubEnv('CI', 'true')
+    try {
+      seedLegacy('refactor')
+      expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/missing.*gate-pass\.json/i)
+      expect(phaseOf()).toBe('refactor')
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('plan-review gate path: advance to red with skipPlanReview succeeds', () => {

@@ -26,6 +26,8 @@ vi.mock('../../src/capabilities/host-probe.js', () => ({
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
+  currentBranch: vi.fn().mockReturnValue('task/1206-gate-marker'),
+  headSha: vi.fn().mockReturnValue('b'.repeat(40)),
 }))
 
 function writeTddEvidence(dir: string, taskId: string): void {
@@ -41,6 +43,25 @@ function writeTddEvidence(dir: string, taskId: string): void {
       test_run_log: 'FAIL __tests__/x.test.ts\n✗ 1 test failed',
       observed_failure: 'FAIL __tests__/x.test.ts',
       recorded_at: '2026-06-04T00:00:00.000Z',
+    }),
+    'utf-8',
+  )
+}
+
+function writeGatePassMarker(dir: string, taskId: string): void {
+  const markerDir = join(dir, '.arbiter')
+  mkdirSync(markerDir, { recursive: true })
+  writeFileSync(
+    join(markerDir, 'gate-pass.json'),
+    JSON.stringify({
+      head_sha: 'b'.repeat(40),
+      branch: 'task/1206-gate-marker',
+      task_id: taskId,
+      timestamp: '2026-08-03T00:00:00.000Z',
+      level: 'L2',
+      node_version: process.version,
+      git_user: 'test-user',
+      tree_was_clean_at_run_time: true,
     }),
     'utf-8',
   )
@@ -230,6 +251,9 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
   it('auto-advances phase-by-phase through gate-green to complete', () => {
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeTddEvidence(dir, '#1206')
+    // The verification/close/complete phase gates require a real-shape marker correlated to
+    // this fixture's mocked branch and HEAD, just as a successful check-all run would write.
+    writeGatePassMarker(dir, '#1206')
 
     const visited: TaskPhase[] = ['preflight']
     let guard = 0

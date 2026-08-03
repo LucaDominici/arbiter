@@ -145,6 +145,44 @@ describe('gold-audit (#1373)', () => {
     }
   })
 
+  it('file_exists distinguishes empty, whitespace-only, substantive, and missing files', () => {
+    const { dir, cleanup } = makeRepo(
+      `version: '1.0.0'
+checks:
+  - id: EMPTY
+    type: file_exists
+    args: { path: empty.md }
+  - id: WHITESPACE
+    type: file_exists
+    args: { path: whitespace.md }
+  - id: CONTENT
+    type: file_exists
+    args: { path: content.md }
+  - id: MISSING
+    type: file_exists
+    args: { path: missing.md }
+`,
+    )
+    try {
+      writeFileSync(join(dir, 'empty.md'), '')
+      writeFileSync(join(dir, 'whitespace.md'), '\n\n  \n')
+      writeFileSync(join(dir, 'content.md'), '# substantive\n')
+      const j = JSON.parse(run(dir, ['--json']).stdout)
+      const byId: Record<string, { verdict: string; evidence: { detail?: string } }> =
+        Object.fromEntries(j.checks.map((c: { id: string }) => [c.id, c]))
+
+      expect(byId.EMPTY).toMatchObject({ verdict: 'P', evidence: { detail: 'present but empty' } })
+      expect(byId.WHITESPACE).toMatchObject({
+        verdict: 'P',
+        evidence: { detail: 'present but empty' },
+      })
+      expect(byId.CONTENT).toMatchObject({ verdict: 'Y' })
+      expect(byId.MISSING).toMatchObject({ verdict: 'N', evidence: { detail: 'missing' } })
+    } finally {
+      cleanup()
+    }
+  })
+
   it('every non-NA/NV verdict carries evidence with a file', () => {
     const { dir, cleanup } = makeRepo()
     try {

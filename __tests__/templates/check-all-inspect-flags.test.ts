@@ -139,7 +139,8 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
           'export const setMode = (m) => console.log("SETMODE:" + JSON.stringify(m));\n' +
           // #2104: the gate resolves a tmpfs TMPDIR before any spawn. Stubbed to null so
           // this harness stays hermetic (no TMPDIR mutation) and host-independent.
-          'export const resolveTmpfsTmpdir = () => null;\n',
+          'export const resolveTmpfsTmpdir = () => null;\n' +
+          'export const gateFileState = () => "never-emitted";\n',
       )
       writeFileSync(join(scriptsDir, 'check-all.mjs'), prefix + '\nprocess.exit(0);\n')
       const r = spawnSync('node', [join(scriptsDir, 'check-all.mjs'), ...args], {

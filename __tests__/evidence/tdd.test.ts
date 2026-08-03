@@ -80,6 +80,22 @@ describe('FAILURE_SIGNATURES registry', () => {
 })
 
 describe('extractFailureSignature()', () => {
+  it('extracts a failing node:test TAP summary but rejects non-fatal TAP directives', () => {
+    const failingTapLog = [
+      'TAP version 13',
+      'not ok 1 - parses invalid input',
+      '  ---',
+      '  error: expected failure',
+      '  ...',
+      '# tests 1',
+      '# pass 0',
+      '# fail 1',
+    ].join('\n')
+    expect(extractFailureSignature(failingTapLog)?.framework).toBe('tap')
+    expect(extractFailureSignature('TAP version 13\n# tests 1\n# pass 1\n# fail 0')).toBeNull()
+    expect(extractFailureSignature('not ok 1 - deferred test # TODO\n# fail 0')).toBeNull()
+  })
+
   it('extracts vitest FAIL line', () => {
     const log = 'FAIL __tests__/evidence/tdd.test.ts\n  Error: expected 1 to be 2'
     const result = extractFailureSignature(log)
