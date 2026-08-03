@@ -4,11 +4,14 @@
 // --help shows exactly the public commands while `arbiter help --all` still
 // lists the experimental (hidden) surface.
 import { describe, it, expect } from 'vitest'
-import { resolve } from 'node:path'
+import { resolve, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { mkdtempSync, existsSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 
 const CLI = resolve(import.meta.dirname, '../../dist/cli.js')
 const NODE = process.execPath
+const REPO = resolve(import.meta.dirname, '../..')
 
 const PUBLIC_COMMANDS = [
   'init',
@@ -95,5 +98,65 @@ describe('arbiter --help — public 14-command surface (#1770 T5, T2 tier-3)', (
     const { status, stdout } = spawn(['help', 'init'])
     expect(status).toBe(0)
     expect(stdout.toLowerCase()).toContain('init')
+  })
+})
+
+// ─── #2211: documented capability ⇒ CLI surface ───────────────────────────────
+// Root cause: two deliberate surface-reduction commits (3bd2f1db "cut 17 leaf
+// commands", c1a50e96 "cut graph build + kit surface") verified "zero-ref" in
+// CODE only, leaving the references in PROSE — error-catalog recovery strings,
+// --help text, and the JSON envelope's own self-identification.
+describe('#2211 — every documented capability has a real CLI surface', () => {
+  it('`graph build` is registered and writes the snapshot verify/review consume', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arb-2211-graph-'))
+    try {
+      const build = spawn(['graph', 'build', '--dir', dir])
+      expect(build.status).toBe(0)
+      expect(existsSync(join(dir, '.arbiter', 'graph.json'))).toBe(true)
+
+      // The round-trip the audit called untestable: after `graph build`, the
+      // ONLY remediation `validate graph` offers must no longer be needed.
+      const verify = spawn(['validate', 'graph', '--json', '--dir', dir])
+      expect(verify.stdout + verify.stderr).not.toContain('graph snapshot not found')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('`doctor health` is invocable and its JSON envelope stops lying', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arb-2211-doctor-'))
+    try {
+      // The audit's exact repro. Note the flags: commander does NOT inherit
+      // parent options, so a bare `.command('health')` would fail here.
+      const { status, stdout } = spawn(['doctor', 'health', '--json', '--dir', dir])
+      expect(status).toBe(0)
+      const envelope = JSON.parse(stdout.trim().split('\n').at(-1) as string) as {
+        command: string
+      }
+      expect(envelope.command).toBe('doctor health')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('no user-facing remediation string cites a command that does not exist', () => {
+    // ponytail: first-token only — `arbiter doctor health` is checked as `doctor`.
+    // Catching dangling SUBcommands means walking the commander tree; upgrade to
+    // that if a subcommand-level dangling reference ever ships.
+    // Scoped to the remediation surface (what a user is TOLD to run) — comments
+    // elsewhere in src/ still carry cut-command names and are out of scope.
+    const registered = new Set(commandNames(spawn(['help', '--all']).stdout))
+    expect(registered.size).toBeGreaterThan(10)
+
+    const sources = ['src/utils/error-catalog.ts', 'src/i18n/en.json']
+    const dangling: string[] = []
+    for (const rel of sources) {
+      const text = readFileSync(join(REPO, rel), 'utf-8')
+      for (const m of text.matchAll(/`arbiter ([a-z][a-z-]*)/g)) {
+        const name = m[1]
+        if (!registered.has(name)) dangling.push(`${rel}: \`arbiter ${name}\``)
+      }
+    }
+    expect([...new Set(dangling)]).toEqual([])
   })
 })
