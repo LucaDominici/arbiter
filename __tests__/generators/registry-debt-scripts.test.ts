@@ -9,6 +9,7 @@ import { buildRegistry, runGeneratorsFromRegistry } from '../../src/generators/r
 import { makeConfig } from '../helpers.js'
 
 const TEST_SCRIPTS = ['test:unit', 'test:contract', 'test:integration', 'test:behavioral'] as const
+const TS_GATE_SCRIPTS = ['typecheck', 'lint', 'build'] as const
 
 function makeTsProjectDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-933-debt-scripts-'))
@@ -54,6 +55,9 @@ describe('#933 — registry injectTestScripts via runGeneratorsFromRegistry', ()
     for (const script of TEST_SCRIPTS) {
       expect(pkg.scripts[script], `missing ${script}`).toBeDefined()
       expect(pkg.scripts[script]).toContain('vitest')
+    }
+    for (const script of TS_GATE_SCRIPTS) {
+      expect(pkg.scripts[script], `missing ${script}`).toBeDefined()
     }
   })
 

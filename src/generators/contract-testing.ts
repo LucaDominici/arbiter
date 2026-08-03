@@ -78,13 +78,7 @@ function contractFile(cfOpts: ContractFileOptions): WriteResult[] {
   if (config.language === 'typescript' || config.language === 'multi') {
     const tsPath = resolvedPath(base, ...tsPathSegments, tsFile)
     const tsContent = renderTemplate(`contract-testing/${templateDir}/${tsFile}.ejs`, data)
-    out.push(
-      writeFile(
-        tsPath,
-        formatTs ? formatContent(tsContent, tsPath, base) : tsContent,
-        skip,
-      ),
-    )
+    out.push(writeFile(tsPath, formatTs ? formatContent(tsContent, tsPath, base) : tsContent, skip))
   }
   if (config.language === 'java' || config.language === 'multi') {
     const pkg = javaContractsPkg(config)

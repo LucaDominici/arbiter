@@ -395,6 +395,8 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
       expect(content).toMatch(/runToolCheck\(\s*'playwright e2e'/)
       expect(content).toContain('scripts/lib/ephemeral-server.mjs')
       expect(content).toContain('npx playwright test')
+      expect(content).toContain('E2E_START_CMD unset and package.json has no start:test script')
+      expect(content).toContain("pushResult('playwright e2e', 'SKIP', 0)")
     })
 
     it('TypeScript library L2: does NOT emit playwright e2e step', () => {

@@ -67,11 +67,22 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Resolve E2E start command
+        id: axe-e2e-start
+        run: |
+          if [[ -n "${E2E_START_CMD:-}" ]] || node -e "const fs = require('node:fs'); try { const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); process.exit(typeof pkg.scripts?.['start:test'] === 'string' && pkg.scripts['start:test'].trim() ? 0 : 1); } catch { process.exit(1); }"; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "SKIP: E2E_START_CMD unset and package.json has no start:test script"
+          fi
+
       - name: axe accessibility (Playwright E2E, WCAG 2.2 AA, INV-61)
         # Routes through the Playwright a11y spec which uses the generated
         # run-axe.ts wrapper with wcag2a+wcag2aa+wcag21a+wcag21aa+wcag22aa tags.
         # ephemeral-server starts the app, polls port readiness, runs spec, tears down.
         # Hard gate: a11y failures block the PR (INV-61). No soft-fail permitted.
+        if: steps.axe-e2e-start.outputs.available == 'true'
         run: |
           node scripts/lib/ephemeral-server.mjs \
             --start "${E2E_START_CMD:-npm run start:test}" \
@@ -105,9 +116,20 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Resolve E2E start command
+        id: render-smoke-e2e-start
+        run: |
+          if [[ -n "${E2E_START_CMD:-}" ]] || node -e "const fs = require('node:fs'); try { const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); process.exit(typeof pkg.scripts?.['start:test'] === 'string' && pkg.scripts['start:test'].trim() ? 0 : 1); } catch { process.exit(1); }"; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "SKIP: E2E_START_CMD unset and package.json has no start:test script"
+          fi
+
       - name: render smoke (Playwright E2E — app shell mounts, no console errors)
         # Boots the BUILT SPA via ephemeral-server, runs the render-smoke spec.
         # Hard gate: a broken-layout / console-error render blocks the PR (INV-127).
+        if: steps.render-smoke-e2e-start.outputs.available == 'true'
         run: |
           node scripts/lib/ephemeral-server.mjs \
             --start "${E2E_START_CMD:-npm run start:test}" \

@@ -100,6 +100,14 @@ describe('16-frontend-quality.yml.ejs — a11y blocking gate (#1127)', () => {
     expect(rendered).not.toContain('axe-core-npm/cli')
   })
 
+  it('skips browser E2E steps when neither E2E_START_CMD nor start:test exists (#2198)', () => {
+    const rendered = renderFrontendQuality({})
+    expect(rendered).toContain('Resolve E2E start command')
+    expect(rendered).toContain("steps.axe-e2e-start.outputs.available == 'true'")
+    expect(rendered).toContain("steps.render-smoke-e2e-start.outputs.available == 'true'")
+    expect(rendered).toContain('E2E_START_CMD unset and package.json has no start:test script')
+  })
+
   it.each(['L1', 'L2', 'L3', 'L4'] as const)(
     'governance %s: no || true in rendered output',
     (governanceLevel) => {

@@ -161,7 +161,7 @@ describe('02-pr-extended.yml.ejs — service archetype gating', () => {
   it('service archetype: Toxiproxy step in integration-tests', () => {
     const rendered = renderExt({ archetype: 'backend-web-db', language: 'typescript' })
     expect(rendered).toContain('Toxiproxy resilience test')
-    expect(rendered).toContain('test:resilience')
+    expect(rendered).toContain('npm run --if-present test:resilience')
   })
 
   it('service archetype: container-scan in extended-required needs; dast/load are not', () => {

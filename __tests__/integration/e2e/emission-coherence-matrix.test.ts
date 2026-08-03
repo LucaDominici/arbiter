@@ -9,7 +9,7 @@
 // PoC origin: 3 ghosts found fleet-wide (ci-classify-changes.mjs unwired;
 // iso9001/gdpr guarded-missing undeclared; exitplanmode-banner.mjs registered but
 // not emitted). This matrix is the regression net that keeps them fixed.
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -104,6 +104,16 @@ describe('emission-coherence matrix — generated tree is reference-coherent (#1
 
   for (const cell of CELLS) {
     it(`${cellName(cell)}: every emission reference resolves`, () => {
+      // The coherence matrix normally renders into an empty directory. Seed the
+      // source package.json for TypeScript cells so package-mutating generators
+      // and the npm-script resolver exercise the same emission seam as a real
+      // target project (#2198).
+      if (cell.language === 'typescript') {
+        writeFileSync(
+          join(dir, 'package.json'),
+          JSON.stringify({ name: 'coherence-cell', version: '1.0.0', scripts: {} }) + '\n',
+        )
+      }
       runGenerators(
         makeConfig(dir, {
           language: cell.language,

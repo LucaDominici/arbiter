@@ -47,6 +47,30 @@ function injectTestScripts(targetDir: string, dryRun: boolean): void {
   })
 }
 
+// The required TypeScript PR workflow executes these npm scripts, while the
+// generated local gate invokes the same underlying tools directly. Keep this
+// mapping adjacent to injectTestScripts so the package.json contract and CI stay
+// coherent. As with all package injection, a project's existing script wins.
+function injectTypeScriptGateScripts(targetDir: string, dryRun: boolean): void {
+  mutatePackageJson(targetDir, dryRun, (pkg) => {
+    const scripts = (pkg.scripts ?? {}) as Record<string, string>
+    const gateScripts: Record<string, string> = {
+      typecheck: 'tsc --noEmit',
+      lint: 'eslint .',
+      build: 'tsc -p tsconfig.json',
+    }
+    let changed = false
+    for (const [key, value] of Object.entries(gateScripts)) {
+      if (!scripts[key]) {
+        scripts[key] = value
+        changed = true
+      }
+    }
+    if (changed) pkg.scripts = scripts
+    return changed
+  })
+}
+
 function injectDepCruiserPackageJson(targetDir: string, dryRun: boolean): void {
   mutatePackageJson(targetDir, dryRun, (pkg) => {
     const scripts = (pkg.scripts ?? {}) as Record<string, string>
@@ -341,6 +365,7 @@ export function generateDebtGates(
 
   if (config.language === 'typescript' || config.language === 'multi') {
     injectTestScripts(base, opts.dryRun)
+    injectTypeScriptGateScripts(base, opts.dryRun)
     // Gate-essential TS scaffold — emitted for EVERY TS init (even L1, where
     // enableDebtGates is false) because the generated L1 gate already runs
     // typecheck/format/lint/static-analysis/unit for TS. Without these the gate is

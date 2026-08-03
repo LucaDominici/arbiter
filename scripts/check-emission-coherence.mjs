@@ -18,10 +18,11 @@
 // .claude/settings.json, .codex/config.toml (#1885 — the codex-adapter hook-path
 // ghost), the Makefile, and every .claude/commands/*.md playbook
 // (#1345 — the Makefile/command blind spot that hid the done-evidence &
-// route-auditors ghosts). Catches "referenced but never emitted" ghosts (the
-// class behind #1318/#1319/#1345) in milliseconds, no toolchains — affordable
-// across the FULL (language × level × mode) matrix on every PR (the matrix runner
-// is the integration test).
+// route-auditors ghosts), and resolves every workflow/Makefile `npm run <script>`
+// invocation against the emitted package.json. Catches "referenced but never
+// emitted" ghosts (the class behind #1318/#1319/#1345/#2198) in milliseconds, no
+// toolchains — affordable across the FULL (language × level × mode) matrix on
+// every PR (the matrix runner is the integration test).
 //
 // Semantics (#1331 AC2, red-team RT-02):
 //   - UNGUARDED missing reference  → ALWAYS FAIL (crash class).
@@ -40,7 +41,7 @@
 // mapping keys only.
 //
 // Exports for unit tests: checkEmissionCoherence, loadOptionalManifest.
-// CLI: node scripts/check-emission-coherence.mjs <generated-dir>
+// CLI: node scripts/check-emission-coherence.mjs [generated-dir]
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -165,9 +166,41 @@ function checkGithooks(dir, optional, problems) {
   }
 }
 
-function checkWorkflow(dir, file, problems) {
+function emittedNpmScripts(dir) {
+  const packageJson = read(dir, 'package.json')
+  // The emission matrix renders into an otherwise empty tmpdir, so it has no
+  // source package.json to mutate. There is no emitted npm surface to resolve in
+  // that synthetic case; real TypeScript targets retain package.json and are
+  // checked below.
+  if (packageJson === null) return null
+  try {
+    const parsed = JSON.parse(packageJson)
+    if (parsed?.scripts === null || typeof parsed?.scripts !== 'object') return new Set()
+    return new Set(Object.keys(parsed.scripts))
+  } catch {
+    return new Set()
+  }
+}
+
+// `npm run --if-present <name>` is deliberately exempt: it is npm's native
+// target-owned opt-in semantic. All other `npm run <name>` calls are promises by
+// arbiter that the generated package.json defines that script (#2198).
+function checkNpmRunReferences(content, label, scripts, problems) {
+  if (scripts === null) return
+  const npmRun = /\bnpm\s+run\s+(?:(--if-present)\s+)?([\w:-]+)/g
+  for (const match of content.matchAll(npmRun)) {
+    if (match[1] === '--if-present') continue
+    const script = match[2]
+    if (scripts.has(script)) continue
+    const line = content.slice(0, match.index).split('\n').length
+    problems.push(`${label}:${line} npm script "${script}" is not defined in package.json`)
+  }
+}
+
+function checkWorkflow(dir, file, scripts, problems) {
   const c = read(dir, `.github/workflows/${file}`)
   if (c === null) return
+  checkNpmRunReferences(c, file, scripts, problems)
   for (const m of c.matchAll(/uses:\s*([\w./-]+(?::\/\/[\w./:-]+)?)@([\w.-]+)/g)) {
     const ref = m[1]
     // Local composite actions (./...) and container actions (docker://...) carry
@@ -189,9 +222,10 @@ function checkWorkflow(dir, file, problems) {
 function checkWorkflows(dir, problems) {
   const wfDir = join(dir, '.github/workflows')
   if (!existsSync(wfDir)) return
+  const scripts = emittedNpmScripts(dir)
   for (const f of readdirSync(wfDir)) {
     if (!/\.ya?ml$/.test(f)) continue
-    checkWorkflow(dir, f, problems)
+    checkWorkflow(dir, f, scripts, problems)
   }
 }
 
@@ -215,6 +249,7 @@ function checkPlainTextRefs(dir, rel, content, label, problems) {
 function checkMakefile(dir, problems) {
   const c = read(dir, 'Makefile')
   if (c === null) return
+  checkNpmRunReferences(c, 'Makefile', emittedNpmScripts(dir), problems)
   checkPlainTextRefs(dir, 'Makefile', c, 'Makefile', problems)
 }
 
@@ -364,11 +399,7 @@ export function checkEmissionCoherence(dir) {
 
 const isMain = process.argv[1] != null && fileURLToPath(import.meta.url) === process.argv[1]
 if (isMain) {
-  const target = process.argv[2]
-  if (target == null) {
-    process.stderr.write('usage: node scripts/check-emission-coherence.mjs <generated-dir>\n')
-    process.exit(2)
-  }
+  const target = process.argv[2] ?? '.'
   const { problems } = checkEmissionCoherence(target)
   if (problems.length > 0) {
     process.stdout.write(`emission-coherence: FAIL — ${problems.length} problem(s):\n`)

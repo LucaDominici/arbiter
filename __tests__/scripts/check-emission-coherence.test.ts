@@ -232,6 +232,50 @@ describe('checkEmissionCoherence (#1331)', () => {
     }
   })
 
+  it('FAILs when a workflow npm script is absent from package.json', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'package.json': JSON.stringify({ scripts: { lint: 'eslint .' } }),
+      '.github/workflows/ci.yml':
+        'jobs:\n  gate:\n    name: Gate\n    steps:\n      - run: npm run typecheck\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toContain('ci.yml:5 npm script "typecheck" is not defined in package.json')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('FAILs when a Makefile npm script is absent from package.json', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'package.json': JSON.stringify({ scripts: { lint: 'eslint .' } }),
+      Makefile: 'check:\n\tnpm run typecheck\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toContain('Makefile:2 npm script "typecheck" is not defined in package.json')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('EXEMPTs npm run --if-present for target-owned optional suites', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'package.json': JSON.stringify({ scripts: {} }),
+      '.github/workflows/ci.yml':
+        'jobs:\n  optional:\n    name: Optional\n    steps:\n      - run: npm run --if-present test:fuzz\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
   // #1345 — Makefile recipe references are scanned; they are unguarded by
   // construction (a recipe line carries no existsSync/[ -f ] guard).
   it('FAILs on a Makefile recipe invoking a missing scripts/*.mjs (ghost)', () => {

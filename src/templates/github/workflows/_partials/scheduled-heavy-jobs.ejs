@@ -12,7 +12,7 @@
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: fast-check fuzz (property-based)
-        run: npm run test:fuzz
+        run: npm run --if-present test:fuzz
 <%# #1803: kotlin shares the java branch below — jqwik runs on JVM bytecode
     so it works identically for a Kotlin-sourced Gradle/Maven build (confirmed
     during the #1724 cross-language-matrix audit); no separate invocation
@@ -79,11 +79,11 @@
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: Bake E2E
-        run: npm run test:e2e:bake
+        run: npm run --if-present test:e2e:bake
       - name: Native E2E
         env:
           VITEST_NATIVE: "1"
-        run: npm run test:e2e:native
+        run: npm run --if-present test:e2e:native
 <% } else if (language === 'java') { %>
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
         with:

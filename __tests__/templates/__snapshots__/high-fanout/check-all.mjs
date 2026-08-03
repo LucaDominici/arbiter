@@ -228,7 +228,7 @@ runCheck('secret scan', 'node', ['scripts/check-secret-scan.mjs']);
 
 runCheck('typecheck', 'npx', ['tsc', '--noEmit']);
 runCheck('format', 'npx', ['prettier', '--check', '.']);
-runCheck('lint', 'npx', ['eslint', 'src']);
+runCheck('lint', 'npx', ['eslint', '.']);
 // ─── L1: Static analysis rules (M29) ─────────────────────────────────────────
 // ESLint v9+ flat config: the static-analysis ruleset lives in
 // eslint.config.static.mjs and is run in isolation (--no-config-lookup) so it does
@@ -593,17 +593,31 @@ if (level === 'L2') {
   // Wrapped via scripts/lib/ephemeral-server.mjs (#358): the runner starts the
   // server, polls TCP readiness, runs Playwright, then tears the server down.
   // runToolCheck SKIPs locally when the binary is missing, FAILs in CI.
-  runToolCheck(
-    'playwright e2e',
-    'node',
-    [
-      'scripts/lib/ephemeral-server.mjs',
-      '--start', process.env.E2E_START_CMD || 'npm run start:test',
-      '--test',  'npx playwright test',
-      '--port',  process.env.E2E_PORT || '4173',
-    ],
-    { soft: graceActive },
-  );
+  const _e2eStartCommand = process.env.E2E_START_CMD?.trim();
+  let _hasStartTestScript = false;
+  try {
+    const _e2ePackage = JSON.parse(readFileSync('package.json', 'utf-8'));
+    _hasStartTestScript = typeof _e2ePackage.scripts?.['start:test'] === 'string'
+      && _e2ePackage.scripts['start:test'].trim().length > 0;
+  } catch {
+    // No package.json means arbiter cannot supply an application start command.
+  }
+  if (!_e2eStartCommand && !_hasStartTestScript) {
+    console.log('[CHECK] playwright e2e ... SKIP (E2E_START_CMD unset and package.json has no start:test script)');
+    pushResult('playwright e2e', 'SKIP', 0);
+  } else {
+    runToolCheck(
+      'playwright e2e',
+      'node',
+      [
+        'scripts/lib/ephemeral-server.mjs',
+        '--start', _e2eStartCommand || 'npm run start:test',
+        '--test',  'npx playwright test',
+        '--port',  process.env.E2E_PORT || '4173',
+      ],
+      { soft: graceActive },
+    );
+  }
 
 
 

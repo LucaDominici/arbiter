@@ -657,6 +657,24 @@ describe('generateDebtGates', () => {
     }
   })
 
+  it('injects the workflow-required TypeScript scripts without clobbering project scripts (#2198)', () => {
+    const pkgPath = join(dir, 'package.json')
+    const existing = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<
+      string,
+      Record<string, string>
+    >
+    existing.scripts.build = 'project-build'
+    existing.scripts.lint = 'project-lint'
+    writeFileSync(pkgPath, JSON.stringify(existing, null, 2))
+
+    generateDebtGates(makeConfig(dir, { language: 'typescript', enableDebtGates: false }))
+
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, Record<string, string>>
+    expect(pkg.scripts.typecheck).toBe('tsc --noEmit')
+    expect(pkg.scripts.lint).toBe('project-lint')
+    expect(pkg.scripts.build).toBe('project-build')
+  })
+
   it('injects test scripts even when enableDebtGates is false (#219)', () => {
     const config = makeConfig(dir, {
       language: 'typescript',

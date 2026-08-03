@@ -44,7 +44,7 @@ export async function runAxe(page: Page, label: string): Promise<void> {
   const soft: AxeViolation[] = []
 
   for (const v of results.violations) {
-    if (v.impact == null) {
+    if (v.impact === null || v.impact === undefined) {
       unclassified.push(v)
     } else if (HARD_FAIL_IMPACTS.has(v.impact)) {
       hardFailures.push(v)

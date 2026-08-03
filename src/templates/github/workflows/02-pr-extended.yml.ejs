@@ -174,7 +174,7 @@ jobs:
       - run: npm run test:integration
 <% if (_isService) { %>
       - name: Toxiproxy resilience test
-        run: npm run test:resilience
+        run: npm run --if-present test:resilience
 <% } %>
 <% } else if (language === 'java') { %>
       - uses: ./.github/actions/setup-java-maven
@@ -449,7 +449,7 @@ jobs:
         with:
           op: restore
 <% if (locals.ciPreTestBuild) { %>      - run: node scripts/build-kit.mjs
-<% } %>      - run: npm run test:e2e:bake
+<% } %>      - run: npm run --if-present test:e2e:bake
 <% } %>
 
   extended-required:

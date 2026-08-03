@@ -306,7 +306,7 @@ jobs:
       - name: DB stall + network partition resilience test
         run: |
 <% if (language === 'typescript') { %>
-          npm run test:resilience
+          npm run --if-present test:resilience
 <% } else if (language === 'java' && buildTool === 'gradle') { %>
           ./gradlew test -Dgroups='resilience'
 <% } else if (language === 'java') { %>

@@ -68,4 +68,11 @@ describe('generatePlaywrightTs (#349)', () => {
     expect(content).toMatch(/critical/)
     expect(content).toMatch(/throw/)
   })
+
+  it('emitted run-axe.ts classifies an undefined impact as unclassified (INV-61)', () => {
+    const config = makeConfig(dir, { language: 'typescript', archetype: 'frontend-spa' })
+    generatePlaywrightTs(config)
+    const content = readFileSync(join(dir, 'tests', 'e2e', 'a11y', 'run-axe.ts'), 'utf-8')
+    expect(content).toContain('v.impact === null || v.impact === undefined')
+  })
 })
