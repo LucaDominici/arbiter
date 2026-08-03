@@ -1,8 +1,9 @@
-import { describe, it, expect, afterAll, afterEach } from 'vitest'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { describe, it, expect } from 'vitest'
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { withRealRepoMutationLock } from '../helpers.js'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import {
   buildRenderContext,
   templateToMaterialized,
@@ -15,15 +16,40 @@ import {
   classifyDivergence,
 } from '../../scripts/check-self-dogfood.mjs'
 
-const shipSupervisorPath = fileURLToPath(
-  new URL('../../.arbiter/ship/supervisor.sh', import.meta.url),
-)
-const shipSupervisorOriginal = readFileSync(shipSupervisorPath)
+const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
+const checkerPath = join(repoRoot, 'scripts/check-self-dogfood.mjs')
 
-function restoreShipSupervisor() {
-  const current = readFileSync(shipSupervisorPath)
-  if (!current.equals(shipSupervisorOriginal))
-    writeFileSync(shipSupervisorPath, shipSupervisorOriginal)
+/**
+ * Build a disposable root that is complete enough for the full dogfood checker:
+ * source/dist freshness, template rendering, raw hooks, and external parity all
+ * remain active. Synthetic drift is written only inside this directory.
+ */
+function createDogfoodProbeRoot() {
+  const root = mkdtempSync(join(tmpdir(), 'arbiter-dogfood-probe-'))
+  for (const path of [
+    'src',
+    '.claude',
+    '.arbiter/ship',
+    '.github',
+    'scripts',
+    'schemas',
+    'dist',
+    'arbiter.json',
+    'package.json',
+    '.dogfood-divergences.json',
+  ]) {
+    cpSync(join(repoRoot, path), join(root, path), { recursive: true })
+  }
+  symlinkSync(join(repoRoot, 'node_modules'), join(root, 'node_modules'), 'dir')
+  return root
+}
+
+function runDogfoodProbe(root: string, timeout: number) {
+  return spawnSync('node', [checkerPath, '--root', root], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+    timeout,
+  })
 }
 
 // ─── buildRenderContext ───────────────────────────────────────────────────────
@@ -378,68 +404,47 @@ describe('classifyDivergence expiry (T4 dogfood-closure)', () => {
 // ─── CANON-14 non-vacuity proof: drift INSIDE an allowlisted file goes red ────
 // Before #1838 an allowlist entry skipped the whole file — new drift inside it
 // was invisible (the class that let guard-done-evidence vs stop-evidence-guard
-// slip, per epic #1836). This mutates an ALLOWLISTED materialized file, runs
-// the real checker, and requires red; restores the original bytes.
+// slip, per epic #1836). This mutates an ALLOWLISTED materialized file in a
+// disposable checker root and requires red.
 
 describe('allowlisted-file drift detection is non-vacuous (CANON-14, #1838)', () => {
-  it(
-    'a mutated .claude/rules/90-exec-protocol.md (allowlisted) turns the gate red',
-    () =>
-      withRealRepoMutationLock(() => {
-        const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
-        const target = `${repoRoot}.claude/rules/90-exec-protocol.md`
-        const original = readFileSync(target, 'utf-8')
-        try {
-          writeFileSync(
-            target,
-            original + '\nsynthetic drift beyond the approved divergence\n',
-            'utf-8',
-          )
-          const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-            cwd: repoRoot,
-            encoding: 'utf-8',
-            timeout: 120_000,
-          })
-          expect(r.status).not.toBe(0)
-          expect(r.stdout + r.stderr).toContain('90-exec-protocol.md')
-          expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
-        } finally {
-          writeFileSync(target, original, 'utf-8')
-        }
-      }),
-    150_000,
-  )
+  it('a mutated .claude/rules/90-exec-protocol.md (allowlisted) turns the gate red', () => {
+    const root = createDogfoodProbeRoot()
+    const target = join(root, '.claude/rules/90-exec-protocol.md')
+    const original = readFileSync(target, 'utf-8')
+    try {
+      writeFileSync(
+        target,
+        original + '\nsynthetic drift beyond the approved divergence\n',
+        'utf-8',
+      )
+      const r = runDogfoodProbe(root, 120_000)
+      expect(r.status).not.toBe(0)
+      expect(r.stdout + r.stderr).toContain('90-exec-protocol.md')
+      expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 150_000)
 })
 
 // ─── non-vacuity proof for the ship family (#1290) ────────────────────────────
 // The dogfood gate must actually WALK src/templates/ship/ — a mapped-but-unwalked
-// family passes vacuously. We mutate the materialized supervisor, run the real
-// checker, and require it to go red; finally restores the original bytes.
+// family passes vacuously. We mutate the materialized supervisor in a disposable
+// root, run the full checker, and require it to go red.
 
 describe('ship-family drift detection is non-vacuous (#1290)', () => {
-  afterEach(restoreShipSupervisor)
-  afterAll(restoreShipSupervisor)
-
-  it(
-    'a mutated .arbiter/ship/supervisor.sh turns the gate red',
-    () =>
-      withRealRepoMutationLock(() => {
-        const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
-        const target = `${repoRoot}.arbiter/ship/supervisor.sh`
-        const original = readFileSync(target, 'utf-8')
-        try {
-          writeFileSync(target, original + 'echo drift-sentinel\n', 'utf-8')
-          const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-            cwd: repoRoot,
-            encoding: 'utf-8',
-            timeout: 300_000,
-          })
-          expect(r.status).not.toBe(0)
-          expect(r.stdout + r.stderr).toContain('supervisor.sh')
-        } finally {
-          writeFileSync(target, original, 'utf-8')
-        }
-      }),
-    360_000,
-  )
+  it('a mutated .arbiter/ship/supervisor.sh turns the gate red', () => {
+    const root = createDogfoodProbeRoot()
+    const target = join(root, '.arbiter/ship/supervisor.sh')
+    const original = readFileSync(target, 'utf-8')
+    try {
+      writeFileSync(target, original + 'echo drift-sentinel\n', 'utf-8')
+      const r = runDogfoodProbe(root, 300_000)
+      expect(r.status).not.toBe(0)
+      expect(r.stdout + r.stderr).toContain('supervisor.sh')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 360_000)
 })

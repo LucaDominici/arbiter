@@ -25,6 +25,10 @@
 // Regenerate pins after a human-approved change with:
 //   node scripts/check-self-dogfood.mjs --update-divergences
 //
+// To check an isolated repository fixture without touching the current tree:
+//   node scripts/check-self-dogfood.mjs --root <dir>
+// `--root` defaults to arbiter's repository root, preserving normal gate behavior.
+//
 // Exports for unit tests:
 //   buildRenderContext, templateToMaterialized, isAllowlisted,
 //   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS,
@@ -33,13 +37,25 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { join, relative, dirname } from 'node:path'
+import { join, relative, dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
 import { checkDistFresh } from './lib/dist-staleness.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = join(__dirname, '..')
+const defaultRepoRoot = join(__dirname, '..')
+
+function resolveRepoRoot(argv) {
+  const rootIndex = argv.indexOf('--root')
+  if (rootIndex === -1) return defaultRepoRoot
+  const root = argv[rootIndex + 1]
+  if (!root || root.startsWith('--')) {
+    throw new Error('missing directory after --root')
+  }
+  return resolve(root)
+}
+
+const repoRoot = resolveRepoRoot(process.argv)
 
 // Raw .mjs hooks copied verbatim by src/generators/claude.ts (readTemplate →
 // writeFile, no EJS render). The .ejs corpus walk never saw them, so they were

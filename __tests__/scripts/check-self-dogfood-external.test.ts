@@ -9,13 +9,20 @@
 // class (a file that exists in both places moved on one side without the
 // other) — reusing the same CANON-14 pinned-diff mechanism as the rest of this
 // gate.
-import { describe, it, expect, afterAll, afterEach } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import {
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { withRealRepoMutationLock } from '../helpers.js'
 import {
   EXTERNAL_CI_FAMILIES,
   matchedFamilyBasenames,
@@ -25,19 +32,34 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..', '..')
-const externalDriftTargets = [
-  join(repoRoot, '.github/workflows/01-pr-fast.yml'),
-  join(repoRoot, 'scripts/check-drift.mjs'),
-]
-const externalDriftOriginals = new Map(
-  externalDriftTargets.map((target) => [target, readFileSync(target)]),
-)
+const checkerPath = join(repoRoot, 'scripts/check-self-dogfood.mjs')
 
-function restoreExternalDriftTargets() {
-  for (const [target, original] of externalDriftOriginals) {
-    const current = readFileSync(target)
-    if (!current.equals(original)) writeFileSync(target, original)
+function createDogfoodProbeRoot() {
+  const root = mkdtempSync(join(tmpdir(), 'arbiter-dogfood-probe-'))
+  for (const path of [
+    'src',
+    '.claude',
+    '.arbiter/ship',
+    '.github',
+    'scripts',
+    'schemas',
+    'dist',
+    'arbiter.json',
+    'package.json',
+    '.dogfood-divergences.json',
+  ]) {
+    cpSync(join(repoRoot, path), join(root, path), { recursive: true })
   }
+  symlinkSync(join(repoRoot, 'node_modules'), join(root, 'node_modules'), 'dir')
+  return root
+}
+
+function runDogfoodProbe(root: string, timeout: number) {
+  return spawnSync('node', [checkerPath, '--root', root], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+    timeout,
+  })
 }
 
 // ─── EXTERNAL_CI_FAMILIES ─────────────────────────────────────────────────────
@@ -252,78 +274,60 @@ describe('checkExternalCiSurfaceParity', () => {
   })
 })
 
-// ─── non-vacuity proof against the real repo (mirrors the .claude/ship pattern) ─
+// ─── non-vacuity proof in an isolated repo root (mirrors the .claude/ship pattern) ─
 // Requires a built dist/ (npm run build) — the check imports resolveProjectConfig
 // + renderTemplate from the COMPILED output because scripts/ cannot import .ts
 // directly (mirrors check-agent-dispatch.mjs, #1267); CI always builds before
 // running the test suite.
 
-describe('external CI-surface parity is non-vacuous against the real repo (#1900)', () => {
-  afterEach(restoreExternalDriftTargets)
-  afterAll(restoreExternalDriftTargets)
-
+describe('external CI-surface parity is non-vacuous in an isolated repo root (#1900)', () => {
   // Per-test timeout raised past the spawnSync's own 300_000ms bound below (the default global
   // 30_000ms testTimeout is shorter than the child process's own allowance, so under load this
   // test could time out at the vitest level while the still-running child would have finished
   // fine within its budget — flaky-red, not a real regression). 360s gives the child's 300s a
   // margin for process spawn/teardown overhead.
-  it(
-    'a mutated pinned workflow (.github/workflows/01-pr-fast.yml) turns the gate red',
-    () =>
-      withRealRepoMutationLock(() => {
-        const target = join(repoRoot, '.github/workflows/01-pr-fast.yml')
-        const original = readFileSync(target, 'utf-8')
-        try {
-          writeFileSync(target, `${original}      - run: echo synthetic-drift-sentinel\n`, 'utf-8')
-          const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-            cwd: repoRoot,
-            encoding: 'utf-8',
-            timeout: 300_000,
-          })
-          expect(r.status).not.toBe(0)
-          expect(r.stdout + r.stderr).toContain('01-pr-fast.yml')
-          expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
-        } finally {
-          writeFileSync(target, original, 'utf-8')
-        }
-      }),
-    360_000,
-  )
+  it('a mutated pinned workflow (.github/workflows/01-pr-fast.yml) turns the gate red', () => {
+    const root = createDogfoodProbeRoot()
+    const target = join(root, '.github/workflows/01-pr-fast.yml')
+    try {
+      writeFileSync(
+        target,
+        `${readFileSync(target, 'utf-8')}      - run: echo synthetic-drift-sentinel\n`,
+        'utf-8',
+      )
+      const r = runDogfoodProbe(root, 300_000)
+      expect(r.status).not.toBe(0)
+      expect(r.stdout + r.stderr).toContain('01-pr-fast.yml')
+      expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 360_000)
 
-  it(
-    'a mutated pinned check-script (scripts/check-drift.mjs) turns the gate red',
-    () =>
-      withRealRepoMutationLock(() => {
-        const target = join(repoRoot, 'scripts/check-drift.mjs')
-        const original = readFileSync(target, 'utf-8')
-        try {
-          writeFileSync(target, `${original}// synthetic-drift-sentinel\n`, 'utf-8')
-          const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-            cwd: repoRoot,
-            encoding: 'utf-8',
-            timeout: 300_000,
-          })
-          expect(r.status).not.toBe(0)
-          expect(r.stdout + r.stderr).toContain('check-drift.mjs')
-          expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
-        } finally {
-          writeFileSync(target, original, 'utf-8')
-        }
-      }),
-    360_000,
-  )
+  it('a mutated pinned check-script (scripts/check-drift.mjs) turns the gate red', () => {
+    const root = createDogfoodProbeRoot()
+    const target = join(root, 'scripts/check-drift.mjs')
+    try {
+      writeFileSync(
+        target,
+        `${readFileSync(target, 'utf-8')}// synthetic-drift-sentinel\n`,
+        'utf-8',
+      )
+      const r = runDogfoodProbe(root, 300_000)
+      expect(r.status).not.toBe(0)
+      expect(r.stdout + r.stderr).toContain('check-drift.mjs')
+      expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 360_000)
 
-  it(
-    'passes cleanly against the real, unmutated repo',
-    () =>
-      withRealRepoMutationLock(() => {
-        const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
-          cwd: repoRoot,
-          encoding: 'utf-8',
-          timeout: 120_000,
-        })
-        expect(r.status).toBe(0)
-      }),
-    150_000,
-  )
+  it('passes cleanly against the real, unmutated repo', () => {
+    const r = spawnSync('node', [checkerPath], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      timeout: 120_000,
+    })
+    expect(r.status).toBe(0)
+  }, 150_000)
 })
