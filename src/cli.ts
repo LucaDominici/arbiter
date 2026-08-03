@@ -125,6 +125,11 @@ function printDocSetPlanApplyReport(result: DocSetSkeletonsResult, applied: bool
       `    ? unbound (no skeleton bound — engine --generate banner only): ${p}\n`,
     )
   }
+  if (applied && result.scaffolded.length === 0 && result.unbound.length > 0) {
+    process.stdout.write(
+      '    Remedy: run `node scripts/check-doc-set.mjs --generate` to create banner stubs for unbound rows.\n',
+    )
+  }
   if (result.scaffolded.length === 0 && result.unbound.length === 0) {
     process.stdout.write('    (nothing to scaffold — all applicable rows present)\n')
   }
@@ -1098,7 +1103,9 @@ program
           ...(opts.docProfile !== undefined ? { profile: opts.docProfile } : {}),
         })
         printDocSetPlanApplyReport(result, opts.apply)
-        process.exit(0)
+        process.exit(
+          opts.apply && result.scaffolded.length === 0 && result.unbound.length > 0 ? 1 : 0,
+        )
       }
       const result = runDocSet({
         ...(repo !== undefined ? { repo } : {}),

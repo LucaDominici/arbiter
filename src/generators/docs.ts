@@ -52,6 +52,28 @@ function emitSpecKitFamilies(config: ProjectConfig, opts: { dryRun: boolean }): 
   return out
 }
 
+/** Emit the generated documentation inventory plus its target-owned curated index (#2214). */
+function emitDocGenerationTools(config: ProjectConfig, opts: { dryRun: boolean }): WriteResult[] {
+  const base = config.targetDir
+  return [
+    writeFile(
+      resolvedPath(base, 'scripts', 'gen-doc-index.mjs'),
+      renderTemplate('scripts/gen-doc-index.mjs.ejs', config),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+    writeFile(
+      resolvedPath(base, 'scripts', 'gen-llms-txt.mjs'),
+      renderTemplate('scripts/gen-llms-txt.mjs.ejs', config),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+    writeFile(
+      resolvedPath(base, 'llms-txt.config.json'),
+      renderTemplate('llms-txt.config.json.ejs', config),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+  ]
+}
+
 export function generateDocs(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -158,6 +180,7 @@ export function generateDocs(
 
   // #1268: spec-kit template families (steering / atomic-task-list / bug triage).
   results.push(...emitSpecKitFamilies(config, opts))
+  results.push(...emitDocGenerationTools(config, opts))
 
   return { files: results }
 }

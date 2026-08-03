@@ -1,0 +1,22 @@
+{
+  "title": <%- JSON.stringify(projectName) %>,
+  "summary": <%- JSON.stringify(description) %>,
+  "intro": "This project has {{docCount}} indexed documentation files.",
+  "sections": [
+    {
+      "heading": "Project guidance",
+      "entries": [
+        {
+          "label": "Agent instructions",
+          "path": "AGENTS.md",
+          "description": "Repository-specific instructions and governance rules."
+        },
+        {
+          "label": "Documentation index",
+          "path": "docs/INDEX.md",
+          "description": "Generated inventory of every documented file, with canonical id, status and kind."
+        }
+      ]
+    }
+  ]
+}
