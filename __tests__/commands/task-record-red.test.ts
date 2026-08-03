@@ -353,6 +353,26 @@ describe('runTaskRecordRed()', () => {
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'))).toBe(false)
   })
 
+  it('refuses a non-zero runner whose output has no recognised failure signature', () => {
+    const dir = tmpRepo()
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'runner stopped after receiving a signal',
+      stderr: '',
+      exitCode: 2,
+      durationMs: 50,
+    })
+
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result).toMatchObject({
+      ok: false,
+      reason: expect.stringMatching(/no recognised failure/i),
+    })
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'))).toBe(false)
+  })
+
   it('captures both stdout and stderr from a failing (throwing) test run', () => {
     const dir = tmpRepo()
     mockBranch()
@@ -373,6 +393,28 @@ describe('runTaskRecordRed()', () => {
     )
     expect(ev.test_run_log).toContain('FAIL src/foo.test.ts')
     expect(ev.test_run_log).toContain('deprecation warning: old flag')
+  })
+
+  it.each([
+    ['timed out', { timedOut: true }],
+    ['was not found', { notFound: true }],
+  ])('refuses to mint evidence when the failing runner %s', (_case, failureFlags) => {
+    const dir = tmpRepo()
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockImplementationOnce(() => {
+      throw Object.assign(new Error('runner interrupted'), {
+        stdout: 'FAIL src/foo.test.ts\n1 failed',
+        stderr: '',
+        exitCode: 1,
+        ...failureFlags,
+      })
+    })
+
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result).toMatchObject({ ok: false, reason: expect.stringMatching(/failed to launch/i) })
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'))).toBe(false)
   })
 
   it('captures a failing run whose stderr is empty without appending a stray newline', () => {

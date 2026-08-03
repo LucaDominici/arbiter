@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  unlinkSync,
+  mkdtempSync,
+  rmSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import os from 'node:os'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
@@ -8,6 +16,7 @@ import {
   acquireLock,
   inspectLock,
   forceReleaseLock,
+  readLockInfo,
   type LockHandle,
   type LockInfo,
 } from '../../src/utils/file-lock.js'
@@ -136,6 +145,14 @@ describe('file-lock (#614 #618)', () => {
     expect(existsSync(lockPath)).toBe(false)
   })
 
+  it('makes release harmless when an external recovery already removed the held lock', async () => {
+    const handle = await acquireLock(lockPath)
+    unlinkSync(lockPath)
+
+    await expect(handle.release()).resolves.toBeUndefined()
+    expect(existsSync(lockPath)).toBe(false)
+  })
+
   // ── Stale detection — dead PID ────────────────────────────────────────────
 
   it('auto-takeovers stale lock whose PID is dead (ESRCH)', async () => {
@@ -159,6 +176,19 @@ describe('file-lock (#614 #618)', () => {
     const info = JSON.parse(readFileSync(lockPath, 'utf-8')) as LockInfo
     expect(info.pid).toBe(process.pid)
     await handle.release()
+  })
+
+  it('propagates a filesystem error when the lock parent directory does not exist', async () => {
+    const missingParentLock = join(dir, 'missing-parent', '.lock')
+
+    await expect(acquireLock(missingParentLock)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('refuses a corrupt pre-existing lock instead of treating it as a fresh acquisition', async () => {
+    writeFileSync(lockPath, '{not-json', 'utf-8')
+
+    await expect(acquireLock(lockPath)).rejects.toThrow()
+    expect(readFileSync(lockPath, 'utf-8')).toBe('{not-json')
   })
 
   it('does NOT takeover when PID is alive (EPERM — different user)', async () => {
@@ -273,6 +303,31 @@ describe('file-lock (#614 #618)', () => {
     await handle.release()
   })
 
+  it('takes over a same-host lock when pid probing returns an unexpected not-alive error', async () => {
+    const holderPid = 4321
+    writeFileSync(
+      lockPath,
+      JSON.stringify({
+        pid: holderPid,
+        hostname: os.hostname(),
+        bootId: realBootId(),
+        startedAt: new Date().toISOString(),
+        cmd: 'arbiter update',
+        nonce: 'unprobeable-holder',
+      } satisfies LockInfo),
+      'utf-8',
+    )
+    vi.spyOn(process, 'kill').mockImplementation((pid, sig) => {
+      if (pid === holderPid && sig === 0)
+        throw Object.assign(new Error('EACCES'), { code: 'EACCES' })
+      return true
+    })
+
+    const handle = await acquireLock(lockPath)
+    expect(readLockInfo(lockPath)?.pid).toBe(process.pid)
+    await handle.release()
+  })
+
   // ── Cross-host lock — never auto-takeover ────────────────────────────────
 
   it('refuses auto-takeover when hostname differs', async () => {
@@ -313,6 +368,71 @@ describe('file-lock (#614 #618)', () => {
     await handle.release()
   })
 
+  it.each([
+    [
+      'pid',
+      {
+        hostname: os.hostname(),
+        bootId: realBootId(),
+        startedAt: '2026-01-01T00:00:00.000Z',
+        cmd: 'arbiter',
+        nonce: 'n',
+      },
+    ],
+    [
+      'hostname',
+      {
+        pid: 42,
+        bootId: realBootId(),
+        startedAt: '2026-01-01T00:00:00.000Z',
+        cmd: 'arbiter',
+        nonce: 'n',
+      },
+    ],
+    [
+      'bootId',
+      {
+        pid: 42,
+        hostname: os.hostname(),
+        startedAt: '2026-01-01T00:00:00.000Z',
+        cmd: 'arbiter',
+        nonce: 'n',
+      },
+    ],
+    [
+      'startedAt',
+      { pid: 42, hostname: os.hostname(), bootId: realBootId(), cmd: 'arbiter', nonce: 'n' },
+    ],
+    [
+      'cmd',
+      {
+        pid: 42,
+        hostname: os.hostname(),
+        bootId: realBootId(),
+        startedAt: '2026-01-01T00:00:00.000Z',
+        nonce: 'n',
+      },
+    ],
+    [
+      'nonce',
+      {
+        pid: 42,
+        hostname: os.hostname(),
+        bootId: realBootId(),
+        startedAt: '2026-01-01T00:00:00.000Z',
+        cmd: 'arbiter',
+      },
+    ],
+  ])('rejects a lock record missing its required %s field', (_field, record) => {
+    writeFileSync(lockPath, JSON.stringify(record), 'utf-8')
+    expect(readLockInfo(lockPath)).toBeNull()
+  })
+
+  it('treats an unreadable lock record as absent to callers that need a validated holder', () => {
+    writeFileSync(lockPath, '{not-json', 'utf-8')
+    expect(readLockInfo(lockPath)).toBeNull()
+  })
+
   // ── forceReleaseLock (--recover-lock) ────────────────────────────────────
 
   it('forceReleaseLock deletes lock when expected PID matches', async () => {
@@ -333,11 +453,41 @@ describe('file-lock (#614 #618)', () => {
     expect(existsSync(lockPath)).toBe(false)
   })
 
+  it('uses the process working directory as the safe release boundary when no root is supplied', async () => {
+    const workspaceDir = mkdtempSync(join(process.cwd(), '.arbiter-lock-default-root-'))
+    const workspaceLock = join(workspaceDir, '.lock')
+    const info: LockInfo = {
+      pid: 4242,
+      hostname: os.hostname(),
+      bootId: realBootId(),
+      startedAt: new Date().toISOString(),
+      cmd: 'arbiter doctor recover-lock',
+      nonce: 'default-root-lock',
+    }
+    writeFileSync(workspaceLock, JSON.stringify(info), 'utf-8')
+
+    try {
+      await forceReleaseLock(workspaceLock, info.pid)
+      expect(existsSync(workspaceLock)).toBe(false)
+    } finally {
+      rmSync(workspaceDir, { recursive: true, force: true })
+    }
+  })
+
   it('forceReleaseLock refuses when PID changed (TOCTOU)', async () => {
     const handle = await acquireLock(lockPath)
     const wrongPid = handle.pid + 1
     await expect(forceReleaseLock(lockPath, wrongPid, dir)).rejects.toThrow(/PID|changed/i)
     await handle.release()
+  })
+
+  it('refuses to release an unreadable lock without the explicit recovery option', async () => {
+    writeFileSync(lockPath, '{not-json', 'utf-8')
+
+    await expect(forceReleaseLock(lockPath, 0, dir)).rejects.toThrow(
+      /cannot read lock|valid arbiter/i,
+    )
+    expect(existsSync(lockPath)).toBe(true)
   })
 
   it('forceReleaseLock refuses to unlink symlinks', async () => {

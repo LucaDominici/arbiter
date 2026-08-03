@@ -3,6 +3,7 @@ import {
   mkdtempSync,
   rmSync,
   writeFileSync,
+  readFileSync,
   mkdirSync,
   lstatSync,
   readlinkSync,
@@ -85,6 +86,27 @@ describe('materializeLink', () => {
     const result = materializeLink(spec, mainRepo, worktree) // second call
 
     expect(result.result).toBe('LINKED')
+  })
+
+  it('refuses to silently replace a real destination file with a symlink', () => {
+    writeFileSync(join(mainRepo, '.env'), 'SECRET=1')
+    writeFileSync(join(worktree, '.env'), 'local override')
+
+    expect(() => materializeLink({ path: '.env' }, mainRepo, worktree)).toThrow(
+      /non-symlink already exists/i,
+    )
+    expect(readFileSync(join(worktree, '.env'), 'utf-8')).toBe('local override')
+  })
+
+  it('does not copy a missing template when the optional source is absent', () => {
+    const result = materializeLink(
+      { path: '.env', template: '.env.example', required: false },
+      mainRepo,
+      worktree,
+    )
+
+    expect(result.result).toBe('MISSING')
+    expect(existsSync(join(worktree, '.env'))).toBe(false)
   })
 })
 
@@ -267,6 +289,14 @@ describe('materializeLink — symlink-children strategy (#1873 T4)', () => {
     mkdirSync(localVite, { recursive: true })
     writeFileSync(join(localVite, 'probe'), 'local')
     expect(existsSync(join(mainRepo, 'node_modules', '.vite', 'probe'))).toBe(false)
+  })
+
+  it('does not treat a locally-created excluded cache directory as a dangling child link', () => {
+    seedNodeModules()
+    materializeLink(spec, mainRepo, worktree)
+    mkdirSync(join(worktree, 'node_modules', '.vite'), { recursive: true })
+
+    expect(checkLinkIntegrity([spec], worktree)).toEqual([])
   })
 
   it('is idempotent and heals missing child links on re-run', () => {

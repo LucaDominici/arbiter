@@ -204,6 +204,27 @@ describe('runDoctorHealth (#539)', () => {
     expect(check?.detail).toMatch(/1/)
   })
 
+  it('WARNs when the gate mutex helper returns a non-integer count instead of treating it as empty', async () => {
+    mockRunCli.mockImplementation((command, args) => {
+      if (command === 'node' && args[0]?.endsWith('waiter-count.mjs')) {
+        return { stdout: 'two waiters\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      if (command === 'git' && args[0] === 'rev-parse') {
+        return { stdout: '.git\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      return { stdout: 'ok\n', stderr: '', exitCode: 0, durationMs: 0 }
+    })
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'lib', 'waiter-count.mjs'), '// helper')
+
+    const result = await runDoctorHealth({ dir, json: true })
+    expect(result.checks.find((c) => c.id === 'gate-mutex')).toMatchObject({
+      status: 'WARN',
+      detail: expect.stringMatching(/invalid output/i),
+    })
+  })
+
   it('WARNs rather than throws when gate mutex inspection is unavailable (#2196)', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
@@ -230,6 +251,99 @@ describe('runDoctorHealth (#539)', () => {
     expect(check?.status).toBe('WARN')
     expect(check?.detail).toMatch(/flock\(1\) is unavailable/i)
     expect(result.fail).toBe(0)
+  })
+
+  describe('bypass-ceremony report rendering', () => {
+    function writeBypassCeremonyScript(): string {
+      const path = join(dir, 'scripts', 'check-bypass-ceremony.mjs')
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(path, '// invoked through runCli in this test\n', 'utf-8')
+      return path
+    }
+
+    function mockBypassReport(stdout: string, exitCode = 0): void {
+      mockRunCli.mockImplementation((command, args) => {
+        if (command === 'node' && args[0]?.endsWith('check-bypass-ceremony.mjs')) {
+          return { stdout, stderr: '', exitCode, durationMs: 0 }
+        }
+        return { stdout: 'git version 2.40\n', stderr: '', exitCode: 0, durationMs: 0 }
+      })
+    }
+
+    it('reports every populated bypass channel and violation as a failing doctor check', async () => {
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      writeBypassCeremonyScript()
+      mockBypassReport(
+        JSON.stringify({
+          channels: [{ env: 'ARBITER_SKIP_GATE', count: 3, ceiling: 1 }],
+          ledgerViolations: ['advisory entry expired'],
+          rateViolations: ['gate bypass ceiling exceeded'],
+        }),
+        1,
+      )
+
+      const result = await runDoctorHealth({ dir, json: true })
+      const check = result.checks.find((c) => c.id === 'bypass-ceremony')
+      expect(check).toMatchObject({ status: 'FAIL' })
+      expect(check?.detail).toContain('gate bypass ceiling exceeded')
+      expect(check?.detail).toContain('advisory entry expired')
+      expect(check?.hint).toMatch(/check-bypass-ceremony/)
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('uses safe empty defaults when a passing report omits all optional arrays', async () => {
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      writeBypassCeremonyScript()
+      mockBypassReport('{}')
+
+      const result = await runDoctorHealth({ dir, json: true })
+      const check = result.checks.find((c) => c.id === 'bypass-ceremony')
+      expect(check).toMatchObject({
+        status: 'PASS',
+        detail: 'channels: no bypass-log channels in the trailing 30 days',
+      })
+    })
+
+    it('keeps a failed report actionable even when it supplies no violation strings', async () => {
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      writeBypassCeremonyScript()
+      mockBypassReport(JSON.stringify({ channels: [{ env: 'CI', count: 2, ceiling: 1 }] }), 1)
+
+      const result = await runDoctorHealth({ dir, json: true })
+      expect(result.checks.find((c) => c.id === 'bypass-ceremony')).toMatchObject({
+        status: 'FAIL',
+        detail: 'channels: CI: 2/1',
+      })
+    })
+
+    it('warns when the report process returns malformed JSON rather than trusting its exit code', async () => {
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      writeBypassCeremonyScript()
+      mockBypassReport('not json')
+
+      const result = await runDoctorHealth({ dir, json: true })
+      expect(result.checks.find((c) => c.id === 'bypass-ceremony')).toMatchObject({
+        status: 'WARN',
+        detail: 'bypass-ceremony check produced unparseable output',
+      })
+    })
+
+    it('warns with the launch failure message when the report cannot be run', async () => {
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      writeBypassCeremonyScript()
+      mockRunCli.mockImplementation((command, args) => {
+        if (command === 'node' && args[0]?.endsWith('check-bypass-ceremony.mjs')) {
+          throw new Error('node is unavailable')
+        }
+        return { stdout: 'git version 2.40\n', stderr: '', exitCode: 0, durationMs: 0 }
+      })
+
+      const result = await runDoctorHealth({ dir, json: true })
+      expect(result.checks.find((c) => c.id === 'bypass-ceremony')).toMatchObject({
+        status: 'WARN',
+        detail: 'could not run bypass-ceremony check: node is unavailable',
+      })
+    })
   })
 
   // #1835: field evidence — 11 scripts/check-*.mjs scripts orphaned in a real
@@ -715,6 +829,60 @@ describe('runDoctorHealth (#539)', () => {
     const handle = await acquireLock(lockPath)
     expect(existsSync(lockPath)).toBe(true)
     await handle.release()
+  })
+
+  it('prints an explicit corrupt-lock recovery message for human operators', async () => {
+    mockGitOk()
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(join(dir, '.arbiter', '.lock'), '{not-json', 'utf-8')
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+
+    try {
+      const recovery = await runDoctorRecoverLock({ dir })
+
+      expect(recovery).toMatchObject({ found: true, released: true, corrupt: true })
+      expect(stdout).toHaveBeenCalledWith(expect.stringMatching(/CORRUPT \/ unreadable/))
+      expect(stdout).toHaveBeenCalledWith(expect.stringMatching(/Corrupt lock released/))
+    } finally {
+      stdout.mockRestore()
+    }
+  })
+
+  it('emits a JSON refusal that identifies a foreign lock without claiming it is corrupt', async () => {
+    mockGitOk()
+    writeLock(dir, { hostname: 'another-host', pid: 4321, cmd: 'arbiter gate' })
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+
+    try {
+      await expect(runDoctorRecoverLock({ dir, json: true })).rejects.toThrow(/Refusing to release/)
+
+      const output = stdout.mock.calls.map(([value]) => String(value)).join('')
+      expect(output).toContain('"refused"')
+      expect(output).toContain('another-host')
+      expect(output).not.toContain('"corrupt":true')
+    } finally {
+      stdout.mockRestore()
+    }
+  })
+
+  it('keeps corrupt recovery provenance when another managed lock must still be refused', async () => {
+    mockGitOk()
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(join(dir, '.arbiter', '.lock'), '{not-json', 'utf-8')
+    writeKitLock(dir, { hostname: 'another-host', pid: 9876, cmd: 'arbiter kit' })
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+
+    try {
+      await expect(runDoctorRecoverLock({ dir, json: true })).rejects.toThrow(/Refusing to release/)
+
+      const output = stdout.mock.calls.map(([value]) => String(value)).join('')
+      expect(output).toContain('"released":true')
+      expect(output).toContain('"corrupt":true')
+      expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(false)
+      expect(existsSync(join(dir, '.arbiter', 'kit.lock'))).toBe(true)
+    } finally {
+      stdout.mockRestore()
+    }
   })
 
   // #1517 — doctor must also detect/repair a stale `kit.lock` (guards saveConfig).

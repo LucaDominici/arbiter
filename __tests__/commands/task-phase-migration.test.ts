@@ -153,6 +153,21 @@ describe('legacy → unified migration (#1206, #549)', () => {
     expect(phaseOf()).toBe('refactor')
   })
 
+  it.each(['null', '[]', '"a stale marker"'])(
+    'refactor → verification rejects a non-object marker: %s',
+    (marker) => {
+      seedLegacy('refactor')
+      const markerDir = join(dir, '.arbiter')
+      mkdirSync(markerDir, { recursive: true })
+      writeFileSync(join(markerDir, 'gate-pass.json'), marker, 'utf-8')
+
+      expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(
+        /marker must be a JSON object/i,
+      )
+      expect(phaseOf()).toBe('refactor')
+    },
+  )
+
   it('refactor → verification rejects a stale head_sha marker', () => {
     seedLegacy('refactor')
     writeGatePassMarker(dir, { head_sha: 'a'.repeat(40) })
