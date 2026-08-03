@@ -14,11 +14,26 @@ const MUST_IGNORE = [
   '.arbiter/private/work-kit-source/x.md',
   '.arbiter/private/REDACTION-LEXICON.md',
   'docs/internal/KIT-GOLD-STANDARD.md',
+  // Self-declared maintainer-private ("not committed to the public repository") and
+  // carries reporter-contact details. #2053: named explicitly so the blanket
+  // docs/internal/ rule can be narrowed without un-privating this file.
+  'docs/internal/coc-enforcement-runbook.md',
   'src/kit/derived.json',
 ]
 
-// Paths that must NOT be gitignored (committed)
-const MUST_NOT_IGNORE = ['scripts/data/redaction-lexicon.json', '.kit-removals.log']
+// Paths that must NOT be gitignored (committed).
+// #2053: docs/internal/ was blanket-ignored, so every NEW authored ADR/METHOD/SYSTEM doc
+// silently never entered git history (a plain `git add -A` dropped it with no warning).
+// The two probe paths below are deliberately NON-EXISTENT and UNTRACKED: `git check-ignore`
+// reports a tracked file as not-ignored regardless of the rules, so only an untracked
+// path actually exercises the ignore rule. They are the ratchet that keeps the rule
+// narrowed to the genuinely-private files listed in MUST_IGNORE above.
+const MUST_NOT_IGNORE = [
+  'scripts/data/redaction-lexicon.json',
+  '.kit-removals.log',
+  'docs/internal/ADR/999-new-adr-probe.md',
+  'docs/internal/METHOD/NEW_METHOD_DOC_PROBE.md',
+]
 
 let failures = 0
 
