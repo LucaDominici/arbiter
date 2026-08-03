@@ -162,7 +162,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-39:** Hook templates require empirical fire-tests
 - **INV-45:** Self-dogfood check — every EJS template must render to match its materialized self-repo file
 - **INV-47:** Matrix proven cell requires a gate invocation in check-all.mjs.ejs
-- **INV-48:** EJS template render-test coverage must not regress, and an improvement must be banked
+- **INV-48:** EJS template render-test coverage must not regress
   - _Enforcement:_ `scripts/check-template-tests.mjs` (L1; sibling `scripts/check-brownfield-tests.mjs` for CANON-11 generator brownfield coverage). Both report the gap with its denominator (`183/580 (32%)`, `54/89 (61%)`), not a bare integer, and both fail in BOTH directions: above the baseline is a regression, below it is an unbanked improvement that must be committed via `--update-baseline` — otherwise the recovered slots stay free for silent re-widening (#2013).
 - **INV-49:** Every generator in src/generators/ must have a unit test
 - **INV-50:** Every command in src/commands/ must have a test
