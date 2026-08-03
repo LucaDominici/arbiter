@@ -119,6 +119,57 @@ describe('injectGradleWiring', () => {
     expect(out).not.toContain('id("checkstyle")')
   })
 
+  it('keeps declarations separate in a single-line Groovy plugins block', () => {
+    const p = join(dir, 'build.gradle')
+    writeFileSync(p, "plugins { id 'java' }\nrepositories { mavenCentral() }\n")
+    injectGradleWiring(dir, false, {
+      plugins: [{ id: 'checkstyle' }, { id: 'com.diffplug.spotless', version: '6.25.0' }],
+    })
+    const out = readFileSync(p, 'utf-8')
+    expect(out.split('\n')).not.toContainEqual(
+      expect.stringMatching(/id\s+'[^']+'.*\bid\s+'[^']+'/),
+    )
+    expect(out.match(/id 'java'/g)).toHaveLength(1)
+  })
+
+  it('keeps declarations separate in a single-line Kotlin plugins block', () => {
+    const p = ktsBuild('plugins { java }\nrepositories { mavenCentral() }\n')
+    injectGradleWiring(dir, false, {
+      plugins: [{ id: 'checkstyle' }, { id: 'com.diffplug.spotless', version: '6.25.0' }],
+    })
+    const out = readFileSync(p, 'utf-8')
+    expect(out.split('\n')).not.toContainEqual(
+      expect.stringMatching(/(?:\bjava\b|id\("[^"]+"\)).*(?:\bjava\b|id\("[^"]+"\))/),
+    )
+    expect(out.match(/\bjava\b/g)).toHaveLength(1)
+  })
+
+  it('keeps one plugin declaration per line in a multi-line plugins block', () => {
+    const p = join(dir, 'build.gradle')
+    writeFileSync(p, "plugins {\n    id 'java'\n}\n")
+    injectGradleWiring(dir, false, {
+      plugins: [{ id: 'checkstyle' }, { id: 'com.diffplug.spotless', version: '6.25.0' }],
+    })
+    const out = readFileSync(p, 'utf-8')
+    expect(out.split('\n').filter((line) => line.includes("id '"))).toEqual([
+      "    id 'checkstyle'",
+      "    id 'com.diffplug.spotless' version '6.25.0'",
+      "    id 'java'",
+    ])
+  })
+
+  it('is idempotent for a single-line plugins block after the first run', () => {
+    const p = join(dir, 'build.gradle')
+    writeFileSync(p, "plugins { id 'java' }\nrepositories { mavenCentral() }\n")
+    const wiring: GradleWiringRequest = {
+      plugins: [{ id: 'checkstyle' }, { id: 'com.diffplug.spotless', version: '6.25.0' }],
+    }
+    injectGradleWiring(dir, false, wiring)
+    const first = readFileSync(p, 'utf-8')
+    injectGradleWiring(dir, false, wiring)
+    expect(readFileSync(p, 'utf-8')).toBe(first)
+  })
+
   it('fills gaps inside an existing managed block instead of appending a second one', () => {
     const p = ktsBuild('plugins {\n    java\n}\n')
     injectGradleWiring(dir, false, { snippets: WIRING.snippets })

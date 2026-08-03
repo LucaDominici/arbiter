@@ -182,7 +182,10 @@ function ensurePlugins(content: string, dsl: GradleDsl, plugins: GradlePluginSpe
     const inner = content.slice(block.open + 1, block.close)
     const indent = /\n([ \t]+)\S/.exec(inner)?.[1] ?? '    '
     const lines = missing.map((p) => pluginLine(dsl, p, indent)).join('\n')
-    return content.slice(0, block.open + 1) + '\n' + lines + content.slice(block.open + 1)
+    const remainder = content.slice(block.open + 1)
+    // Single-line plugins blocks need a separator before their existing declaration.
+    const separator = remainder.startsWith('\n') ? '' : '\n'
+    return content.slice(0, block.open + 1) + '\n' + lines + separator + remainder
   }
 
   const lines = missing.map((p) => pluginLine(dsl, p, '    ')).join('\n')
