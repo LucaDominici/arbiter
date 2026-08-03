@@ -41,8 +41,14 @@ const block = (rule, reason) => {
 // Rule evaluation — fail CLOSED: while actively closing, any unexpected error blocks the
 // command (exit 2) so a crashing guard can't silently permit a forbidden action.
 try {
-  // Rule 1 (single named target): no switching branches/targets while closing.
-  if (/\bgit\s+(checkout|switch)\s+(-b|-c)\b/.test(command)) {
+  // Rule 1 (single named target): no switching branches/targets while closing. A switch in
+  // any form — named branch, `-` for the previous one, `-b`/`-c` for a new one — abandons
+  // the single target. The path-restore forms of `checkout` (`-- <path>`, `.`, `--ours`,
+  // `--theirs`, `-p`) are routine conflict resolution DURING a close and must stay allowed,
+  // or the guard wedges the phase it exists to protect.
+  const switchArgs = command.match(/\bgit\s+(?:checkout|switch)\b([^;&|]*)/)?.[1]
+  const pathRestore = /(^|\s)(--|--ours|--theirs|--merge|--conflict|-p|--patch|\.)(\s|$)/
+  if (switchArgs !== undefined && !pathRestore.test(switchArgs)) {
     block('Rule 1 (single named target)', 'no switching branches/targets while closing')
   }
 
