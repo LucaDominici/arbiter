@@ -107,9 +107,13 @@ column, so the same check is strict on a greenfield `gold` repo and lenient on a
 - **`D-ENFORCEMENT`** — behavioural-endpoint coverage and gate-critical guards (E1–E7).
 - **`D-SUPPLY-CHAIN`** — keyless signing and SBOM attestation.
 - **`D-ACTIONS`** — CI/CD workflow hardening: every action SHA-pinned, least-privilege
-  `permissions:`, `concurrency:` on PR/push workflows, `timeout-minutes` on every CI-tier job
-  (no hung job runs to the 6h default), and keyless release signing. The pinning / permissions /
-  concurrency / timeout checks read `.arbiter/reports/workflow-hardening.json`, emitted by
+  `permissions:`, `concurrency:` on PR/push workflows, a concurrency group keyed on
+  `github.ref_name` rather than `github.ref` (`github.head_ref || github.ref` puts one branch
+  in two different groups — `task/x` on `pull_request`, `refs/heads/task/x` on `push` — so
+  neither run cancels the other and both execute the full gate; #2123, recurrence of #1987),
+  `timeout-minutes` on every CI-tier job (no hung job runs to the 6h default), and keyless
+  release signing. The pinning / permissions / concurrency / timeout checks read
+  `.arbiter/reports/workflow-hardening.json`, emitted by
   `scripts/check-workflow-hardening.mjs`.
 - **`D-META-TEST`** — RED-on-bug plus GREEN-on-clean per static rule.
 
