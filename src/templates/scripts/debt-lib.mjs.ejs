@@ -394,22 +394,76 @@ export function jscpdScan(cwd, opts = {}) {
 }
 
 /**
+ * Enriched vitest-coverage failure diagnostic (#2226). The bare ENOENT named no
+ * cause: vitest exits 1 for many reasons (a failing test, a missing provider, a
+ * broken reporter) and writes no json-summary for any of them. This names the
+ * cause from the run's OWN output:
+ *   - stdout (vitest prints its version on the RUN line and the Failed Tests
+ *     summary at the end) — the stderr-only tail misled wave-1, it can be a
+ *     PASSING test's incidental stderr;
+ *   - whether .coverage-tmp/ was created at all (stale-guard vs never-ran);
+ *   - exit status/signal.
+ * @param {unknown} err - error thrown while reading/parsing the summary
+ * @param {{status: number|null, signal?: string, stdout?: string, stderr?: string}} raw
+ *   the spawned vitest result
+ * @param {string} cwd - project root (probes .coverage-tmp/)
+ * @returns {string}
+ */
+// eslint-disable-next-line no-control-regex -- strips ANSI SGR codes (\x1b[...m)
+const ANSI_SGR = /\x1b\[[0-9;]*m/g;
+
+function coverageFailureReason(err, raw, cwd) {
+  const clean = (s = '') => s.replace(ANSI_SGR, '');
+  const lines = (s) => clean(s).split('\n').filter(Boolean);
+  const stdoutTail = lines(raw.stdout).slice(-3).join(' | ');
+  const stderrTail = lines(raw.stderr).slice(-3).join(' | ');
+  const outcome = [
+    raw.status !== null ? `exit ${raw.status}` : '',
+    raw.signal ? `signal ${raw.signal}` : '',
+  ].filter(Boolean).join(', ');
+  const version =
+    lines(raw.stdout).find((l) => /^RUN\s+v\d+\.\d+\.\d+/.test(l))?.trim() ?? 'vitest version unknown';
+  const tmpDir = resolve(cwd, '.coverage-tmp');
+  const tmpState = existsSync(tmpDir)
+    ? existsSync(join(tmpDir, 'coverage-summary.json'))
+      ? '.coverage-tmp created, summary present'
+      : '.coverage-tmp created, no summary'
+    : '.coverage-tmp NOT created';
+  return [
+    `vitest coverage summary unreadable: ${err instanceof Error ? err.message : String(err)}`,
+    outcome,
+    version,
+    tmpState,
+    stdoutTail ? `stdout: ${stdoutTail}` : '',
+    stderrTail ? `stderr: ${stderrTail}` : '',
+  ].filter(Boolean).join(' — ');
+}
+
+/**
  * Collect TypeScript/JavaScript debt metrics.
  * @param {string} cwd
  * @param {Array<{metric: string, reason: string}>} [collectionErrors]
  *   Sink for tool-ran-but-collection-failed events (distinct from
  *   tool-not-installed, which soft-skips). debt-report --gate hard-fails on
  *   any entry (fail-closed).
+ * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null}} [opts]
+ *   spawnCoverage is injectable for tests, mirroring jscpdScan's opts.spawn
+ *   seam: it replaces the `npx vitest run --coverage` invocation so a unit test
+ *   can deterministically simulate "vitest ran, no summary written" (the
+ *   CI-only ENOENT of #2226). Return null to soft-skip (tool-not-installed).
  * @returns {Record<string, {value: number, unit: string, direction: string}>}
  */
-export function collectMetrics(cwd, collectionErrors = []) {
+export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   const metrics = {};
 
   // ── Coverage (vitest json-summary reporter) ───────────────────────────────
   // Stale-report poisoning guard, mirroring jscpdScan's reportPath guard above: a leftover .coverage-tmp from a previous run (this box's self-hosted CI workdir persists between jobs) must never be read as this run's output.
   rmSync(resolve(cwd, '.coverage-tmp'), { recursive: true, force: true });
-  const coverageRaw = spawnOrSkip('coverageLine', 'vitest', 'npx',
-    ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary', '--coverage.reportsDirectory=.coverage-tmp'], { cwd });
+  const spawnCoverage =
+    opts.spawnCoverage ??
+    ((dir, args) => spawnOrSkip('coverageLine', 'vitest', 'npx', args, { cwd: dir }));
+  const coverageRaw = spawnCoverage(cwd,
+    ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary', '--coverage.reportsDirectory=.coverage-tmp']);
   if (coverageRaw !== null) {
     try {
       const summary = JSON.parse(readFileSync(resolve(cwd, '.coverage-tmp/coverage-summary.json'), 'utf-8'));
@@ -421,13 +475,7 @@ export function collectMetrics(cwd, collectionErrors = []) {
       metrics.coverageBranch = { value: summary.total.branches?.pct ?? 0, unit: 'percent', direction: 'higher-is-better' };
 <% } %>
     } catch (err) {
-      const why = (coverageRaw.stderr ?? '').trim().split('\n').slice(0, 3).join(' | ');
-      const outcome = [
-        coverageRaw.status !== null ? `exit ${coverageRaw.status}` : '',
-        coverageRaw.signal ? `signal ${coverageRaw.signal}` : '',
-      ].filter(Boolean).join(', ');
-      const reason = `vitest coverage summary unreadable: ${err instanceof Error ? err.message : String(err)}` +
-        (outcome || why ? ` (${outcome}${why ? `${outcome ? ': ' : ''}${why}` : ''})` : '');
+      const reason = coverageFailureReason(err, coverageRaw, cwd);
       collectionErrors.push({ metric: 'coverageLine', reason });
       process.stderr.write(`[baseline] ERROR: ${reason}\n`);
     }
