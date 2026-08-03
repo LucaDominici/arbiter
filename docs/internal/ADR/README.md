@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-27'
+last_review: '2026-08-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 110)
+1. Create `NNN-short-title.md` in this directory (next free number after 111)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -137,3 +137,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 108 | [Exact-SHA landing for evidence-bearing PRs](108-ff-only-merge-method-evidence-bearing-prs.md)                                                                        | Accepted   | 2026-07-27 |  |
 | 109 | [constraint-map.json scaffolded + INV-115 fail-closed on a missing map](109-constraint-map-fail-closed.md)                                                            | Accepted   | 2026-07-20 |  |
 | 110 | [Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](110-acceptance-criteria-anchor.md)                                              | Accepted   | 2026-07-21 |  |
+| 111 | [tier origination is human-only (#2184, follow-up to #2180/#2178)](111-tier-origination-human-only.md)                                                                | Accepted   | 2026-08-03 |  |

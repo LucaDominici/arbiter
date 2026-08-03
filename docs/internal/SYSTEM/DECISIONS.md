@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-07-27'
+last_review: '2026-08-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -128,3 +128,4 @@ related: []
 | 108 | [Exact-SHA landing for evidence-bearing PRs](../ADR/108-ff-only-merge-method-evidence-bearing-prs.md) | Accepted | 2026-07-27 |
 | 109 | [constraint-map.json scaffolded + INV-115 fail-closed on a missing map](../ADR/109-constraint-map-fail-closed.md) | Accepted | 2026-07-20 |
 | 110 | [Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](../ADR/110-acceptance-criteria-anchor.md) | Accepted | 2026-07-21 |
+| 111 | [tier origination is human-only (#2184, follow-up to #2180/#2178)](../ADR/111-tier-origination-human-only.md) | Accepted | 2026-08-03 |

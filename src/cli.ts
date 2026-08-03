@@ -1852,13 +1852,13 @@ program
           ...(opts.autonomy !== undefined ? { autonomy: opts.autonomy } : {}),
         })
         // #1260 — the review TIER drives BOTH the review-agent COUNT and the orthogonal
-        // VERTICAL breadth (see A8: guidance, not auto-detected machinery). `--tier`
-        // defaults to the widest ('Standard') fail-safe absent an explicit override.
-        const effectiveTier = opts.tier ?? 'Standard'
+        // VERTICAL breadth (see A8: guidance, not auto-detected machinery). Without `--tier`,
+        // respect the persisted tier; when none is persisted, normTier falls back to widest
+        // ('Standard') fail-safe.
         const result = runTaskShip({
           ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
           ...(id !== undefined ? { taskId: id } : {}),
-          tier: effectiveTier,
+          ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
           advance: opts.advance,
           advanceOpts: {
             skipPlanReview: opts.skipPlanReview,

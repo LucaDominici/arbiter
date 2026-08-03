@@ -312,13 +312,18 @@ describe('#2207 — bare `ship <id>` respects the persisted tier', () => {
     }
   })
 
-  it('still falls back to the widest tier when nothing is persisted', () => {
+  // Assertion corrected after the red: ADR-111 (#2184) decides that ONLY a human
+  // originates a tier. Writing 'Standard' back here would make `ship` itself an
+  // originator, and would collapse "unset" ('' — what defaultState() already
+  // stores) into "explicitly widest", destroying the distinction. Leaving it
+  // untouched is the stronger contract: it proves ship never originates a tier.
+  it('leaves an unset tier unset and reports the widest tier as effective', () => {
     const dir = shipDir()
     try {
       persistTier(dir, '')
       const stdout = ship(dir, [])
       expect(stdout).toMatch(/Tier: Standard\b/)
-      expect(readTier(dir)).toBe('Standard')
+      expect(readTier(dir)).toBe('')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
