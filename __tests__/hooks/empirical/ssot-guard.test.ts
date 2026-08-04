@@ -1,19 +1,20 @@
 // #2045: one-shot file bypass + logged env-var bypass + config-driven guarded paths.
-// The hook is spawned from its REAL path in the repo (not copied into a temp fixture) so
-// its `./lib.mjs` import resolves normally; only `cwd` points at an isolated temp git repo
-// with its own `arbiter.json`, which is how getRepoRoot() and the config read pick up
-// per-test fixture state (mirrors __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts).
-// This also decouples the tests from arbiter's OWN real arbiter.json — the previous version
-// of this file spawned the hook with cwd = the real arbiter repo, which broke the moment the
-// guarded-path list became config-driven (arbiter's own governance.ssotGuardPatterns no
-// longer matches the generic default `docs/SYSTEM/...` paths, see .dogfood-divergences.json).
+// The hook under test is the SHIPPED TEMPLATE (src/templates/claude/hooks/
+// pre-edit-ssot-guard.mjs), copied into the temp fixture repo's .claude/hooks/
+// together with a rendered lib.mjs twin, so the ./lib.mjs import resolves and the
+// fixture repo OWNS the hook (the #565/#567 sibling-repo guard must consider edits
+// in the fixture repo as in-repo). cwd stays the fixture repo root, which is how
+// getRepoRoot() and the config read pick up per-test fixture state.
 import { spawnSync, execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
+import { renderTemplate } from '../../../src/utils/render.js'
+import { makeConfig } from '../../helpers.js'
 
-const HOOK_PATH = resolve(import.meta.dirname, '../../../.claude/hooks/pre-edit-ssot-guard.mjs')
+const HOOK_SRC = resolve(import.meta.dirname, '../../../src/templates/claude/hooks/pre-edit-ssot-guard.mjs')
+const LIB_TEMPLATE = 'claude/hooks/lib.mjs.ejs'
 const BYPASS_LOG_PATH = (dir: string) => join(dir, '.arbiter', 'evidence', 'bypass-log.jsonl')
 const BYPASS_FILE_PATH = (dir: string) => join(dir, '.arbiter', 'ssot-bypass')
 
@@ -23,6 +24,13 @@ function setup(): string {
   execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], { cwd: dir, stdio: 'ignore' })
+  const hooksDir = join(dir, '.claude', 'hooks')
+  mkdirSync(hooksDir, { recursive: true })
+  writeFileSync(join(hooksDir, 'pre-edit-ssot-guard.mjs'), readFileSync(HOOK_SRC, 'utf-8'))
+  writeFileSync(
+    join(hooksDir, 'lib.mjs'),
+    renderTemplate(LIB_TEMPLATE, makeConfig(dir, { projectName: 'test-proj' }) as unknown as Record<string, unknown>),
+  )
   return dir
 }
 
@@ -48,7 +56,7 @@ function readBypassLog(dir: string): Array<Record<string, unknown>> {
 function runHook(dir: string, filePath: string, env: NodeJS.ProcessEnv = {}) {
   const baseEnv = { ...process.env }
   delete baseEnv['ARBITER_SSOT_BYPASS']
-  return spawnSync('node', [HOOK_PATH], {
+  return spawnSync('node', [join(dir, '.claude', 'hooks', 'pre-edit-ssot-guard.mjs')], {
     cwd: dir,
     encoding: 'utf-8',
     input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: filePath } }),
@@ -201,6 +209,23 @@ describe('pre-edit-ssot-guard', () => {
     it('falls back to the built-in defaults when arbiter.json is missing entirely', () => {
       const dir = track(setup())
       expect(runHook(dir, 'AGENTS.md').status).toBe(2)
+    })
+  })
+
+  describe('sibling-repo guard (#565/#567): a foreign repo edit is not this repo\'s SSOT', () => {
+    it('exits 0 when the edited file belongs to a DIFFERENT repo than the one owning the hook', () => {
+      const ownerDir = track(setup())
+      const foreignDir = track(setup())
+      // cwd is the FOREIGN repo; the hook file lives in the OWNER repo.
+      const result = spawnSync('node', [join(ownerDir, '.claude', 'hooks', 'pre-edit-ssot-guard.mjs')], {
+        cwd: foreignDir,
+        encoding: 'utf-8',
+        input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: join(foreignDir, 'AGENTS.md') } }),
+        env: process.env,
+      })
+      // Without the guard the cwd-derived rel anchor matches the foreign AGENTS.md and
+      // the hook blocks (exit 2) — that is the #565 bug. With the guard it exits 0.
+      expect(result.status).toBe(0)
     })
   })
 })
