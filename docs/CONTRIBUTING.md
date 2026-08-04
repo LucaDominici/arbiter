@@ -85,6 +85,24 @@ arbiter ship #NNN --tier Standard   # equivalent CLI
 plan → red-team → TDD impl → review → gate → merge. Use `/task` subcommands only
 for low-level engine control or recovery (`arbiter task advance`, `record-red`, etc.).
 
+### Merge-train batching a sequential chain (`--chain`, #2102)
+
+For N issues with a real, declared dependency order, implement them all in one
+worktree/gate/PR instead of paying the gate's cost N times (see
+`docs/methodology/gate-throughput-patterns.md` §1):
+
+```sh
+arbiter task init --id #NNN --chain #NNN1 --chain #NNN2   # declare the chain (repeatable, opt-in only)
+arbiter ship #NNN --advance                                 # --chain is not repeated on every call
+```
+
+The `pre-push` git hook enforces it: once a chain is declared, the push is BLOCKED unless
+every id in `[taskId, ...chainIds]` has a commit in the push range naming it (`#<id>`) —
+one commit per issue is the traceability floor. No chain declared ⇒ the check is a silent
+no-op. `--chain` never changes whether the close step opens a PR or pushes directly — that
+stays governed by `collaborationMode`/`mergeMode` as before.
+
+
 ## Common next reads
 
 - [`README.md`](../README.md) — feature overview

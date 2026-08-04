@@ -49,6 +49,17 @@ PROCESS_CORE.md (or equivalent execution-governance doc) for the project-specifi
 codification and its `scripts/gates/chain-batching.sh`-class detector; this document is
 the portable pattern, not the project-specific enforcement point.
 
+**Arbiter-side enforcer (#2102):** declare the chain explicitly — `arbiter task init --id
+<id> --chain <id> [--chain <id> ...]` or `arbiter ship <id> --chain <id> [...]` (repeatable,
+never auto-derived from a shared parent epic). This persists `chainIds` on the unified task
+document; `arbiter ship`'s close-step advisory then names every id in the chain, and the
+generated `pre-push` hook (`src/templates/githooks/pre-push.ejs`) BLOCKS the push unless
+every id in `[taskId, ...chainIds]` has a commit in the push range naming it (`#<id>`) —
+the enforced half of `chain-batching.sh`'s advisory `is_unbatched` check, upgraded from a
+warning to a hard gate. `--chain` composes with the existing `collaborationMode`/`mergeMode`
+axis (`ship-profile.ts`) without changing it: a `peer-review` repo still gets one PR for the
+whole chain; a `trunk-solo`+`direct` repo still gets one direct push, no PR either way.
+
 ---
 
 ## 2. Unify the fixer and the checker for derived/generated state
