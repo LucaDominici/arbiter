@@ -268,3 +268,4 @@ describe('generateAgentsMd', () => {
     expect(content).toContain('PROJ-01')
     expect(content).toContain('Tenancy isolation is a product contract')
   })
+})
