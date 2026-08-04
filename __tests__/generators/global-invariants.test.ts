@@ -155,4 +155,26 @@ describe('generateGlobalInvariants', () => {
     expect(result.action).toBe('skipped')
     expect(existsSync(join(dir, 'GLOBAL_INVARIANTS.md.arbiter-backup'))).toBe(false)
   })
+
+  it('regeneration with projectInvariants is idempotent — zero diff (TC-6)', () => {
+    const projInvariant = {
+      id: 'PROJ-01',
+      tier: 'governance',
+      title: 'Tenancy isolation is a product contract',
+      description: 'Every tenant-scoped resource must carry owner_id.',
+      alwaysActive: true,
+      enforcement: 'CI (constraint scan); code review',
+    }
+    const config = makeConfig(dir, {
+      governanceLevel: 'L2',
+      invariantTiers: presetToTiers('standard'),
+      projectInvariants: [projInvariant],
+    } as Partial<Parameters<typeof makeConfig>[1]> & { projectInvariants: typeof projInvariant[] })
+    const first = generateGlobalInvariants(config)
+    expect(first.action).toBe('created')
+    const firstContent = readFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), 'utf-8')
+    const second = generateGlobalInvariants(config)
+    expect(second.action).toBe('skipped')
+    expect(readFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), 'utf-8')).toBe(firstContent)
+  })
 })

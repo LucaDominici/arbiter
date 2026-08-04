@@ -193,7 +193,7 @@ if (isMain) {
   runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])
   runCheck('brownfield tests (CANON-11)', 'node', ['scripts/check-brownfield-tests.mjs'])
   runCheck('catalog parity', 'node', ['scripts/check-catalog-agents-parity.mjs'])
-  runCheck('global-invariants parity', 'node', ['scripts/check-global-invariants-parity.mjs'])
+  runCheck('global-invariants parity', 'node', ['scripts/check-global-invariants-parity.mjs', '--config=arbiter.json'])
   runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
   runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
   // #1410: advisory — report check-*.mjs gates not reachable from check-all.mjs
