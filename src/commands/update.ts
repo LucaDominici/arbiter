@@ -322,7 +322,7 @@ function selectAndRun(
 
 /** T1: the adopt-policy hooks threaded into a generation session. */
 interface AdoptOpts {
-  adoptPredicate: (key: string) => boolean
+  adoptPredicate: (key: string, provenanceKnown: boolean) => boolean
   onAdopt: (key: string, priorContent: string, newContent: string) => void
 }
 
@@ -418,7 +418,7 @@ function runAdoptPlan(
   snapshot: ArbiterConfigV2 | null,
   stored: ArbiterConfigV2,
   targetDir: string,
-  adoptPredicate: (key: string) => boolean,
+  adoptPredicate: (key: string, provenanceKnown: boolean) => boolean,
 ): { records: AdoptRecord[]; results: WriteResult[]; retirement: RetirementPlan } {
   const prevManifest = loadGeneratedManifest(targetDir)
   const collected: AdoptRecord[] = []

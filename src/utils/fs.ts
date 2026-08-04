@@ -190,7 +190,15 @@ interface GenerationSession {
    * "safety-class"; the caller (`update.ts`) supplies the policy so this shared,
    * heavily-depended-on module stays a generic file-write primitive.
    */
-  adoptPredicate?: (key: string) => boolean
+  /**
+   * T1: decides whether a withheld file is force-adopted (write the shipped
+   * content over the user-modified one). Domain-agnostic on purpose — `fs.ts`
+   * has no notion of "safety-class"; the caller supplies the policy. The
+   * second argument is `provenanceKnown` (`prev !== undefined` — the file has
+   * a recorded manifest baseline), letting the policy adopt the safety class
+   * by default while keeping informative classes provenance-gated (#2220).
+   */
+  adoptPredicate?: (key: string, provenanceKnown: boolean) => boolean
   /**
    * T1: invoked AFTER a force-adopt actually lands on disk, with the prior
    * (user-modified) content and the newly-written (shipped) content. The
@@ -219,7 +227,7 @@ export function beginGenerationSession(opts: {
   targetDir: string
   prevHashes: Record<string, string>
   onWithheld?: (key: string) => void
-  adoptPredicate?: (key: string) => boolean
+  adoptPredicate?: (key: string, provenanceKnown: boolean) => boolean
   onAdopt?: (key: string, priorContent: string, newContent: string) => void
 }): void {
   if (generationSession !== null) {
@@ -347,11 +355,13 @@ function resolveSessionSkip(
   if (!skipIfExists && prev === undefined) return rewrite
   // User-modified or unknown provenance.
   const withheldKey = key ?? filePath
-  if (prev !== undefined && session.adoptPredicate?.(withheldKey)) {
-    // T1: force-adopt only a file arbiter previously emitted — the shipped fix
-    // lands over the user-modified content. Unknown provenance (no manifest
-    // entry) is preserved, never clobbered (#2220). The caller (update.ts) is
-    // responsible for persisting a reversible local-override record with `disk`.
+  // Provenance is passed to the predicate, which decides per class: the safety
+  // class (hooks) is adopt-by-default by contract (update.ts noAdoptSafety) —
+  // enforcement must stay current, and the caller's onAdopt persists a
+  // reversible local-override record, so no content is lost. The informative
+  // classes (CLAUDE.md, settings, AGENTS.md, derived) stay provenance-gated
+  // (#2220): unknown-provenance files there are preserved, never clobbered.
+  if (session.adoptPredicate?.(withheldKey, prev !== undefined)) {
     session.onAdopt?.(withheldKey, disk, content)
     return {
       action: backup ? 'backed-up-and-replaced' : 'replaced',

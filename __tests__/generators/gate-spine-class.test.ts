@@ -53,35 +53,38 @@ interface AdoptGovernanceOptions {
 }
 
 describe('buildAdoptPredicate — gate spine is opt-in (#2119)', () => {
+  // User-modified = recorded baseline (provenanceKnown true); unknown
+  // provenance (false) additionally stays withheld for informative classes.
   it('WITHHOLDS a user-modified gate spine with no flags at all', () => {
     const predicate = buildAdoptPredicate(NO_FLAGS)
-    expect(predicate('scripts/check-all.mjs')).toBe(false)
-    expect(predicate('scripts/lib/glob-walk.mjs')).toBe(false)
-    expect(predicate('scripts/lib/run-helpers.mjs')).toBe(false)
+    expect(predicate('scripts/check-all.mjs', true)).toBe(false)
+    expect(predicate('scripts/lib/glob-walk.mjs', true)).toBe(false)
+    expect(predicate('scripts/lib/run-helpers.mjs', true)).toBe(false)
   })
 
   it('still leaves an ordinary skipIfExists file withheld without --adopt', () => {
     const predicate = buildAdoptPredicate(NO_FLAGS)
-    expect(predicate('scripts/check-bloat-ratchet.mjs')).toBe(false)
-    expect(predicate('.claude/rules/50-batch-execution.md')).toBe(false)
+    expect(predicate('scripts/check-bloat-ratchet.mjs', true)).toBe(false)
+    expect(predicate('.claude/rules/50-batch-execution.md', true)).toBe(false)
   })
 
-  it('--adopt-gate-spine is the explicit opt-in, and it leaves safety hooks adopted', () => {
+  it('--adopt-gate-spine is the explicit opt-in (provenance required), and it leaves safety hooks adopted', () => {
     const predicate = buildAdoptPredicate({ ...NO_FLAGS, adoptGateSpine: true })
-    expect(predicate('scripts/check-all.mjs')).toBe(true)
-    expect(predicate('scripts/lib/glob-walk.mjs')).toBe(true)
-    expect(predicate('.claude/hooks/stop-dangerous.mjs')).toBe(true)
+    expect(predicate('scripts/check-all.mjs', true)).toBe(true)
+    expect(predicate('scripts/lib/glob-walk.mjs', true)).toBe(true)
+    expect(predicate('scripts/check-all.mjs', false)).toBe(false)
+    expect(predicate('.claude/hooks/stop-dangerous.mjs', false)).toBe(true)
   })
 
   it('--no-adopt-safety freezes safety hooks, and the spine stays withheld without the opt-in', () => {
     const predicate = buildAdoptPredicate({ ...NO_FLAGS, noAdoptSafety: true })
-    expect(predicate('.claude/hooks/stop-dangerous.mjs')).toBe(false)
-    expect(predicate('scripts/check-all.mjs')).toBe(false)
+    expect(predicate('.claude/hooks/stop-dangerous.mjs', true)).toBe(false)
+    expect(predicate('scripts/check-all.mjs', true)).toBe(false)
   })
 
   it('--adopt still broadens to everything', () => {
     const predicate = buildAdoptPredicate({ ...NO_FLAGS, adopt: true })
-    expect(predicate('scripts/check-bloat-ratchet.mjs')).toBe(true)
+    expect(predicate('scripts/check-bloat-ratchet.mjs', false)).toBe(true)
   })
 })
 
@@ -89,43 +92,44 @@ describe('buildAdoptPredicate — governance files are opt-in (#2141)', () => {
   it('WITHHOLDS a user-modified AGENTS.md with no flags at all', () => {
     const predicate = buildAdoptPredicate(NO_FLAGS)
 
-    expect(predicate('AGENTS.md')).toBe(false)
+    expect(predicate('AGENTS.md', true)).toBe(false)
   })
 
   it('WITHHOLDS a user-modified .claude/settings.json with no flags at all', () => {
     const predicate = buildAdoptPredicate(NO_FLAGS)
 
-    expect(predicate('.claude/settings.json')).toBe(false)
+    expect(predicate('.claude/settings.json', true)).toBe(false)
   })
 
-  it('--adopt-governance is the explicit opt-in for both governance files', () => {
+  it('--adopt-governance is the explicit opt-in (provenance required) for both governance files', () => {
     const options: AdoptGovernanceOptions = { ...NO_FLAGS, adoptGovernance: true }
     const predicate = buildAdoptPredicate(options)
 
-    expect(predicate('AGENTS.md')).toBe(true)
-    expect(predicate('.claude/settings.json')).toBe(true)
+    expect(predicate('AGENTS.md', true)).toBe(true)
+    expect(predicate('.claude/settings.json', true)).toBe(true)
+    expect(predicate('AGENTS.md', false)).toBe(false)
   })
 
   it('adoptGovernance leaves a gate-spine key withheld and keeps safety hooks adopted', () => {
     const governanceOptions: AdoptGovernanceOptions = { ...NO_FLAGS, adoptGovernance: true }
     const governancePredicate = buildAdoptPredicate(governanceOptions)
 
-    expect(governancePredicate('scripts/check-all.mjs')).toBe(false)
-    expect(governancePredicate('.claude/hooks/stop-dangerous.mjs')).toBe(true)
+    expect(governancePredicate('scripts/check-all.mjs', true)).toBe(false)
+    expect(governancePredicate('.claude/hooks/stop-dangerous.mjs', false)).toBe(true)
   })
 
   it('adoptGateSpine leaves AGENTS.md withheld and keeps safety hooks adopted', () => {
     const gateSpinePredicate = buildAdoptPredicate({ ...NO_FLAGS, adoptGateSpine: true })
 
-    expect(gateSpinePredicate('AGENTS.md')).toBe(false)
-    expect(gateSpinePredicate('.claude/hooks/stop-dangerous.mjs')).toBe(true)
+    expect(gateSpinePredicate('AGENTS.md', true)).toBe(false)
+    expect(gateSpinePredicate('.claude/hooks/stop-dangerous.mjs', false)).toBe(true)
   })
 
   it('adoptGateSpine leaves .claude/settings.json withheld and keeps safety hooks adopted', () => {
     const gateSpinePredicate = buildAdoptPredicate({ ...NO_FLAGS, adoptGateSpine: true })
 
-    expect(gateSpinePredicate('.claude/settings.json')).toBe(false)
-    expect(gateSpinePredicate('.claude/hooks/stop-dangerous.mjs')).toBe(true)
+    expect(gateSpinePredicate('.claude/settings.json', true)).toBe(false)
+    expect(gateSpinePredicate('.claude/hooks/stop-dangerous.mjs', false)).toBe(true)
   })
 })
 

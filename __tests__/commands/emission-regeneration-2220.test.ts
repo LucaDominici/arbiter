@@ -51,14 +51,15 @@ describe('update emission regeneration (#2220)', () => {
     cleanupTestProject(dir)
   })
 
-  it('preserves hand-customized CLAUDE.md, safety hooks, and config in a no-manifest tree', async () => {
+  it('preserves hand-customized informative files in a no-manifest tree; safety hooks adopt with a reversible override', async () => {
     await runUpdate({ dir, json: true, github: false })
     rmSync(join(dir, '.arbiter-generated-manifest.json'))
 
     const claudePath = join(dir, CLAUDE_FILE)
     const hookPath = join(dir, SAFETY_HOOK)
+    const patchedHook = '// locally patched safety hook\n' + readFileSync(hookPath, 'utf-8')
     writeFileSync(claudePath, FRONTMATTER + readFileSync(claudePath, 'utf-8'))
-    writeFileSync(hookPath, '// locally patched safety hook\n' + readFileSync(hookPath, 'utf-8'))
+    writeFileSync(hookPath, patchedHook)
 
     const stored = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as Record<
       string,
@@ -69,14 +70,32 @@ describe('update emission regeneration (#2220)', () => {
 
     await runUpdate({ dir, json: true, github: false })
 
+    // Informative classes (CLAUDE.md, arbiter.json) are provenance-gated (#2220):
+    // preserved, never clobbered, no backup residue.
     expect(readFileSync(claudePath, 'utf-8').startsWith('---\ntitle: custom\n')).toBe(true)
-    expect(readFileSync(hookPath, 'utf-8').startsWith('// locally patched safety hook')).toBe(true)
     expect(existsSync(`${claudePath}.arbiter-backup`)).toBe(false)
     const after = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as Record<
       string,
       unknown
     >
     expect(after.permitGitHub).toBe(true)
+    // Safety class is adopt-by-default (contract, update.ts noAdoptSafety): the
+    // shipped hook lands so enforcement stays live (Consumer Reliability Bar),
+    // and the hand-patched content is preserved REVERSIBLY in local-overrides.
+    expect(readFileSync(hookPath, 'utf-8').startsWith('// locally patched safety hook')).toBe(false)
+    const overridesDir = join(dir, '.arbiter', 'evidence', 'local-overrides')
+    const records = readdirSync(overridesDir).map(
+      (file) =>
+        JSON.parse(readFileSync(join(overridesDir, file), 'utf-8')) as {
+          path: string
+          priorContent: string
+        },
+    )
+    expect(records).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: SAFETY_HOOK, priorContent: patchedHook }),
+      ]),
+    )
   })
 
   it('leaves no .arbiter-backup residue after a clean update', async () => {

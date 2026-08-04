@@ -225,7 +225,13 @@ function ownedHooks(root) {
 
 function establishState(root, state) {
   if (gitPorcelain(root) !== '') {
-    runGit(root, ['stash', 'push', '--message', 'arbiter-probe autostash'])
+    // #2227 dirty-tree guard: COMMIT the working tree instead of stashing it.
+    // Stashing hides the changes (e.g. an `arbiter update` that just wrote the
+    // hooks being probed), so the probe would test the pre-update content and
+    // report INERT for hooks the update had just fixed. Committing preserves the
+    // working tree for the probe while giving `checkout -B` a clean tree.
+    runGit(root, ['add', '-A'])
+    runGit(root, ['commit', '-m', 'arbiter-probe checkpoint', '--allow-empty'])
   }
   runGit(root, ['checkout', '-B', state === 'BARE' ? 'main' : 'task/#1-probe'])
   const taskDir = join(root, '.claude', '.task')

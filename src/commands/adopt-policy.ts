@@ -59,23 +59,33 @@ function sha256(content: string): string {
  * file set, independent of `adopt`/`noAdoptSafety`. Exported for unit testing
  * independent of the filesystem.
  *
- * The predicate is consulted by fs.ts only for files arbiter previously emitted
- * (a recorded manifest baseline exists). Files with unknown provenance — no
- * manifest entry — are never force-adopted; they are withheld and preserved
- * (#2220).
+ * The predicate receives `provenanceKnown` (the file has a recorded manifest
+ * baseline). Class policy differs:
+ *  - safety class (`.claude/hooks/*.mjs`) adopts by default REGARDLESS of
+ *    provenance — the documented contract (update.ts `noAdoptSafety`): hook
+ *    enforcement must stay current on every update, and `onAdopt` persists a
+ *    reversible local-override record, so a hand-customized hook is preserved
+ *    (in `.arbiter/evidence/local-overrides/`), not lost. Provenance-gating
+ *    the safety class here made `arbiter update` silently stop refreshing
+ *    hooks on manifest-less consumers (the Consumer Reliability Bar caught it).
+ *  - informative classes (gate spine, governance, derived) stay
+ *    provenance-gated (#2220): a file with no manifest entry is withheld and
+ *    preserved, never clobbered.
  */
-export function buildAdoptPredicate(options: AdoptPolicyOptions): (key: string) => boolean {
+export function buildAdoptPredicate(
+  options: AdoptPolicyOptions,
+): (key: string, provenanceKnown: boolean) => boolean {
   const adoptAll = options.adopt === true
   const adoptSafety = options.noAdoptSafety !== true
   const adoptGateSpine = options.adoptGateSpine === true
   const adoptGovernance = options.adoptGovernance === true
   const refreshDerived = options.refreshDerived === true
-  return (key: string): boolean =>
+  return (key: string, provenanceKnown: boolean): boolean =>
     adoptAll ||
     (adoptSafety && isSafetyClassKey(key)) ||
-    (adoptGateSpine && isGateSpineKey(key)) ||
-    (adoptGovernance && isGovernanceClassKey(key)) ||
-    (refreshDerived && isDerivedTrackKey(key))
+    (provenanceKnown && adoptGateSpine && isGateSpineKey(key)) ||
+    (provenanceKnown && adoptGovernance && isGovernanceClassKey(key)) ||
+    (provenanceKnown && refreshDerived && isDerivedTrackKey(key))
 }
 
 /**

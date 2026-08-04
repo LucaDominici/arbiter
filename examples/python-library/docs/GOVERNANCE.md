@@ -2,7 +2,7 @@
 title: 'GOVERNANCE'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-03'
+last_review: '2026-08-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']

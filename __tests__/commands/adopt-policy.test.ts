@@ -12,32 +12,42 @@ function sha256(content: string): string {
 
 describe('buildAdoptPredicate', () => {
   it('adopts every withheld file under --adopt', () => {
-    expect(buildAdoptPredicate({ adopt: true })('scripts/project-specific-check.mjs')).toBe(true)
+    expect(buildAdoptPredicate({ adopt: true })('scripts/project-specific-check.mjs', false)).toBe(
+      true,
+    )
   })
 
-  it('adopts safety hooks by default, unless --no-adopt-safety freezes them', () => {
+  it('adopts safety hooks by default EVEN without provenance, unless --no-adopt-safety freezes them', () => {
     const safetyHook = '.claude/hooks/stop-dangerous.mjs'
-    expect(buildAdoptPredicate({})(safetyHook)).toBe(true)
-    expect(buildAdoptPredicate({ noAdoptSafety: true })(safetyHook)).toBe(false)
+    // #2220 regression: the safety class must adopt by default regardless of
+    // provenance (the Consumer Reliability Bar caught update silently stopping
+    // to refresh hooks on manifest-less consumers).
+    expect(buildAdoptPredicate({})(safetyHook, false)).toBe(true)
+    expect(buildAdoptPredicate({})(safetyHook, true)).toBe(true)
+    expect(buildAdoptPredicate({ noAdoptSafety: true })(safetyHook, false)).toBe(false)
+    expect(buildAdoptPredicate({ noAdoptSafety: true })(safetyHook, true)).toBe(false)
   })
 
-  it('adopts the gate spine only under --adopt-gate-spine', () => {
+  it('adopts the gate spine only under --adopt-gate-spine AND with provenance', () => {
     const gateSpine = 'scripts/check-all.mjs'
-    expect(buildAdoptPredicate({})(gateSpine)).toBe(false)
-    expect(buildAdoptPredicate({ adoptGateSpine: true })(gateSpine)).toBe(true)
+    expect(buildAdoptPredicate({})(gateSpine, true)).toBe(false)
+    expect(buildAdoptPredicate({ adoptGateSpine: true })(gateSpine, false)).toBe(false)
+    expect(buildAdoptPredicate({ adoptGateSpine: true })(gateSpine, true)).toBe(true)
   })
 
-  it('adopts governance-class files only under --adopt-governance', () => {
-    expect(buildAdoptPredicate({ noAdoptSafety: true })('AGENTS.md')).toBe(false)
-    expect(buildAdoptPredicate({ noAdoptSafety: true })('.claude/settings.json')).toBe(false)
-    expect(buildAdoptPredicate({ adoptGovernance: true })('AGENTS.md')).toBe(true)
-    expect(buildAdoptPredicate({ adoptGovernance: true })('.claude/settings.json')).toBe(true)
+  it('adopts governance-class files only under --adopt-governance AND with provenance', () => {
+    expect(buildAdoptPredicate({ noAdoptSafety: true })('AGENTS.md', true)).toBe(false)
+    expect(buildAdoptPredicate({ noAdoptSafety: true })('.claude/settings.json', true)).toBe(false)
+    expect(buildAdoptPredicate({ adoptGovernance: true })('AGENTS.md', false)).toBe(false)
+    expect(buildAdoptPredicate({ adoptGovernance: true })('AGENTS.md', true)).toBe(true)
+    expect(buildAdoptPredicate({ adoptGovernance: true })('.claude/settings.json', true)).toBe(true)
   })
 
-  it('adopts derived-track files only when --refresh-derived is selected', () => {
+  it('adopts derived-track files only when --refresh-derived is selected AND with provenance', () => {
     const derivedFile = '.codex/codex-adapter.mjs'
-    expect(buildAdoptPredicate({})(derivedFile)).toBe(false)
-    expect(buildAdoptPredicate({ refreshDerived: true })(derivedFile)).toBe(true)
+    expect(buildAdoptPredicate({})(derivedFile, true)).toBe(false)
+    expect(buildAdoptPredicate({ refreshDerived: true })(derivedFile, false)).toBe(false)
+    expect(buildAdoptPredicate({ refreshDerived: true })(derivedFile, true)).toBe(true)
   })
 })
 

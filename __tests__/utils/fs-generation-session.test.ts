@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -141,13 +141,16 @@ describe('fs generation session (#1328 hash-aware skipIfExists)', () => {
   })
 
   describe('T1: force-adopt (adoptPredicate/onAdopt)', () => {
-    it('unknown-provenance files are withheld, not adopted (#2220)', () => {
+    it('the predicate sees provenanceKnown and decides unknown-provenance files (false → withheld, #2220)', () => {
       const p = join(dir, '.claude', 'hooks', 'unknown-hook.mjs')
       writeFile(p, '// user file\n')
+      // Domain policy: informative classes stay provenance-gated. A predicate
+      // that only adopts provenance-known files leaves this one withheld.
+      const adoptPredicate = (key: string, provenanceKnown: boolean): boolean => provenanceKnown
       beginGenerationSession({
         targetDir: dir,
         prevHashes: {},
-        adoptPredicate: () => true,
+        adoptPredicate,
       })
 
       try {
@@ -156,6 +159,30 @@ describe('fs generation session (#1328 hash-aware skipIfExists)', () => {
         expect(result.withheld).toBe(true)
         expect(result.adopted).not.toBe(true)
         expect(readFileSync(p, 'utf-8')).toBe('// user file\n')
+      } finally {
+        endGenerationSession()
+      }
+    })
+
+    it('a safety-class policy adopts unknown-provenance hooks by default (contract, noAdoptSafety)', () => {
+      const p = join(dir, '.claude', 'hooks', 'stop-dangerous.mjs')
+      mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
+      writeFileSync(p, '// user file\n')
+      const onAdopt = vi.fn()
+      beginGenerationSession({
+        targetDir: dir,
+        prevHashes: {},
+        adoptPredicate: () => true,
+        onAdopt,
+      })
+
+      try {
+        const result = writeFile(p, '// template render\n', { skipIfExists: true })
+        expect(result.action).toBe('replaced')
+        expect(result.withheld).toBe(true)
+        expect(result.adopted).toBe(true)
+        expect(readFileSync(p, 'utf-8')).toBe('// template render\n')
+        expect(onAdopt).toHaveBeenCalled()
       } finally {
         endGenerationSession()
       }
