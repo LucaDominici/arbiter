@@ -145,29 +145,52 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 }
 // <<< ARG-PARSE-END (#1504)
 
-// #1720 (gap 4): L3/L4 have no dedicated runtime lane in this generated gate — L2
-// ("full") is the strongest tier it implements; every `governanceLevel`-specific
-// check below is compiled in at generation time and runs inside the L2 lane. The
-// guard used to be the literal `level === 'L2'`, so invoking `check-all.mjs L3` or
-// `L4` (both accepted by the parser above) silently ran ONLY the L1 fast-checks —
-// a runtime lie where the strictest requested tier ran the weakest checks. Clamp an
-// explicit L3/L4 request down to L2 so it runs the FULL gate body (never the L1
-// subset) and the `level` stamped into the JSON/evidence below stays honest about
-// what actually ran — it must never claim a tier this gate cannot run standalone.
-// The clamp itself is LOUD (stderr): the bug class being fixed here is SILENT
-// downgrades, so the clamp must never become one.
-if (level === 'L3' || level === 'L4') {
-  console.warn(`[GATE] level ${level} clamps to L2 (strongest tier this generated gate implements)`);
-  level = 'L2';
-}
+// ─── Embedded gate registry (#2041, AC-2041.4) ────────────────────────────────
+// The declarative registry rendered from gate-registry.yml.ejs — consumed by
+// `--dry-run` (manifest), `--gate <id|name>` (single-check re-run), and the
+// emitted layering contract test (scripts/test-gate-layering.mjs). ORDER IS
+// MEANINGFUL: gates run in registry order within each level.
 
-// #2078 (GATE-1 of #2041) — inspection modes. Both `--dry-run` and `--gate <name>`
-// are diagnostic: they must NEVER stamp a gate-pass marker / result JSON (guarded
-// at the write sites below), so a dry-run or single-check rerun cannot fake a green
-// gate for the fail-closed Stop hook. `setMode` threads the mode into the
+const GATE_REGISTRY = [{"id":"pii-scan","name":"PII scan","level":"L1","kind":"check","cmd":["node","scripts/pii-scan.mjs"]},{"id":"secret-scan","name":"secret scan","level":"L1","kind":"check","cmd":["node","scripts/check-secret-scan.mjs"]},{"id":"typecheck","name":"typecheck","level":"L1","kind":"check","cmd":["npx","tsc","--noEmit"],"language":"typescript"},{"id":"format","name":"format","level":"L1","kind":"check","cmd":["npx","prettier","--check","."],"language":"typescript"},{"id":"lint","name":"lint","level":"L1","kind":"check","cmd":["npx","eslint","."],"language":"typescript"},{"id":"static-analysis","name":"static analysis","level":"L1","kind":"check","cmd":["npx","eslint","--config","eslint.config.static.mjs","--no-config-lookup","--no-error-on-unmatched-pattern","src"],"language":"typescript","condition":"gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] static analysis ... SKIP (run: arbiter update)')"},{"id":"no-fake-db-imports","name":"no-fake-db imports (INV-34)","level":"L1","kind":"check","cmd":["npx","eslint","--config","eslint.config.no-fake-db.mjs","--no-config-lookup","--no-error-on-unmatched-pattern","."],"language":"typescript","condition":"gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')"},{"id":"unit-tests","name":"unit tests","level":"L1","kind":"check","cmd":["npm","run","test:unit"],"language":"typescript"},{"id":"npm-ci-drift","name":"npm-ci drift","level":"L1","kind":"inline","language":"typescript","emitIf":"packageManager === 'npm'","else":"console.log('[CHECK] npm-ci drift ... SKIP (project uses npm)');\npushResult('npm-ci drift', 'SKIP', 0);"},{"id":"no-tracked-artifacts","name":"no tracked artifacts (INV-129)","level":"L1","kind":"check","cmd":["node","scripts/check-no-tracked-artifacts.mjs"]},{"id":"image-pins","name":"image pins (#1442)","level":"L1","kind":"check","cmd":["node","scripts/check-image-pins.mjs"]},{"id":"e2e-quarantine","name":"e2e quarantine (INV-130)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-quarantine.mjs"]},{"id":"test-naming","name":"test naming","level":"L1","kind":"check","cmd":["node","scripts/check-test-naming.mjs"]},{"id":"min-test-execution","name":"min test execution (INV-25)","level":"L1","kind":"check","cmd":["node","scripts/check-min-test-execution.mjs"]},{"id":"exit-code-contract","name":"exit code contract","level":"L1","kind":"check","cmd":["node","scripts/check-exit-code-contract.mjs"]},{"id":"pipe-tee-hazard","name":"pipe/tee hazard","level":"L1","kind":"check","cmd":["node","scripts/check-pipe-tee-hazard.mjs"]},{"id":"self-validation-drill","name":"self-validation drill","level":"L1","kind":"check","cmd":["node","scripts/self-validation.mjs"],"emitIf":"typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false"},{"id":"config-drift","name":"config drift","level":"L1","kind":"check","cmd":["node","scripts/check-drift.mjs"]},{"id":"validator-helptext","name":"validator help text","level":"L1","kind":"check","cmd":["node","scripts/check-validator-helptext.mjs"]},{"id":"suppressions-expiry","name":"suppressions expiry","level":"L1","kind":"check","cmd":["node","scripts/check-suppressions.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-rationale","name":"suppression rationale","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-rationale.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-expiry-antidrift","name":"suppression expiry (anti-drift)","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-expiry.mjs"],"emitIf":"enableSuppressions"},{"id":"inline-suppressions","name":"inline suppressions","level":"L1","kind":"check","cmd":["node","scripts/check-inline-suppressions.mjs"]},{"id":"claude-md-lint","name":"claude-md lint","level":"L1","kind":"check","cmd":["node","scripts/check-claude-md-lint.mjs"]},{"id":"unwired-guards","name":"unwired guards","level":"L1","kind":"check","cmd":["node","scripts/check-unwired-guards.mjs"]},{"id":"workflow-runners-inline","name":"workflow runners","level":"L1","kind":"inline"},{"id":"ci-alignment","name":"ci alignment","level":"L1","kind":"inline"},{"id":"ssot-core-set","name":"ssot core set","level":"L1","kind":"check","cmd":["node","scripts/check-ssot-core.mjs"]},{"id":"doc-links","name":"doc links","level":"L1","kind":"check","cmd":["node","scripts/check-doc-links.mjs"]},{"id":"knowledge-map","name":"knowledge map","level":"L1","kind":"check","cmd":["node","scripts/check-knowledge-map.mjs"]},{"id":"canonical-paths","name":"canonical paths","level":"L1","kind":"check","cmd":["node","scripts/check-canonical-paths.mjs"]},{"id":"collab-mode-wired","name":"collab mode wired (INV-100)","level":"L1","kind":"check","cmd":["node","scripts/check-collab-mode-wired.mjs"]},{"id":"hook-routing","name":"hook routing (#2129)","level":"L1","kind":"check","cmd":["node","scripts/check-hook-routing.mjs"]},{"id":"safety-adopt-ratchet","name":"safety adopt ratchet","level":"L1","kind":"check","cmd":["node","scripts/check-safety-adopt-ratchet.mjs"]},{"id":"emission-parity","name":"emission parity (#2110)","level":"L1","kind":"check","cmd":["node","scripts/check-emission-parity.mjs"]},{"id":"constraint-scan","name":"constraint scan (INV-115)","level":"L1","kind":"check","cmd":["node","scripts/check-constraint-scan.mjs"]},{"id":"wiki-lint","name":"wiki lint (INV-116)","level":"L1","kind":"check","cmd":["node","scripts/check-wiki-lint.mjs"],"emitIf":"governanceLevel !== 'L1'"},{"id":"doc-index-drift","name":"documentation index drift","level":"L1","kind":"check","cmd":["node","scripts/gen-doc-index.mjs","--check"],"emitIf":"governanceLevel !== 'L1'","condition":"existsSync('docs/INDEX.md')"},{"id":"llms-txt-drift","name":"llms.txt drift","level":"L1","kind":"check","cmd":["node","scripts/gen-llms-txt.mjs","--check"],"emitIf":"governanceLevel !== 'L1'","condition":"existsSync('llms.txt')"},{"id":"anti-proforma","name":"anti-proforma (INV-118)","level":"L1","kind":"check","cmd":["node","scripts/check-anti-proforma.mjs"]},{"id":"test-pyramid","name":"test pyramid (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-pyramid.mjs"]},{"id":"test-scope-tier","name":"test scope-tier (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-scope-tier.mjs"]},{"id":"api-e2e","name":"api e2e (INV-126)","level":"L1","kind":"check","cmd":["node","scripts/check-api-e2e.mjs"]},{"id":"domain-api-surface","name":"domain-api surface (INV-125)","level":"L1","kind":"check","cmd":["node","scripts/check-domain-api-surface.mjs"],"emitIf":"hasPublicApi"},{"id":"render-smoke-presence","name":"render smoke presence (INV-127)","level":"L1","kind":"check","cmd":["node","scripts/check-render-smoke.mjs"]},{"id":"smoke-journeys","name":"smoke journeys (INV-137)","level":"L1","kind":"check","cmd":["node","scripts/check-smoke-journeys.mjs"]},{"id":"stack-conformity","name":"stack conformity (INV-121)","level":"L1","kind":"check","cmd":["node","scripts/check-stack-conformity.mjs"],"emitIf":"language"},{"id":"iso9001","name":"iso9001 QMS (RTM + doc-control + CAPA)","level":"L1","kind":"check","cmd":["node","scripts/check-iso9001.mjs"],"condition":"gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')"},{"id":"regulated-overlay","name":"regulated overlay (SoD + retention + signing + mutation)","level":"L1","kind":"check","cmd":["node","scripts/check-regulated-overlay.mjs"],"condition":"gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')"},{"id":"ci-tiers","name":"ci tiers (INV-73)","level":"L1","kind":"check","cmd":["node","scripts/check-ci-tiers.mjs"],"emitIf":"useGitHub"},{"id":"action-pins","name":"action pins (INV-75)","level":"L1","kind":"check","cmd":["node","scripts/check-action-pins.mjs"],"emitIf":"useGitHub"},{"id":"workflow-perms","name":"workflow perms (INV-76)","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-perms.mjs"],"emitIf":"useGitHub"},{"id":"workflow-runners","name":"workflow runners","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-runners.mjs"],"emitIf":"useGitHub"},{"id":"workflow-docs-sync","name":"workflow docs sync","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-docs-sync.mjs"],"emitIf":"useGitHub"},{"id":"workflow-test-integrity","name":"workflow test integrity","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-test-integrity.mjs"],"emitIf":"useGitHub"},{"id":"secret-presence","name":"secret presence (fail-loud)","level":"L1","kind":"check","cmd":["node","scripts/check-secret-presence.mjs"],"emitIf":"useGitHub"},{"id":"continue-on-error","name":"continue-on-error (swallowed gate)","level":"L1","kind":"check","cmd":["node","scripts/check-continue-on-error.mjs"],"emitIf":"useGitHub"},{"id":"workflow-sha-pinning","name":"workflow sha pinning","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-sha-pinning.mjs"],"emitIf":"useGitHub"},{"id":"workflow-job-naming","name":"workflow job naming","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-job-naming.mjs"],"emitIf":"useGitHub"},{"id":"pr-size-gate","name":"pr size gate","level":"L1","kind":"check","cmd":["node","scripts/check-pr-size-gate.mjs"],"emitIf":"useGitHub"},{"id":"merge-method-ff-only","name":"merge method ff-only (INV-101)","level":"L1","kind":"check","cmd":["node","scripts/check-merge-method.mjs"],"emitIf":"useGitHub && governanceLevel !== 'L1'"},{"id":"muted-test","name":"muted gate test (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-muted-test.mjs"]},{"id":"skip-critical-e2e","name":"skipped critical e2e (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-skip-critical-e2e.mjs"]},{"id":"stub-redirect-husk","name":"stub redirect husk (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-no-stub-redirects.mjs"]},{"id":"grace-window","name":"grace window (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-grace-window.mjs"]},{"id":"assertion-delta","name":"assertion delta (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-assertion-delta.mjs"]},{"id":"oracle-discrimination","name":"oracle discrimination (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-oracle-discrimination.mjs"],"emitIf":"archetype === 'frontend-spa' || archetype === 'backend-web-db'"},{"id":"gitleaks","name":"gitleaks","level":"L2","kind":"check","cmd":["gitleaks","detect","--source",".","--config",".gitleaks.toml","--gitleaks-ignore-path","suppressions/.gitleaksignore","--exit-code","1"],"emitIf":"enableSecurityScanning","soft":true},{"id":"npm-audit","name":"audit","level":"L2","kind":"inline","emitIf":"language === 'typescript' && enableSecurityScanning"},{"id":"contract-tests-ts","name":"contract tests","level":"L2","kind":"check","cmd":["npm","run","test:contract"],"emitIf":"language === 'typescript'","soft":true},{"id":"integration-tests-ts","name":"integration tests","level":"L2","kind":"check","cmd":["npm","run","test:integration"],"emitIf":"language === 'typescript'","soft":true},{"id":"behavioral-tests-ts","name":"behavioral tests","level":"L2","kind":"check","cmd":["npm","run","test:behavioral"],"emitIf":"language === 'typescript'","soft":true},{"id":"db-integration-tests","name":"db integration tests","level":"L2","kind":"check","cmd":["npm","run","test:integration"],"emitIf":"language === 'typescript' && hasDatabase && governanceLevel !== 'L1'","soft":true},{"id":"playwright-e2e","name":"playwright e2e","level":"L2","kind":"inline","emitIf":"language === 'typescript' && (archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1'"},{"id":"coverage-threshold","name":"coverage threshold","level":"L2","kind":"inline","emitIf":"language === 'typescript' && coverageEnabled && enableDebtGates"},{"id":"dead-code","name":"dead code","level":"L2","kind":"check","cmd":["npx","knip"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"duplication","name":"duplication","level":"L2","kind":"check","cmd":["node","scripts/check-duplication.mjs"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"circular-deps","name":"circular deps","level":"L2","kind":"check","cmd":["npx","madge","--circular","--extensions","ts,tsx,js,jsx","src"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"arch-boundaries","name":"arch boundaries","level":"L2","kind":"check","cmd":["npm","run","check:arch"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"mutation-stryker","name":"mutation (stryker)","level":"L2","kind":"tool","cmd":["npx","stryker","run"],"emitIf":"(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && language === 'typescript' && enableDebtGates","soft":true},{"id":"mutation-baseline","name":"mutation baseline (#1508)","level":"L2","kind":"check","cmd":["node","scripts/verify-mutation-baseline.mjs"],"emitIf":"(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && enableDebtGates","condition":"gateFilePresent('scripts/verify-mutation-baseline.mjs', 'mutation baseline (#1508)')","soft":true},{"id":"stride-raci","name":"STRIDE/RACI traceability","level":"L2","kind":"check","cmd":["node","scripts/check-stride-traceability.mjs"],"emitIf":"enableDebtGates","soft":true},{"id":"bdd-ignore-check","name":"BDD @ignore check","level":"L2","kind":"inline","emitIf":"enableDebtGates"},{"id":"gdpr-controls","name":"gdpr controls (#1251)","level":"L2","kind":"check","cmd":["node","scripts/check-gdpr-controls.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')","soft":true},{"id":"bdd-ts","name":"bdd","level":"L2","kind":"check","cmd":["npx","cucumber-js"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"debt-ratchet","name":"debt ratchet","level":"L2","kind":"check","cmd":["node","scripts/debt-report.mjs","--gate"],"emitIf":"enableDebtGates","soft":true},{"id":"commit-footer-rationale","name":"commit-footer rationale (INV-119)","level":"L2","kind":"check","cmd":["node","scripts/check-commit-footer-rationale.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates","soft":true},{"id":"docs-updated","name":"docs updated with code (#356)","level":"L2","kind":"warn","cmd":["node","scripts/check-docs.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates"},{"id":"feature-matrix","name":"feature matrix (INV-112)","level":"L2","kind":"check","cmd":["node","scripts/check-feature-matrix.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates"},{"id":"gap-register","name":"gap register","level":"L2","kind":"check","cmd":["node","scripts/gen-gap.mjs","--check"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates"},{"id":"conformance","name":"conformance","level":"L2","kind":"warn","cmd":["node","scripts/conformance.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/conformance.mjs', 'conformance')"},{"id":"gold-audit","name":"gold-audit","level":"L2","kind":"warn","cmd":["node","scripts/gold-audit.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')"},{"id":"doc-set","name":"doc-set","level":"L2","kind":"warn","cmd":["node","scripts/check-doc-set.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')"},{"id":"decision-registry","name":"decision registry","level":"L2","kind":"check","cmd":["node","scripts/check-decision-registry.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')"},{"id":"anti-fake-green","name":"anti-fake-green","level":"L2","kind":"warn","cmd":["node","scripts/check-anti-fake-green.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-anti-fake-green.mjs', 'anti-fake-green')"},{"id":"module-coverage-ratchet","name":"module coverage ratchet","level":"L2","kind":"warn","cmd":["node","scripts/verify-module-coverage.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/verify-module-coverage.mjs', 'module coverage ratchet')"},{"id":"agent-return","name":"agent-return envelope (E1 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-agent-return.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-agent-return.mjs', 'agent-return envelope (E1 #1943)')"},{"id":"review-completion","name":"review completion (#2177)","level":"L2","kind":"warn","cmd":["node","scripts/check-review-completion.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-review-completion.mjs', 'review completion (#2177)')"},{"id":"refutation-majority","name":"refutation majority (E2 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-refutation-verdicts.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-refutation-verdicts.mjs', 'refutation majority (E2 #1943)')"},{"id":"audit-dry-pass","name":"audit dry-pass (E3 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-audit-dry-pass.mjs","--all"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')"},{"id":"handoff-lint","name":"handoff lint (E6a #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-handoff-doc.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')"},{"id":"tdd-evidence","name":"tdd-evidence (INV-131)","level":"L2","kind":"check","cmd":["node","scripts/check-tdd-evidence.mjs"],"soft":true},{"id":"todo-max-age","name":"todo max-age (INV-133)","level":"L2","kind":"check","cmd":["node","scripts/check-todo-max-age.mjs"],"soft":true},{"id":"solo-reactivation","name":"solo reactivation","level":"L3","kind":"check","cmd":["node","scripts/check-solo-reactivation.mjs"]},{"id":"nightly-audit-prod","name":"nightly audit (prod scope)","level":"L3","kind":"check","cmd":["npm","audit","--omit=dev","--audit-level=high"],"emitIf":"language === 'typescript' && packageManager === 'npm'","soft":true}];
+
+// ─── #2078 (GATE-1 of #2041) — inspection modes, re-based on the registry.
+// `--dry-run` prints the registry manifest without executing (exit 0, zero
+// executions); `--gate <id|name>` re-runs a single check with timing. Both are
+// diagnostic: they must NEVER stamp a gate-pass marker / result JSON (guarded
+// at the write sites below), so a dry-run or single-check rerun cannot fake a
+// green gate for the fail-closed Stop hook. `setMode` threads the mode into the
 // runCheck/runWarnCheck/runToolCheck trio; a normal run leaves it a no-op.
+if (dryRun) {
+  console.log('[DRY-RUN] gate manifest (registry):');
+  for (const _g of GATE_REGISTRY) {
+    if (_g.level === 'L1' || _g.level === level) {
+      console.log(`  ${_g.level}  ${_g.id}  ${_g.name}`);
+    }
+  }
+}
+if (only !== null) {
+  // --gate accepts a registry id (re-based on the registry) OR the display name
+  // (#2078 backward compatibility — the trio matches by name).
+  const _regGate = GATE_REGISTRY.find((_g) => _g.id === only);
+  if (_regGate) only = _regGate.name;
+}
 const _inspect = dryRun || only !== null;
 setMode({ dryRun, only });
+
+// #2041 (AC-2041.5/6): inline gate bodies bypass the runCheck trio, so they must
+// honour the inspection modes themselves — --dry-run prints and spawns NOTHING
+// (the #2078 contract: "print-what-would-run, spawn nothing"; a direct spawn
+// would also hang an offline consumer), and --gate <id|name> filters to the
+// named gate. Returns true when the caller must skip.
+function _inlineInspect(_name, _wouldRun) {
+  if (dryRun) {
+    console.log(`[CHECK] ${_name} ... DRY-RUN (would run: ${_wouldRun})`);
+    pushResult(_name, 'SKIP', 0);
+    return true;
+  }
+  if (only !== null && only !== _name) return true;
+  return false;
+}
 
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
 // A freshly-upgraded L1→L2 project may run its new L2 gates WARN-only for a
@@ -219,41 +242,97 @@ console.log(`=== test-project Quality Gate: ${level} ===`);
 console.log('');
 
 
-// ─── Early-fail: PII scan (INV-12, HARD — no grace period) ────────────────────
+
+// ─── Gate execution (registry-driven, #2041) ─────────────────────────────────
+// Each registry entry renders as a level-conditioned call: L1 gates always run,
+// L2 gates run at L2+, L3 gates run at L3+ (the local nightly lane). Language
+// and data conditions (emitIf) are resolved at GENERATION time; runtime guards
+// (gateFilePresent/existsSync) remain runtime `if` wrappers. Inline gates keep
+// their custom JS bodies (declared in the registry so --dry-run/--gate and the
+// layering test see them). ORDER IS THE REGISTRY ORDER.
+
+
+// ── L1 (fast checks — pre-commit) ────────────────────────────────────────
+if (true) {
+
+
+
+
+
+
 runCheck('PII scan', 'node', ['scripts/pii-scan.mjs']);
-// ─── L1: Secret-pattern drift (anti-drift, INV-89, #1152) ────────────────────
+
+
+
+
+
+
+
+
 runCheck('secret scan', 'node', ['scripts/check-secret-scan.mjs']);
 
-// ─── L1: Fast checks ──────────────────────────────────────────────────────────
+
+
+
+
+
+
 
 runCheck('typecheck', 'npx', ['tsc', '--noEmit']);
+
+
+
+
+
+
+
+
 runCheck('format', 'npx', ['prettier', '--check', '.']);
+
+
+
+
+
+
+
+
 runCheck('lint', 'npx', ['eslint', '.']);
-// ─── L1: Static analysis rules (M29) ─────────────────────────────────────────
-// ESLint v9+ flat config: the static-analysis ruleset lives in
-// eslint.config.static.mjs and is run in isolation (--no-config-lookup) so it does
-// not merge with the project's main eslint.config.mjs. The legacy eslintrc path
-// (--no-eslintrc -c .eslintrc-static.json) was removed: ESLint v9 disabled it and
-// v10 deleted it, so it crashed the gate on a fresh install (B4, #1491).
-if (gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] static analysis ... SKIP (run: arbiter update)')) {
-  runCheck('static analysis', 'npx', ['eslint', '--config', 'eslint.config.static.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src']);
-}
-// ─── L1: No fake-db imports in test files (INV-34, #1887-D) ─────────────────
-// Isolated flat config, same reasoning as static analysis above — the legacy
-// .eslintrc-no-fake-db.json cannot be loaded by ESLint v9. Emitted by
-// generateIntegrationTesting only when hasDatabase, so the guard is graceful
-// on a project without a database (never emitted there).
-if (gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')) {
-  runCheck('no-fake-db imports (INV-34)', 'npx', ['eslint', '--config', 'eslint.config.no-fake-db.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', '.']);
-}
+
+
+
+
+
+
+if (gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] static analysis ... SKIP (run: arbiter update)')) { 
+
+runCheck('static analysis', 'npx', ['eslint', '--config', 'eslint.config.static.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src']);
+ } 
+
+
+
+
+
+if (gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')) { 
+
+runCheck('no-fake-db imports (INV-34)', 'npx', ['eslint', '--config', 'eslint.config.no-fake-db.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', '.']);
+ } 
+
+
+
+
+
+
+
 runCheck('unit tests', 'npm', ['run', 'test:unit']);
-// ─── L1: npm-ci lockfile drift under the pinned npm (#1684) ────────────────────
-// Verifies `npm ci` would succeed under the npm pinned in package.json#packageManager,
-// catching the local/Dependabot-vs-CI npm-major skew that rejects the lock repo-wide.
-// Invokes the pinned npm EXPLICITLY (npx npm@<pin>) — ambient npm may be a newer major
-// that hides the skew. SKIP-neutral when there is no packageManager pin or no lockfile:
-// the pin is opt-in, and the gate activates the moment one is added.
-{
+
+
+
+
+
+
+
+
+if (_inlineInspect('npm-ci drift', 'npx -y npm@<pin> ci --dry-run')) {} else {
   const _driftStart = Date.now();
   process.stdout.write('[CHECK] npm-ci drift ... ');
   let _driftStatus = 'PASS';
@@ -282,34 +361,94 @@ runCheck('unit tests', 'npm', ['run', 'test:unit']);
 }
 
 
-// ─── L1: Repo hygiene — no tracked data/binary artifacts (INV-129, #1407) ─────
+
+
+
+
+
+
+
 runCheck('no tracked artifacts (INV-129)', 'node', ['scripts/check-no-tracked-artifacts.mjs']);
-// ─── L1: Container base images digest-pinned (#1442) ──────────────────────────
+
+
+
+
+
+
+
+
 runCheck('image pins (#1442)', 'node', ['scripts/check-image-pins.mjs']);
-// ─── L1: E2E flaky-test quarantine hygiene (INV-130, #1445) ───────────────────
-// Annotates known-unstable tests but never suppresses them; fails closed on an
-// expired/malformed quarantine entry. Self-SKIPs when no registry is present.
+
+
+
+
+
+
+
+
 runCheck('e2e quarantine (INV-130)', 'node', ['scripts/check-e2e-quarantine.mjs']);
-// ─── L1: Test naming convention (M27) ────────────────────────────────────────
+
+
+
+
+
+
+
+
 runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
-// ─── L1: No-empty-suite / min-execution guard (INV-25, A2 #1497) ──────────────
-// Asks the project test runner (vitest/jest/pytest/go) how many tests it would run, via its
-// collect/list mode (no execution), and FAILS when that count is 0 — the "0 executed = green"
-// false-green that a runner's own exit code does not catch. NA when no runner; SKIP when deps absent.
+
+
+
+
+
+
+
+
 runCheck('min test execution (INV-25)', 'node', ['scripts/check-min-test-execution.mjs']);
-// ─── L1: Exit-code universal contract (INV-53) ────────────────────────────────
+
+
+
+
+
+
+
+
 runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs']);
-// ─── L1: Pipe/tee hazard (advisory — always exits 0) ─────────────────────────
+
+
+
+
+
+
+
+
 runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
 
-// ─── L1: Self-validation A/B/C drill — proves the two gates above actually
-// distinguish PASS/FAIL/ERROR (#1835). Reference only where emitted: the
-// self-validation generator owns scripts/self-validation.mjs and is gated by
-// this same flag (registry.ts), so emission and wiring can never diverge.
+
+
+
+
+
+
+
 runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs']);
 
-// ─── L1: Anti-drift validators (INV-89, #1152) ───────────────────────────────
+
+
+
+
+
+
+
 runCheck('config drift', 'node', ['scripts/check-drift.mjs']);
+
+
+
+
+
+
+
+
 runCheck('validator help text', 'node', ['scripts/check-validator-helptext.mjs']);
 
 
@@ -317,19 +456,61 @@ runCheck('validator help text', 'node', ['scripts/check-validator-helptext.mjs']
 
 
 
-// ─── L1: Suppression expiry ───────────────────────────────────────────────────
+
+
 runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
-// ─── L1: Suppression quality (anti-drift, INV-89, #1152) ─────────────────────
+
+
+
+
+
+
+
+
 runCheck('suppression rationale', 'node', ['scripts/check-suppression-rationale.mjs']);
+
+
+
+
+
+
+
+
 runCheck('suppression expiry (anti-drift)', 'node', ['scripts/check-suppression-expiry.mjs']);
 
-// ─── L1: Inline suppression directives (INV-31) ──────────────────────────────
+
+
+
+
+
+
+
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
-// ─── L1: Context-file lint (anti-drift, INV-89, #1266) ───────────────────────
+
+
+
+
+
+
+
+
 runCheck('claude-md lint', 'node', ['scripts/check-claude-md-lint.mjs']);
-// ─── L1: Unwired guard-script detector (anti-drift, INV-89, #2159) ───────────
+
+
+
+
+
+
+
+
 runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
-// ─── L1: Workflow runner label enforcement (#191, inlined) ───────────────────
+
+
+
+
+
+
+
 {
   const _wrStart = Date.now();
   process.stdout.write('[CHECK] workflow runners ... ');
@@ -380,7 +561,13 @@ runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
     }
   }
 }
-// ─── L1: CI/manifest gate alignment (#240, inlined) ──────────────────────────
+
+
+
+
+
+
+
 {
   const _caStart = Date.now();
   process.stdout.write('[CHECK] ci alignment ... ');
@@ -462,132 +649,384 @@ runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
   }
   pushResult('ci alignment', _caStatus, Date.now() - _caStart);
 }
-// ─── L1: SSOT infrastructure gates (INV-54–57, #255) ─────────────────────────
+
+
+
+
+
+
+
+
 runCheck('ssot core set', 'node', ['scripts/check-ssot-core.mjs']);
+
+
+
+
+
+
+
+
 runCheck('doc links', 'node', ['scripts/check-doc-links.mjs']);
+
+
+
+
+
+
+
+
 runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs']);
+
+
+
+
+
+
+
+
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs']);
-// ─── L1: collaborationMode wired (INV-100, #1093) ────────────────────────────
+
+
+
+
+
+
+
+
 runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs']);
-// ─── L1: emitted hook → dispatcher → settings reverse routing (#2129) ─────────
+
+
+
+
+
+
+
+
 runCheck('hook routing (#2129)', 'node', ['scripts/check-hook-routing.mjs']);
-// ─── L1: safety-class adopt ratchet (T1, anti-erosion) ───────────────────────
+
+
+
+
+
+
+
+
 runCheck('safety adopt ratchet', 'node', ['scripts/check-safety-adopt-ratchet.mjs']);
-// ─── L1: emission parity — every emitted file still on disk (#2110) ──────────
+
+
+
+
+
+
+
+
 runCheck('emission parity (#2110)', 'node', ['scripts/check-emission-parity.mjs']);
-// ─── L1: governance constraint scan (INV-115, #1214) ─────────────────────────
+
+
+
+
+
+
+
+
 runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs']);
-// ─── L1: wiki lint gate (INV-116, #1241) ─────────────────────────────────────
 
-// #1318/#1321: the wiki generator is enabled only at L2+ (registry.ts), so a
-// virgin L1 project never emits scripts/check-wiki-lint.mjs. Gating this runCheck
-// to match the generator predicate prevents a MODULE_NOT_FOUND RED on `check-all L1`.
+
+
+
+
+
+
+
 runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
-// #2214: docs.ts emits gen-doc-index.mjs / gen-llms-txt.mjs only at L2+, matching this
-// guard. Both runChecks are additionally guarded on their OUTPUT artifact, never on the
-// script: docs/INDEX.md and llms.txt are target-OWNED artifacts that `arbiter init` does
-// not pre-generate, so an unguarded --check reds every virgin target on day one — shipping
-// exactly the red-by-construction enforcement this issue exists to remove. Once the target
-// runs `node scripts/gen-doc-index.mjs` once, drift is gated on every run thereafter.
-if (existsSync('docs/INDEX.md')) {
-  runCheck('documentation index drift', 'node', ['scripts/gen-doc-index.mjs', '--check']);
-}
-if (existsSync('llms.txt')) {
-  runCheck('llms.txt drift', 'node', ['scripts/gen-llms-txt.mjs', '--check']);
-}
 
-// ─── L1: anti-proforma test gate (INV-118, #1249) ────────────────────────────
+
+
+
+
+
+if (existsSync('docs/INDEX.md')) { 
+
+runCheck('documentation index drift', 'node', ['scripts/gen-doc-index.mjs', '--check']);
+ } 
+
+
+
+
+
+if (existsSync('llms.txt')) { 
+
+runCheck('llms.txt drift', 'node', ['scripts/gen-llms-txt.mjs', '--check']);
+ } 
+
+
+
+
+
+
+
 runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
-// ─── L1: test pyramid non-empty gate (INV-124, #1364) ────────────────────────
-runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs']);
-// ─── L1: test-scope ↔ tier integrity (A4, #1497) ─────────────────────────────
-// A declared `required` test category that no gate step (check-all check or CI workflow)
-// runs is a silent false-green. Complements the pyramid gate (file presence) by asserting
-// each required category is actually WIRED into a tier. NO-DATA (no manifest) self-SKIPs.
-runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mjs']);
-// ─── L1: live-API e2e suite gate (INV-126, #1365) ────────────────────────────
-// Service archetypes (api-e2e.json required:true) must ship a non-mocked suite that
-// boots the real binary; required:false / absent manifest ⇒ runtime SKIP.
-runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs']);
-// ─── L1: domain<->API surface-completeness gate (INV-125, #1367) ─────────────
 
-// #1835/#1331: check-domain-api-surface.mjs is emitted by emitDomainApiSurface
-// (check-all.ts) only when config.hasPublicApi is true — reference it only where
-// it is actually emitted (mirrors the consumer-audit precedent above in this
-// same file, #1737), so the emission-coherence gate stays consistent for
-// archetypes without a public API (e.g. typescript/library).
+
+
+
+
+
+
+
+runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs']);
+
+
+
+
+
+
+
+
+runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mjs']);
+
+
+
+
+
+
+
+
+runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs']);
+
+
+
+
+
+
+
+
 runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs']);
 
-// ─── L1: frontend render-smoke presence gate (INV-127, #1366) ────────────────
-// Fails-closed when a frontend archetype (or `frontend` lane) ships without a
-// render-smoke behavioural spec. Self-SKIPs for non-frontend / ungoverned repos.
+
+
+
+
+
+
+
 runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs']);
-// ─── L1: smoke-journey acceptance-floor gate (INV-137, #2080) ─────────────────
-// Asserts the declared login/CRUD/authz journeys are COVERED (not just present, unlike
-// INV-126). applicable:false / absent manifest ⇒ runtime SKIP.
+
+
+
+
+
+
+
+
 runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs']);
 
-// ─── L1: stack-conformity gate (INV-121, #1312) ──────────────────────────────
-// Fails when the repo-root manifest contradicts the declared language/databaseEngine
-// axes. Self-safety is RUNTIME-resident in the emitted .mjs (absent language ⇒ exit 0).
+
+
+
+
+
+
+
 runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.mjs']);
 
-// ─── L1: ISO 9001 quality-process overlay gate (#1253) — present only when overlay selected
-if (gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')) {
-  runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);
-}
-// ─── L1: regulated / high-assurance overlay gate — present only when overlay selected
-if (gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')) {
-  runCheck('regulated overlay (SoD + retention + signing + mutation)', 'node', [
-    'scripts/check-regulated-overlay.mjs',
-  ]);
-}
 
-// ─── L1: GitHub CI tier gates (INV-73, INV-75, INV-76) ───────────────────────
+
+
+
+
+if (gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')) { 
+
+runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')) { 
+
+runCheck('regulated overlay (SoD + retention + signing + mutation)', 'node', ['scripts/check-regulated-overlay.mjs']);
+ } 
+
+
+
+
+
+
+
 runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs']);
+
+
+
+
+
+
+
+
 runCheck('action pins (INV-75)', 'node', ['scripts/check-action-pins.mjs']);
+
+
+
+
+
+
+
+
 runCheck('workflow perms (INV-76)', 'node', ['scripts/check-workflow-perms.mjs']);
-// ─── L1: Workflow anti-drift validators (INV-89, #1152) ──────────────────────
+
+
+
+
+
+
+
+
 runCheck('workflow runners', 'node', ['scripts/check-workflow-runners.mjs']);
+
+
+
+
+
+
+
+
 runCheck('workflow docs sync', 'node', ['scripts/check-workflow-docs-sync.mjs']);
+
+
+
+
+
+
+
+
 runCheck('workflow test integrity', 'node', ['scripts/check-workflow-test-integrity.mjs']);
+
+
+
+
+
+
+
+
 runCheck('secret presence (fail-loud)', 'node', ['scripts/check-secret-presence.mjs']);
+
+
+
+
+
+
+
+
 runCheck('continue-on-error (swallowed gate)', 'node', ['scripts/check-continue-on-error.mjs']);
+
+
+
+
+
+
+
+
 runCheck('workflow sha pinning', 'node', ['scripts/check-workflow-sha-pinning.mjs']);
+
+
+
+
+
+
+
+
 runCheck('workflow job naming', 'node', ['scripts/check-workflow-job-naming.mjs']);
+
+
+
+
+
+
+
+
 runCheck('pr size gate', 'node', ['scripts/check-pr-size-gate.mjs']);
-// ─── ff-only merge method enforcement (INV-101) ──────────────────────────────
-// #1331: check-merge-method.mjs is emitted by the github-setup generator, which
-// only runs at L2+. Reference it only where it is emitted so an L1+GitHub project
-// is not left with a ghost reference to a never-emitted script.
+
+
+
+
+
+
+
 
 runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs']);
 
 
-// ─── L1+: anti-fake-green file-scan guards (#1497) ────────────────────────────
-// arbiter's deterministic, NO-DATA-safe anti-fake-green guards, shipped INTO this project so a
-// planted false-green is caught by THIS gate — not only by arbiter's. Each PASSES when there is
-// nothing to scan, so they are safe to enforce hard at every governance level:
-//   muted gate test (a silenced test that can never fail), skipped critical e2e, a stale "Moved →"
-//   redirect husk doc, and an over-long / stale-level ADR-028 grace window in arbiter.json.
+
+
+
+
+
+
 runCheck('muted gate test (anti-fake-green)', 'node', ['scripts/check-muted-test.mjs']);
+
+
+
+
+
+
+
+
 runCheck('skipped critical e2e (anti-fake-green)', 'node', ['scripts/check-skip-critical-e2e.mjs']);
+
+
+
+
+
+
+
+
 runCheck('stub redirect husk (anti-fake-green)', 'node', ['scripts/check-no-stub-redirects.mjs']);
+
+
+
+
+
+
+
+
 runCheck('grace window (anti-fake-green)', 'node', ['scripts/check-grace-window.mjs']);
-// #2161: assertion-delta is emitted unconditionally (diff-based, any test stack).
+
+
+
+
+
+
+
+
 runCheck('assertion delta (anti-fake-green)', 'node', ['scripts/check-assertion-delta.mjs']);
-// #2160: oracle-discrimination.mjs is emitted by check-all.ts ONLY where an E2E (Playwright)
-// harness is applicable (archetype frontend-spa or backend-web-db, same predicate as
-// generateE2eConstitution) — reference it only where it is actually emitted (mirrors the
-// merge-method ff-only precedent, #1331).
+
+
+
+
+
+
+
 
 runCheck('oracle discrimination (anti-fake-green)', 'node', ['scripts/check-oracle-discrimination.mjs']);
 
-// ─── L2: Full checks ──────────────────────────────────────────────────────────
-if (level === 'L2') {
 
-  // ─── L2: Security scanning (INV-11/12/13) ──────────────────────────────────
-  runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1'], { soft: graceActive });
+
+}
+// ── L2 (full checks — pre-push) ──────────────────────────────────────────
+if (level !== 'L1') {
+
+
+
+
+
+
+runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1'], { soft: graceActive });
+
+
+
+
+
 
 
 
@@ -595,11 +1034,44 @@ if (level === 'L2') {
 
 
 
-  runCheck('contract tests', 'npm', ['run', 'test:contract'], { soft: graceActive });
-  runCheck('integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
-  runCheck('behavioral tests', 'npm', ['run', 'test:behavioral'], { soft: graceActive });
 
-  runCheck('db integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
+
+
+
+
+
+runCheck('contract tests', 'npm', ['run', 'test:contract'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('behavioral tests', 'npm', ['run', 'test:behavioral'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('db integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
+
+
+
+
 
 
 
@@ -635,7 +1107,8 @@ if (level === 'L2') {
 
 
 
-  // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────
+
+
 
 
   // ─── L2: coverage threshold (greenfield-aware, #1319.8) ─────────────────────
@@ -643,7 +1116,7 @@ if (level === 'L2') {
   // totals at runtime. A virgin project has zero executable statements ⇒ the
   // greenfield guard PASSES instead of false-failing the line threshold. A coverage
   // run that crashed (no summary) FAILS — never silently skipped.
-  {
+  if (_inlineInspect('coverage threshold', 'npx vitest run --coverage --coverage.reporter=json-summary')) {} else {
     const _covStart = Date.now();
     process.stdout.write('[CHECK] coverage threshold ... ');
     const _covThreshold = 80;
@@ -677,29 +1150,77 @@ if (level === 'L2') {
     pushResult('coverage threshold', _covStatus, Date.now() - _covStart);
   }
 
-  runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
-  // Fail-closed wrapper: bare `npx jscpd --silent` exits 0 on a 0-file scan
-  // under jscpd v5, making the gate vacuous on fileset drift.
-  runCheck('duplication', 'node', ['scripts/check-duplication.mjs'], { soft: graceActive });
-  runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts,tsx,js,jsx', 'src'], { soft: graceActive });
-  runCheck('arch boundaries', 'npm', ['run', 'check:arch'], { soft: graceActive });
 
-  // ─── L2: Mutation testing gate (#347, INV-30, CANON-02/09/15) ───────────────
-  // Proven cells: java (pitest), typescript (stryker). Rust/Python (beta) and Go (unsafe)
-  // are not wired. CANON-02 is proven⇒gated (one-directional); Kotlin (beta) kover is
-  // soft-gated above (plugin operator-applied, not auto-wired by arbiter). Kotlin pitest
-  // is not wired (beta cell, separate from kover coverage).
-  // Threshold (mutationThreshold) is rendered into the tool config (stryker.conf.json,
-  // pitest.gradle) by generateMutation at L3. At L2 the gate runs against whatever
-  // config is present locally; the helper is `runToolCheck` for stryker (npx auto-fetch
-  // may be absent locally → SKIP, FAIL only in CI) and `runCheck` for pitest (binary
-  // ships via gradle/maven plugin once the build file is wired).
 
-  // ─── L2: STRIDE/RACI traceability ───────────────────────────────────────────
-  runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });
+
+
+
+
+
+runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('duplication', 'node', ['scripts/check-duplication.mjs'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts,tsx,js,jsx', 'src'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('arch boundaries', 'npm', ['run', 'check:arch'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runToolCheck('mutation (stryker)', 'npx', ['stryker', 'run'], { soft: graceActive });
+
+
+
+
+
+
+if (gateFilePresent('scripts/verify-mutation-baseline.mjs', 'mutation baseline (#1508)')) { 
+
+runCheck('mutation baseline (#1508)', 'node', ['scripts/verify-mutation-baseline.mjs'], { soft: graceActive });
+ } 
+
+
+
+
+
+
+
+runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });
+
+
+
+
+
+
 
   // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
-  {
+  if (_inlineInspect('BDD @ignore check', 'grep -rql --include=*.feature @ignore .')) {} else {
     // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
     const _bddIgnoreStart = Date.now();
     const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
@@ -719,100 +1240,214 @@ if (level === 'L2') {
     }
     pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);
   }
-  // ─── L2: GDPR controls gate (#1251) ──────────────────────────────────────────
-  // Enforceable controls→gates for the `industryOverlay: gdpr` overlay. existsSync-
-  // guarded so it only runs for projects where the gdpr generator emitted the gate;
-  // language-neutral (the controls are documentation artifacts, not stack-specific).
-  if (gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')) {
-    runCheck('gdpr controls (#1251)', 'node', ['scripts/check-gdpr-controls.mjs'], { soft: graceActive });
-  }
 
-  runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
 
-  // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
-  // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
 
-  runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'], { soft: graceActive });
 
-  // ─── L2+: Commit-footer audit evidence (INV-119, #1249) ──────────────────────
-  // Hard-blocks if suppression/override/bypass commits lack required footer trailers.
-  // Fails open (exit 0 with WARN) when origin/main is unavailable.
-  runCheck('commit-footer rationale (INV-119)', 'node', ['scripts/check-commit-footer-rationale.mjs'], { soft: graceActive });
-  // ─── L2+: Docs updated alongside code changes (#356, #1835) ──────────────────
-  // Emitted at this same governance gate (check-all.ts) but was never referenced
-  // anywhere — a dead emission on every L2+ project. Advisory (never blocks a
-  // fresh `arbiter update` consumer that has never had this enforced before);
-  // [skip-docs] in a commit message bypasses.
-  runWarnCheck('docs updated with code (#356)', 'node', ['scripts/check-docs.mjs']);
-  // ─── L2+: FEATURE_MATRIX.md / GAP.md gates (#1887-B) ─────────────────────────
-  // generateFeatureMatrix/generateGap emit these docs at this same L2+ gate
-  // (governanceLevel !== 'L1') and each doc's own header comment promises a
-  // gate script — check-feature-matrix.mjs and gen-gap.mjs are emitted at the
-  // identical gate, so the reference always resolves.
-  runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs']);
-  runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check']);
 
-  // Advisory (#1398/C6, INV-128): conformance scorecard ratchet — informational, never blocks gate.
-  if (gateFilePresent('scripts/conformance.mjs', 'conformance')) {
-    runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
-  }
-  // Advisory (#1419): gold-audit no-regress ratchet — informational, never blocks gate.
-  // Plain --check bootstraps a missing baseline (exit 0); the strict require-baseline hard
-  // guard is NEVER passed downstream (it hard-fails a fresh consumer = day-1 red; self-only).
-  if (gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')) {
-    runWarnCheck('gold-audit', 'node', ['scripts/gold-audit.mjs', '--check'])
-  }
-  // Advisory (#1428, INV-135): doc-set presence audit — informational, never blocks gate.
-  // Plain --check runs the engine in its default advisory mode (exit 0 unless --strict), so a
-  // fresh consumer bootstraps with no day-1 redness; the strict hard guard is never passed here.
-  if (gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')) {
-    runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check'])
-  }
-  // Advisory (#1428, INV-135): anti-fake-green guard aggregate — informational, never blocks gate.
-  // The gh-audit guards fail OPEN (advisory) when `gh` is absent; --enforce is NEVER passed here
-  // (it would promote advisory findings to hard fails = day-1 red for a fresh consumer).
-  if (gateFilePresent('scripts/check-anti-fake-green.mjs', 'anti-fake-green')) {
-    runWarnCheck('anti-fake-green', 'node', ['scripts/check-anti-fake-green.mjs'])
-  }
-  // Advisory (#1457, INV-134): per-module coverage non-regression ratchet — start-warn,
-  // promote-later. Informational (runWarnCheck) so it never blocks the gate while the
-  // ±0.5pp per-module baseline beds in. Self-SKIPs when no coverage summary exists.
-  if (gateFilePresent('scripts/verify-module-coverage.mjs', 'module coverage ratchet')) {
-    runWarnCheck('module coverage ratchet', 'node', ['scripts/verify-module-coverage.mjs'])
-  }
-  // Advisory (E1-E6a #1943): anti-context-rot enforcers — advisory at land-time per the
-  // design's tier table (docs/design/anti-context-rot-enforcers.md §0); each vacuous-PASSes
-  // when its evidence surface is absent, so a fresh consumer sees no day-1 redness. Dated
-  // promotion discipline (advisory-is-a-stage-not-a-destination): promote to runCheck at
-  // gated-review once the producer paths are routinely populated. check-touched-vs-manifest
-  // is deliberately NOT here — it is a per-group harvest-time gate needing --plan/--group/--base.
-  if (gateFilePresent('scripts/check-agent-return.mjs', 'agent-return envelope (E1 #1943)')) {
-    runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
-  }
-  if (gateFilePresent('scripts/check-review-completion.mjs', 'review completion (#2177)')) {
-    runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
-  }
-  if (gateFilePresent('scripts/check-refutation-verdicts.mjs', 'refutation majority (E2 #1943)')) {
-    runWarnCheck('refutation majority (E2 #1943)', 'node', ['scripts/check-refutation-verdicts.mjs'])
-  }
-  if (gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')) {
-    runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
-  }
-  if (gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')) {
-    runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
-  }
 
-  // ─── L2: TDD red→green evidence re-verification (INV-131, #1446) ──────────────
-  // Re-verifies every task-ID commit's red→green evidence on a fresh CI checkout —
-  // the rigor arbiter applies to itself, shipped to targets. Independent of debt
-  // gates (runs whenever level===L2). Self-SKIPs when origin/main is unavailable or
-  // there are no task-ID commits.
-  runCheck('tdd-evidence (INV-131)', 'node', ['scripts/check-tdd-evidence.mjs'], { soft: graceActive });
-  // ─── L2: over-age task-marker enforcement (INV-133, #1456) ────────────────────
-  // A TODO(#123) marker whose linked issue was created more than MAX_AGE_DAYS (default 180)
-  // ago FAILS the gate. Age is derived from the issue created_at only. Graceful-SKIP
-  // when gh is missing / token absent / offline (never false-fails).
-  runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], { soft: graceActive });
+if (gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')) { 
+
+runCheck('gdpr controls (#1251)', 'node', ['scripts/check-gdpr-controls.mjs'], { soft: graceActive });
+ } 
+
+
+
+
+
+
+
+runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('commit-footer rationale (INV-119)', 'node', ['scripts/check-commit-footer-rationale.mjs'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runWarnCheck('docs updated with code (#356)', 'node', ['scripts/check-docs.mjs']);
+
+
+
+
+
+
+
+
+runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs']);
+
+
+
+
+
+
+
+
+runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check']);
+
+
+
+
+
+
+if (gateFilePresent('scripts/conformance.mjs', 'conformance')) { 
+
+runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')) { 
+
+runWarnCheck('gold-audit', 'node', ['scripts/gold-audit.mjs', '--check']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')) { 
+
+runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')) { 
+
+runCheck('decision registry', 'node', ['scripts/check-decision-registry.mjs']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-anti-fake-green.mjs', 'anti-fake-green')) { 
+
+runWarnCheck('anti-fake-green', 'node', ['scripts/check-anti-fake-green.mjs']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/verify-module-coverage.mjs', 'module coverage ratchet')) { 
+
+runWarnCheck('module coverage ratchet', 'node', ['scripts/verify-module-coverage.mjs']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-agent-return.mjs', 'agent-return envelope (E1 #1943)')) { 
+
+runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-review-completion.mjs', 'review completion (#2177)')) { 
+
+runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-refutation-verdicts.mjs', 'refutation majority (E2 #1943)')) { 
+
+runWarnCheck('refutation majority (E2 #1943)', 'node', ['scripts/check-refutation-verdicts.mjs']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')) { 
+
+runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all']);
+ } 
+
+
+
+
+
+if (gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')) { 
+
+runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs']);
+ } 
+
+
+
+
+
+
+
+runCheck('tdd-evidence (INV-131)', 'node', ['scripts/check-tdd-evidence.mjs'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], { soft: graceActive });
+
+
+
+  // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
+  // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
+  if (gateFilePresent('scripts/test-gate-layering.mjs', 'gate layering')) {
+    runCheck('gate layering', 'node', ['scripts/test-gate-layering.mjs'])
+  }
+}
+// ── L3 (nightly lane — AC-2041.1, mirrors 06-nightly-lite.yml) ───────────
+if (level === 'L3' || level === 'L4') {
+
+
+
+
+
+
+runCheck('solo reactivation', 'node', ['scripts/check-solo-reactivation.mjs']);
+
+
+
+
+
+
+
+
+runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-level=high'], { soft: graceActive });
+
 
 
 }

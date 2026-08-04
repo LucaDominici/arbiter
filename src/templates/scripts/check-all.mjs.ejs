@@ -144,30 +144,90 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
   }
 }
 // <<< ARG-PARSE-END (#1504)
+<%// #1127/#1330: FE-signal helpers used by the registry's generation-time emitIf
+// expressions — declared BEFORE the effective-gate set (which evals them).
+const _isSubtreeFE = typeof archetype !== 'undefined' && archetype !== 'frontend-spa'
+  && Array.isArray(lanes) && lanes.includes('frontend')
+const _isFE = archetype === 'frontend-spa' || (Array.isArray(lanes) && lanes.includes('frontend'))
+const _feFramework = (typeof frontend !== 'undefined' && frontend && frontend.framework)
+  ? frontend.framework : 'react'
+const _feGlob = _feFramework === 'vue'
+  ? 'src/**/*.{ts,vue}'
+  : _feFramework === 'svelte'
+  ? 'src/**/*.{ts,svelte}'
+  : 'src/**/*.{ts,tsx,jsx}'
+%>
+// ─── Embedded gate registry (#2041, AC-2041.4) ────────────────────────────────
+// The declarative registry rendered from gate-registry.yml.ejs — consumed by
+// `--dry-run` (manifest), `--gate <id|name>` (single-check re-run), and the
+// emitted layering contract test (scripts/test-gate-layering.mjs). ORDER IS
+// MEANINGFUL: gates run in registry order within each level.
+<%
+// The EFFECTIVE gate set — generation-time emitIf/language conditions resolved
+// once here, then embedded below and iterated by the lanes. The embedded
+// registry carries only the gates that will actually RUN (or render an
+// explicit SKIP), so the --dry-run manifest, the layering contract test, and
+// --gate <id> all see the same set the lanes execute. Conditions
+// (gateFilePresent/existsSync) are runtime and stay runtime `if` wrappers in
+// the emitted script. emitIf expressions are trusted repo-owned template data
+// resolved at GENERATION time (never emitted into the consumer script), so
+// eval here is safe — a typo'd emitIf key fails the generator LOUD
+// (ReferenceError), never a silent gate drop.
+//
+// A gate carrying a GENERATION-time `else` (npm-ci drift — body-vs-else decided
+// at render) is NEVER filtered: its emitIf decides body-vs-else in the inline
+// branch (mirroring the pre-#2041 `if (cond) { body } else { SKIP }` emission),
+// so a pnpm project still gets the SKIP-report line. A gate with a RUNTIME else
+// (condition + else, e.g. the contract env-gates) is filtered by emitIf like any
+// other gate — otherwise a Maven project's manifest would carry the ./gradlew
+// Pact gate whose runtime else only fires when the gate is actually selected.
+const _effectiveGates = gates.filter((g) => {
+  const _generationElse = g.else !== undefined && g.condition === undefined;
+  if (g.emitIf !== undefined && !_generationElse && !eval('(' + g.emitIf + ')')) return false;
+  if (g.language && g.language !== language) return false;
+  return true;
+});
+%>
+const GATE_REGISTRY = <%- JSON.stringify(_effectiveGates) %>;
 
-// #1720 (gap 4): L3/L4 have no dedicated runtime lane in this generated gate — L2
-// ("full") is the strongest tier it implements; every `governanceLevel`-specific
-// check below is compiled in at generation time and runs inside the L2 lane. The
-// guard used to be the literal `level === 'L2'`, so invoking `check-all.mjs L3` or
-// `L4` (both accepted by the parser above) silently ran ONLY the L1 fast-checks —
-// a runtime lie where the strictest requested tier ran the weakest checks. Clamp an
-// explicit L3/L4 request down to L2 so it runs the FULL gate body (never the L1
-// subset) and the `level` stamped into the JSON/evidence below stays honest about
-// what actually ran — it must never claim a tier this gate cannot run standalone.
-// The clamp itself is LOUD (stderr): the bug class being fixed here is SILENT
-// downgrades, so the clamp must never become one.
-if (level === 'L3' || level === 'L4') {
-  console.warn(`[GATE] level ${level} clamps to L2 (strongest tier this generated gate implements)`);
-  level = 'L2';
-}
-
-// #2078 (GATE-1 of #2041) — inspection modes. Both `--dry-run` and `--gate <name>`
-// are diagnostic: they must NEVER stamp a gate-pass marker / result JSON (guarded
-// at the write sites below), so a dry-run or single-check rerun cannot fake a green
-// gate for the fail-closed Stop hook. `setMode` threads the mode into the
+// ─── #2078 (GATE-1 of #2041) — inspection modes, re-based on the registry.
+// `--dry-run` prints the registry manifest without executing (exit 0, zero
+// executions); `--gate <id|name>` re-runs a single check with timing. Both are
+// diagnostic: they must NEVER stamp a gate-pass marker / result JSON (guarded
+// at the write sites below), so a dry-run or single-check rerun cannot fake a
+// green gate for the fail-closed Stop hook. `setMode` threads the mode into the
 // runCheck/runWarnCheck/runToolCheck trio; a normal run leaves it a no-op.
+if (dryRun) {
+  console.log('[DRY-RUN] gate manifest (registry):');
+  for (const _g of GATE_REGISTRY) {
+    if (_g.level === 'L1' || _g.level === level) {
+      console.log(`  ${_g.level}  ${_g.id}  ${_g.name}`);
+    }
+  }
+}
+if (only !== null) {
+  // --gate accepts a registry id (re-based on the registry) OR the display name
+  // (#2078 backward compatibility — the trio matches by name).
+  const _regGate = GATE_REGISTRY.find((_g) => _g.id === only);
+  if (_regGate) only = _regGate.name;
+}
 const _inspect = dryRun || only !== null;
 setMode({ dryRun, only });
+
+// #2041 (AC-2041.5/6): inline gate bodies bypass the runCheck trio, so they must
+// honour the inspection modes themselves — --dry-run prints and spawns NOTHING
+// (the #2078 contract: "print-what-would-run, spawn nothing"; a direct spawn
+// would also hang an offline consumer), and --gate <id|name> filters to the
+// named gate. Returns true when the caller must skip.
+function _inlineInspect(_name, _wouldRun) {
+  if (dryRun) {
+    console.log(`[CHECK] ${_name} ... DRY-RUN (would run: ${_wouldRun})`);
+    pushResult(_name, 'SKIP', 0);
+    return true;
+  }
+  if (only !== null && only !== _name) return true;
+  return false;
+}
 
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
 // A freshly-upgraded L1→L2 project may run its new L2 gates WARN-only for a
@@ -218,42 +278,32 @@ console.log('');
 console.log(`=== <%= projectName %> Quality Gate: ${level} ===`);
 console.log('');
 
+<%
+// #1720 (gap 4) RESOLVED by #2041 (AC-2041.1): L3/L4 are now executable LOCAL
+// lanes — the L3 registry set runs below (solo-reactivation + nightly audits,
+// mirroring 06-nightly-lite.yml). The pre-#2041 clamp is gone: an explicit
+// L3/L4 request runs the full L1+L2+L3 body, never a silent downgrade.
+const ratchetFlag = isL3Plus ? '--require-improvement' : '--gate';
+%>
 
-// ─── Early-fail: PII scan (INV-12, HARD — no grace period) ────────────────────
-runCheck('PII scan', 'node', ['scripts/pii-scan.mjs']);
-// ─── L1: Secret-pattern drift (anti-drift, INV-89, #1152) ────────────────────
-runCheck('secret scan', 'node', ['scripts/check-secret-scan.mjs']);
+// ─── Gate execution (registry-driven, #2041) ─────────────────────────────────
+// Each registry entry renders as a level-conditioned call: L1 gates always run,
+// L2 gates run at L2+, L3 gates run at L3+ (the local nightly lane). Language
+// and data conditions (emitIf) are resolved at GENERATION time; runtime guards
+// (gateFilePresent/existsSync) remain runtime `if` wrappers. Inline gates keep
+// their custom JS bodies (declared in the registry so --dry-run/--gate and the
+// layering test see them). ORDER IS THE REGISTRY ORDER.
 
-// ─── L1: Fast checks ──────────────────────────────────────────────────────────
-<% if (language === 'typescript') { %>
-runCheck('typecheck', 'npx', ['tsc', '--noEmit']);
-runCheck('format', 'npx', ['prettier', '--check', '.']);
-runCheck('lint', 'npx', ['eslint', '.']);
-// ─── L1: Static analysis rules (M29) ─────────────────────────────────────────
-// ESLint v9+ flat config: the static-analysis ruleset lives in
-// eslint.config.static.mjs and is run in isolation (--no-config-lookup) so it does
-// not merge with the project's main eslint.config.mjs. The legacy eslintrc path
-// (--no-eslintrc -c .eslintrc-static.json) was removed: ESLint v9 disabled it and
-// v10 deleted it, so it crashed the gate on a fresh install (B4, #1491).
-if (gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] static analysis ... SKIP (run: arbiter update)')) {
-  runCheck('static analysis', 'npx', ['eslint', '--config', 'eslint.config.static.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src']);
-}
-// ─── L1: No fake-db imports in test files (INV-34, #1887-D) ─────────────────
-// Isolated flat config, same reasoning as static analysis above — the legacy
-// .eslintrc-no-fake-db.json cannot be loaded by ESLint v9. Emitted by
-// generateIntegrationTesting only when hasDatabase, so the guard is graceful
-// on a project without a database (never emitted there).
-if (gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')) {
-  runCheck('no-fake-db imports (INV-34)', 'npx', ['eslint', '--config', 'eslint.config.no-fake-db.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', '.']);
-}
-runCheck('unit tests', '<%= packageManager %>', ['run', 'test:unit']);
-<% if (packageManager === 'npm') { %>// ─── L1: npm-ci lockfile drift under the pinned npm (#1684) ────────────────────
-// Verifies `npm ci` would succeed under the npm pinned in package.json#packageManager,
-// catching the local/Dependabot-vs-CI npm-major skew that rejects the lock repo-wide.
-// Invokes the pinned npm EXPLICITLY (npx npm@<pin>) — ambient npm may be a newer major
-// that hides the skew. SKIP-neutral when there is no packageManager pin or no lockfile:
-// the pin is opt-in, and the gate activates the moment one is added.
-{
+<% const l1 = _effectiveGates.filter(g => g.level === 'L1'); const l2 = _effectiveGates.filter(g => g.level === 'L2'); const l3 = _effectiveGates.filter(g => g.level === 'L3'); %>
+// ── L1 (fast checks — pre-commit) ────────────────────────────────────────
+if (true) {
+<% for (const g of l1) { %>
+<% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>
+<% if (g.language && g.language !== language) continue; %>
+<% if (g.kind === 'inline') { %>
+<% if(g.id === 'npm-ci-drift') { %>
+<% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) { %><%- g.else %><% } else { %>
+if (_inlineInspect('npm-ci drift', 'npx -y npm@<pin> ci --dry-run')) {} else {
   const _driftStart = Date.now();
   process.stdout.write('[CHECK] npm-ci drift ... ');
   let _driftStatus = 'PASS';
@@ -279,173 +329,9 @@ runCheck('unit tests', '<%= packageManager %>', ['run', 'test:unit']);
     console.log('SKIP (' + (_e && _e.message ? _e.message : 'unreadable package.json') + ')');
   }
   pushResult('npm-ci drift', _driftStatus, Date.now() - _driftStart);
-}<% } else { %>
-console.log('[CHECK] npm-ci drift ... SKIP (project uses <%= packageManager %>)');
-pushResult('npm-ci drift', 'SKIP', 0);
-<% } %>
-<% } %><% if (language === 'rust') { %>
-runCheck('fmt', 'cargo', ['fmt', '--check']);
-runCheck('clippy', 'cargo', ['clippy', '--', '-D', 'warnings']);
-runCheck('unit tests', 'cargo', ['test']);
-// #360 (CANON-02): context-aware Rust INV-04 checkers — no unwrap/expect/unsafe in production.
-runCheck('no .unwrap()/.expect()', 'node', ['scripts/checks/check-rust-no-unwrap.mjs']);
-runCheck('no unsafe', 'node', ['scripts/checks/check-rust-no-unsafe.mjs']);
-<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
-runCheck('checkstyle', './gradlew', ['checkstyleMain', '-q']);
-runCheck('format (spotless)', './gradlew', ['spotlessCheck', '-q']);
-runCheck('unit tests', './gradlew', ['test', '-q']);
-<% } %><% if (language === 'java' && buildTool === 'maven') { %>
-runCheck('checkstyle', 'mvn', ['checkstyle:check', '-q']);
-runCheck('format (spotless)', 'mvn', ['spotless:check', '-q']);
-runCheck('unit tests', 'mvn', ['test', '-q']);
-<% } %><% if (language === 'go') { %>
-{
-  const _gofmtStart = Date.now();
-  process.stdout.write('[CHECK] fmt (gofmt) ... ');
-  const _gofmt = spawnSync('gofmt', ['-l', '.'], { encoding: 'utf-8', shell: false });
-  let _gofmtStatus = 'PASS';
-  if (_gofmt.error?.code === 'ENOENT') {
-    console.log('FAIL (binary not found: gofmt)');
-    _gofmtStatus = 'FAIL';
-  } else if (_gofmt.stdout?.trim()) {
-    console.log('FAIL');
-    process.stdout.write('Files need gofmt formatting:\n' + _gofmt.stdout);
-    _gofmtStatus = 'FAIL';
-  } else {
-    console.log('PASS');
-  }
-  pushResult('fmt (gofmt)', _gofmtStatus, Date.now() - _gofmtStart);
-}
-runCheck('vet', 'go', ['vet', './...']);
-runCheck('lint', 'golangci-lint', ['run']);
-runCheck('unit tests', 'go', ['test', './...']);
-<% } %><% if (language === 'python') { %>
-runCheck('lint', 'ruff', ['check', '.']);
-runCheck('format', 'ruff', ['format', '--check', '.']);
-runCheck('unit tests', 'pytest', []);
-<% } %><% if (language === 'kotlin' && buildTool === 'gradle') { %>
-// ─── L1: Kotlin gate (#1194) ──────────────────────────────────────────────────
-// HARD: unit tests via Gradle (not a beta tool — the real enforcement hole).
-runCheck('unit tests', './gradlew', ['test', '-q']);
-// SOFT (CANON-02 is proven⇒gated, one-directional; beta MAY be soft-gated):
-// detekt — the Gradle plugin is operator-applied (config/detekt/detekt.yml emitted
-// by arbiter; plugin must be declared manually per detekt.yml header). Soft so a
-// fresh project that has not yet wired the plugin does not false-fail its own gate.
-runCheck('detekt (beta)', './gradlew', ['detekt'], { soft: true });
-<% } %>
-
-// ─── L1: Repo hygiene — no tracked data/binary artifacts (INV-129, #1407) ─────
-runCheck('no tracked artifacts (INV-129)', 'node', ['scripts/check-no-tracked-artifacts.mjs']);
-// ─── L1: Container base images digest-pinned (#1442) ──────────────────────────
-runCheck('image pins (#1442)', 'node', ['scripts/check-image-pins.mjs']);
-// ─── L1: E2E flaky-test quarantine hygiene (INV-130, #1445) ───────────────────
-// Annotates known-unstable tests but never suppresses them; fails closed on an
-// expired/malformed quarantine entry. Self-SKIPs when no registry is present.
-runCheck('e2e quarantine (INV-130)', 'node', ['scripts/check-e2e-quarantine.mjs']);
-// ─── L1: Test naming convention (M27) ────────────────────────────────────────
-runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
-// ─── L1: No-empty-suite / min-execution guard (INV-25, A2 #1497) ──────────────
-// Asks the project test runner (vitest/jest/pytest/go) how many tests it would run, via its
-// collect/list mode (no execution), and FAILS when that count is 0 — the "0 executed = green"
-// false-green that a runner's own exit code does not catch. NA when no runner; SKIP when deps absent.
-runCheck('min test execution (INV-25)', 'node', ['scripts/check-min-test-execution.mjs']);
-// ─── L1: Exit-code universal contract (INV-53) ────────────────────────────────
-runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs']);
-// ─── L1: Pipe/tee hazard (advisory — always exits 0) ─────────────────────────
-runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
-<% if (typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false) { %>
-// ─── L1: Self-validation A/B/C drill — proves the two gates above actually
-// distinguish PASS/FAIL/ERROR (#1835). Reference only where emitted: the
-// self-validation generator owns scripts/self-validation.mjs and is gated by
-// this same flag (registry.ts), so emission and wiring can never diverge.
-runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs']);
-<% } %>
-// ─── L1: Anti-drift validators (INV-89, #1152) ───────────────────────────────
-runCheck('config drift', 'node', ['scripts/check-drift.mjs']);
-runCheck('validator help text', 'node', ['scripts/check-validator-helptext.mjs']);
-<% if (typeof enableAuditToolchain !== 'undefined' && enableAuditToolchain) { %>
-// ─── L1: Toolchain/workflow inventory audit (opt-in, #1835) ──────────────────
-// Explicit opt-in (config.enableAuditToolchain) — its required-file lists are a
-// coarse fleet-wide inventory, not derived per-project, so it is advisory
-// (never blocks the gate) even for a project that turns it on.
-runWarnCheck('audit toolchain', 'node', ['scripts/audit-toolchain.mjs']);
-<% } %>
-<%
-// #1330: subtree frontend lane — a `frontend` lane on a non-frontend-spa archetype
-// (the FE app lives in `frontend/` beside a non-FE primary language). Wired here,
-// OUTSIDE the language guards, because the primary-language branch never gates the FE
-// lane. Gate-on-present (the script SKIPs when the subtree/deps are absent), so it is
-// inert for projects without an actual frontend/ subtree.
-const _isSubtreeFE = typeof archetype !== 'undefined' && archetype !== 'frontend-spa'
-  && Array.isArray(lanes) && lanes.includes('frontend')
-%>
-<% if (_isSubtreeFE) { %>
-// ─── L1: Frontend lane gate (#1330) ──────────────────────────────────────────
-// Runs the frontend/ subtree's own typecheck + unit tests (and build at L2 via
-// the dedicated 18-frontend-lane.yml workflow). Lanes-axis driven, not archetype.
-runCheck('frontend lane', 'node', ['scripts/check-frontend-lane.mjs']);
-<% } %>
-<%
-// #1127: FE-signal matches the generator predicate (archetype OR lane), not just archetype.
-// This ensures multi-lane projects (backend-web-db + frontend lane) also get FE gate steps.
-const _isFE = archetype === 'frontend-spa' || (Array.isArray(lanes) && lanes.includes('frontend'))
-// #1127: framework-aware source glob for FSD boundaries lint.
-const _feFramework = (typeof frontend !== 'undefined' && frontend && frontend.framework)
-  ? frontend.framework : 'react'
-const _feGlob = _feFramework === 'vue'
-  ? 'src/**/*.{ts,vue}'
-  : _feFramework === 'svelte'
-  ? 'src/**/*.{ts,svelte}'
-  : 'src/**/*.{ts,tsx,jsx}'
-%>
-<% if (_isFE && language === 'typescript') { %>
-// ─── L1: Stylelint + design-token enforcement (#352, CANON-02/15) ────────────
-// Runs ONLY when a stylelint config is present. The frontend-quality generator
-// emits .stylelintrc.json for frontend TypeScript targets (#352, PR #1138);
-// non-frontend or partial setups won't have it, so this gate-on-present guard
-// keeps CI from FAILing on a missing config. Matches the gate-on-present pattern
-// of the fsd-boundaries check below.
-// HARD rules enforced: color-no-hex, length-zero-no-unit,
-// custom-property-no-missing-var-function (var(--color-*) from src/styles/theme.css).
-// --allow-empty-input: a fresh scaffold has authored zero .css files yet — without
-// this flag stylelint throws NoFilesFoundError and RED's the gate on Day 1 (#1491-class).
-if (gateFilePresent('.stylelintrc.json', 'lint:css', null, ['.stylelintrc'])) {
-  runToolCheck('lint:css', 'npx', ['stylelint', '--allow-empty-input', 'src/**/*.css']);
-}
-// ─── L1: FSD layer boundaries (eslint-plugin-boundaries) — framework-aware (#1127) ───
-// Flat config: ESLint v9 removed --no-eslintrc/-c (#1491-class fix, mirrors the
-// eslint.config.static.mjs isolation pattern above).
-if (gateFilePresent('eslint.config.frontend-spa.mjs', 'fsd boundaries')) {
-  runCheck('fsd boundaries', 'npx', ['eslint', '--config', 'eslint.config.frontend-spa.mjs', '--no-config-lookup', '<%- _feGlob %>']);
-}
-// ─── L1: Playwright quality rules (M27) ──────────────────────────────────────
-// Requires: npm install -D eslint-plugin-playwright
-// Flat config: ESLint v9 removed --no-eslintrc/-c (#1491-class fix, mirrors the
-// eslint.config.static.mjs isolation pattern above).
-if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
-  // --no-error-on-unmatched-pattern: the glob is source-co-located-spec-oriented;
-  // a project whose specs live only under tests/e2e/ (arbiter's own scaffold
-  // convention) legitimately matches zero files here — that must stay a PASS,
-  // not a Day-1 RED (#1491-class fix).
-  runCheck('playwright rules', 'npx', ['eslint', '--config', 'eslint.config.playwright.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src/**/*.spec.ts']);
-} else {
-  console.log('[CHECK] playwright rules ... SKIP (run: npm install -D eslint-plugin-playwright)');
 }
 <% } %>
-<% if (enableSuppressions) { %>
-// ─── L1: Suppression expiry ───────────────────────────────────────────────────
-runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
-// ─── L1: Suppression quality (anti-drift, INV-89, #1152) ─────────────────────
-runCheck('suppression rationale', 'node', ['scripts/check-suppression-rationale.mjs']);
-runCheck('suppression expiry (anti-drift)', 'node', ['scripts/check-suppression-expiry.mjs']);
-<% } %>
-// ─── L1: Inline suppression directives (INV-31) ──────────────────────────────
-runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
-// ─── L1: Context-file lint (anti-drift, INV-89, #1266) ───────────────────────
-runCheck('claude-md lint', 'node', ['scripts/check-claude-md-lint.mjs']);
-// ─── L1: Unwired guard-script detector (anti-drift, INV-89, #2159) ───────────
-runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
-// ─── L1: Workflow runner label enforcement (#191, inlined) ───────────────────
+<% } else if(g.id === 'workflow-runners-inline') { %>
 {
   const _wrStart = Date.now();
   process.stdout.write('[CHECK] workflow runners ... ');
@@ -496,7 +382,7 @@ runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
     }
   }
 }
-// ─── L1: CI/manifest gate alignment (#240, inlined) ──────────────────────────
+<% } else if(g.id === 'ci-alignment') { %>
 {
   const _caStart = Date.now();
   process.stdout.write('[CHECK] ci alignment ... ');
@@ -578,194 +464,17 @@ runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
   }
   pushResult('ci alignment', _caStatus, Date.now() - _caStart);
 }
-// ─── L1: SSOT infrastructure gates (INV-54–57, #255) ─────────────────────────
-runCheck('ssot core set', 'node', ['scripts/check-ssot-core.mjs']);
-runCheck('doc links', 'node', ['scripts/check-doc-links.mjs']);
-runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs']);
-runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs']);
-// ─── L1: collaborationMode wired (INV-100, #1093) ────────────────────────────
-runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs']);
-// ─── L1: emitted hook → dispatcher → settings reverse routing (#2129) ─────────
-runCheck('hook routing (#2129)', 'node', ['scripts/check-hook-routing.mjs']);
-// ─── L1: safety-class adopt ratchet (T1, anti-erosion) ───────────────────────
-runCheck('safety adopt ratchet', 'node', ['scripts/check-safety-adopt-ratchet.mjs']);
-// ─── L1: emission parity — every emitted file still on disk (#2110) ──────────
-runCheck('emission parity (#2110)', 'node', ['scripts/check-emission-parity.mjs']);
-// ─── L1: governance constraint scan (INV-115, #1214) ─────────────────────────
-runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs']);
-// ─── L1: wiki lint gate (INV-116, #1241) ─────────────────────────────────────
-<% if (governanceLevel !== 'L1') { %>
-// #1318/#1321: the wiki generator is enabled only at L2+ (registry.ts), so a
-// virgin L1 project never emits scripts/check-wiki-lint.mjs. Gating this runCheck
-// to match the generator predicate prevents a MODULE_NOT_FOUND RED on `check-all L1`.
-runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
-// #2214: docs.ts emits gen-doc-index.mjs / gen-llms-txt.mjs only at L2+, matching this
-// guard. Both runChecks are additionally guarded on their OUTPUT artifact, never on the
-// script: docs/INDEX.md and llms.txt are target-OWNED artifacts that `arbiter init` does
-// not pre-generate, so an unguarded --check reds every virgin target on day one — shipping
-// exactly the red-by-construction enforcement this issue exists to remove. Once the target
-// runs `node scripts/gen-doc-index.mjs` once, drift is gated on every run thereafter.
-if (existsSync('docs/INDEX.md')) {
-  runCheck('documentation index drift', 'node', ['scripts/gen-doc-index.mjs', '--check']);
+<% } else if(g.id === 'playwright-rules') { %>
+if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
+  // --no-error-on-unmatched-pattern: the glob is source-co-located-spec-oriented;
+  // a project whose specs live only under tests/e2e/ (arbiter's own scaffold
+  // convention) legitimately matches zero files here — that must stay a PASS,
+  // not a Day-1 RED (#1491-class fix).
+  runCheck('playwright rules', 'npx', ['eslint', '--config', 'eslint.config.playwright.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src/**/*.spec.ts']);
+} else {
+  console.log('[CHECK] playwright rules ... SKIP (run: npm install -D eslint-plugin-playwright)');
 }
-if (existsSync('llms.txt')) {
-  runCheck('llms.txt drift', 'node', ['scripts/gen-llms-txt.mjs', '--check']);
-}
-<% } %>
-// ─── L1: anti-proforma test gate (INV-118, #1249) ────────────────────────────
-runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
-// ─── L1: test pyramid non-empty gate (INV-124, #1364) ────────────────────────
-runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs']);
-// ─── L1: test-scope ↔ tier integrity (A4, #1497) ─────────────────────────────
-// A declared `required` test category that no gate step (check-all check or CI workflow)
-// runs is a silent false-green. Complements the pyramid gate (file presence) by asserting
-// each required category is actually WIRED into a tier. NO-DATA (no manifest) self-SKIPs.
-runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mjs']);
-// ─── L1: live-API e2e suite gate (INV-126, #1365) ────────────────────────────
-// Service archetypes (api-e2e.json required:true) must ship a non-mocked suite that
-// boots the real binary; required:false / absent manifest ⇒ runtime SKIP.
-runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs']);
-// ─── L1: domain<->API surface-completeness gate (INV-125, #1367) ─────────────
-<% if (hasPublicApi) { %>
-// #1835/#1331: check-domain-api-surface.mjs is emitted by emitDomainApiSurface
-// (check-all.ts) only when config.hasPublicApi is true — reference it only where
-// it is actually emitted (mirrors the consumer-audit precedent above in this
-// same file, #1737), so the emission-coherence gate stays consistent for
-// archetypes without a public API (e.g. typescript/library).
-runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs']);
-<% } %>
-// ─── L1: frontend render-smoke presence gate (INV-127, #1366) ────────────────
-// Fails-closed when a frontend archetype (or `frontend` lane) ships without a
-// render-smoke behavioural spec. Self-SKIPs for non-frontend / ungoverned repos.
-runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs']);
-// ─── L1: smoke-journey acceptance-floor gate (INV-137, #2080) ─────────────────
-// Asserts the declared login/CRUD/authz journeys are COVERED (not just present, unlike
-// INV-126). applicable:false / absent manifest ⇒ runtime SKIP.
-runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs']);
-<% if (language) { %>
-// ─── L1: stack-conformity gate (INV-121, #1312) ──────────────────────────────
-// Fails when the repo-root manifest contradicts the declared language/databaseEngine
-// axes. Self-safety is RUNTIME-resident in the emitted .mjs (absent language ⇒ exit 0).
-runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.mjs']);
-<% } %>
-// ─── L1: ISO 9001 quality-process overlay gate (#1253) — present only when overlay selected
-if (gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')) {
-  runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);
-}
-// ─── L1: regulated / high-assurance overlay gate — present only when overlay selected
-if (gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')) {
-  runCheck('regulated overlay (SoD + retention + signing + mutation)', 'node', [
-    'scripts/check-regulated-overlay.mjs',
-  ]);
-}
-<% if (useGitHub) { %>
-// ─── L1: GitHub CI tier gates (INV-73, INV-75, INV-76) ───────────────────────
-runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs']);
-runCheck('action pins (INV-75)', 'node', ['scripts/check-action-pins.mjs']);
-runCheck('workflow perms (INV-76)', 'node', ['scripts/check-workflow-perms.mjs']);
-// ─── L1: Workflow anti-drift validators (INV-89, #1152) ──────────────────────
-runCheck('workflow runners', 'node', ['scripts/check-workflow-runners.mjs']);
-runCheck('workflow docs sync', 'node', ['scripts/check-workflow-docs-sync.mjs']);
-runCheck('workflow test integrity', 'node', ['scripts/check-workflow-test-integrity.mjs']);
-runCheck('secret presence (fail-loud)', 'node', ['scripts/check-secret-presence.mjs']);
-runCheck('continue-on-error (swallowed gate)', 'node', ['scripts/check-continue-on-error.mjs']);
-runCheck('workflow sha pinning', 'node', ['scripts/check-workflow-sha-pinning.mjs']);
-runCheck('workflow job naming', 'node', ['scripts/check-workflow-job-naming.mjs']);
-runCheck('pr size gate', 'node', ['scripts/check-pr-size-gate.mjs']);
-// ─── ff-only merge method enforcement (INV-101) ──────────────────────────────
-// #1331: check-merge-method.mjs is emitted by the github-setup generator, which
-// only runs at L2+. Reference it only where it is emitted so an L1+GitHub project
-// is not left with a ghost reference to a never-emitted script.
-<% if (governanceLevel !== 'L1') { %>
-runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs']);
-<% } %>
-<% } %>
-// ─── L1+: anti-fake-green file-scan guards (#1497) ────────────────────────────
-// arbiter's deterministic, NO-DATA-safe anti-fake-green guards, shipped INTO this project so a
-// planted false-green is caught by THIS gate — not only by arbiter's. Each PASSES when there is
-// nothing to scan, so they are safe to enforce hard at every governance level:
-//   muted gate test (a silenced test that can never fail), skipped critical e2e, a stale "Moved →"
-//   redirect husk doc, and an over-long / stale-level ADR-028 grace window in arbiter.json.
-runCheck('muted gate test (anti-fake-green)', 'node', ['scripts/check-muted-test.mjs']);
-runCheck('skipped critical e2e (anti-fake-green)', 'node', ['scripts/check-skip-critical-e2e.mjs']);
-runCheck('stub redirect husk (anti-fake-green)', 'node', ['scripts/check-no-stub-redirects.mjs']);
-runCheck('grace window (anti-fake-green)', 'node', ['scripts/check-grace-window.mjs']);
-// #2161: assertion-delta is emitted unconditionally (diff-based, any test stack).
-runCheck('assertion delta (anti-fake-green)', 'node', ['scripts/check-assertion-delta.mjs']);
-// #2160: oracle-discrimination.mjs is emitted by check-all.ts ONLY where an E2E (Playwright)
-// harness is applicable (archetype frontend-spa or backend-web-db, same predicate as
-// generateE2eConstitution) — reference it only where it is actually emitted (mirrors the
-// merge-method ff-only precedent, #1331).
-<% if (archetype === 'frontend-spa' || archetype === 'backend-web-db') { %>
-runCheck('oracle discrimination (anti-fake-green)', 'node', ['scripts/check-oracle-discrimination.mjs']);
-<% } %>
-// ─── L2: Full checks ──────────────────────────────────────────────────────────
-if (level === 'L2') {
-<% if (enableSecurityScanning) { %>
-  // ─── L2: Security scanning (INV-11/12/13) ──────────────────────────────────
-  runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1'], { soft: graceActive });
-<% } %>
-<% if (language === 'typescript') { %>
-<% if (enableSecurityScanning && packageManager === 'npm') { %>
-  runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
-<% } else if (enableSecurityScanning) { %>
-  console.log('[CHECK] audit ... SKIP (project uses <%= packageManager %>)');
-  pushResult('audit', 'SKIP', 0);
-<% } %>
-<% if (archetype === 'library' && governanceLevel !== 'L1') { %>
-  // #1737 (Track-B counterpart of arbiter-self's #1718): consumer-resolution audit —
-  // npm silently drops this package's own `overrides` for anyone installing it as a
-  // dependency, so the dev-tree `audit` step above is structurally blind to that class
-  // of exposure. This packs+installs+audits the CONSUMER-resolved tree instead.
-  // check-consumer-audit.mjs is only emitted by emitConsumerAudit (check-all.ts) at
-  // governanceLevel !== 'L1' — reference it only where it is actually emitted (mirrors
-  // the merge-method ff-only precedent immediately above in this same file, #1331).
-  runCheck('consumer audit', 'node', ['scripts/check-consumer-audit.mjs']);
-<% } %>
-<% if (architectureStyle === 'hexagonal') { %>
-  runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
-<% } %>
-  runCheck('contract tests', '<%= packageManager %>', ['run', 'test:contract'], { soft: graceActive });
-  runCheck('integration tests', '<%= packageManager %>', ['run', 'test:integration'], { soft: graceActive });
-  runCheck('behavioral tests', '<%= packageManager %>', ['run', 'test:behavioral'], { soft: graceActive });
-<% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('db integration tests', '<%= packageManager %>', ['run', 'test:integration'], { soft: graceActive });
-<% } %>
-<% if (_isFE && governanceLevel !== 'L1') { %>
-  // ─── L2: FE boundary purity gate (INV-102/103/104, #1127) ─────────────────
-  // Framework-aware: API-layer isolation, headless domain, state-mgmt discipline.
-  // Generated by check-all.ts when archetype=frontend-spa or lanes includes frontend.
-  if (gateFilePresent('scripts/check-fe-boundaries.mjs', 'fe boundaries (INV-102/103/104)')) {
-    runCheck('fe boundaries (INV-102/103/104)', 'node', ['scripts/check-fe-boundaries.mjs'], { soft: graceActive });
-  }
-  // ─── L2: Design token discipline (INV-105, #1127) ─────────────────────────
-  // Scans component source for raw hex/rgb/hsl and phantom token references.
-  // Generated by frontend-quality generator for frontend-spa/frontend-lane projects.
-  if (gateFilePresent('scripts/verify-tokens.mjs', 'token discipline (INV-105)')) {
-    runCheck('token discipline (INV-105)', 'node', ['scripts/verify-tokens.mjs'], { soft: graceActive });
-  }
-  // ─── L2: i18n raw-literal scan (INV-106, #1127) ───────────────────────────
-  // Scans component source for hardcoded text that should use t('key').
-  if (gateFilePresent('scripts/i18n-literal-scanner.mjs', 'i18n literals (INV-106)')) {
-    runCheck('i18n literals (INV-106)', 'node', ['scripts/i18n-literal-scanner.mjs'], { soft: graceActive });
-  }
-  // ─── L2: i18n locale key parity (INV-106, #1127) ─────────────────────────
-  // Verifies all locale files have identical key sets.
-  if (gateFilePresent('scripts/verify-i18n-parity.mjs', 'i18n parity (INV-106)')) {
-    runCheck('i18n parity (INV-106)', 'node', ['scripts/verify-i18n-parity.mjs'], { soft: graceActive });
-  }
-  // ─── L2: FE coverage ratchet (#1127) ─────────────────────────────────────
-  // Per-layer coverage baseline enforcement (upward-only, slack-tolerant).
-  if (gateFilePresent('scripts/verify-fe-coverage.mjs', 'fe coverage ratchet') && existsSync('fe-coverage-baseline.json')) {
-    runCheck('fe coverage ratchet', 'node', ['scripts/verify-fe-coverage.mjs'], { soft: graceActive });
-  }
-  // ─── L2: Bundle size budget (#1127) ──────────────────────────────────────
-  // Real budget gate vs dist/ output (mirrors Rust binarySizeBudget).
-  if (gateFilePresent('scripts/check-bundle-size.mjs', 'bundle size budget') && gateFilePresent('bundle-budget.json', 'bundle size budget')) {
-    runCheck('bundle size budget', 'node', ['scripts/check-bundle-size.mjs'], { soft: graceActive });
-  }
-<% } %>
-<% if ((archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1') { %>
+<% } else if(g.id === 'playwright-e2e') { %>
   // ─── L2: Playwright E2E (#348, CANON-02) — matrix proven for TS frontend-spa / backend-web-db.
   // Wrapped via scripts/lib/ephemeral-server.mjs (#358): the runner starts the
   // server, polls TCP readiness, runs Playwright, then tears the server down.
@@ -795,59 +504,7 @@ if (level === 'L2') {
       { soft: graceActive },
     );
   }
-<% } %>
-<% } %><% if (language === 'rust') { %>
-<% if (enableSecurityScanning) { %>
-  runCheck('audit', 'cargo', ['audit'], { soft: graceActive });
-<% } %>
-<% if (architectureStyle === 'hexagonal') { %>
-  runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
-<% } %>
-<% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration tests', 'cargo', ['test', '--tests'], { soft: graceActive });
-<% } %>
-<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
-<% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration', './gradlew', ['integrationTest', '-q'], { soft: graceActive });
-<% } %>
-<% if (architectureStyle !== 'none' && basePackage) { %>
-  runCheck('architecture tests', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: graceActive });
-<% } %>
-<% if (enableSecurityScanning) { %>
-  runCheck('dep audit (trivy fs)', 'trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.'], { soft: graceActive });
-<% } %>
-<% } %><% if (language === 'java' && buildTool === 'maven') { %>
-<% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration', 'mvn', ['verify', '-q'], { soft: graceActive });
-<% } %>
-<% if (architectureStyle !== 'none' && basePackage) { %>
-  runCheck('architecture tests', 'mvn', ['test', '-Dtest=*.architecture.*', '-q'], { soft: graceActive });
-<% } %>
-<% if (enableSecurityScanning) { %>
-  runCheck('dep audit (trivy fs)', 'trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.'], { soft: graceActive });
-<% } %>
-<% } %><% if (language === 'go') { %>
-  runCheck('staticcheck', 'staticcheck', ['./...'], { soft: graceActive });
-<% if (enableSecurityScanning) { %>
-  runCheck('dep audit', 'govulncheck', ['./...'], { soft: graceActive });
-<% } %>
-<% if (architectureStyle === 'hexagonal') { %>
-  runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
-<% } %>
-<% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration tests', 'go', ['test', '-tags', 'integration', '-run', 'Integration', './...'], { soft: graceActive });
-<% } %>
-<% } %><% if (language === 'python') { %>
-<% if (enableSecurityScanning) { %>
-  runCheck('audit', 'pip-audit', [], { soft: graceActive });
-<% } %>
-<% if (architectureStyle === 'hexagonal') { %>
-  runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
-<% } %>
-<% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration tests', 'pytest', ['tests/integration/'], { soft: graceActive });
-<% } %>
-<% if (archetype === 'frontend-spa' || archetype === 'backend-web-db') { %>
+<% } else if(g.id === 'pytest-playwright-e2e') { %>
   // ─── L2: pytest-playwright E2E (#348, CANON-02) — matrix proven for Python web archetypes.
   // Wrapped via scripts/lib/ephemeral-server.mjs (#358) so the server is up
   // before pytest collects the e2e tests. runToolCheck SKIPs locally when
@@ -863,31 +520,20 @@ if (level === 'L2') {
     ],
     { soft: graceActive },
   );
+<% } else if(g.id === 'npm-audit') { %>
+<% if (enableSecurityScanning && packageManager === 'npm') { %>
+  runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+<% } else if (enableSecurityScanning) { %>
+  console.log('[CHECK] audit ... SKIP (project uses <%= packageManager %>)');
+  pushResult('audit', 'SKIP', 0);
 <% } %>
-<% } %><% if (language === 'kotlin' && buildTool === 'gradle') { %>
-<% if (architectureStyle !== 'none' && basePackage) { %>
-  // ─── L2: Kotlin architecture tests via ArchUnit (#1194, beta) ─────────────
-  // SOFT: ArchUnit reads JVM bytecode (works on Kotlin), but the Java tests in
-  // src/test/java only run if build.gradle adds:
-  //   sourceSets { test { java { srcDirs += 'src/test/java' } } }
-  // CANON-02 is proven⇒gated (one-directional); beta tools may be soft-gated.
-  runCheck('architecture tests (beta)', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: true });
-<% } %>
-<% if (enableSecurityScanning) { %>
-  // ─── L2: Dep audit (trivy fs, R-15 — kotlin previously had no local dep audit) ──
-  runCheck('dep audit (trivy fs)', 'trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.'], { soft: graceActive });
-<% } %>
-<% } %>
-<% if (enableDebtGates) { %>
-  // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────
-<% if (language === 'typescript') { %>
-<% if (coverageEnabled) { %>
+<% } else if(g.id === 'coverage-threshold') { %>
   // ─── L2: coverage threshold (greenfield-aware, #1319.8) ─────────────────────
   // Run vitest with the json-summary reporter so we can inspect the real coverage
   // totals at runtime. A virgin project has zero executable statements ⇒ the
   // greenfield guard PASSES instead of false-failing the line threshold. A coverage
   // run that crashed (no summary) FAILS — never silently skipped.
-  {
+  if (_inlineInspect('coverage threshold', 'npx vitest run --coverage --coverage.reporter=json-summary')) {} else {
     const _covStart = Date.now();
     process.stdout.write('[CHECK] coverage threshold ... ');
     const _covThreshold = <%= coverageThreshold %>;
@@ -920,24 +566,495 @@ if (level === 'L2') {
     }
     pushResult('coverage threshold', _covStatus, Date.now() - _covStart);
   }
+<% } else if(g.id === 'bdd-ignore-check') { %>
+  // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
+  if (_inlineInspect('BDD @ignore check', 'grep -rql --include=*.feature @ignore .')) {} else {
+    // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
+    const _bddIgnoreStart = Date.now();
+    const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
+    process.stdout.write('[CHECK] BDD @ignore check ... ');
+    let _bddIgnoreStatus = 'PASS';
+    if (_bddIgnore.error?.code === 'ENOENT') {
+      console.log('FAIL (grep not found — cannot check @ignore tags)');
+      _bddIgnoreStatus = 'FAIL';
+    } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
+      console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
+      _bddIgnoreStatus = 'FAIL';
+    } else if (_bddIgnore.status === 0) {
+      console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
+      _bddIgnoreStatus = 'FAIL';
+    } else {
+      console.log('PASS');
+    }
+    pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);
+  }
+<% } else if(g.id === 'bdd-go') { %>
+  // direct parallel of Python's `pytest.importorskip("pytest_bdd")`.
+  {
+    const _goBddStart = Date.now();
+    const _goMod = existsSync('go.mod') ? readFileSync('go.mod', 'utf-8') : '';
+    if (_goMod.includes('github.com/cucumber/godog')) {
+      runCheck('bdd', 'go', ['test', '-tags', 'bdd', './internal/bdd/...'], { soft: graceActive });
+    } else {
+      console.log('[CHECK] bdd ... SKIP (github.com/cucumber/godog not in go.mod — run: go get github.com/cucumber/godog)');
+      pushResult('bdd', 'SKIP', Date.now() - _goBddStart);
+    }
+  }
+<% } else if(g.id === 'bdd-rust') { %>
+  // graceful-skip contract as the Go/Python BDD gates above.
+  {
+    const _rustBddStart = Date.now();
+    const _cargoToml = existsSync('Cargo.toml') ? readFileSync('Cargo.toml', 'utf-8') : '';
+    if (/^\s*bdd\s*=/m.test(_cargoToml) || _cargoToml.includes('cucumber')) {
+      runCheck('bdd', 'cargo', ['test', '--features', 'bdd'], { soft: graceActive });
+    } else {
+      console.log('[CHECK] bdd ... SKIP (no `bdd` feature / cucumber dep in Cargo.toml — see tests/example_bdd_test.rs)');
+      pushResult('bdd', 'SKIP', Date.now() - _rustBddStart);
+    }
+  }
+<% } else if(g.id === 'evidence-gate') { %>
+  // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────
+  // Validates nightly evidence produced by evidence-collect.mjs.
+  // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
+  const _evidenceStart = Date.now();
+  let _evidenceStatus = 'PASS';
+  process.stdout.write('[CHECK] evidence gate (INV-33) ... ');
+  {
+    const _summaryPath = join(process.cwd(), '.evidence', 'SUMMARY.json');
+    if (!existsSync(_summaryPath)) {
+      console.log('WARN — .evidence/SUMMARY.json absent (run nightly pipeline first)');
+    } else {
+      try {
+        const _summary = JSON.parse(readFileSync(_summaryPath, 'utf-8'));
+        if (_summary.obs_gate === 'PASS') {
+          console.log('PASS');
+        } else {
+          console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
+          _evidenceStatus = 'FAIL';
+        }
+      } catch {
+        console.log('FAIL (could not parse .evidence/SUMMARY.json)');
+        _evidenceStatus = 'FAIL';
+      }
+    }
+  }
+  pushResult('evidence gate (INV-33)', _evidenceStatus, Date.now() - _evidenceStart);
+<% } else if(g.id === 'gofmt') { %>
+  // #157: gofmt -l — FAIL on any unformatted file (Go ships no formatter in CI).
+  if (_inlineInspect('fmt (gofmt)', 'gofmt -l .')) {} else {
+    const _gofmtStart = Date.now();
+    process.stdout.write('[CHECK] fmt (gofmt) ... ');
+    const _gofmt = spawnSync('gofmt', ['-l', '.'], { encoding: 'utf-8', shell: false });
+    let _gofmtStatus = 'PASS';
+    if (_gofmt.error?.code === 'ENOENT') {
+      console.log('FAIL (binary not found: gofmt)');
+      _gofmtStatus = 'FAIL';
+    } else if (_gofmt.stdout?.trim()) {
+      console.log('FAIL');
+      process.stdout.write('Files need gofmt formatting:\n' + _gofmt.stdout);
+      _gofmtStatus = 'FAIL';
+    } else {
+      console.log('PASS');
+    }
+    pushResult('fmt (gofmt)', _gofmtStatus, Date.now() - _gofmtStart);
+  }
 <% } %>
-  runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
-  // Fail-closed wrapper: bare `npx jscpd --silent` exits 0 on a 0-file scan
-  // under jscpd v5, making the gate vacuous on fileset drift.
-  runCheck('duplication', 'node', ['scripts/check-duplication.mjs'], { soft: graceActive });
-  runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts,tsx,js,jsx', 'src'], { soft: graceActive });
-  runCheck('arch boundaries', '<%= packageManager %>', ['run', 'check:arch'], { soft: graceActive });
-<% } %><% if (language === 'rust') { %>
-<% if (coverageEnabled) { %>
-  runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>'], { soft: graceActive });
+<% } else { %>
+<% if (g.condition) { %>if (<%- g.condition %>) { <% } %>
+<% const _fn = g.kind === 'warn' ? 'runWarnCheck' : g.kind === 'tool' ? 'runToolCheck' : 'runCheck'; %>
+<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', ['<%- g.cmd.slice(1).join("', '") %>']<%= g.soft ? ', { soft: graceActive }' : '' %>);
+<% if (g.else) { %>} else {
+<%- g.else %>
+}<% } else if (g.condition) { %> } <% } %>
 <% } %>
-  runCheck('clippy pedantic', 'cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings'], { soft: graceActive });
-<% if (archetype === 'cli' || archetype === 'embedded') { %>
+<% } %>
+}
+// ── L2 (full checks — pre-push) ──────────────────────────────────────────
+if (level !== 'L1') {
+<% for (const g of l2) { %>
+<% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>
+<% if (g.language && g.language !== language) continue; %>
+<% if (g.kind === 'inline') { %>
+<% if(g.id === 'npm-ci-drift') { %>
+<% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) { %><%- g.else %><% } else { %>
+if (_inlineInspect('npm-ci drift', 'npx -y npm@<pin> ci --dry-run')) {} else {
+  const _driftStart = Date.now();
+  process.stdout.write('[CHECK] npm-ci drift ... ');
+  let _driftStatus = 'PASS';
+  try {
+    const _pin = existsSync('package.json')
+      ? (JSON.parse(readFileSync('package.json', 'utf-8')).packageManager || '').match(/^npm@(\d+\.\d+\.\d+)/)
+      : null;
+    if (!_pin || !existsSync('package-lock.json')) {
+      console.log('SKIP (no packageManager npm pin or lockfile)');
+    } else {
+      const _r = spawnSync('npx', ['-y', 'npm@' + _pin[1], 'ci', '--dry-run'], { encoding: 'utf-8', shell: false });
+      if (_r.error) {
+        console.log('SKIP (pinned npm@' + _pin[1] + ' unavailable)');
+      } else if (_r.status === 0) {
+        console.log('PASS');
+      } else {
+        console.log('FAIL');
+        process.stdout.write('package-lock.json is out of sync under npm@' + _pin[1] + ' — relock: npx -y npm@' + _pin[1] + ' install --package-lock-only\n');
+        _driftStatus = 'FAIL';
+      }
+    }
+  } catch (_e) {
+    console.log('SKIP (' + (_e && _e.message ? _e.message : 'unreadable package.json') + ')');
+  }
+  pushResult('npm-ci drift', _driftStatus, Date.now() - _driftStart);
+}
+<% } %>
+<% } else if(g.id === 'workflow-runners-inline') { %>
+{
+  const _wrStart = Date.now();
+  process.stdout.write('[CHECK] workflow runners ... ');
+  const _wrWorkflowsDir = join(process.cwd(), '.github', 'workflows');
+  // Allowlisted runs-on forms (INV-89, ADR-023 amendment #959 — ubuntu-latest default):
+  //   1. ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}  — global override (auxiliary jobs)
+  //   2. ${{ fromJSON(vars.RUNNER_LABELS_BUILD  || '["ubuntu-latest"]') }}  — build job-class pool
+  //   3. ${{ fromJSON(vars.RUNNER_LABELS_TEST   || '["ubuntu-latest"]') }}  — test job-class pool
+  //   4. ${{ fromJSON(vars.RUNNER_LABELS_DEPLOY || '["ubuntu-latest"]') }}  — deploy job-class pool
+  //   5. ${{ matrix.os }} — explicit OS matrix, always allowed
+  // The per-job-class map lets a project point build/test/deploy at distinct runner
+  // pools (self-hosted / cloud / GitHub-hosted) via org vars without editing workflows;
+  // each var falls back to ubuntu-latest, so an unset var is never a broken runner.
+  const _wrAllowedPattern = /\$\{\{\s*(?:vars\.CI_BUILD_RUNNER_LABEL|fromJSON\(vars\.RUNNER_LABELS_(?:BUILD|TEST|DEPLOY)|matrix\.os)/;
+  const _wrRunsOnPattern = /^\s*runs-on:/;
+  let _wrViolations = 0;
+  let _wrFiles;
+  try {
+    _wrFiles = readdirSync(_wrWorkflowsDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.log(`FAIL (cannot read .github/workflows — ${err.message})`);
+      pushResult('workflow runners', 'FAIL', Date.now() - _wrStart);
+      _wrFiles = null;
+    } else {
+      _wrFiles = [];
+    }
+  }
+  if (_wrFiles !== null) {
+    for (const _wrFile of _wrFiles) {
+      let _wrContent;
+      try {
+        _wrContent = readFileSync(join(_wrWorkflowsDir, _wrFile), 'utf-8');
+      } catch (err) { console.log(`FAIL (cannot read workflow file: ${_wrFile} — ${err.message})`); _wrViolations++; continue; }
+      const _wrLines = _wrContent.split('\n');
+      for (let _wi = 0; _wi < _wrLines.length; _wi++) {
+        if (_wrRunsOnPattern.test(_wrLines[_wi]) && !_wrAllowedPattern.test(_wrLines[_wi])) {
+          _wrViolations++;
+        }
+      }
+    }
+    if (_wrViolations > 0) {
+      console.log(`FAIL (${_wrViolations} violation(s) — use \${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }})`);
+      pushResult('workflow runners', 'FAIL', Date.now() - _wrStart);
+    } else {
+      console.log(`PASS (${Date.now() - _wrStart}ms)`);
+      pushResult('workflow runners', 'PASS', Date.now() - _wrStart);
+    }
+  }
+}
+<% } else if(g.id === 'ci-alignment') { %>
+{
+  const _caStart = Date.now();
+  process.stdout.write('[CHECK] ci alignment ... ');
+  const _caManifestPath = join(process.cwd(), 'scripts', 'check-all.mjs');
+  const _caCiPath = join(process.cwd(), '.github', 'workflows', 'ci.yml');
+  const _caInfraPrefixes = ['npm ci', 'npm install', 'git fetch', 'git checkout', 'curl ', 'echo ', 'mkdir ', 'cp ', 'tar ', 'pip install', 'apt-get'];
+  const _caDesignExemptions = new Set(['npx:commitlint', 'npm:test']);
+  function _caIsInfra(cmd) { return _caInfraPrefixes.some((p) => cmd.startsWith(p)); }
+  function _caNormalizeKey(cmd, firstArg) {
+    switch (cmd) {
+      case 'node': return (firstArg && firstArg.startsWith('scripts/')) ? firstArg : null;
+      case 'npx': { if (!firstArg) return null; const tool = firstArg.replace(/@.+$/, ''); return 'npx:' + tool; }
+      case 'npm': if (firstArg === 'test') return 'npm:test'; if (firstArg === 'audit') return 'npm:audit'; return null;
+      default: return null;
+    }
+  }
+  function _caExtractManifestGates(text) {
+    const gates = new Set();
+    const re = /runCheck\(\s*"[^"]*"\s*,\s*"([^"]+)"\s*,\s*\[([^\]]*)\]/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const k = _caNormalizeKey(m[1].trim(), (m[2].match(/"([^"]+)"/) || [])[1] || '');
+      if (k !== null) gates.add(k);
+    }
+    return gates;
+  }
+  function _caParseRun(cmd, gates) {
+    if (!cmd || _caIsInfra(cmd)) return;
+    const toks = cmd.split(/\s+/);
+    const c0 = toks[0]; const a0 = toks[1] ?? '';
+    const k = (c0 === 'node' && a0) ? _caNormalizeKey('node', a0) : _caNormalizeKey(c0, a0);
+    if (k !== null) gates.add(k);
+  }
+  function _caExtractCiGates(ciPath) {
+    const gates = new Set();
+    let ciText;
+    try { ciText = readFileSync(ciPath, 'utf-8'); } catch (e) { if (e.code === 'ENOENT') return gates; throw e; }
+    const ciLines = ciText.split('\n');
+    let _ci = 0;
+    while (_ci < ciLines.length) {
+      const cl = ciLines[_ci];
+      if (/^\s*-?\s*uses:\s*.+/.test(cl)) { _ci++; continue; }
+      const blk = cl.match(/^(\s*)-?\s*run:\s*[|>]\s*$/);
+      if (blk) {
+        const bi = blk[1].length; _ci++;
+        while (_ci < ciLines.length) {
+          const bl = ciLines[_ci];
+          if (bl.trim() === '') { _ci++; continue; }
+          if ((bl.match(/^(\s*)/)?.[1].length ?? 0) <= bi && bl.trim() !== '') break;
+          _caParseRun(bl.trim(), gates); _ci++;
+        }
+        continue;
+      }
+      const sl = cl.match(/^\s*-?\s*run:\s*(.+)/);
+      if (sl) { _caParseRun(sl[1].trim(), gates); }
+      _ci++;
+    }
+    return gates;
+  }
+  let _caStatus = 'PASS';
+  try {
+    const _caManifestText = readFileSync(_caManifestPath, 'utf-8');
+    const _caManifestGates = _caExtractManifestGates(_caManifestText);
+    const _caCiGates = _caExtractCiGates(_caCiPath);
+    for (const k of _caDesignExemptions) { _caManifestGates.delete(k); _caCiGates.delete(k); }
+    const _caManifestOnly = [..._caManifestGates].filter((k) => !_caCiGates.has(k));
+    const _caCiOnly = [..._caCiGates].filter((k) => !_caManifestGates.has(k));
+    if (_caManifestOnly.length > 0 || _caCiOnly.length > 0) {
+      console.log(`FAIL (${_caManifestOnly.length + _caCiOnly.length} alignment violation(s))`);
+      for (const k of _caManifestOnly) process.stderr.write('  manifest-only: ' + k + '\n');
+      for (const k of _caCiOnly) process.stderr.write('  ci-only: ' + k + '\n');
+      _caStatus = 'FAIL';
+    } else {
+      console.log(`PASS (${_caManifestGates.size} gates aligned, ${Date.now() - _caStart}ms)`);
+    }
+  } catch (_caErr) {
+    console.log('FAIL (error: ' + _caErr.message + ')');
+    _caStatus = 'FAIL';
+  }
+  pushResult('ci alignment', _caStatus, Date.now() - _caStart);
+}
+<% } else if(g.id === 'playwright-rules') { %>
+if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
+  // --no-error-on-unmatched-pattern: the glob is source-co-located-spec-oriented;
+  // a project whose specs live only under tests/e2e/ (arbiter's own scaffold
+  // convention) legitimately matches zero files here — that must stay a PASS,
+  // not a Day-1 RED (#1491-class fix).
+  runCheck('playwright rules', 'npx', ['eslint', '--config', 'eslint.config.playwright.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src/**/*.spec.ts']);
+} else {
+  console.log('[CHECK] playwright rules ... SKIP (run: npm install -D eslint-plugin-playwright)');
+}
+<% } else if(g.id === 'playwright-e2e') { %>
+  // ─── L2: Playwright E2E (#348, CANON-02) — matrix proven for TS frontend-spa / backend-web-db.
+  // Wrapped via scripts/lib/ephemeral-server.mjs (#358): the runner starts the
+  // server, polls TCP readiness, runs Playwright, then tears the server down.
+  // runToolCheck SKIPs locally when the binary is missing, FAILs in CI.
+  const _e2eStartCommand = process.env.E2E_START_CMD?.trim();
+  let _hasStartTestScript = false;
+  try {
+    const _e2ePackage = JSON.parse(readFileSync('package.json', 'utf-8'));
+    _hasStartTestScript = typeof _e2ePackage.scripts?.['start:test'] === 'string'
+      && _e2ePackage.scripts['start:test'].trim().length > 0;
+  } catch {
+    // No package.json means arbiter cannot supply an application start command.
+  }
+  if (!_e2eStartCommand && !_hasStartTestScript) {
+    console.log('[CHECK] playwright e2e ... SKIP (E2E_START_CMD unset and package.json has no start:test script)');
+    pushResult('playwright e2e', 'SKIP', 0);
+  } else {
+    runToolCheck(
+      'playwright e2e',
+      'node',
+      [
+        'scripts/lib/ephemeral-server.mjs',
+        '--start', _e2eStartCommand || 'npm run start:test',
+        '--test',  'npx playwright test',
+        '--port',  process.env.E2E_PORT || '4173',
+      ],
+      { soft: graceActive },
+    );
+  }
+<% } else if(g.id === 'pytest-playwright-e2e') { %>
+  // ─── L2: pytest-playwright E2E (#348, CANON-02) — matrix proven for Python web archetypes.
+  // Wrapped via scripts/lib/ephemeral-server.mjs (#358) so the server is up
+  // before pytest collects the e2e tests. runToolCheck SKIPs locally when
+  // pytest is missing, FAILs in CI.
+  runToolCheck(
+    'pytest-playwright e2e',
+    'node',
+    [
+      'scripts/lib/ephemeral-server.mjs',
+      '--start', process.env.E2E_START_CMD || 'python -m uvicorn app.main:app --port 8000',
+      '--test',  'pytest tests/e2e',
+      '--port',  process.env.E2E_PORT || '8000',
+    ],
+    { soft: graceActive },
+  );
+<% } else if(g.id === 'npm-audit') { %>
+<% if (enableSecurityScanning && packageManager === 'npm') { %>
+  runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+<% } else if (enableSecurityScanning) { %>
+  console.log('[CHECK] audit ... SKIP (project uses <%= packageManager %>)');
+  pushResult('audit', 'SKIP', 0);
+<% } %>
+<% } else if(g.id === 'coverage-threshold') { %>
+  // ─── L2: coverage threshold (greenfield-aware, #1319.8) ─────────────────────
+  // Run vitest with the json-summary reporter so we can inspect the real coverage
+  // totals at runtime. A virgin project has zero executable statements ⇒ the
+  // greenfield guard PASSES instead of false-failing the line threshold. A coverage
+  // run that crashed (no summary) FAILS — never silently skipped.
+  if (_inlineInspect('coverage threshold', 'npx vitest run --coverage --coverage.reporter=json-summary')) {} else {
+    const _covStart = Date.now();
+    process.stdout.write('[CHECK] coverage threshold ... ');
+    const _covThreshold = <%= coverageThreshold %>;
+    const _cov = spawnSync(
+      'npx',
+      ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary'],
+      { encoding: 'utf-8', shell: false },
+    );
+    let _covStatus = 'PASS';
+    let _covReason = '';
+    let _covSummary = null;
+    const _covSummaryPath = resolve(process.cwd(), 'coverage', 'coverage-summary.json');
+    if (existsSync(_covSummaryPath)) {
+      try {
+        _covSummary = JSON.parse(readFileSync(_covSummaryPath, 'utf-8'));
+      } catch {
+        _covSummary = null; // malformed JSON ⇒ evaluateCoverageGate fails closed
+      }
+    }
+    const _covResult = evaluateCoverageGate(_covSummary, _covThreshold);
+    _covStatus = _covResult.status;
+    _covReason = _covResult.reason;
+    if (_covStatus === 'FAIL' && graceActive) {
+      console.log(`WARN (grace period — ${_covReason})`);
+      _covStatus = 'PASS';
+    } else if (_covStatus === 'FAIL') {
+      console.log(`FAIL (${_covReason})`);
+    } else {
+      console.log(`PASS (${_covReason})`);
+    }
+    pushResult('coverage threshold', _covStatus, Date.now() - _covStart);
+  }
+<% } else if(g.id === 'bdd-ignore-check') { %>
+  // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
+  if (_inlineInspect('BDD @ignore check', 'grep -rql --include=*.feature @ignore .')) {} else {
+    // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
+    const _bddIgnoreStart = Date.now();
+    const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
+    process.stdout.write('[CHECK] BDD @ignore check ... ');
+    let _bddIgnoreStatus = 'PASS';
+    if (_bddIgnore.error?.code === 'ENOENT') {
+      console.log('FAIL (grep not found — cannot check @ignore tags)');
+      _bddIgnoreStatus = 'FAIL';
+    } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
+      console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
+      _bddIgnoreStatus = 'FAIL';
+    } else if (_bddIgnore.status === 0) {
+      console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
+      _bddIgnoreStatus = 'FAIL';
+    } else {
+      console.log('PASS');
+    }
+    pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);
+  }
+<% } else if(g.id === 'bdd-go') { %>
+  // direct parallel of Python's `pytest.importorskip("pytest_bdd")`.
+  {
+    const _goBddStart = Date.now();
+    const _goMod = existsSync('go.mod') ? readFileSync('go.mod', 'utf-8') : '';
+    if (_goMod.includes('github.com/cucumber/godog')) {
+      runCheck('bdd', 'go', ['test', '-tags', 'bdd', './internal/bdd/...'], { soft: graceActive });
+    } else {
+      console.log('[CHECK] bdd ... SKIP (github.com/cucumber/godog not in go.mod — run: go get github.com/cucumber/godog)');
+      pushResult('bdd', 'SKIP', Date.now() - _goBddStart);
+    }
+  }
+<% } else if(g.id === 'bdd-rust') { %>
+  // graceful-skip contract as the Go/Python BDD gates above.
+  {
+    const _rustBddStart = Date.now();
+    const _cargoToml = existsSync('Cargo.toml') ? readFileSync('Cargo.toml', 'utf-8') : '';
+    if (/^\s*bdd\s*=/m.test(_cargoToml) || _cargoToml.includes('cucumber')) {
+      runCheck('bdd', 'cargo', ['test', '--features', 'bdd'], { soft: graceActive });
+    } else {
+      console.log('[CHECK] bdd ... SKIP (no `bdd` feature / cucumber dep in Cargo.toml — see tests/example_bdd_test.rs)');
+      pushResult('bdd', 'SKIP', Date.now() - _rustBddStart);
+    }
+  }
+<% } else if(g.id === 'evidence-gate') { %>
+  // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────
+  // Validates nightly evidence produced by evidence-collect.mjs.
+  // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
+  const _evidenceStart = Date.now();
+  let _evidenceStatus = 'PASS';
+  process.stdout.write('[CHECK] evidence gate (INV-33) ... ');
+  {
+    const _summaryPath = join(process.cwd(), '.evidence', 'SUMMARY.json');
+    if (!existsSync(_summaryPath)) {
+      console.log('WARN — .evidence/SUMMARY.json absent (run nightly pipeline first)');
+    } else {
+      try {
+        const _summary = JSON.parse(readFileSync(_summaryPath, 'utf-8'));
+        if (_summary.obs_gate === 'PASS') {
+          console.log('PASS');
+        } else {
+          console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
+          _evidenceStatus = 'FAIL';
+        }
+      } catch {
+        console.log('FAIL (could not parse .evidence/SUMMARY.json)');
+        _evidenceStatus = 'FAIL';
+      }
+    }
+  }
+  pushResult('evidence gate (INV-33)', _evidenceStatus, Date.now() - _evidenceStart);
+<% } else if(g.id === 'go-coverage') { %>
+  // #2104: Go keeps the default covermode (set) — a lost counter increment under
+  // `set` can only under-report, and the threshold is a floor (see the registry).
+  if (_inlineInspect('coverage profile', 'go test -coverprofile=coverage.out ./...')) {} else {
+  runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', './...'], { soft: graceActive });
+  const _coverThreshStart = Date.now();
+  process.stdout.write('[CHECK] coverage threshold ... ');
+  const coverResult = spawnSync('go', ['tool', 'cover', '-func=coverage.out'], { encoding: 'utf-8', shell: false });
+  let _coverThreshStatus = 'PASS';
+  if (coverResult.status !== 0) {
+    console.log(graceActive ? 'WARN (grace period)' : 'FAIL (could not parse coverage)');
+    if (!graceActive) { _coverThreshStatus = 'FAIL'; }
+  } else {
+    const match = coverResult.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
+    const pct = match ? parseFloat(match[1]) : 0;
+    if (pct < <%= coverageThreshold %>) {
+      console.log(graceActive ? `WARN (grace period, ${pct.toFixed(1)}% < <%= coverageThreshold %>%)` : `FAIL (${pct.toFixed(1)}% < <%= coverageThreshold %>%)`);
+      if (!graceActive) { _coverThreshStatus = 'FAIL'; }
+    } else { console.log(`PASS (${pct.toFixed(1)}%)`); }
+  }
+  pushResult('coverage threshold', _coverThreshStatus, Date.now() - _coverThreshStart);
+  if (existsSync('coverage.out')) {
+    mkdirSync('coverage', { recursive: true });
+    const _coverHtmlStart = Date.now();
+    process.stdout.write('[CHECK] coverage HTML report ... ');
+    const htmlResult = spawnSync('go', ['tool', 'cover', '-html=coverage.out', '-o', 'coverage/coverage.html'], { encoding: 'utf-8', shell: false });
+    let _coverHtmlStatus = 'PASS';
+    if (htmlResult.status !== 0) {
+      console.log('FAIL (go tool cover -html)');
+      if (htmlResult.stderr) process.stderr.write(htmlResult.stderr);
+      if (!graceActive) { _coverHtmlStatus = 'FAIL'; }
+    } else { console.log('PASS'); }
+    pushResult('coverage HTML report', _coverHtmlStatus, Date.now() - _coverHtmlStart);
+  }
+  }
+<% } else if(g.id === 'binary-size') { %>
   // ── Binary size cap (#359, INV-60) ─────────────────────────────────────────
   // Asserts the release binary stays under the archetype budget. Only emitted
   // for archetypes that produce a binary (cli, embedded). Skips gracefully
   // when the binary has not yet been built — the size budget only matters at
   // release time, not pre-build.
+  if (_inlineInspect('binary size', 'stat target/release binary')) {} else {
   {
     const _binSizeStart = Date.now();
     process.stdout.write('[CHECK] binary size ... ');
@@ -975,173 +1092,297 @@ if (level === 'L2') {
     }
     pushResult('binary size', _binSizeStatus, Date.now() - _binSizeStart);
   }
-<% } %>
-<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
-<% if (coverageEnabled) { %>
-  runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q'], { soft: graceActive });
-<% } %>
-  runCheck('pmd', './gradlew', ['pmdMain', '-q'], { soft: graceActive });
-  runCheck('spotbugs', './gradlew', ['spotbugsMain', '-q'], { soft: graceActive });
-  runCheck('spotbugs baseline (INV-44)', 'node', ['scripts/verify-spotbugs.mjs'], { soft: graceActive });
-<% } %><% if (language === 'java' && buildTool === 'maven') { %>
-<% if (coverageEnabled) { %>
-  runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q'], { soft: graceActive });
-<% } %>
-  runCheck('pmd', 'mvn', ['pmd:check', '-q'], { soft: graceActive });
-  runCheck('spotbugs', 'mvn', ['com.github.spotbugs:spotbugs-maven-plugin:check', '-q'], { soft: graceActive });
-  runCheck('spotbugs baseline (INV-44)', 'node', ['scripts/verify-spotbugs.mjs'], { soft: graceActive });
-<% } %><% if (language === 'go') { %>
-<% if (coverageEnabled) { %>
-  // Default covermode (set), NOT atomic: the debt ratchet runs the whole suite a
-  // second time in this same gate (scripts/debt-lib.mjs, `go test
-  // -coverprofile=.coverage-tmp.out <pkgs>`) and covermode partitions Go's test
-  // cache, so pinning `atomic` here forced a full second pass — 231.4s measured on
-  // a governed project, 0.77s (52/52 packages cached) once aligned. Statement
-  // coverage is identical between the two modes (verified: 89.6% either way);
-  // atomic counters are only required under -race, a separate step that collects no
-  // coverage. Fail-safe direction anyway: a lost counter increment under `set` can
-  // only under-report, and the threshold is a floor.
-  runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', './...'], { soft: graceActive });
-  const _coverThreshStart = Date.now();
-  process.stdout.write('[CHECK] coverage threshold ... ');
-  const coverResult = spawnSync('go', ['tool', 'cover', '-func=coverage.out'], { encoding: 'utf-8', shell: false });
-  let _coverThreshStatus = 'PASS';
-  if (coverResult.status !== 0) {
-    console.log(graceActive ? 'WARN (grace period)' : 'FAIL (could not parse coverage)');
-    if (!graceActive) { _coverThreshStatus = 'FAIL'; }
-  } else {
-    const match = coverResult.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
-    const pct = match ? parseFloat(match[1]) : 0;
-    if (pct < <%= coverageThreshold %>) {
-      console.log(graceActive ? `WARN (grace period, ${pct.toFixed(1)}% < <%= coverageThreshold %>%)` : `FAIL (${pct.toFixed(1)}% < <%= coverageThreshold %>%)`);
-      if (!graceActive) { _coverThreshStatus = 'FAIL'; }
-    } else { console.log(`PASS (${pct.toFixed(1)}%)`); }
-  }
-  pushResult('coverage threshold', _coverThreshStatus, Date.now() - _coverThreshStart);
-  if (existsSync('coverage.out')) {
-    mkdirSync('coverage', { recursive: true });
-    const _coverHtmlStart = Date.now();
-    process.stdout.write('[CHECK] coverage HTML report ... ');
-    const htmlResult = spawnSync('go', ['tool', 'cover', '-html=coverage.out', '-o', 'coverage/coverage.html'], { encoding: 'utf-8', shell: false });
-    let _coverHtmlStatus = 'PASS';
-    if (htmlResult.status !== 0) {
-      console.log('FAIL (go tool cover -html)');
-      if (htmlResult.stderr) process.stderr.write(htmlResult.stderr);
-      if (!graceActive) { _coverHtmlStatus = 'FAIL'; }
-    } else { console.log('PASS'); }
-    pushResult('coverage HTML report', _coverHtmlStatus, Date.now() - _coverHtmlStart);
   }
 <% } %>
-  runCheck('complexity + dead code', 'golangci-lint', ['run', '--enable', 'gocyclo,gocognit,unused'], { soft: graceActive });
-<% } %><% if (language === 'python') { %>
-<% if (coverageEnabled) { %>
-  runCheck('coverage threshold', 'pytest', ['--cov', '--cov-fail-under=<%= coverageThreshold %>', '--cov-report=html:coverage/html', '--cov-report=xml:coverage/coverage.xml'], { soft: graceActive });
-<% } %>
-  runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.'], { soft: graceActive });
-  runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.'], { soft: graceActive });
-<% } %><% if (language === 'kotlin' && buildTool === 'gradle') { %>
-<% if (coverageEnabled) { %>
-  // ─── L2: Kotlin coverage via Kover (#1194, beta) ──────────────────────────
-  // SOFT: kover Gradle plugin is operator-applied (kover.gradle emitted by arbiter,
-  // plugin must be declared manually in build.gradle plugins block per kover.gradle
-  // header). koverVerify enforces minValue=<%= coverageThreshold %>%.
-  // CANON-02 is proven⇒gated (one-directional); beta tools may be soft-gated.
-  runCheck('coverage (kover, beta)', './gradlew', ['koverVerify', 'koverXmlReport'], { soft: true });
-<% } %>
-<% } %>
-  // ─── L2: Mutation testing gate (#347, INV-30, CANON-02/09/15) ───────────────
-  // Proven cells: java (pitest), typescript (stryker). Rust/Python (beta) and Go (unsafe)
-  // are not wired. CANON-02 is proven⇒gated (one-directional); Kotlin (beta) kover is
-  // soft-gated above (plugin operator-applied, not auto-wired by arbiter). Kotlin pitest
-  // is not wired (beta cell, separate from kover coverage).
-  // Threshold (mutationThreshold) is rendered into the tool config (stryker.conf.json,
-  // pitest.gradle) by generateMutation at L3. At L2 the gate runs against whatever
-  // config is present locally; the helper is `runToolCheck` for stryker (npx auto-fetch
-  // may be absent locally → SKIP, FAIL only in CI) and `runCheck` for pitest (binary
-  // ships via gradle/maven plugin once the build file is wired).
-<% if ((typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false)) { %>
-<% if (language === 'typescript') { %>
-  runToolCheck('mutation (stryker)', 'npx', ['stryker', 'run'], { soft: graceActive });
-<% } else if (language === 'java' && buildTool === 'gradle') { %>
-  runCheck('mutation (pitest)', './gradlew', ['pitest', '-q'], { soft: graceActive });
-<% } else if (language === 'java' && buildTool === 'maven') { %>
-  runCheck('mutation (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q'], { soft: graceActive });
-<% } %>
-  // #1508: mutation-score non-regression ratchet — backstops the absolute mutationThreshold
-  // so the killed-mutant ratio cannot silently erode floor-ward. Self-SKIPs when no report
-  // exists (and seeds on first run), so it only ever fails on a genuine regression.
-  if (gateFilePresent('scripts/verify-mutation-baseline.mjs', 'mutation baseline (#1508)')) {
-    runCheck('mutation baseline (#1508)', 'node', ['scripts/verify-mutation-baseline.mjs'], { soft: graceActive });
-  }
-<% } %>
-  // ─── L2: STRIDE/RACI traceability ───────────────────────────────────────────
-  runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });
-<% if (contractType && contractType !== 'none') { %>
-  // ─── L2: Contract testing gate (INV-35) ──────────────────────────────────────
-<% if (language === 'typescript') { %>
-<% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
-  if (!process.env.PACT_BROKER_BASE_URL) {
-    console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');
-  } else {
-    runCheck('contract tests (Pact)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
-  }
-<% } else if (contractType === 'graphql') { %>
-  runCheck('contract tests (GraphQL schema)', 'npx', ['graphql-inspector', 'diff', 'schema.graphql'], { soft: graceActive });
-<% } else if (contractType === 'grpc') { %>
-  runCheck('contract tests (gRPC)', 'npx', ['buf', 'breaking', '--against', '.git#branch=main'], { soft: graceActive });
-<% } else if (contractType === 'message-queue') { %>
-  if (!process.env.SCHEMA_REGISTRY_URL) {
-    console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');
-  } else {
-    runCheck('contract tests (Schema Registry)', 'npx', ['vitest', 'run', '--testPathPattern=schema-registry'], { soft: graceActive });
-  }
-<% } %>
-<% } else if (language === 'java') { %>
-<% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
-  if (!process.env.PACT_BROKER_BASE_URL) {
-    console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');
-  } else {
-<% if (buildTool === 'gradle') { %>
-    runCheck('contract tests (Pact)', './gradlew', ['pactPublish', 'pactVerify'], { soft: graceActive });
 <% } else { %>
-    runCheck('contract tests (Pact)', 'mvn', ['pact:publish', 'pact:verify'], { soft: graceActive });
+<% if (g.condition) { %>if (<%- g.condition %>) { <% } %>
+<% const _fn = g.kind === 'warn' ? 'runWarnCheck' : g.kind === 'tool' ? 'runToolCheck' : 'runCheck'; %>
+<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', ['<%- g.cmd.slice(1).join("', '") %>']<%= g.soft ? ', { soft: graceActive }' : '' %>);
+<% if (g.else) { %>} else {
+<%- g.else %>
+}<% } else if (g.condition) { %> } <% } %>
 <% } %>
+<% } %>
+  // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
+  // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
+  if (gateFilePresent('scripts/test-gate-layering.mjs', 'gate layering')) {
+    runCheck('gate layering', 'node', ['scripts/test-gate-layering.mjs'])
   }
-<% } else if (contractType === 'graphql') { %>
-  runCheck('contract tests (GraphQL)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.graphql.*" : "test -Dtest=*GraphQL*" %>'], { soft: graceActive });
-<% } else if (contractType === 'grpc') { %>
-  runCheck('contract tests (gRPC)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.grpc.*" : "test -Dtest=*Grpc*" %>'], { soft: graceActive });
-<% } else if (contractType === 'message-queue') { %>
-  if (!process.env.SCHEMA_REGISTRY_URL) {
-    console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');
+}
+// ── L3 (nightly lane — AC-2041.1, mirrors 06-nightly-lite.yml) ───────────
+if (level === 'L3' || level === 'L4') {
+<% for (const g of l3) { %>
+<% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>
+<% if (g.language && g.language !== language) continue; %>
+<% if (g.kind === 'inline') { %>
+<% if(g.id === 'npm-ci-drift') { %>
+<% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) { %><%- g.else %><% } else { %>
+if (_inlineInspect('npm-ci drift', 'npx -y npm@<pin> ci --dry-run')) {} else {
+  const _driftStart = Date.now();
+  process.stdout.write('[CHECK] npm-ci drift ... ');
+  let _driftStatus = 'PASS';
+  try {
+    const _pin = existsSync('package.json')
+      ? (JSON.parse(readFileSync('package.json', 'utf-8')).packageManager || '').match(/^npm@(\d+\.\d+\.\d+)/)
+      : null;
+    if (!_pin || !existsSync('package-lock.json')) {
+      console.log('SKIP (no packageManager npm pin or lockfile)');
+    } else {
+      const _r = spawnSync('npx', ['-y', 'npm@' + _pin[1], 'ci', '--dry-run'], { encoding: 'utf-8', shell: false });
+      if (_r.error) {
+        console.log('SKIP (pinned npm@' + _pin[1] + ' unavailable)');
+      } else if (_r.status === 0) {
+        console.log('PASS');
+      } else {
+        console.log('FAIL');
+        process.stdout.write('package-lock.json is out of sync under npm@' + _pin[1] + ' — relock: npx -y npm@' + _pin[1] + ' install --package-lock-only\n');
+        _driftStatus = 'FAIL';
+      }
+    }
+  } catch (_e) {
+    console.log('SKIP (' + (_e && _e.message ? _e.message : 'unreadable package.json') + ')');
+  }
+  pushResult('npm-ci drift', _driftStatus, Date.now() - _driftStart);
+}
+<% } %>
+<% } else if(g.id === 'workflow-runners-inline') { %>
+{
+  const _wrStart = Date.now();
+  process.stdout.write('[CHECK] workflow runners ... ');
+  const _wrWorkflowsDir = join(process.cwd(), '.github', 'workflows');
+  // Allowlisted runs-on forms (INV-89, ADR-023 amendment #959 — ubuntu-latest default):
+  //   1. ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}  — global override (auxiliary jobs)
+  //   2. ${{ fromJSON(vars.RUNNER_LABELS_BUILD  || '["ubuntu-latest"]') }}  — build job-class pool
+  //   3. ${{ fromJSON(vars.RUNNER_LABELS_TEST   || '["ubuntu-latest"]') }}  — test job-class pool
+  //   4. ${{ fromJSON(vars.RUNNER_LABELS_DEPLOY || '["ubuntu-latest"]') }}  — deploy job-class pool
+  //   5. ${{ matrix.os }} — explicit OS matrix, always allowed
+  // The per-job-class map lets a project point build/test/deploy at distinct runner
+  // pools (self-hosted / cloud / GitHub-hosted) via org vars without editing workflows;
+  // each var falls back to ubuntu-latest, so an unset var is never a broken runner.
+  const _wrAllowedPattern = /\$\{\{\s*(?:vars\.CI_BUILD_RUNNER_LABEL|fromJSON\(vars\.RUNNER_LABELS_(?:BUILD|TEST|DEPLOY)|matrix\.os)/;
+  const _wrRunsOnPattern = /^\s*runs-on:/;
+  let _wrViolations = 0;
+  let _wrFiles;
+  try {
+    _wrFiles = readdirSync(_wrWorkflowsDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.log(`FAIL (cannot read .github/workflows — ${err.message})`);
+      pushResult('workflow runners', 'FAIL', Date.now() - _wrStart);
+      _wrFiles = null;
+    } else {
+      _wrFiles = [];
+    }
+  }
+  if (_wrFiles !== null) {
+    for (const _wrFile of _wrFiles) {
+      let _wrContent;
+      try {
+        _wrContent = readFileSync(join(_wrWorkflowsDir, _wrFile), 'utf-8');
+      } catch (err) { console.log(`FAIL (cannot read workflow file: ${_wrFile} — ${err.message})`); _wrViolations++; continue; }
+      const _wrLines = _wrContent.split('\n');
+      for (let _wi = 0; _wi < _wrLines.length; _wi++) {
+        if (_wrRunsOnPattern.test(_wrLines[_wi]) && !_wrAllowedPattern.test(_wrLines[_wi])) {
+          _wrViolations++;
+        }
+      }
+    }
+    if (_wrViolations > 0) {
+      console.log(`FAIL (${_wrViolations} violation(s) — use \${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }})`);
+      pushResult('workflow runners', 'FAIL', Date.now() - _wrStart);
+    } else {
+      console.log(`PASS (${Date.now() - _wrStart}ms)`);
+      pushResult('workflow runners', 'PASS', Date.now() - _wrStart);
+    }
+  }
+}
+<% } else if(g.id === 'ci-alignment') { %>
+{
+  const _caStart = Date.now();
+  process.stdout.write('[CHECK] ci alignment ... ');
+  const _caManifestPath = join(process.cwd(), 'scripts', 'check-all.mjs');
+  const _caCiPath = join(process.cwd(), '.github', 'workflows', 'ci.yml');
+  const _caInfraPrefixes = ['npm ci', 'npm install', 'git fetch', 'git checkout', 'curl ', 'echo ', 'mkdir ', 'cp ', 'tar ', 'pip install', 'apt-get'];
+  const _caDesignExemptions = new Set(['npx:commitlint', 'npm:test']);
+  function _caIsInfra(cmd) { return _caInfraPrefixes.some((p) => cmd.startsWith(p)); }
+  function _caNormalizeKey(cmd, firstArg) {
+    switch (cmd) {
+      case 'node': return (firstArg && firstArg.startsWith('scripts/')) ? firstArg : null;
+      case 'npx': { if (!firstArg) return null; const tool = firstArg.replace(/@.+$/, ''); return 'npx:' + tool; }
+      case 'npm': if (firstArg === 'test') return 'npm:test'; if (firstArg === 'audit') return 'npm:audit'; return null;
+      default: return null;
+    }
+  }
+  function _caExtractManifestGates(text) {
+    const gates = new Set();
+    const re = /runCheck\(\s*"[^"]*"\s*,\s*"([^"]+)"\s*,\s*\[([^\]]*)\]/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const k = _caNormalizeKey(m[1].trim(), (m[2].match(/"([^"]+)"/) || [])[1] || '');
+      if (k !== null) gates.add(k);
+    }
+    return gates;
+  }
+  function _caParseRun(cmd, gates) {
+    if (!cmd || _caIsInfra(cmd)) return;
+    const toks = cmd.split(/\s+/);
+    const c0 = toks[0]; const a0 = toks[1] ?? '';
+    const k = (c0 === 'node' && a0) ? _caNormalizeKey('node', a0) : _caNormalizeKey(c0, a0);
+    if (k !== null) gates.add(k);
+  }
+  function _caExtractCiGates(ciPath) {
+    const gates = new Set();
+    let ciText;
+    try { ciText = readFileSync(ciPath, 'utf-8'); } catch (e) { if (e.code === 'ENOENT') return gates; throw e; }
+    const ciLines = ciText.split('\n');
+    let _ci = 0;
+    while (_ci < ciLines.length) {
+      const cl = ciLines[_ci];
+      if (/^\s*-?\s*uses:\s*.+/.test(cl)) { _ci++; continue; }
+      const blk = cl.match(/^(\s*)-?\s*run:\s*[|>]\s*$/);
+      if (blk) {
+        const bi = blk[1].length; _ci++;
+        while (_ci < ciLines.length) {
+          const bl = ciLines[_ci];
+          if (bl.trim() === '') { _ci++; continue; }
+          if ((bl.match(/^(\s*)/)?.[1].length ?? 0) <= bi && bl.trim() !== '') break;
+          _caParseRun(bl.trim(), gates); _ci++;
+        }
+        continue;
+      }
+      const sl = cl.match(/^\s*-?\s*run:\s*(.+)/);
+      if (sl) { _caParseRun(sl[1].trim(), gates); }
+      _ci++;
+    }
+    return gates;
+  }
+  let _caStatus = 'PASS';
+  try {
+    const _caManifestText = readFileSync(_caManifestPath, 'utf-8');
+    const _caManifestGates = _caExtractManifestGates(_caManifestText);
+    const _caCiGates = _caExtractCiGates(_caCiPath);
+    for (const k of _caDesignExemptions) { _caManifestGates.delete(k); _caCiGates.delete(k); }
+    const _caManifestOnly = [..._caManifestGates].filter((k) => !_caCiGates.has(k));
+    const _caCiOnly = [..._caCiGates].filter((k) => !_caManifestGates.has(k));
+    if (_caManifestOnly.length > 0 || _caCiOnly.length > 0) {
+      console.log(`FAIL (${_caManifestOnly.length + _caCiOnly.length} alignment violation(s))`);
+      for (const k of _caManifestOnly) process.stderr.write('  manifest-only: ' + k + '\n');
+      for (const k of _caCiOnly) process.stderr.write('  ci-only: ' + k + '\n');
+      _caStatus = 'FAIL';
+    } else {
+      console.log(`PASS (${_caManifestGates.size} gates aligned, ${Date.now() - _caStart}ms)`);
+    }
+  } catch (_caErr) {
+    console.log('FAIL (error: ' + _caErr.message + ')');
+    _caStatus = 'FAIL';
+  }
+  pushResult('ci alignment', _caStatus, Date.now() - _caStart);
+}
+<% } else if(g.id === 'playwright-rules') { %>
+if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
+  // --no-error-on-unmatched-pattern: the glob is source-co-located-spec-oriented;
+  // a project whose specs live only under tests/e2e/ (arbiter's own scaffold
+  // convention) legitimately matches zero files here — that must stay a PASS,
+  // not a Day-1 RED (#1491-class fix).
+  runCheck('playwright rules', 'npx', ['eslint', '--config', 'eslint.config.playwright.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src/**/*.spec.ts']);
+} else {
+  console.log('[CHECK] playwright rules ... SKIP (run: npm install -D eslint-plugin-playwright)');
+}
+<% } else if(g.id === 'playwright-e2e') { %>
+  // ─── L2: Playwright E2E (#348, CANON-02) — matrix proven for TS frontend-spa / backend-web-db.
+  // Wrapped via scripts/lib/ephemeral-server.mjs (#358): the runner starts the
+  // server, polls TCP readiness, runs Playwright, then tears the server down.
+  // runToolCheck SKIPs locally when the binary is missing, FAILs in CI.
+  const _e2eStartCommand = process.env.E2E_START_CMD?.trim();
+  let _hasStartTestScript = false;
+  try {
+    const _e2ePackage = JSON.parse(readFileSync('package.json', 'utf-8'));
+    _hasStartTestScript = typeof _e2ePackage.scripts?.['start:test'] === 'string'
+      && _e2ePackage.scripts['start:test'].trim().length > 0;
+  } catch {
+    // No package.json means arbiter cannot supply an application start command.
+  }
+  if (!_e2eStartCommand && !_hasStartTestScript) {
+    console.log('[CHECK] playwright e2e ... SKIP (E2E_START_CMD unset and package.json has no start:test script)');
+    pushResult('playwright e2e', 'SKIP', 0);
   } else {
-<% if (buildTool === 'gradle') { %>
-    runCheck('contract tests (Schema Registry)', './gradlew', ['test', '--tests', '*SchemaRegistry*'], { soft: graceActive });
-<% } else { %>
-    runCheck('contract tests (Schema Registry)', 'mvn', ['test', '-Dtest=*SchemaRegistry*'], { soft: graceActive });
-<% } %>
+    runToolCheck(
+      'playwright e2e',
+      'node',
+      [
+        'scripts/lib/ephemeral-server.mjs',
+        '--start', _e2eStartCommand || 'npm run start:test',
+        '--test',  'npx playwright test',
+        '--port',  process.env.E2E_PORT || '4173',
+      ],
+      { soft: graceActive },
+    );
   }
+<% } else if(g.id === 'pytest-playwright-e2e') { %>
+  // ─── L2: pytest-playwright E2E (#348, CANON-02) — matrix proven for Python web archetypes.
+  // Wrapped via scripts/lib/ephemeral-server.mjs (#358) so the server is up
+  // before pytest collects the e2e tests. runToolCheck SKIPs locally when
+  // pytest is missing, FAILs in CI.
+  runToolCheck(
+    'pytest-playwright e2e',
+    'node',
+    [
+      'scripts/lib/ephemeral-server.mjs',
+      '--start', process.env.E2E_START_CMD || 'python -m uvicorn app.main:app --port 8000',
+      '--test',  'pytest tests/e2e',
+      '--port',  process.env.E2E_PORT || '8000',
+    ],
+    { soft: graceActive },
+  );
+<% } else if(g.id === 'npm-audit') { %>
+<% if (enableSecurityScanning && packageManager === 'npm') { %>
+  runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+<% } else if (enableSecurityScanning) { %>
+  console.log('[CHECK] audit ... SKIP (project uses <%= packageManager %>)');
+  pushResult('audit', 'SKIP', 0);
 <% } %>
-<% } else if (language === 'rust') { %>
-<% if (contractType === 'rest-owned') { %>
-  runCheck('contract tests (Pact)', 'cargo', ['test', '--test', 'pact_consumer_test'], { soft: graceActive });
-<% } else if (contractType === 'rest-public') { %>
-  runCheck('contract tests (OpenAPI)', 'cargo', ['test', '--test', 'openapi_diff_test'], { soft: graceActive });
-<% } else if (contractType === 'graphql') { %>
-  runCheck('contract tests (GraphQL)', 'cargo', ['test', '--test', 'graphql_schema_test'], { soft: graceActive });
-<% } else if (contractType === 'grpc') { %>
-  runCheck('contract tests (gRPC)', 'cargo', ['test', '--test', 'grpc_contract_test'], { soft: graceActive });
-<% } else if (contractType === 'message-queue') { %>
-  runCheck('contract tests (schema registry)', 'cargo', ['test', '--test', 'schema_registry_test'], { soft: graceActive });
-<% } %>
-<% } else if (language === 'go') { %>
-  runCheck('contract tests', 'go', ['test', '-tags', 'contract', '-run', 'Contract', './...'], { soft: graceActive });
-<% } else if (language === 'python') { %>
-  runCheck('contract tests (Pact)', 'pytest', ['tests/contract/'], { soft: graceActive });
-<% } %>
-<% } %>
+<% } else if(g.id === 'coverage-threshold') { %>
+  // ─── L2: coverage threshold (greenfield-aware, #1319.8) ─────────────────────
+  // Run vitest with the json-summary reporter so we can inspect the real coverage
+  // totals at runtime. A virgin project has zero executable statements ⇒ the
+  // greenfield guard PASSES instead of false-failing the line threshold. A coverage
+  // run that crashed (no summary) FAILS — never silently skipped.
+  if (_inlineInspect('coverage threshold', 'npx vitest run --coverage --coverage.reporter=json-summary')) {} else {
+    const _covStart = Date.now();
+    process.stdout.write('[CHECK] coverage threshold ... ');
+    const _covThreshold = <%= coverageThreshold %>;
+    const _cov = spawnSync(
+      'npx',
+      ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary'],
+      { encoding: 'utf-8', shell: false },
+    );
+    let _covStatus = 'PASS';
+    let _covReason = '';
+    let _covSummary = null;
+    const _covSummaryPath = resolve(process.cwd(), 'coverage', 'coverage-summary.json');
+    if (existsSync(_covSummaryPath)) {
+      try {
+        _covSummary = JSON.parse(readFileSync(_covSummaryPath, 'utf-8'));
+      } catch {
+        _covSummary = null; // malformed JSON ⇒ evaluateCoverageGate fails closed
+      }
+    }
+    const _covResult = evaluateCoverageGate(_covSummary, _covThreshold);
+    _covStatus = _covResult.status;
+    _covReason = _covResult.reason;
+    if (_covStatus === 'FAIL' && graceActive) {
+      console.log(`WARN (grace period — ${_covReason})`);
+      _covStatus = 'PASS';
+    } else if (_covStatus === 'FAIL') {
+      console.log(`FAIL (${_covReason})`);
+    } else {
+      console.log(`PASS (${_covReason})`);
+    }
+    pushResult('coverage threshold', _covStatus, Date.now() - _covStart);
+  }
+<% } else if(g.id === 'bdd-ignore-check') { %>
   // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
-  {
+  if (_inlineInspect('BDD @ignore check', 'grep -rql --include=*.feature @ignore .')) {} else {
     // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
     const _bddIgnoreStart = Date.now();
     const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
@@ -1161,22 +1402,7 @@ if (level === 'L2') {
     }
     pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);
   }
-  // ─── L2: GDPR controls gate (#1251) ──────────────────────────────────────────
-  // Enforceable controls→gates for the `industryOverlay: gdpr` overlay. existsSync-
-  // guarded so it only runs for projects where the gdpr generator emitted the gate;
-  // language-neutral (the controls are documentation artifacts, not stack-specific).
-  if (gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')) {
-    runCheck('gdpr controls (#1251)', 'node', ['scripts/check-gdpr-controls.mjs'], { soft: graceActive });
-  }
-<% if (language === 'typescript') { %>
-  runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
-<% } else if (language === 'python') { %>
-  runCheck('bdd', 'pytest', ['tests/bdd/'], { soft: graceActive });
-<% } else if (language === 'go') { %>
-  // godog is an L2 (full-gate) dependency, not wired into go.mod by `arbiter
-  // init` (which runs offline). The BDD test is `//go:build bdd`-tagged so it
-  // never breaks the default build; here we run it ONLY when the project has
-  // actually required github.com/cucumber/godog — otherwise SKIP cleanly, the
+<% } else if(g.id === 'bdd-go') { %>
   // direct parallel of Python's `pytest.importorskip("pytest_bdd")`.
   {
     const _goBddStart = Date.now();
@@ -1188,15 +1414,7 @@ if (level === 'L2') {
       pushResult('bdd', 'SKIP', Date.now() - _goBddStart);
     }
   }
-<% } else if (language === 'java' && buildTool === 'gradle') { %>
-  runCheck('bdd', './gradlew', ['cucumberTest'], { soft: graceActive });
-<% } else if (language === 'java' && buildTool === 'maven') { %>
-  runCheck('bdd', 'mvn', ['test', '-Dtest=*BDD*'], { soft: graceActive });
-<% } else if (language === 'rust') { %>
-  // The `cucumber` crate is an L2 dependency the scaffolded Cargo.toml does not
-  // declare (`arbiter init` does not own a greenfield Cargo.toml). `cargo test
-  // --features bdd` errors on an unknown feature, so run it ONLY when the
-  // project has declared a `bdd` feature — otherwise SKIP cleanly. Same
+<% } else if(g.id === 'bdd-rust') { %>
   // graceful-skip contract as the Go/Python BDD gates above.
   {
     const _rustBddStart = Date.now();
@@ -1208,103 +1426,7 @@ if (level === 'L2') {
       pushResult('bdd', 'SKIP', Date.now() - _rustBddStart);
     }
   }
-<% } %>
-  // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
-  // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
-<% const ratchetFlag = isL3Plus ? '--require-improvement' : '--gate'; %>
-  runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '<%= ratchetFlag %>'], { soft: graceActive });
-<% if (governanceLevel !== 'L1') { %>
-  // ─── L2+: Commit-footer audit evidence (INV-119, #1249) ──────────────────────
-  // Hard-blocks if suppression/override/bypass commits lack required footer trailers.
-  // Fails open (exit 0 with WARN) when origin/main is unavailable.
-  runCheck('commit-footer rationale (INV-119)', 'node', ['scripts/check-commit-footer-rationale.mjs'], { soft: graceActive });
-  // ─── L2+: Docs updated alongside code changes (#356, #1835) ──────────────────
-  // Emitted at this same governance gate (check-all.ts) but was never referenced
-  // anywhere — a dead emission on every L2+ project. Advisory (never blocks a
-  // fresh `arbiter update` consumer that has never had this enforced before);
-  // [skip-docs] in a commit message bypasses.
-  runWarnCheck('docs updated with code (#356)', 'node', ['scripts/check-docs.mjs']);
-  // ─── L2+: FEATURE_MATRIX.md / GAP.md gates (#1887-B) ─────────────────────────
-  // generateFeatureMatrix/generateGap emit these docs at this same L2+ gate
-  // (governanceLevel !== 'L1') and each doc's own header comment promises a
-  // gate script — check-feature-matrix.mjs and gen-gap.mjs are emitted at the
-  // identical gate, so the reference always resolves.
-  runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs']);
-  runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check']);
-<% } %>
-  // Advisory (#1398/C6, INV-128): conformance scorecard ratchet — informational, never blocks gate.
-  if (gateFilePresent('scripts/conformance.mjs', 'conformance')) {
-    runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
-  }
-  // Advisory (#1419): gold-audit no-regress ratchet — informational, never blocks gate.
-  // Plain --check bootstraps a missing baseline (exit 0); the strict require-baseline hard
-  // guard is NEVER passed downstream (it hard-fails a fresh consumer = day-1 red; self-only).
-  if (gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')) {
-    runWarnCheck('gold-audit', 'node', ['scripts/gold-audit.mjs', '--check'])
-  }
-  // Advisory (#1428, INV-135): doc-set presence audit — informational, never blocks gate.
-  // Plain --check runs the engine in its default advisory mode (exit 0 unless --strict), so a
-  // fresh consumer bootstraps with no day-1 redness; the strict hard guard is never passed here.
-  if (gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')) {
-    runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check'])
-  }
-  // #2036: decision-registry gate — hard (runCheck): an orphan D-NN (no
-  // enforcement, no documentale exemption) blocks the gate. SKIPs when no
-  // registry exists or the registry carries `arbiter:preserve`.
-  if (gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')) {
-    runCheck('decision registry', 'node', ['scripts/check-decision-registry.mjs'])
-  }
-  // #2044 (AC-2044.3): reuse-registry gate — only when the extended invariant
-  // set is active (INV-69/70); the emission follows the same predicate.
-  <% if (includeExtendedInvariants) { %>if (gateFilePresent('scripts/check-reuse-registry.mjs', 'reuse registry')) {
-    runCheck('reuse registry', 'node', ['scripts/check-reuse-registry.mjs'])
-  }<% } %>
-  // Advisory (#1428, INV-135): anti-fake-green guard aggregate — informational, never blocks gate.
-  // The gh-audit guards fail OPEN (advisory) when `gh` is absent; --enforce is NEVER passed here
-  // (it would promote advisory findings to hard fails = day-1 red for a fresh consumer).
-  if (gateFilePresent('scripts/check-anti-fake-green.mjs', 'anti-fake-green')) {
-    runWarnCheck('anti-fake-green', 'node', ['scripts/check-anti-fake-green.mjs'])
-  }
-  // Advisory (#1457, INV-134): per-module coverage non-regression ratchet — start-warn,
-  // promote-later. Informational (runWarnCheck) so it never blocks the gate while the
-  // ±0.5pp per-module baseline beds in. Self-SKIPs when no coverage summary exists.
-  if (gateFilePresent('scripts/verify-module-coverage.mjs', 'module coverage ratchet')) {
-    runWarnCheck('module coverage ratchet', 'node', ['scripts/verify-module-coverage.mjs'])
-  }
-  // Advisory (E1-E6a #1943): anti-context-rot enforcers — advisory at land-time per the
-  // design's tier table (docs/design/anti-context-rot-enforcers.md §0); each vacuous-PASSes
-  // when its evidence surface is absent, so a fresh consumer sees no day-1 redness. Dated
-  // promotion discipline (advisory-is-a-stage-not-a-destination): promote to runCheck at
-  // gated-review once the producer paths are routinely populated. check-touched-vs-manifest
-  // is deliberately NOT here — it is a per-group harvest-time gate needing --plan/--group/--base.
-  if (gateFilePresent('scripts/check-agent-return.mjs', 'agent-return envelope (E1 #1943)')) {
-    runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
-  }
-  if (gateFilePresent('scripts/check-review-completion.mjs', 'review completion (#2177)')) {
-    runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
-  }
-  if (gateFilePresent('scripts/check-refutation-verdicts.mjs', 'refutation majority (E2 #1943)')) {
-    runWarnCheck('refutation majority (E2 #1943)', 'node', ['scripts/check-refutation-verdicts.mjs'])
-  }
-  if (gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')) {
-    runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
-  }
-  if (gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')) {
-    runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
-  }
-<% } %>
-  // ─── L2: TDD red→green evidence re-verification (INV-131, #1446) ──────────────
-  // Re-verifies every task-ID commit's red→green evidence on a fresh CI checkout —
-  // the rigor arbiter applies to itself, shipped to targets. Independent of debt
-  // gates (runs whenever level===L2). Self-SKIPs when origin/main is unavailable or
-  // there are no task-ID commits.
-  runCheck('tdd-evidence (INV-131)', 'node', ['scripts/check-tdd-evidence.mjs'], { soft: graceActive });
-  // ─── L2: over-age task-marker enforcement (INV-133, #1456) ────────────────────
-  // A TODO(#123) marker whose linked issue was created more than MAX_AGE_DAYS (default 180)
-  // ago FAILS the gate. Age is derived from the issue created_at only. Graceful-SKIP
-  // when gh is missing / token absent / offline (never false-fails).
-  runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], { soft: graceActive });
-<% if (isL3Plus) { %>
+<% } else if(g.id === 'evidence-gate') { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────
   // Validates nightly evidence produced by evidence-collect.mjs.
   // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
@@ -1332,12 +1454,14 @@ if (level === 'L2') {
   }
   pushResult('evidence gate (INV-33)', _evidenceStatus, Date.now() - _evidenceStart);
 <% } %>
-<% if (typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo') { %>
-  // ─── L2: local-ci-parity (INV-59, #1977) ───────────────────────────────────
-  // trunk-solo = 'no PR ceremony, FULL gate locally, CI as verification mirror' —
-  // that promise only holds if `run.sh gate full` and CI actually agree. Without
-  // a PR there is no independent net before trunk, so this is wired hard at L2.
-  runCheck('local-ci-parity (INV-59)', 'node', ['scripts/check-local-ci-parity.mjs']);
+<% } else { %>
+<% if (g.condition) { %>if (<%- g.condition %>) { <% } %>
+<% const _fn = g.kind === 'warn' ? 'runWarnCheck' : g.kind === 'tool' ? 'runToolCheck' : 'runCheck'; %>
+<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', ['<%- g.cmd.slice(1).join("', '") %>']<%= g.soft ? ', { soft: graceActive }' : '' %>);
+<% if (g.else) { %>} else {
+<%- g.else %>
+}<% } else if (g.condition) { %> } <% } %>
+<% } %>
 <% } %>
 }
 

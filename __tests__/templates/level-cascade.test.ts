@@ -13,7 +13,7 @@
 // legitimately violate line-superset and are deliberately excluded here.
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 function cfg(overrides: Record<string, unknown> = {}) {
   return makeConfig('/tmp/test', {
@@ -52,8 +52,13 @@ const FIXED_TEMPLATES = [
 
 describe('#1720 — L4 is a strict superset of L3 for the 5 fixed templates', () => {
   it.each(FIXED_TEMPLATES)('%s: every non-blank L3 line is present in L4', (template) => {
-    const l3 = renderTemplate(template, cfg({ governanceLevel: 'L3' }))
-    const l4 = renderTemplate(template, cfg({ governanceLevel: 'L4' }))
+    // #2041: check-all.mjs.ejs is registry-driven — render it through the shared helper.
+    const render =
+      template === 'scripts/check-all.mjs.ejs'
+        ? (d: Record<string, unknown>) => renderCheckAll(d)
+        : (d: Record<string, unknown>) => renderTemplate(template, d)
+    const l3 = render(cfg({ governanceLevel: 'L3' }))
+    const l4 = render(cfg({ governanceLevel: 'L4' }))
     const l4Lines = new Set(nonBlankLines(l4))
     const missingFromL4 = nonBlankLines(l3).filter((line) => !l4Lines.has(line))
     expect(

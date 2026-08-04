@@ -210,11 +210,14 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
   // target check-all.mjs.ejs — otherwise it is dead weight giving a false
   // 'covered' signal. This locks emission and wiring in lockstep.
   it('every emitted anti-drift script is wired in the target check-all template (#1152)', () => {
-    const template = readFileSync(resolve('src/templates/scripts/check-all.mjs.ejs'), 'utf-8')
+    // #2041: the check-all template no longer names gate scripts inline — the
+    // DECLARATIVE gate registry (gate-registry.yml.ejs) carries every cmd. The
+    // wiring lockstep is now: emitted script name ∈ registry cmd (template data).
+    const registrySrc = readFileSync(resolve('src/templates/scripts/gate-registry.yml.ejs'), 'utf-8')
     const emitted = generateAntiDriftValidators(makeConfig(dir)).files.map((f) =>
       f.path.split('/').pop(),
     )
-    const unwired = emitted.filter((name) => name && !template.includes(`scripts/${name}`))
+    const unwired = emitted.filter((name) => name && !registrySrc.includes(`scripts/${name}`))
     expect(unwired).toEqual([])
   })
 

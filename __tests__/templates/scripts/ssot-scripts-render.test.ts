@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig } from '../../helpers.js'
+import { makeConfig, renderCheckAll } from '../../helpers.js'
 
 function cfg(overrides = {}) {
   return makeConfig('/tmp/test', overrides) as unknown as Record<string, unknown>
@@ -60,15 +60,14 @@ describe('SSOT script templates (#255)', () => {
   })
 
   it('check-all.mjs.ejs contains all 4 SSOT gate runCheck calls (CANON-01, INV-54–57)', () => {
-    const out = renderTemplate(
-      'scripts/check-all.mjs.ejs',
-      cfg({
+    const out = renderCheckAll({
+      ...cfg({
         language: 'typescript',
         coverageEnabled: false,
         enableDebtGates: false,
         enableSecurityScanning: false,
       }),
-    )
+    })
     expect(out).toContain('check-ssot-core')
     expect(out).toContain('check-doc-links')
     expect(out).toContain('check-knowledge-map')

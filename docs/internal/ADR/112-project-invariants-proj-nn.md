@@ -20,7 +20,7 @@ related: ['111-tier-origination-human-only']
 
 The invariant catalog (`src/invariants/catalog.ts`, 137 entries) is a hardcoded SSOT:
 a consumer project can only *filter* it (tier presets, `invariants_catalog: core|extended`),
-never *add* to it. Viafera's product-specific invariants (tenancy `owner_id` /
+never *add* to it. A governed consumer's product-specific invariants (tenancy `owner_id` /
 `TripAccessContext`, GDPR-as-product-contract) have no home except hand-maintained
 markdown that drifts — three different counts in three files were verified in the survey.
 The catalog's INV-NN namespace is reserved for arbiter-shipped rules; a separate,

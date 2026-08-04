@@ -18,7 +18,7 @@ const PROJ_01: Invariant = {
   tier: 'governance',
   title: 'Tenancy isolation is a product contract',
   description:
-    'Every tenant-scoped resource must carry owner_id and honor TripAccessContext (viafera GDPR product contract).',
+    'Every tenant-scoped resource must carry owner_id and honor TripAccessContext (consumer GDPR product contract).',
   alwaysActive: true,
   enforcement: 'CI (constraint scan); code review',
 }

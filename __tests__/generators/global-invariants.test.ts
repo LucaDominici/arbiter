@@ -55,7 +55,7 @@ describe('generateGlobalInvariants', () => {
       id: 'PROJ-01',
       tier: 'governance',
       title: 'Tenancy isolation is a product contract',
-      description: 'Every tenant-scoped resource must carry owner_id (viafera product contract).',
+      description: 'Every tenant-scoped resource must carry owner_id (consumer product contract).',
       alwaysActive: true,
       enforcement: 'CI (constraint scan); code review',
     }

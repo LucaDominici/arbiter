@@ -12,14 +12,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll as renderCheckAllShared } from '../helpers.js'
 
 function render(tpl: string, overrides: Record<string, unknown> = {}): string {
   const data = makeConfig('/tmp/test', overrides as never) as unknown as Record<string, unknown>
   return renderTemplate(tpl, data)
 }
 const renderGate = () => render('scripts/check-tdd-evidence.mjs.ejs')
-const renderCheckAll = (o: Record<string, unknown> = {}) => render('scripts/check-all.mjs.ejs', o)
+// #2041: check-all.mjs.ejs is registry-driven — render it through the shared
+// helper (which loads the declarative gate registry) with a full makeConfig base.
+const renderCheckAll = (o: Record<string, unknown> = {}) =>
+  renderCheckAllShared(makeConfig('/tmp/test', o as never) as unknown as Record<string, unknown>)
 
 function parseRenderedTaskIds(subjectLog: string): string[] {
   const scriptDir = mkdtempSync(join(tmpdir(), 'tdd-p-'))

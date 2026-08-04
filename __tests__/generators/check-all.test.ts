@@ -68,7 +68,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(40)
+    expect(result.files).toHaveLength(42)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/acceptance-criteria.mjs'))).toBe(
@@ -498,9 +498,11 @@ describe('generateCheckAll', () => {
   it('does not include STRIDE check outside L2 block (appears only within if-level check)', () => {
     generateCheckAll(makeConfig(dir, { enableDebtGates: true }))
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    // The check appears inside the `if (level === 'L2')` block — verify that
-    const l2BlockStart = content.indexOf("if (level === 'L2')")
-    const strideIdx = content.indexOf('check-stride-traceability.mjs')
+    // The check appears inside the `if (level !== 'L1')` full-gate body (#2041) — verify that.
+    // Anchor on the RUN call, not the embedded GATE_REGISTRY manifest (whose cmd
+    // strings also name the script, before the lane blocks).
+    const l2BlockStart = content.indexOf("if (level !== 'L1')")
+    const strideIdx = content.indexOf("runCheck('STRIDE/RACI traceability'")
     expect(l2BlockStart).toBeGreaterThan(-1)
     expect(strideIdx).toBeGreaterThan(l2BlockStart)
   })
@@ -692,7 +694,7 @@ describe('generateCheckAll', () => {
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     const piiIdx = content.indexOf('pii-scan.mjs')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (level !== 'L1')")
     expect(piiIdx).toBeGreaterThan(-1)
     expect(l2BlockIdx).toBeGreaterThan(-1)
     expect(piiIdx).toBeLessThan(l2BlockIdx)
@@ -706,7 +708,9 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const piiIdx = content.indexOf('pii-scan.mjs')
+    // Anchor on the runCheck call (#2041: the embedded GATE_REGISTRY manifest line
+    // precedes the lanes and carries other gates' `soft` flags).
+    const piiIdx = content.indexOf("runCheck('PII scan'")
     expect(piiIdx).toBeGreaterThan(-1)
     // The runCheck call for pii-scan must not pass { soft: ... }
     const lineEnd = content.indexOf('\n', piiIdx)
@@ -733,7 +737,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (level !== 'L1')")
     const gitleaksIdx = content.indexOf('gitleaks', l2BlockIdx)
     expect(l2BlockIdx).toBeGreaterThan(-1)
     expect(gitleaksIdx).toBeGreaterThan(l2BlockIdx)
@@ -747,7 +751,9 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const gitleaksIdx = content.indexOf('gitleaks')
+    // Anchor on the runCheck call (#2041: the embedded GATE_REGISTRY manifest line
+    // precedes the lanes and has `soft` but not `graceActive`).
+    const gitleaksIdx = content.indexOf("runCheck('gitleaks'")
     expect(gitleaksIdx).toBeGreaterThan(-1)
     const callEnd = content.indexOf('\n', gitleaksIdx)
     const callLine = content.slice(content.lastIndexOf('\n', gitleaksIdx) + 1, callEnd)
@@ -764,7 +770,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (level !== 'L1')")
     expect(content.indexOf("'dep audit (trivy fs)'", l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
   })
 
@@ -778,7 +784,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (level !== 'L1')")
     expect(content.indexOf("'dep audit (trivy fs)'", l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
   })
 
@@ -805,7 +811,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf("if (level === 'L2')")
+    const l2BlockIdx = content.indexOf("if (level !== 'L1')")
     expect(content.indexOf('govulncheck', l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
   })
 

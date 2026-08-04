@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 import { computeMetricsProfile } from '../../src/generators/debt-ratchet.js'
 
 describe('check-hook-routing.mjs.ejs rendering (#2129)', () => {
@@ -29,7 +29,7 @@ describe('check-all.mjs.ejs rendering — L1 security baseline (#2199)', () => {
         governanceLevel: 'L1',
         enableSecurityScanning: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
 
       expect(content).toContain("runCheck('PII scan'")
       expect(content).toContain("runCheck('secret scan'")
@@ -45,7 +45,7 @@ describe('check-all.mjs.ejs rendering — database integration lane (#2193)', ()
       hasDatabase: true,
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
 
     expect(content).toContain("runCheck('db integration tests', 'npm', ['run', 'test:integration']")
     expect(content).not.toContain(
@@ -62,15 +62,15 @@ describe('check-all.mjs.ejs rendering — detected package manager (#2137)', () 
       enableSecurityScanning: true,
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const pnpm = renderTemplate('scripts/check-all.mjs.ejs', {
+    const pnpm = renderCheckAll({
       ...withoutPackageManager,
       packageManager: 'pnpm',
     })
-    const npm = renderTemplate('scripts/check-all.mjs.ejs', {
+    const npm = renderCheckAll({
       ...withoutPackageManager,
       packageManager: 'npm',
     })
-    const defaulted = renderTemplate('scripts/check-all.mjs.ejs', withoutPackageManager)
+    const defaulted = renderCheckAll(withoutPackageManager)
 
     expect(pnpm).toContain("runCheck('unit tests', 'pnpm', ['run', 'test:unit'])")
     expect(pnpm).not.toMatch(/runCheck\([^\n]*'npm', \['run',/)
@@ -87,7 +87,7 @@ describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
       enableSuppressions: true,
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('check-inline-suppressions.mjs')
   })
 
@@ -97,7 +97,7 @@ describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
       enableSuppressions: false,
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('check-inline-suppressions.mjs')
   })
   it('Java Gradle L2 coverageEnabled=false: coverage check omitted', () => {
@@ -108,7 +108,7 @@ describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
       coverageEnabled: false,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('jacocoTestCoverageVerification')
   })
 
@@ -120,7 +120,7 @@ describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
       coverageEnabled: false,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('verify -Pjacoco')
   })
 
@@ -132,7 +132,7 @@ describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
       coverageEnabled: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain(
       "runCheck('spotbugs', './gradlew', ['spotbugsMain', '-q'], { soft: graceActive })",
     )
@@ -150,7 +150,7 @@ describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
       coverageEnabled: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain(
       "runCheck('spotbugs', 'mvn', ['com.github.spotbugs:spotbugs-maven-plugin:check', '-q'], { soft: graceActive })",
     )
@@ -167,7 +167,7 @@ describe('check-all.mjs.ejs rendering — BDD gate (#361)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('bdd', 'npx', ['cucumber-js']")
   })
 
@@ -177,7 +177,7 @@ describe('check-all.mjs.ejs rendering — BDD gate (#361)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('bdd', 'pytest', ['tests/bdd/']")
   })
 
@@ -187,7 +187,7 @@ describe('check-all.mjs.ejs rendering — BDD gate (#361)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     // BDD test is `//go:build bdd`-tagged; the gate runs it with `-tags bdd` and
     // only when godog is actually wired into go.mod — otherwise SKIPs cleanly.
     expect(content).toContain(
@@ -203,7 +203,7 @@ describe('check-all.mjs.ejs rendering — BDD gate (#361)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('bdd', './gradlew', ['cucumberTest']")
   })
 
@@ -213,7 +213,7 @@ describe('check-all.mjs.ejs rendering — BDD gate (#361)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('bdd', 'cargo', ['test', '--features', 'bdd']")
   })
 
@@ -223,7 +223,7 @@ describe('check-all.mjs.ejs rendering — BDD gate (#361)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('@ignore')
     expect(content).toContain('soft: false')
   })
@@ -237,7 +237,7 @@ describe('check-all.mjs.ejs rendering — Python e2e gate (#366, migrated by #34
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toMatch(/runToolCheck\(\s*'pytest-playwright e2e'/)
     expect(content).toContain('scripts/lib/ephemeral-server.mjs')
     expect(content).toContain('pytest tests/e2e')
@@ -250,7 +250,7 @@ describe('check-all.mjs.ejs rendering — Python e2e gate (#366, migrated by #34
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain("'pytest-playwright e2e'")
   })
 })
@@ -276,7 +276,7 @@ describe('check-all.mjs.ejs — contract gate commands (F17)', () => {
         coverageEnabled: false,
         coverageThreshold: 80,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).toContain(`--test', '${rustTargets[ct]}'`)
       expect(content).not.toContain('*contract*')
     })
@@ -290,7 +290,7 @@ describe('check-all.mjs.ejs — contract gate commands (F17)', () => {
       coverageEnabled: false,
       coverageThreshold: 80,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("'-tags', 'contract'")
   })
 
@@ -303,7 +303,7 @@ describe('check-all.mjs.ejs — contract gate commands (F17)', () => {
         coverageEnabled: false,
         coverageThreshold: 80,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).toContain('tests/contract/')
     })
   }
@@ -317,7 +317,7 @@ describe('check-all.mjs.ejs rendering — summary table + CI annotations (#210, 
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('IS_CI')
   })
 
@@ -326,7 +326,7 @@ describe('check-all.mjs.ejs rendering — summary table + CI annotations (#210, 
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("from './lib/run-helpers.mjs'")
     expect(content).toContain('runCheck')
     expect(content).toContain('pushResult')
@@ -339,7 +339,7 @@ describe('check-all.mjs.ejs rendering — summary table + CI annotations (#210, 
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("pushResult('workflow runners'")
     expect(content).toContain("pushResult('ci alignment'")
     expect(content).not.toContain('results.push(')
@@ -352,7 +352,7 @@ describe('check-all.mjs.ejs rendering — summary table + CI annotations (#210, 
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('=== Summary ===')
     expect(content).toContain('Elapsed')
     expect(content).toContain('Total')
@@ -383,7 +383,7 @@ describe('check-all.mjs.ejs — F10 cargo integration test flag (#369)', () => {
       coverageEnabled: false,
       coverageThreshold: 80,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("'--tests'")
     expect(content).not.toContain("'*integration*'")
   })
@@ -400,7 +400,7 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         enableSecurityScanning: true,
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).toContain('govulncheck')
     })
 
@@ -410,7 +410,7 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         governanceLevel: 'L1',
         enableSecurityScanning: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).not.toContain('govulncheck')
     })
 
@@ -421,7 +421,7 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         enableSecurityScanning: true,
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).not.toContain('govulncheck')
     })
   })
@@ -434,7 +434,7 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         governanceLevel: 'L2',
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).toMatch(/runToolCheck\(\s*'playwright e2e'/)
       expect(content).toContain('scripts/lib/ephemeral-server.mjs')
       expect(content).toContain('npx playwright test')
@@ -449,7 +449,7 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         governanceLevel: 'L2',
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).not.toContain("'playwright e2e'")
     })
 
@@ -460,7 +460,7 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         governanceLevel: 'L1',
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).not.toContain("'playwright e2e'")
     })
 
@@ -471,7 +471,7 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         governanceLevel: 'L2',
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       expect(content).not.toContain("'playwright e2e'")
     })
   })
@@ -489,7 +489,7 @@ describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('architecture tests'")
     expect(content).toContain('*.architecture.*')
   })
@@ -503,7 +503,7 @@ describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('architecture tests'")
     expect(content).toContain('*.architecture.*')
   })
@@ -517,7 +517,7 @@ describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('architecture tests'")
   })
 
@@ -530,7 +530,7 @@ describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain("runCheck('architecture tests'")
   })
 
@@ -543,7 +543,7 @@ describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain("runCheck('architecture tests'")
   })
 
@@ -556,7 +556,7 @@ describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('architecture tests'")
     expect(content).toContain('*.architecture.*')
   })
@@ -573,7 +573,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: true,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = true
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runToolCheck('mutation (stryker)', 'npx', ['stryker', 'run']")
   })
 
@@ -584,7 +584,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: true,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = true
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain("'stryker'")
   })
 
@@ -596,7 +596,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: false,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = true
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain("'stryker'")
   })
 
@@ -608,7 +608,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: true,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = false
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain("'stryker'")
   })
 
@@ -621,7 +621,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: true,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = true
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('mutation (pitest)', './gradlew', ['pitest', '-q']")
   })
 
@@ -634,7 +634,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: true,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = true
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain(
       "runCheck('mutation (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q']",
     )
@@ -648,7 +648,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: true,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = true
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('cargo-mutants')
     expect(content).not.toContain("'cargo', ['mutants'")
   })
@@ -661,7 +661,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: true,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = true
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('go-mutesting')
     expect(content).not.toContain("'mutation (go-mutesting)'")
   })
@@ -674,7 +674,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
       enableMutationTesting: true,
     }) as unknown as Record<string, unknown>
     ;(data as Record<string, unknown>).mutationEnabled = true
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('mutmut')
   })
 })
@@ -688,7 +688,7 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
       archetype: 'frontend-spa',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain(
       "runToolCheck('lint:css', 'npx', ['stylelint', '--allow-empty-input', 'src/**/*.css']",
     )
@@ -704,7 +704,7 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
       archetype: 'library',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('stylelint')
   })
 
@@ -714,7 +714,7 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
       archetype: 'frontend-spa',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('stylelint')
   })
 
@@ -725,7 +725,7 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain(
       "runToolCheck('lint:css', 'npx', ['stylelint', '--allow-empty-input', 'src/**/*.css']",
     )
@@ -740,7 +740,7 @@ describe('check-all.mjs.ejs — stack-conformity gate wiring (#1312, INV-121)', 
       language: 'go',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain(
       "runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.mjs'])",
     )
@@ -754,7 +754,7 @@ describe('check-all.mjs.ejs — stack-conformity gate wiring (#1312, INV-121)', 
     // render-assertion (not dogfood byte-parity): an undeclared-language target must
     // not wire a runCheck for a script the registry won't emit (INV-121 #1312).
     const data = { ...base, language: '' }
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('scripts/check-stack-conformity.mjs')
   })
 })
@@ -773,7 +773,7 @@ describe('check-all.mjs.ejs — consumer audit gate wiring (#1737)', () => {
       // must be supplied manually — mirrors the pre-existing stylelint-gate test above.
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain(
       "runCheck('consumer audit', 'node', ['scripts/check-consumer-audit.mjs'])",
     )
@@ -786,7 +786,7 @@ describe('check-all.mjs.ejs — consumer audit gate wiring (#1737)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('check-consumer-audit.mjs')
   })
 
@@ -797,7 +797,7 @@ describe('check-all.mjs.ejs — consumer audit gate wiring (#1737)', () => {
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('check-consumer-audit.mjs')
   })
 
@@ -807,7 +807,7 @@ describe('check-all.mjs.ejs — consumer audit gate wiring (#1737)', () => {
       archetype: 'library',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('check-consumer-audit.mjs')
   })
 })
@@ -840,7 +840,7 @@ describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
       enableDebtGates: true,
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     // bare `npx jscpd --silent` exits 0 on a 0-file scan under v5 — vacuous gate
     expect(content).not.toContain("['jscpd', '--silent']")
     expect(content).toContain('check-duplication.mjs')
@@ -934,7 +934,7 @@ describe('check-all.mjs.ejs rendering — wiki-lint L1 gating (#1318/#1321)', ()
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('check-wiki-lint.mjs')
   })
 
@@ -944,7 +944,7 @@ describe('check-all.mjs.ejs rendering — wiki-lint L1 gating (#1318/#1321)', ()
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('check-wiki-lint.mjs')
   })
 })
@@ -998,7 +998,7 @@ describe('check-all.mjs.ejs — run-helper import↔usage parity (#1491, B3)', (
         string,
         unknown
       >
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       const imported = importedRunHelpers(content)
       for (const helper of RUN_HELPERS) {
         const calledInBody = new RegExp(`\\b${helper}\\s*\\(`).test(content)
@@ -1013,81 +1013,45 @@ describe('check-all.mjs.ejs — run-helper import↔usage parity (#1491, B3)', (
   }
 })
 
-// #1720 — gap 4: the runtime full-gate guard was the literal `if (level === 'L2')`, so
-// running the GENERATED `check-all.mjs L3` or `check-all.mjs L4` silently ran only the
-// L1 checks — a runtime lie (the arg parser accepts L3/L4 as valid but they are weaker
-// than L2). L3/L4 have no dedicated runtime lane in this gate: L2 ("full") is the
-// strongest tier it implements, and every governanceLevel-specific check is compiled in
-// at generation time. The fix is a CLAMP immediately after arg-parse — `if (level ===
-// 'L3' || level === 'L4') level = 'L2';` — so an L3/L4 request runs the full gate body
-// (never the L1 subset) and the `level` stamped into the JSON/evidence artifacts stays
-// honest (never fabricates an L3/L4 conformance label for a lane that only ran L2
-// checks). The line-540 guard itself is intentionally left UNCHANGED — rewriting it to
-// admit L3/L4 directly (e.g. `level !== 'L1'`) would leave `level` at 'L3'/'L4' and
-// stamp that into the persisted gate-pass evidence while only L2 checks ran: a new
-// fake-green surface. This is level-INDEPENDENT: the clamp is rendered at every
-// governanceLevel (unlike gaps 1/2/3/5, which are gated by governanceLevel at render
-// time).
-describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#1720)', () => {
-  it("still contains the unchanged `if (level === 'L2')` full-gate guard", () => {
+// #1720 gap 4 was RESOLVED by #2041 (AC-2041.1): L3/L4 are now executable LOCAL
+// lanes, not a clamp-to-L2. An explicit L3 request runs the full L1+L2 body
+// (containment L1 ⊂ L2 ⊂ L3) PLUS the L3 nightly set — never a silent downgrade
+// to L1, and no louder "clamps to L2" lie. The L2 body guard is `level !== 'L1'`
+// (so L3/L4 run it too) and the L3 body guard is `level === 'L3' || level === 'L4'`.
+describe('check-all.mjs.ejs — L3/L4 executable local lanes (#2041, resolves #1720)', () => {
+  it("runs the full gate body for any level above L1 (`level !== 'L1'` guard)", () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
       enableDebtGates: true,
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).toContain("if (level === 'L2') {")
+    const content = renderCheckAll(data)
+    expect(content).toContain("if (level !== 'L1') {")
+    // The pre-#2041 literal `if (level === 'L2')` clamp-guard is gone.
+    expect(content).not.toContain("if (level === 'L2') {")
   })
 
-  it("contains the post-parse clamp to 'L2' for an explicit L3/L4 request, and warns loudly", () => {
+  it('emits an L3 lane with the nightly set (no clamp, no L2 downgrade)', () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
       enableDebtGates: true,
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("if (level === 'L3' || level === 'L4') {")
-    // The clamp is LOUD (#1720: the bug class is SILENT downgrades — the clamp
-    // itself must never be one): a stderr warn names both the requested and the
-    // effective level before the reassignment.
-    expect(content).toContain('clamps to L2')
-    expect(content).toContain("level = 'L2';")
-    // The clamp must appear AFTER the arg-parse block closes and BEFORE the full-gate
-    // guard, so `level` is normalized before either the banner log or the L2 branch
-    // reads it.
-    const argParseEndIdx = content.indexOf('<<< ARG-PARSE-END')
-    const clampIdx = content.indexOf("if (level === 'L3' || level === 'L4') {")
-    const guardIdx = content.indexOf("if (level === 'L2') {")
-    expect(argParseEndIdx).toBeGreaterThan(-1)
-    expect(clampIdx).toBeGreaterThan(argParseEndIdx)
-    expect(guardIdx).toBeGreaterThan(clampIdx)
-  })
-
-  it('renders the clamp identically at governanceLevel L2/L3/L4 (level-independent fix)', () => {
-    const contents = (['L2', 'L3', 'L4'] as const).map((governanceLevel) => {
-      const data = makeConfig('/tmp/test', {
-        language: 'typescript',
-        governanceLevel,
-        enableDebtGates: true,
-        coverageEnabled: false,
-      }) as unknown as Record<string, unknown>
-      return renderTemplate('scripts/check-all.mjs.ejs', data)
-    })
-    for (const content of contents) {
-      expect(content).toContain("if (level === 'L3' || level === 'L4') {")
-      expect(content).toContain("level = 'L2';")
-      expect(content).toContain("if (level === 'L2') {")
-    }
+    // The L3 lane runs the nightly set — the pre-#2041 `clamps to L2` is gone.
+    expect(content).not.toContain('clamps to L2')
+    expect(content).toContain('solo reactivation')
   })
 
   // Behavioral proof of the runtime path (not just the emitted string): execute the
-  // rendered script's real arg-parse + clamp region — everything up to the Grace
-  // Period Guard, with the run-helpers import satisfied by a no-op stub — and probe
-  // the effective `level`. This is exactly the code a target project runs.
-  describe('behavioral: rendered parse+clamp region executed with node', () => {
-    function runParseAndClamp(args: string[]): {
+  // rendered script's real arg-parse region — everything up to the Grace Period
+  // Guard, with the run-helpers import satisfied by a no-op stub — and probe the
+  // effective `level`. This is exactly the code a target project runs.
+  describe('behavioral: rendered parse region executed with node', () => {
+    function runParseAndProbe(args: string[]): {
       status: number
       stderr: string
       level: string | null
@@ -1098,12 +1062,12 @@ describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#17
         enableDebtGates: true,
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
-      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const content = renderCheckAll(data)
       const cutIdx = content.indexOf('Grace Period Guard')
       expect(cutIdx).toBeGreaterThan(-1)
       const prefix = content.slice(0, content.lastIndexOf('\n', cutIdx))
       const probe = `${prefix}\nconsole.log(JSON.stringify({ __probeLevel: level }));\nprocess.exit(0);\n`
-      const dir = mkdtempSync(join(tmpdir(), 'check-all-clamp-'))
+      const dir = mkdtempSync(join(tmpdir(), 'check-all-lane-'))
       try {
         const scriptsDir = join(dir, 'scripts')
         mkdirSync(join(scriptsDir, 'lib'), { recursive: true })
@@ -1127,22 +1091,22 @@ describe('check-all.mjs.ejs — gap 4: L3/L4 clamp to the L2 full-gate lane (#17
       }
     }
 
-    it('L4 request clamps to L2 and warns on stderr', () => {
-      const { status, stderr, level } = runParseAndClamp(['L4'])
+    it('L4 passes through as L4 (no clamp)', () => {
+      const { status, level, stderr } = runParseAndProbe(['L4'])
       expect(status).toBe(0)
-      expect(level).toBe('L2')
-      expect(stderr).toContain('clamps to L2')
+      expect(level).toBe('L4')
+      expect(stderr).not.toContain('clamps to L2')
     })
 
-    it('L3 request clamps to L2 and warns on stderr', () => {
-      const { level, stderr } = runParseAndClamp(['L3'])
-      expect(level).toBe('L2')
-      expect(stderr).toContain('clamps to L2')
+    it('L3 passes through as L3 (no clamp)', () => {
+      const { level, stderr } = runParseAndProbe(['L3'])
+      expect(level).toBe('L3')
+      expect(stderr).not.toContain('clamps to L2')
     })
 
     it('L1/L2 requests pass through unchanged with no clamp warning', () => {
       for (const requested of ['L1', 'L2'] as const) {
-        const { level, stderr } = runParseAndClamp([requested])
+        const { level, stderr } = runParseAndProbe([requested])
         expect(level).toBe(requested)
         expect(stderr).not.toContain('clamps to L2')
       }
@@ -1159,7 +1123,7 @@ describe('check-all.mjs.ejs rendering — self-validation drill wiring (#1835)',
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/self-validation.mjs')
   })
 
@@ -1169,7 +1133,7 @@ describe('check-all.mjs.ejs rendering — self-validation drill wiring (#1835)',
       governanceLevel: 'L1',
       enableSelfValidationHarness: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('scripts/self-validation.mjs')
   })
 })
@@ -1184,7 +1148,7 @@ describe('check-all.mjs.ejs rendering — audit-toolchain opt-in wiring (#1835)'
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('audit-toolchain.mjs')
   })
 
@@ -1195,7 +1159,7 @@ describe('check-all.mjs.ejs rendering — audit-toolchain opt-in wiring (#1835)'
       coverageEnabled: false,
       enableAuditToolchain: true,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/audit-toolchain.mjs')
   })
 })
@@ -1214,7 +1178,7 @@ describe('check-all.mjs.ejs rendering — check-docs.mjs wiring (#356, #1835)', 
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/check-docs.mjs')
   })
 
@@ -1223,7 +1187,7 @@ describe('check-all.mjs.ejs rendering — check-docs.mjs wiring (#356, #1835)', 
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('check-docs.mjs')
   })
 })
@@ -1246,7 +1210,7 @@ describe('check-all.mjs.ejs rendering — domain-api-surface wiring (INV-125, #1
       coverageEnabled: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/check-domain-api-surface.mjs')
   })
 
@@ -1258,7 +1222,7 @@ describe('check-all.mjs.ejs rendering — domain-api-surface wiring (INV-125, #1
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('check-domain-api-surface.mjs')
   })
 })
@@ -1274,7 +1238,7 @@ describe('check-all.mjs.ejs rendering — feature-matrix/gap wiring (#1887-B)', 
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/check-feature-matrix.mjs')
     expect(content).toContain('scripts/gen-gap.mjs')
   })
@@ -1285,7 +1249,7 @@ describe('check-all.mjs.ejs rendering — feature-matrix/gap wiring (#1887-B)', 
       governanceLevel: 'L1',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('check-feature-matrix.mjs')
     expect(content).not.toContain('gen-gap.mjs')
   })
@@ -1302,7 +1266,7 @@ describe('check-all.mjs.ejs rendering — oracle-discrimination emission↔wirin
       archetype: 'frontend-spa',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/check-oracle-discrimination.mjs')
   })
 
@@ -1312,7 +1276,7 @@ describe('check-all.mjs.ejs rendering — oracle-discrimination emission↔wirin
       archetype: 'backend-web-db',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/check-oracle-discrimination.mjs')
   })
 
@@ -1322,7 +1286,7 @@ describe('check-all.mjs.ejs rendering — oracle-discrimination emission↔wirin
       archetype: 'library',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('check-oracle-discrimination.mjs')
   })
 })
@@ -1337,7 +1301,7 @@ describe('check-all.mjs.ejs rendering — assertion-delta emission↔wiring pari
       archetype: 'library',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/check-assertion-delta.mjs')
   })
 
@@ -1347,7 +1311,7 @@ describe('check-all.mjs.ejs rendering — assertion-delta emission↔wiring pari
       archetype: 'frontend-spa',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('scripts/check-assertion-delta.mjs')
   })
 })
@@ -1372,7 +1336,7 @@ describe('check-emission-parity.mjs.ejs rendering (#2110)', () => {
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("runCheck('emission parity (#2110)'")
   })
 })

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 const dirs: string[] = []
 
@@ -56,7 +56,18 @@ function runRenderedGate(
 ) {
   const scripts = join(dir, 'scripts')
   mkdirSync(join(scripts, 'lib'), { recursive: true })
-  writeFileSync(join(scripts, 'check-all.mjs'), render('scripts/check-all.mjs.ejs', overrides))
+  // #2041: check-all.mjs.ejs is registry-driven — render through the shared helper.
+  writeFileSync(
+    join(scripts, 'check-all.mjs'),
+    renderCheckAll(
+      makeConfig('/tmp/arbiter-2197', {
+        language: 'typescript',
+        governanceLevel: 'L1',
+        coverageEnabled: false,
+        ...overrides,
+      }) as unknown as Record<string, unknown>,
+    ),
+  )
   writeFileSync(join(scripts, 'lib', 'run-helpers.mjs'), render('scripts/lib/run-helpers.mjs.ejs'))
   const bin = writeSuccessfulCommandStubs(dir)
   return spawnSync(process.execPath, [join(scripts, 'check-all.mjs'), ...args], {

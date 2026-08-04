@@ -18,10 +18,10 @@ related: ['112-project-invariants-proj-nn']
 
 ## Context
 
-The "blocked project decisions" layer did not exist in the framework. Haben built a
+The "blocked project decisions" layer did not exist in the framework. One governed consumer built a
 hand-maintained `COSTITUZIONE.md` (D-01..D-22 + 7 Leggi + versioned changelog) but no
 gate reads it — "solo net/http" or "no WebSocket/GraphQL" would never be intercepted
-automatically; coach-system had no registry at all, so product choices had no
+automatically; another governed consumer had no registry at all, so product choices had no
 traceability. The 3-layer model (Leggi → D-NN → ADR) is the pattern to adopt.
 
 ## Decision
@@ -42,7 +42,7 @@ traceability. The 3-layer model (Leggi → D-NN → ADR) is the pattern to adopt
 4. **Gold-doc-set tracking.** `DECISION_REGISTRY.md` is a mandatory manifest row
    (`tiers: solo:r/small:R/enterprise:R` — solo advisory per the anti-cathedral
    guardrail), `template: decision-registry`, with `accept_any: [DECISION_REGISTRY.md,
-   COSTITUZIONE.md]` for haben-style adoption. `GLOBAL_INVARIANTS.md` is now also
+   COSTITUZIONE.md]` for consumer-style adoption. `GLOBAL_INVARIANTS.md` is now also
    registered (`conditional` + `applies: always` ⇒ a missing file is a RECOMMENDED gap,
    never a hard fail — the generator deliberately non-emits at the L1 essential preset,
    src/generators/global-invariants.ts `not-applicable`), closing AC-2036.6.
@@ -57,7 +57,7 @@ traceability. The 3-layer model (Leggi → D-NN → ADR) is the pattern to adopt
 ## Consequences
 
 - A project's blocked decisions become machine-checked: an orphan D-NN (a decision with
-  no enforcement story) is a gate failure, the last mile haben never had.
+  no enforcement story) is a gate failure, the last mile that consumer never had.
 - Day-1 green: fresh consumers scaffold the registry with an empty table (vacuous pass)
   and the gate SKIPs until the registry exists.
 - The D-NN→PROJ-NN promotion is documented, not automated — a rule lives in exactly one

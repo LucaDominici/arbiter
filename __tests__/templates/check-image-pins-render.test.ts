@@ -8,15 +8,15 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 function renderCheck(overrides: Record<string, unknown> = {}): string {
   const data = makeConfig('/tmp/test', overrides as never) as unknown as Record<string, unknown>
   return renderTemplate('scripts/check-image-pins.mjs.ejs', data)
 }
-function renderCheckAll(overrides: Record<string, unknown> = {}): string {
+function renderGateCheckAll(overrides: Record<string, unknown> = {}): string {
   const data = makeConfig('/tmp/test', overrides as never) as unknown as Record<string, unknown>
-  return renderTemplate('scripts/check-all.mjs.ejs', data)
+  return renderCheckAll(data)
 }
 
 /** Render the gate to a temp file, drop a Dockerfile in a temp dir, run it, return exit code. */
@@ -53,13 +53,13 @@ describe('scripts/check-image-pins.mjs.ejs — container digest-pin gate (#1442)
   })
 
   it('is wired into the generated check-all.mjs at L1 (typescript)', () => {
-    expect(renderCheckAll({ language: 'typescript', governanceLevel: 'L1' })).toContain(
+    expect(renderGateCheckAll({ language: 'typescript', governanceLevel: 'L1' })).toContain(
       'check-image-pins.mjs',
     )
   })
 
   it('is wired into the generated check-all.mjs for a go project', () => {
-    expect(renderCheckAll({ language: 'go', governanceLevel: 'L1' })).toContain(
+    expect(renderGateCheckAll({ language: 'go', governanceLevel: 'L1' })).toContain(
       'check-image-pins.mjs',
     )
   })

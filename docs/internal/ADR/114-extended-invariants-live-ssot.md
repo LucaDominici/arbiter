@@ -21,7 +21,7 @@ related: ['112-project-invariants-proj-nn']
 The extended invariant set (INV-62..INV-71, incl. INV-63 SSOT-atomic, INV-64/69/70
 abstraction discipline) was opt-in `governance.invariants_catalog: 'extended'` — the
 activation MECHANISM existed end-to-end (schema → resolve-project-config →
-generators) but was never activated in any consumer (grep=0 in haben/coach
+generators) but was never activated in any consumer (grep=0 in governed consumers
 arbiter.json), and the extended invariants' enforcement was declared manual. The
 consumer-facing registers the discipline requires were missing (PATTERNS_CATALOG.md
 existed at L2+; REUSE_REGISTRY.md's SPEC existed, its REGISTER did not), and no
@@ -46,10 +46,10 @@ the same commit (INV-63).
    declared surfaces (never every commit). `.arbiter/live-ssot.json` (scaffold
    emitted from the config, `skipIfExists`) is the runtime declaration; absent
    manifest or parentless HEAD ⇒ SKIP.
-4. **Consumer activation (AC-2044.2/4).** haben + coach-system arbiter.json gain
+4. **Consumer activation (AC-2044.2/4).** governed-consumer arbiter.json gain
    `governance.invariants_catalog: 'extended'`; their GLOBAL_INVARIANTS.md regenerated
    (INV-63/64/69/70 present, verified); coach's drift-manifest hash re-pinned.
-   Haben's L1 gate: ALL PASSED. Coach's L1: only its pre-existing ai-eval unit-test
+   The governed consumer's L1 gate: ALL PASSED. Coach's L1: only its pre-existing ai-eval unit-test
    failure (data-eval, unrelated — verified identical without the change).
 
 ## Consequences

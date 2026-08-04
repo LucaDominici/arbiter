@@ -5,10 +5,11 @@
 // into the consumer.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { renderTemplate } from '../../src/utils/render.js'
+import { loadGateRegistry } from '../../src/generators/check-all.js'
 import { makeConfig } from '../helpers.js'
 
 function renderGate(data: Record<string, unknown>): string {
@@ -19,7 +20,29 @@ function runScript(scriptBody: string, args: string[]): { status: number; stdout
   const dir = mkdtempSync(join(tmpdir(), 'gate-registry-'))
   try {
     writeFileSync(join(dir, 'check-all.mjs'), scriptBody, 'utf-8')
-    const r = spawnSync('node', [join(dir, 'check-all.mjs'), ...args], { encoding: 'utf-8' })
+    // The emitted gate imports the helper trinity from ./lib/run-helpers.mjs —
+    // render it alongside, exactly as the generator does.
+    mkdirSync(join(dir, 'lib'), { recursive: true })
+    writeFileSync(
+      join(dir, 'lib', 'run-helpers.mjs'),
+      renderTemplate('scripts/lib/run-helpers.mjs.ejs', {}),
+      'utf-8',
+    )
+    // TypeScript + coverage-enabled renders the coverage-gate import as well.
+    writeFileSync(
+      join(dir, 'lib', 'coverage-gate.mjs'),
+      renderTemplate('scripts/lib/coverage-gate.mjs.ejs', {
+        projectName: 'test-project',
+      }),
+      'utf-8',
+    )
+    // Run from the fixture dir (a consumer runs the gate from its project root):
+    // inline bodies read repo-local files (package.json, .github/workflows) and
+    // must not observe the test runner's tree — nor hit the network.
+    const r = spawnSync('node', [join(dir, 'check-all.mjs'), ...args], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
     return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -27,10 +50,21 @@ function runScript(scriptBody: string, args: string[]): { status: number; stdout
 }
 
 function baseData(dir: string): Record<string, unknown> {
-  return makeConfig(dir, {
+  // Mirrors the enriched render data the generator builds (generateCheckAll):
+  // coverageThreshold/coverageEnabled/mutationEnabled + the level booleans.
+  const cfg = makeConfig(dir, {
     governanceLevel: 'L2',
     invariantTiers: ['architectural', 'governance', 'data', 'operational'],
   }) as unknown as Record<string, unknown>
+  return {
+    ...cfg,
+    coverageThreshold: 80,
+    coverageEnabled: true,
+    mutationEnabled: true,
+    isL2Plus: true,
+    isL3Plus: false,
+    isL4: false,
+  }
 }
 
 describe('declarative gate registry (#2041)', () => {
@@ -54,7 +88,7 @@ describe('declarative gate registry (#2041)', () => {
       name: 'probe gate',
       level: 'L2',
       kind: 'check',
-      cmd: ['node', ['probe.mjs']],
+      cmd: ['node', 'probe.mjs'],
     }
     const rendered = renderGate({ ...data, gates: [probe] })
     const l1 = runScript(rendered, ['--level', 'L1', '--dry-run'])
@@ -65,7 +99,7 @@ describe('declarative gate registry (#2041)', () => {
 
   it('AC-2041.1: L3 is an executable local lane — no clamp warning, L3 gates run', () => {
     const data = baseData(dir)
-    const rendered = renderGate(data)
+    const rendered = renderGate({ ...data, gates: loadGateRegistry({ ...data }) })
     const l3 = runScript(rendered, ['--level', 'L3', '--dry-run'])
     expect(l3.stderr).not.toContain('clamps to L2')
     expect(l3.stdout).toContain('solo reactivation')
@@ -73,17 +107,15 @@ describe('declarative gate registry (#2041)', () => {
 
   it('AC-2041.3: a layering contract test is emitted for consumers', () => {
     const data = baseData(dir)
+    const registry = loadGateRegistry({ ...data })
     // The emitted test asserts L1 ⊂ L2 ⊂ L3 membership from the registry.
     const rendered = renderTemplate('scripts/test-gate-layering.mjs.ejs', data)
     expect(rendered).toMatch(/L1/)
     const scriptDir = mkdtempSync(join(tmpdir(), 'gate-layering-'))
     try {
       writeFileSync(join(scriptDir, 'test-gate-layering.mjs'), rendered, 'utf-8')
-      writeFileSync(
-        join(scriptDir, 'check-all.mjs'),
-        renderGate({ ...data, gates: [] }),
-        'utf-8',
-      )
+      mkdirSync(join(scriptDir, 'scripts'), { recursive: true })
+      writeFileSync(join(scriptDir, 'scripts', 'check-all.mjs'), renderGate({ ...data, gates: registry }), 'utf-8')
       const r = spawnSync('node', [join(scriptDir, 'test-gate-layering.mjs')], {
         cwd: scriptDir,
         encoding: 'utf-8',
