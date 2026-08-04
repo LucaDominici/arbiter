@@ -28,6 +28,7 @@ import type {
   WorktreeConfig,
 } from '../wizard/types.js'
 import type { BrownfieldClass } from '../kit/thresholds.js'
+import type { Invariant } from '../invariants/types.js'
 
 export type { ThresholdsV2, TaskTiers }
 
@@ -317,6 +318,13 @@ interface GovernanceConfig {
    * path, so a config typo or an empty list never silently weakens the guard.
    */
   ssotGuardPatterns?: string[]
+  /**
+   * #2035: project-declared invariants (PROJ-NN namespace). The project is the
+   * author of its own catalog additions — merged with the built-in catalog at
+   * getFilteredInvariants. Ids MUST be PROJ-NN (never INV-NN — the built-in
+   * namespace is reserved); duplicates and retired entries are rejected.
+   */
+  projectInvariants?: Invariant[]
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
@@ -1161,7 +1169,63 @@ function validateGovernance(raw: unknown, errors: string[]): void {
     )
   }
   validateSsotGuardPatterns(raw['ssotGuardPatterns'], errors)
+  validateProjectInvariants(raw['projectInvariants'], errors)
 }
+
+/** #2035: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
+function validateProjectInvariants(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!Array.isArray(raw)) {
+    errors.push('governance.projectInvariants must be an array of invariant objects')
+    return
+  }
+  const seen = new Set<string>()
+  for (const entry of raw) {
+    if (!isRecord(entry)) {
+      errors.push('governance.projectInvariants entries must be objects')
+      continue
+    }
+    const id = entry['id']
+    if (typeof id !== 'string' || !PROJ_INVARIANT_ID_RE.test(id)) {
+      errors.push(
+        `governance.projectInvariants id must match /^PROJ-\\d+$/ (the INV-NN namespace is reserved) — got ${String(id)}`,
+      )
+      continue
+    }
+    if (seen.has(id)) {
+      errors.push(`governance.projectInvariants duplicate id: ${id}`)
+      continue
+    }
+    seen.add(id)
+    if (entry['status'] === 'retired') {
+      errors.push(`governance.projectInvariants ${id} must not be retired`)
+    }
+    if (entry['tier'] === undefined || entry['title'] === undefined || entry['description'] === undefined) {
+      errors.push(`governance.projectInvariants ${id} requires tier, title, and description`)
+    }
+    if (typeof entry['alwaysActive'] !== 'boolean') {
+      errors.push(`governance.projectInvariants ${id} requires boolean alwaysActive`)
+    }
+    const languages = entry['languages']
+    if (languages !== undefined) {
+      const languageDetail = entry['languageDetail']
+      if (!Array.isArray(languages) || languages.some((l) => typeof l !== 'string')) {
+        errors.push(`governance.projectInvariants ${id} languages must be an array of strings`)
+      } else if (isRecord(languageDetail)) {
+        // #680 mirror: languageDetail must cover every declared language.
+        for (const lang of languages) {
+          if (!(lang in languageDetail)) {
+            errors.push(
+              `governance.projectInvariants ${id} languageDetail must cover every language in languages (missing ${String(lang)})`,
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+const PROJ_INVARIANT_ID_RE = /^PROJ-\d+$/
 
 /** #2045: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
 function validateSsotGuardPatterns(raw: unknown, errors: string[]): void {

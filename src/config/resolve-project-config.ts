@@ -196,6 +196,9 @@ function v2ToProjectConfig(stored: ArbiterConfigV2, detectorFields: DetectorFiel
     thresholds: stored.thresholds,
     lanes: detectorFields.lanes,
     includeExtendedInvariants: resolveExtendedInvariants(stored),
+    ...(stored.governance?.projectInvariants !== undefined
+      ? { projectInvariants: stored.governance.projectInvariants }
+      : {}),
   }
 }
 

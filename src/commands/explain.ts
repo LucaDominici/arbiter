@@ -6,6 +6,8 @@ import { INVARIANT_CATALOG } from '../invariants/catalog.js'
 import { ERROR_CATALOG } from '../utils/error-catalog.js'
 import { loadCanonEntries } from '../utils/canon-loader.js'
 import { writeFileTranslated } from '../utils/fs.js'
+import { loadConfig } from '../utils/config.js'
+import type { Invariant } from '../invariants/types.js'
 import { slugifyProjectName } from './init.js'
 
 const DOCS_ROOT = resolve(fileURLToPath(import.meta.url), '../../..', 'docs')
@@ -97,6 +99,7 @@ export function runExplain(code: string, opts: ExplainOptions): ExplainResult {
   const normalized = code.toUpperCase()
 
   if (normalized.startsWith('INV-')) return explainInv(normalized, opts.format)
+  if (normalized.startsWith('PROJ-')) return explainProjectInvariant(normalized, opts.format)
   if (normalized.startsWith('CANON-')) return explainCanon(normalized, opts.format)
   if (normalized.startsWith('E_') || ERROR_CATALOG.has(normalized)) {
     return explainError(normalized, opts.format)
@@ -190,6 +193,45 @@ function explainInv(id: string, format: string | undefined): ExplainResult {
   lines.push(`  Run \`arbiter explain --list\` to see all codes.`, '')
 
   return { exitCode: 0, output: lines.join('\n'), error: '' }
+}
+
+/**
+ * #2035: project-declared invariants (PROJ-NN) resolve from the project's own
+ * arbiter.json (cwd) — they are not catalog entries. Same output shape as
+ * explainInv so both namespaces behave identically for tooling.
+ */
+function explainProjectInvariant(id: string, format: string | undefined): ExplainResult {
+  const inv = loadProjectInvariants().find((i) => i.id === id)
+  if (!inv) {
+    return { exitCode: 1, output: '', error: `Unknown invariant: ${id}\n` }
+  }
+
+  if (format === 'json') {
+    const payload = {
+      code: inv.id,
+      category: 'PROJ',
+      summary: inv.title,
+      detail: inv.description,
+      enforcement: inv.enforcement ?? '',
+      tier: inv.tier,
+      alwaysActive: inv.alwaysActive,
+    }
+    return { exitCode: 0, output: JSON.stringify(payload, null, 2), error: '' }
+  }
+
+  const lines: string[] = ['', `${inv.id} — ${inv.title}`, '', `  ${inv.description}`, '']
+  if (inv.enforcement) lines.push(`  Enforcement: ${inv.enforcement}`, '')
+  lines.push(`  Tier: ${inv.tier}  |  Always active: ${inv.alwaysActive ? 'yes' : 'no'}`, '')
+  lines.push(`  Project-declared invariant (arbiter.json governance.projectInvariants).`, '')
+  lines.push(`  Run \`arbiter explain --list\` to see all codes.`, '')
+
+  return { exitCode: 0, output: lines.join('\n'), error: '' }
+}
+
+/** Project invariants from the cwd's arbiter.json (empty when absent/unconfigured). */
+function loadProjectInvariants(): Invariant[] {
+  const stored = loadConfig(process.cwd())
+  return stored?.governance?.projectInvariants ?? []
 }
 
 function explainCanon(id: string, format: string | undefined): ExplainResult {
@@ -294,6 +336,7 @@ function explainFlag(key: string, format: string | undefined): ExplainResult {
 function listAll(format: string | undefined): ExplainResult {
   const errorCodes = Array.from(ERROR_CATALOG.keys())
   const invCodes = INVARIANT_CATALOG.map((i) => i.id)
+  const projInvariants = loadProjectInvariants()
   const canonEntries = loadCanonEntries(CANON_MD_PATH)
   const canonCodes = canonEntries.map((e) => e.id)
 
@@ -304,6 +347,7 @@ function listAll(format: string | undefined): ExplainResult {
         return { code: c, category: 'ERROR', summary: e?.summary ?? '' }
       }),
       ...INVARIANT_CATALOG.map((i) => ({ code: i.id, category: 'INV', summary: i.title })),
+      ...projInvariants.map((i) => ({ code: i.id, category: 'PROJ', summary: i.title })),
       ...canonEntries.map((c) => ({ code: c.id, category: 'CANON', summary: c.title })),
       ...Array.from(FLAG_CATALOG.entries()).map(([code, e]) => ({
         code,
@@ -322,6 +366,8 @@ function listAll(format: string | undefined): ExplainResult {
     '',
     'INV codes:',
     ...invCodes.map((c) => `  ${c}`),
+    ...(projInvariants.length > 0 ? ['', 'PROJ codes (project-declared):'] : []),
+    ...projInvariants.map((i) => `  ${i.id}`),
     '',
     'CANON rules:',
     ...canonCodes.map((c) => `  ${c}`),
