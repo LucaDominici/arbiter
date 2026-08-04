@@ -236,6 +236,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-anti-fake-green.mjs'],
     tpl: 'scripts/check-anti-fake-green.mjs.ejs',
   },
+  // #2036: decision-registry gate (D-NN orphan check) — self-contained (node-only,
+  // no lib import). SKIPs when no registry exists and when the registry carries
+  // `arbiter:preserve` (user-owned format); fails on orphan D-NN decisions.
+  {
+    rel: ['scripts', 'check-decision-registry.mjs'],
+    tpl: 'scripts/check-decision-registry.mjs.ejs',
+  },
   // #1497 (A5): ship arbiter's deterministic file-scan anti-fake-green guards INTO the generated
   // project so a planted false-green is caught by THIS project's own gate — not only by arbiter's.
   // Each is self-contained (node-only, no lib import) and NO-DATA-safe (PASS when there is nothing

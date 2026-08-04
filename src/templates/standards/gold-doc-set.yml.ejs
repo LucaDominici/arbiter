@@ -136,6 +136,32 @@ checks:
     accept_any: ['docs/GOVERNANCE.md', 'GOVERNANCE.md']
     template: governance
     purpose: Governance model — how decisions and gates work.
+  - path: DECISION_REGISTRY.md
+    tier: mandatory
+    # #2036: blocked-project-decision register (D-NN). Solo repos get it advisory
+    # (anti-cathedral guardrail: one committer has fewer decisions to track).
+    tiers: { solo: 'r', small: 'R', enterprise: 'R' }
+    freshness_class: decision
+    applies: always
+    phase: inception
+    drivers: ['iso9001', 'iso12207']
+    # haben-style adoption: a pre-existing user-owned COSTITUZIONE.md (carrying the
+    # `arbiter:preserve` marker) satisfies the row — never clobbered, never duplicated.
+    accept_any: ['DECISION_REGISTRY.md', 'COSTITUZIONE.md']
+    template: decision-registry
+    purpose: Blocked project decisions (D-NN) with per-decision enforcement or documentale exemption.
+  - path: GLOBAL_INVARIANTS.md
+    tier: conditional
+    # #2036 (AC-2036.6): GLOBAL_INVARIANTS.md was absent from the manifest — verified.
+    # conditional + applies: always ⇒ a missing file is a RECOMMENDED gap (advisory), so a
+    # clean L1 `essential`-preset project (no optional tiers ⇒ generator deliberately
+    # non-emits, src/generators/global-invariants.ts `not-applicable`) never hard-fails.
+    freshness_class: policy
+    applies: always
+    phase: build
+    drivers: ['iso12207']
+    accept_any: ['GLOBAL_INVARIANTS.md', 'docs/GLOBAL_INVARIANTS.md']
+    purpose: Deep-reference invariant companion (generated when optional tiers are selected).
   - path: docs/architecture/ARCHITECTURE.md
     tier: mandatory
     # H3: solo carries a recommended Canvas-level doc, not the full arc42+C4 cathedral,

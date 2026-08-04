@@ -73,6 +73,12 @@ const SKELETON_CATALOG: Record<string, CatalogEntry> = {
   'test-strategy': { variants: 'docs/skeletons/test-strategy.md.ejs' },
   governance: { variants: 'docs/skeletons/governance.md.ejs' },
   'technical-debt': { variants: 'docs/skeletons/technical-debt.md.ejs' },
+  // #2036: blocked-project-decision register (D-NN), tracked by the gold-doc-set
+  // manifest row `DECISION_REGISTRY.md` (accept_any COSTITUZIONE.md for
+  // haben-style adoption). Existing Code Survey: no decision-registry template
+  // existed (haben's COSTITUZIONE.md is a hand-built consumer file, not in this
+  // repo) — new file justified.
+  'decision-registry': { variants: 'docs/skeletons/decision-registry.md.ejs' },
 }
 
 function resolveTemplatePath(entry: CatalogEntry, column: TierColumn): string {

@@ -1248,6 +1248,12 @@ if (level === 'L2') {
   if (gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')) {
     runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check'])
   }
+  // #2036: decision-registry gate — hard (runCheck): an orphan D-NN (no
+  // enforcement, no documentale exemption) blocks the gate. SKIPs when no
+  // registry exists or the registry carries `arbiter:preserve`.
+  if (gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')) {
+    runCheck('decision registry', 'node', ['scripts/check-decision-registry.mjs'])
+  }
   // Advisory (#1428, INV-135): anti-fake-green guard aggregate — informational, never blocks gate.
   // The gh-audit guards fail OPEN (advisory) when `gh` is absent; --enforce is NEVER passed here
   // (it would promote advisory findings to hard fails = day-1 red for a fresh consumer).
