@@ -337,3 +337,83 @@ describe('graph build — full-graph formats (#259-followup)', () => {
     expect(mermaidResult.path).toMatch(/graph\.mermaid$/)
   })
 })
+
+describe('project invariants in graph (#2035, TC-2)', () => {
+  const created: string[] = []
+  afterEach(() => {
+    while (created.length > 0) {
+      const dir = created.pop()
+      if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  function configWithProjectInvariants(invariants: unknown[]): string {
+    return JSON.stringify(
+      {
+        version: '1.0.0',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        useGitHub: false,
+        features: {
+          contractTesting: false,
+          mutationTesting: false,
+          securityScanning: false,
+          evidenceHarness: false,
+          debtGates: false,
+          suppressions: false,
+        },
+        thresholds: {},
+        governance: { projectInvariants: invariants },
+      },
+      null,
+      2,
+    )
+  }
+
+  it('enforcement-less PROJ invariant surfaces as an orphan in verify graph', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'graph-proj-orphan-'))
+    created.push(dir)
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      configWithProjectInvariants([
+        {
+          id: 'PROJ-01',
+          tier: 'governance',
+          title: 'Tenancy isolation is a product contract',
+          description: 'Every tenant-scoped resource must carry owner_id.',
+          alwaysActive: true,
+        },
+      ]),
+      'utf-8',
+    )
+    const build = runGraphBuild({ dir })
+    expect(build.status).toBe('ok')
+    const result = runVerifyGraph({ dir })
+    expect(result.status).toBe('error')
+    expect(result.orphans.map((o) => o.id)).toContain('PROJ-01')
+  })
+
+  it('PROJ invariant with enforcement passes verify graph', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'graph-proj-clean-'))
+    created.push(dir)
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      configWithProjectInvariants([
+        {
+          id: 'PROJ-01',
+          tier: 'governance',
+          title: 'Tenancy isolation is a product contract',
+          description: 'Every tenant-scoped resource must carry owner_id.',
+          alwaysActive: true,
+          enforcement: 'CI (constraint scan); code review',
+        },
+      ]),
+      'utf-8',
+    )
+    const build = runGraphBuild({ dir })
+    expect(build.status).toBe('ok')
+    const result = runVerifyGraph({ dir })
+    expect(result.status).toBe('ok')
+    expect(result.orphans.map((o) => o.id)).not.toContain('PROJ-01')
+  })
+})
