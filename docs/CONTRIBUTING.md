@@ -56,6 +56,9 @@ governance level (L1 / L2 / L3 / L4), then materializes:
   `getFilteredInvariants`, and propagated to AGENTS.md, GLOBAL_INVARIANTS.md,
   `verify graph`, `explain`, and the doc↔catalog parity gate (see
   [ADR-112](internal/ADR/112-project-invariants-proj-nn.md)).
+^- The extended invariant set (INV-62..INV-71) activates via `governance.invariants_catalog: "extended"` —
+  see [ADR-114](internal/ADR/114-extended-invariants-live-ssot.md); declared-live SSOT
+  surfaces (`governance.liveSsot`) are bound to the same commit by check-drift.
 - Blocked project decisions are tracked as `D-NN` in `DECISION_REGISTRY.md` (see
   [ADR-113](internal/ADR/113-decision-registry-dnn.md)); a D-NN that matures into a
   permanent rule promotes to a PROJ-NN invariant — one rule lives in ONE registry.
