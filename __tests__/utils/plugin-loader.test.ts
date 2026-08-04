@@ -191,3 +191,38 @@ describe('loadPlugin', () => {
     await expect(generatePromise).rejects.toThrow(/interrupted by signal/)
   }, 10_000)
 })
+
+describe('plugin invariants (#2035, TC-5)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = tmpDir()
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('forwards a plugin-declared invariants array through the proxy', async () => {
+    installFixture(dir, 'invariants-plugin', 'invariants-plugin')
+    const plugin = await loadPlugin('invariants-plugin', dir)
+    expect(plugin.invariants).toBeDefined()
+    expect(plugin.invariants).toHaveLength(1)
+    expect(plugin.invariants?.[0]?.id).toBe('PROJ-01')
+    expect(plugin.invariants?.[0]?.tier).toBe('governance')
+  })
+
+  it('rejects a plugin whose invariants use the reserved INV-NN namespace', async () => {
+    installFixture(dir, 'invariants-bad-plugin', 'invariants-bad')
+    await expect(loadPlugin('invariants-bad-plugin', dir)).rejects.toThrow(
+      /invariants-bad-plugin/,
+    )
+    await expect(loadPlugin('invariants-bad-plugin', dir)).rejects.toThrow(/PROJ-/)
+  })
+
+  it('does not forward invariants when the plugin declares none', async () => {
+    installFixture(dir, 'mock-arbiter-plugin', 'mock-plugin')
+    const plugin = await loadPlugin('mock-arbiter-plugin', dir)
+    expect(plugin.invariants).toBeUndefined()
+  })
+})

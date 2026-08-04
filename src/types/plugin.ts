@@ -2,6 +2,7 @@
 import type { ArbiterConfig } from '../utils/config.js'
 import type { VerifyPlanRule } from '../verify/rules/types.js'
 import type { ArbiterMemoryPlugin } from './memory.js'
+import type { Invariant } from '../invariants/types.js'
 
 /**
  * @beta API is public but not stable. Breaking changes possible before v1.0.
@@ -13,6 +14,12 @@ export interface ArbiterPlugin {
   detect?(config: ArbiterConfig): boolean | Promise<boolean>
   generate(ctx: PluginContext): PluginResult | Promise<PluginResult>
   verifyPlanRules?: VerifyPlanRule[]
+  /**
+   * #2035 (TC-5): stack-preset invariants contributed by the plugin (PROJ-NN
+   * namespace). Merged into the project's invariants by the host (config-declared
+   * projectInvariants win on id conflict — deterministic precedence).
+   */
+  invariants?: Invariant[]
 }
 
 /**

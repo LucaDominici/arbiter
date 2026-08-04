@@ -10,6 +10,7 @@ import { t } from '../../i18n/index.js'
 import { getLogger } from '../../utils/logger.js'
 import { buildMigrationPlan } from '../../wizard/prompts.js'
 import type { ArbiterConfig } from '../../utils/config.js'
+import type { Invariant } from '../../invariants/types.js'
 import { levelAtLeast } from '../../config/levels.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../../generators/registry.js'
 import type { GeneratorFailure } from '../../generators/registry.js'
@@ -52,6 +53,13 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
   try {
     const installedSkills = detectAndAuditSkills(targetDir)
     const prevManifest = loadGeneratedManifest(targetDir)
+    // #2035 (TC-5): plugin-contributed invariants must reach the generators, so
+    // the plugin list + their invariants are collected BEFORE generation and
+    // merged into the ProjectConfig (config-declared projectInvariants win on
+    // id conflict — deterministic precedence: catalog < plugin < config).
+    const storedBefore = loadConfig(targetDir)
+    const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
+    const mergedConfig = mergeProjectInvariants(config, await collectPluginInvariants(targetDir, plugins))
     beginGenerationSession({
       targetDir,
       prevHashes: prevManifest,
@@ -62,17 +70,17 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
         recordLocalOverride(targetDir, { key, priorContent, newContent })
       },
     })
-    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config, installedSkills)
+    const { results, errors: generatorErrors } = runGeneratorsWithErrors(mergedConfig, installedSkills)
     const generatedHashes = endGenerationSession()
     saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes })
     committed.push(...results)
 
-    const newConfig = buildArbiterConfig(config)
+    const newConfig = buildArbiterConfig(mergedConfig)
     const backendResult = runBackendSetup(config, log)
-    const storedBefore = loadConfig(targetDir)
     await saveConfig(targetDir, newConfig)
 
-    const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
+    // The plugin ctx config carries the merged invariants (workerData
+    // serialization) so plugin templates render the same effective set.
     committed.push(...(await runPlugins(targetDir, plugins, newConfig)))
 
     if (!initOptions.json) printResults(committed, targetDir)
@@ -241,6 +249,48 @@ function assertPathContained(resolvedPath: string, safeRoot: string, rawPath: st
   if (!resolvedPath.startsWith(safeRoot + sep)) {
     throw new Error(`Plugin output path escapes target directory: ${rawPath}`)
   }
+}
+
+/**
+ * #2035 (TC-5): plugin-declared invariants, collected BEFORE the generators run.
+ * Load failures are reported by runPlugins' own E_INIT_PLUGIN_FAILURES path —
+ * this collection is best-effort (the module is already loaded at least twice
+ * per plugin today: host shape-validation + worker execution).
+ */
+export async function collectPluginInvariants(
+  targetDir: string,
+  plugins: string[],
+): Promise<Invariant[]> {
+  const all: Invariant[] = []
+  for (const pkg of plugins) {
+    try {
+      const plugin = await loadPlugin(pkg, targetDir)
+      if (plugin.invariants !== undefined) all.push(...plugin.invariants)
+    } catch (err) {
+      getLogger().warn(
+        'init.plugin_invariants_unavailable',
+        { plugin: pkg },
+        `Plugin "${pkg}" invariants unavailable: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+  }
+  return all
+}
+
+/**
+ * #2035 (TC-5): merge plugin-contributed invariants into the ProjectConfig.
+ * Config-declared projectInvariants win on id conflict (deterministic
+ * precedence: catalog < plugin < config), so a project can override a stack
+ * preset's rule without removing the plugin.
+ */
+export function mergeProjectInvariants(
+  config: ProjectConfig,
+  pluginInvariants: Invariant[],
+): ProjectConfig {
+  if (pluginInvariants.length === 0) return config
+  const configIds = new Set((config.projectInvariants ?? []).map((inv) => inv.id))
+  const pluginOnly = pluginInvariants.filter((inv) => !configIds.has(inv.id))
+  return { ...config, projectInvariants: [...(config.projectInvariants ?? []), ...pluginOnly] }
 }
 
 export async function runPlugins(

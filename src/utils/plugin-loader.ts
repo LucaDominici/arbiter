@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import type { ArbiterPlugin, PluginResult } from '../types/plugin.js'
+import type { Invariant } from '../invariants/types.js'
 import { validatePluginPackageJson } from '../integrations/plugin-schema.js'
 import { ArbiterError } from './errors.js'
 
@@ -219,12 +220,18 @@ export async function loadPlugin(
   const verifyPlanRules = Array.isArray(p['verifyPlanRules'])
     ? (p['verifyPlanRules'] as ArbiterPlugin['verifyPlanRules'])
     : undefined
+  // #2035 (TC-5): validated in validatePluginShape; forwarded so the host can
+  // merge plugin-declared invariants into the project's invariant set.
+  const invariants = Array.isArray(p['invariants'])
+    ? (p['invariants'] as Invariant[])
+    : undefined
 
   const proxy: ArbiterPlugin = {
     name: pluginName,
     apiVersion: '1',
     templateRoot,
     ...(verifyPlanRules !== undefined ? { verifyPlanRules } : {}),
+    ...(invariants !== undefined ? { invariants } : {}),
     generate(ctx) {
       return invokeInWorker(
         entry,
@@ -275,4 +282,27 @@ function validatePluginShape(plugin: unknown, pkg: string): void {
   if ('verifyPlanRules' in p && !Array.isArray(p['verifyPlanRules'])) {
     throw new Error(`Plugin "${pkg}" field verifyPlanRules must be an array if present.`)
   }
+  // #2035 (TC-5): plugin-declared invariants must use the PROJ-NN namespace
+  // (never INV-NN — reserved) and be unique within the plugin's own array.
+  if (p['invariants'] !== undefined) {
+    if (!Array.isArray(p['invariants'])) {
+      throw new Error(`Plugin "${pkg}" field invariants must be an array if present.`)
+    }
+    const seen = new Set<string>()
+    for (const entry of p['invariants'] as Record<string, unknown>[]) {
+      const id = entry?.['id']
+      if (typeof id !== 'string' || !PROJ_INVARIANT_ID_RE.test(id)) {
+        throw new Error(
+          `Plugin "${pkg}" invariant id must match /^PROJ-\\d+$/ (the INV-NN namespace is reserved) — got ${String(id)}`,
+        )
+      }
+      if (seen.has(id)) {
+        throw new Error(`Plugin "${pkg}" declares duplicate invariant id ${id}`)
+      }
+      seen.add(id)
+    }
+  }
 }
+
+const PROJ_INVARIANT_ID_RE = /^PROJ-\d+$/
+

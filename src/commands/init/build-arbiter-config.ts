@@ -203,5 +203,12 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),
     ...buildProviderFields(config),
     ...(config.preset !== undefined && config.preset !== 'none' ? { preset: config.preset } : {}),
+    // #2035: persist project-declared invariants (incl. plugin contributions
+    // merged at generation) so `arbiter explain PROJ-NN` and subsequent
+    // update/diff round-trips see the same effective set. Config-declared wins
+    // over plugin on id conflict (mergeProjectInvariants precedence).
+    ...(config.projectInvariants !== undefined && config.projectInvariants.length > 0
+      ? { governance: { projectInvariants: config.projectInvariants } }
+      : {}),
   }
 }
