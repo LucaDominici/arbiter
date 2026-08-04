@@ -349,6 +349,23 @@ function emitDebtGated(
   return DEBT_GATED_EMISSIONS.map(({ rel, tpl }) => emitTemplateFile(base, rel, tpl, data, opts))
 }
 
+// #2044 (AC-2044.3): the reuse-registry gate. Emission follows the SAME
+// predicate as the wiring in check-all.mjs.ejs (includeExtendedInvariants) so
+// a non-extended consumer never carries an unwired guard (check-unwired-guards
+// class, #2159).
+const EXTENDED_GATED_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string }> = [
+  { rel: ['scripts', 'check-reuse-registry.mjs'], tpl: 'scripts/check-reuse-registry.mjs.ejs' },
+]
+
+function emitExtendedGated(
+  base: string,
+  data: { includeExtendedInvariants?: boolean },
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  if (data.includeExtendedInvariants !== true) return []
+  return EXTENDED_GATED_EMISSIONS.map(({ rel, tpl }) => emitTemplateFile(base, rel, tpl, data, opts))
+}
+
 export function generateCheckAll(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -375,6 +392,7 @@ export function generateCheckAll(
 
   results.push(...emitUnconditional(base, data, opts))
   results.push(...emitDebtGated(base, data, opts))
+  results.push(...emitExtendedGated(base, data, opts))
 
   // #1319.8 — greenfield-aware coverage gate predicate (TS + coverage only).
   results.push(...emitCoverageGate(base, data, opts))

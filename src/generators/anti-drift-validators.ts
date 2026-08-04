@@ -179,6 +179,32 @@ function emitF4Validators(
  * issues, and workflow structural problems in generated projects.
  * See docs/REFERENCE/anti-drift-family.md for the full family reference.
  */
+/**
+ * #2044 (AC-2044.5): emit the live-SSOT declaration scaffold when the config
+ * declares surfaces — the consumer then keeps this manifest in sync with its
+ * real live surfaces, and check-drift binds every code commit to it. Absent
+ * config ⇒ nothing emitted (check-drift SKIPs).
+ */
+function emitLiveSsotManifest(
+  base: string,
+  config: ProjectConfig,
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  if (config.liveSsot === undefined) return []
+  const content =
+    JSON.stringify(
+      { surfaces: config.liveSsot.surfaces.map((s) => ({ path: s.path, kind: s.kind, ...(s.keys ? { keys: s.keys } : {}) })) },
+      null,
+      2,
+    ) + '\n'
+  return [
+    writeFile(resolvedPath(base, '.arbiter', 'live-ssot.json'), content, {
+      skipIfExists: true,
+      dryRun: opts.dryRun,
+    }),
+  ]
+}
+
 export function generateAntiDriftValidators(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -188,6 +214,7 @@ export function generateAntiDriftValidators(
     ...emitW6DualTrack(base, config, opts),
     ...emitW6TrackBOnly(base, config, opts),
     ...emitF4Validators(base, config, opts),
+    ...emitLiveSsotManifest(base, config, opts),
   ]
   return { files }
 }

@@ -325,6 +325,15 @@ interface GovernanceConfig {
    * namespace is reserved); duplicates and retired entries are rejected.
    */
   projectInvariants?: Invariant[]
+  /**
+   * #2044 (AC-2044.5/6): live-SSOT surfaces — the declared-live matrix/ledger
+   * files that a code change MUST update in the SAME commit. check-drift
+   * (--live-ssot) binds the commit to the declared surfaces; the obligation is
+   * LIMITED to these surfaces (not every commit).
+   */
+  liveSsot?: {
+    surfaces: { path: string; kind: 'matrix' | 'ledger'; keys?: string[] }[]
+  }
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
@@ -1170,6 +1179,37 @@ function validateGovernance(raw: unknown, errors: string[]): void {
   }
   validateSsotGuardPatterns(raw['ssotGuardPatterns'], errors)
   validateProjectInvariants(raw['projectInvariants'], errors)
+  validateLiveSsot(raw['liveSsot'], errors)
+}
+
+/** #2044: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
+function validateLiveSsot(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('governance.liveSsot must be an object')
+    return
+  }
+  const surfaces = raw['surfaces']
+  if (!Array.isArray(surfaces)) {
+    errors.push('governance.liveSsot.surfaces must be an array')
+    return
+  }
+  for (const entry of surfaces) {
+    if (!isRecord(entry) || typeof entry['path'] !== 'string') {
+      errors.push('governance.liveSsot.surfaces entries must be objects with a string path')
+      continue
+    }
+    const kind = entry['kind']
+    if (kind !== 'matrix' && kind !== 'ledger') {
+      errors.push(
+        `governance.liveSsot.surfaces kind must be 'matrix' or 'ledger' — got ${String(kind)}`,
+      )
+    }
+    const keys = entry['keys']
+    if (keys !== undefined && (!Array.isArray(keys) || keys.some((k) => typeof k !== 'string'))) {
+      errors.push('governance.liveSsot.surfaces keys must be an array of strings')
+    }
+  }
 }
 
 /** #2035: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */

@@ -199,6 +199,7 @@ function v2ToProjectConfig(stored: ArbiterConfigV2, detectorFields: DetectorFiel
     ...(stored.governance?.projectInvariants !== undefined
       ? { projectInvariants: stored.governance.projectInvariants }
       : {}),
+    ...(stored.governance?.liveSsot !== undefined ? { liveSsot: stored.governance.liveSsot } : {}),
   }
 }
 

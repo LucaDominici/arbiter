@@ -1254,6 +1254,11 @@ if (level === 'L2') {
   if (gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')) {
     runCheck('decision registry', 'node', ['scripts/check-decision-registry.mjs'])
   }
+  // #2044 (AC-2044.3): reuse-registry gate — only when the extended invariant
+  // set is active (INV-69/70); the emission follows the same predicate.
+  <% if (includeExtendedInvariants) { %>if (gateFilePresent('scripts/check-reuse-registry.mjs', 'reuse registry')) {
+    runCheck('reuse registry', 'node', ['scripts/check-reuse-registry.mjs'])
+  }<% } %>
   // Advisory (#1428, INV-135): anti-fake-green guard aggregate — informational, never blocks gate.
   // The gh-audit guards fail OPEN (advisory) when `gh` is absent; --enforce is NEVER passed here
   // (it would promote advisory findings to hard fails = day-1 red for a fresh consumer).

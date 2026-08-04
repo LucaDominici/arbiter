@@ -1,0 +1,26 @@
+<% if (governanceLevel !== 'L1') { %># REUSE_REGISTRY — <%= projectName %>
+
+Registro dei moduli riutilizzabili e della ricerca documentata dell'esistente
+(INV-70 / CANON-16). Prima di creare un nuovo file sotto `src/` o `scripts/`,
+**cercare qui** e in `docs/METHOD/PATTERNS_CATALOG.md`: un hit significa riusare
+o estendere; un miss giustifica il file nuovo, ma la PR DEVE aggiungere la riga
+a questo registro prima del merge.
+
+**Spec:** `docs/METHOD/REUSE_REGISTRY_SPEC.md` — protocollo completo del survey.
+
+## Moduli registrati
+
+| Modulo | Percorso | Note | Data |
+| --- | --- | --- | --- |
+| _(nessun modulo ancora registrato)_ | | | |
+
+## Ricerca documentata dell'esistente
+
+| Data | Ricerca | Esito | Decisione |
+| --- | --- | --- | --- |
+| _(nessuna ricerca ancora registrata)_ | | | |
+
+> `scripts/check-reuse-registry.mjs` (gate attivo con `invariants_catalog:
+> extended`) fallisce se questo registro è assente o vuoto: la disciplina di
+> astrazione (INV-69/70) richiede traccia, non solo intenzione.
+<% } %>

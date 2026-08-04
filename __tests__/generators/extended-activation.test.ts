@@ -105,16 +105,15 @@ describe('extended-set activation (#2044)', () => {
       run(fixture)
       spawnSync('git', ['-C', fixture, 'config', 'user.email', 't@t'], { encoding: 'utf-8' })
       spawnSync('git', ['-C', fixture, 'config', 'user.name', 't'], { encoding: 'utf-8' })
-      writeFileSync(join(fixture, '.arbiter', 'live-ssot.json'), 'x', 'utf-8')
       mkdirSync(join(fixture, '.arbiter'), { recursive: true })
+      mkdirSync(join(fixture, 'src'), { recursive: true })
+      mkdirSync(join(fixture, 'docs'), { recursive: true })
       writeFileSync(
         join(fixture, '.arbiter', 'live-ssot.json'),
         JSON.stringify({ surfaces: [{ path: 'docs/FEATURE_MATRIX.md', kind: 'matrix' }] }, null, 2),
         'utf-8',
       )
       writeFileSync(join(fixture, 'src', 'app.ts'), '// v1\n', 'utf-8')
-      mkdirSync(join(fixture, 'src'), { recursive: true })
-      mkdirSync(join(fixture, 'docs'), { recursive: true })
       writeFileSync(join(fixture, 'docs', 'FEATURE_MATRIX.md'), '| feature | done |\n', 'utf-8')
       spawnSync('git', ['-C', fixture, 'add', '-A'], { encoding: 'utf-8' })
       spawnSync('git', ['-C', fixture, 'commit', '-qm', 'init'], { encoding: 'utf-8' })
@@ -201,11 +200,28 @@ describe('governance.liveSsot schema (#2044)', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('accepts both declared liveSsot surface kinds (matrix, ledger)', () => {
+    const matrix = validateConfig({
+      ...BASE_CONFIG,
+      governance: {
+        liveSsot: { surfaces: [{ path: 'docs/FEATURE_MATRIX.md', kind: 'matrix' }] },
+      },
+    })
+    expect(matrix.ok).toBe(true)
+    const ledger = validateConfig({
+      ...BASE_CONFIG,
+      governance: {
+        liveSsot: { surfaces: [{ path: '.arbiter/ledger.jsonl', kind: 'ledger' }] },
+      },
+    })
+    expect(ledger.ok).toBe(true)
+  })
+
   it('rejects an unknown liveSsot surface kind', () => {
     const result = validateConfig({
       ...BASE_CONFIG,
       governance: {
-        liveSsot: { surfaces: [{ path: 'docs/FEATURE_MATRIX.md', kind: 'ledger' }] },
+        liveSsot: { surfaces: [{ path: 'docs/FEATURE_MATRIX.md', kind: 'spreadsheet' }] },
       },
     })
     expect(result.ok).toBe(false)

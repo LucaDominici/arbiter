@@ -418,6 +418,8 @@ export interface ProjectConfig {
   includeExtendedInvariants?: boolean
   /** #2035: project-declared invariants (PROJ-NN), merged at getFilteredInvariants. */
   projectInvariants?: Invariant[]
+  /** #2044: declared-live SSOT surfaces bound by check-drift --live-ssot. */
+  liveSsot?: LiveSsotConfig
   /**
    * CI tier emission mode.
    * @deprecated Use pipelineStyle instead. Kept for one minor version as a fallback alias.
@@ -686,4 +688,20 @@ export interface Invariant {
    * ramp). Read by scripts/check-ci-tiers.mjs as the sole rollout knob.
    */
   minPresent?: number
+}
+
+/**
+ * #2044 (AC-2044.5/6): declared-live SSOT surfaces (matrix/ledger) that a code
+ * change must update in the SAME commit — bound by check-drift --live-ssot.
+ * Obligation is limited to these surfaces (the softening).
+ */
+export interface LiveSsotSurface {
+  path: string
+  kind: 'matrix' | 'ledger'
+  /** Optional key column names the drift check may use for finer binding. */
+  keys?: string[]
+}
+
+export interface LiveSsotConfig {
+  surfaces: LiveSsotSurface[]
 }
