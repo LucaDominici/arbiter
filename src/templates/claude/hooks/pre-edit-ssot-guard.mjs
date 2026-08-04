@@ -17,7 +17,7 @@
 import { spawnSync } from 'node:child_process'
 import { resolve, relative, join, dirname } from 'node:path'
 import { readFileSync, existsSync, rmSync, mkdirSync, appendFileSync } from 'node:fs'
-import { resolveToolInputPath } from './lib.mjs'
+import { resolveToolInputPath, isPathInThisRepo } from './lib.mjs'
 
 const DEFAULT_SSOT_PATTERNS = [
   'AGENTS.md',
@@ -71,6 +71,12 @@ if (process.env.ARBITER_SSOT_BYPASS === '1') {
 }
 
 const file = resolveToolInputPath()
+
+// #565: another repo's governance documents are not this repo's SSOT. The `rel` anchor
+// below is cwd-derived, so with the session cwd inside that repo its own AGENTS.md would
+// otherwise match — which is how a sibling repo's edit got blocked from here.
+if (!isPathInThisRepo(file)) process.exit(0)
+
 const absFile = resolve(file)
 const rel = relative(repoRoot, absFile)
 

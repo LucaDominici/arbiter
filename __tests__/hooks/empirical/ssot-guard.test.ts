@@ -13,7 +13,10 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { renderTemplate } from '../../../src/utils/render.js'
 import { makeConfig } from '../../helpers.js'
 
-const HOOK_SRC = resolve(import.meta.dirname, '../../../src/templates/claude/hooks/pre-edit-ssot-guard.mjs')
+const HOOK_SRC = resolve(
+  import.meta.dirname,
+  '../../../src/templates/claude/hooks/pre-edit-ssot-guard.mjs',
+)
 const LIB_TEMPLATE = 'claude/hooks/lib.mjs.ejs'
 const BYPASS_LOG_PATH = (dir: string) => join(dir, '.arbiter', 'evidence', 'bypass-log.jsonl')
 const BYPASS_FILE_PATH = (dir: string) => join(dir, '.arbiter', 'ssot-bypass')
@@ -29,7 +32,10 @@ function setup(): string {
   writeFileSync(join(hooksDir, 'pre-edit-ssot-guard.mjs'), readFileSync(HOOK_SRC, 'utf-8'))
   writeFileSync(
     join(hooksDir, 'lib.mjs'),
-    renderTemplate(LIB_TEMPLATE, makeConfig(dir, { projectName: 'test-proj' }) as unknown as Record<string, unknown>),
+    renderTemplate(
+      LIB_TEMPLATE,
+      makeConfig(dir, { projectName: 'test-proj' }) as unknown as Record<string, unknown>,
+    ),
   )
   return dir
 }
@@ -212,17 +218,24 @@ describe('pre-edit-ssot-guard', () => {
     })
   })
 
-  describe('sibling-repo guard (#565/#567): a foreign repo edit is not this repo\'s SSOT', () => {
+  describe("sibling-repo guard (#565/#567): a foreign repo edit is not this repo's SSOT", () => {
     it('exits 0 when the edited file belongs to a DIFFERENT repo than the one owning the hook', () => {
       const ownerDir = track(setup())
       const foreignDir = track(setup())
       // cwd is the FOREIGN repo; the hook file lives in the OWNER repo.
-      const result = spawnSync('node', [join(ownerDir, '.claude', 'hooks', 'pre-edit-ssot-guard.mjs')], {
-        cwd: foreignDir,
-        encoding: 'utf-8',
-        input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: join(foreignDir, 'AGENTS.md') } }),
-        env: process.env,
-      })
+      const result = spawnSync(
+        'node',
+        [join(ownerDir, '.claude', 'hooks', 'pre-edit-ssot-guard.mjs')],
+        {
+          cwd: foreignDir,
+          encoding: 'utf-8',
+          input: JSON.stringify({
+            tool_name: 'Edit',
+            tool_input: { file_path: join(foreignDir, 'AGENTS.md') },
+          }),
+          env: process.env,
+        },
+      )
       // Without the guard the cwd-derived rel anchor matches the foreign AGENTS.md and
       // the hook blocks (exit 2) — that is the #565 bug. With the guard it exits 0.
       expect(result.status).toBe(0)
