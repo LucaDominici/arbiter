@@ -355,6 +355,94 @@ describe('ship complete-action — (collaborationMode × mergeMode) matrix (#128
   })
 })
 
+// #2102 — `arbiter ship [id] --chain <id>` seeds/persists chainIds, validated the same way as
+// the primary id (#1280), and a bare re-invocation (--advance without repeating --chain) must
+// never clobber a chain declared on an earlier call.
+describe('ship chain batching — seeding (--chain, #2102)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = createTestProject()
+    mkdirSync(join(dir, '.claude'), { recursive: true })
+  })
+  afterEach(() => cleanupTestProject(dir))
+
+  it('persists chainIds normalized to canonical #NNN', () => {
+    runTaskShip({ dir, taskId: '2102', tier: 'XS', chainIds: ['2103', '#2104'] })
+    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103', '#2104'])
+  })
+
+  it('rejects a non-numeric chain id loudly, same guard as the primary id', () => {
+    expect(() => runTaskShip({ dir, taskId: '2102', chainIds: ['feature-x'] })).toThrow(
+      /invalid chain id/i,
+    )
+  })
+
+  it('omitting --chain on a later call does NOT clear a previously-declared chain', () => {
+    runTaskShip({ dir, taskId: '2102', tier: 'XS', chainIds: ['2103'] })
+    // Simulates `arbiter ship --advance` without repeating --chain.
+    runTaskShip({ dir, advance: true })
+    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103'])
+  })
+})
+
+// #2102 — `--chain <id>` (repeatable) merge-train batching: the close-step advisory text names
+// every id in [taskId, ...chainIds], and composes with the (collaborationMode × mergeMode) axis
+// without changing it.
+describe('ship complete-action — chain batching (--chain, #2102)', () => {
+  it('no chain declared → close text is unchanged (single-issue, byte-identical)', () => {
+    const a = shipStepFor(
+      'complete',
+      'Standard',
+      profile({ collaborationMode: 'trunk-solo' }),
+      '#2102',
+      [],
+    ).action
+    expect(a).toContain('Close the issue, clean up the worktree.')
+    expect(a).not.toContain('Close issues')
+  })
+
+  it('chain declared → close text names every id, primary first', () => {
+    const a = shipStepFor(
+      'complete',
+      'Standard',
+      profile({ collaborationMode: 'peer-review' }),
+      '#2102',
+      ['#2103', '#2104'],
+    ).action
+    expect(a).toContain('Close issues #2102, #2103, #2104, clean up the worktree.')
+  })
+
+  it('normalizes a bare (no #) primary/chain id for display', () => {
+    const a = shipStepFor('complete', 'Standard', profile(), '2102', ['2103']).action
+    expect(a).toContain('Close issues #2102, #2103, clean up the worktree.')
+  })
+
+  it('trunk-solo + direct + chain → STILL no PR, direct push (chain never flips the axis)', () => {
+    const a = shipStepFor(
+      'complete',
+      'Standard',
+      profile({ collaborationMode: 'trunk-solo', mergeMode: 'direct' }),
+      '#2102',
+      ['#2103'],
+    ).action
+    expect(a).toMatch(/no PR/i)
+    expect(a).toContain('Close issues #2102, #2103')
+  })
+
+  it('peer-review + chain → STILL one PR, never a direct push (acceptance criterion)', () => {
+    const a = shipStepFor(
+      'complete',
+      'Standard',
+      profile({ collaborationMode: 'peer-review' }),
+      '#2102',
+      ['#2103', '#2104'],
+    ).action
+    expect(a).toMatch(/open a PR/i)
+    expect(a).toMatch(/await required review/i)
+    expect(a).not.toMatch(/no PR/i)
+  })
+})
+
 describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)', () => {
   it('arbiter-self → verification carries the 3 self-only authoring gates', () => {
     const step = shipStepFor('verification', 'Standard', profile({ isArbiterSelf: true }))
