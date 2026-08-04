@@ -191,3 +191,28 @@ checkouts in `walkRepo` (a git worktree or submodule inside the working tree car
 `.git` and belongs to a different commit) cut one repo's secret scan from 62,974 files to
 20,528 — and stopped the debt ratchet counting another branch's TODO and failing the gate on
 main. A walker that measures the wrong tree is slow AND wrong.
+
+## 7. Terminal handoff: the gate runs detached, the coordinator watches (#2103)
+
+**Symptom:** a dispatched worker finishes its real work, launches a 15-40 min gate, says
+"I'll wait for my Monitor/notification" and stops — the wait is not real, the parent
+receives `completed` while the gate still runs, and every SendMessage re-engagement
+re-prefills the whole transcript at cold cache (100-350k tokens each).
+
+**Mechanism:** worker briefs end at commit + launch + structured handoff
+`{SHA, worktree, PID, exit-file, log}` and an explicit END-TURN — never a wait. The
+launch primitive is `scripts/bg-run.sh <name> -- <gate-command>` (detached via setsid +
+nohup, records `<name>.pid` / `<name>.exit` / `<name>.log` under `.arbiter/bg/`, returns
+immediately). ALL waits belong to the coordinator: `scripts/pid-watch.sh <name>`
+backgrounded (or via `Bash run_in_background`) emits **exactly one** line with the exit
+code when the job ends — the coordinator fires at most one notification per job, and the
+watcher reads the exit FILE, so it works even when the worker's session is long gone.
+These two helpers (emitted by `arbiter update`, see M16 in
+`agent-orchestration-and-context-hygiene.md`) supersede the raw nohup+PID-file recipe;
+the one valid subagent-wait idiom is `run_in_background` on the gate command itself
+(merge-after-green briefs), never nohup/PID-file/finite-Monitor.
+
+**Validated:** the helpers carry `--self-test` proving the exact failure mode — a watcher
+on a PID that outlives the caller's session emits exactly one exit line — and the
+dispatch-template corpus is SOFT-gated by `scripts/check-m16-handoff.mjs` (marker
+`M16 handoff-contract: subagents never own waits`).

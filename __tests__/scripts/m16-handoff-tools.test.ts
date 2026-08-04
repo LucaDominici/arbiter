@@ -6,7 +6,7 @@
 // outlives the caller's session emits exactly one exit line.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, chmodSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, existsSync, chmodSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
