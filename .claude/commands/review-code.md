@@ -25,30 +25,39 @@ blocker / warning / note buckets.
 
 ## Usage
 
-```bash
-arbiter review code --diff origin/main --tier S
-arbiter review code --json
-arbiter review code --evidence-dir .evidence/custom/
-```
+Dispatch N parallel Claude subagents over the current diff. Each agent
+focuses on a distinct concern; their findings are aggregated into
+blocker / warning / note buckets.
+
+1. **Route** the current diff to compute the auditor set — see
+   [Auditor Routing](#auditor-routing) for the invocation (include
+   `--size-floor <tier>` so the tier widens the active set).
+2. **Dispatch** one subagent per routed auditor.
+3. **Verify completion** — see [Completion check](#completion-check).
 
 Each agent's raw response is persisted under
 `.evidence/review-<timestamp>/agent-<name>.json` for audit.
 
 ## Tier guidance
 
-| Tier     | Reviewer agents |
-| -------- | --------------- |
-| XS       | 3               |
-| S        | 3               |
-| Standard | 5               |
+The tier→reviewer-count mapping lives in `.claude/agent-dispatch-matrix.json`
+(`tier_verticals`) — the SSOT also consumed by `scripts/route-auditors.mjs`
+via `--size-floor <tier>` and asserted against `src/sizing/sizing.ts` by
+`scripts/check-agent-dispatch.mjs`. Read the matrix for the current counts;
+never copy them here.
 
-## Personas
+The auditor roster — names, weights, and the `always_on` / `tag_map` /
+`critical_paths` selection — is defined in `.claude/auditor-routing.json`, the
+SSOT consumed by `scripts/route-auditors.mjs`. Route the current diff to learn
+which personas are active; do not hardcode the roster here.
 
-- **bugs** — logic, off-by-one, null-deref, race, edge cases
-- **type-safety** — type leaks, casts, `any`/`unknown` misuse
-- **domain-consistency** — drift vs `AGENTS.md` (Standard)
-- **silent-failure-hunter** — swallowed errors, empty catches, ignored rejections
-- **test-analyzer** — coverage and assertion quality (Standard)
+## Completion check
+
+After dispatch, verify every persona returned a verdict — each
+`.evidence/review-<timestamp>/agent-<name>.json` must carry a non-empty
+findings result. If any persona produced no verdict, retry that persona once
+(re-dispatch with the same scope). A second miss is a blocker: do not aggregate
+a partial review.
 
 ## FIT Rubric (INV-138) — target, not just quality
 
@@ -73,8 +82,12 @@ for". When the active task's plan carries a frozen `## Acceptance Criteria` anch
 Auditors are selected per-diff using `.claude/auditor-routing.json`. Run before dispatching agents:
 
 ```bash
-git diff --name-only --no-renames origin/main...HEAD | node scripts/route-auditors.mjs --diff-stdin
+git diff --name-only --no-renames origin/main...HEAD | node scripts/route-auditors.mjs --diff-stdin --size-floor <tier>
 ```
+
+`<tier>` is the issue size (`XS|S|Standard`); the floor widens the active
+auditor set per `.claude/agent-dispatch-matrix.json::tier_verticals`
+(union-only — it never removes a file-path-selected auditor).
 
 ### Precedence (highest to lowest)
 
