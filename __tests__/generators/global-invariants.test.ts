@@ -50,6 +50,26 @@ describe('generateGlobalInvariants', () => {
     expect(result.action).toBe('created')
   })
 
+  it('renders declared PROJ-NN project invariants into the doc (TC-1)', () => {
+    const projInvariant = {
+      id: 'PROJ-01',
+      tier: 'governance',
+      title: 'Tenancy isolation is a product contract',
+      description: 'Every tenant-scoped resource must carry owner_id (viafera product contract).',
+      alwaysActive: true,
+      enforcement: 'CI (constraint scan); code review',
+    }
+    const config = makeConfig(dir, {
+      governanceLevel: 'L2',
+      invariantTiers: presetToTiers('standard'),
+      projectInvariants: [projInvariant],
+    } as Partial<Parameters<typeof makeConfig>[1]> & { projectInvariants: typeof projInvariant[] })
+    generateGlobalInvariants(config)
+    const content = readFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), 'utf-8')
+    expect(content).toContain('PROJ-01')
+    expect(content).toContain('Tenancy isolation is a product contract')
+  })
+
   it('content includes all 5 tier headings for full preset', () => {
     const config = makeConfig(dir, {
       governanceLevel: 'L3',
