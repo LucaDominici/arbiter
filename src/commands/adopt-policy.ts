@@ -80,12 +80,13 @@ export function buildAdoptPredicate(
   const adoptGateSpine = options.adoptGateSpine === true
   const adoptGovernance = options.adoptGovernance === true
   const refreshDerived = options.refreshDerived === true
+  const informative = (key: string, provenanceKnown: boolean): boolean =>
+    provenanceKnown &&
+    ((adoptGateSpine && isGateSpineKey(key)) ||
+      (adoptGovernance && isGovernanceClassKey(key)) ||
+      (refreshDerived && isDerivedTrackKey(key)))
   return (key: string, provenanceKnown: boolean): boolean =>
-    adoptAll ||
-    (adoptSafety && isSafetyClassKey(key)) ||
-    (provenanceKnown && adoptGateSpine && isGateSpineKey(key)) ||
-    (provenanceKnown && adoptGovernance && isGovernanceClassKey(key)) ||
-    (provenanceKnown && refreshDerived && isDerivedTrackKey(key))
+    adoptAll || (adoptSafety && isSafetyClassKey(key)) || informative(key, provenanceKnown)
 }
 
 /**
