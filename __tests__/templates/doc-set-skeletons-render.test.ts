@@ -8,7 +8,10 @@ import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
-const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
+const config = {
+  ...makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' }),
+  today: '2026-01-01',
+}
 
 describe('docs/skeletons/*.md.ejs render (T3)', () => {
   it.each([
@@ -28,6 +31,7 @@ describe('docs/skeletons/*.md.ejs render (T3)', () => {
     ['docs/skeletons/test-strategy.md.ejs', ['## Pyramid', '## Coverage policy']],
     ['docs/skeletons/governance.md.ejs', ['## Decision rights', '## Gate ladder']],
     ['docs/skeletons/technical-debt.md.ejs', ['| Item | Class | Interest | Plan |']],
+    ['docs/skeletons/decision-registry.md.ejs', ['## Leggi', '## Decisioni', '## Changelog']],
   ] as const)(
     '%s renders with its real section headers, never a lorem/STUB banner',
     (tpl, headers) => {
