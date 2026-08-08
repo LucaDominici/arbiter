@@ -26,12 +26,12 @@ single canonical governance source over per-tool files. See
 
 ## Alternatives Considered
 
-| Alternative | Why rejected |
-| --- | --- |
+| Alternative                                                                 | Why rejected                                                                                                                                                                                |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Adopt [ai-rulez](https://github.com/isobar-ai/ai-rulez) instead of building | Format translator, not a governance installer — complementary, not a substitute; arbiter coexists with it rather than replacing it ([ADR-010](../internal/ADR/010-ai-rulez-coexistence.md)) |
-| Per-tool canonical configs (no single source) | Drift guaranteed, cross-tool consistency impossible ([ADR-001](../internal/ADR/001-agents-md-canonical.md) §Alternatives rejected) |
-| MCP servers as the integration surface | No CI/bare-terminal portability, per-tool auth/config shape, protocol churn ([ADR-020](../internal/ADR/020-cli-first-over-mcp.md)) |
-| Rust/Go single-binary CLI | Longer compile time, worse contributor DX, smaller ecosystem for this task than TS/Node ([ADR-006](../internal/ADR/006-typescript-node-cli.md) §Alternatives rejected) |
+| Per-tool canonical configs (no single source)                               | Drift guaranteed, cross-tool consistency impossible ([ADR-001](../internal/ADR/001-agents-md-canonical.md) §Alternatives rejected)                                                          |
+| MCP servers as the integration surface                                      | No CI/bare-terminal portability, per-tool auth/config shape, protocol churn ([ADR-020](../internal/ADR/020-cli-first-over-mcp.md))                                                          |
+| Rust/Go single-binary CLI                                                   | Longer compile time, worse contributor DX, smaller ecosystem for this task than TS/Node ([ADR-006](../internal/ADR/006-typescript-node-cli.md) §Alternatives rejected)                      |
 
 ## Technical Feasibility
 
@@ -60,16 +60,16 @@ Gate-green evidence for every merge is the operational proof, not a separate cla
 
 One line per shipped [PRD.md §Features by Phase](../PRODUCT/PRD.md#features-by-phase) phase:
 
-| Phase | Outcome |
-| --- | --- |
-| 1-4 (Core, GitHub, Update/Diff, Extended Tools) | Shipped v0.1 |
-| 5 (Tests + Docs) | Shipped M5-M7 |
-| 6 (Wizard Redesign) | Shipped M10 |
-| 7 (Foundation Repair) | Shipped M12-M13 |
-| 8 (Tech Debt Prevention) | Shipped M14-M16 |
-| 9 (Advanced Generation) | Shipped M17-M21 |
-| 10 (Production Baseline) | M22/M25-M28/M30 shipped; M23/M24/M29 in progress |
-| 11 (Ecosystem) | M32 (extended tools, plugin API — see [`docs/PLUGIN-API.md`](../PLUGIN-API.md)) shipped; M31/M33 in progress |
+| Phase                                           | Outcome                                                                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 1-4 (Core, GitHub, Update/Diff, Extended Tools) | Shipped v0.1                                                                                                 |
+| 5 (Tests + Docs)                                | Shipped M5-M7                                                                                                |
+| 6 (Wizard Redesign)                             | Shipped M10                                                                                                  |
+| 7 (Foundation Repair)                           | Shipped M12-M13                                                                                              |
+| 8 (Tech Debt Prevention)                        | Shipped M14-M16                                                                                              |
+| 9 (Advanced Generation)                         | Shipped M17-M21                                                                                              |
+| 10 (Production Baseline)                        | M22/M25-M28/M30 shipped; M23/M24/M29 in progress                                                             |
+| 11 (Ecosystem)                                  | M32 (extended tools, plugin API — see [`docs/PLUGIN-API.md`](../PLUGIN-API.md)) shipped; M31/M33 in progress |
 
 ## Go/No-Go Rationale
 
