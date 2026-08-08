@@ -469,6 +469,36 @@ describe('tests_ref glob ban (#2163)', () => {
   })
 })
 
+describe('verification_tier enum (12th column, #2242)', () => {
+  it('exits 0 with a valid tier value (SCAFFOLD|GATE|E2E)', () => {
+    for (const tier of ['SCAFFOLD', 'GATE', 'E2E']) {
+      const matrix = makeMatrix([
+        `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | | | ${tier} |`,
+      ])
+      const { status } = runWithMatrix(matrix)
+      expect(status, `tier ${tier} should pass`).toBe(0)
+    }
+  })
+
+  it('exits 1 with an invalid tier value, naming the row and value', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | | | BOGUS |`,
+    ])
+    const { status, stdout } = runWithMatrix(matrix)
+    expect(status).toBe(1)
+    expect(stdout).toContain('REQ-001')
+    expect(stdout).toContain('BOGUS')
+  })
+
+  it('empty tier cell (10/11-column row, backward compatible) exits 0', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | no tier yet |`,
+    ])
+    const { status } = runWithMatrix(matrix)
+    expect(status).toBe(0)
+  })
+})
+
 describe('determinism (#2163)', () => {
   it('failures are reported in sorted order regardless of row order', () => {
     const matrix = makeMatrix([

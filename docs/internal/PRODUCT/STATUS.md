@@ -2,7 +2,7 @@
 title: 'STATUS — arbiter living dashboard'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-02'
+last_review: '2026-08-08'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/pm', 'kind/product']
