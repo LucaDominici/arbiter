@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+// CATALOG: #2103 M16 handoff-contract gate — verifies a fixed corpus of dispatch-brief
+// CATALOG: sources (wave-drain/drain SKILL.md, agent-orchestration-and-context-hygiene.md)
+// CATALOG: carries the literal M16_HANDOFF_MARKER string ("subagents never own waits"),
+// CATALOG: catching a brief that still tells a worker to wait on the gate itself.
+// CATALOG: rejected fold-in into check-handoff-doc.mjs because that lints the dynamically
+// CATALOG: discovered HANDOFF.template.md task-section contract (What/Where/AC/Verify/tier);
+// CATALOG: this checks a fixed literal marker string across a fixed corpus — different shape.
+// CATALOG: rejected fold-in into check-phantom-command-scan.mjs because that cross-checks
+// CATALOG: `arbiter <cmd>` citations in prose against the CLI SSOT — an unrelated concern.
+//
 // check-m16-handoff.mjs (#2103) — SOFT gate: dispatch-template files must carry the
 // M16 handoff-contract marker ("subagents never own waits").
 //

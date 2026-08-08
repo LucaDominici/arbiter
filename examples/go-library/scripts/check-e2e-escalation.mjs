@@ -50,6 +50,7 @@ function loadMaxStrikes() {
   let raw
   try {
     raw = JSON.parse(readFileSync(ARBITER_PATH, 'utf-8'))
+    // FAIL-OPEN-INTENT: malformed arbiter.json defaults to DEFAULT_MAX_STRIKES; schema validation owns reporting.
   } catch {
     return DEFAULT_MAX_STRIKES
   }
@@ -74,6 +75,7 @@ function loadLedgerEntries() {
     .map((line) => {
       try {
         return JSON.parse(line)
+        // FAIL-OPEN-INTENT: a corrupt ledger line is dropped, not fatal — observability data, not policy input.
       } catch {
         return null
       }
