@@ -308,6 +308,12 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-e2e-escalation.mjs'],
     tpl: 'scripts/check-e2e-escalation.mjs.ejs',
   },
+  // #2103 (M16): dispatch-template handoff-contract marker gate. SOFT corpus check;
+  // corpus files absent in a consumer are SKIPPED at runtime, so unconditional is safe.
+  {
+    rel: ['scripts', 'check-m16-handoff.mjs'],
+    tpl: 'scripts/check-m16-handoff.mjs.ejs',
+  },
   {
     rel: ['scripts', 'lib', 'glob-walk.mjs'],
     tpl: 'scripts/lib/glob-walk.mjs.ejs',

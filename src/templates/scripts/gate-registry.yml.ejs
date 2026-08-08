@@ -108,6 +108,7 @@ gates:
   - { id: render-smoke-presence, name: 'render smoke presence (INV-127)', level: L1, kind: check, cmd: ['node', ['scripts/check-render-smoke.mjs']] }
   - { id: smoke-journeys, name: 'smoke journeys (INV-137)', level: L1, kind: check, cmd: ['node', ['scripts/check-smoke-journeys.mjs']] }
   - { id: e2e-escalation, name: 'e2e escalation ladder (#2043)', level: L1, kind: check, cmd: ['node', ['scripts/check-e2e-escalation.mjs']] }
+  - { id: m16-handoff, name: 'M16 handoff-contract marker (#2103)', level: L1, kind: check, cmd: ['node', ['scripts/check-m16-handoff.mjs']] }
   - { id: stack-conformity, name: 'stack conformity (INV-121)', level: L1, kind: check, emitIf: "language", cmd: ['node', ['scripts/check-stack-conformity.mjs']] }
   - { id: iso9001, name: 'iso9001 QMS (RTM + doc-control + CAPA)', level: L1, kind: check, condition: "gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')", cmd: ['node', ['scripts/check-iso9001.mjs']] }
   - { id: regulated-overlay, name: 'regulated overlay (SoD + retention + signing + mutation)', level: L1, kind: check, condition: "gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')", cmd: ['node', ['scripts/check-regulated-overlay.mjs']] }

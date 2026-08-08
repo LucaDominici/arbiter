@@ -320,6 +320,7 @@ if (isMain) {
   runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs'])
   runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs'])
   runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs'])
+  runCheck('M16 handoff-contract marker (#2103)', 'node', ['scripts/check-m16-handoff.mjs'])
   runCheck('e2e escalation ladder (#2043)', 'node', ['scripts/check-e2e-escalation.mjs'])
   runCheck('workflow cache strategy (§17.5 rec 3)', 'node', [
     'scripts/check-workflow-cache-strategy.mjs',

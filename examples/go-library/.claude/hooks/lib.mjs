@@ -1,7 +1,8 @@
 // Arbiter hook library — shared utilities for all hooks
 // Project: go-library
 import { mkdirSync, appendFileSync, readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, extname, dirname, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -68,6 +69,33 @@ export function scopeCommandToFile(command, file) {
   while (toks.length > 1 && REPO_TARGETS.has(toks[toks.length - 1])) toks.pop();
   toks.push(file);
   return toks;
+}
+
+/**
+ * Path-eligibility for post-edit-dispatch.mjs's Go format/lint dispatch (#486).
+ * The hook is Go-only, so the `.go` extension is the real filter and there is no
+ * lane-scoping: the previous LANES=["frontend","backend","docs"] gate silently
+ * excluded cmd/ and internal/ — 99% of the repo's Go code — so gofmt/golangci-lint
+ * never ran there. Returns true when the edited file should reach the dispatch.
+ */
+export function reachesDispatch(filePath) {
+  if (!filePath) return false;
+  const SKIP_PATTERNS = /\.(md|json|yaml|yml|txt|log|lock|toml|xml|html|css|svg|png|jpg|gif)$/i;
+  const SKIP_DIRS = /\/(node_modules|build|dist|target|\.git|\.cache|__pycache__|\.venv)\//;
+  if (SKIP_PATTERNS.test(filePath) || SKIP_DIRS.test(filePath)) return false;
+  return extname(filePath).toLowerCase() === '.go';
+}
+
+/**
+ * Environment for the hook's `golangci-lint run` (#487). Isolates golangci's cache
+ * per worktree, mirroring check-all.mjs (#176, resolveGolangciCacheDir): the shared
+ * default cache (~/.cache/golangci-lint) references deleted sibling-worktree paths
+ * after a worktree is removed, leaking phantom-file findings across worktrees. The
+ * cache dir is inlined (not imported from scripts/lib) to keep this hook library
+ * dependency-free.
+ */
+export function lintEnv(root) {
+  return { ...process.env, GOLANGCI_LINT_CACHE: join(root, '.golangci-cache') };
 }
 
 /**
@@ -215,6 +243,119 @@ export function resolveToolInputPath(rawStdin) {
   return typeof fromEnv === 'string' ? fromEnv : '';
 }
 
+// Directory these hooks were loaded from, and the checkout root above it
+// (`<root>/.claude/hooks/lib.mjs`). This is the repo that OWNS the rules, which is
+// what membership has to be measured against — see isPathInThisRepo (#565).
+const HOOKS_DIR = dirname(fileURLToPath(import.meta.url));
+const HOOK_OWNER_ROOT = resolve(HOOKS_DIR, '..', '..');
+
+/** Absolute path of the shared .git dir every worktree of `dir`'s repo points at, or null. */
+function gitCommonDir(dir) {
+  const r = spawnSync('git', ['-C', dir, 'rev-parse', '--git-common-dir'], { encoding: 'utf-8' });
+  if (r.status !== 0 || !r.stdout.trim()) return null;
+  // Relative inside a main working tree ('.git', '../../.git'), absolute inside a
+  // linked worktree — resolve against `dir` so both forms compare equal.
+  return resolve(dir, r.stdout.trim());
+}
+
+/**
+ * True when `file` belongs to the repo that owns these hooks (#565).
+ *
+ * A subagent inherits the SESSION's CLAUDE_PROJECT_DIR, not the one of the repo it is
+ * working in, so these Edit|Write hooks stay registered and fire on files belonging to
+ * a different repository — an agent editing a sibling repo's AGENTS.md was blocked by
+ * enforce-read-only here, which matches the substring and nothing else. This repo has no
+ * governance over a foreign repo; that repo's own hooks decide.
+ *
+ * Membership is git identity, NOT a path prefix: a repo's linked worktrees live
+ * outside the repo root (<repo>.worktrees/) and are legitimately covered, so
+ * `startsWith(repoRoot)` would silently un-govern all of them.
+ * `rev-parse --git-common-dir` is identical across the main checkout and every linked
+ * worktree and distinct for any other repo — the same idea #549 used for the Bash side.
+ *
+ * The anchor is HOOK_OWNER_ROOT rather than `process.cwd()`, which is where this differs
+ * from enforce-gate-before-pr.mjs: the reported session had its cwd inside the foreign
+ * repo, so a cwd-anchored identity would call that repo "home" and keep blocking.
+ *
+ * Fail-closed on uncertainty (INV-96): an unresolvable path, or an own-identity that git
+ * cannot report, keeps the guard armed. Not-foreign is the safe answer — a guard must not
+ * disarm itself on doubt.
+ *
+ * Takes the ALREADY-RESOLVED path: fd 0 is consumed at most once, so a second
+ * resolveToolInputPath() call inside here would read '' and wave everything through.
+ *
+ * @param {string} file Absolute or cwd-relative path from resolveToolInputPath().
+ * @returns {boolean}
+ */
+export function isPathInThisRepo(file) {
+  if (!file) return true;
+  const abs = resolve(file);
+  // Ordinary edit inside the checkout these hooks came from: true by construction,
+  // and worth short-circuiting — the alternative is two git spawns on every edit.
+  if (abs === HOOK_OWNER_ROOT || abs.startsWith(HOOK_OWNER_ROOT + sep)) return true;
+
+  const home = gitCommonDir(HOOKS_DIR);
+  if (!home) return true;
+
+  // A Write can target a file — or a whole directory tree — that does not exist yet;
+  // `git -C` needs a real directory, so climb to the nearest existing ancestor.
+  let dir = dirname(abs);
+  while (!existsSync(dir)) {
+    const parent = dirname(dir);
+    if (parent === dir) return false;
+    dir = parent;
+  }
+  return gitCommonDir(dir) === home;
+}
+
+/**
+ * Added lines of a file vs HEAD, for diff-scoped PostToolUse scans (#609).
+ *
+ * PostToolUse Edit|Write hooks used to scan the WHOLE edited file, so a
+ * pre-existing forbidden pattern on an UNCHANGED line (e.g. an HTML form-field
+ * hint attribute, matched case-insensitively by the marker regex) blocked any
+ * unrelated edit in the same file — a false positive on every touch. Scoping
+ * the scan to the lines the edit actually added fixes it without weakening
+ * detection of NEW offenses.
+ *
+ * `git ls-files --error-unmatch <file>` distinguishes untracked (new) files —
+ * which `git diff HEAD` would show nothing for — from tracked-but-unchanged
+ * (which legitimately has no added lines). Untracked files return
+ * `{ tracked: false, added: null }` so the caller falls back to a whole-file
+ * scan (every line is new). Tracked files return the added-line contents with
+ * their 1-based line number in the new file, parsed from the `@@ +c,d @@`
+ * hunk headers. The gate's `--all` walk is NOT affected — it stays whole-file
+ * (that is the anti-drift gate; this helper is the PostToolUse path only).
+ *
+ * Runs git in `process.cwd()` (the worktree the hook fires in). Fail-open:
+ * any git error degrades to `tracked: false` so the caller scans the whole
+ * file rather than silently skipping an offense.
+ *
+ * @param {string} file Absolute or cwd-relative path.
+ * @returns {{tracked: boolean, added: Array<{line: number, content: string}>|null}}
+ */
+export function addedLinesVsHEAD(file) {
+  const tracked = spawnSync('git', ['ls-files', '--error-unmatch', file], { encoding: 'utf-8' });
+  if (tracked.status !== 0) return { tracked: false, added: null };
+  const diff = spawnSync('git', ['diff', 'HEAD', '--', file], { encoding: 'utf-8' });
+  if (diff.status !== 0) return { tracked: false, added: null };
+  const added = [];
+  let newLine = 0;
+  for (const line of diff.stdout.split('\n')) {
+    const hunk = /^@@\s+-\d+(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/.exec(line);
+    if (hunk) { newLine = parseInt(hunk[1], 10); continue; }
+    if (line.startsWith('+++') || line.startsWith('---')) continue;
+    if (line.startsWith('+')) {
+      added.push({ line: newLine, content: line.slice(1) });
+      newLine++;
+    } else if (line.startsWith(' ')) {
+      newLine++;
+    }
+    // '-' lines and '\ No newline...' do not advance the new-file line counter.
+  }
+  return { tracked: true, added };
+}
+
 /**
  * Resolve the shell command a Bash tool is about to run / has just run.
  *
@@ -260,6 +401,50 @@ export function resolveToolInputCommand(rawStdin) {
   }
   const fromEnv = process.env.CLAUDE_TOOL_INPUT_COMMAND;
   return typeof fromEnv === 'string' ? fromEnv : '';
+}
+
+// Dangerous-command detection for stop-dangerous.mjs (#552). Kept here, beside
+// resolveToolInputCommand, so the guard stays dependency-free.
+const DANGEROUS_LITERALS = [
+  'rm -rf /',
+  'rm -rf ~',
+  'git reset --hard',
+  'DROP TABLE',
+  'DROP DATABASE',
+  'sudo rm',
+  '> /dev/sda',
+];
+
+/**
+ * True when `command` actually runs something destructive.
+ *
+ * The previous form was a bare substring scan with two failure modes in opposite
+ * directions: it blocked `--force-with-lease` (the safe variant, needed after every
+ * rebase) and it fired on a command merely *named* inside a quoted string or heredoc
+ * body — a guard that cannot tell doing from mentioning gets routed around by habit.
+ *
+ * @param {string} command
+ * @returns {boolean}
+ */
+export function isDangerousCommand(command) {
+  const raw = String(command ?? '');
+  // Literals stay on the raw text: a destructive argument is normally quoted
+  // (`psql -c "DROP TABLE users"`), so stripping quotes would disarm them.
+  if (DANGEROUS_LITERALS.some((p) => raw.includes(p))) return true;
+
+  // The forced push is the opposite case — it is the one that kept firing on prose
+  // (an issue body describing this very guard), so it is matched on the text with
+  // heredoc bodies and quoted spans removed. Heredocs first: they can contain quotes.
+  const executed = raw
+    .replace(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1[\s\S]*?^\s*\2\s*$/gm, ' ')
+    .replace(/'[^']*'/g, ' ')
+    .replace(/"[^"]*"/g, ' ');
+
+  // --force-with-lease refuses to overwrite refs the local side has not seen, so it is
+  // the form a rebase is supposed to use; only the unguarded variants are blocked.
+  return /(?:^|[;&|]|\s)git\s+push\b(?![^;&|]*--force-with-lease)[^;&|]*(?:--force\b|\s-f\b)/.test(
+    executed,
+  );
 }
 
 /** Returns the git repository root, falling back to process.cwd(). */
