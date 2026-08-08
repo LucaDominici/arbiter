@@ -28,12 +28,12 @@
         {
           "file": "src/templates/claude/hooks/pre-edit-ssot-guard.mjs",
           "line": 78,
-          "what": "if (!isPathInThisRepo(file)) process.exit(0) — the forward-synced guard"
+          "what": "if (!isPathInThisRepo(file)) process.exit(0) \u2014 the forward-synced guard"
         },
         {
           "file": "src/templates/claude/hooks/lib.mjs.ejs",
           "line": 290,
-          "what": "export function isPathInThisRepo — twin export added so a consumer regen cannot break named imports"
+          "what": "export function isPathInThisRepo \u2014 twin export added so a consumer regen cannot break named imports"
         },
         {
           "file": "__tests__/templates/hooks-lib-render.test.ts",
@@ -48,14 +48,14 @@
         {
           "file": "/home/luca/work/repos/haben/.claude/hooks/lib.mjs",
           "line": 288,
-          "what": "haben's hook carries the same guard — verified AHEAD/at-parity, not behind"
+          "what": "haben's hook carries the same guard \u2014 verified AHEAD/at-parity, not behind"
         }
       ]
     },
     {
       "id": "AC-2077.2",
       "verdict": "PASS",
-      "note": "coach-system regenerated in a dedicated, scoped commit 46048e1 'feat(#2077): regenerate SSOT guard from arbiter template (wave-3)' — SSOT guard + lib only, no full hook-set churn.",
+      "note": "coach-system regenerated in a dedicated, scoped commit 46048e1 'feat(#2077): regenerate SSOT guard from arbiter template (wave-3)' \u2014 SSOT guard + lib only, no full hook-set churn.",
       "evidence": [
         {
           "file": "/home/luca/work/repos/coach-system/.claude/hooks/pre-edit-ssot-guard.mjs",
@@ -72,12 +72,12 @@
     {
       "id": "AC-2077.3",
       "verdict": "PASS",
-      "note": "Independently re-verified: `node --input-type=module -e \"await import('./.claude/hooks/post-edit-dispatch.mjs')\"` in the haben checkout exits 0 — no broken ESM named exports. Lead report: haben L1 gate ALL PASSED; coach L1 shows only the pre-existing, unrelated ai-eval data-eval failure (reproduced with the change stashed).",
+      "note": "Independently re-verified: `node --input-type=module -e \"await import('./.claude/hooks/post-edit-dispatch.mjs')\"` in the haben checkout exits 0 \u2014 no broken ESM named exports. Lead report: haben L1 gate ALL PASSED; coach L1 shows only the pre-existing, unrelated ai-eval data-eval failure (reproduced with the change stashed).",
       "evidence": [
         {
           "file": "/home/luca/work/repos/haben/.claude/hooks/lib.mjs",
           "line": 81,
-          "what": "reachesDispatch export present — post-edit-dispatch.mjs's named import resolves at module load (import exits 0)"
+          "what": "reachesDispatch export present \u2014 post-edit-dispatch.mjs's named import resolves at module load (import exits 0)"
         },
         {
           "file": "/home/luca/work/repos/coach-system/.claude/hooks/lib.mjs",
@@ -111,12 +111,12 @@
         {
           "file": "src/invariants/filter.ts",
           "line": 72,
-          "what": "getFilteredInvariants merges config.projectInvariants — the single merge point"
+          "what": "getFilteredInvariants merges config.projectInvariants \u2014 the single merge point"
         },
         {
           "file": "__tests__/generators/agents-md.test.ts",
           "line": 253,
-          "what": "renders declared PROJ-NN project invariants into AGENTS.md (TC-1) — asserts the rendered doc contains PROJ-01 (line 268)"
+          "what": "renders declared PROJ-NN project invariants into AGENTS.md (TC-1) \u2014 asserts the rendered doc contains PROJ-01 (line 268)"
         },
         {
           "file": "__tests__/invariants/project-invariants.test.ts",
@@ -216,29 +216,29 @@
     {
       "id": "AC-2035.6",
       "verdict": "PASS",
-      "note": "Re-running the generator with projectInvariants declared produces a byte-identical file — skipped, no backup churn.",
+      "note": "Re-running the generator with projectInvariants declared produces a byte-identical file \u2014 skipped, no backup churn.",
       "evidence": [
         {
           "file": "__tests__/generators/global-invariants.test.ts",
           "line": 159,
-          "what": "regeneration with projectInvariants is idempotent — zero diff (TC-6)"
+          "what": "regeneration with projectInvariants is idempotent \u2014 zero diff (TC-6)"
         }
       ]
     },
     {
       "id": "AC-2035.7",
       "verdict": "PASS",
-      "note": "ADR-112 landed with the namespace rule, the single merge point, plugin precedence (catalog < plugin < config) and the persisted-set tradeoff; ADR README index + DECISIONS digest regenerated; CONTRIBUTING gained the §invariants subsection.",
+      "note": "ADR-112 landed with the namespace rule, the single merge point, plugin precedence (catalog < plugin < config) and the persisted-set tradeoff; ADR README index + DECISIONS digest regenerated; CONTRIBUTING gained the \u00a7invariants subsection.",
       "evidence": [
         {
           "file": "docs/internal/ADR/112-project-invariants-proj-nn.md",
           "line": 1,
-          "what": "ADR-112 — project invariants (PROJ-NN)"
+          "what": "ADR-112 \u2014 project invariants (PROJ-NN)"
         },
         {
           "file": "docs/CONTRIBUTING.md",
           "line": 54,
-          "what": "§invariants: a project may declare its own invariants as PROJ-NN, pointing at ADR-112"
+          "what": "\u00a7invariants: a project may declare its own invariants as PROJ-NN, pointing at ADR-112"
         }
       ]
     },
@@ -294,7 +294,7 @@
         {
           "file": "src/templates/scripts/check-decision-registry.mjs.ejs",
           "line": 26,
-          "what": "if (source.includes('arbiter:preserve')) → SKIP, enforcement review is manual"
+          "what": "if (source.includes('arbiter:preserve')) \u2192 SKIP, enforcement review is manual"
         },
         {
           "file": "__tests__/generators/decision-registry.test.ts",
@@ -311,7 +311,7 @@
         {
           "file": "src/templates/agents-md/AGENTS.md.ejs",
           "line": 29,
-          "what": "Level 2.5: DECISION_REGISTRY.md — blocked project decisions (D-NN, #2036)"
+          "what": "Level 2.5: DECISION_REGISTRY.md \u2014 blocked project decisions (D-NN, #2036)"
         },
         {
           "file": "__tests__/generators/decision-registry.test.ts",
@@ -323,12 +323,12 @@
     {
       "id": "AC-2036.5",
       "verdict": "PASS",
-      "note": "ADR-113 documents the 3-layer model, the D-NN table format + enforcement grammar, the orphan gate, gold-doc-set tracking, arbiter:preserve adoption semantics and the D-NN → PROJ-NN promotion path.",
+      "note": "ADR-113 documents the 3-layer model, the D-NN table format + enforcement grammar, the orphan gate, gold-doc-set tracking, arbiter:preserve adoption semantics and the D-NN \u2192 PROJ-NN promotion path.",
       "evidence": [
         {
           "file": "docs/internal/ADR/113-decision-registry-dnn.md",
           "line": 1,
-          "what": "ADR-113 — decision registry (D-NN)"
+          "what": "ADR-113 \u2014 decision registry (D-NN)"
         },
         {
           "file": "docs/internal/ADR/113-decision-registry-dnn.md",
@@ -340,7 +340,7 @@
     {
       "id": "AC-2036.6",
       "verdict": "PASS",
-      "note": "GLOBAL_INVARIANTS.md was verified absent from the manifest on main and is now registered (conditional+always ⇒ advisory gap, so an L1 essential project where the generator deliberately non-emits never hard-fails).",
+      "note": "GLOBAL_INVARIANTS.md was verified absent from the manifest on main and is now registered (conditional+always \u21d2 advisory gap, so an L1 essential project where the generator deliberately non-emits never hard-fails).",
       "evidence": [
         {
           "file": "src/templates/standards/gold-doc-set.yml.ejs",
@@ -362,7 +362,7 @@
     {
       "id": "AC-2044.1",
       "verdict": "PASS",
-      "note": "Both consumer-facing files are emitted at L2+ from generateSsot into docs/METHOD/: PATTERNS_CATALOG.md (pre-existing, #2079) and REUSE_REGISTRY.md (the register itself, new here — only its SPEC was emitted before). Both skipIfExists so `arbiter update` never clobbers catalogued entries.",
+      "note": "Both consumer-facing files are emitted at L2+ from generateSsot into docs/METHOD/: PATTERNS_CATALOG.md (pre-existing, #2079) and REUSE_REGISTRY.md (the register itself, new here \u2014 only its SPEC was emitted before). Both skipIfExists so `arbiter update` never clobbers catalogued entries.",
       "evidence": [
         {
           "file": "src/generators/ssot.ts",
@@ -372,7 +372,7 @@
         {
           "file": "src/generators/ssot.ts",
           "line": 74,
-          "what": "REUSE_REGISTRY.md register emitted — the #2044 gap closed"
+          "what": "REUSE_REGISTRY.md register emitted \u2014 the #2044 gap closed"
         },
         {
           "file": "src/templates/root/docs/METHOD/REUSE_REGISTRY.md.ejs",
@@ -394,7 +394,7 @@
         {
           "file": "src/config/schema.ts",
           "line": 351,
-          "what": "invariants_catalog?: 'core' | 'extended' — the pre-existing activation surface"
+          "what": "invariants_catalog?: 'core' | 'extended' \u2014 the pre-existing activation surface"
         },
         {
           "file": "src/config/resolve-project-config.ts",
@@ -458,7 +458,7 @@
         {
           "file": "src/templates/scripts/check-drift.mjs.ejs",
           "line": 14,
-          "what": "live-SSOT binding — the automatic equivalent of INV-63"
+          "what": "live-SSOT binding \u2014 the automatic equivalent of INV-63"
         },
         {
           "file": "docs/internal/ADR/114-extended-invariants-live-ssot.md",
@@ -492,7 +492,7 @@
     {
       "id": "AC-2044.6",
       "verdict": "PASS",
-      "note": "The obligation is limited to surfaces declared in .arbiter/live-ssot.json (scaffold emitted only when governance.liveSsot is declared); absent manifest or parentless HEAD SKIP — consistent with the softening, not every commit.",
+      "note": "The obligation is limited to surfaces declared in .arbiter/live-ssot.json (scaffold emitted only when governance.liveSsot is declared); absent manifest or parentless HEAD SKIP \u2014 consistent with the softening, not every commit.",
       "evidence": [
         {
           "file": "src/generators/anti-drift-validators.ts",
@@ -519,12 +519,12 @@
         {
           "file": "src/templates/scripts/check-all.mjs.ejs",
           "line": 282,
-          "what": "AC-2041.1: L3/L4 are now executable LOCAL lanes — clamp removed"
+          "what": "AC-2041.1: L3/L4 are now executable LOCAL lanes \u2014 clamp removed"
         },
         {
           "file": "__tests__/gates/gate-registry.test.ts",
           "line": 100,
-          "what": "AC-2041.1: L3 is an executable local lane — no clamp warning, L3 gates run"
+          "what": "AC-2041.1: L3 is an executable local lane \u2014 no clamp warning, L3 gates run"
         },
         {
           "file": "__tests__/templates/check-all-render.test.ts",
@@ -536,7 +536,7 @@
     {
       "id": "AC-2041.2",
       "verdict": "PASS",
-      "note": "Gate→level membership is declarative: moving a gate's level in gate-registry.yml.ejs changes its lane membership in the rendered check-all, replacing the hardcoded EJS ifs.",
+      "note": "Gate\u2192level membership is declarative: moving a gate's level in gate-registry.yml.ejs changes its lane membership in the rendered check-all, replacing the hardcoded EJS ifs.",
       "evidence": [
         {
           "file": "src/templates/scripts/gate-registry.yml.ejs",
@@ -553,7 +553,7 @@
     {
       "id": "AC-2041.3",
       "verdict": "PASS",
-      "note": "test-gate-layering.mjs is emitted INTO consumers (not an arbiter-internal-only test) and asserts L1 ⊆ L2 ⊆ L3 containment from the embedded registry; verified materialized in all three regenerated examples.",
+      "note": "test-gate-layering.mjs is emitted INTO consumers (not an arbiter-internal-only test) and asserts L1 \u2286 L2 \u2286 L3 containment from the embedded registry; verified materialized in all three regenerated examples.",
       "evidence": [
         {
           "file": "src/templates/scripts/test-gate-layering.mjs.ejs",
@@ -573,14 +573,14 @@
         {
           "file": "examples/ts-library/scripts/check-all.mjs",
           "line": 927,
-          "what": "consumer wiring: gateFilePresent('scripts/test-gate-layering.mjs') → runCheck"
+          "what": "consumer wiring: gateFilePresent('scripts/test-gate-layering.mjs') \u2192 runCheck"
         }
       ]
     },
     {
       "id": "AC-2041.4",
       "verdict": "PASS",
-      "note": "The registry is a schema-validated YAML carrying id/name/level/kind/cmd/emitIf/condition/else/soft for 100+ gates; the generator (loadGateRegistry) renders and validates it and the template embeds the effective set as GATE_REGISTRY. The inline runCheck surface went 191 → 0.",
+      "note": "The registry is a schema-validated YAML carrying id/name/level/kind/cmd/emitIf/condition/else/soft for 100+ gates; the generator (loadGateRegistry) renders and validates it and the template embeds the effective set as GATE_REGISTRY. The inline runCheck surface went 191 \u2192 0.",
       "evidence": [
         {
           "file": "src/templates/scripts/gate-registry.yml.ejs",
@@ -590,7 +590,7 @@
         {
           "file": "src/generators/check-all.ts",
           "line": 13,
-          "what": "loadGateRegistry — every gate the emitted check-all runs"
+          "what": "loadGateRegistry \u2014 every gate the emitted check-all runs"
         },
         {
           "file": "src/templates/scripts/check-all.mjs.ejs",
@@ -607,7 +607,7 @@
     {
       "id": "AC-2041.5",
       "verdict": "PASS",
-      "note": "--dry-run re-based on the registry preserves the #2078 contract: prints the manifest, records SKIP, never spawns, exit 0 — and stamps no gate-pass marker or result JSON (anti-fake-green).",
+      "note": "--dry-run re-based on the registry preserves the #2078 contract: prints the manifest, records SKIP, never spawns, exit 0 \u2014 and stamps no gate-pass marker or result JSON (anti-fake-green).",
       "evidence": [
         {
           "file": "__tests__/templates/check-all-inspect-flags.test.ts",
@@ -656,7 +656,7 @@
         {
           "file": "__tests__/scripts/check-smoke-journeys.test.ts",
           "line": 271,
-          "what": "AC-2043.1: smoke-journey trio floor — fails naming missing crud/authz when only login is declared"
+          "what": "AC-2043.1: smoke-journey trio floor \u2014 fails naming missing crud/authz when only login is declared"
         },
         {
           "file": "src/templates/scripts/check-smoke-journeys.mjs.ejs",
@@ -673,7 +673,7 @@
         {
           "file": "src/config/schema.ts",
           "line": 1421,
-          "what": "AC-2043.2: per-project floor — 2..4 keeps the trio configurable"
+          "what": "AC-2043.2: per-project floor \u2014 2..4 keeps the trio configurable"
         },
         {
           "file": "src/config/schema.ts",
@@ -695,7 +695,7 @@
     {
       "id": "AC-2043.3",
       "verdict": "PASS",
-      "note": "The floor gate is registered at L1 in the declarative registry, so every consumer emission wires it — verified materialized and wired in the regenerated examples, alongside coach's already-wired check-render-smoke (restored by #495).",
+      "note": "The floor gate is registered at L1 in the declarative registry, so every consumer emission wires it \u2014 verified materialized and wired in the regenerated examples, alongside coach's already-wired check-render-smoke (restored by #495).",
       "evidence": [
         {
           "file": "src/templates/scripts/gate-registry.yml.ejs",
@@ -739,17 +739,17 @@
     {
       "id": "AC-2043.5",
       "verdict": "FAIL",
-      "note": "GAP: half the criterion is unbuilt. The cross-run consecutive-failure COUNTER exists (check-e2e-escalation.mjs reads the append-only ledger and counts the trailing REGRESSION run — that half is real). The PROGRESSIVE 2→3→5 escalation does NOT: escalation.strikes is schema-validated as an array of numbers but is DECLARATIVE ONLY. Only the single scalar maxStrikes drives the escalate/no-escalate decision (`if (consecutive >= maxStrikes)`), so there is exactly one rung, not a ladder — no widen-at-2 / force-full-suite-at-3 / hard-stop-at-5 behavior exists. The implementation admits this in-code and in commit 10cf4490 ('per-rung behavior ... is a follow-up, not built here (no RED test requires it)'). No RED test was written for the ladder, so the criterion was never driven.",
+      "note": "GAP: half the criterion is unbuilt. The cross-run consecutive-failure COUNTER exists (check-e2e-escalation.mjs reads the append-only ledger and counts the trailing REGRESSION run \u2014 that half is real). The PROGRESSIVE 2\u21923\u21925 escalation does NOT: escalation.strikes is schema-validated as an array of numbers but is DECLARATIVE ONLY. Only the single scalar maxStrikes drives the escalate/no-escalate decision (`if (consecutive >= maxStrikes)`), so there is exactly one rung, not a ladder \u2014 no widen-at-2 / force-full-suite-at-3 / hard-stop-at-5 behavior exists. The implementation admits this in-code and in commit 10cf4490 ('per-rung behavior ... is a follow-up, not built here (no RED test requires it)'). No RED test was written for the ladder, so the criterion was never driven. | DEFERRED per Iron Law: tracked follow-up #2248 (progressive rung ladder). Owner-accepted deferral, wave-3 orchestrator 2026-08-08.",
       "evidence": [
         {
           "file": "src/config/schema.ts",
           "line": 156,
-          "what": "'currently DECLARATIVE ONLY — only maxStrikes drives the actual escalate/no-escalate decision; per-rung behavior at each strikes value is a follow-up'"
+          "what": "'currently DECLARATIVE ONLY \u2014 only maxStrikes drives the actual escalate/no-escalate decision; per-rung behavior at each strikes value is a follow-up'"
         },
         {
           "file": "scripts/check-e2e-escalation.mjs",
           "line": 105,
-          "what": "if (consecutive >= maxStrikes) — a single scalar threshold, not a 2→3→5 ladder"
+          "what": "if (consecutive >= maxStrikes) \u2014 a single scalar threshold, not a 2\u21923\u21925 ladder"
         },
         {
           "file": "src/config/schema.ts",
@@ -798,7 +798,7 @@
         {
           "file": "src/commands/task-state.ts",
           "line": 144,
-          "what": "normalizeChainId — canonical #NNN + numeric validation"
+          "what": "normalizeChainId \u2014 canonical #NNN + numeric validation"
         },
         {
           "file": "__tests__/commands/task.test.ts",
@@ -825,7 +825,7 @@
         {
           "file": "__tests__/commands/task-ship.test.ts",
           "line": 404,
-          "what": "chain declared → close text names every id, primary first"
+          "what": "chain declared \u2192 close text names every id, primary first"
         },
         {
           "file": "__tests__/commands/task-ship.test.ts",
@@ -842,24 +842,24 @@
         {
           "file": "__tests__/commands/ship-profile.test.ts",
           "line": 552,
-          "what": "peer-review repo + --chain → complete step is still a PR close action, never direct push"
+          "what": "peer-review repo + --chain \u2192 complete step is still a PR close action, never direct push"
         },
         {
           "file": "__tests__/commands/ship-profile.test.ts",
           "line": 565,
-          "what": "trunk-solo + direct repo + --chain → STILL direct push (axis unaffected either way)"
+          "what": "trunk-solo + direct repo + --chain \u2192 STILL direct push (axis unaffected either way)"
         },
         {
           "file": "__tests__/commands/task-ship.test.ts",
           "line": 432,
-          "what": "peer-review + chain → STILL one PR, never a direct push"
+          "what": "peer-review + chain \u2192 STILL one PR, never a direct push"
         }
       ]
     },
     {
       "id": "AC-2102.4",
       "verdict": "PASS",
-      "note": "The chain gate in pre-push.ejs computes its OWN push range (unconditional — independent of the enableSecurityScanning-gated gitleaks PUSH_RANGE), hard-fails naming the missing id, passes when every id in [taskId, ...chainIds] has a commit in range, and is byte-identically silent when chainIds is absent/empty/unreadable.",
+      "note": "The chain gate in pre-push.ejs computes its OWN push range (unconditional \u2014 independent of the enableSecurityScanning-gated gitleaks PUSH_RANGE), hard-fails naming the missing id, passes when every id in [taskId, ...chainIds] has a commit in range, and is byte-identically silent when chainIds is absent/empty/unreadable.",
       "evidence": [
         {
           "file": "src/templates/githooks/pre-push.ejs",
@@ -874,12 +874,12 @@
         {
           "file": "__tests__/githooks/pre-push.test.ts",
           "line": 323,
-          "what": "chain declared, one chain id has NO commit in the push range → hook fails, names it"
+          "what": "chain declared, one chain id has NO commit in the push range \u2192 hook fails, names it"
         },
         {
           "file": "__tests__/githooks/pre-push.test.ts",
           "line": 365,
-          "what": "no chainIds declared → output byte-identical to the pre-chain hook (no-op)"
+          "what": "no chainIds declared \u2192 output byte-identical to the pre-chain hook (no-op)"
         }
       ]
     },
@@ -923,7 +923,7 @@
         {
           "file": "docs/methodology/gate-throughput-patterns.md",
           "line": 53,
-          "what": "§1 gains the --chain invocation and the warning→hard-gate upgrade"
+          "what": "\u00a71 gains the --chain invocation and the warning\u2192hard-gate upgrade"
         },
         {
           "file": "docs/CONTRIBUTING.md",
@@ -935,18 +935,18 @@
     {
       "id": "AC-2102.7",
       "verdict": "NOT-TESTED",
-      "note": "Gate scheduled post-review. Per the wave-3 plan §Integration step 5 the FULL gate (L1+L2 under `arbiter gate-exec`) runs as the LAST action before `gh pr create`, because any commit after the gate invalidates head_sha for enforce-gate-before-pr.mjs. No gate-pass.json exists on this tree at review time, so there is nothing to cite. Partial signal only: 24 targeted suites (352 tests) green at HEAD=5a22602d.",
+      "note": "Gate scheduled post-review. Per the wave-3 plan \u00a7Integration step 5 the FULL gate (L1+L2 under `arbiter gate-exec`) runs as the LAST action before `gh pr create`, because any commit after the gate invalidates head_sha for enforce-gate-before-pr.mjs. No gate-pass.json exists on this tree at review time, so there is nothing to cite. Partial signal only: 24 targeted suites (352 tests) green at HEAD=5a22602d.",
       "evidence": []
     },
     {
       "id": "AC-2103.1",
       "verdict": "PASS",
-      "note": "M16 landed in the methodology doc with the Enforcement and Self/Governed rows the doc's §0 contract requires, plus a tier-table row and a mechanism-map entry, and gate-throughput-patterns.md gained §7.",
+      "note": "M16 landed in the methodology doc with the Enforcement and Self/Governed rows the doc's \u00a70 contract requires, plus a tier-table row and a mechanism-map entry, and gate-throughput-patterns.md gained \u00a77.",
       "evidence": [
         {
           "file": "docs/methodology/agent-orchestration-and-context-hygiene.md",
           "line": 521,
-          "what": "### M16 — Terminal handoff: subagents never own waits"
+          "what": "### M16 \u2014 Terminal handoff: subagents never own waits"
         },
         {
           "file": "docs/methodology/agent-orchestration-and-context-hygiene.md",
@@ -963,7 +963,7 @@
     {
       "id": "AC-2103.2",
       "verdict": "PASS",
-      "note": "bg-run.sh (setsid+nohup detached, records pid/exit/log under .arbiter/bg/) and pid-watch.sh (coordinator until-loop reading the exit FILE, not process liveness) ship as .ejs twins emitted by the #2098 pr-tooling generator (refactor-first per CANON-16) and are materialized in the regenerated examples. CANON-07 respected: the tests EXECUTE the generated scripts, and the self-test fixture reproduces the exact issue failure mode — a watcher on a PID that outlives the caller's session.",
+      "note": "bg-run.sh (setsid+nohup detached, records pid/exit/log under .arbiter/bg/) and pid-watch.sh (coordinator until-loop reading the exit FILE, not process liveness) ship as .ejs twins emitted by the #2098 pr-tooling generator (refactor-first per CANON-16) and are materialized in the regenerated examples. CANON-07 respected: the tests EXECUTE the generated scripts, and the self-test fixture reproduces the exact issue failure mode \u2014 a watcher on a PID that outlives the caller's session.",
       "evidence": [
         {
           "file": "src/templates/scripts/bg-run.sh.ejs",
@@ -983,7 +983,7 @@
         {
           "file": "__tests__/scripts/m16-handoff-tools.test.ts",
           "line": 51,
-          "what": "the exact failure mode: watcher on a PID that outlives the caller session → exactly one exit line"
+          "what": "the exact failure mode: watcher on a PID that outlives the caller session \u2192 exactly one exit line"
         },
         {
           "file": "__tests__/scripts/m16-handoff-tools.test.ts",
@@ -1022,7 +1022,7 @@
     {
       "id": "AC-2103.4",
       "verdict": "PASS",
-      "note": "Orchestrator dogfood: one real dispatch with the worker ending at handoff and the coordinator watching via bg-run + pid-watch — 1 watcher line, 0 SendMessage re-engagements (evidence in the integration conversation, per the plan's §Integration step 6 which assigns this run to the orchestrator, not a worktree). The in-repo half is the executed self-tests proving the same contract mechanically.",
+      "note": "Orchestrator dogfood: one real dispatch with the worker ending at handoff and the coordinator watching via bg-run + pid-watch \u2014 1 watcher line, 0 SendMessage re-engagements (evidence in the integration conversation, per the plan's \u00a7Integration step 6 which assigns this run to the orchestrator, not a worktree). The in-repo half is the executed self-tests proving the same contract mechanically.",
       "evidence": [
         {
           "file": "scripts/bg-run.sh",
@@ -1032,7 +1032,7 @@
         {
           "file": "scripts/pid-watch.sh",
           "line": 1,
-          "what": "materialized coordinator watcher — emits exactly one exit line"
+          "what": "materialized coordinator watcher \u2014 emits exactly one exit line"
         },
         {
           "file": "__tests__/scripts/m16-handoff-tools.test.ts",
@@ -1049,7 +1049,7 @@
         {
           "file": ".claude/commands/review-code.md",
           "line": 43,
-          "what": "the tier→reviewer-count mapping lives in .claude/agent-dispatch-matrix.json"
+          "what": "the tier\u2192reviewer-count mapping lives in .claude/agent-dispatch-matrix.json"
         },
         {
           "file": ".claude/commands/review-code.md",
@@ -1059,7 +1059,7 @@
         {
           "file": "__tests__/docs/review-code-ssot.test.ts",
           "line": 16,
-          "what": "no hardcoded 3/3/5 tier table — pointer only"
+          "what": "no hardcoded 3/3/5 tier table \u2014 pointer only"
         },
         {
           "file": "__tests__/docs/review-code-ssot.test.ts",
@@ -1093,12 +1093,12 @@
         {
           "file": ".claude/commands/review-code.md",
           "line": 54,
-          "what": "## Completion check — the post-dispatch verdict/retry contract"
+          "what": "## Completion check \u2014 the post-dispatch verdict/retry contract"
         },
         {
           "file": ".claude/commands/review-code.md",
           "line": 36,
-          "what": "step 3. Verify completion — links the section into the flow"
+          "what": "step 3. Verify completion \u2014 links the section into the flow"
         },
         {
           "file": "__tests__/docs/review-code-ssot.test.ts",
@@ -1110,7 +1110,7 @@
     {
       "id": "AC-2231.4",
       "verdict": "PASS",
-      "note": "The phantom `arbiter review code` citations are removed and the docs no longer promise the multi-pass dispatch removed in #1817. NO src/cli.ts edit was made for this (verified: the only cli.ts hunks in the wave are Group D's --chain registrations) — the verb was correctly absent from the code all along. An adjacent phantom, arc42.md's `arbiter review plan`, was corrected in the same commit.",
+      "note": "The phantom `arbiter review code` citations are removed and the docs no longer promise the multi-pass dispatch removed in #1817. NO src/cli.ts edit was made for this (verified: the only cli.ts hunks in the wave are Group D's --chain registrations) \u2014 the verb was correctly absent from the code all along. An adjacent phantom, arc42.md's `arbiter review plan`, was corrected in the same commit.",
       "evidence": [
         {
           "file": "__tests__/docs/review-code-ssot.test.ts",
@@ -1142,7 +1142,7 @@
         {
           "file": "scripts/lib/cli-command-names.mjs",
           "line": 96,
-          "what": "extractSubcommandNames — the subcommand tree extension"
+          "what": "extractSubcommandNames \u2014 the subcommand tree extension"
         },
         {
           "file": "__tests__/scripts/check-phantom-command-scan.test.ts",
@@ -1171,7 +1171,7 @@
         {
           "file": ".github/labels.yml",
           "line": 57,
-          "what": "# Tracks (track model — docs/internal/METHOD/PROCESS.md)"
+          "what": "# Tracks (track model \u2014 docs/internal/METHOD/PROCESS.md)"
         },
         {
           "file": "src/templates/github/labels.yml.ejs",
