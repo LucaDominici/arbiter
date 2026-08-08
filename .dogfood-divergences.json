@@ -37,7 +37,7 @@
   {
     "path": "hooks/lib.mjs",
     "reason": "Arbiter self-dogfood: imports suppressions-shared.mjs and exports findInlineSuppression for inline-suppression directive support (INV-31). These arbiter-internal imports must not be back-ported to the template shipped to target projects.",
-    "diffHash": "7d88a9e4474ba3674be79f48a0dd7fff923761bd528d8838e2d9fc4487de9f78"
+    "diffHash": "9635567e24b512b699b46b6dcfccc2c6aa5566ae6dcca2ee339251d3710df7b7"
   },
   {
     "path": "hooks/post-edit-dispatch.mjs",
