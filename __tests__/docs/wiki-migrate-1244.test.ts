@@ -200,14 +200,20 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
   // 2026-08-03 legitimately added docs/methodology/backlog-drain-playbook.md
   // (`kind/method`, a backbone kind — the wave-drain playbook distilled from the 41-issue
   // drain run; a normative operating standard alongside the two methodology docs above).
+  // 2026-08-08 (#2241) legitimately added docs/architecture/feasibility.md — `kind/reference`
+  // (not a backbone kind) but carrying `canonical_id: 'FEASIBILITY'`, which
+  // SSOT_CORE_SET.md's own documented selection rule opts a doc into the core set
+  // regardless of kind (docs/internal/METHOD/SSOT_CORE_SET.md: "a doc qualifies when
+  // status: active and either its first kind/* tag is a backbone kind ... or it carries
+  // a non-empty canonical_id").
   // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
   // the pre-growth ceiling. Bound updated to the current real count so the budget still
   // catches future unbounded growth.
-  it('selectSsotDocs returns at most 27 canonical core docs', () => {
+  it('selectSsotDocs returns at most 28 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(27)
+    ).toBeLessThanOrEqual(28)
   })
 })

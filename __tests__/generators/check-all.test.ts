@@ -66,10 +66,11 @@ describe('generateCheckAll', () => {
     // + the 3 acceptance-anchor orchestration tools (INV-138, ADR-110):
     //   issue-readiness.mjs + rework-log.mjs + lib/acceptance-criteria.mjs
     // + check-emission-parity.mjs (#2110 — manifest-vs-disk parity in the project's own gate)
+    // + check-m16-handoff.mjs (M16 handoff-contract marker gate, #2103)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(43)
+    expect(result.files).toHaveLength(44)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/acceptance-criteria.mjs'))).toBe(

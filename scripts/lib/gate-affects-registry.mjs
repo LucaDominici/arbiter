@@ -160,6 +160,8 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'api e2e (INV-126)', affects: ALWAYS },
   { name: 'render smoke presence (INV-127)', affects: ALWAYS },
   { name: 'smoke journeys (INV-137)', affects: ALWAYS },
+  { name: 'M16 handoff-contract marker (#2103)', affects: ALWAYS },
+  { name: 'e2e escalation ladder (#2043)', affects: ALWAYS },
   { name: 'dogfood', affects: ALWAYS },
   { name: 'examples drift (#2222)', affects: ALWAYS },
   { name: 'coverage', affects: ALWAYS },

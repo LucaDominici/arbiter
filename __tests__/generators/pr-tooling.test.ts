@@ -28,23 +28,29 @@ const EMITTED = [
   'scripts/capacity-probe.mjs',
 ]
 
+// #2103 — M16 terminal-handoff shell helpers. Shell scripts don't carry an
+// SPDX header in this repo (see src/templates/scripts/*.sh.ejs), so they're
+// tracked separately from EMITTED rather than folded into the SPDX-header
+// parameterized test below.
+const SHELL_HELPERS = ['scripts/bg-run.sh', 'scripts/pid-watch.sh']
+
 // ─── CANON-05: generator unit tests ──────────────────────────────────────────
 
 describe('generatePrTooling (#2098, CANON-05)', () => {
   it('emits every declared file to the target project', () => {
     const config = makeConfig(dir)
     const result = generatePrTooling(config)
-    for (const rel of EMITTED) {
+    for (const rel of [...EMITTED, ...SHELL_HELPERS]) {
       const file = result.files.find((f) => f.path.endsWith(rel))
       expect(file, `missing ${rel}`).toBeDefined()
       expect(existsSync(file!.path)).toBe(true)
     }
   })
 
-  it('emits exactly 4 files', () => {
+  it('emits exactly 6 files', () => {
     const config = makeConfig(dir)
     const result = generatePrTooling(config)
-    expect(result.files).toHaveLength(4)
+    expect(result.files).toHaveLength(6)
   })
 
   it.each(EMITTED)('%s contains SPDX header', (rel) => {
@@ -74,7 +80,7 @@ describe('generatePrTooling (#2098, CANON-05)', () => {
   it('respects dryRun — no file written to disk', () => {
     const config = makeConfig(dir)
     generatePrTooling(config, { dryRun: true })
-    for (const rel of EMITTED) {
+    for (const rel of [...EMITTED, ...SHELL_HELPERS]) {
       expect(existsSync(join(dir, rel))).toBe(false)
     }
   })
