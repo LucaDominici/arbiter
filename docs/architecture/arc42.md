@@ -86,6 +86,14 @@ tied to the current branch and SHA) is rejected like a failing gate.
 | Reviewer / auditor                    | Read a single canonical governance file; trust that claims are evidence-backed. |
 | Maintainers of arbiter                | Extend generators/invariants under the dual-track contract without drift.       |
 
+### 1.4 Feasibility
+
+Why arbiter was built this way — not just what it is — is recorded separately, retroactively, in
+[`feasibility.md`](feasibility.md): the alternatives rejected (adopt ai-rulez, per-tool configs, MCP,
+a Rust/Go binary), the TELOS-lite technical/economic/operational rationale citing the ADRs above, and
+the named triggers that would reopen the build-vs-adopt call today. This section stays the
+requirements/goals abstract; it does not restate that reasoning.
+
 ---
 
 ## 2. Architecture Constraints
@@ -376,7 +384,7 @@ behaviors and cannot be granted away**.
 
 Before any completion claim, three correlated artifacts must exist and match the current branch+SHA:
 
-1. `plan-review/latest.json` (written by `arbiter review plan`, with a SHA-256 **plan-digest** — a
+1. `plan-review/latest.json` (written by the plan-review step of the task lifecycle — a SHA-256 **plan-digest** — a
    plan changed since review fails the gate),
 2. `.arbiter/agents-dispatched.json` (written by the refactor step — "I reviewed it" without real
    agent tool-calls does not satisfy it),
