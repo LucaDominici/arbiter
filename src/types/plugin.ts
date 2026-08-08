@@ -9,7 +9,7 @@ import type { Invariant } from '../invariants/types.js'
  */
 export interface ArbiterPlugin {
   name: string
-  apiVersion: '1' // unchanged; worker isolation (#620) widens return types only
+  apiVersion: '1' // unchanged; worker isolation (#620) widens return types; #2035 adds optional invariants[]
   templateRoot: string
   detect?(config: ArbiterConfig): boolean | Promise<boolean>
   generate(ctx: PluginContext): PluginResult | Promise<PluginResult>
