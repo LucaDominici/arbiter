@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 // #359 — feat(#344) Phase 7G: binary-size invariant template for Rust binary
 // archetypes. Emits a `[profile.release]` block + a binary-size check wired
@@ -47,7 +47,7 @@ describe('rust binary-size template — rendering (#359, CANON-04)', () => {
   // ── check-all.mjs.ejs — binary size step ────────────────────────────────────
 
   it('check-all.mjs.ejs emits binary-size step for rust cli archetype at L2', () => {
-    const content = renderTemplate('scripts/check-all.mjs.ejs', {
+    const content = renderCheckAll({
       ...makeConfig('/tmp/test', {
         language: 'rust',
         buildTool: 'cargo',
@@ -68,7 +68,7 @@ describe('rust binary-size template — rendering (#359, CANON-04)', () => {
 
   it('check-all.mjs.ejs omits binary-size step for rust library archetype', () => {
     // Libraries do not emit a release binary; the check must not appear.
-    const content = renderTemplate('scripts/check-all.mjs.ejs', {
+    const content = renderCheckAll({
       ...makeConfig('/tmp/test', {
         language: 'rust',
         buildTool: 'cargo',
@@ -85,7 +85,7 @@ describe('rust binary-size template — rendering (#359, CANON-04)', () => {
   })
 
   it('check-all.mjs.ejs omits binary-size step for non-rust languages', () => {
-    const content = renderTemplate('scripts/check-all.mjs.ejs', {
+    const content = renderCheckAll({
       ...makeConfig('/tmp/test', {
         language: 'typescript',
         archetype: 'cli',

@@ -262,3 +262,65 @@ describe('R12: stale manifest archetype', () => {
     }
   })
 })
+
+// ─── AC-2043.1: login/CRUD/authz TRIO floor (#2043) ─────────────────────────────
+// RED: a manifest declaring only a SUBSET of the required journeys passes today —
+// the gate checks only the journeys that ARE declared. The trio floor (auth/crud/
+// authz, configurable via smokeJourneys.requiredJourneys in arbiter.json) must be
+// DECLARED in full; a missing journey fails the gate NAMING it.
+describe('AC-2043.1: smoke-journey trio floor (#2043)', () => {
+  it('fails naming the missing crud/authz when only login is declared (and covered)', () => {
+    const { dir, cleanup } = stage(
+      {
+        archetype: 'frontend-spa',
+        applicable: true,
+        journeys: [
+          {
+            id: 'auth',
+            name: 'Authentication flow',
+            globs: ['tests/smoke/**/*.spec.ts'],
+            status: 'required',
+          },
+        ],
+      },
+      { archetype: 'frontend-spa' },
+    )
+    try {
+      withSpec(dir, 'tests/smoke/auth.spec.ts')
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('crud')
+      expect(r.stderr).toContain('authz')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('passes when the full trio is declared and the required ones are covered', () => {
+    const { dir, cleanup } = stage(
+      {
+        archetype: 'frontend-spa',
+        applicable: true,
+        journeys: [
+          { id: 'auth', name: 'Authentication flow', globs: ['tests/smoke/**/*.spec.ts'], status: 'required' },
+          { id: 'crud', name: 'Core CRUD operation', globs: ['tests/smoke/**/*.spec.ts'], status: 'required' },
+          {
+            id: 'authz',
+            name: 'Authorization enforcement',
+            globs: ['tests/smoke/**/*.spec.ts'],
+            status: 'n/a',
+            rationale: 'authz is enforced server-side and covered by the backend api-e2e suite.',
+          },
+        ],
+      },
+      { archetype: 'frontend-spa' },
+    )
+    try {
+      withSpec(dir, 'tests/smoke/smoke-journeys.spec.ts')
+      const r = run(dir)
+      expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})

@@ -416,6 +416,10 @@ export interface ProjectConfig {
   preset?: ProjectPreset
   /** Include extended opt-in invariants (INV-62..INV-71). True when governance.invariants_catalog = 'extended'. */
   includeExtendedInvariants?: boolean
+  /** #2035: project-declared invariants (PROJ-NN), merged at getFilteredInvariants. */
+  projectInvariants?: Invariant[]
+  /** #2044: declared-live SSOT surfaces bound by check-drift --live-ssot. */
+  liveSsot?: LiveSsotConfig
   /**
    * CI tier emission mode.
    * @deprecated Use pipelineStyle instead. Kept for one minor version as a fallback alias.
@@ -609,4 +613,95 @@ export interface EvidenceRetentionConfig {
   count?: number
   /** For external-bucket: target URL (e.g. s3://bucket/path). */
   bucketUrl?: string
+}
+
+/**
+ * #2035: lives here (not invariants/types.ts) to give ProjectConfig a
+ * dependency-free home — invariants/types.ts imports Language/GovernanceLevel
+ * from this module, so defining Invariant here keeps the graph acyclic
+ * (same trade as AutonomyLevel above). Re-exported from invariants/types.ts
+ * for its existing consumers.
+ */
+export interface Invariant {
+  /** Unique identifier, e.g. "INV-01" (built-in) or "PROJ-01" (project-declared, #2035). */
+  id: string
+  tier: InvariantTier
+  /** One-liner for AGENTS.md */
+  title: string
+  /** Detailed explanation for GLOBAL_INVARIANTS.md */
+  description: string
+  /** If set, invariant only applies to these languages. Omit for all languages. */
+  languages?: Language[]
+  /**
+   * Per-language variant of title. Used instead of title when language matches.
+   * When set, MUST cover every language declared in `languages` — enforced at
+   * gate time by the catalog-parity test (#680).
+   */
+  languageDetail?: Partial<Record<Language, string>>
+  /**
+   * Minimum governance level required.
+   * If omitted, applies at all levels.
+   */
+  minGovernanceLevel?: GovernanceLevel
+  /**
+   * Bypasses the invariantTiers filter — this invariant appears regardless of
+   * which tiers the caller selects. minGovernanceLevel is still enforced.
+   */
+  alwaysActive: boolean
+  /** How this invariant is enforced (e.g. "hook + CI", "CI only", "manual") */
+  enforcement?: string
+  /**
+   * Optional ADR id this invariant traces to, e.g. "ADR-051". When set, the
+   * referenced ADR file MUST exist under docs/internal/ADR/ — enforced by the
+   * invariant↔ADR traceability test (#1102).
+   */
+  adr?: string
+  /**
+   * Lifecycle status. Omit (or "active") for in-use invariants.
+   * Set to "retired" when an invariant is superseded or removed — IDs must never be reused.
+   */
+  status?: 'active' | 'retired'
+  /**
+   * Required when status is "retired". Explains why and what replaced this invariant.
+   */
+  retiredReason?: string
+  /**
+   * Optional: the ID of the invariant that supersedes this one.
+   * Only set when status is "retired".
+   */
+  redirectTo?: string
+  /**
+   * True for invariants that only apply to arbiter's own development.
+   * These are excluded from generated target-project AGENTS.md / GLOBAL_INVARIANTS.md.
+   */
+  selfOnly?: boolean
+  /**
+   * Opt-in group identifier. Invariants in a named group are excluded from
+   * the default filter and only appear when the caller explicitly opts in.
+   * Currently supported: 'extended' (INV-62..INV-71, enabled via
+   * arbiter.json governance.invariants_catalog = 'extended').
+   */
+  optInGroup?: 'extended'
+  /**
+   * The minimum number of required items that must be present to satisfy the
+   * invariant in self-mode during a partial rollout (e.g. INV-73's W4→W10 CI-tier
+   * ramp). Read by scripts/check-ci-tiers.mjs as the sole rollout knob.
+   */
+  minPresent?: number
+}
+
+/**
+ * #2044 (AC-2044.5/6): declared-live SSOT surfaces (matrix/ledger) that a code
+ * change must update in the SAME commit — bound by check-drift --live-ssot.
+ * Obligation is limited to these surfaces (the softening).
+ */
+export interface LiveSsotSurface {
+  path: string
+  kind: 'matrix' | 'ledger'
+  /** Optional key column names the drift check may use for finer binding. */
+  keys?: string[]
+}
+
+export interface LiveSsotConfig {
+  surfaces: LiveSsotSurface[]
 }

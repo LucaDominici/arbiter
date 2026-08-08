@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 function render(tpl: string, overrides: Record<string, unknown> = {}): string {
   const data = makeConfig('/tmp/test', overrides as never) as unknown as Record<string, unknown>
@@ -95,8 +95,14 @@ describe('run-helpers.mjs.ejs — resolveTmpfsTmpdir free-space guard (#2104)', 
 })
 
 describe('check-all.mjs.ejs — TMPDIR is set before the first child spawn (#2104)', () => {
+  // #2041: check-all.mjs.ejs is registry-driven — render through the shared helper.
   const gate = () =>
-    render('scripts/check-all.mjs.ejs', { language: 'typescript', governanceLevel: 'L1' })
+    renderCheckAll(
+      makeConfig('/tmp/test', {
+        language: 'typescript',
+        governanceLevel: 'L1',
+      }) as unknown as Record<string, unknown>,
+    )
 
   it('resolves the tmpfs TMPDIR only when the caller has not already set one', () => {
     const out = gate()
@@ -124,8 +130,14 @@ describe('check-all.mjs.ejs — Go coverage profile keeps the default covermode 
     coverageThreshold: 80,
   }
 
+  // #2041: registry-driven — render through the shared helper with a full makeConfig base.
+  const renderGoGate = () =>
+    renderCheckAll(
+      makeConfig('/tmp/test', goCfg as never) as unknown as Record<string, unknown>,
+    )
+
   it('still emits the coverage profile step', () => {
-    expect(render('scripts/check-all.mjs.ejs', goCfg)).toContain("runCheck('coverage profile'")
+    expect(renderGoGate()).toContain("runCheck('coverage profile'")
   })
 
   it('does not pin -covermode=atomic', () => {
@@ -135,7 +147,7 @@ describe('check-all.mjs.ejs — Go coverage profile keeps the default covermode 
     // coverage is identical between the modes; atomic counters are only required under -race,
     // a separate step that collects no coverage. `set` can only ever under-report, and the
     // threshold is a floor — the fail-safe direction.
-    expect(render('scripts/check-all.mjs.ejs', goCfg)).not.toContain('-covermode=atomic')
+    expect(renderGoGate()).not.toContain('-covermode=atomic')
   })
 
   it('debt-lib.mjs.ejs is the alignment target and stays on the default covermode', () => {

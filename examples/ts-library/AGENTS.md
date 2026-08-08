@@ -26,8 +26,13 @@ When documents conflict, higher level wins. No debate.
 ```
 Level 1:  AGENTS.md — invariants + governance (this file)
 Level 2:  Architecture docs (docs/SYSTEM/ARCHITECTURE.md, PROJECT_STATUS.md)
+Level 2.5: DECISION_REGISTRY.md — blocked project decisions (D-NN, #2036)
 Level 3:  Source code + tests — implementation truth
 ```
+
+Blocked decisions live in `DECISION_REGISTRY.md` (D-NN — one rule lives in ONE
+registry; a decision that matures into a permanent rule promotes to a PROJ-NN
+invariant). The decision-registry gate fails on orphan D-NN decisions.
 
 ---
 

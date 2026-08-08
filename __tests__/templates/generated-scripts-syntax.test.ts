@@ -41,7 +41,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
 
 const TEMPLATES_DIR = resolve('src/templates')
@@ -160,7 +160,12 @@ describe('generated executable .mjs templates are valid JavaScript (#1540, #1549
         for (const tpl of SCRIPT_TEMPLATES) {
           let rendered: string
           try {
-            rendered = renderTemplate(tpl, data)
+            // #2041: check-all.mjs.ejs is registry-driven — render it through the
+            // shared helper (which loads the declarative gate registry).
+            rendered =
+              tpl === 'scripts/check-all.mjs.ejs'
+                ? renderCheckAll(data)
+                : renderTemplate(tpl, data)
           } catch (err) {
             renderFailures.push(`${tpl}: ${String(err).split('\n')[0]}`)
             continue

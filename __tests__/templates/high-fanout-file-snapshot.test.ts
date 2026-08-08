@@ -24,7 +24,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 const REPRESENTATIVE_CONFIG = {
   ...makeConfig('/tmp/arbiter-high-fanout-snapshot', {
@@ -55,7 +55,7 @@ describe('high-fanout template full-content approval snapshots', () => {
   })
 
   it('scripts/check-all.mjs.ejs matches the approved snapshot', async () => {
-    const rendered = renderTemplate('scripts/check-all.mjs.ejs', REPRESENTATIVE_CONFIG)
+    const rendered = renderCheckAll(REPRESENTATIVE_CONFIG)
     await expect(rendered).toMatchFileSnapshot('__snapshots__/high-fanout/check-all.mjs')
   })
 })

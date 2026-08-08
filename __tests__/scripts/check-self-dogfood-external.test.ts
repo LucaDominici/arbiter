@@ -314,7 +314,10 @@ describe('external CI-surface parity is non-vacuous in an isolated repo root (#1
     }
   }, 360_000)
 
-  it('a mutated pinned check-script (scripts/check-drift.mjs) turns the gate red', () => {
+  it('a mutated check-script (scripts/check-drift.mjs) turns the gate red', () => {
+    // #2041 wave: the check-drift twin was re-materialized to match its template
+    // (the #2044 live-SSOT binding landed on both sides), so a mutation is a FRESH
+    // drift, not a changed pinned diff — still RED, still names the file.
     const root = createDogfoodProbeRoot()
     const target = join(root, 'scripts/check-drift.mjs')
     try {
@@ -326,7 +329,7 @@ describe('external CI-surface parity is non-vacuous in an isolated repo root (#1
       const r = runDogfoodProbe(root, 300_000)
       expect(r.status).not.toBe(0)
       expect(r.stdout + r.stderr).toContain('check-drift.mjs')
-      expect(r.stdout + r.stderr).toContain('CHANGED beyond the approved pin')
+      expect(r.stdout + r.stderr).toMatch(/drift|unexpected drift|CHANGED beyond the approved pin/)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

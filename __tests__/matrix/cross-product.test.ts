@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 import type {
   Language,
   GovernanceLevel,
@@ -265,7 +265,7 @@ describe('cross-product: check-all.mjs — language check commands', () => {
   // These tests verify the correct per-language check commands are rendered.
 
   it('typescript: contains eslint, prettier, npm test, and npm audit', () => {
-    const content = renderTemplate('scripts/check-all.mjs.ejs', configFor('typescript', 'L2'))
+    const content = renderCheckAll(configFor('typescript', 'L2'))
     expect(content).toContain('eslint')
     expect(content).toContain('prettier')
     expect(content).toContain("'npm'")
@@ -273,7 +273,7 @@ describe('cross-product: check-all.mjs — language check commands', () => {
   })
 
   it('java: contains checkstyleMain, gradlew test, and integrationTest (hasDatabase=true)', () => {
-    const content = renderTemplate('scripts/check-all.mjs.ejs', {
+    const content = renderCheckAll({
       ...configFor('java', 'L2'),
       hasDatabase: true,
     })
@@ -283,7 +283,7 @@ describe('cross-product: check-all.mjs — language check commands', () => {
   })
 
   it('rust: contains cargo fmt, clippy, cargo test, and cargo audit', () => {
-    const content = renderTemplate('scripts/check-all.mjs.ejs', configFor('rust', 'L2'))
+    const content = renderCheckAll(configFor('rust', 'L2'))
     expect(content).toContain('clippy')
     expect(content).toContain('fmt')
     expect(content).toContain("'cargo'")
@@ -291,7 +291,7 @@ describe('cross-product: check-all.mjs — language check commands', () => {
   })
 
   it('go: contains go vet, golangci-lint, go test, and staticcheck', () => {
-    const content = renderTemplate('scripts/check-all.mjs.ejs', configFor('go', 'L2'))
+    const content = renderCheckAll(configFor('go', 'L2'))
     expect(content).toContain('vet')
     expect(content).toContain('golangci-lint')
     expect(content).toContain("'go'")
@@ -302,7 +302,7 @@ describe('cross-product: check-all.mjs — language check commands', () => {
   })
 
   it('python: contains ruff check, ruff format, pytest, and pip-audit', () => {
-    const content = renderTemplate('scripts/check-all.mjs.ejs', configFor('python', 'L2'))
+    const content = renderCheckAll(configFor('python', 'L2'))
     expect(content).toContain('ruff')
     expect(content).toContain('pytest')
     expect(content).toContain('pip-audit')
@@ -360,7 +360,7 @@ describe('cross-product: check-all.mjs — debt gate checks at L2+, absent at L1
 
   for (const lang of LANGUAGES.filter((l) => l !== 'unknown')) {
     it(`${lang}+L2: debt gate marker "${DEBT_GATE_MARKERS[lang]}" present`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L2'),
         enableDebtGates: true,
       })
@@ -368,7 +368,7 @@ describe('cross-product: check-all.mjs — debt gate checks at L2+, absent at L1
     })
 
     it(`${lang}+L3: debt gate marker "${DEBT_GATE_MARKERS[lang]}" present`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L3'),
         enableDebtGates: true,
       })
@@ -376,7 +376,7 @@ describe('cross-product: check-all.mjs — debt gate checks at L2+, absent at L1
     })
 
     it(`${lang}+L1: debt gate absent when disabled`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L1'),
         enableDebtGates: false,
       })
@@ -388,7 +388,7 @@ describe('cross-product: check-all.mjs — debt gate checks at L2+, absent at L1
 describe('cross-product: check-all.mjs — coverage threshold values at L2 vs L3', () => {
   for (const lang of ['typescript', 'rust', 'python'] as Language[]) {
     it(`${lang}+L2: coverage threshold is 80`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L2'),
         enableDebtGates: true,
       })
@@ -396,7 +396,7 @@ describe('cross-product: check-all.mjs — coverage threshold values at L2 vs L3
     })
 
     it(`${lang}+L3: coverage threshold is 85`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L3'),
         enableDebtGates: true,
       })
@@ -533,7 +533,7 @@ describe('cross-product: ship.md — testCommand and verification across all sta
 describe('cross-product: check-all.mjs — debt ratchet gate at L2+, absent at L1', () => {
   for (const lang of LANGUAGES) {
     it(`${lang}+L2: debt-report.mjs present with --gate`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L2'),
         enableDebtGates: true,
       })
@@ -542,7 +542,7 @@ describe('cross-product: check-all.mjs — debt ratchet gate at L2+, absent at L
     })
 
     it(`${lang}+L3: debt-report.mjs present with --require-improvement`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L3'),
         enableDebtGates: true,
       })
@@ -551,7 +551,7 @@ describe('cross-product: check-all.mjs — debt ratchet gate at L2+, absent at L
     })
 
     it(`${lang}+L1: debt-report.mjs absent`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L1'),
         enableDebtGates: false,
       })
@@ -862,7 +862,7 @@ describe('cross-product: check-all.mjs — suppressions expiry check at all gove
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
       it(`${lang}+${level}: suppressions expiry check present when enableSuppressions=true`, () => {
-        const content = renderTemplate('scripts/check-all.mjs.ejs', {
+        const content = renderCheckAll({
           ...configFor(lang, level),
           enableSuppressions: true,
         })
@@ -871,7 +871,7 @@ describe('cross-product: check-all.mjs — suppressions expiry check at all gove
       })
 
       it(`${lang}+${level}: suppressions expiry check absent when enableSuppressions=false`, () => {
-        const content = renderTemplate('scripts/check-all.mjs.ejs', {
+        const content = renderCheckAll({
           ...configFor(lang, level),
           enableSuppressions: false,
         })
@@ -981,9 +981,9 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
         coverageThreshold: thresholds.coverageThreshold,
         mutationEnabled: thresholds.mutationEnabled,
       }
-      const content = renderTemplate('scripts/check-all.mjs.ejs', cfg)
+      const content = renderCheckAll(cfg)
       const piiIdx = content.indexOf('pii-scan.mjs')
-      const l2BlockIdx = content.indexOf("if (level === 'L2')")
+      const l2BlockIdx = content.indexOf("if (level !== 'L1')")
       expect(piiIdx).toBeGreaterThan(-1)
       expect(l2BlockIdx).toBeGreaterThan(-1)
       expect(piiIdx).toBeLessThan(l2BlockIdx)
@@ -998,7 +998,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
         coverageThreshold: thresholds.coverageThreshold,
         mutationEnabled: thresholds.mutationEnabled,
       }
-      const content = renderTemplate('scripts/check-all.mjs.ejs', cfg)
+      const content = renderCheckAll(cfg)
       const l2BlockIdx = content.indexOf("if (level === 'L2')")
       expect(content.indexOf('gitleaks', l2BlockIdx)).toBeGreaterThan(l2BlockIdx)
     })
@@ -1012,7 +1012,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
         coverageThreshold: thresholds.coverageThreshold,
         mutationEnabled: thresholds.mutationEnabled,
       }
-      const content = renderTemplate('scripts/check-all.mjs.ejs', cfg)
+      const content = renderCheckAll(cfg)
       const marker = DEP_AUDIT_MARKERS[lang]
       if (marker) {
         const l2BlockIdx = content.indexOf("if (level === 'L2')")
@@ -1029,7 +1029,7 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
         coverageThreshold: thresholds.coverageThreshold,
         mutationEnabled: thresholds.mutationEnabled,
       }
-      const content = renderTemplate('scripts/check-all.mjs.ejs', cfg)
+      const content = renderCheckAll(cfg)
       expect(content).not.toContain('gitleaks')
       expect(content).not.toContain('govulncheck')
       expect(content).not.toContain("'dep audit (trivy fs)'")
@@ -1050,7 +1050,7 @@ describe('cross-product: check-all.mjs — mutation gate (proven=wired, beta/uns
 
   for (const [lang, marker] of Object.entries(NOT_WIRED_MARKERS) as [Language, string][]) {
     it(`${lang}+L3: check-all.mjs does NOT contain "${marker}" (beta tool, not wired per CANON-02)`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L3'),
         enableDebtGates: true,
       })
@@ -1058,7 +1058,7 @@ describe('cross-product: check-all.mjs — mutation gate (proven=wired, beta/uns
     })
 
     it(`${lang}+L2: check-all.mjs does NOT contain "${marker}"`, () => {
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L2'),
         enableDebtGates: true,
       })
@@ -1101,7 +1101,7 @@ describe('cross-product: check-all.mjs — integration test step (M26, hasDataba
       it(`${lang}+${level}+hasDatabase=true: integration marker present`, () => {
         const marker = INTEGRATION_MARKERS[lang]
         if (!marker) return
-        const content = renderTemplate('scripts/check-all.mjs.ejs', {
+        const content = renderCheckAll({
           ...configFor(lang, level),
           hasDatabase: true,
         })
@@ -1112,7 +1112,7 @@ describe('cross-product: check-all.mjs — integration test step (M26, hasDataba
     it(`${lang}+L1+hasDatabase=true: integration marker absent (L1 excluded)`, () => {
       const marker = INTEGRATION_MARKERS[lang]
       if (!marker) return
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L1'),
         hasDatabase: true,
       })
@@ -1122,7 +1122,7 @@ describe('cross-product: check-all.mjs — integration test step (M26, hasDataba
     it(`${lang}+L2+hasDatabase=false: integration marker absent`, () => {
       const marker = INTEGRATION_MARKERS[lang]
       if (!marker) return
-      const content = renderTemplate('scripts/check-all.mjs.ejs', {
+      const content = renderCheckAll({
         ...configFor(lang, 'L2'),
         hasDatabase: false,
       })
@@ -1213,7 +1213,7 @@ describe('cross-product: check-all.mjs — test naming gate wired in L1 (INV-11/
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
       it(`${lang}+${level}: check-test-naming.mjs present in gate`, () => {
-        const content = renderTemplate('scripts/check-all.mjs.ejs', configFor(lang, level))
+        const content = renderCheckAll(configFor(lang, level))
         expect(content).toContain('check-test-naming.mjs')
       })
     }
@@ -1531,17 +1531,17 @@ describe('cross-product: workflow templates — top-level permissions block (INV
 
 describe('cross-product: generated check-all.mjs — runner allowlist covers RUNNER_LABELS (INV-89, #1076)', () => {
   it('rendered check-all.mjs pattern matches RUNNER_LABELS_BUILD', () => {
-    const rendered = renderTemplate('scripts/check-all.mjs.ejs', configFor('typescript', 'L3'))
+    const rendered = renderCheckAll(configFor('typescript', 'L3'))
     expect(rendered).toContain('RUNNER_LABELS_BUILD')
   })
 
   it('rendered check-all.mjs pattern matches RUNNER_LABELS_DEPLOY', () => {
-    const rendered = renderTemplate('scripts/check-all.mjs.ejs', configFor('typescript', 'L3'))
+    const rendered = renderCheckAll(configFor('typescript', 'L3'))
     expect(rendered).toContain('RUNNER_LABELS_DEPLOY')
   })
 
   it('rendered check-all.mjs violation message references ubuntu-latest not docker-ci-build', () => {
-    const rendered = renderTemplate('scripts/check-all.mjs.ejs', configFor('typescript', 'L3'))
+    const rendered = renderCheckAll(configFor('typescript', 'L3'))
     // Violation message must name the correct fallback per ADR-023 amendment #959
     const violationLine = rendered
       .split('\n')

@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { runExplain } from '../../src/commands/explain.js'
 
 describe('runExplain', () => {
@@ -114,6 +117,69 @@ describe('runExplain', () => {
     it('returns nonzero for unknown CANON code', () => {
       const result = runExplain('CANON-9999', {})
       expect(result.exitCode).toBe(1)
+    })
+  })
+
+  describe('PROJ-NN project invariants (#2035)', () => {
+    const originalCwd = process.cwd()
+
+    afterEach(() => {
+      process.chdir(originalCwd)
+    })
+
+    it('resolves a declared PROJ invariant from the project arbiter.json (TC-1)', () => {
+      const dir = mkdtempSync(join(tmpdir(), 'explain-proj-'))
+      writeFileSync(
+        join(dir, 'arbiter.json'),
+        JSON.stringify({
+          version: '1.0.0',
+          tools: ['claude'],
+          governanceLevel: 'L2',
+          useGitHub: false,
+          features: {
+            contractTesting: false,
+            mutationTesting: false,
+            securityScanning: false,
+            evidenceHarness: false,
+            debtGates: false,
+            suppressions: false,
+          },
+          thresholds: {},
+          governance: {
+            projectInvariants: [
+              {
+                id: 'PROJ-01',
+                tier: 'governance',
+                title: 'Tenancy isolation is a product contract',
+                description: 'Every tenant-scoped resource must carry owner_id.',
+                alwaysActive: true,
+                enforcement: 'CI (constraint scan); code review',
+              },
+            ],
+          },
+        }),
+        'utf-8',
+      )
+      process.chdir(dir)
+      const result = runExplain('PROJ-01', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('Tenancy isolation is a product contract')
+      expect(result.output).toContain('Project-declared invariant')
+
+      const json = runExplain('PROJ-01', { format: 'json' })
+      expect(json.exitCode).toBe(0)
+      const parsed = JSON.parse(json.output) as Record<string, unknown>
+      expect(parsed.category).toBe('PROJ')
+
+      const list = runExplain('', { list: true })
+      expect(list.output).toContain('PROJ-01')
+      rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('reports unknown PROJ id', () => {
+      const result = runExplain('PROJ-99', {})
+      expect(result.exitCode).toBe(1)
+      expect(result.error).toContain('Unknown invariant')
     })
   })
 

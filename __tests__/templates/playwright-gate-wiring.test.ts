@@ -8,13 +8,12 @@
 
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 describe('check-all.mjs.ejs — Playwright gate wiring (#348, CANON-02)', () => {
   describe('TypeScript frontend-spa L2', () => {
     const render = (over: Record<string, unknown> = {}) =>
-      renderTemplate(
-        'scripts/check-all.mjs.ejs',
+      renderCheckAll(
         makeConfig('/tmp/test', {
           language: 'typescript',
           archetype: 'frontend-spa',
@@ -58,8 +57,7 @@ describe('check-all.mjs.ejs — Playwright gate wiring (#348, CANON-02)', () => 
 
   describe('TypeScript backend-web-db L2', () => {
     it('emits playwright gate step', () => {
-      const out = renderTemplate(
-        'scripts/check-all.mjs.ejs',
+      const out = renderCheckAll(
         makeConfig('/tmp/test', {
           language: 'typescript',
           archetype: 'backend-web-db',
@@ -73,8 +71,7 @@ describe('check-all.mjs.ejs — Playwright gate wiring (#348, CANON-02)', () => 
 
   describe('TypeScript library L2', () => {
     it('does NOT emit playwright gate step', () => {
-      const out = renderTemplate(
-        'scripts/check-all.mjs.ejs',
+      const out = renderCheckAll(
         makeConfig('/tmp/test', {
           language: 'typescript',
           archetype: 'library',
@@ -89,8 +86,7 @@ describe('check-all.mjs.ejs — Playwright gate wiring (#348, CANON-02)', () => 
 
   describe('TypeScript frontend-spa L1', () => {
     it('does NOT emit playwright gate step (L1 skips e2e)', () => {
-      const out = renderTemplate(
-        'scripts/check-all.mjs.ejs',
+      const out = renderCheckAll(
         makeConfig('/tmp/test', {
           language: 'typescript',
           archetype: 'frontend-spa',
@@ -103,9 +99,9 @@ describe('check-all.mjs.ejs — Playwright gate wiring (#348, CANON-02)', () => 
   })
 
   describe('Python backend-web-db L2 — pytest-playwright', () => {
+    // #2041: check-all.mjs.ejs is registry-driven — render through the shared helper.
     const render = (over: Record<string, unknown> = {}) =>
-      renderTemplate(
-        'scripts/check-all.mjs.ejs',
+      renderCheckAll(
         makeConfig('/tmp/test', {
           language: 'python',
           archetype: 'backend-web-db',
@@ -131,8 +127,7 @@ describe('check-all.mjs.ejs — Playwright gate wiring (#348, CANON-02)', () => 
 
   describe('Python library L2', () => {
     it('does NOT emit pytest-playwright gate step', () => {
-      const out = renderTemplate(
-        'scripts/check-all.mjs.ejs',
+      const out = renderCheckAll(
         makeConfig('/tmp/test', {
           language: 'python',
           archetype: 'library',
@@ -146,8 +141,7 @@ describe('check-all.mjs.ejs — Playwright gate wiring (#348, CANON-02)', () => 
 
   describe('Go frontend-spa L2', () => {
     it('does NOT emit playwright step (TS-only matrix proven cell)', () => {
-      const out = renderTemplate(
-        'scripts/check-all.mjs.ejs',
+      const out = renderCheckAll(
         makeConfig('/tmp/test', {
           language: 'go',
           archetype: 'frontend-spa',

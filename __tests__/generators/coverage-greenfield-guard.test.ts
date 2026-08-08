@@ -16,7 +16,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { generateCheckAll } from '../../src/generators/check-all.js'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 describe('coverage greenfield guard — emission (#1319.8)', () => {
   let dir: string
@@ -34,7 +34,7 @@ describe('coverage greenfield guard — emission (#1319.8)', () => {
   })
 
   it('check-all.mjs runs vitest with json-summary reporter and reads coverage-summary.json', () => {
-    const rendered = renderTemplate('scripts/check-all.mjs.ejs', {
+    const rendered = renderCheckAll({
       ...makeConfig('/tmp', { language: 'typescript' }),
       coverageThreshold: 80,
       coverageEnabled: true,

@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto'
 import type { Language, ProjectConfig } from '../src/wizard/types.js'
 import { presetToTiers, defaultPresetForLevel } from '../src/invariants/filter.js'
 import { acquireLock } from '../src/utils/file-lock.js'
+import { renderTemplate } from '../src/utils/render.js'
+import { loadGateRegistry } from '../src/generators/check-all.js'
 export { DEFAULT_THRESHOLDS } from '../src/config/schema.js'
 
 function sleep(ms: number): Promise<void> {
@@ -224,4 +226,27 @@ export function makeConfig(dir: string, overrides: Partial<ProjectConfig> = {}):
     lanes: [],
     ...overrides,
   }
+}
+
+/**
+ * #2041: render check-all.mjs.ejs the way the generator does. The template is
+ * now registry-driven — the emitted gate calls come from the declarative
+ * gate-registry.yml.ejs manifest (loadGateRegistry), so a bare makeConfig
+ * render throws on the absent `gates` key. This helper mirrors
+ * generateCheckAll's enrichment (coverage/mutation floors per the fixed
+ * threshold profile + the registry) so render tests exercise exactly the data
+ * the generator feeds the template.
+ */
+export function renderCheckAll(data: Record<string, unknown>): string {
+  const enriched: Record<string, unknown> = {
+    coverageThreshold: 80,
+    coverageEnabled: true,
+    mutationEnabled: true,
+    binarySizeBytes: 0,
+    ...data,
+  }
+  return renderTemplate('scripts/check-all.mjs.ejs', {
+    ...enriched,
+    gates: loadGateRegistry(enriched),
+  })
 }

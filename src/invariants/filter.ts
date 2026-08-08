@@ -23,8 +23,19 @@ export function getFilteredInvariants(config: {
    * Default: false. Enable via arbiter.json governance.invariants_catalog = 'extended'.
    */
   includeExtendedInvariants?: boolean
+  /**
+   * Project-declared invariants (PROJ-NN, #2035) merged into the filtered
+   * result. This is the SINGLE merge point through which project invariants
+   * propagate to AGENTS.md, GLOBAL_INVARIANTS.md, the graph, explain, and the
+   * parity gate. Project invariants pass the same per-entry gates as catalog
+   * entries (retired/selfOnly/extended/language/minGovernanceLevel) EXCEPT the
+   * tier filter — a project explicitly declared them, so a tier mismatch never
+   * silently drops them. Deterministic order: catalog entries first, then
+   * project invariants in declaration order.
+   */
+  projectInvariants?: Invariant[]
 }): Invariant[] {
-  return INVARIANT_CATALOG.filter((inv) => {
+  const filtered = INVARIANT_CATALOG.filter((inv) => {
     // Retired tombstones (status: 'retired') are kept in the catalog only for
     // ID-stability — they enforce nothing. Never leak them into generated
     // AGENTS.md / GLOBAL_INVARIANTS.md (#1570), matching src/graph/builders/inv.ts.
@@ -54,6 +65,21 @@ export function getFilteredInvariants(config: {
 
     return true
   })
+
+  // #2035: project-declared invariants (PROJ-NN) — same per-entry gates except
+  // the tier filter (declared = wanted). Catalog entries first, then project
+  // invariants in declaration order (deterministic merge).
+  const project = (config.projectInvariants ?? []).filter((inv) => {
+    if (inv.status === 'retired') return false
+    if (inv.optInGroup === 'extended' && !config.includeExtendedInvariants) return false
+    if (inv.selfOnly && !config.includeArbiterInternal) return false
+    if (inv.languages && !inv.languages.includes(config.language)) {
+      if (config.language !== 'multi') return false
+    }
+    return meetsGovernanceLevel(inv.minGovernanceLevel, config.governanceLevel)
+  })
+
+  return [...filtered, ...project]
 }
 
 export function getInvariantsByTier(invariants: Invariant[]): Map<InvariantTier, Invariant[]> {

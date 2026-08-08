@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig } from '../../helpers.js'
+import { makeConfig, renderCheckAll } from '../../helpers.js'
 
 function cfg(overrides = {}) {
   return makeConfig('/tmp/test', overrides) as unknown as Record<string, unknown>
@@ -41,8 +41,8 @@ describe('check-claude-md-lint template (#1266)', () => {
   })
 
   it('is wired into the target check-all template', () => {
-    const out = renderTemplate(
-      'scripts/check-all.mjs.ejs',
+    // #2041: check-all.mjs.ejs is registry-driven — render through the shared helper.
+    const out = renderCheckAll(
       cfg({
         language: 'typescript',
         coverageEnabled: false,

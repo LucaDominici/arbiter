@@ -18,21 +18,30 @@
 // the always-active set, bounded above by the catalog) — only missing-active and
 // phantom rows fail.
 //
-// Usage: node scripts/check-global-invariants-parity.mjs [--catalog=path] [--doc=path]
+// #2035 (TC-4): project-declared invariants (PROJ-NN) join the parity contract
+// when --config=arbiter.json is supplied: every always-active PROJ declared in
+// governance.projectInvariants MUST be documented, and every PROJ section in
+// the doc MUST be declared (no phantom project invariants). Without --config,
+// PROJ sections in the doc are accepted (the doc is generated from the config,
+// so presence-only toleration matches the arbiter-internal invocation).
+//
+// Usage: node scripts/check-global-invariants-parity.mjs [--catalog=path] [--doc=path] [--config=path]
 // Exit: 0 in parity; 1 on divergence; 2 on invocation error.
 // SPDX-License-Identifier: Apache-2.0
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 const catalogArg = args.find((a) => a.startsWith('--catalog='))
 const docArg = args.find((a) => a.startsWith('--doc='))
+const configArg = args.find((a) => a.startsWith('--config='))
 
 const root = process.cwd()
 const catalogPath = catalogArg
   ? resolve(catalogArg.split('=')[1])
   : resolve(root, 'src/invariants/catalog.ts')
 const docPath = docArg ? resolve(docArg.split('=')[1]) : resolve(root, 'GLOBAL_INVARIANTS.md')
+const configPath = configArg ? resolve(configArg.split('=')[1]) : null
 
 let catalogSrc
 let docSrc
@@ -65,21 +74,68 @@ const alwaysActiveIds = new Set()
   }
 }
 
-// ─── Doc: collect documented INV ids from `### INV-NN:` headings ─────────────
+// ─── Doc: collect documented INV + PROJ ids from `### NN:` headings ─────────
 const docIds = new Set()
+const projDocIds = new Set()
 for (const line of docSrc.split('\n')) {
-  const m = line.match(/^###\s+(INV-\d+):/)
-  if (m) docIds.add(m[1])
+  const invM = line.match(/^###\s+(INV-\d+):/)
+  if (invM) docIds.add(invM[1])
+  const projM = line.match(/^###\s+(PROJ-\d+):/)
+  if (projM) projDocIds.add(projM[1])
+}
+
+// ─── #2035 (TC-4): config-declared project invariants (PROJ-NN) ─────────────
+// Loaded from arbiter.json when --config is supplied; absent → tolerated.
+const configProjectInvariants = []
+if (configPath !== null) {
+  if (!existsSync(configPath)) {
+    process.stderr.write(
+      `check-global-invariants-parity: --config=${configPath} does not exist\n`,
+    )
+    process.exit(2)
+  }
+  let parsed
+  try {
+    parsed = JSON.parse(readFileSync(configPath, 'utf-8'))
+  } catch (err) {
+    process.stderr.write(
+      `check-global-invariants-parity: invalid JSON in ${configPath} — ${err.message}\n`,
+    )
+    process.exit(2)
+  }
+  const declared = parsed?.governance?.projectInvariants
+  if (declared !== undefined && !Array.isArray(declared)) {
+    process.stderr.write(
+      `check-global-invariants-parity: governance.projectInvariants in ${configPath} must be an array\n`,
+    )
+    process.exit(2)
+  }
+  if (Array.isArray(declared)) configProjectInvariants.push(...declared)
 }
 
 // ─── Forward: every always-active INV must be documented ─────────────────────
 const missing = [...alwaysActiveIds].filter((id) => !docIds.has(id)).sort()
 // ─── Reverse: every documented INV must exist in the catalog ─────────────────
 const phantom = [...docIds].filter((id) => !catalogIds.has(id)).sort()
+// ─── #2035 (TC-4): PROJ forward/reverse vs the declared config set ───────────
+const declaredAlwaysActiveProj = configProjectInvariants
+  .filter((i) => i?.alwaysActive === true)
+  .map((i) => i.id)
+  .sort()
+const missingProj =
+  configPath !== null ? declaredAlwaysActiveProj.filter((id) => !projDocIds.has(id)).sort() : []
+const phantomProj =
+  configPath !== null
+    ? [...projDocIds].filter((id) => !configProjectInvariants.some((i) => i?.id === id)).sort()
+    : []
 
-if (missing.length === 0 && phantom.length === 0) {
+if (missing.length === 0 && phantom.length === 0 && missingProj.length === 0 && phantomProj.length === 0) {
   process.stdout.write(
-    `check-global-invariants-parity: in parity — ${alwaysActiveIds.size} always-active invariants documented, no phantom rows\n`,
+    `check-global-invariants-parity: in parity — ${alwaysActiveIds.size} always-active invariants documented, no phantom rows` +
+      (configPath !== null
+        ? `, ${declaredAlwaysActiveProj.length} project invariants documented, no phantom PROJ rows`
+        : '') +
+      '\n',
   )
   process.exit(0)
 }
@@ -95,5 +151,17 @@ if (phantom.length > 0) {
     `check-global-invariants-parity: ${phantom.length} phantom invariant(s) in GLOBAL_INVARIANTS.md (no catalog entry):\n`,
   )
   for (const id of phantom) process.stderr.write(`  - ${id}\n`)
+}
+if (missingProj.length > 0) {
+  process.stderr.write(
+    `check-global-invariants-parity: ${missingProj.length} always-active project invariant(s) MISSING from GLOBAL_INVARIANTS.md (declared in governance.projectInvariants):\n`,
+  )
+  for (const id of missingProj) process.stderr.write(`  - ${id}\n`)
+}
+if (phantomProj.length > 0) {
+  process.stderr.write(
+    `check-global-invariants-parity: ${phantomProj.length} phantom project invariant(s) in GLOBAL_INVARIANTS.md (not declared in governance.projectInvariants):\n`,
+  )
+  for (const id of phantomProj) process.stderr.write(`  - ${id}\n`)
 }
 process.exit(1)

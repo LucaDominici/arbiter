@@ -4,8 +4,121 @@ import { writeFile, resolvedPath } from '../utils/fs.js'
 import { resolveEffectiveThresholds } from '../config/thresholds.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { isSubtreeFrontendLane } from '../detectors/lanes.js'
+import { levelAtLeast, LEVEL_ORDER } from '../config/levels.js'
+import { parse as parseYaml } from 'yaml'
 import type { Archetype, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+
+/**
+ * #2041 (AC-2041.4): the declarative gate registry — every gate the emitted
+ * check-all.mjs runs, with its level/name/kind/cmd. Rendered from
+ * gate-registry.yml.ejs (EJS expressions resolve with the project config) and
+ * parsed here; shape-validated so a malformed registry fails generation LOUD.
+ */
+export interface GateRegistryEntry {
+  id: string
+  name: string
+  level: 'L1' | 'L2' | 'L3'
+  kind: 'check' | 'warn' | 'tool' | 'inline'
+  cmd?: string[]
+  language?: string
+  /** Generation-time condition — resolved against the render data (e.g. useGitHub). */
+  emitIf?: string
+  /** Runtime condition — wrapped as `if (<expr>)` in the emitted script (gateFilePresent/existsSync). */
+  condition?: string
+  else?: string
+  soft?: boolean
+}
+
+const VALID_LEVELS = new Set(['L1', 'L2', 'L3'])
+const VALID_KINDS = new Set(['check', 'warn', 'tool', 'inline'])
+
+export function loadGateRegistry(data: Record<string, unknown>): GateRegistryEntry[] {
+  // Normalize the render data the registry's EJS expressions rely on — the
+  // same derivations the check-all.mjs.ejs template computes for itself:
+  // packageManager default, the L3 ratchet flag, and the FE source glob.
+  // isL3Plus is DERIVED from governanceLevel here (renderTemplate injects the
+  // same booleans via withRenderDefaults, but loadGateRegistry runs BEFORE that
+  // injection — reading data['isL3Plus'] directly would always see undefined
+  // and emit the L2 ratchet flag even for an L3 project, #2041).
+  const fe = (data['frontend'] as { framework?: string } | undefined)?.framework ?? 'react'
+  const feGlob =
+    fe === 'vue'
+      ? 'src/**/*.{ts,vue}'
+      : fe === 'svelte'
+        ? 'src/**/*.{ts,svelte}'
+        : 'src/**/*.{ts,tsx,jsx}'
+  const govLevel = data['governanceLevel']
+  const isL3Plus =
+    typeof govLevel === 'string' &&
+    (LEVEL_ORDER as readonly string[]).includes(govLevel) &&
+    levelAtLeast(govLevel as 'L1' | 'L2' | 'L3' | 'L4', 'L3')
+  const registryData = {
+    ...data,
+    packageManager: (data['packageManager'] as string | undefined) ?? 'npm',
+    ratchetFlag: isL3Plus ? '--require-improvement' : '--gate',
+    _feGlob: feGlob,
+  }
+  const rendered = renderTemplate('scripts/gate-registry.yml.ejs', registryData)
+  let parsed: unknown
+  try {
+    parsed = parseYaml(rendered)
+  } catch (err) {
+    throw new Error(
+      `gate registry: invalid YAML in gate-registry.yml.ejs — ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
+  const raw = (parsed as { gates?: unknown })?.gates
+  if (!Array.isArray(raw)) {
+    throw new Error('gate registry: missing "gates" array')
+  }
+  const seen = new Set<string>()
+  const gates: GateRegistryEntry[] = []
+  for (const entry of raw as Record<string, unknown>[]) {
+    const id = entry['id']
+    if (typeof id !== 'string' || id.length === 0) {
+      throw new Error('gate registry: every gate needs a string id')
+    }
+    if (seen.has(id)) throw new Error(`gate registry: duplicate gate id "${id}"`)
+    seen.add(id)
+    const level = entry['level']
+    if (typeof level !== 'string' || !VALID_LEVELS.has(level)) {
+      throw new Error(`gate registry: gate "${id}" has invalid level ${String(level)}`)
+    }
+    const kind = entry['kind']
+    if (typeof kind !== 'string' || !VALID_KINDS.has(kind)) {
+      throw new Error(`gate registry: gate "${id}" has invalid kind ${String(kind)}`)
+    }
+    if (kind !== 'inline' && !Array.isArray(entry['cmd'])) {
+      throw new Error(`gate registry: non-inline gate "${id}" needs a cmd array`)
+    }
+    if (kind === 'inline' && entry['cmd'] !== undefined) {
+      throw new Error(
+        `gate registry: inline gate "${id}" must not declare cmd (bodies live in the template)`,
+      )
+    }
+    // cmd is declared as `[bin, [arg, ...]]` in the YAML (readable flow form);
+    // flattened to `[bin, arg, ...]` for the render loop (g.cmd.slice(1) = args).
+    const rawCmd = entry['cmd'] as unknown[] | undefined
+    const flatCmd =
+      rawCmd !== undefined
+        ? [String(rawCmd[0]), ...((rawCmd[1] as unknown[] | undefined) ?? []).map(String)]
+        : undefined
+    gates.push({
+      id,
+      name: String(entry['name']),
+      level: level as GateRegistryEntry['level'],
+      kind: kind as GateRegistryEntry['kind'],
+      ...(flatCmd !== undefined ? { cmd: flatCmd } : {}),
+      ...(typeof entry['language'] === 'string' ? { language: entry['language'] } : {}),
+      ...(typeof entry['emitIf'] === 'string' ? { emitIf: entry['emitIf'] } : {}),
+      ...(typeof entry['condition'] === 'string' ? { condition: entry['condition'] } : {}),
+      ...(typeof entry['else'] === 'string' ? { else: entry['else'] } : {}),
+      ...(entry['soft'] === true ? { soft: true } : {}),
+    })
+  }
+  return gates
+}
 
 /**
  * #359 Phase 7G — release binary size budget per archetype (bytes). Inlined
@@ -82,6 +195,9 @@ function emitTemplateFile(
  */
 const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string }> = [
   { rel: ['scripts', 'check-all.mjs'], tpl: 'scripts/check-all.mjs.ejs' },
+  // #2041 (AC-2041.3): the emitted gate-layering contract test — asserts the
+  // L1 ⊂ L2 ⊂ L3 containment from the registry embedded in check-all.mjs.
+  { rel: ['scripts', 'test-gate-layering.mjs'], tpl: 'scripts/test-gate-layering.mjs.ejs' },
   { rel: ['scripts', 'optional-emissions.json'], tpl: 'scripts/optional-emissions.json.ejs' },
   { rel: ['scripts', 'lib', 'run-helpers.mjs'], tpl: 'scripts/lib/run-helpers.mjs.ejs' },
   {
@@ -185,6 +301,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-smoke-journeys.mjs'],
     tpl: 'scripts/check-smoke-journeys.mjs.ejs',
   },
+  // #2043 (AC-2043.5/6): e2e escalation ledger gate. Emitted unconditionally
+  // (runtime-SKIPs when .arbiter/e2e-ledger.jsonl is absent/empty) so the gate is always
+  // wired; reads the same ledger shape lib/e2e-reliability.mjs's appendLedger writes.
+  {
+    rel: ['scripts', 'check-e2e-escalation.mjs'],
+    tpl: 'scripts/check-e2e-escalation.mjs.ejs',
+  },
   {
     rel: ['scripts', 'lib', 'glob-walk.mjs'],
     tpl: 'scripts/lib/glob-walk.mjs.ejs',
@@ -235,6 +358,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   {
     rel: ['scripts', 'check-anti-fake-green.mjs'],
     tpl: 'scripts/check-anti-fake-green.mjs.ejs',
+  },
+  // #2036: decision-registry gate (D-NN orphan check) — self-contained (node-only,
+  // no lib import). SKIPs when no registry exists and when the registry carries
+  // `arbiter:preserve` (user-owned format); fails on orphan D-NN decisions.
+  {
+    rel: ['scripts', 'check-decision-registry.mjs'],
+    tpl: 'scripts/check-decision-registry.mjs.ejs',
   },
   // #1497 (A5): ship arbiter's deterministic file-scan anti-fake-green guards INTO the generated
   // project so a planted false-green is caught by THIS project's own gate — not only by arbiter's.
@@ -342,6 +472,25 @@ function emitDebtGated(
   return DEBT_GATED_EMISSIONS.map(({ rel, tpl }) => emitTemplateFile(base, rel, tpl, data, opts))
 }
 
+// #2044 (AC-2044.3): the reuse-registry gate. Emission follows the SAME
+// predicate as the wiring in check-all.mjs.ejs (includeExtendedInvariants) so
+// a non-extended consumer never carries an unwired guard (check-unwired-guards
+// class, #2159).
+const EXTENDED_GATED_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string }> = [
+  { rel: ['scripts', 'check-reuse-registry.mjs'], tpl: 'scripts/check-reuse-registry.mjs.ejs' },
+]
+
+function emitExtendedGated(
+  base: string,
+  data: { includeExtendedInvariants?: boolean },
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  if (data.includeExtendedInvariants !== true) return []
+  return EXTENDED_GATED_EMISSIONS.map(({ rel, tpl }) =>
+    emitTemplateFile(base, rel, tpl, data, opts),
+  )
+}
+
 export function generateCheckAll(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -365,9 +514,14 @@ export function generateCheckAll(
     // emission on archetype before reading the variable, so 0 is inert.
     binarySizeBytes: binarySizeBudget(config.archetype),
   }
+  // #2041: the declarative gate registry (AC-2041.4) — the emitted
+  // check-all.mjs embeds it and runs gates from it. Loaded from the SAME
+  // enriched data the template renders with (coverage thresholds etc.).
+  ;(data as unknown as { gates: GateRegistryEntry[] }).gates = loadGateRegistry(data)
 
   results.push(...emitUnconditional(base, data, opts))
   results.push(...emitDebtGated(base, data, opts))
+  results.push(...emitExtendedGated(base, data, opts))
 
   // #1319.8 — greenfield-aware coverage gate predicate (TS + coverage only).
   results.push(...emitCoverageGate(base, data, opts))

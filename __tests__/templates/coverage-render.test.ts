@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 describe('coverage config templates — rendering (CANON-04)', () => {
   // ── jacoco.gradle.ejs ──────────────────────────────────────────────────────
@@ -354,7 +354,7 @@ describe('coverage config templates — rendering (CANON-04)', () => {
       mutationEnabled: false,
       mutationThreshold: 85,
     } as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('coverage.html')
   })
 
@@ -370,7 +370,7 @@ describe('coverage config templates — rendering (CANON-04)', () => {
       mutationEnabled: false,
       mutationThreshold: 85,
     } as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('--cov-report=html')
     expect(content).toContain('--cov-report=xml')
   })

@@ -28,6 +28,7 @@ import type {
   WorktreeConfig,
 } from '../wizard/types.js'
 import type { BrownfieldClass } from '../kit/thresholds.js'
+import type { Invariant } from '../invariants/types.js'
 
 export type { ThresholdsV2, TaskTiers }
 
@@ -123,6 +124,47 @@ export interface AutomationConfig {
   defaultGateLevel?: GateLevel
   /** #1306 (ADR-094 §Decision.4) — whether ship groups affinity-related issues into one batch. Absent ⇒ derived per collaboration mode. */
   affinityBatching?: boolean
+}
+
+/**
+ * #2043 (AC-2043.2): the per-project smoke-journey acceptance floor. Declared in
+ * arbiter.json so the generated check-smoke-journeys.mjs gate enforces a genuine
+ * login/CRUD/authz floor per project — not just the journeys a team happened to
+ * declare. Absent ⇒ the gate falls back to the login/CRUD/authz trio.
+ */
+export interface SmokeJourneyPolicy {
+  /** Journey ids that must ALL be declared in smoke-journeys.json. Default: ['auth','crud','authz']. */
+  requiredJourneys?: string[]
+  /** Per-project floor: minimum number of DECLARED journeys (2..4). Default: 3. */
+  minJourneys?: number
+}
+
+/**
+ * #2043 (AC-2043.4/5): the e2e escalation policy — the configurable
+ * consecutive-failure ladder replacing the hardcoded 2-strike rule. Absent ⇒ the
+ * ship tick prompt and the ledger gate (check-e2e-escalation.mjs) both fall back
+ * to the pre-#2043 2-strike default. Present ⇒ both render/escalate off
+ * `escalation.maxStrikes`.
+ */
+export interface E2eEscalationPolicy {
+  escalation: {
+    /**
+     * Consecutive-failure ladder — each entry widens the response (e.g. [2, 3, 5]:
+     * widen scope at 2, force the full suite at 3, hard-stop at 5). Validated
+     * (an array of numbers) but currently DECLARATIVE ONLY — only `maxStrikes`
+     * below drives check-e2e-escalation.mjs's actual escalate/no-escalate decision;
+     * per-rung behavior at each strikes value is a follow-up.
+     */
+    strikes: number[]
+    /**
+     * Required once `escalation` is declared — the threshold check-e2e-escalation.mjs
+     * compares the ledger's trailing consecutive-REGRESSION count against. No
+     * config-layer default: when the whole `e2ePolicy` key is ABSENT, both
+     * check-e2e-escalation.mjs and TICK_PROMPT.md.ejs fall back to 2 (the
+     * pre-#2043 hardcoded 2-strike rule) — see the interface doc above.
+     */
+    maxStrikes: number
+  }
 }
 
 interface ContextPackConfig {
@@ -294,6 +336,10 @@ export interface ArbiterConfigV2 {
    *   cadence. Absent field treated as 'fleet'.
    */
   runnerProfile?: 'solo' | 'fleet'
+  /** #2043 (AC-2043.2): per-project smoke-journey acceptance floor. Absent ⇒ {@link DEFAULT_SMOKE_JOURNEYS}. */
+  smokeJourneys?: SmokeJourneyPolicy
+  /** #2043 (AC-2043.4/5): configurable e2e escalation ladder. Absent ⇒ {@link DEFAULT_E2E_ESCALATION}. */
+  e2ePolicy?: E2eEscalationPolicy
 }
 
 interface GovernanceConfig {
@@ -317,6 +363,22 @@ interface GovernanceConfig {
    * path, so a config typo or an empty list never silently weakens the guard.
    */
   ssotGuardPatterns?: string[]
+  /**
+   * #2035: project-declared invariants (PROJ-NN namespace). The project is the
+   * author of its own catalog additions — merged with the built-in catalog at
+   * getFilteredInvariants. Ids MUST be PROJ-NN (never INV-NN — the built-in
+   * namespace is reserved); duplicates and retired entries are rejected.
+   */
+  projectInvariants?: Invariant[]
+  /**
+   * #2044 (AC-2044.5/6): live-SSOT surfaces — the declared-live matrix/ledger
+   * files that a code change MUST update in the SAME commit. check-drift
+   * (--live-ssot) binds the commit to the declared surfaces; the obligation is
+   * LIMITED to these surfaces (not every commit).
+   */
+  liveSsot?: {
+    surfaces: { path: string; kind: 'matrix' | 'ledger'; keys?: string[] }[]
+  }
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
@@ -912,6 +974,8 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateChannel(draft['channel'], errors)
   validateGovernance(draft['governance'], errors)
   validateKit(draft['kit'], errors)
+  validateSmokeJourneys(draft['smokeJourneys'], errors)
+  validateE2ePolicy(draft['e2ePolicy'], errors)
 
   // #1394 — validate conformanceThresholds when present in config
   if (draft['conformanceThresholds'] !== undefined) {
@@ -1161,7 +1225,98 @@ function validateGovernance(raw: unknown, errors: string[]): void {
     )
   }
   validateSsotGuardPatterns(raw['ssotGuardPatterns'], errors)
+  validateProjectInvariants(raw['projectInvariants'], errors)
+  validateLiveSsot(raw['liveSsot'], errors)
 }
+
+/** #2044: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
+function validateLiveSsot(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('governance.liveSsot must be an object')
+    return
+  }
+  const surfaces = raw['surfaces']
+  if (!Array.isArray(surfaces)) {
+    errors.push('governance.liveSsot.surfaces must be an array')
+    return
+  }
+  for (const entry of surfaces) {
+    if (!isRecord(entry) || typeof entry['path'] !== 'string') {
+      errors.push('governance.liveSsot.surfaces entries must be objects with a string path')
+      continue
+    }
+    const kind = entry['kind']
+    if (kind !== 'matrix' && kind !== 'ledger') {
+      errors.push(
+        `governance.liveSsot.surfaces kind must be 'matrix' or 'ledger' — got ${String(kind)}`,
+      )
+    }
+    const keys = entry['keys']
+    if (keys !== undefined && (!Array.isArray(keys) || keys.some((k) => typeof k !== 'string'))) {
+      errors.push('governance.liveSsot.surfaces keys must be an array of strings')
+    }
+  }
+}
+
+/** #2035: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
+function validateProjectInvariants(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!Array.isArray(raw)) {
+    errors.push('governance.projectInvariants must be an array of invariant objects')
+    return
+  }
+  const seen = new Set<string>()
+  for (const entry of raw) {
+    if (!isRecord(entry)) {
+      errors.push('governance.projectInvariants entries must be objects')
+      continue
+    }
+    const id = entry['id']
+    if (typeof id !== 'string' || !PROJ_INVARIANT_ID_RE.test(id)) {
+      errors.push(
+        `governance.projectInvariants id must match /^PROJ-\\d+$/ (the INV-NN namespace is reserved) — got ${String(id)}`,
+      )
+      continue
+    }
+    if (seen.has(id)) {
+      errors.push(`governance.projectInvariants duplicate id: ${id}`)
+      continue
+    }
+    seen.add(id)
+    if (entry['status'] === 'retired') {
+      errors.push(`governance.projectInvariants ${id} must not be retired`)
+    }
+    if (
+      entry['tier'] === undefined ||
+      entry['title'] === undefined ||
+      entry['description'] === undefined
+    ) {
+      errors.push(`governance.projectInvariants ${id} requires tier, title, and description`)
+    }
+    if (typeof entry['alwaysActive'] !== 'boolean') {
+      errors.push(`governance.projectInvariants ${id} requires boolean alwaysActive`)
+    }
+    const languages = entry['languages']
+    if (languages !== undefined) {
+      const languageDetail = entry['languageDetail']
+      if (!Array.isArray(languages) || languages.some((l) => typeof l !== 'string')) {
+        errors.push(`governance.projectInvariants ${id} languages must be an array of strings`)
+      } else if (isRecord(languageDetail)) {
+        // #680 mirror: languageDetail must cover every declared language.
+        for (const lang of languages) {
+          if (!(lang in languageDetail)) {
+            errors.push(
+              `governance.projectInvariants ${id} languageDetail must cover every language in languages (missing ${String(lang)})`,
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+const PROJ_INVARIANT_ID_RE = /^PROJ-\d+$/
 
 /** #2045: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
 function validateSsotGuardPatterns(raw: unknown, errors: string[]): void {
@@ -1260,5 +1415,68 @@ function validateChannel(raw: unknown, errors: string[]): void {
   if (raw === undefined || raw === null) return
   if (typeof raw !== 'string' || !VALID_CHANNELS.has(raw)) {
     errors.push(`channel must be one of latest, beta, canary — got ${JSON.stringify(raw)}`)
+  }
+}
+
+// #2043 (AC-2043.2): per-project floor — 2..4 keeps the trio configurable without
+// letting a project shrink the floor to 0/1 (defeats the gate) or bloat it past a
+// reasonable acceptance-journey count.
+const SMOKE_JOURNEYS_MIN = 2
+const SMOKE_JOURNEYS_MAX = 4
+// #2043 (AC-2043.2): an escalation that fires on the FIRST failure (maxStrikes:1)
+// isn't a ladder — it's a hair-trigger. 2 is the floor.
+const E2E_MAX_STRIKES_MIN = 2
+
+function validateSmokeJourneys(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('smokeJourneys must be an object')
+    return
+  }
+  const requiredJourneys = raw['requiredJourneys']
+  if (
+    requiredJourneys !== undefined &&
+    (!Array.isArray(requiredJourneys) || requiredJourneys.some((j) => typeof j !== 'string'))
+  ) {
+    errors.push('smokeJourneys.requiredJourneys must be an array of strings')
+  }
+  const minJourneys = raw['minJourneys']
+  if (minJourneys !== undefined) {
+    const valid =
+      typeof minJourneys === 'number' &&
+      Number.isInteger(minJourneys) &&
+      minJourneys >= SMOKE_JOURNEYS_MIN &&
+      minJourneys <= SMOKE_JOURNEYS_MAX
+    if (!valid) {
+      errors.push(
+        `smokeJourneys.minJourneys must be an integer between ${SMOKE_JOURNEYS_MIN} and ${SMOKE_JOURNEYS_MAX}`,
+      )
+    }
+  }
+}
+
+function validateE2ePolicy(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('e2ePolicy must be an object')
+    return
+  }
+  const escalation = raw['escalation']
+  if (escalation === undefined || escalation === null) return
+  if (!isRecord(escalation)) {
+    errors.push('e2ePolicy.escalation must be an object')
+    return
+  }
+  const strikes = escalation['strikes']
+  if (!Array.isArray(strikes) || strikes.some((s) => typeof s !== 'number')) {
+    errors.push('e2ePolicy.escalation.strikes must be an array of numbers')
+  }
+  const maxStrikes = escalation['maxStrikes']
+  const validMaxStrikes =
+    typeof maxStrikes === 'number' &&
+    Number.isInteger(maxStrikes) &&
+    maxStrikes >= E2E_MAX_STRIKES_MIN
+  if (!validMaxStrikes) {
+    errors.push(`e2ePolicy.escalation.maxStrikes must be an integer >= ${E2E_MAX_STRIKES_MIN}`)
   }
 }

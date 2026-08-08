@@ -203,5 +203,20 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),
     ...buildProviderFields(config),
     ...(config.preset !== undefined && config.preset !== 'none' ? { preset: config.preset } : {}),
+    // #2035/#2044: persist the project-declared governance surface — PROJ-NN
+    // invariants (incl. plugin contributions merged at generation) and the
+    // live-SSOT surfaces — so `arbiter explain PROJ-NN`, `arbiter update` and
+    // `diff` round-trips see the same effective set (#1887-A round-trip-drop
+    // class). Config-declared wins over plugin on id conflict.
+    ...(config.projectInvariants !== undefined && config.projectInvariants.length > 0
+      ? {
+          governance: {
+            projectInvariants: config.projectInvariants,
+            ...(config.liveSsot !== undefined ? { liveSsot: config.liveSsot } : {}),
+          },
+        }
+      : config.liveSsot !== undefined
+        ? { governance: { liveSsot: config.liveSsot } }
+        : {}),
   }
 }
