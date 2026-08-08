@@ -70,6 +70,13 @@ describe('check-feature-matrix.mjs.ejs render tests', () => {
     expect(result).toContain('checkTestRefGlobBan')
     expect(result).toContain('checkSourceRefAnchor')
   })
+
+  // #2242: verification_tier (12th column) enum validation
+  it('wires the verification_tier enum check', () => {
+    const result = renderTemplate('scripts/check-feature-matrix.mjs.ejs', BASE_DATA)
+    expect(result).toContain('checkVerificationTier')
+    expect(result).toContain("TIER_VALUES = new Set(['SCAFFOLD', 'GATE', 'E2E'])")
+  })
 })
 
 describe('gen-gap.mjs.ejs render tests', () => {
