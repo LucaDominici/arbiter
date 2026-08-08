@@ -94,6 +94,10 @@ a Rust/Go binary), the TELOS-lite technical/economic/operational rationale citin
 the named triggers that would reopen the build-vs-adopt call today. This section stays the
 requirements/goals abstract; it does not restate that reasoning.
 
+A verified, links-not-restatement inventory of what's confirmed working right now — requirement
+IDs, real CLI/gate surface, doc-role map, known drift and gaps — lives in
+[`analysis.md`](analysis.md).
+
 ---
 
 ## 2. Architecture Constraints
