@@ -2,7 +2,7 @@
 title: 'Arbiter — Product Requirements Document'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-08'
+last_review: '2026-06-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -13,7 +13,7 @@ related: []
 
 **Status:** Active
 **Version:** 0.2 (in-progress)
-**Last updated:** 2026-08-08
+**Last updated:** 2026-06-04
 **Owner:** Luca Dominici
 
 ---
@@ -187,7 +187,7 @@ Multi-language repos: detected from the presence of multiple signal files. Arbit
 | **L3** | L2 + E2E tests + coverage ≥ 85% + SBOM + evidence artifacts            | Audit-grade, regulated industries, OSS with strict policies                 |
 | **L4** | L3 + 21CFR/SOX/GDPR audit trail + evidence bundle + tamper-evident log | Pharma, finance, and regulated industries requiring compliance traceability |
 
-Arbiter's own governance level is whatever `arbiter.json` declares (`governanceLevel`) — this document does not pin a tier, since the value changes as the project matures.
+Arbiter itself operates at L3 (dogfooding its own highest governance tier).
 
 ---
 
@@ -219,4 +219,4 @@ Arbiter's own governance level is whatever `arbiter.json` declares (`governanceL
 | npm package name (`arbiter` vs `@arbiter/cli`) | Decided | `@arbiter/cli` (avoids conflicts, namespace reserved)                   |
 | License                                        | Decided | Apache 2.0 (SPDX headers already added; compatible with AGENTS.md spec) |
 | Docs site                                      | Decided | Mintlify planned for v1.0; markdown-only until then                     |
-| Plugin API design                              | Decided | Shipped in M32 — see `docs/PLUGIN-API.md`                               |
+| Plugin API design                              | Future  | Not needed before v1.0                                                  |
