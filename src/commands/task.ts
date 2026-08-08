@@ -4,6 +4,7 @@ import { readFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeFileTranslated } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
+import { normalizeChainId } from './task-state.js'
 import { getBoolFlag } from '../config/env-registry.js'
 import {
   type TaskPhase,
@@ -111,6 +112,8 @@ export interface TaskInitOptions {
   id?: string
   tier?: string
   plan?: string
+  /** #2102 — `--chain <id>` (repeatable): other issue ids batched into this task's worktree. */
+  chainIds?: string[]
 }
 
 /**
@@ -123,6 +126,9 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   if (opts.id !== undefined) patch.taskId = opts.id
   if (opts.tier !== undefined) patch.tier = opts.tier
   if (opts.plan !== undefined) patch.plan = opts.plan
+  // #2102 — rejects a non-numeric id the same way `arbiter ship`'s primary-id normalizer does,
+  // so a chain id can never silently fail the pre-push `#<id>` commit-message scan it feeds.
+  if (opts.chainIds !== undefined) patch.chainIds = opts.chainIds.map(normalizeChainId)
   const branch = detectCurrentBranch(root)
   if (branch !== undefined) patch.branch = branch
   const state = writeUnifiedState(root, patch)

@@ -110,6 +110,55 @@ elif [ -d "$ARBITER_PREPUSH_EVIDENCE_DIR" ]; then
   fi
 fi
 # ─── end evidence-freshness gate ─────────────────────────────────────────────
+
+# ─── arbiter pre-push chain-batching gate (#2102) ────────────────────────────
+# Enforced half of the chain-batching advisory (`is_unbatched`): when
+# `.claude/.task/status.json` declares a non-empty `chainIds` (via
+# `arbiter task init --chain <id>` / `arbiter ship --chain <id>`), every id in
+# [taskId, ...chainIds] must have a commit in the push range before the push
+# is allowed. Fails CLOSED only on a genuine missing id — any other condition
+# (no status file, empty/absent chainIds, unreadable JSON, no push-range base)
+# is a silent no-op so this gate can never block an unrelated push.
+# Own push range, unconditional: the secret-scan PUSH_RANGE is computed inside an
+# EJS-conditional block, so this gate must derive its own range independently.
+if CHAIN_IDS="$(node -e '
+try {
+  const s = JSON.parse(require("fs").readFileSync(".claude/.task/status.json", "utf8"))
+  const c = Array.isArray(s.chainIds) ? s.chainIds : []
+  if (c.length === 0) process.exit(0)
+  const ids = [s.taskId, ...c].filter(Boolean).map((x) => String(x).replace(/^#/, ""))
+  process.stdout.write(ids.join(" "))
+} catch (e) { process.exit(0) }
+' 2>/dev/null)"; then
+  : # status read (the one-liner exits 0 on every fail-open path above)
+else
+  # FAIL-OPEN-INTENT: node unavailable — the chain gate is a silent no-op
+  CHAIN_IDS=""
+fi
+
+if [ -n "$CHAIN_IDS" ]; then
+  CHAIN_PUSH_RANGE=""
+  if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+    CHAIN_PUSH_RANGE="@{u}..HEAD"
+  elif git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+    CHAIN_PUSH_RANGE="origin/main..HEAD"
+  fi
+
+  # FAIL-OPEN-INTENT: an unresolvable range must not block an unrelated push — the whole
+  # scan (including the hard-fail) only runs when the range log actually succeeds.
+  if [ -n "$CHAIN_PUSH_RANGE" ] && CHAIN_SUBJECTS="$(git log --format=%s "$CHAIN_PUSH_RANGE" 2>/dev/null)"; then
+    CHAIN_MISSING=""
+    for id in $CHAIN_IDS; do
+      printf '%s\n' "$CHAIN_SUBJECTS" | grep -Eq "#${id}([^0-9]|$)" || CHAIN_MISSING="$CHAIN_MISSING #${id}"
+    done
+    if [ -n "$CHAIN_MISSING" ]; then
+      echo "Error: chain batching (#2102) — no commit in the push range (${CHAIN_PUSH_RANGE}) references:${CHAIN_MISSING}" >&2
+      echo "Every id declared via --chain needs a commit naming it, e.g. a commit subject containing \"#1234\"." >&2
+      exit 1
+    fi
+  fi
+fi
+# ─── end chain-batching gate ─────────────────────────────────────────────────
 <% if (enableSecurityScanning) { %>
 # ─── pre-push secret scan (gitleaks, push-range scoped, #1319.9) ──────────────
 # Scope gitleaks to the commits actually being pushed (origin/<base>..HEAD or the

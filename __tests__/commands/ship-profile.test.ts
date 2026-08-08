@@ -15,6 +15,7 @@ import {
   CONSUMER_DEFAULT_PROFILE,
 } from '../../src/commands/ship-profile.js'
 import { writeOverride, readOverride } from '../../src/commands/task-state.js'
+import { shipStepFor } from '../../src/commands/task-ship.js'
 
 const dirs: string[] = []
 function tmpRepo(files: Record<string, string>): string {
@@ -540,5 +541,35 @@ describe('autonomyAllows grants (#1291): adjacent levels differ mechanically', (
       const next = new Set(TABLE[i][1])
       expect(next.size).toBeGreaterThan(prev.size)
     }
+  })
+})
+
+// #2102 — `--chain` composes with the (collaborationMode × mergeMode) axis WITHOUT changing it.
+// A real peer-review repo, resolved through the actual `resolveShipProfile` (not a hand-built
+// mock profile), must still get a one-PR close action with a declared chain — never a direct
+// push. This is the exact acceptance-criterion test from #2102 (AC-2102.3).
+describe('shipStepFor(complete) — --chain composes with a real resolved profile (#2102)', () => {
+  it('peer-review repo + --chain → complete step is still a PR close action, never direct push', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfg({ collaborationMode: 'peer-review' }),
+    })
+    const profile = resolveShipProfile(dir, { claudeHome: EMPTY_HOME })
+    const action = shipStepFor('complete', 'Standard', profile, '#2102', ['#2103', '#2104']).action
+    expect(action).toMatch(/open a PR/i)
+    expect(action).toMatch(/await required review/i)
+    expect(action).not.toMatch(/no PR/i)
+    expect(action).toContain('Close issues #2102, #2103, #2104')
+  })
+
+  it('trunk-solo + direct repo + --chain → STILL direct push, no PR (axis unaffected either way)', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfg({ collaborationMode: 'trunk-solo', solo: { mergeMode: 'direct' } }),
+    })
+    const profile = resolveShipProfile(dir, { claudeHome: EMPTY_HOME })
+    const action = shipStepFor('complete', 'Standard', profile, '#2102', ['#2103']).action
+    expect(action).toMatch(/no PR/i)
+    expect(action).toContain('Close issues #2102, #2103')
   })
 })

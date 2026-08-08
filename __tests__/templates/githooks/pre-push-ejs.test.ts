@@ -90,8 +90,37 @@ describe('githooks/pre-push.ejs — evidence-freshness gate', () => {
       it('preserves the working-tree porcelain check', () => {
         expect(out).toContain('git status --porcelain')
       })
+
+      it('renders the chain-batching gate with its OWN push range, before gitleaks (#2102)', () => {
+        // The gitleaks PUSH_RANGE lives inside `<% if (enableSecurityScanning) { %>` —
+        // the chain check must compute its own range, unconditional (red-team note).
+        expect(out).toContain('chain-batching gate (#2102)')
+        expect(out).toContain('CHAIN_PUSH_RANGE')
+        expect(out.indexOf('chain-batching gate (#2102)')).toBeLessThan(out.indexOf('gitleaks'))
+        // The chain block must NOT be wrapped in the security-scanning conditional.
+        const chainPos = out.indexOf('CHAIN_IDS')
+        const guardPos = out.indexOf('enableSecurityScanning')
+        expect(chainPos).toBeGreaterThan(-1)
+        expect(guardPos).toBe(-1)
+      })
     })
   }
+
+  describe('chain-batching gate is unconditional (not gated on enableSecurityScanning, #2102)', () => {
+    const out = renderTemplate('githooks/pre-push.ejs', {
+      ...tsConfig(),
+      enableSecurityScanning: false,
+    })
+
+    it('still renders the chain block when security scanning is disabled', () => {
+      expect(out).toContain('chain-batching gate (#2102)')
+      expect(out).toContain('CHAIN_PUSH_RANGE')
+    })
+
+    it('does not render the gitleaks block when security scanning is disabled', () => {
+      expect(out).not.toContain('gitleaks')
+    })
+  })
 
   describe('typescript-only invariants', () => {
     const out = renderTemplate('githooks/pre-push.ejs', tsConfig())

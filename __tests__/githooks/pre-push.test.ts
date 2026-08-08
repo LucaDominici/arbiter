@@ -124,6 +124,25 @@ function setupRepo(opts: SetupOpts = {}): string {
   return dir
 }
 
+/** #2102 — write `.claude/.task/status.json` and commit it (keeps the porcelain check green). */
+function writeChainStatus(dir: string, state: Record<string, unknown>): void {
+  const statusDir = join(dir, '.claude', '.task')
+  mkdirSync(statusDir, { recursive: true })
+  writeFileSync(join(statusDir, 'status.json'), JSON.stringify(state))
+  execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'chain: seed task state'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+}
+
+/** #2102 — add a commit AHEAD of `origin/main` (i.e. inside the push range) with the given subject. */
+function commitAheadOfOrigin(dir: string, subject: string): void {
+  writeFileSync(join(dir, `work-${Date.now()}-${Math.random()}.txt`), 'x')
+  execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', subject], { cwd: dir, stdio: 'ignore' })
+}
+
 function runHook(dir: string, env: Record<string, string> = {}): RunResult {
   const result = spawnSync('/usr/bin/bash', ['.githooks/pre-push'], {
     cwd: dir,
@@ -243,5 +262,113 @@ describe('.githooks/pre-push — evidence freshness gate', () => {
     const r = runHook(dir, { ARBITER_PREPUSH_SKIP: 'true' })
     expect(r.status).toBe(0)
     expect(r.stderr).not.toMatch(/\.arbiter\/evidence\/ is/)
+  })
+})
+
+/**
+ * Chain-batching enforcement (#2102) — the pre-push chokepoint the whole issue is about.
+ * Fresh evidence (ageMin: 30) on every setupRepo() call so the freshness gate never
+ * interferes; these tests isolate the NEW chain-batching block.
+ */
+describe('.githooks/pre-push — chain-batching gate (#2102)', () => {
+  let dir: string
+
+  afterEach(() => {
+    if (dir && existsSync(dir)) rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('no .claude/.task/status.json at all → no-op, hook passes', () => {
+    dir = setupRepo({ ageMin: 30 })
+    const r = runHook(dir)
+    expect(r.status).toBe(0)
+    expect(r.stderr).not.toMatch(/chain batching/i)
+  })
+
+  it('status.json present but chainIds absent → no-op, hook passes', () => {
+    dir = setupRepo({ ageMin: 30 })
+    writeChainStatus(dir, { taskId: '#2102', phase: 'close' })
+    const r = runHook(dir)
+    expect(r.status).toBe(0)
+    expect(r.stderr).not.toMatch(/chain batching/i)
+  })
+
+  it('status.json present but chainIds is an empty array → no-op, hook passes (byte-identical silence)', () => {
+    dir = setupRepo({ ageMin: 30 })
+    writeChainStatus(dir, { taskId: '#2102', chainIds: [], phase: 'close' })
+    const r = runHook(dir)
+    expect(r.status).toBe(0)
+    expect(r.stderr).not.toMatch(/chain batching/i)
+  })
+
+  it('malformed status.json → fails OPEN (no-op), hook still passes', () => {
+    dir = setupRepo({ ageMin: 30 })
+    mkdirSync(join(dir, '.claude', '.task'), { recursive: true })
+    writeFileSync(join(dir, '.claude', '.task', 'status.json'), '{ not valid json')
+    execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+    execFileSync('git', ['commit', '-q', '-m', 'malformed status'], { cwd: dir, stdio: 'ignore' })
+    const r = runHook(dir)
+    expect(r.status).toBe(0)
+  })
+
+  it('chain declared, every id in [taskId, ...chainIds] referenced by a commit → hook passes', () => {
+    dir = setupRepo({ ageMin: 30 })
+    writeChainStatus(dir, { taskId: '#2102', chainIds: ['#2103'], phase: 'close' })
+    commitAheadOfOrigin(dir, 'feat: first issue in chain #2102')
+    commitAheadOfOrigin(dir, 'feat: second issue in chain #2103')
+    const r = runHook(dir)
+    expect(r.status).toBe(0)
+    expect(r.stderr).not.toMatch(/chain batching/i)
+  })
+
+  it('chain declared, one chain id has NO commit in the push range → hook fails, names it', () => {
+    dir = setupRepo({ ageMin: 30 })
+    writeChainStatus(dir, { taskId: '#2102', chainIds: ['#2103'], phase: 'close' })
+    // Only the primary id gets a commit — #2103 is never referenced.
+    commitAheadOfOrigin(dir, 'feat: first issue in chain #2102')
+    const r = runHook(dir)
+    expect(r.status).not.toBe(0)
+    expect(r.stderr).toMatch(/chain batching/i)
+    expect(r.stderr).toContain('#2103')
+  })
+
+  it('the primary taskId itself is enforced too — missing even without any chainIds gap', () => {
+    dir = setupRepo({ ageMin: 30 })
+    writeChainStatus(dir, { taskId: '#2102', chainIds: ['#2103'], phase: 'close' })
+    // Only #2103 gets a commit — the PRIMARY id #2102 is never referenced.
+    commitAheadOfOrigin(dir, 'feat: second issue in chain #2103')
+    const r = runHook(dir)
+    expect(r.status).not.toBe(0)
+    expect(r.stderr).toContain('#2102')
+  })
+
+  it('word boundary: a commit mentioning #21 does NOT satisfy a declared #2103', () => {
+    dir = setupRepo({ ageMin: 30 })
+    writeChainStatus(dir, { taskId: '#2102', chainIds: ['#2103'], phase: 'close' })
+    commitAheadOfOrigin(dir, 'feat: first issue in chain #2102')
+    // Deliberately references a DIFFERENT, shorter id sharing #2103's prefix.
+    commitAheadOfOrigin(dir, 'feat: unrelated partial work #21')
+    const r = runHook(dir)
+    expect(r.status).not.toBe(0)
+    expect(r.stderr).toContain('#2103')
+  })
+
+  it('taskId stored WITHOUT a leading # (raw `task init --id` form) is still matched', () => {
+    dir = setupRepo({ ageMin: 30 })
+    // Mirrors what `arbiter task init --id 2102` persists verbatim (no # normalization there).
+    writeChainStatus(dir, { taskId: '2102', chainIds: ['#2103'], phase: 'close' })
+    commitAheadOfOrigin(dir, 'feat: first issue in chain #2102')
+    commitAheadOfOrigin(dir, 'feat: second issue in chain #2103')
+    const r = runHook(dir)
+    expect(r.status).toBe(0)
+  })
+
+  it('no chainIds declared → the hook output is byte-identical to the pre-chain hook (no-op)', () => {
+    dir = setupRepo({ ageMin: 30 })
+    const before = runHook(dir)
+    expect(before.status).toBe(0)
+    writeChainStatus(dir, { taskId: '#2102', phase: 'close' })
+    const after = runHook(dir)
+    expect(after.status).toBe(0)
+    expect(after.stdout + after.stderr).toBe(before.stdout + before.stderr)
   })
 })

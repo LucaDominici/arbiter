@@ -518,6 +518,52 @@ channel becomes human-permissioned).
 
 **Tier.** All; N (bypass tolerance) may be higher at solo.
 
+### M16 — Terminal handoff: subagents never own waits
+
+**What.** `M16 handoff-contract: subagents never own waits`. A dispatched worker that
+finishes real work and then "waits for the gate" is the most expensive failure mode in
+this standard: the wait is usually not real, so the parent receives `completed` while
+the gate still runs, then burns 100k-350k tokens per SendMessage re-engagement as the
+agent re-derives its world from a cold transcript. The fix is structural, not
+prompting: (a) a worker brief ends at commit + launch + a structured handoff
+`{SHA, worktree, PID, exit-file, log}` and an explicit END-TURN — the worker's last
+action is `bg-run.sh <name> -- <gate-command>`, never "I'll wait"; (b) ALL watches
+belong to the coordinator: a background `pid-watch.sh <name>` until-loop on the
+exit-file, which emits exactly one line at job end; (c) resume contract: if a worker
+IS resumed, it may spend at most 3 tool calls re-establishing state before acting
+(it must never re-read the world); (d) the one valid subagent-wait idiom — `Bash` with
+`run_in_background` on the gate command itself, no nohup/PID-file/finite-Monitor — is
+the documented exception for merge-after-green briefs. `bg-run.sh`/`pid-watch.sh`
+(emitted by `arbiter update`, see gate-throughput-patterns.md) supersede the raw
+nohup+PID-file recipe: the OS process is invisible to harness child-tracking BY
+DESIGN, so the launching agent must end its turn; a foreground wait on the PID is
+exactly the parked-wait bug this measure bans. Monitor stays valid for event
+streams — it is only banned as a gate-wait idiom with finite timeout.
+
+**Why.** R5/R7. Six verified incidents in one night (2026-07-24, ~750k-1M tokens:
+arbiter #2095/#2098/#2102-work, viafera #4004/#4011): every ambient default funnels
+agents into a broken lookalike — (1) nohup+PID-file in foreground Bash (invisible to
+harness child-tracking, encouraged by the old scoped-PID memory note), (2) Monitor
+with finite `timeout_ms` silently killed mid-gate, (3) pure narration backed by
+nothing. All three end with "no live background children" → premature `completed`.
+Resume via SendMessage re-prefills the full transcript at cold cache — the cheap
+resume is the one that never happens.
+
+**Enforcement.** SOFT: `scripts/check-m16-handoff.mjs` (+ generated twin
+`src/templates/scripts/check-m16-handoff.mjs.ejs`) greps the dispatch-template corpus
+(`.claude/skills/wave-drain/SKILL.md`, `.claude/skills/drain/SKILL.md`, this section)
+for the marker line — a dispatch brief without it fails the gate naming the file.
+Self-tests on `bg-run.sh`/`pid-watch.sh` prove the exact failure mode: a watcher on a
+PID that outlives the caller's session emits exactly one exit line. TO-CREATE
+(dated debt): promote to HARD by making the corpus check fail-closed when a dispatch
+template is added without the marker; the gate registration in `check-all.mjs` is
+wired at integration.
+
+**Self / Governed.** Both: arbiter self runs the helpers + the SOFT gate; governed
+projects receive `bg-run.sh`, `pid-watch.sh` and the gate twin via `arbiter update`.
+
+**Tier.** All; the resume-cap is solo's default (a solo agent IS the coordinator).
+
 ---
 
 ## 3. Right-sizing per tier (no cathedral)
@@ -543,6 +589,7 @@ ADR-051) × governance level (L1–L4, `docs/CONCEPTS.md`). Mapping to plain wor
 | M13 adversarial                 | 1 skeptic (red-team)              | 3 skeptics, majority                | full vertical set, majority                    |
 | M14 loop-until-dry              | dry-pass rule                     | + persisted pass ledger             | + audited termination evidence                 |
 | M15 fail-closed + bypass        | fail-closed always; bypass logged | + footer rationale                  | + ceremony detector, human-permissioned bypass |
+| M16 terminal handoff             | worker ends at handoff; coordinator watches | + bg-run/pid-watch emitted          | + marker gate on dispatch templates             |
 
 Principle: **M9 and M15(a) never scale down.** Everything else scales in _depth of
 evidence and fan-out width_, not in whether the measure exists.
@@ -597,6 +644,7 @@ Status legend: **EXISTS** (wired today) · **PARTIAL** (exists, gap named) ·
 | M13 | Adversarial refutation, majority                        | red-team + adversarial verifier + tiered verticals + refutation skill + majority gate | **EXISTS** (#1943)                                | `src/commands/task-ship.ts` REDTEAM_AGENTS/REVIEW_AGENTS (~L77); `.claude/skills/refutation/SKILL.md`; `.claude/agent-dispatch-matrix.json::refutation_skeptics` (parity-gated by `scripts/check-agent-dispatch.mjs`); `scripts/check-refutation-verdicts.mjs`; `__tests__/scripts/check-refutation-verdicts.test.ts` |
 | M14 | Loop-until-dry                                          | wave loop to empty backlog; audit re-verify pass; dry-pass termination gate           | **EXISTS** (#1943)                                | wave-drain loop; `.claude/skills/codebase-audit/`; `scripts/check-audit-dry-pass.mjs` (two-dry-pass + distinct-seed rule); `__tests__/scripts/check-audit-dry-pass.test.ts`                                                                                                                                           |
 | M15 | Fail-closed everywhere                                  | fail-closed audit gate                                                                | **EXISTS**                                        | `scripts/check-fail-closed-audit.mjs` (INV-96)                                                                                                                                                                                                                                                                        |
+| M16 | Terminal handoff — subagents never own waits     | bg-run.sh + pid-watch.sh helpers; coordinator-only watches; marker gate on dispatch templates                    | **EXISTS** (#2103)                                 | `scripts/bg-run.sh`, `scripts/pid-watch.sh`, `scripts/check-m16-handoff.mjs` (+ .ejs twins); this section; registration in `check-all.mjs` at integration                                                                               |
 | M15 | Bypass accounting + ceremony detector                   | footer rationale + append-only log; detector                                          | **PARTIAL** (log+footers exist; detector missing) | `scripts/check-commit-footer-rationale.mjs` (INV-119); `.arbiter/evidence/bypass-log.jsonl`; target: `scripts/check-bypass-ceremony.mjs` + `doctor` surface + bypass env out of agent reach (playbook §T1/T4)                                                                                                         |
 
 **Wiring order recommendation (when implementation starts):** (1) M8 generic

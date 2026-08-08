@@ -119,11 +119,36 @@ export interface UnifiedTaskState {
    * here, so a stale/invalid entry can never harden into the resolved setting (fail-closed).
    */
   overrides?: Record<string, string>
+  /**
+   * #2102 — declared merge-train batch: other issue ids sequentially batched into this same
+   * worktree/branch/gate/PR, in canonical `#NNN` form (normalized by `normalizeChainId`).
+   * Explicit opt-in only (`--chain <id>`, repeatable) — never auto-derived from a shared
+   * parent epic. Absent/empty ⇒ no chain (the pre-push enforcer is then a no-op).
+   */
+  chainIds?: string[]
 }
 
 /** A partial update applied to the unified document; `cursor` may itself be partial. */
 export type TaskStatePatch = Partial<Omit<UnifiedTaskState, 'cursor'>> & {
   cursor?: Partial<StepCursor>
+}
+
+/**
+ * Normalize a `--chain <id>` value to canonical `#NNN`, rejecting non-numeric ids.
+ *
+ * #2102 — same guard `arbiter ship`'s primary-id normalizer applies (`normalizeShipTaskId`):
+ * a chain id feeds the pre-push `#<id>` commit-message scan, so it must be a bare GitHub
+ * issue number. Self-contained (no dependency on worktree paths) so both `task init` and
+ * `ship` share it from the state module.
+ */
+export function normalizeChainId(raw: string): string {
+  const core = raw.trim().replace(/^#/, '')
+  if (!/^\d+$/.test(core)) {
+    throw new Error(
+      `Invalid chain id "${raw}" — expected a GitHub issue number like "1280" or "#1280".`,
+    )
+  }
+  return `#${core}`
 }
 
 const TASK_DIRNAME = '.task'
