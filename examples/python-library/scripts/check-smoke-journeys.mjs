@@ -21,6 +21,10 @@ const ROOT = resolve(process.cwd())
 const MANIFEST_PATH = join(ROOT, 'smoke-journeys.json')
 const ARBITER_PATH = join(ROOT, 'arbiter.json')
 const REASON_MIN_LEN = 20
+// #2043 (AC-2043.1): the login/CRUD/authz acceptance floor. A project overrides the
+// declared set via arbiter.json's smokeJourneys.requiredJourneys (schema-validated,
+// src/config/schema.ts); absent ⇒ this trio.
+const DEFAULT_REQUIRED_JOURNEYS = ['auth', 'crud', 'authz']
 
 const HELP = `Usage: node scripts/check-smoke-journeys.mjs [--help]
 
@@ -85,8 +89,7 @@ function loadArbiterConfig() {
 // arbiter.json legitimately skips the guard (loadArbiterConfig returns null); a CORRUPT one
 // already exited fail-closed above — silently skipping the archetype check is exactly when
 // manifest drift is most likely to hide.
-function checkArchetypeMatch(manifest) {
-  const arbiter = loadArbiterConfig()
+function checkArchetypeMatch(manifest, arbiter) {
   if (!arbiter) return
 
   const mismatch =
@@ -98,6 +101,41 @@ function checkArchetypeMatch(manifest) {
       `but arbiter.json declares ${arbiter.archetype} — run arbiter update to regenerate\n`,
   )
   process.exit(1)
+}
+
+// AC-2043.1: the manifest must DECLARE every journey in the configured trio (by id) —
+// not just the ones a team happened to write. A missing member is a hard fail naming it,
+// independent of the coverage checks below (a subset that IS fully covered still fails).
+// Gated on arbiter.json being present/loadable: an ungoverned project (no arbiter.json)
+// has no configured floor to compare against, so the pre-#2043 declared-only behavior
+// stands — same precedent as checkArchetypeMatch above.
+function checkTrioFloor(manifest, arbiter) {
+  if (!arbiter) return
+
+  const smokeJourneys = isRecord(arbiter.smokeJourneys) ? arbiter.smokeJourneys : undefined
+  const requiredJourneys =
+    smokeJourneys &&
+    Array.isArray(smokeJourneys.requiredJourneys) &&
+    smokeJourneys.requiredJourneys.length > 0
+      ? smokeJourneys.requiredJourneys
+      : DEFAULT_REQUIRED_JOURNEYS
+
+  const declaredIds = new Set(
+    manifest.journeys.filter((j) => j && typeof j.id === 'string').map((j) => j.id),
+  )
+  const missing = requiredJourneys.filter((id) => !declaredIds.has(id))
+  if (missing.length === 0) return
+
+  process.stderr.write(
+    `[check-smoke-journeys] FAIL — smoke-journeys.json is missing required journey(s): ` +
+      `${missing.join(', ')} — declare each (status required or n/a with rationale) or ` +
+      `adjust smokeJourneys.requiredJourneys in arbiter.json\n`,
+  )
+  process.exit(1)
+}
+
+function isRecord(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function checkNaJourney(id, name, journey) {
@@ -172,7 +210,8 @@ function loadManifest() {
 
 async function main() {
   const manifest = loadManifest()
-  checkArchetypeMatch(manifest)
+  const arbiterConfig = loadArbiterConfig()
+  checkArchetypeMatch(manifest, arbiterConfig)
 
   // Applicability SKIP (INV-126 precedent): an archetype with no interactive login/CRUD/authz
   // journeys declares applicable:false. Checked BEFORE the all-n/a / rationale guards so a
@@ -191,6 +230,8 @@ async function main() {
     )
     process.exit(2)
   }
+
+  checkTrioFloor(manifest, arbiterConfig)
 
   // Collect all repo files once
   const allFiles = walkRepo(ROOT)

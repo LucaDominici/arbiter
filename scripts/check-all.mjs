@@ -6,10 +6,10 @@
 //                simulate-nightly (T4), simulate-weekly (T5)
 //   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
 //
-// check (T1, "check" subcommand — L1 fast checks): 113 hard checks (runCheck/runToolCheck)
-//   + 1 advisory (runWarnCheck), as of #2042.
+// check (T1, "check" subcommand — L1 fast checks): 114 hard checks (runCheck/runToolCheck)
+//   + 1 advisory (runWarnCheck), as of #2043.
 // gate (T1+T2, "gate" subcommand, default): check + T2 extended checks, cumulative total
-//   138 hard checks + 7 advisory, as of #2042.
+//   139 hard checks + 7 advisory, as of #2043.
 // These counts are hand-maintained (#2042 fixed a ~2x stale count and a 25/37-gate-name
 // drift found by audit) — do not hand-copy an enumerated gate list here, it WILL drift.
 // For the exhaustive, always-current list: grep this file for `run(Check|ToolCheck|WarnCheck)(`
@@ -193,7 +193,10 @@ if (isMain) {
   runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])
   runCheck('brownfield tests (CANON-11)', 'node', ['scripts/check-brownfield-tests.mjs'])
   runCheck('catalog parity', 'node', ['scripts/check-catalog-agents-parity.mjs'])
-  runCheck('global-invariants parity', 'node', ['scripts/check-global-invariants-parity.mjs', '--config=arbiter.json'])
+  runCheck('global-invariants parity', 'node', [
+    'scripts/check-global-invariants-parity.mjs',
+    '--config=arbiter.json',
+  ])
   runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
   runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
   // #1410: advisory — report check-*.mjs gates not reachable from check-all.mjs
@@ -317,6 +320,7 @@ if (isMain) {
   runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs'])
   runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs'])
   runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs'])
+  runCheck('e2e escalation ladder (#2043)', 'node', ['scripts/check-e2e-escalation.mjs'])
   runCheck('workflow cache strategy (§17.5 rec 3)', 'node', [
     'scripts/check-workflow-cache-strategy.mjs',
   ])

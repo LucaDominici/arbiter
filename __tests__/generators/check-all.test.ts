@@ -58,6 +58,7 @@ describe('generateCheckAll', () => {
     // + muted-tests-baseline.json (brownfield grandfathering for check-muted-test, #1835-class)
     // + check-safety-adopt-ratchet.mjs (T1, anti-erosion ratchet — convergence playbook)
     // + check-smoke-journeys.mjs (INV-137 smoke-journey acceptance floor, #2080)
+    // + check-e2e-escalation.mjs (e2e ledger consecutive-failure escalation gate, #2043)
     // + the 9 anti-context-rot twins (E1-E7 #1943, CANON-14): check-agent-return,
     //   check-refutation-verdicts, check-audit-dry-pass, check-handoff-doc,
     //   check-touched-vs-manifest, record-agent-return, lib/gate-args,
@@ -68,7 +69,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(42)
+    expect(result.files).toHaveLength(43)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/acceptance-criteria.mjs'))).toBe(
@@ -78,6 +79,7 @@ describe('generateCheckAll', () => {
       result.files.some((f) => f.path.endsWith('scripts/check-safety-adopt-ratchet.mjs')),
     ).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-smoke-journeys.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-e2e-escalation.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-emission-parity.mjs'))).toBe(
       true,
     )

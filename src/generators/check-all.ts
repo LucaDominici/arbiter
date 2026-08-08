@@ -93,7 +93,9 @@ export function loadGateRegistry(data: Record<string, unknown>): GateRegistryEnt
       throw new Error(`gate registry: non-inline gate "${id}" needs a cmd array`)
     }
     if (kind === 'inline' && entry['cmd'] !== undefined) {
-      throw new Error(`gate registry: inline gate "${id}" must not declare cmd (bodies live in the template)`)
+      throw new Error(
+        `gate registry: inline gate "${id}" must not declare cmd (bodies live in the template)`,
+      )
     }
     // cmd is declared as `[bin, [arg, ...]]` in the YAML (readable flow form);
     // flattened to `[bin, arg, ...]` for the render loop (g.cmd.slice(1) = args).
@@ -299,6 +301,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-smoke-journeys.mjs'],
     tpl: 'scripts/check-smoke-journeys.mjs.ejs',
   },
+  // #2043 (AC-2043.5/6): e2e escalation ledger gate. Emitted unconditionally
+  // (runtime-SKIPs when .arbiter/e2e-ledger.jsonl is absent/empty) so the gate is always
+  // wired; reads the same ledger shape lib/e2e-reliability.mjs's appendLedger writes.
+  {
+    rel: ['scripts', 'check-e2e-escalation.mjs'],
+    tpl: 'scripts/check-e2e-escalation.mjs.ejs',
+  },
   {
     rel: ['scripts', 'lib', 'glob-walk.mjs'],
     tpl: 'scripts/lib/glob-walk.mjs.ejs',
@@ -477,7 +486,9 @@ function emitExtendedGated(
   opts: { dryRun: boolean },
 ): WriteResult[] {
   if (data.includeExtendedInvariants !== true) return []
-  return EXTENDED_GATED_EMISSIONS.map(({ rel, tpl }) => emitTemplateFile(base, rel, tpl, data, opts))
+  return EXTENDED_GATED_EMISSIONS.map(({ rel, tpl }) =>
+    emitTemplateFile(base, rel, tpl, data, opts),
+  )
 }
 
 export function generateCheckAll(

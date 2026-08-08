@@ -126,6 +126,47 @@ export interface AutomationConfig {
   affinityBatching?: boolean
 }
 
+/**
+ * #2043 (AC-2043.2): the per-project smoke-journey acceptance floor. Declared in
+ * arbiter.json so the generated check-smoke-journeys.mjs gate enforces a genuine
+ * login/CRUD/authz floor per project — not just the journeys a team happened to
+ * declare. Absent ⇒ the gate falls back to the login/CRUD/authz trio.
+ */
+export interface SmokeJourneyPolicy {
+  /** Journey ids that must ALL be declared in smoke-journeys.json. Default: ['auth','crud','authz']. */
+  requiredJourneys?: string[]
+  /** Per-project floor: minimum number of DECLARED journeys (2..4). Default: 3. */
+  minJourneys?: number
+}
+
+/**
+ * #2043 (AC-2043.4/5): the e2e escalation policy — the configurable
+ * consecutive-failure ladder replacing the hardcoded 2-strike rule. Absent ⇒ the
+ * ship tick prompt and the ledger gate (check-e2e-escalation.mjs) both fall back
+ * to the pre-#2043 2-strike default. Present ⇒ both render/escalate off
+ * `escalation.maxStrikes`.
+ */
+export interface E2eEscalationPolicy {
+  escalation: {
+    /**
+     * Consecutive-failure ladder — each entry widens the response (e.g. [2, 3, 5]:
+     * widen scope at 2, force the full suite at 3, hard-stop at 5). Validated
+     * (an array of numbers) but currently DECLARATIVE ONLY — only `maxStrikes`
+     * below drives check-e2e-escalation.mjs's actual escalate/no-escalate decision;
+     * per-rung behavior at each strikes value is a follow-up.
+     */
+    strikes: number[]
+    /**
+     * Required once `escalation` is declared — the threshold check-e2e-escalation.mjs
+     * compares the ledger's trailing consecutive-REGRESSION count against. No
+     * config-layer default: when the whole `e2ePolicy` key is ABSENT, both
+     * check-e2e-escalation.mjs and TICK_PROMPT.md.ejs fall back to 2 (the
+     * pre-#2043 hardcoded 2-strike rule) — see the interface doc above.
+     */
+    maxStrikes: number
+  }
+}
+
 interface ContextPackConfig {
   /** File-pattern to ADR mappings. Used by `arbiter context-pack` to annotate @source: citations. */
   adrMappings?: ContextPackAdrMapping[]
@@ -295,6 +336,10 @@ export interface ArbiterConfigV2 {
    *   cadence. Absent field treated as 'fleet'.
    */
   runnerProfile?: 'solo' | 'fleet'
+  /** #2043 (AC-2043.2): per-project smoke-journey acceptance floor. Absent ⇒ {@link DEFAULT_SMOKE_JOURNEYS}. */
+  smokeJourneys?: SmokeJourneyPolicy
+  /** #2043 (AC-2043.4/5): configurable e2e escalation ladder. Absent ⇒ {@link DEFAULT_E2E_ESCALATION}. */
+  e2ePolicy?: E2eEscalationPolicy
 }
 
 interface GovernanceConfig {
@@ -929,6 +974,8 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateChannel(draft['channel'], errors)
   validateGovernance(draft['governance'], errors)
   validateKit(draft['kit'], errors)
+  validateSmokeJourneys(draft['smokeJourneys'], errors)
+  validateE2ePolicy(draft['e2ePolicy'], errors)
 
   // #1394 — validate conformanceThresholds when present in config
   if (draft['conformanceThresholds'] !== undefined) {
@@ -1240,7 +1287,11 @@ function validateProjectInvariants(raw: unknown, errors: string[]): void {
     if (entry['status'] === 'retired') {
       errors.push(`governance.projectInvariants ${id} must not be retired`)
     }
-    if (entry['tier'] === undefined || entry['title'] === undefined || entry['description'] === undefined) {
+    if (
+      entry['tier'] === undefined ||
+      entry['title'] === undefined ||
+      entry['description'] === undefined
+    ) {
       errors.push(`governance.projectInvariants ${id} requires tier, title, and description`)
     }
     if (typeof entry['alwaysActive'] !== 'boolean') {
@@ -1364,5 +1415,68 @@ function validateChannel(raw: unknown, errors: string[]): void {
   if (raw === undefined || raw === null) return
   if (typeof raw !== 'string' || !VALID_CHANNELS.has(raw)) {
     errors.push(`channel must be one of latest, beta, canary — got ${JSON.stringify(raw)}`)
+  }
+}
+
+// #2043 (AC-2043.2): per-project floor — 2..4 keeps the trio configurable without
+// letting a project shrink the floor to 0/1 (defeats the gate) or bloat it past a
+// reasonable acceptance-journey count.
+const SMOKE_JOURNEYS_MIN = 2
+const SMOKE_JOURNEYS_MAX = 4
+// #2043 (AC-2043.2): an escalation that fires on the FIRST failure (maxStrikes:1)
+// isn't a ladder — it's a hair-trigger. 2 is the floor.
+const E2E_MAX_STRIKES_MIN = 2
+
+function validateSmokeJourneys(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('smokeJourneys must be an object')
+    return
+  }
+  const requiredJourneys = raw['requiredJourneys']
+  if (
+    requiredJourneys !== undefined &&
+    (!Array.isArray(requiredJourneys) || requiredJourneys.some((j) => typeof j !== 'string'))
+  ) {
+    errors.push('smokeJourneys.requiredJourneys must be an array of strings')
+  }
+  const minJourneys = raw['minJourneys']
+  if (minJourneys !== undefined) {
+    const valid =
+      typeof minJourneys === 'number' &&
+      Number.isInteger(minJourneys) &&
+      minJourneys >= SMOKE_JOURNEYS_MIN &&
+      minJourneys <= SMOKE_JOURNEYS_MAX
+    if (!valid) {
+      errors.push(
+        `smokeJourneys.minJourneys must be an integer between ${SMOKE_JOURNEYS_MIN} and ${SMOKE_JOURNEYS_MAX}`,
+      )
+    }
+  }
+}
+
+function validateE2ePolicy(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('e2ePolicy must be an object')
+    return
+  }
+  const escalation = raw['escalation']
+  if (escalation === undefined || escalation === null) return
+  if (!isRecord(escalation)) {
+    errors.push('e2ePolicy.escalation must be an object')
+    return
+  }
+  const strikes = escalation['strikes']
+  if (!Array.isArray(strikes) || strikes.some((s) => typeof s !== 'number')) {
+    errors.push('e2ePolicy.escalation.strikes must be an array of numbers')
+  }
+  const maxStrikes = escalation['maxStrikes']
+  const validMaxStrikes =
+    typeof maxStrikes === 'number' &&
+    Number.isInteger(maxStrikes) &&
+    maxStrikes >= E2E_MAX_STRIKES_MIN
+  if (!validMaxStrikes) {
+    errors.push(`e2ePolicy.escalation.maxStrikes must be an integer >= ${E2E_MAX_STRIKES_MIN}`)
   }
 }
