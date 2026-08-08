@@ -427,3 +427,96 @@ describe('check-phantom-command-scan.mjs — T5b″ ledger cross-check', () => {
     }
   })
 })
+
+// ─── AC-2231.5: subcommand-token validation (#2231, wave-3 Group E) ──────────
+
+describe('check-phantom-command-scan.mjs — subcommand-token validation (AC-2231.5)', () => {
+  // Mirrors the real cli.ts registration shapes: const-bound chains
+  // (`const review = program.command('review')` + `review\n  .command('diff')`),
+  // alias chains (`const verify = program\n  .command('validate').alias('verify')`),
+  // and plain top-level registrations.
+  const CLI_WITH_SUBCOMMANDS =
+    "import { Command } from 'commander'\nconst program = new Command()\n" +
+    "const review = program.command('review').description('Semantic diff between graph snapshots')\n" +
+    "review\n  .command('diff')\n  .description('Semantic diff between two graph snapshots')\n" +
+    "const verify = program\n  .command('validate')\n  .alias('verify')\n  .description('Validate')\n" +
+    "verify\n  .command('tdd <task-id>')\n  .description('Verify TDD red-phase evidence')\n" +
+    "program.command('ship [id]').description('Orchestrate an issue')\n" +
+    "program.command('init').description('Init')\n" +
+    "program.command('update').description('Update')\n"
+
+  function runInTemp(dir, cliSrc, docPath, docBody) {
+    const cliPath = join(dir, 'cli.ts')
+    writeFileSync(cliPath, cliSrc)
+    mkdirSync(join(dir, 'docs'), { recursive: true })
+    writeFileSync(join(dir, docPath), docBody)
+    return spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'docs')}`], {
+      encoding: 'utf-8',
+    })
+  }
+
+  it('FLAGS `arbiter review code` — code is not a registered subcommand of review (phantom multi-pass dispatch, #1817)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-sub-'))
+    try {
+      const r = runInTemp(
+        dir,
+        CLI_WITH_SUBCOMMANDS,
+        'docs/review-code.md',
+        'Run `arbiter review code --diff origin/main --tier S` before merging.\n',
+      )
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('`arbiter review code`')
+      expect(r.stdout).toContain('not a registered subcommand')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does NOT flag non-subcommand second tokens: `ship #NNN`, `init --recipe`, `update --governance`', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-sub-ok-'))
+    try {
+      const r = runInTemp(
+        dir,
+        CLI_WITH_SUBCOMMANDS,
+        'docs/usage.md',
+        'Run `arbiter ship #NNN --advance`, `arbiter init --recipe <url>` and `arbiter update --governance`.\n',
+      )
+      expect(r.status).toBe(0)
+      expect(r.stdout).not.toContain('phantom:')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("accepts `arbiter verify tdd '#NNN'` — tdd IS a real subcommand, reached through the validate alias", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-sub-alias-'))
+    try {
+      const r = runInTemp(
+        dir,
+        CLI_WITH_SUBCOMMANDS,
+        'docs/tdd.md',
+        "Run `arbiter verify tdd '#NNN' --json` to replay the audit.\n",
+      )
+      expect(r.status).toBe(0)
+      expect(r.stdout).not.toContain('phantom:')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('accepts a real subcommand pair in chain form (`arbiter review diff`)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-sub-real-'))
+    try {
+      const r = runInTemp(
+        dir,
+        CLI_WITH_SUBCOMMANDS,
+        'docs/ref.md',
+        'Run `arbiter review diff origin/main HEAD`.\n',
+      )
+      expect(r.status).toBe(0)
+      expect(r.stdout).not.toContain('phantom:')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})

@@ -80,7 +80,7 @@ export function extractCommandOptions(src, commandName) {
   const flags = new Set()
   for (const om of m[0].matchAll(/\.option\(\s*['"]([^'"]+)['"]/g)) {
     // A flags spec may carry a short+long pair ("-y, --yes") or a value
-    // placeholder ("--manifest <path>") — split on whitespace/comma and keep
+    // slot ("--manifest <path>") — split on whitespace/comma and keep
     // only the `--long` token(s); short-only flags are not part of this
     // ledger's vocabulary (every emitted-surface citation seen to date uses
     // the long form).
@@ -89,4 +89,76 @@ export function extractCommandOptions(src, commandName) {
     }
   }
   return flags
+}
+
+/**
+ * Extract the subcommand tree for one top-level command from src/cli.ts
+ * (AC-2231.5, #2231). The phantom-scan validates `arbiter <cmd> <sub>` pairs,
+ * so it needs the commander chain structure, not just top-level names:
+ *
+ * - `const <alias> = program` (optionally followed by `.command('<name>')` in
+ *   the same statement) binds a const to the command object;
+ * - a col-0 bare identifier line followed by indented `.command(...)` lines
+ *   (`task\n  .command('resume')`) registers subcommands on that object;
+ * - commander's `.command()` returns the NEW subcommand, so chains hung
+ *   directly on `program` (col-0 `program` head) register TOP-LEVEL commands,
+ *   never subcommands.
+ *
+ * Returns the Set of subcommand base names. Hidden subcommands are included —
+ * `arbiter task mark` genuinely runs even though `mark` is registered hidden,
+ * and the phantom-scan's contract is "does this word actually invoke
+ * something".
+ */
+export function extractSubcommandNames(src, topLevelName) {
+  const stripped = src.replace(/\/\/.*/g, '')
+
+  // 1. Find the const alias bound to this top-level command. The chain text
+  //    after `program` extends over dot-leading continuation lines until the
+  //    next col-0 statement.
+  const constChainRe = /const\s+(\w+)\s*=\s*program([\s\S]*?)(?=\n\S|$)/g
+  let alias = null
+  for (const m of stripped.matchAll(constChainRe)) {
+    const registered = m[2].match(/\.command\('([^' ]+)/)
+    if (registered && registered[1] === topLevelName) {
+      alias = m[1]
+      break
+    }
+  }
+  if (alias === null) return new Set()
+
+  // 2. Subcommand chains: a col-0 identifier line followed by indented
+  //    `.method(...)` lines. A `program` head is a top-level registration
+  //    chain, not a subcommand chain.
+  const subChainRe = /\n(\w+)\s*\n((?:\s*\.[a-zA-Z_$][\w$]*\([^\n]*\n?)+)/g
+  const subs = new Set()
+  for (const m of stripped.matchAll(subChainRe)) {
+    if (m[1] !== alias) continue
+    for (const cm of m[2].matchAll(/\.command\('([^' ]+)/g)) subs.add(cm[1])
+  }
+  return subs
+}
+
+/**
+ * Extract alias→canonical command mappings from src/cli.ts (AC-2231.5,
+ * #2231). `arbiter wt list` and `arbiter verify tdd` are real invocations
+ * whose second token is a subcommand of the CANONICAL name (`worktree` /
+ * `validate`) — the phantom-scan must resolve the alias before checking the
+ * subcommand tree. Returns a Map<alias, canonicalTopLevelName>.
+ *
+ * The existing flat extractCommandAliases() stays for callers that only need
+ * "does this word invoke something" (gen-cli-ref's canonical table is keyed by
+ * the .command() name only); the mapping is derived from the same const-chain
+ * shape as extractSubcommandNames — an `.alias('x')` inside a command's
+ * registration chain belongs to the command registered in that same chain.
+ */
+export function extractCommandAliasMappings(src) {
+  const stripped = src.replace(/\/\/.*/g, '')
+  const map = new Map()
+  const constChainRe = /const\s+\w+\s*=\s*program([\s\S]*?)(?=\n\S|$)/g
+  for (const m of stripped.matchAll(constChainRe)) {
+    const registered = m[1].match(/\.command\('([^' ]+)/)
+    const alias = m[1].match(/\.alias\('([^' ]+)'\)/)
+    if (registered && alias) map.set(alias[1], registered[1])
+  }
+  return map
 }

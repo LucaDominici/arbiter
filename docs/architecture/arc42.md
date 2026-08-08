@@ -376,7 +376,7 @@ behaviors and cannot be granted away**.
 
 Before any completion claim, three correlated artifacts must exist and match the current branch+SHA:
 
-1. `plan-review/latest.json` (written by `arbiter review plan`, with a SHA-256 **plan-digest** — a
+1. `plan-review/latest.json` (written by the plan-review step of the task lifecycle — a SHA-256 **plan-digest** — a
    plan changed since review fails the gate),
 2. `.arbiter/agents-dispatched.json` (written by the refactor step — "I reviewed it" without real
    agent tool-calls does not satisfy it),
