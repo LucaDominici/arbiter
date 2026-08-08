@@ -541,7 +541,7 @@ exactly the parked-wait bug this measure bans. Monitor stays valid for event
 streams — it is only banned as a gate-wait idiom with finite timeout.
 
 **Why.** R5/R7. Six verified incidents in one night (2026-07-24, ~750k-1M tokens:
-arbiter #2095/#2098/#2102-work, viafera #4004/#4011): every ambient default funnels
+arbiter #2095/#2098/#2102-work, a governed consumer #4004/#4011): every ambient default funnels
 agents into a broken lookalike — (1) nohup+PID-file in foreground Bash (invisible to
 harness child-tracking, encouraged by the old scoped-PID memory note), (2) Monitor
 with finite `timeout_ms` silently killed mid-gate, (3) pure narration backed by

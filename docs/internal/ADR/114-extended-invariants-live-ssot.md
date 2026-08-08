@@ -48,9 +48,10 @@ the same commit (INV-63).
    manifest or parentless HEAD ⇒ SKIP.
 4. **Consumer activation (AC-2044.2/4).** governed-consumer arbiter.json gain
    `governance.invariants_catalog: 'extended'`; their GLOBAL_INVARIANTS.md regenerated
-   (INV-63/64/69/70 present, verified); coach's drift-manifest hash re-pinned.
-   The governed consumer's L1 gate: ALL PASSED. Coach's L1: only its pre-existing ai-eval unit-test
-   failure (data-eval, unrelated — verified identical without the change).
+   (INV-63/64/69/70 present, verified); the other consumer's drift-manifest hash re-pinned.
+   The governed consumer's L1 gate: ALL PASSED. The other consumer's L1: only its
+   pre-existing ai-eval unit-test failure (data-eval, unrelated — verified identical
+   without the change).
 
 ## Consequences
 

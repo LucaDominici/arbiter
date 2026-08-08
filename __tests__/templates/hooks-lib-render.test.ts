@@ -48,7 +48,7 @@ describe('hooks/lib.mjs.ejs — rendered output', () => {
     expect(rendered).not.toContain('<%=')
   })
 
-  it('contains the 5 consumer-local lib exports required by haben hooks (#2077 dual-track)', () => {
+  it('contains the 5 consumer-local lib exports required by consumer-A hooks (#2077 dual-track)', () => {
     expect(rendered).toContain('export function isPathInThisRepo')
     expect(rendered).toContain('export function reachesDispatch')
     expect(rendered).toContain('export function lintEnv')

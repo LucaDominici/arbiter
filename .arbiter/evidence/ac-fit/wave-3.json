@@ -16,14 +16,14 @@
   "notes": [
     "Verdicts are the FIT rubric judgement of the merged diff (main...HEAD, 236 files) against the frozen 53-criterion anchor.",
     "24 targeted vitest suites re-run in this tree at HEAD=5a22602d: 24 files passed, 352 tests passed, 0 failed.",
-    "Group A consumer-side evidence lives outside this repo; it was independently re-verified here against the haben and coach-system checkouts on disk (paths cited absolutely), not merely accepted from the lead report.",
+    "Group A consumer-side evidence lives outside this repo; it was independently re-verified here against the consumer-A and consumer-B checkouts on disk (paths cited absolutely), not merely accepted from the lead report.",
     "requireAllPass is hardcoded true in check-acceptance.mjs --ac-fit mode, so this honest artifact makes that gate exit 1 by design: AC-2043.5 FAIL and AC-2102.7 NOT-TESTED are real verdicts and were not laundered into PASS."
   ],
   "criteria": [
     {
       "id": "AC-2077.1",
       "verdict": "PASS",
-      "note": "Template + lib.mjs.ejs twin forward-synced with the #565/#567 sibling-repo guard; haben's hook is byte-equal on the guard (haben lib.mjs:288 carries isPathInThisRepo). Render test + empirical hook test both green.",
+      "note": "Template + lib.mjs.ejs twin forward-synced with the #565/#567 sibling-repo guard; consumer-A's hook is byte-equal on the guard (consumer-A lib.mjs:288 carries isPathInThisRepo). Render test + empirical hook test both green.",
       "evidence": [
         {
           "file": "src/templates/claude/hooks/pre-edit-ssot-guard.mjs",
@@ -46,41 +46,41 @@
           "what": "empirical sibling-repo case: a foreign repo's AGENTS.md is no longer blocked (#565 bug)"
         },
         {
-          "file": "/home/luca/work/repos/haben/.claude/hooks/lib.mjs",
+          "file": "~/consumer-A/.claude/hooks/lib.mjs",
           "line": 288,
-          "what": "haben's hook carries the same guard \u2014 verified AHEAD/at-parity, not behind"
+          "what": "consumer-A's hook carries the same guard \u2014 verified AHEAD/at-parity, not behind"
         }
       ]
     },
     {
       "id": "AC-2077.2",
       "verdict": "PASS",
-      "note": "coach-system regenerated in a dedicated, scoped commit 46048e1 'feat(#2077): regenerate SSOT guard from arbiter template (wave-3)' \u2014 SSOT guard + lib only, no full hook-set churn.",
+      "note": "consumer-B regenerated in a dedicated, scoped commit 46048e1 'feat(#2077): regenerate SSOT guard from arbiter template (wave-3)' \u2014 SSOT guard + lib only, no full hook-set churn.",
       "evidence": [
         {
-          "file": "/home/luca/work/repos/coach-system/.claude/hooks/pre-edit-ssot-guard.mjs",
+          "file": "~/consumer-B/.claude/hooks/pre-edit-ssot-guard.mjs",
           "line": 78,
           "what": "regenerated hook carries the forward-synced guard"
         },
         {
-          "file": "/home/luca/work/repos/coach-system/.claude/hooks/lib.mjs",
+          "file": "~/consumer-B/.claude/hooks/lib.mjs",
           "line": 290,
-          "what": "coach lib.mjs regenerated with isPathInThisRepo + the 4 sibling consumer-local exports"
+          "what": "consumer-B lib.mjs regenerated with isPathInThisRepo + the 4 sibling consumer-local exports"
         }
       ]
     },
     {
       "id": "AC-2077.3",
       "verdict": "PASS",
-      "note": "Independently re-verified: `node --input-type=module -e \"await import('./.claude/hooks/post-edit-dispatch.mjs')\"` in the haben checkout exits 0 \u2014 no broken ESM named exports. Lead report: haben L1 gate ALL PASSED; coach L1 shows only the pre-existing, unrelated ai-eval data-eval failure (reproduced with the change stashed).",
+      "note": "Independently re-verified: `node --input-type=module -e \"await import('./.claude/hooks/post-edit-dispatch.mjs')\"` in the consumer-A checkout exits 0 \u2014 no broken ESM named exports. Lead report: consumer-A L1 gate ALL PASSED; consumer-B L1 shows only the pre-existing, unrelated ai-eval data-eval failure (reproduced with the change stashed).",
       "evidence": [
         {
-          "file": "/home/luca/work/repos/haben/.claude/hooks/lib.mjs",
+          "file": "~/consumer-A/.claude/hooks/lib.mjs",
           "line": 81,
           "what": "reachesDispatch export present \u2014 post-edit-dispatch.mjs's named import resolves at module load (import exits 0)"
         },
         {
-          "file": "/home/luca/work/repos/coach-system/.claude/hooks/lib.mjs",
+          "file": "~/consumer-B/.claude/hooks/lib.mjs",
           "line": 429,
           "what": "isDangerousCommand + the other 4 consumer-local exports survive the regen"
         }
@@ -89,15 +89,15 @@
     {
       "id": "AC-2077.4",
       "verdict": "PASS",
-      "note": "No unrelated drift. haben working tree: zero modified hook/config files. coach-system working tree: 3 modified files, all attributable to #2044 (arbiter.json activation, GLOBAL_INVARIANTS.md regen, drift-manifest re-pin) plus one pre-existing untracked NIGHT_LOG.md that predates the wave.",
+      "note": "No unrelated drift. consumer-A working tree: zero modified hook/config files. consumer-B working tree: 3 modified files, all attributable to #2044 (arbiter.json activation, GLOBAL_INVARIANTS.md regen, drift-manifest re-pin) plus one pre-existing untracked NIGHT_LOG.md that predates the wave.",
       "evidence": [
         {
-          "file": "/home/luca/work/repos/coach-system/arbiter.json",
+          "file": "~/consumer-B/arbiter.json",
           "line": 48,
-          "what": "the only coach config drift is #2044's deliberate invariants_catalog activation"
+          "what": "the only consumer-B config drift is #2044's deliberate invariants_catalog activation"
         },
         {
-          "file": "/home/luca/work/repos/coach-system/.arbiter/drift-manifest.json",
+          "file": "~/consumer-B/.arbiter/drift-manifest.json",
           "line": 1,
           "what": "hash re-pin, the documented reconciliation for the GLOBAL_INVARIANTS.md regen"
         }
@@ -289,7 +289,7 @@
     {
       "id": "AC-2036.3",
       "verdict": "PASS",
-      "note": "A pre-existing haben-style COSTITUZIONE.md carrying the arbiter:preserve marker is never clobbered and the gate SKIPs it as user-owned format.",
+      "note": "A pre-existing consumer-A-style COSTITUZIONE.md carrying the arbiter:preserve marker is never clobbered and the gate SKIPs it as user-owned format.",
       "evidence": [
         {
           "file": "src/templates/scripts/check-decision-registry.mjs.ejs",
@@ -389,7 +389,7 @@
     {
       "id": "AC-2044.2",
       "verdict": "PASS",
-      "note": "Per the red-team amendment the activation MECHANISM already existed; the deliverable was consumer config + emission. Verified landed in both governed consumers on disk (not merely lead-reported). haben's tree is clean (committed); coach's arbiter.json + regenerated GLOBAL_INVARIANTS.md are staged in its working tree, orchestrator-owned landing.",
+      "note": "Per the red-team amendment the activation MECHANISM already existed; the deliverable was consumer config + emission. Verified landed in both governed consumers on disk (not merely lead-reported). consumer-A's tree is clean (committed); consumer-B's arbiter.json + regenerated GLOBAL_INVARIANTS.md are staged in its working tree, orchestrator-owned landing.",
       "evidence": [
         {
           "file": "src/config/schema.ts",
@@ -402,14 +402,14 @@
           "what": "resolveExtendedInvariants reads governance.invariants_catalog === 'extended'"
         },
         {
-          "file": "/home/luca/work/repos/haben/arbiter.json",
+          "file": "~/consumer-A/arbiter.json",
           "line": 85,
-          "what": "haben activated: \"invariants_catalog\": \"extended\""
+          "what": "consumer-A activated: \"invariants_catalog\": \"extended\""
         },
         {
-          "file": "/home/luca/work/repos/coach-system/arbiter.json",
+          "file": "~/consumer-B/arbiter.json",
           "line": 48,
-          "what": "coach activated: \"invariants_catalog\": \"extended\""
+          "what": "consumer-B activated: \"invariants_catalog\": \"extended\""
         }
       ]
     },
@@ -446,14 +446,14 @@
       "note": "Both branches of the OR are satisfied: INV-63 is activated in both consumers (present in their regenerated GLOBAL_INVARIANTS.md) AND the equivalent automatic drift-check landed as check-drift's live-SSOT binding.",
       "evidence": [
         {
-          "file": "/home/luca/work/repos/haben/GLOBAL_INVARIANTS.md",
+          "file": "~/consumer-A/GLOBAL_INVARIANTS.md",
           "line": 660,
-          "what": "INV-63 SSOT atomic update active in haben (INV-64/69/70 at 667/681/77)"
+          "what": "INV-63 SSOT atomic update active in consumer-A (INV-64/69/70 at 667/681/77)"
         },
         {
-          "file": "/home/luca/work/repos/coach-system/GLOBAL_INVARIANTS.md",
+          "file": "~/consumer-B/GLOBAL_INVARIANTS.md",
           "line": 723,
-          "what": "INV-63 active in coach (INV-64/69/70 at 730/744/77)"
+          "what": "INV-63 active in consumer-B (INV-64/69/70 at 730/744/77)"
         },
         {
           "file": "src/templates/scripts/check-drift.mjs.ejs",
@@ -695,7 +695,7 @@
     {
       "id": "AC-2043.3",
       "verdict": "PASS",
-      "note": "The floor gate is registered at L1 in the declarative registry, so every consumer emission wires it \u2014 verified materialized and wired in the regenerated examples, alongside coach's already-wired check-render-smoke (restored by #495).",
+      "note": "The floor gate is registered at L1 in the declarative registry, so every consumer emission wires it \u2014 verified materialized and wired in the regenerated examples, alongside consumer-B's already-wired check-render-smoke (restored by #495).",
       "evidence": [
         {
           "file": "src/templates/scripts/gate-registry.yml.ejs",
