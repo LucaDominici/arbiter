@@ -237,8 +237,8 @@ gates:
   - { id: tdd-evidence, name: 'tdd-evidence (INV-131)', level: L2, kind: check, soft: true, cmd: ['node', ['scripts/check-tdd-evidence.mjs']] }
   - { id: todo-max-age, name: 'todo max-age (INV-133)', level: L2, kind: check, soft: true, cmd: ['node', ['scripts/check-todo-max-age.mjs']] }
   - { id: evidence-gate, name: 'evidence gate (INV-33)', level: L3, kind: inline, emitIf: "isL3Plus" }
-  - { id: local-ci-parity, name: 'local-ci-parity (INV-59)', level: L2, kind: check, emitIf: "enableDebtGates && typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo'", cmd: ['node', ['scripts/check-local-ci-parity.mjs']] }
+  - { id: local-ci-parity, name: 'local-ci-parity (INV-59)', level: L2, kind: check, emitIf: "typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo'", cmd: ['node', ['scripts/check-local-ci-parity.mjs']] }
 
   # ── L3 (nightly lane, AC-2041.1 — mirrors 06-nightly-lite.yml) ────────────
-  - { id: solo-reactivation, name: 'solo reactivation', level: L3, kind: check, cmd: ['node', ['scripts/check-solo-reactivation.mjs']] }
+  - { id: solo-reactivation, name: 'solo reactivation', level: L3, kind: check, emitIf: "typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo' && isL3Plus", cmd: ['node', ['scripts/check-solo-reactivation.mjs']] }
   - { id: nightly-audit-prod, name: 'nightly audit (prod scope)', level: L3, kind: check, emitIf: "language === 'typescript' && packageManager === 'npm'", soft: true, cmd: ['npm', ['audit', '--omit=dev', '--audit-level=high']] }

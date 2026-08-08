@@ -101,7 +101,10 @@ describe('declarative gate registry (#2041)', () => {
   })
 
   it('AC-2041.1: L3 is an executable local lane — no clamp warning, L3 gates run', () => {
-    const data = baseData(dir)
+    // solo-reactivation (the L3 gate this proves runs) is trunk-solo/L3+-only
+    // (#2222 emission-coherence fix) — the file it calls is only ever generated
+    // for that combo (src/generators/solo-exception.ts), so exercise it here.
+    const data = { ...baseData(dir), collaborationMode: 'trunk-solo', governanceLevel: 'L3' }
     const rendered = renderGate({ ...data, gates: loadGateRegistry({ ...data }) })
     const l3 = runScript(rendered, ['--level', 'L3', '--dry-run'])
     expect(l3.stderr).not.toContain('clamps to L2')

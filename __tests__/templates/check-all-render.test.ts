@@ -1033,9 +1033,13 @@ describe('check-all.mjs.ejs — L3/L4 executable local lanes (#2041, resolves #1
   })
 
   it('emits an L3 lane with the nightly set (no clamp, no L2 downgrade)', () => {
+    // solo-reactivation (the nightly-set gate this proves is present) is
+    // trunk-solo/L3+-only (#2222 emission-coherence fix) — governanceLevel:
+    // 'L3' + collaborationMode: 'trunk-solo' exercises the lane it belongs to.
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
-      governanceLevel: 'L2',
+      governanceLevel: 'L3',
+      collaborationMode: 'trunk-solo',
       enableDebtGates: true,
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
