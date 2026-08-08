@@ -132,9 +132,7 @@ describe('check-all.mjs.ejs — Go coverage profile keeps the default covermode 
 
   // #2041: registry-driven — render through the shared helper with a full makeConfig base.
   const renderGoGate = () =>
-    renderCheckAll(
-      makeConfig('/tmp/test', goCfg as never) as unknown as Record<string, unknown>,
-    )
+    renderCheckAll(makeConfig('/tmp/test', goCfg as never) as unknown as Record<string, unknown>)
 
   it('still emits the coverage profile step', () => {
     expect(renderGoGate()).toContain("runCheck('coverage profile'")

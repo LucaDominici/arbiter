@@ -56,7 +56,7 @@ governance level (L1 / L2 / L3 / L4), then materializes:
   `getFilteredInvariants`, and propagated to AGENTS.md, GLOBAL_INVARIANTS.md,
   `verify graph`, `explain`, and the doc↔catalog parity gate (see
   [ADR-112](internal/ADR/112-project-invariants-proj-nn.md)).
-^- The extended invariant set (INV-62..INV-71) activates via `governance.invariants_catalog: "extended"` —
+  ^- The extended invariant set (INV-62..INV-71) activates via `governance.invariants_catalog: "extended"` —
   see [ADR-114](internal/ADR/114-extended-invariants-live-ssot.md); declared-live SSOT
   surfaces (`governance.liveSsot`) are bound to the same commit by check-drift.
 - Blocked project decisions are tracked as `D-NN` in `DECISION_REGISTRY.md` (see
@@ -119,7 +119,6 @@ every id in `[taskId, ...chainIds]` has a commit in the push range naming it (`#
 one commit per issue is the traceability floor. No chain declared ⇒ the check is a silent
 no-op. `--chain` never changes whether the close step opens a PR or pushes directly — that
 stays governed by `collaborationMode`/`mergeMode` as before.
-
 
 ## Common next reads
 

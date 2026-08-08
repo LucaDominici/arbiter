@@ -1259,6 +1259,65 @@ function validateLiveSsot(raw: unknown, errors: string[]): void {
   }
 }
 
+// #680 mirror: languageDetail must cover every declared language. Split out of
+// validateProjectInvariantEntry (#2035) to keep max-depth under the L2 ratchet
+// — the nested for-of/if pair no longer stacks on top of the entry loop.
+function validateProjectInvariantLanguages(
+  id: string,
+  entry: Record<string, unknown>,
+  errors: string[],
+): void {
+  const languages = entry['languages']
+  if (languages === undefined) return
+  if (!Array.isArray(languages) || languages.some((l) => typeof l !== 'string')) {
+    errors.push(`governance.projectInvariants ${id} languages must be an array of strings`)
+    return
+  }
+  const languageDetail = entry['languageDetail']
+  if (!isRecord(languageDetail)) return
+  for (const lang of languages) {
+    if (!(lang in languageDetail)) {
+      errors.push(
+        `governance.projectInvariants ${id} languageDetail must cover every language in languages (missing ${String(lang)})`,
+      )
+    }
+  }
+}
+
+/** #2035: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
+function validateProjectInvariantEntry(entry: unknown, seen: Set<string>, errors: string[]): void {
+  if (!isRecord(entry)) {
+    errors.push('governance.projectInvariants entries must be objects')
+    return
+  }
+  const id = entry['id']
+  if (typeof id !== 'string' || !PROJ_INVARIANT_ID_RE.test(id)) {
+    errors.push(
+      `governance.projectInvariants id must match /^PROJ-\\d+$/ (the INV-NN namespace is reserved) — got ${String(id)}`,
+    )
+    return
+  }
+  if (seen.has(id)) {
+    errors.push(`governance.projectInvariants duplicate id: ${id}`)
+    return
+  }
+  seen.add(id)
+  if (entry['status'] === 'retired') {
+    errors.push(`governance.projectInvariants ${id} must not be retired`)
+  }
+  if (
+    entry['tier'] === undefined ||
+    entry['title'] === undefined ||
+    entry['description'] === undefined
+  ) {
+    errors.push(`governance.projectInvariants ${id} requires tier, title, and description`)
+  }
+  if (typeof entry['alwaysActive'] !== 'boolean') {
+    errors.push(`governance.projectInvariants ${id} requires boolean alwaysActive`)
+  }
+  validateProjectInvariantLanguages(id, entry, errors)
+}
+
 /** #2035: split out of validateGovernance to keep its cyclomatic complexity under the L2 ratchet. */
 function validateProjectInvariants(raw: unknown, errors: string[]): void {
   if (raw === undefined || raw === null) return
@@ -1268,51 +1327,7 @@ function validateProjectInvariants(raw: unknown, errors: string[]): void {
   }
   const seen = new Set<string>()
   for (const entry of raw) {
-    if (!isRecord(entry)) {
-      errors.push('governance.projectInvariants entries must be objects')
-      continue
-    }
-    const id = entry['id']
-    if (typeof id !== 'string' || !PROJ_INVARIANT_ID_RE.test(id)) {
-      errors.push(
-        `governance.projectInvariants id must match /^PROJ-\\d+$/ (the INV-NN namespace is reserved) — got ${String(id)}`,
-      )
-      continue
-    }
-    if (seen.has(id)) {
-      errors.push(`governance.projectInvariants duplicate id: ${id}`)
-      continue
-    }
-    seen.add(id)
-    if (entry['status'] === 'retired') {
-      errors.push(`governance.projectInvariants ${id} must not be retired`)
-    }
-    if (
-      entry['tier'] === undefined ||
-      entry['title'] === undefined ||
-      entry['description'] === undefined
-    ) {
-      errors.push(`governance.projectInvariants ${id} requires tier, title, and description`)
-    }
-    if (typeof entry['alwaysActive'] !== 'boolean') {
-      errors.push(`governance.projectInvariants ${id} requires boolean alwaysActive`)
-    }
-    const languages = entry['languages']
-    if (languages !== undefined) {
-      const languageDetail = entry['languageDetail']
-      if (!Array.isArray(languages) || languages.some((l) => typeof l !== 'string')) {
-        errors.push(`governance.projectInvariants ${id} languages must be an array of strings`)
-      } else if (isRecord(languageDetail)) {
-        // #680 mirror: languageDetail must cover every declared language.
-        for (const lang of languages) {
-          if (!(lang in languageDetail)) {
-            errors.push(
-              `governance.projectInvariants ${id} languageDetail must cover every language in languages (missing ${String(lang)})`,
-            )
-          }
-        }
-      }
-    }
+    validateProjectInvariantEntry(entry, seen, errors)
   }
 }
 

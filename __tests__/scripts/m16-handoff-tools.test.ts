@@ -60,7 +60,10 @@ describe('bg-run.sh / pid-watch.sh (#2103) — terminal handoff helpers', () => 
     // Coordinator (a SEPARATE process — the worker's session is gone) watches the exit file.
     const watchRun = spawnSync('/usr/bin/bash', [watch, 'gate'], { cwd: dir, encoding: 'utf-8' })
     expect(watchRun.status).toBe(0)
-    const lines = (watchRun.stdout ?? '').trim().split('\n').filter((l) => l.length > 0)
+    const lines = (watchRun.stdout ?? '')
+      .trim()
+      .split('\n')
+      .filter((l) => l.length > 0)
     expect(lines).toHaveLength(1)
     expect(lines[0]).toContain('42')
   })
@@ -68,7 +71,10 @@ describe('bg-run.sh / pid-watch.sh (#2103) — terminal handoff helpers', () => 
   it('re-watching an already-exited job emits exactly one line again (idempotent)', () => {
     const { dir, bg, watch } = materializeScripts()
     dirs.push(dir)
-    spawnSync('/usr/bin/bash', [bg, 'gate2', '--', 'sh', '-c', 'exit 3'], { cwd: dir, encoding: 'utf-8' })
+    spawnSync('/usr/bin/bash', [bg, 'gate2', '--', 'sh', '-c', 'exit 3'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
     // Wait for the detached job to finish writing its exit file.
     const exitFile = join(dir, '.arbiter', 'bg', 'gate2.exit')
     for (let i = 0; i < 50 && !existsSync(exitFile); i++) {

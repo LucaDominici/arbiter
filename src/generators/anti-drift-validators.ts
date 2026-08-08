@@ -193,7 +193,13 @@ function emitLiveSsotManifest(
   if (config.liveSsot === undefined) return []
   const content =
     JSON.stringify(
-      { surfaces: config.liveSsot.surfaces.map((s) => ({ path: s.path, kind: s.kind, ...(s.keys ? { keys: s.keys } : {}) })) },
+      {
+        surfaces: config.liveSsot.surfaces.map((s) => ({
+          path: s.path,
+          kind: s.kind,
+          ...(s.keys ? { keys: s.keys } : {}),
+        })),
+      },
       null,
       2,
     ) + '\n'

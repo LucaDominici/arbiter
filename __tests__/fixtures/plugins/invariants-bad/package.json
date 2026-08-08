@@ -2,5 +2,7 @@
   "name": "invariants-bad-plugin",
   "version": "1.0.0",
   "main": "index.js",
-  "keywords": ["arbiter-plugin"]
+  "keywords": [
+    "arbiter-plugin"
+  ]
 }

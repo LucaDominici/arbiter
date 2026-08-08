@@ -16,7 +16,10 @@ function renderGate(data: Record<string, unknown>): string {
   return renderTemplate('scripts/check-all.mjs.ejs', data)
 }
 
-function runScript(scriptBody: string, args: string[]): { status: number; stdout: string; stderr: string } {
+function runScript(
+  scriptBody: string,
+  args: string[],
+): { status: number; stdout: string; stderr: string } {
   const dir = mkdtempSync(join(tmpdir(), 'gate-registry-'))
   try {
     writeFileSync(join(dir, 'check-all.mjs'), scriptBody, 'utf-8')
@@ -115,7 +118,11 @@ describe('declarative gate registry (#2041)', () => {
     try {
       writeFileSync(join(scriptDir, 'test-gate-layering.mjs'), rendered, 'utf-8')
       mkdirSync(join(scriptDir, 'scripts'), { recursive: true })
-      writeFileSync(join(scriptDir, 'scripts', 'check-all.mjs'), renderGate({ ...data, gates: registry }), 'utf-8')
+      writeFileSync(
+        join(scriptDir, 'scripts', 'check-all.mjs'),
+        renderGate({ ...data, gates: registry }),
+        'utf-8',
+      )
       const r = spawnSync('node', [join(scriptDir, 'test-gate-layering.mjs')], {
         cwd: scriptDir,
         encoding: 'utf-8',

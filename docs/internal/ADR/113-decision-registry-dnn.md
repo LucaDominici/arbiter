@@ -42,7 +42,7 @@ traceability. The 3-layer model (Leggi → D-NN → ADR) is the pattern to adopt
 4. **Gold-doc-set tracking.** `DECISION_REGISTRY.md` is a mandatory manifest row
    (`tiers: solo:r/small:R/enterprise:R` — solo advisory per the anti-cathedral
    guardrail), `template: decision-registry`, with `accept_any: [DECISION_REGISTRY.md,
-   COSTITUZIONE.md]` for consumer-style adoption. `GLOBAL_INVARIANTS.md` is now also
+COSTITUZIONE.md]` for consumer-style adoption. `GLOBAL_INVARIANTS.md` is now also
    registered (`conditional` + `applies: always` ⇒ a missing file is a RECOMMENDED gap,
    never a hard fail — the generator deliberately non-emits at the L1 essential preset,
    src/generators/global-invariants.ts `not-applicable`), closing AC-2036.6.

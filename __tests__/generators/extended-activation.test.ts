@@ -6,16 +6,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateGoldKit } from '../../src/generators/gold-kit.js'
 import { generateSsot } from '../../src/generators/ssot.js'
 import { validateConfig, DEFAULT_THRESHOLDS } from '../../src/config/schema.js'
 import { renderTemplate } from '../../src/utils/render.js'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
 let dir: string
 
 beforeEach(() => {
@@ -28,13 +26,19 @@ afterEach(() => {
 })
 
 function renderScript(tpl: string): string {
-  return renderTemplate(tpl, makeConfig('/tmp/render', {
-    projectName: 'test-project',
-    includeExtendedInvariants: true,
-  }) as unknown as Record<string, unknown>)
+  return renderTemplate(
+    tpl,
+    makeConfig('/tmp/render', {
+      projectName: 'test-project',
+      includeExtendedInvariants: true,
+    }) as unknown as Record<string, unknown>,
+  )
 }
 
-function runScript(scriptBody: string, cwd: string): { status: number; stdout: string; stderr: string } {
+function runScript(
+  scriptBody: string,
+  cwd: string,
+): { status: number; stdout: string; stderr: string } {
   const scriptDir = mkdtempSync(join(tmpdir(), 'extended-gate-'))
   try {
     writeFileSync(join(scriptDir, 'gate.mjs'), scriptBody, 'utf-8')
@@ -69,7 +73,11 @@ describe('extended-set activation (#2044)', () => {
     const empty = mkdtempSync(join(tmpdir(), 'reuse-empty-'))
     try {
       mkdirSync(join(empty, 'docs', 'METHOD'), { recursive: true })
-      writeFileSync(join(empty, 'docs', 'METHOD', 'REUSE_REGISTRY.md'), '# REUSE_REGISTRY\n', 'utf-8')
+      writeFileSync(
+        join(empty, 'docs', 'METHOD', 'REUSE_REGISTRY.md'),
+        '# REUSE_REGISTRY\n',
+        'utf-8',
+      )
       const result = runScript(script, empty)
       expect(result.status).toBe(1)
     } finally {
@@ -150,7 +158,11 @@ describe('extended-set activation (#2044)', () => {
       spawnSync('git', ['-C', fixture, 'commit', '-qm', 'init'], { encoding: 'utf-8' })
       // Code AND surface touched together.
       writeFileSync(join(fixture, 'src', 'app.ts'), '// v2 changed\n', 'utf-8')
-      writeFileSync(join(fixture, 'docs', 'FEATURE_MATRIX.md'), '| feature | done |\n| other | wip |\n', 'utf-8')
+      writeFileSync(
+        join(fixture, 'docs', 'FEATURE_MATRIX.md'),
+        '| feature | done |\n| other | wip |\n',
+        'utf-8',
+      )
       spawnSync('git', ['-C', fixture, 'add', '-A'], { encoding: 'utf-8' })
       spawnSync('git', ['-C', fixture, 'commit', '-qm', 'code + matrix'], { encoding: 'utf-8' })
       const result = runScript(script, fixture)

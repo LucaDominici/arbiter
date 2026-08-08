@@ -262,7 +262,9 @@ describe('generateAgentsMd', () => {
     generateAgentsMd(
       makeConfig(dir, {
         projectInvariants: [projInvariant],
-      } as Partial<Parameters<typeof makeConfig>[1]> & { projectInvariants: typeof projInvariant[] }),
+      } as Partial<Parameters<typeof makeConfig>[1]> & {
+        projectInvariants: (typeof projInvariant)[]
+      }),
     )
     const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
     expect(content).toContain('PROJ-01')

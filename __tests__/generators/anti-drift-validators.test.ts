@@ -213,7 +213,10 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     // #2041: the check-all template no longer names gate scripts inline — the
     // DECLARATIVE gate registry (gate-registry.yml.ejs) carries every cmd. The
     // wiring lockstep is now: emitted script name ∈ registry cmd (template data).
-    const registrySrc = readFileSync(resolve('src/templates/scripts/gate-registry.yml.ejs'), 'utf-8')
+    const registrySrc = readFileSync(
+      resolve('src/templates/scripts/gate-registry.yml.ejs'),
+      'utf-8',
+    )
     const emitted = generateAntiDriftValidators(makeConfig(dir)).files.map((f) =>
       f.path.split('/').pop(),
     )

@@ -102,7 +102,9 @@ describe('TICK_PROMPT.md.ejs render', () => {
   })
 
   it('AC-2043.4: renders the CONFIGURED escalation max-strikes (not a hardcoded 2)', () => {
-    const md = renderTickPrompt({ e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } } })
+    const md = renderTickPrompt({
+      e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } },
+    })
     expect(md).toMatch(/3-strike/)
     expect(md).not.toMatch(/2-strike rule is final/)
   })

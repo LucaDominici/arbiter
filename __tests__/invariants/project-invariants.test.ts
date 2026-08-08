@@ -106,9 +106,7 @@ describe('GovernanceConfig projectInvariants schema validation (#2035)', () => {
     const result = validateConfig({
       ...BASE_CONFIG,
       governance: {
-        projectInvariants: [
-          { ...PROJ_01, id: 'INV-99' },
-        ],
+        projectInvariants: [{ ...PROJ_01, id: 'INV-99' }],
       },
     })
     expect(result.ok).toBe(false)
@@ -120,9 +118,7 @@ describe('GovernanceConfig projectInvariants schema validation (#2035)', () => {
     const result = validateConfig({
       ...BASE_CONFIG,
       governance: {
-        projectInvariants: [
-          { ...PROJ_01, id: 'project-one' },
-        ],
+        projectInvariants: [{ ...PROJ_01, id: 'project-one' }],
       },
     })
     expect(result.ok).toBe(false)
@@ -156,9 +152,7 @@ describe('GovernanceConfig projectInvariants schema validation (#2035)', () => {
     const result = validateConfig({
       ...BASE_CONFIG,
       governance: {
-        projectInvariants: [
-          { id: 'PROJ-02', title: 'incomplete' } as unknown as Invariant,
-        ],
+        projectInvariants: [{ id: 'PROJ-02', title: 'incomplete' } as unknown as Invariant],
       },
     })
     expect(result.ok).toBe(false)

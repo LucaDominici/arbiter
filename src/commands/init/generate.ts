@@ -59,7 +59,10 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
     // id conflict — deterministic precedence: catalog < plugin < config).
     const storedBefore = loadConfig(targetDir)
     const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
-    const mergedConfig = mergeProjectInvariants(config, await collectPluginInvariants(targetDir, plugins))
+    const mergedConfig = mergeProjectInvariants(
+      config,
+      await collectPluginInvariants(targetDir, plugins),
+    )
     beginGenerationSession({
       targetDir,
       prevHashes: prevManifest,
@@ -70,7 +73,10 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
         recordLocalOverride(targetDir, { key, priorContent, newContent })
       },
     })
-    const { results, errors: generatorErrors } = runGeneratorsWithErrors(mergedConfig, installedSkills)
+    const { results, errors: generatorErrors } = runGeneratorsWithErrors(
+      mergedConfig,
+      installedSkills,
+    )
     const generatedHashes = endGenerationSession()
     saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes })
     committed.push(...results)

@@ -163,9 +163,7 @@ describe('generated executable .mjs templates are valid JavaScript (#1540, #1549
             // #2041: check-all.mjs.ejs is registry-driven — render it through the
             // shared helper (which loads the declarative gate registry).
             rendered =
-              tpl === 'scripts/check-all.mjs.ejs'
-                ? renderCheckAll(data)
-                : renderTemplate(tpl, data)
+              tpl === 'scripts/check-all.mjs.ejs' ? renderCheckAll(data) : renderTemplate(tpl, data)
           } catch (err) {
             renderFailures.push(`${tpl}: ${String(err).split('\n')[0]}`)
             continue

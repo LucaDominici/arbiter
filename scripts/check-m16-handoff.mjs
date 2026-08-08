@@ -67,7 +67,9 @@ function selfTest() {
       process.stderr.write('check-m16-handoff self-test FAILED: fully-marked corpus must pass\n')
       return 1
     }
-    process.stdout.write('check-m16-handoff self-test OK (marker-less corpus fails, marked passes)\n')
+    process.stdout.write(
+      'check-m16-handoff self-test OK (marker-less corpus fails, marked passes)\n',
+    )
     return 0
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -95,7 +97,9 @@ try {
     )
     process.exit(1)
   }
-  process.stdout.write('check-m16-handoff: OK — every dispatch-template corpus file carries the M16 handoff-contract marker\n')
+  process.stdout.write(
+    'check-m16-handoff: OK — every dispatch-template corpus file carries the M16 handoff-contract marker\n',
+  )
 } catch (err) {
   process.stderr.write(`check-m16-handoff: ${err instanceof Error ? err.message : String(err)}\n`)
   process.exit(1)

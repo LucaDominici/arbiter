@@ -33,14 +33,14 @@ export interface GateRegistryEntry {
 const VALID_LEVELS = new Set(['L1', 'L2', 'L3'])
 const VALID_KINDS = new Set(['check', 'warn', 'tool', 'inline'])
 
-export function loadGateRegistry(data: Record<string, unknown>): GateRegistryEntry[] {
-  // Normalize the render data the registry's EJS expressions rely on — the
-  // same derivations the check-all.mjs.ejs template computes for itself:
-  // packageManager default, the L3 ratchet flag, and the FE source glob.
-  // isL3Plus is DERIVED from governanceLevel here (renderTemplate injects the
-  // same booleans via withRenderDefaults, but loadGateRegistry runs BEFORE that
-  // injection — reading data['isL3Plus'] directly would always see undefined
-  // and emit the L2 ratchet flag even for an L3 project, #2041).
+// Normalize the render data the registry's EJS expressions rely on — the same
+// derivations the check-all.mjs.ejs template computes for itself: packageManager
+// default, the L3 ratchet flag, and the FE source glob. isL3Plus is DERIVED
+// from governanceLevel here (renderTemplate injects the same booleans via
+// withRenderDefaults, but loadGateRegistry runs BEFORE that injection —
+// reading data['isL3Plus'] directly would always see undefined and emit the
+// L2 ratchet flag even for an L3 project, #2041).
+function deriveGateRegistryRenderData(data: Record<string, unknown>): Record<string, unknown> {
   const fe = (data['frontend'] as { framework?: string } | undefined)?.framework ?? 'react'
   const feGlob =
     fe === 'vue'
@@ -53,71 +53,98 @@ export function loadGateRegistry(data: Record<string, unknown>): GateRegistryEnt
     typeof govLevel === 'string' &&
     (LEVEL_ORDER as readonly string[]).includes(govLevel) &&
     levelAtLeast(govLevel as 'L1' | 'L2' | 'L3' | 'L4', 'L3')
-  const registryData = {
+  return {
     ...data,
-    packageManager: (data['packageManager'] as string | undefined) ?? 'npm',
+    packageManager: data['packageManager'] ?? 'npm',
     ratchetFlag: isL3Plus ? '--require-improvement' : '--gate',
     _feGlob: feGlob,
   }
-  const rendered = renderTemplate('scripts/gate-registry.yml.ejs', registryData)
+}
+
+// Parse + shape-check the rendered YAML down to its raw `gates` array —
+// everything about the entries themselves is normalizeGateEntry's job.
+function parseGateRegistryYaml(rendered: string): Record<string, unknown>[] {
   let parsed: unknown
   try {
     parsed = parseYaml(rendered)
   } catch (err) {
     throw new Error(
       `gate registry: invalid YAML in gate-registry.yml.ejs — ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
     )
   }
-  const raw = (parsed as { gates?: unknown })?.gates
+  // parsed can legitimately be null (an empty YAML document) — the cast is
+  // honest about that so the optional-chain null-check stays real, not a
+  // type-checker-only assertion papering over a possible runtime throw.
+  const raw = (parsed as { gates?: unknown } | null | undefined)?.gates
   if (!Array.isArray(raw)) {
     throw new Error('gate registry: missing "gates" array')
   }
-  const seen = new Set<string>()
-  const gates: GateRegistryEntry[] = []
-  for (const entry of raw as Record<string, unknown>[]) {
-    const id = entry['id']
-    if (typeof id !== 'string' || id.length === 0) {
-      throw new Error('gate registry: every gate needs a string id')
-    }
-    if (seen.has(id)) throw new Error(`gate registry: duplicate gate id "${id}"`)
-    seen.add(id)
-    const level = entry['level']
-    if (typeof level !== 'string' || !VALID_LEVELS.has(level)) {
-      throw new Error(`gate registry: gate "${id}" has invalid level ${String(level)}`)
-    }
-    const kind = entry['kind']
-    if (typeof kind !== 'string' || !VALID_KINDS.has(kind)) {
-      throw new Error(`gate registry: gate "${id}" has invalid kind ${String(kind)}`)
-    }
-    if (kind !== 'inline' && !Array.isArray(entry['cmd'])) {
-      throw new Error(`gate registry: non-inline gate "${id}" needs a cmd array`)
-    }
-    if (kind === 'inline' && entry['cmd'] !== undefined) {
-      throw new Error(
-        `gate registry: inline gate "${id}" must not declare cmd (bodies live in the template)`,
-      )
-    }
-    // cmd is declared as `[bin, [arg, ...]]` in the YAML (readable flow form);
-    // flattened to `[bin, arg, ...]` for the render loop (g.cmd.slice(1) = args).
-    const rawCmd = entry['cmd'] as unknown[] | undefined
-    const flatCmd =
-      rawCmd !== undefined
-        ? [String(rawCmd[0]), ...((rawCmd[1] as unknown[] | undefined) ?? []).map(String)]
-        : undefined
-    gates.push({
-      id,
-      name: String(entry['name']),
-      level: level as GateRegistryEntry['level'],
-      kind: kind as GateRegistryEntry['kind'],
-      ...(flatCmd !== undefined ? { cmd: flatCmd } : {}),
-      ...(typeof entry['language'] === 'string' ? { language: entry['language'] } : {}),
-      ...(typeof entry['emitIf'] === 'string' ? { emitIf: entry['emitIf'] } : {}),
-      ...(typeof entry['condition'] === 'string' ? { condition: entry['condition'] } : {}),
-      ...(typeof entry['else'] === 'string' ? { else: entry['else'] } : {}),
-      ...(entry['soft'] === true ? { soft: true } : {}),
-    })
+  return raw as Record<string, unknown>[]
+}
+
+// id/level/kind/cmd shape validation for one raw gate entry (throws LOUD on
+// any malformed field); `seen` tracks duplicate ids across the whole registry.
+function validateGateEntryShape(
+  entry: Record<string, unknown>,
+  seen: Set<string>,
+): { id: string; level: GateRegistryEntry['level']; kind: GateRegistryEntry['kind'] } {
+  const id = entry['id']
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('gate registry: every gate needs a string id')
   }
-  return gates
+  if (seen.has(id)) throw new Error(`gate registry: duplicate gate id "${id}"`)
+  seen.add(id)
+  const level = entry['level']
+  if (typeof level !== 'string' || !VALID_LEVELS.has(level)) {
+    throw new Error(`gate registry: gate "${id}" has invalid level ${String(level)}`)
+  }
+  const kind = entry['kind']
+  if (typeof kind !== 'string' || !VALID_KINDS.has(kind)) {
+    throw new Error(`gate registry: gate "${id}" has invalid kind ${String(kind)}`)
+  }
+  if (kind !== 'inline' && !Array.isArray(entry['cmd'])) {
+    throw new Error(`gate registry: non-inline gate "${id}" needs a cmd array`)
+  }
+  if (kind === 'inline' && entry['cmd'] !== undefined) {
+    throw new Error(
+      `gate registry: inline gate "${id}" must not declare cmd (bodies live in the template)`,
+    )
+  }
+  return { id, level: level as GateRegistryEntry['level'], kind: kind as GateRegistryEntry['kind'] }
+}
+
+// cmd is declared as `[bin, [arg, ...]]` in the YAML (readable flow form);
+// flattened to `[bin, arg, ...]` for the render loop (g.cmd.slice(1) = args).
+function flattenGateCmd(entry: Record<string, unknown>): string[] | undefined {
+  const rawCmd = entry['cmd'] as unknown[] | undefined
+  if (rawCmd === undefined) return undefined
+  return [String(rawCmd[0]), ...((rawCmd[1] as unknown[] | undefined) ?? []).map(String)]
+}
+
+function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): GateRegistryEntry {
+  const { id, level, kind } = validateGateEntryShape(entry, seen)
+  const flatCmd = flattenGateCmd(entry)
+  return {
+    id,
+    name: String(entry['name']),
+    level,
+    kind,
+    ...(flatCmd !== undefined ? { cmd: flatCmd } : {}),
+    ...(typeof entry['language'] === 'string' ? { language: entry['language'] } : {}),
+    ...(typeof entry['emitIf'] === 'string' ? { emitIf: entry['emitIf'] } : {}),
+    ...(typeof entry['condition'] === 'string' ? { condition: entry['condition'] } : {}),
+    ...(typeof entry['else'] === 'string' ? { else: entry['else'] } : {}),
+    ...(entry['soft'] === true ? { soft: true } : {}),
+  }
+}
+
+export function loadGateRegistry(data: Record<string, unknown>): GateRegistryEntry[] {
+  const registryData = deriveGateRegistryRenderData(data)
+  const rendered = renderTemplate('scripts/gate-registry.yml.ejs', registryData)
+  const raw = parseGateRegistryYaml(rendered)
+  const seen = new Set<string>()
+  return raw.map((entry) => normalizeGateEntry(entry, seen))
 }
 
 /**

@@ -7,16 +7,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { join, dirname } from 'node:path'
+import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateGoldKit } from '../../src/generators/gold-kit.js'
 import { generateDocSetSkeletons } from '../../src/generators/doc-set.js'
 import { generateAgentsMd } from '../../src/generators/agents-md.js'
 import { renderTemplate } from '../../src/utils/render.js'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 let dir: string
 
@@ -32,9 +29,12 @@ afterEach(() => {
 const FIVE_COLUMN_HEADER = '| D-NN | decisione | razionale | decisore | data |'
 
 function renderGateScript(): string {
-  return renderTemplate('scripts/check-decision-registry.mjs.ejs', makeConfig('/tmp/render', {
-    projectName: 'test-project',
-  }) as unknown as Record<string, unknown>)
+  return renderTemplate(
+    'scripts/check-decision-registry.mjs.ejs',
+    makeConfig('/tmp/render', {
+      projectName: 'test-project',
+    }) as unknown as Record<string, unknown>,
+  )
 }
 
 /** Execute the rendered gate in a fixture repo dir; returns status/stdout/stderr. */

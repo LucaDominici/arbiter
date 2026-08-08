@@ -302,8 +302,18 @@ describe('AC-2043.1: smoke-journey trio floor (#2043)', () => {
         archetype: 'frontend-spa',
         applicable: true,
         journeys: [
-          { id: 'auth', name: 'Authentication flow', globs: ['tests/smoke/**/*.spec.ts'], status: 'required' },
-          { id: 'crud', name: 'Core CRUD operation', globs: ['tests/smoke/**/*.spec.ts'], status: 'required' },
+          {
+            id: 'auth',
+            name: 'Authentication flow',
+            globs: ['tests/smoke/**/*.spec.ts'],
+            status: 'required',
+          },
+          {
+            id: 'crud',
+            name: 'Core CRUD operation',
+            globs: ['tests/smoke/**/*.spec.ts'],
+            status: 'required',
+          },
           {
             id: 'authz',
             name: 'Authorization enforcement',

@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig, renderCheckAll } from '../helpers.js'
 
 describe('check-all.mjs.ejs inlines workflow-runners logic (#191, #247)', () => {

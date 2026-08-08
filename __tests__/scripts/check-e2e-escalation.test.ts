@@ -35,10 +35,9 @@ const FAIL_ENTRY = JSON.stringify({ verdict: 'REGRESSION', scope: 'initial' })
 
 describe('e2e escalation ledger gate (#2043)', () => {
   it('AC-2043.5/6: 3 consecutive failures with threshold 3 escalates (exit 1)', () => {
-    const { dir, cleanup } = stage(
-      [PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY],
-      { e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } } },
-    )
+    const { dir, cleanup } = stage([PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY], {
+      e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } },
+    })
     try {
       const r = run(dir)
       expect(r.status).toBe(1)
@@ -50,10 +49,9 @@ describe('e2e escalation ledger gate (#2043)', () => {
   })
 
   it('AC-2043.5/6: 2 consecutive failures below threshold 3 does not escalate (exit 0)', () => {
-    const { dir, cleanup } = stage(
-      [PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY],
-      { e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } } },
-    )
+    const { dir, cleanup } = stage([PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY], {
+      e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } },
+    })
     try {
       const r = run(dir)
       expect(r.status).toBe(0)

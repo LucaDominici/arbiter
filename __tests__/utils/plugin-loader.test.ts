@@ -214,9 +214,7 @@ describe('plugin invariants (#2035, TC-5)', () => {
 
   it('rejects a plugin whose invariants use the reserved INV-NN namespace', async () => {
     installFixture(dir, 'invariants-bad-plugin', 'invariants-bad')
-    await expect(loadPlugin('invariants-bad-plugin', dir)).rejects.toThrow(
-      /invariants-bad-plugin/,
-    )
+    await expect(loadPlugin('invariants-bad-plugin', dir)).rejects.toThrow(/invariants-bad-plugin/)
     await expect(loadPlugin('invariants-bad-plugin', dir)).rejects.toThrow(/PROJ-/)
   })
 

@@ -222,9 +222,7 @@ export async function loadPlugin(
     : undefined
   // #2035 (TC-5): validated in validatePluginShape; forwarded so the host can
   // merge plugin-declared invariants into the project's invariant set.
-  const invariants = Array.isArray(p['invariants'])
-    ? (p['invariants'] as Invariant[])
-    : undefined
+  const invariants = Array.isArray(p['invariants']) ? (p['invariants'] as Invariant[]) : undefined
 
   const proxy: ArbiterPlugin = {
     name: pluginName,
@@ -257,6 +255,30 @@ export async function loadPlugin(
   return proxy
 }
 
+// #2035 (TC-5): plugin-declared invariants must use the PROJ-NN namespace
+// (never INV-NN — reserved) and be unique within the plugin's own array.
+// Split out of validatePluginShape to keep its cyclomatic complexity under
+// the L2 ratchet.
+function validatePluginInvariants(pkg: string, raw: unknown): void {
+  if (raw === undefined) return
+  if (!Array.isArray(raw)) {
+    throw new Error(`Plugin "${pkg}" field invariants must be an array if present.`)
+  }
+  const seen = new Set<string>()
+  for (const entry of raw as Record<string, unknown>[]) {
+    const id = entry['id']
+    if (typeof id !== 'string' || !PROJ_INVARIANT_ID_RE.test(id)) {
+      throw new Error(
+        `Plugin "${pkg}" invariant id must match /^PROJ-\\d+$/ (the INV-NN namespace is reserved) — got ${String(id)}`,
+      )
+    }
+    if (seen.has(id)) {
+      throw new Error(`Plugin "${pkg}" declares duplicate invariant id ${id}`)
+    }
+    seen.add(id)
+  }
+}
+
 function validatePluginShape(plugin: unknown, pkg: string): void {
   if (!plugin || typeof plugin !== 'object') {
     throw new Error(`Plugin "${pkg}" must export a default object.`)
@@ -282,27 +304,7 @@ function validatePluginShape(plugin: unknown, pkg: string): void {
   if ('verifyPlanRules' in p && !Array.isArray(p['verifyPlanRules'])) {
     throw new Error(`Plugin "${pkg}" field verifyPlanRules must be an array if present.`)
   }
-  // #2035 (TC-5): plugin-declared invariants must use the PROJ-NN namespace
-  // (never INV-NN — reserved) and be unique within the plugin's own array.
-  if (p['invariants'] !== undefined) {
-    if (!Array.isArray(p['invariants'])) {
-      throw new Error(`Plugin "${pkg}" field invariants must be an array if present.`)
-    }
-    const seen = new Set<string>()
-    for (const entry of p['invariants'] as Record<string, unknown>[]) {
-      const id = entry?.['id']
-      if (typeof id !== 'string' || !PROJ_INVARIANT_ID_RE.test(id)) {
-        throw new Error(
-          `Plugin "${pkg}" invariant id must match /^PROJ-\\d+$/ (the INV-NN namespace is reserved) — got ${String(id)}`,
-        )
-      }
-      if (seen.has(id)) {
-        throw new Error(`Plugin "${pkg}" declares duplicate invariant id ${id}`)
-      }
-      seen.add(id)
-    }
-  }
+  validatePluginInvariants(pkg, p['invariants'])
 }
 
 const PROJ_INVARIANT_ID_RE = /^PROJ-\d+$/
-

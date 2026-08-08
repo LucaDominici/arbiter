@@ -89,9 +89,7 @@ for (const line of docSrc.split('\n')) {
 const configProjectInvariants = []
 if (configPath !== null) {
   if (!existsSync(configPath)) {
-    process.stderr.write(
-      `check-global-invariants-parity: --config=${configPath} does not exist\n`,
-    )
+    process.stderr.write(`check-global-invariants-parity: --config=${configPath} does not exist\n`)
     process.exit(2)
   }
   let parsed
@@ -129,7 +127,12 @@ const phantomProj =
     ? [...projDocIds].filter((id) => !configProjectInvariants.some((i) => i?.id === id)).sort()
     : []
 
-if (missing.length === 0 && phantom.length === 0 && missingProj.length === 0 && phantomProj.length === 0) {
+if (
+  missing.length === 0 &&
+  phantom.length === 0 &&
+  missingProj.length === 0 &&
+  phantomProj.length === 0
+) {
   process.stdout.write(
     `check-global-invariants-parity: in parity — ${alwaysActiveIds.size} always-active invariants documented, no phantom rows` +
       (configPath !== null

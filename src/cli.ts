@@ -1744,17 +1744,15 @@ task
     [] as string[],
   )
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action(
-    (opts: { id?: string; tier?: string; plan?: string; chain: string[]; dir?: string }) => {
-      runTaskInit({
-        ...(opts.id !== undefined ? { id: opts.id } : {}),
-        ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
-        ...(opts.plan !== undefined ? { plan: opts.plan } : {}),
-        ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      })
-    },
-  )
+  .action((opts: { id?: string; tier?: string; plan?: string; chain: string[]; dir?: string }) => {
+    runTaskInit({
+      ...(opts.id !== undefined ? { id: opts.id } : {}),
+      ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+      ...(opts.plan !== undefined ? { plan: opts.plan } : {}),
+      ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
+  })
 
 task
   .command('get')

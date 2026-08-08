@@ -63,7 +63,9 @@ describe('generateGlobalInvariants', () => {
       governanceLevel: 'L2',
       invariantTiers: presetToTiers('standard'),
       projectInvariants: [projInvariant],
-    } as Partial<Parameters<typeof makeConfig>[1]> & { projectInvariants: typeof projInvariant[] })
+    } as Partial<Parameters<typeof makeConfig>[1]> & {
+      projectInvariants: (typeof projInvariant)[]
+    })
     generateGlobalInvariants(config)
     const content = readFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), 'utf-8')
     expect(content).toContain('PROJ-01')
@@ -169,7 +171,9 @@ describe('generateGlobalInvariants', () => {
       governanceLevel: 'L2',
       invariantTiers: presetToTiers('standard'),
       projectInvariants: [projInvariant],
-    } as Partial<Parameters<typeof makeConfig>[1]> & { projectInvariants: typeof projInvariant[] })
+    } as Partial<Parameters<typeof makeConfig>[1]> & {
+      projectInvariants: (typeof projInvariant)[]
+    })
     const first = generateGlobalInvariants(config)
     expect(first.action).toBe('created')
     const firstContent = readFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), 'utf-8')
