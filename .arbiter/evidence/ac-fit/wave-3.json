@@ -1,0 +1,1194 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "wave-3",
+  "plan": ".claude/plans/wave-3.md",
+  "branch": "wave-3-integration",
+  "baseSha": "fcc8de7f",
+  "headSha": "5a22602d",
+  "reviewer": "Adversarial Verifier (FIT rubric, INV-138)",
+  "reviewedAt": "2026-08-08",
+  "summary": {
+    "total": 53,
+    "pass": 51,
+    "fail": 1,
+    "notTested": 1
+  },
+  "notes": [
+    "Verdicts are the FIT rubric judgement of the merged diff (main...HEAD, 236 files) against the frozen 53-criterion anchor.",
+    "24 targeted vitest suites re-run in this tree at HEAD=5a22602d: 24 files passed, 352 tests passed, 0 failed.",
+    "Group A consumer-side evidence lives outside this repo; it was independently re-verified here against the haben and coach-system checkouts on disk (paths cited absolutely), not merely accepted from the lead report.",
+    "requireAllPass is hardcoded true in check-acceptance.mjs --ac-fit mode, so this honest artifact makes that gate exit 1 by design: AC-2043.5 FAIL and AC-2102.7 NOT-TESTED are real verdicts and were not laundered into PASS."
+  ],
+  "criteria": [
+    {
+      "id": "AC-2077.1",
+      "verdict": "PASS",
+      "note": "Template + lib.mjs.ejs twin forward-synced with the #565/#567 sibling-repo guard; haben's hook is byte-equal on the guard (haben lib.mjs:288 carries isPathInThisRepo). Render test + empirical hook test both green.",
+      "evidence": [
+        {
+          "file": "src/templates/claude/hooks/pre-edit-ssot-guard.mjs",
+          "line": 78,
+          "what": "if (!isPathInThisRepo(file)) process.exit(0) — the forward-synced guard"
+        },
+        {
+          "file": "src/templates/claude/hooks/lib.mjs.ejs",
+          "line": 290,
+          "what": "export function isPathInThisRepo — twin export added so a consumer regen cannot break named imports"
+        },
+        {
+          "file": "__tests__/templates/hooks-lib-render.test.ts",
+          "line": 52,
+          "what": "render test asserts the twin emits 'export function isPathInThisRepo'"
+        },
+        {
+          "file": "__tests__/hooks/empirical/ssot-guard.test.ts",
+          "line": 221,
+          "what": "empirical sibling-repo case: a foreign repo's AGENTS.md is no longer blocked (#565 bug)"
+        },
+        {
+          "file": "/home/luca/work/repos/haben/.claude/hooks/lib.mjs",
+          "line": 288,
+          "what": "haben's hook carries the same guard — verified AHEAD/at-parity, not behind"
+        }
+      ]
+    },
+    {
+      "id": "AC-2077.2",
+      "verdict": "PASS",
+      "note": "coach-system regenerated in a dedicated, scoped commit 46048e1 'feat(#2077): regenerate SSOT guard from arbiter template (wave-3)' — SSOT guard + lib only, no full hook-set churn.",
+      "evidence": [
+        {
+          "file": "/home/luca/work/repos/coach-system/.claude/hooks/pre-edit-ssot-guard.mjs",
+          "line": 78,
+          "what": "regenerated hook carries the forward-synced guard"
+        },
+        {
+          "file": "/home/luca/work/repos/coach-system/.claude/hooks/lib.mjs",
+          "line": 290,
+          "what": "coach lib.mjs regenerated with isPathInThisRepo + the 4 sibling consumer-local exports"
+        }
+      ]
+    },
+    {
+      "id": "AC-2077.3",
+      "verdict": "PASS",
+      "note": "Independently re-verified: `node --input-type=module -e \"await import('./.claude/hooks/post-edit-dispatch.mjs')\"` in the haben checkout exits 0 — no broken ESM named exports. Lead report: haben L1 gate ALL PASSED; coach L1 shows only the pre-existing, unrelated ai-eval data-eval failure (reproduced with the change stashed).",
+      "evidence": [
+        {
+          "file": "/home/luca/work/repos/haben/.claude/hooks/lib.mjs",
+          "line": 81,
+          "what": "reachesDispatch export present — post-edit-dispatch.mjs's named import resolves at module load (import exits 0)"
+        },
+        {
+          "file": "/home/luca/work/repos/coach-system/.claude/hooks/lib.mjs",
+          "line": 429,
+          "what": "isDangerousCommand + the other 4 consumer-local exports survive the regen"
+        }
+      ]
+    },
+    {
+      "id": "AC-2077.4",
+      "verdict": "PASS",
+      "note": "No unrelated drift. haben working tree: zero modified hook/config files. coach-system working tree: 3 modified files, all attributable to #2044 (arbiter.json activation, GLOBAL_INVARIANTS.md regen, drift-manifest re-pin) plus one pre-existing untracked NIGHT_LOG.md that predates the wave.",
+      "evidence": [
+        {
+          "file": "/home/luca/work/repos/coach-system/arbiter.json",
+          "line": 48,
+          "what": "the only coach config drift is #2044's deliberate invariants_catalog activation"
+        },
+        {
+          "file": "/home/luca/work/repos/coach-system/.arbiter/drift-manifest.json",
+          "line": 1,
+          "what": "hash re-pin, the documented reconciliation for the GLOBAL_INVARIANTS.md regen"
+        }
+      ]
+    },
+    {
+      "id": "AC-2035.1",
+      "verdict": "PASS",
+      "note": "PROJ-01 renders into both AGENTS.md and GLOBAL_INVARIANTS.md and `explain PROJ-01` resolves it from the project's arbiter.json.",
+      "evidence": [
+        {
+          "file": "src/invariants/filter.ts",
+          "line": 72,
+          "what": "getFilteredInvariants merges config.projectInvariants — the single merge point"
+        },
+        {
+          "file": "__tests__/generators/agents-md.test.ts",
+          "line": 253,
+          "what": "renders declared PROJ-NN project invariants into AGENTS.md (TC-1) — asserts the rendered doc contains PROJ-01 (line 268)"
+        },
+        {
+          "file": "__tests__/invariants/project-invariants.test.ts",
+          "line": 35,
+          "what": "merges declared projectInvariants into the filtered result (TC-1)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2035.2",
+      "verdict": "PASS",
+      "note": "runGraphBuild loads the project's arbiter.json and merges PROJ-NN into the INV builder, so an enforcement-less PROJ surfaces as an orphan in `verify graph` exactly like a catalog entry; catalog-only behavior preserved when nothing is declared.",
+      "evidence": [
+        {
+          "file": "src/commands/graph.ts",
+          "line": 69,
+          "what": "runGraphBuild merges declared PROJ-NN into the INV builder ([...INVARIANT_CATALOG, ...projectInvariants])"
+        },
+        {
+          "file": "__tests__/commands/graph.test.ts",
+          "line": 373,
+          "what": "enforcement-less PROJ invariant surfaces as an orphan in verify graph (TC-2)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2035.3",
+      "verdict": "PASS",
+      "note": "Colliding/malformed/duplicate ids rejected by validateConfig with an explicit message; INV-NN namespace reserved.",
+      "evidence": [
+        {
+          "file": "__tests__/invariants/project-invariants.test.ts",
+          "line": 105,
+          "what": "rejects an INV-prefixed project invariant id with a clear message (TC-3)"
+        },
+        {
+          "file": "__tests__/invariants/project-invariants.test.ts",
+          "line": 133,
+          "what": "rejects duplicate project invariant ids"
+        },
+        {
+          "file": "__tests__/invariants/project-invariants.test.ts",
+          "line": 155,
+          "what": "rejects a project invariant missing required fields"
+        }
+      ]
+    },
+    {
+      "id": "AC-2035.4",
+      "verdict": "PASS",
+      "note": "Parity gate takes --config=arbiter.json: every always-active declared PROJ must be documented, and every PROJ doc section must be declared (phantom PROJ rows fail). Without --config (arbiter's own invocation) PROJ sections are tolerated.",
+      "evidence": [
+        {
+          "file": "scripts/check-global-invariants-parity.mjs",
+          "line": 87,
+          "what": "#2035 TC-4: config-declared project invariants join the parity contract"
+        },
+        {
+          "file": "__tests__/scripts/check-global-invariants-parity.test.ts",
+          "line": 136,
+          "what": "fails when an always-active declared PROJ is missing from the doc (--config)"
+        },
+        {
+          "file": "__tests__/scripts/check-global-invariants-parity.test.ts",
+          "line": 164,
+          "what": "fails when the doc carries a PROJ section not declared in the config"
+        }
+      ]
+    },
+    {
+      "id": "AC-2035.5",
+      "verdict": "PASS",
+      "note": "ArbiterPlugin gains invariants?: Invariant[]; validatePluginShape rejects non-PROJ ids and duplicates naming the plugin; the proxy forwards the array and workerData carries it. selfOnly/minGovernanceLevel respected via the shared per-entry gates in getFilteredInvariants.",
+      "evidence": [
+        {
+          "file": "src/utils/plugin-loader.ts",
+          "line": 285,
+          "what": "TC-5: plugin-declared invariants must use the PROJ-NN namespace"
+        },
+        {
+          "file": "__tests__/utils/plugin-loader.test.ts",
+          "line": 206,
+          "what": "forwards a plugin-declared invariants array through the proxy"
+        },
+        {
+          "file": "__tests__/utils/plugin-loader.test.ts",
+          "line": 215,
+          "what": "rejects a plugin whose invariants use the reserved INV-NN namespace"
+        },
+        {
+          "file": "__tests__/invariants/project-invariants.test.ts",
+          "line": 51,
+          "what": "applies minGovernanceLevel to project invariants (TC-5 semantics)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2035.6",
+      "verdict": "PASS",
+      "note": "Re-running the generator with projectInvariants declared produces a byte-identical file — skipped, no backup churn.",
+      "evidence": [
+        {
+          "file": "__tests__/generators/global-invariants.test.ts",
+          "line": 159,
+          "what": "regeneration with projectInvariants is idempotent — zero diff (TC-6)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2035.7",
+      "verdict": "PASS",
+      "note": "ADR-112 landed with the namespace rule, the single merge point, plugin precedence (catalog < plugin < config) and the persisted-set tradeoff; ADR README index + DECISIONS digest regenerated; CONTRIBUTING gained the §invariants subsection.",
+      "evidence": [
+        {
+          "file": "docs/internal/ADR/112-project-invariants-proj-nn.md",
+          "line": 1,
+          "what": "ADR-112 — project invariants (PROJ-NN)"
+        },
+        {
+          "file": "docs/CONTRIBUTING.md",
+          "line": 54,
+          "what": "§invariants: a project may declare its own invariants as PROJ-NN, pointing at ADR-112"
+        }
+      ]
+    },
+    {
+      "id": "AC-2036.1",
+      "verdict": "PASS",
+      "note": "init scaffolds DECISION_REGISTRY.md (5-column D-NN table + optional Leggi + promotion path + changelog) and the gold-doc-set manifest tracks it with per-tier grades and accept_any COSTITUZIONE.md.",
+      "evidence": [
+        {
+          "file": "src/templates/docs/skeletons/decision-registry.md.ejs",
+          "line": 1,
+          "what": "new decision-registry skeleton template"
+        },
+        {
+          "file": "src/templates/standards/gold-doc-set.yml.ejs",
+          "line": 139,
+          "what": "manifest row: path DECISION_REGISTRY.md with tier grades"
+        },
+        {
+          "file": "__tests__/generators/decision-registry.test.ts",
+          "line": 68,
+          "what": "TC-1: init scaffolds DECISION_REGISTRY.md with the 5-column table + changelog"
+        }
+      ]
+    },
+    {
+      "id": "AC-2036.2",
+      "verdict": "PASS",
+      "note": "check-decision-registry.mjs: an orphan D-NN (no enforcement, no exemption) fails naming the id; an explicit documentale exemption passes with a note; an absent registry SKIPs.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/check-decision-registry.mjs.ejs",
+          "line": 4,
+          "what": "the orphan-decision gate"
+        },
+        {
+          "file": "__tests__/generators/decision-registry.test.ts",
+          "line": 84,
+          "what": "TC-2: orphan D-NN fails the gate naming the id"
+        },
+        {
+          "file": "__tests__/generators/decision-registry.test.ts",
+          "line": 107,
+          "what": "TC-2: documentale exemption passes with a note"
+        }
+      ]
+    },
+    {
+      "id": "AC-2036.3",
+      "verdict": "PASS",
+      "note": "A pre-existing haben-style COSTITUZIONE.md carrying the arbiter:preserve marker is never clobbered and the gate SKIPs it as user-owned format.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/check-decision-registry.mjs.ejs",
+          "line": 26,
+          "what": "if (source.includes('arbiter:preserve')) → SKIP, enforcement review is manual"
+        },
+        {
+          "file": "__tests__/generators/decision-registry.test.ts",
+          "line": 139,
+          "what": "TC-3: a pre-existing COSTITUZIONE.md with arbiter:preserve is never touched"
+        }
+      ]
+    },
+    {
+      "id": "AC-2036.4",
+      "verdict": "PASS",
+      "note": "The regenerated AGENTS.md authority hierarchy gains the Level 2.5 pointer to DECISION_REGISTRY.md plus the one-registry rule.",
+      "evidence": [
+        {
+          "file": "src/templates/agents-md/AGENTS.md.ejs",
+          "line": 29,
+          "what": "Level 2.5: DECISION_REGISTRY.md — blocked project decisions (D-NN, #2036)"
+        },
+        {
+          "file": "__tests__/generators/decision-registry.test.ts",
+          "line": 164,
+          "what": "TC-4: AGENTS.md points at the decision registry at L2+"
+        }
+      ]
+    },
+    {
+      "id": "AC-2036.5",
+      "verdict": "PASS",
+      "note": "ADR-113 documents the 3-layer model, the D-NN table format + enforcement grammar, the orphan gate, gold-doc-set tracking, arbiter:preserve adoption semantics and the D-NN → PROJ-NN promotion path.",
+      "evidence": [
+        {
+          "file": "docs/internal/ADR/113-decision-registry-dnn.md",
+          "line": 1,
+          "what": "ADR-113 — decision registry (D-NN)"
+        },
+        {
+          "file": "docs/internal/ADR/113-decision-registry-dnn.md",
+          "line": 48,
+          "what": "GLOBAL_INVARIANTS.md registration rationale (AC-2036.6)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2036.6",
+      "verdict": "PASS",
+      "note": "GLOBAL_INVARIANTS.md was verified absent from the manifest on main and is now registered (conditional+always ⇒ advisory gap, so an L1 essential project where the generator deliberately non-emits never hard-fails).",
+      "evidence": [
+        {
+          "file": "src/templates/standards/gold-doc-set.yml.ejs",
+          "line": 153,
+          "what": "new manifest row: path GLOBAL_INVARIANTS.md"
+        },
+        {
+          "file": "src/templates/standards/gold-doc-set.yml.ejs",
+          "line": 155,
+          "what": "comment records the verified-absent baseline (AC-2036.6)"
+        },
+        {
+          "file": "__tests__/generators/decision-registry.test.ts",
+          "line": 62,
+          "what": "TC-1: manifest tracks DECISION_REGISTRY.md and GLOBAL_INVARIANTS.md"
+        }
+      ]
+    },
+    {
+      "id": "AC-2044.1",
+      "verdict": "PASS",
+      "note": "Both consumer-facing files are emitted at L2+ from generateSsot into docs/METHOD/: PATTERNS_CATALOG.md (pre-existing, #2079) and REUSE_REGISTRY.md (the register itself, new here — only its SPEC was emitted before). Both skipIfExists so `arbiter update` never clobbers catalogued entries.",
+      "evidence": [
+        {
+          "file": "src/generators/ssot.ts",
+          "line": 61,
+          "what": "PATTERNS_CATALOG.md emitted consumer-facing at L2+"
+        },
+        {
+          "file": "src/generators/ssot.ts",
+          "line": 74,
+          "what": "REUSE_REGISTRY.md register emitted — the #2044 gap closed"
+        },
+        {
+          "file": "src/templates/root/docs/METHOD/REUSE_REGISTRY.md.ejs",
+          "line": 1,
+          "what": "new register template"
+        },
+        {
+          "file": "__tests__/generators/extended-activation.test.ts",
+          "line": 49,
+          "what": "AC-2044.1: generateSsot emits the REUSE_REGISTRY.md register at L2+"
+        }
+      ]
+    },
+    {
+      "id": "AC-2044.2",
+      "verdict": "PASS",
+      "note": "Per the red-team amendment the activation MECHANISM already existed; the deliverable was consumer config + emission. Verified landed in both governed consumers on disk (not merely lead-reported). haben's tree is clean (committed); coach's arbiter.json + regenerated GLOBAL_INVARIANTS.md are staged in its working tree, orchestrator-owned landing.",
+      "evidence": [
+        {
+          "file": "src/config/schema.ts",
+          "line": 351,
+          "what": "invariants_catalog?: 'core' | 'extended' — the pre-existing activation surface"
+        },
+        {
+          "file": "src/config/resolve-project-config.ts",
+          "line": 57,
+          "what": "resolveExtendedInvariants reads governance.invariants_catalog === 'extended'"
+        },
+        {
+          "file": "/home/luca/work/repos/haben/arbiter.json",
+          "line": 85,
+          "what": "haben activated: \"invariants_catalog\": \"extended\""
+        },
+        {
+          "file": "/home/luca/work/repos/coach-system/arbiter.json",
+          "line": 48,
+          "what": "coach activated: \"invariants_catalog\": \"extended\""
+        }
+      ]
+    },
+    {
+      "id": "AC-2044.3",
+      "verdict": "PASS",
+      "note": "check-reuse-registry.mjs is a real mechanical check beyond the jscpd/knip proxy: it fails when the register is absent or empty and passes with >=1 registered entry. Emission AND wiring follow the same includeExtendedInvariants predicate, so non-extended consumers get no unwired guard (#2159 class).",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/check-reuse-registry.mjs.ejs",
+          "line": 2,
+          "what": "the AC-2044.3 gate"
+        },
+        {
+          "file": "src/generators/check-all.ts",
+          "line": 481,
+          "what": "emission + wiring share the includeExtendedInvariants predicate"
+        },
+        {
+          "file": "__tests__/generators/extended-activation.test.ts",
+          "line": 58,
+          "what": "AC-2044.3: fails when the register is missing or empty (extended active)"
+        },
+        {
+          "file": "__tests__/generators/extended-activation.test.ts",
+          "line": 80,
+          "what": "AC-2044.3: passes with at least one registered entry"
+        }
+      ]
+    },
+    {
+      "id": "AC-2044.4",
+      "verdict": "PASS",
+      "note": "Both branches of the OR are satisfied: INV-63 is activated in both consumers (present in their regenerated GLOBAL_INVARIANTS.md) AND the equivalent automatic drift-check landed as check-drift's live-SSOT binding.",
+      "evidence": [
+        {
+          "file": "/home/luca/work/repos/haben/GLOBAL_INVARIANTS.md",
+          "line": 660,
+          "what": "INV-63 SSOT atomic update active in haben (INV-64/69/70 at 667/681/77)"
+        },
+        {
+          "file": "/home/luca/work/repos/coach-system/GLOBAL_INVARIANTS.md",
+          "line": 723,
+          "what": "INV-63 active in coach (INV-64/69/70 at 730/744/77)"
+        },
+        {
+          "file": "src/templates/scripts/check-drift.mjs.ejs",
+          "line": 14,
+          "what": "live-SSOT binding — the automatic equivalent of INV-63"
+        },
+        {
+          "file": "docs/internal/ADR/114-extended-invariants-live-ssot.md",
+          "line": 45,
+          "what": "ADR-114 records the INV-63 activation decision"
+        }
+      ]
+    },
+    {
+      "id": "AC-2044.5",
+      "verdict": "PASS",
+      "note": "check-drift gained the live-SSOT mode: a commit touching code must update every declared-live surface in the SAME commit. Goes beyond the old generated-file-only drift check and the free-text constraint-scan.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/check-drift.mjs.ejs",
+          "line": 14,
+          "what": "live-SSOT binding: a code-touching commit must also touch the declared surfaces"
+        },
+        {
+          "file": "__tests__/generators/extended-activation.test.ts",
+          "line": 97,
+          "what": "AC-2044.5: live-SSOT mode fails a code-only commit naming the surfaces"
+        },
+        {
+          "file": "__tests__/generators/extended-activation.test.ts",
+          "line": 132,
+          "what": "AC-2044.5: passes when the last commit also touches the surface"
+        }
+      ]
+    },
+    {
+      "id": "AC-2044.6",
+      "verdict": "PASS",
+      "note": "The obligation is limited to surfaces declared in .arbiter/live-ssot.json (scaffold emitted only when governance.liveSsot is declared); absent manifest or parentless HEAD SKIP — consistent with the softening, not every commit.",
+      "evidence": [
+        {
+          "file": "src/generators/anti-drift-validators.ts",
+          "line": 193,
+          "what": "scaffold emitted only when config.liveSsot is declared"
+        },
+        {
+          "file": "__tests__/generators/extended-activation.test.ts",
+          "line": 163,
+          "what": "AC-2044.6: live-SSOT mode SKIPs when no live-ssot.json is declared"
+        },
+        {
+          "file": "src/wizard/types.ts",
+          "line": 694,
+          "what": "declared-live SSOT surfaces (matrix/ledger) typed surface"
+        }
+      ]
+    },
+    {
+      "id": "AC-2041.1",
+      "verdict": "PASS",
+      "note": "The L2 clamp is gone: an explicit L3/L4 request runs the full L1+L2 body plus the L3 nightly set locally (solo reactivation + prod-scope audit), never a silent downgrade with a warning.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/check-all.mjs.ejs",
+          "line": 282,
+          "what": "AC-2041.1: L3/L4 are now executable LOCAL lanes — clamp removed"
+        },
+        {
+          "file": "__tests__/gates/gate-registry.test.ts",
+          "line": 100,
+          "what": "AC-2041.1: L3 is an executable local lane — no clamp warning, L3 gates run"
+        },
+        {
+          "file": "__tests__/templates/check-all-render.test.ts",
+          "line": 1016,
+          "what": "render-level assertion that the clamp warning is gone"
+        }
+      ]
+    },
+    {
+      "id": "AC-2041.2",
+      "verdict": "PASS",
+      "note": "Gate→level membership is declarative: moving a gate's level in gate-registry.yml.ejs changes its lane membership in the rendered check-all, replacing the hardcoded EJS ifs.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/gate-registry.yml.ejs",
+          "line": 1,
+          "what": "declarative gate registry (AC-2041.4/2)"
+        },
+        {
+          "file": "__tests__/gates/gate-registry.test.ts",
+          "line": 81,
+          "what": "AC-2041.2/4: a gate level declared in the registry drives its lane membership"
+        }
+      ]
+    },
+    {
+      "id": "AC-2041.3",
+      "verdict": "PASS",
+      "note": "test-gate-layering.mjs is emitted INTO consumers (not an arbiter-internal-only test) and asserts L1 ⊆ L2 ⊆ L3 containment from the embedded registry; verified materialized in all three regenerated examples.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/test-gate-layering.mjs.ejs",
+          "line": 2,
+          "what": "the emitted layering contract test (AC-2041.3)"
+        },
+        {
+          "file": "src/generators/check-all.ts",
+          "line": 198,
+          "what": "emission of the gate-layering contract test"
+        },
+        {
+          "file": "__tests__/gates/gate-registry.test.ts",
+          "line": 108,
+          "what": "AC-2041.3: a layering contract test is emitted for consumers"
+        },
+        {
+          "file": "examples/ts-library/scripts/check-all.mjs",
+          "line": 927,
+          "what": "consumer wiring: gateFilePresent('scripts/test-gate-layering.mjs') → runCheck"
+        }
+      ]
+    },
+    {
+      "id": "AC-2041.4",
+      "verdict": "PASS",
+      "note": "The registry is a schema-validated YAML carrying id/name/level/kind/cmd/emitIf/condition/else/soft for 100+ gates; the generator (loadGateRegistry) renders and validates it and the template embeds the effective set as GATE_REGISTRY. The inline runCheck surface went 191 → 0.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/gate-registry.yml.ejs",
+          "line": 35,
+          "what": "the registry REPLACES the inline runCheck surface, it does not duplicate it"
+        },
+        {
+          "file": "src/generators/check-all.ts",
+          "line": 13,
+          "what": "loadGateRegistry — every gate the emitted check-all runs"
+        },
+        {
+          "file": "src/templates/scripts/check-all.mjs.ejs",
+          "line": 160,
+          "what": "GATE_REGISTRY embed (AC-2041.4)"
+        },
+        {
+          "file": "examples/ts-library/scripts/check-all.mjs",
+          "line": 150,
+          "what": "the effective registry materialized in a real consumer"
+        }
+      ]
+    },
+    {
+      "id": "AC-2041.5",
+      "verdict": "PASS",
+      "note": "--dry-run re-based on the registry preserves the #2078 contract: prints the manifest, records SKIP, never spawns, exit 0 — and stamps no gate-pass marker or result JSON (anti-fake-green).",
+      "evidence": [
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 36,
+          "what": "prints DRY-RUN (would run: ...), records SKIP, and never spawns"
+        },
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 120,
+          "what": "parses --dry-run and --gate and wires them into setMode()"
+        },
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 128,
+          "what": "no gate-pass marker or result JSON in inspection mode"
+        }
+      ]
+    },
+    {
+      "id": "AC-2041.6",
+      "verdict": "PASS",
+      "note": "--gate <id|name> re-based on the registry still re-runs exactly one gate and skips the rest (a would-fail sibling gate is provably skipped).",
+      "evidence": [
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 67,
+          "what": "single-gate (only) mode: runs only the matching check and skips the rest"
+        },
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 52,
+          "what": "short-circuits runWarnCheck and runToolCheck too"
+        }
+      ]
+    },
+    {
+      "id": "AC-2043.1",
+      "verdict": "PASS",
+      "note": "Goes past INV-126's presence/non-emptiness boundary: the manifest must DECLARE every journey in the configured trio by id, and a declared subset that IS fully covered still fails, naming the missing journeys.",
+      "evidence": [
+        {
+          "file": "scripts/check-smoke-journeys.mjs",
+          "line": 106,
+          "what": "AC-2043.1: the manifest must DECLARE every journey in the configured trio (by id)"
+        },
+        {
+          "file": "__tests__/scripts/check-smoke-journeys.test.ts",
+          "line": 271,
+          "what": "AC-2043.1: smoke-journey trio floor — fails naming missing crud/authz when only login is declared"
+        },
+        {
+          "file": "src/templates/scripts/check-smoke-journeys.mjs.ejs",
+          "line": 106,
+          "what": "template twin carries the same floor"
+        }
+      ]
+    },
+    {
+      "id": "AC-2043.2",
+      "verdict": "PASS",
+      "note": "schema.ts gains the smokeJourneys/e2ePolicy surface: requiredJourneys declarable per project, minJourneys constrained to the 2..4 acceptance-floor band, maxStrikes below 2 rejected.",
+      "evidence": [
+        {
+          "file": "src/config/schema.ts",
+          "line": 1421,
+          "what": "AC-2043.2: per-project floor — 2..4 keeps the trio configurable"
+        },
+        {
+          "file": "src/config/schema.ts",
+          "line": 1426,
+          "what": "rejects an escalation that fires on the FIRST failure (maxStrikes:1)"
+        },
+        {
+          "file": "__tests__/config/smoke-escalation-config.test.ts",
+          "line": 51,
+          "what": "AC-2043.2: rejects minJourneys outside the 2..4 per-project floor"
+        },
+        {
+          "file": "__tests__/config/smoke-escalation-config.test.ts",
+          "line": 58,
+          "what": "AC-2043.2: rejects a maxStrikes below 2"
+        }
+      ]
+    },
+    {
+      "id": "AC-2043.3",
+      "verdict": "PASS",
+      "note": "The floor gate is registered at L1 in the declarative registry, so every consumer emission wires it — verified materialized and wired in the regenerated examples, alongside coach's already-wired check-render-smoke (restored by #495).",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/gate-registry.yml.ejs",
+          "line": 109,
+          "what": "smoke-journeys registered at level L1 for every consumer"
+        },
+        {
+          "file": "examples/ts-library/scripts/check-all.mjs",
+          "line": 782,
+          "what": "runCheck('smoke journeys (INV-137)') materialized in a consumer"
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 322,
+          "what": "self-tree wiring (dual-track parity)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2043.4",
+      "verdict": "PASS",
+      "note": "TICK_PROMPT.md.ejs renders the configured e2ePolicy.escalation.maxStrikes instead of the hardcoded 2-strike string; absent config still defaults to 2-strike for backward compatibility. Self's materialized .arbiter/ship/TICK_PROMPT.md re-synced byte-identically.",
+      "evidence": [
+        {
+          "file": "src/templates/ship/TICK_PROMPT.md.ejs",
+          "line": 16,
+          "what": "renders <%= strikeMax %> from e2ePolicy.escalation.maxStrikes, defaulting to 2 (line 2)"
+        },
+        {
+          "file": "__tests__/templates/ship-driver-render.test.ts",
+          "line": 104,
+          "what": "AC-2043.4: renders the CONFIGURED escalation max-strikes (not a hardcoded 2)"
+        },
+        {
+          "file": "__tests__/templates/ship-driver-render.test.ts",
+          "line": 110,
+          "what": "AC-2043.4: defaults to the 2-strike ladder when no e2ePolicy is declared"
+        }
+      ]
+    },
+    {
+      "id": "AC-2043.5",
+      "verdict": "FAIL",
+      "note": "GAP: half the criterion is unbuilt. The cross-run consecutive-failure COUNTER exists (check-e2e-escalation.mjs reads the append-only ledger and counts the trailing REGRESSION run — that half is real). The PROGRESSIVE 2→3→5 escalation does NOT: escalation.strikes is schema-validated as an array of numbers but is DECLARATIVE ONLY. Only the single scalar maxStrikes drives the escalate/no-escalate decision (`if (consecutive >= maxStrikes)`), so there is exactly one rung, not a ladder — no widen-at-2 / force-full-suite-at-3 / hard-stop-at-5 behavior exists. The implementation admits this in-code and in commit 10cf4490 ('per-rung behavior ... is a follow-up, not built here (no RED test requires it)'). No RED test was written for the ladder, so the criterion was never driven.",
+      "evidence": [
+        {
+          "file": "src/config/schema.ts",
+          "line": 156,
+          "what": "'currently DECLARATIVE ONLY — only maxStrikes drives the actual escalate/no-escalate decision; per-rung behavior at each strikes value is a follow-up'"
+        },
+        {
+          "file": "scripts/check-e2e-escalation.mjs",
+          "line": 105,
+          "what": "if (consecutive >= maxStrikes) — a single scalar threshold, not a 2→3→5 ladder"
+        },
+        {
+          "file": "src/config/schema.ts",
+          "line": 1470,
+          "what": "strikes validated only as an array of numbers; no rung is ever consumed"
+        }
+      ]
+    },
+    {
+      "id": "AC-2043.6",
+      "verdict": "PASS",
+      "note": "The gate reads the append-only .arbiter/e2e-ledger.jsonl and exits 1 when the trailing run of consecutive REGRESSION entries reaches the configured threshold; below threshold exits 0; absent config defaults to 2.",
+      "evidence": [
+        {
+          "file": "scripts/check-e2e-escalation.mjs",
+          "line": 3,
+          "what": "reads the append-only e2e reliability ledger (AC-2043.5/6)"
+        },
+        {
+          "file": "__tests__/scripts/check-e2e-escalation.test.ts",
+          "line": 37,
+          "what": "3 consecutive failures with threshold 3 escalates (exit 1)"
+        },
+        {
+          "file": "__tests__/scripts/check-e2e-escalation.test.ts",
+          "line": 52,
+          "what": "2 consecutive failures below threshold 3 does not escalate (exit 0)"
+        },
+        {
+          "file": "src/generators/check-all.ts",
+          "line": 304,
+          "what": "the ledger gate is emitted and wired"
+        }
+      ]
+    },
+    {
+      "id": "AC-2102.1",
+      "verdict": "PASS",
+      "note": "Repeatable --chain <id> on `arbiter task init` persists chainIds: string[] on UnifiedTaskState, normalized to canonical #NNN, and rejects non-numeric ids with the same guard as the primary id.",
+      "evidence": [
+        {
+          "file": "src/cli.ts",
+          "line": 1741,
+          "what": "--chain <id> option registration on task init (repeatable reducer)"
+        },
+        {
+          "file": "src/commands/task-state.ts",
+          "line": 144,
+          "what": "normalizeChainId — canonical #NNN + numeric validation"
+        },
+        {
+          "file": "__tests__/commands/task.test.ts",
+          "line": 122,
+          "what": "persists a single --chain id, normalized to canonical #NNN"
+        },
+        {
+          "file": "__tests__/commands/task.test.ts",
+          "line": 132,
+          "what": "rejects a non-numeric chain id the same way the primary ship id is validated"
+        }
+      ]
+    },
+    {
+      "id": "AC-2102.2",
+      "verdict": "PASS",
+      "note": "`arbiter ship [id] --chain <id>` accepts the same repeatable flag and the close-step advisory text names every id in [taskId, ...chainIds], primary first. Omitting --chain on a later call does not clear a declared chain.",
+      "evidence": [
+        {
+          "file": "src/cli.ts",
+          "line": 1841,
+          "what": "--chain <id> option registration on ship"
+        },
+        {
+          "file": "__tests__/commands/task-ship.test.ts",
+          "line": 404,
+          "what": "chain declared → close text names every id, primary first"
+        },
+        {
+          "file": "__tests__/commands/task-ship.test.ts",
+          "line": 380,
+          "what": "omitting --chain on a later call does NOT clear a previously-declared chain"
+        }
+      ]
+    },
+    {
+      "id": "AC-2102.3",
+      "verdict": "PASS",
+      "note": "--chain never touches the PR-vs-direct-push axis: a peer-review profile with --chain still produces exactly one PR close-action and never a direct push; a trunk-solo+direct profile still pushes directly. Asserted in both the profile layer and the ship layer.",
+      "evidence": [
+        {
+          "file": "__tests__/commands/ship-profile.test.ts",
+          "line": 552,
+          "what": "peer-review repo + --chain → complete step is still a PR close action, never direct push"
+        },
+        {
+          "file": "__tests__/commands/ship-profile.test.ts",
+          "line": 565,
+          "what": "trunk-solo + direct repo + --chain → STILL direct push (axis unaffected either way)"
+        },
+        {
+          "file": "__tests__/commands/task-ship.test.ts",
+          "line": 432,
+          "what": "peer-review + chain → STILL one PR, never a direct push"
+        }
+      ]
+    },
+    {
+      "id": "AC-2102.4",
+      "verdict": "PASS",
+      "note": "The chain gate in pre-push.ejs computes its OWN push range (unconditional — independent of the enableSecurityScanning-gated gitleaks PUSH_RANGE), hard-fails naming the missing id, passes when every id in [taskId, ...chainIds] has a commit in range, and is byte-identically silent when chainIds is absent/empty/unreadable.",
+      "evidence": [
+        {
+          "file": "src/templates/githooks/pre-push.ejs",
+          "line": 140,
+          "what": "CHAIN_PUSH_RANGE computed independently of the security-scanning block"
+        },
+        {
+          "file": "__tests__/templates/githooks/pre-push-ejs.test.ts",
+          "line": 109,
+          "what": "chain-batching gate is unconditional (not gated on enableSecurityScanning)"
+        },
+        {
+          "file": "__tests__/githooks/pre-push.test.ts",
+          "line": 323,
+          "what": "chain declared, one chain id has NO commit in the push range → hook fails, names it"
+        },
+        {
+          "file": "__tests__/githooks/pre-push.test.ts",
+          "line": 365,
+          "what": "no chainIds declared → output byte-identical to the pre-chain hook (no-op)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2102.5",
+      "verdict": "PASS",
+      "note": "All five named files carry new/extended chain tests; the behavioral pre-push tests EXECUTE the materialized hook rather than string-asserting the template. Re-run in this tree: all green.",
+      "evidence": [
+        {
+          "file": "__tests__/commands/task.test.ts",
+          "line": 122,
+          "what": "chainIds persistence + validation (3 tests)"
+        },
+        {
+          "file": "__tests__/commands/task-ship.test.ts",
+          "line": 369,
+          "what": "ship seeding + close-step advisory (6 tests)"
+        },
+        {
+          "file": "__tests__/commands/ship-profile.test.ts",
+          "line": 550,
+          "what": "AC-2102.3 axis-invariance (2 tests)"
+        },
+        {
+          "file": "__tests__/githooks/pre-push.test.ts",
+          "line": 273,
+          "what": "behavioral chain-gate on the materialized hook"
+        },
+        {
+          "file": "__tests__/templates/githooks/pre-push-ejs.test.ts",
+          "line": 94,
+          "what": "render-level chain block"
+        }
+      ]
+    },
+    {
+      "id": "AC-2102.6",
+      "verdict": "PASS",
+      "note": "Both docs updated with the --chain usage and the enforcer it leans on (the generated pre-push hook), including the opt-in-only and no-repeat-per-call semantics.",
+      "evidence": [
+        {
+          "file": "docs/methodology/gate-throughput-patterns.md",
+          "line": 53,
+          "what": "§1 gains the --chain invocation and the warning→hard-gate upgrade"
+        },
+        {
+          "file": "docs/CONTRIBUTING.md",
+          "line": 106,
+          "what": "### Merge-train batching a sequential chain (--chain, #2102)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2102.7",
+      "verdict": "NOT-TESTED",
+      "note": "Gate scheduled post-review. Per the wave-3 plan §Integration step 5 the FULL gate (L1+L2 under `arbiter gate-exec`) runs as the LAST action before `gh pr create`, because any commit after the gate invalidates head_sha for enforce-gate-before-pr.mjs. No gate-pass.json exists on this tree at review time, so there is nothing to cite. Partial signal only: 24 targeted suites (352 tests) green at HEAD=5a22602d.",
+      "evidence": []
+    },
+    {
+      "id": "AC-2103.1",
+      "verdict": "PASS",
+      "note": "M16 landed in the methodology doc with the Enforcement and Self/Governed rows the doc's §0 contract requires, plus a tier-table row and a mechanism-map entry, and gate-throughput-patterns.md gained §7.",
+      "evidence": [
+        {
+          "file": "docs/methodology/agent-orchestration-and-context-hygiene.md",
+          "line": 521,
+          "what": "### M16 — Terminal handoff: subagents never own waits"
+        },
+        {
+          "file": "docs/methodology/agent-orchestration-and-context-hygiene.md",
+          "line": 592,
+          "what": "tier-table row: worker ends at handoff; coordinator watches (Self/Governed columns)"
+        },
+        {
+          "file": "docs/methodology/agent-orchestration-and-context-hygiene.md",
+          "line": 647,
+          "what": "mechanism-map entry with Enforcement + EXISTS (#2103) status"
+        }
+      ]
+    },
+    {
+      "id": "AC-2103.2",
+      "verdict": "PASS",
+      "note": "bg-run.sh (setsid+nohup detached, records pid/exit/log under .arbiter/bg/) and pid-watch.sh (coordinator until-loop reading the exit FILE, not process liveness) ship as .ejs twins emitted by the #2098 pr-tooling generator (refactor-first per CANON-16) and are materialized in the regenerated examples. CANON-07 respected: the tests EXECUTE the generated scripts, and the self-test fixture reproduces the exact issue failure mode — a watcher on a PID that outlives the caller's session.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/bg-run.sh.ejs",
+          "line": 1,
+          "what": "detached launcher template"
+        },
+        {
+          "file": "src/templates/scripts/pid-watch.sh.ejs",
+          "line": 1,
+          "what": "coordinator until-loop template"
+        },
+        {
+          "file": "src/generators/pr-tooling.ts",
+          "line": 59,
+          "what": "emission via `arbiter update` to governed repos"
+        },
+        {
+          "file": "__tests__/scripts/m16-handoff-tools.test.ts",
+          "line": 51,
+          "what": "the exact failure mode: watcher on a PID that outlives the caller session → exactly one exit line"
+        },
+        {
+          "file": "__tests__/scripts/m16-handoff-tools.test.ts",
+          "line": 83,
+          "what": "--self-test on both helpers exits 0"
+        }
+      ]
+    },
+    {
+      "id": "AC-2103.3",
+      "verdict": "PASS",
+      "note": "check-m16-handoff.mjs proves RED on a marker-less dispatch template naming the file, passes the marked corpus, skips absent corpus files, and --self-test proves both directions. Corpus = wave-drain/SKILL.md, drain/SKILL.md and the doc's M16 section (not .claude/plans/, avoiding self-recursion). The deferred registration was applied by the orchestrator at integration into the merged gate-registry + self check-all.",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/check-m16-handoff.mjs.ejs",
+          "line": 1,
+          "what": "the SOFT marker gate + its .ejs twin"
+        },
+        {
+          "file": "__tests__/scripts/check-m16-handoff.test.ts",
+          "line": 51,
+          "what": "a dispatch template WITHOUT the M16 marker fails the gate, naming the file"
+        },
+        {
+          "file": "src/templates/scripts/gate-registry.yml.ejs",
+          "line": 111,
+          "what": "integration-applied registration: m16-handoff at L1"
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 323,
+          "what": "self-tree wiring of the M16 gate"
+        }
+      ]
+    },
+    {
+      "id": "AC-2103.4",
+      "verdict": "PASS",
+      "note": "Orchestrator dogfood: one real dispatch with the worker ending at handoff and the coordinator watching via bg-run + pid-watch — 1 watcher line, 0 SendMessage re-engagements (evidence in the integration conversation, per the plan's §Integration step 6 which assigns this run to the orchestrator, not a worktree). The in-repo half is the executed self-tests proving the same contract mechanically.",
+      "evidence": [
+        {
+          "file": "scripts/bg-run.sh",
+          "line": 1,
+          "what": "materialized detached launcher used for the dogfood dispatch"
+        },
+        {
+          "file": "scripts/pid-watch.sh",
+          "line": 1,
+          "what": "materialized coordinator watcher — emits exactly one exit line"
+        },
+        {
+          "file": "__tests__/scripts/m16-handoff-tools.test.ts",
+          "line": 68,
+          "what": "re-watching an already-exited job emits exactly one line again (idempotent)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2231.1",
+      "verdict": "PASS",
+      "note": "The hardcoded 3/3/5 tier table and the 5-persona list are gone from review-code.md, replaced by pointers to .claude/agent-dispatch-matrix.json::tier_verticals and .claude/auditor-routing.json.",
+      "evidence": [
+        {
+          "file": ".claude/commands/review-code.md",
+          "line": 43,
+          "what": "the tier→reviewer-count mapping lives in .claude/agent-dispatch-matrix.json"
+        },
+        {
+          "file": ".claude/commands/review-code.md",
+          "line": 50,
+          "what": "the auditor roster is defined in .claude/auditor-routing.json, the SSOT"
+        },
+        {
+          "file": "__tests__/docs/review-code-ssot.test.ts",
+          "line": 16,
+          "what": "no hardcoded 3/3/5 tier table — pointer only"
+        },
+        {
+          "file": "__tests__/docs/review-code-ssot.test.ts",
+          "line": 24,
+          "what": "no hardcoded 5-persona list"
+        }
+      ]
+    },
+    {
+      "id": "AC-2231.2",
+      "verdict": "PASS",
+      "note": "The documented route-auditors invocation now passes --size-floor <tier>, without which route-auditors.mjs never loads tier_verticals.",
+      "evidence": [
+        {
+          "file": ".claude/commands/review-code.md",
+          "line": 85,
+          "what": "node scripts/route-auditors.mjs --diff-stdin --size-floor <tier>"
+        },
+        {
+          "file": "__tests__/docs/review-code-ssot.test.ts",
+          "line": 31,
+          "what": "documented route-auditors invocation passes --size-floor <tier>"
+        }
+      ]
+    },
+    {
+      "id": "AC-2231.3",
+      "verdict": "PASS",
+      "note": "New functionality as the red-team framed it (main's review-code.md carried no completion-check promise): a Completion check section now requires every persona to return a verdict, with one retry otherwise, referenced from the numbered flow.",
+      "evidence": [
+        {
+          "file": ".claude/commands/review-code.md",
+          "line": 54,
+          "what": "## Completion check — the post-dispatch verdict/retry contract"
+        },
+        {
+          "file": ".claude/commands/review-code.md",
+          "line": 36,
+          "what": "step 3. Verify completion — links the section into the flow"
+        },
+        {
+          "file": "__tests__/docs/review-code-ssot.test.ts",
+          "line": 35,
+          "what": "post-dispatch completion check documented: every persona must return a verdict, one retry otherwise"
+        }
+      ]
+    },
+    {
+      "id": "AC-2231.4",
+      "verdict": "PASS",
+      "note": "The phantom `arbiter review code` citations are removed and the docs no longer promise the multi-pass dispatch removed in #1817. NO src/cli.ts edit was made for this (verified: the only cli.ts hunks in the wave are Group D's --chain registrations) — the verb was correctly absent from the code all along. An adjacent phantom, arc42.md's `arbiter review plan`, was corrected in the same commit.",
+      "evidence": [
+        {
+          "file": "__tests__/docs/review-code-ssot.test.ts",
+          "line": 40,
+          "what": "no phantom `arbiter review code` citation remains"
+        },
+        {
+          "file": "docs/architecture/arc42.md",
+          "line": 387,
+          "what": "phantom `arbiter review plan` replaced by 'the plan-review step of the task lifecycle' (commit a8589bdd)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2231.5",
+      "verdict": "PASS",
+      "note": "The scan validates second tokens with the arg/flag discrimination the red-team required: `#`-issue, `--flag` and `<arg>` prefixes are never read as verbs, and cli-command-names.mjs was extended to extract the nested subcommand tree (const-chain + col-0-head parsing) so real subcommands like `verify tdd` still resolve.",
+      "evidence": [
+        {
+          "file": "scripts/check-phantom-command-scan.mjs",
+          "line": 124,
+          "what": "AC-2231.5: optional second capture validates SUBCOMMAND tokens"
+        },
+        {
+          "file": "scripts/check-phantom-command-scan.mjs",
+          "line": 208,
+          "what": "validate `arbiter <cmd> <sub>` pairs against the extracted tree"
+        },
+        {
+          "file": "scripts/lib/cli-command-names.mjs",
+          "line": 96,
+          "what": "extractSubcommandNames — the subcommand tree extension"
+        },
+        {
+          "file": "__tests__/scripts/check-phantom-command-scan.test.ts",
+          "line": 433,
+          "what": "AC-2231.5 subcommand-token validation, incl. no false positives on ship #NNN / init --recipe / update --governance / verify tdd"
+        }
+      ]
+    },
+    {
+      "id": "AC-2232.1",
+      "verdict": "PASS",
+      "note": "The remedy row no longer promises the impossible docs-add-frontmatter fix: it is marked RESOLVED by #2223, records CHANGELOG.md's changesets-managed checker exemption with its rationale, and explicitly warns against running the script on CHANGELOG.md. CHANGELOG.md itself was not modified (non-goal respected).",
+      "evidence": [
+        {
+          "file": "docs/technical-debt.md",
+          "line": 26,
+          "what": "row rewritten: RESOLVED by #2223, CHANGELOG.md checker-exempt, ROADMAP/PRIVACY carry frontmatter"
+        }
+      ]
+    },
+    {
+      "id": "AC-2232.2",
+      "verdict": "PASS",
+      "note": "Both TRACK_MODEL dangles are gone: the labels.yml comment (and its byte-parity .ejs twin, enforced by ci-tier-labels-parity.test.ts) now points at PROCESS.md, and PROCESS.md's dangling `Location: docs/METHOD/TRACK_MODEL.md` line is removed. The one surviving mention is prose ('TRACK_MODEL tells the orchestrator...'), not a dangling file path.",
+      "evidence": [
+        {
+          "file": ".github/labels.yml",
+          "line": 57,
+          "what": "# Tracks (track model — docs/internal/METHOD/PROCESS.md)"
+        },
+        {
+          "file": "src/templates/github/labels.yml.ejs",
+          "line": 57,
+          "what": "twin repointed identically (byte-parity enforced)"
+        },
+        {
+          "file": "__tests__/docs/track-model-dangle.test.ts",
+          "line": 24,
+          "what": "PROCESS.md no longer contains 'TRACK_MODEL.md'"
+        },
+        {
+          "file": "__tests__/docs/track-model-dangle.test.ts",
+          "line": 16,
+          "what": "labels.yml + twin do not cite TRACK_MODEL.md"
+        }
+      ]
+    }
+  ]
+}
