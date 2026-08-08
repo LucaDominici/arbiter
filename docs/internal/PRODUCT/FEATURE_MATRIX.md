@@ -57,14 +57,14 @@ gap to close than `Partial`+`GATE`.
 
 | Tier       | GAMP mapping     | Qualified when…                                                              | Evidence directory                                                                                    |
 | ---------- | ---------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `SCAFFOLD` | IQ (installation) | `arbiter init`/`update` demonstrably produces the expected artifact(s)       | `__tests__/generators/*.test.ts` (content-asserting), or a bake-tier structure snapshot (`__tests__/integration/e2e/bake/`, `__tests__/fixtures/real-projects/`) |
+| `SCAFFOLD` | IQ (installation) | `arbiter init`/`update` demonstrably produces the expected artifact(s)       | a bake-tier structure snapshot (`__tests__/integration/e2e/bake/`) or a real-project fixture (`__tests__/fixtures/real-projects/`) |
 | `GATE`     | OQ (operational)  | Arbiter's own logic is correct — verified directly, no target-project run needed | arbiter's own L1/L2 unit + integration suite (any `__tests__/**` test outside bake/functional)                       |
 | `E2E`      | PQ (performance)  | The *generated* enforcement mechanism actually works when run for real (e.g. a seeded violation REDs the generated gate) | functional-tier run of the generated project's own gate (`__tests__/integration/e2e/functional/`, e.g. `greenfield-first-run.test.ts`) |
 
 Assignment rule used to seed this column (#2242): a row whose `test_ref` names a
 file in one of the evidence directories above takes that directory's tier
-directly (10 rows currently qualify this way — all under `GATE`, since none of
-this repo's cited `test_ref`s are bake/functional tests yet). A row with no
+directly. All 10 rows with a cited `test_ref` land under `GATE`: none cites a
+bake- or functional-tier test, so none reaches `SCAFFOLD` or `E2E` evidence. A row with no
 `test_ref` (45 rows) declares the tier its capability *requires*: stack/language
 support → `SCAFFOLD` (INV-32 anchors verification to a real-project fixture per
 language); arbiter-internal mechanisms with no target-project dependency (CLI
@@ -229,13 +229,15 @@ All 78 KIT dimensions (N01–N78) are tracked. Coverage breakdown by category:
 ## Gap Triage (#2242)
 
 Every `Partial` (46) and `Missing` (1) row classified `true-gap` vs
-`accepted-partial`, clustered by theme. **Classifier:** a row already carrying
-an `issue_ref` has its gap tracked by an existing issue — `accepted-partial`,
-no new issue needed. A row with no `issue_ref` is an untracked gap — this is
-the same `40/46` set `check-feature-matrix.mjs`'s own governance-visibility
-WARN (rule 6) already flags; this triage clusters that machine-derived list by
-theme and files one follow-up issue per cluster (AC-4), rather than 40
-individual ones.
+`accepted-partial`, clustered by theme. Classifier (applied at triage time,
+before this change landed): a row already carrying a pre-existing `issue_ref`
+had its gap tracked — `accepted-partial`. A row with no `issue_ref` was an
+untracked gap — the `40/46` set `check-feature-matrix.mjs`'s
+governance-visibility WARN (rule 6) flagged at that moment. This triage
+clustered that machine-derived list by theme and filed one follow-up per
+cluster rather than 40 individual ones; writing those cluster refs into the
+table closed the WARN, so rule 6 now reports `0/46` and the classifier is no
+longer re-derivable from the table alone.
 
 ### Accepted-partial (7 rows) — already tracked
 
