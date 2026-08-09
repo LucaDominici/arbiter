@@ -30,6 +30,12 @@ W4 ships two tracks in one PR:
 
 The parity test (`__tests__/parity/ci-tier-render-parity.test.ts`) enforces byte-equivalence between committed Track A files and the rendered Track B templates. If you edit a template, re-render the committed file to keep parity.
 
+### Node version SSOT
+
+Every CI-enabled project emits `.nvmrc` as its Node version source. All workflow
+Node setup steps use `node-version-file`; TypeScript alone enables the npm cache
+and dependency install, while non-TypeScript governance jobs use setup-only Node.
+
 ## Re-rendering after template edits
 
 ```bash

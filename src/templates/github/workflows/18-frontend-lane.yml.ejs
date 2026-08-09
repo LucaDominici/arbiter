@@ -41,6 +41,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+          package-manager-cache: false
 
       - name: Install frontend subtree deps
         run: npm ci --prefix frontend

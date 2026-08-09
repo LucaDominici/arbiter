@@ -15,7 +15,11 @@ export function generateRoot(
 ): RootGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = { ...config, strictnessTier: config.strictnessTier ?? 'practical' }
+  const data = {
+    ...config,
+    nodeVersion: '22.21.1',
+    strictnessTier: config.strictnessTier ?? 'practical',
+  }
 
   // CODEOWNERS — create if missing
   if (config.githubOwner) {
@@ -48,6 +52,15 @@ export function generateRoot(
   // .editorconfig — create if missing
   results.push(
     writeFile(resolvedPath(base, '.editorconfig'), renderTemplate('root/editorconfig.ejs', data), {
+      skipIfExists: true,
+      dryRun: opts.dryRun,
+    }),
+  )
+
+  // Node is also required by workflow-side governance tooling in non-TypeScript
+  // projects. Keep one project-wide version source for every CI-enabled stack.
+  results.push(
+    writeFile(resolvedPath(base, '.nvmrc'), renderTemplate('.nvmrc.ejs', data), {
       skipIfExists: true,
       dryRun: opts.dryRun,
     }),

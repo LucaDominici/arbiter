@@ -410,11 +410,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+<% if (language === 'typescript') { -%>
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+<% } else { -%>
+      - uses: ./.github/actions/setup-node-pnpm
+<% } -%>
       - name: Install gitleaks
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
@@ -425,8 +429,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/bin"
           curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" actionlint
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+<% if (language === 'typescript') { -%>
       - name: Build
         run: npm run build<% if (locals.ciPreTestBuild) { %> && node scripts/build-kit.mjs<% } %>
+<% } -%>
       - name: Run full L2 gate (== pre-push, nightly)
         run: node scripts/check-all.mjs L2 --json gate-result-nightly.json
       - name: Upload nightly gate-result artifact
@@ -598,16 +604,16 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-<%_ /* #2256: the scrub step below shells out to `node` unconditionally (even its
-     manifest-check fallback), but the job carried no setup-node step, so the
-     runner's ancient system node SyntaxErrors on the modern script every night.
-     Gated to typescript — matching fuzz/soak-e2e (language-gated via
-     scheduled-heavy-jobs.ejs) and bake-e2e-native (self-render/typescript-only):
-     non-typescript projects never get a .nvmrc/package-lock.json, so an
-     unconditional setup-node-pnpm step would hard-fail on "lock file not found"
-     instead of today's node-version error. */ -%>
+<%_ /* #2256/#2259: the scrub step shells out to node unconditionally. Every
+     CI-enabled project now emits .nvmrc, while the composite action keeps npm
+     cache/install TypeScript-only, so this is safe for every stack. */ -%>
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
+<% } else { %>
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          package-manager-cache: false
 <% } %>
       - name: Collect evidence summary
         run: |
@@ -670,7 +676,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
+<% if (language === 'typescript') { -%>
           node-version-file: '.nvmrc'
+<% } else { -%>
+          node-version-file: '.nvmrc'
+          package-manager-cache: false
+<% } -%>
       - name: Delete already-expired artifacts
         env:
           GH_TOKEN: ${{ github.token }}

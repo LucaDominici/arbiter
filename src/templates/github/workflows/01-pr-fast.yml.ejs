@@ -99,7 +99,12 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
+<% if (language === 'typescript') { -%>
           node-version-file: '.nvmrc'
+<% } else { -%>
+          node-version-file: '.nvmrc'
+          package-manager-cache: false
+<% } -%>
       - name: PII scan (INV-12, HARD)
         run: node scripts/pii-scan.mjs
       - name: Install gitleaks
@@ -139,7 +144,12 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
+<% if (language === 'typescript') { -%>
           node-version-file: '.nvmrc'
+<% } else { -%>
+          node-version-file: '.nvmrc'
+          package-manager-cache: false
+<% } -%>
       - id: classify
         if: hashFiles('scripts/ci-classify-changes.mjs') != ''
         run: node scripts/ci-classify-changes.mjs
@@ -848,8 +858,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-      - run: npm ci
+          package-manager-cache: false
 <% } %>
       - name: Install gitleaks
         run: |
@@ -1084,8 +1093,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-      - run: npm ci
+          package-manager-cache: false
 <% } %>
       - name: Install gitleaks
         run: |

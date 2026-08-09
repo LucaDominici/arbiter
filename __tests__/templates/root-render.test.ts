@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { renderTemplate } from '../../src/utils/render.js'
 import { generateRoot } from '../../src/generators/root.js'
@@ -55,6 +55,15 @@ describe('tsconfig.json.ejs (#170)', () => {
     )
     const parsed = JSON.parse(out)
     expect(parsed.compilerOptions?.skipLibCheck).toBe(true)
+  })
+})
+
+describe('.nvmrc.ejs (#2259)', () => {
+  it('renders the configured canonical Node version exactly', () => {
+    const canonicalNodeVersion = readFileSync(resolve('.nvmrc'), 'utf-8')
+    expect(
+      renderTemplate('.nvmrc.ejs', cfg('python', { nodeVersion: canonicalNodeVersion.trim() })),
+    ).toBe(canonicalNodeVersion)
   })
 })
 

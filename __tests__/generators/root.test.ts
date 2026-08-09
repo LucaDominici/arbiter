@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { generateRoot } from '../../src/generators/root.js'
 import { makeConfig } from '../helpers.js'
 
@@ -22,6 +22,13 @@ describe('generateRoot', () => {
     expect(paths.some((p) => p.endsWith('SECURITY.md'))).toBe(true)
     expect(paths.some((p) => p.endsWith('CONTRIBUTING.md'))).toBe(true)
     expect(paths.some((p) => p.endsWith('.editorconfig'))).toBe(true)
+  })
+
+  it('emits the canonical .nvmrc for CI-enabled non-TypeScript projects (#2259)', () => {
+    generateRoot(makeConfig(dir, { language: 'python' }))
+    expect(readFileSync(join(dir, '.nvmrc'), 'utf-8')).toBe(
+      readFileSync(resolve('.nvmrc'), 'utf-8'),
+    )
   })
 
   it('generates CODEOWNERS when githubOwner is set', () => {

@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2267",
+  "test_path": "__tests__/gates/gate-registry.test.ts",
+  "test_commit_sha": "cf0de0db7d8718976fc0d610db527eba8eff35f2",
+  "test_blob_sha": "0a604ad98d4f7a2e41220a4e7b54a3e83f831f87",
+  "test_run_log": "RUN  v4.1.10 /home/luca/work/repos/arbiter.worktrees/2259-wave5-cross-language\\n\\nFAIL  __tests__/gates/gate-registry.test.ts > declarative gate registry (#2041) > AC-2041.3: a layering contract test is emitted for consumers ('rust' @ L2, trunk-solo)\\nFAIL  __tests__/gates/gate-registry.test.ts > declarative gate registry (#2041) > AC-2041.3: a layering contract test is emitted for consumers ('python' @ L2, trunk-solo)\\nFAIL  __tests__/gates/gate-registry.test.ts > declarative gate registry (#2041) > AC-2041.3: a layering contract test is emitted for consumers ('java' @ L2, trunk-solo)\\nFAIL  __tests__/gates/gate-registry.test.ts > declarative gate registry (#2041) > AC-2041.3: a layering contract test is emitted for consumers ('kotlin' @ L2, trunk-solo)\\nAssertionError: test-gate-layering: FAIL — 1 layering violation(s):\\n  - L3 lane declares zero gates\\n\\nTest Files  1 failed (1)\\nTests  4 failed | 4 passed (8)",
+  "observed_failure": "FAIL  __tests__/gates/gate-registry.test.ts",
+  "recorded_at": "2026-08-09T19:02:25Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/gates/gate-registry.test.ts"
+  ]
+}

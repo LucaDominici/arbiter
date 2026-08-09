@@ -252,3 +252,11 @@ gates:
   # cgo-less path would need a runner-capability guard, not `soft` (soft binds
   # to graceActive, an L1→L2 grace concept, inert at L3).
   - { id: go-race, name: 'race detector (full)', level: L3, kind: check, language: go, cmd: ['go', ['test', '-race', './...']] }
+  # #2267: Cross-language L3 content must exist even when a consumer is generated
+  # at L2: test-gate-layering verifies the declared lane before its configured
+  # governance level advances. These are full, executable lifecycle commands;
+  # no benchmark threshold is implied.
+  - { id: rust-release-tests, name: 'release tests (all targets/features)', level: L3, kind: check, language: rust, cmd: ['cargo', ['test', '--release', '--all-targets', '--all-features']] }
+  - { id: python-doctest-strict, name: 'doctest + strict markers', level: L3, kind: check, language: python, cmd: ['pytest', ['--doctest-modules', '--strict-markers']] }
+  - { id: java-lifecycle, name: 'Java lifecycle tests', level: L3, kind: check, emitIf: "language === 'java' && (buildTool === 'gradle' || buildTool === 'maven')", cmd: ['<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test -q" : "verify -q" %>']] }
+  - { id: kotlin-gradle-build, name: 'Gradle lifecycle build', level: L3, kind: check, emitIf: "language === 'kotlin' && buildTool === 'gradle'", cmd: ['./gradlew', ['build', '-q']] }
