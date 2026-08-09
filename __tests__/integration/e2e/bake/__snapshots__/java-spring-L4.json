@@ -537,7 +537,7 @@
     "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
     "scripts/constraint-map.json": "d5f60a1a8b34336bbc40b82f851355f17f7ea98488ec574ebd9781cbf6e622d9",
     "scripts/debt-lib.mjs": "6bba3c2614addd8a7e4e91b8a5771a002b13ff69206d7e166832f0923b9f0517",
-    "scripts/debt-report.mjs": "78064688386f8c2c55ab4e35ac48950f645fd26b94b0dae5dbb2624cf646d1d2",
+    "scripts/debt-report.mjs": "a5c05598a25ca124be7e6495694d37be5c18941296cc5b1ac86fab4bbd2fb4dd",
     "scripts/done-evidence.mjs": "06fe94f02a7e1c5714fbb3555fb5fe1ca61c7811d32bc30fe74ad876ff0b9712",
     "scripts/evidence-prune.mjs": "410ffa39cf5253bbdb421d67b61694456a6ee6cbe5edf2d309069a941c34ec82",
     "scripts/evidence-rotate.mjs": "fccf586ad8f27f5465f98362c2c7fa331e739ae455a0c8b2ca019430681f090a",
