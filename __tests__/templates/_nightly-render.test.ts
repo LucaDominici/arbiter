@@ -106,6 +106,25 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(evidenceJob).toContain('was emitted by arbiter but is now missing')
   })
 
+  // #2256: the scrub step invokes `node` unconditionally — even its own
+  // manifest-check fallback (`elif node --input-type=module -e '...'`) shells out
+  // to node — but the job carried no setup-node step, so the runner's ancient
+  // system node throws `SyntaxError: Unexpected token {` on the modern script
+  // every night. Sibling jobs (fuzz :61, soak-e2e :73, bake-e2e-native :104) all
+  // carry ./.github/actions/setup-node-pnpm; evidence-collect must too, and
+  // unconditionally — its node dependency is not gated by target language.
+  it.each(STACKS)(
+    '$language: evidence-collect job carries setup-node-pnpm (#2256)',
+    ({ language, buildTool }) => {
+      const rendered = renderNightlyPartial({ language, buildTool })
+      const evidenceJob = rendered.slice(
+        rendered.indexOf('evidence-collect:'),
+        rendered.indexOf('nightly-required:'),
+      )
+      expect(evidenceJob).toContain('./.github/actions/setup-node-pnpm')
+    },
+  )
+
   it.each(STACKS)('$language: nightly-required aggregator present', ({ language, buildTool }) => {
     const rendered = renderNightlyPartial({ language, buildTool })
     expect(rendered).toContain('nightly-required:')
