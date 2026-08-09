@@ -1,8 +1,8 @@
 ---
 title: 'Backlog drain playbook — analyse, order, cluster, execute'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-08-03'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/method']
@@ -253,6 +253,52 @@ The failure modes that actually bit, in order of how much time they cost:
    failing for reasons that make no sense. The reflog finds it in seconds.
 5. **Trusting a lead's green.** They measure at their base; main has moved. Re-run
    the gate yourself after every rebase, before every merge.
+
+---
+
+## Field-validated deltas (2026-08-09 run — 3 waves, 3 PRs, 14 closed, functional suite 7-fail→1-fail)
+
+A second full run validated the playbook and added six rules. Each one is a scar with a
+receipt; they are wired into the wave-drain skill at the exact step where they bite, and
+repeated here because this file is the standing entrypoint.
+
+1. **Iff-closure contract.** An issue closes ⟺ (E2E evidence ∧ doc evidence): the touched
+   flow proven on the real binary (bake/fixture/consumer/live-CI run — unit-only does not
+   count) AND doc gates green with content updated where the documented surface changed.
+   The PR body carries a per-issue evidence table; an issue missing either half gets NO
+   `Closes` line — it stays open with a comment naming the missing half. This is what kept
+   #2244 honestly open and #2256 closed only after a live green nightly.
+2. **RED-first branch construction.** The pre-push tdd-evidence check RE-RUNS the recorded
+   RED at its pinned `test_commit_sha` — a branch built fix-before-test fails verification
+   structurally. Build every branch: `test(#NNN): ... (RED)` commit that genuinely fails →
+   fix commit(s) → evidence commit pinned to the TEST commit, `observed_failure` matching
+   the re-run output format exactly.
+3. **Leads run the composed gate before handoff.** The worktree pre-commit skips L1
+   (#1695); sub-check spot-checks are not a substitute — in the validated run 5 of one
+   lead's 16 commits fixed residue his own earlier commits introduced, all caught only by
+   the composed `check-all.mjs L1`. Every lead brief ends with: full L1 in the worktree
+   before the DONE report.
+4. **Snapshot conflicts: regenerate, never hand-resolve.** Bake goldens,
+   `examples/**`, generated manifests — on merge conflict take either side, then rebuild
+   and regenerate on the MERGED tree (`npm run build && node scripts/regenerate-examples.mjs
+&& BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake`) and audit the diff: hash-only moves
+   expected, file-list changes explained, nothing disappears.
+5. **Single-slot runner: queue, don't race.** `status: null` / exit 137 on a CI job is a
+   SIGKILL from slot contention, not test logic — never "fix" the test for it. Re-run after
+   the queue drains; two workflows racing for one runner is the root cause (structural fix:
+   a `concurrency:` group).
+6. **Premise falsification stays mandatory — now with line-drift awareness.** Issue bodies
+   cite `file:line` that main has outrun (every audit goes stale in days). Leads locate
+   claims BY CONTENT, not by line number, and re-verify each premise on the CURRENT tree
+   before implementing; the validated run reversed one issue's direction entirely
+   (template was BEHIND the consumer, not ahead) because of this check.
+
+Best-practice research is cheap and pays: one read-only agent fetching current
+framework-official guidance (e.g. `scratchpad/e2e-framework-best-practices.md`, sources
+2025-2026) gave every lead its fix direction — populate-don't-weaken for an empty gate
+lane, starter-test conventions, retry-is-never-a-fix. Refresh it when a wave touches an
+unfamiliar framework surface; never let a lead invent policy a framework has already
+documented.
 
 ---
 

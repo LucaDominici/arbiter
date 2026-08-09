@@ -369,6 +369,29 @@ wave.** The rest of the wave proceeds.
   verify, and a **full gate GREEN** on the wave PR.
 - The ceremony is **per-wave, not per-issue** — that is where the tokens are saved, **not by
   skipping it**.
+- **Iff-closure contract (field-validated 2026-08-09):** an issue closes ⟺ (E2E evidence ∧
+  doc evidence) — real-binary proof (bake/fixture/consumer/live-CI, never unit-only) AND
+  doc gates green with content updated. The PR body carries a per-issue evidence table; an
+  issue missing either half gets NO `Closes` line — it stays open with a comment naming
+  the missing half. Post-merge-only evidence (a live nightly, a consumer run) closes the
+  issue AFTER that run is green, not at merge.
+- **RED-first branch construction:** the pre-push tdd-evidence check RE-RUNS the RED at its
+  pinned `test_commit_sha` — order every branch test(RED)→fix→evidence-pinned-to-the-test-
+  commit, `observed_failure` matching the re-run format exactly. Fix-before-test ordering
+  fails verification structurally, not stylistically.
+- **Leads run composed L1 before the DONE report:** the worktree pre-commit skips L1
+  (#1695) — sub-check spot-checks miss bake goldens, examples drift, docs-gate, format.
+  Full `check-all.mjs L1` in the worktree is part of every lead brief's exit criteria.
+- **Snapshot conflicts: regenerate, never hand-resolve.** Generated artifacts (bake
+  goldens, examples/**, manifests) conflicting at merge: take either side, then rebuild +
+  regenerate on the MERGED tree and audit the diff (hash-only expected, file-list moves
+  explained, nothing disappears).
+- **Runner contention is not a test failure:** `status: null`/exit 137 on the single-slot
+  runner = SIGKILL from parallel-workflow racing. Re-run after the queue drains; never
+  patch the test.
+- **Premise falsification with line-drift awareness:** locate issue-body claims BY
+  CONTENT, never by cited line numbers (audits go stale in days); re-verify every premise
+  on the CURRENT tree before implementing.
 
 ## Stop conditions (fail-closed)
 
