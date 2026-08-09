@@ -2,7 +2,7 @@
 title: 'Arbiter — ADR Index & Gap Register'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-11'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: 'ADR-INDEX'
 tags: ['audience/dev', 'kind/adr', 'kind/architecture']
@@ -12,8 +12,10 @@ related:
 
 # Arbiter — ADR Index & Gap Register
 
-A catalogue of arbiter's **106 Architecture Decision Records** (`docs/internal/ADR/`), one line each,
-plus a **gap register** flagging architecturally-significant decisions that have _no_ ADR. This is a
+A catalogue of arbiter's **Architecture Decision Records** — current count in `docs/internal/ADR/`
+or the generated row count in
+[`docs/internal/SYSTEM/DECISIONS.md`](../internal/SYSTEM/DECISIONS.md) — one line each, plus a
+**gap register** flagging architecturally-significant decisions that have _no_ ADR. This is a
 navigation aid over the canonical source — the generated digest is
 [`docs/internal/SYSTEM/DECISIONS.md`](../internal/SYSTEM/DECISIONS.md); the canonical per-ADR files
 live in [`docs/internal/ADR/`](../internal/ADR/).

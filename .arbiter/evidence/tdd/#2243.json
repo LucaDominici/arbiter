@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2243",
+  "test_path": "__tests__/scripts/check-doc-path-citations.test.ts",
+  "test_commit_sha": "2341ff065e4412639601a63627bd339a146bfd35",
+  "test_blob_sha": "69cf4e5c221ce0b3aa8b7804428410dc23425a41",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/check-doc-path-citations.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  10:49:00\n   Duration  220ms (transform 32ms, setup 26ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-doc-path-citations.test.ts [ __tests__/scripts/check-doc-path-citations.test.ts ]\nError: Cannot find module '../../scripts/check-doc-path-citations.mjs' imported from __tests__/scripts/check-doc-path-citations.test.ts\n ❯ __tests__/scripts/check-doc-path-citations.test.ts:14:1\n     12| import { join, resolve } from 'node:path'\n     13| import { tmpdir } from 'node:os'\n     14| import {\n       | ^\n     15|   extractPathCitations,\n     16|   findPhantomPaths,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-doc-path-citations.test.ts",
+  "recorded_at": "2026-08-09T08:49:00.489Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-doc-path-citations.test.ts"
+  ]
+}

@@ -64,16 +64,16 @@ src/cli.ts --help` / `help --all`, not hand-counted): **15 public top-level comm
 
 ## 3. Doc-role map
 
-| Role        | Doc                                                          | One line                                                                                            |
-| ----------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| Design      | [`arc42.md`](arc42.md) + [`c4-model.md`](c4-model.md)        | Structural decomposition (arc42 §4/§5/§9) and its C4 visualization; owns _how it's built_.          |
-| Realization | [`FEATURE_MATRIX.md`](../internal/PRODUCT/FEATURE_MATRIX.md) | Gate-enforced RTM — requirement→code→test, the only realization/traceability doc that exists today. |
-| Feasibility | [`feasibility.md`](feasibility.md)                           | Retroactive TELOS-lite justification record — _why it was built this way_.                          |
-| Analysis    | This doc                                                     | Verified as-is snapshot — _what's confirmed true right now_, links-not-restatement.                 |
+| Role        | Doc                                                          | One line                                                                                             |
+| ----------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Design      | [`arc42.md`](arc42.md) + [`c4-model.md`](c4-model.md)        | Structural decomposition (arc42 §4/§5/§9) and its C4 visualization; owns _how it's built_.           |
+| RTM         | [`FEATURE_MATRIX.md`](../internal/PRODUCT/FEATURE_MATRIX.md) | Gate-enforced requirement→code→test traceability at fine grain.                                      |
+| Realization | [`realization.md`](realization.md)                           | Thin pointer index (requirement-cluster → arc42 §5 block) + divergence log — never restates the RTM. |
+| Feasibility | [`feasibility.md`](feasibility.md)                           | Retroactive TELOS-lite justification record — _why it was built this way_.                           |
+| Analysis    | This doc                                                     | Verified as-is snapshot — _what's confirmed true right now_, links-not-restatement.                  |
 
-Per #2251 — the durable record, since no lean-docs-spec document exists in this repo — a dedicated
-`docs/architecture/realization.md` (a divergence log, distinct from the RTM) was also scoped for
-this workstream, not yet created, and tracked below.
+Per #2251, `docs/architecture/realization.md` now exists — the row above supersedes the earlier
+"realization = FEATURE_MATRIX.md" conflation this doc previously recorded as the state of fact.
 
 ## 4. Known drift & gaps
 
@@ -85,7 +85,7 @@ this workstream, not yet created, and tracked below.
 | RTM true-gaps, arbiter-internal meta-capability rows lack cited `test_ref`                                                                                                                         | 10 rows                                                                                                | #2246 (open)                                |
 | RTM true-gaps, artifact/template-only scaffold rows, low enforcement risk                                                                                                                          | 8 rows                                                                                                 | #2247 (open)                                |
 | Scan blind spots — bare-word commands, dead file-path citations, count drift                                                                                                                       | post-wave-3 doc scan                                                                                   | #2243 (open)                                |
-| Progressive escalation ladder (strikes 2→3→5) — declarative-only residue of #2043                                                                                                                  | e2e gate consumption                                                                                   | #2248 (open)                                |
+| Progressive escalation ladder (strikes 2→3→5) — declarative-only residue of #2043                                                                                                                  | e2e gate consumption                                                                                   | #2248 (resolved wave-4)                     |
 | **The 20 E2E-tier RTM rows with zero test evidence** (the FIT review's key finding)                                                                                                                | fully accounted: 17 via #2244 + REQ-002/031 via #1156 + REQ-033 via #1151                              | see above, no new issue needed              |
 | `docs/architecture/realization.md` (divergence log) speced but not created                                                                                                                         | #2251                                                                                                  | #2251 (new, filed during this verification) |
 | `adr-index.md:15` and `architecture/README.md:29` both hand-state "106 Architecture Decision Records"                                                                                              | verified actual = 113 files (gap at ADR-103); not in #2239's files-touched scope (arc42/c4/CANON only) | #2250 (new, filed during this verification) |

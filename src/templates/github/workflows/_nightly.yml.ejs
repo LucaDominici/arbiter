@@ -542,6 +542,17 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+<%_ /* #2256: the scrub step below shells out to `node` unconditionally (even its
+     manifest-check fallback), but the job carried no setup-node step, so the
+     runner's ancient system node SyntaxErrors on the modern script every night.
+     Gated to typescript — matching fuzz/soak-e2e (language-gated via
+     scheduled-heavy-jobs.ejs) and bake-e2e-native (self-render/typescript-only):
+     non-typescript projects never get a .nvmrc/package-lock.json, so an
+     unconditional setup-node-pnpm step would hard-fail on "lock file not found"
+     instead of today's node-version error. */ -%>
+<% if (language === 'typescript') { %>
+      - uses: ./.github/actions/setup-node-pnpm
+<% } %>
       - name: Collect evidence summary
         run: |
           mkdir -p nightly-evidence

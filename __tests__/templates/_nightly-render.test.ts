@@ -106,6 +106,50 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(evidenceJob).toContain('was emitted by arbiter but is now missing')
   })
 
+  // #2256: the scrub step invokes `node` unconditionally — even its own
+  // manifest-check fallback (`elif node --input-type=module -e '...'`) shells out
+  // to node — but the job carried no setup-node step, so the runner's ancient
+  // system node throws `SyntaxError: Unexpected token {` on the modern script
+  // every night. Gated to typescript, matching the literal siblings: fuzz/soak-e2e
+  // resolve to setup-node-pnpm only on the typescript branch of
+  // scheduled-heavy-jobs.ejs, and bake-e2e-native only renders for arbiter's own
+  // typescript self-render. Non-typescript projects never emit a .nvmrc or
+  // package-lock.json (confirmed against a real `arbiter init --language python`
+  // tree), so an UNCONDITIONAL setup-node-pnpm step here would trade today's
+  // node-version SyntaxError for a "Dependencies lock file is not found" hard
+  // fail — a different red, not a fix. Slice ends at the next job key
+  // (cleanup-expired-artifacts), not the #2018 test's nightly-required bound,
+  // so this assertion can't accidentally match a later job's unrelated
+  // actions/setup-node step.
+  it('typescript: evidence-collect job carries setup-node-pnpm (#2256)', () => {
+    const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
+    const evidenceJob = rendered.slice(
+      rendered.indexOf('evidence-collect:'),
+      rendered.indexOf('cleanup-expired-artifacts:'),
+    )
+    expect(evidenceJob).toContain('./.github/actions/setup-node-pnpm')
+  })
+
+  // This pins a KNOWN GAP, not an endorsement: evidence-collect's scrub step needs
+  // `node` for every language (see the #2256 comment above), but non-typescript
+  // projects get no setup step at all here. Tracked as a finding (arbiter note
+  // fingerprint 8da674a014533c4806dc05fd340cb65baae9a6bf, severity high) — fixing
+  // it needs a universal .nvmrc/tooling-package.json emission or a no-cache/
+  // no-nvmrc-required input on setup-node-pnpm, both out of #2256's Files
+  // manifest. Whoever closes that finding should delete/replace this test, not
+  // work around it.
+  it.each(STACKS.filter((s) => s.language !== 'typescript'))(
+    '$language: evidence-collect job stays without setup-node-pnpm (no .nvmrc/lockfile emitted — #2256)',
+    ({ language, buildTool }) => {
+      const rendered = renderNightlyPartial({ language, buildTool })
+      const evidenceJob = rendered.slice(
+        rendered.indexOf('evidence-collect:'),
+        rendered.indexOf('cleanup-expired-artifacts:'),
+      )
+      expect(evidenceJob).not.toContain('./.github/actions/setup-node-pnpm')
+    },
+  )
+
   it.each(STACKS)('$language: nightly-required aggregator present', ({ language, buildTool }) => {
     const rendered = renderNightlyPartial({ language, buildTool })
     expect(rendered).toContain('nightly-required:')
