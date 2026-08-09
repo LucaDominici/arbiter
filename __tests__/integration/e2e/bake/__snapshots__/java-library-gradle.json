@@ -282,7 +282,7 @@
     "schemas/agent-return.schema.json": "69fe56ce67bc8be9b7b59da385cb211a2039fceb23c81757cbc328065d341622",
     "scripts/bg-run.sh": "c01d5fc49ee813cf908a8984a529d6d774e44735f396465759cae0194fddf72c",
     "scripts/capacity-probe.mjs": "8e00e0caa6400bce5d5c230142597734297accd48454c72627a8196c8b6a5601",
-    "scripts/check-action-pins.mjs": "f14f172ceaf7c6d3c3fd528b045efe40b10098af657455af95a243581cd829c2",
+    "scripts/check-action-pins.mjs": "2f3cd6938b214ee9b1f4d2e38b10f9cebc65035ebed392e9f3cef577c80c797b",
     "scripts/check-all.mjs": "027ba3192cd42d93ccc3c657b0ad6b72925d7be36e5b1b051cd1baf15b93e9b7",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "76a6434c350974c25ea0db06ca2692e2f1e7335bd482915cf97eb77e2e0067ab",

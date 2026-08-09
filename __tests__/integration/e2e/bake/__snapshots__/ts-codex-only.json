@@ -195,7 +195,7 @@
     "schemas/agent-return.schema.json": "69fe56ce67bc8be9b7b59da385cb211a2039fceb23c81757cbc328065d341622",
     "scripts/bg-run.sh": "c01d5fc49ee813cf908a8984a529d6d774e44735f396465759cae0194fddf72c",
     "scripts/capacity-probe.mjs": "8e00e0caa6400bce5d5c230142597734297accd48454c72627a8196c8b6a5601",
-    "scripts/check-action-pins.mjs": "16dc3db073defba242aa99900aaa93f0515cd270691674113a54ad83ca252801",
+    "scripts/check-action-pins.mjs": "898c0ef27b61d41fd495c45b951881e3070403a77cecec47e960d4ced47c3506",
     "scripts/check-all.mjs": "152b8fb8ccfcb8cf5352a805b2adbcbb1866b24fba37a1d5bd90eb72b07b8593",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "f40c94a517f893c71cb8d0d4287008cb8d708e63e53dd678338bdd6c67c31fe5",
