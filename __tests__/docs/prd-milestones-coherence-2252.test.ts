@@ -19,7 +19,7 @@ describe('#2252 — PRD and milestone reconciliation agree', () => {
       expect(milestones).toContain(`## ${id} `)
       expect(milestones).toMatch(new RegExp(`## ${id}[^\\n]*✅`))
     }
-    expect(milestones).toContain('Wave 5 reconciled all six header markers')
+    expect(milestones).toMatch(/Wave 5 reconciled\s+all six header markers/)
     expect(milestones).not.toContain('_(no header marker)_')
   })
 })
