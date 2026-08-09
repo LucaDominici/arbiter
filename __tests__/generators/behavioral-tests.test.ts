@@ -229,6 +229,9 @@ describe('generateBehavioralTests', () => {
       expect(content).toContain('@Given("a valid input")')
       expect(content).toContain('@When("the operation is executed")')
       expect(content).toContain('@Then("the result is successful")')
+      expect(content).toContain('Optional.empty()')
+      expect(content).toContain('VALID_INPUT.equals(input)')
+      expect(content).not.toContain('= null')
     } finally {
       cleanupTestProject(javaDir)
     }
@@ -268,6 +271,7 @@ describe('generateBehavioralTests', () => {
       )
       expect(content).toContain('@Nested')
       expect(content).toContain('@DisplayName')
+      expect(content).toContain('toUpperCase(Locale.ROOT)')
     } finally {
       cleanupTestProject(javaDir)
     }

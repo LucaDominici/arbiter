@@ -2,6 +2,7 @@ package <%= locals.basePackage || 'com.example' %>.bdd;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Optional;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -14,41 +15,47 @@ import io.cucumber.java.en.When;
  */
 public class ExampleSteps {
 
-    private String input;
-    private String result;
-    private String error;
+    private static final String EMPTY = "";
+    private static final String INVALID_INPUT = "invalid";
+    private static final String INVALID_INPUT_ERROR = "invalid input";
+    private static final String SUCCESS = "success";
+    private static final String VALID_INPUT = "valid";
+
+    private String input = EMPTY;
+    private String result = EMPTY;
+    private Optional<String> error = Optional.empty();
 
     @Given("a valid input")
     public void aValidInput() {
-        input = "valid";
-        error = null;
+        input = VALID_INPUT;
+        error = Optional.empty();
     }
 
     @Given("an invalid input")
     public void anInvalidInput() {
-        input = "invalid";
-        error = null;
+        input = INVALID_INPUT;
+        error = Optional.empty();
     }
 
     @When("the operation is executed")
     public void theOperationIsExecuted() {
-        if ("valid".equals(input)) {
-            result = "success";
-            error = null;
+        if (VALID_INPUT.equals(input)) {
+            result = SUCCESS;
+            error = Optional.empty();
         } else {
-            result = "";
-            error = "invalid input";
+            result = EMPTY;
+            error = Optional.of(INVALID_INPUT_ERROR);
         }
     }
 
     @Then("the result is successful")
     public void theResultIsSuccessful() {
-        assertThat(result).isEqualTo("success");
-        assertThat(error).isNull();
+        assertThat(result).isEqualTo(SUCCESS);
+        assertThat(error).isEmpty();
     }
 
     @Then("an error is returned")
     public void anErrorIsReturned() {
-        assertThat(error).isNotNull();
+        assertThat(error).contains(INVALID_INPUT_ERROR);
     }
 }

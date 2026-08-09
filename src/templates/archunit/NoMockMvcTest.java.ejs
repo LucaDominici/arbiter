@@ -2,10 +2,14 @@ package <%= basePackage ? basePackage + '.architecture' : 'architecture' %>;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
+import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import org.junit.jupiter.api.Test;
 
 /**
  * ArchUnit enforcement of INV-29: No MockMvc — use RestAssured for integration tests.
@@ -30,7 +34,7 @@ _%>
         packages = "<%= basePackage ? basePackage : '' %>",
         importOptions = ImportOption.DoNotIncludeTests.class)
 <%_ } _%>
-public class NoMockMvcTest {
+class NoMockMvcTest {
 
     @ArchTest
     public static final ArchRule no_mockmvc_in_production_code =
@@ -49,4 +53,19 @@ public class NoMockMvcTest {
                             "org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc")
                     .because(
                             "@AutoConfigureMockMvc is forbidden (INV-29). Use @SpringBootTest(webEnvironment=RANDOM_PORT) with RestAssured instead.");
+
+    @Test
+    void production_code_avoids_mockmvc() {
+        var productionClasses =
+                new ClassFileImporter()
+                        .withImportOption(new ImportOption.DoNotIncludeTests())
+                        .importPackages("<%= basePackage ? basePackage : '' %>");
+
+        assertDoesNotThrow(
+                () -> {
+                    no_mockmvc_in_production_code.check(productionClasses);
+                    no_auto_configure_mockmvc.check(productionClasses);
+                },
+                "production code must comply with the No MockMvc architecture rules");
+    }
 }

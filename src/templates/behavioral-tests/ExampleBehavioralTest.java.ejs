@@ -2,6 +2,7 @@ package <%= basePackage ? basePackage + '.example' : 'example' %>;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Locale;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ class ExampleBehavioralTest {
             var input = "hello";
 
             // Act
-            var result = input.toUpperCase();
+            var result = input.toUpperCase(Locale.ROOT);
 
             // Assert
             assertThat(result).isEqualTo("HELLO");
@@ -39,7 +40,7 @@ class ExampleBehavioralTest {
             var input = "  hello  ";
 
             // Act
-            var result = input.trim().toUpperCase();
+            var result = input.trim().toUpperCase(Locale.ROOT);
 
             // Assert
             assertThat(result).isEqualTo("HELLO");
@@ -57,7 +58,7 @@ class ExampleBehavioralTest {
             var input = "";
 
             // Act
-            var result = input.toUpperCase();
+            var result = input.toUpperCase(Locale.ROOT);
 
             // Assert
             assertThat(result).isEmpty();

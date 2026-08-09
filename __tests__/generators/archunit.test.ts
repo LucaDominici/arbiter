@@ -65,6 +65,9 @@ describe('generateArchUnit', () => {
     expect(content).toContain('com.tngtech.archunit')
     expect(content).toContain('MockMvc')
     expect(content).toContain('@AnalyzeClasses')
+    expect(content).toContain('@Test')
+    expect(content).toContain('assertDoesNotThrow')
+    expect(content).toContain('ClassFileImporter')
   })
 
   it('uses basePackage in @AnalyzeClasses when set', () => {

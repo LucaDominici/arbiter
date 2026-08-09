@@ -4,7 +4,7 @@
 // and compiles the staged project.
 import { spawnSync } from 'node:child_process'
 import { rmSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit } from '../../../../src/commands/init.js'
 import { stageFixture } from '../helpers.js'

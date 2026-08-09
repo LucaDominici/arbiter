@@ -7,11 +7,11 @@ class MathUtilsTest {
 
     @Test
     void addsTwoNumbers() {
-        assertEquals(5, MathUtils.add(2, 3));
+        assertEquals(5, MathUtils.add(2, 3), "two plus three");
     }
 
     @Test
     void multipliesTwoNumbers() {
-        assertEquals(12, MathUtils.multiply(3, 4));
+        assertEquals(12, MathUtils.multiply(3, 4), "three times four");
     }
 }
