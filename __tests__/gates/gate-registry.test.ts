@@ -166,13 +166,13 @@ describe('declarative gate registry (#2041)', () => {
   it.each([
     {
       buildTool: 'gradle',
-      expected: ['./gradlew', 'build -q'],
+      expected: ['./gradlew', 'build', '-q'],
     },
     {
       buildTool: 'maven',
-      expected: ['mvn', 'verify -q'],
+      expected: ['mvn', 'verify', '-q'],
     },
-  ] as const)('Java L3 lifecycle uses the full $buildTool lifecycle', ({ buildTool, expected }) => {
+  ] as const)('Java L3 lifecycle passes separate $buildTool argv values', ({ buildTool, expected }) => {
     const registry = loadGateRegistry(baseData(dir, { language: 'java', buildTool }))
     expect(registry.find((gate) => gate.id === 'java-lifecycle')?.cmd).toEqual(expected)
   })
