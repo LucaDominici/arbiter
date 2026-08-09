@@ -37,8 +37,14 @@ export function generateWiki(
     ),
   )
 
-  // Only emit the Claude hook when not in ai-rulez brownfield mode (tool configs would be skipped)
-  if (!config.existing.aiRulez) {
+  // Only emit the Claude hook when not in ai-rulez brownfield mode (tool configs would be
+  // skipped) AND the Claude tool track is actually enabled (#2257): this is a Claude Code
+  // PostToolUse hook, invoked only through .claude/settings.json's dispatcher wiring, which
+  // generateClaude() only emits when 'claude' is in config.tools. In codex-only mode the file
+  // had no invocation path at all — dead on arrival, and check-hook-routing.mjs correctly
+  // flagged it DEAD (wiki-on-commit.mjs has no Codex real-time equivalent by design; Codex
+  // users get the wiki-lint gate check instead, see codex-known-limitations.ts).
+  if (!config.existing.aiRulez && config.tools.includes('claude')) {
     results.push(
       writeFile(
         resolvedPath(base, '.claude', 'hooks', 'wiki-on-commit.mjs'),
