@@ -8,11 +8,12 @@ canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
 related: []
 ---
+
 # GLOSSARY
 
 _Domain + project terminology. Add a term as soon as it causes a cross-author misunderstanding —
 don't wait to backfill the whole vocabulary at once._
 
-| Term | Definition | Owner |
-|---|---|---|
+| Term          | Definition                        | Owner               |
+| ------------- | --------------------------------- | ------------------- |
 | <!-- term --> | <!-- one unambiguous sentence --> | <!-- who to ask --> |

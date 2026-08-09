@@ -53,7 +53,7 @@ Detects a guard script (scripts/check-*.mjs, scripts/check-*.sh,
 scripts/verify-*.sh, scripts/qa/check-*, .claude/hooks/*.mjs) that is emitted
 but never referenced by any recognized gate entrypoint (scripts/check-all.mjs,
 run.sh, another scripts/** file, .claude/hooks/**, .claude/settings.json,
-Makefile, .githooks/*, package.json, .claude/commands/*.md, or a
+.codex/config.toml, Makefile, .githooks/*, package.json, .claude/commands/*.md, or a
 .github/workflows/*.yml). Exits 1 naming the file(s) when found unreferenced.
 
 An entry in scripts/optional-emissions.json (shared with the INV-123
@@ -124,6 +124,11 @@ function buildCorpus(dir) {
   addToCorpus(dir, 'package.json', corpus);
   addToCorpus(dir, 'Makefile', corpus);
   addToCorpus(dir, '.claude/settings.json', corpus);
+  // #2257: codex-only projects have no .claude/settings.json — the 6 real-time-bridged
+  // hooks (HOOK_DESCRIPTORS' BRIDGED entries, codex-known-limitations.ts) are wired
+  // through .codex/config.toml -> codex-adapter.mjs instead. Without this, every one
+  // of those hooks false-FAILs as unreferenced on a virgin codex-only init.
+  addToCorpus(dir, '.codex/config.toml', corpus);
   for (const h of ['pre-commit', 'pre-push', 'commit-msg']) {
     addToCorpus(dir, `.githooks/${h}`, corpus);
   }
@@ -340,7 +345,7 @@ function main() {
     process.stdout.write(
       `check-unwired-guards: FAIL — ${problems.length} unreferenced guard script(s) ` +
         '(searched scripts/check-all.mjs, run.sh, scripts/**, .claude/hooks/**, ' +
-        '.claude/settings.json, Makefile, .githooks/*, package.json, ' +
+        '.claude/settings.json, .codex/config.toml, Makefile, .githooks/*, package.json, ' +
         '.claude/commands/*.md, .github/workflows/*.yml):\n',
     );
     for (const p of problems) process.stdout.write(`  - ${p}\n`);

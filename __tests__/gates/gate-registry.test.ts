@@ -52,13 +52,14 @@ function runScript(
   }
 }
 
-function baseData(dir: string): Record<string, unknown> {
+function baseData(dir: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   // Mirrors the enriched render data the generator builds (generateCheckAll):
   // coverageThreshold/coverageEnabled/mutationEnabled + the level booleans.
   const cfg = makeConfig(dir, {
     governanceLevel: 'L2',
     invariantTiers: ['architectural', 'governance', 'data', 'operational'],
-  }) as unknown as Record<string, unknown>
+    ...overrides,
+  } as never) as unknown as Record<string, unknown>
   return {
     ...cfg,
     coverageThreshold: 80,
@@ -111,28 +112,38 @@ describe('declarative gate registry (#2041)', () => {
     expect(l3.stdout).toContain('solo reactivation')
   })
 
-  it('AC-2041.3: a layering contract test is emitted for consumers', () => {
-    const data = baseData(dir)
-    const registry = loadGateRegistry({ ...data })
-    // The emitted test asserts L1 ⊂ L2 ⊂ L3 membership from the registry.
-    const rendered = renderTemplate('scripts/test-gate-layering.mjs.ejs', data)
-    expect(rendered).toMatch(/L1/)
-    const scriptDir = mkdtempSync(join(tmpdir(), 'gate-layering-'))
-    try {
-      writeFileSync(join(scriptDir, 'test-gate-layering.mjs'), rendered, 'utf-8')
-      mkdirSync(join(scriptDir, 'scripts'), { recursive: true })
-      writeFileSync(
-        join(scriptDir, 'scripts', 'check-all.mjs'),
-        renderGate({ ...data, gates: registry }),
-        'utf-8',
-      )
-      const r = spawnSync('node', [join(scriptDir, 'test-gate-layering.mjs')], {
-        cwd: scriptDir,
-        encoding: 'utf-8',
-      })
-      expect(r.status).toBe(0)
-    } finally {
-      rmSync(scriptDir, { recursive: true, force: true })
-    }
-  })
+  // #2258: table-driven across arbiter's live-consumer languages — a TS-only
+  // fixture data set masked the bug (nightly-audit-prod is the one L3 gate
+  // that doesn't require isL3Plus), so go @ L2/trunk-solo emitted ZERO L3
+  // gates and this same contract test FAILED "L3 lane declares zero gates"
+  // for that cell. Spawns the actual emitted test-gate-layering.mjs against
+  // the actual emitted registry — the production oracle, not a registry-shape
+  // proxy.
+  it.each(['typescript', 'go'] as const)(
+    'AC-2041.3: a layering contract test is emitted for consumers (%s @ L2, trunk-solo)',
+    (language) => {
+      const data = baseData(dir, { language, collaborationMode: 'trunk-solo' })
+      const registry = loadGateRegistry({ ...data })
+      // The emitted test asserts L1 ⊂ L2 ⊂ L3 membership from the registry.
+      const rendered = renderTemplate('scripts/test-gate-layering.mjs.ejs', data)
+      expect(rendered).toMatch(/L1/)
+      const scriptDir = mkdtempSync(join(tmpdir(), 'gate-layering-'))
+      try {
+        writeFileSync(join(scriptDir, 'test-gate-layering.mjs'), rendered, 'utf-8')
+        mkdirSync(join(scriptDir, 'scripts'), { recursive: true })
+        writeFileSync(
+          join(scriptDir, 'scripts', 'check-all.mjs'),
+          renderGate({ ...data, gates: registry }),
+          'utf-8',
+        )
+        const r = spawnSync('node', [join(scriptDir, 'test-gate-layering.mjs')], {
+          cwd: scriptDir,
+          encoding: 'utf-8',
+        })
+        expect(r.status, r.stdout + r.stderr).toBe(0)
+      } finally {
+        rmSync(scriptDir, { recursive: true, force: true })
+      }
+    },
+  )
 })

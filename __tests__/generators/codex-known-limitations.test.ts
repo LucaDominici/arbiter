@@ -53,6 +53,18 @@ describe('planClaudeHookInventory', () => {
     expect(rows).not.toContain('check-no-pii.mjs')
     expect(rows).not.toContain('wiki-on-commit.mjs')
   })
+
+  it('codex-only (no claude track) drops wiki-on-commit from the inventory (#2257)', () => {
+    // wiki.ts guards its .claude/hooks/wiki-on-commit.mjs write behind
+    // config.tools.includes('claude') — a codex-only project has no Claude
+    // dispatcher to route through, so the hook is never emitted. A table row
+    // for it would be the same #1966 stale-documentation bug-class.
+    const cfg = config({ tools: ['codex'] })
+    const inventory = planClaudeHookInventory(cfg)
+    expect(inventory).not.toContain('wiki-on-commit.mjs')
+    const rows = buildKnownLimitations(cfg).hooks.map((h) => h.name)
+    expect(rows).not.toContain('wiki-on-commit.mjs')
+  })
 })
 
 describe('buildKnownLimitations', () => {

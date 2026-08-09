@@ -95,12 +95,20 @@ export function generateSmokeJourneys(
   // `arbiter diff` dry-run path — which mocks renderTemplate — treats it like every other
   // generated file (convention parity with api-e2e.ts / optional-emissions.json, #1331);
   // a JSON.stringify write mismatches the mock and reads as a spurious withheld-drift.
+  const manifestPath = resolvedPath(base, 'smoke-journeys.json')
   files.push(
     writeFile(
-      resolvedPath(base, 'smoke-journeys.json'),
-      renderTemplate('smoke-journeys/manifest.json.ejs', {
-        manifestJson: JSON.stringify(manifest, null, 2),
-      }),
+      manifestPath,
+      // formatContent (#933 F13, #2257): JSON.stringify has no trailing newline and the
+      // target's own prettier config may differ from the raw render — without this, a
+      // fresh init REDs the `format` gate on Day 1 (same class as the .spec.ts write below).
+      formatContent(
+        renderTemplate('smoke-journeys/manifest.json.ejs', {
+          manifestJson: JSON.stringify(manifest, null, 2),
+        }),
+        manifestPath,
+        base,
+      ),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )

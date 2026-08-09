@@ -8,6 +8,7 @@ canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
 related: []
 ---
+
 # Decision Registry — go-library
 
 Registro delle **decisioni di progetto bloccate** (modello a 3 strati: Leggi → D-NN → ADR).
@@ -16,17 +17,17 @@ Ogni D-NN dichiara il proprio enforcement; una decisione senza enforcement né e
 
 ## Leggi
 
-*Sezione opzionale — le leggi immutabili del progetto (es. "una legge non cambia mai senza
-un D-NN"). Eliminarla se non usata.*
+_Sezione opzionale — le leggi immutabili del progetto (es. "una legge non cambia mai senza
+un D-NN"). Eliminarla se non usata._
 
 - (nessuna legge registrata)
 
 ## Decisioni
 
-| D-NN | decisione | razionale | decisore | data |
-| --- | --- | --- | --- | --- |
-| D-01 | (esempio — prima decisione bloccata) | (perché è bloccata) | (decisore) | 2026-08-09 |
-Enforcement: documentale
+| D-NN                     | decisione                            | razionale           | decisore   | data       |
+| ------------------------ | ------------------------------------ | ------------------- | ---------- | ---------- |
+| D-01                     | (esempio — prima decisione bloccata) | (perché è bloccata) | (decisore) | 2026-08-09 |
+| Enforcement: documentale |
 
 > **Formato (leggibile dal gate):** ogni riga della tabella è una decisione `D-NN`. La riga
 > subito sotto la riga della tabella (senza riga vuota in mezzo) dichiara l'enforcement:
