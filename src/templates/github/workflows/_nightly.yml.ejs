@@ -410,7 +410,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+<% if (language === 'typescript') { -%>
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+<% } else { -%>
       - uses: ./.github/actions/setup-node-pnpm
+<% } -%>
       - name: Install gitleaks
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
@@ -599,14 +607,14 @@ jobs:
 <%_ /* #2256/#2259: the scrub step shells out to node unconditionally. Every
      CI-enabled project now emits .nvmrc, while the composite action keeps npm
      cache/install TypeScript-only, so this is safe for every stack. */ -%>
-<% if (language === 'typescript') { -%>
+<% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
-<% } else { -%>
+<% } else { %>
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version-file: '.nvmrc'
           package-manager-cache: false
-<% } -%>
+<% } %>
       - name: Collect evidence summary
         run: |
           mkdir -p nightly-evidence
