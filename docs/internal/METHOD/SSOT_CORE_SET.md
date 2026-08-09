@@ -54,6 +54,7 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `docs/architecture/arc42.md` — Arbiter — Architecture (arc42)
 - `docs/architecture/c4-model.md` — Arbiter — C4 Model (Context / Container / Component)
 - `docs/architecture/README.md` — Arbiter — Architecture Documentation (GOLD)
+- `docs/architecture/realization.md` — Arbiter — Realization (Divergence Log)
 - `docs/internal/architecture/ARCHITECTURE.md` — arbiter Architecture
 - `README.md` — Arbiter — AI governance that installs itself.
 
