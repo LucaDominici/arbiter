@@ -70,6 +70,8 @@ describe('#2246 — FEATURE_MATRIX.md arbiter-internal rows cite GATE-tier evide
     expect(doc).toContain(
       '| REQ-044 | Plugin system |  | L2 | Partial | src/commands/plugin.ts | __tests__/scripts/check-plugin-api-stability.test.ts |',
     )
-    expect(doc).toContain('FINDING (#2246 backfill): code_ref src/commands/plugin.ts does not exist')
+    expect(doc).toContain(
+      'FINDING (#2246 backfill): code_ref src/commands/plugin.ts does not exist',
+    )
   })
 })
