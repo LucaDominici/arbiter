@@ -2,7 +2,7 @@
 title: 'Arbiter — C4 Model (Context / Container / Component)'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-11'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: 'C4-MODEL'
 tags: ['audience/dev', 'kind/spine', 'kind/architecture']
@@ -80,14 +80,14 @@ engine) are distinct: the core is usable on its own; the orchestration layer sit
 
 ```mermaid
 graph TB
-    cli["<b>CLI Front Controller</b><br/>src/cli.ts (commander, ~95k)<br/>11 public + hidden experimental cmds"]
+    cli["<b>CLI Front Controller</b><br/>src/cli.ts (commander)<br/>public via --help, full via help --all"]
 
     subgraph core["INSTALLER CORE (generation)"]
       wizard["<b>Wizard / Init</b><br/>src/wizard, src/commands/init<br/>interactive + non-interactive"]
       detect["<b>Detectors</b><br/>src/detectors<br/>language · framework · archetype"]
       profile["<b>Profile Resolver</b><br/>src/config (schema.ts,<br/>resolve-project-config.ts) ADR-094<br/>axes: level · archetype ·<br/>collab-mode · runner · contract"]
-      gen["<b>Generators (85 files)</b><br/>src/generators/*.ts<br/>render → writeFile per strategy"]
-      tmpl["<b>Template Engine</b><br/>src/utils/render.ts (EJS)<br/>src/templates/**/*.ejs (554 files)"]
+      gen["<b>Generators</b><br/>src/generators/*.ts<br/>render → writeFile per strategy"]
+      tmpl["<b>Template Engine</b><br/>src/utils/render.ts (EJS)<br/>src/templates/**/*.ejs"]
       fs["<b>Write Pipeline</b><br/>src/utils/fs.ts<br/>backup · skipIfExists · deepMerge<br/>atomic tmp+rename"]
     end
 
@@ -108,7 +108,7 @@ graph TB
       ship["<b>Ship Engine</b><br/>src/commands/task-ship.ts<br/>next-action computer (ADR-088/093)"]
       state["<b>Task State Machine</b><br/>src/commands/task-state.ts<br/>10 phases, single-writer status.json"]
       vbridge["<b>Verification Bridge</b><br/>src/verify, verify-plan.ts<br/>rule engine → PASS/REJECT (ADR-039)"]
-      fixred["<b>Fix-on-Red</b><br/>src/ship/fix-on-red.ts<br/>2-strike, fail-closed escalate"]
+      fixred["<b>Fix-on-Red (policy)</b><br/>docs/REFERENCE/fix-on-red.md<br/>2-strike, fail-closed escalate — agent-reasoned"]
       gexec["<b>Gate Mutex</b><br/>src/commands/gate-exec.ts<br/>flock(1), keyed on git-common-dir"]
       wt["<b>Worktree Manager</b><br/>src/commands/worktree.ts<br/>src/worktree — isolation + harvest"]
     end
@@ -116,7 +116,7 @@ graph TB
     subgraph audit["EVIDENCE & GRAPH"]
       ev["<b>Evidence Store</b><br/>src/evidence, .arbiter/evidence<br/>TDD · plan-review · redteam · gate"]
       graph["<b>Provenance Graph</b><br/>src/graph (ADR-040)<br/>enforces/proves edges"]
-      plugin["<b>Plugin API</b><br/>src/commands/plugin.ts<br/>v1.1 scaffolder (ADR-031/048)"]
+      plugin["<b>Plugin API</b><br/>src/types/plugin.ts, src/utils/plugin-loader.ts<br/>config-driven, no CLI subcommand (ADR-031/048)"]
     end
 
     cli --> wizard & ship & conf & gold & plugin
@@ -142,31 +142,31 @@ graph TB
 
 **Container responsibilities (one line each)**
 
-| Container            | Responsibility                                                                                       |
-| -------------------- | ---------------------------------------------------------------------------------------------------- |
-| CLI Front Controller | `commander` command surface; routes to command handlers; registers hidden/experimental commands      |
-| Wizard / Init        | Interactive + flag-driven project bootstrap; produces a `ProjectConfig`                              |
-| Detectors            | Auto-detect language, framework/build tool, archetype from repo signals                              |
-| Profile Resolver     | Resolve one `ProjectProfile` from config across 5 orthogonal axes; single precedence layer (ADR-094) |
-| Generators           | 85 generators; each renders its templates and writes with the correct conflict strategy              |
-| Template Engine      | EJS render of 554 `.ejs` files; `governanceLevel` guards; static files copied verbatim               |
-| Write Pipeline       | `backup` / `skipIfExists` / deep-merge strategies; atomic tmp+rename; SIG cleanup                    |
-| Invariant Catalog    | Machine-readable INV-NN rules; `selfOnly` filters arbiter-internal rules from generated output       |
-| KIT Catalog          | Dimension taxonomy (wrap-not-replace); links dims → invariants → validators                          |
-| Compatibility Matrix | `language × archetype` "proven" cells; every proven cell must be gated + fixtured (CANON-02/03)      |
-| Conformance Engine   | Evaluate dimensions → `PASS / HALF / FAKE / FAIL` verdicts (ADR-083)                                 |
-| Gate Runner          | `check-all.mjs` orchestrates the L1⊂L2⊂L3 check ladder                                               |
-| Gold Audit           | Score arbiter's own governance completeness (D-* dimensions) against a ratcheted baseline            |
-| Self-Dogfood Check   | Fail-closed diff between shipped templates and arbiter's materialized `.claude/`                     |
-| Ship Engine          | Deterministic next-action computer; phase→step; advance-on-green                                     |
-| Task State Machine   | 10-phase lifecycle; single-writer `status.json`; handoff/clear strategy                              |
-| Verification Bridge  | Plan-review rule engine; claim-verified gates (plan digest, TDD evidence, enforcement-weakening)     |
-| Fix-on-Red           | Failure-signature 2-strike engine; fail-closed `escalate-uncertain`                                  |
-| Gate Mutex           | `flock(1)` serialization of expensive gates across parallel worktrees of one repo                    |
-| Worktree Manager     | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest                             |
-| Evidence Store       | Append-only TDD / plan-review / red-team / gate / companion artifacts under `.arbiter/`              |
-| Provenance Graph     | First-class `enforces` / `proves` edges linking invariants ↔ gates ↔ tests                           |
-| Plugin API           | Third-party scaffolders + memory interface (v1.1)                                                    |
+| Container            | Responsibility                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| CLI Front Controller | `commander` command surface; routes to command handlers; registers hidden/experimental commands              |
+| Wizard / Init        | Interactive + flag-driven project bootstrap; produces a `ProjectConfig`                                      |
+| Detectors            | Auto-detect language, framework/build tool, archetype from repo signals                                      |
+| Profile Resolver     | Resolve one `ProjectProfile` from config across 5 orthogonal axes; single precedence layer (ADR-094)         |
+| Generators           | Renders its templates and writes with the correct conflict strategy (count: `.bloat-baseline.json`)          |
+| Template Engine      | EJS render; `governanceLevel` guards; static files copied verbatim (count: `.bloat-baseline.json`)           |
+| Write Pipeline       | `backup` / `skipIfExists` / deep-merge strategies; atomic tmp+rename; SIG cleanup                            |
+| Invariant Catalog    | Machine-readable INV-NN rules; `selfOnly` filters arbiter-internal rules from generated output               |
+| KIT Catalog          | Dimension taxonomy (wrap-not-replace); links dims → invariants → validators                                  |
+| Compatibility Matrix | `language × archetype` "proven" cells; every proven cell must be gated + fixtured (CANON-02/03)              |
+| Conformance Engine   | Evaluate dimensions → `PASS / HALF / FAKE / FAIL` verdicts (ADR-083)                                         |
+| Gate Runner          | `check-all.mjs` orchestrates the L1⊂L2⊂L3 check ladder                                                       |
+| Gold Audit           | Score arbiter's own governance completeness (D-* dimensions) against a ratcheted baseline                    |
+| Self-Dogfood Check   | Fail-closed diff between shipped templates and arbiter's materialized `.claude/`                             |
+| Ship Engine          | Deterministic next-action computer; phase→step; advance-on-green                                             |
+| Task State Machine   | 10-phase lifecycle; single-writer `status.json`; handoff/clear strategy                                      |
+| Verification Bridge  | Plan-review rule engine; claim-verified gates (plan digest, TDD evidence, enforcement-weakening)             |
+| Fix-on-Red           | Failure-signature 2-strike policy, agent-reasoned since T2 (no CLI engine); fail-closed `escalate-uncertain` |
+| Gate Mutex           | `flock(1)` serialization of expensive gates across parallel worktrees of one repo                            |
+| Worktree Manager     | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest                                     |
+| Evidence Store       | Append-only TDD / plan-review / red-team / gate / companion artifacts under `.arbiter/`                      |
+| Provenance Graph     | First-class `enforces` / `proves` edges linking invariants ↔ gates ↔ tests                                   |
+| Plugin API           | Config-driven third-party rule plugins (`arbiter.json` `plugins[]`); no CLI subcommand (v1.1)                |
 
 ---
 

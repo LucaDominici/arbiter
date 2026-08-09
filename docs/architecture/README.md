@@ -2,7 +2,7 @@
 title: 'Arbiter — Architecture Documentation (GOLD)'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-11'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: 'ARCH-README'
 tags: ['audience/dev', 'kind/spine', 'kind/architecture']
@@ -26,7 +26,7 @@ or carries pruned scaffolding, the docs say so ([arc42 §11](arc42.md#11-risks--
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | **[arc42.md](arc42.md)**         | The full architecture in the 12 arc42 sections. **§6 Runtime View is the centre of gravity** — the dynamic rules for when/how arbiter challenges, reviews, verifies, and clusters.                                                 | You want the complete picture, or the honest tech-debt truth (§11).    |
 | **[c4-model.md](c4-model.md)**   | The three C4 diagrams (Mermaid): **Context** (arbiter vs developer / AI agent / repo / GitHub / CI), **Container** (the internal subsystems), **Component** (inside the orchestration engine — the dynamic dispatch/verify rules). | You want the visual system map, or to see the orchestration internals. |
-| **[adr-index.md](adr-index.md)** | All 106 ADRs catalogued one line each, grouped by theme, **plus a gap register** of load-bearing decisions that have no ADR (e.g. the missing ADR-103, the "no new TS engine" B-prune).                                            | You want to find or audit a decision.                                  |
+| **[adr-index.md](adr-index.md)** | All ADRs (current count: `docs/internal/ADR/`) catalogued one line each, grouped by theme, **plus a gap register** of load-bearing decisions that have no ADR (e.g. the missing ADR-103, the "no new TS engine" B-prune).          | You want to find or audit a decision.                                  |
 
 ## Where the jewels are (start here)
 

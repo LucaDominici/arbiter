@@ -2,7 +2,7 @@
 title: 'arbiter Canon — Lessons Learned'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/canon']
@@ -179,7 +179,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** The brownfield contract (preserve user files) is the most user-visible guarantee arbiter makes. Untested brownfield behaviour can silently destroy user work on re-init.
 
-**Enforcement:** `scripts/check-brownfield-tests.mjs` (L1 ratchet gate) — wired in `check-all.mjs`. Full 1:1 coverage does not exist yet (52 of 85 generators are pre-existing gaps, frozen as the committed baseline in `.brownfield-tests-baseline.txt`); the ratchet blocks the gap from growing while new/touched generators gain real brownfield coverage. Added by the B1 CANON-parity pass (2026-07-11) as the minimal gate for a rule the audit found genuinely unenforced.
+**Enforcement:** `scripts/check-brownfield-tests.mjs` (L1 ratchet gate) — wired in `check-all.mjs`. Full 1:1 coverage does not exist yet (pre-existing gaps are frozen as the committed baseline in `.brownfield-tests-baseline.txt`; total generator count in `.bloat-baseline.json`); the ratchet blocks the gap from growing while new/touched generators gain real brownfield coverage. Added by the B1 CANON-parity pass (2026-07-11) as the minimal gate for a rule the audit found genuinely unenforced.
 
 **Source issues:** #182, #185
 
@@ -341,7 +341,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ## CANON-23 — RTM-required-by-level: every governed project ships a gated FEATURE_MATRIX
 
-**Rule:** Every governance mechanism that arbiter generates for a target project MUST be backed by a Product-Truth RTM (FEATURE_MATRIX.md) that tracks 100% of the project's KIT dimensions to a committed status, machine-validated by a fail-closed gate (`scripts/check-feature-matrix.mjs`). Arbiter ships the matrix both as a self-doc (Track A: `docs/PRODUCT/FEATURE_MATRIX.md`) and as a generator template (Track B: `src/generators/feature-matrix.ts`) — CANON-01 compliance.
+**Rule:** Every governance mechanism that arbiter generates for a target project MUST be backed by a Product-Truth RTM (FEATURE_MATRIX.md) that tracks 100% of the project's KIT dimensions to a committed status, machine-validated by a fail-closed gate (`scripts/check-feature-matrix.mjs`). Arbiter ships the matrix both as a self-doc (Track A: `docs/internal/PRODUCT/FEATURE_MATRIX.md`) and as a generator template (Track B: `src/generators/feature-matrix.ts`) — CANON-01 compliance.
 
 **Why:** Without a committed RTM, governance claims ("this project enforces STRIDE", "audit trail is present") are assertions, not evidence. The kit experimental-gate fiction (root cause of this rule) showed that a gate wired in a template but never validated against the actual project state produces a false "covered" signal. The matrix converts soft claims into machine-checkable evidence pointers.
 

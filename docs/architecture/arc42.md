@@ -2,7 +2,7 @@
 title: 'Arbiter — Architecture (arc42)'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-23'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: 'ARC42'
 tags: ['audience/dev', 'kind/spine', 'kind/architecture']
@@ -108,7 +108,7 @@ IDs, real CLI/gate surface, doc-role map, known drift and gaps — lives in
 | C2  | **`gh` CLI is the only hard external dep** for GitHub features; **CLI-first over MCP**.                                                        | ADR-003, ADR-020                   |
 | C3  | **No telemetry, no unsolicited network calls.** Enforced by `check-anti-telemetry.mjs`.                                                        | `PRIVACY.md`; INV set              |
 | C4  | **`AGENTS.md` is the single canonical governance file**; all tool configs are thin pointers that must not duplicate its content.               | ADR-001, ADR-002                   |
-| C5  | **EJS is the only template engine** (554 `.ejs` files); JS interpolation, no custom DSL.                                                       | ADR-009                            |
+| C5  | **EJS is the only template engine** (count ratcheted in `.bloat-baseline.json`); JS interpolation, no custom DSL.                              | ADR-009                            |
 | C6  | **Dual-track contract** — every framework capability ships as arbiter-self (Track A) _and_ generator template (Track B) in the **same PR**.    | CANON-01, ARCHITECTURE §Dual-Track |
 | C7  | **Generated files are ordinary + deletable**; write strategies are `backup` / `skipIfExists` / deep-merge only.                                | ADR-004, ADR-005, ADR-011          |
 | C8  | **The `check-all.mjs` gate runs without a build step** and cannot import from `src/` (must stay portable into target repos).                   | `scripts/check-all.mjs:29`         |
@@ -148,7 +148,7 @@ select AI model tiers.
 | Goal (from §1.2)                     | Strategy                                                                                                                                            | Realized by                                                              |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Single source of truth               | One canonical `AGENTS.md` (Layer 0) + thin overlays (Layer 1) + GitHub/gate (Layer 2).                                                              | Canonical Source Model (ARCHITECTURE §Layer 0-2)                         |
-| Self-installing, idempotent          | Detect → resolve one **ProjectProfile** → run a **registry of ~90 generators** → write with per-file conflict strategy.                             | `src/config`, `src/detectors`, `src/generators`, `src/utils/fs.ts`       |
+| Self-installing, idempotent          | Detect → resolve one **ProjectProfile** → run a **generator registry** (count: `.bloat-baseline.json`) → write with per-file conflict strategy.     | `src/config`, `src/detectors`, `src/generators`, `src/utils/fs.ts`       |
 | Un-fakeable gates                    | A **conformance/check engine** with fail-closed verdicts + **negative "does the gate bite?" proofs** + monotonic ratchets.                          | `src/conformance`, `scripts/check-all.mjs`, `scripts/gold-audit.mjs`     |
 | Gate-blocked lifecycle               | A **deterministic next-action computer** (engine) + a **model-side driver loop** (the `/ship` command).                                             | `src/commands/task-ship.ts`, `src/templates/claude/commands/ship.md.ejs` |
 | Evidence-gated done                  | **Correlated evidence artifacts** + a fail-closed `Stop` hook (INV-114).                                                                            | `src/evidence`, `.claude/hooks/stop-evidence-guard.mjs`                  |
@@ -169,30 +169,30 @@ Container diagram. This section is the textual decomposition.
 
 ### 5.1 Level 1 whitebox — arbiter as subsystems
 
-| Subsystem                      | Path(s)                                                                                 | Responsibility                                                                                |
-| ------------------------------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **CLI Front Controller**       | `src/cli.ts` (~95k, 76 `.command()` registrations)                                      | Command surface (commander); 11 public commands, the rest hidden/experimental.                |
-| **Wizard / Init**              | `src/wizard`, `src/commands/init`                                                       | Interactive + flag-driven bootstrap → `ProjectConfig`.                                        |
-| **Detectors**                  | `src/detectors`                                                                         | Auto-detect language / framework / archetype / axes from repo signals.                        |
-| **Profile Resolver**           | `src/config` (`schema.ts`, `resolve-project-config.ts`, `override-resolver.ts`)         | Resolve one `ProjectProfile` across orthogonal axes with a single precedence layer (ADR-094). |
-| **Generators**                 | `src/generators` (84 files, 8756 LOC)                                                   | ~90 generators; each renders templates and writes with the right conflict strategy.           |
-| **Template Engine**            | `src/utils/render.ts`, `src/templates` (554 `.ejs`)                                     | EJS render; `governanceLevel` guards; static files copied verbatim.                           |
-| **Write Pipeline**             | `src/utils/fs.ts`                                                                       | `backup` / `skipIfExists` / deep-merge; atomic tmp+rename; SIG cleanup.                       |
-| **Invariant Catalog**          | `src/invariants` (`catalog.ts`, `filter.ts`, `tiers.ts`)                                | 134 machine-readable INV-NN; `selfOnly`/`optInGroup`/`status` filters.                        |
-| **KIT Catalog**                | `src/kit` (`catalog.json`, `taxonomy.ts`, `measure.ts`, `wave-engine.ts`)               | 78-dimension self-assessment taxonomy (wrap-not-replace, ADR-045).                            |
-| **Compatibility Matrix**       | `src/compatibility`                                                                     | `language × archetype` "proven" cells (CANON-02/03, ADR-083).                                 |
-| **Conformance / Check Engine** | `src/conformance` (`engine.ts`, `dimensions.ts`, `score.ts`, `gate-proofs.ts`)          | Evaluate checks/dimensions → `Y/P/N/NA/NV`; two-tier conjunctive GOLD scoring.                |
-| **Gate Runner**                | `scripts/check-all.mjs` (+ `.ejs`)                                                      | The L1 ⊂ L2 ⊂ L3 check ladder (~60 L1 + ~9 L2 checks).                                        |
-| **Gold Audit**                 | `src/commands/gold-audit.ts`, `scripts/gold-audit.mjs`, `gold-report.mjs`               | Score arbiter's governance completeness against a ratcheted baseline.                         |
-| **Self-Dogfood Check**         | `scripts/check-self-dogfood.mjs`                                                        | Fail-closed diff-pin between shipped templates and arbiter's `.claude/`.                      |
-| **Orchestration Engine**       | `src/commands/task-ship.ts`, `task.ts`, `task-state.ts`, `ship-profile.ts`              | The `/ship` next-action computer + 10-phase state machine + autonomy grants.                  |
-| **Verification Bridge**        | `src/verify`, `verify-plan.ts`, `verify-tdd.ts`, `review-diff.ts`, `anti-fake-green.ts` | Claim-verified plan review, TDD-evidence gate, enforcement-weakening gate.                    |
-| **Fix-on-Red**                 | `src/ship/fix-on-red.ts`                                                                | Failure-signature 2-strike engine; fail-closed `escalate-uncertain`.                          |
-| **Gate Mutex**                 | `src/commands/gate-exec.ts`                                                             | `flock(1)` serialization of gates across worktrees of one repo.                               |
-| **Worktree Manager**           | `src/commands/worktree.ts`, `src/worktree`                                              | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest.                     |
-| **Evidence Store**             | `src/evidence`, `.arbiter/evidence`                                                     | Append-only TDD / plan-review / red-team / gate / companion artifacts.                        |
-| **Provenance Graph**           | `src/graph`                                                                             | 9 node kinds × 8 edge kinds linking INV ↔ GATE ↔ TEST ↔ EVIDENCE (ADR-040).                   |
-| **Plugin API**                 | `src/commands/plugin.ts`                                                                | Third-party scaffolders + memory interface (v1.1, ADR-031/048).                               |
+| Subsystem                      | Path(s)                                                                                                                                                     | Responsibility                                                                                                                                 |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CLI Front Controller**       | `src/cli.ts`                                                                                                                                                | Command surface (commander); public subset via `arbiter --help`, full surface (hidden/experimental included) via `arbiter help --all`.         |
+| **Wizard / Init**              | `src/wizard`, `src/commands/init`                                                                                                                           | Interactive + flag-driven bootstrap → `ProjectConfig`.                                                                                         |
+| **Detectors**                  | `src/detectors`                                                                                                                                             | Auto-detect language / framework / archetype / axes from repo signals.                                                                         |
+| **Profile Resolver**           | `src/config` (`schema.ts`, `resolve-project-config.ts`, `override-resolver.ts`)                                                                             | Resolve one `ProjectProfile` across orthogonal axes with a single precedence layer (ADR-094).                                                  |
+| **Generators**                 | `src/generators` (file/LOC counts ratcheted in `.bloat-baseline.json`)                                                                                      | Each renders templates and writes with the right conflict strategy.                                                                            |
+| **Template Engine**            | `src/utils/render.ts`, `src/templates` (`.ejs` count ratcheted in `.bloat-baseline.json`)                                                                   | EJS render; `governanceLevel` guards; static files copied verbatim.                                                                            |
+| **Write Pipeline**             | `src/utils/fs.ts`                                                                                                                                           | `backup` / `skipIfExists` / deep-merge; atomic tmp+rename; SIG cleanup.                                                                        |
+| **Invariant Catalog**          | `src/invariants` (`catalog.ts`, `filter.ts`, `tiers.ts`)                                                                                                    | Machine-readable INV-NN (current count in `catalog.ts`); `selfOnly`/`optInGroup`/`status` filters.                                             |
+| **KIT Catalog**                | `src/kit` (`catalog.json`, `taxonomy.ts`, `measure.ts`, `wave-engine.ts`)                                                                                   | 78-dimension self-assessment taxonomy (wrap-not-replace, ADR-045).                                                                             |
+| **Compatibility Matrix**       | `src/compatibility`                                                                                                                                         | `language × archetype` "proven" cells (CANON-02/03, ADR-083).                                                                                  |
+| **Conformance / Check Engine** | `src/conformance` (`engine.ts`, `dimensions.ts`, `score.ts`, `gate-proofs.ts`)                                                                              | Evaluate checks/dimensions → `Y/P/N/NA/NV`; two-tier conjunctive GOLD scoring.                                                                 |
+| **Gate Runner**                | `scripts/check-all.mjs` (+ `.ejs`)                                                                                                                          | The L1 ⊂ L2 ⊂ L3 check ladder (current counts self-documented in `check-all.mjs`'s own header — it warns against hand-copying them elsewhere). |
+| **Gold Audit**                 | `src/commands/gold-audit.ts`, `scripts/gold-audit.mjs`, `gold-report.mjs`                                                                                   | Score arbiter's governance completeness against a ratcheted baseline.                                                                          |
+| **Self-Dogfood Check**         | `scripts/check-self-dogfood.mjs`                                                                                                                            | Fail-closed diff-pin between shipped templates and arbiter's `.claude/`.                                                                       |
+| **Orchestration Engine**       | `src/commands/task-ship.ts`, `task.ts`, `task-state.ts`, `ship-profile.ts`                                                                                  | The `/ship` next-action computer + 10-phase state machine + autonomy grants.                                                                   |
+| **Verification Bridge**        | `src/verify` (rule engine), `src/commands/verify-plan.ts`, `src/commands/verify-tdd.ts`, `src/commands/review-diff.ts`, `scripts/check-anti-fake-green.mjs` | Claim-verified plan review, TDD-evidence gate, enforcement-weakening gate.                                                                     |
+| **Fix-on-Red**                 | Policy only, no CLI engine since the T2 cut — `docs/REFERENCE/fix-on-red.md`                                                                                | Failure-signature 2-strike rule the ship-driver agent reasons through itself; fail-closed `escalate-uncertain`.                                |
+| **Gate Mutex**                 | `src/commands/gate-exec.ts`                                                                                                                                 | `flock(1)` serialization of gates across worktrees of one repo.                                                                                |
+| **Worktree Manager**           | `src/commands/worktree.ts`, `src/worktree`                                                                                                                  | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest.                                                                      |
+| **Evidence Store**             | `src/evidence`, `.arbiter/evidence`                                                                                                                         | Append-only TDD / plan-review / red-team / gate / companion artifacts.                                                                         |
+| **Provenance Graph**           | `src/graph`                                                                                                                                                 | 9 node kinds × 8 edge kinds linking INV ↔ GATE ↔ TEST ↔ EVIDENCE (ADR-040).                                                                    |
+| **Plugin API**                 | `src/types/plugin.ts`, `src/utils/plugin-loader.ts`                                                                                                         | Config-driven third-party rule plugins (`arbiter.json` `plugins[]`); no CLI subcommand currently registered (v1.1, ADR-031/048).               |
 
 ### 5.2 Level 2 whitebox — the generator pipeline
 
@@ -409,13 +409,16 @@ the guard.
 - **Anti-fake-green** — surfaces the `check-anti-fake-green.mjs` engine's INV-53 exit code; `--enforce`
   promotes advisory findings to hard failures.
 
-### 6.4 Fix-on-red (the deterministic half of the dual-side loop)
+### 6.4 Fix-on-red (policy only — no CLI engine since the T2 cut)
 
-`src/ship/fix-on-red.ts` computes a stable `<check-name>:<error-class>` signature from a bounded log
-tail, remembers per-signature attempts in `.arbiter/ship/<task>/attempts.json`, and applies a
+The **fix-on-red policy** computes a stable `<check-name>:<error-class>` signature from a bounded
+log tail, remembers per-signature attempts in `.arbiter/ship/<task>/attempts.json`, and applies a
 **2-strike rule** — never a 3rd retry; on strike 2 it escalates. All uncertain paths (unparseable
 signature, unreadable attempts file) return `escalate-uncertain`, never `fix` (INV-96, fail-closed).
 Autonomy gates the push: L3 → autopush; L2 → apply but hand push to a human; below L2 → ask first.
+The deterministic helper binary that used to compute this was removed in the T2 command-surface
+cut; the ship-driver agent now reasons through the algorithm itself and keeps its own count for
+the life of a task (full spec, including the removal record: `docs/REFERENCE/fix-on-red.md`).
 
 ### 6.5 Wave drain — multi-issue batch orchestration (`/drain`)
 
@@ -465,10 +468,11 @@ never holds two arbiter locks at once.
 
 ### 6.6 The gate ladder at runtime
 
-`scripts/check-all.mjs` runs the L1 block unconditionally (~60 hard checks), then — if the subcommand
-isn't `check` — the L2 extension (~9 more: coverage + ratchet, dead code, duplication, npm audit,
-gitleaks, debt ratchet, TDD-evidence, evidence-bundle, script cohesion, integration/BDD suites,
-conformance). The subset relationship L1 ⊂ L2 ⊂ L3 is enforced _by code structure_. On green it writes
+`scripts/check-all.mjs` runs the L1 block unconditionally (current count self-documented in the
+script's own header — see §5.1 Gate Runner), then — if the subcommand isn't `check` — the L2
+extension (coverage + ratchet, dead code, duplication, npm audit, gitleaks, debt ratchet,
+TDD-evidence, evidence-bundle, script cohesion, integration/BDD suites, conformance). The subset
+relationship L1 ⊂ L2 ⊂ L3 is enforced _by code structure_. On green it writes
 `.arbiter/gate/local-result.json` (schema `arbiter-gate-v1`) carrying a `parityContentHash` over the
 L1 subset (used by `check-local-ci-parity.mjs`, INV-59/87) and stamps `.arbiter/gate-pass.json`.
 
@@ -557,10 +561,11 @@ its `.mjs` reference.
 
 ### 8.4 Invariants, CANON, ADRs (the authority hierarchy)
 
-`INV-NN` (134 machine-checked invariants in `catalog.ts`, 5 tiers: architectural / data / security /
+`INV-NN` (machine-checked invariants in `catalog.ts` — see the file for the current count; 5 tiers: architectural / data / security /
 operational / governance) sit atop `CANON-NN` (process rules promoted to invariants once automatable)
-atop individual ADRs. Invariant filters: `selfOnly` (32 arbiter-internal, excluded from generated
-docs — ADR-059), `optInGroup: extended` (INV-62..71), `status: retired` (tombstones for ID stability),
+atop individual ADRs. Invariant filters: `selfOnly` (arbiter-internal, excluded from generated
+docs — ADR-059; count: `grep -c 'selfOnly: true' src/invariants/catalog.ts`), `optInGroup: extended`
+(INV-62..71), `status: retired` (tombstones for ID stability),
 `minGovernanceLevel`. Each active invariant becomes an `INV` graph node whose `enforcement` string
 maps to `GATE` nodes; an empty enforcement is an orphan the graph verifier flags.
 
@@ -584,7 +589,7 @@ tracks migration. This keeps the CLI output translatable and forbids hardcoded s
 
 ## 9. Architecture Decisions
 
-Arbiter maintains **106 ADRs** (`docs/internal/ADR/`), digested in
+Arbiter maintains its Architecture Decision Records in `docs/internal/ADR/`, digested in
 [`docs/internal/SYSTEM/DECISIONS.md`](../internal/SYSTEM/DECISIONS.md) and catalogued (one line each,
 with gaps flagged) in [`adr-index.md`](adr-index.md). The load-bearing ones for this architecture:
 
@@ -631,8 +636,9 @@ with gaps flagged) in [`adr-index.md`](adr-index.md). The load-bearing ones for 
 - **Gold audit self-score:** 100 (`.gold-audit-baseline.json`, all D-* dimensions at 100).
 - **Test taxonomy:** unit / contract / integration / behavioral (BDD, Cucumber) / property (fast-check
   fuzz) / e2e (bake + native) — enforced test-pyramid ratios (INV-124).
-- **Bloat baseline:** templates 554 files / 46,969 LOC; commands 58 files / 14,031 LOC; generators
-  85 files / 8,694 LOC (`.bloat-baseline.json`, ratcheted).
+- **Bloat baseline:** templates / commands / generators file+LOC counts, ratcheted — see
+  `.bloat-baseline.json` for the current figures (the file has already recaptured twice during
+  this section's own review cycle; read it live, never copy a snapshot here).
 
 ---
 
@@ -707,20 +713,22 @@ overlay. This is documented here so the absence is not mistaken for an oversight
 ### 11.7 Stale in-code counters and self-referential surface (LOW)
 
 `catalog.ts` section headers still read "Architectural Integrity (6)", "Data (4)", etc., while the
-catalog has grown to **134** invariants — the headers are stale relative to the grown catalog.
-`ARCHITECTURE.md` cites "32 template files" and a "76-dim" KIT while the repo now has **554 templates**
-and a **78-dim** KIT. The repo also carries heavy self-referential surface: 74 documented
+catalog has grown well past those header counts (see `src/invariants/catalog.ts` for the current
+total) — the headers are stale relative to the grown catalog. `ARCHITECTURE.md` cites "32 template
+files" and a "76-dim" KIT while the repo now has more templates (see `.bloat-baseline.json`) and a
+**78-dim** KIT. The repo also carries heavy self-referential surface: 74 documented
 `.dogfood-divergences.json` entries (intentional, diff-pinned), ~232 `TODO/FIXME/stub` markers in
 `src/`, and a `README` demo-GIF still a `TODO(#1770)`. Two engines (typed TS `engine.ts` vs `.mjs`
 reference) are kept in parity by a test — powerful, but a standing maintenance tax.
 
 ### 11.8 Experimental surface hidden but shipped (LOW)
 
-Only 11 CLI commands are public; the remaining ~65 registrations are hidden/experimental but fully
-functional (e.g. `graph`, `kit`, `conformance`, `ci`, `plugin`). "Experimental" AI tools (Cursor,
-Aider, Copilot, Gemini, Windsurf) and stacks (Java, Kotlin, Rust) generate output that is not held to
-the same proven-cell fixture bar as the supported set (TypeScript, Python, Go × Claude, Codex). Users
-enabling those axes get less-verified governance.
+A public command subset ships via `arbiter --help`; the rest are hidden/experimental but fully
+functional, visible via `arbiter help --all` (e.g. `settings`, `doc-set`, `upgrade-level`, `verify
+graph`). "Experimental" AI tools (Cursor, Aider, Copilot, Gemini, Windsurf) and stacks (Java,
+Kotlin, Rust) generate output that is not held to the same proven-cell fixture bar as the supported
+set (TypeScript, Python, Go × Claude, Codex). Users enabling those axes get less-verified
+governance.
 
 ### 11.9 Risk register
 
@@ -753,7 +761,7 @@ enabling those axes get less-verified governance.
 | **invariant (INV-NN)**         | A machine-checked hard rule in `src/invariants/catalog.ts`; violation stops work.                                      |
 | **KIT**                        | The 78-dimension self-assessment taxonomy a project is measured against (ADR-045).                                     |
 | **ProjectProfile**             | The resolved configuration across all axes; persisted as `arbiter.json`.                                               |
-| **provenance graph**           | The INV↔GATE↔TEST↔EVIDENCE graph (9 node kinds, 8 edge kinds) that `verify graph` / `ci plan` walk.                    |
+| **provenance graph**           | The INV↔GATE↔TEST↔EVIDENCE graph (9 node kinds, 8 edge kinds) that `verify graph` walks.                               |
 | **red-team agent**             | A READ-ONLY adversarial challenge agent dispatched at `red-team-review` (1/2/3 by tier).                               |
 | **/ship**                      | The single orchestration entrypoint — drives one issue to a reviewed, merged PR (not deploy).                          |
 | **/drain**                     | The multi-issue sibling of `/ship` — drains the backlog as waves, one wave PR merged GREEN per cycle.                  |
