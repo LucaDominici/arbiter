@@ -1344,3 +1344,35 @@ describe('check-emission-parity.mjs.ejs rendering (#2110)', () => {
     expect(content).toContain("runCheck('emission parity (#2110)'")
   })
 })
+
+// #2261: a zero-arg registry cmd (`cmd: ['pytest', []]`, i.e. no positional args)
+// must render an EMPTY args array (`[]`), not a one-element array holding an
+// empty string (`['']`). The latter is a REAL pytest argv element — pytest
+// treats a bare '' positional as a path override, which bypasses the
+// `[tool.pytest.ini_options] testpaths` scoping in pyproject.toml and makes
+// pytest collect the whole tree (including tests/e2e, which imports
+// `playwright` — not part of the L1 toolchain) instead of just tests/unit,
+// turning the generated project's own "unit tests" L1 check red on first run.
+describe('check-all.mjs.ejs rendering — zero-arg registry cmd (#2261)', () => {
+  it("Python L1: unit-tests check has NO spurious empty-string arg (['pytest'], not ['pytest', ''])", () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'python',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderCheckAll(data)
+    expect(content).toContain("runCheck('unit tests', 'pytest', [])")
+    expect(content).not.toContain("runCheck('unit tests', 'pytest', [''])")
+  })
+
+  it('Python L2: audit (pip-audit) check has NO spurious empty-string arg either', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'python',
+      governanceLevel: 'L2',
+      enableSecurityScanning: true,
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderCheckAll(data)
+    expect(content).toContain("'pip-audit', []")
+    expect(content).not.toContain("'pip-audit', ['']")
+  })
+})
