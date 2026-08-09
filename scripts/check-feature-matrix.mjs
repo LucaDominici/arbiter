@@ -7,7 +7,7 @@
  * check-feature-matrix.mjs — FEATURE_MATRIX.md gate (INV-112, CANON-23)
  *
  * Modes:
- *   --check (default)  validate status ladder, KIT-dim coverage, counter integrity, level DoD
+ *   --check (default)  validate status ladder, KIT-dim coverage, counter integrity, level DoD, verification_tier enum
  *   --write            regenerate the summary roll-up section (not the data rows)
  *
  * Exit codes (INV-53):
@@ -106,6 +106,26 @@ function checkAllRefs(row, projectRoot, failures, id) {
       const err = checkRefExists(ref, projectRoot)
       if (err) failures.push(`${id}: ${label} — ${err}`)
     }
+  }
+}
+
+// ─── verification_tier enum (12th column, #2242) ────────────────────────────
+
+/**
+ * SCAFFOLD|GATE|E2E — GAMP IQ/OQ/PQ mapped to arbiter's real 3-tier V&V (see
+ * "Verification tier" doc section). Validated whenever the cell is non-empty,
+ * same backward-compatible optional-trailing-column posture as source_ref
+ * (#2163) — an older 10/11-column matrix (no tier column at all) is unaffected.
+ */
+const TIER_VALUES = new Set(['SCAFFOLD', 'GATE', 'E2E'])
+
+function checkVerificationTier(row, failures) {
+  const tier = row.verificationTier.trim()
+  if (!tier) return
+  if (!TIER_VALUES.has(tier)) {
+    failures.push(
+      `${row.featureId}: verification_tier — invalid value "${tier}" (expected SCAFFOLD|GATE|E2E)`,
+    )
   }
 }
 
@@ -309,6 +329,8 @@ function parseTableRows(text) {
     // trailing empty cell artifact at this index (verified empirically), so
     // this is backward compatible with every existing row — zero migration.
     const sourceRef = cells[10] ?? ''
+    // 12th column, optional (#2242): same backward-compat posture as source_ref.
+    const verificationTier = cells[11] ?? ''
 
     rows.push({
       featureId: featureId ?? '',
@@ -325,6 +347,7 @@ function parseTableRows(text) {
       issueRef: issueRef ?? '',
       note: note ?? '',
       sourceRef,
+      verificationTier,
     })
   }
   return rows
@@ -469,6 +492,10 @@ for (const row of rows) {
   for (const anchor of splitSourceRefs(row.sourceRef)) {
     checkSourceRefAnchor(anchor, id, failures)
   }
+
+  // verification_tier enum (#2242): same posture as source_ref — checked
+  // whenever non-empty, independent of status ladder outcome below.
+  checkVerificationTier(row, failures)
 
   if (!['Missing', 'Partial', 'Done', 'Verified'].includes(status)) {
     failures.push(`${id}: unknown status "${status}"`)

@@ -1737,12 +1737,19 @@ task
   .option('--id <id>', 'Task id, e.g. #1206')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
   .option('--plan <path>', 'Repo-relative path to the plan file')
+  .option(
+    '--chain <id>',
+    'Other issue id batched into this task worktree/gate/PR (repeatable, #2102)',
+    (v: string, acc: string[]) => [...acc, v],
+    [] as string[],
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { id?: string; tier?: string; plan?: string; dir?: string }) => {
+  .action((opts: { id?: string; tier?: string; plan?: string; chain: string[]; dir?: string }) => {
     runTaskInit({
       ...(opts.id !== undefined ? { id: opts.id } : {}),
       ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
       ...(opts.plan !== undefined ? { plan: opts.plan } : {}),
+      ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
     })
   })
@@ -1828,6 +1835,12 @@ program
       return n
     },
   )
+  .option(
+    '--chain <id>',
+    'Other issue id batched into this ship worktree/gate/PR (repeatable, #2102)',
+    (v: string, acc: string[]) => [...acc, v],
+    [] as string[],
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
@@ -1836,6 +1849,7 @@ program
         tier?: string
         autonomy?: string
         set: string[]
+        chain: string[]
         advance: boolean
         skipPlanReview: boolean
         postClear: boolean
@@ -1858,6 +1872,9 @@ program
           ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
           ...(id !== undefined ? { taskId: id } : {}),
           ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+          // #2102 — only pass chainIds when the user actually supplied --chain: an absent flag
+          // must never clobber a chain declared earlier (e.g. at `task init`) with an empty array.
+          ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
           advance: opts.advance,
           advanceOpts: {
             skipPlanReview: opts.skipPlanReview,

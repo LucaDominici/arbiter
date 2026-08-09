@@ -20,11 +20,12 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll as renderCheckAllShared } from '../helpers.js'
 
+// #2041: check-all.mjs.ejs is registry-driven — render through the shared helper
+// (which loads the declarative gate registry) with a full makeConfig base.
 function renderCheckAll(overrides: Record<string, unknown> = {}): string {
-  return renderTemplate(
-    'scripts/check-all.mjs.ejs',
+  return renderCheckAllShared(
     makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',

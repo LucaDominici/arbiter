@@ -86,6 +86,18 @@ tied to the current branch and SHA) is rejected like a failing gate.
 | Reviewer / auditor                    | Read a single canonical governance file; trust that claims are evidence-backed. |
 | Maintainers of arbiter                | Extend generators/invariants under the dual-track contract without drift.       |
 
+### 1.4 Feasibility
+
+Why arbiter was built this way — not just what it is — is recorded separately, retroactively, in
+[`feasibility.md`](feasibility.md): the alternatives rejected (adopt ai-rulez, per-tool configs, MCP,
+a Rust/Go binary), the TELOS-lite technical/economic/operational rationale citing the ADRs above, and
+the named triggers that would reopen the build-vs-adopt call today. This section stays the
+requirements/goals abstract; it does not restate that reasoning.
+
+A verified, links-not-restatement inventory of what's confirmed working right now — requirement
+IDs, real CLI/gate surface, doc-role map, known drift and gaps — lives in
+[`analysis.md`](analysis.md).
+
 ---
 
 ## 2. Architecture Constraints
@@ -376,7 +388,7 @@ behaviors and cannot be granted away**.
 
 Before any completion claim, three correlated artifacts must exist and match the current branch+SHA:
 
-1. `plan-review/latest.json` (written by `arbiter review plan`, with a SHA-256 **plan-digest** — a
+1. `plan-review/latest.json` (written by the plan-review step of the task lifecycle — a SHA-256 **plan-digest** — a
    plan changed since review fails the gate),
 2. `.arbiter/agents-dispatched.json` (written by the refactor step — "I reviewed it" without real
    agent tool-calls does not satisfy it),
@@ -610,10 +622,12 @@ with gaps flagged) in [`adr-index.md`](adr-index.md). The load-bearing ones for 
 
 ### 10.2 Measured quality baselines (arbiter's own repo)
 
-- **Coverage:** lines 96.54 % / branches 90.82 % / functions 96.87 % / statements 95.64 %
-  (`.coverage-baseline.json`, ratcheted; rebaselined to the real post-cut floor after the
-  T2 command/template deletions shifted the aggregate — branches rose, functions/statements/lines
-  settled ~0.7pp lower as well-covered command modules were removed).
+- **Coverage:** lines 96.38 % / branches 90.41 % / functions 97.26 % / statements 95.39 %
+  (`.coverage-baseline.json`, ratcheted; rebaselined at #2253 — the prior 2026-07-12 floor
+  (L 96.54 / B 90.82 / F 96.87 / S 95.64) had gone stale against wave-3's real, legitimate
+  coverage as new surface grew faster than its tests; `debt-baseline.json` was recaptured to
+  the post-wave-3 floor at 5ea14b84 but this sibling baseline was missed, so CI's normal
+  ~0.2pp v8 platform jitter pushed branches past this file's now-unreachable 90.82 floor).
 - **Gold audit self-score:** 100 (`.gold-audit-baseline.json`, all D-* dimensions at 100).
 - **Test taxonomy:** unit / contract / integration / behavioral (BDD, Cucumber) / property (fast-check
   fuzz) / e2e (bake + native) — enforced test-pyramid ratios (INV-124).

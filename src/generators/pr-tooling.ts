@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // generator for scripts/pr-merge-watch.mjs, scripts/capacity-probe.mjs, and their
-// shared scripts/lib/waiter-count.mjs (#2098).
+// shared scripts/lib/waiter-count.mjs (#2098), plus the M16 terminal-handoff helpers
+// scripts/bg-run.sh and scripts/pid-watch.sh (#2103).
 //
 // Existing Code Survey (CANON-16): grepped src/generators/ for
 // "pr-merge-watch|capacity-probe|waiter-count" and for a merge-on-green /
@@ -12,10 +13,14 @@
 // orchestration tools (not gate infrastructure), so template === materialized
 // byte-for-byte, same as conformance.mjs.ejs / scripts/conformance.mjs.
 // skipIfExists: true — never clobber a hand-edited copy.
+import { chmodSync } from 'node:fs'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { renderTemplate } from '../utils/render.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+
+/** Executable-bit mode for the emitted shell helpers (setup-repo.sh precedent). */
+const SCRIPT_MODE = 0o755
 
 export interface PrToolingResult {
   files: WriteResult[]
@@ -46,6 +51,27 @@ export function generatePrTooling(
       renderTemplate('scripts/capacity-probe.mjs.ejs', config),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
+    // #2103 — M16 terminal handoff helpers (bg-run.sh launches detached + records
+    // pid/exit/log; pid-watch.sh is the coordinator's until-loop, exactly one exit line).
+    // Static content, same skipIfExists contract as their #2098 siblings above; chmod
+    // follows the setup-repo.sh precedent (github-setup.ts).
+    writeFile(
+      resolvedPath(config.targetDir, 'scripts', 'bg-run.sh'),
+      renderTemplate('scripts/bg-run.sh.ejs', config),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+    writeFile(
+      resolvedPath(config.targetDir, 'scripts', 'pid-watch.sh'),
+      renderTemplate('scripts/pid-watch.sh.ejs', config),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
   ]
+
+  if (!opts.dryRun) {
+    for (const rel of ['scripts/bg-run.sh', 'scripts/pid-watch.sh']) {
+      const scriptPath = resolvedPath(config.targetDir, rel)
+      chmodSync(scriptPath, SCRIPT_MODE)
+    }
+  }
   return { files }
 }

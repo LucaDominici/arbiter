@@ -74,6 +74,11 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 
 - `docs/api/README.md` — arbiter Public API
 
+### reference
+
+- `docs/architecture/analysis.md` — Arbiter — Current-State Analysis
+- `docs/architecture/feasibility.md` — Arbiter — Feasibility Study
+
 <!-- END GENERATED INVENTORY -->
 
 ---

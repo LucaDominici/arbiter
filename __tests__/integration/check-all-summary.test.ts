@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+import { loadGateRegistry } from '../../src/generators/check-all.js'
 
 describe('check-all.mjs integration — summary table (#210, CANON-07)', () => {
   it('rendered check-all.mjs contains summary table logic', () => {
@@ -13,7 +14,16 @@ describe('check-all.mjs integration — summary table (#210, CANON-07)', () => {
       string,
       unknown
     >
-    const rendered = renderTemplate('scripts/check-all.mjs.ejs', cfg)
+    // #2041: check-all.mjs.ejs now iterates a `gates` local computed via
+    // loadGateRegistry() — every render call site must supply it (see
+    // __tests__/gates/gate-registry.test.ts / check-all-render.test.ts).
+    // gate-registry.yml.ejs itself always required coverageThreshold (pre-#2041) —
+    // makeConfig() doesn't default it, so mirror baseData()'s enrichment here too.
+    const gateData = { ...cfg, coverageThreshold: 80 }
+    const rendered = renderTemplate('scripts/check-all.mjs.ejs', {
+      ...gateData,
+      gates: loadGateRegistry(gateData),
+    })
     expect(rendered).toContain('=== Summary ===')
     expect(rendered).toContain('Failed checks:')
     expect(rendered).toContain('IS_CI')

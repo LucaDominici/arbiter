@@ -101,6 +101,19 @@ describe('TICK_PROMPT.md.ejs render', () => {
     expect(md).toMatch(/[Nn]ever modify the driver files/)
   })
 
+  it('AC-2043.4: renders the CONFIGURED escalation max-strikes (not a hardcoded 2)', () => {
+    const md = renderTickPrompt({
+      e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } },
+    })
+    expect(md).toMatch(/3-strike/)
+    expect(md).not.toMatch(/2-strike rule is final/)
+  })
+
+  it('AC-2043.4: defaults to the 2-strike ladder when no e2ePolicy is declared', () => {
+    const md = renderTickPrompt()
+    expect(md).toMatch(/2-strike/)
+  })
+
   it('contains no pilot provenance strings', () => {
     const md = renderTickPrompt()
     expect(md.toLowerCase()).not.toContain('redux')

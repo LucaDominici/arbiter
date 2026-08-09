@@ -18,7 +18,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 import { getFilteredInvariants, getInvariantsByTier } from '../../src/invariants/filter.js'
 import { TIER_LABELS } from '../../src/invariants/tiers.js'
 import type { GovernanceLevel } from '../../src/wizard/types.js'
@@ -148,8 +148,13 @@ describe('#1741 — L4 render is a superset of L3 render for converted isL3Plus 
   it.each(CONVERTED_L3_PLUS_TEMPLATES)(
     '%s: every non-blank L3 line is present in L4',
     (template) => {
-      const l3 = renderTemplate(template, cfg({ governanceLevel: 'L3' }))
-      const l4 = renderTemplate(template, cfg({ governanceLevel: 'L4' }))
+      // #2041: check-all.mjs.ejs is registry-driven — render it through the shared helper.
+      const render =
+        template === 'scripts/check-all.mjs.ejs'
+          ? (d: Record<string, unknown>) => renderCheckAll(d)
+          : (d: Record<string, unknown>) => renderTemplate(template, d)
+      const l3 = render(cfg({ governanceLevel: 'L3' }))
+      const l4 = render(cfg({ governanceLevel: 'L4' }))
       const l4Lines = new Set(filteredNonBlankLines(l4))
       const missingFromL4 = filteredNonBlankLines(l3).filter((line) => !l4Lines.has(line))
       expect(

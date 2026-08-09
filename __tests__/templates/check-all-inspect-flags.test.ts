@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
+import { loadGateRegistry } from '../../src/generators/check-all.js'
 import { makeConfig } from '../helpers.js'
 
 // Render the template run-helpers once to a temp .mjs so a subprocess can import
@@ -93,15 +94,28 @@ describe('run-helpers — no mode set (regression)', () => {
 })
 
 describe('check-all.mjs.ejs — inspection-flag wiring', () => {
-  const render = () =>
-    renderTemplate(
-      'scripts/check-all.mjs.ejs',
-      makeConfig('/tmp/test', {
-        language: 'typescript',
-        governanceLevel: 'L2',
-        coverageEnabled: false,
-      }) as unknown as Record<string, unknown>,
-    )
+  // Mirrors the generator's enriched render data (generateCheckAll) — the
+  // template now embeds the declarative gate registry (#2041).
+  const render = () => {
+    const cfg = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const data = {
+      ...cfg,
+      coverageThreshold: 80,
+      coverageEnabled: false,
+      mutationEnabled: false,
+      isL2Plus: true,
+      isL3Plus: false,
+      isL4: false,
+    }
+    return renderTemplate('scripts/check-all.mjs.ejs', {
+      ...data,
+      gates: loadGateRegistry(data),
+    })
+  }
 
   it('parses --dry-run and --gate and wires them into setMode()', () => {
     const content = render()

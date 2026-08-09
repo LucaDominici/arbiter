@@ -49,6 +49,17 @@ PROCESS_CORE.md (or equivalent execution-governance doc) for the project-specifi
 codification and its `scripts/gates/chain-batching.sh`-class detector; this document is
 the portable pattern, not the project-specific enforcement point.
 
+**Arbiter-side enforcer (#2102):** declare the chain explicitly — `arbiter task init --id
+<id> --chain <id> [--chain <id> ...]` or `arbiter ship <id> --chain <id> [...]` (repeatable,
+never auto-derived from a shared parent epic). This persists `chainIds` on the unified task
+document; `arbiter ship`'s close-step advisory then names every id in the chain, and the
+generated `pre-push` hook (`src/templates/githooks/pre-push.ejs`) BLOCKS the push unless
+every id in `[taskId, ...chainIds]` has a commit in the push range naming it (`#<id>`) —
+the enforced half of `chain-batching.sh`'s advisory `is_unbatched` check, upgraded from a
+warning to a hard gate. `--chain` composes with the existing `collaborationMode`/`mergeMode`
+axis (`ship-profile.ts`) without changing it: a `peer-review` repo still gets one PR for the
+whole chain; a `trunk-solo`+`direct` repo still gets one direct push, no PR either way.
+
 ---
 
 ## 2. Unify the fixer and the checker for derived/generated state
@@ -180,3 +191,28 @@ checkouts in `walkRepo` (a git worktree or submodule inside the working tree car
 `.git` and belongs to a different commit) cut one repo's secret scan from 62,974 files to
 20,528 — and stopped the debt ratchet counting another branch's TODO and failing the gate on
 main. A walker that measures the wrong tree is slow AND wrong.
+
+## 7. Terminal handoff: the gate runs detached, the coordinator watches (#2103)
+
+**Symptom:** a dispatched worker finishes its real work, launches a 15-40 min gate, says
+"I'll wait for my Monitor/notification" and stops — the wait is not real, the parent
+receives `completed` while the gate still runs, and every SendMessage re-engagement
+re-prefills the whole transcript at cold cache (100-350k tokens each).
+
+**Mechanism:** worker briefs end at commit + launch + structured handoff
+`{SHA, worktree, PID, exit-file, log}` and an explicit END-TURN — never a wait. The
+launch primitive is `scripts/bg-run.sh <name> -- <gate-command>` (detached via setsid +
+nohup, records `<name>.pid` / `<name>.exit` / `<name>.log` under `.arbiter/bg/`, returns
+immediately). ALL waits belong to the coordinator: `scripts/pid-watch.sh <name>`
+backgrounded (or via `Bash run_in_background`) emits **exactly one** line with the exit
+code when the job ends — the coordinator fires at most one notification per job, and the
+watcher reads the exit FILE, so it works even when the worker's session is long gone.
+These two helpers (emitted by `arbiter update`, see M16 in
+`agent-orchestration-and-context-hygiene.md`) supersede the raw nohup+PID-file recipe;
+the one valid subagent-wait idiom is `run_in_background` on the gate command itself
+(merge-after-green briefs), never nohup/PID-file/finite-Monitor.
+
+**Validated:** the helpers carry `--self-test` proving the exact failure mode — a watcher
+on a PID that outlives the caller's session emits exactly one exit line — and the
+dispatch-template corpus is SOFT-gated by `scripts/check-m16-handoff.mjs` (marker
+`M16 handoff-contract: subagents never own waits`).

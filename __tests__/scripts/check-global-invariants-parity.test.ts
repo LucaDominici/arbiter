@@ -107,3 +107,116 @@ describe('check-global-invariants-parity.mjs (always-active INV ↔ doc parity)'
     expect(result.status).toBe(0)
   })
 })
+
+describe('check-global-invariants-parity.mjs — PROJ-NN project invariants (#2035, TC-4)', () => {
+  function runWithConfig(catalogPath: string, docPath: string, configPath: string | null) {
+    const args = [SCRIPT, `--catalog=${catalogPath}`, `--doc=${docPath}`]
+    if (configPath !== null) args.push(`--config=${configPath}`)
+    const r = spawnSync('node', args, { encoding: 'utf-8' })
+    return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+  }
+
+  function makeConfig(projectInvariants: unknown[]): string {
+    return JSON.stringify({ governance: { projectInvariants } }, null, 2)
+  }
+
+  it('accepts PROJ sections in the doc without --config (arbiter-internal invocation)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const doc = join(dir, 'GLOBAL_INVARIANTS.md')
+      writeFileSync(catalog, makeCatalog([{ id: 'INV-01', alwaysActive: true }]))
+      writeFileSync(doc, '### INV-01: documented\n### PROJ-01: project rule\n')
+      expect(runWithConfig(catalog, doc, null).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails when an always-active declared PROJ is missing from the doc (--config)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const doc = join(dir, 'GLOBAL_INVARIANTS.md')
+      const config = join(dir, 'arbiter.json')
+      writeFileSync(catalog, makeCatalog([{ id: 'INV-01', alwaysActive: true }]))
+      writeFileSync(doc, '### INV-01: documented\n')
+      writeFileSync(
+        config,
+        makeConfig([
+          {
+            id: 'PROJ-01',
+            tier: 'governance',
+            title: 'product rule',
+            description: 'x',
+            alwaysActive: true,
+          },
+        ]),
+      )
+      const result = runWithConfig(catalog, doc, config)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('PROJ-01')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails when the doc carries a PROJ section not declared in the config (--config)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const doc = join(dir, 'GLOBAL_INVARIANTS.md')
+      const config = join(dir, 'arbiter.json')
+      writeFileSync(catalog, makeCatalog([{ id: 'INV-01', alwaysActive: true }]))
+      writeFileSync(doc, '### INV-01: documented\n### PROJ-99: stale project rule\n')
+      writeFileSync(config, makeConfig([]))
+      const result = runWithConfig(catalog, doc, config)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('PROJ-99')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('passes when declared PROJ invariants are all documented (--config)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const doc = join(dir, 'GLOBAL_INVARIANTS.md')
+      const config = join(dir, 'arbiter.json')
+      writeFileSync(catalog, makeCatalog([{ id: 'INV-01', alwaysActive: true }]))
+      writeFileSync(doc, '### INV-01: documented\n### PROJ-01: project rule\n')
+      writeFileSync(
+        config,
+        makeConfig([
+          {
+            id: 'PROJ-01',
+            tier: 'governance',
+            title: 'product rule',
+            description: 'x',
+            alwaysActive: true,
+          },
+        ]),
+      )
+      expect(runWithConfig(catalog, doc, config).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 2 when --config points at a missing or malformed file', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const doc = join(dir, 'GLOBAL_INVARIANTS.md')
+      writeFileSync(catalog, makeCatalog([{ id: 'INV-01', alwaysActive: true }]))
+      writeFileSync(doc, '### INV-01: documented\n')
+      expect(runWithConfig(catalog, doc, join(dir, 'missing.json')).status).toBe(2)
+      const bad = join(dir, 'arbiter.json')
+      writeFileSync(bad, '{ not json')
+      expect(runWithConfig(catalog, doc, bad).status).toBe(2)
+    } finally {
+      cleanup()
+    }
+  })
+})

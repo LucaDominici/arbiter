@@ -47,4 +47,12 @@ describe('hooks/lib.mjs.ejs — rendered output', () => {
     expect(rendered).toContain('test-proj')
     expect(rendered).not.toContain('<%=')
   })
+
+  it('contains the 5 consumer-local lib exports required by consumer-A hooks (#2077 dual-track)', () => {
+    expect(rendered).toContain('export function isPathInThisRepo')
+    expect(rendered).toContain('export function reachesDispatch')
+    expect(rendered).toContain('export function lintEnv')
+    expect(rendered).toContain('export function addedLinesVsHEAD')
+    expect(rendered).toContain('export function isDangerousCommand')
+  })
 })

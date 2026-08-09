@@ -104,3 +104,41 @@ describe('runTaskAdvance', () => {
     })
   })
 })
+
+// #2102 — `arbiter task init --chain <id>` (repeatable): persists chainIds, validated the same
+// way `arbiter ship`'s primary id already is (numeric-only, canonical `#NNN`).
+describe('runTaskInit — chainIds (--chain, #2102)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+    mkdirSync(join(dir, '.claude'), { recursive: true })
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('persists a single --chain id, normalized to canonical #NNN', () => {
+    runTaskInit({ dir, id: '#2102', chainIds: ['2103'] })
+    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103'])
+  })
+
+  it('persists multiple --chain ids (repeatable flag) in order', () => {
+    runTaskInit({ dir, id: '#2102', chainIds: ['2103', '#2104'] })
+    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103', '#2104'])
+  })
+
+  it('rejects a non-numeric chain id the same way the primary ship id is validated', () => {
+    expect(() => runTaskInit({ dir, id: '#2102', chainIds: ['feature-x'] })).toThrow(
+      /invalid chain id/i,
+    )
+    // Rejected before any write — state stays untouched.
+    expect(readUnifiedState(dir)?.chainIds).toBeUndefined()
+  })
+
+  it('no --chain given → chainIds stays unset (no-op)', () => {
+    runTaskInit({ dir, id: '#2102' })
+    expect(readUnifiedState(dir)?.chainIds).toBeUndefined()
+  })
+})

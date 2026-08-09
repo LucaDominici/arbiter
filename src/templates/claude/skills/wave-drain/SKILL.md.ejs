@@ -222,6 +222,10 @@ degrade the wave to serial (`--max-parallel 1`).
 corrupt one shared cache into spurious reds. Belt-and-braces in each worker brief:
 `export VITE_CACHE_DIR="$PWD/.cache/vite"`.
 
+**M16 handoff-contract: subagents never own waits** — worker briefs end at commit + launch + structured handoff
+{SHA, worktree, PID, exit-file, log} with an explicit END-TURN; ALL watches belong to the
+coordinator (`bg-run.sh` + `pid-watch.sh`, #2103).
+
 **Anti-stall (two DIFFERENT problems — never conflate them):**
 
 - **Gate-wait** is deterministic: `gate-exec` blocks in the foreground — issue **ONE** wait

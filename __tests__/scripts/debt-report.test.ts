@@ -693,3 +693,114 @@ describe('debt-report.mjs --gate (fail-closed on collection errors)', () => {
     }
   })
 })
+
+// ─── coverage noise-tolerance boundary (#2253) ────────────────────────────────
+// CI's v8 coverage collector measures ~0.2pp lower than a locally-captured
+// baseline on identical code (platform/timing variance, not a real
+// regression) — observed on wave-3: coverageLine -0.16pp, coverageBranch
+// -0.22pp both false-flagged "regressed" against a locally-captured baseline.
+// coverageLine/coverageBranch tolerate up to 0.5pp of drop (matching
+// check-coverage-ratchet.mjs's own TOLERANCE for the identical v8-jitter
+// reason) before it counts as a regression.
+describe('debt-report.mjs coverage noise tolerance (#2253)', () => {
+  const BASE_LINE = 90
+  const BASE_BRANCH = 85
+
+  function setupTempProject(dir: string) {
+    const scriptsDir = join(dir, 'scripts')
+    mkdirSync(scriptsDir, { recursive: true })
+    writeFileSync(
+      join(scriptsDir, 'debt-baseline.json'),
+      JSON.stringify({
+        version: 2,
+        capturedAt: '2026-01-01T00:00:00Z',
+        commit: 'abc1234',
+        archetype: 'library',
+        metrics: {
+          coverageLine: { value: BASE_LINE, unit: 'percent', direction: 'higher-is-better' },
+          coverageBranch: { value: BASE_BRANCH, unit: 'percent', direction: 'higher-is-better' },
+        },
+      }),
+    )
+    writeFileSync(join(dir, '.jscpd.json'), JSON.stringify({ path: ['src'], reporters: ['json'] }))
+    // Fake node_modules/jscpd: resolveJscpdSpawn resolves this BEFORE falling
+    // back to the real repo's jscpd (via import.meta.url) since debt-report.mjs
+    // is spawned from its real location — without this shim the scan would
+    // shell to the actual installed jscpd. Exits 0, writes no report: the
+    // legacyNoReport contract (0% duplication), zero collectionErrors.
+    const jscpdDir = join(dir, 'node_modules', 'jscpd')
+    mkdirSync(jscpdDir, { recursive: true })
+    writeFileSync(
+      join(jscpdDir, 'package.json'),
+      JSON.stringify({ name: 'jscpd', version: '5.0.6', bin: { jscpd: './run.js' } }),
+    )
+    writeFileSync(join(jscpdDir, 'run.js'), 'process.exit(0)\n')
+
+    // npx shim: vitest writes a crafted coverage summary (pct values driven by
+    // env vars so each test case supplies its own current coverage); eslint/knip
+    // return empty reports; tsc/anything else falls through to a clean exit 0.
+    const binDir = join(dir, 'fake-bin')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      join(binDir, 'npx'),
+      `#!/bin/sh
+case "$1" in
+  vitest)
+    mkdir -p .coverage-tmp
+    cat > .coverage-tmp/coverage-summary.json <<JSON
+{"total":{"lines":{"pct":$CURR_LINE_PCT},"branches":{"pct":$CURR_BRANCH_PCT}}}
+JSON
+    exit 0 ;;
+  eslint) printf '[]' ;;
+  knip) printf '{}' ;;
+esac
+exit 0
+`,
+    )
+    chmodSync(join(binDir, 'npx'), 0o755)
+    return binDir
+  }
+
+  function runReport(dir: string, binDir: string, currLine: number, currBranch: number) {
+    const r = spawnSync('node', [SCRIPT, '--gate'], {
+      encoding: 'utf-8',
+      cwd: dir,
+      env: {
+        ...process.env,
+        PATH: `${binDir}:${process.env.PATH ?? ''}`,
+        CURR_LINE_PCT: String(currLine),
+        CURR_BRANCH_PCT: String(currBranch),
+      },
+    })
+    return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+  }
+
+  it('passes a 0.4pp coverage drop (within the noise floor)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = setupTempProject(dir)
+      const result = runReport(dir, binDir, BASE_LINE - 0.4, BASE_BRANCH - 0.4)
+      expect(result.stdout).not.toMatch(/collection FAILURE/)
+      expect(result.stdout).not.toMatch(/coverageLine.*regressed/)
+      expect(result.stdout).not.toMatch(/coverageBranch.*regressed/)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails a 0.6pp coverage drop (past the noise floor — a real regression)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = setupTempProject(dir)
+      const result = runReport(dir, binDir, BASE_LINE - 0.6, BASE_BRANCH - 0.6)
+      expect(result.stdout).not.toMatch(/collection FAILURE/)
+      expect(result.stdout).toMatch(/coverageLine.*regressed/)
+      expect(result.stdout).toMatch(/coverageBranch.*regressed/)
+      expect(result.stderr).toMatch(/GATE FAIL: 2 metric\(s\) regressed/)
+      expect(result.status).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+})

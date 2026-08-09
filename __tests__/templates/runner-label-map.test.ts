@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 /**
  * Port C1 — parametric runner-label map (build/test/deploy job classes).
@@ -11,9 +11,9 @@ import { makeConfig } from '../helpers.js'
  * Every class falls back to ubuntu-latest, so an unset var is never broken.
  */
 describe('runner-label map — generated hardening allowlist (#1497 C1)', () => {
+  // #2041: check-all.mjs.ejs is registry-driven — render through the shared helper.
   const render = () =>
-    renderTemplate(
-      'scripts/check-all.mjs.ejs',
+    renderCheckAll(
       makeConfig('/tmp/test', {
         language: 'typescript',
         governanceLevel: 'L1',

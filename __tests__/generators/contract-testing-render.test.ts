@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 /** Resolve gofmt on PATH; returns null when the toolchain is absent. */
 function gofmtAvailable(): boolean {
@@ -420,7 +420,7 @@ describe('contract-testing render: F5 Pact broker glue (INV-42)', () => {
       contractType: 'rest-owned',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain("'pactPublish'")
     expect(content).toContain("'pactVerify'")
     expect(content).not.toContain("'pactPublish pactVerify'")
@@ -434,7 +434,7 @@ describe('contract-testing render: F5 Pact broker glue (INV-42)', () => {
       contractType: 'rest-owned',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('PACT_BROKER_BASE_URL')
   })
 
@@ -526,7 +526,7 @@ describe('contract-testing render: message-queue', () => {
       contractType: 'message-queue',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('Schema Registry')
     expect(content).not.toContain('Pact messaging')
   })

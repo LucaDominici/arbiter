@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2253",
+  "test_path": "__tests__/scripts/debt-report.test.ts",
+  "test_commit_sha": "07e55f5e5b42961ca55439463b8322b72f5c3920",
+  "test_blob_sha": "c2397f36448b143da34126165ba4d4d50fd4c26e",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/debt-report.test.ts (32 tests | 1 failed) 370ms\n     × passes a 0.4pp coverage drop (within the noise floor) 46ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 31 passed (32)\n   Start at  03:38:36\n   Duration  556ms (transform 119ms, setup 86ms, import 32ms, tests 370ms, environment 0ms)\n\n\n[baseline] skip duplicationPercentage — jscpd not installed\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/debt-report.test.ts > debt-report.mjs coverage noise tolerance (#2253) > passes a 0.4pp coverage drop (within the noise floor)\nAssertionError: expected '\\n## Debt Ratchet Report\\n\\nBaseline:…' not to match /coverageLine.*regressed/\n\n- Expected:\n/coverageLine.*regressed/\n\n+ Received:\n\"\n## Debt Ratchet Report\n\nBaseline: v2 — captured 2026-01-01T00:00:00Z @ abc1234 | archetype: library\n\n| Metric | Baseline | Current | Delta | Status |\n|--------|----------|---------|-------|--------|\n| coverageLine | 90% | 89.6% | -0.4 | ❌ regressed |\n| coverageBranch | 85% | 84.6% | -0.4 | ❌ regressed |\n| eslintErrors | new | 0 | new | ✨ new metric |\n| tscStrictErrors | new | 0 | new | ✨ new metric |\n| complexityViolations | new | 0 | new | ✨ new metric |\n| deadCode | new | 0 | new | ✨ new metric |\n| duplicationPercentage | new | 0% | new | ✨ new metric |\n| todoCount | new | 0 | new | ✨ new metric |\n\n\"\n\n ❯ __tests__/scripts/debt-report.test.ts:784:33\n    782|       const result = runReport(dir, binDir, BASE_LINE - 0.4, BASE_BRAN…\n    783|       expect(result.stdout).not.toMatch(/collection FAILURE/)\n    784|       expect(result.stdout).not.toMatch(/coverageLine.*regressed/)\n       |                                 ^\n    785|       expect(result.stdout).not.toMatch(/coverageBranch.*regressed/)\n    786|       expect(result.status).toBe(0)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/debt-report.test.ts",
+  "recorded_at": "2026-08-09T01:38:36.848Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/debt-report.test.ts"
+  ]
+}

@@ -2,7 +2,7 @@
 // CANON-04 render tests for the #1366 render-smoke templates (INV-127).
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 // makeConfig needs a dir; templates here don't touch the FS, so a placeholder is fine.
 const cfg = (over: Record<string, unknown> = {}) =>
@@ -69,7 +69,7 @@ describe('check-all.mjs.ejs wires the render-smoke gate (#1366)', () => {
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const out = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const out = renderCheckAll(data)
     expect(out).toMatch(/check-render-smoke\.mjs/)
     expect(out).toMatch(/INV-127/)
   })

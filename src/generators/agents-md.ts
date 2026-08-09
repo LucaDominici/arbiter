@@ -23,6 +23,9 @@ export function renderAgentsMd(
     governanceLevel: config.governanceLevel,
     invariantTiers: config.invariantTiers,
     ...(config.includeExtendedInvariants ? { includeExtendedInvariants: true } : {}),
+    ...(config.projectInvariants !== undefined
+      ? { projectInvariants: config.projectInvariants }
+      : {}),
   })
   const invariantsByTier = getInvariantsByTier(invariants)
 

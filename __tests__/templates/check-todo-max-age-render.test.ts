@@ -83,10 +83,13 @@ describe('check-all.mjs wiring (#1456)', () => {
   // block (not an EJS conditional), so it is present for every stack. Assert against
   // the template source — robust to the many computed render fields the L2 block needs.
   it('wires the todo max-age gate at L2 (runCheck, INV-133)', () => {
-    const src = readFileSync(
-      join(import.meta.dirname, '..', '..', 'src', 'templates', 'scripts', 'check-all.mjs.ejs'),
+    // #2041: the gate is declared in the DECLARATIVE registry (gate-registry.yml.ejs)
+    // at L2 — the runCheck call is emitted from it, no longer inline in check-all.mjs.ejs.
+    const registrySrc = readFileSync(
+      join(import.meta.dirname, '..', '..', 'src', 'templates', 'scripts', 'gate-registry.yml.ejs'),
       'utf-8',
     )
-    expect(src).toMatch(/runCheck\('todo max-age \(INV-133\)'[^\n]*check-todo-max-age\.mjs/)
+    expect(registrySrc).toMatch(/todo-max-age[^\n]*level: L2/)
+    expect(registrySrc).toContain('check-todo-max-age.mjs')
   })
 })

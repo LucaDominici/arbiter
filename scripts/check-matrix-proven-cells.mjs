@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // INV-47: Every 'proven' cell in cross-language-matrix.json must have a gate invocation
 // in src/templates/scripts/check-all.mjs.ejs (CANON-02).
+// #2041: the gate commands live in the DECLARATIVE registry
+// (src/templates/scripts/gate-registry.yml.ejs) — the scan covers BOTH files.
 // Usage: node scripts/check-matrix-proven-cells.mjs [--matrix=path] [--template=path] [--exceptions=path]
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -47,7 +49,19 @@ try {
   process.exit(1)
 }
 
-const template = readFileSync(templatePath, 'utf-8').toLowerCase()
+// #2041: gate cmds moved from the inline check-all.mjs.ejs to gate-registry.yml.ejs.
+// When the scanned template IS the real check-all.mjs.ejs, also scan the registry
+// (the gate commands live there now). A tempdir fake template (unit tests) scans
+// only itself — otherwise a deliberately-absent tool would be found in the real
+// registry and the anti-vacuous RED case would false-pass.
+const DEFAULT_TEMPLATE = resolve(root, 'src/templates/scripts/check-all.mjs.ejs')
+const sources = [templatePath]
+if (templatePath === DEFAULT_TEMPLATE) {
+  sources.push(resolve(root, 'src/templates/scripts/gate-registry.yml.ejs'))
+}
+const template = sources
+  .map((p) => (existsSync(p) ? readFileSync(p, 'utf-8').toLowerCase() : ''))
+  .join('\n')
 
 const exceptions = new Set()
 if (existsSync(exceptionsPath)) {

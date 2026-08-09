@@ -249,4 +249,25 @@ describe('generateAgentsMd', () => {
     const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
     expect(content).not.toContain('Coverage Gate (Kover)')
   })
+
+  it('renders declared PROJ-NN project invariants into AGENTS.md (TC-1)', () => {
+    const projInvariant = {
+      id: 'PROJ-01',
+      tier: 'governance',
+      title: 'Tenancy isolation is a product contract',
+      description: 'Every tenant-scoped resource must carry owner_id.',
+      alwaysActive: true,
+      enforcement: 'CI (constraint scan); code review',
+    }
+    generateAgentsMd(
+      makeConfig(dir, {
+        projectInvariants: [projInvariant],
+      } as Partial<Parameters<typeof makeConfig>[1]> & {
+        projectInvariants: (typeof projInvariant)[]
+      }),
+    )
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('PROJ-01')
+    expect(content).toContain('Tenancy isolation is a product contract')
+  })
 })

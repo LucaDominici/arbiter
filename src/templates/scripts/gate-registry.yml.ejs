@@ -1,0 +1,244 @@
+# gate-registry.yml.ejs — the DECLARATIVE gate registry (#2041, AC-2041.4).
+#
+# Every gate the generated check-all.mjs runs is declared here: id, display
+# name, lane level, kind, and spawn command. The generator
+# (src/generators/check-all.ts) renders this manifest with the project config
+# (EJS expressions in `cmd` resolve at generation time), validates the shape,
+# and consumes it to emit the gate sections of check-all.mjs — replacing the
+# hardcoded runCheck(...) calls that used to live inline in the template.
+#
+# Entry fields:
+#   id         kebab-case identifier — used by `--gate <id>` and the layering
+#              contract test (scripts/test-gate-layering.mjs).
+#   name       display name (the runCheck first argument; also accepted by
+#              `--gate <name>` for backward compatibility with #2078).
+#   level      L1 | L2 | L3 — the lane this gate belongs to. Structural
+#              containment L1 ⊂ L2 ⊂ L3: `check-all.mjs <level>` runs every
+#              gate whose level is <= the requested level.
+#   kind       check (hard) | warn (advisory) | tool (CI-aware) | inline
+#              (custom JS body in the template, declared here for manifest
+#              completeness — see the INLINE_BLOCKS section of check-all.mjs).
+#   cmd        [binary, ...args] — EJS expressions are allowed; rendered at
+#              generation time (e.g. `<%%= packageManager %>`).
+#   language   optional — wraps the gate in `if (language === '<lang>')`.
+#   condition  optional — raw expression wrapped in `if (<expr>) { ... }`.
+#   else       optional — raw body emitted in the `else` branch (used by the
+#              SKIP-report gates: audit, npm-ci drift, playwright rules).
+#   soft       true → the gate runs with `{ soft: graceActive }`.
+#
+# ORDER IS MEANINGFUL: the emitted script runs gates in registry order within
+# each level (the pre-#2041 inline order is preserved).
+#
+# Existing Code Survey (CANON-16): the de-facto registry was the inline
+# runCheck(...) surface of check-all.mjs.ejs (191 calls) — no separate registry
+# file existed; this manifest REPLACES that inline surface (justified by
+# AC-2041.4), it does not duplicate it.
+
+gates:
+  # ── L1 ─────────────────────────────────────────────────────────────────────
+  - { id: pii-scan, name: 'PII scan', level: L1, kind: check, cmd: ['node', ['scripts/pii-scan.mjs']] }
+  - { id: secret-scan, name: 'secret scan', level: L1, kind: check, cmd: ['node', ['scripts/check-secret-scan.mjs']] }
+  - { id: typecheck, name: typecheck, level: L1, kind: check, language: typescript, cmd: ['npx', ['tsc', '--noEmit']] }
+  - { id: format, name: format, level: L1, kind: check, language: typescript, cmd: ['npx', ['prettier', '--check', '.']] }
+  - { id: lint, name: lint, level: L1, kind: check, language: typescript, cmd: ['npx', ['eslint', '.']] }
+  - { id: static-analysis, name: 'static analysis', level: L1, kind: check, language: typescript, condition: "gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] static analysis ... SKIP (run: arbiter update)')", cmd: ['npx', ['eslint', '--config', 'eslint.config.static.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src']] }
+  - { id: no-fake-db-imports, name: 'no-fake-db imports (INV-34)', level: L1, kind: check, language: typescript, condition: "gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')", cmd: ['npx', ['eslint', '--config', 'eslint.config.no-fake-db.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', '.']] }
+  - { id: unit-tests, name: 'unit tests', level: L1, kind: check, language: typescript, cmd: ['<%= packageManager %>', ['run', 'test:unit']] }
+  - { id: npm-ci-drift, name: 'npm-ci drift', level: L1, kind: inline, language: typescript, emitIf: "packageManager === 'npm'", else: "console.log('[CHECK] npm-ci drift ... SKIP (project uses <%= packageManager %>)');\npushResult('npm-ci drift', 'SKIP', 0);" }
+  - { id: rust-fmt, name: fmt, level: L1, kind: check, language: rust, cmd: ['cargo', ['fmt', '--check']] }
+  - { id: clippy, name: clippy, level: L1, kind: check, language: rust, cmd: ['cargo', ['clippy', '--', '-D', 'warnings']] }
+  - { id: rust-unit-tests, name: 'unit tests', level: L1, kind: check, language: rust, cmd: ['cargo', ['test']] }
+  - { id: no-unwrap, name: 'no .unwrap()/.expect()', level: L1, kind: check, language: rust, cmd: ['node', ['scripts/checks/check-rust-no-unwrap.mjs']] }
+  - { id: no-unsafe, name: 'no unsafe', level: L1, kind: check, language: rust, cmd: ['node', ['scripts/checks/check-rust-no-unsafe.mjs']] }
+  - { id: gradle-checkstyle, name: checkstyle, level: L1, kind: check, emitIf: "language === 'java' && buildTool === 'gradle'", cmd: ['./gradlew', ['checkstyleMain', '-q']] }
+  - { id: gradle-spotless, name: 'format (spotless)', level: L1, kind: check, emitIf: "language === 'java' && buildTool === 'gradle'", cmd: ['./gradlew', ['spotlessCheck', '-q']] }
+  - { id: gradle-unit-tests, name: 'unit tests', level: L1, kind: check, emitIf: "language === 'java' && buildTool === 'gradle'", cmd: ['./gradlew', ['test', '-q']] }
+  - { id: maven-checkstyle, name: checkstyle, level: L1, kind: check, emitIf: "language === 'java' && buildTool === 'maven'", cmd: ['mvn', ['checkstyle:check', '-q']] }
+  - { id: maven-spotless, name: 'format (spotless)', level: L1, kind: check, emitIf: "language === 'java' && buildTool === 'maven'", cmd: ['mvn', ['spotless:check', '-q']] }
+  - { id: maven-unit-tests, name: 'unit tests', level: L1, kind: check, emitIf: "language === 'java' && buildTool === 'maven'", cmd: ['mvn', ['test', '-q']] }
+  - { id: go-vet, name: vet, level: L1, kind: check, language: go, cmd: ['go', ['vet', './...']] }
+  - { id: golangci-lint, name: lint, level: L1, kind: check, language: go, cmd: ['golangci-lint', ['run']] }
+  - { id: gofmt, name: 'fmt (gofmt)', level: L1, kind: inline, language: go }
+  - { id: go-unit-tests, name: 'unit tests', level: L1, kind: check, language: go, cmd: ['go', ['test', './...']] }
+  - { id: ruff-lint, name: lint, level: L1, kind: check, language: python, cmd: ['ruff', ['check', '.']] }
+  - { id: ruff-format, name: format, level: L1, kind: check, language: python, cmd: ['ruff', ['format', '--check', '.']] }
+  - { id: pytest-unit-tests, name: 'unit tests', level: L1, kind: check, language: python, cmd: ['pytest', []] }
+  - { id: kotlin-unit-tests, name: 'unit tests', level: L1, kind: check, emitIf: "language === 'kotlin' && buildTool === 'gradle'", cmd: ['./gradlew', ['test', '-q']] }
+  - { id: detekt, name: 'detekt (beta)', level: L1, kind: check, emitIf: "language === 'kotlin' && buildTool === 'gradle'", soft: true, cmd: ['./gradlew', ['detekt']] }
+  - { id: no-tracked-artifacts, name: 'no tracked artifacts (INV-129)', level: L1, kind: check, cmd: ['node', ['scripts/check-no-tracked-artifacts.mjs']] }
+  - { id: image-pins, name: 'image pins (#1442)', level: L1, kind: check, cmd: ['node', ['scripts/check-image-pins.mjs']] }
+  - { id: e2e-quarantine, name: 'e2e quarantine (INV-130)', level: L1, kind: check, cmd: ['node', ['scripts/check-e2e-quarantine.mjs']] }
+  - { id: test-naming, name: 'test naming', level: L1, kind: check, cmd: ['node', ['scripts/check-test-naming.mjs']] }
+  - { id: min-test-execution, name: 'min test execution (INV-25)', level: L1, kind: check, cmd: ['node', ['scripts/check-min-test-execution.mjs']] }
+  - { id: exit-code-contract, name: 'exit code contract', level: L1, kind: check, cmd: ['node', ['scripts/check-exit-code-contract.mjs']] }
+  - { id: pipe-tee-hazard, name: 'pipe/tee hazard', level: L1, kind: check, cmd: ['node', ['scripts/check-pipe-tee-hazard.mjs']] }
+  - { id: self-validation-drill, name: 'self-validation drill', level: L1, kind: check, emitIf: "typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false", cmd: ['node', ['scripts/self-validation.mjs']] }
+  - { id: config-drift, name: 'config drift', level: L1, kind: check, cmd: ['node', ['scripts/check-drift.mjs']] }
+  - { id: validator-helptext, name: 'validator help text', level: L1, kind: check, cmd: ['node', ['scripts/check-validator-helptext.mjs']] }
+  - { id: audit-toolchain, name: 'audit toolchain', level: L1, kind: warn, emitIf: "typeof enableAuditToolchain !== 'undefined' && enableAuditToolchain", cmd: ['node', ['scripts/audit-toolchain.mjs']] }
+  - { id: frontend-lane, name: 'frontend lane', level: L1, kind: check, emitIf: "_isSubtreeFE", cmd: ['node', ['scripts/check-frontend-lane.mjs']] }
+  - { id: lint-css, name: 'lint:css', level: L1, kind: tool, emitIf: "_isFE && language === 'typescript'", condition: "gateFilePresent('.stylelintrc.json', 'lint:css', null, ['.stylelintrc'])", cmd: ['npx', ['stylelint', '--allow-empty-input', 'src/**/*.css']] }
+  - { id: fsd-boundaries, name: 'fsd boundaries', level: L1, kind: check, emitIf: "_isFE && language === 'typescript'", condition: "gateFilePresent('eslint.config.frontend-spa.mjs', 'fsd boundaries')", cmd: ['npx', ['eslint', '--config', 'eslint.config.frontend-spa.mjs', '--no-config-lookup', '<%= _feGlob %>']] }
+  - { id: playwright-rules, name: 'playwright rules', level: L1, kind: inline, emitIf: "_isFE && language === 'typescript'" }
+  - { id: suppressions-expiry, name: 'suppressions expiry', level: L1, kind: check, emitIf: "enableSuppressions", cmd: ['node', ['scripts/check-suppressions.mjs']] }
+  - { id: suppression-rationale, name: 'suppression rationale', level: L1, kind: check, emitIf: "enableSuppressions", cmd: ['node', ['scripts/check-suppression-rationale.mjs']] }
+  - { id: suppression-expiry-antidrift, name: 'suppression expiry (anti-drift)', level: L1, kind: check, emitIf: "enableSuppressions", cmd: ['node', ['scripts/check-suppression-expiry.mjs']] }
+  - { id: inline-suppressions, name: 'inline suppressions', level: L1, kind: check, cmd: ['node', ['scripts/check-inline-suppressions.mjs']] }
+  - { id: claude-md-lint, name: 'claude-md lint', level: L1, kind: check, cmd: ['node', ['scripts/check-claude-md-lint.mjs']] }
+  - { id: unwired-guards, name: 'unwired guards', level: L1, kind: check, cmd: ['node', ['scripts/check-unwired-guards.mjs']] }
+  - { id: workflow-runners-inline, name: 'workflow runners', level: L1, kind: inline }
+  - { id: ci-alignment, name: 'ci alignment', level: L1, kind: inline }
+  - { id: ssot-core-set, name: 'ssot core set', level: L1, kind: check, cmd: ['node', ['scripts/check-ssot-core.mjs']] }
+  - { id: doc-links, name: 'doc links', level: L1, kind: check, cmd: ['node', ['scripts/check-doc-links.mjs']] }
+  - { id: knowledge-map, name: 'knowledge map', level: L1, kind: check, cmd: ['node', ['scripts/check-knowledge-map.mjs']] }
+  - { id: canonical-paths, name: 'canonical paths', level: L1, kind: check, cmd: ['node', ['scripts/check-canonical-paths.mjs']] }
+  - { id: collab-mode-wired, name: 'collab mode wired (INV-100)', level: L1, kind: check, cmd: ['node', ['scripts/check-collab-mode-wired.mjs']] }
+  - { id: hook-routing, name: 'hook routing (#2129)', level: L1, kind: check, cmd: ['node', ['scripts/check-hook-routing.mjs']] }
+  - { id: safety-adopt-ratchet, name: 'safety adopt ratchet', level: L1, kind: check, cmd: ['node', ['scripts/check-safety-adopt-ratchet.mjs']] }
+  - { id: emission-parity, name: 'emission parity (#2110)', level: L1, kind: check, cmd: ['node', ['scripts/check-emission-parity.mjs']] }
+  - { id: constraint-scan, name: 'constraint scan (INV-115)', level: L1, kind: check, cmd: ['node', ['scripts/check-constraint-scan.mjs']] }
+  - { id: wiki-lint, name: 'wiki lint (INV-116)', level: L1, kind: check, emitIf: "governanceLevel !== 'L1'", cmd: ['node', ['scripts/check-wiki-lint.mjs']] }
+  - { id: doc-index-drift, name: 'documentation index drift', level: L1, kind: check, emitIf: "governanceLevel !== 'L1'", condition: "existsSync('docs/INDEX.md')", cmd: ['node', ['scripts/gen-doc-index.mjs', '--check']] }
+  - { id: llms-txt-drift, name: 'llms.txt drift', level: L1, kind: check, emitIf: "governanceLevel !== 'L1'", condition: "existsSync('llms.txt')", cmd: ['node', ['scripts/gen-llms-txt.mjs', '--check']] }
+  - { id: anti-proforma, name: 'anti-proforma (INV-118)', level: L1, kind: check, cmd: ['node', ['scripts/check-anti-proforma.mjs']] }
+  - { id: test-pyramid, name: 'test pyramid (INV-124)', level: L1, kind: check, cmd: ['node', ['scripts/check-test-pyramid.mjs']] }
+  - { id: test-scope-tier, name: 'test scope-tier (INV-124)', level: L1, kind: check, cmd: ['node', ['scripts/check-test-scope-tier.mjs']] }
+  - { id: api-e2e, name: 'api e2e (INV-126)', level: L1, kind: check, cmd: ['node', ['scripts/check-api-e2e.mjs']] }
+  - { id: domain-api-surface, name: 'domain-api surface (INV-125)', level: L1, kind: check, emitIf: "hasPublicApi", cmd: ['node', ['scripts/check-domain-api-surface.mjs']] }
+  - { id: render-smoke-presence, name: 'render smoke presence (INV-127)', level: L1, kind: check, cmd: ['node', ['scripts/check-render-smoke.mjs']] }
+  - { id: smoke-journeys, name: 'smoke journeys (INV-137)', level: L1, kind: check, cmd: ['node', ['scripts/check-smoke-journeys.mjs']] }
+  - { id: e2e-escalation, name: 'e2e escalation ladder (#2043)', level: L1, kind: check, cmd: ['node', ['scripts/check-e2e-escalation.mjs']] }
+  - { id: m16-handoff, name: 'M16 handoff-contract marker (#2103)', level: L1, kind: check, cmd: ['node', ['scripts/check-m16-handoff.mjs']] }
+  - { id: stack-conformity, name: 'stack conformity (INV-121)', level: L1, kind: check, emitIf: "language", cmd: ['node', ['scripts/check-stack-conformity.mjs']] }
+  - { id: iso9001, name: 'iso9001 QMS (RTM + doc-control + CAPA)', level: L1, kind: check, condition: "gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')", cmd: ['node', ['scripts/check-iso9001.mjs']] }
+  - { id: regulated-overlay, name: 'regulated overlay (SoD + retention + signing + mutation)', level: L1, kind: check, condition: "gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')", cmd: ['node', ['scripts/check-regulated-overlay.mjs']] }
+  - { id: ci-tiers, name: 'ci tiers (INV-73)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-ci-tiers.mjs']] }
+  - { id: action-pins, name: 'action pins (INV-75)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-action-pins.mjs']] }
+  - { id: workflow-perms, name: 'workflow perms (INV-76)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-perms.mjs']] }
+  - { id: workflow-runners, name: 'workflow runners', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-runners.mjs']] }
+  - { id: workflow-docs-sync, name: 'workflow docs sync', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-docs-sync.mjs']] }
+  - { id: workflow-test-integrity, name: 'workflow test integrity', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-test-integrity.mjs']] }
+  - { id: secret-presence, name: 'secret presence (fail-loud)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-secret-presence.mjs']] }
+  - { id: continue-on-error, name: 'continue-on-error (swallowed gate)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-continue-on-error.mjs']] }
+  - { id: workflow-sha-pinning, name: 'workflow sha pinning', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-sha-pinning.mjs']] }
+  - { id: workflow-job-naming, name: 'workflow job naming', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-job-naming.mjs']] }
+  - { id: pr-size-gate, name: 'pr size gate', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-pr-size-gate.mjs']] }
+  - { id: merge-method-ff-only, name: 'merge method ff-only (INV-101)', level: L1, kind: check, emitIf: "useGitHub && governanceLevel !== 'L1'", cmd: ['node', ['scripts/check-merge-method.mjs']] }
+  - { id: muted-test, name: 'muted gate test (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-muted-test.mjs']] }
+  - { id: skip-critical-e2e, name: 'skipped critical e2e (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-skip-critical-e2e.mjs']] }
+  - { id: stub-redirect-husk, name: 'stub redirect husk (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-no-stub-redirects.mjs']] }
+  - { id: grace-window, name: 'grace window (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-grace-window.mjs']] }
+  - { id: assertion-delta, name: 'assertion delta (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-assertion-delta.mjs']] }
+  - { id: oracle-discrimination, name: 'oracle discrimination (anti-fake-green)', level: L1, kind: check, emitIf: "archetype === 'frontend-spa' || archetype === 'backend-web-db'", cmd: ['node', ['scripts/check-oracle-discrimination.mjs']] }
+
+  # ── L2 ─────────────────────────────────────────────────────────────────────
+  - { id: gitleaks, name: gitleaks, level: L2, kind: check, emitIf: "enableSecurityScanning", soft: true, cmd: ['gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1']] }
+  - { id: npm-audit, name: audit, level: L2, kind: inline, emitIf: "language === 'typescript' && enableSecurityScanning" }
+  - { id: consumer-audit, name: 'consumer audit', level: L2, kind: check, emitIf: "language === 'typescript' && archetype === 'library' && governanceLevel !== 'L1'", cmd: ['node', ['scripts/check-consumer-audit.mjs']] }
+  - { id: ts-boundaries, name: boundaries, level: L2, kind: check, emitIf: "language === 'typescript' && architectureStyle === 'hexagonal'", soft: true, cmd: ['node', ['scripts/check-boundaries.mjs']] }
+  - { id: contract-tests-ts, name: 'contract tests', level: L2, kind: check, emitIf: "language === 'typescript'", soft: true, cmd: ['<%= packageManager %>', ['run', 'test:contract']] }
+  - { id: integration-tests-ts, name: 'integration tests', level: L2, kind: check, emitIf: "language === 'typescript'", soft: true, cmd: ['<%= packageManager %>', ['run', 'test:integration']] }
+  - { id: behavioral-tests-ts, name: 'behavioral tests', level: L2, kind: check, emitIf: "language === 'typescript'", soft: true, cmd: ['<%= packageManager %>', ['run', 'test:behavioral']] }
+  - { id: db-integration-tests, name: 'db integration tests', level: L2, kind: check, emitIf: "language === 'typescript' && hasDatabase && governanceLevel !== 'L1'", soft: true, cmd: ['<%= packageManager %>', ['run', 'test:integration']] }
+  - { id: fe-boundaries, name: 'fe boundaries (INV-102/103/104)', level: L2, kind: check, emitIf: "_isFE && governanceLevel !== 'L1'", condition: "gateFilePresent('scripts/check-fe-boundaries.mjs', 'fe boundaries (INV-102/103/104)')", soft: true, cmd: ['node', ['scripts/check-fe-boundaries.mjs']] }
+  - { id: token-discipline, name: 'token discipline (INV-105)', level: L2, kind: check, emitIf: "_isFE && governanceLevel !== 'L1'", condition: "gateFilePresent('scripts/verify-tokens.mjs', 'token discipline (INV-105)')", soft: true, cmd: ['node', ['scripts/verify-tokens.mjs']] }
+  - { id: i18n-literals, name: 'i18n literals (INV-106)', level: L2, kind: check, emitIf: "_isFE && governanceLevel !== 'L1'", condition: "gateFilePresent('scripts/i18n-literal-scanner.mjs', 'i18n literals (INV-106)')", soft: true, cmd: ['node', ['scripts/i18n-literal-scanner.mjs']] }
+  - { id: i18n-parity, name: 'i18n parity (INV-106)', level: L2, kind: check, emitIf: "_isFE && governanceLevel !== 'L1'", condition: "gateFilePresent('scripts/verify-i18n-parity.mjs', 'i18n parity (INV-106)')", soft: true, cmd: ['node', ['scripts/verify-i18n-parity.mjs']] }
+  - { id: fe-coverage-ratchet, name: 'fe coverage ratchet', level: L2, kind: check, emitIf: "_isFE && governanceLevel !== 'L1'", condition: "gateFilePresent('scripts/verify-fe-coverage.mjs', 'fe coverage ratchet') && existsSync('fe-coverage-baseline.json')", soft: true, cmd: ['node', ['scripts/verify-fe-coverage.mjs']] }
+  - { id: bundle-size-budget, name: 'bundle size budget', level: L2, kind: check, emitIf: "_isFE && governanceLevel !== 'L1'", condition: "gateFilePresent('scripts/check-bundle-size.mjs', 'bundle size budget') && gateFilePresent('bundle-budget.json', 'bundle size budget')", soft: true, cmd: ['node', ['scripts/check-bundle-size.mjs']] }
+  - { id: playwright-e2e, name: 'playwright e2e', level: L2, kind: inline, emitIf: "language === 'typescript' && (archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1'" }
+  - { id: cargo-audit, name: audit, level: L2, kind: check, emitIf: "language === 'rust' && enableSecurityScanning", soft: true, cmd: ['cargo', ['audit']] }
+  - { id: rust-boundaries, name: boundaries, level: L2, kind: check, emitIf: "language === 'rust' && architectureStyle === 'hexagonal'", soft: true, cmd: ['node', ['scripts/check-boundaries.mjs']] }
+  - { id: rust-integration-tests, name: 'integration tests', level: L2, kind: check, emitIf: "language === 'rust' && hasDatabase && governanceLevel !== 'L1'", soft: true, cmd: ['cargo', ['test', '--tests']] }
+  - { id: gradle-integration, name: integration, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'gradle' && hasDatabase && governanceLevel !== 'L1'", soft: true, cmd: ['./gradlew', ['integrationTest', '-q']] }
+  - { id: gradle-arch-tests, name: 'architecture tests', level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'gradle' && architectureStyle !== 'none' && basePackage", soft: true, cmd: ['./gradlew', ['test', '--tests', '*.architecture.*', '-q']] }
+  - { id: trivy-gradle, name: 'dep audit (trivy fs)', level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'gradle' && enableSecurityScanning", soft: true, cmd: ['trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.']] }
+  - { id: maven-integration, name: integration, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'maven' && hasDatabase && governanceLevel !== 'L1'", soft: true, cmd: ['mvn', ['verify', '-q']] }
+  - { id: maven-arch-tests, name: 'architecture tests', level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'maven' && architectureStyle !== 'none' && basePackage", soft: true, cmd: ['mvn', ['test', '-Dtest=*.architecture.*', '-q']] }
+  - { id: trivy-maven, name: 'dep audit (trivy fs)', level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'maven' && enableSecurityScanning", soft: true, cmd: ['trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.']] }
+  - { id: staticcheck, name: staticcheck, level: L2, kind: check, emitIf: "language === 'go'", soft: true, cmd: ['staticcheck', ['./...']] }
+  - { id: govulncheck, name: 'dep audit', level: L2, kind: check, emitIf: "language === 'go' && enableSecurityScanning", soft: true, cmd: ['govulncheck', ['./...']] }
+  - { id: go-boundaries, name: boundaries, level: L2, kind: check, emitIf: "language === 'go' && architectureStyle === 'hexagonal'", soft: true, cmd: ['node', ['scripts/check-boundaries.mjs']] }
+  - { id: go-integration-tests, name: 'integration tests', level: L2, kind: check, emitIf: "language === 'go' && hasDatabase && governanceLevel !== 'L1'", soft: true, cmd: ['go', ['test', '-tags', 'integration', '-run', 'Integration', './...']] }
+  - { id: pip-audit, name: audit, level: L2, kind: check, emitIf: "language === 'python' && enableSecurityScanning", soft: true, cmd: ['pip-audit', []] }
+  - { id: python-boundaries, name: boundaries, level: L2, kind: check, emitIf: "language === 'python' && architectureStyle === 'hexagonal'", soft: true, cmd: ['node', ['scripts/check-boundaries.mjs']] }
+  - { id: python-integration-tests, name: 'integration tests', level: L2, kind: check, emitIf: "language === 'python' && hasDatabase && governanceLevel !== 'L1'", soft: true, cmd: ['pytest', ['tests/integration/']] }
+  - { id: pytest-playwright-e2e, name: 'pytest-playwright e2e', level: L2, kind: inline, emitIf: "language === 'python' && (archetype === 'frontend-spa' || archetype === 'backend-web-db')" }
+  - { id: kotlin-arch-tests, name: 'architecture tests (beta)', level: L2, kind: check, emitIf: "language === 'kotlin' && buildTool === 'gradle' && architectureStyle !== 'none' && basePackage", soft: true, cmd: ['./gradlew', ['test', '--tests', '*.architecture.*', '-q']] }
+  - { id: trivy-kotlin, name: 'dep audit (trivy fs)', level: L2, kind: check, emitIf: "language === 'kotlin' && buildTool === 'gradle' && enableSecurityScanning", soft: true, cmd: ['trivy', ['fs', '--scanners', 'vuln', '--severity', 'HIGH,CRITICAL', '--exit-code', '1', '--ignorefile', '.trivyignore', '.']] }
+  - { id: coverage-threshold, name: 'coverage threshold', level: L2, kind: inline, emitIf: "language === 'typescript' && coverageEnabled && enableDebtGates" }
+  - { id: dead-code, name: 'dead code', level: L2, kind: check, emitIf: "language === 'typescript' && enableDebtGates", soft: true, cmd: ['npx', ['knip']] }
+  - { id: duplication, name: duplication, level: L2, kind: check, emitIf: "language === 'typescript' && enableDebtGates", soft: true, cmd: ['node', ['scripts/check-duplication.mjs']] }
+  - { id: circular-deps, name: 'circular deps', level: L2, kind: check, emitIf: "language === 'typescript' && enableDebtGates", soft: true, cmd: ['npx', ['madge', '--circular', '--extensions', 'ts,tsx,js,jsx', 'src']] }
+  - { id: arch-boundaries, name: 'arch boundaries', level: L2, kind: check, emitIf: "language === 'typescript' && enableDebtGates", soft: true, cmd: ['<%= packageManager %>', ['run', 'check:arch']] }
+  - { id: tarpaulin, name: 'coverage threshold', level: L2, kind: check, emitIf: "language === 'rust' && coverageEnabled && enableDebtGates", soft: true, cmd: ['cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>']] }
+  - { id: clippy-pedantic, name: 'clippy pedantic', level: L2, kind: check, emitIf: "language === 'rust' && enableDebtGates", soft: true, cmd: ['cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings']] }
+  - { id: binary-size, name: 'binary size', level: L2, kind: inline, emitIf: "language === 'rust' && (archetype === 'cli' || archetype === 'embedded')" }
+  - { id: jacoco, name: coverage, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'gradle' && coverageEnabled && enableDebtGates", soft: true, cmd: ['./gradlew', ['jacocoTestCoverageVerification', '-q']] }
+  - { id: pmd-gradle, name: pmd, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'gradle' && enableDebtGates", soft: true, cmd: ['./gradlew', ['pmdMain', '-q']] }
+  - { id: spotbugs, name: spotbugs, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'gradle' && enableDebtGates", soft: true, cmd: ['./gradlew', ['spotbugsMain', '-q']] }
+  - { id: spotbugs-baseline, name: 'spotbugs baseline (INV-44)', level: L2, kind: check, emitIf: "language === 'java' && (buildTool === 'gradle' || buildTool === 'maven') && enableDebtGates", soft: true, cmd: ['node', ['scripts/verify-spotbugs.mjs']] }
+  - { id: jacoco-maven, name: coverage, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'maven' && coverageEnabled && enableDebtGates", soft: true, cmd: ['mvn', ['verify', '-Pjacoco', '-q']] }
+  - { id: pmd-maven, name: pmd, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'maven' && enableDebtGates", soft: true, cmd: ['mvn', ['pmd:check', '-q']] }
+  - { id: spotbugs-maven, name: spotbugs, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'maven' && enableDebtGates", soft: true, cmd: ['mvn', ['com.github.spotbugs:spotbugs-maven-plugin:check', '-q']] }
+  - { id: go-coverage, name: 'coverage profile', level: L2, kind: inline, emitIf: "language === 'go' && coverageEnabled && enableDebtGates" }
+  - { id: gocyclo, name: 'complexity + dead code', level: L2, kind: check, emitIf: "language === 'go' && enableDebtGates", soft: true, cmd: ['golangci-lint', ['run', '--enable', 'gocyclo,gocognit,unused']] }
+  - { id: pytest-coverage, name: 'coverage threshold', level: L2, kind: check, emitIf: "language === 'python' && coverageEnabled && enableDebtGates", soft: true, cmd: ['pytest', ['--cov', '--cov-fail-under=<%= coverageThreshold %>', '--cov-report=html:coverage/html', '--cov-report=xml:coverage/coverage.xml']] }
+  - { id: ruff-complexity, name: complexity, level: L2, kind: check, emitIf: "language === 'python' && enableDebtGates", soft: true, cmd: ['ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.']] }
+  - { id: ruff-unused-imports, name: 'unused imports', level: L2, kind: check, emitIf: "language === 'python' && enableDebtGates", soft: true, cmd: ['ruff', ['check', '--select', 'F401,F811', '.']] }
+  - { id: kover, name: 'coverage (kover, beta)', level: L2, kind: check, emitIf: "language === 'kotlin' && buildTool === 'gradle' && coverageEnabled && enableDebtGates", soft: true, cmd: ['./gradlew', ['koverVerify', 'koverXmlReport']] }
+  - { id: mutation-stryker, name: 'mutation (stryker)', level: L2, kind: tool, emitIf: "(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && language === 'typescript' && enableDebtGates", soft: true, cmd: ['npx', ['stryker', 'run']] }
+  - { id: mutation-pitest-gradle, name: 'mutation (pitest)', level: L2, kind: check, emitIf: "(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && language === 'java' && buildTool === 'gradle' && enableDebtGates", soft: true, cmd: ['./gradlew', ['pitest', '-q']] }
+  - { id: mutation-pitest-maven, name: 'mutation (pitest)', level: L2, kind: check, emitIf: "(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && language === 'java' && buildTool === 'maven' && enableDebtGates", soft: true, cmd: ['mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q']] }
+  - { id: mutation-baseline, name: 'mutation baseline (#1508)', level: L2, kind: check, emitIf: "(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && enableDebtGates", condition: "gateFilePresent('scripts/verify-mutation-baseline.mjs', 'mutation baseline (#1508)')", soft: true, cmd: ['node', ['scripts/verify-mutation-baseline.mjs']] }
+  - { id: stride-raci, name: 'STRIDE/RACI traceability', level: L2, kind: check, emitIf: "enableDebtGates", soft: true, cmd: ['node', ['scripts/check-stride-traceability.mjs']] }
+  - { id: contract-pact-ts, name: 'contract tests (Pact)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'typescript' && (contractType === 'rest-owned' || contractType === 'rest-public')", condition: "process.env.PACT_BROKER_BASE_URL", else: "console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');", soft: true, cmd: ['npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest']] }
+  - { id: contract-graphql-ts, name: 'contract tests (GraphQL schema)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'typescript' && contractType === 'graphql'", soft: true, cmd: ['npx', ['graphql-inspector', 'diff', 'schema.graphql']] }
+  - { id: contract-grpc-ts, name: 'contract tests (gRPC)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'typescript' && contractType === 'grpc'", soft: true, cmd: ['npx', ['buf', 'breaking', '--against', '.git#branch=main']] }
+  - { id: contract-schema-registry-ts, name: 'contract tests (Schema Registry)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'typescript' && contractType === 'message-queue'", condition: "process.env.SCHEMA_REGISTRY_URL", else: "console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');", soft: true, cmd: ['npx', ['vitest', 'run', '--testPathPattern=schema-registry']] }
+  - { id: contract-pact-gradle, name: 'contract tests (Pact)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'java' && buildTool === 'gradle' && (contractType === 'rest-owned' || contractType === 'rest-public')", condition: "process.env.PACT_BROKER_BASE_URL", else: "console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');", soft: true, cmd: ['./gradlew', ['pactPublish', 'pactVerify']] }
+  - { id: contract-pact-maven, name: 'contract tests (Pact)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'java' && buildTool === 'maven' && (contractType === 'rest-owned' || contractType === 'rest-public')", condition: "process.env.PACT_BROKER_BASE_URL", else: "console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');", soft: true, cmd: ['mvn', ['pact:publish', 'pact:verify']] }
+  - { id: contract-graphql-java, name: 'contract tests (GraphQL)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'java' && (buildTool === 'gradle' || buildTool === 'maven') && contractType === 'graphql'", soft: true, cmd: ['<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.graphql.*" : "test -Dtest=*GraphQL*" %>']] }
+  - { id: contract-grpc-java, name: 'contract tests (gRPC)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'java' && (buildTool === 'gradle' || buildTool === 'maven') && contractType === 'grpc'", soft: true, cmd: ['<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.grpc.*" : "test -Dtest=*Grpc*" %>']] }
+  - { id: contract-schema-registry-gradle, name: 'contract tests (Schema Registry)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'java' && buildTool === 'gradle' && contractType === 'message-queue'", condition: "process.env.SCHEMA_REGISTRY_URL", else: "console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');", soft: true, cmd: ['./gradlew', ['test', '--tests', '*SchemaRegistry*']] }
+  - { id: contract-schema-registry-maven, name: 'contract tests (Schema Registry)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'java' && buildTool === 'maven' && contractType === 'message-queue'", condition: "process.env.SCHEMA_REGISTRY_URL", else: "console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');", soft: true, cmd: ['mvn', ['test', '-Dtest=*SchemaRegistry*']] }
+  - { id: contract-pact-rust, name: 'contract tests (Pact)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'rust' && (contractType === 'rest-owned' || contractType === 'rest-public')", condition: "process.env.PACT_BROKER_BASE_URL", else: "console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');", soft: true, cmd: ['cargo', ['test', '--test', 'pact_consumer_test']] }
+  - { id: contract-openapi-rust, name: 'contract tests (OpenAPI)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'rust' && (contractType === 'rest-owned' || contractType === 'rest-public')", soft: true, cmd: ['cargo', ['test', '--test', 'openapi_diff_test']] }
+  - { id: contract-graphql-rust, name: 'contract tests (GraphQL)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'rust' && contractType === 'graphql'", soft: true, cmd: ['cargo', ['test', '--test', 'graphql_schema_test']] }
+  - { id: contract-grpc-rust, name: 'contract tests (gRPC)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'rust' && contractType === 'grpc'", soft: true, cmd: ['cargo', ['test', '--test', 'grpc_contract_test']] }
+  - { id: contract-schema-registry-rust, name: 'contract tests (schema registry)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'rust' && contractType === 'message-queue'", condition: "process.env.SCHEMA_REGISTRY_URL", else: "console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');", soft: true, cmd: ['cargo', ['test', '--test', 'schema_registry_test']] }
+  - { id: contract-go, name: 'contract tests', level: L2, kind: check, emitIf: "enableDebtGates && language === 'go' && contractType !== 'none'", soft: true, cmd: ['go', ['test', '-tags', 'contract', '-run', 'Contract', './...']] }
+  - { id: contract-pact-python, name: 'contract tests (Pact)', level: L2, kind: check, emitIf: "enableDebtGates && language === 'python' && contractType !== 'none'", soft: true, cmd: ['pytest', ['tests/contract/']] }
+  - { id: bdd-ignore-check, name: 'BDD @ignore check', level: L2, kind: inline, emitIf: "enableDebtGates" }
+  - { id: gdpr-controls, name: 'gdpr controls (#1251)', level: L2, kind: check, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')", soft: true, cmd: ['node', ['scripts/check-gdpr-controls.mjs']] }
+  - { id: bdd-ts, name: bdd, level: L2, kind: check, emitIf: "language === 'typescript' && enableDebtGates", soft: true, cmd: ['npx', ['cucumber-js']] }
+  - { id: bdd-python, name: bdd, level: L2, kind: check, emitIf: "language === 'python' && enableDebtGates", soft: true, cmd: ['pytest', ['tests/bdd/']] }
+  - { id: bdd-go, name: bdd, level: L2, kind: inline, emitIf: "language === 'go' && enableDebtGates" }
+  - { id: bdd-gradle, name: bdd, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'gradle' && enableDebtGates", soft: true, cmd: ['./gradlew', ['cucumberTest']] }
+  - { id: bdd-maven, name: bdd, level: L2, kind: check, emitIf: "language === 'java' && buildTool === 'maven' && enableDebtGates", soft: true, cmd: ['mvn', ['test', '-Dtest=*BDD*']] }
+  - { id: bdd-rust, name: bdd, level: L2, kind: inline, emitIf: "language === 'rust' && enableDebtGates" }
+  - { id: debt-ratchet, name: 'debt ratchet', level: L2, kind: check, soft: true, emitIf: "enableDebtGates", cmd: ['node', ['scripts/debt-report.mjs', '<%= ratchetFlag %>']] }
+  - { id: commit-footer-rationale, name: 'commit-footer rationale (INV-119)', level: L2, kind: check, emitIf: "governanceLevel !== 'L1' && enableDebtGates", soft: true, cmd: ['node', ['scripts/check-commit-footer-rationale.mjs']] }
+  - { id: docs-updated, name: 'docs updated with code (#356)', level: L2, kind: warn, emitIf: "governanceLevel !== 'L1' && enableDebtGates", cmd: ['node', ['scripts/check-docs.mjs']] }
+  - { id: feature-matrix, name: 'feature matrix (INV-112)', level: L2, kind: check, emitIf: "governanceLevel !== 'L1' && enableDebtGates", cmd: ['node', ['scripts/check-feature-matrix.mjs']] }
+  - { id: gap-register, name: 'gap register', level: L2, kind: check, emitIf: "governanceLevel !== 'L1' && enableDebtGates", cmd: ['node', ['scripts/gen-gap.mjs', '--check']] }
+  - { id: conformance, name: conformance, level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/conformance.mjs', 'conformance')", cmd: ['node', ['scripts/conformance.mjs', '--check']] }
+  - { id: gold-audit, name: gold-audit, level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')", cmd: ['node', ['scripts/gold-audit.mjs', '--check']] }
+  - { id: doc-set, name: 'doc-set', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')", cmd: ['node', ['scripts/check-doc-set.mjs', '--check']] }
+  - { id: decision-registry, name: 'decision registry', level: L2, kind: check, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')", cmd: ['node', ['scripts/check-decision-registry.mjs']] }
+  - { id: reuse-registry, name: 'reuse registry', level: L2, kind: check, emitIf: "enableDebtGates && typeof includeExtendedInvariants !== 'undefined' && includeExtendedInvariants", condition: "gateFilePresent('scripts/check-reuse-registry.mjs', 'reuse registry')", cmd: ['node', ['scripts/check-reuse-registry.mjs']] }
+  - { id: anti-fake-green, name: anti-fake-green, level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-anti-fake-green.mjs', 'anti-fake-green')", cmd: ['node', ['scripts/check-anti-fake-green.mjs']] }
+  - { id: module-coverage-ratchet, name: 'module coverage ratchet', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/verify-module-coverage.mjs', 'module coverage ratchet')", cmd: ['node', ['scripts/verify-module-coverage.mjs']] }
+  - { id: agent-return, name: 'agent-return envelope (E1 #1943)', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-agent-return.mjs', 'agent-return envelope (E1 #1943)')", cmd: ['node', ['scripts/check-agent-return.mjs']] }
+  - { id: review-completion, name: 'review completion (#2177)', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-review-completion.mjs', 'review completion (#2177)')", cmd: ['node', ['scripts/check-review-completion.mjs']] }
+  - { id: refutation-majority, name: 'refutation majority (E2 #1943)', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-refutation-verdicts.mjs', 'refutation majority (E2 #1943)')", cmd: ['node', ['scripts/check-refutation-verdicts.mjs']] }
+  - { id: audit-dry-pass, name: 'audit dry-pass (E3 #1943)', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')", cmd: ['node', ['scripts/check-audit-dry-pass.mjs', '--all']] }
+  - { id: handoff-lint, name: 'handoff lint (E6a #1943)', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')", cmd: ['node', ['scripts/check-handoff-doc.mjs']] }
+  - { id: tdd-evidence, name: 'tdd-evidence (INV-131)', level: L2, kind: check, soft: true, cmd: ['node', ['scripts/check-tdd-evidence.mjs']] }
+  - { id: todo-max-age, name: 'todo max-age (INV-133)', level: L2, kind: check, soft: true, cmd: ['node', ['scripts/check-todo-max-age.mjs']] }
+  - { id: evidence-gate, name: 'evidence gate (INV-33)', level: L3, kind: inline, emitIf: "isL3Plus" }
+  - { id: local-ci-parity, name: 'local-ci-parity (INV-59)', level: L2, kind: check, emitIf: "typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo'", cmd: ['node', ['scripts/check-local-ci-parity.mjs']] }
+
+  # ── L3 (nightly lane, AC-2041.1 — mirrors 06-nightly-lite.yml) ────────────
+  - { id: solo-reactivation, name: 'solo reactivation', level: L3, kind: check, emitIf: "typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo' && isL3Plus", cmd: ['node', ['scripts/check-solo-reactivation.mjs']] }
+  - { id: nightly-audit-prod, name: 'nightly audit (prod scope)', level: L3, kind: check, emitIf: "language === 'typescript' && packageManager === 'npm'", soft: true, cmd: ['npm', ['audit', '--omit=dev', '--audit-level=high']] }

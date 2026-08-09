@@ -47,6 +47,24 @@ governance level (L1 / L2 / L3 / L4), then materializes:
 - `scripts/check-all.mjs` — local gate orchestrator
 - `arbiter.json` — project configuration
 
+## 2.5 Invariants
+
+- Built-in invariants are `INV-NN` entries in `src/invariants/catalog.ts` — reserved
+  namespace, added only by arbiter.
+- A project may declare its own invariants as `PROJ-NN` via
+  `governance.projectInvariants[]` in `arbiter.json` — validated on load, merged at
+  `getFilteredInvariants`, and propagated to AGENTS.md, GLOBAL_INVARIANTS.md,
+  `verify graph`, `explain`, and the doc↔catalog parity gate (see
+  [ADR-112](internal/ADR/112-project-invariants-proj-nn.md)).
+  ^- The extended invariant set (INV-62..INV-71) activates via `governance.invariants_catalog: "extended"` —
+  see [ADR-114](internal/ADR/114-extended-invariants-live-ssot.md); declared-live SSOT
+  surfaces (`governance.liveSsot`) are bound to the same commit by check-drift.
+- Blocked project decisions are tracked as `D-NN` in `DECISION_REGISTRY.md` (see
+  [ADR-113](internal/ADR/113-decision-registry-dnn.md)); a D-NN that matures into a
+  permanent rule promotes to a PROJ-NN invariant — one rule lives in ONE registry.
+- Significant architectural decisions require an ADR under `docs/internal/ADR/`
+  (process in [the ADR README](internal/ADR/README.md)).
+
 ## 3. Run the gate
 
 ```sh
@@ -84,6 +102,23 @@ arbiter ship #NNN --tier Standard   # equivalent CLI
 `/ship` is the single orchestration entrypoint — it auto-sequences an issue through
 plan → red-team → TDD impl → review → gate → merge. Use `/task` subcommands only
 for low-level engine control or recovery (`arbiter task advance`, `record-red`, etc.).
+
+### Merge-train batching a sequential chain (`--chain`, #2102)
+
+For N issues with a real, declared dependency order, implement them all in one
+worktree/gate/PR instead of paying the gate's cost N times (see
+`docs/methodology/gate-throughput-patterns.md` §1):
+
+```sh
+arbiter task init --id #NNN --chain #NNN1 --chain #NNN2   # declare the chain (repeatable, opt-in only)
+arbiter ship #NNN --advance                                 # --chain is not repeated on every call
+```
+
+The `pre-push` git hook enforces it: once a chain is declared, the push is BLOCKED unless
+every id in `[taskId, ...chainIds]` has a commit in the push range naming it (`#<id>`) —
+one commit per issue is the traceability floor. No chain declared ⇒ the check is a silent
+no-op. `--chain` never changes whether the close step opens a PR or pushes directly — that
+stays governed by `collaborationMode`/`mergeMode` as before.
 
 ## Common next reads
 

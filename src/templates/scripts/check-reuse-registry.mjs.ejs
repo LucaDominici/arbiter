@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+// <%= projectName %> — reuse-registry gate (#2044, AC-2044.3).
+// Active only when the extended invariant set is on (wired in check-all.mjs
+// behind includeExtendedInvariants): the abstraction discipline (INV-69/70)
+// requires a documented search-before-build record. Fails when
+// docs/METHOD/REUSE_REGISTRY.md is absent or empty (no registered entries).
+// Exit codes (INV-53): 0 = PASS, 1 = FAIL, 2 = ERROR.
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const CWD = process.cwd();
+const REGISTRY = join(CWD, 'docs', 'METHOD', 'REUSE_REGISTRY.md');
+
+if (!existsSync(REGISTRY)) {
+  process.stderr.write(
+    'check-reuse-registry: FAIL — docs/METHOD/REUSE_REGISTRY.md missing (extended set active, INV-69/70)\n',
+  );
+  process.exit(1);
+}
+
+const source = readFileSync(REGISTRY, 'utf-8');
+// An entry is a table row with a non-header, non-separator first cell.
+const ROW_RE = /^\|\s*[^|]+\s*\|/;
+const rows = source
+  .split('\n')
+  .filter((line) => ROW_RE.test(line))
+  .filter((line) => !/^\|\s*---/.test(line))
+  .filter((line) => !/^\|\s*Modulo\s*\|/.test(line))
+  .filter((line) => !/^\|\s*Data\s*\|/.test(line))
+  // the "nessun modulo registrato" placeholder is not a real entry
+  .filter((line) => !/nessun modulo ancora registrato/i.test(line))
+  .filter((line) => !/nessuna ricerca ancora registrata/i.test(line));
+
+if (rows.length === 0) {
+  process.stderr.write(
+    'check-reuse-registry: FAIL — docs/METHOD/REUSE_REGISTRY.md is empty (no registered reuse entries)\n',
+  );
+  process.exit(1);
+}
+
+process.stdout.write(
+  `check-reuse-registry: PASS — ${rows.length} reuse entr${rows.length === 1 ? 'y' : 'ies'} registered\n`,
+);
+process.exit(0);

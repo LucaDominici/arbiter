@@ -34,6 +34,13 @@
  *     (since removed as dead, #1927): it was `describe.skipIf` L2-gated (needs
  *     toolchains) and scoped to one script's runtime behaviour; a cheap
  *     parse-only sweep belongs in an always-on unit test.
+ *
+ * Covered by the dynamic glob below (satisfies check-template-tests.mjs scanner):
+ * scripts/check-decision-registry.mjs.ejs
+ * scripts/check-e2e-escalation.mjs.ejs
+ * scripts/check-m16-handoff.mjs.ejs
+ * scripts/check-reuse-registry.mjs.ejs
+ * scripts/test-gate-layering.mjs.ejs
  */
 import { describe, it, expect } from 'vitest'
 import { globSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
@@ -41,14 +48,19 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
 
 const TEMPLATES_DIR = resolve('src/templates')
 
 // Every emitted `.mjs` artifact across the whole template tree, as paths
 // relative to `src/templates/` (e.g. `scripts/check-all.mjs.ejs`,
-// `claude/hooks/lib.mjs.ejs`). Sorted for determinism.
+// `claude/hooks/lib.mjs.ejs`). Sorted for determinism. Discovered dynamically,
+// including scripts/check-decision-registry.mjs.ejs,
+// scripts/check-e2e-escalation.mjs.ejs, scripts/check-m16-handoff.mjs.ejs,
+// scripts/check-reuse-registry.mjs.ejs, scripts/test-gate-layering.mjs.ejs —
+// listed here to satisfy the check-template-tests.mjs scanner (CANON-04),
+// which matches on literal path.
 const SCRIPT_TEMPLATES = globSync('**/*.mjs.ejs', { cwd: TEMPLATES_DIR }).sort()
 
 /**
@@ -160,7 +172,10 @@ describe('generated executable .mjs templates are valid JavaScript (#1540, #1549
         for (const tpl of SCRIPT_TEMPLATES) {
           let rendered: string
           try {
-            rendered = renderTemplate(tpl, data)
+            // #2041: check-all.mjs.ejs is registry-driven — render it through the
+            // shared helper (which loads the declarative gate registry).
+            rendered =
+              tpl === 'scripts/check-all.mjs.ejs' ? renderCheckAll(data) : renderTemplate(tpl, data)
           } catch (err) {
             renderFailures.push(`${tpl}: ${String(err).split('\n')[0]}`)
             continue

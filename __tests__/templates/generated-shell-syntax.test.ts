@@ -24,6 +24,10 @@
  *     body; no always-on sweep `bash -n`s the rendered `.sh.ejs` corpus.
  *   - Decision: new always-on (L1) test mirroring generated-scripts-syntax.test
  *     (the `.mjs` node --check sweep) for the shell artifacts it does not cover.
+ *
+ * Covered by the dynamic glob below (satisfies check-template-tests.mjs scanner):
+ * scripts/bg-run.sh.ejs
+ * scripts/pid-watch.sh.ejs
  */
 import { describe, it, expect } from 'vitest'
 import { globSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
@@ -38,6 +42,9 @@ const TEMPLATES_DIR = resolve('src/templates')
 
 // Every emitted shell artifact across the template tree, relative to
 // `src/templates/` (e.g. `api-e2e/run.sh.ejs`, `scripts/lib/seed-common.sh.ejs`).
+// Discovered dynamically, including scripts/bg-run.sh.ejs and
+// scripts/pid-watch.sh.ejs (#2103) — listed here to satisfy the
+// check-template-tests.mjs scanner (CANON-04), which matches on literal path.
 const SHELL_TEMPLATES = globSync('**/*.sh.ejs', { cwd: TEMPLATES_DIR }).sort()
 
 function makeRenderData(overrides: Partial<ProjectConfig> = {}): Record<string, unknown> {

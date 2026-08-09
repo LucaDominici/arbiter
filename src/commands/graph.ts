@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { writeFileTranslated } from '../utils/fs.js'
 import { INVARIANT_CATALOG } from '../invariants/catalog.js'
+import { loadConfig } from '../utils/config.js'
 import { buildInvNodes } from '../graph/builders/inv.js'
 import { buildAdrNodes } from '../graph/builders/adr.js'
 import { buildReqNodes } from '../graph/builders/req.js'
@@ -57,8 +58,19 @@ export function runGraphBuild(opts: GraphBuildOptions = {}): GraphBuildResult {
 
   const store = new GraphStore()
 
+  // #2035 (TC-2): project-declared invariants (PROJ-NN) join the graph when the
+  // project's arbiter.json declares them — an enforcement-less PROJ then
+  // surfaces as an orphan in `verify graph`, same as catalog entries. Absent
+  // config keeps the catalog-only behavior (e.g. arbiter's own repo gate).
+  const stored = loadConfig(dir)
+  const invariants =
+    stored?.governance?.projectInvariants !== undefined &&
+    stored.governance.projectInvariants.length > 0
+      ? [...INVARIANT_CATALOG, ...stored.governance.projectInvariants]
+      : INVARIANT_CATALOG
+
   // Wire all builders (failures are non-fatal — each builder degrades gracefully)
-  buildInvNodes(INVARIANT_CATALOG, store)
+  buildInvNodes(invariants, store)
   buildAdrNodes(store, {}, dir)
   buildReqNodes(store, {}, dir)
   buildAstNodes(store, {}, dir)

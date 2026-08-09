@@ -65,6 +65,8 @@ import {
   extractTopLevelCommandNames,
   extractCommandAliases,
   extractCommandOptions,
+  extractSubcommandNames,
+  extractCommandAliasMappings,
 } from './lib/cli-command-names.mjs'
 
 function argValue(flag) {
@@ -119,7 +121,13 @@ const ALWAYS_VALID = new Set(['help'])
 // sentences like "arbiter checks your commits". The [a-z] lead character
 // naturally excludes global flags (`arbiter --version`) and possessives
 // (`arbiter's`), since neither starts a bare lowercase word.
-const COMMAND_MENTION_RE = /`arbiter\s+([a-z][a-z0-9-]*)/g
+// AC-2231.5 (#2231): a second, optional capture validates SUBCOMMAND tokens —
+// `arbiter review code`. The same [a-z] lead on token 2 discriminates
+// non-verbs in the corpus: `arbiter ship #NNN --advance` (#-prefixed issue
+// arg), `arbiter init --recipe <url>` / `arbiter update --governance`
+// (--flags) and `<...>`/`[...]` arg specs never start with a bare lowercase
+// word, so they can never be misread as subcommands.
+const COMMAND_MENTION_RE = /`arbiter\s+([a-z][a-z0-9-]*)(?:\s+([a-z][a-z0-9-]*))?/g
 
 // A handful of common verbs read naturally after "arbiter" in prose that
 // happens to sit inside backticks for emphasis (e.g. "`arbiter governs
@@ -137,6 +145,23 @@ export function extractCitedCommands(markdown) {
   return cited
 }
 
+/**
+ * AC-2231.5 (#2231): extract `arbiter <cmd> <sub>` pairs from backtick-prose
+ * citations. Returns Map<firstToken, Set<secondToken>> — second tokens that
+ * pass the [a-z] command-like lead only (issue args, --flags and <args> are
+ * structurally excluded by COMMAND_MENTION_RE's second capture).
+ */
+export function extractCitedSubcommands(markdown) {
+  const pairs = new Map()
+  for (const m of markdown.matchAll(COMMAND_MENTION_RE)) {
+    if (PROSE_STOPWORDS.has(m[1])) continue
+    if (m[2] === undefined) continue
+    if (!pairs.has(m[1])) pairs.set(m[1], new Set())
+    pairs.get(m[1]).add(m[2])
+  }
+  return pairs
+}
+
 // Matches the two adjacent string-literal array elements of a commander-CLI
 // spawn call — `spawnSync('npx', ['--no-install', 'arbiter', 'doc-set', ...])`
 // — the shape every thin-runner .mjs.ejs template in src/templates/scripts/
@@ -145,10 +170,30 @@ export function extractCitedCommands(markdown) {
 // a template stranding a citation here breaks every governed repo's emitted
 // runner, not just a doc's prose promise. No stopword filtering needed — an
 // array-literal token immediately after `'arbiter',` is never styled prose.
-const SPAWN_ARRAY_RE = /'arbiter',\s*'([a-z][a-z0-9-]*)'/g
+// AC-2231.5 (#2231): an optional third element captures a subcommand token —
+// `['--no-install', 'arbiter', 'task', 'record-red', ...]`. Flag/arg elements
+// (`'--freshness'`, `...args`) never match the [a-z] lead, so the optional
+// group stays empty for today's thin-runner shapes.
+const SPAWN_ARRAY_RE = /'arbiter',\s*'([a-z][a-z0-9-]*)'(?:,\s*'([a-z][a-z0-9-]*)')?/g
 
 export function extractSpawnedCommands(source) {
   return new Set([...source.matchAll(SPAWN_ARRAY_RE)].map((m) => m[1]))
+}
+
+/**
+ * AC-2231.5 (#2231): subcommand-token counterpart of extractSpawnedCommands —
+ * `['--no-install', 'arbiter', 'task', 'record-red', ...]` cites a
+ * subcommand; a phantom there would break every governed repo's emitted
+ * runner exactly like a phantom first token would.
+ */
+export function extractSpawnedSubcommands(source) {
+  const pairs = new Map()
+  for (const m of source.matchAll(SPAWN_ARRAY_RE)) {
+    if (m[2] === undefined) continue
+    if (!pairs.has(m[1])) pairs.set(m[1], new Set())
+    pairs.get(m[1]).add(m[2])
+  }
+  return pairs
 }
 
 /**
@@ -157,6 +202,31 @@ export function extractSpawnedCommands(source) {
  */
 export function findPhantomCommands(citedCommands, realCommandNames) {
   return [...citedCommands].filter((c) => !realCommandNames.has(c)).sort()
+}
+
+/**
+ * AC-2231.5 (#2231): validate `arbiter <cmd> <sub>` pairs against the
+ * subcommand tree extracted from cli.ts. Returns the sorted array of
+ * `"<cmd> <sub>"` phantom pairs. Discrimination rules:
+ *
+ * - aliases resolve to their canonical command first (`arbiter wt list` is
+ *   `worktree list`; `arbiter verify tdd` is `validate tdd` — cli.ts:1172);
+ * - a first token with NO subcommand tree skips validation entirely — its
+ *   second token is a positional argument, not a verb (e.g. `arbiter ship 1`);
+ * - the second token has already passed the [a-z] command-like lead in
+ *   extractCitedSubcommands, so `#NNN` / `--flag` / `<arg>` never reach here.
+ */
+export function findPhantomSubcommands(citedPairs, subcommandsByCommand, aliasToCanonical) {
+  const phantoms = []
+  for (const [cmd, subs] of citedPairs) {
+    const canonical = aliasToCanonical.get(cmd) ?? cmd
+    const tree = subcommandsByCommand.get(canonical)
+    if (!tree || tree.size === 0) continue
+    for (const sub of [...subs].sort()) {
+      if (!tree.has(sub)) phantoms.push(`${cmd} ${sub}`)
+    }
+  }
+  return phantoms.sort()
 }
 
 // `.md` covers hand-authored prose; `.md.ejs`/`.mjs.ejs` are the emitted-template
@@ -189,10 +259,20 @@ function main() {
   const cliSrc = readFileSync(CLI_TS, 'utf-8')
   const { topLevelNames } = extractTopLevelCommandNames(cliSrc)
   const aliases = extractCommandAliases(cliSrc)
+  const aliasToCanonical = extractCommandAliasMappings(cliSrc)
   if (topLevelNames.size === 0) {
     throw new Error('extracted zero top-level commands from cli.ts — parser out of date')
   }
   const realCommandNames = new Set([...topLevelNames, ...aliases, ...ALWAYS_VALID])
+
+  // AC-2231.5 (#2231): subcommand tree per top-level command — the extension
+  // that catches `arbiter review code` (the multi-pass dispatch removed in
+  // #1817) while leaving `arbiter review diff` and `arbiter task resume` alone.
+  const subcommandsByCommand = new Map()
+  for (const name of topLevelNames) {
+    const subs = extractSubcommandNames(cliSrc, name)
+    if (subs.size > 0) subcommandsByCommand.set(name, subs)
+  }
 
   const files = ROOTS.flatMap(collectScanFiles)
   if (files.length === 0) {
@@ -209,10 +289,16 @@ function main() {
   for (const file of files) {
     const content = readFileSync(file, 'utf-8')
     const cited = extractCitedCommands(content)
+    // AC-2231.5 (#2231): subcommand-token validation runs in the same pass.
+    const citedSubs = extractCitedSubcommands(content)
     // T5b′: also match the spawn-array shape (`'arbiter', 'doc-set'`) thin-runner
     // .mjs.ejs templates use to shell out — a phantom here breaks every governed
     // repo's emitted runner, not just a prose promise.
     for (const c of extractSpawnedCommands(content)) cited.add(c)
+    for (const [cmd, subs] of extractSpawnedSubcommands(content)) {
+      if (!citedSubs.has(cmd)) citedSubs.set(cmd, new Set())
+      for (const s of subs) citedSubs.get(cmd).add(s)
+    }
     if (file.endsWith('.md.ejs') || file.endsWith('.mjs.ejs')) {
       for (const c of cited) templateCitedCommands.add(c)
     }
@@ -220,6 +306,14 @@ function main() {
     for (const phantom of phantoms) {
       process.stdout.write(
         `  phantom: ${relPath(file)}: \`arbiter ${phantom}\` is not a registered command\n`,
+      )
+      violations++
+    }
+    const subPhantoms = findPhantomSubcommands(citedSubs, subcommandsByCommand, aliasToCanonical)
+    for (const pair of subPhantoms) {
+      const [cmd, sub] = pair.split(' ')
+      process.stdout.write(
+        `  phantom: ${relPath(file)}: \`arbiter ${cmd} ${sub}\` — \`${sub}\` is not a registered subcommand of \`${cmd}\`\n`,
       )
       violations++
     }

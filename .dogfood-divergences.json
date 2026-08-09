@@ -37,7 +37,7 @@
   {
     "path": "hooks/lib.mjs",
     "reason": "Arbiter self-dogfood: imports suppressions-shared.mjs and exports findInlineSuppression for inline-suppression directive support (INV-31). These arbiter-internal imports must not be back-ported to the template shipped to target projects.",
-    "diffHash": "7d88a9e4474ba3674be79f48a0dd7fff923761bd528d8838e2d9fc4487de9f78"
+    "diffHash": "9635567e24b512b699b46b6dcfccc2c6aa5566ae6dcca2ee339251d3710df7b7"
   },
   {
     "path": "hooks/post-edit-dispatch.mjs",
@@ -231,13 +231,6 @@
     "diffHash": "8b8a1744a172f01c51b75614217a18fd90321ae5e1e9e191cc315ff741ffc017"
   },
   {
-    "path": "check-drift.mjs",
-    "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-pinned 2026-08-03 (#2012): self additionally carries the SELF-EXEMPTION header recording why arbiter ships no .arbiter/drift-manifest.json; the [SKIP] marker itself landed on BOTH sides.",
-    "expires": "2026-08-15",
-    "diffHash": "c824690bbe3d9191543217843511cc414f44b91d0c089763cdeb7b914aef2b78"
-  },
-  {
     "path": "check-duplication.mjs",
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
@@ -262,7 +255,7 @@
     "dest": "scripts",
     "path": "check-feature-matrix.mjs",
     "reason": "#1887-B: self's own scripts/check-feature-matrix.mjs validates arbiter's OWN docs/internal/PRODUCT/FEATURE_MATRIX.md against arbiter's OWN src/kit/catalog.json (KIT-dimension coverage + L4 audit_trail DoD) — the shipped template (src/templates/scripts/check-feature-matrix.mjs.ejs) is a deliberately SCOPED-DOWN port for target projects, which have no docs/internal/PRODUCT/ tree or KIT catalog equivalent. The two files validate structurally different documents at different paths by design; this is not staleness to reconcile.",
-    "diffHash": "4e220471f1508a16274d75a18d36c542c96482db1cadbe0c0daa11e2a662669f"
+    "diffHash": "2c483a117db756f80bc7400275b01ac38132609875b04fb838d893104b7da56b"
   },
   {
     "path": "check-grace-window.mjs",
@@ -359,7 +352,7 @@
     "path": "check-local-ci-parity.mjs",
     "dest": "scripts",
     "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder.",
-    "diffHash": "85ebb39bb586a51e5e723b7d3b855582b98de766cd2dd22f4b9b888423c16a40"
+    "diffHash": "4d00507d34709001d8cface093052ed0238a7340bc3864ebf4d5da347e3928a2"
   },
   {
     "path": "check-suppression-expiry.mjs",

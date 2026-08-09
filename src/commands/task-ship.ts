@@ -18,6 +18,7 @@ import {
   readUnifiedState,
   writeUnifiedState,
   appendLog,
+  normalizeChainId,
 } from './task-state.js'
 import { runTaskAdvance } from './task.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
@@ -139,11 +140,15 @@ export function shipStepFor(
   phase: TaskPhase,
   tier: string | undefined,
   profile: ShipProfile = CONSUMER_DEFAULT_PROFILE,
+  /** #2102 — the primary task id, named alongside `chainIds` in the close-step text. */
+  taskId?: string,
+  /** #2102 — declared merge-train batch (`--chain`); empty ⇒ text is unchanged (single issue). */
+  chainIds: readonly string[] = [],
 ): ShipStep {
   const t = normTier(tier)
   const verticals = verticalsForTier(t)
   const withVerticals = (step: Omit<ShipStep, 'verticals'>): ShipStep => ({ ...step, verticals })
-  return withVerticals(shipStepBody(phase, t, profile))
+  return withVerticals(shipStepBody(phase, t, profile, taskId, chainIds))
 }
 
 /**
@@ -198,14 +203,33 @@ function closeAction(): string {
   )
 }
 
-function completeAction(profile: ShipProfile): string {
+/**
+ * #2102 — the close-issues fragment of the complete-action text. Names every id in
+ * `[taskId, ...chainIds]` when a chain is declared; unchanged single-issue text otherwise
+ * (byte-identical to pre-#2102 for the no-chain case). Ids display with a leading `#`
+ * regardless of how they were persisted (`task init --id` stores the raw form; `ship`'s
+ * own seeding normalizes to `#NNN` — display normalizes both so the chain reads uniformly).
+ */
+function closeIssuesPhrase(taskId: string | undefined, chainIds: readonly string[]): string {
+  if (chainIds.length === 0) return 'Close the issue, clean up the worktree.'
+  const display = (id: string): string => (id.startsWith('#') ? id : `#${id}`)
+  const ids = [taskId, ...chainIds].filter((v): v is string => Boolean(v)).map(display)
+  return `Close issues ${ids.join(', ')}, clean up the worktree.`
+}
+
+function completeAction(
+  profile: ShipProfile,
+  taskId?: string,
+  chainIds: readonly string[] = [],
+): string {
+  const closePhrase = closeIssuesPhrase(taskId, chainIds)
   if (profile.collaborationMode !== 'trunk-solo') {
-    return 'Commit, push, open a PR; await required review + checks, then merge. Close the issue, clean up the worktree.'
+    return `Commit, push, open a PR; await required review + checks, then merge. ${closePhrase}`
   }
   if (profile.mergeMode === 'direct') {
-    return "Commit and push to the project's default branch through its gate (no PR). Close the issue, clean up the worktree."
+    return `Commit and push to the project's default branch through its gate (no PR). ${closePhrase}`
   }
-  return 'Commit, push, open a PR, fast-forward merge once checks pass. Close the issue, clean up the worktree.'
+  return `Commit, push, open a PR, fast-forward merge once checks pass. ${closePhrase}`
 }
 
 /**
@@ -255,6 +279,8 @@ function shipStepBody(
   phase: TaskPhase,
   t: ShipTier,
   profile: ShipProfile,
+  taskId?: string,
+  chainIds: readonly string[] = [],
 ): Omit<ShipStep, 'verticals'> {
   if (isReviewPhase(phase)) return reviewPhaseStepBody(phase, t)
 
@@ -311,7 +337,7 @@ function shipStepBody(
     case 'complete':
       return {
         phase,
-        action: completeAction(profile),
+        action: completeAction(profile, taskId, chainIds),
         reviewAgents: 0,
       }
   }
@@ -337,6 +363,12 @@ export interface TaskShipOptions {
   dir?: string
   taskId?: string
   tier?: string
+  /**
+   * #2102 — `--chain <id>` (repeatable): other issue ids batched into this same ship run's
+   * worktree/gate/PR. Only written when provided (`undefined` leaves any previously-declared
+   * chain untouched — a bare `arbiter ship --advance` must never silently clear it).
+   */
+  chainIds?: string[]
   /** #1291 — per-run --autonomy override (flag > arbiter.json automation.autonomy > L0). */
   autonomy?: string
   /**
@@ -425,14 +457,24 @@ function seedShipState(
   rawTaskId: string | undefined,
   tier: string | undefined,
   overrides: Record<string, string> | undefined,
+  rawChainIds: string[] | undefined,
 ): void {
   const taskId = rawTaskId !== undefined ? normalizeShipTaskId(rawTaskId) : undefined
+  // #2102 — same numeric-only guard as the primary id (rejects non-numeric ids loudly).
+  const chainIds = rawChainIds !== undefined ? rawChainIds.map(normalizeChainId) : undefined
   const existing = readUnifiedState(root)
-  if (existing === null || taskId !== undefined || tier !== undefined || overrides !== undefined) {
+  if (
+    existing === null ||
+    taskId !== undefined ||
+    tier !== undefined ||
+    overrides !== undefined ||
+    chainIds !== undefined
+  ) {
     writeUnifiedState(root, {
       ...(taskId !== undefined ? { taskId } : {}),
       ...(tier !== undefined ? { tier } : {}),
       ...(overrides !== undefined ? { overrides } : {}),
+      ...(chainIds !== undefined ? { chainIds } : {}),
     })
   }
 }
@@ -554,7 +596,7 @@ function shipTierFor(
  */
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
-  seedShipState(root, opts.taskId, opts.tier, opts.overrides)
+  seedShipState(root, opts.taskId, opts.tier, opts.overrides, opts.chainIds)
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'
@@ -569,7 +611,8 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   return {
     phase,
-    step: shipStepFor(phase, tier, profile),
+    // #2102 — thread taskId + chainIds through so the close-step text names the whole chain.
+    step: shipStepFor(phase, tier, profile, state?.taskId, state?.chainIds ?? []),
     advanced: advancedPhase.advanced,
     done: phase === 'complete',
     tier,

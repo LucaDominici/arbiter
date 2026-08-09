@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-08-03'
+last_review: '2026-08-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -129,3 +129,6 @@ related: []
 | 109 | [constraint-map.json scaffolded + INV-115 fail-closed on a missing map](../ADR/109-constraint-map-fail-closed.md) | Accepted | 2026-07-20 |
 | 110 | [Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](../ADR/110-acceptance-criteria-anchor.md) | Accepted | 2026-07-21 |
 | 111 | [tier origination is human-only (#2184, follow-up to #2180/#2178)](../ADR/111-tier-origination-human-only.md) | Accepted | 2026-08-03 |
+| 112 | [project-declared invariants (PROJ-NN) — the project is the author of its own catalog additions (#2035)](../ADR/112-project-invariants-proj-nn.md) | Accepted | 2026-08-04 |
+| 113 | [decision registry (D-NN) — blocked project decisions with per-decision enforcement (#2036)](../ADR/113-decision-registry-dnn.md) | Accepted | 2026-08-04 |
+| 114 | [extended-set activation + live-SSOT drift binding (#2044)](../ADR/114-extended-invariants-live-ssot.md) | Accepted | 2026-08-04 |

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { renderTemplate } from '../../src/utils/render.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 
 describe('check-all.mjs.ejs inlines workflow-runners logic (#191, #247)', () => {
   it('rendered check-all.mjs contains CI_BUILD_RUNNER_LABEL pattern guard', () => {
@@ -8,7 +7,7 @@ describe('check-all.mjs.ejs inlines workflow-runners logic (#191, #247)', () => 
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('CI_BUILD_RUNNER_LABEL')
     expect(content).toContain('runs-on')
     expect(content).toContain('_wrViolations')
@@ -19,7 +18,7 @@ describe('check-all.mjs.ejs inlines workflow-runners logic (#191, #247)', () => 
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('readdirSync')
     expect(content).toContain('node:fs')
   })
@@ -31,7 +30,7 @@ describe('check-all.mjs.ejs inlines ci-alignment logic (#240, #247)', () => {
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).toContain('_caDesignExemptions')
     expect(content).toContain('_caExtractManifestGates')
     expect(content).toContain('_caExtractCiGates')
@@ -43,7 +42,7 @@ describe('check-all.mjs.ejs inlines ci-alignment logic (#240, #247)', () => {
       enableSecurityScanning: false,
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderCheckAll(data)
     expect(content).not.toContain('gitleaks')
   })
 })

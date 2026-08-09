@@ -63,6 +63,19 @@ export function generateSsot(
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
+
+    // REUSE_REGISTRY.md — L2+: the consumer-populated REGISTER (the spec above
+    // already references it; the file itself was never emitted — #2044
+    // AC-2044.1 closes the gap). skipIfExists so `arbiter update` never clobbers
+    // registered entries. The mechanical check (check-reuse-registry.mjs) runs
+    // when the extended set is active (INV-69/70).
+    results.push(
+      writeFile(
+        resolvedPath(base, 'docs', 'METHOD', 'REUSE_REGISTRY.md'),
+        renderTemplate('root/docs/METHOD/REUSE_REGISTRY.md.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
   }
 
   // TRACK_ROUTER.md — L4 only (compliance-grade context economy)
