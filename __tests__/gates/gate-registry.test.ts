@@ -52,10 +52,7 @@ function runScript(
   }
 }
 
-function baseData(
-  dir: string,
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+function baseData(dir: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   // Mirrors the enriched render data the generator builds (generateCheckAll):
   // coverageThreshold/coverageEnabled/mutationEnabled + the level booleans.
   const cfg = makeConfig(dir, {
