@@ -125,6 +125,7 @@ describe('declarative gate registry (#2041)', () => {
     { language: 'rust' },
     { language: 'python' },
     { language: 'java', buildTool: 'gradle' },
+    { language: 'java', buildTool: 'maven' },
     { language: 'kotlin', buildTool: 'gradle' },
   ] as const)(
     'AC-2041.3: a layering contract test is emitted for consumers ($language @ L2, trunk-solo)',
