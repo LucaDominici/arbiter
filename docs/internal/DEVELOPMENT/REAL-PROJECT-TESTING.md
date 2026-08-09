@@ -381,6 +381,8 @@ The highest-friction nightly failures now have dedicated repo-level regression t
 
 If a future change updates the nightly workflow or one of the real-project fixtures, update these tests in the same PR. They exist to catch breakage before the nightly matrix becomes the first place a regression appears.
 
+`greenfield-first-run.test.ts`, `go-debt-node-modules.test.ts`, and `record-red-runner.test.ts` (all under `__tests__/integration/e2e/functional/`) were, until #2257, wired into no CI workflow and no gate script — RED, but invisible. They now run nightly in `_nightly.yml`'s `generated-gate-e2e-greenfield` job (its own job, not folded into `generated-gate-e2e-misc`, because it needs Rust and Python toolchains neither sibling job installs).
+
 ---
 
 ## Troubleshooting
