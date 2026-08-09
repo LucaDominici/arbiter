@@ -292,7 +292,7 @@ runCheck('format', 'ruff', ['format', '--check', '.']);
 
 
 
-runCheck('unit tests', 'pytest', ['']);
+runCheck('unit tests', 'pytest', []);
 
 
 
