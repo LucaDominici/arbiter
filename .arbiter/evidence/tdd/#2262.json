@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2262",
+  "test_path": "__tests__/docs/gold-doc-freshness-2262.test.ts",
+  "test_commit_sha": "f417ee229dd293ff746f177428eb49aa51066fc9",
+  "test_blob_sha": "e54eed52fe3b46a335df623ee44261a69a0e7379",
+  "test_run_log": "RUN v4.1.10\nFAIL __tests__/docs/gold-doc-freshness-2262.test.ts\nAssertionError: expected design documents to record the implemented doc-set and freshness surfaces",
+  "observed_failure": "FAIL  __tests__/docs/gold-doc-freshness-2262.test.ts",
+  "recorded_at": "2026-08-09T18:58:05.446Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/docs/gold-doc-freshness-2262.test.ts"
+  ]
+}
