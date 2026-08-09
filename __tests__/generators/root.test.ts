@@ -24,6 +24,11 @@ describe('generateRoot', () => {
     expect(paths.some((p) => p.endsWith('.editorconfig'))).toBe(true)
   })
 
+  it('emits the canonical .nvmrc for CI-enabled non-TypeScript projects (#2259)', () => {
+    generateRoot(makeConfig(dir, { language: 'python', nodeVersion: '22.21.1' }))
+    expect(readFileSync(join(dir, '.nvmrc'), 'utf-8')).toBe('22.21.1\n')
+  })
+
   it('generates CODEOWNERS when githubOwner is set', () => {
     const result = generateRoot(makeConfig(dir, { githubOwner: 'test-owner' }))
     const paths = result.files.map((f) => f.path)
