@@ -49,13 +49,16 @@ describe('generateDocSetSkeletons — real bodies, not a banner (RED before this
     generateDocSetSkeletons(makeConfig(dir))
     const content = readFileSync(join(dir, 'docs', 'GLOSSARY.md'), 'utf-8')
     expect(content).not.toContain('STUB — fill me in')
-    expect(content).toContain('| Term | Definition | Owner |')
+    // #2257: formatContent() now prettier-aligns markdown table columns (fixes a
+    // Day-1 `format` gate RED, see doc-set.ts scaffoldRow) — match cells with
+    // whitespace-tolerant regex rather than the single-space raw-render literal.
+    expect(content).toMatch(/\|\s*Term\s*\|\s*Definition\s*\|\s*Owner\s*\|/)
   })
 
   it('scaffolds docs/technical-debt.md as a register table', () => {
     generateDocSetSkeletons(makeConfig(dir))
     const content = readFileSync(join(dir, 'docs', 'technical-debt.md'), 'utf-8')
-    expect(content).toContain('| Item | Class | Interest | Plan |')
+    expect(content).toMatch(/\|\s*Item\s*\|\s*Class\s*\|\s*Interest\s*\|\s*Plan\s*\|/)
   })
 
   it('scaffolds docs/GOVERNANCE.md with decision-rights/gate-ladder/escalation headers', () => {

@@ -12,6 +12,7 @@ import { basename, resolve } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { renderTemplate } from '../utils/render.js'
+import { formatContent } from '../utils/prettier-format.js'
 import { runDocSet } from '../commands/doc-set.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
@@ -200,7 +201,12 @@ function scaffoldRow(
     ? frontmatter(title, ctx.today) + body
     : body
 
-  const result = writeFile(targetAbs, rendered, {
+  // formatContent (#933 F13, #2257): these are hand-authored markdown skeletons, never
+  // run through the target's own prettier config before this — without it, a fresh init
+  // REDs the `format` gate on Day 1 whenever the raw render's line-wrap/spacing drifts
+  // from the target's effective prettier config (same class as the .spec.ts / .json
+  // writes elsewhere — see smoke-journeys.ts).
+  const result = writeFile(targetAbs, formatContent(rendered, targetAbs, ctx.repo), {
     skipIfExists: !bannerDetected,
     dryRun: ctx.dryRun,
   })
