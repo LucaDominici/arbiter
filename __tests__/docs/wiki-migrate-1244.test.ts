@@ -206,14 +206,16 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
   // regardless of kind (docs/internal/METHOD/SSOT_CORE_SET.md: "a doc qualifies when
   // status: active and either its first kind/* tag is a backbone kind ... or it carries
   // a non-empty canonical_id").
+  // 2026-08-09 (#2249) legitimately added docs/architecture/analysis.md — same rule:
+  // `kind/reference` (not a backbone kind) but carrying `canonical_id: 'ANALYSIS'`.
   // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
   // the pre-growth ceiling. Bound updated to the current real count so the budget still
   // catches future unbounded growth.
-  it('selectSsotDocs returns at most 28 canonical core docs', () => {
+  it('selectSsotDocs returns at most 29 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(28)
+    ).toBeLessThanOrEqual(29)
   })
 })
