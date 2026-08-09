@@ -119,10 +119,17 @@ describe('declarative gate registry (#2041)', () => {
   // for that cell. Spawns the actual emitted test-gate-layering.mjs against
   // the actual emitted registry — the production oracle, not a registry-shape
   // proxy.
-  it.each(['typescript', 'go'] as const)(
-    'AC-2041.3: a layering contract test is emitted for consumers (%s @ L2, trunk-solo)',
-    (language) => {
-      const data = baseData(dir, { language, collaborationMode: 'trunk-solo' })
+  it.each([
+    { language: 'typescript' },
+    { language: 'go' },
+    { language: 'rust' },
+    { language: 'python' },
+    { language: 'java', buildTool: 'gradle' },
+    { language: 'kotlin', buildTool: 'gradle' },
+  ] as const)(
+    'AC-2041.3: a layering contract test is emitted for consumers ($language @ L2, trunk-solo)',
+    ({ language, ...overrides }) => {
+      const data = baseData(dir, { language, collaborationMode: 'trunk-solo', ...overrides })
       const registry = loadGateRegistry({ ...data })
       // The emitted test asserts L1 ⊂ L2 ⊂ L3 membership from the registry.
       const rendered = renderTemplate('scripts/test-gate-layering.mjs.ejs', data)
