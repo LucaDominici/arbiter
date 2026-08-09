@@ -662,7 +662,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 <% } else { %>
 <% if (g.condition) { %>if (<%- g.condition %>) { <% } %>
 <% const _fn = g.kind === 'warn' ? 'runWarnCheck' : g.kind === 'tool' ? 'runToolCheck' : 'runCheck'; %>
-<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', ['<%- g.cmd.slice(1).join("', '") %>']<%= g.soft ? ', { soft: graceActive }' : '' %>);
+<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', [<% if (g.cmd.length > 1) { %>'<%- g.cmd.slice(1).join("', '") %>'<% } %>]<%= g.soft ? ', { soft: graceActive }' : '' %>);
 <% if (g.else) { %>} else {
 <%- g.else %>
 }<% } else if (g.condition) { %> } <% } %>
@@ -1097,7 +1097,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 <% } else { %>
 <% if (g.condition) { %>if (<%- g.condition %>) { <% } %>
 <% const _fn = g.kind === 'warn' ? 'runWarnCheck' : g.kind === 'tool' ? 'runToolCheck' : 'runCheck'; %>
-<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', ['<%- g.cmd.slice(1).join("', '") %>']<%= g.soft ? ', { soft: graceActive }' : '' %>);
+<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', [<% if (g.cmd.length > 1) { %>'<%- g.cmd.slice(1).join("', '") %>'<% } %>]<%= g.soft ? ', { soft: graceActive }' : '' %>);
 <% if (g.else) { %>} else {
 <%- g.else %>
 }<% } else if (g.condition) { %> } <% } %>
@@ -1457,7 +1457,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 <% } else { %>
 <% if (g.condition) { %>if (<%- g.condition %>) { <% } %>
 <% const _fn = g.kind === 'warn' ? 'runWarnCheck' : g.kind === 'tool' ? 'runToolCheck' : 'runCheck'; %>
-<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', ['<%- g.cmd.slice(1).join("', '") %>']<%= g.soft ? ', { soft: graceActive }' : '' %>);
+<%= _fn %>('<%= g.name %>', '<%= g.cmd[0] %>', [<% if (g.cmd.length > 1) { %>'<%- g.cmd.slice(1).join("', '") %>'<% } %>]<%= g.soft ? ', { soft: graceActive }' : '' %>);
 <% if (g.else) { %>} else {
 <%- g.else %>
 }<% } else if (g.condition) { %> } <% } %>
