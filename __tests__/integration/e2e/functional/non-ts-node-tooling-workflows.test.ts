@@ -30,10 +30,6 @@ describe('non-TypeScript workflow Node tooling (#2259)', () => {
     ['github/workflows/_monthly.yml.ejs', { language: 'python', buildTool: 'pip' }],
     ['github/workflows/_nightly.yml.ejs', { language: 'python', buildTool: 'pip' }],
     [
-      'github/workflows/16-frontend-quality.yml.ejs',
-      { language: 'python', archetype: 'frontend-spa', buildTool: 'pip' },
-    ],
-    [
       'github/workflows/18-frontend-lane.yml.ejs',
       { language: 'go', archetype: 'library', lanes: ['frontend'], buildTool: 'go' },
     ],

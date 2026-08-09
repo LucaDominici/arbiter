@@ -15,6 +15,7 @@ import {
 import { computeThresholds } from '../../src/config/thresholds.js'
 import { generateGlobalInvariants } from '../../src/generators/global-invariants.js'
 import { generateContractTesting } from '../../src/generators/contract-testing.js'
+import { generateGithub } from '../../src/generators/github.js'
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -214,6 +215,26 @@ describe('cross-product: ci.yml — docs-check job across all stacks', () => {
       expect(content).toContain('docs-check:')
     })
   }
+})
+
+describe('cross-product: frontend-quality emission', () => {
+  it('python frontend-spa does not emit a root npm frontend workflow', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-product-frontend-'))
+    try {
+      generateGithub(
+        makeConfig(dir, {
+          language: 'python',
+          buildTool: 'pip',
+          collaborationMode: 'peer-review',
+          governanceLevel: 'L2',
+          archetype: 'frontend-spa',
+        }),
+      )
+      expect(existsSync(join(dir, '.github', 'workflows', '16-frontend-quality.yml'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('cross-product: ci.yml — language setup step across all governance levels', () => {

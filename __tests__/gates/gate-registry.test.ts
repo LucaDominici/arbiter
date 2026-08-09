@@ -5,8 +5,16 @@
 // into the consumer.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { renderTemplate } from '../../src/utils/render.js'
 import { loadGateRegistry } from '../../src/generators/check-all.js'
@@ -154,4 +162,29 @@ describe('declarative gate registry (#2041)', () => {
       }
     },
   )
+
+  it.each([
+    {
+      buildTool: 'gradle',
+      expected: ['./gradlew', 'build -q'],
+    },
+    {
+      buildTool: 'maven',
+      expected: ['mvn', 'verify -q'],
+    },
+  ] as const)('Java L3 lifecycle uses the full $buildTool lifecycle', ({ buildTool, expected }) => {
+    const registry = loadGateRegistry(baseData(dir, { language: 'java', buildTool }))
+    expect(registry.find((gate) => gate.id === 'java-lifecycle')?.cmd).toEqual(expected)
+  })
+
+  it('Kotlin L3 fixture owns an executable Gradle wrapper', () => {
+    const fixture = resolve('__tests__/fixtures/real-projects/kotlin-backend-web-db-gradle')
+    const wrapper = join(fixture, 'gradle', 'wrapper')
+    const gradlew = join(fixture, 'gradlew')
+
+    expect(existsSync(join(wrapper, 'gradle-wrapper.jar'))).toBe(true)
+    expect(existsSync(join(wrapper, 'gradle-wrapper.properties'))).toBe(true)
+    expect(statSync(gradlew).mode & 0o111).not.toBe(0)
+    expect(readFileSync(gradlew, 'utf-8')).toContain('org.gradle.wrapper.GradleWrapperMain')
+  })
 })

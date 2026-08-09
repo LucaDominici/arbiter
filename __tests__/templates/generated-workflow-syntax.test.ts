@@ -89,45 +89,28 @@ function makeRenderData(overrides: Partial<ProjectConfig> = {}): Record<string, 
   }
 }
 
-// One config per language so build/test/lint commands and language-specific
-// EJS branches across the whole corpus (e.g. Java/Gradle deploy steps, Go
-// module caching) each materialize and get actionlinted at least once.
-const CONFIGS: Array<{ name: string; data: Record<string, unknown> }> = [
+// The canonical language × governance matrix makes every language-specific EJS
+// branch actionlinted at each emitted tier, rather than validating L4 only.
+const WORKFLOW_STACKS = [
+  { language: 'typescript', buildTool: 'npm' },
   {
-    name: 'go/backend-web-db',
-    data: makeRenderData({
-      language: 'go',
-      buildTool: 'go',
-      archetype: 'backend-web-db',
-    }),
+    language: 'java',
+    buildTool: 'gradle',
+    architectureStyle: 'hexagonal',
+    basePackage: 'com.example.demo',
   },
-  {
-    name: 'java/backend-web-db',
-    data: makeRenderData({
-      language: 'java',
-      buildTool: 'gradle',
-      archetype: 'backend-web-db',
-      architectureStyle: 'hexagonal',
-      basePackage: 'com.example.demo',
-    }),
-  },
-  {
-    name: 'python/backend-web-db',
-    data: makeRenderData({
-      language: 'python',
-      buildTool: 'pip',
-      archetype: 'backend-web-db',
-    }),
-  },
-  {
-    name: 'typescript/backend-web-db',
-    data: makeRenderData({
-      language: 'typescript',
-      buildTool: 'npm',
-      archetype: 'backend-web-db',
-    }),
-  },
-]
+  { language: 'rust', buildTool: 'cargo' },
+  { language: 'go', buildTool: 'go' },
+  { language: 'python', buildTool: 'pip' },
+] as const
+
+const CONFIGS: Array<{ name: string; data: Record<string, unknown> }> = WORKFLOW_STACKS.flatMap(
+  (stack) =>
+    (['L1', 'L2', 'L3', 'L4'] as const).map((governanceLevel) => ({
+      name: `${stack.language}/backend-web-db/${governanceLevel}`,
+      data: makeRenderData({ ...stack, archetype: 'backend-web-db', governanceLevel }),
+    })),
+)
 
 describe('generated GitHub Actions workflows pass actionlint (#actionlint-corpus)', () => {
   it('renders at least the full known set of workflow templates', () => {
@@ -136,6 +119,7 @@ describe('generated GitHub Actions workflows pass actionlint (#actionlint-corpus
     expect(WORKFLOW_TEMPLATES.length).toBeGreaterThanOrEqual(30)
     expect(WORKFLOW_TEMPLATES).toContain('github/workflows/01-pr-fast.yml.ejs')
     expect(WORKFLOW_TEMPLATES).toContain('github/workflows/_notify.yml.ejs')
+    expect(CONFIGS).toHaveLength(20)
   })
 
   for (const { name, data } of CONFIGS) {
