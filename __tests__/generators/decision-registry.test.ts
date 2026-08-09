@@ -74,7 +74,9 @@ describe('decision registry (#2036)', () => {
     // markdown tables — match cell headers with a whitespace-tolerant regex rather than
     // the single-space raw-render literal (FIVE_COLUMN_HEADER stays exact for the
     // hand-crafted TC-2 gate fixtures below, which bypass the generator entirely).
-    expect(content).toMatch(/\|\s*D-NN\s*\|\s*decisione\s*\|\s*razionale\s*\|\s*decisore\s*\|\s*data\s*\|/)
+    expect(content).toMatch(
+      /\|\s*D-NN\s*\|\s*decisione\s*\|\s*razionale\s*\|\s*decisore\s*\|\s*data\s*\|/,
+    )
     expect(content).toMatch(/Changelog/i)
   })
 
