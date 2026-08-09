@@ -19,8 +19,10 @@ function commit(dir: string, message: string, date: string): void {
 
 describe('#2262 — gold-doc freshness is coupling-aware', () => {
   it('records the implemented doc-set, freshness, and self-enrollment surfaces it reviews', () => {
-    expect(capability).toContain('`src/generators/doc-set.ts` implements the real doc-body generator')
-    expect(capability).toContain('`scripts/check-doc-freshness.mjs` is implemented')
+    expect(capability).toMatch(
+      /`src\/generators\/doc-set\.ts` implements the real\s+doc-body generator/,
+    )
+    expect(capability).toMatch(/`scripts\/check-doc-\s*freshness\.mjs` is implemented/)
     expect(tranches).toContain('T1b is implemented')
     expect(tranches).toContain('all charter documents are tracked')
   })

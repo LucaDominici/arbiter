@@ -2,7 +2,7 @@
 title: 'Gold-Doc Tranches T3-T5 — skeleton generator, freshness gate, self-enrollment'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-03'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -31,6 +31,11 @@ authoritative for two pieces this doc would otherwise own: the **`tier_floor`** 
 supersede the parent's §5.4 "extend check-emission-coherence" sketch). This doc does **not**
 re-design them; T5 below consumes them and specifies what remains: charter-doc enrollment (parent
 Tranche 5(a)) and the combined presence+freshness self-audit proof.
+
+**Implementation status (reviewed 2026-08-09).** T3's real doc-body generator and T4's freshness
+engine are shipped. T1b is implemented, and all charter documents are tracked and enrolled in the
+self manifest. The remaining H7 coherence work stays explicitly open; the plan sections below are
+retained as historical design and red-path evidence.
 
 ## 0. Baseline — what T0-T2 already delivered (verified)
 
@@ -221,9 +226,8 @@ for every resolved present `.md` file:
    Defaults live in the engine; a manifest-level `freshness_bars:` map may override per repo
    (enforcement level is data, not code — `docs/audit/ACTION_PLAN.md:28` doctrine).
 
-3. **Change-coupling (strongest signal).** New optional per-check manifest field `couples_to:`
-   (list of path globs — the code this doc describes). Verified: no such field exists anywhere
-   today. Rule: `git log -1 --format=%cI -- <globs>` (last commit touching the coupled code) newer
+3. **Change-coupling (strongest signal).** The optional per-check manifest field `couples_to:`
+   (list of path globs — the code this doc describes) is implemented. Rule: `git log -1 --format=%cI -- <globs>` (last commit touching the coupled code) newer
    than `last_review` (day-granular, same-day passes) ⇒ **STALE**, regardless of the age bar.
    Deterministic against full history — no diff-range, no merge-base ambiguity.
    **Git edges (explicit):** not a git repo / git absent ⇒ coupling signal `skipped` (reported in
@@ -258,8 +262,8 @@ pre-push gate is the solo-dev's required check, `:111-117`; everything slower ri
 
 ### 2.4 Red path — prova
 
-- **RED today:** no engine exists; nothing fails when `last_review` is years old
-  (`check-doc-style` passes it as well-formed).
+- **Historical RED:** before T4, no engine existed and nothing failed when `last_review` was years
+  old (`check-doc-style` passed it as well-formed).
 - **Age:** fixture manifest row `freshness_class: high-churn` + doc with `last_review: '2026-01-01'`
   (192d old at design date) → exit 1 naming path, age, and 90d bar. Same doc with
   `freshness_class: regulatory` → exit 0 (bar isolation).
@@ -278,9 +282,8 @@ pre-push gate is the solo-dev's required check, `:111-117`; everything slower ri
 ### 3.1 What the addendum already owns (referenced, not re-designed)
 
 - **`tier_floor: enterprise`** in `standards/doc-profile` with max() semantics — addendum §1
-  (T1b). Verified still unlanded: live run above resolves `tierColumn: "solo"`. **T5 hard
-  dependency:** without T1b, seven of the eight enterprise-column rows stay dormant on self and
-  "self evaluates HARD" is theater.
+  (T1b). T1b is implemented; the self profile now resolves the enterprise floor before charter
+  checks are evaluated.
 - **H7 = phantom-command-scan extension + emitted-surface ledger + `arbiter mark` restore** —
   addendum §2 (T5b′/T5b″), which supersedes the parent §5.4 emission-coherence sketch (two drift
   models, two gates: file-paths stay with `check-emission-coherence.mjs`, command-existence with
@@ -291,16 +294,16 @@ pre-push gate is the solo-dev's required check, `:111-117`; everything slower ri
 
 **The charter set** (verified on disk; tracked status matters):
 
-| Doc                                                           | Tracked?           | class        | `couples_to`                                                                                                                                                                            |
-| ------------------------------------------------------------- | ------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/research/enterprise-doc-standard-2026.md`               | yes                | `policy`     | —                                                                                                                                                                                       |
-| `docs/methodology/agent-orchestration-and-context-hygiene.md` | yes                | `policy`     | —                                                                                                                                                                                       |
-| `docs/design/gold-doc-capability.md`                          | **NO — untracked** | `high-churn` | `scripts/check-doc-set.mjs`, `scripts/lib/doc-set-resolve.mjs`, `src/commands/doc-set.ts`, `src/generators/doc-set.ts`, `scripts/check-doc-freshness.mjs`, `standards/gold-doc-set.yml` |
-| `docs/design/gold-doc-self-tier-and-coherence.md`             | **NO — untracked** | `high-churn` | `scripts/check-phantom-command-scan.mjs`, `scripts/lib/cli-command-names.mjs`, `standards/doc-profile`                                                                                  |
+| Doc                                                           | Tracked? | class        | `couples_to`                                                                                                                                                                            |
+| ------------------------------------------------------------- | -------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/research/enterprise-doc-standard-2026.md`               | yes      | `policy`     | —                                                                                                                                                                                       |
+| `docs/methodology/agent-orchestration-and-context-hygiene.md` | yes      | `policy`     | —                                                                                                                                                                                       |
+| `docs/design/gold-doc-capability.md`                          | yes      | `high-churn` | `scripts/check-doc-set.mjs`, `scripts/lib/doc-set-resolve.mjs`, `src/commands/doc-set.ts`, `src/generators/doc-set.ts`, `scripts/check-doc-freshness.mjs`, `standards/gold-doc-set.yml` |
+| `docs/design/gold-doc-self-tier-and-coherence.md`             | yes      | `high-churn` | `scripts/check-phantom-command-scan.mjs`, `scripts/lib/cli-command-names.mjs`, `standards/doc-profile`                                                                                  |
 
-(`git ls-files` returns only the first two; the two design docs — this file included — exist only
-in the working tree. Local `existsSync` presence passes; a CI checkout goes RED. **The enrollment
-PR must commit them** — durability is part of the tranche, not an afterthought.)
+(At planning time `git ls-files` returned only the first two and a CI checkout would have gone RED.
+All charter documents are now tracked; the retained note explains why enrollment required a durable
+commit rather than a local-only pass.)
 
 **Mechanism — a `self-charter` overlay, not always-rows:**
 
@@ -328,8 +331,8 @@ charter from the day the rows exist.
 
 - **Presence, unit:** fixture dir with the self manifest + a profile enabling `self-charter` and
   none of the four files (engine takes `--manifest`/`--profile` overrides, `check-doc-set.mjs:66-67`)
-  → `missingMandatory` lists all four, exit 1 under `--strict`. RED-by-construction today (rows
-  absent, audit silent about the charter).
+  → `missingMandatory` lists all four, exit 1 under `--strict`. This was the RED-by-construction
+  before the rows landed.
 - **Presence, live:** after enrollment, `mv docs/design/gold-doc-capability.md /tmp/` →
   `check-all` (`doc-set presence` HARD step) goes RED naming the file; restore → GREEN.
 - **Freshness, live (T4×T5 interlock):** commit a change to `scripts/check-doc-set.mjs` without
@@ -345,13 +348,13 @@ charter from the day the rows exist.
 ## 4. Ordering, dependencies, tranche exit criteria
 
 ```
-T1b (addendum §1: tier_floor + technical-debt cargo)   ← unlanded prerequisite for T5(a)'s bar
+T1b (addendum §1: tier_floor + technical-debt cargo)   ← landed prerequisite for T5(a)'s bar
    │
 T3 (skeleton generator)      — depends on T0 (command) + T1 (tiers in missing[]); independent of T4/T5
 T4 (freshness gate)          — depends on T1 (freshness_class rows, landed); flag rides T0's command
 T5b′ (phantom-scan ext)      — independent (addendum); should precede T4's new runner template, else
    │                            the spawn-array citation lands unscanned (bounded: ledger row covers it)
-T5(a) (charter enrollment)   — after T1b; freshness bite requires T4; commits the two untracked docs
+T5(a) (charter enrollment)   — after T1b; freshness bite requires T4; tracks the charter docs
 T5b″ (emitted-surface ledger) — follow-up (addendum); T4 appends its emitted_by row here
 ```
 
@@ -367,6 +370,6 @@ transcription; verification stays with the orchestrator.
 - **T4:** engine + shared-resolve refactor with frozen engine parity; monthly + release wiring on
   both self and governed templates; all §2.4 fixtures green; self monthly run produces the JSON
   evidence artifact.
-- **T5:** four (five with this file) charter rows enrolled; both untracked design docs committed;
+- **T5:** four (five with this file) charter rows enrolled; all charter design docs tracked;
   §3.3 presence and freshness red paths demonstrated live; self `check-all` green on the
   enterprise column (T1b) with the charter enrolled.
