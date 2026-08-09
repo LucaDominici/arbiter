@@ -36,16 +36,11 @@ Arbiter installs a complete, standards-aligned AI governance stack into any proj
 
 ## Current Milestone
 
-M23 — Mutation Testing as Hard Gate
+All milestones complete.
 
 ## Open Milestones
 
-- M23 — Mutation Testing as Hard Gate
-- M24 — Security Scanning Suite
-- M29 — Complete Static Analysis Suite
-- M31 — Configuration Skill & arbiter.json v2
-- M32 — Extended AI Tool Support
-- M33 — CLI-First Policy & Shared run-cli Wrapper
+None — all milestones complete.
 
 ## Navigation
 
