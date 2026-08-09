@@ -34,7 +34,13 @@ if (source.includes('arbiter:preserve')) {
 // A row is `| D-NN | ... |`; its Enforcement line must directly follow (the next
 // non-blank line) before the next table row or heading.
 const ROW_RE = /^\|\s*(D-\d+)\s*\|/;
-const ENFORCEMENT_RE = /^\s*Enforcement:\s*(.+?)\s*$/;
+// #2257: the scaffolded registry places the Enforcement line directly below the table
+// row with NO blank line in between (by design, so the gate can find it) — but that
+// makes it adjacent enough for a markdown table formatter (prettier) to fold it into
+// the table as a trailing `| Enforcement: ... |` row on a Day-1 `format --write`. Both
+// the plain and pipe-wrapped shapes are accepted so formatting the file never orphans
+// a decision that was actually declared.
+const ENFORCEMENT_RE = /^\s*\|?\s*Enforcement:\s*(.+?)\s*\|?\s*$/;
 const lines = source.split('\n');
 const orphans = [];
 const exempt = [];

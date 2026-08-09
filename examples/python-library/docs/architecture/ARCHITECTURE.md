@@ -8,6 +8,7 @@ canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
 related: []
 ---
+
 # ARCHITECTURE
 
 _Arc42 Canvas — single-page architecture overview. Right-sized for a solo/small team: expand to

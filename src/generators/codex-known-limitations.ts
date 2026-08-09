@@ -232,7 +232,12 @@ export function planClaudeHookInventory(config: ProjectConfig): string[] {
   const names = planClaudeHooks(config).map((e) => e.file)
   if (!config.existing.aiRulez) {
     if (config.enableSecurityScanning) names.push('check-no-pii.mjs')
-    if (config.governanceLevel !== 'L1') names.push('wiki-on-commit.mjs')
+    // #2257: wiki.ts now also guards the write on config.tools.includes('claude')
+    // (codex-only projects get no Claude dispatcher, so no wiki-on-commit.mjs hook
+    // to route) — mirrored here per the #1966 contract this function documents:
+    // an inventory row for a hook that is never emitted is stale documentation.
+    if (config.governanceLevel !== 'L1' && config.tools.includes('claude'))
+      names.push('wiki-on-commit.mjs')
   }
   return names
 }

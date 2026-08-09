@@ -70,7 +70,13 @@ describe('decision registry (#2036)', () => {
     const path = join(dir, 'DECISION_REGISTRY.md')
     expect(existsSync(path)).toBe(true)
     const content = readFileSync(path, 'utf-8')
-    expect(content).toContain(FIVE_COLUMN_HEADER)
+    // #2257: doc-set.ts now formatContent()s skeleton output, and prettier column-aligns
+    // markdown tables — match cell headers with a whitespace-tolerant regex rather than
+    // the single-space raw-render literal (FIVE_COLUMN_HEADER stays exact for the
+    // hand-crafted TC-2 gate fixtures below, which bypass the generator entirely).
+    expect(content).toMatch(
+      /\|\s*D-NN\s*\|\s*decisione\s*\|\s*razionale\s*\|\s*decisore\s*\|\s*data\s*\|/,
+    )
     expect(content).toMatch(/Changelog/i)
   })
 

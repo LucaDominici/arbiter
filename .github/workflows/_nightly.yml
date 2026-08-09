@@ -257,6 +257,61 @@ jobs:
             __tests__/integration/e2e/functional/packaged-artifact.test.ts \
             __tests__/integration/e2e/functional/fixture-functional-offline-guard.test.ts
 
+  generated-gate-e2e-greenfield:
+    # #2257 — the 3 functional-tier e2e suites that were wired into NO CI workflow
+    # and NO gate script (grep of .github/workflows + scripts/check-all.mjs found
+    # nothing): greenfield-first-run (the file FEATURE_MATRIX's own tier table
+    # names as THE e2e exemplar — RED, invisible, because nothing ran it),
+    # go-debt-node-modules (#1950) and record-red-runner (#1951). Own job (not
+    # folded into generated-gate-e2e-misc above) because it needs Rust + Python
+    # toolchains neither sibling installs.
+    name: Generated-gate e2e (greenfield-first-run + go-debt-node-modules + record-red-runner)
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
+          cache-dependency-path: __tests__/fixtures/real-projects/go-library/go.mod
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install pytest (record-red-runner Python cell, #1951)
+        run: pip install "pytest>=8.0"
+
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Install gitleaks
+        # #2257 — the default-level (L2) first-run cell drives the REAL generated
+        # gate, which runs gitleaks at L2 (see virgin-init-matrix.test.ts's own
+        # CELL_BINARIES comment: absent gitleaks + CI=true FAILs, does not SKIP).
+        # Same install as gate-full-nightly above.
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: npm run build
+
+      - name: Generated-gate e2e — greenfield-first-run + go-debt-node-modules + record-red-runner (VITEST_L2=1)
+        env:
+          VITEST_L2: "1"
+        run: |
+          npx vitest run --config vitest.integration.config.ts \
+            __tests__/integration/e2e/functional/greenfield-first-run.test.ts \
+            __tests__/integration/e2e/functional/go-debt-node-modules.test.ts \
+            __tests__/integration/e2e/functional/record-red-runner.test.ts
+
 
 
   gitleaks-history:
@@ -411,6 +466,7 @@ jobs:
 
       - generated-gate-e2e
       - generated-gate-e2e-misc
+      - generated-gate-e2e-greenfield
 
     if: always()
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
@@ -505,6 +561,7 @@ jobs:
 
       - generated-gate-e2e
       - generated-gate-e2e-misc
+      - generated-gate-e2e-greenfield
 
     if: always()
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
@@ -527,6 +584,7 @@ jobs:
 
             "${{ needs.generated-gate-e2e.result }}"
             "${{ needs.generated-gate-e2e-misc.result }}"
+            "${{ needs.generated-gate-e2e-greenfield.result }}"
 
           )
           FAILED=0

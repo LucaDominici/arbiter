@@ -26,8 +26,11 @@ test('auth — a user can complete the login flow (INV-137)', async ({ page }) =
   })
 
   // TODO(#2080): drive your real login form. Replace path + selectors + credentials.
+  // NOTE: the placeholder below is intentionally not email-shaped (arbiter's own PII
+  // scan flags an @-address pattern in scaffolded source, #2257) — swap in a real
+  // fixture identity (via E2E_USER) once your login form is wired up.
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' })
-  await page.getByLabel(/email|username/i).fill(process.env.E2E_USER ?? 'test@example.com')
+  await page.getByLabel(/email|username/i).fill(process.env.E2E_USER ?? 'smoke-test-user')
   await page.getByLabel(/password/i).fill(process.env.E2E_PASS ?? 'password')
   await page.getByRole('button', { name: /log ?in|sign ?in/i }).click()
 
