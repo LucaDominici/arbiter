@@ -581,7 +581,7 @@ MF (#87) ──── needs MA + MD
 
 ---
 
-## Phase 10 — Production Baseline Enforcement (M22-M32)
+## Phase 10 — Production Baseline Enforcement (M22-M30)
 
 Based on the exhaustive gap analysis (alignment doc removed). Principle: **once chosen, enforced** — see `ENFORCEMENT-PHILOSOPHY.md`.
 
@@ -617,7 +617,7 @@ Based on the exhaustive gap analysis (alignment doc removed). Principle: **once 
 
 ---
 
-## M23 — Mutation Testing as Hard Gate
+## M23 — Mutation Testing as Hard Gate ✅ DONE
 
 **Issue:** #71
 **Scope:** Transform mutation testing from advisory guide to enforced gate. Currently generates `pitest-setup.md`; must generate build tool integration.
@@ -648,7 +648,7 @@ CI integration:
 
 ---
 
-## M24 — Security Scanning Suite
+## M24 — Security Scanning Suite ✅ DONE
 
 **Issue:** #72
 **Scope:** Generate security scanning enforcement. Currently arbiter generates zero security scanning.
@@ -803,7 +803,7 @@ Gate (dual-sided, CANON-01/14):
 
 ---
 
-## M29 — Complete Static Analysis Suite
+## M29 — Complete Static Analysis Suite ✅ DONE
 
 **Issue:** #77
 **Scope:** Generate precise static analysis config for all languages. Currently generates generic configs; must generate precise rulesets.
@@ -849,7 +849,7 @@ Gate (dual-sided, CANON-01/14):
 
 ---
 
-## M31 — Configuration Skill & arbiter.json v2
+## M31 — Configuration Skill & arbiter.json v2 ✅ DONE
 
 **Issue:** #79
 **Scope:** Post-init configuration via skill + richer arbiter.json.
@@ -867,7 +867,7 @@ Gate (dual-sided, CANON-01/14):
 
 ---
 
-## M32 — Extended AI Tool Support
+## M32 — Extended AI Tool Support ✅ DONE
 
 **Issue:** #80
 **Scope:** Additional AI tool support and plugin API.
@@ -883,7 +883,7 @@ Gate (dual-sided, CANON-01/14):
 
 ---
 
-## M33 — CLI-First Policy & Shared run-cli Wrapper
+## M33 — CLI-First Policy & Shared run-cli Wrapper ✅ DONE
 
 **Issue:** #95
 **Scope:** Formalize CLI-first as an architectural invariant, consolidate scattered `spawnSync` call sites into `src/utils/run-cli.ts`, close the MCP fallback door left open in ADR-003, and clean up dangling MCP references across the docs. Arbiter was already CLI-first in practice — this milestone makes it enforceable.
@@ -975,20 +975,20 @@ M11's #28/#34/#40, MA-ML's #82-#93, M22-M33, plus epic #81) was checked with
 live board, which matches or is consistent with every milestone this document
 marks `✅ DONE` / `✓ SHIPPED` / `✓`.
 
-| M   | Issue | Status (doc)                                                 | Status (real) | Note                                                                                          |
-| --- | ----- | ------------------------------------------------------------ | ------------- | --------------------------------------------------------------------------------------------- |
-| M23 | #71   | _(no header marker)_                                         | CLOSED        | Header carries no ✅/✓ despite the issue being closed — cosmetic omission, not a false claim. |
-| M24 | #72   | _(no header marker; inline "Status: COMPLETE (2026-04-17)")_ | CLOSED        | Consistent — inline status is correct, only the header checkmark is missing.                  |
-| M29 | #77   | _(no header marker)_                                         | CLOSED        | Same pattern as M23.                                                                          |
-| M31 | #79   | _(no header marker)_                                         | CLOSED        | Same pattern as M23.                                                                          |
-| M32 | #80   | _(no header marker)_                                         | CLOSED        | Same pattern as M23.                                                                          |
-| M33 | #95   | _(no header marker)_                                         | CLOSED        | Same pattern as M23.                                                                          |
+| M   | Issue | Status (doc) | Status (real) | Note                                                            |
+| --- | ----- | ------------ | ------------- | --------------------------------------------------------------- |
+| M23 | #71   | ✅ DONE      | CLOSED        | Wave 5 reconciled the omitted header marker.                    |
+| M24 | #72   | ✅ DONE      | CLOSED        | Wave 5 reconciled the header with its existing COMPLETE status. |
+| M29 | #77   | ✅ DONE      | CLOSED        | Wave 5 reconciled the omitted header marker.                    |
+| M31 | #79   | ✅ DONE      | CLOSED        | Wave 5 reconciled the omitted header marker.                    |
+| M32 | #80   | ✅ DONE      | CLOSED        | Wave 5 reconciled the omitted header marker.                    |
+| M33 | #95   | ✅ DONE      | CLOSED        | Wave 5 reconciled the omitted header marker.                    |
 
 No issue referenced by this document was found open, and no issue number
-referenced was missing/nonexistent on the board. The five rows above are flagged
-as a **formatting gap** (missing header checkmark), not a state discrepancy: the
-underlying milestones are all real-closed. Left as-is as a historical-fidelity
-call — not rewritten per the append-only rule for this run.
+referenced was missing/nonexistent on the board. At the time of this audit, the
+six rows above were a **formatting gap** (missing header checkmarks), not a state
+discrepancy: the underlying milestones were already real-closed. Wave 5 reconciled
+all six header markers while preserving this audit's historical finding.
 
 ### b. Active tracks (live board)
 

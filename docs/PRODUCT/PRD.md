@@ -140,10 +140,10 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 - SSOT framework generation: knowledge map, track router, engineering defaults
 - Richer GitHub integration: task-brief templates, epic templates, project boards
 
-### Phase 10 — Production Baseline Enforcement (M22-M30, in progress)
+### Phase 10 — Production Baseline Enforcement (M22-M30, shipped)
 
 Based on exhaustive gap analysis. Principle: **once chosen, enforced** (`ENFORCEMENT-PHILOSOPHY.md`).
-M22 (architecture verification suite) shipped. M23-M24 (mutation, security) and M29-M30 (static analysis, coverage) in progress.
+Milestone status is reconciled in [`docs/internal/PRODUCT/MILESTONES.md`](../internal/PRODUCT/MILESTONES.md); all Phase 10 milestone issues are closed.
 
 - Architecture verification suite (M22 ✅): full ArchUnit (Java), eslint-plugin-boundaries (TS), cargo-deny (Rust), go/analysis (Go), import-linter (Python)
 - Mutation testing as hard gate (M23): PIT (Java), Stryker (TS), cargo-mutants (Rust), go-mutesting (Go), mutmut (Python)
@@ -155,7 +155,9 @@ M22 (architecture verification suite) shipped. M23-M24 (mutation, security) and 
 - Complete static analysis (M29): Checkstyle + PMD + SpotBugs (Java), ESLint full (TS), clippy pedantic (Rust), golangci-lint full (Go), ruff full (Python)
 - Coverage tool integration (M30 ✅): JaCoCo in build.gradle (Java), vitest config (TS), cargo-tarpaulin (Rust), go test -cover (Go), pytest-cov (Python)
 
-### Phase 11 — Ecosystem (M31-M33, in progress)
+### Phase 11 — Ecosystem (M31-M33, shipped)
+
+Milestone status is reconciled in [`docs/internal/PRODUCT/MILESTONES.md`](../internal/PRODUCT/MILESTONES.md); all Phase 11 milestone issues are closed.
 
 - Configuration skill (`/arbiter configure`): post-init feature toggle, threshold override, arbiter.json v2 (M31)
 - Extended AI tool support: Gemini CLI, Windsurf, Aider generators + brownfield detection (M32)

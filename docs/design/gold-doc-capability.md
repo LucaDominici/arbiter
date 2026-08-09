@@ -2,7 +2,7 @@
 title: 'Gold-Doc Capability — self, generator, enforcer'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-03'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -23,6 +23,12 @@ buildable capability: arbiter (a) holds _itself_ to a gold doc-set and (b) gener
 the _right-sized_ doc-set on every project it governs. It is written against the code that exists
 today (anchors are `file:line`), and it is honest about which of those pieces are real, which are
 advisory ceremony, and which are stubs.
+
+**Implementation status (reviewed 2026-08-09).** `src/generators/doc-set.ts` implements the real
+doc-body generator and formats its skeletons against the target configuration. `scripts/check-doc-
+freshness.mjs` is implemented with age and coupling checks. The historical tranche descriptions
+below record the design and its original red paths; they are not claims that those shipped surfaces
+are still absent.
 
 **Normative base**
 
@@ -198,9 +204,10 @@ requirement — right-sizing is about defaults, not blanket exemptions.
 
 ## 4. The generator: from "fill me in" stub to real, two-phase, own-the-code
 
-### 4.1 What exists today (verified)
+### 4.1 Historical baseline before the shipped tranches
 
-There is **no `src/generators/doc-set.ts`.** The doc-generation surface is split across two places:
+At design time there was **no `src/generators/doc-set.ts`.** The doc-generation surface was split
+across two places:
 
 1. **`src/generators/gold-kit.ts:51-90`** — `generateGoldKit()` emits the _manifest and profile_
    into a governed repo (`gold-doc-set.yml`, `doc-profile`, `gold-registry.yml`, `thresholds.yml`)
@@ -268,9 +275,9 @@ instead of the flat `tier:` literal, and it reads `collaborationMode` from `arbi
   (`src/generators/check-all.ts:174-181`): `starter` advisory, `standard` soft (grace-eligible),
   `industrial` `--strict`.
 
-### 5.2 Freshness gate (does NOT exist — this is the biggest build)
+### 5.2 Freshness gate (historical design)
 
-**Honest status:** there is no per-doc freshness gate today.
+**Historical status:** there was no per-doc freshness gate when this design was written.
 `scripts/check-monthly-freshness.mjs` checks a single CI **stamp** artifact
 (`.arbiter/monthly/last-run.json`, `:55-57`) — it never opens a doc.
 `scripts/check-doc-style.mjs:157-163` validates that `last_review` is ISO-**formatted** when set,
@@ -356,7 +363,7 @@ subtree arc42/C4/ADR count.
 
 ---
 
-## 7. Honesty — what is stub/ceremony/broken today (iron-law)
+## 7. Historical gap inventory (iron-law)
 
 | #   | Finding                                                                                                                              | Evidence                                                                            | Severity                  |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------- |
@@ -368,13 +375,13 @@ subtree arc42/C4/ADR count.
 | H6  | **Self passes a weak bar** — green against tier-blind manifest, not the enterprise column                                            | §6.1                                                                                | Medium                    |
 | H7  | **Coherence blind to CLI-subcommand ghosts** — emission-coherence resolves file paths, not `arbiter <sub>`                           | `scripts/check-emission-coherence.mjs:348-361`                                      | Medium (root cause of H1) |
 
-None of these is fatal to the design — they are precisely the wiring the tranches below install. But
-"arbiter has a gold-doc capability today" would be false: it has a working _self_ presence engine, a
-_broken_ governed runner, a _tier-blind_ manifest, and _no_ freshness gate.
+None of these was fatal to the design — they were precisely the wiring the tranches below installed.
+This table remains the historical rationale; it is not a claim that the shipped generator, tiering,
+freshness, or enrolled charter surfaces are still absent.
 
 ---
 
-## 8. Implementation spec — tranches (each WIRED + TESTED-red-path + WORKING-dogfood)
+## 8. Historical implementation spec — tranches (each WIRED + TESTED-red-path + WORKING-dogfood)
 
 Ordered so each tranche is independently shippable and leaves the tree green. Model tier per the
 pyramid: Sonnet implements; Opus verifies the plan; Haiku does mechanical transcription (the §2
@@ -452,7 +459,7 @@ matrix rows).
 
 ---
 
-## 9. Gap list — HAS vs MISSING (actionable for the Sonnet pyramid)
+## 9. Historical gap list — HAS vs MISSING
 
 **HAS (build on, do not replace):**
 
