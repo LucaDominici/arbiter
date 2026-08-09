@@ -110,18 +110,35 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
   // manifest-check fallback (`elif node --input-type=module -e '...'`) shells out
   // to node — but the job carried no setup-node step, so the runner's ancient
   // system node throws `SyntaxError: Unexpected token {` on the modern script
-  // every night. Sibling jobs (fuzz :61, soak-e2e :73, bake-e2e-native :104) all
-  // carry ./.github/actions/setup-node-pnpm; evidence-collect must too, and
-  // unconditionally — its node dependency is not gated by target language.
-  it.each(STACKS)(
-    '$language: evidence-collect job carries setup-node-pnpm (#2256)',
+  // every night. Gated to typescript, matching the literal siblings: fuzz/soak-e2e
+  // resolve to setup-node-pnpm only on the typescript branch of
+  // scheduled-heavy-jobs.ejs, and bake-e2e-native only renders for arbiter's own
+  // typescript self-render. Non-typescript projects never emit a .nvmrc or
+  // package-lock.json (confirmed against a real `arbiter init --language python`
+  // tree), so an UNCONDITIONAL setup-node-pnpm step here would trade today's
+  // node-version SyntaxError for a "Dependencies lock file is not found" hard
+  // fail — a different red, not a fix. Slice ends at the next job key
+  // (cleanup-expired-artifacts), not the #2018 test's nightly-required bound,
+  // so this assertion can't accidentally match a later job's unrelated
+  // actions/setup-node step.
+  it('typescript: evidence-collect job carries setup-node-pnpm (#2256)', () => {
+    const rendered = renderNightlyPartial({ language: 'typescript', buildTool: 'npm' })
+    const evidenceJob = rendered.slice(
+      rendered.indexOf('evidence-collect:'),
+      rendered.indexOf('cleanup-expired-artifacts:'),
+    )
+    expect(evidenceJob).toContain('./.github/actions/setup-node-pnpm')
+  })
+
+  it.each(STACKS.filter((s) => s.language !== 'typescript'))(
+    '$language: evidence-collect job stays without setup-node-pnpm (no .nvmrc/lockfile emitted — #2256)',
     ({ language, buildTool }) => {
       const rendered = renderNightlyPartial({ language, buildTool })
       const evidenceJob = rendered.slice(
         rendered.indexOf('evidence-collect:'),
-        rendered.indexOf('nightly-required:'),
+        rendered.indexOf('cleanup-expired-artifacts:'),
       )
-      expect(evidenceJob).toContain('./.github/actions/setup-node-pnpm')
+      expect(evidenceJob).not.toContain('./.github/actions/setup-node-pnpm')
     },
   )
 
