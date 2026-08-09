@@ -116,7 +116,10 @@ describe('check-phantom-command-scan.mjs — bare-word phantom fails closed (AC-
         encoding: 'utf-8',
       })
       expect(r.status).toBe(0)
-      expect(r.stdout).not.toContain('phantom')
+      // Note: the tool's OWN name ("check-phantom-command-scan") contains the
+      // substring "phantom" — the violation-line marker is "phantom:" (colon),
+      // matching the house convention used by the real-repo test below.
+      expect(r.stdout).not.toContain('phantom:')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

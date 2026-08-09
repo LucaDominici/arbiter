@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CATALOG: scans hand-authored prose (PRIVACY.md, docs/, website/, .claude/) + emitted-runner template sources (src/templates/**) for `arbiter <cmd>` citations of commands absent from src/cli.ts (INV-111 ext); cross-checks standards/cli-emitted-surface.yml against the same SSOT (T5b'/T5b'', #1944).
+// CATALOG: scans hand-authored prose (PRIVACY.md, docs/, website/, .claude/) + emitted-runner template sources (src/templates/**) for `arbiter <cmd>` citations of commands absent from src/cli.ts (INV-111 ext); cross-checks standards/cli-emitted-surface.yml against the same SSOT (T5b'/T5b'', #1944). AC-2243.1 (#2243) extends this to bare-word (no `arbiter ` prefix) command citations in an "(e.g. `a`, `b`, ...)" list gated on a nearby "command(s)" mention.
 // CATALOG: rejected fold-in into gen-cli-ref.mjs (generates/validates ONE machine-owned region in cli.md; this scans the whole prose corpus — different failure surface, shared parser via lib/cli-command-names.mjs).
 // CATALOG: rejected fold-in into check-doc-links.mjs (link-target existence, not command-existence; merging would conflate two drift models).
 //
@@ -141,6 +141,39 @@ export function extractCitedCommands(markdown) {
   for (const m of markdown.matchAll(COMMAND_MENTION_RE)) {
     if (PROSE_STOPWORDS.has(m[1])) continue
     cited.add(m[1])
+  }
+  return cited
+}
+
+// AC-2243.1 (#2243): a bare backtick word cites a command WITHOUT the
+// `arbiter ` prefix — arc42.md:706's "Only 11 CLI commands are public; the
+// remaining ~65 registrations are hidden/experimental but fully functional
+// (e.g. `graph`, `kit`, `conformance`, `ci`, `plugin`)" is the motivating
+// case. COMMAND_MENTION_RE can't see these (it anchors on the literal
+// `arbiter ` prefix). Matching EVERY bare backtick word in the corpus would
+// be noise (most are flags, filenames, config keys, code snippets — anything
+// short and lowercase) — this class is scoped to a comma-separated
+// `` `word`, `word`, ... `` list introduced by "e.g." (the idiom every corpus
+// instance of this class uses), and further gated on a "command(s)" mention
+// within COMMAND_CONTEXT_WINDOW chars before the list, so an unrelated
+// enumeration (environment names, config values) never trips it.
+const BARE_WORD_LIST_RE = /\(e\.g\.,?\s+((?:`[a-z][a-z0-9-]*`(?:,\s*)?)+)\)/g
+const COMMAND_CONTEXT_RE = /\bcommands?\b/i
+const COMMAND_CONTEXT_WINDOW = 300
+
+/**
+ * AC-2243.1 (#2243): extract bare-word command citations from an "(e.g. `a`,
+ * `b`, ...)" list whose containing context mentions "command(s)". See
+ * BARE_WORD_LIST_RE above for the false-positive rationale.
+ */
+export function extractBareWordCommandCitations(markdown) {
+  const cited = new Set()
+  for (const m of markdown.matchAll(BARE_WORD_LIST_RE)) {
+    const contextStart = Math.max(0, m.index - COMMAND_CONTEXT_WINDOW)
+    if (!COMMAND_CONTEXT_RE.test(markdown.slice(contextStart, m.index))) continue
+    for (const wordMatch of m[1].matchAll(/`([a-z][a-z0-9-]*)`/g)) {
+      cited.add(wordMatch[1])
+    }
   }
   return cited
 }
@@ -306,6 +339,19 @@ function main() {
     for (const phantom of phantoms) {
       process.stdout.write(
         `  phantom: ${relPath(file)}: \`arbiter ${phantom}\` is not a registered command\n`,
+      )
+      violations++
+    }
+    // AC-2243.1 (#2243): bare-word citations (no `arbiter ` prefix) validated
+    // against the same realCommandNames SSOT, reported distinctly so a phantom
+    // here doesn't read as if it had the (absent) `arbiter ` prefix.
+    const bareWordPhantoms = findPhantomCommands(
+      extractBareWordCommandCitations(content),
+      realCommandNames,
+    )
+    for (const phantom of bareWordPhantoms) {
+      process.stdout.write(
+        `  phantom (bare-word): ${relPath(file)}: \`${phantom}\` is not a registered command\n`,
       )
       violations++
     }
