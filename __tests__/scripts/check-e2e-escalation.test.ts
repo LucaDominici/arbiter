@@ -93,7 +93,7 @@ describe('e2e escalation ledger gate (#2043)', () => {
 // actually crossed). RED: assert the rung-specific action word appears (and the
 // OTHER rungs' words do not) at each of the three canonical thresholds.
 describe('progressive escalation ladder (#2248)', () => {
-  const LADDER = { escalation: { strikes: [2, 3, 5], maxStrikes: 5 } }
+  const LADDER = { e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 5 } } }
 
   it('AC-2248.1/2: 1 consecutive REGRESSION at strikes [2,3,5] stays below rung 1 (no escalation)', () => {
     const { dir, cleanup } = stage([PASS_ENTRY, FAIL_ENTRY], LADDER)

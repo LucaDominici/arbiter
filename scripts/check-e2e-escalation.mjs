@@ -5,11 +5,16 @@
 // CATALOG:   appendLedger) and escalates when the TRAILING run of consecutive
 // CATALOG:   REGRESSION entries reaches the configured threshold — the cross-run
 // CATALOG:   counterpart to the ship tick prompt's within-run strike count (#2043
-// CATALOG:   AC-2043.4). Configured via arbiter.json's e2ePolicy.escalation.maxStrikes
+// CATALOG:   AC-2043.4). Configured via arbiter.json's e2ePolicy.escalation
 // CATALOG:   (schema-validated, src/config/schema.ts); absent config falls back to the
 // CATALOG:   pre-#2043 hardcoded 2-strike default so existing/ungoverned projects keep
 // CATALOG:   their current behavior. SKIP when the ledger doesn't exist yet (no runs
 // CATALOG:   recorded) or is empty.
+// CATALOG: #2248 (AC-2248.2): escalation.strikes (e.g. [2, 3, 5]) drives a PER-RUNG
+// CATALOG:   ladder when present — the first rung crossed widens scope, the last rung
+// CATALOG:   crossed hard-stops to needs-human, any rung(s) in between force the full
+// CATALOG:   suite. escalation.maxStrikes alone (no strikes array) stays supported as
+// CATALOG:   the pre-#2248 single-rung scalar check (legacy).
 // Exit codes (INV-53): 0=PASS/SKIP, 1=escalation triggered
 // Usage: node scripts/check-e2e-escalation.mjs [--help]
 import { readFileSync, existsSync } from 'node:fs'
@@ -26,7 +31,10 @@ const HELP = `Usage: node scripts/check-e2e-escalation.mjs [--help]
 
 Reads .arbiter/e2e-ledger.jsonl (append-only e2e reliability ledger) and escalates
 when the TRAILING run of consecutive REGRESSION entries reaches the configured
-e2ePolicy.escalation.maxStrikes (default ${DEFAULT_MAX_STRIKES}).
+threshold. When e2ePolicy.escalation.strikes (e.g. [2, 3, 5]) is declared, each
+rung crossed gets a distinct action: first rung widens scope, last rung hard-stops
+to needs-human, any rung(s) between force the full suite. Without a strikes array,
+falls back to the scalar e2ePolicy.escalation.maxStrikes (default ${DEFAULT_MAX_STRIKES}).
 
 SKIP:
   When .arbiter/e2e-ledger.jsonl is absent or empty (no runs recorded yet).
@@ -40,25 +48,73 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.exit(0)
 }
 
-// Reads+parses arbiter.json. Returns the configured maxStrikes, or the default when
-// arbiter.json is absent, unreadable, malformed, or doesn't declare e2ePolicy — this
-// gate degrades gracefully rather than hard-failing on a config problem another gate
-// (check-smoke-journeys, schema validation) already owns reporting.
-function loadMaxStrikes() {
-  if (!existsSync(ARBITER_PATH)) return DEFAULT_MAX_STRIKES
+// Reads+parses arbiter.json. Returns { strikes, maxStrikes } — strikes is the
+// per-rung ladder (sorted ascending) when e2ePolicy.escalation.strikes validates
+// as a non-empty array of positive integers, else null (legacy scalar path).
+// maxStrikes is the scalar threshold, defaulting when arbiter.json is absent,
+// unreadable, malformed, or doesn't declare e2ePolicy.escalation.maxStrikes —
+// this gate degrades gracefully rather than hard-failing on a config problem
+// another gate (check-smoke-journeys, schema validation) already owns reporting.
+function loadEscalationConfig() {
+  if (!existsSync(ARBITER_PATH)) return { strikes: null, maxStrikes: DEFAULT_MAX_STRIKES }
 
   let raw
   try {
     raw = JSON.parse(readFileSync(ARBITER_PATH, 'utf-8'))
     // FAIL-OPEN-INTENT: malformed arbiter.json defaults to DEFAULT_MAX_STRIKES; schema validation owns reporting.
   } catch {
-    return DEFAULT_MAX_STRIKES
+    return { strikes: null, maxStrikes: DEFAULT_MAX_STRIKES }
   }
 
-  const maxStrikes = raw?.e2ePolicy?.escalation?.maxStrikes
-  return typeof maxStrikes === 'number' && Number.isInteger(maxStrikes) && maxStrikes >= 2
-    ? maxStrikes
-    : DEFAULT_MAX_STRIKES
+  const maxStrikesRaw = raw?.e2ePolicy?.escalation?.maxStrikes
+  const maxStrikes =
+    typeof maxStrikesRaw === 'number' && Number.isInteger(maxStrikesRaw) && maxStrikesRaw >= 2
+      ? maxStrikesRaw
+      : DEFAULT_MAX_STRIKES
+
+  const strikesRaw = raw?.e2ePolicy?.escalation?.strikes
+  const strikes =
+    Array.isArray(strikesRaw) &&
+    strikesRaw.length > 0 &&
+    strikesRaw.every((s) => typeof s === 'number' && Number.isInteger(s) && s >= 1)
+      ? [...strikesRaw].sort((a, b) => a - b)
+      : null
+
+  return { strikes, maxStrikes }
+}
+
+// #2248 (AC-2248.2): the rung (0-based index into `strikes`) the current
+// consecutive-REGRESSION count crosses, or -1 when it's below the first rung.
+// `strikes` is pre-sorted ascending — the highest rung whose threshold is <=
+// consecutive wins (a staircase: 4 consecutive against [2, 3, 5] is still
+// "rung 2 crossed", not "between rungs").
+function findCrossedRungIndex(strikes, consecutive) {
+  let idx = -1
+  for (let i = 0; i < strikes.length; i++) {
+    if (consecutive >= strikes[i]) idx = i
+  }
+  return idx
+}
+
+// #2248 (AC-2248.2): rung-specific action text. First rung crossed → widen
+// scope / root-cause; last rung crossed → hard stop + needs-human; any rung(s)
+// strictly between → force the full suite. A single-entry ladder is both
+// "first" and "last" — hard-stop wins (it's the only/final rung).
+function rungMessage(strikes, idx, consecutive) {
+  const rungNum = idx + 1
+  const total = strikes.length
+  const threshold = strikes[idx]
+  const action =
+    idx === total - 1
+      ? 'hard stop — escalate to needs-human'
+      : idx === 0
+        ? 'widen scope / root-cause the failure'
+        : 'force the full suite'
+  return (
+    `[check-e2e-escalation] FAIL — escalation triggered: ${consecutive} consecutive ` +
+    `REGRESSION ledger entries >= rung ${rungNum}/${total} threshold ${threshold} — ` +
+    `${action} per e2ePolicy.escalation.strikes\n`
+  )
 }
 
 // Loads the ledger as an array of parsed JSONL entries. Returns null when the ledger
@@ -101,8 +157,24 @@ function main() {
     process.exit(0)
   }
 
-  const maxStrikes = loadMaxStrikes()
+  const { strikes, maxStrikes } = loadEscalationConfig()
   const consecutive = countTrailingRegressions(entries)
+
+  // #2248 (AC-2248.2): escalation.strikes present → per-rung ladder governs
+  // (maxStrikes is ignored here; it stays required by schema.ts alongside
+  // strikes but isn't consulted for the exit decision once a ladder exists).
+  if (strikes) {
+    const idx = findCrossedRungIndex(strikes, consecutive)
+    if (idx === -1) {
+      process.stdout.write(
+        `[check-e2e-escalation] OK — ${consecutive} consecutive REGRESSION entries below ` +
+          `rung 1 threshold ${strikes[0]}\n`,
+      )
+      process.exit(0)
+    }
+    process.stderr.write(rungMessage(strikes, idx, consecutive))
+    process.exit(1)
+  }
 
   if (consecutive >= maxStrikes) {
     process.stderr.write(
