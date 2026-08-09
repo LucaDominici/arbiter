@@ -622,10 +622,12 @@ with gaps flagged) in [`adr-index.md`](adr-index.md). The load-bearing ones for 
 
 ### 10.2 Measured quality baselines (arbiter's own repo)
 
-- **Coverage:** lines 96.54 % / branches 90.82 % / functions 96.87 % / statements 95.64 %
-  (`.coverage-baseline.json`, ratcheted; rebaselined to the real post-cut floor after the
-  T2 command/template deletions shifted the aggregate — branches rose, functions/statements/lines
-  settled ~0.7pp lower as well-covered command modules were removed).
+- **Coverage:** lines 96.38 % / branches 90.41 % / functions 97.26 % / statements 95.39 %
+  (`.coverage-baseline.json`, ratcheted; rebaselined at #2253 — the prior 2026-07-12 floor
+  (L 96.54 / B 90.82 / F 96.87 / S 95.64) had gone stale against wave-3's real, legitimate
+  coverage as new surface grew faster than its tests; `debt-baseline.json` was recaptured to
+  the post-wave-3 floor at 5ea14b84 but this sibling baseline was missed, so CI's normal
+  ~0.2pp v8 platform jitter pushed branches past this file's now-unreachable 90.82 floor).
 - **Gold audit self-score:** 100 (`.gold-audit-baseline.json`, all D-* dimensions at 100).
 - **Test taxonomy:** unit / contract / integration / behavioral (BDD, Cucumber) / property (fast-check
   fuzz) / e2e (bake + native) — enforced test-pyramid ratios (INV-124).
