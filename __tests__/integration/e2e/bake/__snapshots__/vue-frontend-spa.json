@@ -313,7 +313,7 @@
     "docs/architecture/ARCHITECTURE.md": "f6eddee762b76ecb548f35fdbe4b1160b42a732efe8483871c8272cc7a6d60da",
     "docs/technical-debt.md": "ff3c969d54c62a5bade2a28e17128e99e482a868182f15f7733a5479597b339a",
     "eslint.config.frontend-spa.mjs": "e37dd2dad5f94306634485d9c874e907acd7f4b846f854ad2538210aaa151475",
-    "eslint.config.mjs": "b309eb9e26c9ab0d66c43a9fad1b493776c64e91920e410e5080897dc24451a4",
+    "eslint.config.mjs": "65be93c0d740a0688676926cc99b14d0cd6f9e60e33df3b2ac70e3aa1999afa3",
     "eslint.config.playwright.mjs": "efa17343c7802bb9835e3787668780d8523dfa1d6f8477b1a83fe9a1d5d743ae",
     "eslint.config.static.mjs": "9c73ca56db74c2062afcb7267da0ab22e44def99671c46b90d51249e52cf7e71",
     "features/example.feature": "c7bfe982e98021595814c48d49bc4a1e86930b1b7ef942ac836ddbdc77518409",

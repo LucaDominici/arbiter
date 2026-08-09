@@ -314,7 +314,7 @@
     "docs/architecture/ARCHITECTURE.md": "f6eddee762b76ecb548f35fdbe4b1160b42a732efe8483871c8272cc7a6d60da",
     "docs/technical-debt.md": "ff3c969d54c62a5bade2a28e17128e99e482a868182f15f7733a5479597b339a",
     "eslint.config.frontend-spa.mjs": "905841376eb86dff3773349679d09a49821a6355d31fb7190d7b4b289203453e",
-    "eslint.config.mjs": "b309eb9e26c9ab0d66c43a9fad1b493776c64e91920e410e5080897dc24451a4",
+    "eslint.config.mjs": "65be93c0d740a0688676926cc99b14d0cd6f9e60e33df3b2ac70e3aa1999afa3",
     "eslint.config.playwright.mjs": "efa17343c7802bb9835e3787668780d8523dfa1d6f8477b1a83fe9a1d5d743ae",
     "eslint.config.static.mjs": "9c73ca56db74c2062afcb7267da0ab22e44def99671c46b90d51249e52cf7e71",
     "features/example.feature": "5359ffb47c5d29fe8970e95463f2c24dd0e6dcd5a0b59925f48b12aaed9c5681",
