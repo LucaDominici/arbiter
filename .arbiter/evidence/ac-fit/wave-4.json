@@ -1,0 +1,511 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "wave-4",
+  "plan": "/home/luca/work/repos/arbiter/.claude/plans/wave-4.md",
+  "branch": "wave-4-integration",
+  "baseSha": "ddf7fa5b",
+  "headSha": "4dfa2a1c",
+  "reviewer": "Adversarial Verifier (FIT rubric, INV-138)",
+  "reviewedAt": "2026-08-09",
+  "summary": {
+    "total": 24,
+    "pass": 22,
+    "fail": 1,
+    "notTested": 1
+  },
+  "notes": [
+    "Verdicts are the FIT rubric judgement of the merged diff (main@ddf7fa5b...HEAD@4dfa2a1c, 61 files) against the frozen 24-criterion anchor.",
+    "Tests re-run in THIS tree at HEAD: 8 wave-touched suites (283 tests), 27 cited FEATURE_MATRIX test_ref suites (565 tests), bake e2e (29 tests). All green. Every test_ref cited by Group I was resolved to a real file on disk and executed — none is a dangling citation.",
+    "Gate scripts re-run at HEAD: check-phantom-command-scan exit 0 (456 files), check-feature-matrix --check exit 0 (55 rows), check-doc-links exit 0 (363 files), check-doc-style exit 0 (154 files), check-doc-set exit 0 (25/25).",
+    "gen-status / gen-gap / gen-doc-index all re-run: byte-identical output, tree stays clean. STATUS.md's absence from the diff is a genuine no-op, not an unproven half of AC-2247.2.",
+    "check-doc-freshness exits 1 on 2 STALE docs (docs/design/gold-doc-capability.md, gold-doc-tranches-t3-t5.md) — VERIFIED IDENTICAL on main@ddf7fa5b, both files untouched by this wave, and the script is NOT wired into check-all.mjs (it runs in _monthly.yml soft-fail and 05-release.yml). Pre-existing and wave-independent; noted on AC-2239.3/AC-2251.2 rather than laundered.",
+    "PRE-EXISTING RED found while resolving Group I's citations (not a wave regression, not a blocker for this PR, needs an issue): __tests__/integration/e2e/functional/fixture-functional.test.ts under VITEST_L2=1 is 1 failed | 12 passed on BOTH trees — the python-backend-web cell's generated L1 gate fails its own 'unit tests' check. Identical tally and identical cell on main@ddf7fa5b and on wave-4-integration@4dfa2a1c, so the wave neither caused nor worsened it. #2257 does NOT cover it (that issue tracks greenfield-first-run.test.ts plus 3 CI-unwired files). This harness IS CI-wired at _nightly.yml:216 and generator-matrix.yml:62, but 01-pr-fast.yml:527 runs only the TypeScript cell, so the PR-blocking lane stays green.",
+    "requireAllPass is hardcoded true in check-acceptance.mjs --ac-fit mode, so this honest artifact makes that gate exit 1 by design: AC-2244.1 FAIL and AC-2256.3 NOT-TESTED are real verdicts and were not laundered into PASS.",
+    "Non-goals audited, none violated. F's typescript-gating of the .ejs twin is a correctness requirement (non-TS projects emit no .nvmrc/lockfile, so an unconditional step hard-fails) with sibling parity to fuzz/soak-e2e, documented inline at _nightly.yml.ejs:545-553 and pinned by 5 render tests. G's arc42 diff changes exactly one heading TEXT (§6.4 rename, part of the phantom-component fix) and zero section adds/removes/reorders — heading-list diff vs main confirms. c4-model.md heading list is byte-identical to main. I promoted zero rows (no added matrix line carries Verified/Done that did not already). H's advisory registration of check-doc-path-citations is a documented decision (check-all.mjs:235-241) with the promotion tracked as #2260."
+  ],
+  "criteria": [
+    {
+      "id": "AC-2256.1",
+      "verdict": "PASS",
+      "note": "The evidence-upload job now carries `- uses: ./.github/actions/setup-node-pnpm` at _nightly.yml:420, the same step its 8 sibling jobs use (:61,:73,:104,:166,:231,:341,:363,:383). Scrub-step-exits-0 on a live run is deferred to AC-2256.3 by the plan's own split. E2E: render test executes the real EJS across 5 languages and asserts the step's presence/absence per language (green). DOC: workflow file IS the documented surface; no doc gate regressed.",
+      "evidence": [
+        {
+          "file": ".github/workflows/_nightly.yml",
+          "line": 420,
+          "what": "setup-node-pnpm added to the evidence-upload job — the missing step that made the scrub run on ancient system node"
+        },
+        {
+          "file": "__tests__/templates/_nightly-render.test.ts",
+          "line": 124,
+          "what": "'typescript: evidence-collect job carries setup-node-pnpm (#2256)' — green"
+        }
+      ]
+    },
+    {
+      "id": "AC-2256.2",
+      "verdict": "PASS",
+      "note": "Dual-track satisfied in a single commit (27885e01): workflow + .ejs twin. The twin gates the step on language==='typescript' with an inline rationale — NOT a scope cut: non-TS projects emit no .nvmrc/package-lock.json, so an unconditional step would hard-fail on 'lock file not found'. Sibling parity verified (fuzz/soak-e2e are language-gated the same way). E2E: 5 per-language render assertions (1 present + 4 absent) all green on the real EJS. DOC: the .ejs IS the generated-surface doc; CANON-18 render parity green.",
+      "evidence": [
+        {
+          "file": "src/templates/github/workflows/_nightly.yml.ejs",
+          "line": 554,
+          "what": "twin step, guarded by `<% if (language === 'typescript') { %>` with the rationale comment at :545-553"
+        },
+        {
+          "file": "__tests__/templates/_nightly-render.test.ts",
+          "line": 142,
+          "what": "'$language: evidence-collect job stays without setup-node-pnpm' — the 4 non-TS branches, green"
+        }
+      ]
+    },
+    {
+      "id": "AC-2256.3",
+      "verdict": "NOT-TESTED",
+      "note": "Orchestrator dispatches post-review. The fix is in-tree and render-proven, but a live Nightly T4 run (workflow_dispatch or scheduled) showing the scrub step green with real scrub output can only happen at/after the gate on this branch, or immediately post-merge on main. Per plan Integration rule 6, #2256 gets no `Closes` line until that run is green. E2E: PENDING (live run). DOC: n/a.",
+      "evidence": [
+        {
+          "file": ".github/workflows/_nightly.yml",
+          "line": 420,
+          "what": "the in-tree fix awaiting a live dispatch to confirm end-to-end"
+        }
+      ]
+    },
+    {
+      "id": "AC-2239.1",
+      "verdict": "PASS",
+      "note": "All 9 audit drift items verified individually at HEAD, not sampled. (1) phantom src/ship/fix-on-red.ts gone, row re-typed 'Policy only, no CLI engine since the T2 cut' (arc42:190) + c4:111 relabeled '(policy)'; (2) gate counts '~60 L1' gone -> pointer to check-all.mjs's own header (arc42:185); (3) generator/template counts -> .bloat-baseline.json pointers in BOTH §5.1 (arc42:178) and §10.2, resolving the internal inconsistency; (4) CLI counts '76 .command()' / '11 public' -> `arbiter --help` / `help --all` pointers (arc42:174, c4:83); (5) nonexistent anti-fake-green.ts -> scripts/check-anti-fake-green.mjs, verify paths qualified (arc42:189); (6) phantom src/commands/plugin.ts -> src/types/plugin.ts + src/utils/plugin-loader.ts, both confirmed on disk (arc42:195, c4:119); (7) bare-word phantom list `graph`,`kit`,`conformance`,`ci`,`plugin` replaced with real hidden commands; (8) invariant 134 -> pointer, zero /\\b134\\b/ matches remain; (9) CANON.md:344 docs/PRODUCT/ -> docs/internal/PRODUCT/. E2E: the 9-assertion doc-asserting fixture suite runs against the REAL tree files (readFileSync, no mocks) — green. DOC: the corrected docs are the deliverable; doc-links/style/set gates green.",
+      "evidence": [
+        {
+          "file": "__tests__/docs/arc42-c4-canon-drift-2239.test.ts",
+          "line": 20,
+          "what": "the 9-item RED->GREEN fixture suite, one `it` per audit drift item, asserting against the real tree"
+        },
+        {
+          "file": "docs/architecture/arc42.md",
+          "line": 190,
+          "what": "Fix-on-Red row: phantom src/ship/fix-on-red.ts replaced by the policy-only truth"
+        },
+        {
+          "file": "docs/architecture/arc42.md",
+          "line": 195,
+          "what": "Plugin API row: phantom src/commands/plugin.ts -> the two paths that actually exist"
+        },
+        {
+          "file": "docs/internal/SYSTEM/CANON.md",
+          "line": 344,
+          "what": "CANON-23 rule text now cites docs/internal/PRODUCT/FEATURE_MATRIX.md"
+        }
+      ]
+    },
+    {
+      "id": "AC-2239.2",
+      "verdict": "PASS",
+      "note": "Every digit-bearing claim about generators/commands/invariants in the added lines is a pointer, never a fresh hand-copy: generators+templates -> `.bloat-baseline.json`, invariants -> `catalog.ts` (plus an executable `grep -c` recipe for the selfOnly subset), CLI surface -> `arbiter --help`/`help --all`, gate counts -> check-all.mjs's own header. §10.2 goes further and warns 'read it live, never copy a snapshot here'. Surviving digits (78-dim KIT, 9 node x 8 edge kinds, 5 INV tiers, INV-62..71) are pre-existing and outside the AC's generators/commands/invariants scope. E2E: assertions 30-42 of the fixture suite pin the absence of each specific stale number (green). DOC: same.",
+      "evidence": [
+        {
+          "file": "docs/architecture/arc42.md",
+          "line": 178,
+          "what": "Generators row: '84 files, 8756 LOC' -> '(file/LOC counts ratcheted in `.bloat-baseline.json`)'"
+        },
+        {
+          "file": "docs/architecture/arc42.md",
+          "line": 181,
+          "what": "Invariant Catalog row: '134 machine-readable INV-NN' -> '(current count in `catalog.ts`)'"
+        },
+        {
+          "file": "__tests__/docs/arc42-c4-canon-drift-2239.test.ts",
+          "line": 30,
+          "what": "'generator/template/CLI counts are pointers, not the stale hand-copied numbers' — 10 negative assertions"
+        }
+      ]
+    },
+    {
+      "id": "AC-2239.3",
+      "verdict": "PASS",
+      "note": "Re-run in this tree at HEAD: check-doc-links exit 0 (all links resolve, 363 files), check-doc-style exit 0 (all 154 files OK), check-doc-set exit 0 (25/25 applicable, 0 mandatory + 0 recommended gaps). check-doc-freshness exits 1 on 2 STALE files under docs/design/ — but that is byte-identical on main@ddf7fa5b, both files are untouched by this wave, and the script is not registered in check-all.mjs. E2E: gates executed on the real merged tree, not asserted from a report. DOC: the gates ARE the doc evidence.",
+      "evidence": [
+        {
+          "file": "scripts/check-doc-links.mjs",
+          "line": 1,
+          "what": "re-run at HEAD: exit 0, 'all links resolve (363 files scanned)'"
+        },
+        {
+          "file": "scripts/check-doc-set.mjs",
+          "line": 1,
+          "what": "re-run at HEAD: exit 0, '25/25 applicable docs present (mandatory gaps: 0)'"
+        }
+      ]
+    },
+    {
+      "id": "AC-2250.1",
+      "verdict": "PASS",
+      "note": "Both stale '106 ADRs' hand-copies replaced by pointers, per issue #2250's body. adr-index.md:15 -> 'current count in `docs/internal/ADR/` or the generated row count in DECISIONS.md'; README.md:29 -> 'All ADRs (current count: `docs/internal/ADR/`)'. The audit had verified the true figure at 113 files, so the count was wrong by 7 — replaced rather than re-copied, consistent with #2239's pointer discipline. E2E: 2-assertion fixture suite reads the real files (green). DOC: the corrected docs are the deliverable; doc-links green (both pointer links resolve).",
+      "evidence": [
+        {
+          "file": "docs/architecture/adr-index.md",
+          "line": 15,
+          "what": "'**106 Architecture Decision Records**' -> pointer at the canonical directory + generated digest"
+        },
+        {
+          "file": "docs/architecture/README.md",
+          "line": 29,
+          "what": "'All 106 ADRs' -> 'All ADRs (current count: `docs/internal/ADR/`)'"
+        },
+        {
+          "file": "__tests__/docs/adr-count-drift-2250.test.ts",
+          "line": 16,
+          "what": "'adr-index.md no longer hand-states the stale \"106\" count' — green"
+        }
+      ]
+    },
+    {
+      "id": "AC-2251.1",
+      "verdict": "PASS",
+      "note": "realization.md is 44 lines (<=60), frontmatter compliant (title/doc_version/status/last_review/canonical_id 'REALIZATION'/tags kind/spine+kind/architecture/related), and structurally exactly the lean spec: a Pointer Index table mapping 11 PRD phases -> arc42 §5.1 building blocks, then a Divergence Log. No how-it-works prose — the intro explicitly states it 'Never restates either source'. The log is empty ('None currently'), which the AC declares valid, and the doc says so rather than padding. INDEX regenerated (219 -> 220 documents, row added). E2E: 6-assertion fixture suite executes against the real file (line count, frontmatter, both sections, no-RTM-restatement, analysis.md backlink) — green. DOC: the file IS the doc deliverable.",
+      "evidence": [
+        {
+          "file": "docs/architecture/realization.md",
+          "line": 1,
+          "what": "the new lean doc — 44 lines, compliant frontmatter, pointer index + divergence log only"
+        },
+        {
+          "file": "__tests__/docs/realization-doc-2251.test.ts",
+          "line": 23,
+          "what": "'is a thin doc — at most 60 lines' + frontmatter/section/no-restatement assertions, green"
+        },
+        {
+          "file": "docs/INDEX.md",
+          "line": 40,
+          "what": "regenerated index row: 'Arbiter — Realization (Divergence Log) | REALIZATION | active | kind/spine'"
+        }
+      ]
+    },
+    {
+      "id": "AC-2251.2",
+      "verdict": "PASS",
+      "note": "check-doc-set exit 0 at HEAD with the new file (25/25 applicable, 0 gaps). The INV-108 SSOT core set correctly grew 29->30 (realization.md qualifies twice over: kind/spine AND a non-empty canonical_id) with SSOT_CORE_SET.md regenerated and the wiki-migrate ceiling bumped by one, following the #2241/#2249 precedent verbatim. gen-ssot-core + gen-doc-index re-run here produce byte-identical output. check-doc-freshness does not grade this file (145 graded, unchanged from main), so the new file adds zero staleness; the gate's exit 1 is the same pre-existing 2-file red as main. E2E: doc-set + gen-ssot-core executed on the real tree; wiki-migrate-1244 suite green. DOC: SSOT_CORE_SET.md + INDEX.md regenerated content.",
+      "evidence": [
+        {
+          "file": "docs/internal/METHOD/SSOT_CORE_SET.md",
+          "line": 57,
+          "what": "generated core-set inventory now lists docs/architecture/realization.md (29 -> 30)"
+        },
+        {
+          "file": "__tests__/docs/wiki-migrate-1244.test.ts",
+          "line": 218,
+          "what": "'selectSsotDocs returns at most 30 canonical core docs' — ceiling bumped by exactly one, green"
+        }
+      ]
+    },
+    {
+      "id": "AC-2248.1",
+      "verdict": "PASS",
+      "note": "RED-first honoured (evidence artifact .arbiter/evidence/tdd/#2248.json). The suite has four distinct ledger fixtures at strikes [2,3,5] — 1 consecutive (below rung 1, no escalation), 2 (rung 1 widen), 3 (rung 2 full suite), 5 (rung 3 hard stop + needs-human) — each asserting a DIFFERENT exit behaviour/message, which is exactly the 'today all three assert one behavior' RED the AC named. All 4 green at HEAD. E2E: the tests spawn the real check-e2e-escalation.mjs against real ledger fixtures, not a mocked parser. DOC: the ladder semantics are documented in the script header (:34-36) and schema.ts.",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/check-e2e-escalation.test.ts",
+          "line": 108,
+          "what": "rung 1 (widen scope) at 2 consecutive REGRESSION — distinct from :121 rung 2 and :134 rung 3"
+        },
+        {
+          "file": "__tests__/scripts/check-e2e-escalation.test.ts",
+          "line": 98,
+          "what": "below-rung-1 negative case at 1 consecutive — proves the ladder is not simply always-escalate"
+        }
+      ]
+    },
+    {
+      "id": "AC-2248.2",
+      "verdict": "PASS",
+      "note": "Both the script and its .ejs twin gained identical +100-line per-rung consumption: readPolicy returns {strikes, maxStrikes} with strikes validated and sorted ascending (:75-83), findCrossedRungIndex resolves the highest crossed rung (:91), and each rung maps to distinct exit behaviour. Scalar maxStrikes explicitly stays supported as the pre-#2248 legacy path when strikes is absent/invalid (:59,:66 fall back to DEFAULT_MAX_STRIKES). Twin is line-for-line equivalent (both +100/-28). E2E: the 'emitted .ejs twin runs the ladder' test renders the template and executes the RESULT, proving the consumer gets the same behaviour (green). DOC: script header :13-17 + :34-36 documents the ladder; schema.ts doc-comment updated.",
+      "evidence": [
+        {
+          "file": "scripts/check-e2e-escalation.mjs",
+          "line": 91,
+          "what": "findCrossedRungIndex — the per-rung resolver replacing the single scalar comparison"
+        },
+        {
+          "file": "src/templates/scripts/check-e2e-escalation.mjs.ejs",
+          "line": 86,
+          "what": "identical per-rung logic in the twin, so consumers get the ladder too"
+        },
+        {
+          "file": "__tests__/scripts/check-e2e-escalation.test.ts",
+          "line": 158,
+          "what": "'emitted .ejs twin runs the ladder (AC-2248.4)' — renders then EXECUTES the twin, green"
+        },
+        {
+          "file": "scripts/check-e2e-escalation.mjs",
+          "line": 59,
+          "what": "scalar maxStrikes fallback retained (legacy path still supported)"
+        }
+      ]
+    },
+    {
+      "id": "AC-2248.3",
+      "verdict": "PASS",
+      "note": "Both halves proven. (a) The caveat is gone: zero occurrences of 'DECLARATIVE ONLY'/'DECLARATIVE-ONLY' remain anywhere in the repo — schema.ts:154-160 now states strikes is 'consumed per-rung by check-e2e-escalation.mjs (#2248, AC-2248.2)' and the maxStrikes doc-comment was rewritten to describe the narrowed legacy role rather than the old 'the threshold ... compares against'. (b) Policy docs updated: the interface-level doc-comment (:143-149) was re-pointed, the script's own CATALOG/usage header documents the ladder (:13-17, :34-36), and docs/architecture/analysis.md's gap table dropped the now-closed '#2248 declarative-only residue' row (commit 4dfa2a1c) so the doc is not false on landing.",
+      "evidence": [
+        {
+          "file": "src/config/schema.ts",
+          "line": 156,
+          "what": "'and consumed per-rung by check-e2e-escalation.mjs (#2248, AC-2248.2)' — replaces the DECLARATIVE ONLY caveat"
+        },
+        {
+          "file": "src/config/schema.ts",
+          "line": 143,
+          "what": "interface doc-comment re-pointed: ledger gate consumes escalation.strikes per-rung, maxStrikes is the fallback"
+        },
+        {
+          "file": "scripts/check-e2e-escalation.mjs",
+          "line": 13,
+          "what": "CATALOG header documents the per-rung policy and the retained scalar legacy path"
+        }
+      ]
+    },
+    {
+      "id": "AC-2248.4",
+      "verdict": "PASS",
+      "note": "Consumer emission verified and the bake re-pin is cleanly attributable. All 27 bake snapshots moved by exactly ONE line each — the scripts/check-e2e-escalation.mjs hash — with no unrelated hash riding along (verified on ts-library.json: neighbouring check-doc-links/check-doc-set/check-drift/check-e2e-quarantine hashes unchanged). That is precisely the +100-line .ejs twin propagating to consumers. E2E: `npm run test:e2e:bake` re-run in this tree — 29 tests passed, so the re-pin matches real emission, plus the twin-execution test above. DOC: snapshots are the emission SSOT; no doc surface changed.",
+      "evidence": [
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+          "line": 303,
+          "what": "the single moved hash for scripts/check-e2e-escalation.mjs — the only delta in the file"
+        },
+        {
+          "file": "__tests__/scripts/check-e2e-escalation.test.ts",
+          "line": 151,
+          "what": "'AC-2248.4: consumer emission verified — not just that the twin parses'"
+        }
+      ]
+    },
+    {
+      "id": "AC-2243.1",
+      "verdict": "PASS",
+      "note": "The arc42:706 bare-word class is now caught. extractBareWordCommandCitations (:169) pulls backtick words out of an '(e.g. `a`, `b`, ...)' list ONLY when gated on a nearby 'command(s)' mention, and :345-354 validates them against the cli.ts SSOT with a distinct 'phantom (bare-word)' message. RED fixture proves detection: a synthetic list containing 'frobnicate' is extracted and the script exits 1. Two false-positive guards are asserted (no 'command(s)' context; plain backtick word outside an e.g. list). E2E: the fail-closed tests spawn the REAL script on a temp corpus, not just the exported function; plus the real-repo run below. DOC: arc42's own bare-word list was fixed by G, so the scan and the corpus agree.",
+      "evidence": [
+        {
+          "file": "scripts/check-phantom-command-scan.mjs",
+          "line": 169,
+          "what": "export function extractBareWordCommandCitations — the new AC-2243.1 detector"
+        },
+        {
+          "file": "scripts/check-phantom-command-scan.mjs",
+          "line": 345,
+          "what": "bare-word citations validated against cli.ts with a distinct phantom (bare-word) failure message"
+        },
+        {
+          "file": "__tests__/scripts/check-phantom-command-scan.test.ts",
+          "line": 57,
+          "what": "'extracts bare-word citations from an \"(e.g. ...)\" list gated on a nearby \"commands\" mention (arc42.md:706 class)'"
+        }
+      ]
+    },
+    {
+      "id": "AC-2243.2",
+      "verdict": "PASS",
+      "note": "New scripts/check-doc-path-citations.mjs (172 lines) catches prose citations of nonexistent repo paths — the src/ship/fix-on-red.ts class. extractPathCitations (:86) requires a slash or extension and excludes full command-line spans; findPhantomPaths (:104) resolves `../`-leading citations against the CITING FILE's directory rather than repoRoot (a real correctness detail, asserted), skips URLs and runtime-generated roots. The allowlist for deliberately-historical mentions is explicit and keyed on `${file}:${path}` (:59-65,:145) so an entry can never mask a phantom in a different file — asserted against docs/REFERENCE/fix-on-red.md. CANON-16 resolved to arbiter-self-only (no .ejs twin), mirroring check-phantom-command-scan.mjs. E2E: 3 fail-closed tests spawn the real script on temp corpora + 1 real-repo allowlist test. DOC: script header + check-all.mjs:235-240 document the class and the advisory posture.",
+      "evidence": [
+        {
+          "file": "scripts/check-doc-path-citations.mjs",
+          "line": 104,
+          "what": "findPhantomPaths — resolves relative citations against the citing file's dir, skips URLs/generated roots"
+        },
+        {
+          "file": "scripts/check-doc-path-citations.mjs",
+          "line": 65,
+          "what": "PATH_ALLOWLIST keyed on `${file}:${path}` — scoped so it cannot mask a phantom elsewhere"
+        },
+        {
+          "file": "__tests__/scripts/check-doc-path-citations.test.ts",
+          "line": 73,
+          "what": "'synthetic phantom fails closed (AC-2243.2)' — 3 spawn-the-real-script cases, green"
+        },
+        {
+          "file": "__tests__/scripts/check-doc-path-citations.test.ts",
+          "line": 134,
+          "what": "real-repo allowlist proof: fix-on-red.md's deliberate historical mention is not flagged"
+        }
+      ]
+    },
+    {
+      "id": "AC-2243.3",
+      "verdict": "PASS",
+      "note": "The AC offers 'implemented as advisory OR explicitly rejected with rationale recorded in the issue'. The second branch was taken and satisfied: issue #2243 carries a comment opening 'AC-2243.3 (count-drift class) — rejecting implementation, rationale below', arguing a digit-near-keyword heuristic must pick one of two bad shapes and that Group G is fixing the class at the source (pointers instead of hand-copies) rather than scanning for it. That reasoning is corroborated in-tree by AC-2239.2, which removed the count hand-copies outright. E2E: n/a by construction (the AC's satisfied branch is a recorded decision, not code). DOC: the rationale is durable on the issue, and the source-level fix is the arc42/c4 pointer conversion.",
+      "evidence": [
+        {
+          "file": "docs/architecture/arc42.md",
+          "line": 185,
+          "what": "the source-level fix the rejection defers to: gate counts became a pointer, so there is no count to drift"
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 235,
+          "what": "the scan's scope comment — path-citation class only; count-drift deliberately not implemented here"
+        }
+      ]
+    },
+    {
+      "id": "AC-2243.4",
+      "verdict": "PASS",
+      "note": "Both halves confirmed on the MERGED post-G corpus at HEAD. (a) The bare-word scan required by the AC is GREEN: check-phantom-command-scan.mjs exit 0 across 456 files — re-run in this tree, not taken from the lead report — which is the arc42:706 class the merge order F->G->I->H was designed to make provable. (b) No false positives on shell/example snippets: asserted for both scans (phantom-scan's no-context guard; path-citation's 'does NOT match a full command-line example in one backtick span'), and the real-repo suites pass. The path-citation advisory reports 124 dead citations on the real corpus — that is the deliberately-unpromoted advisory class, tracked for triage as #2260 (OPEN, verified), and it does not block: the AC required the BARE-WORD scan green post-G plus synthetic fixtures for the path class, both true. E2E: both scans executed on the real merged tree. DOC: the advisory posture and its promotion path are documented at check-all.mjs:235-241.",
+      "evidence": [
+        {
+          "file": "scripts/check-phantom-command-scan.mjs",
+          "line": 1,
+          "what": "re-run at HEAD on the merged corpus: exit 0, 'every cited command exists in cli.ts (456 file(s) scanned)'"
+        },
+        {
+          "file": "__tests__/scripts/check-phantom-command-scan.test.ts",
+          "line": 57,
+          "what": "real-corpus regression suite incl. 'exits 0 against PRIVACY.md + docs/ + website/' — green"
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 241,
+          "what": "runWarnCheck registration — advisory by decision, promotion to hard tracked as #2260"
+        }
+      ]
+    },
+    {
+      "id": "AC-2244.1",
+      "verdict": "FAIL",
+      "note": "4 of 17 core rows got cited functional-tier evidence; 13 did not. VERIFIED, not accepted from the lead report. The 4 cited: REQ-003/004/009 -> __tests__/integration/e2e/functional/fixture-functional.test.ts and REQ-045 -> the three dogfood suites (executed here, green). NEW FINDING on the cited harness: run under VITEST_L2=1 it is 12 passed / 1 FAILED — the python-backend-web cell's generated L1 gate fails its own 'unit tests' check. Re-run on main@ddf7fa5b: the SAME single cell fails, so this is pre-existing and NOT a wave regression, but it is also NOT covered by #2257 (which tracks greenfield-first-run.test.ts + 3 orphaned files). It is CI-wired in _nightly.yml:216 and generator-matrix.yml:62 but NOT in 01-pr-fast.yml:527 (TypeScript cell only), so it does not block this PR's gate. Needs its own tracked issue per the Iron Law. The 13 uncited (REQ-001,005,006,007,008,010,011,016,032,036,037,038,046) each carry a specific, falsifiable OPEN (#2244) blocker note naming the structural prerequisite — e.g. REQ-001 'every functional fixture inits with architectureStyle=none, so the boundaries gate is never EMITTED', REQ-007 'useGitHub is false in every functional fixture', REQ-032 'the tier's only FE cell inits at L1'. Those are honest capability-absence findings, exactly the plan's Non-Goal ('a row whose capability is genuinely broken gets a FINDING, not a silent fix'). The blocking prerequisite is tracked as #2257 (OPEN, P1, verified via gh). This is the iff-contract working as designed: #2244 does NOT get a `Closes` line on this PR. FINDING: #2257 is never cited by number inside FEATURE_MATRIX.md — the 13 notes reference #2244 only, so the tracker is discoverable from the issue but not from the matrix.",
+      "evidence": [
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 112,
+          "what": "REQ-003 — one of only 4 rows with a resolvable functional-tier test_ref"
+        },
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 110,
+          "what": "REQ-001 — empty test_ref + OPEN (#2244) blocker note (architectureStyle=none, gate never emitted)"
+        },
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 154,
+          "what": "REQ-045 — the 4th cited row, dogfood suites, all three executed green in this tree"
+        }
+      ]
+    },
+    {
+      "id": "AC-2244.2",
+      "verdict": "PASS",
+      "note": "check-feature-matrix.mjs --check re-run at HEAD in this tree: exit 0, 'OK — 55 rows, all KIT dims covered, level=L2'. No schema support was needed for the evidence-citation shape (scripts/check-feature-matrix.mjs is unchanged in the diff), so the gate stayed green without being widened to accommodate the edit — the stronger outcome. E2E: gate executed on the real merged matrix. DOC: the matrix IS the doc, and it is gate-enforced.",
+      "evidence": [
+        {
+          "file": "scripts/check-feature-matrix.mjs",
+          "line": 1,
+          "what": "re-run at HEAD: exit 0, 55 rows, all KIT dims covered — unchanged by the wave, still green"
+        },
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 107,
+          "what": "the 12-column row schema the gate validates, unchanged by the backfill"
+        }
+      ]
+    },
+    {
+      "id": "AC-2244.3",
+      "verdict": "PASS",
+      "note": "Zero status promotions occurred, so no rung was skipped. Verified mechanically: every added matrix row line in the diff carries the same status as its removed counterpart (all Partial -> Partial), and no added `| REQ-... |` line introduces Verified or Done. STATUS.md regenerates byte-identically with Verified=4 / Partial=46 — the same distribution as main. The wave changed only test_ref and note columns, which is the correct shape for an evidence-backfill task and the strongest possible reading of 'no hand-jumps to Verified'. E2E: gen-status re-run, output identical; check-feature-matrix green. DOC: STATUS.md's regenerated counts.",
+      "evidence": [
+        {
+          "file": "docs/internal/PRODUCT/STATUS.md",
+          "line": 27,
+          "what": "Verified = 4, unchanged from main — no row was promoted by this wave"
+        },
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 110,
+          "what": "REQ-001 stays Partial while gaining an evidence note — the ladder-respecting shape applied throughout"
+        }
+      ]
+    },
+    {
+      "id": "AC-2245.1",
+      "verdict": "PASS",
+      "note": "All 5 stack-support rows got a cited SCAFFOLD-tier evidence path, and the plan's hypothesis (bake snapshots already cover this) held — existing evidence was cited rather than new tests invented, which the plan calls a legitimate closure. REQ-021 TS -> fixture-bake + boundaries; REQ-022 Java -> fixture-bake + archunit; REQ-023 Python -> fixture-bake + playwright-python; REQ-024 Go -> fixture-bake + go-boundaries; REQ-025 Rust -> fixture-bake + rust-boundaries. Every path resolved to a real file and EXECUTED green here: fixture-bake 29 tests, the 5 per-stack generator suites inside a 16-file/356-test green run. E2E: bake snapshots are real-binary emission proofs, not mocks. DOC: matrix rows 130-134, gate-enforced.",
+      "evidence": [
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 130,
+          "what": "REQ-021 TypeScript — test_ref fixture-bake.test.ts + generators/boundaries.test.ts, both green here"
+        },
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 134,
+          "what": "REQ-025 Rust — test_ref fixture-bake.test.ts + generators/rust-boundaries.test.ts, both green here"
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+          "line": 1,
+          "what": "the per-stack bake snapshot backing the citation — suite re-run at HEAD, 29 tests green"
+        }
+      ]
+    },
+    {
+      "id": "AC-2246.1",
+      "verdict": "PASS",
+      "note": "All 10 arbiter-internal rows carry a cited GATE-tier test_ref, each resolved to a real file and executed green in this tree: REQ-017 help-surface, REQ-018 generators/registry, REQ-019 agents-md-parity, REQ-020 invariants/catalog, REQ-030 check-adr-index, REQ-039 gen-ssot-core, REQ-040 commands/worktree, REQ-042 commands/doctor, REQ-043 commands/task + changeset-version, REQ-044 check-plugin-api-stability. Citations are precise per the AC (a named suite per capability, not a blanket 'self check-all runs'). REQ-017 additionally records the SSOT discipline in its note ('Count is SSOT at src/cli.ts — do not hand-copy'), consistent with G's pointer rule. E2E: all 10 executed as part of the 16-file/356-test green run at HEAD. DOC: matrix rows, gate-enforced.",
+      "evidence": [
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 126,
+          "what": "REQ-017 — test_ref __tests__/behavioral/help-surface.test.ts + the do-not-hand-copy SSOT note"
+        },
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 153,
+          "what": "REQ-044 — test_ref __tests__/scripts/check-plugin-api-stability.test.ts, executed green here"
+        },
+        {
+          "file": "__tests__/behavioral/help-surface.test.ts",
+          "line": 1,
+          "what": "cited suite resolved on disk and run at HEAD — green"
+        }
+      ]
+    },
+    {
+      "id": "AC-2247.1",
+      "verdict": "PASS",
+      "note": "All 8 artifact-only rows carry cited SCAFFOLD emission/render evidence, each resolved and executed green: REQ-012 fixture-bake + github-setup, REQ-013 fixture-bake + docs, REQ-034 observability, REQ-035 auth, REQ-047 infra, REQ-048 fixture-bake + stride-enforcement, REQ-049 risk-register, REQ-050 compliance. Tier column reads SCAFFOLD on all 8, matching the emission/render nature of the cited evidence (the AC's consistency requirement). E2E: run at HEAD as part of an 11-file/209-test green run plus the 29-test bake suite. DOC: matrix rows, gate-enforced.",
+      "evidence": [
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 121,
+          "what": "REQ-012 — test_ref fixture-bake.test.ts + generators/github-setup.test.ts, tier SCAFFOLD"
+        },
+        {
+          "file": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+          "line": 159,
+          "what": "REQ-050 — test_ref generators/compliance.test.ts, tier SCAFFOLD, executed green here"
+        },
+        {
+          "file": "__tests__/generators/stride-enforcement.test.ts",
+          "line": 1,
+          "what": "cited emission suite resolved on disk and run at HEAD — green"
+        }
+      ]
+    },
+    {
+      "id": "AC-2247.2",
+      "verdict": "PASS",
+      "note": "All three sub-claims proven independently rather than assumed. (a) Regenerated: gen-status.mjs, gen-gap.mjs and gen-doc-index.mjs were all re-run in this tree and the working tree stayed CLEAN — STATUS.md's absence from the diff is a genuine no-op (its Verified/Partial tallies did not move because no status changed), and GAP.md's 98-line diff is the generator's own output reflecting the new notes. (b) Matrix gate green: check-feature-matrix --check exit 0, 55 rows. (c) Tier column consistent with cited evidence: E2E rows cite the functional harness, SCAFFOLD rows cite bake/emission/render suites, GATE rows cite gate/command suites — spot-checked across all four clusters, no tier/evidence mismatch found. E2E: generators and gate executed on the real tree. DOC: STATUS.md + GAP.md regenerated content.",
+      "evidence": [
+        {
+          "file": "docs/internal/PRODUCT/GAP.md",
+          "line": 49,
+          "what": "regenerated REQ-021 gap row — gen-gap.mjs re-run at HEAD produces this byte-identically"
+        },
+        {
+          "file": "docs/internal/PRODUCT/STATUS.md",
+          "line": 29,
+          "what": "regenerated tallies (Partial 46) — gen-status.mjs re-run leaves the tree clean, proving the no-op"
+        }
+      ]
+    }
+  ]
+}
