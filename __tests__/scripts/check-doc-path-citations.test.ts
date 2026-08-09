@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: Apache-2.0
+// AC-2243.2 (#2243): prose citations of a nonexistent repo file path
+// (`src/ship/fix-on-red.ts` class — arc42.md:190/414, c4-model.md:111 cite it
+// as if live, though the file was removed in the T2 command-surface cut) go
+// undetected today: check-phantom-command-scan.mjs is command-shaped
+// (`arbiter <cmd>` citations vs src/cli.ts), check-doc-links.mjs resolves
+// markdown LINK targets (`[text](href)`), and neither matches a bare
+// inline-code path citation. RED: no scanner for this class exists.
+import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import {
+  extractPathCitations,
+  findPhantomPaths,
+} from '../../scripts/check-doc-path-citations.mjs'
+
+const SCRIPT = resolve('scripts/check-doc-path-citations.mjs')
+
+// ─── extractPathCitations ──────────────────────────────────────────────────
+
+describe('extractPathCitations', () => {
+  it('extracts a bare backtick-wrapped repo path citation', () => {
+    expect(extractPathCitations('See `src/ship/fix-on-red.ts` for details.')).toEqual(
+      new Set(['src/ship/fix-on-red.ts']),
+    )
+  })
+
+  it('does NOT match a full command-line example in one backtick span (shell/example snippet guard)', () => {
+    expect(extractPathCitations('Run `node scripts/check-all.mjs L1` before commit.')).toEqual(
+      new Set(),
+    )
+  })
+
+  it('does NOT match a bare word with no slash or extension', () => {
+    expect(extractPathCitations('Run `arbiter graph` to build the graph.')).toEqual(new Set())
+  })
+})
+
+// ─── findPhantomPaths ───────────────────────────────────────────────────────
+
+describe('findPhantomPaths', () => {
+  it('flags a cited path that does not exist under root', () => {
+    expect(findPhantomPaths(new Set(['src/ship/fix-on-red.ts']), resolve('.'))).toEqual([
+      'src/ship/fix-on-red.ts',
+    ])
+  })
+
+  it('does not flag a cited path that exists under root', () => {
+    expect(findPhantomPaths(new Set(['package.json']), resolve('.'))).toEqual([])
+  })
+
+  it('skips a runtime-generated root (.arbiter/) even when absent from a fresh checkout', () => {
+    expect(findPhantomPaths(new Set(['.arbiter/e2e-ledger.jsonl']), resolve('.'))).toEqual([])
+  })
+
+  it('skips a URL', () => {
+    expect(findPhantomPaths(new Set(['https://example.com/foo.js']), resolve('.'))).toEqual([])
+  })
+
+  it('resolves a `../`-leading citation against the citing file\'s directory, not repoRoot', () => {
+    // package.json lives at repo root; a doc under docs/api/ citing `../../package.json`
+    // means "repo root" relative to ITS OWN location, not two levels above repoRoot.
+    const repoRoot = resolve('.')
+    const fileDir = resolve('.', 'docs', 'api')
+    expect(findPhantomPaths(new Set(['../../package.json']), repoRoot, fileDir)).toEqual([])
+  })
+})
+
+// ─── end-to-end: synthetic phantom fails closed ────────────────────────────
+
+describe('check-doc-path-citations.mjs — synthetic phantom fails closed (AC-2243.2)', () => {
+  it('exits 1 when a doc cites a nonexistent repo path (fix-on-red.ts class)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'path-citation-'))
+    try {
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'arc42.md'),
+        '`src/ship/fix-on-red.ts` computes a stable failure signature.\n',
+      )
+      const r = spawnSync('node', [SCRIPT, `--roots=${join(dir, 'docs')}`], {
+        encoding: 'utf-8',
+        cwd: dir,
+      })
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('src/ship/fix-on-red.ts')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 0 when the cited path exists', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'path-citation-ok-'))
+    try {
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      mkdirSync(join(dir, 'src'), { recursive: true })
+      writeFileSync(join(dir, 'src', 'real.ts'), 'export const x = 1\n')
+      writeFileSync(join(dir, 'docs', 'ref.md'), 'See `src/real.ts` for details.\n')
+      const r = spawnSync('node', [SCRIPT, `--roots=${join(dir, 'docs')}`], {
+        encoding: 'utf-8',
+        cwd: dir,
+      })
+      expect(r.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 0 when a shell/example snippet cites a nonexistent path inline with a command (false-positive corpus)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'path-citation-shell-'))
+    try {
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'usage.md'),
+        'Run `node scripts/does-not-exist.mjs --check` to validate.\n' +
+          'Also: `arbiter ship #NNN --advance`, `arbiter init --recipe <url>`, ' +
+          "`arbiter update --governance`, `arbiter verify tdd '#NNN'`.\n",
+      )
+      const r = spawnSync('node', [SCRIPT, `--roots=${join(dir, 'docs')}`], {
+        encoding: 'utf-8',
+        cwd: dir,
+      })
+      expect(r.status).toBe(0)
+      expect(r.stdout).not.toContain('phantom-path:')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+// ─── end-to-end: real repo, historical-mention allowlist ───────────────────
+
+describe('check-doc-path-citations.mjs — real repo (AC-2243.4 local proof)', () => {
+  it('does not flag docs/REFERENCE/fix-on-red.md — allowlisted historical mention', () => {
+    const r = spawnSync('node', [SCRIPT, '--roots=docs/REFERENCE'], {
+      encoding: 'utf-8',
+      cwd: resolve('.'),
+    })
+    expect(r.stdout).not.toContain('fix-on-red.md: `src/ship/fix-on-red.ts`')
+  })
+})

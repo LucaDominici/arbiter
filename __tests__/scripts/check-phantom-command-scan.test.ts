@@ -13,6 +13,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
   extractCitedCommands,
+  extractBareWordCommandCitations,
   extractSpawnedCommands,
   findPhantomCommands,
 } from '../../scripts/check-phantom-command-scan.mjs'
@@ -47,6 +48,81 @@ describe('extractCitedCommands', () => {
 
   it('captures a phantom command the same way as a real one (extraction is neutral)', () => {
     expect(extractCitedCommands('Run `arbiter frobnicate` now.')).toEqual(new Set(['frobnicate']))
+  })
+})
+
+// ─── extractBareWordCommandCitations (AC-2243.1, #2243) ──────────────────────
+
+describe('extractBareWordCommandCitations', () => {
+  it('extracts bare-word citations from an "(e.g. ...)" list gated on a nearby "commands" mention (arc42.md:706 class)', () => {
+    const md =
+      'Only 11 CLI commands are public; the remaining ~65 registrations are hidden ' +
+      'but fully functional (e.g. `graph`, `kit`, `frobnicate`).'
+    expect(extractBareWordCommandCitations(md)).toEqual(new Set(['graph', 'kit', 'frobnicate']))
+  })
+
+  it('does NOT flag an "(e.g. ...)" list with no "command(s)" mention nearby (false-positive guard)', () => {
+    const md = 'Supported deploy environments (e.g. `staging`, `production`).'
+    expect(extractBareWordCommandCitations(md)).toEqual(new Set())
+  })
+
+  it('does NOT flag a plain backtick word outside an "(e.g. ...)" list', () => {
+    const md = 'The `graph` subsystem backs several commands.'
+    expect(extractBareWordCommandCitations(md)).toEqual(new Set())
+  })
+})
+
+describe('check-phantom-command-scan.mjs — bare-word phantom fails closed (AC-2243.1)', () => {
+  it('exits 1 when an "(e.g. ...)" command list cites a phantom bare word', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-bareword-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('graph').description('Graph')\n",
+      )
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'arc42.md'),
+        'Many hidden commands remain functional (e.g. `graph`, `frobnicate`).\n',
+      )
+      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'docs')}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('frobnicate')
+      expect(r.stdout).not.toContain('`graph`')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 0 when the "(e.g. ...)" list has no "command(s)" context (false-positive corpus)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-bareword-fp-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('init').description('Init')\n",
+      )
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'deploy.md'),
+        'Supported deploy environments (e.g. `staging`, `production`).\n',
+      )
+      const r = spawnSync('node', [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, 'docs')}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(0)
+      // Note: the tool's OWN name ("check-phantom-command-scan") contains the
+      // substring "phantom" — the violation-line marker is "phantom:" (colon),
+      // matching the house convention used by the real-repo test below.
+      expect(r.stdout).not.toContain('phantom:')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
 

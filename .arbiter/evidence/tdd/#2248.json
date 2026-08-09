@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2248",
+  "test_path": "__tests__/scripts/check-e2e-escalation.test.ts",
+  "test_commit_sha": "76936621745a014ef9f974f596773c481d76bff1",
+  "test_blob_sha": "21d937ab6b94ad2a20eb58f1c8acc9e3848d5418",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/check-e2e-escalation.test.ts (8 tests | 2 failed) 287ms\n     × AC-2248.1/2: 2 consecutive REGRESSION at strikes [2,3,5] triggers rung 1 (widen scope) 33ms\n     × AC-2248.1/2: 5 consecutive REGRESSION at strikes [2,3,5] triggers rung 3 (hard stop + needs-human) 31ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 6 passed (8)\n   Start at  10:34:10\n   Duration  562ms (transform 69ms, setup 54ms, import 44ms, tests 287ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-e2e-escalation.test.ts > progressive escalation ladder (#2248) > AC-2248.1/2: 2 consecutive REGRESSION at strikes [2,3,5] triggers rung 1 (widen scope)\nAssertionError: expected '[check-e2e-escalation] FAIL — escalat…' to match /widen/i\n\n- Expected:\n/widen/i\n\n+ Received:\n\"[check-e2e-escalation] FAIL — escalation triggered: 2 consecutive REGRESSION ledger entries >= threshold 2 — force the full suite / escalate to needs-human per e2ePolicy.escalation\n\"\n\n ❯ __tests__/scripts/check-e2e-escalation.test.ts:113:24\n    111|       const r = run(dir)\n    112|       expect(r.status).toBe(1)\n    113|       expect(r.stderr).toMatch(/widen/i)\n       |                        ^\n    114|       expect(r.stderr).not.toMatch(/full suite/i)\n    115|       expect(r.stderr).not.toMatch(/hard stop/i)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/scripts/check-e2e-escalation.test.ts > progressive escalation ladder (#2248) > AC-2248.1/2: 5 consecutive REGRESSION at strikes [2,3,5] triggers rung 3 (hard stop + needs-human)\nAssertionError: expected '[check-e2e-escalation] FAIL — escalat…' to match /hard stop/i\n\n- Expected:\n/hard stop/i\n\n+ Received:\n\"[check-e2e-escalation] FAIL — escalation triggered: 5 consecutive REGRESSION ledger entries >= threshold 2 — force the full suite / escalate to needs-human per e2ePolicy.escalation\n\"\n\n ❯ __tests__/scripts/check-e2e-escalation.test.ts:142:24\n    140|       const r = run(dir)\n    141|       expect(r.status).toBe(1)\n    142|       expect(r.stderr).toMatch(/hard stop/i)\n       |                        ^\n    143|       expect(r.stderr).toMatch(/needs-human/i)\n    144|       expect(r.stderr).not.toMatch(/widen/i)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-e2e-escalation.test.ts",
+  "recorded_at": "2026-08-09T08:34:10.931Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-e2e-escalation.test.ts"
+  ]
+}

@@ -35,8 +35,12 @@ const FAIL_ENTRY = JSON.stringify({ verdict: 'REGRESSION', scope: 'initial' })
 
 describe('e2e escalation ledger gate (#2043)', () => {
   it('AC-2043.5/6: 3 consecutive failures with threshold 3 escalates (exit 1)', () => {
+    // #2248: `strikes` omitted deliberately — this fixture pins the pure scalar
+    // `maxStrikes` (legacy) path, which stays supported once `strikes` also
+    // drives a per-rung ladder (see the "progressive escalation ladder" suite
+    // below). A fixture declaring BOTH now takes the per-rung path instead.
     const { dir, cleanup } = stage([PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY], {
-      e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } },
+      e2ePolicy: { escalation: { maxStrikes: 3 } },
     })
     try {
       const r = run(dir)
@@ -49,8 +53,9 @@ describe('e2e escalation ledger gate (#2043)', () => {
   })
 
   it('AC-2043.5/6: 2 consecutive failures below threshold 3 does not escalate (exit 0)', () => {
+    // #2248: see comment above — scalar-only fixture, legacy path.
     const { dir, cleanup } = stage([PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY], {
-      e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 3 } },
+      e2ePolicy: { escalation: { maxStrikes: 3 } },
     })
     try {
       const r = run(dir)
@@ -75,6 +80,96 @@ describe('e2e escalation ledger gate (#2043)', () => {
     try {
       const r = run(dir)
       expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// #2248 (AC-2248.1/2): the ladder declared in escalation.strikes was DECLARATIVE
+// ONLY — schema-validated but consumed by nothing; every consecutive count that
+// crossed ANY threshold produced the exact same generic message (today: always
+// "force the full suite / escalate to needs-human", regardless of which rung was
+// actually crossed). RED: assert the rung-specific action word appears (and the
+// OTHER rungs' words do not) at each of the three canonical thresholds.
+describe('progressive escalation ladder (#2248)', () => {
+  const LADDER = { e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 5 } } }
+
+  it('AC-2248.1/2: 1 consecutive REGRESSION at strikes [2,3,5] stays below rung 1 (no escalation)', () => {
+    const { dir, cleanup } = stage([PASS_ENTRY, FAIL_ENTRY], LADDER)
+    try {
+      const r = run(dir)
+      expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-2248.1/2: 2 consecutive REGRESSION at strikes [2,3,5] triggers rung 1 (widen scope)', () => {
+    const { dir, cleanup } = stage([PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY], LADDER)
+    try {
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/widen/i)
+      expect(r.stderr).not.toMatch(/full suite/i)
+      expect(r.stderr).not.toMatch(/hard stop/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-2248.1/2: 3 consecutive REGRESSION at strikes [2,3,5] triggers rung 2 (force the full suite)', () => {
+    const { dir, cleanup } = stage([PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY], LADDER)
+    try {
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/full suite/i)
+      expect(r.stderr).not.toMatch(/widen/i)
+      expect(r.stderr).not.toMatch(/hard stop/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-2248.1/2: 5 consecutive REGRESSION at strikes [2,3,5] triggers rung 3 (hard stop + needs-human)', () => {
+    const { dir, cleanup } = stage(
+      [PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY],
+      LADDER,
+    )
+    try {
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/hard stop/i)
+      expect(r.stderr).toMatch(/needs-human/i)
+      expect(r.stderr).not.toMatch(/widen/i)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// AC-2248.4 (#2248): consumer emission verified — not just "the twin parses"
+// (generated-scripts-syntax.test.ts's node --check sweep) but "the EMITTED
+// artifact runs the ladder". Renders scripts/check-e2e-escalation.mjs.ejs (the
+// actual template a governed project's `arbiter init` emits into
+// scripts/check-e2e-escalation.mjs) and executes the RENDERED file — not the
+// scripts/ source copy — against the same rung-3 fixture as the ladder suite
+// above.
+describe('emitted .ejs twin runs the ladder (AC-2248.4)', () => {
+  it('the rendered template hard-stops at rung 3, same as the source script', async () => {
+    const { renderTemplate } = await import('../../src/utils/render.js')
+    const rendered = renderTemplate('scripts/check-e2e-escalation.mjs.ejs', {})
+    const { dir, cleanup } = stage(
+      [PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY],
+      { e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 5 } } },
+    )
+    try {
+      const emittedScript = join(dir, 'check-e2e-escalation.mjs')
+      writeFileSync(emittedScript, rendered, 'utf-8')
+      const r = spawnSync('node', [emittedScript], { encoding: 'utf-8', cwd: dir })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/hard stop/i)
+      expect(r.stderr).toMatch(/needs-human/i)
     } finally {
       cleanup()
     }

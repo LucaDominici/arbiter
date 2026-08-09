@@ -143,22 +143,27 @@ export interface SmokeJourneyPolicy {
  * #2043 (AC-2043.4/5): the e2e escalation policy — the configurable
  * consecutive-failure ladder replacing the hardcoded 2-strike rule. Absent ⇒ the
  * ship tick prompt and the ledger gate (check-e2e-escalation.mjs) both fall back
- * to the pre-#2043 2-strike default. Present ⇒ both render/escalate off
- * `escalation.maxStrikes`.
+ * to the pre-#2043 2-strike default. Present ⇒ ship tick prompt renders off
+ * `escalation.maxStrikes`; the ledger gate consumes `escalation.strikes`
+ * per-rung when present (#2248), else falls back to the scalar `maxStrikes`
+ * check (legacy).
  */
 export interface E2eEscalationPolicy {
   escalation: {
     /**
      * Consecutive-failure ladder — each entry widens the response (e.g. [2, 3, 5]:
      * widen scope at 2, force the full suite at 3, hard-stop at 5). Validated
-     * (an array of numbers) but currently DECLARATIVE ONLY — only `maxStrikes`
-     * below drives check-e2e-escalation.mjs's actual escalate/no-escalate decision;
-     * per-rung behavior at each strikes value is a follow-up.
+     * (an array of numbers) and consumed per-rung by check-e2e-escalation.mjs
+     * (#2248, AC-2248.2): the highest rung the ledger's trailing consecutive-
+     * REGRESSION count crosses drives distinct exit messaging (widen /
+     * force-full-suite / hard-stop-to-needs-human).
      */
     strikes: number[]
     /**
-     * Required once `escalation` is declared — the threshold check-e2e-escalation.mjs
-     * compares the ledger's trailing consecutive-REGRESSION count against. No
+     * Required once `escalation` is declared. Drives the ship tick prompt's
+     * within-run strike count unconditionally; drives check-e2e-escalation.mjs's
+     * escalate/no-escalate decision only when `strikes` above is absent/invalid
+     * (the pre-#2248 scalar path, kept for backward compatibility). No
      * config-layer default: when the whole `e2ePolicy` key is ABSENT, both
      * check-e2e-escalation.mjs and TICK_PROMPT.md.ejs fall back to 2 (the
      * pre-#2043 hardcoded 2-strike rule) — see the interface doc above.

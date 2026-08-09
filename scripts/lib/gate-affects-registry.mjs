@@ -36,6 +36,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'wiki lint (INV-116)', affects: DOCS },
   { name: 'ssot core', affects: DOCS },
   { name: 'doc links', affects: DOCS },
+  { name: 'doc path citations (#2243)', affects: DOCS },
   { name: 'governance mirror sync (#1805)', affects: DOCS },
   { name: 'doc style', affects: DOCS },
   { name: 'claude-md lint (#1266)', affects: DOCS },
