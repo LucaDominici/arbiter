@@ -1,0 +1,5 @@
+#!/bin/sh
+# The functional fixture intentionally uses the host Gradle supplied by the
+# E2E image; generated consumer projects own their normal Gradle wrapper.
+exec gradle "$@"
+
