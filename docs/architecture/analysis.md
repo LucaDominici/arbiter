@@ -64,16 +64,16 @@ src/cli.ts --help` / `help --all`, not hand-counted): **15 public top-level comm
 
 ## 3. Doc-role map
 
-| Role        | Doc                                                          | One line                                                                                            |
-| ----------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| Design      | [`arc42.md`](arc42.md) + [`c4-model.md`](c4-model.md)        | Structural decomposition (arc42 §4/§5/§9) and its C4 visualization; owns _how it's built_.          |
-| Realization | [`FEATURE_MATRIX.md`](../internal/PRODUCT/FEATURE_MATRIX.md) | Gate-enforced RTM — requirement→code→test, the only realization/traceability doc that exists today. |
-| Feasibility | [`feasibility.md`](feasibility.md)                           | Retroactive TELOS-lite justification record — _why it was built this way_.                          |
-| Analysis    | This doc                                                     | Verified as-is snapshot — _what's confirmed true right now_, links-not-restatement.                 |
+| Role        | Doc                                                          | One line                                                                                             |
+| ----------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Design      | [`arc42.md`](arc42.md) + [`c4-model.md`](c4-model.md)        | Structural decomposition (arc42 §4/§5/§9) and its C4 visualization; owns _how it's built_.           |
+| RTM         | [`FEATURE_MATRIX.md`](../internal/PRODUCT/FEATURE_MATRIX.md) | Gate-enforced requirement→code→test traceability at fine grain.                                      |
+| Realization | [`realization.md`](realization.md)                           | Thin pointer index (requirement-cluster → arc42 §5 block) + divergence log — never restates the RTM. |
+| Feasibility | [`feasibility.md`](feasibility.md)                           | Retroactive TELOS-lite justification record — _why it was built this way_.                           |
+| Analysis    | This doc                                                     | Verified as-is snapshot — _what's confirmed true right now_, links-not-restatement.                  |
 
-Per #2251 — the durable record, since no lean-docs-spec document exists in this repo — a dedicated
-`docs/architecture/realization.md` (a divergence log, distinct from the RTM) was also scoped for
-this workstream, not yet created, and tracked below.
+Per #2251, `docs/architecture/realization.md` now exists — the row above supersedes the earlier
+"realization = FEATURE_MATRIX.md" conflation this doc previously recorded as the state of fact.
 
 ## 4. Known drift & gaps
 
