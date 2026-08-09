@@ -136,7 +136,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 <% } else { -%>
-          node-version: '22'
+          node-version-file: .nvmrc
           package-manager-cache: false
 <% } -%>
       - name: Audit action pin ages

@@ -58,6 +58,14 @@ describe('tsconfig.json.ejs (#170)', () => {
   })
 })
 
+describe('.nvmrc.ejs (#2259)', () => {
+  it('renders the configured canonical Node version exactly', () => {
+    expect(renderTemplate('.nvmrc.ejs', cfg('python', { nodeVersion: '22.21.1' }))).toBe(
+      '22.21.1\n',
+    )
+  })
+})
+
 // tsconfig.json moved from the GitHub-gated `root` generator to the always-on
 // `debt-gates` generator (B4, #1491): the root generator only runs when GitHub
 // support is enabled, so emitting tsconfig there dropped it for every non-GitHub

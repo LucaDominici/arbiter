@@ -102,7 +102,7 @@ jobs:
 <% if (language === 'typescript') { -%>
           node-version-file: '.nvmrc'
 <% } else { -%>
-          node-version: '22'
+          node-version-file: '.nvmrc'
           package-manager-cache: false
 <% } -%>
       - name: PII scan (INV-12, HARD)
@@ -147,7 +147,7 @@ jobs:
 <% if (language === 'typescript') { -%>
           node-version-file: '.nvmrc'
 <% } else { -%>
-          node-version: '22'
+          node-version-file: '.nvmrc'
           package-manager-cache: false
 <% } -%>
       - id: classify
@@ -857,7 +857,7 @@ jobs:
 <% } else { %>
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           package-manager-cache: false
 <% } %>
       - name: Install gitleaks
@@ -1092,7 +1092,7 @@ jobs:
 <% } else { %>
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           package-manager-cache: false
 <% } %>
       - name: Install gitleaks

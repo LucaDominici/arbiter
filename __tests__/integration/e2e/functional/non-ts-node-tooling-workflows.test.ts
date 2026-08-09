@@ -6,18 +6,19 @@ import { makeConfig } from '../../../helpers.js'
 function render(template: string, overrides: Record<string, unknown>): string {
   return renderTemplate(
     template,
-    makeConfig('/tmp/non-ts-node-tooling', overrides as Parameters<typeof makeConfig>[1]) as unknown as Record<
-      string,
-      unknown
-    >,
+    makeConfig(
+      '/tmp/non-ts-node-tooling',
+      overrides as Parameters<typeof makeConfig>[1],
+    ) as unknown as Record<string, unknown>,
   )
 }
 
 function expectBareNodeSetup(output: string): void {
-  expect(output).toContain("node-version: '22'")
+  expect(output).toMatch(
+    /node-version-file: (?:\.nvmrc|'\.nvmrc'|\$\{\{ inputs\.node-version-file \}\})/,
+  )
   expect(output).toContain('package-manager-cache: false')
-  expect(output).not.toContain('node-version-file: .nvmrc')
-  expect(output).not.toContain("node-version-file: '.nvmrc'")
+  expect(output).not.toContain("node-version: '22'")
 }
 
 describe('non-TypeScript workflow Node tooling (#2259)', () => {

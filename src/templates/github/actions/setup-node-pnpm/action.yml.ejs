@@ -26,7 +26,7 @@ runs:
         node-version-file: ${{ inputs.node-version-file }}
         cache: npm
 <% } else { -%>
-        node-version: '22'
+        node-version-file: ${{ inputs.node-version-file }}
         package-manager-cache: false
 <% } -%>
 <% if (language === 'typescript') { -%>

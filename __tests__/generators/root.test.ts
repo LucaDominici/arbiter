@@ -25,7 +25,7 @@ describe('generateRoot', () => {
   })
 
   it('emits the canonical .nvmrc for CI-enabled non-TypeScript projects (#2259)', () => {
-    generateRoot(makeConfig(dir, { language: 'python', nodeVersion: '22.21.1' }))
+    generateRoot(makeConfig(dir, { language: 'python' }))
     expect(readFileSync(join(dir, '.nvmrc'), 'utf-8')).toBe('22.21.1\n')
   })
 
