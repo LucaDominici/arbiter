@@ -242,3 +242,13 @@ gates:
   # ── L3 (nightly lane, AC-2041.1 — mirrors 06-nightly-lite.yml) ────────────
   - { id: solo-reactivation, name: 'solo reactivation', level: L3, kind: check, emitIf: "typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo' && isL3Plus", cmd: ['node', ['scripts/check-solo-reactivation.mjs']] }
   - { id: nightly-audit-prod, name: 'nightly audit (prod scope)', level: L3, kind: check, emitIf: "language === 'typescript' && packageManager === 'npm'", soft: true, cmd: ['npm', ['audit', '--omit=dev', '--audit-level=high']] }
+  # #2258: go's L3 content — solo-reactivation/evidence-gate both require
+  # isL3Plus (governanceLevel >= L3) and nightly-audit-prod is typescript-only,
+  # so a go project at any governanceLevel below L3 emitted ZERO L3 gates
+  # (the layering contract's "L3 lane declares zero gates" failure). `-race`
+  # is the standard non-TS-mutation-testing nightly-lane recipe (full run, not
+  # -short — see docs/PRODUCT research on Go/Rust nightly lanes). Requires a
+  # cgo-capable C toolchain (gcc/cc) on the runner; a race in the trunk-solo
+  # cgo-less path would need a runner-capability guard, not `soft` (soft binds
+  # to graceActive, an L1→L2 grace concept, inert at L3).
+  - { id: go-race, name: 'race detector (full)', level: L3, kind: check, language: go, cmd: ['go', ['test', '-race', './...']] }

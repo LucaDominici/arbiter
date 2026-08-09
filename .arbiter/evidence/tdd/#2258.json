@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2258",
+  "test_path": "__tests__/gates/gate-registry.test.ts",
+  "test_commit_sha": "01d3de92a2fe62e02ae4d0466b3c93a76b42fa61",
+  "test_blob_sha": "261f66050a215064d4153db1bcee648cb09316b5",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/gates/gate-registry.test.ts (4 tests | 1 failed) 205ms\n     × AC-2041.3: a layering contract test is emitted for consumers (go @ L2, trunk-solo) 44ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 3 passed (4)\n   Start at  16:27:25\n   Duration  402ms (transform 99ms, setup 17ms, import 117ms, tests 205ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/gates/gate-registry.test.ts > declarative gate registry (#2041) > AC-2041.3: a layering contract test is emitted for consumers (go @ L2, trunk-solo)\nAssertionError: test-gate-layering: FAIL — 1 layering violation(s):\n  - L3 lane declares zero gates\n: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/gates/gate-registry.test.ts:146:47\n    144|           encoding: 'utf-8',\n    145|         })\n    146|         expect(r.status, r.stdout + r.stderr).toBe(0)\n       |                                               ^\n    147|       } finally {\n    148|         rmSync(scriptDir, { recursive: true, force: true })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/gates/gate-registry.test.ts",
+  "recorded_at": "2026-08-09T14:27:25.505Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/gates/gate-registry.test.ts"
+  ]
+}
