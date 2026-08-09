@@ -1,16 +1,16 @@
 {
   "version": 2,
-  "capturedAt": "2026-08-08T23:12:52.524Z",
-  "commit": "8d9fea1c",
+  "capturedAt": "2026-08-09T09:59:57.552Z",
+  "commit": "50591bea",
   "archetype": "library",
   "metrics": {
     "coverageLine": {
-      "value": 96.28,
+      "value": 96.38,
       "unit": "percent",
       "direction": "higher-is-better"
     },
     "coverageBranch": {
-      "value": 90.39,
+      "value": 90.41,
       "unit": "percent",
       "direction": "higher-is-better"
     },
@@ -25,7 +25,7 @@
       "direction": "lower-is-better"
     },
     "complexityViolations": {
-      "value": 225,
+      "value": 226,
       "unit": "count",
       "direction": "lower-is-better"
     },
@@ -35,7 +35,7 @@
       "direction": "lower-is-better"
     },
     "duplicationPercentage": {
-      "value": 1.0179592002766085,
+      "value": 1.030886034889968,
       "unit": "percent",
       "direction": "lower-is-better"
     },
@@ -45,7 +45,7 @@
       "direction": "lower-is-better"
     },
     "openFindingsCount": {
-      "value": 1,
+      "value": 0,
       "unit": "count",
       "direction": "lower-is-better"
     },
