@@ -116,14 +116,14 @@
     "dest": ".github/workflows",
     "reason": "Self sets `enableNativeBakeE2E` (bake-e2e-native + generated-gate-e2e [per-language matrix] + generated-gate-e2e-misc jobs) — a flag with no wiring path in resolveProjectConfig/src/generators (grep confirms zero setters): a manual arbiter-self-only harness augmentation for the init→bake native-fixture-smoke matrix + VITEST_L2 generated-gate harness (split per-stack, B5 gate-thesis reliability). The template comment says as much: \"Downstream-generated projects do not ship this harness, so it renders only for arbiter itself.\" Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "4553cb9a59416669b99178fdc21037609621fb7d9f36474e6ba01abfe373396d"
+    "diffHash": "d18ce7afdde333d6e8985bfc3ecc2edb16e99a412ccf9498d0a5d55f4399368a"
   },
   {
     "path": "check-action-pins.mjs",
     "dest": "scripts",
     "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "740a543e1e65cdc50a862dad3a1d171cd6413eace0c984737523888970337b23"
+    "diffHash": "d9962978af14deb71fb3e24675463b2dcbabe2079c20b37879382e95db73c90b"
   },
   {
     "path": "check-anti-fake-green.mjs",
