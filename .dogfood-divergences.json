@@ -116,7 +116,7 @@
     "dest": ".github/workflows",
     "reason": "Self sets `enableNativeBakeE2E` (bake-e2e-native + generated-gate-e2e [per-language matrix] + generated-gate-e2e-misc jobs) — a flag with no wiring path in resolveProjectConfig/src/generators (grep confirms zero setters): a manual arbiter-self-only harness augmentation for the init→bake native-fixture-smoke matrix + VITEST_L2 generated-gate harness (split per-stack, B5 gate-thesis reliability). The template comment says as much: \"Downstream-generated projects do not ship this harness, so it renders only for arbiter itself.\" Tracked under #1900.",
     "expires": "2026-08-15",
-    "diffHash": "cc80f33c9199a429d8bbfec18c3c3785b441bfd6e2ac03930a7fa805f7bb13fc"
+    "diffHash": "6653418ab89a4b275d171d7cd787b5fd4dded2f267f56fe9d439851576f48e39"
   },
   {
     "path": "check-action-pins.mjs",
