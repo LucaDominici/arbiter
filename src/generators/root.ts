@@ -15,7 +15,11 @@ export function generateRoot(
 ): RootGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = { ...config, nodeVersion: '22.21.1', strictnessTier: config.strictnessTier ?? 'practical' }
+  const data = {
+    ...config,
+    nodeVersion: '22.21.1',
+    strictnessTier: config.strictnessTier ?? 'practical',
+  }
 
   // CODEOWNERS — create if missing
   if (config.githubOwner) {
