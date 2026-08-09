@@ -1,0 +1,220 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "wave-5",
+  "plan": "/home/luca/work/repos/arbiter/.claude/plans/wave-5.md",
+  "branch": "wave-5-integration",
+  "baseSha": "2c80bfae8a0ea69d16400ebaeef2b8743951d251",
+  "headSha": "863dd9cde5296dbc2abd18b373e79de92274eaa3",
+  "reviewer": "Root orchestrator with independent requirements, architecture, and adversarial-test reviewers",
+  "reviewedAt": "2026-08-09",
+  "summary": {
+    "total": 13,
+    "pass": 13,
+    "fail": 0,
+    "notTested": 0
+  },
+  "notes": [
+    "Every closer has both its real-binary E2E half and documentation half on the same verified code SHA.",
+    "The committed evidence file is the only change after the verified code SHA; any later code change invalidates these runtime records.",
+    "#2257 and #2244 remain open and are intentionally absent because their E2E closure predicate is not satisfied."
+  ],
+  "runtimeEvidence": [
+    {
+      "id": "RT-2259-ACTIONLINT-5X4",
+      "command": ["npx", "vitest", "run", "__tests__/templates/generated-workflow-syntax.test.ts"],
+      "exitCode": 0,
+      "result": "20/20 language-by-level actionlint cells passed; 21 tests passed and only the inverted tool-absent sentinel was skipped"
+    },
+    {
+      "id": "RT-2259-PYTHON-ACT",
+      "command": ["act", "pull_request", "-W", "$CELL/.github/workflows/01-pr-fast.yml", "-j", "classify-changes", "-e", "$CELL/act-event.json", "--directory", "$CELL", "--container-architecture", "linux/amd64", "-P", "ubuntu-latest=catthehacker/ubuntu:act-latest"],
+      "exitCode": 0,
+      "fixture": "python-backend-web, L3, GitHub enabled, 20 emitted workflows",
+      "observable": "Resolved .nvmrc as 22.21.1; node v22.21.1; ci-classify-changes succeeded; Job succeeded"
+    },
+    {
+      "id": "RT-2259-RUST-ACT",
+      "command": ["act", "pull_request", "-W", "$CELL/.github/workflows/01-pr-fast.yml", "-j", "classify-changes", "-e", "$CELL/act-event.json", "--directory", "$CELL", "--container-architecture", "linux/amd64", "-P", "ubuntu-latest=catthehacker/ubuntu:act-latest"],
+      "exitCode": 0,
+      "fixture": "rust-library, L3, GitHub enabled, 19 emitted workflows",
+      "observable": "Resolved .nvmrc as 22.21.1; node v22.21.1; ci-classify-changes succeeded; Job succeeded"
+    },
+    {
+      "id": "RT-2267-LAYERING",
+      "command": ["node", "scripts/test-gate-layering.mjs"],
+      "exitCode": 0,
+      "result": "Fresh L2 brownfield consumers passed: Rust 53/27/1, Python 51/28/1, Java 51/29/1, Kotlin 50/25/1 L1/L2/L3 declarations"
+    },
+    {
+      "id": "RT-2267-RUST",
+      "command": ["node", "scripts/check-all.mjs", "L3", "--gate", "rust-release-tests"],
+      "exitCode": 0,
+      "observable": "cargo test --release --all-targets --all-features; target PASS, non-SKIP"
+    },
+    {
+      "id": "RT-2267-PYTHON",
+      "command": ["node", "scripts/check-all.mjs", "L3", "--gate", "python-doctest-strict"],
+      "exitCode": 0,
+      "observable": "pytest --doctest-modules --strict-markers; target PASS, non-SKIP"
+    },
+    {
+      "id": "RT-2267-JAVA",
+      "command": ["node", "scripts/check-all.mjs", "L3", "--gate", "java-lifecycle"],
+      "exitCode": 0,
+      "observable": "./gradlew build -q; target PASS, non-SKIP; committed VITEST_L2 real-init test also passed 1/1"
+    },
+    {
+      "id": "RT-2267-KOTLIN",
+      "command": ["node", "scripts/check-all.mjs", "L3", "--gate", "kotlin-gradle-build"],
+      "exitCode": 0,
+      "observable": "./gradlew build -q; target PASS, non-SKIP"
+    },
+    {
+      "id": "RT-2252-2262-FOCUSED",
+      "command": ["npx", "vitest", "run", "__tests__/docs/prd-milestones-coherence-2252.test.ts", "__tests__/docs/gold-doc-freshness-2262.test.ts"],
+      "exitCode": 0,
+      "result": "2 files and 4 tests passed"
+    },
+    {
+      "id": "RT-DOC-GATES",
+      "commands": ["node scripts/check-doc-freshness.mjs", "node scripts/gen-status.mjs --check", "node scripts/gen-gap.mjs --check", "node scripts/check-doc-style.mjs", "node scripts/check-doc-links.mjs", "node scripts/gen-doc-index.mjs --check"],
+      "exitCode": 0,
+      "result": "145/145 fresh; STATUS/GAP/index current; 154 style files OK; 412 links resolve; no warnings"
+    }
+  ],
+  "runtimeContext": {
+    "verifiedHeadSha": "863dd9cde5296dbc2abd18b373e79de92274eaa3",
+    "verifiedTree": "clean",
+    "distCliSha256": "1c4ac54ec9598d045e7046c0f00f86e00c99b197aaadf11919a8da8184d7f1d0",
+    "distSourceManifestHash": "f3a63b984c2b6c8a17176317c162c07757f5a8320a51876114a9afb2fb8e45cb",
+    "tools": {
+      "node": "22.21.1",
+      "actionlint": "1.7.3",
+      "act": "0.2.87",
+      "docker": "29.7.1",
+      "cargo": "1.94.0",
+      "python": "3.12.3",
+      "java": "21.0.11",
+      "gradleWrapper": "8.7"
+    }
+  },
+  "criteria": [
+    {
+      "id": "AC-2259.1",
+      "verdict": "PASS",
+      "note": "RT-2259-PYTHON-ACT proves a real generated Python L3 CI job resolves the universal .nvmrc and runs without a package lockfile.",
+      "evidence": [
+        {"file": "src/generators/root.ts", "line": 60, "what": "every CI-enabled stack receives the canonical .nvmrc"},
+        {"file": "__tests__/integration/e2e/functional/non-ts-node-tooling-workflows.test.ts", "line": 16, "what": "non-TypeScript setup contract forbids a lockfile-dependent cache"}
+      ]
+    },
+    {
+      "id": "AC-2259.2",
+      "verdict": "PASS",
+      "note": "The direct-consumer inventory is pinned by the table-driven render test; the full workflow corpus also passed actionlint.",
+      "evidence": [
+        {"file": "__tests__/integration/e2e/functional/non-ts-node-tooling-workflows.test.ts", "line": 25, "what": "all affected direct setup-node consumers are enumerated"},
+        {"file": "src/templates/github/workflows/_nightly.yml.ejs", "line": 615, "what": "nightly non-TypeScript evidence path uses .nvmrc without cache"}
+      ]
+    },
+    {
+      "id": "AC-2259.3",
+      "verdict": "PASS",
+      "note": "TypeScript render parity, root generator coverage, full bake 29/29, dogfood, and composed L1 all passed.",
+      "evidence": [
+        {"file": "__tests__/templates/root-render.test.ts", "line": 1, "what": "root render parity coverage"},
+        {"file": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json", "line": 1, "what": "mechanically regenerated bake corpus remains pinned"}
+      ]
+    },
+    {
+      "id": "AC-2259.4",
+      "verdict": "PASS",
+      "note": "RT-2259-ACTIONLINT-5X4 plus RT-2259-PYTHON-ACT and RT-2259-RUST-ACT are fresh same-SHA real executions, not dry-runs.",
+      "evidence": [
+        {"file": "__tests__/templates/generated-workflow-syntax.test.ts", "line": 92, "what": "five languages by four governance levels are rendered and actionlinted"},
+        {"file": "src/templates/github/workflows/01-pr-fast.yml.ejs", "line": 148, "what": "classify-changes setup resolves .nvmrc for non-TypeScript consumers"}
+      ]
+    },
+    {
+      "id": "AC-2267.1",
+      "verdict": "PASS",
+      "note": "RT-2267-LAYERING and the four RT-2267 language records prove each L3 declaration exists at L2 and executes for real without SKIP.",
+      "evidence": [
+        {"file": "src/templates/scripts/gate-registry.yml.ejs", "line": 259, "what": "Rust, Python, Java, and Kotlin L3 lifecycle gates are declared independently of isL3Plus"},
+        {"file": "__tests__/integration/e2e/functional/java-lifecycle-gate.test.ts", "line": 1, "what": "real Java L2 init executes the emitted L3 lifecycle gate"}
+      ]
+    },
+    {
+      "id": "AC-2267.2",
+      "verdict": "PASS",
+      "note": "The AC-2041.3 emitted-contract matrix covers all live consumer languages and both Java lifecycle argv variants.",
+      "evidence": [
+        {"file": "__tests__/gates/gate-registry.test.ts", "line": 131, "what": "table-driven emitted layering test covers TypeScript, Go, Rust, Python, Java, and Kotlin"},
+        {"file": "__tests__/gates/gate-registry.test.ts", "line": 167, "what": "Gradle build and Maven verify argv are asserted separately"}
+      ]
+    },
+    {
+      "id": "AC-2267.3",
+      "verdict": "PASS",
+      "note": "Only affected Rust, Python, and Java bake records changed; full mechanical bake passed twice and Kotlin gained a self-contained wrapper fixture.",
+      "evidence": [
+        {"file": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json", "line": 1, "what": "affected Rust bake hash is pinned"},
+        {"file": "__tests__/fixtures/real-projects/kotlin-backend-web-db-gradle/gradle/wrapper/gradle-wrapper.properties", "line": 1, "what": "Kotlin real consumer owns its Gradle wrapper"}
+      ]
+    },
+    {
+      "id": "AC-2252.1",
+      "verdict": "PASS",
+      "note": "RT-2252-2262-FOCUSED and RT-DOC-GATES prove the reconciled Phase 10/11 truth and derived STATUS are current.",
+      "evidence": [
+        {"file": "docs/PRODUCT/PRD.md", "line": 143, "what": "Phase 10 is shipped with the M22-M30 range and milestone SSOT pointer"},
+        {"file": "__tests__/docs/prd-milestones-coherence-2252.test.ts", "line": 10, "what": "focused real-tree reconciliation assertion"}
+      ]
+    },
+    {
+      "id": "AC-2252.2",
+      "verdict": "PASS",
+      "note": "All six formerly omitted headers carry the reconciled done marker and the audit table records the repair.",
+      "evidence": [
+        {"file": "docs/internal/PRODUCT/MILESTONES.md", "line": 620, "what": "M23 and the corresponding M24/M29/M31/M32/M33 headings are marked DONE"},
+        {"file": "__tests__/docs/prd-milestones-coherence-2252.test.ts", "line": 17, "what": "all six header markers are asserted"}
+      ]
+    },
+    {
+      "id": "AC-2252.3",
+      "verdict": "PASS",
+      "note": "PRD phase status points to MILESTONES instead of introducing another copied status ledger.",
+      "evidence": [
+        {"file": "docs/PRODUCT/PRD.md", "line": 146, "what": "Phase 10 status delegates to the milestone SSOT"},
+        {"file": "docs/PRODUCT/PRD.md", "line": 160, "what": "Phase 11 status delegates to the milestone SSOT"}
+      ]
+    },
+    {
+      "id": "AC-2262.1",
+      "verdict": "PASS",
+      "note": "Both gold docs received an honest content review and now describe the implemented doc-set and freshness behavior.",
+      "evidence": [
+        {"file": "docs/design/gold-doc-capability.md", "line": 438, "what": "implemented freshness generator/checker behavior is documented"},
+        {"file": "__tests__/docs/gold-doc-freshness-2262.test.ts", "line": 20, "what": "reviewed implementation claims are asserted against both real docs"}
+      ]
+    },
+    {
+      "id": "AC-2262.2",
+      "verdict": "PASS",
+      "note": "RT-DOC-GATES ran the real freshness checker on the final tree: exit 0, 145/145 fresh.",
+      "evidence": [
+        {"file": "scripts/check-doc-freshness.mjs", "line": 1, "what": "real freshness binary executed on the final tree"},
+        {"file": "__tests__/docs/gold-doc-freshness-2262.test.ts", "line": 30, "what": "controlled Git fixture proves coupled-code staleness is blocked"}
+      ]
+    },
+    {
+      "id": "AC-2262.3",
+      "verdict": "PASS",
+      "note": "The review changed substantive stale claims together with last_review; it was not a date-only bump.",
+      "evidence": [
+        {"file": "docs/design/gold-doc-capability.md", "line": 438, "what": "stale unimplemented claim replaced by implemented behavior"},
+        {"file": "docs/design/gold-doc-tranches-t3-t5.md", "line": 214, "what": "freshness clock and coupling semantics are reviewed and current"}
+      ]
+    }
+  ]
+}
