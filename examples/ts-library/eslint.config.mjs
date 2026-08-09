@@ -18,10 +18,16 @@ export default tseslint.config(
       'coverage/**',
       'node_modules/**',
       '.claude/**',
+      '.codex/**',
       '.githooks/**',
       'scripts/**',
       'pacts/**',
       '.dependency-cruiser.cjs',
+      // #2257: legacy eslintrc-format compat files (.eslintrc-frontend-spa.cjs,
+      // .eslintrc-boundaries.cjs, …) — retained for tooling that still reads
+      // eslintrc format, NOT used by the flat-config gate itself. Un-ignored,
+      // their bare `module.exports` CommonJS shape REDs `no-undef` on Day 1.
+      '.eslintrc-*.cjs',
     ],
   },
   js.configs.recommended,
