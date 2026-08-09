@@ -130,6 +130,14 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(evidenceJob).toContain('./.github/actions/setup-node-pnpm')
   })
 
+  // This pins a KNOWN GAP, not an endorsement: evidence-collect's scrub step needs
+  // `node` for every language (see the #2256 comment above), but non-typescript
+  // projects get no setup step at all here. Tracked as a finding (arbiter note
+  // fingerprint 8da674a014533c4806dc05fd340cb65baae9a6bf, severity high) — fixing
+  // it needs a universal .nvmrc/tooling-package.json emission or a no-cache/
+  // no-nvmrc-required input on setup-node-pnpm, both out of #2256's Files
+  // manifest. Whoever closes that finding should delete/replace this test, not
+  // work around it.
   it.each(STACKS.filter((s) => s.language !== 'typescript'))(
     '$language: evidence-collect job stays without setup-node-pnpm (no .nvmrc/lockfile emitted — #2256)',
     ({ language, buildTool }) => {
