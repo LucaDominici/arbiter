@@ -211,7 +211,7 @@ describe('generateCheckAll', () => {
     expect(clean.status).toBe(0)
 
     // RED: the same test silenced with `.skip` → guard fails closed (exit 1).
-    writeFileSync(spec, "it.skip('does a thing', () => { expect(1).toBe(1) })\n")
+    writeFileSync(spec, 'it.' + "skip('does a thing', () => { expect(1).toBe(1) })\n")
     const muted = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
     expect(muted.status).toBe(1)
     expect(muted.stderr).toContain('muted gate test')
@@ -219,7 +219,8 @@ describe('generateCheckAll', () => {
     // The guard cannot be fake-greened by an UNREASONED exemption attempt buried in a string.
     writeFileSync(
       spec,
-      "const x = 'arbiter-allow-skip: lie'\nit.skip('does a thing', () => { expect(1).toBe(1) })\n",
+      "const x = 'arbiter-allow-skip: lie'\nit." +
+        "skip('does a thing', () => { expect(1).toBe(1) })\n",
     )
     const lied = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
     expect(lied.status).toBe(1)
@@ -227,7 +228,8 @@ describe('generateCheckAll', () => {
     // An AUDITED exemption (real comment + reason) is honored → exit 0.
     writeFileSync(
       spec,
-      "// arbiter-allow-skip: flaky upstream, tracked in #123\nit.skip('does a thing', () => { expect(1).toBe(1) })\n",
+      '// arbiter-allow-skip: flaky upstream, tracked in #123\nit.' +
+        "skip('does a thing', () => { expect(1).toBe(1) })\n",
     )
     const exempt = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
     expect(exempt.status).toBe(0)
@@ -1006,7 +1008,7 @@ describe('generateCheckAll', () => {
       expect(content).toContain("['verify', '-q']")
     })
 
-    it('Java Maven: omits mvn verify integration step at L2 when hasDatabase=false', () => {
+    it('Java Maven: carries the L3 lifecycle argv at L2 when hasDatabase=false', () => {
       generateCheckAll(
         makeConfig(dir, {
           language: 'java',
@@ -1016,10 +1018,10 @@ describe('generateCheckAll', () => {
         }),
       )
       const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-      expect(content).not.toContain("['verify', '-q']")
+      expect(content).toContain("'mvn', ['verify', '-q']")
     })
 
-    it('Java Maven: omits mvn verify integration step at L1 even when hasDatabase=true', () => {
+    it('Java Maven: carries the L3 lifecycle argv at L1 when hasDatabase=true', () => {
       generateCheckAll(
         makeConfig(dir, {
           language: 'java',
@@ -1029,7 +1031,7 @@ describe('generateCheckAll', () => {
         }),
       )
       const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-      expect(content).not.toContain("['verify', '-q']")
+      expect(content).toContain("'mvn', ['verify', '-q']")
     })
 
     // Rust

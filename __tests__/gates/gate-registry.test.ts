@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import {
   existsSync,
+  chmodSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -172,10 +173,61 @@ describe('declarative gate registry (#2041)', () => {
       buildTool: 'maven',
       expected: ['mvn', 'verify', '-q'],
     },
-  ] as const)('Java L3 lifecycle passes separate $buildTool argv values', ({ buildTool, expected }) => {
-    const registry = loadGateRegistry(baseData(dir, { language: 'java', buildTool }))
-    expect(registry.find((gate) => gate.id === 'java-lifecycle')?.cmd).toEqual(expected)
-  })
+  ] as const)(
+    'Java L3 lifecycle passes separate $buildTool argv values',
+    ({ buildTool, expected }) => {
+      const registry = loadGateRegistry(baseData(dir, { language: 'java', buildTool }))
+      expect(registry.find((gate) => gate.id === 'java-lifecycle')?.cmd).toEqual(expected)
+    },
+  )
+
+  it.each([
+    { buildTool: 'gradle', command: './gradlew', expected: ['build', '-q'] },
+    { buildTool: 'maven', command: 'mvn', expected: ['verify', '-q'] },
+  ] as const)(
+    'executes Java $buildTool lifecycle with separate argv',
+    ({ buildTool, command, expected }) => {
+      const project = mkdtempSync(join(tmpdir(), 'java-lifecycle-'))
+      const argvFile = join(project, 'argv.txt')
+      const registry = loadGateRegistry(baseData(dir, { language: 'java', buildTool }))
+      const script = '#!/bin/sh\nprintf \'%s\\n\' "$@" > "' + argvFile + '"\n'
+
+      try {
+        mkdirSync(join(project, 'scripts', 'lib'), { recursive: true })
+        writeFileSync(
+          join(project, 'scripts', 'check-all.mjs'),
+          renderGate({ ...baseData(dir, { language: 'java', buildTool }), gates: registry }),
+        )
+        writeFileSync(
+          join(project, 'scripts', 'lib', 'run-helpers.mjs'),
+          renderTemplate('scripts/lib/run-helpers.mjs.ejs', {}),
+        )
+        if (buildTool === 'gradle') {
+          writeFileSync(join(project, 'gradlew'), script)
+          chmodSync(join(project, 'gradlew'), 0o755)
+        } else {
+          mkdirSync(join(project, 'bin'), { recursive: true })
+          writeFileSync(join(project, 'bin', 'mvn'), script)
+          chmodSync(join(project, 'bin', 'mvn'), 0o755)
+        }
+
+        const result = spawnSync(
+          'node',
+          ['scripts/check-all.mjs', 'L3', '--gate', 'java-lifecycle'],
+          {
+            cwd: project,
+            encoding: 'utf-8',
+            env: { ...process.env, PATH: `${join(project, 'bin')}:${process.env.PATH ?? ''}` },
+          },
+        )
+        expect(result.status, result.stdout + result.stderr).toBe(0)
+        expect(readFileSync(argvFile, 'utf-8').trim().split('\n')).toEqual(expected)
+        expect(command).toBe(registry.find((gate) => gate.id === 'java-lifecycle')?.cmd[0])
+      } finally {
+        rmSync(project, { recursive: true, force: true })
+      }
+    },
+  )
 
   it('Kotlin L3 fixture owns an executable Gradle wrapper', () => {
     const fixture = resolve('__tests__/fixtures/real-projects/kotlin-backend-web-db-gradle')
