@@ -80,7 +80,7 @@ const CROSS_MAJOR_ALLOWLIST = {
   'gradle/actions/setup-gradle': {
     3: 'd9c87d481d55275bb5441eef3fe0e46805f9ef70', // v3
     4: 'ed408507eac070d1f99cc633dbcf757c94c7933a', // v4
-    6: '3f131e8634966bd73d06cc69884922b02e6faf92', // v6.2.0
+    6: '9c971963bec38e04b3d30dcc455b5382be2fdbfb', // v6.3.0
   },
   'anchore/sbom-action': {
     0.9: 'f6c3d0fe42c3cf876e3462574e4c9416b5e0f07a', // v0.9.0
