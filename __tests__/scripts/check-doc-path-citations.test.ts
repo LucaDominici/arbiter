@@ -58,6 +58,14 @@ describe('findPhantomPaths', () => {
   it('skips a URL', () => {
     expect(findPhantomPaths(new Set(['https://example.com/foo.js']), resolve('.'))).toEqual([])
   })
+
+  it('resolves a `../`-leading citation against the citing file\'s directory, not repoRoot', () => {
+    // package.json lives at repo root; a doc under docs/api/ citing `../../package.json`
+    // means "repo root" relative to ITS OWN location, not two levels above repoRoot.
+    const repoRoot = resolve('.')
+    const fileDir = resolve('.', 'docs', 'api')
+    expect(findPhantomPaths(new Set(['../../package.json']), repoRoot, fileDir)).toEqual([])
+  })
 })
 
 // ─── end-to-end: synthetic phantom fails closed ────────────────────────────

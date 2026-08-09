@@ -147,3 +147,31 @@ describe('progressive escalation ladder (#2248)', () => {
     }
   })
 })
+
+// AC-2248.4 (#2248): consumer emission verified — not just "the twin parses"
+// (generated-scripts-syntax.test.ts's node --check sweep) but "the EMITTED
+// artifact runs the ladder". Renders scripts/check-e2e-escalation.mjs.ejs (the
+// actual template a governed project's `arbiter init` emits into
+// scripts/check-e2e-escalation.mjs) and executes the RENDERED file — not the
+// scripts/ source copy — against the same rung-3 fixture as the ladder suite
+// above.
+describe('emitted .ejs twin runs the ladder (AC-2248.4)', () => {
+  it('the rendered template hard-stops at rung 3, same as the source script', async () => {
+    const { renderTemplate } = await import('../../src/utils/render.js')
+    const rendered = renderTemplate('scripts/check-e2e-escalation.mjs.ejs', {})
+    const { dir, cleanup } = stage(
+      [PASS_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY, FAIL_ENTRY],
+      { e2ePolicy: { escalation: { strikes: [2, 3, 5], maxStrikes: 5 } } },
+    )
+    try {
+      const emittedScript = join(dir, 'check-e2e-escalation.mjs')
+      writeFileSync(emittedScript, rendered, 'utf-8')
+      const r = spawnSync('node', [emittedScript], { encoding: 'utf-8', cwd: dir })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/hard stop/i)
+      expect(r.stderr).toMatch(/needs-human/i)
+    } finally {
+      cleanup()
+    }
+  })
+})
