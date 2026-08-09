@@ -103,13 +103,20 @@ function isReviewMode(cm: string | undefined): boolean {
   return cm === PEER_REVIEW || cm === GATED_REVIEW
 }
 
-// Frontend quality: review modes (peer/gated), web archetype, L2+
+// Frontend quality: review modes (peer/gated), TypeScript root frontend, L2+
 function needsFrontendQuality(
   cm: string | undefined,
   isL2Plus: boolean,
+  language: string | undefined,
   archetype: Archetype | undefined,
 ): boolean {
-  return isReviewMode(cm) && isL2Plus && archetype !== undefined && WEB_ARCHETYPES.has(archetype)
+  return (
+    isReviewMode(cm) &&
+    isL2Plus &&
+    language === 'typescript' &&
+    archetype !== undefined &&
+    WEB_ARCHETYPES.has(archetype)
+  )
 }
 
 // #1330 — per-lane frontend gate workflow: review modes (peer/gated), L2+, and a
@@ -172,7 +179,7 @@ function generateCiGapWorkflows(
       ),
     )
 
-  if (needsFrontendQuality(cm, isL2Plus, config.archetype))
+  if (needsFrontendQuality(cm, isL2Plus, config.language, config.archetype))
     files.push(
       writeFile(
         join(workflowsDir, '16-frontend-quality.yml'),
