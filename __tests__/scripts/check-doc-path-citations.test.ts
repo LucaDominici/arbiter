@@ -11,10 +11,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import {
-  extractPathCitations,
-  findPhantomPaths,
-} from '../../scripts/check-doc-path-citations.mjs'
+import { extractPathCitations, findPhantomPaths } from '../../scripts/check-doc-path-citations.mjs'
 
 const SCRIPT = resolve('scripts/check-doc-path-citations.mjs')
 
@@ -59,7 +56,7 @@ describe('findPhantomPaths', () => {
     expect(findPhantomPaths(new Set(['https://example.com/foo.js']), resolve('.'))).toEqual([])
   })
 
-  it('resolves a `../`-leading citation against the citing file\'s directory, not repoRoot', () => {
+  it("resolves a `../`-leading citation against the citing file's directory, not repoRoot", () => {
     // package.json lives at repo root; a doc under docs/api/ citing `../../package.json`
     // means "repo root" relative to ITS OWN location, not two levels above repoRoot.
     const repoRoot = resolve('.')

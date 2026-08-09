@@ -106,7 +106,8 @@ export function findPhantomPaths(citedPaths, repoRoot, fileDir = repoRoot) {
     .filter((p) => !/^(https?:)?\/\//.test(p))
     .filter((p) => !RUNTIME_ROOT_SKIP.some((skip) => p.startsWith(skip)))
     .filter(
-      (p) => !existsSync(resolve(p.startsWith('../') || p.startsWith('./') ? fileDir : repoRoot, p)),
+      (p) =>
+        !existsSync(resolve(p.startsWith('../') || p.startsWith('./') ? fileDir : repoRoot, p)),
     )
     .sort()
 }
