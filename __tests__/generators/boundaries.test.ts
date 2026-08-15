@@ -15,19 +15,57 @@ afterEach(() => {
 })
 
 describe('generateEslintBoundaries', () => {
-  it('emits .eslintrc-boundaries.cjs and scripts/check-boundaries.mjs for typescript + hexagonal', () => {
+  it('emits .eslintrc-boundaries.cjs, eslint.config.boundaries.mjs and scripts/check-boundaries.mjs for typescript + hexagonal (#2272)', () => {
     const config = makeConfig(dir, {
       language: 'typescript',
       architectureStyle: 'hexagonal',
     })
     const result = generateEslintBoundaries(config)
-    expect(result.files.length).toBe(2)
-    expect(result.files[0].path).toContain('.eslintrc-boundaries.cjs')
-    expect(result.files[0].action).toBe('created')
-    expect(result.files[1].path).toContain('check-boundaries.mjs')
-    expect(result.files[1].action).toBe('created')
-    expect(existsSync(result.files[0].path)).toBe(true)
-    expect(existsSync(result.files[1].path)).toBe(true)
+    // #2272 (#1491-class fix): the gate runs the flat config (ESLint v9 removed
+    // the legacy --no-eslintrc/-c loader) — the .cjs file is retained alongside
+    // it for tooling that still reads eslintrc-format config, mirroring the
+    // frontend-spa fix (#1127/#1491).
+    expect(result.files.length).toBe(3)
+    const byPath = (needle: string) => result.files.find((f) => f.path.includes(needle))
+    expect(byPath('.eslintrc-boundaries.cjs')?.action).toBe('created')
+    expect(byPath('eslint.config.boundaries.mjs')?.action).toBe('created')
+    expect(byPath('check-boundaries.mjs')?.action).toBe('created')
+    expect(existsSync(join(dir, '.eslintrc-boundaries.cjs'))).toBe(true)
+    expect(existsSync(join(dir, 'eslint.config.boundaries.mjs'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'check-boundaries.mjs'))).toBe(true)
+  })
+
+  it('emitted check-boundaries.mjs runs the flat config in isolation, no legacy --no-eslintrc (#2272, #1491-class)', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      architectureStyle: 'hexagonal',
+    })
+    generateEslintBoundaries(config)
+    const content = readFileSync(join(dir, 'scripts', 'check-boundaries.mjs'), 'utf-8')
+    expect(content).toContain("'--config'")
+    expect(content).toContain('eslint.config.boundaries.mjs')
+    expect(content).toContain("'--no-config-lookup'")
+    expect(content).not.toContain('--no-eslintrc')
+    expect(content).not.toContain('.eslintrc-boundaries.cjs')
+  })
+
+  it('eslint.config.boundaries.mjs contains the same element-types/external rules as the legacy .cjs (#2272)', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      architectureStyle: 'hexagonal',
+    })
+    generateEslintBoundaries(config)
+    const flat = readFileSync(join(dir, 'eslint.config.boundaries.mjs'), 'utf-8')
+    expect(flat).toContain('boundaries/element-types')
+    expect(flat).toContain('boundaries/external')
+    expect(flat).toContain('domain')
+    expect(flat).toContain('application')
+    expect(flat).toContain('adapters')
+    expect(flat).toContain('infrastructure')
+    expect(flat).toContain('no-restricted-imports')
+    expect(flat).toContain('no-restricted-globals')
+    expect(flat).toContain('node:fs')
+    expect(flat).toContain('window')
   })
 
   it('places .eslintrc-boundaries.cjs at project root', () => {
