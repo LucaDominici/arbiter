@@ -231,3 +231,72 @@ describe('check-inv-enforcement-wired.mjs (INV-52 / CANON-09)', () => {
     expect(result.status).toBe(0)
   })
 })
+
+// #2278: TRACK_B_EXEMPT is a CLAIM — "this script is generated for target
+// projects". Nothing verified it, so `evidence-collect.mjs` sat exempt while no
+// generator emitted it and INV-33 cited it as enforcement: a promise nothing
+// kept, invisible BECAUSE it was exempt. An exemption must now be proven by an
+// exact emission literal in src/generators/ (`scripts/<name>.ejs` for
+// renderTemplate, or the bare `<name>` for name-list loops). A prose mention is
+// not proof — that is the same unverified-assertion class this gate exists to kill.
+describe('TRACK_B_EXEMPT emission verification (#2278)', () => {
+  function runWithGenerators(generatorsDir: string) {
+    const r = spawnSync(
+      'node',
+      [
+        SCRIPT,
+        `--catalog=${resolve('src/invariants/catalog.ts')}`,
+        `--gate=${resolve('scripts/check-all.mjs')}`,
+        `--generators=${generatorsDir}`,
+      ],
+      { encoding: 'utf-8', cwd: resolve('.') },
+    )
+    return { status: r.status ?? 1, stdout: r.stdout ?? '' }
+  }
+
+  it('exits 1 when an exempt script is emitted by no generator [#2278]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      // Empty generators dir: every exemption is unproven, so each must be named.
+      const result = runWithGenerators(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('evidence-collect.mjs')
+      expect(result.stdout).toContain('verify-tokens.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('does not accept an unquoted prose mention as proof of emission [#2278]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeFileSync(
+        join(dir, 'prose.ts'),
+        '// the github-owned trio (check-workflow-perms.mjs/check-ci-tiers.mjs) is emitted here\n',
+      )
+      const result = runWithGenerators(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('check-workflow-perms.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('accepts both emission literal styles: renderTemplate path and bare name [#2278]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeFileSync(
+        join(dir, 'emit.ts'),
+        `renderTemplate('scripts/verify-tokens.mjs.ejs', data)\n` +
+          `for (const name of ['check-workflow-perms.mjs'] as const) emit(name)\n`,
+      )
+      const result = runWithGenerators(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).not.toContain('verify-tokens.mjs')
+      expect(result.stdout).not.toContain('check-workflow-perms.mjs')
+      expect(result.stdout).toContain('evidence-collect.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+})
