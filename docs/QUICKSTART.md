@@ -60,7 +60,7 @@ generators and gate families (for example SPA render-smoke/i18n checks versus pu
 | ------------------------------ | --------------------------------------------- |
 | `AGENTS.md`                    | Canonical governance doc every AI tool reads  |
 | `.claude/` / `.agents/`        | Tool-specific hooks, rules, and pointer files |
-| `.github/workflows/ci.yml`     | CI gate mirroring the local check             |
+| `<project>/.github/workflows/ci.yml`     | CI gate mirroring the local check             |
 | `scripts/check-all.mjs`        | The local gate runner (`L1`/`L2`/`L3`/`L4`)   |
 | `SECURITY.md`, `.editorconfig` | Baseline repo hygiene files                   |
 

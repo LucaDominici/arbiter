@@ -11,7 +11,7 @@ related: ['src/generators/resilience.ts', 'docs/PRODUCT/FEATURE_MATRIX.md']
 
 # Resilience Patterns Generator
 
-**Capability:** arbiter emits a `docs/governance/RESILIENCE.md` guide for `backend-web-db`
+**Capability:** arbiter emits a `<project>/docs/governance/RESILIENCE.md` guide for `backend-web-db`
 projects at governance level L2 and above.
 
 **Generator:** `src/generators/resilience.ts`
@@ -22,7 +22,7 @@ projects at governance level L2 and above.
 
 ## What it emits
 
-A single advisory markdown guide placed at `docs/governance/RESILIENCE.md` in the target project.
+A single advisory markdown guide placed at `<project>/docs/governance/RESILIENCE.md` in the target project.
 The guide covers:
 
 - **Circuit breaker** — failure-rate threshold, minimum-calls window, decorator ordering (CB outer

@@ -99,7 +99,7 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 
 - Cursor support: `.cursorrules` generation
 - Copilot support: `copilot-instructions.md` generation
-- Gemini CLI support: `.gemini/GEMINI.md` generation
+- Gemini CLI support: `<project>/.gemini/GEMINI.md` generation
 - Windsurf support: `windsurf-instructions.md` generation
 - Aider support: `.aider.conf.yml` generation
 - ai-rulez detection: if `.ai-rulez/` exists, skip tool configs; generate only AGENTS.md + GitHub infra

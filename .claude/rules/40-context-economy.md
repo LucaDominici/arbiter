@@ -31,8 +31,8 @@ Full routing table is in `.claude/knowledge-map.json`.
 
 | Track    | Signal paths                         | Load additionally                                    |
 | -------- | ------------------------------------ | ---------------------------------------------------- |
-| frontend | `*.tsx`, `*.vue`, `*.svelte`, `web/` | `docs/internal/METHOD/FRONTEND_CONTEXT.md` if exists |
-| backend  | `*.go`, `*.py`, `*.java`, `api/`     | `docs/internal/METHOD/BACKEND_CONTEXT.md` if exists  |
+| frontend | `*.tsx`, `*.vue`, `*.svelte`, `web/` | `<project>/docs/internal/METHOD/FRONTEND_CONTEXT.md` if exists |
+| backend  | `*.go`, `*.py`, `*.java`, `api/`     | `<project>/docs/internal/METHOD/BACKEND_CONTEXT.md` if exists  |
 | docs     | `docs/`, `*.md`                      | `docs/INDEX.md` only                                 |
 
 ## Rules

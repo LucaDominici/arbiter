@@ -125,8 +125,8 @@ stays governed by `collaborationMode`/`mergeMode` as before.
 - [`README.md`](../README.md) — feature overview
 - [Windows Setup (WSL2)](#windows-setup-wsl2) — extended install + per-stack notes
 - [`GOVERNANCE.md`](./GOVERNANCE.md) — invariants + ADRs
-- [`internal/architecture/ARCHITECTURE.md`](./internal/architecture/ARCHITECTURE.md) — system internals
-- [`api/README.md`](./api/README.md) — public API surface
+- [`docs/internal/architecture/ARCHITECTURE.md`](./internal/architecture/ARCHITECTURE.md) — system internals
+- [`docs/api/README.md`](./api/README.md) — public API surface
 - [`OBSIDIAN.md`](../OBSIDIAN.md) — open this repo as an Obsidian vault
 
 ## When something fails

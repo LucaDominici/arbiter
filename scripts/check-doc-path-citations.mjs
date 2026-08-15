@@ -71,8 +71,37 @@ const PATH_ALLOWLIST = new Set([
 
 // Path-shaped citations under these roots are runtime-generated artifacts, not
 // committed source — a doc legitimately says "written to `.arbiter/graph.json`"
-// without that path ever existing in a fresh checkout.
-const RUNTIME_ROOT_SKIP = ['.arbiter/', 'dist/', 'node_modules/', 'coverage/', '.git/', 'tmp/']
+// without that path ever existing in a fresh checkout. #2260 extended the list
+// from the full-corpus triage; every entry below is a path a TOOL writes, never
+// a path a human commits.
+const RUNTIME_ROOT_SKIP = [
+  '.arbiter/', // arbiter's own state/evidence root
+  'dist/', // TypeScript build output
+  'node_modules/', // installed dependencies
+  'coverage/', // test-coverage reporter output
+  '.git/', // git internals
+  'tmp/', // scratch output
+  '.claude/.task', // unified task document written by the task lifecycle (#2260)
+  '.claude/hooks/logs/', // hook event log, appended at runtime (#2260)
+  '.evidence/', // evidence bundle a governed project's gate emits (#2260)
+  'graphify-out/', // optional graphify CLI output — absent unless graphify ran (#2260)
+  'plan-review/', // plan-review step output, written per task (#2260)
+  'build/', // Gradle build output (coverage XML lives here) (#2260)
+  'target/', // Maven build output (JaCoCo XML lives here) (#2260)
+  'scratchpad/', // per-session scratch notes, never committed (#2260)
+]
+
+// #2260: prose that deliberately uses a PLACEHOLDER path — a template the reader
+// substitutes, not a promise about the filesystem. Matched as a substring of the
+// cited path so one pattern covers every doc that uses the same placeholder.
+const PLACEHOLDER_PATTERNS = [
+  'path/to/', // generic "your file here" stand-in in skill/command templates
+  'file/path.', // commit/report body template line: `file/path.ts`: <what changed>
+  'wave-N.md', // N is the wave number — `.claude/plans/wave-N.md` is a naming rule
+  'my-tool', // CONTRIBUTING's "add your own generator" walkthrough scaffold
+  'my-rules/', // custom-invariant recipe scaffold emitted by `arbiter plugin init`
+  'my-language', // custom-generator recipe's stand-in language name
+]
 
 // Matches a backtick-wrapped, standalone repo-relative path: at least one `/`
 // segment, ending in a `.ext` (1-5 lowercase letters). Anchored tight against
@@ -105,6 +134,7 @@ export function findPhantomPaths(citedPaths, repoRoot, fileDir = repoRoot) {
   return [...citedPaths]
     .filter((p) => !/^(https?:)?\/\//.test(p))
     .filter((p) => !RUNTIME_ROOT_SKIP.some((skip) => p.startsWith(skip)))
+    .filter((p) => !PLACEHOLDER_PATTERNS.some((ph) => p.includes(ph)))
     .filter(
       (p) =>
         !existsSync(resolve(p.startsWith('../') || p.startsWith('./') ? fileDir : repoRoot, p)),

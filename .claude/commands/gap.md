@@ -11,14 +11,14 @@ related: ['PRODUCT/GAP.md', 'PRODUCT/FEATURE_MATRIX.md']
 
 # /gap
 
-Regenerate and display `docs/PRODUCT/GAP.md` — the derived view of what is
+Regenerate and display `docs/internal/PRODUCT/GAP.md` — the derived view of what is
 incomplete, unenforced, or parked in this project, ordered v1-blockers first.
 
 ## Steps
 
-1. Run `node scripts/gen-gap.mjs --write` to regenerate `docs/PRODUCT/GAP.md`.
+1. Run `node scripts/gen-gap.mjs --write` to regenerate `docs/internal/PRODUCT/GAP.md`.
 
-2. Read `docs/PRODUCT/GAP.md` and surface the key sections:
+2. Read `docs/internal/PRODUCT/GAP.md` and surface the key sections:
    - **v1 Blockers** — anything that must be resolved before v1.
    - **Feature Gaps** — incomplete capabilities.
    - **Enforcement Gaps** — unenforced constraints from constraint-scan.
@@ -29,9 +29,9 @@ incomplete, unenforced, or parked in this project, ordered v1-blockers first.
 ## Allowed Tools
 
 - `Bash` to run `node scripts/gen-gap.mjs --write`
-- `Read` for `docs/PRODUCT/GAP.md`
+- `Read` for `docs/internal/PRODUCT/GAP.md`
 
 ## Related Commands
 
-- **Feature matrix:** review `docs/PRODUCT/FEATURE_MATRIX.md` to see capability status
+- **Feature matrix:** review `docs/internal/PRODUCT/FEATURE_MATRIX.md` to see capability status
 - **Status:** `/status` for task phase and build health

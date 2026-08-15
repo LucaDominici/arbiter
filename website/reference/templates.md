@@ -45,7 +45,7 @@ All templates live under `src/templates/` and are rendered by `ejs` using the `P
 | `.claude/rules/`                   |        | ✓      |       |        |
 | `.agents/CODEX.md`                 |        |        | ✓     |        |
 | `.agents/rules/`                   |        |        | ✓     |        |
-| `.github/workflows/ci.yml`         |        |        |       | ✓      |
+| `<project>/.github/workflows/ci.yml`         |        |        |       | ✓      |
 | `.github/PULL_REQUEST_TEMPLATE.md` |        |        |       | ✓      |
 | `.github/ISSUE_TEMPLATE/`          |        |        |       | ✓      |
 | `.github/dependabot.yml`           |        |        |       | ✓      |
@@ -89,7 +89,7 @@ All templates live under `src/templates/` and are rendered by `ejs` using the `P
 
 ---
 
-## `.github/workflows/ci.yml`
+## `<project>/.github/workflows/ci.yml`
 
 **Generated when:** `useGitHub` is true
 

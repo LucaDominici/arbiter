@@ -58,7 +58,7 @@ The frozen fixture is `__tests__/fixtures/ci-tier-render-context.json` — edit 
 | ----------------------------------- | ---------------------------------------------------------------------- | ----- |
 | `scripts/check-ci-tiers.mjs`        | Self CI tier presence gate (4/8 canonical required in transition mode) | L1    |
 | `scripts/check-action-pins.mjs`     | Assert all Actions are SHA-pinned (INV-76)                             | L2    |
-| `scripts/check-workflow-perms.mjs`  | Assert all workflows declare top-level permissions (INV-77)            | L1    |
+| `<project>/scripts/check-workflow-perms.mjs`  | Assert all workflows declare top-level permissions (INV-77)            | L1    |
 | `scripts/check-local-ci-parity.mjs` | Assert local Makefile targets match CI workflow steps (INV-87)         | L1/L2 |
 
 `check-local-ci-parity.mjs` validates level parity bidirectionally (#2042): every `check-all.mjs`

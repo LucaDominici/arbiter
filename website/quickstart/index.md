@@ -84,7 +84,7 @@ Arbiter generated a governance stack tailored to your project. What you got:
 | `AGENTS.md`                        | Canonical governance file — every AI tool reads this |
 | `.claude/CLAUDE.md`                | Thin pointer for Claude Code (if selected)           |
 | `.claude/settings.json`            | Hooks wired to enforce invariants at edit time       |
-| `.github/workflows/ci.yml`         | CI workflow parameterized to your stack              |
+| `<project>/.github/workflows/ci.yml`         | CI workflow parameterized to your stack              |
 | `scripts/check-all.mjs`            | Gate runner — same command locally and in CI         |
 | `.github/PULL_REQUEST_TEMPLATE.md` | PR checklist                                         |
 

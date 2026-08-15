@@ -112,8 +112,8 @@ The interactive wizard is state-reactive — it behaves differently based on wha
 | `claude`   | `.claude/CLAUDE.md`, `.claude/settings.json`, hooks, rules, commands |
 | `codex`    | `.agents/CODEX.md`, `.agents/rules/`, `.agents/plan/`                |
 | `cursor`   | `.cursorrules`                                                       |
-| `copilot`  | `.github/copilot-instructions.md`                                    |
-| `gemini`   | `.gemini/GEMINI.md` (thin pointer to AGENTS.md)                      |
+| `copilot`  | `<project>/.github/copilot-instructions.md`                                    |
+| `gemini`   | `<project>/.gemini/GEMINI.md` (thin pointer to AGENTS.md)                      |
 | `windsurf` | `windsurf-instructions.md` (thin pointer to AGENTS.md)               |
 | `aider`    | `.aider.conf.yml` (YAML convention mapping + AGENTS.md reference)    |
 
@@ -172,7 +172,7 @@ Both supported tools: `--tools claude,codex` (the `gemini`/`windsurf`/`aider` ge
 | `.claude/rules/*.md`               | **Skipped** if already exists                          |
 | `.claude/commands/*.md`            | **Skipped** if already exists                          |
 | `.agents/rules/*.md`               | **Skipped** if already exists                          |
-| `.github/workflows/ci.yml`         | **Skipped** if already exists                          |
+| `<project>/.github/workflows/ci.yml`         | **Skipped** if already exists                          |
 | `.github/PULL_REQUEST_TEMPLATE.md` | **Skipped** if already exists                          |
 | `.github/ISSUE_TEMPLATE/*`         | **Skipped** per file if already exists                 |
 | `.github/dependabot.yml`           | **Skipped** if already exists                          |

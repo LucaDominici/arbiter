@@ -31,7 +31,7 @@ Behavioral tests referenced below spawn the real `dist/cli.js` binary against a 
 
 ## What "proven" means here
 
-A category is `proven` in `src/compatibility/cross-language-matrix.json` when arbiter has been tested end-to-end against a real project of that stack and the generated governance gate was observed to pass. See `docs/DEVELOPMENT/REAL-PROJECT-TESTING.md` for the fixture testing protocol.
+A category is `proven` in `src/compatibility/cross-language-matrix.json` when arbiter has been tested end-to-end against a real project of that stack and the generated governance gate was observed to pass. See `docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md` for the fixture testing protocol.
 
 ---
 

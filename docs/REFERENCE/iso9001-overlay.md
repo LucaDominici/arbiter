@@ -49,7 +49,7 @@ sentinel-delimited (`<!-- ISO9001_RTM_START -->` … `END`) pipe table with the 
 the sentinel block and checks ref existence exactly as `check-feature-matrix.mjs` does, so
 the requirement→test traceability is enforceable.
 
-## Gate (`scripts/check-iso9001.mjs`)
+## Gate (`<project>/scripts/check-iso9001.mjs`)
 
 Wired into the generated `scripts/check-all.mjs` (guarded by `existsSync`, so it runs only
 when the overlay is selected). Exit codes follow INV-53:

@@ -179,7 +179,7 @@ now wired into the generated gate:
   toolchain's cache key (covermode, feature flags, `TMPDIR` itself) for accidental divergence.
 
   **The sibling you talk yourself out of (#2106).** The same pin survived one more round in
-  `scripts/evidence-collect.mjs`, spared on the reasoning that evidence collection runs on a
+  `<project>/scripts/evidence-collect.mjs`, spared on the reasoning that evidence collection runs on a
   fresh CI checkout where a cold cache makes the pin free. Nobody checked. It runs nowhere in
   CI — the workflow jobs _named_ `evidence-collect` write a summary file inline and never
   invoke the script; the script is operator-run, in the same working tree as the gate, against

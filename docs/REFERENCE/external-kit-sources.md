@@ -77,7 +77,7 @@ When the KIT is revised:
 | File           | `[tools]/TPL_cicd-developer-reference_REDACTED.md`                                                                                    |
 | Type           | `template` — placeholder-driven copy template for new services                                                                        |
 | Placeholders   | `{{SERVICE_NAME}}` · `{{TEST_URL}}` · `{{NIGHTLY_TOOLS}}` · `{{NIGHTLY_CRON_UTC}}` · `{{WEEKLY_CRON_UTC}}` · `{{WEEKLY_DESCRIPTION}}` |
-| Arbiter analog | `src/templates/docs/cicd-developer-reference.md.ejs` (W4 Track B deliverable)                                                         |
+| Arbiter analog | `docs/REFERENCE/cicd-developer-reference.md` (W4 Track B deliverable)                                                         |
 
 ---
 
