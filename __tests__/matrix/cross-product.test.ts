@@ -12,6 +12,7 @@ import {
   getInvariantsByTier,
   presetToTiers,
 } from '../../src/invariants/filter.js'
+import { INVARIANT_CATALOG } from '../../src/invariants/catalog.js'
 import { computeThresholds } from '../../src/config/thresholds.js'
 import { generateGlobalInvariants } from '../../src/generators/global-invariants.js'
 import { generateContractTesting } from '../../src/generators/contract-testing.js'
@@ -1057,6 +1058,47 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
       expect(content).toContain('pii-scan.mjs')
     })
   }
+})
+
+// ── #2268: the emitted dep-audit must run the command the emitted docs promise ──
+// a2c14cd6 ("scope npm audit to production deps (--omit=dev) [INV-13]") moved the
+// self gate, the emitted CI workflow, the emitted AGENTS table and the emitted
+// secure-coding checklist together — but MISSED scripts/check-all.mjs.ejs, the
+// generated project's OWN L2 gate. That gate therefore audits the full DEV tree
+// while the AGENTS.md shipped beside it documents prod scope, so any transitive
+// devDep advisory reds a generated project's gate the day the live npm advisory
+// DB moves, with no source change (the ts-library virgin-init cell's flake).
+describe('cross-product: dep-audit scope — emitted gate vs emitted docs (#2268)', () => {
+  const AUDIT_ARGV_RE = /runCheck\('audit', 'npm', \[([^\]]*)\]/
+  const DOCUMENTED_RE = /`(npm audit --[^`]+)`/
+
+  function tsSecurityConfig(): Record<string, unknown> {
+    const thresholds = computeThresholds(0, 'fixed', 'L2')
+    return {
+      ...configFor('typescript', 'L2'),
+      enableSecurityScanning: true,
+      coverageEnabled: thresholds.coverageEnabled,
+      coverageThreshold: thresholds.coverageThreshold,
+      mutationEnabled: thresholds.mutationEnabled,
+    }
+  }
+
+  it('typescript+L2: check-all.mjs audit argv equals the AGENTS.md dep-audit trigger', () => {
+    const cfg = tsSecurityConfig()
+    const documented = DOCUMENTED_RE.exec(renderTemplate('agents-md/AGENTS.md.ejs', cfg))?.[1]
+    expect(documented, 'AGENTS.md must document a concrete npm audit command').toBe(
+      'npm audit --omit=dev --audit-level=high',
+    )
+    const argv = AUDIT_ARGV_RE.exec(renderCheckAll(cfg))?.[1]
+    expect(argv, 'check-all.mjs must emit a runCheck(\'audit\', \'npm\', [...]) step').toBeDefined()
+    const emitted = ['npm', ...(argv ?? '').split(',').map((a) => a.trim().replace(/'/g, ''))]
+    expect(emitted.join(' ')).toBe(documented)
+  })
+
+  it('typescript+L2: INV-13 enforcement text names the same prod-scoped command', () => {
+    const inv13 = INVARIANT_CATALOG.find((i) => i.id === 'INV-13')
+    expect(inv13?.enforcement).toContain('npm audit --omit=dev --audit-level=high')
+  })
 })
 
 // ── #347: mutation gate wired into check-all.mjs L2 for PROVEN cells only ────
