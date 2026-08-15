@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "capturedAt": "2026-08-09T09:59:57.552Z",
-  "commit": "50591bea",
+  "capturedAt": "2026-08-15T17:32:58.626Z",
+  "commit": "e455f652",
   "archetype": "library",
   "metrics": {
     "coverageLine": {
@@ -10,7 +10,7 @@
       "direction": "higher-is-better"
     },
     "coverageBranch": {
-      "value": 90.41,
+      "value": 90.42,
       "unit": "percent",
       "direction": "higher-is-better"
     },
@@ -35,12 +35,12 @@
       "direction": "lower-is-better"
     },
     "duplicationPercentage": {
-      "value": 1.030886034889968,
+      "value": 1.030134211192707,
       "unit": "percent",
       "direction": "lower-is-better"
     },
     "publicApiSurface": {
-      "value": 1088,
+      "value": 1089,
       "unit": "count",
       "direction": "lower-is-better"
     },
