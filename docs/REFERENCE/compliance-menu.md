@@ -26,17 +26,17 @@ configuration. It surfaces in three places:
    plus an advisory when the overlay's weight outpaces the governance level.
 2. **`arbiter doctor`** — a new `overlay-coherence` health check flags incoherent
    `(industryOverlay × governanceLevel)` cells (advisory `WARN`, never `FAIL`).
-3. **Generated doc** — `docs/COMPLIANCE_MENU.md` presents every cell with rationale.
+3. **Generated doc** — `<project>/docs/COMPLIANCE_MENU.md` presents every cell with rationale.
 
 ## The generated menu
 
-`arbiter init` (any stack) emits `docs/COMPLIANCE_MENU.md` unconditionally — it is
+`arbiter init` (any stack) emits `<project>/docs/COMPLIANCE_MENU.md` unconditionally — it is
 an onboarding aid, not gated on an overlay being selected. The generator is
 `src/generators/compliance-menu.ts`; the template is
 `src/templates/compliance/compliance-menu.md.ejs`. The doc uses `skipIfExists`, so
 brownfield re-init never overwrites a customised copy.
 
-It is distinct from `docs/COMPLIANCE_MAPPING.md` (the `compliance` generator), which
+It is distinct from `<project>/docs/COMPLIANCE_MAPPING.md` (the `compliance` generator), which
 is a controls→gates traceability table gated on the `enable*Mapping` booleans. The
 menu is always-on and spans every overlay; the mapping doc is overlay-specific.
 

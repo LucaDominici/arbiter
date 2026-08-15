@@ -20,13 +20,13 @@ All three files are REDACTED-origin: reference their patterns and structure; do 
 
 ## KIT Catalog Source
 
-| Field             | Value                                                                                                                 |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
-| File              | `[tools]/KIT_gold-standard_76-dimensions_REDACTED.xlsx`                                                               |
-| Revision          | Rev00 07/05/2026                                                                                                      |
-| Columns           | A=# · B=Categoria · C=Dimensione · D=Dettaglio/Gate · E=TML · F=Gate Type · G=Planning Source · H=Note Adattamento    |
-| Rows              | 1-3 empty · 4 header · 5 category separators · 6-95 data (76 dims)                                                    |
-| Arbiter canonical | `src/kit/canonical-mapping.json` (machine-readable, runtime data) · `docs/audits/kit-canonical-mapping.md` (rendered) |
+| Field             | Value                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| File              | `[tools]/KIT_gold-standard_76-dimensions_REDACTED.xlsx`                                                            |
+| Revision          | Rev00 07/05/2026                                                                                                   |
+| Columns           | A=# · B=Categoria · C=Dimensione · D=Dettaglio/Gate · E=TML · F=Gate Type · G=Planning Source · H=Note Adattamento |
+| Rows              | 1-3 empty · 4 header · 5 category separators · 6-95 data (76 dims)                                                 |
+| Arbiter canonical | `src/kit/canonical-mapping.json` (machine-readable, runtime data)                                                  |
 
 ### TML Notation
 
@@ -77,7 +77,7 @@ When the KIT is revised:
 | File           | `[tools]/TPL_cicd-developer-reference_REDACTED.md`                                                                                    |
 | Type           | `template` — placeholder-driven copy template for new services                                                                        |
 | Placeholders   | `{{SERVICE_NAME}}` · `{{TEST_URL}}` · `{{NIGHTLY_TOOLS}}` · `{{NIGHTLY_CRON_UTC}}` · `{{WEEKLY_CRON_UTC}}` · `{{WEEKLY_DESCRIPTION}}` |
-| Arbiter analog | `src/templates/docs/cicd-developer-reference.md.ejs` (W4 Track B deliverable)                                                         |
+| Arbiter analog | `docs/REFERENCE/cicd-developer-reference.md` (W4 Track B deliverable)                                                                 |
 
 ---
 
@@ -87,7 +87,7 @@ When the KIT is revised:
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Path        | `[internal-ref]`                                                                                                         |
 | Role        | Concrete instantiation of the KIT — real Java/Spring service with the most complete harness                              |
-| Inventory   | `docs/audits/planning-skeleton-inventory.json` (123 items) · `docs/audits/planning-skeleton-audit.md` (rendered)         |
+| Inventory   | Retired with the disposable-docs tier (#1243); the 123-item skeleton is folded into the KIT catalog                      |
 | Disposition | Extract patterns; redesign cleanly. Do NOT copy Java application code. Do NOT leak Spring assumptions into arbiter core. |
 
 ---

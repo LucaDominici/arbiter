@@ -37,13 +37,13 @@ Use `N` for files you maintain manually; use `y` for files you want arbiter to o
 
 ## Typical conflict pattern
 
-| File                       | Typical choice | Reason                                          |
-| -------------------------- | -------------- | ----------------------------------------------- |
-| `AGENTS.md`                | diff → y       | Merge your custom rules into arbiter's template |
-| `.claude/settings.json`    | y              | Arbiter manages hooks                           |
-| `scripts/check-all.mjs`    | y              | Gate is the product                             |
-| `.github/workflows/ci.yml` | diff           | May conflict with existing jobs                 |
-| `commitlint.config.js`     | y              | Unless you have custom rules                    |
+| File                                 | Typical choice | Reason                                          |
+| ------------------------------------ | -------------- | ----------------------------------------------- |
+| `AGENTS.md`                          | diff → y       | Merge your custom rules into arbiter's template |
+| `.claude/settings.json`              | y              | Arbiter manages hooks                           |
+| `scripts/check-all.mjs`              | y              | Gate is the product                             |
+| `<project>/.github/workflows/ci.yml` | diff           | May conflict with existing jobs                 |
+| `commitlint.config.js`               | y              | Unless you have custom rules                    |
 
 ## Rollback
 

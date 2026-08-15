@@ -56,13 +56,13 @@ generators and gate families (for example SPA render-smoke/i18n checks versus pu
 
 ## 2. What gets generated
 
-| Path                           | Purpose                                       |
-| ------------------------------ | --------------------------------------------- |
-| `AGENTS.md`                    | Canonical governance doc every AI tool reads  |
-| `.claude/` / `.agents/`        | Tool-specific hooks, rules, and pointer files |
-| `.github/workflows/ci.yml`     | CI gate mirroring the local check             |
-| `scripts/check-all.mjs`        | The local gate runner (`L1`/`L2`/`L3`/`L4`)   |
-| `SECURITY.md`, `.editorconfig` | Baseline repo hygiene files                   |
+| Path                                 | Purpose                                       |
+| ------------------------------------ | --------------------------------------------- |
+| `AGENTS.md`                          | Canonical governance doc every AI tool reads  |
+| `.claude/` / `.agents/`              | Tool-specific hooks, rules, and pointer files |
+| `<project>/.github/workflows/ci.yml` | CI gate mirroring the local check             |
+| `scripts/check-all.mjs`              | The local gate runner (`L1`/`L2`/`L3`/`L4`)   |
+| `SECURITY.md`, `.editorconfig`       | Baseline repo hygiene files                   |
 
 Re-running `arbiter init` on an already-initialized repo is safe: `AGENTS.md` and
 pointer files are refreshed (with a `.arbiter-backup`), `settings.json` is

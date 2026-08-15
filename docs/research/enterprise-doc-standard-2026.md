@@ -38,8 +38,7 @@ related:
 ## 0. Doctrine — why this document is tiered and gate-mapped
 
 This standard is not a wish-list. It inherits arbiter's own governance philosophy
-(from `docs/audit/FRAMEWORK_AUDIT.md`, `docs/audit/IS-ARBITER-WORTH-IT.md`,
-`docs/design/solo-developer-gate-model.md`) and turns each principle into a design
+and turns each principle into a design
 constraint on the catalog below:
 
 | Principle                                                                                                                                | Source in arbiter                                | Consequence for this standard                                                                                                                                   |

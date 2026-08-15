@@ -146,5 +146,3 @@ hard rule once the context files are clean.
 - `src/invariants/catalog.ts` — INV-89 definition
 - `scripts/check-all.mjs` — Track A wiring (anti-drift section)
 - `src/generators/anti-drift-validators.ts` — Track B generator
-- `docs/audits/planning-skeleton-audit.md` — PLAN-031..068 inventory
-- `docs/audits/arbiter-skeleton-gap-analysis.md` — gap analysis §16 anti-drift-validator

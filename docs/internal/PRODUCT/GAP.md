@@ -92,7 +92,7 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-117:** arbiter self-repo must not track binary build | AGENTS.md:324                                                               | medium   |
 | - **INV-120:** Workflow needs-chain depth must not exceed th | AGENTS.md:330                                                               | medium   |
 | - **INV-121:** Stack conformity                              | the repo-root manifest mus — AGENTS.md:332                                  | medium   |
-| - _Enforcement:_ `scripts/check-stack-conformity.mjs` (L1, g | AGENTS.md:333                                                               | medium   |
+| - _Enforcement:_ `<project>/scripts/check-stack-conformity.m | AGENTS.md:333                                                               | medium   |
 | - _Enforcement:_ Integration + unit tests (`**tests**/integr | AGENTS.md:336                                                               | medium   |
 | uses:                                                        | AGENTS.md:339                                                               | medium   |
 | ./                                                           | AGENTS.md:339                                                               | medium   |
@@ -105,12 +105,12 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | tests/api/                                                   | AGENTS.md:342                                                               | medium   |
 | src/generators/check-all.ts                                  | AGENTS.md:342                                                               | medium   |
 | src/templates/scripts/check-api-e2e.mjs.ejs                  | AGENTS.md:342                                                               | medium   |
-| tests/api/run.sh                                             | AGENTS.md:342                                                               | medium   |
+| <project>/tests/api/run.sh                                   | AGENTS.md:342                                                               | medium   |
 | src/generators/api-e2e.ts                                    | AGENTS.md:342                                                               | medium   |
 | run.sh                                                       | AGENTS.md:342                                                               | medium   |
-| tests/e2e/render-smoke.spec.ts                               | AGENTS.md:348                                                               | medium   |
+| <project>/tests/e2e/render-smoke.spec.ts                     | AGENTS.md:348                                                               | medium   |
 | **/*.render-smoke.{spec,test}.ts                             | AGENTS.md:348                                                               | medium   |
-| frontend/tests/e2e/render-smoke.spec.ts                      | AGENTS.md:348                                                               | medium   |
+| <project>/frontend/tests/e2e/render-smoke.spec.ts            | AGENTS.md:348                                                               | medium   |
 | src/templates/scripts/check-render-smoke.mjs.ejs             | AGENTS.md:348                                                               | medium   |
 | scripts/lib/glob-walk.mjs                                    | AGENTS.md:348                                                               | medium   |
 | src/generators/frontend-quality.ts                           | AGENTS.md:348                                                               | medium   |
@@ -119,7 +119,7 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | applicable:false                                             | AGENTS.md:351                                                               | medium   |
 | required                                                     | AGENTS.md:351                                                               | medium   |
 | n/a                                                          | AGENTS.md:351                                                               | medium   |
-| tests/smoke/smoke-journeys.spec.ts                           | AGENTS.md:351                                                               | medium   |
+| <project>/tests/smoke/smoke-journeys.spec.ts                 | AGENTS.md:351                                                               | medium   |
 | src/templates/scripts/check-smoke-journeys.mjs.ejs           | AGENTS.md:351                                                               | medium   |
 | src/generators/smoke-journeys.ts                             | AGENTS.md:351                                                               | medium   |
 | - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:359                                                               | medium   |

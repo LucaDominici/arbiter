@@ -135,14 +135,14 @@ Arbiter now records a per-file content-hash **manifest** so it can tell the two 
 | Committed?   | **Yes — commit it.** It must travel with the repo or the governed fleet cannot inherit fixes. It is intentionally NOT under `.arbiter/`. |
 | Shape        | `{ "$schemaVersion": 1, "files": { "<posix-relpath>": "<sha256-of-arbiter's-last-render>" } }`                                           |
 
-### Emission parity in the project's own gate (`scripts/check-emission-parity.mjs`, #2110)
+### Emission parity in the project's own gate (`<project>/scripts/check-emission-parity.mjs`, #2110)
 
 **Issue:** #2110
 
 The manifest is only consulted when someone runs `arbiter update`. Between updates a governed repo can
 lose a delivered guard — deleted in a cleanup, dropped in a merge — and nothing notices, because at
 runtime "never emitted" and "deleted after emission" are indistinguishable. Every governed project now
-emits `scripts/check-emission-parity.mjs`, wired at L1, which compares the committed manifest against
+emits `<project>/scripts/check-emission-parity.mjs`, wired at L1, which compares the committed manifest against
 disk on every gate run.
 
 It needs **no arbiter install**, which is the whole point of the design: arbiter is not a dependency of
@@ -352,7 +352,7 @@ default**: the shipped render lands over the local edit, recording a reversible
 `.arbiter/evidence/local-overrides/<slug>.json` envelope with the prior content verbatim. **Gate spine and
 governance withhold by default** (since #2119 and #2141 respectively) and adopt only under an explicit
 opt-in, with the same reversible envelope when they do. Safety and gate spine are both backstopped by
-`scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as long as a member of
+`<project>/scripts/check-safety-adopt-ratchet.mjs`, which fails the governed project's gate for as long as a member of
 either class stays withheld and unmarked.
 
 | class              | pattern                                      | default  | flag                          |

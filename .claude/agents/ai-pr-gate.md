@@ -59,6 +59,6 @@ PASS / FAIL verdict with:
 ## Reference
 
 - INV-91 in `src/invariants/catalog.ts`
-- `docs/REFERENCE/ai-pr-gate.md` — full rationale (21 CFR §11.10(g))
+- `docs/internal/architecture/ARCHITECTURE.md` — full rationale (21 CFR §11.10(g))
 - `.github/workflows/_ai-draft-check.yml` — enforcement workflow
 - `.github/workflows/_label-on-approve.yml` — label application workflow

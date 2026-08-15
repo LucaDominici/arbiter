@@ -29,11 +29,11 @@ Every task reads, regardless of track:
 Detect your track from the task's target paths before reading broad context.
 Full routing table is in `.claude/knowledge-map.json`.
 
-| Track    | Signal paths                         | Load additionally                                    |
-| -------- | ------------------------------------ | ---------------------------------------------------- |
-| frontend | `*.tsx`, `*.vue`, `*.svelte`, `web/` | `docs/internal/METHOD/FRONTEND_CONTEXT.md` if exists |
-| backend  | `*.go`, `*.py`, `*.java`, `api/`     | `docs/internal/METHOD/BACKEND_CONTEXT.md` if exists  |
-| docs     | `docs/`, `*.md`                      | `docs/INDEX.md` only                                 |
+| Track    | Signal paths                         | Load additionally                                              |
+| -------- | ------------------------------------ | -------------------------------------------------------------- |
+| frontend | `*.tsx`, `*.vue`, `*.svelte`, `web/` | `<project>/docs/internal/METHOD/FRONTEND_CONTEXT.md` if exists |
+| backend  | `*.go`, `*.py`, `*.java`, `api/`     | `<project>/docs/internal/METHOD/BACKEND_CONTEXT.md` if exists  |
+| docs     | `docs/`, `*.md`                      | `docs/INDEX.md` only                                           |
 
 ## Rules
 

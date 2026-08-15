@@ -36,22 +36,22 @@ All templates live under `src/templates/` and are rendered by `ejs` using the `P
 
 ## What Gets Generated
 
-| File / Directory                   | Always | Claude | Codex | GitHub |
-| ---------------------------------- | ------ | ------ | ----- | ------ |
-| `AGENTS.md`                        | ✓      |        |       |        |
-| `.claude/CLAUDE.md`                |        | ✓      |       |        |
-| `.claude/settings.json`            |        | ✓      |       |        |
-| `.claude/hooks/`                   |        | ✓      |       |        |
-| `.claude/rules/`                   |        | ✓      |       |        |
-| `.agents/CODEX.md`                 |        |        | ✓     |        |
-| `.agents/rules/`                   |        |        | ✓     |        |
-| `.github/workflows/ci.yml`         |        |        |       | ✓      |
-| `.github/PULL_REQUEST_TEMPLATE.md` |        |        |       | ✓      |
-| `.github/ISSUE_TEMPLATE/`          |        |        |       | ✓      |
-| `.github/dependabot.yml`           |        |        |       | ✓      |
-| `SECURITY.md`                      |        |        |       | ✓      |
-| `.editorconfig`                    |        |        |       | ✓      |
-| `scripts/check-all.mjs`            |        |        |       | ✓      |
+| File / Directory                     | Always | Claude | Codex | GitHub |
+| ------------------------------------ | ------ | ------ | ----- | ------ |
+| `AGENTS.md`                          | ✓      |        |       |        |
+| `.claude/CLAUDE.md`                  |        | ✓      |       |        |
+| `.claude/settings.json`              |        | ✓      |       |        |
+| `.claude/hooks/`                     |        | ✓      |       |        |
+| `.claude/rules/`                     |        | ✓      |       |        |
+| `.agents/CODEX.md`                   |        |        | ✓     |        |
+| `.agents/rules/`                     |        |        | ✓     |        |
+| `<project>/.github/workflows/ci.yml` |        |        |       | ✓      |
+| `.github/PULL_REQUEST_TEMPLATE.md`   |        |        |       | ✓      |
+| `.github/ISSUE_TEMPLATE/`            |        |        |       | ✓      |
+| `.github/dependabot.yml`             |        |        |       | ✓      |
+| `SECURITY.md`                        |        |        |       | ✓      |
+| `.editorconfig`                      |        |        |       | ✓      |
+| `scripts/check-all.mjs`              |        |        |       | ✓      |
 
 ---
 
@@ -89,7 +89,7 @@ All templates live under `src/templates/` and are rendered by `ejs` using the `P
 
 ---
 
-## `.github/workflows/ci.yml`
+## `<project>/.github/workflows/ci.yml`
 
 **Generated when:** `useGitHub` is true
 

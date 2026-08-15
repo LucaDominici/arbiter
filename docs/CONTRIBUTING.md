@@ -125,8 +125,8 @@ stays governed by `collaborationMode`/`mergeMode` as before.
 - [`README.md`](../README.md) — feature overview
 - [Windows Setup (WSL2)](#windows-setup-wsl2) — extended install + per-stack notes
 - [`GOVERNANCE.md`](./GOVERNANCE.md) — invariants + ADRs
-- [`internal/architecture/ARCHITECTURE.md`](./internal/architecture/ARCHITECTURE.md) — system internals
-- [`api/README.md`](./api/README.md) — public API surface
+- [`docs/internal/architecture/ARCHITECTURE.md`](./internal/architecture/ARCHITECTURE.md) — system internals
+- [`docs/api/README.md`](./api/README.md) — public API surface
 - [`OBSIDIAN.md`](../OBSIDIAN.md) — open this repo as an Obsidian vault
 
 ## When something fails
@@ -314,7 +314,7 @@ arbiter init
 
 ## Decision Record
 
-arbiter supports WSL2 only (not native Win32) — see locked decision in `docs/PRODUCT/DECISIONS.md` (C7). The rationale: bash-based hooks and shell scripts require a POSIX environment. WSL2 provides this without significant friction for Windows developers.
+arbiter supports WSL2 only (not native Win32). The rationale: bash-based hooks and shell scripts require a POSIX environment. WSL2 provides this without significant friction for Windows developers.
 
 ---
 
@@ -545,7 +545,7 @@ if (config.tools.includes('my-tool')) {
 }
 ```
 
-**Step 4** — Add the tool to the `tools` array type in `src/wizard/types.ts` and to the wizard prompt options in `src/wizard/index.ts`.
+**Step 4** — Add the tool to the `tools` array type in `src/wizard/types.ts` and to the wizard prompt options in `src/wizard/prompts.ts`.
 
 **Step 5** — Write an integration test in `__tests__/integration/init.test.ts` that verifies the generated file exists and contains expected content for at least one config variant.
 

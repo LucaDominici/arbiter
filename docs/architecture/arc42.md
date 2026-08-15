@@ -677,7 +677,7 @@ generated template shipped to every target project, so the drift propagates outw
 ### 11.3 ADR-103 is cited everywhere but has no ADR file (MEDIUM)
 
 ADR-103 is the formal basis for parallel _write_-agents (the worktree carve-out) and is referenced in
-`src/cli.ts`, `src/templates/claude/rules/50-batch-execution.md`, `wave-drain/SKILL.md.ejs`,
+`src/cli.ts`, `src/templates/claude/rules/50-batch-execution.md`, `src/templates/claude/skills/wave-drain/SKILL.md.ejs`,
 `gate-exec.ts`, `worktree-prune.ts`, and the `related:` frontmatter of several files — yet
 `docs/internal/ADR/103-*.md` **does not exist**, and the ADR index/DECISIONS digest jumps 102 → 104.
 The rule is enforced in prose and code; the decision record is missing. (Recommendation: write the
