@@ -45,7 +45,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** Arbiter's value proposition is that it generates governance for target projects. If arbiter applies a rule only to itself (self-config-only) or only emits it without applying it (template-only), the governance model is asymmetric and the "eat your own dog food" guarantee breaks.
 
-**Enforcement:** Prose — checked at PR review. Machine-promotable once a generator-vs-settings diff script exists (the ACTION_PLAN.md B2 gate: maps every self mechanism to a template emission or a motivated `.dogfood-divergences.json` entry, plus a ratchet on the divergence count). promotion: #1922 by 2026-08-15.
+**Enforcement:** Prose — checked at PR review. Machine-promotable once a generator-vs-settings diff script exists (the ACTION_PLAN.md B2 gate: maps every self mechanism to a template emission or a motivated `.dogfood-divergences.json` entry, plus a ratchet on the divergence count). promotion: #1922 by 2026-08-29 (needs-human, excluded from autonomous waves; co-dated with #1923 CANON-15 B3 per #1991 sequencing #1922→#1923→#1924 — one owner review covers both prerequisites).
 
 **Source issues:** #149, #151, #162, #164, #165, #167, #176, #183
 

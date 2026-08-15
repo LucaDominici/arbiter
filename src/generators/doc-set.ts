@@ -17,6 +17,7 @@ import { runDocSet } from '../commands/doc-set.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { DocSetPayload } from '../commands/doc-set.js'
+import { isoToday } from '../utils/today.js'
 
 /**
  * Minimal shape the generator needs. A full `ProjectConfig` (the registry.ts pipeline, `init`/
@@ -242,7 +243,7 @@ export function generateDocSetSkeletons(
     repo,
     config,
     projectName: config.projectName ?? basename(resolve(repo)),
-    today: new Date().toISOString().slice(0, 10),
+    today: isoToday(),
     tierColumn: payload.tierColumn,
     dryRun: opts.dryRun,
   }
