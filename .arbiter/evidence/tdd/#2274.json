@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2274",
+  "test_path": "__tests__/utils/today-2274.test.ts",
+  "test_commit_sha": "56427fa60b11740edae77b3374329a96547973a3",
+  "test_blob_sha": "45d25f18b4ae4cabf705351daa18f1aa0fde7f97",
+  "test_run_log": "\n RUN  v4.1.10 /home/luca/work/repos/arbiter\n\n \u276f __tests__/utils/today-2274.test.ts (0 test)\n\n\u23af\u23af\u23af\u23af\u23af\u23af Failed Suites 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/utils/today-2274.test.ts [ __tests__/utils/today-2274.test.ts ]\nError: Cannot find module '../../src/utils/today.js' imported from /home/luca/work/repos/arbiter/__tests__/utils/today-2274.test.ts\n \u276f __tests__/utils/today-2274.test.ts:4:1\n      2| // trees (examples/) do not roll every calendar day and red the exampl\u2026\n      3| import { describe, expect, it } from 'vitest'\n      4| import { isoToday } from '../../src/utils/today.js'\n       | ^\n      5|\n      6| describe('#2274 isoToday honors SOURCE_DATE_EPOCH', () => {\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/1]\u23af\n\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  19:02:39\n   Duration  137ms (transform 20ms, setup 20ms, import 0ms, tests 0ms, environment 0ms)\n\n",
+  "observed_failure": "FAIL  __tests__/utils/today-2274.test.ts",
+  "recorded_at": "2026-08-15T17:03:19.280011Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/utils/today-2274.test.ts"
+  ]
+}
