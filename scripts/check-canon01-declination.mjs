@@ -161,43 +161,41 @@ function indexTemplates(root, templatesDir) {
   return { all, hooks }
 }
 
+/** One self-only entry's validity. Returns a problem string, or null when the entry is sound. */
+function selfOnlyEntryProblem(entry, now) {
+  if (!entry || typeof entry.path !== 'string' || entry.path === '') {
+    return 'self-only entry without a `path`'
+  }
+  if (typeof entry.reason !== 'string' || entry.reason.trim() === '') {
+    return `${entry.path}: self-only entry has no \`reason\` — a reasonless entry is a blanket allowlist`
+  }
+  if (entry.expires == null) return null
+  const due = new Date(`${entry.expires}T00:00:00Z`)
+  if (Number.isNaN(due.getTime())) {
+    return `${entry.path}: unparseable \`expires\` (${entry.expires})`
+  }
+  if (due.getTime() < now.getTime()) {
+    return `${entry.path}: EXPIRED staged self-only entry (due ${entry.expires}) — confirm it is self-only by construction and drop the date, or emit the template twin`
+  }
+  return null
+}
+
 /**
  * Validate the self-only allowlist and index it by path. `reason` is mandatory; an
  * `expires` date in the past is a violation. Returns { byPath, problems }.
  */
 export function indexSelfOnly(entries, now) {
-  const byPath = new Map()
-  const problems = []
   if (!Array.isArray(entries)) {
     throw Object.assign(new Error('self-only allowlist: `selfOnly` must be an array'), {
       exitCode: 2,
     })
   }
+  const byPath = new Map()
+  const problems = []
   for (const entry of entries) {
-    if (!entry || typeof entry.path !== 'string' || entry.path === '') {
-      problems.push('self-only entry without a `path`')
-      continue
-    }
-    if (typeof entry.reason !== 'string' || entry.reason.trim() === '') {
-      problems.push(
-        `${entry.path}: self-only entry has no \`reason\` — a reasonless entry is a blanket allowlist`,
-      )
-      continue
-    }
-    if (entry.expires != null) {
-      const due = new Date(`${entry.expires}T00:00:00Z`)
-      if (Number.isNaN(due.getTime())) {
-        problems.push(`${entry.path}: unparseable \`expires\` (${entry.expires})`)
-        continue
-      }
-      if (due.getTime() < now.getTime()) {
-        problems.push(
-          `${entry.path}: EXPIRED staged self-only entry (due ${entry.expires}) — confirm it is self-only by construction and drop the date, or emit the template twin`,
-        )
-        continue
-      }
-    }
-    byPath.set(entry.path, entry)
+    const problem = selfOnlyEntryProblem(entry, now)
+    if (problem) problems.push(problem)
+    else byPath.set(entry.path, entry)
   }
   return { byPath, problems }
 }
@@ -218,54 +216,50 @@ function readEmittedOnlyNames(root) {
       for (const e of JSON.parse(readFileSync(optionalPath, 'utf-8')).optional ?? [])
         if (typeof e.path === 'string') names.add(e.path.split('/').pop())
     } catch {
-      throw Object.assign(new Error(`malformed scripts/optional-emissions.json`), { exitCode: 2 })
+      throw Object.assign(new Error('malformed scripts/optional-emissions.json'), { exitCode: 2 })
     }
   }
   return names
 }
 
-function classify(mechPath, isHook, templates, divergenceBasenames, selfOnly, used) {
+function classify(mechPath, isHook, ctx) {
   const base = mechPath.split('/').pop()
-  const emitted = isHook ? templates.hooks : templates.all
+  const emitted = isHook ? ctx.templates.hooks : ctx.templates.all
   if (emitted.has(base)) return 'template'
-  if (divergenceBasenames.has(base)) return 'divergence'
-  if (selfOnly.has(mechPath)) {
-    used.add(mechPath)
+  if (ctx.divergenceBasenames.has(base)) return 'divergence'
+  if (ctx.selfOnly.has(mechPath)) {
+    ctx.usedSelfOnly.add(mechPath)
     return 'self-only'
   }
   return null
 }
 
-function main() {
-  const opts = parseArgs(process.argv.slice(2))
-  const settingsSrc = existsSync(opts.settingsPath)
-    ? readFileSync(opts.settingsPath, 'utf-8')
-    : (() => {
-        throw Object.assign(new Error(`missing required settings: ${opts.settingsPath}`), {
-          exitCode: 2,
-        })
-      })()
-  const gateSrc = existsSync(opts.gatePath)
-    ? readFileSync(opts.gatePath, 'utf-8')
-    : (() => {
-        throw Object.assign(new Error(`missing required gate: ${opts.gatePath}`), { exitCode: 2 })
-      })()
+/** Read a required text input. Absent = ERROR (exit 2), never a pass. */
+function readRequired(path, what) {
+  if (!existsSync(path)) {
+    throw Object.assign(new Error(`missing required ${what}: ${path}`), { exitCode: 2 })
+  }
+  return readFileSync(path, 'utf-8')
+}
 
+function loadInputs(opts) {
   const divergences = readJson(opts.divergencesPath, 'divergence ledger')
   if (!Array.isArray(divergences)) {
     throw Object.assign(new Error('divergence ledger must be an array'), { exitCode: 2 })
   }
-  const selfOnlyDoc = readJson(opts.selfOnlyPath, 'self-only allowlist')
-  const baseline = readJson(opts.baselinePath, 'ratchet baseline')
+  return {
+    settingsSrc: readRequired(opts.settingsPath, 'settings'),
+    gateSrc: readRequired(opts.gatePath, 'gate'),
+    divergences,
+    selfOnlyDoc: readJson(opts.selfOnlyPath, 'self-only allowlist'),
+    baseline: readJson(opts.baselinePath, 'ratchet baseline'),
+  }
+}
 
-  const templates = indexTemplates(opts.root, opts.templatesDir)
-  const divergenceBasenames = new Set(divergences.map((d) => String(d.path).split('/').pop()))
-  const { byPath: selfOnly, problems } = indexSelfOnly(selfOnlyDoc.selfOnly, opts.now)
-
+/** Bucket every self mechanism. Returns { counts, unmapped }. */
+function buildInventory(ctx, gateSrc, settingsSrc) {
   const counts = { template: 0, divergence: 0, 'self-only': 0, 'external-tool': 0 }
   const unmapped = []
-  const usedSelfOnly = new Set()
-
   const seen = new Set()
   for (const mech of enumerateGateMechanisms(gateSrc)) {
     if (mech.path === null) {
@@ -274,84 +268,74 @@ function main() {
     }
     if (seen.has(mech.path)) continue
     seen.add(mech.path)
-    const bucket = classify(
-      mech.path,
-      false,
-      templates,
-      divergenceBasenames,
-      selfOnly,
-      usedSelfOnly,
-    )
+    const bucket = classify(mech.path, false, ctx)
     if (bucket) counts[bucket]++
     else unmapped.push(`${mech.path} (check-all: '${mech.name}')`)
   }
   for (const hook of enumerateHooks(settingsSrc)) {
-    const bucket = classify(hook, true, templates, divergenceBasenames, selfOnly, usedSelfOnly)
+    const bucket = classify(hook, true, ctx)
     if (bucket) counts[bucket]++
     else unmapped.push(`${hook} (settings.json hook)`)
   }
+  return { counts, unmapped }
+}
 
-  // Contradiction: a path claimed self-only that another list claims is emitted-only.
-  // Dead entry: a path nothing maps to. It inflates the ratchet count forever and
-  // exempts nothing (same doctrine as check-self-dogfood's stale-entry rule).
-  const emittedOnly = readEmittedOnlyNames(opts.root)
-  for (const path of selfOnly.keys()) {
-    const base = path.split('/').pop()
-    if (!usedSelfOnly.has(path)) {
+/**
+ * Dead entry: a self-only path nothing maps to — it inflates the ratchet forever and exempts
+ * nothing (check-self-dogfood's stale-entry doctrine). Contradiction: a path another list
+ * claims is emitted-to-targets.
+ */
+function auditSelfOnlyList(ctx, root) {
+  const emittedOnly = readEmittedOnlyNames(root)
+  const problems = []
+  for (const path of ctx.selfOnly.keys()) {
+    if (!ctx.usedSelfOnly.has(path)) {
       problems.push(
         `${path}: DEAD self-only entry — no registered hook or check-all mechanism resolves to it; remove it and lower the baseline`,
       )
     }
-    if (emittedOnly.has(base)) {
+    if (emittedOnly.has(path.split('/').pop())) {
       problems.push(
         `${path}: claimed self-only here but listed as emitted-to-targets in TRACK_B_EXEMPT / optional-emissions.json — the two claims are contradictory`,
       )
     }
   }
+  return problems
+}
 
-  const observed = { divergences: divergences.length, selfOnly: selfOnly.size }
-  const grown = Object.keys(observed).filter((k) => observed[k] > (baseline[k] ?? 0))
-
-  if (opts.updateBaseline) {
-    if (grown.length > 0) {
-      for (const k of grown) {
-        process.stdout.write(
-          `  RATCHET refused: ${k} ${observed[k]} > baseline ${baseline[k] ?? 0} — --update-baseline only lowers. Add an \`expires\`-dated entry with a reason and open an issue instead.\n`,
-        )
-      }
-      process.stdout.write(`${LABEL} FAIL: refusing to raise the baseline\n`)
-      return 1
+function applyBaselineUpdate(opts, baseline, observed, grown) {
+  if (grown.length > 0) {
+    for (const k of grown) {
+      process.stdout.write(
+        `  RATCHET refused: ${k} ${observed[k]} > baseline ${baseline[k] ?? 0} — --update-baseline only lowers. Add an \`expires\`-dated entry with a reason and raise the baseline by hand in the same PR.\n`,
+      )
     }
-    writeFileSync(
-      opts.baselinePath,
-      `${JSON.stringify({ ...baseline, ...observed, capturedAt: new Date().toISOString() }, null, 2)}\n`,
-    )
-    process.stdout.write(
-      `${LABEL} baseline lowered: divergences=${observed.divergences} selfOnly=${observed.selfOnly}\n`,
-    )
-    return 0
+    process.stdout.write(`${LABEL} FAIL: refusing to raise the baseline\n`)
+    return 1
   }
+  writeFileSync(
+    opts.baselinePath,
+    `${JSON.stringify({ ...baseline, ...observed, capturedAt: new Date().toISOString() }, null, 2)}\n`,
+  )
+  process.stdout.write(
+    `${LABEL} baseline lowered: divergences=${observed.divergences} selfOnly=${observed.selfOnly}\n`,
+  )
+  return 0
+}
 
-  let failed = false
-  for (const line of unmapped) {
-    process.stdout.write(`  UNMAPPED mechanism: ${line}\n`)
-    failed = true
-  }
-  for (const line of problems) {
-    process.stdout.write(`  ${line}\n`)
-    failed = true
-  }
+function report({ counts, unmapped, problems, grown, observed, baseline }) {
+  for (const line of unmapped) process.stdout.write(`  UNMAPPED mechanism: ${line}\n`)
+  for (const line of problems) process.stdout.write(`  ${line}\n`)
   for (const k of grown) {
     process.stdout.write(
       `  RATCHET: ${k} grew to ${observed[k]} (baseline ${baseline[k] ?? 0}) — CANON-01 divergence is monotone-decreasing\n`,
     )
-    failed = true
   }
 
   const total = counts.template + counts.divergence + counts['self-only'] + unmapped.length
   const summary = `${total} self mechanisms (${counts.template} template, ${counts.divergence} divergence, ${counts['self-only']} self-only, ${unmapped.length} unmapped) + ${counts['external-tool']} external-tool invocations (parity owned by check-ci-tool-parity.mjs)`
 
-  if (failed) {
+  if (unmapped.length + problems.length + grown.length > 0) {
     process.stdout.write(`${LABEL} FAIL — ${summary}\n`)
     return 1
   }
@@ -359,6 +343,28 @@ function main() {
     `${LABEL} OK — ${summary}; ratchet divergences=${observed.divergences}/${baseline.divergences} selfOnly=${observed.selfOnly}/${baseline.selfOnly}\n`,
   )
   return 0
+}
+
+function main() {
+  const opts = parseArgs(process.argv.slice(2))
+  const { settingsSrc, gateSrc, divergences, selfOnlyDoc, baseline } = loadInputs(opts)
+  const { byPath: selfOnly, problems } = indexSelfOnly(selfOnlyDoc.selfOnly, opts.now)
+
+  const ctx = {
+    templates: indexTemplates(opts.root, opts.templatesDir),
+    divergenceBasenames: new Set(divergences.map((d) => String(d.path).split('/').pop())),
+    selfOnly,
+    usedSelfOnly: new Set(),
+  }
+  const { counts, unmapped } = buildInventory(ctx, gateSrc, settingsSrc)
+  problems.push(...auditSelfOnlyList(ctx, opts.root))
+
+  const observed = { divergences: divergences.length, selfOnly: selfOnly.size }
+  const grown = Object.keys(observed).filter((k) => observed[k] > (baseline[k] ?? 0))
+
+  return opts.updateBaseline
+    ? applyBaselineUpdate(opts, baseline, observed, grown)
+    : report({ counts, unmapped, problems, grown, observed, baseline })
 }
 
 try {
