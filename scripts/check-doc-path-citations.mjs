@@ -27,6 +27,7 @@
 // all 124 then-open hits into three buckets and cleared them:
 //   - runtime-written roots  → RUNTIME_ROOT_SKIP (a tool writes it, nobody commits it)
 //   - deliberate placeholders → PLACEHOLDER_PATTERNS (the reader substitutes it)
+//   - gitignored-by-design    → isGitIgnored (per-machine file, never in git)
 //   - everything else         → a doc edit, never an allowlist entry
 // A citation naming a file in a GOVERNED TARGET rather than in arbiter's own tree
 // carries the `<project>/` prefix the corpus already uses (docs/INTEGRATIONS.md) —
@@ -38,6 +39,7 @@
 //   node scripts/check-doc-path-citations.mjs
 //   node scripts/check-doc-path-citations.mjs --roots=a,b,c   (fixtures)
 import { readFileSync, existsSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve, dirname, sep } from 'node:path'
 import { walkRepo } from './lib/glob-walk.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
@@ -168,6 +170,32 @@ export function findPhantomPaths(citedPaths, repoRoot, fileDir = repoRoot) {
     .sort()
 }
 
+// #2260: a cited path that git IGNORES is local-by-design, not dead —
+// `.claude/settings.local.json` exists on a developer's machine and never in
+// git, so it resolved locally and 404'd in a fresh CI checkout. A citation is
+// dead only when the path is neither tracked NOR ignored. Delegated to git so
+// the full .gitignore grammar (negations, nested files, precedence) is honoured
+// rather than re-implemented; the exit-1/exit-128 branch means a non-repo
+// fixture dir simply reports "not ignored", preserving the fixture semantics.
+// Complements RUNTIME_ROOT_SKIP rather than replacing it: that list states an
+// intent that holds in a GOVERNED TARGET too (`plan-review/` and `scratchpad/`
+// are not in arbiter's own .gitignore), and must not depend on this repo's.
+const ignoredCache = new Map()
+export function isGitIgnored(citedPath, cwd = CWD) {
+  const key = `${cwd}\u0000${citedPath}`
+  if (!ignoredCache.has(key)) {
+    let ignored = false
+    try {
+      execFileSync('git', ['check-ignore', '-q', '--', citedPath], { cwd, stdio: 'ignore' })
+      ignored = true
+    } catch {
+      ignored = false
+    }
+    ignoredCache.set(key, ignored)
+  }
+  return ignoredCache.get(key)
+}
+
 const SCANNABLE_SUFFIXES = ['.md', '.md.ejs']
 
 function collectScanFiles(root) {
@@ -200,6 +228,7 @@ function main() {
     const phantoms = findPhantomPaths(extractPathCitations(content), CWD, dirname(file))
     for (const phantom of phantoms) {
       if (PATH_ALLOWLIST.has(`${rel}:${phantom}`)) continue
+      if (isGitIgnored(phantom)) continue
       process.stdout.write(`  phantom-path: ${rel}: \`${phantom}\` does not exist in the repo\n`)
       violations++
     }
