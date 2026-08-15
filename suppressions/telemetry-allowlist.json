@@ -20,6 +20,11 @@
     "justification": "ESLint boundaries config listing axios as a banned external import \u2014 this is an enforcement rule string, not a network call."
   },
   {
+    "pattern": "axios",
+    "file": "src/templates/boundaries/eslint.config.boundaries.mjs.ejs",
+    "justification": "Flat-config twin of .eslintrc-boundaries.cjs.ejs (#2272) listing axios as a banned external import \u2014 this is an enforcement rule string, not a network call."
+  },
+  {
     "pattern": "sentry",
     "file": "src/templates/observability/setup.md.ejs",
     "justification": "Generated observability setup doc referencing the Sentry SaaS provider SDK \u2014 not telemetry from arbiter itself. Content is emitted only when the user selects provider='saas-sentry' in their arbiter config."
