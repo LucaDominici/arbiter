@@ -292,8 +292,10 @@ describe('TRACK_B_EXEMPT emission verification (#2278)', () => {
       )
       const result = runWithGenerators(dir)
       expect(result.status).toBe(1)
-      expect(result.stdout).not.toContain('verify-tokens.mjs')
-      expect(result.stdout).not.toContain('check-workflow-perms.mjs')
+      // Assert on the whole violation line — a bare filename substring would also be
+      // absent if the pass ignored the fixture dir entirely (decorative assert).
+      expect(result.stdout).not.toContain('no generator: verify-tokens.mjs')
+      expect(result.stdout).not.toContain('no generator: check-workflow-perms.mjs')
       expect(result.stdout).toContain('evidence-collect.mjs')
     } finally {
       cleanup()
