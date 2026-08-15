@@ -77,10 +77,8 @@ import { walkRepo } from './lib/glob-walk.mjs'
 const LABEL = '[check-canon01-declination]'
 
 function parseArgs(argv) {
-  const get = (name) => {
-    const flag = argv.find((a) => a.startsWith(`--${name}=`))
-    return flag ? flag.slice(`--${name}=`.length) : undefined
-  }
+  // `--name=value` only. `name.length + 3` skips the leading `--` and the `=`.
+  const get = (name) => argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3)
   const root = resolve(get('root') ?? join(dirname(fileURLToPath(import.meta.url)), '..'))
   const at = (name, fallback) => resolve(root, get(name) ?? fallback)
   return {
