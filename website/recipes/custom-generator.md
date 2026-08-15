@@ -70,7 +70,7 @@ src/templates/my-language/
 
 ## Step 4 — Wire into the dispatch
 
-Register in `src/generators/dispatch.ts`: add a branch for the new language/archetype that calls your generator. Check `src/detectors/` to confirm the detector already classifies this stack.
+Register in `src/generators/registry.ts`: add a branch for the new language/archetype that calls your generator. Check `src/detectors/` to confirm the detector already classifies this stack.
 
 ## Step 5 — Add a fixture + test
 
@@ -84,6 +84,6 @@ INV-32 requires a fixture before the matrix cell can be promoted to `proven`.
 ## Reference
 
 - Templates: `src/templates/`
-- Dispatch: `src/generators/dispatch.ts`
+- Dispatch: `src/generators/registry.ts`
 - Matrix: `src/compatibility/cross-language-matrix.json`
 - CANON-02 / CANON-03 / CANON-05 apply when promoting cells

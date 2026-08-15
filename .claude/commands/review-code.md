@@ -42,7 +42,7 @@ Each agent's raw response is persisted under
 
 The tier→reviewer-count mapping lives in `.claude/agent-dispatch-matrix.json`
 (`tier_verticals`) — the SSOT also consumed by `scripts/route-auditors.mjs`
-via `--size-floor <tier>` and asserted against `src/sizing/sizing.ts` by
+via `--size-floor <tier>` and asserted against `src/commands/task-ship.ts` by
 `scripts/check-agent-dispatch.mjs`. Read the matrix for the current counts;
 never copy them here.
 

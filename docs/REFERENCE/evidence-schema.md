@@ -156,5 +156,5 @@ node scripts/check-all.mjs check  # does NOT include evidence-bundle check (L1 o
 
 ## Architecture
 
-See `docs/architecture/evidence-bundle.md` for the full design rationale and lifecycle
+See `docs/internal/architecture/ARCHITECTURE.md` for the full design rationale and lifecycle
 description.

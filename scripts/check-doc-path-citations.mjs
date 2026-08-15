@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: AC-2243.2 (#2243) — scans hand-authored prose (docs/, website/, .claude/)
 // CATALOG:   for bare backtick citations of a repo file path (`src/ship/fix-on-red.ts`
-// CATALOG:   class) that does not exist on disk. Advisory (runWarnCheck) — see the
-// CATALOG:   header rationale below.
+// CATALOG:   class) that does not exist on disk. HARD (runCheck) since #2260 —
+// CATALOG:   the full corpus was triaged to zero and the class cannot regrow.
 //
 // CANON-16 survey (documented in the #2243 commit body): evaluated folding this
 // class into check-phantom-command-scan.mjs vs a new sibling. Rejected the fold:
@@ -22,12 +22,17 @@
 // no `.ejs` twin, no gate-registry row, the manifest's conditional
 // check-doc-path-citations.mjs.ejs stays unmaterialized).
 //
-// Advisory, not hard (runWarnCheck in check-all.mjs): the corpus-wide false-positive
-// surface for a first pass is unknown (runtime-generated paths referenced as "where
-// the tool writes X", e.g. `.arbiter/e2e-ledger.jsonl`, are real prose but not
-// committed source) — RUNTIME_ROOT_SKIP below covers the common cases but is not
-// exhaustive. Promotion to a hard check is a tracked follow-up once a full-corpus
-// pass confirms zero false positives (see the #2243 DONE report).
+// Hard (runCheck in check-all.mjs) since #2260. It shipped advisory in #2243
+// because the corpus-wide false-positive surface was untriaged; #2260 classified
+// all 124 then-open hits into three buckets and cleared them:
+//   - runtime-written roots  → RUNTIME_ROOT_SKIP (a tool writes it, nobody commits it)
+//   - deliberate placeholders → PLACEHOLDER_PATTERNS (the reader substitutes it)
+//   - everything else         → a doc edit, never an allowlist entry
+// A citation naming a file in a GOVERNED TARGET rather than in arbiter's own tree
+// carries the `<project>/` prefix the corpus already uses (docs/INTEGRATIONS.md) —
+// which is not path-shaped, so it never reaches this scanner. Deliberately no
+// blanket `scripts/`- or `config/`-prefix skip: arbiter has its own scripts/ and
+// a prefix skip there would blind the gate to real drift.
 //
 // Usage:
 //   node scripts/check-doc-path-citations.mjs
@@ -67,6 +72,27 @@ const PATH_ALLOWLIST = new Set([
   // command-surface cut — it cites src/ship/fix-on-red.ts explicitly to say it
   // no longer exists ("removed in the T2 command-surface cut").
   'docs/REFERENCE/fix-on-red.md:src/ship/fix-on-red.ts',
+  // #2260 — each entry below is prose whose POINT is that the path is absent,
+  // historical, or owned by another repo. Repointing them would make them lie.
+  // AGENTS.md narrates the T2 cut in the same sentence ("commands/conformance.ts
+  // deleted"); website/governance/AGENTS.md is its byte-for-byte mirror.
+  'website/governance/AGENTS.md:commands/conformance.ts',
+  // A 1.0.0 breaking-changes row recording a rename between two modules that
+  // both existed at the time and were both later removed.
+  'docs/SEMVER.md:src/config/thresholds-l1-l2-l3.ts',
+  'docs/SEMVER.md:src/config/thresholds-by-level.ts',
+  // ADR-062's verbatim title. The path is emitted into a governed target by
+  // src/generators/docs.ts; arbiter deliberately does not self-emit it (#1102).
+  'docs/architecture/adr-index.md:docs/COMMANDS.md',
+  // A confine review asserting the gate script does NOT exist in arbiter's own
+  // scripts/ — the declared-but-unfirable enforcement it is reporting.
+  'docs/PRODUCT/CONFINE.md:scripts/check-solo-reactivation.mjs',
+  // Names ANOTHER project's enforcement point, immediately after saying so
+  // ("this document is the portable pattern, not the project-specific one").
+  'docs/methodology/gate-throughput-patterns.md:scripts/gates/chain-batching.sh',
+  // Mirrors the M16_CORPUS array in scripts/check-m16-handoff.mjs, which
+  // deliberately lists a not-yet-written skill and tolerates its absence.
+  'docs/methodology/agent-orchestration-and-context-hygiene.md:.claude/skills/drain/SKILL.md',
 ])
 
 // Path-shaped citations under these roots are runtime-generated artifacts, not

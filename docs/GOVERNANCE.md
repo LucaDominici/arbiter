@@ -241,11 +241,7 @@ Issues that require understanding the full plugin API, schema migrations, or CI 
 
 ## Issue body template
 
-Use `docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md` when filing curated issues. Fill in all sections before applying the label.
-
-## Backlog of curated launch issues
-
-See `docs/GOVERNANCE/GOOD-FIRST-ISSUE-CURATION.md` for the 10 issues curated at launch.
+Follow the repository issue templates under `.github/ISSUE_TEMPLATE/` when filing curated issues. Fill in all sections before applying the label.
 
 ## Manual welcome
 

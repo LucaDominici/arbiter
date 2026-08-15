@@ -38,10 +38,10 @@ Four axioms, already operative in arbiter, govern everything below:
    tranche, `docs/design/anti-context-rot-enforcers.md`: prose-only rules are
    promoted to machine gates or deleted.)
 2. **Paved road / pit of success** — the correct way must be the pre-built default. A
-   measure that requires remembering is already failing (`docs/audit/FRAMEWORK_AUDIT.md`).
+   measure that requires remembering is already failing.
 3. **Normalization of deviance** — an unenforced or routinely-bypassed rule trains
    everyone to ignore all rules. The bypass-log is the confession
-   (`docs/audit/IS-ARBITER-WORTH-IT.md`: 305 bypasses of one gate = not a gate).
+   (305 bypasses of one gate = not a gate).
 4. **IRON LAW of proof** — nothing is done until it is **WIRED** (invoked, `file:line`),
    **TESTED** (a red-path/flip test proves it BLOCKS, not only passes) and **WORKING**
    (dogfooded on real input). (`docs/design/anti-context-rot-enforcers.md` §0 — every
@@ -72,7 +72,7 @@ The failure modes this standard exists to kill — each observed for real, not h
 | R3  | **Shared-tree parallel corruption** — concurrent agents editing one working tree corrupt index/lockfiles/diffs                           | Real incident 2026-03-01: parallel agents without worktrees produced accidental edits on `main`; codified as Iron Law in `AGENTS.md`  |
 | R4  | **False structural claims** — an agent asserts an architectural fact from vibes, not code                                                | Real false alarm: "hexagonal architecture is fiction" refuted by cross-checking 113 ArchUnit rules in the actual codebase             |
 | R5  | **Context pollution** — research dumps (file listings, greps, long reads) rot the orchestrator's window and degrade every later judgment | Structural; the reason read-only sub-agents exist (`.claude/agents/codebase-scanner.md`)                                              |
-| R6  | **Ceremony drift** — gates bypassed until the bypass is the process                                                                      | 332 logged bypasses, 305 on one gate (`docs/audit/IS-ARBITER-WORTH-IT.md`)                                                            |
+| R6  | **Ceremony drift** — gates bypassed until the bypass is the process                                                                      | 332 logged bypasses, 305 on one gate                                                                                                  |
 | R7  | **Expensive-model burn** — top-tier models spent on mechanical execution                                                                 | #1817 gold-rebaseline pattern A8: ~90% of implementation belongs on a cheap model executing a worked-out plan                         |
 
 ---

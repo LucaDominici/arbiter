@@ -6,10 +6,10 @@
 //                simulate-nightly (T4), simulate-weekly (T5)
 //   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
 //
-// check (T1, "check" subcommand — L1 fast checks): 121 hard checks (runCheck/runToolCheck)
-//   + 2 advisory (runWarnCheck), as of #2243.
+// check (T1, "check" subcommand — L1 fast checks): 122 hard checks (runCheck/runToolCheck)
+//   + 1 advisory (runWarnCheck), as of #2260.
 // gate (T1+T2, "gate" subcommand, default): check + T2 extended checks, cumulative total
-//   146 hard checks + 10 advisory, as of #2243.
+//   147 hard checks + 9 advisory, as of #2260.
 // These counts are hand-maintained (#2042 fixed a ~2x stale count and a 25/37-gate-name
 // drift found by audit) — do not hand-copy an enumerated gate list here, it WILL drift.
 // For the exhaustive, always-current list: grep this file for `run(Check|ToolCheck|WarnCheck)(`
@@ -238,7 +238,7 @@ if (isMain) {
   // placeholders, optional-tool paths like graphify-out/) is not yet fully
   // triaged, so this reports rather than blocks. Promotion to a hard check is
   // a tracked follow-up once a full-corpus pass confirms zero false positives.
-  runWarnCheck('doc path citations (#2243)', 'node', ['scripts/check-doc-path-citations.mjs'])
+  runCheck('doc path citations (#2243, hard since #2260)', 'node', ['scripts/check-doc-path-citations.mjs'])
   // F2 (#1838, item 5): package.json / --version / CHANGELOG.md three-way
   // agreement — the permanent gate promised in the F1 fix for #1837.
   runCheck('version parity (#1838)', 'node', ['scripts/check-version-parity.mjs'])
