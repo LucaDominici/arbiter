@@ -8,7 +8,7 @@
 // inline-code path citation. RED: no scanner for this class exists.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { extractPathCitations, findPhantomPaths } from '../../scripts/check-doc-path-citations.mjs'
@@ -135,5 +135,28 @@ describe('check-doc-path-citations.mjs — real repo (AC-2243.4 local proof)', (
       cwd: resolve('.'),
     })
     expect(r.stdout).not.toContain('fix-on-red.md: `src/ship/fix-on-red.ts`')
+  })
+})
+
+// ─── #2260: promotion advisory → hard ───────────────────────────────────────
+// RED: the check is registered with runWarnCheck (advisory) and the full corpus
+// carries 124 dead citations, so promoting it today would red the gate. Both
+// assertions below fail until the corpus is triaged and the check is flipped.
+
+describe('#2260 — doc path citations is a HARD gate', () => {
+  it('check-all.mjs registers it via runCheck, not runWarnCheck', () => {
+    const checkAll = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
+    const line = checkAll
+      .split('\n')
+      .find((l) => l.includes("'scripts/check-doc-path-citations.mjs'"))
+    expect(line, 'check-doc-path-citations.mjs must be registered in check-all.mjs').toBeDefined()
+    expect(line).toContain('runCheck(')
+    expect(line).not.toContain('runWarnCheck(')
+  })
+
+  it('exits 0 on the full committed corpus (docs/, website/, .claude/)', () => {
+    const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: resolve('.') })
+    expect(r.stdout).not.toContain('phantom-path:')
+    expect(r.status).toBe(0)
   })
 })
