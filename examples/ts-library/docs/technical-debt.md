@@ -2,7 +2,7 @@
 title: 'technical-debt'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-15'
+last_review: '2026-08-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
