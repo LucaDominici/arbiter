@@ -1090,7 +1090,7 @@ describe('cross-product: dep-audit scope — emitted gate vs emitted docs (#2268
       'npm audit --omit=dev --audit-level=high',
     )
     const argv = AUDIT_ARGV_RE.exec(renderCheckAll(cfg))?.[1]
-    expect(argv, 'check-all.mjs must emit a runCheck(\'audit\', \'npm\', [...]) step').toBeDefined()
+    expect(argv, "check-all.mjs must emit a runCheck('audit', 'npm', [...]) step").toBeDefined()
     const emitted = ['npm', ...(argv ?? '').split(',').map((a) => a.trim().replace(/'/g, ''))]
     expect(emitted.join(' ')).toBe(documented)
   })
