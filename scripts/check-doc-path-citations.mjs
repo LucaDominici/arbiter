@@ -188,7 +188,13 @@ export function isGitIgnored(citedPath, cwd = CWD) {
     try {
       execFileSync('git', ['check-ignore', '-q', '--', citedPath], { cwd, stdio: 'ignore' })
       ignored = true
-    } catch {
+    } catch (err) {
+      // check-ignore's documented contract: 1 = not ignored, 128 = not a git
+      // repo (a fixture temp dir). Both mean "cannot vouch for it" → leave the
+      // citation subject to the existence check, i.e. the gate stays strict.
+      // Anything else (git absent, permission error) is a broken apparatus, not
+      // an answer — surface it rather than silently un-skipping the whole class.
+      if (err?.status !== 1 && err?.status !== 128) throw err
       ignored = false
     }
     ignoredCache.set(key, ignored)
