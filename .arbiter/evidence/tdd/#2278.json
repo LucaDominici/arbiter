@@ -1,9 +1,16 @@
 {
   "$schemaVersion": 1,
-  "task_id": "2278",
+  "task_id": "#2278",
   "test_path": "__tests__/scripts/check-inv-enforcement-wired.test.ts",
+  "test_commit_sha": "935de90166b47a4aa7eaacc714785aacb11b82cf",
+  "test_blob_sha": "d21f002a0ddef820d3df3953a62050f12391484c",
   "test_run_log": "\n RUN  v4.1.10 /home/luca/work/repos/arbiter.worktrees/2278-exempt-verify\n\n ❯ __tests__/scripts/check-inv-enforcement-wired.test.ts (16 tests | 3 failed) 1128ms\n     × exits 1 when an exempt script is emitted by no generator [#2278] 84ms\n     × does not accept an unquoted prose mention as proof of emission [#2278] 108ms\n     × accepts both emission literal styles: renderTemplate path and bare name [#2278] 83ms\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-inv-enforcement-wired.test.ts > TRACK_B_EXEMPT emission verification (#2278) > exits 1 when an exempt script is emitted by no generator [#2278]\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-inv-enforcement-wired.test.ts:262:29\n    260|       // Empty generators dir: every exemption is unproven, so each mu…\n    261|       const result = runWithGenerators(dir)\n    262|       expect(result.status).toBe(1)\n       |                             ^\n    263|       expect(result.stdout).toContain('evidence-collect.mjs')\n    264|       expect(result.stdout).toContain('verify-tokens.mjs')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯\n\n FAIL  __tests__/scripts/check-inv-enforcement-wired.test.ts > TRACK_B_EXEMPT emission verification (#2278) > does not accept an unquoted prose mention as proof of emission [#2278]\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-inv-enforcement-wired.test.ts:278:29\n    276|       )\n    277|       const result = runWithGenerators(dir)\n    278|       expect(result.status).toBe(1)\n       |                             ^\n    279|       expect(result.stdout).toContain('check-workflow-perms.mjs')\n    280|     } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯\n\n FAIL  __tests__/scripts/check-inv-enforcement-wired.test.ts > TRACK_B_EXEMPT emission verification (#2278) > accepts both emission literal styles: renderTemplate path and bare name [#2278]\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-inv-enforcement-wired.test.ts:294:29\n    292|       )\n    293|       const result = runWithGenerators(dir)\n    294|       expect(result.status).toBe(1)\n       |                             ^\n    295|       expect(result.stdout).not.toContain('verify-tokens.mjs')\n    296|       expect(result.stdout).not.toContain('check-workflow-perms.mjs')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯\n\n\n Test Files  1 failed (1)\n      Tests  3 failed | 13 passed (16)\n   Start at  22:28:02\n   Duration  1.47s (transform 103ms, setup 45ms, import 95ms, tests 1.13s, environment 0ms)\n\n",
   "observed_failure": "FAIL  __tests__/scripts/check-inv-enforcement-wired.test.ts",
   "recorded_at": "2026-08-15T20:28:31.038Z",
-  "test_commit_sha": "935de90166b47a4aa7eaacc714785aacb11b82cf"
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-inv-enforcement-wired.test.ts"
+  ]
 }
