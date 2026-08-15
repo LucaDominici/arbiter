@@ -2,7 +2,7 @@
 title: 'DECISION_REGISTRY'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-09'
+last_review: '2026-08-15'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -25,7 +25,7 @@ un D-NN"). Eliminarla se non usata.*
 
 | D-NN | decisione | razionale | decisore | data |
 | --- | --- | --- | --- | --- |
-| D-01 | (esempio — prima decisione bloccata) | (perché è bloccata) | (decisore) | 2026-08-09 |
+| D-01 | (esempio — prima decisione bloccata) | (perché è bloccata) | (decisore) | 2026-08-15 |
 Enforcement: documentale
 
 > **Formato (leggibile dal gate):** ogni riga della tabella è una decisione `D-NN`. La riga
@@ -43,6 +43,6 @@ in **UN solo registro**: una volta promossa a PROJ-NN, la riga D-NN viene rimoss
 
 ## Changelog
 
-### v0.1.0 — 2026-08-09
+### v0.1.0 — 2026-08-15
 
 - Registro decisioni iniziale (scaffold `arbiter`).

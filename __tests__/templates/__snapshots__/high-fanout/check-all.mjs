@@ -1048,7 +1048,7 @@ runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitle
 
 
 
-  runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+  runCheck('audit', 'npm', ['audit', '--omit=dev', '--audit-level=high'], { soft: graceActive });
 
 
 
