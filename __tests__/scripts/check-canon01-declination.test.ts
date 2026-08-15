@@ -14,7 +14,12 @@ interface Fixture {
 /** Minimal synthetic repo: one hook mechanism, one script mechanism, empty ledgers. */
 function makeRoot(): Fixture {
   const dir = mkdtempSync(join(tmpdir(), 'canon01-test-'))
-  for (const d of ['scripts', '.claude/hooks', 'src/templates/claude/hooks', 'src/templates/scripts'])
+  for (const d of [
+    'scripts',
+    '.claude/hooks',
+    'src/templates/claude/hooks',
+    'src/templates/scripts',
+  ])
     mkdirSync(join(dir, d), { recursive: true })
   write(dir, '.dogfood-divergences.json', '[]')
   write(dir, 'scripts/canon01-self-only.json', JSON.stringify({ selfOnly: [] }))
@@ -119,7 +124,9 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
         dir,
         'scripts/canon01-self-only.json',
         JSON.stringify({
-          selfOnly: [{ path: 'scripts/check-self-thing.mjs', reason: 'audits the generator corpus' }],
+          selfOnly: [
+            { path: 'scripts/check-self-thing.mjs', reason: 'audits the generator corpus' },
+          ],
         }),
       )
       write(dir, 'scripts/canon01-baseline.json', JSON.stringify({ divergences: 0, selfOnly: 1 }))
@@ -236,6 +243,23 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
       rmSync(join(dir, 'scripts/canon01-self-only.json'))
       const r = run(dir)
       expect(r.status).toBe(2)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 on a dead self-only entry that no live mechanism resolves to', () => {
+    const { dir, cleanup } = makeRoot()
+    try {
+      write(
+        dir,
+        'scripts/canon01-self-only.json',
+        JSON.stringify({ selfOnly: [{ path: 'scripts/check-gone.mjs', reason: 'used to exist' }] }),
+      )
+      write(dir, 'scripts/canon01-baseline.json', JSON.stringify({ divergences: 0, selfOnly: 1 }))
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('DEAD')
     } finally {
       cleanup()
     }

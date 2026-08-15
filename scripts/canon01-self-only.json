@@ -1,0 +1,355 @@
+{
+  "selfOnly": [
+    {
+      "path": ".claude/hooks/check-no-any.mjs",
+      "reason": "INV-04: blocks explicit `any` in edited TypeScript files. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": ".claude/hooks/check-no-direct-spawn.mjs",
+      "reason": "INV-12: all child_process use in src/ routes through src/utils/run-cli.ts (ADR-020), an arbiter-internal module boundary. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": ".claude/hooks/pre-edit-load-memory.mjs",
+      "reason": "Loads .claude/memory-impl.md before editing matching files. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/build-kit.mjs",
+      "reason": "Derives src/kit/derived.json from arbiter’s kit catalog + overlay + cross-language matrix. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-acceptance.mjs",
+      "reason": "INV-138: the active plan freezes the issue’s acceptance criteria. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-adr-enforcement.mjs",
+      "reason": "Every ADR `enforces:` claim resolves to a real gold-audit check or invariant. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-adr-index.mjs",
+      "reason": "INV-107: docs/internal/ADR/ is the canonical ADR SSOT. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-agent-dispatch.mjs",
+      "reason": "Replays the declared agent-dispatch oracle against the compiled review-dispatch derivation. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-anti-telemetry.mjs",
+      "reason": "Scans dist/ and src/templates/ for network-call patterns outside the allowlist. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-api-snapshot.mjs",
+      "reason": "Public TypeScript API exports have not changed without acknowledgment. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-bloat-ratchet.mjs",
+      "reason": "CANON-16/INV-46: file-count and LOC ratchet for src/. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-brownfield-tests.mjs",
+      "reason": "CANON-11 ratchet over brownfield adoption coverage of the generator corpus. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-build-cache-strategy.mjs",
+      "reason": "Asserts the parametric build-cache composite-action template shape. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-bypass-ceremony.mjs",
+      "reason": "Bypass-rate ceiling and enforcement-theater detector. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-canon-enforcement-parity.mjs",
+      "reason": "Every CANON.md Enforcement field is a wired gate or a live dated promotion — the gate this issue promotes CANON-01 into. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-canon-references.mjs",
+      "reason": "Every CANON-NN citation resolves to a real CANON.md entry. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-canon01-declination.mjs",
+      "reason": "This gate. It audits arbiter’s generator-vs-settings symmetry; a consumer generates governance for nobody, so dual-track is not applicable (see the CATALOG header). Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-catalog-agents-parity.mjs",
+      "reason": "INV-51/CANON-08: invariant catalog to AGENTS.md bidirectional parity. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-ci-tool-parity.mjs",
+      "reason": "External-tool pin/install/use parity across manifest, CI and gate. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-codex-parity.mjs",
+      "reason": "ADR-106: codex-track vs claude-track emission parity of the generator. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-codex-self-parity.mjs",
+      "reason": "ADR-106: arbiter’s materialized .agents/.codex vs what its own generator would emit. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-command-tests.mjs",
+      "reason": "INV-50/CANON-06: every src/commands/*.ts has a matching test. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-coverage-ratchet.mjs",
+      "reason": "INV-25: coverage no-regression ratchet. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-deprecations.mjs",
+      "reason": "No symbol in the active deprecation window is silently removed; CLI_DEPRECATED_FLAGS registry validity. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-doc-path-citations.mjs",
+      "reason": "Backtick file-path citations in prose resolve on disk (advisory). STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-doc-style.mjs",
+      "reason": "Frontmatter shape, H1 presence and last_review date on hand-authored docs. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-docker-action-runner-safety.mjs",
+      "reason": "Docker container-action and self-hosted-runner safety. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-emission-coherence.mjs",
+      "reason": "INV-123: cross-reference coherence of a generated tree. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-evidence-bundle.mjs",
+      "reason": "INV-90: evidence bundles validate against the published schema. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-fixture-isolation.mjs",
+      "reason": "Fixture and smoke output must not contaminate the real evidence roots. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-generator-tests.mjs",
+      "reason": "INV-49/CANON-05: every src/generators/*.ts has a matching test. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-global-invariants-parity.mjs",
+      "reason": "INV-110/CANON-08: GLOBAL_INVARIANTS.md to catalog.ts coverage parity. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-gold-registries.mjs",
+      "reason": "Per-stack false-gap meta-gate over standards/gold-registry.<stack>.yml. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-governance-mirror-sync.mjs",
+      "reason": "website/governance/AGENTS.md is a byte-for-byte mirror of root AGENTS.md. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-hardness-inventory.mjs",
+      "reason": "Hook hardness manifest drift check. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-hook-contracts.mjs",
+      "reason": "Hook exit-code and stdin contract conformance. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-hook-doc-parity.mjs",
+      "reason": "CANON-10: registered hooks reconcile with the CLAUDE.md hooks table. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-id-stability.mjs",
+      "reason": "No catalog invariant ID may vanish between origin/main and HEAD without status:\"retired\". Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-install-command.mjs",
+      "reason": "Rejects docs telling a reader to install the unscoped package name. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-inv-enforcement-wired.mjs",
+      "reason": "INV-52/CANON-09: every catalog enforcement citation is wired in check-all.mjs. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/check-kit-catalog-parity.mjs",
+      "reason": "INV-86: kit catalog coverage, field parity and import provenance. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-matrix-fixtures.mjs",
+      "reason": "INV-32: every proven cell in cross-language-matrix.json has a real-project fixture. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-matrix-proven-cells.mjs",
+      "reason": "INV-47/CANON-02: every proven matrix cell produces a gate step in the emitted check-all template. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-monthly-freshness.mjs",
+      "reason": "INV-82: monthly CI stamp within the freshness window. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-nightly-freshness.mjs",
+      "reason": "INV-93: nightly CI stamp within the freshness window. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-no-direct-fs-in-generators.mjs",
+      "reason": "Guards src/generators/*.ts against direct node:fs write imports. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-no-passwithnotests.mjs",
+      "reason": "INV-25: no --passWithNoTests silent-green in test scripts. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-no-raw-strings.mjs",
+      "reason": "Holds arbiter’s src/ error/console strings to the i18n inventory allowlist. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-no-redacted-tokens.mjs",
+      "reason": "Scans kit-authored files (src/kit/, .github/ISSUE_TEMPLATE/) for forbidden provenance tokens (INV-85). Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-no-work-refs.mjs",
+      "reason": "Privacy gate rejecting private-repo provenance strings. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-node-version-ssot.mjs",
+      "reason": "INV-53: Node version SSOT via .nvmrc, no literal node-version pins. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-npm-ci-drift.mjs",
+      "reason": "npm ci would succeed under the pinned packageManager. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-orchestrator-coverage.mjs",
+      "reason": "Every scripts/check-*.mjs is reachable from check-all.mjs. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-perm-test-guards.mjs",
+      "reason": "Permission tests that chmod 0o000 must guard against running as root. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-phantom-command-scan.mjs",
+      "reason": "INV-111: every `arbiter <cmd>` citation in prose resolves to a real command in src/cli.ts. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-phase-doc-consistency.mjs",
+      "reason": "INV-113: single authoritative task-phase document, no legacy dotfiles. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-plugin-api-stability.mjs",
+      "reason": "Guards the published plugin API surface against unacknowledged change. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-private-paths-ignored.mjs",
+      "reason": "Asserts private paths are gitignored. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-reuse-survey.mjs",
+      "reason": "INV-70: a commit adding a new src/ or scripts/ file documents the reuse survey. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-runtime-dep-pins.mjs",
+      "reason": "Exact (non-caret) pins on every published runtime dependency. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-script-cohesion.mjs",
+      "reason": "INV-94/CANON-21: every new check script carries a CATALOG fold-in rejection. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-self-dogfood.mjs",
+      "reason": "INV-45/CANON-14: template-to-materialized parity over arbiter’s own template corpus — the forward direction of this very gate. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-settings-coverage.mjs",
+      "reason": "Parity between configure.ts ALLOWED_PATHS and settings.ts SETTINGS_CATALOG. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-skills-matrix.mjs",
+      "reason": "Validates src/compatibility/skills-matrix.json shape and integration status enum. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-spdx-headers.mjs",
+      "reason": "SPDX licence header presence on every source file. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-template-tests.mjs",
+      "reason": "INV-48/CANON-04: every src/templates/**.ejs has a render test. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-tool-claims.mjs",
+      "reason": "Rejects docs claiming --accept-beta-tools enables a tool the CLI hard-rejects. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-version-parity.mjs",
+      "reason": "package.json version == dist/cli.js --version == CHANGELOG.md top entry. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/check-workflow-cache-strategy.mjs",
+      "reason": "Scans arbiter’s EJS workflow templates for archetype-specific cache patterns. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-workflow-cosign.mjs",
+      "reason": "Audits arbiter’s EJS workflow templates for cosign sign/verify/attest steps. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-workflow-hardening.mjs",
+      "reason": "INV-76/95: GitHub Actions hardening posture across workflows. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/check-workflow-parallelism.mjs",
+      "reason": "INV-120: workflow job-needs critical-path depth regression. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
+    },
+    {
+      "path": "scripts/gen-adr-readme.mjs",
+      "reason": "Generates the ADR README and DECISIONS.md digest from arbiter’s per-file ADRs. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/gen-cli-ref.mjs",
+      "reason": "Generates the CLI command-reference region from src/cli.ts. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/gen-derived-pages.mjs",
+      "reason": "Regenerates derived marker regions in arbiter’s website/ pages. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/gen-ssot-core.mjs",
+      "reason": "Generates the SSOT inventory region in docs/internal/METHOD/SSOT_CORE_SET.md. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/gen-status.mjs",
+      "reason": "Generates docs/internal/PRODUCT/STATUS.md from arbiter’s feature matrix and milestones. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
+    },
+    {
+      "path": "scripts/gen-third-party-licenses.mjs",
+      "reason": "Emits THIRD_PARTY_LICENSES.md from the published dependency closure. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package — self-only by construction."
+    },
+    {
+      "path": "scripts/regenerate-examples.mjs",
+      "reason": "Regenerates the GA living examples under examples/ from the current generators. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/sync-action-pins.mjs",
+      "reason": "Syncs GitHub Action pins between .github/workflows/*.yml and their EJS source templates. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
+    }
+  ]
+}
