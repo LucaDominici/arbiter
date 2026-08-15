@@ -522,7 +522,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
   );
 <% } else if(g.id === 'npm-audit') { %>
 <% if (enableSecurityScanning && packageManager === 'npm') { %>
-  runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+  runCheck('audit', 'npm', ['audit', '--omit=dev', '--audit-level=high'], { soft: graceActive });
 <% } else if (enableSecurityScanning) { %>
   console.log('[CHECK] audit ... SKIP (project uses <%= packageManager %>)');
   pushResult('audit', 'SKIP', 0);
@@ -896,7 +896,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
   );
 <% } else if(g.id === 'npm-audit') { %>
 <% if (enableSecurityScanning && packageManager === 'npm') { %>
-  runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+  runCheck('audit', 'npm', ['audit', '--omit=dev', '--audit-level=high'], { soft: graceActive });
 <% } else if (enableSecurityScanning) { %>
   console.log('[CHECK] audit ... SKIP (project uses <%= packageManager %>)');
   pushResult('audit', 'SKIP', 0);
@@ -1336,7 +1336,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
   );
 <% } else if(g.id === 'npm-audit') { %>
 <% if (enableSecurityScanning && packageManager === 'npm') { %>
-  runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+  runCheck('audit', 'npm', ['audit', '--omit=dev', '--audit-level=high'], { soft: graceActive });
 <% } else if (enableSecurityScanning) { %>
   console.log('[CHECK] audit ... SKIP (project uses <%= packageManager %>)');
   pushResult('audit', 'SKIP', 0);

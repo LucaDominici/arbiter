@@ -201,7 +201,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: true,
     minGovernanceLevel: 'L2',
     enforcement:
-      'CI dep-audit step per stack — TypeScript: `npm audit --audit-level=high`; ' +
+      'CI dep-audit step per stack — TypeScript: `npm audit --omit=dev --audit-level=high`; ' +
       'Rust: rustsec/audit-check action; ' +
       'Java/Kotlin: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 ' +
       '(suppressions: .trivyignore); ' +
