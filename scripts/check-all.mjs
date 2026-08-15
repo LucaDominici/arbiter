@@ -238,7 +238,7 @@ if (isMain) {
   // placeholders, optional-tool paths like graphify-out/) is not yet fully
   // triaged, so this reports rather than blocks. Promotion to a hard check is
   // a tracked follow-up once a full-corpus pass confirms zero false positives.
-  runCheck('doc path citations (#2243, hard since #2260)', 'node', ['scripts/check-doc-path-citations.mjs'])
+  runCheck('doc path citations (#2243)', 'node', ['scripts/check-doc-path-citations.mjs'])
   // F2 (#1838, item 5): package.json / --version / CHANGELOG.md three-way
   // agreement — the permanent gate promised in the F1 fix for #1837.
   runCheck('version parity (#1838)', 'node', ['scripts/check-version-parity.mjs'])

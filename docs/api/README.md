@@ -33,7 +33,7 @@ api-extractor on every `npm run api:snapshot`. Hash markers
 | [`../PLUGIN-API.md`](../PLUGIN-API.md)                                                 | Plugin SDK guide and examples                          |
 | [`../REFERENCE/cicd-developer-reference.md`](../REFERENCE/cicd-developer-reference.md) | CI/CD reference for arbiter-scaffolded projects        |
 | [`../SEMVER.md`](../SEMVER.md)                                                         | Product semver policy (what counts as breaking)        |
-| [`../internal/SYSTEM/HOOK-CONTRACTS.md`](../internal/SYSTEM/HOOK-CONTRACTS.md)   | Stable shapes for hook env vars, stdin payloads, exits |
+| [`../internal/SYSTEM/HOOK-CONTRACTS.md`](../internal/SYSTEM/HOOK-CONTRACTS.md)         | Stable shapes for hook env vars, stdin payloads, exits |
 
 ## API stability commitments
 
@@ -43,9 +43,9 @@ api-extractor on every `npm run api:snapshot`. Hash markers
 
 ## When to update which surface
 
-| Change kind             | Update path                                                                   |
-| ----------------------- | ----------------------------------------------------------------------------- |
-| New CLI flag or command | api-extractor regenerates → review the diff in `compatibility`                |
-| New invariant (INV-NN)  | Edit `../../AGENTS.md`; `invariants.api.md` regenerates                       |
-| New plugin entrypoint   | Edit `src/plugins/`; bump `apiVersion` in `plugin.api.md`                     |
+| Change kind             | Update path                                                                |
+| ----------------------- | -------------------------------------------------------------------------- |
+| New CLI flag or command | api-extractor regenerates → review the diff in `compatibility`             |
+| New invariant (INV-NN)  | Edit `../../AGENTS.md`; `invariants.api.md` regenerates                    |
+| New plugin entrypoint   | Edit `src/plugins/`; bump `apiVersion` in `plugin.api.md`                  |
 | New hook event          | Edit `../internal/SYSTEM/HOOK-CONTRACTS.md` + reference in `plugin.api.md` |

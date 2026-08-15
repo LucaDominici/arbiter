@@ -22,7 +22,7 @@ Behavioral tests referenced below spawn the real `dist/cli.js` binary against a 
 | Language   | Canonical Use Case                         | Proven Categories                                 | Behavioral Test                                                                               |
 | ---------- | ------------------------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | TypeScript | Backend web API or frontend SPA with npm   | static_analysis, mutation, contract, coverage     | `__tests__/behavioral/cli-smoke.test.ts` — full init + dry-run (#1039, #1040)                 |
-| Java       | Spring Boot / Hexagonal backend with Maven | static_analysis, mutation, contract, architecture | `__tests__/integration/brownfield-baseline.test.ts` — init against brownfield-java fixture|
+| Java       | Spring Boot / Hexagonal backend with Maven | static_analysis, mutation, contract, architecture | `__tests__/integration/brownfield-baseline.test.ts` — init against brownfield-java fixture    |
 | Python     | FastAPI / Django service with pytest       | static_analysis, coverage, architecture           | `__tests__/behavioral/cli-smoke.test.ts` — init against brownfield-real-python fixture (#800) |
 | Go         | net/http or Gin service with go test       | static_analysis, coverage, architecture           | `__tests__/behavioral/cli-smoke.test.ts` — init against brownfield-real-go fixture (#800)     |
 | Rust       | Axum / Actix web service with cargo test   | static_analysis, coverage, architecture           | `__tests__/behavioral/verify-commands.test.ts` — verify stack-probe chain (#1040)             |

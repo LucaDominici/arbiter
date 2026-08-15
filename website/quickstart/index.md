@@ -79,14 +79,14 @@ node scripts/check-all.mjs L2
 
 Arbiter generated a governance stack tailored to your project. What you got:
 
-| File                               | What it is                                           |
-| ---------------------------------- | ---------------------------------------------------- |
-| `AGENTS.md`                        | Canonical governance file — every AI tool reads this |
-| `.claude/CLAUDE.md`                | Thin pointer for Claude Code (if selected)           |
-| `.claude/settings.json`            | Hooks wired to enforce invariants at edit time       |
-| `<project>/.github/workflows/ci.yml`         | CI workflow parameterized to your stack              |
-| `scripts/check-all.mjs`            | Gate runner — same command locally and in CI         |
-| `.github/PULL_REQUEST_TEMPLATE.md` | PR checklist                                         |
+| File                                 | What it is                                           |
+| ------------------------------------ | ---------------------------------------------------- |
+| `AGENTS.md`                          | Canonical governance file — every AI tool reads this |
+| `.claude/CLAUDE.md`                  | Thin pointer for Claude Code (if selected)           |
+| `.claude/settings.json`              | Hooks wired to enforce invariants at edit time       |
+| `<project>/.github/workflows/ci.yml` | CI workflow parameterized to your stack              |
+| `scripts/check-all.mjs`              | Gate runner — same command locally and in CI         |
+| `.github/PULL_REQUEST_TEMPLATE.md`   | PR checklist                                         |
 
 All generated files use deterministic conflict resolution — re-running is safe.
 

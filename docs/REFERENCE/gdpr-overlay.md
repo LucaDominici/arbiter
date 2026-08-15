@@ -51,12 +51,12 @@ All files use `skipIfExists: true` — brownfield re-init never overwrites user 
 The gate `<project>/scripts/check-gdpr-controls.mjs` maps each GDPR control to a required evidence
 artifact and fails (exit 1, blocking an L4 release) when any is missing or empty:
 
-| Control | GDPR article | Statement                                      | Evidence artifact                       |
-| ------- | ------------ | ---------------------------------------------- | --------------------------------------- |
+| Control | GDPR article | Statement                                      | Evidence artifact                                 |
+| ------- | ------------ | ---------------------------------------------- | ------------------------------------------------- |
 | GDPR-01 | Art. 35      | A DPIA is documented for high-risk processing. | `<project>/docs/compliance/gdpr/dpia.md`          |
 | GDPR-02 | Art. 30      | Personal-data flows are inventoried.           | `<project>/docs/compliance/gdpr/data-flow-map.md` |
-| GDPR-03 | Art. 17      | Right to erasure is implemented and tested.    | `controls-to-gates.md` (erasure hook)   |
-| GDPR-04 | Art. 6, 7    | A lawful basis / consent is recorded.          | `controls-to-gates.md` (consent hook)   |
+| GDPR-03 | Art. 17      | Right to erasure is implemented and tested.    | `controls-to-gates.md` (erasure hook)             |
+| GDPR-04 | Art. 6, 7    | A lawful basis / consent is recorded.          | `controls-to-gates.md` (consent hook)             |
 | GDPR-05 | Art. 5(1)(e) | Retention windows are documented and enforced. | `<project>/docs/compliance/gdpr/data-flow-map.md` |
 
 ## Gate Wiring
