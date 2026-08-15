@@ -52,8 +52,10 @@
 // --update-baseline recomputes and writes ONLY when every observed count is <= the stored
 // one. There is deliberately no --allow-increase: an increase is exactly the event the
 // ratchet exists to catch, and a flag that logs loudly is still a flag that passes. Growth
-// is legitimised the only honest way — by adding an `expires`-dated self-only entry with a
-// reason and lowering the ledger elsewhere, or by opening an issue.
+// is legitimised the only honest way — by hand-editing scripts/canon01-baseline.json in the
+// same PR as the new entry. That is deliberately MORE ceremony than a flag, not less: the
+// raised number lands in the reviewable diff next to the `expires`-dated entry and the reason
+// that justifies it, where a --allow-increase flag would leave only a log line nobody reads.
 //
 // Known ceiling (declared, not implemented): a hook whose template file exists but which
 // settings.json.ejs does not wire (the self-first activation state documented in the
