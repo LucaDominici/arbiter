@@ -164,6 +164,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'M16 handoff-contract marker (#2103)', affects: ALWAYS },
   { name: 'e2e escalation ladder (#2043)', affects: ALWAYS },
   { name: 'dogfood', affects: ALWAYS },
+  { name: 'canon-01 declination (#1922)', affects: ALWAYS },
   { name: 'examples drift (#2222)', affects: ALWAYS },
   { name: 'coverage', affects: ALWAYS },
   { name: 'coverage ratchet (#1483)', affects: ALWAYS },

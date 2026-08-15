@@ -301,6 +301,7 @@ const CI_COVERAGE = new Map([
   // so the parity regex never extracts it — no CI_COVERAGE entry is required.
   ['duplication', 'gate-full'],
   ['dogfood', 'gate-full'],
+  ['canon-01 declination (#1922)', 'gate-full'],
   ['examples drift (#2222)', 'gate-full'],
   ['emission coherence (INV-123)', 'gate-full'],
   ['STRIDE/RACI traceability', 'gate-full'],

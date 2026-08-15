@@ -6,10 +6,10 @@
 //                simulate-nightly (T4), simulate-weekly (T5)
 //   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
 //
-// check (T1, "check" subcommand — L1 fast checks): 122 hard checks (runCheck/runToolCheck)
-//   + 1 advisory (runWarnCheck), as of #2260.
+// check (T1, "check" subcommand — L1 fast checks): 123 hard checks (runCheck/runToolCheck)
+//   + 1 advisory (runWarnCheck), as of #2260 + #1922.
 // gate (T1+T2, "gate" subcommand, default): check + T2 extended checks, cumulative total
-//   147 hard checks + 9 advisory, as of #2260.
+//   148 hard checks + 9 advisory, as of #2260 + #1922.
 // These counts are hand-maintained (#2042 fixed a ~2x stale count and a 25/37-gate-name
 // drift found by audit) — do not hand-copy an enumerated gate list here, it WILL drift.
 // For the exhaustive, always-current list: grep this file for `run(Check|ToolCheck|WarnCheck)(`
@@ -335,6 +335,9 @@ if (isMain) {
   runCheck('build-cache strategy (C3)', 'node', ['scripts/check-build-cache-strategy.mjs'])
   // #1744 (INV-45): template<->materialized drift is caught at COMMIT time, not push time.
   runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
+  // #1922 (CANON-01): the REVERSE direction of dogfood — every self mechanism maps to a
+  // template emission, a motivated divergence, or a reasoned self-only entry, + count ratchet.
+  runCheck('canon-01 declination (#1922)', 'node', ['scripts/check-canon01-declination.mjs'])
   // #2222: cheap (~2s) check catches example drift at commit time instead of after the weekly lane.
   runCheck('examples drift (#2222)', 'node', ['scripts/regenerate-examples.mjs', '--check'])
 
