@@ -43,11 +43,22 @@ export function generateEslintBoundaries(
 
   if (config.architectureStyle !== 'hexagonal') return { files: [] }
 
+  // #2272: the gate runs the flat config (ESLint v9 removed the legacy
+  // --no-eslintrc/-c loader the .cjs file needs — #1491-class fix, mirrors the
+  // frontend-spa fix above). eslint-plugin-boundaries is what the flat config's
+  // rules resolve against — inject it so a fresh init does not RED on
+  // `Cannot find package` (#1835-class fix).
+  injectDevDependency(base, 'eslint-plugin-boundaries', '^7.0.2', opts.dryRun)
   return {
     files: [
       writeFile(
         resolvedPath(base, '.eslintrc-boundaries.cjs'),
         renderTemplate('boundaries/.eslintrc-boundaries.cjs.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+      writeFile(
+        resolvedPath(base, 'eslint.config.boundaries.mjs'),
+        renderTemplate('boundaries/eslint.config.boundaries.mjs.ejs', data),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
