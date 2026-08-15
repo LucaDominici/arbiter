@@ -33,6 +33,14 @@ describe('extractPathCitations', () => {
   it('does NOT match a bare word with no slash or extension', () => {
     expect(extractPathCitations('Run `arbiter graph` to build the graph.')).toEqual(new Set())
   })
+
+  // #2260: ~50 corpus citations name a path in a GOVERNED TARGET and carry the
+  // `<project>/` prefix the corpus already uses (docs/INTEGRATIONS.md). The
+  // convention only works because a leading `<` cannot start a path match — pin
+  // it, or relaxing the regex would silently red every one of those citations.
+  it('does NOT match a `<project>/`-prefixed citation (governed-target path)', () => {
+    expect(extractPathCitations('Emits `<project>/scripts/check-iso9001.mjs`.')).toEqual(new Set())
+  })
 })
 
 // ─── findPhantomPaths ───────────────────────────────────────────────────────
