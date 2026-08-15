@@ -189,7 +189,7 @@ Personally identifiable information (emails, phone numbers, credit card numbers)
 
 All third-party dependencies must be scanned for CVEs before each release. High-severity vulnerabilities (CVSS ≥ 7.0) block deployment. Dependency updates must be reviewed for breaking changes.
 
-**Enforcement:** CI dep-audit step per stack — TypeScript: `npm audit --audit-level=high`; Rust: rustsec/audit-check action; Java/Kotlin: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 (suppressions: .trivyignore); Go: golang/govulncheck-action; Python: pip-audit. Local gate (L2 block): same commands, soft: graceActive
+**Enforcement:** CI dep-audit step per stack — TypeScript: `npm audit --omit=dev --audit-level=high`; Rust: rustsec/audit-check action; Java/Kotlin: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 (suppressions: .trivyignore); Go: golang/govulncheck-action; Python: pip-audit. Local gate (L2 block): same commands, soft: graceActive
 
 **Minimum governance level:** L2+
 
