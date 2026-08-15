@@ -9,7 +9,7 @@
     "src/middleware/payload-size-limit.ts!"<% } %>
   ],
   "project": ["src/**/*.ts!"],
-  "ignoreDependencies": ["jscpd"<% if ((language === 'typescript' || language === 'multi') && (archetype === 'frontend-spa' || archetype === 'backend-web-db')) { %>, "@playwright/test"<% } %>],
+  "ignoreDependencies": ["jscpd"<% if ((language === 'typescript' || language === 'multi') && (archetype === 'frontend-spa' || archetype === 'backend-web-db')) { %>, "@playwright/test"<% } %><% if ((language === 'typescript' || language === 'multi') && (archetype === 'frontend-spa' || architectureStyle === 'hexagonal')) { %>, "eslint-plugin-boundaries"<% } %>],
   "ignoreBinaries": [
     "knip",
     "madge",

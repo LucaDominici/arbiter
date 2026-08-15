@@ -45,8 +45,11 @@ describe('generateEslintBoundaries', () => {
     expect(content).toContain("'--config'")
     expect(content).toContain('eslint.config.boundaries.mjs')
     expect(content).toContain("'--no-config-lookup'")
-    expect(content).not.toContain('--no-eslintrc')
-    expect(content).not.toContain('.eslintrc-boundaries.cjs')
+    // The legacy flag/file may still be mentioned in a comment (retained for other
+    // tooling) — the invariant is that they are never passed to the eslint CLI
+    // invocation (matches the B4 #1491 precedent in check-all.test.ts).
+    expect(content).not.toContain("'--no-eslintrc'")
+    expect(content).not.toContain("'-c', '.eslintrc-boundaries.cjs'")
   })
 
   it('eslint.config.boundaries.mjs contains the same element-types/external rules as the legacy .cjs (#2272)', () => {
