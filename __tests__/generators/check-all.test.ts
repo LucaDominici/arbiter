@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -24,6 +24,27 @@ describe('generateCheckAll', () => {
     expect(paths.some((p) => p.endsWith('scripts/check-all.mjs'))).toBe(true)
     expect(paths.some((p) => p.endsWith('scripts/lib/run-helpers.mjs'))).toBe(true)
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
+  })
+
+  // #2278: the evidence-gate block emitted at L3+ reads .evidence/SUMMARY.json, and
+  // until now nothing in a generated tree could write it — the template existed but
+  // no generator rendered it. Emission is gated on the SAME level as its consumer.
+  it('emits the evidence-collect producer at L3+ and not below (#2278)', () => {
+    generateCheckAll(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'scripts', 'evidence-collect.mjs'))).toBe(false)
+
+    const l3 = mkdtempSync(join(tmpdir(), 'arbiter-check-all-l3-'))
+    try {
+      generateCheckAll(makeConfig(l3, { governanceLevel: 'L3' }))
+      const emitted = readFileSync(join(l3, 'scripts', 'evidence-collect.mjs'), 'utf-8')
+      // Renders with real thresholds (no leftover EJS, no `undefined` interpolation).
+      expect(emitted).not.toContain('<%')
+      expect(emitted).toMatch(/const MUTATION_THRESHOLD = \d+;/)
+      expect(emitted).toMatch(/const COVERAGE_THRESHOLD = \d+;/)
+      expect(emitted).toContain("join(EVIDENCE_DIR, 'SUMMARY.json')")
+    } finally {
+      rmSync(l3, { recursive: true, force: true })
+    }
   })
 
   it('wires the generated docs index drift check at L2+ (#2214)', () => {
