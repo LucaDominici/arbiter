@@ -47,6 +47,35 @@ describe('generateCheckAll', () => {
     }
   })
 
+  // #2278: before the wiring nothing ever rendered this template, so no language
+  // branch had ever run. A bare key in an unrendered branch is a ReferenceError that
+  // crashes `arbiter init`, and a clean render can still emit unbalanced braces the
+  // operator only meets at runtime — hence render AND `node --check` per stack.
+  it('renders a syntactically valid evidence-collect for every stack (#2278)', () => {
+    const combos = [
+      { language: 'typescript', buildTool: 'npm' },
+      { language: 'java', buildTool: 'gradle' },
+      { language: 'java', buildTool: 'maven' },
+      { language: 'rust', buildTool: 'cargo' },
+      { language: 'go', buildTool: 'go' },
+      { language: 'python', buildTool: 'poetry' },
+    ] as const
+    for (const combo of combos) {
+      const target = mkdtempSync(join(tmpdir(), 'arbiter-ec-'))
+      try {
+        generateCheckAll(makeConfig(target, { governanceLevel: 'L3', ...combo }))
+        const script = join(target, 'scripts', 'evidence-collect.mjs')
+        const emitted = readFileSync(script, 'utf-8')
+        expect(emitted, `${combo.language}/${combo.buildTool}`).not.toContain('<%')
+        expect(emitted, `${combo.language}/${combo.buildTool}`).not.toContain('= undefined;')
+        const syntax = spawnSync('node', ['--check', script], { encoding: 'utf-8' })
+        expect(syntax.status, `${combo.language}/${combo.buildTool}: ${syntax.stderr}`).toBe(0)
+      } finally {
+        rmSync(target, { recursive: true, force: true })
+      }
+    }
+  })
+
   it('wires the generated docs index drift check at L2+ (#2214)', () => {
     generateCheckAll(makeConfig(dir, { governanceLevel: 'L2' }))
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
