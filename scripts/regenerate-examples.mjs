@@ -185,7 +185,13 @@ function generateOne(example) {
       '--archetype',
       example.archetype,
     ],
-    { cwd: stageDir, encoding: 'utf-8', env: { ...process.env, HOME: emptyHome } },
+    {
+      cwd: stageDir,
+      encoding: 'utf-8',
+      // #2274: pin the emitted `today` so committed examples/ do not roll every calendar
+      // day (doc-set frontmatter, DECISION_REGISTRY dates). 2026-08-09T00:00:00Z.
+      env: { ...process.env, HOME: emptyHome, SOURCE_DATE_EPOCH: process.env.SOURCE_DATE_EPOCH ?? '1786233600' },
+    },
   )
   if (r.status !== 0) {
     rmSync(parent, { recursive: true, force: true })
