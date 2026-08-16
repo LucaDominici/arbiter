@@ -197,17 +197,17 @@ function branchFloor(run, mergeBase, taskIds, bodyLog) {
   // Computed on BOTH paths: the subject path owes the produced-here floor too (#2307),
   // and it is gated on this exact predicate.
   const touchesSource = touchesGovernedSource(changed)
-  if (taskIds.length > 0) return { exitCode: null, ids: [], touchesSource }
+  if (taskIds.length > 0) return { exitCode: null, touchesSource }
   if (!touchesSource) {
     process.stdout.write(
       'check-tdd-evidence: no task-ID commits and no src/ change, vacuous pass\n',
     )
-    return { exitCode: 0, ids: [], touchesSource }
+    return { exitCode: 0, touchesSource }
   }
   const ids = parseTaskIdsFromBodies(bodyLog)
-  if (ids.length > 0) return { exitCode: null, ids, touchesSource }
+  if (ids.length > 0) return { exitCode: null, touchesSource }
   process.stderr.write(formatUncitedSourceError())
-  return { exitCode: 1, ids: [], touchesSource }
+  return { exitCode: 1, touchesSource }
 }
 
 function skipTrailerErrors(bodyLog) {
