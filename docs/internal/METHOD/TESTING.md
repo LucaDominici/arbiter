@@ -472,6 +472,34 @@ When adding a new proven-tier language or archetype:
 
 ---
 
+## Worker Budget in CI (#2282)
+
+`ciMaxWorkers()` in `vitest.config.ts` caps the fork pool at **4 workers when `CI` is set**,
+and `vitest.integration.config.ts` imports the same helper so both suites share one budget.
+Local runs keep the vitest default.
+
+Why it exists: with no cap, vitest sizes the pool at `availableParallelism() - 1`. The
+self-hosted runner containers carry no CPU limit, so that call reports the **host's** 24
+cores and a single CI job spawns ~23 forks on its own. The farm runs up to four heavy slots
+and the same box serves other agents' local gates, so the real figure reached ~90 forks over
+24 cores. Under that thrash a test costing ~3 s at rest blows the 30 s `testTimeout`, and
+which test loses the race is scheduler-dependent — the symptom was a _different_ failing test
+per job on an identical SHA, with zero assertion failures, plus a downstream
+`.coverage-tmp/coverage-summary.json` ENOENT (vitest writes no json-summary when any test
+fails).
+
+Rules:
+
+- Do **not** raise `testTimeout` to clear a wall-clock flake. The timeout is the detector;
+  oversubscription is the defect. Make the suite fit the machine instead.
+- Both configs must carry the cap. `scripts/check-all.mjs` runs the integration suite
+  (INV-25) inside the same L2 gate, so capping only the unit config puts the host straight
+  back into oversubscription.
+- Tune with the `VITEST_MAX_WORKERS` env var, which vitest honours natively — no config edit
+  needed.
+
+---
+
 ## Known Posture
 
 | Gap                                                              | Accepted     | Rationale                                                                                                                                                                         |
