@@ -3,9 +3,9 @@
 // had emitted it, and says nothing about having done so.
 //
 // Measured on pinned, origin-free clones of the bar's own consumers:
-//   java (viafera @ b4f7d2ab)       255 manifest-recorded files absent on disk → 254 back after update
-//   typescript (coach @ 7c922a81)    21 manifest-recorded files absent on disk →  19 back after update
-//   go (haben @ 1fb1e97c)             no manifest at all → nothing restorable
+//   java consumer        255 manifest-recorded files absent on disk → 254 back after update
+//   typescript consumer    21 manifest-recorded files absent on disk →  19 back after update
+//   go consumer            no manifest at all → nothing restorable
 // In none of the three did any warning mention a single restored path.
 //
 // DIRECTION CHOSEN: loud re-emission, NOT "respect the deletion". Declining every
@@ -25,10 +25,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runInit } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
-import {
-  loadGeneratedManifest,
-  saveGeneratedManifest,
-} from '../../src/state/generated-manifest.js'
+import { loadGeneratedManifest, saveGeneratedManifest } from '../../src/state/generated-manifest.js'
 
 /** An always-emitted, arbiter-owned file every consumer receives. */
 const EMITTED = 'scripts/check-all.mjs'
@@ -126,8 +123,9 @@ describe('#2295 — update never restores a consumer-deleted file in silence', (
   // no manifest baseline is a brand-new template and must still land silently, or
   // every first run in every consumer turns into a wall of false restorations.
   it('AC-3: a file arbiter has no baseline for is emitted silently, not reported', async () => {
-    const manifest = loadGeneratedManifest(dir)
-    delete manifest[EMITTED]
+    const manifest = Object.fromEntries(
+      Object.entries(loadGeneratedManifest(dir)).filter(([key]) => key !== EMITTED),
+    )
     saveGeneratedManifest(dir, manifest)
     unlinkSync(join(dir, EMITTED))
 

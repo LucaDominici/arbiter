@@ -358,13 +358,13 @@ The signal is provenance, not absence. `.arbiter-generated-manifest.json` record
 the bytes actually landed**, so an entry for a path that is not on disk is positive evidence arbiter wrote
 that file there and it was removed since. That is the boundary:
 
-| on disk | manifest baseline | meaning                        | behaviour                            |
-| ------- | ----------------- | ------------------------------ | ------------------------------------ |
-| absent  | present           | emitted, then deleted          | re-emitted **and reported** (exit 1) |
+| on disk | manifest baseline | meaning                           | behaviour                                |
+| ------- | ----------------- | --------------------------------- | ---------------------------------------- |
+| absent  | present           | emitted, then deleted             | re-emitted **and reported** (exit 1)     |
 | absent  | absent            | never emitted here — new template | emitted silently (first run stays quiet) |
 
-**The file still comes back.** The alternative — treating a manifest entry with no file as *declined by the
-consumer* and withholding it — was rejected on measurement, not taste. At the reliability bar's own pins,
+**The file still comes back.** The alternative — treating a manifest entry with no file as _declined by the
+consumer_ and withholding it — was rejected on measurement, not taste. At the reliability bar's own pins,
 **255 of the java consumer's 281 manifest entries and 21 of the typescript consumer's 245 are absent from
 disk**; the go consumer carries no manifest at all. Declining them would turn `arbiter update` into a
 near-no-op on two of the three consumers and leave the bar's gate-spine assertion with no file to read.

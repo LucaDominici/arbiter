@@ -97,7 +97,11 @@ const ADVISORY = {
  * silently turn the advisory pass into a blocking one (or the reverse).
  */
 const PROMOTION_KNOBS = [
-  ...new Set(Object.values(ADVISORY).map((contract) => contract.promoted).filter(Boolean)),
+  ...new Set(
+    Object.values(ADVISORY)
+      .map((contract) => contract.promoted)
+      .filter(Boolean),
+  ),
 ]
 
 const HARD = {

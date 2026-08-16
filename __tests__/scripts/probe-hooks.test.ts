@@ -319,20 +319,23 @@ describe('probe-hooks liveness contract (#2135)', () => {
     }
   })
 
-  it.each(PROMOTED)('accepts %s when %s=1 promotes it to a blocking exit 2 (#2292)', (hook, env) => {
-    const dir = fixture(hook, `process.exit(process.env.${env} === '1' ? 2 : 0)\n`)
-    try {
-      const result = run(dir)
-      expect(result.status).toBe(0)
-      const rows = JSON.parse(result.stdout).rows as { mode?: string; verdict: string }[]
-      const promoted = rows.filter((row) => row.mode === 'PROMOTED')
-      expect(promoted).toHaveLength(4)
-      expect(promoted.every((row) => row.verdict === 'BLOCKS')).toBe(true)
-      expect(rows.filter((row) => row.mode === 'ADVISORY').length).toBe(4)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
+  it.each(PROMOTED)(
+    'accepts %s when %s=1 promotes it to a blocking exit 2 (#2292)',
+    (hook, env) => {
+      const dir = fixture(hook, `process.exit(process.env.${env} === '1' ? 2 : 0)\n`)
+      try {
+        const result = run(dir)
+        expect(result.status).toBe(0)
+        const rows = JSON.parse(result.stdout).rows as { mode?: string; verdict: string }[]
+        const promoted = rows.filter((row) => row.mode === 'PROMOTED')
+        expect(promoted).toHaveLength(4)
+        expect(promoted.every((row) => row.verdict === 'BLOCKS')).toBe(true)
+        expect(rows.filter((row) => row.mode === 'ADVISORY').length).toBe(4)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
 
   it('uses exit 2 for malformed invocation', () => {
     const result = spawnSync('node', [SCRIPT], { encoding: 'utf-8' })
