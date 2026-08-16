@@ -232,12 +232,11 @@ describe('consumer reliability bar oracles (#2135)', () => {
         status: null,
         signal: 'SIGTERM',
         stdout: '',
-        stderr:
-          'gate-exec: mutex /run/user/1000/arbiter/viafera-ci-gate.lock (blocking until free)',
+        stderr: 'gate-exec: mutex /run/user/1000/arbiter/ci-gate.lock (blocking until free)',
       },
       pattern: '^\\[DRY-RUN\\] GATES: (.*)$',
       separator: ',',
-      contentionMarker: 'viafera-ci-gate.lock',
+      contentionMarker: 'ci-gate.lock',
     })
     expect(parsed.ok).toBe(false)
     expect(parsed.detail).toMatch(/contention/i)

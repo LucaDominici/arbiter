@@ -235,7 +235,7 @@
         "pattern": "^\\[DRY-RUN\\] GATES: (.*)$",
         "separator": ",",
         "timeoutMs": 900000,
-        "contentionMarker": "viafera-ci-gate.lock"
+        "contentionMarker": "ci-gate.lock"
       },
       "debtCeiling": 83,
       "mapping": {

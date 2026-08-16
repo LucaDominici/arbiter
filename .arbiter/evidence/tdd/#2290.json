@@ -1,6 +1,6 @@
 {
   "$schemaVersion": 1,
-  "task_id": "#2135",
+  "task_id": "#2290",
   "test_path": "__tests__/scripts/consumer-reliability-bar.test.ts",
   "test_commit_sha": "53f272232b9975c96c1cd8a62db145f99df921c7",
   "test_blob_sha": "b52e598cec00fac882ea296f5bb91e0a0b6e6d12",

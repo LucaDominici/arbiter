@@ -8,7 +8,7 @@ import { makeConfig } from '../helpers.js'
 
 // #2291 — the anti-erosion ratchet was delivered through the very channel it exists to
 // police. Measured on the pinned consumers: after `arbiter update`, the manifest of both
-// haben and coach-system carries `withheldSafety: ["scripts/check-all.mjs", ...]` and
+// the go consumer and the typescript consumer carries `withheldSafety: ["scripts/check-all.mjs", ...]` and
 // `node scripts/check-safety-adopt-ratchet.mjs` exits 1 with the debt in clear — so the
 // gate is NOT dead. It simply never runs: it is registered only in `gate-registry.yml`,
 // which lands in `scripts/check-all.mjs`, which is exactly the file being withheld

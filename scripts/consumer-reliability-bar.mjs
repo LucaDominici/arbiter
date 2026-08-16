@@ -233,7 +233,7 @@ function recordRepositoryChecks(repo, sha, report) {
 
 // Ownership is read from the MANIFEST, not from the filesystem. Measured on the java pin:
 // the manifest records `scripts/check-all.mjs` (hash 439634b7…) while the file is absent
-// from disk — viafera deleted it and `update` resurrects it (#2295). Deriving ownership
+// from disk — the java consumer deleted it and `update` resurrects it (#2295). Deriving ownership
 // from `existsSync` reported that consumer as the file's owner, the exact inverse of the
 // measured truth, so the two facts are now recorded separately and both reach the report.
 function readGateBaseline(repo) {
@@ -275,7 +275,7 @@ function renderFreshSpine(repo, consumer, options) {
 
 // The gate surface the consumer ACTUALLY executes. `kind: 'spine'` reads the pinned
 // on-disk gate entrypoint (go/typescript run it from CI); `kind: 'command'` runs the
-// consumer's own dry-run and scrapes its gate line (viafera never invokes check-all.mjs
+// consumer's own dry-run and scrapes its gate line (the java consumer never invokes check-all.mjs
 // at all — its 37+ real gates live in run.sh).
 function readDeclaredSurface(repo, surface, baseline) {
   if (surface?.kind === 'spine') {

@@ -46,7 +46,7 @@ export function assessGateSpine({ before, after, existed }) {
 //
 // `arbiter update` materializes a gate spine of ~100 check names into each consumer.
 // Measured at the pins, only 2 of 104 java names equal an executed gate id by string
-// equality (`doc-set`, `spotbugs`) — arbiter says `PII scan`, viafera says `pii` — so
+// equality (`doc-set`, `spotbugs`) — arbiter says `PII scan`, the java consumer says `pii` — so
 // subtraction by string equality proves nothing. The reconciliation runs through a
 // committed name->gate mapping instead, and every emitted name must land in exactly one
 // of three buckets:
