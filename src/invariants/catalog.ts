@@ -513,7 +513,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: true,
     minGovernanceLevel: 'L4',
     enforcement:
-      'check-all.mjs L4 block (reads .evidence/SUMMARY.json) + nightly pipeline (evidence-collect.mjs) + src/evidence/summary.ts validator',
+      'check-all.mjs L3+ evidence-gate block (reads .evidence/SUMMARY.json) + ' +
+      'generated scripts/evidence-collect.mjs producer (#2278) + src/evidence/summary.ts validator',
   },
 
   // ─── Data: Real Database Enforcement ─────────────────────────────────────────

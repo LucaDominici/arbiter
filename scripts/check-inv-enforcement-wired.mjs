@@ -1,18 +1,23 @@
 #!/usr/bin/env node
 // INV-52: Every enforcement script cited in catalog must be wired in check-all.mjs (CANON-09).
 // Usage: node scripts/check-inv-enforcement-wired.mjs [--catalog=path] [--gate=path]
-import { readFileSync, existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+//                                                     [--generators=dir]
+import { readFileSync, readdirSync, existsSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 const catalogArg = args.find((a) => a.startsWith('--catalog='))
 const gateArg = args.find((a) => a.startsWith('--gate='))
+const generatorsArg = args.find((a) => a.startsWith('--generators='))
 
 const root = process.cwd()
 const catalogPath = catalogArg
   ? resolve(catalogArg.split('=')[1])
   : resolve(root, 'src/invariants/catalog.ts')
 const gatePath = gateArg ? resolve(gateArg.split('=')[1]) : resolve(root, 'scripts/check-all.mjs')
+const generatorsPath = generatorsArg
+  ? resolve(generatorsArg.split('=')[1])
+  : resolve(root, 'src/generators')
 
 const catalogSrc = readFileSync(catalogPath, 'utf-8')
 const gateSrc = readFileSync(gatePath, 'utf-8')
@@ -20,6 +25,11 @@ const gateSrc = readFileSync(gatePath, 'utf-8')
 // Track-B scripts: generated into governed target projects, NOT run as arbiter self-gates.
 // Citing them in catalog enforcement fields is correct documentation; their absence from
 // arbiter's own check-all.mjs is expected and is not a violation.
+// #2278: "generated for target projects" is a CLAIM, and every entry below is now
+// VERIFIED against src/generators/ by the emission pass at the bottom of this file.
+// It was unverified until evidence-collect.mjs turned out to be emitted by nobody
+// while INV-33 cited it as enforcement — a promise nothing kept, invisible precisely
+// BECAUSE the exemption suppressed it.
 const TRACK_B_EXEMPT = new Set([
   'verify-i18n-parity.mjs', // INV-106: emitted by frontend generator for FE target projects
   'i18n-literal-scanner.mjs', // INV-106: emitted by frontend generator for FE target projects
@@ -106,6 +116,39 @@ for (const name of uniqueChecks) {
   }
 }
 
+// #2278: an exemption is only legitimate while a generator really emits the script.
+// Verify each claim against src/generators/: the name must appear as an EXACT quoted
+// literal, either the renderTemplate path `scripts/<name>.ejs` or the bare `<name>`
+// used by the name-list emission loops. Exact-literal, never substring — a prose
+// mention in a comment is the same unverified assertion this pass exists to kill.
+function emissionLiterals(dir) {
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return new Set() // unreadable generators dir ⇒ nothing proven (fail closed)
+  }
+  const literals = new Set()
+  for (const file of entries) {
+    if (!file.endsWith('.ts')) continue
+    let src
+    try {
+      src = readFileSync(join(dir, file), 'utf-8')
+    } catch {
+      continue
+    }
+    for (const m of src.matchAll(/(['"`])([^'"`\n]*)\1/g)) literals.add(m[2])
+  }
+  return literals
+}
+
+const literals = emissionLiterals(generatorsPath)
+for (const name of TRACK_B_EXEMPT) {
+  if (literals.has(name) || literals.has(`scripts/${name}.ejs`)) continue
+  process.stdout.write(`  EXEMPT but emitted by no generator: ${name}\n`)
+  violations++
+}
+
 if (violations > 0) {
   process.stdout.write(
     `[check-inv-enforcement-wired] FAIL: ${violations} enforcement script(s) not wired/found\n`,
@@ -114,5 +157,6 @@ if (violations > 0) {
 }
 process.stdout.write(
   `[check-inv-enforcement-wired] OK — ${uniqueScripts.length} gate scripts wired, ` +
-    `${uniqueHooks.length} paren-cited + ${uniqueChecks.length} bare check-* hook citations verified\n`,
+    `${uniqueHooks.length} paren-cited + ${uniqueChecks.length} bare check-* hook citations verified, ` +
+    `${TRACK_B_EXEMPT.size} exemptions proven emitted\n`,
 )

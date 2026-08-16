@@ -661,7 +661,7 @@ Single-source-of-truth documents must agree; a drift check runs pre-merge so con
 
 At governance level L4 a merge is permitted only when the evidence summary validates and `obs_gate == PASS` — no green-by-assertion.
 
-**Enforcement:** check-all.mjs L4 block (reads `.evidence/SUMMARY.json`) + nightly `evidence-collect.mjs` + `src/evidence/summary.ts` validator
+**Enforcement:** check-all.mjs L3+ evidence-gate block (reads `.evidence/SUMMARY.json`) + generated `scripts/evidence-collect.mjs` producer + `src/evidence/summary.ts` validator
 
 ---
 

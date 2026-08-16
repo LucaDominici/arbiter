@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -24,6 +24,56 @@ describe('generateCheckAll', () => {
     expect(paths.some((p) => p.endsWith('scripts/check-all.mjs'))).toBe(true)
     expect(paths.some((p) => p.endsWith('scripts/lib/run-helpers.mjs'))).toBe(true)
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
+  })
+
+  // #2278: the evidence-gate block emitted at L3+ reads .evidence/SUMMARY.json, and
+  // until now nothing in a generated tree could write it — the template existed but
+  // no generator rendered it. Emission is gated on the SAME level as its consumer.
+  it('emits the evidence-collect producer at L3+ and not below (#2278)', () => {
+    generateCheckAll(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'scripts', 'evidence-collect.mjs'))).toBe(false)
+
+    const l3 = mkdtempSync(join(tmpdir(), 'arbiter-check-all-l3-'))
+    try {
+      generateCheckAll(makeConfig(l3, { governanceLevel: 'L3' }))
+      const emitted = readFileSync(join(l3, 'scripts', 'evidence-collect.mjs'), 'utf-8')
+      // Renders with real thresholds (no leftover EJS, no `undefined` interpolation).
+      expect(emitted).not.toContain('<%')
+      expect(emitted).toMatch(/const MUTATION_THRESHOLD = \d+;/)
+      expect(emitted).toMatch(/const COVERAGE_THRESHOLD = \d+;/)
+      expect(emitted).toContain("join(EVIDENCE_DIR, 'SUMMARY.json')")
+    } finally {
+      rmSync(l3, { recursive: true, force: true })
+    }
+  })
+
+  // #2278: before the wiring nothing ever rendered this template, so no language
+  // branch had ever run. A bare key in an unrendered branch is a ReferenceError that
+  // crashes `arbiter init`, and a clean render can still emit unbalanced braces the
+  // operator only meets at runtime — hence render AND `node --check` per stack.
+  it('renders a syntactically valid evidence-collect for every stack (#2278)', () => {
+    const combos = [
+      { language: 'typescript', buildTool: 'npm' },
+      { language: 'java', buildTool: 'gradle' },
+      { language: 'java', buildTool: 'maven' },
+      { language: 'rust', buildTool: 'cargo' },
+      { language: 'go', buildTool: 'go' },
+      { language: 'python', buildTool: 'poetry' },
+    ] as const
+    for (const combo of combos) {
+      const target = mkdtempSync(join(tmpdir(), 'arbiter-ec-'))
+      try {
+        generateCheckAll(makeConfig(target, { governanceLevel: 'L3', ...combo }))
+        const script = join(target, 'scripts', 'evidence-collect.mjs')
+        const emitted = readFileSync(script, 'utf-8')
+        expect(emitted, `${combo.language}/${combo.buildTool}`).not.toContain('<%')
+        expect(emitted, `${combo.language}/${combo.buildTool}`).not.toContain('= undefined;')
+        const syntax = spawnSync('node', ['--check', script], { encoding: 'utf-8' })
+        expect(syntax.status, `${combo.language}/${combo.buildTool}: ${syntax.stderr}`).toBe(0)
+      } finally {
+        rmSync(target, { recursive: true, force: true })
+      }
+    }
   })
 
   it('wires the generated docs index drift check at L2+ (#2214)', () => {

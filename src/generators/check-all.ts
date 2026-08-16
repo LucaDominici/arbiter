@@ -559,6 +559,28 @@ export function generateCheckAll(
   // #1319.8 — greenfield-aware coverage gate predicate (TS + coverage only).
   results.push(...emitCoverageGate(base, data, opts))
 
+  // #2278: the PRODUCER of .evidence/SUMMARY.json (INV-33). The template existed
+  // since ADR-030 ("L3 projects generate … evidence-collect.mjs") but no generator
+  // ever wired it, so the evidence-gate block emitted into check-all.mjs — plus
+  // `arbiter verify evidence` and the evidence graph builder — read a file nothing
+  // in the tree could write, and the gate WARNed forever. Same ghost class as
+  // #1331's ci-classify-changes.mjs. Gated on the SAME condition as its consumer
+  // (gate-registry `evidence-gate`, emitIf isL3Plus) so producer and gate can never
+  // disagree. skipIfExists — thresholds are the project's to tune afterwards.
+  if (
+    typeof config.governanceLevel === 'string' &&
+    (LEVEL_ORDER as readonly string[]).includes(config.governanceLevel) &&
+    levelAtLeast(config.governanceLevel, 'L3')
+  ) {
+    results.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'evidence-collect.mjs'),
+        renderTemplate('scripts/evidence-collect.mjs.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
   // #358 (CANON-02, CANON-15, Phase 7F): emit ephemeral-server runner used by
   // integration/e2e gate steps (Playwright TS, pytest-playwright Python) to
   // bring up a server, poll for readiness, run tests, and tear it down. Only
