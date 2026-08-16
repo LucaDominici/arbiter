@@ -1,5 +1,4 @@
 // Pure oracles shared by the private consumer reliability prepare/verifier commands (#2135).
-import { createHash } from 'node:crypto'
 
 const RUNNER_CALL = /\b(?:runCheck|runWarnCheck|runToolCheck)\s*\(\s*(['"`])([^'"`]+)\1/g
 const CONSUMER_SECRET_PREFIX = `${['ARBITER', 'CONSUMER'].join('_')}_`
@@ -8,11 +7,7 @@ export function extractCheckNames(source) {
   return new Set([...source.matchAll(RUNNER_CALL)].map((match) => match[2]).sort())
 }
 
-function sha256(value) {
-  return createHash('sha256').update(value).digest('hex')
-}
-
-export function assessGateSpine({ before, after, recordedRenderHash, existed }) {
+export function assessGateSpine({ before, after, existed }) {
   // AC-2 (#2135) diffs a PRE-EXISTING check set. With no baseline there is nothing to
   // diff, so the non-decreasing property is UNPROVEN on this consumer — not satisfied.
   // Reporting PASS here would assert a check the bar never performed, which is the
@@ -34,20 +29,130 @@ export function assessGateSpine({ before, after, recordedRenderHash, existed }) 
   if (missing.length > 0) {
     return { ok: false, detail: `pre-existing checks disappeared: ${missing.join(', ')}` }
   }
-  const customized =
-    typeof recordedRenderHash === 'string' &&
-    recordedRenderHash.length > 0 &&
-    recordedRenderHash !== sha256(before)
-  if (customized && before !== after) {
-    return {
-      ok: false,
-      detail: 'customized gate spine changed bytes; project-owned wiring was not preserved exactly',
-    }
-  }
+  // #2290 §4: the byte-identity branch is GONE on purpose. AC-2's property is a set of
+  // check NAMES, not a byte string — a check that disappears is a name, and a reformat is
+  // not a regression. Worse, it keyed on `recordedRenderHash === null`, which has three
+  // distinct causes (no manifest at all, no entry for this file, file deleted by the
+  // consumer) that the old `?? 'unknown-customized-baseline'` fallback collapsed into
+  // `customized = true` on every row. Ownership is now read from the manifest by the
+  // runner, independently of whether the file is on disk, and reported as an observation.
   return {
     ok: true,
     detail: `${beforeChecks.size} pre-existing checks preserved; ${afterChecks.size} after update`,
   }
+}
+
+// ── AC-2 (#2135): emitted-vs-executed reconciliation ─────────────────────────────
+//
+// `arbiter update` materializes a gate spine of ~100 check names into each consumer.
+// Measured at the pins, only 2 of 104 java names equal an executed gate id by string
+// equality (`doc-set`, `spotbugs`) — arbiter says `PII scan`, viafera says `pii` — so
+// subtraction by string equality proves nothing. The reconciliation runs through a
+// committed name->gate mapping instead, and every emitted name must land in exactly one
+// of three buckets:
+//
+//   WIRED:<gate id>    the consumer really runs a gate with that property, under its own
+//                      name. The id is checked against the surface measured THIS run, so
+//                      a gate leaving the consumer's spine reddens the row.
+//   DECLINED:<reason>  the consumer legitimately does not need it. The reason is required
+//                      — "out of scope" with no sentence behind it is how a criterion dies.
+//   DEBT:#NNNN         a real gap against a real issue, machine-verified OPEN upstream.
+//
+// The debt register is a RATCHET, not an append-list: its cardinality is pinned to a
+// committed integer and enforced in both directions, so a new entry can only enter when
+// another leaves resolved. Without that, one free-text `DEBT:#9999` zeroes the criterion.
+const MAPPING_VERDICT = /^(WIRED|DECLINED|DEBT):([\s\S]*)$/
+
+export function assessGateSurface({ freshRender, declared, mapping, debtRegister }) {
+  const emitted = [...new Set(freshRender)].sort()
+  const executed = new Set(declared)
+  const entries = mapping ?? {}
+  const openIssues = new Set(debtRegister?.openIssues ?? [])
+  const problems = []
+
+  const unaccounted = emitted.filter((name) => typeof entries[name] !== 'string')
+  if (unaccounted.length > 0) {
+    problems.push(`${unaccounted.length} emitted check(s) unaccounted: ${unaccounted.join(', ')}`)
+  }
+  const stale = Object.keys(entries)
+    .filter((name) => !emitted.includes(name))
+    .sort()
+  if (stale.length > 0) {
+    problems.push(
+      `${stale.length} stale mapping entr(ies) for names no longer emitted: ${stale.join(', ')}`,
+    )
+  }
+
+  let debt = 0
+  for (const name of emitted) {
+    const verdict = entries[name]
+    if (typeof verdict !== 'string') continue
+    const parsed = MAPPING_VERDICT.exec(verdict)
+    if (parsed === null) {
+      problems.push(`${name}: unknown mapping verdict ${verdict}`)
+      continue
+    }
+    const [, kind, value] = parsed
+    if (kind === 'WIRED' && !executed.has(value)) {
+      problems.push(`${name}: mapped to gate ${value}, absent from the executed surface`)
+    } else if (kind === 'DECLINED' && value.trim().length === 0) {
+      problems.push(`${name}: DECLINED without a written reason`)
+    } else if (kind === 'DEBT') {
+      debt += 1
+      if (!openIssues.has(value)) {
+        problems.push(`${name}: debt issue ${value} is not a verified OPEN issue`)
+      }
+    }
+  }
+
+  const ceiling = debtRegister?.ceiling
+  if (typeof ceiling !== 'number' || debt !== ceiling) {
+    problems.push(
+      `debt ratchet: ${debt} debt entr(ies) against a committed ceiling of ${String(ceiling)} — ` +
+        'the ceiling must be re-tightened when debt resolves and can never absorb new debt silently',
+    )
+  }
+
+  if (problems.length > 0) return { ok: false, detail: problems.join('; ') }
+  return {
+    ok: true,
+    detail: `${emitted.length} emitted check(s) reconciled against ${executed.size} executed gate(s); ${debt} carried as tracked debt`,
+  }
+}
+
+// Acquiring the executed surface is a separate failure domain from judging it. A dry-run
+// that exits non-zero, times out, gets signalled, or never prints its gate line has told
+// us NOTHING about the consumer — that is an ERROR (exit 2), never a FAIL and never a
+// PASS. Mutex contention gets its own wording so a queued run is never mistaken for a
+// consumer that stopped running a gate.
+export function parseGateSurfaceOutput({ result, pattern, separator, contentionMarker }) {
+  const output = `${String(result?.stdout ?? '')}\n${String(result?.stderr ?? '')}`
+  const contended =
+    typeof contentionMarker === 'string' &&
+    contentionMarker.length > 0 &&
+    output.includes(contentionMarker)
+  const reason = contended
+    ? `the run queued on the ${contentionMarker} mutex (contention, not a verdict)`
+    : `command exited status=${String(result?.status)} signal=${String(result?.signal)}`
+  if (result?.ok !== true) {
+    return { ok: false, detail: `executed gate surface could not be obtained: ${reason}` }
+  }
+  const matcher = new RegExp(pattern, 'm')
+  const matched = matcher.exec(output)
+  if (matched === null || typeof matched[1] !== 'string') {
+    return {
+      ok: false,
+      detail: `executed gate surface could not be obtained: no line matched ${pattern}${contended ? ` (${reason})` : ''}`,
+    }
+  }
+  const gates = matched[1]
+    .split(separator)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+  if (gates.length === 0) {
+    return { ok: false, detail: 'executed gate surface could not be obtained: gate line was empty' }
+  }
+  return { ok: true, gates }
 }
 
 export function classifyHookResult({ exitCode, signal, hardness, applicable, rationale }) {

@@ -30,24 +30,20 @@ describe('consumer reliability bar oracles (#2135)', () => {
     const result = assessGateSpine({
       before: "runCheck('unit', 'npm', ['test'])\nrunCheck('security', 'node', ['sec.mjs'])\n",
       after: "runCheck('unit', 'npm', ['test'])\n",
-      recordedRenderHash: null,
       existed: true,
     })
     expect(result.ok).toBe(false)
     expect(result.detail).toContain('security')
   })
 
-  it('AC-2 requires byte identity for a customized gate spine', () => {
+  // #2290 §4: the byte-identity branch is deleted. Reformatting a consumer-owned spine
+  // is not a regression in the set of checks it runs, and the old branch fired on all
+  // three rows because `recordedRenderHash === null` collapsed three distinct causes.
+  it('AC-2 does not redden a consumer-owned spine for byte churn alone', () => {
     const before = "runCheck('project check', 'node', ['custom.mjs'])\n"
-    const after = `${before}runCheck('new', 'node', ['new.mjs'])\n`
-    const result = assessGateSpine({
-      before,
-      after,
-      recordedRenderHash: 'not-the-disk-hash',
-      existed: true,
-    })
-    expect(result.ok).toBe(false)
-    expect(result.detail).toMatch(/byte/i)
+    const after = `${before.replace(', ', ',  ')}runCheck('new', 'node', ['new.mjs'])\n`
+    const result = assessGateSpine({ before, after, existed: true })
+    expect(result.ok).toBe(true)
   })
 
   it('AC-2 permits an additive template refresh for a pristine gate spine', async () => {
@@ -61,6 +57,7 @@ describe('consumer reliability bar oracles (#2135)', () => {
       recordedRenderHash,
       existed: true,
     })
+    expect(recordedRenderHash).toMatch(/^[0-9a-f]{64}$/)
     expect(result.ok).toBe(true)
   })
 
@@ -71,7 +68,6 @@ describe('consumer reliability bar oracles (#2135)', () => {
     const result = assessGateSpine({
       before: '',
       after: "runCheck('unit', 'npm', ['test'])\nrunCheck('lint', 'eslint', ['.'])\n",
-      recordedRenderHash: null,
       existed: false,
     })
     expect(result.ok).toBe(false)
@@ -81,7 +77,7 @@ describe('consumer reliability bar oracles (#2135)', () => {
   // Fail-closed: a caller that omits `existed` must not inherit a passing baseline.
   it('AC-2 treats a missing `existed` flag as UNPROVEN, never as a pass', () => {
     const source = "runCheck('unit', 'npm', ['test'])\n"
-    const result = assessGateSpine({ before: source, after: source, recordedRenderHash: null })
+    const result = assessGateSpine({ before: source, after: source })
     expect(result.ok).toBe(false)
     expect(result.detail).toMatch(/UNPROVEN/)
   })
@@ -126,9 +122,7 @@ describe('consumer reliability bar oracles (#2135)', () => {
   it('AC-2 passes on a whitespace-only change to the executed spine', () => {
     const spine = "runCheck('be-test', 'npm', ['test'])\nrunCheck('pii', 'node', ['pii.mjs'])\n"
     const reformatted = spine.replace(/\n/g, '\n\n').replace(/, /g, ',  ')
-    const result = assessGateSurface(
-      surfaceCase({ declared: [...extractCheckNames(reformatted)] }),
-    )
+    const result = assessGateSurface(surfaceCase({ declared: [...extractCheckNames(reformatted)] }))
     expect(result.ok).toBe(true)
   })
 
@@ -238,7 +232,8 @@ describe('consumer reliability bar oracles (#2135)', () => {
         status: null,
         signal: 'SIGTERM',
         stdout: '',
-        stderr: 'gate-exec: mutex /run/user/1000/arbiter/viafera-ci-gate.lock (blocking until free)',
+        stderr:
+          'gate-exec: mutex /run/user/1000/arbiter/viafera-ci-gate.lock (blocking until free)',
       },
       pattern: '^\\[DRY-RUN\\] GATES: (.*)$',
       separator: ',',
