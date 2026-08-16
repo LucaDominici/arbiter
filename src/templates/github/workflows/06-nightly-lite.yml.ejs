@@ -30,7 +30,7 @@ jobs:
       - name: Integration tests (full)
         run: npm run test:integration
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -43,13 +43,13 @@ jobs:
         run: mvn verify -P integration
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: Integration tests (full)
         run: go test -tags integration -count=1 ./...
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]"
@@ -84,7 +84,7 @@ jobs:
 <% } else if (language === 'java') { %>
 <%- include('_partials/trivy-fs-java.ejs') %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: govulncheck
@@ -95,7 +95,7 @@ jobs:
           # git fails with 400 "Duplicate header" on private repos (#1865).
           repo-checkout: false
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install pip-audit

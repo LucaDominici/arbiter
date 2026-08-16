@@ -542,7 +542,7 @@ jobs:
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: 'go.mod'
       - run: go vet ./...
@@ -668,7 +668,7 @@ jobs:
       - run: mvn pmd:check --offline
       - run: mvn spotbugs:check --offline
 <% } %><% } %><% if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: 'go.mod'
       - run: golangci-lint run --enable gocyclo,gocognit,deadcode,unused
@@ -752,7 +752,7 @@ jobs:
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
 <% } %><% } %><% if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: 'go.mod'
 <% } %><% if (language === 'python') { %>
@@ -824,7 +824,7 @@ jobs:
       - name: Run contract tests
         run: cargo test --test '*contract*'
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: 'go.mod'
       - name: Run contract tests
