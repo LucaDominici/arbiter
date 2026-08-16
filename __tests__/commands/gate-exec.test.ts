@@ -5,7 +5,7 @@
 // releases the lock on SIGKILL/OOM — the hole Node cleanup handlers cannot
 // cover); absence of flock is a hard, explicit error (fail-closed).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -17,6 +17,13 @@ import {
   runGateExec,
   gateQueueAdvisory,
 } from '../../src/commands/gate-exec.js'
+import {
+  spawnLockHolder,
+  killLockHolder,
+  isAlive,
+  pollUntil,
+  OBSERVE_BUDGET_MS,
+} from '../helpers/lock-holder.js'
 
 function initGitRepo(dir: string): void {
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: dir })
@@ -157,26 +164,30 @@ describe('gateQueueAdvisory (#2098)', () => {
     expect(gateQueueAdvisory(dir, lockPath)).toBeNull()
   })
 
-  it('names the queue depth and the sanctioned bypass alternative once depth reaches 2', () => {
+  it('names the queue depth and the sanctioned bypass alternative once depth reaches 2', async () => {
     mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
     copyFileSync(
       resolve('scripts/lib/waiter-count.mjs'),
       join(dir, 'scripts', 'lib', 'waiter-count.mjs'),
     )
-    const holderA = spawn('flock', ['--', lockPath, 'sleep', '2'], { stdio: 'ignore' })
-    const holderB = spawn('flock', ['--', lockPath, 'sleep', '2'], { stdio: 'ignore' })
+    // Same #2282 fixture as waiter-count.test.ts: the old inline `sleep 2` matched the
+    // 2000 ms budget exactly, and each iteration here spawns a whole `node` (not just
+    // `fuser`), so this loop was both the most fragile and the most expensive of the two.
+    const holderA = spawnLockHolder(lockPath, [])
+    const holderB = spawnLockHolder(lockPath, [])
     try {
-      const start = Date.now()
-      let advisory: string | null = null
-      while (Date.now() - start < 2000) {
-        advisory = gateQueueAdvisory(dir, lockPath)
-        if (advisory) break
-      }
+      const advisory = await pollUntil(
+        () => gateQueueAdvisory(dir, lockPath),
+        (a) => a !== null,
+        OBSERVE_BUDGET_MS,
+      )
       expect(advisory).not.toBeNull()
       expect(advisory).toContain('ARBITER_PREPUSH_BYPASS')
+      expect(isAlive(holderA)).toBe(true)
+      expect(isAlive(holderB)).toBe(true)
     } finally {
-      holderA.kill()
-      holderB.kill()
+      killLockHolder(holderA)
+      killLockHolder(holderB)
     }
   })
 })

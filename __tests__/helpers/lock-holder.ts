@@ -27,8 +27,10 @@ export const OBSERVE_BUDGET_MS = 2000
  */
 export const MIN_MARGIN_MS = 5000
 
-/** Lifetime of the spawned holder, in seconds (`sleep <n>` under `flock`). */
-export const HOLDER_SECONDS = 2
+/** Lifetime of the spawned holder, in seconds (`sleep <n>` under `flock`). Must clear
+ *  OBSERVE_BUDGET_MS + MIN_MARGIN_MS — lock-holder.test.ts asserts it. Teardown kills the
+ *  holder's process group, so a long lifetime never slows the suite down. */
+export const HOLDER_SECONDS = 10
 
 /**
  * Background `flock` holder over `lockPath`, in its OWN process group so teardown can

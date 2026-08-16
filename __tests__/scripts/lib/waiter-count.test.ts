@@ -10,11 +10,18 @@
 // Real `fuser` + real `flock` holder processes (no mocking) — same style as
 // __tests__/commands/gate-exec.test.ts (runGateExec real-flock tests).
 import { describe, it, expect, afterEach } from 'vitest'
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { countLockWaiters } from '../../../scripts/lib/waiter-count.mjs'
+import {
+  spawnLockHolder,
+  killLockHolder,
+  isAlive,
+  pollUntil,
+  OBSERVE_BUDGET_MS,
+} from '../../helpers/lock-holder.js'
 
 describe('countLockWaiters (#2098)', () => {
   let dir: string
@@ -36,24 +43,28 @@ describe('countLockWaiters (#2098)', () => {
     expect(countLockWaiters(join(dir, 'never-created.lock'))).toBe(0)
   })
 
-  it('returns > 0 while a real flock holder has the file open', () => {
+  it('returns > 0 while a real flock holder has the file open', async () => {
     dir = mkdtempSync(join(tmpdir(), 'waiter-count-'))
     const lockPath = join(dir, 'gate.lock')
     spawnSync('touch', [lockPath])
-    // Background holder: `flock -o -- <lock> sleep 2` — the exact argv shape
-    // gate-exec.ts's gateExecArgv() composes.
-    const holder = spawn('flock', ['-o', '--', lockPath, 'sleep', '2'], { stdio: 'ignore' })
+    // Background holder: `flock -o -- <lock> sleep <HOLDER_SECONDS>` — the exact argv
+    // shape gate-exec.ts's gateExecArgv() composes. The shared fixture gives the holder
+    // a lifetime well beyond the observation budget (#2282); the old inline `sleep 2`
+    // matched the 2000 ms budget exactly and went red whenever the runner was loaded.
+    const holder = spawnLockHolder(lockPath)
     try {
-      // Give the holder time to acquire the lock.
-      const start = Date.now()
-      let count = 0
-      while (Date.now() - start < 2000) {
-        count = countLockWaiters(lockPath)
-        if (count > 0) break
-      }
+      const count = await pollUntil(
+        () => countLockWaiters(lockPath),
+        (c) => c > 0,
+        OBSERVE_BUDGET_MS,
+      )
       expect(count).toBeGreaterThan(0)
+      // The margin is the point: the holder must still be running when the budget is
+      // spent, otherwise a count of 0 would be ambiguous between "not observed yet" and
+      // "already gone".
+      expect(isAlive(holder)).toBe(true)
     } finally {
-      holder.kill()
+      killLockHolder(holder)
     }
   })
 })

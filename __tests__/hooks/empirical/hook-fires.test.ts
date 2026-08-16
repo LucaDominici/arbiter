@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
 import { generateClaude } from '../../../src/generators/claude.js'
 import { makeConfig, writeTaskStateFile } from '../../helpers.js'
+import { describeSpawnResult } from '../../helpers/spawn-diag.js'
 
 const STATIC_HOOKS_DIR = join(process.cwd(), 'src/templates/claude/hooks')
 
@@ -87,7 +88,7 @@ describe('stop-dangerous — empirical fire', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'npm test',
     })
-    expect(r.status, r.stderr).toBe(0)
+    expect(r.status, describeSpawnResult(r)).toBe(0)
   })
 
   // Exit 2 is the only blocking code for a PreToolUse hook (#1631) — exit 1 prints
@@ -195,7 +196,7 @@ describe('stop-dangerous — empirical fire', () => {
     'git status',
   ])('allows read-only or unrelated command: %s', (command) => {
     const r = spawnCommandThroughStdin(hookPath, dir, command)
-    expect(r.status, r.stderr).toBe(0)
+    expect(r.status, describeSpawnResult(r)).toBe(0)
     expect(r.stderr).toBe('')
   })
 
@@ -347,7 +348,7 @@ describe('hooks.mjs dispatcher — forwards stdin JSON to handlers end-to-end', 
     const f = join(dir, 'clean.ts')
     writeFileSync(f, 'export const x = 1;\n')
     const r = spawnDispatcher(f)
-    expect(r.status, r.stderr).toBe(0)
+    expect(r.status, describeSpawnResult(r)).toBe(0)
   })
 })
 

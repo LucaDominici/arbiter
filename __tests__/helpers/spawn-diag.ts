@@ -13,7 +13,13 @@ import type { SpawnSyncReturns } from 'node:child_process'
  *  has no reason to supply and a test fixture cannot synthesise without noise. */
 export type SpawnFailureFields = Pick<SpawnSyncReturns<string>, 'stderr' | 'signal' | 'error'>
 
-/** Human-readable failure description for a spawnSync result. */
+/** Human-readable failure description for a spawnSync result: stderr PLUS the two fields
+ *  that identify a non-exit failure. Empty parts are omitted so a plain non-zero exit with
+ *  real stderr reads exactly as it did before. */
 export function describeSpawnResult(r: SpawnFailureFields): string {
-  return r.stderr
+  const parts: string[] = []
+  if (r.stderr) parts.push(r.stderr)
+  if (r.signal) parts.push(`killed by signal ${r.signal}`)
+  if (r.error) parts.push(`spawn error: ${r.error.message}`)
+  return parts.length > 0 ? parts.join(' | ') : '(no stderr, no signal, no spawn error)'
 }
