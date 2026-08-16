@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { statSync, lstatSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import {
@@ -14,6 +15,11 @@ import {
   _registerTmpPath,
   _translateFsError,
   writeFileTranslated,
+  chmodTranslated,
+  unlinkTranslated,
+  rmTranslated,
+  symlinkTranslated,
+  mkdtempTranslated,
 } from '../../src/utils/fs.js'
 import { ArbiterError } from '../../src/utils/errors.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
@@ -645,6 +651,93 @@ describe('writeFileTranslated', () => {
     } catch (err) {
       expect(err).not.toBeInstanceOf(ArbiterError)
       expect((err as NodeJS.ErrnoException).code).toBe('ENAMETOOLONG')
+    }
+  })
+})
+
+// #1991 residual tranche: the destructive/mutating ops joined the façade so the gate could
+// name them. Every negative case here provokes EISDIR by operating on a DIRECTORY, never
+// `chmod 000` — CI runs as root, and root ignores mode bits, so a permission-based guard
+// would silently no-op the assertion into a fake green (#2288).
+describe('destructive-op translated primitives (#1991)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'fs-destructive-'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('chmodTranslated sets the mode, and translates a missing path', () => {
+    const f = join(dir, 'x.sh')
+    writeFileSync(f, '#!/bin/sh\n')
+    chmodTranslated(f, 0o755)
+    expect(statSync(f).mode & 0o777).toBe(0o755)
+
+    expect(() => chmodTranslated(join(dir, 'nope'), 0o755)).toThrow(ArbiterError)
+  })
+
+  it('unlinkTranslated removes a file, and translates EISDIR on a directory', () => {
+    const f = join(dir, 'x.txt')
+    writeFileSync(f, 'x')
+    unlinkTranslated(f)
+    expect(existsSync(f)).toBe(false)
+
+    const sub = join(dir, 'sub')
+    mkdirSync(sub)
+    try {
+      unlinkTranslated(sub)
+      throw new Error('expected unlinkTranslated to throw on a directory')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ArbiterError)
+      // EISDIR on Linux, EPERM on macOS — both are catalogued, so both translate.
+      expect(['EISDIR', 'EPERM']).toContain((err as ArbiterError).code)
+    }
+    expect(existsSync(sub)).toBe(true)
+  })
+
+  it('rmTranslated honours recursive/force and passes both option shapes through', () => {
+    const sub = join(dir, 'tree', 'deep')
+    mkdirSync(sub, { recursive: true })
+    writeFileSync(join(sub, 'f'), 'x')
+    rmTranslated(join(dir, 'tree'), { recursive: true, force: true })
+    expect(existsSync(join(dir, 'tree'))).toBe(false)
+
+    // force alone must swallow a missing path rather than translate it — the `{ force: true }`
+    // shape is in real use for legacy dotfile cleanup and must stay non-throwing.
+    expect(() => rmTranslated(join(dir, 'never-existed'), { force: true })).not.toThrow()
+  })
+
+  it('symlinkTranslated links, and leaves EEXIST RAW so a TOCTOU re-check still works', () => {
+    const target = join(dir, 'target.txt')
+    writeFileSync(target, 'x')
+    const link = join(dir, 'link.txt')
+    symlinkTranslated(target, link)
+    expect(lstatSync(link).isSymbolicLink()).toBe(true)
+
+    // EEXIST is deliberately absent from FS_ERROR_KEYS: src/worktree/links.ts branches on
+    // `err.code === 'EEXIST'` to absorb a concurrent creation. Translating it would kill
+    // that branch silently.
+    try {
+      symlinkTranslated(target, link)
+      throw new Error('expected symlinkTranslated to throw on an existing path')
+    } catch (err) {
+      expect(err).not.toBeInstanceOf(ArbiterError)
+      expect((err as NodeJS.ErrnoException).code).toBe('EEXIST')
+    }
+  })
+
+  it('mkdtempTranslated returns a fresh directory, and translates a missing parent', () => {
+    const made = mkdtempTranslated(join(dir, 'probe-'))
+    expect(statSync(made).isDirectory()).toBe(true)
+    expect(made.startsWith(join(dir, 'probe-'))).toBe(true)
+
+    try {
+      mkdtempTranslated(join(dir, 'no-such-dir', 'probe-'))
+      throw new Error('expected mkdtempTranslated to throw')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ArbiterError)
+      expect((err as ArbiterError).code).toBe('ENOENT')
     }
   })
 })
