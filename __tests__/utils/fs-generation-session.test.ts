@@ -20,6 +20,48 @@ describe('fs generation session (#1328 hash-aware skipIfExists)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  // ── #2295: absent file + recorded baseline = the consumer deleted what we emitted ──
+  it('flags a re-emitted file as restored when a manifest baseline exists (#2295)', () => {
+    const p = join(dir, 'scripts', 'check-all.mjs')
+    beginGenerationSession({
+      targetDir: dir,
+      prevHashes: { 'scripts/check-all.mjs': sha('ARBITER-OLD-RENDER') },
+    })
+    const r = writeFile(p, 'RENDER')
+    expect(r.action).toBe('created')
+    expect(r.restored).toBe(true)
+    expect(existsSync(p)).toBe(true)
+    endGenerationSession()
+  })
+
+  it('does NOT flag a brand-new template with no baseline as restored (#2295 AC-3)', () => {
+    const p = join(dir, 'scripts', 'brand-new.mjs')
+    beginGenerationSession({ targetDir: dir, prevHashes: { 'other.mjs': sha('x') } })
+    const r = writeFile(p, 'RENDER')
+    expect(r.action).toBe('created')
+    expect(r.restored).toBeUndefined()
+    endGenerationSession()
+  })
+
+  it('does NOT flag a created file as restored with no active session (#2295)', () => {
+    const r = writeFile(join(dir, 'no-session.txt'), 'RENDER')
+    expect(r.action).toBe('created')
+    expect(r.restored).toBeUndefined()
+  })
+
+  it('does NOT flag a path that escapes targetDir as restored (#2295)', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'arb-gensess-outside-'))
+    try {
+      beginGenerationSession({ targetDir: dir, prevHashes: { 'escaped.txt': sha('x') } })
+      const r = writeFile(join(outside, 'escaped.txt'), 'RENDER')
+      expect(r.action).toBe('created')
+      expect(r.restored).toBeUndefined()
+      endGenerationSession()
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
   it('back-compat: no active session + skipIfExists + exists → skipped (legacy)', () => {
     const p = join(dir, 'f.txt')
     writeFileSync(p, 'OLD')

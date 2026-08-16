@@ -349,6 +349,42 @@ describe('update.ts branch coverage (#1486)', () => {
     expect(stdout).toContain('withheld')
   })
 
+  // ── #2295: restored files are named on the warnings channel ──────────────────
+  it('reports a restored file in the JSON summary and warnings (#2295)', async () => {
+    mockLoadConfig.mockReturnValue(baseConfig())
+    mockRunFromRegistry.mockReturnValue([
+      created('/p/untouched.ts'),
+      { path: '/p/scripts/check-all.mjs', action: 'created', restored: true },
+    ])
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((): never => {
+      throw new Error('exit')
+    })
+    await expect(runUpdate({ dir, github: false, json: true })).rejects.toThrow('exit')
+    const parsed = JSON.parse(stdout) as { data: { restored: number }; warnings: string[] }
+    expect(parsed.data.restored).toBe(1)
+    expect(parsed.warnings.join('\n')).toContain('scripts/check-all.mjs')
+    expect(parsed.warnings.join('\n')).toContain('restored 1 file(s)')
+    expect(exitSpy).toHaveBeenCalled()
+  })
+
+  it('collapses the restored list past the report cap (#2295)', async () => {
+    mockLoadConfig.mockReturnValue(baseConfig())
+    mockRunFromRegistry.mockReturnValue(
+      Array.from({ length: 25 }, (_unused, i) => ({
+        path: `/p/f${String(i).padStart(2, '0')}.ts`,
+        action: 'created' as const,
+        restored: true,
+      })),
+    )
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((): never => {
+      throw new Error('exit')
+    })
+    await expect(runUpdate({ dir, github: false })).rejects.toThrow('exit')
+    expect(stderr).toContain('restored 25 file(s)')
+    expect(stderr).toContain('(+5 more)')
+    expect(exitSpy).toHaveBeenCalled()
+  })
+
   // ── unwired-gate warning surfaced via text outcome ────────────────────────────
   it('surfaces the unwired-gate warning to stderr in text mode', async () => {
     mockLoadConfig.mockReturnValue(baseConfig())
