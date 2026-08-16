@@ -149,10 +149,9 @@ export function withheldSafetyKeys(results: WriteResult[], targetDir: string): s
 /**
  * #2295: the targetDir-relative keys this run RE-EMITTED into a path the consumer
  * had removed after arbiter emitted it there (absent from disk, manifest baseline
- * present). Sorted for a deterministic report. Exported for unit testing the pure
- * decision independent of runUpdate's filesystem path.
+ * present). Sorted for a deterministic report.
  */
-export function restoredKeys(results: WriteResult[], targetDir: string): string[] {
+function restoredKeys(results: WriteResult[], targetDir: string): string[] {
   return results
     .filter((r) => r.restored === true)
     .map((r) => manifestKey(targetDir, r.path))
@@ -176,10 +175,8 @@ const RESTORE_REPORT_CAP = 20
  *
  * This is a per-DELETION event, not a permanent state: the restored file is
  * re-baselined, so the next update sees it byte-identical and stays quiet.
- *
- * Exported for unit testing the pure decision.
  */
-export function detectRestoredFilesWarning(keys: string[]): string | null {
+function detectRestoredFilesWarning(keys: string[]): string | null {
   if (keys.length === 0) return null
   const shown = keys.slice(0, RESTORE_REPORT_CAP)
   const hidden = keys.length - shown.length
