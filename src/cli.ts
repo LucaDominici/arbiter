@@ -765,8 +765,13 @@ program
 // #2039: the FEATURE lens over `configure`'s FIELD surface. `method status` is pure read;
 // the bare `method` on a TTY opens the cluster lens, whose every write is delegated back to
 // `configure` (there is no second config engine). Same TTY/lazy-import split as `configure`.
+// hidden: the public surface is capped at 15 commands (T2 tier-3 cut, asserted by
+// __tests__/behavioral/help-surface.test.ts), and #2039's own design §0 says "no new public
+// CLI commands". `settings` — the FIELD view over the same paths — is hidden for the same
+// reason, so the FEATURE view over them belongs in the same tier. `arbiter help --all` and
+// the generated CLI reference both still document it.
 const method = program
-  .command('method')
+  .command('method', { hidden: true })
   .description('Methodology lens: per-feature Config+Emit wiring status over `configure` (#2039)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -778,7 +783,9 @@ const method = program
         const { runInteractiveMethod } = await import('./commands/method-interactive.js')
         return runInteractiveMethod(opts.dir)
       }
-      return runMethodStatus({
+      // runMethodStatus is sync and returns void — `return` it and
+      // @typescript-eslint/no-confusing-void-expression rightly objects.
+      runMethodStatus({
         ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         json: opts.json,
       })

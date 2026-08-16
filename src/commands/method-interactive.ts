@@ -43,7 +43,7 @@ function currentString(values: Record<string, unknown>, path: string): string {
   if (typeof v === 'number' || typeof v === 'boolean') return String(v)
   // A non-scalar here would stringify to '[object Object]' and be offered as an editable
   // value; no ALLOWED_PATH holds one today, so treat it as "no current value" rather than
-  // showing the user a placeholder they cannot possibly retype.
+  // prefilling the prompt with something the user cannot possibly retype.
   return ''
 }
 
@@ -80,7 +80,6 @@ async function promptFeature(
     const next = await clack.text({
       message: path,
       initialValue: before,
-      placeholder: before,
       validate: (raw) => {
         const value = raw ?? ''
         if (value.trim() === '') return 'Provide a value, or press Ctrl-C to cancel.'
