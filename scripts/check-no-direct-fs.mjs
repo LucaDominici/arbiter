@@ -34,14 +34,16 @@
 //     a translator would silently kill the ENOENT arm. CANON-17 exempts this shape too.
 //   - 25 are bare. Those ARE a live CANON-17 leak (cli.ts's top-level handler prints
 //     `Unexpected error: ENOENT: ...`), and eslint-rules/fs-errno-translation.js cannot
-//     see them — with no catch binding there is nothing for it to report. Tracked
-//     separately: this gate keys on IMPORTS, so adding readFileSync to the op set would
-//     flag all 56 importing files, 55 of them compliant. The fix is a per-CALL rule, not
+//     see them — with no catch binding there is nothing for it to report. Tracked as
+//     #2293: this gate keys on IMPORTS, so adding readFileSync to the op set would flag
+//     all 56 importing files, 55 of them compliant. The fix is a per-CALL rule, not
 //     another name in the list above.
-// Also known-uncovered, and out of the op set for the same import-shaped reason that they
-// need primitives that do not exist yet rather than a name: cpSync (worktree/links.ts,
-// worktree/harvest.ts) and the openSync('wx')+writeSync pair in utils/file-lock.ts, which
-// writes a whole file without touching writeFileSync once. Both tracked separately.
+// Also known-uncovered, and out of the op set because they need primitives that do not
+// exist yet rather than a name: cpSync (worktree/links.ts, worktree/harvest.ts) and the
+// openSync('wx')+writeSync pair in utils/file-lock.ts, which writes a whole file without
+// touching writeFileSync once. Both tracked as #2294 — note that until it lands, the
+// "SOLE approved write façade" claim at the top of this file is true for the op set
+// above and not for the word "write".
 //
 // Allowlist: .no-direct-fs-allowlist — "path  EXPIRES: YYYY-MM-DD  # reason", one per line.
 // Every pin MUST carry a future date AND a reason, and a pin whose path no longer violates
