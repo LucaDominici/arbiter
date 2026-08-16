@@ -822,7 +822,14 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
           '--no-verify',
         ])
         expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
-        expect(emittedGateIds(dir)).toContain('evidence-gate')
+        // mutation-stryker rides along: it needs mutationEnabled (true under the
+        // default `fixed` profile) AND enableMutationTesting, which is L3+ — so
+        // L3 is the first tier that emits it at all. Emission only: `npx stryker
+        // run` needs a network install, so #2244's REQ-006 does not cite it as
+        // executed.
+        expect(emittedGateIds(dir)).toEqual(
+          expect.arrayContaining(['evidence-gate', 'mutation-stryker']),
+        )
 
         mkdirSync(join(dir, '.evidence'), { recursive: true })
         writeFileSync(
