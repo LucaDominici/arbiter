@@ -9,11 +9,15 @@
 // "did we write, and with what" is an assertion rather than a filesystem diff.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { join as joinPath } from 'node:path'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const cancelSymbol = Symbol('clack-cancel')
 const prompts: Array<() => unknown> = []
+/** Options `text` was called with — lets the tests exercise `validate` itself, which is
+ *  where the "no duplicated validation" claim actually lives. */
+const textCalls: Array<{ validate?: (raw: string | undefined) => string | undefined }> = []
 
 vi.mock('@clack/prompts', () => ({
   intro: vi.fn(),
@@ -24,7 +28,10 @@ vi.mock('@clack/prompts', () => ({
   select: vi.fn(() => Promise.resolve(prompts.shift()?.())),
   multiselect: vi.fn(() => Promise.resolve(prompts.shift()?.())),
   confirm: vi.fn(() => Promise.resolve(prompts.shift()?.())),
-  text: vi.fn(() => Promise.resolve(prompts.shift()?.())),
+  text: vi.fn((opts: { validate?: (raw: string | undefined) => string | undefined }) => {
+    textCalls.push(opts)
+    return Promise.resolve(prompts.shift()?.())
+  }),
 }))
 
 const runConfigure = vi.fn(() => Promise.resolve())
@@ -38,6 +45,7 @@ const { runInteractiveMethod } = await import('../../src/commands/method-interac
 let dir: string
 beforeEach(() => {
   prompts.length = 0
+  textCalls.length = 0
   runConfigure.mockClear()
   dir = mkdtempSync(join(tmpdir(), 'arbiter-method-int-'))
   writeFileSync(
@@ -158,5 +166,77 @@ describe('the no-parallel-engine contract', () => {
         /\b(writeFile|writeFileTranslated|saveConfig|ensureDir|appendFileTranslated)\b/,
       )
     }
+  })
+})
+
+// The non-boolean prompt path — where the lens's central claim lives: it does not
+// re-implement validation, it hands the raw string to configure's own parseValue. Untested,
+// that claim is just a comment.
+describe('non-boolean paths delegate validation to configure', () => {
+  it('stages a changed threshold as a configure --set assignment', async () => {
+    prompts.push(
+      () => 'testing',
+      () => ['M-TEST-04'], // coverage floors: two thresholds
+      () => '85', // thresholds.lineCoverage
+      () => '75', // thresholds.branchCoverage — unchanged
+      () => true,
+    )
+    await runInteractiveMethod(dir)
+    expect(runConfigure).toHaveBeenCalledWith({ dir, sets: ['thresholds.lineCoverage=85'] })
+  })
+
+  it("validate REJECTS what configure would reject, and reports parseValue's own message", async () => {
+    prompts.push(
+      () => 'testing',
+      () => ['M-TEST-04'],
+      () => '80',
+      () => '75',
+    )
+    await runInteractiveMethod(dir)
+
+    const validate = textCalls[0]?.validate
+    expect(validate).toBeTypeOf('function')
+    // A non-numeric threshold: parseValue throws E_INVALID_NUMBER, and the lens surfaces
+    // that message rather than inventing its own wording.
+    const rejection = validate?.('not-a-number')
+    expect(rejection).toBeTypeOf('string')
+    expect(rejection).toMatch(/numeric|number/i)
+    // ...and a value it would accept passes with no message.
+    expect(validate?.('80')).toBeUndefined()
+  })
+
+  it('validate rejects empty input rather than staging a blank value', async () => {
+    prompts.push(
+      () => 'testing',
+      () => ['M-TEST-04'],
+      () => '80',
+      () => '75',
+    )
+    await runInteractiveMethod(dir)
+    expect(textCalls[0]?.validate?.('')).toMatch(/Provide a value/)
+    expect(textCalls[0]?.validate?.('   ')).toMatch(/Provide a value/)
+    expect(textCalls[0]?.validate?.(undefined)).toMatch(/Provide a value/)
+  })
+
+  it('cancelling a text prompt aborts the whole session, not just that field', async () => {
+    prompts.push(
+      () => 'testing',
+      () => ['M-TEST-04'],
+      () => cancelSymbol,
+    )
+    await runInteractiveMethod(dir)
+    expect(runConfigure).not.toHaveBeenCalled()
+  })
+})
+
+describe('runInteractiveMethod — no project', () => {
+  it('exits nonzero and never probes when there is no arbiter.json', async () => {
+    const empty = mkdtempSync(joinPath(tmpdir(), 'arbiter-method-none-'))
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    await runInteractiveMethod(empty)
+    expect(exitSpy).toHaveBeenCalledWith(1)
+    expect(runConfigure).not.toHaveBeenCalled()
+    rmSync(empty, { recursive: true, force: true })
   })
 })

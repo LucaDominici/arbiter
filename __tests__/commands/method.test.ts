@@ -262,6 +262,31 @@ describe('runMethodStatus', () => {
     expect(wired + partial + unverified + off).toBe(METHODOLOGY_CATALOG.length)
   })
 
+  // The partial path end to end: manifest present, a bound feature ON, its artifacts not
+  // recorded. This is the row the issue's own test case describes (Config OK / Emit missing),
+  // and it is the only path that renders the per-artifact "not emitted" lines.
+  it('renders the missing artifacts of a partial feature', () => {
+    const root = projectWith({ features: { ...BASE.features, debtGates: true } })
+    writeFileSync(
+      join(root, '.arbiter-generated-manifest.json'),
+      JSON.stringify({ $schemaVersion: 1, files: { 'README.md': 'deadbeef' } }),
+    )
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    runMethodStatus({ dir: root })
+    const text = out.join('')
+    expect(text).toContain('not emitted: scripts/debt-lib.mjs')
+    expect(text).toContain('Emit ✗')
+    // debtGates and suppressions are both ON in BASE and both carry Emit bindings.
+    expect(text).toContain('not emitted: scripts/check-suppressions.mjs')
+    expect(text).toMatch(/partial 2/)
+    // and with a manifest present nothing is "unverified" any more
+    expect(text).toMatch(/unverified 0/)
+  })
+
   it('exits nonzero when there is no arbiter.json', () => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-method-empty-'))
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
