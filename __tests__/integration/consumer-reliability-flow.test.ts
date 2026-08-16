@@ -205,9 +205,39 @@ function createFixture(): {
     join(scriptsDir, 'data', 'consumer-reliability-bar.json'),
     JSON.stringify(config, null, 2),
   )
+  // AC-2's committed name->gate mapping. `new emitted gate` is emitted by the fresh
+  // render and absent from the consumer's own spine, so it is carried as tracked debt.
+  writeFileSync(
+    join(scriptsDir, 'data', 'consumer-gate-map.json'),
+    JSON.stringify(
+      {
+        $schemaVersion: 1,
+        consumers: Object.fromEntries(
+          rows.map((row) => [
+            row.id,
+            {
+              gateSurface: { kind: 'spine' },
+              debtCeiling: 1,
+              mapping: {
+                'project check': 'WIRED:project check',
+                'new emitted gate': 'DEBT:#1',
+              },
+            },
+          ]),
+        ),
+      },
+      null,
+      2,
+    ),
+  )
 
   const fakeBin = join(root, 'fake-bin')
   mkdirSync(fakeBin)
+  // The debt register is only a ratchet if every entry names a still-open issue, and that
+  // lookup lives in the CREDENTIALED prepare phase — the verifier runs without a token.
+  const fakeGh = join(fakeBin, 'gh')
+  writeFileSync(fakeGh, ['#!/bin/sh', `printf '%s' '{"state":"OPEN"}'`, ''].join('\n'))
+  chmodSync(fakeGh, 0o755)
   const fakeSsh = join(fakeBin, 'ssh')
   const sshMarker = join(root, 'ssh-invocations.txt')
   writeFileSync(sshMarker, '')
@@ -235,10 +265,19 @@ function createFixture(): {
   writeFileSync(
     fakeCli,
     [
-      "import { appendFileSync } from 'node:fs'",
+      "import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'",
+      "import { join } from 'node:path'",
       `const marker = ${JSON.stringify(updateMarker)}`,
       "const index = process.argv.indexOf('--dir')",
-      "if (index !== -1) appendFileSync(marker, process.argv[index + 1] + '\\n')",
+      // AC-2 reads the FRESH render off a throwaway copy whose spine was deleted, so the
+      // fake CLI has to behave like the real one and materialize it — emitting one name
+      // the consumer already runs and one it does not.
+      'if (index !== -1) {',
+      '  const dir = process.argv[index + 1]',
+      "  appendFileSync(marker, dir + '\\n')",
+      "  mkdirSync(join(dir, 'scripts'), { recursive: true })",
+      "  writeFileSync(join(dir, 'scripts', 'check-all.mjs'), \"runCheck('project check', 'node', ['project-check.mjs'])\\nrunCheck('new emitted gate', 'node', ['new.mjs'])\\n\")",
+      '}',
       "process.stdout.write(JSON.stringify({ command: 'update', version: '1', status: 'ok' }) + '\\n')",
       'process.exit(0)',
       '',

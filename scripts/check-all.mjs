@@ -150,6 +150,11 @@ if (isMain) {
   // check-no-tracked-artifacts (all wired above/below) that was never wired into
   // arbiter's own gate. Validates arbiter's OWN .claude/hooks routing (#2129).
   runCheck('hook routing (#2129)', 'node', ['scripts/check-hook-routing.mjs'])
+  // #2291: arbiter shipped this ratchet to consumers without running it itself. It is
+  // the gate that catches a gate spine frozen by `update` — and the reason it never
+  // fired anywhere is that it was delivered only THROUGH the spine it polices. Wiring
+  // it here (and, for consumers, as its own 01-pr-fast.yml step) is the dogfood half.
+  runCheck('safety adopt ratchet (#2291)', 'node', ['scripts/check-safety-adopt-ratchet.mjs'])
   runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
   runCheck('format', 'npx', ['prettier', '--check', '.'])
   // #1523: scripts/ (the gate-enforcement layer) is linted alongside src/ and

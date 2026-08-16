@@ -15,6 +15,10 @@ on:
 
 permissions:
   contents: read
+  # The prepare phase machine-verifies every DEBT entry of the AC-2 gate map against
+  # this repo's issues (#2135). Without it `gh issue view` fails and the bar ERRORs on
+  # all three rows — the credentialed half has no other way to prove an issue is OPEN.
+  issues: read
 
 concurrency:
   group: consumer-reliability-main
@@ -50,6 +54,10 @@ jobs:
           ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY }}
           ARBITER_CONSUMER_JAVA_REPO: ${{ secrets.ARBITER_CONSUMER_JAVA_REPO }}
           ARBITER_CONSUMER_JAVA_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_JAVA_DEPLOY_KEY }}
+          # Read-only, and consumed ONLY by the credentialed prepare phase. The verifier
+          # child runs under buildVerifierEnvironment(), whose allow-list has no token,
+          # and assertCredentialFreeEnvironment() refuses to start if one leaks in.
+          GH_TOKEN: ${{ github.token }}
         run: >-
           npm run test:consumer-reliability --
           --workspace "$RUNNER_TEMP/consumer-reliability"

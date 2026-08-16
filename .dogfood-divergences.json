@@ -94,7 +94,7 @@
     "path": "01-pr-fast.yml",
     "dest": ".github/workflows",
     "reason": "The template collapses 01-pr-fast.yml.ejs's entire PR pipeline (gate, unit tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, debt-gates, ci-required, post-merge-gate — contract/integration/behavioral tests moved to 02-pr-extended.yml.ejs at #1875) to a one-line solo-dev-gate stub whenever `locals.enableSoloDevMode` is true — and arbiter.json sets features.soloDevMode: true. Self deliberately keeps running the full peer-review-shaped pipeline regardless (arbiter dogfoods harder than its own declared collaborationMode: trunk-solo — same pattern documented in check-ci-tiers.mjs.ejs's cadence-parity comment). Tracked under #1900. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "2279af024bd8065750ce6184a6bdf3bb9f0ab3b324053b3d9a61a899c2af1efd"
+    "diffHash": "5eb578d54d579ba0f3aa02fe57fd875b4bf6ee5dc8f8f6caed13c254cfd681ed"
   },
   {
     "path": "02-pr-extended.yml",
@@ -319,7 +319,7 @@
     "path": "check-local-ci-parity.mjs",
     "dest": "scripts",
     "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder.",
-    "diffHash": "4a8d3018b10ca8a53b940c6c0f7e20a165a91e062350ffb057921fdc6ea73894"
+    "diffHash": "7d2a109a8109f8a33da03b3ed53de7d40cdf51995c3094fcf13c27f20a3c2dab"
   },
   {
     "path": "check-suppression-expiry.mjs",

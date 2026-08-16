@@ -146,7 +146,10 @@ Il report usa esclusivamente gli ID generici `go`, `typescript` e `java`. Per og
 verifica:
 
 - SHA detached e assenza di remote;
-- `arbiter update` con insieme dei check non decrescente e byte dei gate custom preservati;
+- `arbiter update` con insieme dei check non decrescente e byte dei gate custom preservati.
+  Se il consumer non ha una spina di gate preesistente da confrontare, la riga è `UNPROVEN` e
+  **fallisce**: senza un `before` non esiste il confronto che questo criterio richiede, e
+  dichiararla `PASS` significherebbe attestare un check mai eseguito (#2290);
 - routing completo degli hook emessi;
 - liveness BARE e PRIMED, più gli stati contestuali CLOSE e VERIFICATION dichiarati dai singoli
   hook, contando come `BLOCKS` soltanto l'exit code 2 e richiedendo una giustificazione accanto a

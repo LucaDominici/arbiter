@@ -19,6 +19,18 @@
 // destructive. This gate is the monotonic backstop: a divergence can never
 // hide, it can only be resolved or explicitly accepted with `arbiter:preserve`.
 // Usage: node scripts/check-safety-adopt-ratchet.mjs [--manifest=<path>]
+//
+// CATALOG: aggregates the whole anti-erosion surface — every PROTECTED file (safety
+// CATALOG: hooks and the gate spine) that `arbiter update` had to withhold, in one
+// CATALOG: verdict, with the two opposite adopt prescriptions the classes require.
+// CATALOG: rejected fold-in into check-unwired-guards.mjs because that gate answers
+// CATALOG: "is a delivered guard referenced by the spine"; this one answers "did the
+// CATALOG: spine itself stop receiving deliveries" — the second question is what makes
+// CATALOG: the first one's answer untrustworthy, so folding them hides the ordering.
+// CATALOG: rejected fold-in into check-self-dogfood.mjs because that compares templates
+// CATALOG: to materialized files inside the arbiter repo; this reads the consumer-side
+// CATALOG: manifest that only `arbiter update` writes, and must run in repos that have
+// CATALOG: no templates at all.
 
 import { readFileSync, existsSync } from 'node:fs'
 import { dirname, resolve, join } from 'node:path'
@@ -31,6 +43,10 @@ const PRESERVE_MARKER = 'arbiter:preserve'
 function isPreserveMarked(root, key) {
   try {
     return readFileSync(join(root, key), 'utf8').includes(PRESERVE_MARKER)
+    // An unreadable or absent file cannot prove it carries the documented exception, so
+    // returning false puts the key in `unresolved` — the branch that exits 1. Rethrowing
+    // would only trade a precise "still withheld" red for an opaque crash on the input.
+    // FAIL-OPEN-INTENT: named fail-open, but the false it returns fails the gate CLOSED.
   } catch {
     return false
   }

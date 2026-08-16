@@ -100,6 +100,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'no tracked artifacts (INV-117)', affects: ALWAYS },
   // #2159: found unwired by check-unwired-guards.mjs itself — see check-all.mjs.
   { name: 'hook routing (#2129)', affects: ALWAYS },
+  { name: 'safety adopt ratchet (#2291)', affects: ALWAYS },
   { name: 'typecheck', affects: ALWAYS },
   { name: 'format', affects: ALWAYS },
   { name: 'lint', affects: ALWAYS },
