@@ -139,18 +139,50 @@ function runCli(dir: string, args: string[]): { status: number; output: string }
 // 'gate' is the real subcommand alias cited in the release-readiness verdict
 // (`check-all.mjs gate`) — it maps to L2 inside the generated script's own
 // _SUBCOMMAND_LEVEL table, same as omitting the argument entirely.
-function runGate(dir: string, level: 'L1' | 'L2' | 'gate'): { status: number; output: string } {
+function runGate(
+  dir: string,
+  level: 'L1' | 'L2' | 'L3' | 'gate',
+  gateId?: string,
+): { status: number; output: string } {
   const scriptPath = join(dir, 'scripts', 'check-all.mjs')
   if (!existsSync(scriptPath)) {
     return { status: 127, output: `check-all.mjs not generated at ${scriptPath}` }
   }
-  const r = spawnSync('node', [scriptPath, level], {
+  const r = spawnSync('node', [scriptPath, level, ...(gateId ? ['--gate', gateId] : [])], {
     cwd: dir,
     encoding: 'utf-8',
     timeout: 120_000,
     env: { ...process.env, CI: 'true' },
   })
   return { status: r.status ?? 1, output: (r.stdout ?? '') + (r.stderr ?? '') }
+}
+
+// #2257 AC-3 / CANON-23: read the NAMED gate's own status line out of the gate
+// output. Every cell below asserts THIS, never the process exit code — a gate
+// that SKIPs (missing binary, absent config file, unset env var) exits 0 exactly
+// like a gate that ran and passed, so an exit-code assertion is satisfied by a
+// gate that never executed. That false-covered signal is the precise fiction
+// #2244 exists to remove from the RTM, so it must not be re-introduced by the
+// very tests that close its rows.
+function gateStatus(output: string, gateName: string): string | null {
+  const escaped = gateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`^\\[CHECK\\] ${escaped} \\.\\.\\. (\\w+)`, 'm').exec(output)?.[1] ?? null
+}
+
+// The gate manifest (`--dry-run`) lists the gates the generator actually EMITTED
+// into this project, independent of whether they would pass. Used to prove
+// emission survives a config round-trip.
+function emittedGateIds(dir: string): string[] {
+  const r = spawnSync('node', [join(dir, 'scripts', 'check-all.mjs'), 'L3', '--dry-run'], {
+    cwd: dir,
+    encoding: 'utf-8',
+    timeout: 120_000,
+    env: { ...process.env, CI: 'true' },
+  })
+  return ((r.stdout ?? '') + (r.stderr ?? '')).split('\n').flatMap((l) => {
+    const m = /^ {2}L[123] {2}(\S+) {2}/.exec(l)
+    return m?.[1] != null ? [m[1]] : []
+  })
 }
 
 interface Cell {
@@ -435,6 +467,145 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
           'a seeded unused devDependency must RED the default-level (L2) gate, not pass silently',
         ).not.toBe(0)
         expect(gate.output).toMatch(/dead code|unused devDependenc/i)
+      },
+      300_000,
+    )
+  })
+
+  // ── #2257 AC-3: one fixture cell per blocked-gate family ────────────────────
+  // Every functional fixture that existed before this block inited with
+  // architectureStyle='none', permitGitHub=false, coverage off and never above
+  // L2/library — so the gates 13 of #2244's RTM rows describe were never
+  // EMITTED, let alone executed. Each cell below unlocks exactly ONE family and
+  // proves the emitted gate is real the only way that survives CANON-23: the
+  // named gate PASSes on a clean tree and FAILs on a seeded violation.
+  //
+  // Cells that need no npm install do not run one: every guard these assert is a
+  // dependency-free node script, and a 60s install per cell would price the
+  // family coverage out of the nightly lane it has to live in.
+
+  // useGitHub family (REQ-007) — and the day-2 regression it exposed.
+  describe('github workflow gates (#2257 AC-3, useGitHub family)', () => {
+    let dir: string
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'arbiter-greenfield-github-'))
+      initGit(dir)
+      scaffoldBareTsSkeleton(dir)
+      commitAll(dir, 'chore: bare skeleton')
+    })
+
+    afterEach(() => {
+      if (dir != null) rmSync(dir, { recursive: true, force: true })
+    })
+
+    const skip = cliMissing || missingBinaries(['node']).length > 0
+
+    // THE RED (#2257): `arbiter init --github` wires the 12 workflow gates, and
+    // the very next routine `arbiter update` silently STRIPPED all of them while
+    // leaving .github/workflows and the guard scripts they run on disk — so the
+    // generated project's own L1 `unwired guards` gate went red on a consumer who
+    // did nothing but run the documented upgrade command. Root cause was the
+    // registry conditioning those gates on `useGitHub`, which resolveProjectConfig
+    // sets from the LIVE-API-call flag (--github) on the update path, not on the
+    // persisted `permitGitHub` capability that decides whether the workflows are
+    // emitted at all. Two names, one meaning, opposite values.
+    it.skipIf(skip)(
+      `init --github wires the workflow gates and a plain \`arbiter update\` keeps them${skip ? ` (${CLI_MISSING_REASON})` : ''}`,
+      () => {
+        const init = runCli(dir, [
+          'init',
+          '--yes',
+          '--github',
+          '--tools',
+          'codex',
+          '--language',
+          'typescript',
+          '--archetype',
+          'library',
+          '--level',
+          'L2',
+          '--no-verify',
+        ])
+        expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
+
+        const WORKFLOW_GATES = [
+          'ci-tiers',
+          'action-pins',
+          'workflow-perms',
+          'workflow-runners',
+          'workflow-sha-pinning',
+          'workflow-job-naming',
+          'pr-size-gate',
+          'merge-method-ff-only',
+        ]
+        expect(emittedGateIds(dir)).toEqual(expect.arrayContaining(WORKFLOW_GATES))
+
+        // The day-2 command every consumer runs. No --github: it must not be
+        // required to KEEP gates that guard files already on disk.
+        const update = runCli(dir, ['update'])
+        expect(update.status, `update failed:\n${update.output.slice(-3000)}`).toBe(0)
+        expect(
+          emittedGateIds(dir),
+          'a plain `arbiter update` must not strip the workflow gates it still emits workflows for',
+        ).toEqual(expect.arrayContaining(WORKFLOW_GATES))
+
+        // The observable consequence: the project's own guard-wiring gate.
+        const unwired = runGate(dir, 'L1', 'unwired-guards')
+        expect(gateStatus(unwired.output, 'unwired guards'), unwired.output.slice(-2000)).toBe(
+          'PASS',
+        )
+
+        // The workflow gates themselves run for real against the emitted workflows.
+        for (const [id, name] of [
+          ['action-pins', 'action pins (INV-75)'],
+          ['workflow-sha-pinning', 'workflow sha pinning'],
+          ['ci-tiers', 'ci tiers (INV-73)'],
+          ['workflow-perms', 'workflow perms (INV-76)'],
+        ] as const) {
+          const g = runGate(dir, 'L1', id)
+          expect(gateStatus(g.output, name), `${id}:\n${g.output.slice(-2000)}`).toBe('PASS')
+        }
+      },
+      300_000,
+    )
+
+    // Terraform-acceptance pairing: the emitted workflow gates must BLOCK an
+    // unpinned action, not merely be present and green.
+    it.skipIf(skip)(
+      `a seeded tag-pinned action REDs the emitted action-pins gate${skip ? ` (${CLI_MISSING_REASON})` : ''}`,
+      () => {
+        const init = runCli(dir, [
+          'init',
+          '--yes',
+          '--github',
+          '--tools',
+          'codex',
+          '--language',
+          'typescript',
+          '--archetype',
+          'library',
+          '--level',
+          'L2',
+          '--no-verify',
+        ])
+        expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
+
+        writeFileSync(
+          join(dir, '.github', 'workflows', '99-seeded.yml'),
+          'name: seeded\non: [push]\npermissions:\n  contents: read\njobs:\n  seeded-job:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n',
+        )
+
+        for (const [id, name] of [
+          ['action-pins', 'action pins (INV-75)'],
+          ['workflow-sha-pinning', 'workflow sha pinning'],
+        ] as const) {
+          const g = runGate(dir, 'L1', id)
+          expect(
+            gateStatus(g.output, name),
+            `${id} must RED on a tag-pinned action, not pass silently:\n${g.output.slice(-2000)}`,
+          ).toBe('FAIL')
+        }
       },
       300_000,
     )
