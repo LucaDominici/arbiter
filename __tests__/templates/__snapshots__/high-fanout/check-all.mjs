@@ -162,8 +162,13 @@ const GATE_REGISTRY = [{"id":"pii-scan","name":"PII scan","level":"L1","kind":"c
 // runCheck/runWarnCheck/runToolCheck trio; a normal run leaves it a no-op.
 if (dryRun) {
   console.log('[DRY-RUN] gate manifest (registry):');
+  // #2257: the lanes are structurally contained (L1 ⊂ L2 ⊂ L3 — see the L3 lane
+  // below, which runs only AFTER the L1 and L2 bodies), so the manifest must use
+  // the same containment. The old `_g.level === level` equality omitted EVERY L2
+  // gate from `--dry-run L3`, i.e. the diagnostic that exists to answer "what
+  // does this lane run" under-reported the L3 lane by ~40 gates.
   for (const _g of GATE_REGISTRY) {
-    if (_g.level === 'L1' || _g.level === level) {
+    if (_LEVELS.indexOf(_g.level) <= _LEVELS.indexOf(level)) {
       console.log(`  ${_g.level}  ${_g.id}  ${_g.name}`);
     }
   }

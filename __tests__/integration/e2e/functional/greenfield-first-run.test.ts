@@ -466,7 +466,12 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
           gate.status,
           'a seeded unused devDependency must RED the default-level (L2) gate, not pass silently',
         ).not.toBe(0)
-        expect(gate.output).toMatch(/dead code|unused devDependenc/i)
+        // #2257: assert the knip gate's OWN status line, not just a regex over the
+        // combined output — `dead code` is soft:true (it renders as
+        // `{ soft: graceActive }`), so a future config that flips grace on would
+        // turn this into a WARN while the loose regex still matched. #2244 cites
+        // this line as REQ-010's functional-tier evidence; it has to bind.
+        expect(gateStatus(gate.output, 'dead code'), gate.output.slice(-3000)).toBe('FAIL')
       },
       300_000,
     )
@@ -604,6 +609,322 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
           expect(
             gateStatus(g.output, name),
             `${id} must RED on a tag-pinned action, not pass silently:\n${g.output.slice(-2000)}`,
+          ).toBe('FAIL')
+        }
+      },
+      300_000,
+    )
+  })
+
+  // architectureStyle family (REQ-001 TS half, REQ-016 TS half). `arbiter init`
+  // has no --architecture-style flag, so the consumer path is init → configure
+  // → update; that round-trip is part of what this cell proves.
+  describe('hexagonal boundaries (#2257 AC-3, architectureStyle family)', () => {
+    let dir: string
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'arbiter-greenfield-hex-'))
+      initGit(dir)
+      scaffoldBareTsSkeleton(dir)
+      commitAll(dir, 'chore: bare skeleton')
+    })
+
+    afterEach(() => {
+      if (dir != null) rmSync(dir, { recursive: true, force: true })
+    })
+
+    const skip = cliMissing || missingBinaries(['node', 'npx']).length > 0
+
+    it.skipIf(skip)(
+      `architectureStyle=hexagonal emits a boundaries gate that PASSes clean and REDs a cross-layer import${skip ? ` (${CLI_MISSING_REASON})` : ''}`,
+      () => {
+        const init = runCli(dir, [
+          'init',
+          '--yes',
+          '--tools',
+          'codex',
+          '--language',
+          'typescript',
+          '--archetype',
+          'library',
+          '--level',
+          'L2',
+          '--no-verify',
+        ])
+        expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
+
+        const cfg = runCli(dir, ['configure', '--set', 'architectureStyle=hexagonal'])
+        expect(cfg.status, `configure failed:\n${cfg.output.slice(-2000)}`).toBe(0)
+        const upd = runCli(dir, ['update'])
+        expect(upd.status, `update failed:\n${upd.output.slice(-3000)}`).toBe(0)
+
+        expect(emittedGateIds(dir)).toContain('ts-boundaries')
+        expect(existsSync(join(dir, 'scripts', 'check-boundaries.mjs'))).toBe(true)
+
+        const install = spawnSync('npm', ['install', '--no-audit', '--no-fund'], {
+          cwd: dir,
+          encoding: 'utf-8',
+          timeout: 240_000,
+        })
+        expect(install.status, `npm install failed:\n${install.stderr}`).toBe(0)
+
+        const clean = runGate(dir, 'L2', 'ts-boundaries')
+        expect(gateStatus(clean.output, 'boundaries'), clean.output.slice(-3000)).toBe('PASS')
+
+        // Seed a genuine hexagonal violation: domain importing an adapter. The
+        // emitted eslint.config.boundaries.mjs declares `from: 'domain', allow: []`.
+        mkdirSync(join(dir, 'src', 'domain'), { recursive: true })
+        mkdirSync(join(dir, 'src', 'adapters'), { recursive: true })
+        writeFileSync(join(dir, 'src', 'adapters', 'rest.ts'), "export const rest = 'adapter'\n")
+        writeFileSync(
+          join(dir, 'src', 'domain', 'entity.ts'),
+          "import { rest } from '../adapters/rest'\nexport const entity = rest\n",
+        )
+
+        const seeded = runGate(dir, 'L2', 'ts-boundaries')
+        expect(
+          gateStatus(seeded.output, 'boundaries'),
+          `a domain→adapters import must RED the boundaries gate:\n${seeded.output.slice(-3000)}`,
+        ).toBe('FAIL')
+      },
+      420_000,
+    )
+  })
+
+  // coverage family (REQ-005 coverage half) + the INV-40 BDD @ignore hard-fail
+  // (REQ-036, and the behavioral quarter of REQ-006). Both gates live in the same
+  // default-L2 project, so they share one `npm install`.
+  describe('coverage threshold + BDD @ignore (#2257 AC-3, coverage family)', () => {
+    let dir: string
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'arbiter-greenfield-coverage-'))
+      initGit(dir)
+      scaffoldBareTsSkeleton(dir)
+      commitAll(dir, 'chore: bare skeleton')
+    })
+
+    afterEach(() => {
+      if (dir != null) rmSync(dir, { recursive: true, force: true })
+    })
+
+    const skip = cliMissing || missingBinaries(['node', 'npx']).length > 0
+
+    it.skipIf(skip)(
+      `the emitted coverage + BDD @ignore gates PASS clean and RED on seeded violations${skip ? ` (${CLI_MISSING_REASON})` : ''}`,
+      () => {
+        const init = runCli(dir, [
+          'init',
+          '--yes',
+          '--tools',
+          'codex',
+          '--language',
+          'typescript',
+          '--archetype',
+          'library',
+          '--level',
+          'L2',
+          '--no-verify',
+        ])
+        expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
+
+        // Emission proof for both. (The RTM's standing note that coverage needs
+        // LOC>=1000 describes the *scaled* profile only; the default profile is
+        // `fixed`, under which computeThresholds enables coverage unconditionally.)
+        expect(emittedGateIds(dir)).toEqual(
+          expect.arrayContaining(['coverage-threshold', 'bdd-ignore-check']),
+        )
+
+        const install = spawnSync('npm', ['install', '--no-audit', '--no-fund'], {
+          cwd: dir,
+          encoding: 'utf-8',
+          timeout: 240_000,
+        })
+        expect(install.status, `npm install failed:\n${install.stderr}`).toBe(0)
+
+        const covClean = runGate(dir, 'L2', 'coverage-threshold')
+        expect(
+          gateStatus(covClean.output, 'coverage threshold'),
+          covClean.output.slice(-3000),
+        ).toBe('PASS')
+
+        // Seed real executable, untested statements: the greenfield guard no longer
+        // applies and the emitted threshold (80% at L2) must bite.
+        writeFileSync(
+          join(dir, 'src', 'uncovered.ts'),
+          'export function branchy(n: number): string {\n' +
+            "  if (n > 10) return 'big'\n" +
+            "  if (n > 5) return 'medium'\n" +
+            "  if (n > 0) return 'small'\n" +
+            "  return 'zero'\n" +
+            '}\n',
+        )
+        const covSeeded = runGate(dir, 'L2', 'coverage-threshold')
+        expect(
+          gateStatus(covSeeded.output, 'coverage threshold'),
+          `untested executable code must RED the coverage gate:\n${covSeeded.output.slice(-3000)}`,
+        ).toBe('FAIL')
+
+        const bddClean = runGate(dir, 'L2', 'bdd-ignore-check')
+        expect(gateStatus(bddClean.output, 'BDD @ignore check'), bddClean.output.slice(-2000)).toBe(
+          'PASS',
+        )
+
+        // INV-40: @ignore-tagged scenarios are a HARD fail, never graced.
+        mkdirSync(join(dir, 'features'), { recursive: true })
+        writeFileSync(
+          join(dir, 'features', 'seeded.feature'),
+          '@ignore\nFeature: seeded\n  Scenario: s\n    Given x\n',
+        )
+        const bddSeeded = runGate(dir, 'L2', 'bdd-ignore-check')
+        expect(
+          gateStatus(bddSeeded.output, 'BDD @ignore check'),
+          `an @ignore-tagged scenario must RED the gate (INV-40):\n${bddSeeded.output.slice(-2000)}`,
+        ).toBe('FAIL')
+      },
+      420_000,
+    )
+  })
+
+  // L3 family (REQ-038). No functional cell reached above L2 before this one, so
+  // the whole L3 lane — and the evidence gate that is its reason to exist — had
+  // never been executed against a generated project.
+  describe('L3 evidence gate (#2257 AC-3, L3 family)', () => {
+    let dir: string
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'arbiter-greenfield-l3-'))
+      initGit(dir)
+      scaffoldBareTsSkeleton(dir)
+      commitAll(dir, 'chore: bare skeleton')
+    })
+
+    afterEach(() => {
+      if (dir != null) rmSync(dir, { recursive: true, force: true })
+    })
+
+    const skip = cliMissing || missingBinaries(['node']).length > 0
+
+    it.skipIf(skip)(
+      `an L3 project emits the evidence gate (INV-33) and it REDs a failing obs_gate${skip ? ` (${CLI_MISSING_REASON})` : ''}`,
+      () => {
+        const init = runCli(dir, [
+          'init',
+          '--yes',
+          '--tools',
+          'codex',
+          '--language',
+          'typescript',
+          '--archetype',
+          'library',
+          '--level',
+          'L3',
+          '--no-verify',
+        ])
+        expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
+        expect(emittedGateIds(dir)).toContain('evidence-gate')
+
+        mkdirSync(join(dir, '.evidence'), { recursive: true })
+        writeFileSync(
+          join(dir, '.evidence', 'SUMMARY.json'),
+          JSON.stringify({ obs_gate: 'PASS' }) + '\n',
+        )
+        const clean = runGate(dir, 'L3', 'evidence-gate')
+        expect(gateStatus(clean.output, 'evidence gate (INV-33)'), clean.output.slice(-2000)).toBe(
+          'PASS',
+        )
+
+        writeFileSync(
+          join(dir, '.evidence', 'SUMMARY.json'),
+          JSON.stringify({ obs_gate: 'FAIL' }) + '\n',
+        )
+        const seeded = runGate(dir, 'L3', 'evidence-gate')
+        expect(
+          gateStatus(seeded.output, 'evidence gate (INV-33)'),
+          `obs_gate=FAIL must RED the evidence gate (INV-33):\n${seeded.output.slice(-2000)}`,
+        ).toBe('FAIL')
+      },
+      300_000,
+    )
+  })
+
+  // frontend-spa-at-L2 family (REQ-032). The tier's only FE cell inits at L1, and
+  // every INV-102..106 gate needs L2 AND a frontend archetype — so none of them
+  // had ever been emitted at this tier, let alone executed.
+  describe('frontend governance INV-102..106 (#2257 AC-3, FE-at-L2 family)', () => {
+    let dir: string
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'arbiter-greenfield-fe-l2-'))
+      initGit(dir)
+      scaffoldBareTsSkeleton(dir)
+      commitAll(dir, 'chore: bare skeleton')
+    })
+
+    afterEach(() => {
+      if (dir != null) rmSync(dir, { recursive: true, force: true })
+    })
+
+    const skip = cliMissing || missingBinaries(['node']).length > 0
+
+    it.skipIf(skip)(
+      `a frontend-spa L2 project emits INV-102..106 gates that PASS clean and RED seeded violations${skip ? ` (${CLI_MISSING_REASON})` : ''}`,
+      () => {
+        const init = runCli(dir, [
+          'init',
+          '--yes',
+          '--tools',
+          'codex',
+          '--language',
+          'typescript',
+          '--archetype',
+          'frontend-spa',
+          '--level',
+          'L2',
+          '--no-verify',
+        ])
+        expect(init.status, `init failed:\n${init.output.slice(-3000)}`).toBe(0)
+        expect(emittedGateIds(dir)).toEqual(
+          expect.arrayContaining([
+            'fe-boundaries',
+            'token-discipline',
+            'i18n-literals',
+            'i18n-parity',
+            'bundle-size-budget',
+          ]),
+        )
+
+        const FE_GATES = [
+          ['fe-boundaries', 'fe boundaries (INV-102/103/104)'],
+          ['token-discipline', 'token discipline (INV-105)'],
+          ['i18n-literals', 'i18n literals (INV-106)'],
+        ] as const
+        for (const [id, name] of FE_GATES) {
+          const g = runGate(dir, 'L2', id)
+          expect(gateStatus(g.output, name), `${id} clean:\n${g.output.slice(-2000)}`).toBe('PASS')
+        }
+
+        // INV-105: a raw hex colour in a component. INV-103: a browser global in
+        // the domain layer. Both are the exact violations the emitted guards name.
+        mkdirSync(join(dir, 'src', 'components'), { recursive: true })
+        mkdirSync(join(dir, 'src', 'domain'), { recursive: true })
+        writeFileSync(
+          join(dir, 'src', 'components', 'Button.tsx'),
+          "export const style = { color: '#ff0000' }\n",
+        )
+        writeFileSync(
+          join(dir, 'src', 'domain', 'viewport.ts'),
+          'export const wide = window.innerWidth\n',
+        )
+
+        for (const [id, name] of [
+          ['token-discipline', 'token discipline (INV-105)'],
+          ['fe-boundaries', 'fe boundaries (INV-102/103/104)'],
+        ] as const) {
+          const g = runGate(dir, 'L2', id)
+          expect(
+            gateStatus(g.output, name),
+            `${id} must RED on its own seeded violation:\n${g.output.slice(-2000)}`,
           ).toBe('FAIL')
         }
       },
