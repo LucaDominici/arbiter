@@ -65,6 +65,16 @@ export const GUARDS = [
 // individually wired advisory in check-all.mjs. Adding them to GUARDS would double-run four
 // and hard-error the fifth (check-touched-vs-manifest exits 2 without --plan/--group/--base).
 // class 'context-rot': flip-proof required, aggregate-exempt.
+//
+// Five of the seven E1-E7 gate scripts are listed. The two absentees are named here rather
+// than left to be discovered: check-bypass-ceremony.mjs (E4 #1949) and
+// check-review-completion.mjs (E1a #2177). Both carry planted-bad/planted-clean fixtures in
+// __tests__/scripts/, which is the red-path proof the design doc §0 requires; what they lack
+// is a bespoke-argv entry in guard-flip-registry.mjs, which is the playbook §T3 extension.
+// That is exactly why the M11 "flip-coverage 100% of emitted gates" row in
+// docs/methodology/agent-orchestration-and-context-hygiene.md §5 is still PARTIAL. Adding
+// either name here without its registry fixture would make check-guard-flip.mjs error on an
+// unknown guard, so the roster and the registry move together or not at all.
 
 /** @type {Guard[]} */
 export const CONTEXT_ROT_GATES = [
