@@ -94,7 +94,7 @@
     "path": "01-pr-fast.yml",
     "dest": ".github/workflows",
     "reason": "The template collapses 01-pr-fast.yml.ejs's entire PR pipeline (gate, unit tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, debt-gates, ci-required, post-merge-gate — contract/integration/behavioral tests moved to 02-pr-extended.yml.ejs at #1875) to a one-line solo-dev-gate stub whenever `locals.enableSoloDevMode` is true — and arbiter.json sets features.soloDevMode: true. Self deliberately keeps running the full peer-review-shaped pipeline regardless (arbiter dogfoods harder than its own declared collaborationMode: trunk-solo — same pattern documented in check-ci-tiers.mjs.ejs's cadence-parity comment). Tracked under #1900. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "92437946b5d6fe0d1a26ded281169ce696c3cb515e7be008ff6295a3a795d69f"
+    "diffHash": "2279af024bd8065750ce6184a6bdf3bb9f0ab3b324053b3d9a61a899c2af1efd"
   },
   {
     "path": "02-pr-extended.yml",
@@ -112,7 +112,7 @@
     "path": "_nightly.yml",
     "dest": ".github/workflows",
     "reason": "Self sets `enableNativeBakeE2E` (bake-e2e-native + generated-gate-e2e [per-language matrix] + generated-gate-e2e-misc jobs) — a flag with no wiring path in resolveProjectConfig/src/generators (grep confirms zero setters): a manual arbiter-self-only harness augmentation for the init→bake native-fixture-smoke matrix + VITEST_L2 generated-gate harness (split per-stack, B5 gate-thesis reliability). The template comment says as much: \"Downstream-generated projects do not ship this harness, so it renders only for arbiter itself.\" Tracked under #1900. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "6653418ab89a4b275d171d7cd787b5fd4dded2f267f56fe9d439851576f48e39"
+    "diffHash": "db0c73d1c0b3ffbcf216d27b8fda917a9e20c0167c942202054870ba81e499cf"
   },
   {
     "path": "check-action-pins.mjs",

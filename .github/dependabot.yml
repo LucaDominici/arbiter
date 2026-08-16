@@ -12,8 +12,17 @@ updates:
       prod-dependencies:
         dependency-type: 'production'
 
+  # Advisory only (#2300): action pins live in BOTH .github/workflows/*.yml and
+  # src/templates/github/workflows/*.yml.ejs, and the two must land atomically or
+  # `action pin parity` fails. Dependabot sees only the former, so these PRs are
+  # never merge candidates — they are notifications, drained as a governed train.
+  # See docs/internal/runbooks/dependabot-handling.md. Grouped so each cycle
+  # produces one advisory PR rather than one per action.
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
     labels: ['ci', 'deps']
+    groups:
+      github-actions:
+        patterns: ['*']

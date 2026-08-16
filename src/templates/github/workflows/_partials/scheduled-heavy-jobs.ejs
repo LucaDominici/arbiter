@@ -18,7 +18,7 @@
     during the #1724 cross-language-matrix audit); no separate invocation
     needed. -%>
 <% } else if (language === 'java' || language === 'kotlin') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -30,7 +30,7 @@
           mvn test -Djqwik.database=false
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: Go native fuzz (30 min budget)
@@ -44,7 +44,7 @@
             done
           fi
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install atheris
@@ -85,7 +85,7 @@
           VITEST_NATIVE: "1"
         run: npm run --if-present test:e2e:native
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -97,13 +97,13 @@
           mvn test -Dgroups='soak,e2e' || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: Go soak tests (60 min budget)
         run: go test -tags e2e,soak -timeout 60m ./... || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]"
