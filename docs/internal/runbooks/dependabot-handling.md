@@ -60,7 +60,23 @@ workflow can reintroduce a push back to its own trigger branch.
 3. The train touches `src/templates/**`, so it owes a task id in a commit **subject**
    (`fix(#NNNN): ...`) and verified TDD evidence produced on that branch — same floor as
    any other source change, no exemption. Pair the pin bump with whatever real change the
-   task is about, or record evidence for that task.
+   task is about, and record evidence for it:
+
+   ```bash
+   # write the failing test, commit it, THEN:
+   npx @arbiter/cli task init --id '#NNNN'
+   npx @arbiter/cli task record-red --test-path <path to the new test>
+   # implement, then confirm:
+   npx @arbiter/cli verify tdd '#NNNN'
+   ```
+
+   Use a **new** issue id for each train and record fresh evidence. Do not reuse a
+   previously merged id: `verify tdd`'s `sha-on-branch` check only asserts the recorded
+   test commit is an _ancestor_ of your branch, and on the subject-ID path the floor does
+   not apply its produced-here guard (#2307). Citing a merged id would pass the gate
+   without a red→green cycle having happened — which is the exact hole #2217 exists to
+   close, so treat it as forbidden regardless of what the gate currently accepts.
+
 4. Gate: `npx @arbiter/cli gate-exec -- node scripts/check-all.mjs L2`. Push, merge.
 5. Close the dependabot PR pointing at the train:
    `gh pr close <NNN> --comment "landed via <sha>"`.
