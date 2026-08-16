@@ -529,23 +529,24 @@ arbiter update  # regenerate canonical files, preserve customizations
 
 ## Command Reference
 
-| Command              | Description                                                                     |
-| -------------------- | ------------------------------------------------------------------------------- |
-| `arbiter configure`  | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
-| `arbiter diff`       | Show what arbiter update would change (dry run)                                 |
-| `arbiter doctor`     | Diagnose and repair arbiter state                                               |
-| `arbiter explain`    | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
-| `arbiter gate-exec`  | —                                                                               |
-| `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
-| `arbiter init`       | Initialise / update the unified task document (#1206)                           |
-| `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
-| `arbiter obsidian`   | Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)        |
-| `arbiter review`     | Semantic diff between graph snapshots (#262)                                    |
-| `arbiter ship`       | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
-| `arbiter task`       | Manage task lifecycle state                                                     |
-| `arbiter update`     | —                                                                               |
-| `arbiter validate`   | Probe toolchain compatibility for the detected stack                            |
-| `arbiter worktree`   | Manage git worktrees for parallel task development                              |
+| Command              | Description                                                                      |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `arbiter configure`  | Modify arbiter.json configuration (interactive on TTY, or use --set)             |
+| `arbiter diff`       | Show what arbiter update would change (dry run)                                  |
+| `arbiter doctor`     | Diagnose and repair arbiter state                                                |
+| `arbiter explain`    | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule  |
+| `arbiter gate-exec`  | —                                                                                |
+| `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)   |
+| `arbiter init`       | Initialise / update the unified task document (#1206)                            |
+| `arbiter method`     | Methodology lens: per-feature Config+Emit wiring status over `configure` (#2039) |
+| `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)             |
+| `arbiter obsidian`   | Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)         |
+| `arbiter review`     | Semantic diff between graph snapshots (#262)                                     |
+| `arbiter ship`       | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)      |
+| `arbiter task`       | Manage task lifecycle state                                                      |
+| `arbiter update`     | —                                                                                |
+| `arbiter validate`   | Probe toolchain compatibility for the detected stack                             |
+| `arbiter worktree`   | Manage git worktrees for parallel task development                               |
 
 ## arbiter configure
 
@@ -632,6 +633,19 @@ Initialise / update the unified task document (#1206).
 - `--plan <path>` — Repo-relative path to the plan file
 - `--chain <id>` — Other issue id batched into this task worktree/gate/PR (repeatable, #2102)
 - `--dir <dir>` — Target directory (default: current directory)
+
+## arbiter method
+
+Methodology lens: per-feature Config+Emit wiring status over `configure` (#2039).
+
+**Subcommands:**
+
+- `arbiter method status` — Read-only per-feature methodology report (Config + Emit facets)
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--json` — Emit machine-readable JSON output
 
 ## arbiter note
 

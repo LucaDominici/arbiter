@@ -78,6 +78,14 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'merge method ff-only (INV-101)', affects: WORKFLOWS },
   { name: 'settings coverage (#1121)', affects: WORKFLOWS },
 
+  // ─── config-catalog parity ──────────────────────────────────────────────
+  // Both source files, not a broad glob: this gate reconciles exactly these two
+  // catalogs, so anything else changing cannot make it flip.
+  {
+    name: 'methodology coverage (#2039)',
+    affects: ['src/commands/configure.ts', 'src/commands/method.ts'],
+  },
+
   // ─── templates-only ─────────────────────────────────────────────────────
   { name: 'matrix fixtures', affects: TEMPLATES },
   { name: 'matrix proven cells', affects: TEMPLATES },
