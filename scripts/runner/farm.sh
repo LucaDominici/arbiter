@@ -97,6 +97,18 @@ compose_up_registered() {
     echo "Check: gh auth status — the host gh CLI must be authenticated with admin access to the repo." >&2
     return 1
   fi
+
+  # Pull before starting (#2280). The compose file pins `:latest`, which docker
+  # resolves against the LOCAL cache — a slot restarted on a stale local image
+  # comes back on the same deprecated runner version and goes straight back to
+  # Up-but-offline, which is why the hourly ensure timer could not heal the
+  # 2026-08-15 queue stall. Only the services about to start are pulled, so
+  # running containers keep their image and are never recreated mid-job.
+  # FAIL-OPEN-INTENT: a pull failure (registry down, rate limit) must not stop
+  # a farm from coming up on the image it already has — the health/doctor
+  # deprecation check is what turns a stale image into a RED.
+  compose pull "${to_start[@]}" || echo "WARN: image pull failed — starting on the cached image." >&2
+
   RUNNER_TOKEN="${runner_token}" compose up -d "${to_start[@]}"
 }
 
@@ -119,6 +131,43 @@ runner_count_online() {
 
 container_running_count() {
   compose ps --status running --quiet 2>/dev/null | wc -l | tr -d ' '
+}
+
+# #2280 — the "Up but offline" deprecation signature. GitHub stops delivering
+# messages to a runner whose version it has deprecated; the container keeps
+# running, so docker-side health is green while every job on the label queues
+# forever. Grep the container logs for GitHub's own wording.
+# Logs are captured into a variable rather than piped into `grep -q`: under
+# `set -o pipefail` an early-exiting grep SIGPIPEs `compose logs` and the
+# pipeline reports 141, which would read as "no deprecation found".
+runner_deprecation_in_logs() {
+  local logs
+  logs="$(compose logs --tail=200 --no-color 2>/dev/null || true)"
+  grep -Eqi 'cannot receive messages|Runner version .* is deprecated' <<<"${logs}"
+}
+
+# Print the root-cause diagnosis for an Up-but-offline farm. Returns 0 only when
+# the deprecation signature is confirmed, so callers can escalate that case from
+# "maybe still registering" to a hard failure with a remedy.
+# Deliberately diagnostic, not corrective: recreating a live container is what
+# killed an in-flight CI job on a sibling farm (see compose_up_registered), so
+# the remedy is printed for a human/idle-window run, never auto-applied here.
+diagnose_up_but_offline() {
+  local containers="$1" online="$2" self
+  self="$(basename "$0")"
+  [[ "${online}" == "UNKNOWN" ]] && return 1
+  [[ "${containers}" -ge "${EXPECTED_SCALE}" && "${online}" -lt "${EXPECTED_SCALE}" ]] || return 1
+
+  echo "Up-but-offline: ${containers} container(s) running but only ${online} runner(s) online."
+  if runner_deprecation_in_logs; then
+    echo "ROOT CAUSE: the runner image is stale and GitHub has deprecated its runner version."
+    echo "  The compose file pins :latest, which resolves against the LOCAL image cache, so"
+    echo "  restarting the slots re-registers the same deprecated version and the queue stays stuck."
+    echo "REMEDY: docker pull myoung34/github-runner:latest && ${self} stop && ${self} start"
+    return 0
+  fi
+  echo "  (no stale-image signature in the logs — slots may still be registering)"
+  return 1
 }
 
 cmd_start() {
@@ -169,6 +218,7 @@ cmd_health() {
     echo "WARN: GitHub API unreachable — cannot verify runner registration" >&2
   elif [[ "$online" -lt "$EXPECTED_SCALE" ]]; then
     echo "DEGRADED: expected ${EXPECTED_SCALE} online runner(s), found ${online}" >&2
+    diagnose_up_but_offline "$containers" "$online" >&2 || true
     ok=false
   fi
 
@@ -206,6 +256,9 @@ cmd_ensure() {
 
   echo "ERROR: topology did not converge after $((max_retries * 5))s" >&2
   compose ps >&2
+  # This is the path the hourly ensure timer took during the 2026-08-15 stall:
+  # it reported non-convergence every hour without ever naming the stale image.
+  diagnose_up_but_offline "$(container_running_count)" "$(runner_count_online)" >&2 || true
   return 1
 }
 
@@ -248,6 +301,14 @@ cmd_doctor() {
     else
       echo "    WARN — only ${online} runner(s) online (expected ${EXPECTED_SCALE})"
       echo "$inventory" | jq -r '.runners[] | "    \(.name): status=\(.status) busy=\(.busy)"'
+      # A confirmed deprecation signature is not a transient registration lag —
+      # nothing on the label will ever run again until the image is pulled, so
+      # doctor must go RED rather than WARN (#2280).
+      local diag diag_rc=0
+      diag="$(diagnose_up_but_offline "$containers" "$online")" || diag_rc=$?
+      [[ -n "$diag" ]] && sed 's/^/    /' <<<"$diag"
+      [[ $diag_rc -eq 0 ]] && ok=false
+      true
     fi
   else
     echo "    WARN — GitHub API unreachable (gh CLI not authenticated?)"

@@ -158,7 +158,7 @@ describe('farm.sh — stale-image / Up-but-offline detection (#2280)', () => {
     expect(status).toBe(0)
 
     const log = existsSync(shimLog) ? readFileSync(shimLog, 'utf-8') : ''
-    const pullAt = log.indexOf('compose pull')
+    const pullAt = log.search(/compose .*\bpull\b/)
     const upAt = log.search(/compose .*\bup\b/)
     expect(pullAt, `no image pull in:\n${log}`).toBeGreaterThan(-1)
     expect(upAt).toBeGreaterThan(-1)
@@ -171,7 +171,7 @@ describe('farm.sh — stale-image / Up-but-offline detection (#2280)', () => {
     expect(status).toBe(0)
 
     const log = existsSync(shimLog) ? readFileSync(shimLog, 'utf-8') : ''
-    expect(log).not.toMatch(/compose pull/)
+    expect(log).not.toMatch(/compose .*\bpull\b/)
     expect(log).not.toMatch(/compose .*\bup\b/)
   })
 
