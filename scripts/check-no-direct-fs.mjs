@@ -15,12 +15,33 @@
 // Scope: all of src/ recursively, EXCEPT src/templates/ (EJS sources rendered into consumer
 // repos, not arbiter's own runtime) and src/utils/fs.ts itself (it IS the façade).
 //
-// Op set — stated once, here, and nowhere else:
-//   sync:     writeFileSync, mkdirSync, copyFileSync, appendFileSync, renameSync
-//   promises: writeFile, mkdir, copyFile, appendFile, rename
-// Read ops (readFileSync/existsSync/readdirSync/statSync) are NOT restricted: the façade
-// exposes no read primitive, so there is nowhere to route them. chmod/unlink/rm/symlink/
-// mkdtemp are likewise out of the set for the same reason — see #1991 for the residual.
+// Op set — stated once, here, and nowhere else. Every op in it has a façade route; an op
+// with nowhere to go does not belong in a gate.
+//   sync:     writeFileSync, mkdirSync, copyFileSync, appendFileSync, renameSync,
+//             chmodSync, unlinkSync, rmSync, symlinkSync, mkdtempSync
+//   promises: writeFile, mkdir, copyFile, appendFile, rename,
+//             chmod, unlink, rm, symlink, mkdtemp
+//
+// The boundary is MUTATION, and that is a decision, not a leftover (#1991, closed scoped).
+// Reads (readFileSync/existsSync/readdirSync/statSync/lstatSync/readlinkSync) stay OUT of
+// an IMPORT-shaped gate, on measured grounds — 80 real readFileSync call sites in src/:
+//   - 47 sit in a try/catch with a non-rethrowing fallback (`catch { continue }`,
+//     `catch { return null }`). An ArbiterError is swallowed byte-for-byte like an errno,
+//     so migrating them changes nothing a user sees. CANON-17 already exempts this shape
+//     ("a structured domain result", "a keyed logger call").
+//   - 8 rethrow, already translated. At least 3 of those (utils/canon-loader.ts,
+//     commands/worktree.ts, utils/safe-read.ts) BRANCH ON `err.code`; routing them through
+//     a translator would silently kill the ENOENT arm. CANON-17 exempts this shape too.
+//   - 25 are bare. Those ARE a live CANON-17 leak (cli.ts's top-level handler prints
+//     `Unexpected error: ENOENT: ...`), and eslint-rules/fs-errno-translation.js cannot
+//     see them — with no catch binding there is nothing for it to report. Tracked
+//     separately: this gate keys on IMPORTS, so adding readFileSync to the op set would
+//     flag all 56 importing files, 55 of them compliant. The fix is a per-CALL rule, not
+//     another name in the list above.
+// Also known-uncovered, and out of the op set for the same import-shaped reason that they
+// need primitives that do not exist yet rather than a name: cpSync (worktree/links.ts,
+// worktree/harvest.ts) and the openSync('wx')+writeSync pair in utils/file-lock.ts, which
+// writes a whole file without touching writeFileSync once. Both tracked separately.
 //
 // Allowlist: .no-direct-fs-allowlist — "path  EXPIRES: YYYY-MM-DD  # reason", one per line.
 // Every pin MUST carry a future date AND a reason, and a pin whose path no longer violates
@@ -31,8 +52,32 @@
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 
-const WRITE_OPS = ['writeFileSync', 'mkdirSync', 'copyFileSync', 'appendFileSync', 'renameSync']
-const PROMISE_WRITE_OPS = ['writeFile', 'mkdir', 'copyFile', 'appendFile', 'rename']
+const WRITE_OPS = [
+  'writeFileSync',
+  'mkdirSync',
+  'copyFileSync',
+  'appendFileSync',
+  'renameSync',
+  'chmodSync',
+  'unlinkSync',
+  'rmSync',
+  'rmdirSync',
+  'symlinkSync',
+  'mkdtempSync',
+]
+const PROMISE_WRITE_OPS = [
+  'writeFile',
+  'mkdir',
+  'copyFile',
+  'appendFile',
+  'rename',
+  'chmod',
+  'unlink',
+  'rm',
+  'rmdir',
+  'symlink',
+  'mkdtemp',
+]
 
 const ALLOWLIST_FILE = '.no-direct-fs-allowlist'
 const EXCLUDED_DIRS = new Set(['templates'])
@@ -139,7 +184,8 @@ function checkFile(rel, src, ctx) {
     violations.push(
       `  ${rel}: direct write import (${hits.join(', ')}) — route through src/utils/fs.ts ` +
         `(writeFileTranslated / ensureDir / appendFileTranslated / copyFileTranslated / ` +
-        `renameTranslated) or add a dated pin to ${ALLOWLIST_FILE}`,
+        `renameTranslated / chmodTranslated / unlinkTranslated / rmTranslated / ` +
+        `symlinkTranslated / mkdtempTranslated) or add a dated pin to ${ALLOWLIST_FILE}`,
     )
     return
   }

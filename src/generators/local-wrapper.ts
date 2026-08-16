@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { chmodSync, unlinkSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { chmodTranslated, resolvedPath, unlinkTranslated, writeFile } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -39,10 +38,10 @@ export function generateLocalWrapper(
   results.push(runShResult)
   if (!opts.dryRun && runShResult.action !== 'skipped') {
     try {
-      chmodSync(runShPath, 0o755)
+      chmodTranslated(runShPath, 0o755)
     } catch (err) {
       try {
-        unlinkSync(runShPath)
+        unlinkTranslated(runShPath)
       } catch {
         // ignore secondary failure
       }

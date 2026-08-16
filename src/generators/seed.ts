@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { chmodSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { chmodTranslated, resolvedPath, writeFile } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -32,7 +31,7 @@ export function generateSeed(
   )
 
   if (!opts.dryRun && seedResult.action !== 'skipped') {
-    chmodSync(seedScriptPath, SCRIPT_MODE)
+    chmodTranslated(seedScriptPath, SCRIPT_MODE)
   }
 
   const commonResult = writeFile(

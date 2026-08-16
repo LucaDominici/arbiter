@@ -4,9 +4,8 @@
 // the tick prompt into `.arbiter/ship/`. The driver runs the model steps and calls the
 // engine (`arbiter ship`, `arbiter ship-on-red`) for every decision — it holds no
 // sequencing or failure-policy logic of its own (that is the engine, #1288/#1289).
-import { chmodSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { chmodTranslated, resolvedPath, writeFile } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -51,7 +50,7 @@ export function generateShipDriver(
     dryRun,
   })
   if (!dryRun && supervisor.action !== 'skipped') {
-    chmodSync(supervisorPath, SCRIPT_MODE)
+    chmodTranslated(supervisorPath, SCRIPT_MODE)
   }
   files.push(supervisor)
 

@@ -7,8 +7,7 @@
 // api-e2e.json with required:false so the gate (check-api-e2e.mjs) SKIPs.
 //
 // skipIfExists: true — teams customise the suite/runner after init.
-import { chmodSync, unlinkSync } from 'node:fs'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { chmodTranslated, resolvedPath, unlinkTranslated, writeFile } from '../utils/fs.js'
 import { renderTemplate } from '../utils/render.js'
 import { formatContent } from '../utils/prettier-format.js'
 import type { Archetype, Language, ProjectConfig } from '../wizard/types.js'
@@ -153,10 +152,10 @@ export function generateApiE2e(
   files.push(runShResult)
   if (!opts.dryRun && runShResult.action !== 'skipped') {
     try {
-      chmodSync(runShPath, 0o755)
+      chmodTranslated(runShPath, 0o755)
     } catch (err) {
       try {
-        unlinkSync(runShPath)
+        unlinkTranslated(runShPath)
       } catch {
         // ignore secondary failure
       }

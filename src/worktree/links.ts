@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import {
-  existsSync,
-  symlinkSync,
-  cpSync,
-  lstatSync,
-  readdirSync,
-  readlinkSync,
-  statSync,
-} from 'node:fs'
-import { copyFileTranslated, ensureDir, toFsError } from '../utils/fs.js'
+import { existsSync, cpSync, lstatSync, readdirSync, readlinkSync, statSync } from 'node:fs'
+import { copyFileTranslated, ensureDir, symlinkTranslated, toFsError } from '../utils/fs.js'
 import { dirname, join, resolve } from 'node:path'
 import type { WorktreeLinkSpec } from '../wizard/types.js'
 
@@ -40,13 +32,14 @@ function symlinkSafe(
   linkResult: 'LINKED' | 'LINKED_DIR',
 ): LinkResult {
   try {
-    symlinkSync(srcPath, destPath)
+    symlinkTranslated(srcPath, destPath)
   } catch (e: unknown) {
     if ((e as NodeJS.ErrnoException).code === 'EEXIST' && lstatSync(destPath).isSymbolicLink()) {
       return linkResult
     }
-    // CANON-17: every other errno is translated, not re-thrown raw.
-    throw toFsError(e, destPath)
+    // Already translated by symlinkTranslated (CANON-17); EEXIST is not in the errno
+    // catalog, so it reaches the check above with its raw `code` intact.
+    throw e
   }
   return linkResult
 }
@@ -187,7 +180,7 @@ function materializeChildren(sourcePath: string, destPath: string, specPath: str
     if (SYMLINK_CHILDREN_EXCLUSIONS.has(child)) continue
     const childDest = join(destPath, child)
     if (existsSync(childDest) || lstatSync2IsLink(childDest)) continue
-    symlinkSync(join(sourcePath, child), childDest)
+    symlinkTranslated(join(sourcePath, child), childDest)
   }
   return 'LINKED_CHILDREN'
 }

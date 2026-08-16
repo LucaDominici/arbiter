@@ -2,10 +2,11 @@
 //
 // #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter doctor clean`
 // subcommand (#1217). Pure extraction, no behavior change.
-import { realpathSync, unlinkSync } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { walkDir } from '../../utils/walk-dir.js'
 import { jsonOutput } from '../../utils/json-output.js'
+import { unlinkTranslated } from '../../utils/fs.js'
 
 // ── doctor clean (#1217) ─────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ export function runDoctorClean(opts: DoctorCleanOptions = {}): DoctorCleanResult
   if (!opts.dryRun) {
     for (const f of found) {
       try {
-        unlinkSync(f)
+        unlinkTranslated(f)
         deleted.push(f)
       } catch {
         // skip files we can't delete
