@@ -135,14 +135,21 @@ export function formatUncitedSourceError() {
  * Branch changes src/ and cites tasks, but none has evidence that was both PRODUCED on
  * this branch and verifies. Fires on either citation path (#2217, #2307).
  */
-export function formatFloorError(ids) {
+export function formatFloorError(ids, subjectCited = false) {
+  // Remedy 2 tells you to put the task id in a commit SUBJECT. On the subject path it is
+  // already there, so offering it would be a no-op instruction on the very failure it
+  // answers — only the fresh-evidence remedy applies.
+  const remedy = subjectCited
+    ? `  Record real red→green evidence for one cited task:\n` +
+      `    arbiter task record-red --test-path <path>\n`
+    : FLOOR_REMEDY
   return (
     `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${ids.join(', ')},\n` +
     `but none of them has verified TDD evidence PRODUCED on this branch (#2217, #2307).\n` +
     `Citing a task whose evidence already sits on main proves nothing: verify tdd's\n` +
     `sha-on-branch check asserts only ancestry, which every branch off main satisfies.\n` +
     `The branch as a whole owes one fresh red→green cycle for the source it changes.\n` +
-    `${FLOOR_REMEDY}`
+    `${remedy}`
   )
 }
 
@@ -263,7 +270,7 @@ function evidenceProducedHere(run, mergeBase, taskId) {
   return false
 }
 
-function verifyBranchFloor(run, mergeBase, floorIds) {
+function verifyBranchFloor(run, mergeBase, floorIds, subjectCited = false) {
   const producedHere = floorIds.filter((taskId) => evidenceProducedHere(run, mergeBase, taskId))
   if (producedHere.some((taskId) => verifyOne(run, taskId))) {
     process.stdout.write(
@@ -271,7 +278,7 @@ function verifyBranchFloor(run, mergeBase, floorIds) {
     )
     return 0
   }
-  process.stderr.write(formatFloorError(floorIds))
+  process.stderr.write(formatFloorError(floorIds, subjectCited))
   return 1
 }
 
@@ -352,7 +359,7 @@ export function main(opts) {
   // src/ whose subject cites an already-merged id passed the floor with no red→green
   // cycle at all. Gated on touchesSource exactly as #2217 is, so a docs-only branch that
   // happens to cite a task id in its subject stays green.
-  if (floor.touchesSource && verifyBranchFloor(run, mergeBase, floorIds) !== 0) {
+  if (floor.touchesSource && verifyBranchFloor(run, mergeBase, floorIds, true) !== 0) {
     return exitFn(1)
   }
 
