@@ -164,6 +164,18 @@ export interface WriteResult {
    * and now re-adopted" from "never diverged" without inspecting two runs.
    */
   adopted?: boolean
+  /**
+   * #2295: true when this file was ABSENT from disk but a manifest baseline
+   * exists for its key — arbiter emitted those bytes to that path before and the
+   * consumer removed them since. The write still lands (see the issue: 255 of the
+   * java consumer's 281 manifest entries are absent at its pin, so declining
+   * would make `update` a near-no-op there); the flag exists so the restoration is
+   * REPORTED instead of disappearing into the `created` count.
+   *
+   * Deliberately distinct from `created` with no baseline, which is a brand-new
+   * template and must keep landing silently.
+   */
+  restored?: boolean
 }
 
 export type GeneratorRunOpts = { dryRun: boolean }
@@ -298,6 +310,25 @@ interface ResolvedWrite {
   withheld: boolean
   /** T1: true when a would-be-withheld file was force-adopted instead. */
   adopted: boolean
+  /** #2295: absent from disk, but a manifest baseline exists → re-emitted, not new. */
+  restored?: boolean
+}
+
+/**
+ * #2295: does the active session hold a recorded render baseline for this path?
+ *
+ * `recordGeneratedHash` writes a manifest entry ONLY after the bytes actually
+ * landed, so an entry is positive evidence that arbiter wrote this file to this
+ * path at some point. Combined with the file being absent, that is the one signal
+ * separating "the consumer deleted what we emitted" from "a template we have
+ * never emitted here" — the AC-3 boundary. No session (init before the manifest
+ * era, a direct `writeFile` caller) → no evidence → not a restoration.
+ */
+function hasRecordedBaseline(filePath: string): boolean {
+  const session = generationSession
+  if (!session) return false
+  const key = manifestKey(session.targetDir, filePath)
+  return key !== null && session.prevHashes.get(key) !== undefined
 }
 
 /**
@@ -386,7 +417,16 @@ function resolveWriteAction(
   backup: boolean,
 ): ResolvedWrite {
   if (!existsSync(filePath))
-    return { action: 'created', baselineMatches: true, withheld: false, adopted: false }
+    return {
+      action: 'created',
+      baselineMatches: true,
+      withheld: false,
+      adopted: false,
+      // #2295: this was the one branch in the whole precedence table that consulted
+      // no provenance at all — an absent path was always "new", so a deliberate
+      // deletion by the consumer was re-materialized and counted as a creation.
+      restored: hasRecordedBaseline(filePath),
+    }
   // Single read: null = unreadable (treat as exists-but-unknown → legacy-safe).
   let disk: string | null
   try {
@@ -472,7 +512,7 @@ export function writeFile(
   opts: { skipIfExists?: boolean; backup?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
   const { skipIfExists = false, backup = false, dryRun = false } = opts
-  const { action, baselineMatches, withheld, adopted } = resolveWriteAction(
+  const { action, baselineMatches, withheld, adopted, restored } = resolveWriteAction(
     filePath,
     content,
     skipIfExists,
@@ -497,6 +537,9 @@ export function writeFile(
   // the newly-adopted content — the next update sees it as pristine again.
   if (!dryRun && baselineMatches) recordGeneratedHash(filePath, content)
   if (withheld && adopted) return { path: filePath, action, withheld: true, adopted: true }
+  // #2295: only ever set alongside `created` (the absent-file branch), so it never
+  // collides with the withheld/adopted shapes above.
+  if (restored === true) return { path: filePath, action, restored: true }
   // Only attach the flag when true so non-withheld results keep their stable
   // `{ path, action }` shape (snapshot/JSON parity for the common case).
   return withheld ? { path: filePath, action, withheld: true } : { path: filePath, action }
