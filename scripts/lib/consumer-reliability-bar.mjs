@@ -12,7 +12,19 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex')
 }
 
-export function assessGateSpine({ before, after, recordedRenderHash }) {
+export function assessGateSpine({ before, after, recordedRenderHash, existed }) {
+  // AC-2 (#2135) diffs a PRE-EXISTING check set. With no baseline there is nothing to
+  // diff, so the non-decreasing property is UNPROVEN on this consumer — not satisfied.
+  // Reporting PASS here would assert a check the bar never performed, which is the
+  // exact `forma` shape this bar exists to prevent.
+  // `existed` is deliberately NOT defaulted: a caller that forgets it must land on the
+  // UNPROVEN branch, never silently inherit a passing baseline.
+  if (existed !== true) {
+    return {
+      ok: false,
+      detail: `no pre-existing gate spine to diff; update materialized ${extractCheckNames(after).size} checks, so the non-decreasing property is UNPROVEN`,
+    }
+  }
   const beforeChecks = extractCheckNames(before)
   const afterChecks = extractCheckNames(after)
   if (before.length > 0 && beforeChecks.size === 0) {

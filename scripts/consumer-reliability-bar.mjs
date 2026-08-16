@@ -9,7 +9,6 @@ import {
   buildVerifierEnvironment,
   classifyUpdateResult,
   commandOutcomeKind,
-  extractCheckNames,
   redactSecrets,
   resultExitCode,
   summarizeProbeFailures,
@@ -230,17 +229,12 @@ function recordUpdate(repo, arbiterCli, report) {
 function recordGateSpine(repo, baseline, report) {
   if (!existsSync(baseline.path)) throw new Error('update did not materialize the gate spine')
   const after = readFileSync(baseline.path, 'utf-8')
-  const checks = extractCheckNames(after)
-  const gate = baseline.existed
-    ? assessGateSpine({
-        before: baseline.before,
-        after,
-        recordedRenderHash: baseline.recordedRenderHash,
-      })
-    : {
-        ok: checks.size > 0,
-        detail: `absent baseline materialized with ${checks.size} checks`,
-      }
+  const gate = assessGateSpine({
+    before: baseline.before,
+    after,
+    recordedRenderHash: baseline.recordedRenderHash,
+    existed: baseline.existed,
+  })
   report.checks.gateSpine = outcome(gate.ok, gate.detail)
 }
 
