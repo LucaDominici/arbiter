@@ -29,8 +29,7 @@ describe('generateGithub — gate-spine erosion ratchet reaches a frozen consume
     rmSync(dir, { recursive: true, force: true })
   })
 
-  const prFast = () =>
-    readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf8')
+  const prFast = () => readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf8')
 
   it('the PR workflow invokes the ratchet directly, not only through the gate spine', () => {
     generateGithub(makeConfig(dir, { governanceLevel: 'L2' }))
@@ -43,8 +42,13 @@ describe('generateGithub — gate-spine erosion ratchet reaches a frozen consume
       .split(/^\s*- name: /m)
       .filter((step) => step.includes('node scripts/check-safety-adopt-ratchet.mjs'))
     expect(steps).toHaveLength(1)
-    // If the ratchet shared a step with check-all.mjs it would inherit the withheld
-    // spine's fate — the catch-22 reproduced one layer up.
-    expect(steps[0]).not.toContain('scripts/check-all.mjs')
+    // If the ratchet shared a `run:` with check-all.mjs it would inherit the withheld
+    // spine's fate — the catch-22 reproduced one layer up. Prose about check-all.mjs is
+    // fine and wanted; an invocation of it inside this step is not.
+    const commands = steps[0]
+      .split('\n')
+      .filter((line) => /^\s*run:/.test(line) || /^\s{8,}\S/.test(line))
+      .filter((line) => !/^\s*#/.test(line.trim()))
+    expect(commands.join('\n')).not.toContain('scripts/check-all.mjs')
   })
 })
