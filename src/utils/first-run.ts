@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { ensureDir, writeFileTranslated } from './fs.js'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 
@@ -41,8 +42,8 @@ export function showTelemetryBannerIfFirstRun(
 
   if (existsSync(markerPath)) return
 
-  mkdirSync(join(home, '.arbiter'), { recursive: true })
-  writeFileSync(markerPath, new Date().toISOString(), 'utf-8')
+  ensureDir(join(home, '.arbiter'))
+  writeFileTranslated(markerPath, new Date().toISOString())
 
   if (!isQuiet) {
     process.stderr.write(BANNER)

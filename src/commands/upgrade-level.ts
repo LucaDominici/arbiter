@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 import { acquireLock } from '../utils/file-lock.js'
 import type { GovernanceLevel } from '../wizard/types.js'
 import { loadConfig, saveConfig } from '../utils/config.js'
@@ -218,7 +218,7 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
 
   captureBaselineIfPresent(dir)
 
-  mkdirSync(join(dir, '.arbiter'), { recursive: true })
+  ensureDir(join(dir, '.arbiter'))
   const lock = await acquireLock(join(dir, '.arbiter', '.lock'))
   try {
     await saveConfig(dir, validation.config)
@@ -272,7 +272,7 @@ async function handleExtend(
   const appliedDays = Math.round((newEndsMs - Date.parse(existing)) / 86400000)
 
   const arbiterDir = join(dir, '.arbiter')
-  mkdirSync(arbiterDir, { recursive: true })
+  ensureDir(arbiterDir)
 
   const logPath = join(arbiterDir, 'grace-log.json')
   let log: unknown[] = []

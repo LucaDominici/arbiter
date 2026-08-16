@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 import {
   isGateSpineKey,
   isGovernanceClassKey,
@@ -140,7 +139,7 @@ export function recordLocalOverride(
   now: () => Date = () => new Date(),
 ): string {
   const dir = join(targetDir, '.arbiter', 'evidence', 'local-overrides')
-  mkdirSync(dir, { recursive: true })
+  ensureDir(dir)
   const envelope = {
     path: record.key,
     adoptedAt: now().toISOString(),

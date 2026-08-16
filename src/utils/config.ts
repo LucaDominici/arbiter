@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { ensureDir } from './fs.js'
 import { join } from 'node:path'
 import { writeFile } from './fs.js'
 import { acquireLock } from './file-lock.js'
@@ -44,7 +45,7 @@ const SNAPSHOT_FILE = '.arbiter-generated.json'
  */
 export async function saveConfig(dir: string, config: ArbiterConfig): Promise<void> {
   const lockDir = join(dir, '.arbiter')
-  mkdirSync(lockDir, { recursive: true })
+  ensureDir(lockDir)
   const lock = await acquireLock(join(lockDir, 'kit.lock'))
   try {
     writeFile(join(dir, CONFIG_FILE), JSON.stringify(config, null, 2) + '\n')

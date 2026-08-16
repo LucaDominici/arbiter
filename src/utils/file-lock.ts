@@ -5,10 +5,10 @@ import {
   closeSync,
   readFileSync,
   unlinkSync,
-  renameSync,
   lstatSync,
   existsSync,
 } from 'node:fs'
+import { renameTranslated } from './fs.js'
 import { resolve } from 'node:path'
 import os from 'node:os'
 import { randomBytes } from 'node:crypto'
@@ -212,7 +212,7 @@ function tryTakeover(lockPath: string, info: LockInfo, staleAgeMs: number): bool
 
   const staleMarker = `${lockPath}.stale-${process.pid}-${randomBytes(4).toString('hex')}`
   try {
-    renameSync(lockPath, staleMarker)
+    renameTranslated(lockPath, staleMarker)
   } catch {
     return false
   }

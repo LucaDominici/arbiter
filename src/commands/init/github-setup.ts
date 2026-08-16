@@ -2,7 +2,6 @@
 //
 // #1839 (F3 friction cut): extracted from init.ts — GitHub backend setup (labels,
 // branch protection, project board provisioning). Pure extraction, no behavior change.
-import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { FatalError, ConfigError } from '../../utils/errors.js'
 import { provisionLabels } from '../../github/labels.js'
@@ -11,6 +10,7 @@ import { createProjectBoard } from '../../github/project-board.js'
 import type { GhErrorKind } from '../../github/classify-gh-error.js'
 import { resolveCollaborationMode } from '../../config/collaboration-mode-defaults.js'
 import type { ProjectConfig, CollaborationMode } from '../../wizard/types.js'
+import { ensureDir } from '../../utils/fs.js'
 
 interface BackendResult {
   warnings: string[]
@@ -88,7 +88,7 @@ export function runBackendSetup(config: ProjectConfig, log: (msg: string) => voi
     return runGithubSetup(config, log)
   }
   const workDir = join(config.targetDir, '.arbiter', 'work')
-  mkdirSync(workDir, { recursive: true })
+  ensureDir(workDir)
   log('\n  Markdown backend: scaffolded .arbiter/work/')
   return { warnings: [] }
 }

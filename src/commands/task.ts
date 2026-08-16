@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto'
-import { readFileSync, mkdirSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { normalizeChainId } from './task-state.js'
 import { getBoolFlag } from '../config/env-registry.js'
@@ -342,7 +342,7 @@ function readGitUserName(): string {
 
 function writeBypassRecord(dir: string, sanitisedId: string, reason: 'flag' | 'env'): void {
   const evDir = planReviewDir(dir, sanitisedId)
-  mkdirSync(evDir, { recursive: true })
+  ensureDir(evDir)
   const ts = new Date().toISOString()
   const record = {
     reason,

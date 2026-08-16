@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, mergeSettingsJson, resolvedPath } from '../utils/fs.js'
+import { ensureDir, mergeSettingsJson, resolvedPath, writeFile } from '../utils/fs.js'
 import { DEFAULT_TASK_TIERS } from '../config/schema.js'
 import { resolveCollaborationAxes } from '../config/collaboration-mode-defaults.js'
 import type { ProjectConfig } from '../wizard/types.js'
@@ -226,7 +226,7 @@ function generateClaudeHooks(
   dryRun: boolean,
 ): void {
   const hooksDir = resolvedPath(base, '.claude', 'hooks')
-  if (!dryRun) mkdirSync(hooksDir, { recursive: true })
+  if (!dryRun) ensureDir(hooksDir)
 
   for (const entry of planClaudeHooks(config)) {
     // Plan invariant: every entry carries exactly one of template|body

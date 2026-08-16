@@ -110,7 +110,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'i18n raw strings', affects: ALWAYS },
   { name: 'spdx headers', affects: ALWAYS },
   { name: 'orphan TODOs', affects: ALWAYS },
-  { name: 'no direct-fs in generators', affects: ALWAYS },
+  { name: 'no direct-fs outside the façade', affects: ALWAYS },
   { name: 'PII scan', affects: ALWAYS },
   { name: 'inline suppressions', affects: ALWAYS },
   { name: 'suppressions expiry', affects: ALWAYS },

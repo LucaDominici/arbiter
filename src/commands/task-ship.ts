@@ -8,8 +8,7 @@
 // dispatch review subagents (those need the agent), so `arbiter ship` computes the next concrete
 // step and advances the phase when its gate is green; the `/ship` slash command is the loop that
 // executes the model-requiring steps between calls. Reuses runTaskAdvance + the existing gates.
-import { mkdirSync } from 'node:fs'
-import { writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
@@ -524,7 +523,7 @@ function writeCompanionEvidence(
     throw new Error(`Invalid companion evidence: ${parsed.error.message}`)
   }
   const out = companionEvidencePath(taskId, root)
-  mkdirSync(join(root, '.arbiter', 'evidence', 'companions'), { recursive: true })
+  ensureDir(join(root, '.arbiter', 'evidence', 'companions'))
   writeFileTranslated(out, `${JSON.stringify(parsed.data, null, 2)}\n`)
   return out
 }

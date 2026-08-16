@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, FatalError } from '../utils/errors.js'
-import { beginGenerationSession, endGenerationSession, type WriteResult } from '../utils/fs.js'
+import {
+  beginGenerationSession,
+  endGenerationSession,
+  ensureDir,
+  type WriteResult,
+} from '../utils/fs.js'
 import {
   loadGeneratedManifest,
   saveGeneratedManifest,
@@ -880,7 +884,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
   log('\n  Arbiter — update\n')
 
-  mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
+  ensureDir(join(targetDir, '.arbiter'))
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
   try {
     const stored = loadConfig(targetDir)

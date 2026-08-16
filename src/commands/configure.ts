@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, join } from 'node:path'
-import { mkdirSync } from 'node:fs'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import {
   validateConfig,
@@ -17,6 +16,7 @@ import { ArbiterError } from '../utils/errors.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import type { Archetype } from '../wizard/types.js'
 import { t } from '../i18n/index.js'
+import { ensureDir } from '../utils/fs.js'
 
 export interface ConfigureOptions {
   dir?: string | undefined
@@ -499,7 +499,7 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
     )
   }
 
-  mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
+  ensureDir(join(targetDir, '.arbiter'))
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
   try {
     await saveConfig(targetDir, result.config)

@@ -172,7 +172,7 @@ if (isMain) {
   ])
   runCheck('spdx headers', 'node', ['scripts/check-spdx-headers.mjs'])
   runCheck('orphan TODOs', 'node', ['scripts/check-no-orphan-todo.mjs'])
-  runCheck('no direct-fs in generators', 'node', ['scripts/check-no-direct-fs-in-generators.mjs'])
+  runCheck('no direct-fs outside the façade', 'node', ['scripts/check-no-direct-fs.mjs'])
   runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
   runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'])
   runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs'])

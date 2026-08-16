@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
-import { writeFileTranslated } from '../utils/fs.js'
+import { existsSync, readFileSync } from 'node:fs'
+import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 import { join, resolve } from 'node:path'
 import { PlanJsonV1, type ReviewJsonV1 } from '../types/plan.js'
 import { runVerify, type RunVerifyResult } from '../verify/run.js'
@@ -31,7 +31,7 @@ function writeErrorReview(
   message: string,
 ): void {
   try {
-    mkdirSync(pointerDir, { recursive: true })
+    ensureDir(pointerDir)
   } catch (err) {
     process.stderr.write(
       `[arbiter] could not create pointer dir ${pointerDir}: ${err instanceof Error ? err.message : String(err)}\n`,
@@ -174,7 +174,7 @@ export function runVerifyPlan(opts: VerifyPlanOptions): VerifyPlanResult {
       blocking: false,
       blocking_reason: null,
     }
-    mkdirSync(pointerDir, { recursive: true })
+    ensureDir(pointerDir)
     const reviewPath = join(pointerDir, 'REVIEW.json')
     writeFileTranslated(join(pointerDir, 'PLAN.json'), planSource)
     writeFileTranslated(reviewPath, JSON.stringify(skippedReview, null, 2))

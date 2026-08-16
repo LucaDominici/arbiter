@@ -7,13 +7,14 @@ import {
   renameSync,
   unlinkSync,
   readFileSync,
+  appendFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomBytes, createHash } from 'node:crypto'
 import { ArbiterError } from './errors.js'
 import { getLogger } from './logger.js'
 import { t } from '../i18n/index.js'
-import { manifestKey } from '../state/generated-manifest.js'
+import { manifestKey } from '../state/manifest-key.js'
 
 // ── Atomic write + signal cleanup ────────────────────────────────────────────
 
@@ -42,10 +43,13 @@ const FS_ERROR_KEYS: Record<string, string> = {
  * ternary arm is left permanently uncovered. Single source shared by `atomicWrite` and
  * `writeFileTranslated` so the errno→hint mapping is not duplicated (CANON-22).
  */
-function toFsError(err: unknown, path: string): Error {
+export function toFsError(err: unknown, path: string): Error {
   const e = err as NodeJS.ErrnoException
+  // #1991: prefer the errno's OWN path when the runtime supplies one — for a two-path op
+  // (copy, rename) the caller cannot know which side failed, and naming the wrong one
+  // sends the user to a file that is perfectly fine.
   const key = FS_ERROR_KEYS[e.code ?? '']
-  return key ? ArbiterError.fromKey(e.code ?? '', key, { path }) : e
+  return key ? ArbiterError.fromKey(e.code ?? '', key, { path: e.path ?? path }) : e
 }
 
 function atomicWrite(filePath: string, content: string): void {
@@ -512,6 +516,55 @@ export function writeFileTranslated(path: string, data: string | Uint8Array): vo
     writeFileSync(path, data)
   } catch (err) {
     throw toFsError(err, path)
+  }
+}
+
+// ── Translated one-shot primitives (#1991, CANON-17) ─────────────────────────
+//
+// `src/utils/fs.ts` is the sole approved write façade for `src/`
+// (scripts/check-no-direct-fs.mjs enforces it). Each wrapper below exists because a
+// direct call to its node:fs twin would let a raw errno reach the user as an unstyled
+// Node stack instead of an ArbiterError with an actionable hint. They are deliberately
+// thin: no atomicity, no generation-session semantics, no dryRun — that is `writeFile`'s
+// job. These are for the one-shot filesystem effects the rest of `src/` performs.
+
+/**
+ * Create a directory and its parents. The recursive form is what essentially every
+ * call site wanted; a call needing `mode` or non-recursive semantics keeps its own
+ * `mkdirSync` and is pinned in the allowlist rather than distorted to fit this.
+ */
+export function ensureDir(path: string): void {
+  try {
+    mkdirSync(path, { recursive: true })
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
+
+/** Append to a file, creating it if absent. */
+export function appendFileTranslated(path: string, data: string): void {
+  try {
+    appendFileSync(path, data)
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
+
+/** Copy `src` to `dest`. `toFsError` names whichever side the errno actually carries. */
+export function copyFileTranslated(src: string, dest: string): void {
+  try {
+    copyFileSync(src, dest)
+  } catch (err) {
+    throw toFsError(err, dest)
+  }
+}
+
+/** Rename/move `from` to `to`. `toFsError` names whichever side the errno actually carries. */
+export function renameTranslated(from: string, to: string): void {
+  try {
+    renameSync(from, to)
+  } catch (err) {
+    throw toFsError(err, to)
   }
 }
 

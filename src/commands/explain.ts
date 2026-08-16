@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { INVARIANT_CATALOG } from '../invariants/catalog.js'
 import { ERROR_CATALOG } from '../utils/error-catalog.js'
 import { loadCanonEntries } from '../utils/canon-loader.js'
-import { writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 import { loadConfig } from '../utils/config.js'
 import type { Invariant } from '../invariants/types.js'
 import { slugifyProjectName } from './init.js'
@@ -158,7 +158,7 @@ function scaffoldHandoff(topic: string, outDir: string | undefined): ExplainResu
   const date = new Date().toISOString().slice(0, 10)
   const content = template.replaceAll('{{TOPIC}}', topic).replaceAll('{{DATE}}', date)
 
-  mkdirSync(targetDir, { recursive: true })
+  ensureDir(targetDir)
   writeFileTranslated(filePath, content)
 
   return {

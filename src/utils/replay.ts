@@ -9,15 +9,8 @@
 //   - --no-replay opt-out is enforced upstream in cli.ts; this module is
 //     only invoked when replay is enabled.
 
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { ensureDir, writeFileTranslated } from './fs.js'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { walkDir } from './walk-dir.js'
@@ -121,12 +114,12 @@ function snapshotArbiterState(cwd: string): Record<string, unknown> {
 export function startReplay(inputs: ReplayInputs): ReplayHandle {
   const baseDir = inputs.baseDir ?? defaultReplayBaseDir()
   const dir = resolve(baseDir, inputs.runId)
-  mkdirSync(dir, { recursive: true })
+  ensureDir(dir)
   const output: string[] = []
 
-  writeFileSync(join(dir, 'command.txt'), redactArgv(inputs.argv).join(' ') + '\n')
-  writeFileSync(join(dir, 'env.json'), JSON.stringify(redactEnv(inputs.env), null, 2))
-  writeFileSync(
+  writeFileTranslated(join(dir, 'command.txt'), redactArgv(inputs.argv).join(' ') + '\n')
+  writeFileTranslated(join(dir, 'env.json'), JSON.stringify(redactEnv(inputs.env), null, 2))
+  writeFileTranslated(
     join(dir, 'state-before.json'),
     JSON.stringify(snapshotArbiterState(inputs.cwd), null, 2),
   )
@@ -139,13 +132,13 @@ export function startReplay(inputs: ReplayInputs): ReplayHandle {
       output.push(chunk)
     },
     close(exitCode: number): void {
-      writeFileSync(join(dir, 'output.log'), output.join(''))
+      writeFileTranslated(join(dir, 'output.log'), output.join(''))
       const after = {
         exitCode,
         ts: new Date().toISOString(),
         ...snapshotArbiterState(inputs.cwd),
       }
-      writeFileSync(join(dir, 'state-after.json'), JSON.stringify(after, null, 2))
+      writeFileTranslated(join(dir, 'state-after.json'), JSON.stringify(after, null, 2))
     },
   }
 }

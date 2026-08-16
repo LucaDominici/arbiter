@@ -18,8 +18,11 @@
  * in-file checksum: a corrupt/forged manifest is bounded to skip-or-overwrite of
  * two known canonical renders, both recoverable via git + `arbiter diff`.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
-import { isAbsolute, join, relative, dirname } from 'node:path'
+import { existsSync, readFileSync, unlinkSync } from 'node:fs'
+// #1991: re-exported from its leaf module so utils/fs.ts can import it without a cycle.
+export { manifestKey } from './manifest-key.js'
+import { ensureDir, renameTranslated, writeFileTranslated } from '../utils/fs.js'
+import { join, dirname } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { FatalError } from '../utils/errors.js'
 
@@ -67,11 +70,6 @@ interface GeneratedManifestV1 {
  * a non-portable key (A7). Backslashes are normalized to `/` so a Windows/WSL
  * author cannot desync the keys from a posix-committed manifest.
  */
-export function manifestKey(targetDir: string, filePath: string): string | null {
-  const rel = relative(targetDir, filePath).replace(/\\/g, '/')
-  if (rel === '' || rel.startsWith('../') || rel === '..' || isAbsolute(rel)) return null
-  return rel
-}
 
 /**
  * Load the manifest's `files` map.
@@ -227,11 +225,11 @@ export function saveGeneratedManifest(
     )
   }
   const body = JSON.stringify(envelope, null, 2) + '\n'
-  mkdirSync(dirname(path), { recursive: true })
+  ensureDir(dirname(path))
   const tmp = `${path}.arbiter-tmp-${randomBytes(4).toString('hex')}`
   try {
-    writeFileSync(tmp, body, 'utf-8')
-    renameSync(tmp, path)
+    writeFileTranslated(tmp, body)
+    renameTranslated(tmp, path)
   } catch (err) {
     try {
       unlinkSync(tmp)

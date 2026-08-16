@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
   existsSync,
-  mkdirSync,
   symlinkSync,
-  copyFileSync,
   cpSync,
   lstatSync,
   readdirSync,
   readlinkSync,
   statSync,
 } from 'node:fs'
+import { copyFileTranslated, ensureDir } from '../utils/fs.js'
 import { dirname, join, resolve } from 'node:path'
 import type { WorktreeLinkSpec } from '../wizard/types.js'
 
@@ -118,7 +117,7 @@ function materializeDirectory(
   if (!sourceStat.isDirectory()) {
     throw new Error(`Expected directory but found file at: ${spec.path} in ${mainRepoPath}`)
   }
-  mkdirSync(dirname(destPath), { recursive: true })
+  ensureDir(dirname(destPath))
   if (strategy === 'symlink') {
     return symlinkSafe(sourcePath, destPath, 'LINKED_DIR')
   }
@@ -138,15 +137,15 @@ function materializeFile(
   mainRepoPath: string,
 ): LinkResult {
   if (existsSync(sourcePath)) {
-    mkdirSync(dirname(destPath), { recursive: true })
+    ensureDir(dirname(destPath))
     return symlinkSafe(sourcePath, destPath, 'LINKED')
   }
 
   if (spec.template) {
     const templatePath = resolve(mainRepoPath, spec.template)
     if (existsSync(templatePath)) {
-      mkdirSync(dirname(destPath), { recursive: true })
-      copyFileSync(templatePath, destPath)
+      ensureDir(dirname(destPath))
+      copyFileTranslated(templatePath, destPath)
       return 'COPIED_TEMPLATE'
     }
   }
@@ -182,7 +181,7 @@ function materializeChildren(sourcePath: string, destPath: string, specPath: str
         `whole-directory symlink (old 'symlink' strategy). Remove it manually then retry.`,
     )
   }
-  mkdirSync(destPath, { recursive: true })
+  ensureDir(destPath)
   for (const child of readdirSync(sourcePath)) {
     if (SYMLINK_CHILDREN_EXCLUSIONS.has(child)) continue
     const childDest = join(destPath, child)

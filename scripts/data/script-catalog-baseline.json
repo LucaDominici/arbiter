@@ -1,7 +1,7 @@
 {
   "schema": "arbiter-script-catalog-baseline-v1",
   "generated_at": "2026-06-16T04:39:56.648Z",
-  "doctrine": "INV-94 / CANON-21 — grandfathered list of scripts/check-*.mjs at baseline freeze. New scripts added outside this list must carry a // CATALOG: marker block (>=3 contiguous // CATALOG: lines) explaining what is aggregated and why a sibling fold-in was rejected. To widen the baseline deliberately, regenerate with `node scripts/check-script-cohesion.mjs --update-baseline`.",
+  "doctrine": "INV-94 / CANON-21 \u2014 grandfathered list of scripts/check-*.mjs at baseline freeze. New scripts added outside this list must carry a // CATALOG: marker block (>=3 contiguous // CATALOG: lines) explaining what is aggregated and why a sibling fold-in was rejected. To widen the baseline deliberately, regenerate with `node scripts/check-script-cohesion.mjs --update-baseline`.",
   "files": [
     "scripts/check-action-pins.mjs",
     "scripts/check-adapter-coverage.mjs",
@@ -54,7 +54,6 @@
     "scripts/check-monthly-freshness.mjs",
     "scripts/check-muted-test.mjs",
     "scripts/check-nightly-freshness.mjs",
-    "scripts/check-no-direct-fs-in-generators.mjs",
     "scripts/check-no-orphan-todo.mjs",
     "scripts/check-no-passwithnotests.mjs",
     "scripts/check-no-placeholders.mjs",

@@ -2,7 +2,8 @@
 //
 // #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter doctor
 // repair-state` subcommand (#619). Pure extraction, no behavior change.
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { ensureDir } from '../../utils/fs.js'
 import { join, resolve } from 'node:path'
 import { acquireLock } from '../../utils/file-lock.js'
 import { jsonOutput } from '../../utils/json-output.js'
@@ -51,7 +52,7 @@ export async function runDoctorRepairState(
     return { exitCode: 2, repaired: false, snapshotPath }
   }
 
-  mkdirSync(join(dir, '.arbiter'), { recursive: true })
+  ensureDir(join(dir, '.arbiter'))
   const lock = await acquireLock(join(dir, '.arbiter', '.lock'))
   try {
     writeSnapshot(dir, config)

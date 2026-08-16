@@ -5,7 +5,6 @@
 // orchestrator (runInit + its immediate guards) and the public barrel — every
 // symbol previously exported from here is re-exported below so no external
 // import path changes. Pure extraction, no behavior change.
-import { mkdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, ArbiterError } from '../utils/errors.js'
@@ -41,6 +40,7 @@ import {
   printResults,
   generateAndFinalize,
 } from './init/generate.js'
+import { ensureDir } from '../utils/fs.js'
 import { runGithubSetup } from './init/github-setup.js'
 import { verifyToolchainBeforeWrite } from './init/toolchain.js'
 import {
@@ -132,7 +132,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   verifyToolchainBeforeWrite(targetDir, options)
 
-  mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
+  ensureDir(join(targetDir, '.arbiter'))
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
   try {
     showTelemetryBannerIfFirstRun(undefined, options.quiet)

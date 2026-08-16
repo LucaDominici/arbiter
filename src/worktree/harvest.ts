@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { cpSync, mkdirSync, existsSync, statSync } from 'node:fs'
+import { cpSync, existsSync, statSync } from 'node:fs'
+import { ensureDir } from '../utils/fs.js'
 import { dirname, join } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 
@@ -141,7 +142,7 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
     }
 
     // Create parent directories and copy
-    mkdirSync(dirname(destPath), { recursive: true })
+    ensureDir(dirname(destPath))
     cpSync(srcPath, destPath)
     result.copied.push(filePath)
     onFile?.(filePath, 'copy')

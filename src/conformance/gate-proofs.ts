@@ -18,7 +18,8 @@
 // A gate whose negative fixture does NOT produce a failing verdict is exactly the failure
 // mode this command exists to catch: a gate that looks installed but does not bite.
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { DimensionEntry, Verdict } from './dimensions.js'
@@ -66,14 +67,14 @@ export interface GateProofResult {
 
 function writeJson(dir: string, relPath: string, body: unknown): void {
   const abs = join(dir, relPath)
-  mkdirSync(join(abs, '..'), { recursive: true })
-  writeFileSync(abs, JSON.stringify(body), 'utf-8')
+  ensureDir(join(abs, '..'))
+  writeFileTranslated(abs, JSON.stringify(body))
 }
 
 function writeText(dir: string, relPath: string, body: string): void {
   const abs = join(dir, relPath)
-  mkdirSync(join(abs, '..'), { recursive: true })
-  writeFileSync(abs, body, 'utf-8')
+  ensureDir(join(abs, '..'))
+  writeFileTranslated(abs, body)
 }
 
 // ── The 12 tier-1 gate proofs (dimensions.ts) ──────────────────────────────────
@@ -156,7 +157,7 @@ const GATE_PROOFS: GateProof[] = [
     id: 'D-COMMIT-HYGIENE',
     violation: 'hooks dir and commitlint config both present but empty (substance, not presence)',
     seed: (dir: string): void => {
-      mkdirSync(join(dir, '.githooks'), { recursive: true })
+      ensureDir(join(dir, '.githooks'))
       writeText(dir, 'commitlint.config.js', '')
     },
     run: (dir) => probeCommitHygiene(dir),

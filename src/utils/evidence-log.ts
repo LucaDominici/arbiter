@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
+import { appendFileTranslated, ensureDir, renameTranslated } from './fs.js'
 import { dirname, join, resolve } from 'node:path'
 
 /** Schema of a single JSONL entry written to .evidence/cmd-log.jsonl */
@@ -84,7 +85,7 @@ export function appendEvidenceLine(entry: EvidenceEntry, opts: AppendEvidenceOpt
     const logPath = join(evidenceDir, LOG_FILENAME)
     const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES
 
-    mkdirSync(evidenceDir, { recursive: true })
+    ensureDir(evidenceDir)
 
     // Check size and rotate if needed
     let shouldRotate = false
@@ -104,13 +105,13 @@ export function appendEvidenceLine(entry: EvidenceEntry, opts: AppendEvidenceOpt
       // overwriting an earlier rotation's history with its own near-empty log.
       const backupName = `${LOG_FILENAME}.${process.pid}.${Date.now()}.${++rotationCounter}`
       try {
-        renameSync(logPath, join(evidenceDir, backupName))
+        renameTranslated(logPath, join(evidenceDir, backupName))
       } catch {
         // Rotation lost the race (or the file vanished) — fine, the append recovers.
       }
     }
 
-    appendFileSync(logPath, JSON.stringify(entry) + '\n', 'utf-8')
+    appendFileTranslated(logPath, JSON.stringify(entry) + '\n')
   } catch {
     // Swallow all errors — evidence logging is best-effort
   }

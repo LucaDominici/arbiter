@@ -202,7 +202,7 @@ const CI_COVERAGE = new Map([
   ['i18n raw strings', 'gate-full'],
   ['spdx headers', 'gate-full'],
   ['orphan TODOs', 'gate-full'],
-  ['no direct-fs in generators', 'gate-full'],
+  ['no direct-fs outside the façade', 'gate-full'],
   ['inline suppressions', 'gate-full'],
   ['suppressions expiry', 'gate-full'],
   ['commitlint', 'gate-full'],

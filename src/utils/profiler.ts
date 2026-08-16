@@ -8,13 +8,13 @@
 //   - Runtime guard: detect Bun/Deno globals and degrade to no-op + warning,
 //     since `node:inspector` is Node-only.
 
-import { mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
 // node:inspector is a built-in but typed as optional to allow the runtime guard
 // to early-return on Bun/Deno without dragging the type into call sites.
 import type { Session as InspectorSession } from 'node:inspector'
+import { ensureDir, writeFileTranslated } from './fs.js'
 
 export interface ProfilerOptions {
   runId: string
@@ -72,8 +72,8 @@ export async function startProfiler(opts: ProfilerOptions): Promise<ProfilerHand
       }
       const result = (await postPromise(session, 'Profiler.stop')) as ProfilerStopReturn
       session.disconnect()
-      mkdirSync(dirname(outPath), { recursive: true })
-      writeFileSync(outPath, JSON.stringify(result.profile))
+      ensureDir(dirname(outPath))
+      writeFileTranslated(outPath, JSON.stringify(result.profile))
       return outPath
     },
   }

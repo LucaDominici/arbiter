@@ -9,12 +9,12 @@
 //
 // The spool is ephemeral by design (`.arbiter/**` is gitignored) — it is drained downstream, never
 // committed. Non-blocking, no network, target <100ms.
-import { mkdirSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash, randomBytes } from 'node:crypto'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { readTaskId } from './task-state.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
+import { appendFileTranslated, ensureDir } from '../utils/fs.js'
 
 export interface TaskNoteOptions {
   /** The finding text (positional `<note>` or `--note`). Required. */
@@ -164,9 +164,9 @@ export function runTaskNote(opts: TaskNoteOptions): TaskNoteSuccess | TaskNoteFa
   const spoolPath = join(findingsDir, `${shard}.jsonl`)
 
   try {
-    mkdirSync(findingsDir, { recursive: true })
+    ensureDir(findingsDir)
     // Single atomic append of one newline-terminated line — per-shard file, so no lost update.
-    appendFileSync(spoolPath, JSON.stringify(entry) + '\n', 'utf-8')
+    appendFileTranslated(spoolPath, JSON.stringify(entry) + '\n')
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return { ok: false, reason: `findings spool write failed: ${msg}` }

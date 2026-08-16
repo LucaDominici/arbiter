@@ -3,7 +3,7 @@
 // #1839 (F3 friction cut): extracted from init.ts — generator execution, plugin
 // loading, dry-run preview, and rollback/verification of generation output. Pure
 // extraction, no behavior change.
-import { existsSync, copyFileSync, unlinkSync } from 'node:fs'
+import { existsSync, unlinkSync } from 'node:fs'
 import { resolve, join, normalize, isAbsolute, sep, basename } from 'node:path'
 import { ArbiterError } from '../../utils/errors.js'
 import { t } from '../../i18n/index.js'
@@ -16,7 +16,7 @@ import { buildRegistry, runGeneratorsFromRegistry } from '../../generators/regis
 import type { GeneratorFailure } from '../../generators/registry.js'
 import { loadPlugin } from '../../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../../utils/render.js'
-import { writeFile } from '../../utils/fs.js'
+import { copyFileTranslated, writeFile } from '../../utils/fs.js'
 import type { WriteResult } from '../../utils/fs.js'
 import { runCli, CliError } from '../../utils/run-cli.js'
 import type { ProjectConfig } from '../../wizard/types.js'
@@ -396,7 +396,7 @@ export function rollbackGeneration(results: WriteResult[]): void {
       const backup = `${result.path}.arbiter-backup`
       try {
         if (existsSync(backup)) {
-          copyFileSync(backup, result.path)
+          copyFileTranslated(backup, result.path)
           unlinkSync(backup)
         }
       } catch (err) {

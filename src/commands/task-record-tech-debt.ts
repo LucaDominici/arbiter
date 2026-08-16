@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdirSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { createGhIssue, appendTechDebtIssue } from '../utils/github-issue-helper.js'
 import { readTaskId } from './task-state.js'
+import { appendFileTranslated, ensureDir } from '../utils/fs.js'
 
 export interface RecordTechDebtOptions {
   description: string
@@ -76,10 +76,10 @@ export function runTaskRecordTechDebt(
 
   const evidenceDir = join(dir, '.arbiter', 'evidence', sanitizeTaskId(taskId))
   try {
-    mkdirSync(evidenceDir, { recursive: true })
+    ensureDir(evidenceDir)
     appendTechDebtIssue(evidenceDir, issueNumber)
     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
-    appendFileSync(
+    appendFileTranslated(
       join(evidenceDir, 'log.md'),
       [
         `## ${timestamp} — tech-debt issue #${issueNumber}`,
@@ -87,7 +87,6 @@ export function runTaskRecordTechDebt(
         `- triggered-by: ${taskId}`,
         '',
       ].join('\n'),
-      'utf-8',
     )
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)

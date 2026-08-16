@@ -12,9 +12,9 @@
 // Fixed path (not per-sanitized-id) lets generated hooks find state without first reading a
 // `.task-id` dotfile. This module is the LOWER layer: it owns the phase vocabulary and all state
 // I/O. `src/commands/task.ts` is the higher orchestration layer and imports from here.
-import { existsSync, readFileSync, rmSync, mkdirSync, appendFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFile } from '../utils/fs.js'
+import { appendFileTranslated, ensureDir, writeFile } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 
 // ─── Phase vocabulary (single source; re-exported by task.ts for back-compat) ────────────────
@@ -317,8 +317,8 @@ export function writeOverride(root: string, path: string, value: string): void {
 
 /** Append a single timestamped line to the human-readable digest log. */
 export function appendLog(root: string, line: string): void {
-  mkdirSync(taskStateDir(root), { recursive: true })
-  appendFileSync(logPath(root), `- ${new Date().toISOString()} ${line}\n`)
+  ensureDir(taskStateDir(root))
+  appendFileTranslated(logPath(root), `- ${new Date().toISOString()} ${line}\n`)
 }
 
 // ─── Migration (legacy dotfiles → unified document) ──────────────────────────────────────────

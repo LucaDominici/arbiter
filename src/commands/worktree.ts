@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs'
-import { writeFileTranslated } from '../utils/fs.js'
+import { existsSync, readFileSync } from 'node:fs'
+import { ensureDir, renameTranslated, writeFileTranslated } from '../utils/fs.js'
 import { join, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { t } from '../i18n/index.js'
@@ -110,7 +110,7 @@ function readJsonArray(path: string): unknown[] {
     let moved = false
     let renameErrMsg = ''
     try {
-      renameSync(path, backupPath)
+      renameTranslated(path, backupPath)
       moved = true
     } catch (renameErr) {
       renameErrMsg = renameErr instanceof Error ? renameErr.message : String(renameErr)
@@ -125,7 +125,7 @@ function readJsonArray(path: string): unknown[] {
 }
 
 function writeJsonArray(path: string, entries: unknown[]): void {
-  mkdirSync(resolve(path, '..'), { recursive: true })
+  ensureDir(resolve(path, '..'))
   writeFileTranslated(path, JSON.stringify(entries, null, 2) + '\n')
 }
 
@@ -334,7 +334,7 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
     cwd: gitRoot,
   }).stdout.trim()
 
-  mkdirSync(resolve(worktreePath, '..'), { recursive: true })
+  ensureDir(resolve(worktreePath, '..'))
   runCli('git', ['worktree', 'add', '-b', branchName, worktreePath, effectiveBase], {
     cwd: gitRoot,
   })
@@ -346,7 +346,7 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
   warnDanglingLinks(linkSpecs, worktreePath, warn)
 
   const arbiterDir = arbiterLogDir(gitRoot)
-  mkdirSync(arbiterDir, { recursive: true })
+  ensureDir(arbiterDir)
   const lock = await acquireLock(join(arbiterDir, '.lock'))
   try {
     const logPath = join(arbiterDir, 'worktree-open.log.json')

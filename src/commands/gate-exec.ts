@@ -34,7 +34,8 @@
  *   - src/utils/run-cli.ts: runInteractive inherits stdio and applies no
  *     timeout — exactly what a long gate under a mutex needs (INV-12).
  */
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { ensureDir } from '../utils/fs.js'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -57,7 +58,7 @@ export function deriveGateKey(dir: string): string {
 export function gateLockPath(key: string, env: NodeJS.ProcessEnv = process.env): string {
   const base = env['XDG_RUNTIME_DIR'] ?? tmpdir()
   const dir = join(base, 'arbiter')
-  mkdirSync(dir, { recursive: true })
+  ensureDir(dir)
   return join(dir, `${key}-gate.lock`)
 }
 

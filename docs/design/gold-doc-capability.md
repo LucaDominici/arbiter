@@ -252,9 +252,9 @@ arbiter doc-set --json     # machine-readable audit (presence + freshness roll-u
 re-entry path for a customized doc is `arbiter diff`/`update`'s three-way surface, not a blind
 overwrite. **No file is ever overwritten without a reviewed diff.**
 
-### 4.3 `check-no-direct-fs-in-generators` compliance
+### 4.3 `check-no-direct-fs` compliance
 
-Generators must not touch `fs` directly (there is a gate: `scripts/check-no-direct-fs-in-generators.mjs`).
+Generators must not touch `fs` directly (there is a gate: `scripts/check-no-direct-fs.mjs`, which since #1991 covers all of `src/`, not just generators).
 The doc skeletons go through `writeFile`/`resolvedPath`/`renderTemplate` exactly as
 `src/generators/docs.ts` and `gold-kit.ts` already do — the design adds templates + a generator
 function, not raw writes.

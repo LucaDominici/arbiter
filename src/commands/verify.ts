@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { appendFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
+import { appendFileTranslated, ensureDir } from '../utils/fs.js'
 import { join, resolve } from 'node:path'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText } from '../compatibility/report.js'
@@ -70,12 +71,8 @@ function writeSkipEntry(dir: string, reason: string): void {
   const evidenceDir = join(dir, '.evidence')
   const logPath = join(evidenceDir, 'skip-log.jsonl')
   try {
-    mkdirSync(evidenceDir, { recursive: true })
-    appendFileSync(
-      logPath,
-      JSON.stringify({ ts: new Date().toISOString(), reason }) + '\n',
-      'utf-8',
-    )
+    ensureDir(evidenceDir)
+    appendFileTranslated(logPath, JSON.stringify({ ts: new Date().toISOString(), reason }) + '\n')
   } catch (err) {
     const errno =
       err && typeof err === 'object' && 'code' in err

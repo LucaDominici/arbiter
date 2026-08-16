@@ -1,0 +1,196 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: CANON-17 / #1991 — src/utils/fs.ts is the SOLE approved write façade for src/.
+// CATALOG: Replaces check-no-direct-fs-in-generators.mjs, which enforced the same op set
+// CATALOG: over src/generators/ only, and subsumes the #1733 test-only guard that watched
+// CATALOG: top-level src/commands/*.ts. Rejected fold-in into check-no-direct-spawn.mjs
+// CATALOG: (different rule class — child_process, not fs) and into check-all.mjs (needs a
+// CATALOG: dated-pin allowlist of its own, which check-all.mjs holds no state for).
+//
+// Why: a direct node:fs write lets a raw errno (ENOENT/EACCES/EROFS/...) reach the user as
+// an unstyled Node stack instead of an ArbiterError carrying an actionable i18n hint. The
+// façade's toFsError is the single translation point; bypassing it is how CANON-17 is
+// violated in practice.
+//
+// Scope: all of src/ recursively, EXCEPT src/templates/ (EJS sources rendered into consumer
+// repos, not arbiter's own runtime) and src/utils/fs.ts itself (it IS the façade).
+//
+// Op set — stated once, here, and nowhere else:
+//   sync:     writeFileSync, mkdirSync, copyFileSync, appendFileSync, renameSync
+//   promises: writeFile, mkdir, copyFile, appendFile, rename
+// Read ops (readFileSync/existsSync/readdirSync/statSync) are NOT restricted: the façade
+// exposes no read primitive, so there is nowhere to route them. chmod/unlink/rm/symlink/
+// mkdtemp are likewise out of the set for the same reason — see #1991 for the residual.
+//
+// Allowlist: .no-direct-fs-allowlist — "path  EXPIRES: YYYY-MM-DD  # reason", one per line.
+// Every pin MUST carry a future date AND a reason, and a pin whose path no longer violates
+// is itself a failure: a ledger that accepts undated or stale lines is a bypass, not a gate.
+//
+// Usage: node scripts/check-no-direct-fs.mjs [--root <dir>]
+// Exit codes (INV-53): 0 PASS, 1 FAIL, 2 invocation / IO error.
+import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
+
+const WRITE_OPS = ['writeFileSync', 'mkdirSync', 'copyFileSync', 'appendFileSync', 'renameSync']
+const PROMISE_WRITE_OPS = ['writeFile', 'mkdir', 'copyFile', 'appendFile', 'rename']
+
+const ALLOWLIST_FILE = '.no-direct-fs-allowlist'
+const EXCLUDED_DIRS = new Set(['templates'])
+const FACADE = 'src/utils/fs.ts'
+
+/** `import { a, b as c } from 'node:fs'` / "node:fs" — returns the LOCAL binding names. */
+function namedImports(src, moduleName) {
+  const re = new RegExp(`import\\s*\\{([^}]*)\\}\\s*from\\s*['"]${moduleName}['"]`, 'g')
+  const locals = []
+  for (const m of src.matchAll(re)) {
+    for (const part of m[1].split(',')) {
+      const [imported, local] = part.split(/\s+as\s+/).map((x) => x.trim())
+      if (imported) locals.push({ imported, local: local || imported })
+    }
+  }
+  return locals
+}
+
+/** `import fs from 'node:fs'` / `import * as fs from 'node:fs'` — returns binding names. */
+function wholeModuleImports(src, moduleName) {
+  const re = new RegExp(`import\\s+(?:\\*\\s+as\\s+)?(\\w+)\\s+from\\s*['"]${moduleName}['"]`, 'g')
+  return [...src.matchAll(re)].map((m) => m[1])
+}
+
+function violationsIn(src, ops) {
+  const found = new Set()
+  for (const mod of ['node:fs', 'node:fs/promises']) {
+    const opSet = mod === 'node:fs' ? ops.sync : ops.promises
+    for (const { imported } of namedImports(src, mod)) {
+      if (opSet.includes(imported)) found.add(`${mod} ${imported}`)
+    }
+    for (const binding of wholeModuleImports(src, mod)) {
+      for (const op of opSet) {
+        // A namespace/default import only violates when a write is actually CALLED on it —
+        // `fs.existsSync` alone is a read and must not be flagged.
+        if (new RegExp(`\\b${binding}\\.${op}\\s*\\(`).test(src))
+          found.add(`${mod} ${binding}.${op}`)
+      }
+    }
+  }
+  return [...found].sort()
+}
+
+function walk(dir, root, out) {
+  for (const entry of readdirSync(dir)) {
+    const abs = join(dir, entry)
+    let st
+    try {
+      st = statSync(abs)
+    } catch {
+      continue
+    }
+    if (st.isDirectory()) {
+      if (EXCLUDED_DIRS.has(entry)) continue
+      walk(abs, root, out)
+    } else if (entry.endsWith('.ts') && !entry.endsWith('.d.ts')) {
+      out.push(relative(root, abs).replace(/\\/g, '/'))
+    }
+  }
+  return out
+}
+
+/** Parse the allowlist. Returns { pins: Map<path,{expires,reason,raw}>, errors: string[] }. */
+function loadAllowlist(root) {
+  const path = join(root, ALLOWLIST_FILE)
+  const pins = new Map()
+  const errors = []
+  if (!existsSync(path)) return { pins, errors }
+  for (const line of readFileSync(path, 'utf-8').split('\n')) {
+    const text = line.trim()
+    if (text === '' || text.startsWith('#')) continue
+    const [entry] = text.split('#')
+    const reason = text.includes('#') ? text.slice(text.indexOf('#') + 1).trim() : ''
+    const m = entry.match(/^(\S+)\s+EXPIRES:\s*(\S+)\s*$/)
+    if (!m) {
+      errors.push(`  ${text}: malformed — expected "path  EXPIRES: YYYY-MM-DD  # reason"`)
+      continue
+    }
+    const [, file, date] = m
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
+      errors.push(`  ${file}: EXPIRES "${date}" is not a valid YYYY-MM-DD date`)
+      continue
+    }
+    if (reason === '') {
+      errors.push(`  ${file}: pin has no reason — a bare path explains nothing`)
+      continue
+    }
+    pins.set(file, { expires: new Date(date), reason, raw: date })
+  }
+  return { pins, errors }
+}
+
+function main() {
+  const argv = process.argv.slice(2)
+  const rootIdx = argv.indexOf('--root')
+  const root = resolve(rootIdx >= 0 && argv[rootIdx + 1] ? argv[rootIdx + 1] : '.')
+  const srcDir = join(root, 'src')
+  if (!existsSync(srcDir)) {
+    process.stdout.write('check-no-direct-fs: OK — no src/ directory\n')
+    return 0
+  }
+
+  const { pins, errors } = loadAllowlist(root)
+  const ops = { sync: WRITE_OPS, promises: PROMISE_WRITE_OPS }
+  const now = Date.now()
+  const violations = [...errors]
+  const offenders = new Set()
+
+  for (const rel of walk(srcDir, root, [])) {
+    if (rel === FACADE) continue
+    let src
+    try {
+      src = readFileSync(join(root, rel), 'utf-8')
+    } catch {
+      continue
+    }
+    const hits = violationsIn(src, ops)
+    if (hits.length === 0) continue
+    offenders.add(rel)
+
+    const pin = pins.get(rel)
+    if (!pin) {
+      violations.push(
+        `  ${rel}: direct write import (${hits.join(', ')}) — route through src/utils/fs.ts ` +
+          `(writeFileTranslated / ensureDir / appendFileTranslated / copyFileTranslated / ` +
+          `renameTranslated) or add a dated pin to ${ALLOWLIST_FILE}`,
+      )
+      continue
+    }
+    if (pin.expires.getTime() < now) {
+      violations.push(
+        `  ${rel}: allowlist EXPIRES ${pin.raw} has lapsed — re-decide, do not re-date blindly`,
+      )
+    }
+  }
+
+  // A pin for a path that no longer violates is stale: it silently pre-approves a future
+  // regression at that path. Remove it rather than letting it rot.
+  for (const [file] of pins) {
+    if (!offenders.has(file)) {
+      violations.push(`  ${file}: allowlisted but no longer violates — stale pin, remove it`)
+    }
+  }
+
+  if (violations.length > 0) {
+    process.stderr.write(
+      `check-no-direct-fs: ${violations.length} problem(s) — src/utils/fs.ts must be the sole write façade (CANON-17):\n`,
+    )
+    for (const v of violations) process.stderr.write(v + '\n')
+    return 1
+  }
+  process.stdout.write(`check-no-direct-fs: OK — ${pins.size} dated pin(s)\n`)
+  return 0
+}
+
+try {
+  process.exit(main())
+} catch (e) {
+  process.stderr.write(`check-no-direct-fs: ERROR — ${e?.message ?? e}\n`)
+  process.exit(2)
+}

@@ -7,7 +7,8 @@
  * the most recent N. Caller responsibility: invoke `rotateBackup` BEFORE
  * writing the new snapshot.
  */
-import { copyFileSync, existsSync, readdirSync, statSync, unlinkSync } from 'node:fs'
+import { existsSync, readdirSync, statSync, unlinkSync } from 'node:fs'
+import { copyFileTranslated } from '../utils/fs.js'
 import { basename, dirname, join } from 'node:path'
 
 export const DEFAULT_BACKUP_CAP = 10
@@ -44,7 +45,7 @@ export function rotateBackup(path: string, opts: RotateBackupOptions = {}): stri
   const cap = opts.cap ?? DEFAULT_BACKUP_CAP
   if (!existsSync(path)) return null
   const backupPath = `${path}.bak.${isoTimestamp()}`
-  copyFileSync(path, backupPath)
+  copyFileTranslated(path, backupPath)
   const all = listBackups(path)
   if (all.length > cap) {
     const overflow = all.slice(0, all.length - cap)

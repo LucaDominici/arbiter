@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { PlanJsonV1, ReviewJsonV1 } from '../types/plan.js'
 import { mintUniqueId } from '../utils/run-id.js'
 import { buildRegistry } from './rules/registry.js'
 import type { VerifyPlanRule } from './rules/types.js'
+import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 
 export interface RunVerifyOptions {
   plan: PlanJsonV1
@@ -75,10 +75,10 @@ function persist(
 ): void {
   const reviewJson = JSON.stringify(review, null, 2)
   try {
-    writeFileSync(join(runDir, 'PLAN.json'), planSource, 'utf-8')
-    writeFileSync(join(runDir, 'REVIEW.json'), reviewJson, 'utf-8')
-    writeFileSync(join(pointerDir, 'PLAN.json'), planSource, 'utf-8')
-    writeFileSync(join(pointerDir, 'REVIEW.json'), reviewJson, 'utf-8')
+    writeFileTranslated(join(runDir, 'PLAN.json'), planSource)
+    writeFileTranslated(join(runDir, 'REVIEW.json'), reviewJson)
+    writeFileTranslated(join(pointerDir, 'PLAN.json'), planSource)
+    writeFileTranslated(join(pointerDir, 'REVIEW.json'), reviewJson)
   } catch (err) {
     process.stderr.write(
       `[arbiter] persist failed: ${err instanceof Error ? err.message : String(err)}\n`,
@@ -96,8 +96,8 @@ export function runVerify(opts: RunVerifyOptions): RunVerifyResult {
   const runDir = join(targetDir, '.arbiter', 'plan', 'runs', runId)
   const pointerDir = join(targetDir, '.arbiter', 'plan')
 
-  mkdirSync(runDir, { recursive: true })
-  mkdirSync(pointerDir, { recursive: true })
+  ensureDir(runDir)
+  ensureDir(pointerDir)
 
   const registryResult = buildRegistry(extraRules)
   if (registryResult.error !== undefined) {
