@@ -251,7 +251,15 @@ function countJobsMissingTimeout(file, lines) {
  * in unrelated jobs.
  */
 function isBranchWriteback(content) {
-  return /^\s*contents:\s*write\s*$/m.test(content) && /\bgit\s+push\b/.test(content)
+  // `contents: write` tolerating quoting and a trailing comment — `contents: write # x`
+  // must not silently disable the gate.
+  const grantsWrite = /^\s*['"]?contents['"]?\s*:\s*['"]?write['"]?\s*(#.*)?$/m.test(content)
+  if (!grantsWrite) return false
+  // `git push`, allowing intervening flags (`git -c user.name=x push`). Commented-out lines
+  // and echoed prose do not count.
+  return content
+    .split('\n')
+    .some((l) => !/^\s*#/.test(l) && /\bgit\b[^\n]*\bpush\b/.test(l) && !/\becho\b/.test(l))
 }
 
 function main() {

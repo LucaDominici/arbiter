@@ -49,7 +49,7 @@ workflow can reintroduce a push back to its own trigger branch.
 
    ```bash
    git fetch origin
-   npx arbiter worktree open --base <explicit origin/main SHA>   # reads the LOCAL branch otherwise
+   npx @arbiter/cli worktree open --base <explicit origin/main SHA>   # reads the LOCAL branch otherwise
    # apply the pin bumps to .github/workflows/*.yml (copy from the dependabot PR diff)
    node scripts/sync-action-pins.mjs        # propagate yml → EJS
    node scripts/sync-action-pins.mjs --check
@@ -61,7 +61,7 @@ workflow can reintroduce a push back to its own trigger branch.
    (`fix(#NNNN): ...`) and verified TDD evidence produced on that branch — same floor as
    any other source change, no exemption. Pair the pin bump with whatever real change the
    task is about, or record evidence for that task.
-4. Gate: `npx arbiter gate-exec -- node scripts/check-all.mjs L2`. Push, merge.
+4. Gate: `npx @arbiter/cli gate-exec -- node scripts/check-all.mjs L2`. Push, merge.
 5. Close the dependabot PR pointing at the train:
    `gh pr close <NNN> --comment "landed via <sha>"`.
 

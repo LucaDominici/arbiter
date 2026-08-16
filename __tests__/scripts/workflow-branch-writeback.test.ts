@@ -96,6 +96,28 @@ describe('workflow branch writeback (#2300)', () => {
     expect(r.status).toBe(0)
   })
 
+  // Codex review (#2300): the conjunction must not be one comment away from disabled.
+  it('still flags when contents: write carries a trailing comment', () => {
+    const r = runOn({ 'sync.yml': WRITEBACK.replace('contents: write', 'contents: write # sync') })
+    expect(r.metrics.branchWritebackWorkflows).toBe(1)
+  })
+
+  it('still flags git push behind intervening flags', () => {
+    const r = runOn({ 'sync.yml': WRITEBACK.replace('git push', 'git -c core.pager=cat push') })
+    expect(r.metrics.branchWritebackWorkflows).toBe(1)
+  })
+
+  it('does not flag a commented-out or echoed git push under contents: write', () => {
+    // contents: write is present, so only the push-line filter can keep this green.
+    const r = runOn({
+      'note.yml': WRITEBACK.replace(
+        '          git commit -m "auto"\n          git push',
+        '          # git push is banned here\n          echo "run git push yourself"',
+      ),
+    })
+    expect(r.metrics.branchWritebackWorkflows).toBe(0)
+  })
+
   it("arbiter's own workflows contain no branch writeback", () => {
     const out = join(mkdtempSync(join(tmpdir(), 'wf-writeback-self-')), 'report.json')
     const r = spawnSync('node', [SCRIPT, '--dir', resolve('.'), '--out', out], {
