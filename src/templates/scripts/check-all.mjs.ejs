@@ -149,6 +149,22 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 const _isSubtreeFE = typeof archetype !== 'undefined' && archetype !== 'frontend-spa'
   && Array.isArray(lanes) && lanes.includes('frontend')
 const _isFE = archetype === 'frontend-spa' || (Array.isArray(lanes) && lanes.includes('frontend'))
+// #2257: whether this project HAS GitHub workflows on disk — the predicate the
+// 12 workflow gates (ci-tiers, action-pins, workflow-perms/runners/docs-sync/
+// test-integrity/sha-pinning/job-naming, secret-presence, continue-on-error,
+// pr-size-gate, merge-method-ff-only) must follow. They used to key off bare
+// `useGitHub`, which is NOT that: resolveProjectConfig sets it from the LIVE-API
+// flag (`--github`), so a routine `arbiter update` resolved it false and STRIPPED
+// all 12 from a project whose .github/workflows and guard scripts stayed on disk
+// — REDding the project's own `unwired guards` gate on a day-2 no-op command.
+// `permitGitHub` is the persisted capability, and is already the predicate
+// registry.ts uses to EMIT those workflows and guards; the `?? useGitHub` tail
+// (the same idiom registry.ts/ci-tier.ts/anti-drift-validators.ts use) covers the
+// init path, which builds a ProjectConfig carrying only `useGitHub`. `typeof`
+// because that init-path ProjectConfig leaves `permitGitHub` undefined and a bare
+// reference would ReferenceError the generator for every non-GitHub project.
+const _hasGitHubWorkflows = typeof permitGitHub !== 'undefined'
+  ? permitGitHub === true : useGitHub === true
 const _feFramework = (typeof frontend !== 'undefined' && frontend && frontend.framework)
   ? frontend.framework : 'react'
 const _feGlob = _feFramework === 'vue'

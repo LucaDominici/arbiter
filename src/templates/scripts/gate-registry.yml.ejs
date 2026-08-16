@@ -112,18 +112,18 @@ gates:
   - { id: stack-conformity, name: 'stack conformity (INV-121)', level: L1, kind: check, emitIf: "language", cmd: ['node', ['scripts/check-stack-conformity.mjs']] }
   - { id: iso9001, name: 'iso9001 QMS (RTM + doc-control + CAPA)', level: L1, kind: check, condition: "gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')", cmd: ['node', ['scripts/check-iso9001.mjs']] }
   - { id: regulated-overlay, name: 'regulated overlay (SoD + retention + signing + mutation)', level: L1, kind: check, condition: "gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')", cmd: ['node', ['scripts/check-regulated-overlay.mjs']] }
-  - { id: ci-tiers, name: 'ci tiers (INV-73)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-ci-tiers.mjs']] }
-  - { id: action-pins, name: 'action pins (INV-75)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-action-pins.mjs']] }
-  - { id: workflow-perms, name: 'workflow perms (INV-76)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-perms.mjs']] }
-  - { id: workflow-runners, name: 'workflow runners', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-runners.mjs']] }
-  - { id: workflow-docs-sync, name: 'workflow docs sync', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-docs-sync.mjs']] }
-  - { id: workflow-test-integrity, name: 'workflow test integrity', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-test-integrity.mjs']] }
-  - { id: secret-presence, name: 'secret presence (fail-loud)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-secret-presence.mjs']] }
-  - { id: continue-on-error, name: 'continue-on-error (swallowed gate)', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-continue-on-error.mjs']] }
-  - { id: workflow-sha-pinning, name: 'workflow sha pinning', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-sha-pinning.mjs']] }
-  - { id: workflow-job-naming, name: 'workflow job naming', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-workflow-job-naming.mjs']] }
-  - { id: pr-size-gate, name: 'pr size gate', level: L1, kind: check, emitIf: "useGitHub", cmd: ['node', ['scripts/check-pr-size-gate.mjs']] }
-  - { id: merge-method-ff-only, name: 'merge method ff-only (INV-101)', level: L1, kind: check, emitIf: "useGitHub && governanceLevel !== 'L1'", cmd: ['node', ['scripts/check-merge-method.mjs']] }
+  - { id: ci-tiers, name: 'ci tiers (INV-73)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-ci-tiers.mjs']] }
+  - { id: action-pins, name: 'action pins (INV-75)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-action-pins.mjs']] }
+  - { id: workflow-perms, name: 'workflow perms (INV-76)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-perms.mjs']] }
+  - { id: workflow-runners, name: 'workflow runners', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-runners.mjs']] }
+  - { id: workflow-docs-sync, name: 'workflow docs sync', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-docs-sync.mjs']] }
+  - { id: workflow-test-integrity, name: 'workflow test integrity', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-test-integrity.mjs']] }
+  - { id: secret-presence, name: 'secret presence (fail-loud)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-secret-presence.mjs']] }
+  - { id: continue-on-error, name: 'continue-on-error (swallowed gate)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-continue-on-error.mjs']] }
+  - { id: workflow-sha-pinning, name: 'workflow sha pinning', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-sha-pinning.mjs']] }
+  - { id: workflow-job-naming, name: 'workflow job naming', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-job-naming.mjs']] }
+  - { id: pr-size-gate, name: 'pr size gate', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-pr-size-gate.mjs']] }
+  - { id: merge-method-ff-only, name: 'merge method ff-only (INV-101)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows && governanceLevel !== 'L1'", cmd: ['node', ['scripts/check-merge-method.mjs']] }
   - { id: muted-test, name: 'muted gate test (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-muted-test.mjs']] }
   - { id: skip-critical-e2e, name: 'skipped critical e2e (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-skip-critical-e2e.mjs']] }
   - { id: stub-redirect-husk, name: 'stub redirect husk (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-no-stub-redirects.mjs']] }
