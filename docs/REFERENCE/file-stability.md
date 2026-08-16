@@ -376,8 +376,15 @@ manifest, so the next update sees it byte-identical, skips it, and says nothing.
 removal to stick drops the matching entries from the manifest; a consumer that wants the file commits it.
 
 Measured on a pinned, origin-free clone of the java consumer: 254 files restored in one run, among them a
-`scripts/check-all.mjs` carrying 92 check names next to the 37 gates that consumer's CI actually runs — of
-which only two match by name. That parallel, uninvoked gate spine is the concrete harm the silence hid.
+`scripts/check-all.mjs` carrying 104 check names — next to the 37 gates that consumer's CI actually runs, of
+which #2295 found only two matching an emitted name (measured there at 92 emitted checks, on the arbiter
+version current at the time). That parallel, uninvoked gate spine is the concrete harm the silence hid.
+
+**Known gap — `update --adopt-plan` does not preview restorations.** `partitionPlanResults` buckets on
+`replaced`/`backed-up-and-replaced` and on `withheld`; a restoration is `created`, so it lands in neither and
+the read-only preview stays silent about files the real run will put back. Same class as the two write
+channels #2120 surfaced and the deletions #2221 added as `wouldRetire` — registered here rather than fixed
+in #2295, whose scope is the run itself — tracked as #2305.
 
 ### Protected classes — three classes, and only one adopts by default
 
