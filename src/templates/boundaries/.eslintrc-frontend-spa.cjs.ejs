@@ -12,6 +12,19 @@ const _globs = _fw === 'vue'
   ? ['src/**/*.ts', 'src/**/*.svelte']
   : ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.jsx']
 
+// #2277: resolver extensions track the framework the same way _globs does, and
+// are dual-tracked with the flat twin (eslint.config.frontend-spa.mjs) that the
+// fsd-boundaries gate actually runs.
+// Extensions mirror _globs exactly (plus plain .js): a vue/svelte FSD project's
+// boundaries/include never covers .tsx, so resolving to one could not classify it
+// into an element anyway — and #1127 requires those renders not to mention .tsx.
+const _resolverExts = _fw === 'vue'
+  ? ['.ts', '.vue', '.js']
+  : _fw === 'svelte'
+  ? ['.ts', '.svelte', '.js']
+  : ['.ts', '.tsx', '.js', '.jsx']
+const _resolverExtsLiteral = '[' + _resolverExts.map((e) => `'${e}'`).join(', ') + ']'
+
 const _a11yPlugin = _fw === 'vue'
   ? 'vuejs-accessibility'
   : _fw === 'svelte'
@@ -40,6 +53,12 @@ module.exports = {
       { type: 'shared',   pattern: 'src/shared/**' },
     ],
     'boundaries/include': <%- JSON.stringify(_globs) %>,
+    // #2277: without this, eslint-plugin-boundaries' bundled
+    // eslint-import-resolver-node cannot resolve an extensionless relative import
+    // ('../entities/user') to a .ts file, so every legitimate cross-layer import
+    // classifies as "unknown" and boundaries/no-unknown false-positives on clean,
+    // rule-compliant FSD code. Same setting as the flat twin the gate runs.
+    'import/resolver': { node: { extensions: <%- _resolverExtsLiteral %> } },
   },
   rules: {
     // FSD layer isolation — higher layers may only import from lower layers
