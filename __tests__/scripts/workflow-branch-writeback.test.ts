@@ -58,7 +58,11 @@ jobs:
           git push
 `
 
-function runOn(files: Record<string, string>): { status: number; stdout: string; metrics: Record<string, number> } {
+function runOn(files: Record<string, string>): {
+  status: number
+  stdout: string
+  metrics: Record<string, number>
+} {
   const dir = mkdtempSync(join(tmpdir(), 'wf-writeback-'))
   try {
     const wf = join(dir, '.github', 'workflows')
@@ -94,7 +98,9 @@ describe('workflow branch writeback (#2300)', () => {
 
   it("arbiter's own workflows contain no branch writeback", () => {
     const out = join(mkdtempSync(join(tmpdir(), 'wf-writeback-self-')), 'report.json')
-    const r = spawnSync('node', [SCRIPT, '--dir', resolve('.'), '--out', out], { encoding: 'utf-8' })
+    const r = spawnSync('node', [SCRIPT, '--dir', resolve('.'), '--out', out], {
+      encoding: 'utf-8',
+    })
     expect(JSON.parse(readFileSync(out, 'utf-8')).branchWritebackWorkflows).toBe(0)
     expect(r.status).toBe(0)
   })

@@ -15,10 +15,10 @@ related: []
 
 Dependabot opens two types of PRs:
 
-| Type             | Ecosystem   | Mergeable as-is | INV-74 label | Notes                                  |
-| ---------------- | ----------- | --------------- | ------------ | -------------------------------------- |
-| `npm_and_yarn`   | npm deps    | yes             | required     | Standard dependency bump               |
-| `github_actions` | action pins | **no**          | n/a          | Advisory only — see below              |
+| Type             | Ecosystem   | Mergeable as-is | INV-74 label | Notes                     |
+| ---------------- | ----------- | --------------- | ------------ | ------------------------- |
+| `npm_and_yarn`   | npm deps    | yes             | required     | Standard dependency bump  |
+| `github_actions` | action pins | **no**          | n/a          | Advisory only — see below |
 
 ## github_actions PRs are advisories, not merge candidates (#2300)
 
