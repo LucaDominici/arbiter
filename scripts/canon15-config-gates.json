@@ -1,0 +1,197 @@
+[
+  {
+    "template": "boundaries/.eslintrc-boundaries.cjs.ejs",
+    "gate": null,
+    "reason": "Legacy eslintrc-format twin of eslint.config.boundaries.mjs, retained (skipIfExists) for tooling that still reads eslintrc config. ESLint v9 removed the --no-eslintrc/-c loader, so no gate can invoke it; the ts-boundaries gate runs the flat twin instead (#2272). Not a paper rule — the rule it encodes IS gated, through the flat config."
+  },
+  {
+    "template": "boundaries/.eslintrc-frontend-spa.cjs.ejs",
+    "gate": null,
+    "reason": "Legacy eslintrc-format twin of eslint.config.frontend-spa.mjs, same ESLint-v9 situation as .eslintrc-boundaries.cjs. The FSD rules it encodes are gated through the flat twin by fsd-boundaries (#1127/#1491)."
+  },
+  {
+    "template": "boundaries/.importlinter.ejs",
+    "gate": "python-boundaries",
+    "reason": "Read by the emitted check-boundaries.mjs (python), which spawns `lint-imports --config .importlinter`."
+  },
+  {
+    "template": "boundaries/check-boundaries-go.mjs.ejs",
+    "gate": "go-boundaries",
+    "reason": "Materializes as scripts/check-boundaries.mjs — the gate's own entrypoint."
+  },
+  {
+    "template": "boundaries/check-boundaries-python.mjs.ejs",
+    "gate": "python-boundaries",
+    "reason": "Materializes as scripts/check-boundaries.mjs — the gate's own entrypoint."
+  },
+  {
+    "template": "boundaries/check-boundaries-rust.mjs.ejs",
+    "gate": "rust-boundaries",
+    "reason": "Materializes as scripts/check-boundaries.mjs — the gate's own entrypoint."
+  },
+  {
+    "template": "boundaries/check-boundaries.mjs.ejs",
+    "gate": "ts-boundaries",
+    "reason": "Materializes as scripts/check-boundaries.mjs — the gate's own entrypoint."
+  },
+  {
+    "template": "boundaries/clippy.toml.ejs",
+    "gate": "rust-boundaries",
+    "reason": "Boundary-scoped clippy config read by the emitted check-boundaries.mjs (rust) layer 1."
+  },
+  {
+    "template": "boundaries/deny.toml.ejs",
+    "gate": "rust-boundaries",
+    "reason": "Read by the emitted check-boundaries.mjs (rust) layer 2, which spawns `cargo deny check bans advisories licenses`."
+  },
+  {
+    "template": "boundaries/eslint.config.boundaries.mjs.ejs",
+    "gate": "ts-boundaries",
+    "reason": "Run in isolation by the emitted check-boundaries.mjs via `eslint --config eslint.config.boundaries.mjs --no-config-lookup src/` (#2272)."
+  },
+  {
+    "template": "boundaries/eslint.config.frontend-spa.mjs.ejs",
+    "gate": "fsd-boundaries",
+    "reason": "Invoked directly by the fsd-boundaries registry entry, guarded by gateFilePresent('eslint.config.frontend-spa.mjs')."
+  },
+  {
+    "template": "boundaries/golangci-boundaries.yml.ejs",
+    "gate": "go-boundaries",
+    "reason": "Read by the emitted check-boundaries.mjs (go) layer 2, which spawns `golangci-lint run --config .golangci-boundaries.yml ./...`."
+  },
+  {
+    "template": "boundaries/ruff-boundaries.toml.ejs",
+    "gate": "python-boundaries",
+    "reason": "Boundary-scoped ruff config read by the emitted check-boundaries.mjs (python) layer 1."
+  },
+  {
+    "template": "security/RISK_ASSESSMENT.md.ejs",
+    "gate": null,
+    "reason": "Risk-assessment document, not a scanner config — there is no tool to invoke against it. Its content obligations are covered by the doc-set and STRIDE/RACI traceability gates, not by a scanner step."
+  },
+  {
+    "template": "security/STRIDE.md.ejs",
+    "gate": "stride-raci",
+    "reason": "Parsed by the emitted check-stride-traceability.mjs (docs/SECURITY/STRIDE.md HIGH/CRITICAL rows)."
+  },
+  {
+    "template": "security/gitleaks.toml.ejs",
+    "gate": "gitleaks",
+    "reason": "Passed explicitly as `gitleaks detect --config .gitleaks.toml` by the gitleaks registry entry."
+  },
+  {
+    "template": "security/zap/baseline-auth.context.ejs",
+    "gate": null,
+    "reason": "OWASP ZAP DAST context. DAST needs a deployed target, so it cannot run inside check-all.mjs — it is invoked by the emitted _shared-security.yml / 04-deploy-test.yml workflow lanes against the test deployment. Enforced, but by a CI lane rather than a local gate step."
+  },
+  {
+    "template": "security/zap/rules.tsv.ejs",
+    "gate": null,
+    "reason": "OWASP ZAP alert-threshold table, consumed by the same deployed-target DAST lane as baseline-auth.context (see above)."
+  },
+  {
+    "template": "static-analysis/.dependency-cruiser.cjs.ejs",
+    "gate": "arch-boundaries",
+    "reason": "Read by `depcruise src`, which the emitted package.json exposes as the check:arch script the arch-boundaries gate runs."
+  },
+  {
+    "template": "static-analysis/.golangci.yml.ejs",
+    "gate": "golangci-lint",
+    "reason": "Default config picked up by `golangci-lint run`."
+  },
+  {
+    "template": "static-analysis/.shellcheckrc.ejs",
+    "gate": null,
+    "reason": "shellcheck runs in the emitted 01-pr-fast.yml style/structure lane (#1507), not in check-all.mjs: it needs a pinned shellcheck binary installed by the workflow, which a local gate cannot assume. Enforced by a CI lane, so not a paper rule; promoting it to a check-all step would need the binary-presence SKIP contract and is out of scope for #1923."
+  },
+  {
+    "template": "static-analysis/.yamllint.yml.ejs",
+    "gate": null,
+    "reason": "yamllint runs in the emitted 01-pr-fast.yml style/structure lane (#1506) over non-workflow YAML, for the same install-in-CI reason as .shellcheckrc above. Enforced by a CI lane, not by a check-all step."
+  },
+  {
+    "template": "static-analysis/checkstyle.xml.ejs",
+    "gate": "gradle-checkstyle",
+    "reason": "Consumed by `./gradlew checkstyleMain` (and `mvn checkstyle:check` via maven-checkstyle)."
+  },
+  {
+    "template": "static-analysis/detekt.yml.ejs",
+    "gate": "detekt",
+    "reason": "Consumed by `./gradlew detekt`."
+  },
+  {
+    "template": "static-analysis/eslint.config.mjs.ejs",
+    "gate": "lint",
+    "reason": "The project's main flat config, picked up by `npx eslint .`."
+  },
+  {
+    "template": "static-analysis/eslint.config.static.mjs.ejs",
+    "gate": "static-analysis",
+    "reason": "Passed explicitly as `eslint --config eslint.config.static.mjs --no-config-lookup src`."
+  },
+  {
+    "template": "static-analysis/eslintrc-static.json.ejs",
+    "gate": null,
+    "reason": "Legacy eslintrc-format twin of eslint.config.static.mjs, retained for tooling that still reads eslintrc config; ESLint v9 cannot load it from a gate. The rules it encodes are gated through the flat twin by static-analysis."
+  },
+  {
+    "template": "static-analysis/jscpd.json.ejs",
+    "gate": "duplication",
+    "reason": "Read by the emitted check-duplication.mjs, which the duplication gate runs."
+  },
+  {
+    "template": "static-analysis/knip.json.ejs",
+    "gate": "dead-code",
+    "reason": "Default config picked up by `npx knip`."
+  },
+  {
+    "template": "static-analysis/pmd-ruleset.xml.ejs",
+    "gate": "pmd-gradle",
+    "reason": "Consumed by `./gradlew pmdMain` (and `mvn pmd:check` via pmd-maven)."
+  },
+  {
+    "template": "static-analysis/prettierignore.ejs",
+    "gate": "format",
+    "reason": "Exclusion list read by `npx prettier --check .`."
+  },
+  {
+    "template": "static-analysis/prettierrc.json.ejs",
+    "gate": "format",
+    "reason": "Formatter config read by `npx prettier --check .`."
+  },
+  {
+    "template": "static-analysis/requirements-dev.txt.ejs",
+    "gate": null,
+    "reason": "Python dev-dependency manifest, not a linter/scanner config — it installs the tools (ruff et al.) whose own configs are gated separately. Nothing invokes a manifest."
+  },
+  {
+    "template": "static-analysis/ruff.toml.ejs",
+    "gate": "ruff-lint",
+    "reason": "Default config picked up by `ruff check .` (and `ruff format --check .` via ruff-format)."
+  },
+  {
+    "template": "static-analysis/rustfmt.toml.ejs",
+    "gate": "rust-fmt",
+    "reason": "Default config picked up by `cargo fmt --check`."
+  },
+  {
+    "template": "static-analysis/spotbugs-exclude.xml.ejs",
+    "gate": "spotbugs",
+    "reason": "Exclusion filter wired into the spotbugs task run by `./gradlew spotbugsMain`."
+  },
+  {
+    "template": "static-analysis/spotbugs.gradle.ejs",
+    "gate": "spotbugs",
+    "reason": "Defines the spotbugs task that `./gradlew spotbugsMain` invokes."
+  },
+  {
+    "template": "static-analysis/spotless.gradle.ejs",
+    "gate": "gradle-spotless",
+    "reason": "Defines the spotless task that `./gradlew spotlessCheck` invokes."
+  },
+  {
+    "template": "static-analysis/stylelintrc.json.ejs",
+    "gate": "lint-css",
+    "reason": "Default config picked up by `npx stylelint src/**/*.css`, guarded by gateFilePresent('.stylelintrc.json')."
+  }
+]

@@ -75,6 +75,10 @@
       "reason": "This gate. It audits arbiter’s generator-vs-settings symmetry; a consumer generates governance for nobody, so dual-track is not applicable (see the CATALOG header). Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
     },
     {
+      "path": "scripts/check-canon15-wired-gate.mjs",
+      "reason": "CANON-15 (#1923): asserts that every template emitting a linter/scanner/boundary config also emits the gate step invoking it. Its subject is arbiter’s generator corpus — the .ejs files under src/templates/{boundaries,static-analysis,security} and the declarative gate registry src/templates/scripts/gate-registry.yml.ejs. A target project has no template corpus and emits no configs, so a shipped twin would be a gate with no subject — self-only by construction (same class as check-no-direct-spawn.mjs). What the rule guarantees FOR targets is delivered as the emitted gate steps themselves, which this check is what keeps present."
+    },
+    {
       "path": "scripts/check-catalog-agents-parity.mjs",
       "reason": "INV-51/CANON-08: invariant catalog to AGENTS.md bidirectional parity. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
     },

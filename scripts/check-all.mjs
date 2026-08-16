@@ -249,6 +249,9 @@ if (isMain) {
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
   runCheck('canon references', 'node', ['scripts/check-canon-references.mjs'])
   runCheck('canon enforcement parity (B1)', 'node', ['scripts/check-canon-enforcement-parity.mjs'])
+  // #1923 (CANON-15): every template emitting a linter/scanner/boundary config must
+  // also emit the gate step that invokes it — a config with no invocation is a paper rule.
+  runCheck('canon-15 wired gate (#1923)', 'node', ['scripts/check-canon15-wired-gate.mjs'])
   runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
   runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
   runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
