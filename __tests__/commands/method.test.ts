@@ -12,7 +12,6 @@ import { tmpdir } from 'node:os'
 import {
   CLUSTERS,
   METHODOLOGY_CATALOG,
-  METHODOLOGY_PATHS,
   NON_METHODOLOGY_PATHS,
   probeAll,
   probeFeature,
@@ -20,6 +19,12 @@ import {
   type MethodologyFeature,
 } from '../../src/commands/method.js'
 import { ALLOWED_PATHS } from '../../src/commands/configure.js'
+
+// Derived here rather than exported from method.ts: a convenience set with exactly one
+// consumer is not public API, and this repo ratchets on the count of them.
+const METHODOLOGY_PATHS: ReadonlySet<string> = new Set(
+  METHODOLOGY_CATALOG.flatMap((f) => f.configPaths),
+)
 
 let dir: string
 afterEach(() => {

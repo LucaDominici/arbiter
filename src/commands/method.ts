@@ -310,11 +310,6 @@ export const METHODOLOGY_CATALOG: readonly MethodologyFeature[] = [
   },
 ]
 
-/** Every path the lens surfaces (used by the parity gate and its tests). */
-export const METHODOLOGY_PATHS: ReadonlySet<string> = new Set(
-  METHODOLOGY_CATALOG.flatMap((f) => f.configPaths),
-)
-
 /** Config facet: is this path set to an ACTIVE value? */
 export type ConfigFacet = 'active' | 'inactive'
 /**
@@ -363,6 +358,38 @@ function pathActive(config: unknown, path: string): boolean {
 }
 
 /**
+ * An artifact counts only when arbiter RECORDED emitting it and it is still on disk.
+ * Manifest-without-file means it was deleted; file-without-manifest is someone else's.
+ * Nothing is missing when there is nothing to check — that case is `unknown`, below.
+ */
+function resolveMissingEmits(
+  declared: readonly string[],
+  manifest: Record<string, string>,
+  targetDir: string,
+  manifestPresent: boolean,
+): string[] {
+  if (!manifestPresent || declared.length === 0) return []
+  return declared.filter((key) => !(key in manifest) || !existsSync(join(targetDir, key)))
+}
+
+function resolveEmitFacet(
+  declaredCount: number,
+  manifestPresent: boolean,
+  missingCount: number,
+): EmitFacet {
+  if (declaredCount === 0) return 'n/a'
+  if (!manifestPresent) return 'unknown'
+  return missingCount === 0 ? 'satisfied' : 'missing'
+}
+
+function resolveVerdict(config: ConfigFacet, emit: EmitFacet): Verdict {
+  if (config === 'inactive') return 'off'
+  if (emit === 'missing') return 'partial'
+  if (emit === 'unknown') return 'unverified'
+  return 'wired'
+}
+
+/**
  * Probe one feature. Pure: takes the already-loaded config and manifest, so `status`
  * reads arbiter.json and the manifest exactly once regardless of catalog size.
  *
@@ -376,7 +403,9 @@ export function probeFeature(
   targetDir: string,
   manifestPresent = true,
 ): FeatureStatus {
-  const config_ = feature.configPaths.every((p) => pathActive(config, p)) ? 'active' : 'inactive'
+  const configFacet: ConfigFacet = feature.configPaths.every((p) => pathActive(config, p))
+    ? 'active'
+    : 'inactive'
 
   const values: Record<string, unknown> = {}
   for (const p of feature.configPaths) values[p] = resolveSettingValue(config, p) ?? null
@@ -384,34 +413,16 @@ export function probeFeature(
   const declared = feature.emits ?? []
   // An artifact counts only when arbiter RECORDED emitting it and it is still on disk.
   // Manifest-without-file means it was deleted; file-without-manifest is someone else's.
-  const checkable = manifestPresent && declared.length > 0
-  const missingEmits = checkable
-    ? declared.filter((key) => !(key in manifest) || !existsSync(join(targetDir, key)))
-    : []
-  const emit: EmitFacet =
-    declared.length === 0
-      ? 'n/a'
-      : !manifestPresent
-        ? 'unknown'
-        : missingEmits.length === 0
-          ? 'satisfied'
-          : 'missing'
-
-  const verdict: Verdict =
-    config_ === 'inactive'
-      ? 'off'
-      : emit === 'missing'
-        ? 'partial'
-        : emit === 'unknown'
-          ? 'unverified'
-          : 'wired'
+  const missingEmits = resolveMissingEmits(declared, manifest, targetDir, manifestPresent)
+  const emit = resolveEmitFacet(declared.length, manifestPresent, missingEmits.length)
+  const verdict = resolveVerdict(configFacet, emit)
 
   return {
     id: feature.id,
     cluster: feature.cluster,
     name: feature.name,
     verdict,
-    config: config_,
+    config: configFacet,
     emit,
     values,
     missingEmits,
@@ -432,7 +443,7 @@ export function probeAll(targetDir: string, config: unknown): FeatureStatus[] {
   )
 }
 
-export interface MethodStatusOptions {
+interface MethodStatusOptions {
   dir?: string | undefined
   json?: boolean | undefined
 }

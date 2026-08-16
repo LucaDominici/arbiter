@@ -56,23 +56,8 @@ function excludedPaths(src) {
   return out
 }
 
-function main() {
-  const rootIdx = process.argv.indexOf('--root')
-  const root = resolve(rootIdx >= 0 && process.argv[rootIdx + 1] ? process.argv[rootIdx + 1] : '.')
-
-  const configureSrc = readFileSync(resolve(root, 'src/commands/configure.ts'), 'utf-8')
-  const methodSrc = readFileSync(resolve(root, 'src/commands/method.ts'), 'utf-8')
-
-  const allowed = allowedPaths(configureSrc)
-  const rows = catalogPathRows(methodSrc)
-  const excluded = excludedPaths(methodSrc)
-
-  if (allowed.size === 0) throw new Error('extracted zero ALLOWED_PATHS — parser out of date')
-  if (rows.length === 0) throw new Error('extracted zero catalog rows — parser out of date')
-
-  const violations = []
-
-  // Rule 3 first: a duplicate would otherwise be invisible in the flat set below.
+/** Rule 3: one dial, one owner. Returns the flat path set the other rules work from. */
+function bindingsAndDuplicates(rows, violations) {
   const seen = new Set()
   for (const row of rows) {
     for (const p of row) {
@@ -80,8 +65,16 @@ function main() {
       seen.add(p)
     }
   }
+  return seen
+}
 
-  // Rule 1
+/** Rules 1 + 2 + the exclusion-ledger hygiene. Extracted from `main` to keep its
+ *  cyclomatic complexity under the repo ceiling (CANON-22), same as
+ *  check-no-direct-fs.mjs's `checkFile`. */
+function collectViolations(allowed, rows, excluded) {
+  const violations = []
+  const seen = bindingsAndDuplicates(rows, violations)
+
   for (const p of [...seen].filter((x) => !allowed.has(x)).sort()) {
     violations.push(
       `  NOT SETTABLE: catalog binds '${p}', which is not in configure.ts ALLOWED_PATHS — ` +
@@ -89,7 +82,6 @@ function main() {
     )
   }
 
-  // Rule 2
   for (const p of [...allowed].filter((x) => !seen.has(x) && !excluded.has(x)).sort()) {
     violations.push(
       `  UNLENSED: '${p}' is settable but appears in no catalog row — add a row, or add it ` +
@@ -105,6 +97,25 @@ function main() {
     if (reason.trim() === '')
       violations.push(`  ${p}: exclusion has no reason — a bare path explains nothing`)
   }
+
+  return { seen, violations }
+}
+
+function main() {
+  const rootIdx = process.argv.indexOf('--root')
+  const root = resolve(rootIdx >= 0 && process.argv[rootIdx + 1] ? process.argv[rootIdx + 1] : '.')
+
+  const configureSrc = readFileSync(resolve(root, 'src/commands/configure.ts'), 'utf-8')
+  const methodSrc = readFileSync(resolve(root, 'src/commands/method.ts'), 'utf-8')
+
+  const allowed = allowedPaths(configureSrc)
+  const rows = catalogPathRows(methodSrc)
+  const excluded = excludedPaths(methodSrc)
+
+  if (allowed.size === 0) throw new Error('extracted zero ALLOWED_PATHS — parser out of date')
+  if (rows.length === 0) throw new Error('extracted zero catalog rows — parser out of date')
+
+  const { seen, violations } = collectViolations(allowed, rows, excluded)
 
   if (violations.length > 0) {
     process.stdout.write(
