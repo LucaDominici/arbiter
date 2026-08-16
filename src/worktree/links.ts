@@ -8,7 +8,7 @@ import {
   readlinkSync,
   statSync,
 } from 'node:fs'
-import { copyFileTranslated, ensureDir } from '../utils/fs.js'
+import { copyFileTranslated, ensureDir, toFsError } from '../utils/fs.js'
 import { dirname, join, resolve } from 'node:path'
 import type { WorktreeLinkSpec } from '../wizard/types.js'
 
@@ -45,7 +45,8 @@ function symlinkSafe(
     if ((e as NodeJS.ErrnoException).code === 'EEXIST' && lstatSync(destPath).isSymbolicLink()) {
       return linkResult
     }
-    throw e
+    // CANON-17: every other errno is translated, not re-thrown raw.
+    throw toFsError(e, destPath)
   }
   return linkResult
 }
@@ -218,7 +219,9 @@ export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: stri
         checkChildLinks(linkPath, spec.path, dangling)
       }
     } catch (e: unknown) {
-      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
+      // CANON-17: ENOENT means the entry was never created (not dangling); anything
+      // else is a real fs failure and is translated.
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw toFsError(e, linkPath)
       // ENOENT: entry never created — not a dangling link
     }
   }

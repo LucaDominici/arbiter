@@ -2,6 +2,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Lane } from '../wizard/types.js'
+import { toFsError } from '../utils/fs.js'
 
 /**
  * Frontend package dependencies and their framework-detection slugs.
@@ -54,7 +55,7 @@ function hasFrontendLane(dir: string): boolean {
     return Object.keys(allDeps).some((k) => FE_FRAMEWORKS.has(k))
   } catch (err) {
     process.stderr.write(
-      `[arbiter] Warning: could not read ${pkgPath} for lane detection — ${err instanceof Error ? err.message : String(err)}\n`,
+      `[arbiter] Warning: could not read ${pkgPath} for lane detection — ${toFsError(err, pkgPath).message}\n`,
     )
     return false
   }
@@ -83,7 +84,7 @@ function hasBackendLane(dir: string): boolean {
     return Object.keys(allDeps).some((k) => BE_NODE_FRAMEWORKS.has(k))
   } catch (err) {
     process.stderr.write(
-      `[arbiter] Warning: could not read ${pkgPath} for lane detection — ${err instanceof Error ? err.message : String(err)}\n`,
+      `[arbiter] Warning: could not read ${pkgPath} for lane detection — ${toFsError(err, pkgPath).message}\n`,
     )
     return false
   }
@@ -101,7 +102,7 @@ function hasDocsLane(dir: string): boolean {
       }
     } catch (err) {
       process.stderr.write(
-        `[arbiter] Warning: could not read directory during docs-lane detection — ${err instanceof Error ? err.message : String(err)}\n`,
+        `[arbiter] Warning: could not read directory during docs-lane detection — ${toFsError(err, d).message}\n`,
       )
       return false
     }

@@ -17,6 +17,7 @@
  */
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { toFsError } from './fs.js'
 
 export interface WalkDirOptions {
   /** Directory base names to prune (never descended). Default: descend every directory. */
@@ -53,7 +54,8 @@ export function walkDir(root: string, options: WalkDirOptions = {}): string[] {
       if (errorMode === 'fs-soft') {
         const code = (err as NodeJS.ErrnoException).code
         if (code === 'ENOENT' || code === 'EACCES') return
-        throw err
+        // CANON-17: the residue this handler did not recognise still carries an errno.
+        throw toFsError(err, dir)
       }
       return
     }

@@ -31,7 +31,7 @@ tester.run('fs-errno-translation (CANON-17, #1924)', rule, {
         "try { writeFileSync(p, d) } catch (err) { throw new ArbiterError('E_FS', String(err)) }",
     },
     // A catch that swallows deliberately binds nothing — there is no errno to leak.
-    { code: FS_IMPORT + 'try { readFileSync(p) } catch { return null }' },
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch { fallback() }' },
     // No direct fs in the try block — not this rule's business.
     { code: 'try { JSON.parse(s) } catch (err) { throw err }' },
     // fs imported but the try block calls something else.

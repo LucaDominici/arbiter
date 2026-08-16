@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync, readFileSync } from 'node:fs'
-import { ensureDir, renameTranslated, writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, renameTranslated, toFsError, writeFileTranslated } from '../utils/fs.js'
 import { join, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { t } from '../i18n/index.js'
@@ -103,7 +103,9 @@ function readJsonArray(path: string): unknown[] {
     return raw as unknown[]
   } catch (err) {
     if (!(err instanceof SyntaxError)) {
-      throw err
+      // CANON-17: not a parse problem, so it is an fs errno — translate rather than
+      // re-throwing a bare NodeJS stack at the user.
+      throw toFsError(err, path)
     }
     const ts = new Date().toISOString().replace(/[:.]/g, '-')
     const backupPath = `${path}.corrupt-${ts}`

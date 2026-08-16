@@ -11,6 +11,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import type { KitDimension } from './schema.js'
+import { toFsError } from '../utils/fs.js'
 
 export interface MeasureResult {
   status: 'present' | 'partial' | 'missing'
@@ -255,7 +256,11 @@ function globWorkflows(repoRoot: string): string[] {
       .sort()
       .map((f) => toPosixRelative(repoRoot, join(dir, f)))
   } catch (err) {
-    process.stderr.write(`[measure] readdirSync failed for ${dir}: ${String(err)}\n`)
+    // CANON-17: the raw errno would print as an opaque Node string; toFsError gives the
+    // user an actionable hint for the codes in the catalog and is a no-op for the rest.
+    process.stderr.write(
+      `[measure] readdirSync failed for ${dir}: ${toFsError(err, dir).message}\n`,
+    )
     return []
   }
 }

@@ -281,7 +281,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     {
       code: 'EACCES',
       summary: 'Permission denied',
-      detail: 'A write failed because the process lacks permission to write to the target path.',
+      detail: 'An fs operation failed because the process lacks permission for the target path.',
       recovery: 'Check file ownership and directory permissions, then retry.',
       docUrl: FS_ERRNO_DOC_URL,
     },
@@ -322,7 +322,8 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     {
       code: 'ENOTDIR',
       summary: 'Not a directory',
-      detail: 'A write failed because a component of the target path is a file, not a directory.',
+      detail:
+        'An fs operation failed because a component of the target path is a file, not a directory.',
       recovery: 'Check the target path — an intermediate segment exists as a file.',
       docUrl: FS_ERRNO_DOC_URL,
     },
@@ -332,7 +333,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     {
       code: 'EISDIR',
       summary: 'Is a directory',
-      detail: 'A write failed because the target path is a directory, not a file.',
+      detail: 'An fs operation failed because the target path is a directory, not a file.',
       recovery: 'Point the command at a file path, not a directory.',
       docUrl: FS_ERRNO_DOC_URL,
     },
@@ -342,7 +343,8 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     {
       code: 'ENOENT',
       summary: 'No such file or directory',
-      detail: 'A write failed because the parent directory of the target path does not exist.',
+      detail:
+        'An fs operation failed because the target path (or its parent directory) does not exist.',
       recovery: 'Create the parent directory first, e.g. `mkdir -p <dir>`, then retry.',
       docUrl: FS_ERRNO_DOC_URL,
     },
@@ -352,7 +354,8 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     {
       code: 'EBUSY',
       summary: 'Resource busy or locked',
-      detail: 'A write failed because the target file is open or locked by another process.',
+      detail:
+        'An fs operation failed because the target file is open or locked by another process.',
       recovery: 'Close the file in the other process and retry.',
       docUrl: FS_ERRNO_DOC_URL,
     },
@@ -362,7 +365,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     {
       code: 'EMFILE',
       summary: 'Too many open files',
-      detail: 'A write failed because the process hit its open-file-descriptor limit.',
+      detail: 'An fs operation failed because the process hit its open-file-descriptor limit.',
       recovery: 'Close other open files or raise the limit with `ulimit -n`, then retry.',
       docUrl: FS_ERRNO_DOC_URL,
     },

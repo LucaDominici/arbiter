@@ -8,7 +8,7 @@ import {
   lstatSync,
   existsSync,
 } from 'node:fs'
-import { renameTranslated } from './fs.js'
+import { renameTranslated, toFsError } from './fs.js'
 import { resolve } from 'node:path'
 import os from 'node:os'
 import { randomBytes } from 'node:crypto'
@@ -186,7 +186,8 @@ function writeLockExclusive(path: string, info: LockInfo): void {
       err.name = 'LockConflictError'
       throw err
     }
-    throw e
+    // CANON-17: any errno other than the EEXIST contention case is translated.
+    throw toFsError(e, path)
   }
   try {
     writeSync(fd, content)

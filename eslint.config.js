@@ -2,6 +2,7 @@ import js from '@eslint/js'
 import sonarjs from 'eslint-plugin-sonarjs'
 import tseslint from 'typescript-eslint'
 import noRawCliStrings from './eslint-rules/index.js'
+import arbiterRules from './eslint-rules/index.js'
 
 export default tseslint.config(
   js.configs.recommended,
@@ -37,6 +38,15 @@ export default tseslint.config(
     files: ['src/commands/**/*.ts'],
     plugins: { 'no-raw-cli-strings': noRawCliStrings },
     rules: { 'no-raw-cli-strings/no-raw-cli-strings': 'warn' },
+  },
+  // CANON-17 (#1924): a direct node:fs failure handler must not let a raw errno escape.
+  // 'error', not 'warn': `npm run lint` is plain eslint with no --max-warnings=0, so a
+  // warning here would be advisory and would enforce nothing.
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['src/templates/**'],
+    plugins: { 'fs-errno': arbiterRules },
+    rules: { 'fs-errno/fs-errno-translation': 'error' },
   },
   // Complexity + duplication rules for source files (not templates — EJS variants share scaffolding)
   {
