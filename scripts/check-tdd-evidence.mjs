@@ -282,6 +282,20 @@ function verifyBranchFloor(run, mergeBase, floorIds, subjectCited = false) {
   return 1
 }
 
+/**
+ * #2307 — the produced-here floor on the SUBJECT path. Per-id verification proves each
+ * cited task HAS evidence; it cannot prove this branch PRODUCED any of it, because
+ * verify tdd's sha-on-branch check asserts only ANCESTRY. So a branch touching src/
+ * whose subject cites an already-merged id passed the floor with no red→green cycle at
+ * all. Gated on touchesSource exactly as #2217 is, so a docs-only branch that happens to
+ * cite a task id in its subject stays green.
+ *
+ * Extracted from main() to keep it inside the complexity-10 ratchet (#1523/#1542).
+ */
+function subjectFloorFails(run, mergeBase, floorIds, touchesSource) {
+  return touchesSource && verifyBranchFloor(run, mergeBase, floorIds, true) !== 0
+}
+
 function mainOptions(opts) {
   return {
     runFn: opts?.runFn ?? defaultRun,
@@ -353,13 +367,7 @@ export function main(opts) {
     return exitFn(1)
   }
 
-  // #2307 — the SAME produced-here floor, on the subject path. Per-id verification above
-  // proves each cited task HAS evidence; it cannot prove this branch produced any of it,
-  // because verify tdd's sha-on-branch check asserts only ANCESTRY. So a branch touching
-  // src/ whose subject cites an already-merged id passed the floor with no red→green
-  // cycle at all. Gated on touchesSource exactly as #2217 is, so a docs-only branch that
-  // happens to cite a task id in its subject stays green.
-  if (floor.touchesSource && verifyBranchFloor(run, mergeBase, floorIds, true) !== 0) {
+  if (subjectFloorFails(run, mergeBase, floorIds, floor.touchesSource)) {
     return exitFn(1)
   }
 
