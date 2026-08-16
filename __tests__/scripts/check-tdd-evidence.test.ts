@@ -278,6 +278,76 @@ describe('main()', () => {
     main({ runFn: runFn as never, exitFn: exitFn as never })
     expect(exitFn).toHaveBeenCalledWith(1)
   })
+
+  // ── #2307: the produced-here guard on the SUBJECT path ──────────────────────
+  // The floor above (#2217) required evidence to be PRODUCED on the branch, but only
+  // when ids were cited in commit BODIES. A subject-cited id skipped the guard entirely:
+  // `verify tdd`'s sha-on-branch check asserts only ANCESTRY, so once a task's evidence
+  // is merged to main every later branch satisfies it. Citing a merged id in a subject
+  // therefore passed the floor with no red→green cycle at all.
+  //
+  // Mock ORDER matters, as in floorRun: the produced-here query
+  // (`git log --format=%H <base>..HEAD -- .arbiter/evidence/tdd/#NNN.json`) also matches
+  // the `--format=%H` body-log pattern, so it must be matched FIRST or these tests pass
+  // for the wrong reason.
+  function subjectRun(opts: { changed: string; inherited?: boolean; bodyFresh?: boolean }) {
+    const SUBJECT = 'fix(#2300): reuse an already-merged task id'
+    return (_cmd: string, args: string[]) => {
+      const key = args.join(' ')
+      if (key.includes('merge-base')) return 'deadbeef'
+      if (key.includes('--format=%s')) return SUBJECT
+      if (key.includes('evidence/tdd')) {
+        // #2401 stands for a body-cited task whose evidence IS produced here.
+        if (key.includes('#2401')) return opts.bodyFresh ? 'c'.repeat(40) : ''
+        return opts.inherited ? '' : 'c'.repeat(40)
+      }
+      if (key.includes('--format=%H')) return `${'a'.repeat(40)}\n${SUBJECT}\n\nRefs #2401\n\x00`
+      if (key.includes('diff --name-only')) return opts.changed
+      return 'PASS'
+    }
+  }
+
+  // THE FALSIFIER (#2307): a branch citing a merged id in the SUBJECT, changing src/,
+  // with no RED commit of its own, must exit non-zero. Before the fix this exited 0.
+  it('exits 1 when a subject-cited id changes src/ but its evidence was inherited from main', () => {
+    exitFn.mockReset()
+    main({
+      runFn: subjectRun({ changed: 'src/cli.ts', inherited: true }) as never,
+      exitFn: exitFn as never,
+    })
+    expect(exitFn).toHaveBeenCalledWith(1)
+  })
+
+  // The other direction: a genuine red→green cycle on the subject path must still pass.
+  // Trading blindness for a false red is not a fix.
+  it('exits 0 when a subject-cited id changing src/ has evidence produced on this branch', () => {
+    exitFn.mockReset()
+    main({ runFn: subjectRun({ changed: 'src/cli.ts' }) as never, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(0)
+  })
+
+  // The floor is owed per CHANGE, over subject ∪ body: a merge-train branch whose
+  // subject cites a merged id but whose body cites a task with fresh on-branch evidence
+  // has run a real cycle and must pass.
+  it('exits 0 when the fresh evidence belongs to a body-cited id, not the subject id', () => {
+    exitFn.mockReset()
+    main({
+      runFn: subjectRun({ changed: 'src/cli.ts', inherited: true, bodyFresh: true }) as never,
+      exitFn: exitFn as never,
+    })
+    expect(exitFn).toHaveBeenCalledWith(0)
+  })
+
+  // Gated on touchesGovernedSource, exactly as #2217 is. PR #2309 was docs-only with
+  // #2307 in the subject; an ungated guard would have flipped it red.
+  it('exits 0 for a docs-only branch citing a subject id with inherited evidence', () => {
+    exitFn.mockReset()
+    main({
+      runFn: subjectRun({ changed: 'docs/runbook.md', inherited: true }) as never,
+      exitFn: exitFn as never,
+    })
+    expect(exitFn).toHaveBeenCalledWith(0)
+  })
 })
 
 // ── The gate, end to end, against a real branch (#2217) ───────────────────────
