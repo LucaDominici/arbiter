@@ -400,4 +400,67 @@ describe('check-tdd-evidence.mjs --dir <repo>', () => {
     const { status } = runGate(seedRepo('docs/note.md'))
     expect(status).toBe(0)
   })
+
+  // ── #2307, on a real branch ────────────────────────────────────────────────
+  // The injected-runFn tests prove the decision logic; only real git proves the
+  // plumbing, and branchFloor now runs `git diff --name-only` on the subject path where
+  // it previously did not. Build the falsifier shape for real: evidence COMMITTED to
+  // main (so it is tracked and an ancestor of every later branch), then a subject-cited
+  // src/ change with no cycle of its own.
+  function seedInheritedEvidenceRepo(): string {
+    const repo = mkdtempSync(join(tmpdir(), 'tdd-gate-inherit-'))
+    repos.push(repo)
+    const g = (args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf-8' })
+    g(['init', '-b', 'main'])
+    g(['config', 'user.email', ['tester', 'example.invalid'].join('@')])
+    g(['config', 'user.name', 'tester'])
+    g(['config', 'commit.gpgsign', 'false'])
+    writeFileSync(join(repo, 'README.md'), '# base\n')
+    g(['add', '.'])
+    g(['commit', '-m', 'chore: base'])
+    const rev = (ref: string) =>
+      spawnSync('git', ['rev-parse', ref], { cwd: repo, encoding: 'utf-8' }).stdout.trim()
+    const baseSha = rev('HEAD')
+    const blobSha = rev('HEAD:README.md')
+
+    // Evidence for #42 lands on main, exactly as a merged task's does.
+    mkdirSync(join(repo, '.arbiter', 'evidence', 'tdd'), { recursive: true })
+    writeFileSync(
+      join(repo, '.arbiter', 'evidence', 'tdd', '#42.json'),
+      JSON.stringify({
+        $schemaVersion: 1,
+        task_id: '#42',
+        test_path: 'README.md',
+        test_commit_sha: baseSha,
+        test_blob_sha: blobSha,
+        // verify tdd RE-RUNS this at test_commit_sha and requires the fresh output to
+        // carry a recognised failure signature EQUAL to observed_failure (#1957). Emit
+        // one directly: the point of this fixture is the produced-here guard, not the
+        // re-execution check, which must PASS so the exit 1 is attributable.
+        test_command: ['sh', '-c', 'echo " FAIL  __tests__/foo.test.ts"'],
+        test_run_log:
+          ' FAIL  __tests__/foo.test.ts > foo > does the thing\nexpected 1 to equal 2\n',
+        observed_failure: 'FAIL  __tests__/foo.test.ts',
+        recorded_at: '2026-01-01T00:00:00.000Z',
+      }),
+    )
+    g(['add', '.arbiter'])
+    g(['commit', '-m', 'chore: record evidence'])
+    g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
+
+    // The branch: cites the merged id in the SUBJECT, changes src/, runs no cycle.
+    mkdirSync(join(repo, 'src'), { recursive: true })
+    writeFileSync(join(repo, 'src', 'thing.ts'), 'export const x = 1\n')
+    g(['add', '.'])
+    g(['commit', '-m', 'fix(#42): reuse an already-merged task id'])
+    return repo
+  }
+
+  it('fails a subject-cited src/ branch whose evidence was only inherited from main', () => {
+    const { status, out } = runGate(seedInheritedEvidenceRepo())
+    // Assert the REASON, not just the code: were verification to fail first, the gate
+    // would also exit 1 and the test would prove nothing about the produced-here guard.
+    expect(out).toMatch(/inherited from main/)
+    expect(status).toBe(1)
+  })
 })
