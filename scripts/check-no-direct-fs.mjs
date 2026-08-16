@@ -82,6 +82,7 @@ function walk(dir, root, out) {
     let st
     try {
       st = statSync(abs)
+      // FAIL-OPEN-INTENT: a dangling symlink has no file to scan, so skipping it cannot hide a violation; an unreadable REAL file fails closed at readFileSync below.
     } catch {
       continue
     }
@@ -125,6 +126,30 @@ function loadAllowlist(root) {
   return { pins, errors }
 }
 
+/** Classify one file against the op set and the pin ledger. Extracted from `main` to keep
+ *  its cyclomatic complexity under the repo ceiling (CANON-22). */
+function checkFile(rel, src, ctx) {
+  const { ops, pins, now, violations, offenders } = ctx
+  const hits = violationsIn(src, ops)
+  if (hits.length === 0) return
+  offenders.add(rel)
+
+  const pin = pins.get(rel)
+  if (!pin) {
+    violations.push(
+      `  ${rel}: direct write import (${hits.join(', ')}) — route through src/utils/fs.ts ` +
+        `(writeFileTranslated / ensureDir / appendFileTranslated / copyFileTranslated / ` +
+        `renameTranslated) or add a dated pin to ${ALLOWLIST_FILE}`,
+    )
+    return
+  }
+  if (pin.expires.getTime() < now) {
+    violations.push(
+      `  ${rel}: allowlist EXPIRES ${pin.raw} has lapsed — re-decide, do not re-date blindly`,
+    )
+  }
+}
+
 function main() {
   const argv = process.argv.slice(2)
   const rootIdx = argv.indexOf('--root')
@@ -143,30 +168,15 @@ function main() {
 
   for (const rel of walk(srcDir, root, [])) {
     if (rel === FACADE) continue
-    let src
-    try {
-      src = readFileSync(join(root, rel), 'utf-8')
-    } catch {
-      continue
-    }
-    const hits = violationsIn(src, ops)
-    if (hits.length === 0) continue
-    offenders.add(rel)
-
-    const pin = pins.get(rel)
-    if (!pin) {
-      violations.push(
-        `  ${rel}: direct write import (${hits.join(', ')}) — route through src/utils/fs.ts ` +
-          `(writeFileTranslated / ensureDir / appendFileTranslated / copyFileTranslated / ` +
-          `renameTranslated) or add a dated pin to ${ALLOWLIST_FILE}`,
-      )
-      continue
-    }
-    if (pin.expires.getTime() < now) {
-      violations.push(
-        `  ${rel}: allowlist EXPIRES ${pin.raw} has lapsed — re-decide, do not re-date blindly`,
-      )
-    }
+    // Fail CLOSED: an unreadable source file could contain anything, and reporting OK over
+    // it would be a false green — the exact failure INV-96 exists to prevent.
+    checkFile(rel, readFileSync(join(root, rel), 'utf-8'), {
+      ops,
+      pins,
+      now,
+      violations,
+      offenders,
+    })
   }
 
   // A pin for a path that no longer violates is stale: it silently pre-approves a future

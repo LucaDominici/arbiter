@@ -203,6 +203,10 @@
       "expires": "2026-08-29"
     },
     {
+      "path": "scripts/check-no-direct-fs.mjs",
+      "reason": "Keeps src/utils/fs.ts the sole write facade across arbiter's own src/ (CANON-17, #1991). Replaces check-no-direct-fs-in-generators.mjs, whose entry it inherits and widens. Still self-only by construction: the gate's subject is a SPECIFIC module in THIS repo \u2014 src/utils/fs.ts and its translated primitives. A governed target has no such facade, so an emitted twin would name a file that does not exist there; the equivalent consumer-side rule is the emitted errno-translation lint, not this path-bound gate."
+    },
+    {
       "path": "scripts/check-no-passwithnotests.mjs",
       "reason": "INV-25: no --passWithNoTests silent-green in test scripts. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 \u2014 either emit a template twin or demote to an undated self-only entry with a construction argument.",
       "expires": "2026-08-29"
