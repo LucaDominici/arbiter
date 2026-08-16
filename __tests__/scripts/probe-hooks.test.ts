@@ -267,6 +267,73 @@ describe('probe-hooks liveness contract (#2135)', () => {
     }
   })
 
+  // #2292 §1 — an ADVISORY hook probed with `{}` proves only that it declined to
+  // block on an empty payload. This hook is healthy on `{}` and broken on the
+  // payload it actually receives, so it is exactly the case an empty-payload probe
+  // cannot see. ~40% of the emitted surface is advisory.
+  it('fails an advisory hook that survives an empty payload but crashes on its real one (#2292)', () => {
+    const dir = fixture(
+      ADVISORY_HOOK,
+      [
+        "import { readFileSync } from 'node:fs'",
+        "const payload = JSON.parse(readFileSync(0, 'utf-8'))",
+        'if (payload?.tool_input?.command) {',
+        "  process.stderr.write('crashed on the real payload\\n')",
+        '  process.exit(1)',
+        '}',
+        'process.exit(0)',
+      ].join('\n') + '\n',
+    )
+    try {
+      const result = run(dir)
+      expect(result.status).toBe(2)
+      expect(JSON.parse(result.stdout).failures).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ hook: ADVISORY_HOOK, verdict: 'PROBE-ERROR' }),
+        ]),
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  // #2292 §2 — the two hooks whose ADVISORY justification is "the *_HARD=1 mode
+  // promotes it" have never had that promoted mode executed anywhere in the bar.
+  const PROMOTED: [string, string][] = [
+    ['pre-spawn-worktree-guard.mjs', 'ARBITER_SPAWN_GUARD_HARD'],
+    ['stop-finding-loss.mjs', 'ARBITER_FINDING_LOSS_HARD'],
+  ]
+
+  it.each(PROMOTED)('fails %s when its %s=1 promotion never blocks (#2292)', (hook) => {
+    const dir = fixture(hook, 'process.exit(0)\n')
+    try {
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(JSON.parse(result.stdout).failures).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ hook, mode: 'PROMOTED', verdict: 'INERT' }),
+        ]),
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it.each(PROMOTED)('accepts %s when %s=1 promotes it to a blocking exit 2 (#2292)', (hook, env) => {
+    const dir = fixture(hook, `process.exit(process.env.${env} === '1' ? 2 : 0)\n`)
+    try {
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      const rows = JSON.parse(result.stdout).rows as { mode?: string; verdict: string }[]
+      const promoted = rows.filter((row) => row.mode === 'PROMOTED')
+      expect(promoted).toHaveLength(4)
+      expect(promoted.every((row) => row.verdict === 'BLOCKS')).toBe(true)
+      expect(rows.filter((row) => row.mode === 'ADVISORY').length).toBe(4)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('uses exit 2 for malformed invocation', () => {
     const result = spawnSync('node', [SCRIPT], { encoding: 'utf-8' })
     expect(result.status).toBe(2)
