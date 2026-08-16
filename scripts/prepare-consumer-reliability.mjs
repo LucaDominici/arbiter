@@ -121,8 +121,7 @@ function readGateMap() {
   return parsed
 }
 
-/** Issue refs cited by DEBT entries that `gh` confirms exist and are OPEN. */
-function verifyDebtIssues(gateMap) {
+function citedDebtIssues(gateMap) {
   const cited = new Set()
   for (const entry of Object.values(gateMap.consumers)) {
     for (const verdict of Object.values(entry?.mapping ?? {})) {
@@ -131,21 +130,32 @@ function verifyDebtIssues(gateMap) {
       }
     }
   }
+  return [...cited].sort()
+}
+
+function issueState(ref) {
+  const probe = spawnSync('gh', ['issue', 'view', ref.slice(1), '--json', 'state'], {
+    cwd: process.cwd(),
+    encoding: 'utf-8',
+    timeout: 60000,
+    env: { ...process.env, GH_PAGER: 'cat' },
+  })
+  if (probe.status !== 0 || probe.signal) {
+    throw new Error(`debt issue ${ref} could not be resolved upstream`)
+  }
+  return JSON.parse(probe.stdout).state
+}
+
+/**
+ * Issue refs cited by DEBT entries that `gh` confirms exist and are OPEN. A CLOSED or
+ * missing issue is simply not returned: the verifier then fails the row and names it,
+ * which is the honest outcome — never a silent pass.
+ */
+function verifyDebtIssues(gateMap) {
   const open = []
-  for (const ref of [...cited].sort()) {
+  for (const ref of citedDebtIssues(gateMap)) {
     if (!/^#[1-9][0-9]*$/.test(ref)) throw new Error(`debt entry cites a malformed issue: ${ref}`)
-    const probe = spawnSync('gh', ['issue', 'view', ref.slice(1), '--json', 'state'], {
-      cwd: process.cwd(),
-      encoding: 'utf-8',
-      timeout: 60000,
-      env: { ...process.env, GH_PAGER: 'cat' },
-    })
-    if (probe.status !== 0 || probe.signal) {
-      throw new Error(`debt issue ${ref} could not be resolved upstream`)
-    }
-    // A CLOSED or missing issue is simply not added: the verifier then fails the row and
-    // names it, which is the honest outcome — never a silent pass.
-    if (JSON.parse(probe.stdout).state === 'OPEN') open.push(ref)
+    if (issueState(ref) === 'OPEN') open.push(ref)
   }
   return open
 }

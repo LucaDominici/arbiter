@@ -63,13 +63,28 @@ export function assessGateSpine({ before, after, existed }) {
 // another leaves resolved. Without that, one free-text `DEBT:#9999` zeroes the criterion.
 const MAPPING_VERDICT = /^(WIRED|DECLINED|DEBT):([\s\S]*)$/
 
-export function assessGateSurface({ freshRender, declared, mapping, debtRegister }) {
-  const emitted = [...new Set(freshRender)].sort()
-  const executed = new Set(declared)
-  const entries = mapping ?? {}
-  const openIssues = new Set(debtRegister?.openIssues ?? [])
-  const problems = []
+// One mapping entry, judged against the surface measured THIS run. Returns the problem
+// text, or null when the entry is sound.
+function judgeMappingEntry(name, verdict, executed, openIssues) {
+  const parsed = MAPPING_VERDICT.exec(verdict)
+  if (parsed === null) return `${name}: unknown mapping verdict ${verdict}`
+  const [, kind, value] = parsed
+  if (kind === 'WIRED') {
+    return executed.has(value)
+      ? null
+      : `${name}: mapped to gate ${value}, absent from the executed surface`
+  }
+  if (kind === 'DECLINED') {
+    return value.trim().length > 0 ? null : `${name}: DECLINED without a written reason`
+  }
+  return openIssues.has(value) ? null : `${name}: debt issue ${value} is not a verified OPEN issue`
+}
 
+const isDebt = (verdict) => typeof verdict === 'string' && verdict.startsWith('DEBT:')
+
+/** Emitted names with no entry, and entries for names no longer emitted. */
+function coverageProblems(emitted, entries) {
+  const problems = []
   const unaccounted = emitted.filter((name) => typeof entries[name] !== 'string')
   if (unaccounted.length > 0) {
     problems.push(`${unaccounted.length} emitted check(s) unaccounted: ${unaccounted.join(', ')}`)
@@ -82,36 +97,36 @@ export function assessGateSurface({ freshRender, declared, mapping, debtRegister
       `${stale.length} stale mapping entr(ies) for names no longer emitted: ${stale.join(', ')}`,
     )
   }
+  return problems
+}
 
-  let debt = 0
+/** Cardinality pinned to a committed integer, enforced in both directions. */
+function ratchetProblems(debt, ceiling) {
+  if (typeof ceiling === 'number' && debt === ceiling) return []
+  return [
+    `debt ratchet: ${debt} debt entr(ies) against a committed ceiling of ${String(ceiling)} — ` +
+      'the ceiling must be re-tightened when debt resolves and can never absorb new debt silently',
+  ]
+}
+
+export function assessGateSurface({ freshRender, declared, mapping, debtRegister }) {
+  const emitted = [...new Set(freshRender)].sort()
+  const executed = new Set(declared)
+  const entries = mapping ?? {}
+  const openIssues = new Set(debtRegister?.openIssues ?? [])
+  const problems = []
+
+  problems.push(...coverageProblems(emitted, entries))
+
   for (const name of emitted) {
     const verdict = entries[name]
     if (typeof verdict !== 'string') continue
-    const parsed = MAPPING_VERDICT.exec(verdict)
-    if (parsed === null) {
-      problems.push(`${name}: unknown mapping verdict ${verdict}`)
-      continue
-    }
-    const [, kind, value] = parsed
-    if (kind === 'WIRED' && !executed.has(value)) {
-      problems.push(`${name}: mapped to gate ${value}, absent from the executed surface`)
-    } else if (kind === 'DECLINED' && value.trim().length === 0) {
-      problems.push(`${name}: DECLINED without a written reason`)
-    } else if (kind === 'DEBT') {
-      debt += 1
-      if (!openIssues.has(value)) {
-        problems.push(`${name}: debt issue ${value} is not a verified OPEN issue`)
-      }
-    }
+    const problem = judgeMappingEntry(name, verdict, executed, openIssues)
+    if (problem !== null) problems.push(problem)
   }
 
-  const ceiling = debtRegister?.ceiling
-  if (typeof ceiling !== 'number' || debt !== ceiling) {
-    problems.push(
-      `debt ratchet: ${debt} debt entr(ies) against a committed ceiling of ${String(ceiling)} — ` +
-        'the ceiling must be re-tightened when debt resolves and can never absorb new debt silently',
-    )
-  }
+  const debt = emitted.filter((name) => isDebt(entries[name])).length
+  problems.push(...ratchetProblems(debt, debtRegister?.ceiling))
 
   if (problems.length > 0) return { ok: false, detail: problems.join('; ') }
   return {
@@ -125,34 +140,35 @@ export function assessGateSurface({ freshRender, declared, mapping, debtRegister
 // us NOTHING about the consumer — that is an ERROR (exit 2), never a FAIL and never a
 // PASS. Mutex contention gets its own wording so a queued run is never mistaken for a
 // consumer that stopped running a gate.
-export function parseGateSurfaceOutput({ result, pattern, separator, contentionMarker }) {
-  const output = `${String(result?.stdout ?? '')}\n${String(result?.stderr ?? '')}`
-  const contended =
-    typeof contentionMarker === 'string' &&
-    contentionMarker.length > 0 &&
-    output.includes(contentionMarker)
-  const reason = contended
-    ? `the run queued on the ${contentionMarker} mutex (contention, not a verdict)`
-    : `command exited status=${String(result?.status)} signal=${String(result?.signal)}`
-  if (result?.ok !== true) {
-    return { ok: false, detail: `executed gate surface could not be obtained: ${reason}` }
+function surfaceFailure(reason) {
+  return { ok: false, detail: `executed gate surface could not be obtained: ${reason}` }
+}
+
+/** Why the run told us nothing — contention is named apart from any other exit. */
+function acquisitionReason(result, output, contentionMarker) {
+  const marker = String(contentionMarker ?? '')
+  if (marker.length > 0 && output.includes(marker)) {
+    return `the run queued on the ${marker} mutex (contention, not a verdict)`
   }
-  const matcher = new RegExp(pattern, 'm')
-  const matched = matcher.exec(output)
-  if (matched === null || typeof matched[1] !== 'string') {
-    return {
-      ok: false,
-      detail: `executed gate surface could not be obtained: no line matched ${pattern}${contended ? ` (${reason})` : ''}`,
-    }
-  }
-  const gates = matched[1]
+  return `command exited status=${String(result.status)} signal=${String(result.signal)}`
+}
+
+function splitGateLine(matched, separator) {
+  return String(matched)
     .split(separator)
     .map((item) => item.trim())
     .filter((item) => item.length > 0)
-  if (gates.length === 0) {
-    return { ok: false, detail: 'executed gate surface could not be obtained: gate line was empty' }
-  }
-  return { ok: true, gates }
+}
+
+export function parseGateSurfaceOutput({ result, pattern, separator, contentionMarker }) {
+  const outcome = result ?? {}
+  const output = `${String(outcome.stdout ?? '')}\n${String(outcome.stderr ?? '')}`
+  const reason = acquisitionReason(outcome, output, contentionMarker)
+  if (outcome.ok !== true) return surfaceFailure(reason)
+  const matched = new RegExp(pattern, 'm').exec(output)
+  if (matched === null) return surfaceFailure(`no line matched ${pattern}`)
+  const gates = splitGateLine(matched[1], separator)
+  return gates.length === 0 ? surfaceFailure('gate line was empty') : { ok: true, gates }
 }
 
 export function classifyHookResult({ exitCode, signal, hardness, applicable, rationale }) {
