@@ -123,57 +123,59 @@ describe('generated GitHub Actions workflows pass actionlint (#actionlint-corpus
   })
 
   for (const { name, data } of CONFIGS) {
-    it.skipIf(!HAS_ACTIONLINT)(
-      `every workflow template renders, is valid YAML, and passes actionlint (${name})`,
-      () => {
-        const tmp = mkdtempSync(join(tmpdir(), 'arbiter-workflow-syntax-'))
-        try {
-          const workflowsDir = join(tmp, '.github', 'workflows')
-          mkdirSync(workflowsDir, { recursive: true })
+    // #2288: the whole case used to be `skipIf(!HAS_ACTIONLINT)`, so on CI — which has no
+    // actionlint on PATH — the RENDER and YAML-validity assertions never ran either, even though
+    // neither needs the binary. Only the actionlint invocation is tool-gated now; rendering every
+    // template under every config is unconditional.
+    it(`every workflow template renders, is valid YAML, and passes actionlint (${name})`, () => {
+      const tmp = mkdtempSync(join(tmpdir(), 'arbiter-workflow-syntax-'))
+      try {
+        const workflowsDir = join(tmp, '.github', 'workflows')
+        mkdirSync(workflowsDir, { recursive: true })
 
-          const renderFailures: string[] = []
-          const yamlFailures: string[] = []
-          const filesByTemplate = new Map<string, string>()
+        const renderFailures: string[] = []
+        const yamlFailures: string[] = []
+        const filesByTemplate = new Map<string, string>()
 
-          for (const tpl of WORKFLOW_TEMPLATES) {
-            let rendered: string
-            try {
-              rendered = renderTemplate(tpl, data)
-            } catch (err) {
-              renderFailures.push(`${tpl}: ${String(err).split('\n')[0]}`)
-              continue
-            }
-            try {
-              parseYaml(rendered)
-            } catch (err) {
-              yamlFailures.push(`${tpl}: ${String(err).split('\n')[0]}`)
-              continue
-            }
-            const outName = tpl.slice(`${WORKFLOW_ROOT}/`.length).replace(/\.ejs$/, '')
-            const outPath = join(workflowsDir, outName)
-            writeFileSync(outPath, rendered)
-            filesByTemplate.set(outPath, tpl)
+        for (const tpl of WORKFLOW_TEMPLATES) {
+          let rendered: string
+          try {
+            rendered = renderTemplate(tpl, data)
+          } catch (err) {
+            renderFailures.push(`${tpl}: ${String(err).split('\n')[0]}`)
+            continue
           }
-
-          expect(renderFailures, `templates failed to render under ${name}`).toEqual([])
-          expect(yamlFailures, `templates rendered to invalid YAML under ${name}`).toEqual([])
-
-          const outPaths = [...filesByTemplate.keys()]
-          const check = spawnSync('actionlint', outPaths, { encoding: 'utf-8' })
-          if (check.status !== 0) {
-            // Map actionlint's absolute file paths back to the source template so a
-            // failure names the `.yml.ejs` to fix, not an opaque tmpdir path.
-            let report = check.stdout || check.stderr || `exit ${String(check.status)}`
-            for (const [outPath, tpl] of filesByTemplate) {
-              report = report.split(outPath).join(tpl)
-            }
-            expect.fail(`actionlint found issues under ${name}:\n${report}`)
+          try {
+            parseYaml(rendered)
+          } catch (err) {
+            yamlFailures.push(`${tpl}: ${String(err).split('\n')[0]}`)
+            continue
           }
-        } finally {
-          rmSync(tmp, { recursive: true, force: true })
+          const outName = tpl.slice(`${WORKFLOW_ROOT}/`.length).replace(/\.ejs$/, '')
+          const outPath = join(workflowsDir, outName)
+          writeFileSync(outPath, rendered)
+          filesByTemplate.set(outPath, tpl)
         }
-      },
-    )
+
+        expect(renderFailures, `templates failed to render under ${name}`).toEqual([])
+        expect(yamlFailures, `templates rendered to invalid YAML under ${name}`).toEqual([])
+
+        if (!HAS_ACTIONLINT) return // render + YAML asserted above; the lint pass needs the binary
+        const outPaths = [...filesByTemplate.keys()]
+        const check = spawnSync('actionlint', outPaths, { encoding: 'utf-8' })
+        if (check.status !== 0) {
+          // Map actionlint's absolute file paths back to the source template so a
+          // failure names the `.yml.ejs` to fix, not an opaque tmpdir path.
+          let report = check.stdout || check.stderr || `exit ${String(check.status)}`
+          for (const [outPath, tpl] of filesByTemplate) {
+            report = report.split(outPath).join(tpl)
+          }
+          expect.fail(`actionlint found issues under ${name}:\n${report}`)
+        }
+      } finally {
+        rmSync(tmp, { recursive: true, force: true })
+      }
+    })
   }
 
   it.skipIf(HAS_ACTIONLINT)('SKIP reason: actionlint not installed locally', () => {

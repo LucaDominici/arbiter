@@ -112,6 +112,24 @@ Every feature implementation must include tests for each of the following patter
 | Tenant isolation    | Data from tenant A must not leak to tenant B                       | ✓        |
 | Concurrency         | Concurrent access does not produce incorrect results               | ✓        |
 
+## Environment-Independent Tests (#2288)
+
+A test that quietly does nothing on the CI runner is worse than a missing test: it reports green
+while the branch it was written for goes uncovered, and the loss shows up only as a coverage
+ratchet regression nobody can localise. Two shapes have bitten this repo:
+
+| Shape                                                | Why it no-ops in CI                                                                                                          | Do this instead                                                                                                                |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `chmod 000` + `if (process.getuid?.() === 0) return` | The runner executes as **root**, and root ignores permission bits — so the guard returns and the error branch is never taken | Provoke an errno that binds for every uid: read a **directory** (`EISDIR`), or a symlink pointing at one. No `chmod`, no guard |
+| `it.skipIf(!HAS_TOOL)` wrapping the whole case       | CI installs the tool in some jobs only, so every assertion in the body is skipped there                                      | Gate only the part that needs the binary; keep render / parse / shape assertions unconditional                                 |
+
+`scripts/check-perm-test-guards.mjs` still requires the root guard wherever a `chmod`-to-unreadable
+remains — the guard is the correct fix for a test that genuinely cannot avoid one. Preferring the
+uid-independent form means the guard is rarely needed at all.
+
+Rule of thumb: before adding an environment guard, ask whether the condition can be provoked in a
+way that holds in every environment. If it can, the guard is a coverage hole waiting to open.
+
 ## Test Pyramid
 
 | Level        | Tool              | When       | Coverage Target |

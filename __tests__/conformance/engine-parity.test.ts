@@ -815,17 +815,20 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
 
   // ── Parity case 13 (#1470): forbidden_pattern must NOT fake-green an unreadable file ──────
   // A matched, non-excluded file that cannot be read must yield N (cannot assert absence), never a
-  // Y. Robust to the test UID: as non-root a chmod-000 file is unreadable ⇒ N 'unreadable'; as root
-  // it is readable and (it holds the marker) ⇒ N 'forbidden pattern present'. Either way: N, and
-  // both engines AGREE (same readText) — locking the anti-fake-green property in the parity gate.
+  // Y — and both engines AGREE (same readText), locking the anti-fake-green property in the parity
+  // gate.
+  //
+  // #2288: this used to make the file unreadable with chmod 000, which root IGNORES. On the CI
+  // runner (root) the file was readable, the test took the 'forbidden pattern present' path, and
+  // the unreadable branch of readText/readScanText went uncovered in CI only. A SYMLINK TO A
+  // DIRECTORY is unreadable for every uid: walkRepo records symlinks as matched paths, statSync
+  // follows to the directory (so the size probe succeeds), and readFileSync then fails EISDIR —
+  // the exact 'matched but unreadable' shape, deterministic at any uid.
   it('parity: forbidden_pattern → N (never Y) on an unreadable matched file (#1470)', async () => {
-    // As root, chmod 000 does not restrict reads — skip (the unreadable branch can't be exercised).
-    if (process.getuid?.() === 0) return
     const root = tmpDir()
     mkdirSync(join(root, 'src'), { recursive: true })
     const secret = join(root, 'src', 'secret.ts')
-    writeFileSync(secret, 'const x = 1 // FORBIDDEN marker\n')
-    chmodSync(secret, 0o000)
+    symlinkSync(join(root, 'src'), secret)
     try {
       const reg: RegistryInput = {
         checks: [
@@ -844,13 +847,19 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
 
       // NEVER Y — an unread/unverified file cannot fake-green.
       expect(tsResult.checks[0]?.verdict).toBe('N')
+      // ...and specifically via the UNREADABLE branch, not by matching the pattern. Asserting the
+      // detail is what keeps the branch exercised: under the old chmod form this silently became
+      // 'forbidden pattern present' whenever the suite ran as root (#2288).
+      expect(tsResult.checks[0]?.evidence).toMatchObject({
+        detail: expect.stringContaining('unreadable'),
+      })
       expect(mjsChecks.find((c) => c.id === 'FP-UNREADABLE')?.verdict).toBe('N')
       // both engines reach the SAME branch on the same file.
       expect(tsResult.checks[0]?.verdict).toBe(
         mjsChecks.find((c) => c.id === 'FP-UNREADABLE')?.verdict,
       )
     } finally {
-      chmodSync(secret, 0o644) // restore so rmSync can clean up
+      rmSync(secret, { force: true })
     }
   })
 

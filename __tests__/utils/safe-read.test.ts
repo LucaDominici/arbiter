@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdirSync, writeFileSync, chmodSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { readFileSafe, readPackageJsonSafe } from '../../src/utils/safe-read.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
@@ -29,16 +29,17 @@ describe('readFileSafe (#684)', () => {
   })
 
   it('returns "" and warns on non-ENOENT error', () => {
-    // Skip on CI where processes may run as root (root ignores chmod)
-    if (process.getuid?.() === 0) return
-    const p = join(dir, 'locked.txt')
-    writeFileSync(p, 'secret', 'utf-8')
-    chmodSync(p, 0o000)
+    // #2288: a chmod-000 file is still readable BY ROOT, so the permission-based
+    // form of this test silently stopped exercising the warn branch on the CI
+    // runner (which runs as root) — a coverage hole visible only in CI. Reading a
+    // DIRECTORY fails with EISDIR for every uid, root included, so the non-ENOENT
+    // branch is now exercised deterministically wherever the suite runs.
+    const p = join(dir, 'locked-dir')
+    mkdirSync(p)
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     expect(readFileSafe(p)).toBe('')
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('locked.txt'))
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('locked-dir'))
     spy.mockRestore()
-    chmodSync(p, 0o644)
   })
 })
 
