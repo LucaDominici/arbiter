@@ -273,7 +273,7 @@
     "scripts/bg-run.sh": "c01d5fc49ee813cf908a8984a529d6d774e44735f396465759cae0194fddf72c",
     "scripts/capacity-probe.mjs": "8e00e0caa6400bce5d5c230142597734297accd48454c72627a8196c8b6a5601",
     "scripts/check-action-pins.mjs": "f0fe973f57d0c329e03790c150bd5dcc0cea11f0845dcf861701dcd05345fe28",
-    "scripts/check-all.mjs": "3e6fed6292b81eeff7acf44826c4346aba403be770da4e2b049568d950b2f54e",
+    "scripts/check-all.mjs": "b4ad6f79c948b603552955c2f170ad3b9e96189901294016541100cdcae95c6c",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "d63df94da96356e5cfbbf08202c30a34744ff0a65f9ac0914f4d21c87cad1bd2",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",

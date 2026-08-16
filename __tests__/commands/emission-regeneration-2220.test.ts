@@ -38,12 +38,16 @@ function backupFiles(dir: string): string[] {
 
 describe('update emission regeneration (#2220)', () => {
   let dir: string
+  let logs: string[]
 
   beforeEach(() => {
     dir = createTestProject('typescript')
     initGit(dir)
     writeV2Config(dir)
-    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    logs = []
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logs.push(args.map(String).join(' '))
+    })
   })
 
   afterEach(() => {
@@ -68,7 +72,20 @@ describe('update emission regeneration (#2220)', () => {
     stored.permitGitHub = true
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(stored, null, 2) + '\n')
 
+    // #2257: flipping permitGitHub newly lands scripts/check-merge-method.mjs
+    // (the merge-method-ff-only gate) while THIS fixture's manifest-less
+    // check-all.mjs is withheld as user-modified — so `arbiter update` correctly
+    // reports the gate as shipped-but-unwired and exits recoverable-non-zero.
+    // That report is a feature, not a regression: assert it rather than let
+    // process.exit abort the runner mid-test. Before #2257 the second render was
+    // byte-identical to the first (the workflow gates keyed off the live-API
+    // `useGitHub` flag, false on the update path), so nothing was withheld and
+    // the warning never fired — the same drift the RTM cell in
+    // greenfield-first-run.test.ts now covers end-to-end.
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
     await runUpdate({ dir, json: true, github: false })
+    exitSpy.mockRestore()
+    expect(logs.join('\n')).toContain('check-merge-method.mjs added but check-all.mjs is withheld')
 
     // Informative classes (CLAUDE.md, arbiter.json) are provenance-gated (#2220):
     // preserved, never clobbered, no backup residue.
