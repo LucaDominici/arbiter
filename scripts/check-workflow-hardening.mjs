@@ -12,7 +12,10 @@
 // CATALOG:   lacking timeout-minutes — a hung job otherwise runs to GitHub's 6h default, #1485),
 // CATALOG:   cancellableDeployAuditWorkflows (a deploy/audit/release-class workflow that is NOT
 // CATALOG:   pull_request-triggered yet has cancellable concurrency — a silently-cancelled required
-// CATALOG:   check is a false-green; only PR fast-feedback runs may supersede, #1497).
+// CATALOG:   check is a false-green; only PR fast-feedback runs may supersede, #1497),
+// CATALOG:   branchWritebackWorkflows (a workflow granting `contents: write` that runs `git push`
+// CATALOG:   — it commits back to its own trigger branch, bypassing the review and gate that ran
+// CATALOG:   there, #2300).
 // CATALOG: Rejected fold-in into check-action-pins.mjs (single-axis SHA-pin transition gate) and
 // CATALOG:   check-workflow-parallelism.mjs (needs-chain depth, different axis): this gate owns the
 // CATALOG:   multi-axis hardening report + the gold-audit value-report contract.
@@ -235,6 +238,22 @@ function countJobsMissingTimeout(file, lines) {
   return missing
 }
 
+/**
+ * True when a workflow grants `contents: write` and runs `git push` — it can commit back to
+ * the branch that triggered it. Such a commit lands on a branch whose review and gate ran
+ * against a different tree, so it enters main having been checked by nothing. The concrete
+ * regression: dependabot-actions-sync.yml pushed a `src/templates/**` commit onto every
+ * action-bump branch, which made each bump owe TDD evidence (#2217 floor) that a dependency
+ * bump has no honest way to supply (#2300).
+ *
+ * ponytail: substring scan, not a YAML parse — `contents: write` and `git push` in one file is
+ * the whole signal. Upgrade to block-scoped parsing only if a workflow legitimately needs both
+ * in unrelated jobs.
+ */
+function isBranchWriteback(content) {
+  return /^\s*contents:\s*write\s*$/m.test(content) && /\bgit\s+push\b/.test(content)
+}
+
 function main() {
   const files = collectYamlFiles(WORKFLOW_DIR).sort()
   const metrics = {
@@ -245,6 +264,7 @@ function main() {
     concurrencyGroupRefFallback: 0,
     jobsMissingTimeout: 0,
     cancellableDeployAuditWorkflows: 0,
+    branchWritebackWorkflows: 0,
   }
   const violations = []
   for (const file of files) {
@@ -286,6 +306,14 @@ function main() {
           `(cancel-in-progress must be false) — a silently-cancelled required check is a false-green`,
       )
     }
+    if (isBranchWriteback(content)) {
+      metrics.branchWritebackWorkflows++
+      violations.push(
+        `${rel}: grants contents: write and runs git push — a workflow must not commit back to ` +
+          `the branch that triggered it; the commit bypasses the review and gate that ran on ` +
+          `that branch (#2300)`,
+      )
+    }
   }
 
   if (metrics.jobsMissingTimeout > 0) {
@@ -304,7 +332,8 @@ function main() {
     metrics.prPushWorkflowsMissingConcurrency +
     metrics.concurrencyGroupRefFallback +
     metrics.jobsMissingTimeout +
-    metrics.cancellableDeployAuditWorkflows
+    metrics.cancellableDeployAuditWorkflows +
+    metrics.branchWritebackWorkflows
   if (gated > 0) {
     process.stdout.write(
       `  check-workflow-hardening: ${gated} hardening violation(s):\n` +
@@ -315,7 +344,8 @@ function main() {
   }
   process.stdout.write(
     `  check-workflow-hardening: ${metrics.workflows} workflow(s) hardened ` +
-      `(pins ✓, permissions ✓, concurrency ✓, timeout-minutes ✓, cancel-classification ✓)\n`,
+      `(pins ✓, permissions ✓, concurrency ✓, timeout-minutes ✓, cancel-classification ✓, ` +
+      `no-branch-writeback ✓)\n`,
   )
   return 0
 }
