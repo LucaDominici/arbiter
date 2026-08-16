@@ -2,6 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // scripts/check-canon15-wired-gate.mjs
 //
+// CATALOG: CANON-15 promotion gate (#1923). Asserts that every template emitting a
+// CATALOG: linter / security-scanner / architecture-boundary config also emits the gate
+// CATALOG: STEP that invokes it — a config file with no invocation is a paper rule.
+// CATALOG: Rejected fold-in into check-canon-enforcement-parity.mjs: that gate reads the
+// CATALOG: Enforcement FIELD of each CANON entry (is it a wired citation or a dated
+// CATALOG: promise?); this one reads the template corpus and the gate registry, a
+// CATALOG: different subject and a different failure mode.
+// CATALOG: Rejected fold-in into check-emission-coherence.mjs (INV-123): that gate checks
+// CATALOG: emission manifests against what was written; this checks the config->gate-step
+// CATALOG: relation, which is invisible to a manifest.
+//
 // CANON-15 (#1923, ACTION_PLAN.md Tranche B3/FP-3): emitting a linter config, a
 // security-scanner config, or an architecture-boundary config is not sufficient.
 // The gate step that INVOKES it must be emitted too — a config file with no gate
@@ -104,7 +115,9 @@ export function findViolations(templates, declarations, gateIds) {
   const present = new Set(templates)
   for (const decl of declarations) {
     if (!present.has(decl.template)) {
-      violations.push(`${decl.template}: DEAD declaration — the template no longer exists; remove it.`)
+      violations.push(
+        `${decl.template}: DEAD declaration — the template no longer exists; remove it.`,
+      )
     }
   }
   return violations
@@ -153,5 +166,13 @@ function main() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
-  main()
+  try {
+    main()
+  } catch (err) {
+    // Fail-closed (INV-96): an unexpected error must block, never silently pass.
+    process.stderr.write(
+      `[check-canon15-wired-gate] ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
+  }
 }

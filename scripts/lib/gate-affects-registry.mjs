@@ -165,6 +165,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'e2e escalation ladder (#2043)', affects: ALWAYS },
   { name: 'dogfood', affects: ALWAYS },
   { name: 'canon-01 declination (#1922)', affects: ALWAYS },
+  { name: 'canon-15 wired gate (#1923)', affects: ALWAYS },
   { name: 'examples drift (#2222)', affects: ALWAYS },
   { name: 'coverage', affects: ALWAYS },
   { name: 'coverage ratchet (#1483)', affects: ALWAYS },

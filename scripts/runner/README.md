@@ -50,7 +50,7 @@ Runner version v2.334.0 is deprecated and cannot receive messages.
 
 Docker still reports every container `Up`, so container-level health is green while the
 GitHub runner inventory lists every slot **offline** and every job on the `docker-ci-build`
-label sits `queued` forever. Because `viafera-farm.timer` / `farm.sh ensure` restarted the
+label sits `queued` forever. Because the hourly farm-ensure timer / `farm.sh ensure` restarted the
 slots on the same cached image, the state was self-healing-proof (observed 2026-08-15:
 PR #2276 queued from 17:40, nightly from 02:53).
 

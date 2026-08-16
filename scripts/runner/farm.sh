@@ -142,6 +142,7 @@ container_running_count() {
 # pipeline reports 141, which would read as "no deprecation found".
 runner_deprecation_in_logs() {
   local logs
+  # FAIL-OPEN-INTENT: unreadable logs must not manufacture a deprecation verdict; an empty capture falls through to the generic degraded report, which is the conservative answer.
   logs="$(compose logs --tail=200 --no-color 2>/dev/null || true)"
   grep -Eqi 'cannot receive messages|Runner version .* is deprecated' <<<"${logs}"
 }
@@ -218,6 +219,7 @@ cmd_health() {
     echo "WARN: GitHub API unreachable — cannot verify runner registration" >&2
   elif [[ "$online" -lt "$EXPECTED_SCALE" ]]; then
     echo "DEGRADED: expected ${EXPECTED_SCALE} online runner(s), found ${online}" >&2
+    # FAIL-OPEN-INTENT: additive detail on an ALREADY-failing branch (ok=false below); a 1 from the diagnosis means "no deprecation signature", not an error.
     diagnose_up_but_offline "$containers" "$online" >&2 || true
     ok=false
   fi
@@ -258,6 +260,7 @@ cmd_ensure() {
   compose ps >&2
   # This is the path the hourly ensure timer took during the 2026-08-15 stall:
   # it reported non-convergence every hour without ever naming the stale image.
+  # FAIL-OPEN-INTENT: additive detail on an already-failing path (return 1 below); a 1 from the diagnosis means "no deprecation signature", not an error.
   diagnose_up_but_offline "$(container_running_count)" "$(runner_count_online)" >&2 || true
   return 1
 }

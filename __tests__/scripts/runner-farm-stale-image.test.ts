@@ -14,7 +14,16 @@
  * health parser and the start path can be driven from fixtures.
  */
 import { describe, it, expect, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, chmodSync, rmSync, readFileSync, existsSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  copyFileSync,
+  chmodSync,
+  rmSync,
+  readFileSync,
+  existsSync,
+} from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -70,7 +79,9 @@ function setup(fx: Fixture): { dir: string; shimLog: string } {
   writeFileSync(join(dir, 'runners.json'), runnersJson(fx.online))
 
   const shimLog = join(dir, 'shim.log')
-  const containerIds = Array.from({ length: fx.containers }, (_, i) => `container${i + 1}`).join('\n')
+  const containerIds = Array.from({ length: fx.containers }, (_, i) => `container${i + 1}`).join(
+    '\n',
+  )
   const services = ['runner-build', 'runner-build-2', 'runner-build-3', 'runner-build-4']
     .slice(0, fx.containers)
     .join('\n')
