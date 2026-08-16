@@ -72,10 +72,11 @@ workflow can reintroduce a push back to its own trigger branch.
 
    Use a **new** issue id for each train and record fresh evidence. Do not reuse a
    previously merged id: `verify tdd`'s `sha-on-branch` check only asserts the recorded
-   test commit is an _ancestor_ of your branch, and on the subject-ID path the floor does
-   not apply its produced-here guard (#2307). Citing a merged id would pass the gate
-   without a red→green cycle having happened — which is the exact hole #2217 exists to
-   close, so treat it as forbidden regardless of what the gate currently accepts.
+   test commit is an _ancestor_ of your branch, so a merged task's evidence keeps
+   verifying forever. Since #2307 the branch floor closes that on **both** citation
+   paths — a branch changing `src/` must carry one evidence file PRODUCED on that
+   branch, over the union of subject- and body-cited ids — so reusing a merged id now
+   fails the gate rather than merely being forbidden by convention.
 
 4. Gate: `npx @arbiter/cli gate-exec -- node scripts/check-all.mjs L2`. Push, merge.
 5. Close the dependabot PR pointing at the train:
