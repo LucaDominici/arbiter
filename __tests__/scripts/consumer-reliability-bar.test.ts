@@ -29,6 +29,7 @@ describe('consumer reliability bar oracles (#2135)', () => {
       before: "runCheck('unit', 'npm', ['test'])\nrunCheck('security', 'node', ['sec.mjs'])\n",
       after: "runCheck('unit', 'npm', ['test'])\n",
       recordedRenderHash: null,
+      existed: true,
     })
     expect(result.ok).toBe(false)
     expect(result.detail).toContain('security')
@@ -37,7 +38,12 @@ describe('consumer reliability bar oracles (#2135)', () => {
   it('AC-2 requires byte identity for a customized gate spine', () => {
     const before = "runCheck('project check', 'node', ['custom.mjs'])\n"
     const after = `${before}runCheck('new', 'node', ['new.mjs'])\n`
-    const result = assessGateSpine({ before, after, recordedRenderHash: 'not-the-disk-hash' })
+    const result = assessGateSpine({
+      before,
+      after,
+      recordedRenderHash: 'not-the-disk-hash',
+      existed: true,
+    })
     expect(result.ok).toBe(false)
     expect(result.detail).toMatch(/byte/i)
   })
@@ -51,8 +57,31 @@ describe('consumer reliability bar oracles (#2135)', () => {
       before,
       after: `${before}runCheck('new', 'node', ['new.mjs'])\n`,
       recordedRenderHash,
+      existed: true,
     })
     expect(result.ok).toBe(true)
+  })
+
+  // #2135: the java consumer has no scripts/check-all.mjs, so this branch decided its
+  // AC-2 verdict. It used to return `ok: checks.size > 0` — a tautology that reported
+  // PASS for a before/after diff the bar never performed.
+  it('AC-2 cannot pass when there is no pre-existing gate spine to diff', () => {
+    const result = assessGateSpine({
+      before: '',
+      after: "runCheck('unit', 'npm', ['test'])\nrunCheck('lint', 'eslint', ['.'])\n",
+      recordedRenderHash: null,
+      existed: false,
+    })
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/UNPROVEN/)
+  })
+
+  // Fail-closed: a caller that omits `existed` must not inherit a passing baseline.
+  it('AC-2 treats a missing `existed` flag as UNPROVEN, never as a pass', () => {
+    const source = "runCheck('unit', 'npm', ['test'])\n"
+    const result = assessGateSpine({ before: source, after: source, recordedRenderHash: null })
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/UNPROVEN/)
   })
 
   it('AC-3 counts only exit 2 as BLOCKS', () => {
