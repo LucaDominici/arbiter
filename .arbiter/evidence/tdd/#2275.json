@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2275",
+  "test_path": "__tests__/scripts/dogfood-divergence-audit.test.ts",
+  "test_commit_sha": "ea4810f30004a8bc925804d2397a6f0082127814",
+  "test_blob_sha": "72d161469b8ed0efe5632e70ecc850e929be2abd",
+  "test_run_log": "\n RUN  v4.1.10 /home/luca/work/repos/arbiter.worktrees/2280-block-2280\n\n ❯ __tests__/scripts/dogfood-divergence-audit.test.ts (5 tests | 1 failed) 6ms\n     × AC-1: no entry defers its own justification to a later per-file audit 4ms\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/dogfood-divergence-audit.test.ts > .dogfood-divergences.json — no un-audited pins (#2275) > AC-1: no entry defers its own justification to a later per-file audit\nAssertionError: 44 pin(s) still un-audited: expected [ '05-release.yml', …(43) ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   \"05-release.yml\",\n+   \"check-action-pins.mjs\",\n+   \"check-anti-fake-green.mjs\",\n+   \"check-anti-proforma.mjs\",\n+   \"check-canonical-paths.mjs\",\n+   \"check-claude-md-lint.mjs\",\n+   \"check-commit-footer-rationale.mjs\",\n+   \"check-constraint-scan.mjs\",\n+   \"check-consumer-audit.mjs\",\n+   \"check-continue-on-error.mjs\",\n+   \"check-doc-links.mjs\",\n+   \"check-doc-set.mjs\",\n+   \"check-docs.mjs\",\n+   \"check-domain-api-surface.mjs\",\n+   \"check-duplication.mjs\",\n+   \"check-exit-code-contract.mjs\",\n+   \"check-fail-closed-audit.mjs\",\n+   \"check-grace-window.mjs\",\n+   \"check-inline-suppressions.mjs\",\n+   \"check-muted-test.mjs\",\n+   \"check-no-stub-redirects.mjs\",\n+   \"check-no-tracked-artifacts.mjs\",\n+   \"check-pii-scan.mjs\",\n+   \"check-pipe-tee-hazard.mjs\",\n+   \"check-pr-size-gate.mjs\",\n+   \"check-secret-presence.mjs\",\n+   \"check-secret-scan.mjs\",\n+   \"check-skip-critical-e2e.mjs\",\n+   \"check-ssot-core.mjs\",\n+   \"check-stride-traceability.mjs\",\n+   \"check-suppression-expiry.mjs\",\n+   \"check-suppression-rationale.mjs\",\n+   \"check-suppressions.mjs\",\n+   \"check-tdd-evidence.mjs\",\n+   \"check-test-naming.mjs\",\n+   \"check-test-pyramid.mjs\",\n+   \"check-test-scope-tier.mjs\",\n+   \"check-tier-coverage.mjs\",\n+   \"check-todo-max-age.mjs\",\n+   \"check-validator-helptext.mjs\",\n+   \"check-wiki-lint.mjs\",\n+   \"check-workflow-docs-sync.mjs\",\n+   \"check-workflow-runners.mjs\",\n+   \"check-workflow-test-integrity.mjs\",\n+ ]\n\n ❯ __tests__/scripts/dogfood-divergence-audit.test.ts:48:68\n     46|   it('AC-1: no entry defers its own justification to a later per-file …\n     47|     const deferred = entries.filter((e) => DEFERRED_AUDIT.test(e.reaso…\n     48|     expect(deferred, `${deferred.length} pin(s) still un-audited`).toE…\n       |                                                                    ^\n     49|   })\n     50|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n\n Test Files  1 failed (1)\n      Tests  1 failed | 4 passed (5)\n   Start at  11:17:11\n   Duration  97ms (transform 14ms, setup 13ms, import 8ms, tests 6ms, environment 0ms)\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/dogfood-divergence-audit.test.ts",
+  "recorded_at": "2026-08-16T09:17:11.911Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/dogfood-divergence-audit.test.ts"
+  ]
+}
