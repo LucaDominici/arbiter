@@ -146,6 +146,54 @@ export function withheldSafetyKeys(results: WriteResult[], targetDir: string): s
     .filter((k): k is string => k !== null && (isSafetyClassKey(k) || isGateSpineKey(k)))
 }
 
+/**
+ * #2295: the targetDir-relative keys this run RE-EMITTED into a path the consumer
+ * had removed after arbiter emitted it there (absent from disk, manifest baseline
+ * present). Sorted for a deterministic report. Exported for unit testing the pure
+ * decision independent of runUpdate's filesystem path.
+ */
+export function restoredKeys(results: WriteResult[], targetDir: string): string[] {
+  return results
+    .filter((r) => r.restored === true)
+    .map((r) => manifestKey(targetDir, r.path))
+    .filter((k): k is string => k !== null)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+}
+
+/** How many restored paths the warning names before collapsing the tail to a count. */
+const RESTORE_REPORT_CAP = 20
+
+/**
+ * #2295: the operator-facing report for a silent restoration.
+ *
+ * Deleting an emitted file is the only channel a consumer has for saying "not this
+ * one", and `update` annulled it on every run while exiting 0. Measured on the
+ * pinned java consumer: 254 files came back, 92 check names' worth of a parallel
+ * gate spine among them, next to the 37 gates its CI actually runs — with nothing
+ * printed. The fix keeps the re-emission (see the issue comment: 255 of that
+ * consumer's 281 manifest entries are absent at the pin, so declining would empty
+ * the update) and moves it onto the warnings channel, which drives exit 1.
+ *
+ * This is a per-DELETION event, not a permanent state: the restored file is
+ * re-baselined, so the next update sees it byte-identical and stays quiet.
+ *
+ * Exported for unit testing the pure decision.
+ */
+export function detectRestoredFilesWarning(keys: string[]): string | null {
+  if (keys.length === 0) return null
+  const shown = keys.slice(0, RESTORE_REPORT_CAP)
+  const hidden = keys.length - shown.length
+  return (
+    `Warning: restored ${keys.length} file(s) this repository had DELETED after arbiter ` +
+    `emitted them — each has a recorded render baseline in ` +
+    `.arbiter-generated-manifest.json but was absent from disk. arbiter re-emits any ` +
+    `path it holds a baseline for, so deleting a generated file does not stick, and ` +
+    `until now it did not say so. Keep the file and commit it, or make the removal ` +
+    `permanent by dropping its entry from the manifest. Restored: ${shown.join(', ')}` +
+    (hidden > 0 ? ` (+${hidden} more)` : '')
+  )
+}
+
 /** targetDir-relative keys of files force-adopted during this run (reporting). */
 export function adoptedKeys(results: WriteResult[], targetDir: string): string[] {
   return results
@@ -659,6 +707,8 @@ interface UpdateSummary extends Record<string, unknown> {
   adopted: number
   /** T1: safety-class files still withheld (adoption disabled) — the ratchet fails on this. */
   withheldSafety: number
+  /** #2295: files re-emitted into a path the consumer had deleted after emission. */
+  restored: number
 }
 
 /**
@@ -959,11 +1009,16 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     // pre-existing LEGACY workflows whose triggers collide (double-running CI,
     // racing release/signing on one tag). Conservative warn-only — never deletes.
     const legacyCollisionWarning = detectLegacyWorkflowCollisionWarning(targetDir)
+    // #2295: same warnings channel — a silent restoration is the one event where
+    // `update` overrode the consumer's only way of declining a generated file.
+    const restored = restoredKeys(results, targetDir)
+    const restoredWarning = detectRestoredFilesWarning(restored)
     const allWarnings = [
       ...backendResult.warnings,
       ...(unwiredWarning ? [unwiredWarning] : []),
       ...(gateSigWarning ? [gateSigWarning] : []),
       ...(legacyCollisionWarning ? [legacyCollisionWarning] : []),
+      ...(restoredWarning ? [restoredWarning] : []),
     ]
 
     saveValidatedConfig(options, nextConfig, targetDir)
@@ -975,6 +1030,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       withheld: results.filter((r) => r.withheld === true && r.adopted !== true).length,
       adopted: adopted.length,
       withheldSafety: stillWithheldSafety.length,
+      restored: restored.length,
     }
     emitUpdateOutcome(options, summary, generatorErrors, allWarnings)
 
