@@ -204,6 +204,7 @@ registered_runner_names() {
 # unregistered.
 unregistered_running_slots() {
   local running registered svc
+  # FAIL-OPEN-INTENT: an empty running-list means no slot is running, which yields an empty orphan list — the conservative answer; the registration side below is the one that fails closed.
   running="$(compose ps --status running --services 2>/dev/null || true)"
   registered="$(registered_runner_names)" || return 1
   for svc in "${EXPECTED_SERVICES[@]}"; do
