@@ -7,6 +7,9 @@
 // Every task id in a commit SUBJECT is verified individually. A branch with no such id
 // that changes src/ must still carry at least one verified evidence among the tasks its
 // commit BODIES cite (#2217) — refs-in-the-body is no longer a vacuous pass.
+// Independently, ANY branch changing src/ must carry one verified evidence PRODUCED on
+// the branch, over subject ∪ body ids (#2307) — citing an already-merged id proves
+// nothing, since verify tdd's sha-on-branch check asserts only ancestry.
 // Rejects any commit with ARBITER-SKIP-TDD: 1 trailer at L2+.
 // Exits 1 on any failure.
 //
@@ -128,14 +131,18 @@ export function formatUncitedSourceError() {
   )
 }
 
-/** Branch changes src/, cites tasks in commit bodies, but no evidence verifies. */
+/**
+ * Branch changes src/ and cites tasks, but none has evidence that was both PRODUCED on
+ * this branch and verifies. Fires on either citation path (#2217, #2307).
+ */
 export function formatFloorError(ids) {
   return (
-    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${ids.join(', ')} in\n` +
-    `commit bodies, but none of them has verified TDD evidence (#2217).\n` +
-    `Refs in a commit BODY are not verified per commit — otherwise every docs and chore\n` +
-    `commit would owe a red→green cycle — so the branch as a whole owes one verified\n` +
-    `evidence for the source it changes.\n${FLOOR_REMEDY}`
+    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${ids.join(', ')},\n` +
+    `but none of them has verified TDD evidence PRODUCED on this branch (#2217, #2307).\n` +
+    `Citing a task whose evidence already sits on main proves nothing: verify tdd's\n` +
+    `sha-on-branch check asserts only ancestry, which every branch off main satisfies.\n` +
+    `The branch as a whole owes one fresh red→green cycle for the source it changes.\n` +
+    `${FLOOR_REMEDY}`
   )
 }
 
@@ -181,23 +188,26 @@ function bodyLogOrEmpty(run, mergeBase) {
 }
 
 function branchFloor(run, mergeBase, taskIds, bodyLog) {
-  if (taskIds.length > 0) return { exitCode: null, ids: [] }
   let changed = ''
   try {
     changed = run('git', ['diff', '--name-only', `${mergeBase}..HEAD`], { cwd: repoRoot })
   } catch {
     changed = ''
   }
-  if (!touchesGovernedSource(changed)) {
+  // Computed on BOTH paths: the subject path owes the produced-here floor too (#2307),
+  // and it is gated on this exact predicate.
+  const touchesSource = touchesGovernedSource(changed)
+  if (taskIds.length > 0) return { exitCode: null, ids: [], touchesSource }
+  if (!touchesSource) {
     process.stdout.write(
       'check-tdd-evidence: no task-ID commits and no src/ change, vacuous pass\n',
     )
-    return { exitCode: 0, ids: [] }
+    return { exitCode: 0, ids: [], touchesSource }
   }
   const ids = parseTaskIdsFromBodies(bodyLog)
-  if (ids.length > 0) return { exitCode: null, ids }
+  if (ids.length > 0) return { exitCode: null, ids, touchesSource }
   process.stderr.write(formatUncitedSourceError())
-  return { exitCode: 1, ids: [] }
+  return { exitCode: 1, ids: [], touchesSource }
 }
 
 function skipTrailerErrors(bodyLog) {
@@ -314,13 +324,17 @@ export function main(opts) {
     return exitFn(0)
   }
 
-  // Floor path: the branch owes ONE verified evidence, not one per cited issue —
-  // docs and chore commits that merely reference an issue owe nothing.
+  // The branch owes ONE verified evidence, not one per cited issue — docs and chore
+  // commits that merely reference an issue owe nothing. Candidates are subject ids UNION
+  // body ids: a merge-train branch whose subject cites a merged id but whose body cites
+  // a task with fresh on-branch evidence has run a real cycle and must pass.
+  const floorIds = [...new Set([...taskIds, ...parseTaskIdsFromBodies(bodyLog)])]
+
+  // Floor path: no subject id at all — the evidence must have been PRODUCED here.
+  // Without this the floor is theatre: cite any long-closed task whose evidence sits on
+  // main and the branch "proves" a red→green cycle it never ran.
   if (taskIds.length === 0) {
-    // ...and the evidence must have been PRODUCED here. Without this the floor is
-    // theatre: cite any long-closed task whose evidence sits on main and the branch
-    // "proves" a red→green cycle it never ran.
-    return exitFn(verifyBranchFloor(run, mergeBase, floor.ids))
+    return exitFn(verifyBranchFloor(run, mergeBase, floorIds))
   }
 
   const results = taskIds.map((taskId) => verifyOne(run, taskId))
@@ -329,6 +343,16 @@ export function main(opts) {
       `\ncheck-tdd-evidence: one or more task IDs failed TDD evidence verification.\n` +
         `Run: arbiter task record-red --test-path <path>\n`,
     )
+    return exitFn(1)
+  }
+
+  // #2307 — the SAME produced-here floor, on the subject path. Per-id verification above
+  // proves each cited task HAS evidence; it cannot prove this branch produced any of it,
+  // because verify tdd's sha-on-branch check asserts only ANCESTRY. So a branch touching
+  // src/ whose subject cites an already-merged id passed the floor with no red→green
+  // cycle at all. Gated on touchesSource exactly as #2217 is, so a docs-only branch that
+  // happens to cite a task id in its subject stays green.
+  if (floor.touchesSource && verifyBranchFloor(run, mergeBase, floorIds) !== 0) {
     return exitFn(1)
   }
 

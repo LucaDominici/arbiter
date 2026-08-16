@@ -83,6 +83,11 @@ function runScenario(opts: {
   uncitedSourceCommit?: boolean
   /** Leave the evidence file uncommitted, as if inherited rather than produced here. */
   inheritedEvidence?: boolean
+  /**
+   * #2307: commit the evidence BEFORE origin/main is pinned, so it is TRACKED and
+   * reachable but was not produced on this branch — the shape of an already-merged task.
+   */
+  evidenceOnMain?: boolean
   evidence?: (featureSha: string, orphanSha: string) => string | null
 }): number {
   const scriptDir = mkdtempSync(join(tmpdir(), 'tdd-s-'))
@@ -99,6 +104,19 @@ function runScenario(opts: {
     writeFileSync(join(repo, 'README.md'), '# base\n')
     g(['add', '.'])
     g(['commit', '-m', 'chore: base'])
+
+    // #2307: an already-merged task's evidence — tracked, and an ancestor of every later
+    // branch, so the ancestry-only sha check passes for a branch that ran no cycle.
+    if (opts.evidenceOnMain) {
+      const baseSha = g(['rev-parse', 'HEAD'])
+      mkdirSync(join(repo, '.arbiter', 'evidence', 'tdd'), { recursive: true })
+      writeFileSync(
+        join(repo, '.arbiter', 'evidence', 'tdd', '#42.json'),
+        validEvidence(baseSha, { test_path: 'README.md' }),
+      )
+      g(['add', '.arbiter'])
+      g(['commit', '-m', 'chore: evidence already merged to main'])
+    }
     g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
 
     if (opts.taskCommit) {
@@ -261,6 +279,13 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
   // is normally UNTRACKED. The produced-on-this-branch guard that arbiter applies to
   // itself would therefore reject every target branch — it stays out of the shipped gate,
   // and an uncommitted evidence file still satisfies the floor here.
+  // THE FALSIFIER (#2307), template side. A branch citing an already-merged id in the
+  // SUBJECT, changing src/, with no cycle of its own: check 4 asserts only ANCESTRY, so
+  // before the produced-here guard this exited 0.
+  it('FAIL (exit 1) when a subject-cited id changing src/ has evidence only from main', () => {
+    expect(runScenario({ evidenceOnMain: true, taskCommit: true })).toBe(1)
+  })
+
   it('PASS (exit 0) for a cited task whose evidence file is untracked in the target', () => {
     expect(
       runScenario({
