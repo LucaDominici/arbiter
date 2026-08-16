@@ -1,9 +1,38 @@
 import { defineConfig } from 'vitest/config'
 import { join, resolve } from 'node:path'
+import { availableParallelism } from 'node:os'
 
 // Worktree paths containing '#' break Vite's URL parsing (fragment separator).
 // Use VITEST_ROOT env var with a symlink path without '#' to work around this.
 const root = process.env.VITEST_ROOT ?? resolve('.')
+
+/**
+ * Worker-pool ceiling for CI (#2282).
+ *
+ * vitest sizes its fork pool at `availableParallelism() - 1` when no cap is set.
+ * The self-hosted runner containers carry no CPU limit, so that call reports the
+ * 24-core HOST and a single CI job spawns ~23 forks on its own. The farm runs up
+ * to four heavy slots and the same box also serves other agents' local gates, so
+ * the real figure was ~90 forks over 24 cores. The red run says so in its own
+ * summary: `Duration 198.39s (transform 155.09s, ... import 451.24s)` — 606 s of
+ * CPU against 198 s of wall from one job.
+ *
+ * Under that thrash a test costing ~3 s at rest blows the 30 s wall-clock
+ * `testTimeout`, and which test loses the race is scheduler-dependent — hence a
+ * different failing test per job on an identical SHA, with zero assertion
+ * failures. The cure is to make the suite fit the machine, not to widen the
+ * timeout, which would only hide the signal.
+ *
+ * 4 is the fair share: four slots x 4 workers = 16 of 24 cores, leaving headroom
+ * for the local gates the host also runs. The `availableParallelism()` bound
+ * keeps it honest on the GitHub-hosted 4-core fallback declared in
+ * `vars.RUNNER_LABELS_TEST`. Local runs stay on the vitest default.
+ * `VITEST_MAX_WORKERS` overrides this natively inside vitest, so tuning needs no
+ * config edit.
+ */
+export function ciMaxWorkers(env: NodeJS.ProcessEnv = process.env): number | undefined {
+  return env.CI ? Math.max(1, Math.min(4, availableParallelism() - 1)) : undefined
+}
 
 export default defineConfig({
   root,
@@ -19,6 +48,8 @@ export default defineConfig({
     // resource-constrained CI runner they compete for CPU. 30 s absorbs that contention (the 5 s
     // vitest default flaked; 20 s still flaked the heaviest coverage files in CI).
     testTimeout: 30000,
+    // #2282: bound the fork pool in CI — see ciMaxWorkers above.
+    maxWorkers: ciMaxWorkers(),
     // Integration tests are L2+ per AGENTS.md gate policy; L1 unit-only keeps pre-commit fast.
     include: ['__tests__/**/*.test.ts'],
     exclude: ['**/node_modules/**', '__tests__/integration/**'],
