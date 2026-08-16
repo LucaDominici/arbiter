@@ -113,3 +113,21 @@ describe('boundaries/.eslintrc-frontend-spa.cjs.ejs — cross-level stability (C
     },
   )
 })
+
+// #2277 — the eslintrc twin carries the same import/resolver setting as the flat
+// config the gate runs. The twin is retained for tooling that still reads
+// eslintrc-format config (a root config `extends`-ing it), and without the
+// resolver it reproduces the identical boundaries/no-unknown false positive on
+// every legitimate extensionless cross-layer import.
+describe('boundaries/.eslintrc-frontend-spa.cjs.ejs — import resolution (#2277)', () => {
+  it('configures an import/resolver, dual-tracked with the flat twin', () => {
+    const rendered = renderEslintFrontendSpa({ frontend: { framework: 'react' } })
+    expect(rendered).toContain("'import/resolver'")
+    expect(rendered).toContain(".ts', '.tsx'")
+  })
+
+  it('keeps boundaries/no-unknown at error — the rule is fixed, never weakened', () => {
+    const rendered = renderEslintFrontendSpa({ frontend: { framework: 'react' } })
+    expect(rendered).toContain("'boundaries/no-unknown': 'error'")
+  })
+})
