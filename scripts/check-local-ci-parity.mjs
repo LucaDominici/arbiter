@@ -197,6 +197,7 @@ const CI_COVERAGE = new Map([
   ['no tracked artifacts (INV-117)', 'gate-full'],
   // #2159: found unwired by check-unwired-guards.mjs's own self-run.
   ['hook routing (#2129)', 'gate-full'],
+  ['safety adopt ratchet (#2291)', 'gate-full'],
   ['greenfield smoke', 'gate-full'],
   ['placeholders', 'gate-full'],
   ['i18n raw strings', 'gate-full'],
