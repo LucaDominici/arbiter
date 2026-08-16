@@ -29,7 +29,19 @@ const dirArgIdx = args.indexOf('--dir')
 const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]) : process.cwd()
 const ALLOWLIST = '.stub-redirects-allowlist'
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
+// Mirrors scripts/lib/glob-walk.mjs SKIP_DIRS byte-for-byte, including the #1840 F4
+// tranche-3 Python prunes; __tests__/conformance/skip-dirs-parity.test.ts locks it.
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.coverage',
+  '.venv',
+  'venv',
+  '__pycache__',
+])
 
 // A redirect VERB anchoring a stub. Matched against the leading non-empty lines of the doc.
 const REDIRECT_VERB_RE =

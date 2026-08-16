@@ -7,7 +7,24 @@
 import { readdirSync, lstatSync, statSync } from 'node:fs'
 import { join, isAbsolute } from 'node:path'
 
-export const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
+// #1840 F4 tranche-3: '.venv'/'venv'/'__pycache__' added — a Python fixture's
+// dependency-closure venv lives INSIDE the project tree (mirrors post-edit-
+// dispatch.mjs.ejs's own SKIP_DIRS regex), and third-party packages sometimes
+// ship their OWN test suites inside site-packages (e.g. greenlet, a transitive
+// sqlalchemy/uvicorn dep) — those tripped check-muted-test.mjs on a plain
+// `@unittest.skipIf` in a dependency's bundled tests, a false positive with
+// zero relationship to the project's own code.
+export const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.coverage',
+  '.venv',
+  'venv',
+  '__pycache__',
+])
 
 /**
  * Compile a restricted glob (`**`, `*`) into a RegExp ONCE. Compiling is the per-check cost; a

@@ -256,9 +256,8 @@
   {
     "path": "check-no-stub-redirects.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). Self carries the INV-94 CATALOG block (including the rejected fold-ins into check-doc-links.mjs, link RESOLUTION rather than husk detection, and check-doc-style.mjs, prose style rather than redirect shape), the `selfOnly:` deferral marker for #1419, and the 'falso-green' wording the arbiter corpus uses; the stub-shape heuristic, the EXPIRES-required allowlist and the fail-closed handling are identical. One real gap: the template's SKIP_DIRS prune .venv/venv/__pycache__ (#1840 F4 tranche-3) and self's own local SKIP_DIRS set does not, so a Python dependency's bundled docs inside site-packages would be scanned as project content. Latent (arbiter has no Python tree today) but one-sided. DATED 2026-09-30 against #2286.",
-    "expires": "2026-09-30",
-    "diffHash": "29e641fa9031164a9de92c79cb4186f178e913902f03a8cfc74059447e4ca4c1"
+    "reason": "Read line-by-line (#2275). Self carries the INV-94 CATALOG block (including the rejected fold-ins into check-doc-links.mjs, link RESOLUTION rather than husk detection, and check-doc-style.mjs, prose style rather than redirect shape), the `selfOnly:` deferral marker for #1419, and the 'falso-green' wording the arbiter corpus uses; the stub-shape heuristic, the EXPIRES-required allowlist and the fail-closed handling are identical. The one real gap — self's local SKIP_DIRS not pruning .venv/venv/__pycache__ (#1840 F4 tranche-3), so a Python dependency's bundled docs inside site-packages would be scanned as project content — is CLOSED by #2286 and its EXPIRES date is therefore dropped: the set now mirrors scripts/lib/glob-walk.mjs and __tests__/conformance/skip-dirs-parity.test.ts drives this script through its CLI to keep it that way.",
+    "diffHash": "4af89c8f1b8e0af8820958da7c9704b14aeeb8cf869b080a77502714c1efd1e5"
   },
   {
     "path": "check-no-tracked-artifacts.mjs",
@@ -409,8 +408,8 @@
   {
     "path": "glob-walk.mjs",
     "dest": "scripts/lib",
-    "reason": "Arbiter self-dogfood: the SHIPPED twin adds the Python dependency-closure SKIP_DIRS ('.venv'/'venv'/'__pycache__', #1840 F4 tranche-3) that only matter for generated Python targets; the SELF copy cannot adopt them because __tests__/conformance/skip-dirs-parity.test.ts locks its SKIP_DIRS byte-identical to src/conformance/shared.ts (#1521). The nested-.git checkout-boundary prune that used to be self-only (#1734/#1752) is NO LONGER part of this divergence: #2104 ported it to the template and unified both sides on the same cheaper form (one `entries.includes('.git')` check per directory over the entries already read, instead of an existsSync stat per subdirectory). Remaining divergence is the SKIP_DIRS set plus its comment; reconciliation tracked as follow-up, not silent drift.",
-    "diffHash": "a635875e2b289bdef85c452d04e770cd7e2f0e96b1d4b40cfd4267c3616b0a27"
+    "reason": "Arbiter self-dogfood: the SKIP_DIRS gap is RESOLVED. #2286 ported the #1840 F4 tranche-3 Python prunes ('.venv'/'venv'/'__pycache__') to the SELF copy and, in lockstep, to src/conformance/shared.ts and check-no-stub-redirects.mjs' local set — the byte-identity lock in __tests__/conformance/skip-dirs-parity.test.ts, which used to make the adoption impossible one-sidedly (#1521), is what now forces all three to move together, and it was extended (9 names, not 6) rather than weakened. The nested-.git checkout-boundary prune was already unified by #2104. What REMAINS is prose only: self's JSDoc for that prune narrates arbiter's own history (agent worktrees under `.claude/worktrees/**`, the thousands of false broken-link hits of #1734/#1752, the #2104 backreference) where the template narrates the generic consumer story (the 62,974-vs-20,528 secret-scan measurement). Behaviour is now identical on both sides; the divergence is the comment and nothing else.",
+    "diffHash": "e37ed519dc3abcef46c79301e4d51d89de6be0ab9eebe21471f1d8e9221319d2"
   },
   {
     "path": "run-helpers.mjs",

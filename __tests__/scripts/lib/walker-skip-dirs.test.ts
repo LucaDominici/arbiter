@@ -62,7 +62,17 @@ function seed(root: string, dir: string, name: string, content = 'x'): void {
 
 // The intended, frozen widened skip set (the #1521 widening). Adding/removing a dir here MUST be
 // a conscious edit — that is the whole point of the pin.
-const WIDENED_SKIP = ['.coverage', '.git', 'build', 'coverage', 'dist', 'node_modules']
+const WIDENED_SKIP = [
+  '.coverage',
+  '.git',
+  '__pycache__',
+  '.venv',
+  'build',
+  'coverage',
+  'dist',
+  'node_modules',
+  'venv',
+]
 
 describe('walkRepo SKIP_DIRS widening (#1545)', () => {
   it('SKIP_DIRS is exactly the intended widened set — pins the #1521 widening', () => {
