@@ -105,8 +105,7 @@
   {
     "path": "05-release.yml",
     "dest": ".github/workflows",
-    "reason": "Self is the typescript/library archetype's own release: it runs npm-package-publishing guards (check-pack-size.mjs, check-tarball-contents.mjs) plus a self-only packaged-export smoke (#2139) over the just-packed tarball — all specific to the @arbiter/cli tarball and absent from the generic multi-archetype template render for this profile. Large diff (many other-archetype release steps this profile doesn't hit) — NOT individually audited line-by-line; R-01/R-09 (census) already track 05-release template↔self parity as a dedicated follow-up. Re-pinned under #2138 once BOTH sides were fixed to pack once and sign/publish the same npm tarball and the triggers were reconciled to tag-only; the trigger block and the publish-path shape are now asserted directly in __tests__/templates/05-release-render.test.ts, so neither can hide inside this pin again. Tracked under #2275. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275), replacing the prior not-yet-audited marker. Self IS the typescript/library archetype's own release: it runs npm-package-publishing guards (check-pack-size.mjs, check-tarball-contents.mjs) plus a self-only packaged-export smoke (#2139) over the just-packed tarball — all specific to the @arbiter/cli tarball and absent from the generic multi-archetype template render for this profile, which in turn carries release steps for archetypes this profile never hits. Both sides were reconciled under #2138 to pack once and sign/publish the same npm tarball, with triggers narrowed to tag-only; the trigger block and the publish-path shape are now asserted directly in __tests__/templates/05-release-render.test.ts, so neither can hide inside this pin again. PERMANENT: an archetype-specific release cannot converge onto a multi-archetype template, and the two axes that could regress silently are pinned by a render test rather than by this entry.",
     "diffHash": "04340bf2be3285330469da18c3178d8ff72c96201f74de3a09dc1497c67a62b2"
   },
   {
@@ -118,29 +117,25 @@
   {
     "path": "check-action-pins.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self scans TWO corpora where the template scans one: besides .github/workflows and .github/actions it walks the workflow TEMPLATES arbiter ships (src/templates/**/workflows/*.ejs), because a fabricated or tag-shaped SHA in an .ejs is emitted verbatim into every generated project while the self gate stays green (#1491, security-privacy MAJOR-3) — and it therefore also skips templated refs (EJS/shell interpolation), a concept a target has no use for. Self additionally imports collectYamlFiles/collectWorkflowTemplates from scripts/lib/workflow-scan.mjs, which arbiter does NOT ship as a template, so the emitted twin must inline its own walker to stay self-contained. The CROSS_MAJOR_ALLOWLIST shas are identical on both sides; only self annotates each with its version comment. PERMANENT: a target project has no template corpus and no arbiter lib tree, so neither half of this divergence can ever be reconciled.",
     "diffHash": "d9962978af14deb71fb3e24675463b2dcbabe2079c20b37879382e95db73c90b"
   },
   {
     "path": "check-anti-fake-green.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). The guard ROSTER is the divergence: the template hardcodes a GUARDS array of the emitted guard scripts, while self imports it from scripts/lib/anti-fake-green-guards.mjs — the SSOT shared with the guard-flip self-test harness (check-guard-flip.mjs) so a newly-added vacuous guard fails CI. That lib is self-only (no twin under src/templates/scripts/lib/), so the emitted aggregate cannot import it. Self also carries a per-guard `class` taxonomy (file-scan exit 1 = hard fail, gh-audit exit 1 = advisory under --enforce) that has no subject in a target, which runs no gh-audit guards. Both sides keep the same disarm-proof rule: a child's exit 2 fails the aggregate unconditionally. PERMANENT: roster-as-shared-lib vs roster-inlined is forced by what arbiter ships.",
     "diffHash": "abe991738871e8c9a1b1736dcdab3dc476cad2b1990417ed3cb4cbe016eb376c"
   },
   {
     "path": "check-anti-proforma.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-pinned 2026-08-03 (#2031): the scanner rewrite (literal masking + paren-matched extents + helper attribution + tautology denylist) landed on BOTH sides and the divergence NARROWED to three lines — the projectName banner, ROOT (repo root vs process.cwd()), and the import.meta entrypoint guard the emitted script does not need. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 9-/15+, entirely structural: self resolves ROOT from import.meta.url so the gate audits the arbiter checkout wherever it is invoked from, where the template uses process.cwd(); self adds the SPDX header; and self wraps main() in the `process.argv[1] === fileURLToPath(import.meta.url)` CLI guard so the module can be imported by its unit tests without executing. The INV-118 detection logic is equivalent. PERMANENT: the import guard exists to serve arbiter's own test suite, which a target does not have.",
     "diffHash": "ea62ef5005cf55cffdd5ccd7537e587e6b1edf4e59b5d952455112cfb16e5c61"
   },
   {
     "path": "check-canonical-paths.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). One substantive difference: the file path. Self reads docs/internal/METHOD/CANONICAL_PATHS.md, the template docs/METHOD/CANONICAL_PATHS.md — arbiter split its own governance docs under docs/internal/ (#1770) while targets keep the flat docs/METHOD layout the template renders. Everything else is console.log to process.stdout.write and the INV-50 to INV-57 citation renumber. PERMANENT: the docs/internal split is arbiter's own layout and must not be pushed onto generated projects.",
     "diffHash": "1e3d1787ae287f7021f84b92933c922d0cddd89da1beceff5f7c4eaac72a77b7"
   },
   {
@@ -152,8 +147,7 @@
   {
     "path": "check-claude-md-lint.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self is a strict superset: it adds a SOFT volatile-facts rule (a literal semver, or a count bound to a governance noun, in body prose is warned unless the line already points at an SSOT file) with frontmatter and fenced-code exemptions — warn-only, so it never reddens a gate — plus the INV-94 CATALOG block recording why this is not folded into check-doc-style.mjs. The HARD rules (absolute paths, required @import in delegating files, verbatim duplication, line budget) are identical on both sides, as are LINE_BUDGET=600 and DUP_BLOCK_LINES=12. PERMANENT: the CATALOG block is arbiter-internal by construction, and the volatile-facts rule is a warn-only self-first activation — nothing is being suppressed by leaving it self-side.",
     "diffHash": "faef71838288f3e80159b5a1874e3966a9143818f3ad0e5fa99ff876ed33dede"
   },
   {
@@ -165,43 +159,37 @@
   {
     "path": "check-commit-footer-rationale.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Two structural differences, both naming arbiter's own tree. (1) Self exempts src/templates/**: EJS templates define the SHAPE of suppression artifacts (suppressions-schema.json.ejs) and are not arbiter's own active security waivers, so touching one must not demand a Suppression-Rationale footer — a target has no template tree. (2) Self likewise exempts examples/{ts,python,go}-library/, which are committed `arbiter init` OUTPUT regenerated by regenerate-examples.mjs (#1840 F4 tranche 4) — the rendered counterpart of the same reasoning. Self also resolves evidenceDir from the script location rather than cwd, and adds --test-path for its unit tests. Real waivers under the top-level suppressions/ tree stay unexempted on both sides. PERMANENT: both exemptions name arbiter-only directories.",
     "diffHash": "f3c28362070f3d88cafbdf34f0faa1289d51e06673b663ecaadad465648ad5a2"
   },
   {
     "path": "check-constraint-scan.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). The load-bearing difference is one constant: ENFORCE_DEFAULT is true in self and false in the template. That is the documented start-warn-promote-later rollout (#1214) — arbiter hard-fails on an un-covered derivable prohibition with a live hit, while a freshly generated project warns until it has curated constraint-map.json. Self also reads docs/internal/SYSTEM/CANON.md (the #1770 layout) vs the template's docs/SYSTEM/CANON.md, and carries the INV-94 CATALOG block plus section banners. The extraction grammar, the token-shape filter and the INV-96 fail-closed handling of a missing/malformed map are identical. PERMANENT: self-stricter-than-emitted is the deliberate rollout posture, not lag.",
     "diffHash": "94a8e401b503ef43104b5fbfc6d9b8e7b0e411a01d2d11a781713a26fcb6e029"
   },
   {
     "path": "check-consumer-audit.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). The two sides audit different tarballs and the divergence follows from that. Self names @arbiter/cli concretely (its CATALOG block cites the uuid@8 GHSA-w5hq-g745-h8pq exposure that motivated #1670, and its runtime deps by name) and resolves the npm binary through parsePinnedNpm imported from check-npm-ci-drift.mjs, pinning the auditReportVersion:2 JSON schema this gate parses. The template is generic, cannot import an arbiter sibling script, and instead carries #1864 portability work self does not need: tarballNameFromPackOutput accepting BOTH the npm<12 array and npm>=12 object pack-output shapes, and readSourcePackageManager/probePackageJson propagating a corepack pin into the throwaway probe. Both keep the same fail-closed-everywhere posture and the same `moderate` floor. PERMANENT: consumer-portability breadth belongs in the shipped twin; the @arbiter/cli specifics cannot be shipped.",
     "diffHash": "69bdbb1933d92d7fba35a81bc49b8363c513a9de1d929c56015134adeaf2c700"
   },
   {
     "path": "check-continue-on-error.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). The 194-/48+ asymmetry is NOT missing functionality — the old boilerplate read backwards here. Self delegates the whole YAML-1.1 truthy grammar and block-scoping logic to scripts/lib/continue-on-error-core.mjs and scripts/lib/workflow-scan.mjs; the template must inline all of it because arbiter ships neither lib (src/templates/scripts/lib/ has no *-core.mjs twin) and an emitted gate has to be self-contained. On top of that self ADDS scope the template cannot have: it vets the workflow TEMPLATES arbiter ships, so a poisoned .ejs cannot ship a swallowed gate to every generated project. Detection semantics — the on/yes/y and ${{ true }} const-true set, the artifact up/download exemption, the informational-workflow patterns, the audited marker, the drift-shadow parity step — are equivalent. PERMANENT.",
     "diffHash": "03a71f3d7e22b7fe3fa9d0b7c001c5ac4e1a2b1ebfa43eef9a78dbf012b0c32a"
   },
   {
     "path": "check-doc-links.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self is far larger because it owns three surfaces a target has no counterpart for. (1) Scan roots: arbiter scans .claude/.agents/.codex/examples/website plus named root files, not docs/ alone. (2) website/ is a VitePress site, so self implements VitePress's own route resolution (extension-then-index candidates, public/ assets) instead of plain path.resolve — added in F2 (#1838) after 3 dead links in website/governance/index.md passed silently. (3) Self detects self-referential github.com blob/tree URLs, which isLocal() skips as remote and which the docs/internal split (#1770) left dangling inside .vitepress/config.ts. Self also emits .arbiter/reports/doc-links.json for the gold-audit GA-DOC-08 value check and reads the docs/internal CANONICAL_PATHS path. PERMANENT: every addition names an arbiter-only tree or an arbiter-only consumer.",
     "diffHash": "b96c454379b1446e7b88bbca7473e4cb3a3a01cfd58dde036004512ad24738c7"
   },
   {
     "path": "check-doc-set.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). These are two different programs sharing a name, by design. The template is a 28-line thin wrapper that shells out to `npx --no-install arbiter doc-set`, so a generated project needs no local `yaml` dependency and no engine copy — the audit runs inside arbiter's own environment against the target repo. Self IS that engine: manifest parsing (standards/gold-doc-set.yml), overlay and tier resolution via scripts/lib/doc-set-resolve.mjs, accept_any and glob matching, --generate/--refresh-stubs scaffolding with its write-safety guards (scaffold only when MISSING; refresh only a byte-equal stub), and the structured JSON report consumed by src/generators/doc-set.ts. PERMANENT: the wrapper/engine split is the shipped architecture; collapsing it would force the yaml dependency and the whole engine into every target.",
     "diffHash": "24985c59acc20dd11d3de5ab8d17b54314cc00805e21ecdc4c70320eb0a642bf"
   },
   {
@@ -213,36 +201,31 @@
   {
     "path": "check-docs.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 6-/13+. Self adds one capability: an ARBITER_SKIP_DOCS=true env bypass routed through scripts/lib/loud-bypass.mjs, because the commit-message BYPASS_TOKEN cannot work pre-commit (COMMIT_EDITMSG is written by prepare-commit-msg, which runs AFTER pre-commit). loud-bypass.mjs is self-only — arbiter ships no template twin — so the emitted script keeps the commit-message bypass alone. The remainder is console.log to process.stdout.write. PERMANENT.",
     "diffHash": "37545ea927779c199419485732e1e62ea8b8742dbe2058f764f3ffc38a6f5beb"
   },
   {
     "path": "check-domain-api-surface.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). The smallest pin in the set: 2-/3+, comments only. Self carries two extra INV-94 CATALOG lines (the write-unreachable/read-invisible provenance note and the rejected fold-in into contract-testing/check-provider-states.mjs); the template carries the `Generated by arbiter` provenance header self does not. Zero executable difference. PERMANENT: CATALOG blocks are arbiter-internal by construction.",
     "diffHash": "8b8a1744a172f01c51b75614217a18fd90321ae5e1e9e191cc315ff741ffc017"
   },
   {
     "path": "check-duplication.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). One behavioural difference, deliberate and in the strict direction: on a jscpd v4 binary (exit 0 with no report written) the template PASSES with a loud upgrade warning — a brownfield project keeps its pinned v4 devDep until the dependency is bumped by hand — while self FAILS, because the arbiter repo pins v5 and a v4 binary there is drift. Everything else is console.log to process.stdout.write plus issue-citation text. PERMANENT: self-stricter-because-self-pins-v5 cannot be shipped to a brownfield target without day-1 redness.",
     "diffHash": "790143f734a7a0dd4f5a2b176a475973d88651e6a3480b7af64c63c9f32a69b6"
   },
   {
     "path": "check-exit-code-contract.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self widens the valid exit set from {0,1,2} to {0,1,2,78} — 78 is arbiter's CONFIG exit code — and skips the gitignored .arbiter/ scratch tree, which can hold copied build output (a killed e2e run's leftover dist/ copy) that the repo does not ship and must never fail the scan. The template additionally carries a --help block self dropped. PERMANENT: exit 78 is an arbiter-internal CLI convention and .arbiter/ is arbiter's own runtime scratch; shipping either would broaden the contract INV-53 deliberately narrows for targets.",
     "diffHash": "6a9fe55a24cb1a4c9aef51b1900a440ea0725cf22615ff46c9cfaccdd287a4e3"
   },
   {
     "path": "check-fail-closed-audit.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self is a strict superset on two axes. (1) Corpus: self classifies .github/workflows/*.yml as a `yaml` kind and runs the `|| true` fail-open scan over workflow files; the template audits only scripts/, .githooks/ and .claude/hooks/. (2) The library allowlist: ~20 named scripts/lib/* modules exempted from the entry-point error-handling contract because they export semantics rather than being entry points (gold-audit-lib, anti-fake-green-core, secret-presence-core, continue-on-error-core, doc-set-resolve, dist-staleness, acceptance-criteria, consumer-reliability-bar, …). Nearly every one of those files is self-only, so the list has no subject in a target. Self also handles the ENOENT readdir/stat race explicitly with a FAIL-OPEN-INTENT marker and rethrows everything else, where the template swallows. PERMANENT.",
     "diffHash": "5f631c056af05f43fce764a0165cad2739ff24ddd7593788e83ae8451dddc9be"
   },
   {
@@ -254,92 +237,83 @@
   {
     "path": "check-grace-window.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 15-/15+ and purely a comment rewrite: the same prose becomes an INV-94 CATALOG block in self (including the rejected fold-ins into check-all.mjs's run-time soft-coerce and into the interactive doctor command), and the GRACE_MAX_DAYS lockstep note points at src/templates/scripts/check-all.mjs.ejs in self vs scripts/check-all.mjs in the template — each side naming the file IT must stay in lockstep with. The ADR-028 over-long-graceEndsAt and stale-graceFromLevel validation is identical. PERMANENT.",
     "diffHash": "c9ae0b74bf1dc7f8f441cc479fb7e7fa00f8c6b76817039e85dcf6dc79a2c61f"
   },
   {
     "path": "check-inline-suppressions.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). The old boilerplate was backwards for this pin and is corrected here: 80-/1+ means the TEMPLATE carries more text, not that self is missing checks. Self replaces ~80 inlined lines (checkExpiry, validateEntry, parseArgs) with a single import from scripts/lib/suppressions-shared.mjs, shared with check-suppressions.mjs and check-suppression-rationale.mjs. That lib is self-only — src/templates/scripts/lib/ has no suppressions-shared twin — so the emitted gate must inline the identical logic to stay self-contained. Required fields, REASON_MIN_LEN=10, WARN_DAYS=30 and the expiry semantics are the same on both sides. PERMANENT: forced by what arbiter ships, not by a policy difference.",
     "diffHash": "ec30d5f71845995b157b5cf083b5c828d0b3aee1847b7ef6e2cfeb6f6ec1781a"
   },
   {
     "path": "check-muted-test.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Most of the 176-/63+ is structural and permanent: self delegates the walk to scripts/lib/glob-walk.mjs (self-only) where the template inlines a recursive walker, and self carries the INV-94 CATALOG block plus an explicit `selfOnly:` marker deferring downstream generation to #1419 (LU-1). BUT the per-file read found one real one-sided gap the old boilerplate hid: the TEMPLATE ships a brownfield baseline ratchet (muted-tests-baseline.json, --update-baseline, per-file/per-marker counts, fail only on NEW mutes) that self does NOT have, and the template's SKIP_DIRS prune .venv/venv/__pycache__ (#1840 F4 tranche-3) while scripts/lib/glob-walk.mjs's SKIP_DIRS do not — latent today only because arbiter has no Python tree. Self is BEHIND the template on both. DATED 2026-09-30 against #2286, which decides the baseline (back-port vs record self-is-stricter) and fixes the glob-walk prune.",
+    "expires": "2026-09-30",
     "diffHash": "9c28aeddf438ded4e6172bdef1dc44ce37953839717faa80dadad035825eb69e"
   },
   {
     "path": "check-no-stub-redirects.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self carries the INV-94 CATALOG block (including the rejected fold-ins into check-doc-links.mjs, link RESOLUTION rather than husk detection, and check-doc-style.mjs, prose style rather than redirect shape), the `selfOnly:` deferral marker for #1419, and the 'falso-green' wording the arbiter corpus uses; the stub-shape heuristic, the EXPIRES-required allowlist and the fail-closed handling are identical. One real gap: the template's SKIP_DIRS prune .venv/venv/__pycache__ (#1840 F4 tranche-3) and self's own local SKIP_DIRS set does not, so a Python dependency's bundled docs inside site-packages would be scanned as project content. Latent (arbiter has no Python tree today) but one-sided. DATED 2026-09-30 against #2286.",
+    "expires": "2026-09-30",
     "diffHash": "29e641fa9031164a9de92c79cb4186f178e913902f03a8cfc74059447e4ca4c1"
   },
   {
     "path": "check-no-tracked-artifacts.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self splits the rule across two invariants the template folds into one: INV-117 (selfOnly) forbids tracked binary BUILD artifacts (*.tgz) in the arbiter repo specifically, while INV-129 (selfOnly:false) forbids tracked DATA/STATE files (*.sqlite/*.db*) and compiled binaries everywhere. Self resolves ROOT from import.meta.url so the gate audits the arbiter checkout regardless of cwd, and its allowlist names arbiter's own deliberate fixture binaries (matrix fixtures, ELF probes) where the template ships a generic testdata/ prefix for the consumer to edit. Magic-byte detection (ELF/Mach-O/PE) and the fail-closed non-git-CWD handling are identical. PERMANENT: INV-117 is self-scoped by definition and the fixture allowlist is arbiter's own.",
     "diffHash": "994af999cd0daed239cbd5eb9a571514ccd5c63cb440ec25629f929fba15bd3c"
   },
   {
     "path": "check-pii-scan.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 0-/5+: the template side of the diff is EMPTY. Self adds only the SPDX license header, a usage line, and two comments labelling the pattern-file validation steps. No executable divergence whatsoever. PERMANENT: arbiter carries SPDX headers on its own sources and does not impose its license header on generated projects.",
     "diffHash": "db5d75b5a5ad0723a8eb0cf17aa5c96b09e2afd3fa78be17e3f31eaf914fe74c"
   },
   {
     "path": "check-pipe-tee-hazard.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 11-/11+, a one-for-one line rewrite: identical comment prose re-wrapped, and console.log to process.stdout.write with explicit trailing newlines. The SKIP_DIRS set, the walkRepo delegation (#1521) and the advisory-warning semantics match exactly. Zero behavioural divergence. PERMANENT: cosmetic only, and reconciling it would churn a file that has no defect.",
     "diffHash": "6c93c746010460fc35aa5104e6e22f23d2f72dc9997c00b5bef9e4d58b30f663"
   },
   {
     "path": "check-pr-size-gate.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-pinned 2026-08-03 (#2012): self additionally carries the SELF-EXEMPTION header recording why arbiter configures no PR-size gate. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self documents an explicit SELF-EXEMPTION (#2012): arbiter ships no config/pr-size-config.json and no workflow referencing pr-size/size-check, so the check self-skips on arbiter's own gate. That is deliberate — a PR-size gate has no subject in a repo whose integration regime merges to main directly rather than through pull requests — and the check stays fully live for generated consumer projects, which do gate on PRs. The remainder is a lazy `await import('node:fs')` for readdirSync and template-literal quoting. PERMANENT: the exemption is a statement about arbiter's own merge regime and must not ship.",
     "diffHash": "a50a71ca616d2600837e9aa3856416d70980b8576b46719b5815e8e2446dc6fa"
   },
   {
     "path": "check-secret-presence.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Same corrected reading as check-continue-on-error: the 164-/50+ asymmetry is extraction, not loss. Self imports findSecretSkipViolations from scripts/lib/secret-presence-core.mjs and its walker/arg-parser from scripts/lib/workflow-scan.mjs — neither shipped as a template — so the emitted twin inlines extractSteps/analyzeStep verbatim. Self then ADDS a corpus the template cannot have: it vets the workflow TEMPLATES arbiter ships, so a poisoned .ejs cannot ship a silent-skip-on-empty-secret fake-green to every generated project. The GITHUB_TOKEN exemption, the informational-workflow patterns and the vars.SKIP_<NAME> sanctioned opt-out are identical. PERMANENT.",
     "diffHash": "0657579498accafb7ae06d9491e9af1072473df561393e9c361624b45e295451"
   },
   {
     "path": "check-secret-scan.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275) — and this pin's old boilerplate was FACTUALLY BACKWARDS. Self is not carrying 'additional self-repo scope': self is BEHIND the template on a real coverage fix. The template was changed under #1667 from an extension ALLOW-list to a language-agnostic SKIP-list, with the template's own comment recording why: an allow-list of JS/TS extensions silently scanned ZERO files on Go/Python/Rust/Java/Kotlin projects, so a hardcoded credential in the project's actual source language passed the gate clean. scripts/check-secret-scan.mjs still carries SCANNED_EXTENSIONS (.ts/.tsx/.js/.mjs/.cjs/.json/.yml/.yaml/.sh/.env). Arbiter's own sources are TypeScript so they ARE scanned — the gap is every other text file in this repo. DATED 2026-09-30 against #2286, which inverts the self script to the SKIP-list shape.",
+    "expires": "2026-09-30",
     "diffHash": "aa652b7b6fa4a9200b67522910990029f8c23fe7a2c7321fefc5fcd6d050deea"
   },
   {
     "path": "check-skip-critical-e2e.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Structural majority: self delegates the walk to scripts/lib/glob-walk.mjs (self-only, so the template inlines collectE2eSpecs) and carries the INV-94 CATALOG block — including the rejected fold-in into check-muted-test.mjs, which turns on the applicability model (NA when no e2e config exists, vs muted-test's NO-DATA-fail-closed) — plus the `selfOnly:` deferral to #1419. Critical-path detection and the NA-not-fail semantics are identical. One real gap, same class as check-muted-test: the template's SKIP_DIRS prune .venv/venv/__pycache__ (#1840 F4 tranche-3), glob-walk's do not. Latent for arbiter, but one-sided. DATED 2026-09-30 against #2286.",
+    "expires": "2026-09-30",
     "diffHash": "01e1dff24002c9415334de055a65dc0be752683ab4f3566c3dc1443d0d8e9523"
   },
   {
     "path": "check-ssot-core.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self enforces BOTH directions of SSOT_CORE_SET.md integrity where the template enforces only the forward one. Forward (INV-54): every listed file exists. Reverse (INV-108, #1100): every doc that QUALIFIES as canonical is LISTED — exhaustiveness — with the qualifying predicate imported from scripts/gen-ssot-core.mjs so the generator that writes the list and the gate that audits it cannot diverge. That generator is arbiter-only, so the reverse direction cannot ship without shipping it too. Self also reads docs/internal/METHOD/SSOT_CORE_SET.md (the #1770 layout) and fails closed on a walk/parse error rather than crashing with a raw stack. PERMANENT.",
     "diffHash": "314a7da9b2ed5cf7999cad6c1e2a53de8b20ffa4455ba2b0bb3270dfacbcaab4"
   },
   {
     "path": "check-stride-traceability.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 1-/16+, both differences substantive. (1) Self reads the RACI register from docs/GOVERNANCE.md, where it was folded with the table preserved verbatim under #1242; the template still points at docs/GOVERNANCE/RACI.md, the layout a generated project receives. (2) Self adds the #631 empty-register guard: if BOTH registers parse to zero HIGH/CRITICAL rows the gate FAILS, because a traceability gate that always exits 0 on empty input is a CANON-09 no-op claim of enforcement. The template omits it so a fresh project has no day-1 redness before its first threat row exists. PERMANENT: self-stricter-after-bootstrap is the deliberate posture, and the path difference is arbiter's own doc consolidation.",
     "diffHash": "cbce701cbead656524c0bcccc7b819fa2d0a733a02ea08a7c51595726774ef8e"
   },
   {
@@ -351,99 +325,85 @@
   {
     "path": "check-suppression-expiry.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 0-/3+: the template side of the diff is EMPTY. Self adds the SPDX header, a blank comment line and a usage line. Zero executable divergence. PERMANENT (SPDX-header class, same as check-pii-scan.mjs).",
     "diffHash": "f91f42eef9a6d5b475e1296fc9c38d4509c84dbd81091ccdb3082a7d899e9a88"
   },
   {
     "path": "check-suppression-rationale.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 0-/4+: the template side of the diff is EMPTY. Self adds the SPDX header, a usage line, and one comment locating this gate against its sibling (extends check-suppressions.mjs, which checks expiry — this checks reason quality). Zero executable divergence. PERMANENT (SPDX-header class).",
     "diffHash": "bcd45ba00f0f317f4a354d3ea02d2377606dc2585ee675c65565d2b75d54e8a4"
   },
   {
     "path": "check-suppressions.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 8-/2+. Self checks one extra file — suppressions/archunit-baseline.json, which exists in the arbiter repo and has no counterpart in a freshly generated project — and drops the template's --help block. The mandatory-metadata and future-expiresAt validation is identical. PERMANENT: the extra checkJsonFile call names an arbiter-only artifact.",
     "diffHash": "13ecea38f93e335de16ded0821d6175870ae0a9dcc8cd99ea49a7c47a8f593c8"
   },
   {
     "path": "check-tdd-evidence.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). The largest pin (223-/238+) and the two sides are deliberately different programs. The TEMPLATE is self-contained by design: it inlines the TddEvidenceV1 schema, the failure-signature list and the git reachability checks so a target needs no local arbiter install, and its own comment records the one guard it deliberately DROPS — that the evidence file be committed on this branch — because a generated .gitignore ignores .arbiter/ wholesale, so in a target that check would reject every branch. SELF delegates verification to `tsx src/cli.ts verify tdd` and DOES enforce evidenceProducedHere(), so a long-closed task's inherited evidence cannot satisfy the branch floor ('without this the floor is theatre'). Self also counts src/templates/** as governed source — templates ARE the product shipped to targets — and exports its helpers for unit tests. Both sides share the #2217 branch-floor rule and the ARBITER-SKIP-TDD rejection. PERMANENT: each side's design is forced by whether the arbiter CLI is present.",
     "diffHash": "6ab67f0f5a948ae9c0150d49655c744e4ee16170bc110dffd90570fd9124b8ff"
   },
   {
     "path": "check-test-naming.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 24-/2+ and entirely one substitution: self imports the walk from scripts/lib/glob-walk.mjs (self-only) where the template inlines a hand-rolled recursive walk(); plus console.log to process.stdout.write. The *.test.ts / *.spec.ts convention and the vitest/jest detection heuristic are identical. PERMANENT: forced by which libs arbiter ships.",
     "diffHash": "3964043593910c4869d5792e2a7e9d96c464623a36faf6a6d981ce1b1505b74e"
   },
   {
     "path": "check-test-pyramid.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). One deliberate strictness difference, in the archetype-mismatch guard. The template swallows an arbiter.json parse error and skips the mismatch check as non-fatal; self splits the failure modes per INV-96 — a MISSING arbiter.json (an ENOENT race between existsSync and read) legitimately skips, but a CORRUPT/unparseable one FAILS, because silently skipping the archetype check is exactly when manifest drift is most likely to hide. Everything else matches. PERMANENT: fail-closed-on-corrupt-manifest is arbiter's own INV-96 posture; the template's softer default is the documented no-day-1-redness stance for fresh projects.",
     "diffHash": "75cf4e42ad9e4de2d0bf0a020b8411def07cbf4564e0048c16038eb4cc254142"
   },
   {
     "path": "check-test-scope-tier.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 20-/27+, and the executable content is equivalent: the same prose becomes an INV-94 CATALOG block in self (including the rejected fold-in into check-test-pyramid.mjs, which turns on presence-vs-wiring — a level can have test FILES yet be run by no tier, and only this gate catches that), the help text gains its INV-124/A4 citation, and the comments on category-ordering and the bare-`contract` collision (#1499) are re-wrapped. Self adds one comment on the empty-gate-surface branch. PERMANENT: CATALOG-block class.",
     "diffHash": "9fd950bd351cf3dcf6d7dab56ae3145257c2969bd1f86576bb580b318cac20dd"
   },
   {
     "path": "check-tier-coverage.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 8-/10+. Self names check-all.mjs literally in its messages where the template says 'gate script' (the template's --gate flag makes the path configurable for a target that renamed it), and self requires one extra tier — 'ci tiers' — in REQUIRED_TIERS, corresponding to arbiter's own check-ci-tiers.mjs gate. Plus the SPDX header. PERMANENT: the extra required tier names an arbiter-only gate.",
     "diffHash": "2eda1077e547314ea2453ebf7c64fa1c44da2ac9f7915c9897122589950f87b9"
   },
   {
     "path": "check-todo-max-age.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). Self is narrower on purpose and every narrowing is arbiter-specific: EXTENSIONS is {.ts,.tsx,.mjs,.js} against the template's nine-language set, SKIP_DIRS adds 'templates' (a TODO inside an .ejs is the TARGET's future TODO, not arbiter's), and the default scan roots are ['src','scripts'] vs the template's ['src','lib','app']. Self also carries the INV-94 CATALOG block with both rejected fold-ins (check-no-orphan-todo.mjs — static text scan, no network; check-suppressions.mjs — inline expiry dates, not linked-issue age). The gh created_at resolution and the graceful-offline-SKIP contract are identical. PERMANENT: the 'templates' prune and the TypeScript-only extension set describe arbiter's own tree.",
     "diffHash": "0a3d14a3dcb23d866adba256d38aeeb977f332efa0f5e606206336b8f1dd9983"
   },
   {
     "path": "check-validator-helptext.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 10-/11+ and purely nominal: self prefixes 'W6' onto the family label in the constant name (W6_MARKER vs FAMILY_MARKER) and in every message. The marker STRING it greps for — 'anti-drift validator family (W6)' — is byte-identical on both sides, so the two gates select exactly the same file set. Plus the SPDX header. Zero behavioural divergence. PERMANENT: cosmetic, and reconciling would churn a file with no defect.",
     "diffHash": "f4ed71060ff7a86995cf021ae3699d4ce1510d0ee84365d94e7ae07a5353a834"
   },
   {
     "path": "check-wiki-lint.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 118-/151+ that is almost entirely ONE structural change: self wraps the whole body in a try/catch with a fatal handler, so every line is re-indented and appears on both sides of the diff. The four INV-116 dimensions — broken wikilinks, BFS orphan reachability from INDEX.md, stale source_sha via git hash-object, citation integrity against git ls-files — are identical in logic and in message text; self only adds the expected-vs-recorded detail on the stale message and section banners. PERMANENT: the fatal-catch wrapper is self's INV-96 posture for a gate over generated content, where the template lets errors propagate to the emitted runner.",
     "diffHash": "45088c7b015f1e9fe5d3be08beee8adfe7d13c84637481af5e9d6f84ce245169"
   },
   {
     "path": "check-workflow-docs-sync.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). One deliberate strictness inversion: the template WARNS and exits 0 on an undocumented workflow (its own comment: docs are often written after implementation), while self FAILS and exits 1. Self also narrows the documentation target to docs/REFERENCE and docs/architecture and carries an exemption list for infrastructure/internal workflows. Both scan the same way. PERMANENT: self-hard/template-soft is the same start-warn-promote-later posture as check-constraint-scan, applied to a repo that has already paid down its documentation debt.",
     "diffHash": "3ed7ff5540bbe9fb40f12251e076c969b2e57fd10e949aa435548f6d39ca5762"
   },
   {
     "path": "check-workflow-runners.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 49-/27+ dominated by one substitution: self imports collectYamlFiles and parseHelpAndDir from scripts/lib/workflow-scan.mjs (self-only, so the template inlines both). The only content difference is that self's messages cite CI_BUILD_RUNNER_LABEL and INV-13 by name — arbiter's own runner-label contract (ADR-023) — where the template stays generic. The expected-label rule and the ${{ … }} / $CI_ expression escape hatch are identical. PERMANENT.",
     "diffHash": "4a3c23503ea1f8869e2e52f5c4d7561eed9296f3c0b136d5da230735c613e8d4"
   },
   {
     "path": "check-workflow-test-integrity.mjs",
     "dest": "scripts",
-    "reason": "R-02 dogfood-parity rollout baseline (#1900): self implements this check with additional self-repo scope (narrower path-scoping, extra INV cross-references, or the INV-94 (selfOnly) CATALOG-comment block the shipped template does not carry) beyond the generic template. Audited via representative full-diff reading plus a targeted grep for tool/action-name tokens (trivy, dependency-check, npm audit, osv-scanner, gitleaks, jscpd, semgrep, codeql) across every added/removed line — no cross-side tool/dependency swap found. NOT individually read line-by-line; tracked for a dedicated per-file audit under #1900. Re-dated 2026-08-15→2026-08-29: #1900 rollout closed, pin still valid but per-file audit not done; batched with CANON-01/CANON-15 owner review. See #2275.",
-    "expires": "2026-08-29",
+    "reason": "Read line-by-line (#2275). 66-/59+, again dominated by the scripts/lib/workflow-scan.mjs import (self) against an inlined walker and arg parser (template). The content differences are arbiter-specific allowlist entries: 'notify' added to INFORMATIONAL_PATTERNS to cover _notify.yml and _post-merge-notify.yml, and the #2058 note naming the two supplementary-artifact upload steps (JUnit output, the gate's own --json result) that run after the real signal already succeeded or failed. The INV-80 continue-on-error rule, the drift-shadow `parity` step-scoped allowlist and the #1491 gate-command `|| true` swallow detection are identical. PERMANENT.",
     "diffHash": "30954de96d06ec5ff4b2920a1aaecfd5ea13135975807ed877d8687b2f087da2"
   },
   {
