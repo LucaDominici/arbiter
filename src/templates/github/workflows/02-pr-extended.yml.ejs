@@ -198,7 +198,7 @@ jobs:
 <% } %>
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: 'go.mod'
       - run: go test -tags integration ./...
@@ -207,7 +207,7 @@ jobs:
         run: go test -tags resilience ./...
 <% } %>
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -272,13 +272,13 @@ jobs:
         run: <%= buildTool === 'gradle' ? './gradlew test --tests *.grpc.*' : 'mvn test -Dtest=*Grpc*' %>
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: 'go.mod'
       - name: Contract tests
         run: go test -tags contract -run Contract ./...
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -363,7 +363,7 @@ jobs:
         run: mvn license:third-party-report -Dlicense.excludedScopes=test
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: 'go.mod'
       - name: Install go-licenses
@@ -371,7 +371,7 @@ jobs:
       - name: License check
         run: go-licenses check ./... --disallowed_types forbidden,restricted
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -417,12 +417,12 @@ jobs:
       - run: mvn test -Pbehavioral
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: 'go.mod'
       - run: go test -tags behavioral ./...
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12'
           cache: 'pip'

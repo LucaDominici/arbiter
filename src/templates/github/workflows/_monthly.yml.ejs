@@ -24,7 +24,7 @@ jobs:
           npx --yes npm-check-updates --jsonAll > dep-age-report.json || true
           echo "Dep age report generated."
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -37,13 +37,13 @@ jobs:
         run: mvn versions:display-dependency-updates -DprocessDependencyManagement=true || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
       - name: go list -u -m all
         run: go list -u -m all > dep-age-report.txt || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install pip-outdated
@@ -80,7 +80,7 @@ jobs:
     graph, not the source language, so kotlin shares this arm (same fix
     shape as the #1803 fuzz job). -%>
 <% } else if (language === 'java' || language === 'kotlin') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -93,7 +93,7 @@ jobs:
         run: mvn license:aggregate-third-party-report || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
       - name: go-licenses full report
@@ -101,7 +101,7 @@ jobs:
           go install github.com/google/go-licenses@latest
           go-licenses report ./... > license-report.csv || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install pip-licenses
@@ -185,7 +185,7 @@ jobs:
     source language, so kotlin shares this arm (same fix shape as the #1803
     fuzz job). -%>
 <% } else if (language === 'java' || language === 'kotlin') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -198,7 +198,7 @@ jobs:
         run: mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
       - name: syft SBOM
@@ -207,7 +207,7 @@ jobs:
           format: cyclonedx-json
           output-file: sbom.cdx.json
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install cyclonedx-bom

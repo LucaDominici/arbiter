@@ -15,66 +15,78 @@ related: []
 
 Dependabot opens two types of PRs:
 
-| Type             | Ecosystem   | Auto-EJS sync         | INV-74 label | Notes                    |
-| ---------------- | ----------- | --------------------- | ------------ | ------------------------ |
-| `npm_and_yarn`   | npm deps    | N/A                   | required     | Standard dependency bump |
-| `github_actions` | action pins | **auto** via workflow | required     | See below                |
+| Type             | Ecosystem   | Mergeable as-is | INV-74 label | Notes                     |
+| ---------------- | ----------- | --------------- | ------------ | ------------------------- |
+| `npm_and_yarn`   | npm deps    | yes             | required     | Standard dependency bump  |
+| `github_actions` | action pins | **no**          | n/a          | Advisory only — see below |
 
-## github_actions PRs (#905–#908 pattern)
+## github_actions PRs are advisories, not merge candidates (#2300)
 
-### What happens automatically
+Action pins live in two places that must agree:
 
-1. Dependabot opens PR bumping `.github/workflows/*.yml` action pin.
-2. `dependabot-actions-sync.yml` workflow triggers on `pull_request` → detects EJS drift → commits `chore(deps): sync EJS templates with action bumps [skip-docs]` back to PR branch.
-3. CI re-triggers on the new commit → parity test passes → Unit Tests + Tech Debt Gates green.
+- `.github/workflows/*.yml` — what actually runs in arbiter's CI
+- `src/templates/github/workflows/*.yml.ejs` — the SSOT shipped to governed targets
 
-### What still requires human action
+`action pin parity` (L1, `sync-action-pins.mjs --check`) and
+`__tests__/parity/ci-tier-render-parity.test.ts` both fail unless the two sides match.
+Dependabot can only edit the first, so **a bump PR is red on parity from the moment it
+opens** — measured on run `30420336379`, before any sync commit existed. There is no
+ordering that fixes this: an EJS-only PR against main fails parity in the opposite
+direction. The two sides must land in one commit.
 
-4. A human must add label `approved-by-human` to satisfy **INV-74** before merge.
+Until 2026-08-16 a workflow (`dependabot-actions-sync.yml`) papered over this by pushing
+the EJS commit onto the bump branch with `contents: write`. That commit touched
+`src/templates/**`, so once the #2217 TDD floor landed every bump branch owed TDD evidence
+a dependency bump cannot honestly produce, and all four open bumps wedged. The workflow is
+deleted; `check-workflow-hardening.mjs` now gates `branchWritebackWorkflows` so no
+workflow can reintroduce a push back to its own trigger branch.
+
+### The flow
+
+1. Dependabot opens a **grouped** `github-actions` PR (one per cycle, label `ci`+`deps`).
+   Read it as a notification of which pins moved. Expect it to be red. Do not merge it.
+2. Drain it as a governed train off `main`:
+
+   ```bash
+   git fetch origin
+   npx @arbiter/cli worktree open --base <explicit origin/main SHA>   # reads the LOCAL branch otherwise
+   # apply the pin bumps to .github/workflows/*.yml (copy from the dependabot PR diff)
+   node scripts/sync-action-pins.mjs        # propagate yml → EJS
+   node scripts/sync-action-pins.mjs --check
+   npm run build && npm run regen && npm run examples:regenerate
+   npx prettier --write <regen-touched files>
    ```
-   gh pr edit <NNN> --add-label approved-by-human
-   ```
 
-### Fallback if auto-sync doesn't trigger
+3. The train touches `src/templates/**`, so it owes a task id in a commit **subject**
+   (`fix(#NNNN): ...`) and verified TDD evidence produced on that branch — same floor as
+   any other source change, no exemption. Pair the pin bump with whatever real change the
+   task is about, or record evidence for that task.
+4. Gate: `npx @arbiter/cli gate-exec -- node scripts/check-all.mjs L2`. Push, merge.
+5. Close the dependabot PR pointing at the train:
+   `gh pr close <NNN> --comment "landed via <sha>"`.
 
-If the auto-sync workflow doesn't fire (e.g., token scope issue on self-hosted runner):
+Note `sync-action-pins.mjs` is **pair-scoped** (only files present on both sides) while
+INV-76 is corpus-wide, and it indexes pins by action name keeping the last occurrence —
+see #2298. `--check` reporting "in sync" does not prove the corpus is unified; verify with
+`node scripts/check-action-pins.mjs`.
+
+### Workflow approval on dependabot PRs
+
+Dependabot PR workflow runs land at `conclusion: action_required` (the repo requires
+manual approval before workflows run for that actor). That is why a stale bump PR can show
+zero checks rather than red ones. Since these PRs are advisories, leave them unapproved.
+
+## Merging multiple dependabot npm PRs
 
 ```bash
-# Checkout the dependabot branch locally
-gh pr checkout <NNN>
-
-# Run the sync
-node scripts/sync-action-pins.mjs
-
-# Verify
-node scripts/sync-action-pins.mjs --check
-
-# Commit and push
-git add src/templates/github/workflows/
-git commit -m "chore(deps): sync EJS templates with action bumps [skip-docs]"
-git push
+gh pr list --author app/dependabot --label deps
 ```
 
-### Rebasing stale dependabot PRs
-
-If dependabot PRs opened before the auto-sync workflow was merged:
-
-```bash
-# Rebase each onto main to trigger the new workflow
-gh pr update-branch 905
-gh pr update-branch 906
-gh pr update-branch 907
-gh pr update-branch 908
-```
-
-Then verify CI goes green, add `approved-by-human` label, merge.
-
-## Merging multiple dependabot github-actions PRs
-
-Each action bump is a separate PR. Merge them in order. After each merge, remaining PRs may need rebase:
+Each npm bump is a normal PR: it needs the `approved-by-human` label (INV-74) and a green
+`CI Required`.
 
 ```bash
-gh pr list --author app/dependabot --label ci
+gh pr edit <NNN> --add-label approved-by-human
 ```
 
 ## Human-side action pin bumps (edit EJS first)

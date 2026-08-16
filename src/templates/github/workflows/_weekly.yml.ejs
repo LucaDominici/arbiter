@@ -34,7 +34,7 @@ jobs:
         env:
           DB_TYPE: ${{ matrix.db }}
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -51,7 +51,7 @@ jobs:
           DB_TYPE: ${{ matrix.db }}
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
       - name: Run integration tests against ${{ matrix.db }}
@@ -59,7 +59,7 @@ jobs:
         env:
           DB_TYPE: ${{ matrix.db }}
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]"
@@ -93,7 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 <% if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
       - name: Build CLI binary (${{ matrix.os }} / ${{ matrix.arch }})
@@ -115,7 +115,7 @@ jobs:
           npm run build
           node dist/index.js --version || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]" pyinstaller
@@ -124,7 +124,7 @@ jobs:
       - name: Smoke test binary
         run: dist/main --version || true
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -151,7 +151,7 @@ jobs:
           # FAIL-OPEN-INTENT: npm outdated exits 1 when packages are stale; step is informational
           npm outdated || true
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a  # v5.5.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
         with:
           distribution: temurin
           java-version: '21'
@@ -163,13 +163,13 @@ jobs:
           mvn versions:display-dependency-updates || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
       - name: Check outdated Go modules
         run: go list -u -m all 2>/dev/null | grep '\[' || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version-file: .python-version
       - run: pip install pip-review
