@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2313",
+  "test_path": "__tests__/templates/gitignore-render.test.ts",
+  "test_commit_sha": "82563b18765672a4602cc98c7b857e4444d1b7ac",
+  "test_blob_sha": "c4395343bc25106071d7039ba647adaccf131c62",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/templates/gitignore-render.test.ts (8 tests | 1 failed) 39ms\n     × does NOT ignore .arbiter/evidence/tdd/*.json 12ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 7 passed (8)\n   Start at  08:16:41\n   Duration  242ms (transform 106ms, setup 14ms, import 128ms, tests 39ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/templates/gitignore-render.test.ts > root/.gitignore.ejs — TDD evidence must stay committable (#2313) > does NOT ignore .arbiter/evidence/tdd/*.json\nAssertionError: expected true to be false // Object.is equality\n\n- Expected\n+ Received\n\n- false\n+ true\n\n ❯ __tests__/templates/gitignore-render.test.ts:92:59\n     90|\n     91|   it('does NOT ignore .arbiter/evidence/tdd/*.json', () => {\n     92|     expect(checkIgnore('.arbiter/evidence/tdd/#42.json')).toBe(false)\n       |                                                           ^\n     93|   })\n     94|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/templates/gitignore-render.test.ts",
+  "recorded_at": "2026-08-17T06:16:41.817Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/templates/gitignore-render.test.ts"
+  ]
+}

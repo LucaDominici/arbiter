@@ -81,6 +81,11 @@ function runScenario(opts: {
   sourceless?: boolean
   /** A src/ change that cites no task id at all — untraceable. */
   uncitedSourceCommit?: boolean
+  /**
+   * #2313: put the source change under a NESTED module root (`backend/src/main/java/...`),
+   * the layout of a multi-module Java/Gradle consumer, instead of a repo-root `src/`.
+   */
+  nestedSource?: boolean
   /** Leave the evidence file uncommitted, as if inherited rather than produced here. */
   inheritedEvidence?: boolean
   /**
@@ -120,8 +125,9 @@ function runScenario(opts: {
     g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
 
     if (opts.taskCommit) {
-      mkdirSync(join(repo, 'src'), { recursive: true })
-      writeFileSync(join(repo, 'src', 'foo.test.ts'), 'test("foo", () => {})\n')
+      const srcDir = opts.nestedSource ? join('backend', 'src', 'main', 'java') : 'src'
+      mkdirSync(join(repo, srcDir), { recursive: true })
+      writeFileSync(join(repo, srcDir, 'foo.test.ts'), 'test("foo", () => {})\n')
       g(['add', '.'])
       const msg = opts.skipTrailer
         ? 'feat(#42): add foo\n\nARBITER-SKIP-TDD: 1'
@@ -284,6 +290,26 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
   // before the produced-here guard this exited 0.
   it('FAIL (exit 1) when a subject-cited id changing src/ has evidence only from main', () => {
     expect(runScenario({ evidenceOnMain: true, taskCommit: true })).toBe(1)
+  })
+
+  // #2313: THE FALSIFIER for a multi-module consumer. `touchesGovernedSource` matched a
+  // repo-ROOT `src/` only, so on a Java consumer laid out as `backend/src/main/java/...`
+  // the whole produced-here floor was gated off and the branch above passed with 0 — the
+  // guard was inert for reasons that had nothing to do with evidence tracking.
+  it('FAIL (exit 1) when a subject-cited id changing backend/src/ has evidence only from main', () => {
+    expect(runScenario({ evidenceOnMain: true, taskCommit: true, nestedSource: true })).toBe(1)
+  })
+
+  // The widening must not become a FALSE red: a nested-layout branch that really did run
+  // its cycle on this branch still passes.
+  it('PASS (exit 0) for a nested-layout branch with evidence produced on the branch', () => {
+    expect(
+      runScenario({
+        taskCommit: true,
+        nestedSource: true,
+        evidence: (sha) => validEvidence(sha, { test_path: 'backend/src/main/java/foo.test.ts' }),
+      }),
+    ).toBe(0)
   })
 
   it('PASS (exit 0) for a cited task whose evidence file is untracked in the target', () => {

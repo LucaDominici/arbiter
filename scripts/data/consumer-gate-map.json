@@ -225,6 +225,28 @@
       }
     },
     "java": {
+      "$triage": {
+        "$note": "AC-2 of #2310: the 104 emitted names are triaged into three classes, not left as one block. WIRED = the consumer runs a gate that FAILS ON THE SAME DEFECT under its own id \u2014 never a name that merely looks alike. DECLINED = the artifact the check inspects does not exist in the consumer and nothing there needs it; the reason must survive \"so who checks this?\". DEBT = a real gap, against an OPEN issue verified by gh. The executed surface is measured at the PIN (scripts/data/consumer-reliability-bar.json), not at the consumer's current HEAD: gates the consumer added after the pin (assertion-delta, ssot-core-set, oracle-guard, rtm, trace, semgrep) are NOT available to map and stay DEBT until the pin moves.",
+        "wiredRationale": {
+          "local-ci-parity (INV-59)": "ci-alignment runs scripts/test-ci-gate-alignment.sh, which fails when a run.sh L1/L2 gate id has no CI manifest entry and when the manifest carries an entry no longer in ci.yml \u2014 the same defect INV-59 names: the local gate set and the CI-invoked set having diverged.",
+          "gate layering": "self-tests executes scripts/test-gate-layering.sh as a hard sub-check (ADR-060): it fails when the L1 \u2282 L2 \u2282 L3 inclusion contract breaks, which is the property.",
+          "secret scan": "arbiter's own header says this script \"complements gitleaks; provides fast local check without external tool dependency\". The consumer runs gitleaks itself (scan-gitleaks, deep mode), so the defect \u2014 a secret pattern in tracked source \u2014 fails a gate there.",
+          "frontend lane": "the check exists so a frontend/ subtree beside a non-JS primary language still gets typecheck/test/build gated. The consumer runs fe-build (npm run build = vue-tsc + vite) as a first-class L1 gate, so an FE lane that stopped typechecking or building is red.",
+          "fe boundaries (INV-102/103/104)": "fe-guardrails is the consumer's FE boundary-purity gate: HTTP-client access (getHttpClient/createHttpClient/@/services/api) is forbidden in composables/ui/stores/domain, and Result/DTO/ApiError types are forbidden in UI templates. It fails on NEW violations against a line-level baseline. That is INV-102 (no API calls outside the adapter layer) and INV-104 (no async API calls in stores). INV-103 (browser globals in domain files) is the sliver the consumer does not check \u2014 recorded here rather than hidden.",
+          "Java lifecycle build": "the emitted gate is `./gradlew build -q`. be-test runs `./gradlew test`, which compiles main and test source; a project that does not build cannot pass it. Assembly and boot are additionally covered by nas-profile-boot (Spring context load under the NAS profile).",
+          "workflow runners": "audit runs scripts/qa/check-policies.sh, which fails on any workflow job using a forbidden runner label (ubuntu-latest) \u2014 the same defect: a job landing on an unexpected runner."
+        },
+        "debtClasses": {
+          "$note": "The remaining DEBT names, grouped so the residue is legible. Groups are descriptive; the ratchet counts names, not groups. Every DEBT name appears verbatim in exactly one group, so the grouping can be audited by string match against the mapping.",
+          "consumer-gate-exists-but-post-pin": "assertion delta (anti-fake-green), oracle discrimination (anti-fake-green), ssot core set, iso9001 QMS (RTM + doc-control + CAPA) \u2014 the consumer wired these AFTER the pinned sha. They become WIRED the moment the pin moves; nothing needs to be built.",
+          "workflow-hygiene": "ci tiers (INV-73), workflow perms (INV-76), workflow docs sync, workflow test integrity, workflow job naming, continue-on-error (swallowed gate), secret presence (fail-loud), pr size gate, merge method ff-only (INV-101) \u2014 the consumer's ci-policy validators cover its own E2E-isolation and artifact/cache invariants, none of these.",
+          "anti-fake-green": "anti-fake-green, muted gate test (anti-fake-green), skipped critical e2e (anti-fake-green), stub redirect husk (anti-fake-green), grace window (anti-fake-green) \u2014 the consumer has mock-guard only.",
+          "test-shape": "test pyramid (INV-124), test scope-tier (INV-124), min test execution (INV-25), test naming, integration, bdd, api e2e (INV-126), e2e quarantine (INV-130), e2e escalation ladder (#2043), smoke journeys (INV-137), render smoke presence (INV-127). Note test-taxonomy: the consumer HAS the script but runs it in warn mode (always exit 0), so it cannot carry a WIRED claim.",
+          "governance-and-docs": "doc links, documentation index drift, canonical paths, knowledge map, gap register, decision registry, conformance, gold-audit, claude-md lint, docs updated with code (#356), constraint scan (INV-115), commit-footer rationale (INV-119), stack conformity (INV-121), self-validation drill, validator help text, exit code contract, pipe/tee hazard, unwired guards.",
+          "arbiter-emissions-into-the-consumer": "hook routing (#2129), emission parity (#2110), safety adopt ratchet, collab mode wired (INV-100), review completion (#2177), agent-return envelope (E1 #1943), refutation majority (E2 #1943), audit dry-pass (E3 #1943), handoff lint (E6a #1943), M16 handoff-contract marker (#2103), tdd-evidence (INV-131). Deliberately NOT declined: these inspect files arbiter itself put in the consumer, so \"the consumer does not need it\" would be arbiter excusing its own emissions.",
+          "remaining-capability-gaps": "debt ratchet, no tracked artifacts (INV-129), todo max-age (INV-133), inline suppressions, suppression rationale, suppressions expiry, suppression expiry (anti-drift), bundle size budget, gdpr controls (#1251), STRIDE/RACI traceability, regulated overlay (SoD + retention + signing + mutation), domain-api surface (INV-125), anti-proforma (INV-118), config drift, token discipline (INV-105), mutation baseline (#1508). The last one was considered for WIRED:mutation and REJECTED: the consumer's pitest run enforces a FIXED 85% floor, so a score falling 95% -> 86% regresses and still passes. A baseline ratchet and a fixed threshold are not the same property, and mapping them to each other is the widen-until-names-coincide failure this register exists to prevent."
+        }
+      },
       "gateSurface": {
         "$note": "Two commands on purpose: L3 is NOT a superset of L2. run.sh promotes harness-fast->harness-full and e2e-smoke->e2e-full, so the L3 dry-run drops those two ids. Collapsing this to L3 alone silently shrinks the measured surface.",
         "kind": "command",
@@ -237,9 +259,9 @@
         "timeoutMs": 900000,
         "contentionMarker": "ci-gate.lock"
       },
-      "debtCeiling": 83,
+      "debtCeiling": 74,
       "mapping": {
-        "Java lifecycle build": "DEBT:#2310",
+        "Java lifecycle build": "WIRED:be-test",
         "M16 handoff-contract marker (#2103)": "DEBT:#2310",
         "PII scan": "WIRED:pii",
         "STRIDE/RACI traceability": "DEBT:#2310",
@@ -276,13 +298,13 @@
         "e2e quarantine (INV-130)": "DEBT:#2310",
         "emission parity (#2110)": "DEBT:#2310",
         "exit code contract": "DEBT:#2310",
-        "fe boundaries (INV-102/103/104)": "DEBT:#2310",
+        "fe boundaries (INV-102/103/104)": "WIRED:fe-guardrails",
         "fe coverage ratchet": "WIRED:fe-coverage",
         "feature matrix (INV-112)": "WIRED:matrix",
         "format (spotless)": "WIRED:be-lint",
-        "frontend lane": "DEBT:#2310",
+        "frontend lane": "WIRED:fe-build",
         "gap register": "DEBT:#2310",
-        "gate layering": "DEBT:#2310",
+        "gate layering": "WIRED:self-tests",
         "gdpr controls (#1251)": "DEBT:#2310",
         "gitleaks": "WIRED:scan-gitleaks",
         "gold-audit": "DEBT:#2310",
@@ -296,8 +318,8 @@
         "integration": "DEBT:#2310",
         "iso9001 QMS (RTM + doc-control + CAPA)": "DEBT:#2310",
         "knowledge map": "DEBT:#2310",
-        "llms.txt drift": "DEBT:#2310",
-        "local-ci-parity (INV-59)": "DEBT:#2310",
+        "llms.txt drift": "DECLINED:the check diffs llms.txt against llms-txt.config.json. The consumer ships neither file: it publishes no LLM-facing index, so there is nothing for the index to drift from. If the consumer ever adds one, this entry returns to DEBT with an issue.",
+        "local-ci-parity (INV-59)": "WIRED:ci-alignment",
         "merge method ff-only (INV-101)": "DEBT:#2310",
         "min test execution (INV-25)": "DEBT:#2310",
         "module coverage ratchet": "WIRED:fe-coverage",
@@ -315,7 +337,7 @@
         "review completion (#2177)": "DEBT:#2310",
         "safety adopt ratchet": "DEBT:#2310",
         "secret presence (fail-loud)": "DEBT:#2310",
-        "secret scan": "DEBT:#2310",
+        "secret scan": "WIRED:scan-gitleaks",
         "self-validation drill": "DEBT:#2310",
         "skipped critical e2e (anti-fake-green)": "DEBT:#2310",
         "smoke journeys (INV-137)": "DEBT:#2310",
@@ -336,11 +358,11 @@
         "unit tests": "WIRED:be-test",
         "unwired guards": "DEBT:#2310",
         "validator help text": "DEBT:#2310",
-        "wiki lint (INV-116)": "DEBT:#2310",
+        "wiki lint (INV-116)": "DECLINED:the check lints a wiki/ tree generated by arbiter's own LLM-wiki generator. The consumer ships no wiki/ and no generator that could produce one, so there is no artifact to lint and no reader whose wiki could go stale. Emitting it to a consumer with its own doc spine is arbiter measuring itself through someone else's repo.",
         "workflow docs sync": "DEBT:#2310",
         "workflow job naming": "DEBT:#2310",
         "workflow perms (INV-76)": "DEBT:#2310",
-        "workflow runners": "DEBT:#2310",
+        "workflow runners": "WIRED:audit",
         "workflow sha pinning": "WIRED:sha-pinning",
         "workflow test integrity": "DEBT:#2310"
       }

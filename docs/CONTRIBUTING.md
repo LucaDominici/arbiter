@@ -161,6 +161,27 @@ stays governed by `collaborationMode`/`mergeMode` as before.
   no longer the answer (#2051). While `phase=red`, a commit whose staged paths are ALL tests
   skips the L1 gate (secret scanning and lint still run). Stage source alongside and the full
   gate runs, as it does for the GREEN commit that follows.
+- A governed target's TDD gate passes with `WARNING — evidence file is untracked, so the
+produced-here guard (#2307) cannot apply` → the target's `.gitignore` swallows
+  `.arbiter/evidence/tdd/*.json`. Fresh targets get the carve-out from the template
+  (#2313); an **already-initialized** target does not, because `.gitignore` is
+  `skipIfExists` and is never rewritten. Fix it by hand, once, in the target:
+
+  ```
+  .arbiter/**
+  !.arbiter/evidence/
+  !.arbiter/evidence/tdd/
+  !.arbiter/evidence/tdd/*.json
+  ```
+
+  `/**` and not `/`: git cannot re-include a file whose parent directory stays excluded.
+  Check for a bare `evidence/` line too — it matches any directory named `evidence` at any
+  depth and swallows `.arbiter/evidence/` on its own (measured on the java consumer).
+
+- The gate is scoped to branches that touch a `src/` **segment** — `src/`, `backend/src/`,
+  `frontend/src/` (#2313). A repo-root prefix left multi-module Java/Gradle targets with the
+  whole floor switched off. Go laid out as `cmd/` + `internal/` stays deliberately out of
+  scope: vacuous pass rather than a wrong failure.
 - `node scripts/check-tdd-evidence.mjs --dir <repo>` runs the gate against another checkout —
   useful to reproduce a governed target's evidence failure locally.
 - Machine-readable verification → `arbiter verify tdd '#NNN' --json` emits the standard

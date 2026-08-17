@@ -86,13 +86,18 @@ function parseBodyTaskIds(bodyLog) {
 /**
  * True when the branch changes governed source — the unit the TDD invariant is about.
  *
- * `src/` covers the TypeScript, Python (src-layout), Rust and Java/Kotlin
- * (`src/main/...`) trees. A Go project laid out as `cmd/` + `internal/` is NOT covered:
- * such a branch keeps today's vacuous pass rather than a wrong failure. Widening the
- * prefix is the upgrade path if a target needs it.
+ * A `src/` SEGMENT, not a repo-root prefix (#2313). The prefix form covered the
+ * single-module TypeScript, Python (src-layout) and Rust trees, but a multi-module
+ * Java/Gradle consumer lays its source out as `backend/src/main/java/...` and a Vue
+ * frontend as `frontend/src/...` — neither starts with `src/`, so the whole TDD floor
+ * (#2217 and the produced-here guard of #2307) was gated OFF on exactly the consumers
+ * it was shipped for, silently and for reasons unrelated to evidence. A Go project laid
+ * out as `cmd/` + `internal/` is still NOT covered: such a branch keeps today's vacuous
+ * pass rather than a wrong failure. Widening further is the upgrade path if a target
+ * needs it.
  */
 function touchesGovernedSource(changedPaths) {
-  return changedPaths.split('\n').some((p) => p.trim().startsWith('src/'))
+  return changedPaths.split('\n').some((p) => /(?:^|\/)src\//.test(p.trim()))
 }
 
 /** The two legitimate ways to satisfy the branch floor (#2217). */
@@ -189,10 +194,13 @@ function verifyTask(taskId) {
  * task's evidence is merged to main, every later branch satisfies it. Citing an
  * already-merged id would otherwise "prove" a red→green cycle the branch never ran.
  *
- * Returns true/false when the evidence file is TRACKED, and null when it is not: the
- * generated .gitignore ignores `.arbiter/` wholesale, so in a target the evidence file
- * is typically untracked and an unconditional guard would reject every branch. Un-ignore
- * `.arbiter/evidence/tdd/*.json` (as arbiter does for itself) to make this guard live.
+ * Returns true/false when the evidence file is TRACKED, and null when it is not. The
+ * generated .gitignore now carves `.arbiter/evidence/tdd/*.json` out of the `.arbiter/**`
+ * blanket (#2313), so a target that records evidence can commit it and this guard binds.
+ * It stays tracked-CONDITIONAL on purpose: `skipIfExists` never rewrites an existing
+ * .gitignore, so a consumer initialized before #2313 still has the blanket rule, and an
+ * unconditional guard would redden every one of its branches — blindness traded for a
+ * false red. The WARNING below names the one-line fix.
  */
 function evidenceProducedHere(mergeBase, taskId) {
   const path = `.arbiter/evidence/tdd/${taskId}.json`
