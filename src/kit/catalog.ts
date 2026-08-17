@@ -19,7 +19,9 @@ export function kitDataPath(file: string): string {
 }
 
 function loadCatalogFromDisk(): KitCatalog {
-  return KitCatalogSchema.parse(JSON.parse(readFileTranslated(kitDataPath('catalog.json'), 'utf-8')))
+  return KitCatalogSchema.parse(
+    JSON.parse(readFileTranslated(kitDataPath('catalog.json'), 'utf-8')),
+  )
 }
 
 let _catalog: KitCatalog | null = null

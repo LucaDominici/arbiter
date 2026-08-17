@@ -21,7 +21,13 @@
 import { existsSync } from 'node:fs'
 // #1991: re-exported from its leaf module so utils/fs.ts can import it without a cycle.
 export { manifestKey } from './manifest-key.js'
-import { ensureDir, renameTranslated, unlinkTranslated, writeFileTranslated, readFileTranslated } from '../utils/fs.js'
+import {
+  ensureDir,
+  renameTranslated,
+  unlinkTranslated,
+  writeFileTranslated,
+  readFileTranslated,
+} from '../utils/fs.js'
 import { join, dirname } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { FatalError } from '../utils/errors.js'

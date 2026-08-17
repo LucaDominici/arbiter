@@ -17,7 +17,12 @@ import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../generators/registry.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { t } from '../i18n/index.js'
-import { beginGenerationSession, endGenerationSession, type WriteResult, readFileTranslated } from '../utils/fs.js'
+import {
+  beginGenerationSession,
+  endGenerationSession,
+  type WriteResult,
+  readFileTranslated,
+} from '../utils/fs.js'
 import { loadGeneratedManifest } from '../state/generated-manifest.js'
 import { renderAgentsMd } from '../generators/agents-md.js'
 import {

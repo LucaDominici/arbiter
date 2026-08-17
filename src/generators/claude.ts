@@ -2,7 +2,13 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
-import { ensureDir, mergeSettingsJson, resolvedPath, writeFile, readFileTranslated } from '../utils/fs.js'
+import {
+  ensureDir,
+  mergeSettingsJson,
+  resolvedPath,
+  writeFile,
+  readFileTranslated,
+} from '../utils/fs.js'
 import { DEFAULT_TASK_TIERS } from '../config/schema.js'
 import { resolveCollaborationAxes } from '../config/collaboration-mode-defaults.js'
 import type { ProjectConfig } from '../wizard/types.js'

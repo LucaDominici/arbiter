@@ -14,7 +14,13 @@
 // I/O. `src/commands/task.ts` is the higher orchestration layer and imports from here.
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { appendFileTranslated, ensureDir, rmTranslated, writeFile, readFileTranslated } from '../utils/fs.js'
+import {
+  appendFileTranslated,
+  ensureDir,
+  rmTranslated,
+  writeFile,
+  readFileTranslated,
+} from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 
 // ─── Phase vocabulary (single source; re-exported by task.ts for back-compat) ────────────────
