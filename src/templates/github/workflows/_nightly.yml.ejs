@@ -311,6 +311,14 @@ jobs:
       - name: Generated-gate e2e — greenfield-first-run + go-debt-node-modules + record-red-runner (VITEST_L2=1)
         env:
           VITEST_L2: "1"
+          # #2314 — greenfield-first-run's useGitHub cell drives `init --github`,
+          # and `--github` is honoured only when `detectGithubAccess()` finds an
+          # AUTHENTICATED gh (src/detectors/github.ts). Unauthenticated, init
+          # silently emits no .github/workflows and the cell's workflow-gate
+          # assertions fail — green on a dev box, red here, for want of a token.
+          # Same shape as the gh steps in cleanup-expired-artifacts / nightly-required.
+          # (The silent-ignore itself is the separate product defect #2315.)
+          GH_TOKEN: ${{ github.token }}
         run: |
           npx vitest run --config vitest.integration.config.ts \
             __tests__/integration/e2e/functional/greenfield-first-run.test.ts \
