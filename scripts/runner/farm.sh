@@ -11,6 +11,7 @@
 #   farm.sh health   Exit 0 if healthy, 1 if degraded
 #   farm.sh ensure   Start runners and verify topology converges
 #   farm.sh doctor   Full diagnostic report
+#   farm.sh reregister <slot>  Rebuild ONE slot whose registration GitHub deleted
 
 set -euo pipefail
 
@@ -34,6 +35,11 @@ Commands:
   health   Quick health check (exit 0=healthy, 1=degraded)
   ensure   Start and wait for topology convergence
   doctor   Full stack diagnostic
+  reregister <slot>
+           Rebuild exactly one slot whose server-side registration GitHub has
+           deleted: remove that service, wipe its own -state volume, bring it back
+           with a fresh RUNNER_TOKEN. Takes one slot (service name or runner name);
+           there is no --all. Refuses unless the slot is PROVEN unregistered.
 
 Environment:
   DOCKER_HOST defaults to ${DOCKER_HOST}
@@ -133,6 +139,104 @@ container_running_count() {
   compose ps --status running --quiet 2>/dev/null | wc -l | tr -d ' '
 }
 
+# ── Per-slot correlation (#2287) ─────────────────────────────────────────────
+#
+# The farm used to compare two integers — containers=4 vs online=3 — which cannot
+# name a slot and cannot tell "still registering" from "registration deleted". The
+# join key is exact: the compose file pins RUNNER_NAME and sets
+# RANDOM_RUNNER_SUFFIX=false, so a slot's GitHub name is a pure function of its
+# compose service, and the inventory reports that same string.
+#
+#   service            runner name             state volume
+#   runner-build       arbiter-slot-build      runner-arbiter-build-state
+#   runner-build-N     arbiter-slot-build-N    runner-arbiter-build-N-state
+#
+# All three derive from the service suffix, so there is one mapping, not three lists.
+
+# runner-build-2 -> build-2
+slot_suffix() {
+  echo "${1#runner-}"
+}
+
+# runner-build-2 -> arbiter-slot-build-2
+slot_runner_name() {
+  echo "arbiter-slot-$(slot_suffix "$1")"
+}
+
+# runner-build-2 -> runner-arbiter-build-2-state
+slot_state_volume() {
+  echo "runner-arbiter-$(slot_suffix "$1")-state"
+}
+
+# Accept either the compose service (runner-build-2) or the runner name shown by
+# health/doctor (arbiter-slot-build-2). Echoes the SERVICE and returns 0 only for a
+# slot this farm actually owns — an unknown name must never reach a `volume rm`.
+normalize_slot() {
+  local want="$1" svc
+  for svc in "${EXPECTED_SERVICES[@]}"; do
+    if [[ "${want}" == "${svc}" || "${want}" == "$(slot_runner_name "${svc}")" ]]; then
+      echo "${svc}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Newline-separated runner names present in the GitHub inventory.
+# Returns 1 — never an empty success — when the API cannot be read. Callers MUST
+# treat that as UNKNOWN: reading a failed query as "nothing is registered" would
+# mark every slot an orphan and invite exactly the farm-wide recreate that killed an
+# in-flight job on 2026-07-09.
+registered_runner_names() {
+  local inventory names
+  inventory=$(runner_inventory) || return 1
+  names="$(jq -r '.runners[].name' <<<"${inventory}" 2>/dev/null)" || return 1
+  # An inventory that parses to nothing is indistinguishable from a malformed read.
+  [[ -n "${names}" ]] || return 1
+  echo "${names}"
+}
+
+# Newline-separated SERVICE names that are running but whose runner name is absent
+# from the GitHub inventory — the #2287 signature. A container in a crashloop is
+# `running` at sample time, which is precisely why compose_up_registered skips it
+# and why counting cannot see this.
+# Returns 1 (and prints nothing) when the inventory is UNKNOWN: unproven is not
+# unregistered.
+unregistered_running_slots() {
+  local running registered svc
+  # FAIL-OPEN-INTENT: an empty running-list means no slot is running, which yields an empty orphan list — the conservative answer; the registration side below is the one that fails closed.
+  running="$(compose ps --status running --services 2>/dev/null || true)"
+  registered="$(registered_runner_names)" || return 1
+  for svc in "${EXPECTED_SERVICES[@]}"; do
+    grep -qx "${svc}" <<<"${running}" || continue
+    grep -qx "$(slot_runner_name "${svc}")" <<<"${registered}" || echo "${svc}"
+  done
+  return 0
+}
+
+# Print the per-slot diagnosis + remedy for every orphaned slot. Returns 0 only when
+# at least one was found, so callers can escalate. Diagnostic only — the remedy is
+# printed, never auto-applied, for the same reason diagnose_up_but_offline is.
+report_unregistered_slots() {
+  local orphans self
+  self="$(basename "$0")"
+  orphans="$(unregistered_running_slots)" || return 1
+  [[ -n "${orphans}" ]] || return 1
+
+  local svc
+  while IFS= read -r svc; do
+    [[ -n "${svc}" ]] || continue
+    echo "UNREGISTERED SLOT: $(slot_runner_name "${svc}") (service ${svc}) is running but absent from the GitHub inventory."
+    echo "  CAUSE: GitHub deletes a registration that has not connected recently. The slot restarts"
+    echo "  on its persisted $(slot_state_volume "${svc}") volume, reuses the dead .runner config"
+    echo "  (\"The runner has already been configured\"), fails to open a session, and crashloops."
+    echo "  \`start\`/\`ensure\` cannot heal it: a crashlooping container is 'running', so it is never"
+    echo "  restarted and never receives a fresh RUNNER_TOKEN."
+    echo "  REMEDY: ${self} reregister ${svc}"
+  done <<<"${orphans}"
+  return 0
+}
+
 # #2280 — the "Up but offline" deprecation signature. GitHub stops delivering
 # messages to a runner whose version it has deprecated; the container keeps
 # running, so docker-side health is green while every job on the label queues
@@ -219,8 +323,12 @@ cmd_health() {
     echo "WARN: GitHub API unreachable — cannot verify runner registration" >&2
   elif [[ "$online" -lt "$EXPECTED_SCALE" ]]; then
     echo "DEGRADED: expected ${EXPECTED_SCALE} online runner(s), found ${online}" >&2
-    # FAIL-OPEN-INTENT: additive detail on an ALREADY-failing branch (ok=false below); a 1 from the diagnosis means "no deprecation signature", not an error.
-    diagnose_up_but_offline "$containers" "$online" >&2 || true
+    # #2287: name the slot and the cause before falling back to the count-only
+    # diagnosis. A running-but-unregistered slot is a DIFFERENT failure from a stale
+    # image, and reporting it as "containers=4, online=3" is what left the operator
+    # with no slot, no cause and no remedy through 116 restarts.
+    # FAIL-OPEN-INTENT: additive detail on an ALREADY-failing branch (ok=false below); a 1 from either diagnosis means "signature not confirmed", not an error.
+    report_unregistered_slots >&2 || diagnose_up_but_offline "$containers" "$online" >&2 || true
     ok=false
   fi
 
@@ -265,6 +373,74 @@ cmd_ensure() {
   return 1
 }
 
+# Rebuild exactly ONE slot whose registration GitHub deleted (#2287). This is the
+# only corrective verb in this script, and every guard below exists because the
+# 2026-07-09 incident was a farm-wide recreate that killed an in-flight CI job:
+#
+#   * one slot per invocation — no --all, no glob, no default target;
+#   * the slot must be PROVEN unregistered. A registered slot may be executing a
+#     job right now; an unregistered one cannot be, because a runner GitHub has no
+#     record of is a runner GitHub cannot have dispatched to. That is what makes an
+#     automatic-looking remedy safe here and nowhere else (AC-4);
+#   * an unreadable inventory is UNKNOWN, not "unregistered" — refuse, so a gh
+#     outage can never be the thing that wipes a slot;
+#   * an unknown slot name is refused before any volume name is derived from it.
+#
+# The other three services are never named on any command line this function runs.
+cmd_reregister() {
+  require_env
+  local want="${1:-}" svc orphans self
+  self="$(basename "$0")"
+
+  if [[ -z "${want}" ]]; then
+    echo "ERROR: reregister needs exactly one slot. Usage: ${self} reregister <slot>" >&2
+    echo "  Slots: ${EXPECTED_SERVICES[*]} (or their arbiter-slot-* runner names)." >&2
+    return 1
+  fi
+
+  if ! svc="$(normalize_slot "${want}")"; then
+    echo "ERROR: '${want}' is not a slot of this farm." >&2
+    echo "  Slots: ${EXPECTED_SERVICES[*]} (or their arbiter-slot-* runner names)." >&2
+    return 1
+  fi
+
+  if ! orphans="$(unregistered_running_slots)"; then
+    echo "REFUSED: cannot reach the GitHub runner inventory, so '${svc}' cannot be PROVEN" >&2
+    echo "  unregistered. Unproven is not unregistered — a slot that is merely unverified may" >&2
+    echo "  be running a job, and recreating it would kill that job (2026-07-09)." >&2
+    echo "  Check: gh auth status" >&2
+    return 1
+  fi
+
+  if ! grep -qx "${svc}" <<<"${orphans}"; then
+    echo "REFUSED: $(slot_runner_name "${svc}") is registered with GitHub (or not running)." >&2
+    echo "  A registered slot may be executing a job right now; this command only ever rebuilds" >&2
+    echo "  a slot GitHub has no record of, which by definition cannot have been dispatched to." >&2
+    echo "  To roll out compose config changes instead, run '${self} stop && ${self} start' at a" >&2
+    echo "  CI-idle window." >&2
+    return 1
+  fi
+
+  local volume runner_token
+  volume="$(slot_state_volume "${svc}")"
+  echo "Reregistering ${svc} ($(slot_runner_name "${svc}")) — its registration was deleted server-side."
+
+  # Order matters: the container holds the volume mounted, so it goes first.
+  compose rm -sf "${svc}"
+  # The dead .runner config lives here; without this wipe the entrypoint says
+  # "already configured" again and the crashloop simply resumes.
+  docker volume rm "${volume}"
+
+  if ! runner_token=$(fetch_runner_token) || [[ -z "${runner_token}" ]]; then
+    echo "ERROR: could not mint a runner registration token from the GitHub API." >&2
+    echo "  ${svc} is now stopped with a clean volume; re-run this command once gh is authenticated." >&2
+    return 1
+  fi
+  compose pull "${svc}" || echo "WARN: image pull failed — starting on the cached image." >&2
+  RUNNER_TOKEN="${runner_token}" compose up -d "${svc}"
+  echo "Done. ${svc} will re-register within ~30s; verify with '${self} health'."
+}
+
 cmd_doctor() {
   require_env
   local ok=true
@@ -304,11 +480,16 @@ cmd_doctor() {
     else
       echo "    WARN — only ${online} runner(s) online (expected ${EXPECTED_SCALE})"
       echo "$inventory" | jq -r '.runners[] | "    \(.name): status=\(.status) busy=\(.busy)"'
-      # A confirmed deprecation signature is not a transient registration lag —
-      # nothing on the label will ever run again until the image is pulled, so
-      # doctor must go RED rather than WARN (#2280).
+      # Neither a confirmed deprecation signature (#2280) nor a slot whose
+      # registration was deleted server-side (#2287) is a transient registration
+      # lag — in both cases nothing on the label will ever run again without an
+      # operator action, so doctor must go RED rather than WARN.
       local diag diag_rc=0
-      diag="$(diagnose_up_but_offline "$containers" "$online")" || diag_rc=$?
+      diag="$(report_unregistered_slots)" || diag_rc=$?
+      if [[ $diag_rc -ne 0 ]]; then
+        diag_rc=0
+        diag="$(diagnose_up_but_offline "$containers" "$online")" || diag_rc=$?
+      fi
       [[ -n "$diag" ]] && sed 's/^/    /' <<<"$diag"
       [[ $diag_rc -eq 0 ]] && ok=false
       true
@@ -339,5 +520,6 @@ case "${1:-}" in
   health)  cmd_health ;;
   ensure)  cmd_ensure ;;
   doctor)  cmd_doctor ;;
+  reregister) cmd_reregister "${2:-}" ;;
   *)       usage; exit 1 ;;
 esac

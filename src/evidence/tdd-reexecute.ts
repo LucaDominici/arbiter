@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
 import { extractFailureSignature, type TddEvidence } from './tdd.js'
 import { gitCwd } from './git-checks.js'
+import { mkdtempTranslated, rmTranslated, symlinkTranslated } from '../utils/fs.js'
 
 export interface RedExecutionResult {
   ok: boolean
@@ -87,8 +88,8 @@ function compareFailure(ev: TddEvidence, freshLog: string): RedExecutionResult {
 
 /** A unique path that does not exist yet — `git worktree add` creates it. */
 function freeTempPath(): string {
-  const d = mkdtempSync(join(tmpdir(), 'arbiter-tdd-verify-'))
-  rmSync(d, { recursive: true, force: true })
+  const d = mkdtempTranslated(join(tmpdir(), 'arbiter-tdd-verify-'))
+  rmTranslated(d, { recursive: true, force: true })
   return d
 }
 
@@ -129,7 +130,7 @@ function linkNodeModules(sourceDir: string, worktreeDir: string): void {
   const dest = join(worktreeDir, 'node_modules')
   if (!existsSync(src) || existsSync(dest)) return
   try {
-    symlinkSync(src, dest, 'dir')
+    symlinkTranslated(src, dest, 'dir')
     // FAIL-OPEN-INTENT: a missing link surfaces downstream as a genuine check failure (npx can't resolve the runner), never a false PASS.
   } catch {
     // no-op — see FAIL-OPEN-INTENT above
@@ -158,5 +159,5 @@ function removeDetachedWorktree(repoDir: string, worktreeDir: string): void {
   } catch {
     // no-op — see FAIL-OPEN-INTENT above
   }
-  rmSync(worktreeDir, { recursive: true, force: true })
+  rmTranslated(worktreeDir, { recursive: true, force: true })
 }

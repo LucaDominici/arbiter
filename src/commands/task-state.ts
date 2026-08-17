@@ -12,9 +12,9 @@
 // Fixed path (not per-sanitized-id) lets generated hooks find state without first reading a
 // `.task-id` dotfile. This module is the LOWER layer: it owns the phase vocabulary and all state
 // I/O. `src/commands/task.ts` is the higher orchestration layer and imports from here.
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { appendFileTranslated, ensureDir, writeFile } from '../utils/fs.js'
+import { appendFileTranslated, ensureDir, rmTranslated, writeFile } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 
 // ─── Phase vocabulary (single source; re-exported by task.ts for back-compat) ────────────────
@@ -393,10 +393,13 @@ export function seedFromLegacy(root: string): UnifiedTaskState | null {
   })
 
   writeFile(statusPath(root), JSON.stringify(seeded, null, 2) + '\n')
-  for (const f of LEGACY_DOTFILES) rmSync(join(claudeDir, f), { force: true })
+  for (const f of LEGACY_DOTFILES) rmTranslated(join(claudeDir, f), { force: true })
   // Only delete the per-id rich dir when it parsed cleanly — a corrupt rich file is preserved.
   if (idRaw && !richCorrupt) {
-    rmSync(join(claudeDir, '.task-' + sanitizeTaskId(idRaw)), { recursive: true, force: true })
+    rmTranslated(join(claudeDir, '.task-' + sanitizeTaskId(idRaw)), {
+      recursive: true,
+      force: true,
+    })
   }
   return seeded
 }

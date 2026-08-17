@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { chmodSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { chmodTranslated, resolvedPath, writeFile } from '../utils/fs.js'
 import { mutatePackageJson } from '../utils/pkg.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -15,7 +14,7 @@ const HOOK_MODE = 0o755
 function writeHook(filePath: string, content: string, dryRun: boolean): WriteResult {
   const result = writeFile(filePath, content, { skipIfExists: true, dryRun })
   if (!dryRun && result.action !== 'skipped') {
-    chmodSync(filePath, HOOK_MODE)
+    chmodTranslated(filePath, HOOK_MODE)
   }
   return result
 }
@@ -90,7 +89,7 @@ export function generateGithooks(
       dryRun: opts.dryRun,
     })
     if (!opts.dryRun && setupResult.action !== 'skipped') {
-      chmodSync(setupPath, HOOK_MODE)
+      chmodTranslated(setupPath, HOOK_MODE)
     }
     results.push(setupResult)
   }

@@ -8,6 +8,10 @@ import {
   unlinkSync,
   readFileSync,
   appendFileSync,
+  chmodSync,
+  rmSync,
+  symlinkSync,
+  mkdtempSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomBytes, createHash } from 'node:crypto'
@@ -608,6 +612,69 @@ export function renameTranslated(from: string, to: string): void {
     renameSync(from, to)
   } catch (err) {
     throw toFsError(err, to)
+  }
+}
+
+/**
+ * Set a file's permission bits. Every call site in `src/` marks a generated script
+ * executable right after emitting it; an EPERM/EROFS here otherwise surfaces as a raw
+ * Node stack on a file the user has no idea arbiter just wrote.
+ */
+export function chmodTranslated(path: string, mode: number): void {
+  try {
+    chmodSync(path, mode)
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
+
+/** Remove a single file. Throws on a missing path — use {@link rmTranslated} with
+ *  `force` when absence is acceptable. */
+export function unlinkTranslated(path: string): void {
+  try {
+    unlinkSync(path)
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
+
+/**
+ * Remove a path. `force` suppresses ENOENT and `recursive` descends into directories,
+ * exactly as `fs.rmSync` — the options are passed through rather than baked in because
+ * both shapes are in real use (`{ force }` for a legacy dotfile, `{ recursive, force }`
+ * for a scratch directory).
+ */
+export function rmTranslated(path: string, opts: { recursive?: boolean; force?: boolean }): void {
+  try {
+    rmSync(path, opts)
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
+
+/**
+ * Create a symlink at `path` pointing at `target`. EEXIST is NOT in the errno catalog, so
+ * `toFsError` returns it unchanged and a caller's TOCTOU re-check on `err.code` keeps
+ * working (CANON-17 deliberately exempts handlers that inspect `err.code`).
+ */
+export function symlinkTranslated(
+  target: string,
+  path: string,
+  type?: 'dir' | 'file' | 'junction',
+): void {
+  try {
+    symlinkSync(target, path, type)
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
+
+/** Create a uniquely-named temp directory from `prefix` and return its path. */
+export function mkdtempTranslated(prefix: string): string {
+  try {
+    return mkdtempSync(prefix)
+  } catch (err) {
+    throw toFsError(err, prefix)
   }
 }
 

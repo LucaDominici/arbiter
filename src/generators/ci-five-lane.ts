@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { chmodSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { chmodTranslated, resolvedPath, writeFile } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -79,7 +78,7 @@ export function generateCiFiveLane(
   )
 
   if (!opts.dryRun && scriptResult.action !== 'skipped') {
-    chmodSync(scriptPath, SCRIPT_MODE)
+    chmodTranslated(scriptPath, SCRIPT_MODE)
   }
 
   const files: WriteResult[] = [ciResult, nightlyResult, weeklyResult, releaseResult, scriptResult]

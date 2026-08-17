@@ -18,8 +18,7 @@
 // A gate whose negative fixture does NOT produce a failing verdict is exactly the failure
 // mode this command exists to catch: a gate that looks installed but does not bite.
 
-import { mkdtempSync, rmSync } from 'node:fs'
-import { ensureDir, writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, mkdtempTranslated, rmTranslated, writeFileTranslated } from '../utils/fs.js'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { DimensionEntry, Verdict } from './dimensions.js'
@@ -213,7 +212,7 @@ const GATE_PROOFS: GateProof[] = [
  * a crashing probe is itself evidence the gate cannot be relied on).
  */
 function runOneProof(proof: GateProof): GateProofResult {
-  const dir = mkdtempSync(join(tmpdir(), 'arbiter-gate-proof-'))
+  const dir = mkdtempTranslated(join(tmpdir(), 'arbiter-gate-proof-'))
   try {
     proof.seed(dir)
     const entry = proof.run(dir)
@@ -236,7 +235,7 @@ function runOneProof(proof: GateProof): GateProofResult {
       detail: `proof crashed: ${err instanceof Error ? err.message : String(err)}`,
     }
   } finally {
-    rmSync(dir, { recursive: true, force: true })
+    rmTranslated(dir, { recursive: true, force: true })
   }
 }
 

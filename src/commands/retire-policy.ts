@@ -29,13 +29,14 @@
  * a detection flip produces the same signal), so the report is the evidence for
  * widening this later, not a licence to delete now.
  */
-import { existsSync, readFileSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { manifestKey } from '../state/generated-manifest.js'
 import { RETIRED_RENDERS } from '../state/retired-renders.js'
 import { isSafetyClassKey } from '../generators/safety-class.js'
 import type { WriteResult } from '../utils/fs.js'
+import { unlinkTranslated } from '../utils/fs.js'
 
 export interface RetirementPlan {
   /** Pristine safety-class files the framework no longer emits — deleted. */
@@ -117,7 +118,7 @@ export function planRetirement(opts: {
 export function applyRetirement(targetDir: string, plan: RetirementPlan): void {
   for (const key of [...plan.retire]) {
     try {
-      unlinkSync(join(targetDir, key))
+      unlinkTranslated(join(targetDir, key))
       // FAIL-OPEN-INTENT: unlink failure is surfaced as a reported orphan in the caller's retirement warning.
     } catch {
       plan.retire = plan.retire.filter((k) => k !== key)
