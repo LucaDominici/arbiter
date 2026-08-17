@@ -92,9 +92,14 @@ export function parseTaskIdsFromBodies(bodyLog) {
  *
  * `src/templates/**` counts: templates ARE the product shipped to governed targets, so
  * exempting them would leave the hole open exactly where generated enforcement lives.
+ *
+ * A `src/` SEGMENT, not a repo-root prefix (#2313) — kept identical to the SHIPPED
+ * predicate in src/templates/scripts/check-tdd-evidence.mjs.ejs. Behaviourally a no-op
+ * here (arbiter is single-module), but letting the self-gate and the emitted gate mean
+ * different things is the drift the dogfood pin exists to catch.
  */
 export function touchesGovernedSource(changedPaths) {
-  return changedPaths.split('\n').some((p) => p.trim().startsWith('src/'))
+  return changedPaths.split('\n').some((p) => /(?:^|\/)src\//.test(p.trim()))
 }
 
 /**

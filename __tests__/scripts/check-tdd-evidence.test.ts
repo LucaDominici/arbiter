@@ -88,6 +88,15 @@ describe('touchesGovernedSource', () => {
     expect(touchesGovernedSource('src/templates/scripts/check-all.mjs.ejs')).toBe(true)
   })
 
+  // #2313: kept identical to the SHIPPED predicate in
+  // src/templates/scripts/check-tdd-evidence.mjs.ejs. A no-op for arbiter (single-module,
+  // source is `src/`), but a divergence here is how the self-gate and the shipped gate
+  // start meaning different things.
+  it('is true for a nested module root (backend/src, frontend/src)', () => {
+    expect(touchesGovernedSource('backend/src/main/java/App.java')).toBe(true)
+    expect(touchesGovernedSource('frontend/src/App.vue')).toBe(true)
+  })
+
   it('is false for a branch that changes no source', () => {
     expect(touchesGovernedSource('docs/x.md\n__tests__/foo.test.ts\nREADME.md')).toBe(false)
     expect(touchesGovernedSource('')).toBe(false)
