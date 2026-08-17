@@ -154,7 +154,11 @@ describe('sync-action-pins.mjs (#2298 — per-occurrence indexing + corpus-wide 
     const { dir, cleanup } = makeDir()
     try {
       // Committed workflow is the canonical pin.
-      write(dir, '.github/workflows/ci.yml', `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`)
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
       // Paired template: FIRST occurrence stale (SHA_B), LAST occurrence matches canonical.
       write(
         dir,
@@ -173,7 +177,11 @@ describe('sync-action-pins.mjs (#2298 — per-occurrence indexing + corpus-wide 
   it('AC-3 RED: --check fails on an unpaired template carrying an old pin', () => {
     const { dir, cleanup } = makeDir()
     try {
-      write(dir, '.github/workflows/ci.yml', `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`)
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
       // Unpaired template (no committed counterpart) with an old pin.
       write(
         dir,
@@ -192,7 +200,11 @@ describe('sync-action-pins.mjs (#2298 — per-occurrence indexing + corpus-wide 
   it('AC-4 negative: a coherent corpus passes --check with no false red', () => {
     const { dir, cleanup } = makeDir()
     try {
-      write(dir, '.github/workflows/ci.yml', `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`)
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
       write(
         dir,
         'src/templates/github/workflows/ci.yml.ejs',
@@ -214,7 +226,11 @@ describe('sync-action-pins.mjs (#2298 — per-occurrence indexing + corpus-wide 
   it('AC-2: --check lists every divergent occurrence, not just the last', () => {
     const { dir, cleanup } = makeDir()
     try {
-      write(dir, '.github/workflows/ci.yml', `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`)
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
       // Two stale occurrences of the SAME action in one template.
       write(
         dir,
@@ -233,7 +249,11 @@ describe('sync-action-pins.mjs (#2298 — per-occurrence indexing + corpus-wide 
   it('write mode fixes a stale earlier occurrence and leaves the matching one untouched', () => {
     const { dir, cleanup } = makeDir()
     try {
-      write(dir, '.github/workflows/ci.yml', `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`)
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
       const ejsPath = join(dir, 'src/templates/github/workflows/ci.yml.ejs')
       write(
         dir,

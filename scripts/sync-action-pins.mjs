@@ -30,7 +30,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { collectWorkflowTemplates } from './lib/workflow-scan.mjs'
-import { CROSS_MAJOR_ALLOWLIST, effectiveMajor } from './lib/action-pins.mjs'
+import { CROSS_MAJOR_ALLOWLIST } from './lib/action-pins.mjs'
 
 const ROOT = process.cwd()
 const WF_DIR = join(ROOT, '.github', 'workflows')
@@ -106,7 +106,8 @@ function collectCanonicalPins() {
     if (!f.endsWith('.yml') && !f.endsWith('.yaml')) continue
     const content = readFileSync(join(WF_DIR, f), 'utf-8')
     for (const occ of extractOccurrences(content)) {
-      if (!pins.has(occ.action)) pins.set(occ.action, { version: occ.version, comment: occ.comment })
+      if (!pins.has(occ.action))
+        pins.set(occ.action, { version: occ.version, comment: occ.comment })
     }
   }
   return pins
@@ -164,7 +165,9 @@ function runReverse() {
   }
   process.stdout.write('\n')
   if (totalDrift > 0) {
-    process.stdout.write(`sync-action-pins: synced ${totalDrift} pin(s) across ${pairs.length} pair(s)\n`)
+    process.stdout.write(
+      `sync-action-pins: synced ${totalDrift} pin(s) across ${pairs.length} pair(s)\n`,
+    )
   } else {
     process.stdout.write('sync-action-pins: all pairs in sync\n')
   }
@@ -202,7 +205,9 @@ function runSync() {
         `sync-action-pins: DRIFT — ${drifts.length} diverged pin(s) across ${templateFiles.length} template(s)\n`,
       )
       for (const d of drifts) {
-        process.stderr.write(`  ${d.file}: ${d.action} template=${d.template}  canonical=${d.canonical}\n`)
+        process.stderr.write(
+          `  ${d.file}: ${d.action} template=${d.template}  canonical=${d.canonical}\n`,
+        )
       }
       process.stderr.write('  Fix: node scripts/sync-action-pins.mjs\n')
       process.exit(1)
@@ -221,7 +226,8 @@ function runSync() {
       const occMajor = majorOfComment(occComment)
       const canonMajor = majorOfComment(canonical.comment)
       if (occMajor === canonMajor) {
-        if (canonical.version === version && canonical.comment.trim() === occComment.trim()) return match
+        if (canonical.version === version && canonical.comment.trim() === occComment.trim())
+          return match
         updated++
         return `uses:${space}${action}@${canonical.version}${canonical.comment}`
       }
@@ -234,7 +240,9 @@ function runSync() {
 
   process.stdout.write('\n')
   if (updated > 0) {
-    process.stdout.write(`sync-action-pins: synced ${updated} pin(s) across ${templateFiles.length} template(s)\n`)
+    process.stdout.write(
+      `sync-action-pins: synced ${updated} pin(s) across ${templateFiles.length} template(s)\n`,
+    )
   } else {
     process.stdout.write('sync-action-pins: all templates in sync with committed workflows\n')
   }

@@ -39,9 +39,7 @@ import type { InitOptions } from './types.js'
  * user instead of being absorbed into a silent `useGitHub:false` that drops
  * every workflow gate. Fail loudly (exit 1) — the flag is explicit, not a hint.
  */
-function githubAuthError(
-  githubAccess: ReturnType<typeof detectGithubAccess>,
-): ArbiterError {
+function githubAuthError(githubAccess: ReturnType<typeof detectGithubAccess>): ArbiterError {
   return ArbiterError.fromKey(
     'E_INIT_GITHUB_UNAUTHENTICATED',
     'errors.E_INIT_GITHUB_UNAUTHENTICATED',
