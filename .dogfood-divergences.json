@@ -118,7 +118,7 @@
     "path": "check-action-pins.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self scans TWO corpora where the template scans one: besides .github/workflows and .github/actions it walks the workflow TEMPLATES arbiter ships (src/templates/**/workflows/*.ejs), because a fabricated or tag-shaped SHA in an .ejs is emitted verbatim into every generated project while the self gate stays green (#1491, security-privacy MAJOR-3) — and it therefore also skips templated refs (EJS/shell interpolation), a concept a target has no use for. Self additionally imports collectYamlFiles/collectWorkflowTemplates from scripts/lib/workflow-scan.mjs, which arbiter does NOT ship as a template, so the emitted twin must inline its own walker to stay self-contained. The CROSS_MAJOR_ALLOWLIST shas are identical on both sides; only self annotates each with its version comment. PERMANENT: a target project has no template corpus and no arbiter lib tree, so neither half of this divergence can ever be reconciled.",
-    "diffHash": "d9962978af14deb71fb3e24675463b2dcbabe2079c20b37879382e95db73c90b"
+    "diffHash": "cf4712a3c262ccf28ac5ad18c9b24c7da788559e5fc544ee118d649d69b0c7eb"
   },
   {
     "path": "check-anti-fake-green.mjs",
@@ -226,7 +226,7 @@
     "path": "check-fail-closed-audit.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self is a strict superset on two axes. (1) Corpus: self classifies .github/workflows/*.yml as a `yaml` kind and runs the `|| true` fail-open scan over workflow files; the template audits only scripts/, .githooks/ and .claude/hooks/. (2) The library allowlist: ~20 named scripts/lib/* modules exempted from the entry-point error-handling contract because they export semantics rather than being entry points (gold-audit-lib, anti-fake-green-core, secret-presence-core, continue-on-error-core, doc-set-resolve, dist-staleness, acceptance-criteria, consumer-reliability-bar, …). Nearly every one of those files is self-only, so the list has no subject in a target. Self also handles the ENOENT readdir/stat race explicitly with a FAIL-OPEN-INTENT marker and rethrows everything else, where the template swallows. PERMANENT.",
-    "diffHash": "5f631c056af05f43fce764a0165cad2739ff24ddd7593788e83ae8451dddc9be"
+    "diffHash": "dc2c0268fe69b854c0e302f86a8736940373c7311c9109c383bdc972021430c0"
   },
   {
     "dest": "scripts",

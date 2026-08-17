@@ -112,12 +112,12 @@ describe('sync-action-pins.mjs (#911 — comment-drift detection)', () => {
     }
   })
 
-  it('exits 0 and reports in-sync when no yml/EJS pairs exist', () => {
+  it('exits 0 and reports in-sync when no workflow templates exist', () => {
     const { dir, cleanup } = makeDir()
     try {
       const result = run(dir, ['--check'])
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('no yml')
+      expect(result.stdout).toContain('no workflow templates')
     } finally {
       cleanup()
     }
@@ -134,6 +134,137 @@ describe('sync-action-pins.mjs (#911 — comment-drift detection)', () => {
       const fixed = readFileSync(ymlPath, 'utf-8')
       expect(fixed).toContain('# v6.0.2')
       expect(fixed).not.toContain('# v4.2.2')
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+describe('sync-action-pins.mjs (#2298 — per-occurrence indexing + corpus-wide scope)', () => {
+  const SHA_A = 'de0fac2e4500dabe0009e67214ff5f5447ce83dd'
+  const SHA_B = '11bd71901bbe5b1630ceea73d27597364c9af683'
+
+  function write(dir: string, relPath: string, content: string): void {
+    const full = join(dir, relPath)
+    mkdirSync(join(full, '..'), { recursive: true })
+    writeFileSync(full, content)
+  }
+
+  it('AC-1 RED: --check fails when an earlier occurrence of an action is stale (last-wins hid it)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      // Committed workflow is the canonical pin.
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      // Paired template: FIRST occurrence stale (SHA_B), LAST occurrence matches canonical.
+      write(
+        dir,
+        'src/templates/github/workflows/ci.yml.ejs',
+        `steps:\n  - uses: actions/checkout@${SHA_B} # v4.2.2\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      const result = run(dir, ['--check'])
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('DRIFT')
+      expect(result.stderr).toContain(SHA_B)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-3 RED: --check fails on an unpaired template carrying an old pin', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      // Unpaired template (no committed counterpart) with an old pin.
+      write(
+        dir,
+        'src/templates/github/workflows/_unpaired.yml.ejs',
+        `steps:\n  - uses: actions/checkout@${SHA_B} # v4.2.2\n`,
+      )
+      const result = run(dir, ['--check'])
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('DRIFT')
+      expect(result.stderr).toContain('_unpaired.yml.ejs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-4 negative: a coherent corpus passes --check with no false red', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      write(
+        dir,
+        'src/templates/github/workflows/ci.yml.ejs',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      write(
+        dir,
+        'src/templates/github/workflows/_unpaired.yml.ejs',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      const result = run(dir, ['--check'])
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('in sync')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-2: --check lists every divergent occurrence, not just the last', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      // Two stale occurrences of the SAME action in one template.
+      write(
+        dir,
+        'src/templates/github/workflows/ci.yml.ejs',
+        `steps:\n  - uses: actions/checkout@${SHA_B} # v4.2.2\n  - uses: actions/checkout@${SHA_B} # v4.2.2\n`,
+      )
+      const result = run(dir, ['--check'])
+      expect(result.status).toBe(1)
+      const matches = result.stderr.match(/actions\/checkout/g)
+      expect(matches).toHaveLength(2)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('write mode fixes a stale earlier occurrence and leaves the matching one untouched', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      write(
+        dir,
+        '.github/workflows/ci.yml',
+        `steps:\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      const ejsPath = join(dir, 'src/templates/github/workflows/ci.yml.ejs')
+      write(
+        dir,
+        'src/templates/github/workflows/ci.yml.ejs',
+        `steps:\n  - uses: actions/checkout@${SHA_B} # v4.2.2\n  - uses: actions/checkout@${SHA_A} # v6.0.2\n`,
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      const fixed = readFileSync(ejsPath, 'utf-8')
+      expect(fixed).toContain(`@${SHA_A} # v6.0.2`)
+      expect(fixed).not.toContain(SHA_B)
     } finally {
       cleanup()
     }

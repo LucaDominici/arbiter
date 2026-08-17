@@ -10,7 +10,9 @@ const V630_SHA = '9c971963bec38e04b3d30dcc455b5382be2fdbfb'
 
 describe('#2265 gradle-action 6.3.0 allowlist (dual-track)', () => {
   it('script allowlist carries the v6.3.0 sha', () => {
-    const s = readFileSync(resolve(ROOT, 'scripts/check-action-pins.mjs'), 'utf8')
+    // #2298: CROSS_MAJOR_ALLOWLIST moved to the shared lib so sync-action-pins
+    // and check-action-pins agree on the ONE allowlist.
+    const s = readFileSync(resolve(ROOT, 'scripts/lib/action-pins.mjs'), 'utf8')
     expect(s).toContain(V630_SHA)
   })
   it('ejs twin carries the v6.3.0 sha', () => {

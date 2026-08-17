@@ -131,6 +131,7 @@ vi.mock('../../src/utils/plugin-loader.js', () => ({
 
 import { runWizard, determineFlow } from '../../src/wizard/prompts.js'
 import { detectLanguageWithSource } from '../../src/detectors/language.js'
+import { detectGithubAccess } from '../../src/detectors/github.js'
 import { runGeneratorsFromRegistry, buildRegistry } from '../../src/generators/registry.js'
 import { runProbes } from '../../src/compatibility/probe.js'
 import { isL3Allowed } from '../../src/utils/maturity-check.js'
@@ -155,6 +156,7 @@ const mockLoadPlugin = vi.mocked(loadPlugin)
 const mockLoadConfig = vi.mocked(loadConfig)
 const mockRunCli = vi.mocked(runCli)
 const mockDetectLanguageWithSource = vi.mocked(detectLanguageWithSource)
+const mockDetectGithubAccess = vi.mocked(detectGithubAccess)
 
 describe('runInit', () => {
   let dir: string
@@ -184,6 +186,7 @@ describe('runInit', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    delete process.env['ARBITER_GITHUB']
     cleanupTestProject(dir)
   })
 
@@ -231,6 +234,127 @@ describe('runInit', () => {
       dryRun: false,
       brownfield: false,
       noVerify: true,
+    })
+
+    expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+  })
+
+  // #2315 — `--github` is an explicit request; when gh is not authenticated the
+  // detector error must reach the user instead of being absorbed into a silent
+  // `useGitHub:false` that drops all 8 workflow gates. RED: today init exits 0
+  // with no workflows and no warning.
+  it('fails loudly when --github is requested but gh is not authenticated (#2315)', async () => {
+    mockDetectGithubAccess.mockReturnValue({
+      available: true,
+      authenticated: false,
+      username: null,
+      error: 'Not authenticated. Run: gh auth login',
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L2',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+        github: true,
+      }),
+    ).rejects.toThrow(/Not authenticated.*gh auth login/i)
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+  })
+
+  it('fails loudly when --backend github is requested but gh is not authenticated (#2315)', async () => {
+    mockDetectGithubAccess.mockReturnValue({
+      available: true,
+      authenticated: false,
+      username: null,
+      error: 'Not authenticated. Run: gh auth login',
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L2',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+        backend: 'github',
+      }),
+    ).rejects.toThrow(/Not authenticated.*gh auth login/i)
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+  })
+
+  it('fails loudly when ARBITER_GITHUB=1 but gh is not authenticated (#2315)', async () => {
+    mockDetectGithubAccess.mockReturnValue({
+      available: true,
+      authenticated: false,
+      username: null,
+      error: 'Not authenticated. Run: gh auth login',
+    })
+    process.env['ARBITER_GITHUB'] = '1'
+    const { runInit } = await import('../../src/commands/init.js')
+
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L2',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toThrow(/Not authenticated.*gh auth login/i)
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+  })
+
+  it('without --github, unauthenticated gh does not block init (#2315 AC-3)', async () => {
+    mockDetectGithubAccess.mockReturnValue({
+      available: true,
+      authenticated: false,
+      username: null,
+      error: 'Not authenticated. Run: gh auth login',
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+
+    expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+  })
+
+  it('with authenticated gh, --github still emits workflows (#2315 AC-3)', async () => {
+    mockDetectGithubAccess.mockReturnValue({
+      available: true,
+      authenticated: true,
+      username: 'testuser',
+      error: null,
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+      github: true,
     })
 
     expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
