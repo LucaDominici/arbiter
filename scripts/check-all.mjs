@@ -6,10 +6,10 @@
 //                simulate-nightly (T4), simulate-weekly (T5)
 //   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
 //
-// check (T1, "check" subcommand — L1 fast checks): 124 hard checks (runCheck/runToolCheck)
-//   + 1 advisory (runWarnCheck), as of #2039.
+// check (T1, "check" subcommand — L1 fast checks): 125 hard checks (runCheck/runToolCheck)
+//   + 1 advisory (runWarnCheck), as of #2039 + #2291.
 // gate (T1+T2, "gate" subcommand, default): check + T2 extended checks, cumulative total
-//   149 hard checks + 9 advisory, as of #2039.
+//   150 hard checks + 9 advisory, as of #2039 + #2291.
 // These counts are hand-maintained (#2042 fixed a ~2x stale count and a 25/37-gate-name
 // drift found by audit) — do not hand-copy an enumerated gate list here, it WILL drift.
 // For the exhaustive, always-current list: grep this file for `run(Check|ToolCheck|WarnCheck)(`
@@ -150,6 +150,11 @@ if (isMain) {
   // check-no-tracked-artifacts (all wired above/below) that was never wired into
   // arbiter's own gate. Validates arbiter's OWN .claude/hooks routing (#2129).
   runCheck('hook routing (#2129)', 'node', ['scripts/check-hook-routing.mjs'])
+  // #2291: arbiter shipped this ratchet to consumers without running it itself. It is
+  // the gate that catches a gate spine frozen by `update` — and the reason it never
+  // fired anywhere is that it was delivered only THROUGH the spine it polices. Wiring
+  // it here (and, for consumers, as its own 01-pr-fast.yml step) is the dogfood half.
+  runCheck('safety adopt ratchet (#2291)', 'node', ['scripts/check-safety-adopt-ratchet.mjs'])
   runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
   runCheck('format', 'npx', ['prettier', '--check', '.'])
   // #1523: scripts/ (the gate-enforcement layer) is linted alongside src/ and

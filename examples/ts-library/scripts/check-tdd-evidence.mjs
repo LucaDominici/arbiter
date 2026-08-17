@@ -13,7 +13,10 @@
 //
 // A branch with no task id in any commit SUBJECT that changes src/ must still carry ONE
 // verified evidence among the tasks its commit BODIES cite (`Refs #NNN`) — evidence is
-// owed per CHANGE, not per commit (#2217).
+// owed per CHANGE, not per commit (#2217). Independently, ANY branch changing source
+// must carry one verified evidence PRODUCED on the branch, over subject ∪ body ids
+// (#2307) — citing an already-merged id proves nothing, since check 4 below asserts only
+// ancestry. That guard is tracked-conditional: see evidenceProducedHere().
 //
 // For each task #NNN it loads .arbiter/evidence/tdd/#NNN.json and asserts:
 //   1. evidence file present + schema valid (v1)
@@ -180,6 +183,59 @@ function verifyTask(taskId) {
   return { ok: true }
 }
 
+/**
+ * #2307: was this task's evidence PRODUCED on this branch, or merely INHERITED from
+ * main? Check 4 above asserts only that test_commit_sha is an ANCESTOR of HEAD — once a
+ * task's evidence is merged to main, every later branch satisfies it. Citing an
+ * already-merged id would otherwise "prove" a red→green cycle the branch never ran.
+ *
+ * Returns true/false when the evidence file is TRACKED, and null when it is not: the
+ * generated .gitignore ignores `.arbiter/` wholesale, so in a target the evidence file
+ * is typically untracked and an unconditional guard would reject every branch. Un-ignore
+ * `.arbiter/evidence/tdd/*.json` (as arbiter does for itself) to make this guard live.
+ */
+function evidenceProducedHere(mergeBase, taskId) {
+  const path = `.arbiter/evidence/tdd/${taskId}.json`
+  let tracked = ''
+  try {
+    tracked = git(['ls-files', '--', path])
+  } catch {
+    tracked = ''
+  }
+  if (tracked.length === 0) return null
+  try {
+    return git(['log', '--format=%H', `${mergeBase}..HEAD`, '--', path]).length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The branch floor: does SOME candidate carry evidence that verifies AND was not merely
+ * inherited from main? One verified evidence is owed per CHANGE, not one per cited issue.
+ */
+function floorSatisfied(mergeBase, candidates) {
+  for (const taskId of candidates) {
+    const fresh = evidenceProducedHere(mergeBase, taskId)
+    if (fresh === false) {
+      process.stdout.write(
+        `  ${taskId}: evidence inherited from main, not produced on this branch\n`,
+      )
+      continue
+    }
+    if (fresh === null) {
+      process.stdout.write(
+        `  ${taskId}: WARNING — evidence file is untracked, so the produced-here guard ` +
+          `(#2307) cannot apply. Un-ignore .arbiter/evidence/tdd/*.json to make it live.\n`,
+      )
+    }
+    const r = verifyTask(taskId)
+    process.stdout.write(`  ${taskId}: ${r.ok ? 'PASS' : `FAIL — ${r.reason}`}\n`)
+    if (r.ok) return true
+  }
+  return false
+}
+
 // ─── Entry point ──────────────────────────────────────────────────────────────
 function run() {
 let mergeBase
@@ -212,19 +268,26 @@ try {
 // commit with no TDD cycle of its own) parsed to zero ids and passed VACUOUSLY, whatever
 // it changed. Evidence is owed per CHANGE: a branch that touches source must carry at
 // least ONE verified evidence among the tasks it cites.
-let floorIds = []
+let changed = ''
+try {
+  changed = git(['diff', '--name-only', `${mergeBase}..HEAD`])
+} catch {
+  changed = ''
+}
+// Computed on BOTH paths: the subject path owes the produced-here floor too (#2307),
+// and it is gated on this exact predicate.
+const touchesSource = touchesGovernedSource(changed)
+
+// Candidates are subject ids UNION body ids: a merge-train branch whose subject cites a
+// merged id but whose body cites a task with fresh on-branch evidence has run a real
+// cycle and must pass.
+const floorIds = [...new Set([...taskIds, ...parseBodyTaskIds(bodyLog)])]
+
 if (taskIds.length === 0) {
-  let changed = ''
-  try {
-    changed = git(['diff', '--name-only', `${mergeBase}..HEAD`])
-  } catch {
-    changed = ''
-  }
-  if (!touchesGovernedSource(changed)) {
+  if (!touchesSource) {
     process.stdout.write('check-tdd-evidence: no task-ID commits and no source change, vacuous pass\n')
     process.exit(0)
   }
-  floorIds = parseBodyTaskIds(bodyLog)
   if (floorIds.length === 0) {
     process.stderr.write(
       '\ncheck-tdd-evidence: FAIL — this branch changes src/ but cites no task id in any ' +
@@ -251,23 +314,14 @@ for (const block of bodyLog.split('\x00').filter(Boolean)) {
 // Floor path: the branch owes ONE verified evidence, not one per cited issue — a docs
 // or chore commit that merely references an issue owes nothing.
 if (taskIds.length === 0) {
-  for (const taskId of floorIds) {
-    // NOTE — arbiter's own gate additionally requires the evidence file to have been
-    // COMMITTED on this branch, so a long-closed task's inherited evidence cannot
-    // satisfy the floor. That guard is deliberately NOT applied here: the generated
-    // .gitignore ignores `.arbiter/` wholesale, so in a target the evidence file is
-    // typically untracked and the check would reject every branch. Un-ignore
-    // `.arbiter/evidence/tdd/*.json` (as arbiter does for itself) to close the gap.
-    const r = verifyTask(taskId)
-    process.stdout.write(`  ${taskId}: ${r.ok ? 'PASS' : `FAIL — ${r.reason}`}\n`)
-    if (r.ok) {
-      process.stdout.write('check-tdd-evidence: OK — branch floor satisfied (#2217)\n')
-      process.exit(0)
-    }
+  if (floorSatisfied(mergeBase, floorIds)) {
+    process.stdout.write('check-tdd-evidence: OK — branch floor satisfied (#2217)\n')
+    process.exit(0)
   }
   process.stderr.write(
-    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${floorIds.join(', ')} in ` +
-      'commit bodies, but none of them has verified TDD evidence (#2217).\n' + FLOOR_REMEDY,
+    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${floorIds.join(', ')}, but ` +
+      'none of them has verified TDD evidence produced on this branch (#2217, #2307).\n' +
+      FLOOR_REMEDY,
   )
   process.exit(1)
 }
@@ -290,6 +344,20 @@ if (anyFail) {
   )
   process.exit(1)
 }
+// #2307 — the SAME produced-here floor, on the subject path. The per-id loop above
+// proves each cited task HAS evidence; it cannot prove this branch PRODUCED any of it,
+// because check 4 asserts only ancestry. So a branch touching source whose subject cites
+// an already-merged id passed the floor with no red→green cycle at all. Gated on
+// touchesSource exactly as #2217 is, so a docs-only branch that happens to cite a task
+// id in its subject stays green.
+if (touchesSource && !floorSatisfied(mergeBase, floorIds)) {
+  process.stderr.write(
+    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${floorIds.join(', ')}, but ` +
+      'none of them has verified TDD evidence produced on this branch (#2307).\n' + FLOOR_REMEDY,
+  )
+  process.exit(1)
+}
+
 process.stdout.write(`check-tdd-evidence: OK — ${taskIds.length} task(s) verified\n`)
 process.exit(0)
 }

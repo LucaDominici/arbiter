@@ -345,6 +345,47 @@ older version.
 written. Retirement never changes the command's exit code: retiring a pristine file arbiter itself wrote is a
 lossless operation, so it is reported on stderr, not warned about — every CI caller reads that exit code.
 
+### Restoration — re-emitting what the consumer deleted (#2295)
+
+**Issue:** #2295
+
+Retirement is arbiter taking back a file it no longer emits. Restoration is the mirror case, and it used to
+be invisible: a consumer **deletes** a generated file, and the next `arbiter update` puts it back with no
+message and no change of exit code. Deleting an emitted file is the only channel a consumer has for saying
+"not this one", and `update` annulled it on every run.
+
+The signal is provenance, not absence. `.arbiter-generated-manifest.json` records a render hash **only after
+the bytes actually landed**, so an entry for a path that is not on disk is positive evidence arbiter wrote
+that file there and it was removed since. That is the boundary:
+
+| on disk | manifest baseline | meaning                           | behaviour                                |
+| ------- | ----------------- | --------------------------------- | ---------------------------------------- |
+| absent  | present           | emitted, then deleted             | re-emitted **and reported** (exit 1)     |
+| absent  | absent            | never emitted here — new template | emitted silently (first run stays quiet) |
+
+**The file still comes back.** The alternative — treating a manifest entry with no file as _declined by the
+consumer_ and withholding it — was rejected on measurement, not taste. At the reliability bar's own pins,
+**255 of the java consumer's 281 manifest entries and 21 of the typescript consumer's 245 are absent from
+disk**; the go consumer carries no manifest at all. Declining them would turn `arbiter update` into a
+near-no-op on two of the three consumers and leave the bar's gate-spine assertion with no file to read.
+What changes is that the restoration is **named on the warnings channel** — which drives exit 1 — instead of
+disappearing into the `created` count. `update --json` carries the count as `data.restored`.
+
+The warning is a **per-deletion event, not a permanent state**: the restored file is re-baselined into the
+manifest, so the next update sees it byte-identical, skips it, and says nothing. A consumer that wants a
+removal to stick drops the matching entries from the manifest; a consumer that wants the file commits it.
+
+Measured on a pinned, origin-free clone of the java consumer: 254 files restored in one run, among them a
+`scripts/check-all.mjs` carrying 104 check names — next to the 37 gates that consumer's CI actually runs, of
+which #2295 found only two matching an emitted name (measured there at 92 emitted checks, on the arbiter
+version current at the time). That parallel, uninvoked gate spine is the concrete harm the silence hid.
+
+**Known gap — `update --adopt-plan` does not preview restorations.** `partitionPlanResults` buckets on
+`replaced`/`backed-up-and-replaced` and on `withheld`; a restoration is `created`, so it lands in neither and
+the read-only preview stays silent about files the real run will put back. Same class as the two write
+channels #2120 surfaced and the deletions #2221 added as `wouldRetire` — registered here rather than fixed
+in #2295, whose scope is the run itself — tracked as #2305.
+
 ### Protected classes — three classes, and only one adopts by default
 
 Three classes of emitted file get special treatment when the on-disk copy is user-modified. **Safety adopts by

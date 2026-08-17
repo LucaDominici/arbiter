@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   assessGateSpine,
+  assessGateSurface,
+  parseGateSurfaceOutput,
   assertCredentialFreeEnvironment,
   buildVerifierEnvironment,
   classifyAdvisoryHookResult,
@@ -28,18 +30,20 @@ describe('consumer reliability bar oracles (#2135)', () => {
     const result = assessGateSpine({
       before: "runCheck('unit', 'npm', ['test'])\nrunCheck('security', 'node', ['sec.mjs'])\n",
       after: "runCheck('unit', 'npm', ['test'])\n",
-      recordedRenderHash: null,
+      existed: true,
     })
     expect(result.ok).toBe(false)
     expect(result.detail).toContain('security')
   })
 
-  it('AC-2 requires byte identity for a customized gate spine', () => {
+  // #2290 §4: the byte-identity branch is deleted. Reformatting a consumer-owned spine
+  // is not a regression in the set of checks it runs, and the old branch fired on all
+  // three rows because `recordedRenderHash === null` collapsed three distinct causes.
+  it('AC-2 does not redden a consumer-owned spine for byte churn alone', () => {
     const before = "runCheck('project check', 'node', ['custom.mjs'])\n"
-    const after = `${before}runCheck('new', 'node', ['new.mjs'])\n`
-    const result = assessGateSpine({ before, after, recordedRenderHash: 'not-the-disk-hash' })
-    expect(result.ok).toBe(false)
-    expect(result.detail).toMatch(/byte/i)
+    const after = `${before.replace(', ', ',  ')}runCheck('new', 'node', ['new.mjs'])\n`
+    const result = assessGateSpine({ before, after, existed: true })
+    expect(result.ok).toBe(true)
   })
 
   it('AC-2 permits an additive template refresh for a pristine gate spine', async () => {
@@ -51,8 +55,207 @@ describe('consumer reliability bar oracles (#2135)', () => {
       before,
       after: `${before}runCheck('new', 'node', ['new.mjs'])\n`,
       recordedRenderHash,
+      existed: true,
     })
+    expect(recordedRenderHash).toMatch(/^[0-9a-f]{64}$/)
     expect(result.ok).toBe(true)
+  })
+
+  // #2135: the java consumer has no scripts/check-all.mjs, so this branch decided its
+  // AC-2 verdict. It used to return `ok: checks.size > 0` — a tautology that reported
+  // PASS for a before/after diff the bar never performed.
+  it('AC-2 cannot pass when there is no pre-existing gate spine to diff', () => {
+    const result = assessGateSpine({
+      before: '',
+      after: "runCheck('unit', 'npm', ['test'])\nrunCheck('lint', 'eslint', ['.'])\n",
+      existed: false,
+    })
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/UNPROVEN/)
+  })
+
+  // Fail-closed: a caller that omits `existed` must not inherit a passing baseline.
+  it('AC-2 treats a missing `existed` flag as UNPROVEN, never as a pass', () => {
+    const source = "runCheck('unit', 'npm', ['test'])\n"
+    const result = assessGateSpine({ before: source, after: source })
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/UNPROVEN/)
+  })
+
+  // ── AC-2 (#2135, decided on #2290): emitted-vs-executed reconciliation ─────────
+  // The oracle is no longer "did a name disappear between two renders of a file the
+  // consumer never runs". It is: every check name a FRESH render emits for this
+  // consumer is either mapped to a gate the consumer really executes, declined with a
+  // written reason, or carried in a decreasing-ratchet debt register whose issues are
+  // machine-verified OPEN. Anything else is unaccounted, and unaccounted is FAIL.
+  const surfaceCase = (overrides = {}) => ({
+    freshRender: ['unit tests', 'PII scan'],
+    declared: ['be-test', 'pii'],
+    mapping: { 'unit tests': 'WIRED:be-test', 'PII scan': 'WIRED:pii' },
+    debtRegister: { ceiling: 0, openIssues: [] },
+    ...overrides,
+  })
+
+  it('AC-2 reconciles a fully wired surface', () => {
+    const result = assessGateSurface(surfaceCase())
+    expect(result.ok).toBe(true)
+  })
+
+  it('AC-2 fails on an emitted name that is neither mapped, declined, nor in debt', () => {
+    const result = assessGateSurface(
+      surfaceCase({ freshRender: ['unit tests', 'PII scan', 'brand new gate'] }),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.detail).toContain('brand new gate')
+  })
+
+  // Mutation (a): remove an entry from the DECLARED surface. The consumer stopped
+  // running a gate, so the emitted name it accounted for is covered by nothing.
+  it('AC-2 fails when a mapped gate leaves the executed surface', () => {
+    const result = assessGateSurface(surfaceCase({ declared: ['be-test'] }))
+    expect(result.ok).toBe(false)
+    expect(result.detail).toContain('pii')
+  })
+
+  // Mutation (b): whitespace-only churn in a spine must NOT redden the row. This is the
+  // regression guard for the byte-identity false red the old `customized` branch caused.
+  it('AC-2 passes on a whitespace-only change to the executed spine', () => {
+    const spine = "runCheck('be-test', 'npm', ['test'])\nrunCheck('pii', 'node', ['pii.mjs'])\n"
+    const reformatted = spine.replace(/\n/g, '\n\n').replace(/, /g, ',  ')
+    const result = assessGateSurface(surfaceCase({ declared: [...extractCheckNames(reformatted)] }))
+    expect(result.ok).toBe(true)
+  })
+
+  it('AC-2 fails on a mapping entry for a name the render no longer emits', () => {
+    const result = assessGateSurface(surfaceCase({ freshRender: ['unit tests'] }))
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/stale/i)
+  })
+
+  it('AC-2 refuses a DECLINED entry with no written reason', () => {
+    const result = assessGateSurface(
+      surfaceCase({
+        declared: ['be-test'],
+        mapping: { 'unit tests': 'WIRED:be-test', 'PII scan': 'DECLINED:' },
+      }),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/reason/i)
+  })
+
+  it('AC-2 accepts a DECLINED entry that carries a reason', () => {
+    const result = assessGateSurface(
+      surfaceCase({
+        declared: ['be-test'],
+        mapping: {
+          'unit tests': 'WIRED:be-test',
+          'PII scan': 'DECLINED:this consumer stores no personal data',
+        },
+      }),
+    )
+    expect(result.ok).toBe(true)
+  })
+
+  // Mutation (d): the debt register GROWS. A ratchet that only ever appends is a
+  // free-text escape hatch, so cardinality is pinned to a committed integer.
+  it('AC-2 fails when the debt register grows past its ceiling', () => {
+    const result = assessGateSurface(
+      surfaceCase({
+        declared: ['be-test'],
+        mapping: { 'unit tests': 'WIRED:be-test', 'PII scan': 'DEBT:#2295' },
+        debtRegister: { ceiling: 0, openIssues: ['#2295'] },
+      }),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/ratchet/i)
+  })
+
+  // The ratchet bites in BOTH directions: resolving debt forces re-tightening the
+  // committed integer, so the slack can never be silently re-spent later.
+  it('AC-2 fails when resolved debt leaves the ceiling untightened', () => {
+    const result = assessGateSurface(surfaceCase({ debtRegister: { ceiling: 1, openIssues: [] } }))
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/ratchet/i)
+  })
+
+  // Mutation (e): a debt entry whose issue is closed or was never real. Without this,
+  // `DEBT:#9999` zeroes the criterion — the same disease one floor up.
+  it('AC-2 fails on a debt entry whose issue is not verified OPEN', () => {
+    const result = assessGateSurface(
+      surfaceCase({
+        declared: ['be-test'],
+        mapping: { 'unit tests': 'WIRED:be-test', 'PII scan': 'DEBT:#9999' },
+        debtRegister: { ceiling: 1, openIssues: ['#2295'] },
+      }),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.detail).toContain('#9999')
+  })
+
+  it('AC-2 rejects a mapping verdict outside WIRED / DECLINED / DEBT', () => {
+    const result = assessGateSurface(
+      surfaceCase({
+        declared: ['be-test'],
+        mapping: { 'unit tests': 'WIRED:be-test', 'PII scan': 'SKIP' },
+      }),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/SKIP/)
+  })
+
+  // Mutation (c): failing to OBTAIN the executed surface is an ERROR, never a FAIL and
+  // never a PASS. A contended mutex and a genuinely missing gate must not look alike.
+  it('AC-2 reports a non-zero dry-run as an acquisition error, never a verdict', () => {
+    const parsed = parseGateSurfaceOutput({
+      result: { ok: false, status: 1, signal: null, stdout: '', stderr: 'boom' },
+      pattern: '^\\[DRY-RUN\\] GATES: (.*)$',
+      separator: ',',
+    })
+    expect(parsed.ok).toBe(false)
+    expect(parsed.detail).toMatch(/could not be obtained/i)
+  })
+
+  it('AC-2 reports a dry-run without a GATES line as an acquisition error', () => {
+    const parsed = parseGateSurfaceOutput({
+      result: { ok: true, status: 0, signal: null, stdout: 'nothing to see\n', stderr: '' },
+      pattern: '^\\[DRY-RUN\\] GATES: (.*)$',
+      separator: ',',
+    })
+    expect(parsed.ok).toBe(false)
+    expect(parsed.detail).toMatch(/could not be obtained/i)
+  })
+
+  it('AC-2 names mutex contention distinctly so it never reads as a missing gate', () => {
+    const parsed = parseGateSurfaceOutput({
+      result: {
+        ok: false,
+        status: null,
+        signal: 'SIGTERM',
+        stdout: '',
+        stderr: 'gate-exec: mutex /run/user/1000/arbiter/ci-gate.lock (blocking until free)',
+      },
+      pattern: '^\\[DRY-RUN\\] GATES: (.*)$',
+      separator: ',',
+      contentionMarker: 'ci-gate.lock',
+    })
+    expect(parsed.ok).toBe(false)
+    expect(parsed.detail).toMatch(/contention/i)
+  })
+
+  it('AC-2 unions the gate ids of every surface command', () => {
+    const parsed = parseGateSurfaceOutput({
+      result: {
+        ok: true,
+        status: 0,
+        signal: null,
+        stdout: 'noise\n[DRY-RUN] GATES: a,b\n',
+        stderr: '',
+      },
+      pattern: '^\\[DRY-RUN\\] GATES: (.*)$',
+      separator: ',',
+    })
+    expect(parsed.ok).toBe(true)
+    expect(parsed.gates).toEqual(['a', 'b'])
   })
 
   it('AC-3 counts only exit 2 as BLOCKS', () => {

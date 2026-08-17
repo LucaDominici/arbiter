@@ -7,28 +7,102 @@ import { dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { classifyAdvisoryHookResult, classifyHookResult } from './lib/consumer-reliability-bar.mjs'
 
+// #2292: every ADVISORY hook carries a PAYLOAD CONTRACT, resolved through the same
+// `payloadFor` machinery the HARD hooks use. Probing advisories with `{}` asserted only
+// "it did not block on an empty payload" — which an advisory hook that crashes on the
+// payload it actually receives, or that has stopped doing anything at all, passes just
+// as happily. That was ~40% of the emitted hook surface.
+//
+// `promoted` names the env knob whose whole documented purpose is to turn the hook into
+// a blocker. That branch is probed as a SECOND row (mode PROMOTED) which must exit 2, so
+// "the *_HARD mode promotes it" stops being an unexecuted claim in a code comment.
 const ADVISORY = {
-  'debug-state-on-failure.mjs':
-    'Records diagnostic context after a failed tool call and intentionally never blocks.',
-  'pre-compact.mjs':
-    'Persists best-effort context before compaction and intentionally never blocks.',
-  'exitplanmode-banner.mjs':
-    'Prints the next ship step after plan mode and intentionally never blocks.',
-  'skill-forced-eval.mjs':
-    'Prints a skill-selection reminder before prompts and intentionally never blocks.',
-  'wiki-on-commit.mjs':
-    'Refreshes wiki context after commits and reports diagnostics without blocking.',
-  'post-edit-dispatch.mjs':
-    'Runs formatter/linter feedback after edits; the authoritative checks remain in the gate.',
-  'check-circular-deps.mjs':
-    'Per-edit madge execution soft-skips when unavailable or debounced; the L1 gate is authoritative.',
-  'check-no-unused-exports.mjs':
-    'Per-edit knip execution soft-skips when unavailable or debounced; the L1 gate is authoritative.',
-  'pre-spawn-worktree-guard.mjs':
-    'Default grading is advisory; ARBITER_SPAWN_GUARD_HARD=1 explicitly promotes it.',
-  'stop-finding-loss.mjs':
-    'Default grading is advisory; ARBITER_FINDING_LOSS_HARD=1 explicitly promotes it.',
+  'debug-state-on-failure.mjs': {
+    rationale:
+      'Records diagnostic context after a failed tool call and intentionally never blocks.',
+    // A command that matches the hook's own TEST_PATTERNS — anything else exits at the
+    // first filter without ever reaching the body under test.
+    kind: 'command',
+    value: 'npm test',
+  },
+  'pre-compact.mjs': {
+    rationale: 'Persists best-effort context before compaction and intentionally never blocks.',
+    kind: 'payload',
+    value: { hook_event_name: 'PreCompact', trigger: 'auto', custom_instructions: '' },
+  },
+  'exitplanmode-banner.mjs': {
+    rationale: 'Prints the next ship step after plan mode and intentionally never blocks.',
+    kind: 'payload',
+    value: {
+      hook_event_name: 'PostToolUse',
+      tool_name: 'ExitPlanMode',
+      tool_input: { plan: 'probe plan' },
+    },
+  },
+  'skill-forced-eval.mjs': {
+    rationale: 'Prints a skill-selection reminder before prompts and intentionally never blocks.',
+    // Must match the hook's CODE_KEYWORDS filter, or the probe stops at the smart filter.
+    kind: 'prompt',
+    value: 'implement the parser in src/probe.ts and add a test',
+  },
+  'wiki-on-commit.mjs': {
+    rationale: 'Refreshes wiki context after commits and reports diagnostics without blocking.',
+    kind: 'command',
+    value: 'git commit -m "docs: probe"',
+  },
+  'post-edit-dispatch.mjs': {
+    rationale:
+      'Runs formatter/linter feedback after edits; the authoritative checks remain in the gate.',
+    kind: 'source',
+  },
+  'check-circular-deps.mjs': {
+    rationale:
+      'Per-edit madge execution soft-skips when unavailable or debounced; the L1 gate is authoritative.',
+    // Explicitly .ts: the hook returns at once for any other extension, so a
+    // language-derived source file would leave the soft-skip branch unprobed.
+    kind: 'named-file',
+    name: 'probe.ts',
+    content: 'export const probe = 1\n',
+  },
+  'check-no-unused-exports.mjs': {
+    rationale:
+      'Per-edit knip execution soft-skips when unavailable or debounced; the L1 gate is authoritative.',
+    kind: 'named-file',
+    name: 'probe.ts',
+    content: 'export const probe = 1\n',
+  },
+  'pre-spawn-worktree-guard.mjs': {
+    rationale: 'Default grading is advisory; ARBITER_SPAWN_GUARD_HARD=1 explicitly promotes it.',
+    // Two distinct task ids on one dispatch — the M2 one-task-per-dispatch violation.
+    // Advisory grading warns and exits 0; the promoted grading must exit 2.
+    kind: 'payload',
+    value: {
+      tool_input: {
+        subagent_type: 'arbiter-probe-writer',
+        prompt: 'handle #1 and #2 in this dispatch',
+      },
+    },
+    promoted: 'ARBITER_SPAWN_GUARD_HARD',
+  },
+  'stop-finding-loss.mjs': {
+    rationale: 'Default grading is advisory; ARBITER_FINDING_LOSS_HARD=1 explicitly promotes it.',
+    kind: 'finding-loss-stop',
+    promoted: 'ARBITER_FINDING_LOSS_HARD',
+  },
 }
+
+/**
+ * The promotion knobs declared above. The probe FORCES each to '0' for every
+ * non-promoted run, so an operator environment that already exports one cannot
+ * silently turn the advisory pass into a blocking one (or the reverse).
+ */
+const PROMOTION_KNOBS = [
+  ...new Set(
+    Object.values(ADVISORY)
+      .map((contract) => contract.promoted)
+      .filter(Boolean),
+  ),
+]
 
 const HARD = {
   'stop-dangerous.mjs': { states: ['BARE', 'PRIMED'], kind: 'command', value: 'rm -rf /tmp/x' },
@@ -171,7 +245,15 @@ function probeRepository(root, language) {
   const rows = []
   for (const state of ['BARE', 'PRIMED', 'CLOSE', 'VERIFICATION']) {
     establishState(root, state)
-    for (const hook of owned) rows.push(probeOne(root, hooksDir, temporary, language, hook, state))
+    for (const hook of owned) {
+      rows.push(probeOne(root, hooksDir, temporary, language, hook, state))
+      // #2292: a hook whose advisory justification IS its promoted mode owes a second
+      // row proving that mode blocks. Without it the justification cites behaviour the
+      // bar never executes.
+      if (ADVISORY[hook]?.promoted) {
+        rows.push(probePromoted(root, hooksDir, temporary, language, hook, state))
+      }
+    }
   }
   rmSync(temporary, { recursive: true, force: true })
   rmSync(join(root, '.claude', '.task'), { recursive: true, force: true })
@@ -252,19 +334,23 @@ function establishState(root, state) {
 }
 
 function probeOne(root, hooksDir, temporary, language, hook, state) {
-  const advisoryRationale = ADVISORY[hook]
-  if (advisoryRationale) {
-    const result = runHook(root, join(hooksDir, hook), {})
+  const advisory = ADVISORY[hook]
+  if (advisory) {
+    // #2292: the realistic payload, not `{}` — a crash on the hook's real input now
+    // classifies PROBE-ERROR instead of passing as a healthy ADVISORY.
+    const payload = payloadFor(root, temporary, language, advisory)
+    const result = runHook(root, join(hooksDir, hook), payload)
     return {
       hook,
       state,
+      mode: 'ADVISORY',
       exitCode: result.status,
       verdict: classifyAdvisoryHookResult({
         exitCode: result.status,
         signal: result.signal,
-        rationale: advisoryRationale,
+        rationale: advisory.rationale,
       }),
-      rationale: advisoryRationale,
+      rationale: advisory.rationale,
       diagnostic: commandDiagnostic(result),
     }
   }
@@ -275,6 +361,7 @@ function probeOne(root, hooksDir, temporary, language, hook, state) {
     return {
       hook,
       state,
+      mode: 'HARD',
       exitCode: null,
       verdict: classifyHookResult({
         exitCode: null,
@@ -291,6 +378,7 @@ function probeOne(root, hooksDir, temporary, language, hook, state) {
   return {
     hook,
     state,
+    mode: 'HARD',
     exitCode: result.status,
     verdict: classifyHookResult({
       exitCode: result.status,
@@ -300,6 +388,34 @@ function probeOne(root, hooksDir, temporary, language, hook, state) {
       rationale: contract.rationale ?? '',
     }),
     rationale: contract.rationale ?? '',
+    diagnostic: commandDiagnostic(result),
+  }
+}
+
+/**
+ * #2292: execute the *_HARD=1 branch of an advisory hook and demand a BLOCK. The same
+ * payload is used as for the advisory pass, so the pair is a clean falsifier: identical
+ * input, one knob, exit 0 vs exit 2. A promoted branch that no longer exits 2 classifies
+ * INERT and reddens the bar exactly like a dead HARD hook.
+ */
+function probePromoted(root, hooksDir, temporary, language, hook, state) {
+  const contract = ADVISORY[hook]
+  const payload = payloadFor(root, temporary, language, contract)
+  const result = runHook(root, join(hooksDir, hook), payload, { [contract.promoted]: '1' })
+  const rationale = `${contract.promoted}=1 promotes this hook to blocking; the promoted branch must exit 2.`
+  return {
+    hook,
+    state,
+    mode: 'PROMOTED',
+    exitCode: result.status,
+    verdict: classifyHookResult({
+      exitCode: result.status,
+      signal: result.signal,
+      hardness: 'HARD',
+      applicable: true,
+      rationale,
+    }),
+    rationale,
     diagnostic: commandDiagnostic(result),
   }
 }
@@ -341,10 +457,38 @@ function payloadFor(root, temporary, language, contract) {
   return filePayload(root, temporary, language, contract)
 }
 
+/**
+ * #2292: a realistic Stop payload for `stop-finding-loss.mjs`. The hook stands down
+ * unless the transcript yields a parseable session-start timestamp AND at least two
+ * Task/Agent dispatches, so neither `{}` nor the plain-text transcript built for
+ * `stop-evidence-guard.mjs` ever reached the branch its promotion knob lives in. The
+ * session start is stamped NOW so pre-existing findings/agent-return artifacts in the
+ * target repo fall outside the window and cannot mask the signal.
+ */
+function findingLossPayload(temporary) {
+  const path = join(temporary, 'finding-loss-transcript.jsonl')
+  const dispatch = (name) =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: new Date().toISOString(),
+      message: {
+        role: 'assistant',
+        content: [{ type: 'tool_use', name, id: `probe-${name}`, input: {} }],
+      },
+    })
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, `${dispatch('Task')}\n${dispatch('Agent')}\n`)
+  return { stop_hook_active: false, transcript_path: path }
+}
+
 function specialPayload(temporary, contract) {
   switch (contract.kind) {
     case 'command':
       return { tool_input: { command: contract.value } }
+    case 'payload':
+      return contract.value
+    case 'finding-loss-stop':
+      return findingLossPayload(temporary)
     case 'prompt':
       return { prompt: contract.value }
     case 'brainstorm':
@@ -390,14 +534,22 @@ function sourceExtension(language) {
   )
 }
 
-function runHook(root, hookPath, payload) {
+function runHook(root, hookPath, payload, extraEnv = {}) {
   if (!existsSync(hookPath)) return { status: null, stderr: `missing ${hookPath}` }
   return spawnSync('node', [hookPath], {
     cwd: root,
     input: JSON.stringify(payload),
     encoding: 'utf-8',
     timeout: 90000,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+    env: {
+      ...process.env,
+      // #2292: neutralise every promotion knob first, so an operator environment that
+      // already exports one cannot make the advisory pass block (or the promoted pass
+      // pass for the wrong reason). `extraEnv` re-enables exactly the knob under probe.
+      ...Object.fromEntries(PROMOTION_KNOBS.map((knob) => [knob, '0'])),
+      CLAUDE_PROJECT_DIR: root,
+      ...extraEnv,
+    },
   })
 }
 

@@ -90,9 +90,15 @@ try {
       originRemoved: true,
     })
   }
+  // AC-2's debt register is only a ratchet if every entry names a real, still-open issue.
+  // The verification lives HERE, in the credentialed phase: the verifier runs under
+  // `buildVerifierEnvironment`, a strict allow-list with no GH_TOKEN, and
+  // `assertCredentialFreeEnvironment` exists to keep that boundary — so `gh` could never
+  // run there. The verdict crosses into the verifier as data, not as a credential.
+  const openDebtIssues = verifyDebtIssues(readGateMap())
   writeAtomic(
     join(output, 'handoff.json'),
-    JSON.stringify({ $schemaVersion: 1, consumers: prepared }, null, 2) + '\n',
+    JSON.stringify({ $schemaVersion: 1, consumers: prepared, openDebtIssues }, null, 2) + '\n',
   )
   process.stdout.write(
     `[consumer-prepare] PASS — prepared ${prepared.length} detached origin-free consumers\n`,
@@ -106,6 +112,53 @@ try {
   if (credentialDir !== null) rmSync(credentialDir, { recursive: true, force: true })
 }
 process.exit(exitCode)
+
+function readGateMap() {
+  const parsed = JSON.parse(readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'))
+  if (parsed?.$schemaVersion !== 1 || typeof parsed.consumers !== 'object') {
+    throw new Error('consumer gate map has an invalid shape')
+  }
+  return parsed
+}
+
+function citedDebtIssues(gateMap) {
+  const cited = new Set()
+  for (const entry of Object.values(gateMap.consumers)) {
+    for (const verdict of Object.values(entry?.mapping ?? {})) {
+      if (typeof verdict === 'string' && verdict.startsWith('DEBT:')) {
+        cited.add(verdict.slice('DEBT:'.length))
+      }
+    }
+  }
+  return [...cited].sort()
+}
+
+function issueState(ref) {
+  const probe = spawnSync('gh', ['issue', 'view', ref.slice(1), '--json', 'state'], {
+    cwd: process.cwd(),
+    encoding: 'utf-8',
+    timeout: 60000,
+    env: { ...process.env, GH_PAGER: 'cat' },
+  })
+  if (probe.status !== 0 || probe.signal) {
+    throw new Error(`debt issue ${ref} could not be resolved upstream`)
+  }
+  return JSON.parse(probe.stdout).state
+}
+
+/**
+ * Issue refs cited by DEBT entries that `gh` confirms exist and are OPEN. A CLOSED or
+ * missing issue is simply not returned: the verifier then fails the row and names it,
+ * which is the honest outcome — never a silent pass.
+ */
+function verifyDebtIssues(gateMap) {
+  const open = []
+  for (const ref of citedDebtIssues(gateMap)) {
+    if (!/^#[1-9][0-9]*$/.test(ref)) throw new Error(`debt entry cites a malformed issue: ${ref}`)
+    if (issueState(ref) === 'OPEN') open.push(ref)
+  }
+  return open
+}
 
 function outputArgument(args) {
   const index = args.indexOf('--output')
