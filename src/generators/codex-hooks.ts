@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readFileSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { writeFile, resolvedPath, readFileTranslated } from '../utils/fs.js'
 import { formatContent } from '../utils/prettier-format.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -100,7 +99,7 @@ export function generateCodexHooks(
   // reformat that would desync the generated-manifest).
   const adapterSrc = join(__dirname, '..', 'templates', 'codex', 'codex-adapter.mjs')
   const adapterDest = join(resolvedPath(base, '.codex'), 'codex-adapter.mjs')
-  const adapterContent = formatContent(readFileSync(adapterSrc, 'utf-8'), adapterDest, base)
+  const adapterContent = formatContent(readFileTranslated(adapterSrc, 'utf-8'), adapterDest, base)
   results.push(
     writeFile(adapterDest, adapterContent, {
       skipIfExists: true,

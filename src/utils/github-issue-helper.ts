@@ -10,9 +10,9 @@
 //
 // `createGhIssue` takes a CALLER-SUPPLIED `labels[]` (not hardcoded): `record-tech-debt` passes
 // `['tech-debt','follow-up']`; `findings promote` passes `['finding','tech-debt', priority/Pn]`.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFile } from './fs.js'
+import { writeFile, readFileTranslated } from './fs.js'
 import { runCli, CliError } from './run-cli.js'
 
 export interface CreateGhIssueInput {
@@ -82,7 +82,7 @@ export function appendTechDebtIssue(evidenceDir: string, issueNumber: number): v
   const tdPath = join(evidenceDir, 'tech-debt.json')
   let issues: number[] = []
   if (existsSync(tdPath)) {
-    const raw = readFileSync(tdPath, 'utf-8')
+    const raw = readFileTranslated(tdPath, 'utf-8')
     try {
       const parsed: unknown = JSON.parse(raw)
       // Guard the shape BEFORE dereferencing `.issues`: `JSON.parse('null')`

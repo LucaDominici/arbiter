@@ -12,6 +12,7 @@ import {
   rmSync,
   symlinkSync,
   mkdtempSync,
+  cpSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomBytes, createHash } from 'node:crypto'
@@ -675,6 +676,66 @@ export function mkdtempTranslated(prefix: string): string {
     return mkdtempSync(prefix)
   } catch (err) {
     throw toFsError(err, prefix)
+  }
+}
+
+/**
+ * Atomically create a file with exclusive-create semantics (`writeFileSync(path, content, { flag: 'wx' })`).
+ * This is the locking primitive, NOT "write a file": the `wx` flag is the atomic
+ * exclusive-create that IS the mutual exclusion, so a `writeFileTranslated` here would
+ * destroy it.
+ *
+ * Contract: EEXIST is deliberately NOT translated — the caller branches on
+ * `err.code === 'EEXIST'` (file-lock.ts's contention path builds a LockConflictError
+ * from it), and a translated ArbiterError would silently kill that arm. Every other
+ * errno is passed through toFsError (CANON-17), which translates the cataloged codes
+ * and returns unknown codes unchanged. writeFileSync (not openSync+writeSync) so a
+ * short write or a close error cannot mask the primary failure.
+ */
+export function createExclusiveTranslated(path: string, content: string): void {
+  try {
+    writeFileSync(path, content, { flag: 'wx' })
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException
+    if (e.code === 'EEXIST') throw err
+    throw toFsError(err, path)
+  }
+}
+
+/**
+ * Copy a file or a directory tree from `src` to `dest`. `recursive` is passed through
+ * exactly as `fs.cpSync` — a directory copy requires it. `toFsError` names whichever
+ * side of a two-path failure the errno actually carries (`e.path` wins), so the caller
+ * does not have to guess which side failed.
+ */
+export function copyTreeTranslated(
+  src: string,
+  dest: string,
+  opts: { recursive?: boolean } = {},
+): void {
+  try {
+    cpSync(src, dest, opts)
+  } catch (err) {
+    throw toFsError(err, dest)
+  }
+}
+
+/**
+ * Read a file, translating a raw fs errno into an ArbiterError (CANON-17, #2293).
+ * The 25 bare readFileSync sites in src/ had no enclosing try, so a raw errno
+ * (ENOENT, EACCES, EISDIR, ...) reached the user as an unstyled Node stack. This is
+ * the single route for a read whose failure must surface as an actionable hint.
+ * Callers that need a fallback for a MISSING file keep their existsSync guard (the
+ * residual here is EACCES/EISDIR/TOCTOU, not ENOENT) or catch the translated error
+ * and branch on `err.code` — ArbiterError preserves the errno code.
+ */
+export function readFileTranslated(path: string): Buffer
+export function readFileTranslated(path: string, encoding: 'utf8' | 'utf-8'): string
+export function readFileTranslated(path: string, encoding?: 'utf8' | 'utf-8'): string | Buffer {
+  try {
+    return encoding ? readFileSync(path, encoding) : readFileSync(path)
+  } catch (err) {
+    throw toFsError(err, path)
   }
 }
 

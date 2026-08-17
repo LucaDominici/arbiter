@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { KitCatalogSchema, type KitCatalog } from './schema.js'
+import { readFileTranslated } from '../utils/fs.js'
 
 /**
  * Resolve a kit runtime-data file (catalog.json / derived.json) relative to the
@@ -19,7 +19,9 @@ export function kitDataPath(file: string): string {
 }
 
 function loadCatalogFromDisk(): KitCatalog {
-  return KitCatalogSchema.parse(JSON.parse(readFileSync(kitDataPath('catalog.json'), 'utf-8')))
+  return KitCatalogSchema.parse(
+    JSON.parse(readFileTranslated(kitDataPath('catalog.json'), 'utf-8')),
+  )
 }
 
 let _catalog: KitCatalog | null = null

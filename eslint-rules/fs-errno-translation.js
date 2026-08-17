@@ -26,12 +26,29 @@
 // It resolves BINDINGS, not source names — `import { readFileSync as rf }`, `import * as
 // fs`, `import fs`, and `node:fs/promises` all reach the same check, because each is a way
 // to make the same call.
+//
+// #2293 (CANON-17 residual): the rule above is structurally blind to a BARE read — a
+// `readFileSync` with no enclosing try has no catch binding for it to report. So this rule
+// ALSO fires on a direct `readFileSync` call that no enclosing try can catch. "Enclosing"
+// is precise: the call must sit inside the try's BLOCK, with no function boundary in
+// between. A read in the catch/finally of a try is NOT guarded by it (a throw there
+// propagates past it), and a read inside a nested function is not guarded by an outer try
+// (the function may be called later, outside it). Reads are deliberately restricted to
+// `readFileSync` — the async `readFile`/`readFileSync`-in-a-callback shapes need a
+// different design (a surrounding try cannot catch a callback error), tracked separately.
 
 const FS_MODULES = new Set(['node:fs', 'node:fs/promises', 'fs', 'fs/promises'])
 
 /** Calls that legitimately consume the caught error and produce a translated one. */
 const TRANSLATORS = new Set(['toFsError'])
 const ERROR_CLASSES = new Set(['ArbiterError', 'UserFacingError', 'FatalError'])
+
+/** AST node types that open a new function scope — a try cannot guard across one. */
+const FUNCTION_BOUNDARIES = new Set([
+  'FunctionDeclaration',
+  'FunctionExpression',
+  'ArrowFunctionExpression',
+])
 
 /** @type {import('eslint').Rule.RuleDefinition} */
 const rule = {
@@ -49,6 +66,11 @@ const rule = {
         'Direct node:fs failure handler lets a raw errno escape. Pass the caught error ' +
         'through toFsError(err, path) or build an ArbiterError from it — a bare ENOENT ' +
         'tells the user nothing. (CANON-17, #1924)',
+      bareRead:
+        'Direct node:fs readFileSync call with no enclosing try. A raw errno (ENOENT, ' +
+        'EACCES, ...) can reach the user as an unstyled Node stack. Wrap it in a try/catch ' +
+        'that translates via toFsError, or route through a translated read primitive. ' +
+        '(CANON-17, #2293)',
     },
   },
   create(context) {
@@ -56,6 +78,8 @@ const rule = {
     const fsFunctionBindings = new Set()
     /** Local bindings that are the whole fs module (default or namespace imports). */
     const fsModuleBindings = new Set()
+    /** Local bindings that name readFileSync specifically (the #2293 bare-read check). */
+    const readFileSyncBindings = new Set()
 
     /** Does this node (or anything inside it) call a direct fs function? */
     function containsFsCall(node) {
@@ -84,6 +108,27 @@ const rule = {
       }
       visit(node)
       return found
+    }
+
+    /**
+     * Is this call inside a try whose BLOCK contains it, with no function boundary in
+     * between? A read in the catch/finally is not guarded by that try (a throw there
+     * propagates past it), and a read inside a nested function is not guarded by an outer
+     * try (the function may be called later, outside it). An outer try may still guard a
+     * read that sits in an inner catch — keep walking up.
+     */
+    function isGuardedByTry(node) {
+      const ancestors = context.sourceCode.getAncestors(node)
+      for (let i = ancestors.length - 1; i >= 0; i--) {
+        const a = ancestors[i]
+        if (FUNCTION_BOUNDARIES.has(a.type)) return false
+        if (a.type === 'TryStatement') {
+          // The direct child of the TryStatement on the path from the call.
+          if (ancestors[i + 1] === a.block) return true
+          // In the handler or finalizer — not guarded by THIS try; keep walking up.
+        }
+      }
+      return false
     }
 
     /** Is the caught binding passed into a translator or an ArbiterError constructor? */
@@ -203,9 +248,24 @@ const rule = {
       ImportDeclaration(node) {
         if (typeof node.source.value !== 'string' || !FS_MODULES.has(node.source.value)) return
         for (const spec of node.specifiers) {
-          if (spec.type === 'ImportSpecifier') fsFunctionBindings.add(spec.local.name)
-          else fsModuleBindings.add(spec.local.name)
+          if (spec.type === 'ImportSpecifier') {
+            fsFunctionBindings.add(spec.local.name)
+            if (spec.imported.name === 'readFileSync') readFileSyncBindings.add(spec.local.name)
+          } else fsModuleBindings.add(spec.local.name)
         }
+      },
+      CallExpression(node) {
+        const callee = node.callee
+        const isReadFileSync =
+          (callee.type === 'Identifier' && readFileSyncBindings.has(callee.name)) ||
+          (callee.type === 'MemberExpression' &&
+            callee.property.type === 'Identifier' &&
+            callee.property.name === 'readFileSync' &&
+            callee.object.type === 'Identifier' &&
+            fsModuleBindings.has(callee.object.name))
+        if (!isReadFileSync) return
+        if (isGuardedByTry(node)) return
+        context.report({ node, messageId: 'bareRead' })
       },
       'TryStatement:exit'(node) {
         const handler = node.handler

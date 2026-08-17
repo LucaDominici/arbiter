@@ -9,8 +9,8 @@
 // same pattern src/generators/docs.ts and gold-kit.ts already use (check-no-direct-fs-in-
 // generators.mjs compliance: existsSync/readFileSync are read-only, never guarded).
 import { basename, resolve } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { existsSync } from 'node:fs'
+import { writeFile, resolvedPath, readFileTranslated } from '../utils/fs.js'
 import { renderTemplate } from '../utils/render.js'
 import { formatContent } from '../utils/prettier-format.js'
 import { runDocSet } from '../commands/doc-set.js'
@@ -186,7 +186,7 @@ function scaffoldRow(
   const bannerDetected =
     item.path.endsWith('.md') &&
     diskExists &&
-    isUntouchedBannerStub(readFileSync(targetAbs, 'utf-8'), item.path, item.purpose)
+    isUntouchedBannerStub(readFileTranslated(targetAbs, 'utf-8'), item.path, item.purpose)
 
   const shouldWrite = bannerDetected || (item.isMissing && !diskExists)
   if (!shouldWrite) return null // present-real, or missing-but-override-target-taken -> withheld

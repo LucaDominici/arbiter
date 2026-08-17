@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Deterministic /ship tier widening (#2180): optional metadata may widen, never narrow.
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { readUnifiedState } from './task-state.js'
 import { runCliJson } from '../utils/run-cli.js'
+import { readFileTranslated } from '../utils/fs.js'
 
 export type ShipTier = 'XS' | 'S' | 'Standard'
 
@@ -115,7 +116,7 @@ function gatherBlastRadius(root: string): number | null {
       if (existsSync(path) && graphStat.mtimeMs < statSync(path).mtimeMs) return null
     }
 
-    return countBlastRadius(JSON.parse(readFileSync(graphPath, 'utf-8')) as unknown, manifest)
+    return countBlastRadius(JSON.parse(readFileTranslated(graphPath, 'utf-8')) as unknown, manifest)
     // FAIL-OPEN-INTENT: the graphify graph is optional and may be absent, stale or malformed; a null blast radius means no widening signal, never a narrower tier.
   } catch {
     return null
@@ -125,7 +126,7 @@ function gatherBlastRadius(root: string): number | null {
 function readPlanManifest(root: string): Set<string> | null {
   const plan = readUnifiedState(root)?.plan
   if (typeof plan !== 'string' || !isRepoRelativePosixPath(plan)) return null
-  const files = parsePlanFilesManifest(readFileSync(join(root, plan), 'utf-8'))
+  const files = parsePlanFilesManifest(readFileTranslated(join(root, plan), 'utf-8'))
   return files === null || files.length === 0 ? null : new Set(files)
 }
 

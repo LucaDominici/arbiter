@@ -155,5 +155,30 @@ tester.run('fs-errno-translation (CANON-17, #1924)', rule, {
       code: FS_IMPORT + 'try { const a = [readFileSync(p)] } catch (err) { throw err }',
       errors: [{ messageId: 'untranslatedErrno' }],
     },
+
+    // ── #2293: bare node:fs reads with no enclosing try ─────────────────────
+    // The existing rule cannot see these — with no catch binding there is nothing
+    // for it to report. A bare readFileSync leaks a raw errno to the user.
+    {
+      code: FS_IMPORT + 'readFileSync(p)',
+      errors: [{ messageId: 'bareRead' }],
+    },
+    // Namespace import, no try.
+    {
+      code: "import * as fs from 'node:fs'\nfs.readFileSync(p)",
+      errors: [{ messageId: 'bareRead' }],
+    },
+    // A read in the CATCH block is not guarded by that try — a throw there
+    // propagates past it, so it is effectively bare.
+    {
+      code: FS_IMPORT + 'try { compute() } catch (err) { readFileSync(p) }',
+      errors: [{ messageId: 'bareRead' }],
+    },
+    // A read inside a nested function is not guarded by an outer try — the
+    // function may be called later, outside it.
+    {
+      code: FS_IMPORT + 'try { const f = () => readFileSync(p) } catch { fallback() }',
+      errors: [{ messageId: 'bareRead' }],
+    },
   ],
 })

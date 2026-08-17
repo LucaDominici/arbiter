@@ -65,7 +65,21 @@ async function run(): Promise<void> {
       targetDir,
       renderTemplate(relPath: string, data: Record<string, unknown>): string {
         const absPath = join(templateRoot, relPath)
-        const src = readFileSync(absPath, 'utf-8')
+        // Not routed through `./fs.js`'s readFileTranslated (#2293): this worker entry
+        // runs under tsx, where a relative `.js`-suffixed sibling import is not rewritten
+        // to the `.ts` source and fails with "Cannot find module fs.js" (same class as the
+        // #1552 render.ts precedent above). A raw errno here still reaches the user
+        // meaningfully — it crosses the message port into the plugin loader's own
+        // "plugin generate failed" wrapping (#1348), so path + code is enough context.
+        let src: string
+        try {
+          src = readFileSync(absPath, 'utf-8')
+        } catch (err) {
+          const code = err instanceof Error && 'code' in err ? String(err.code) : 'unknown'
+          throw new Error(`failed to read plugin template "${relPath}" (${code}): ${absPath}`, {
+            cause: err,
+          })
+        }
         return ejs.render(src, withPluginRenderDefaults(data))
       },
     }

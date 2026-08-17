@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, cpSync, lstatSync, readdirSync, readlinkSync, statSync } from 'node:fs'
-import { copyFileTranslated, ensureDir, symlinkTranslated, toFsError } from '../utils/fs.js'
+import { existsSync, lstatSync, readdirSync, readlinkSync, statSync } from 'node:fs'
+import {
+  copyFileTranslated,
+  copyTreeTranslated,
+  ensureDir,
+  symlinkTranslated,
+  toFsError,
+} from '../utils/fs.js'
 import { dirname, join, resolve } from 'node:path'
 import type { WorktreeLinkSpec } from '../wizard/types.js'
 
@@ -119,7 +125,7 @@ function materializeDirectory(
     return materializeChildren(sourcePath, destPath, spec.path)
   }
   // strategy === "copy"
-  cpSync(sourcePath, destPath, { recursive: true })
+  copyTreeTranslated(sourcePath, destPath, { recursive: true })
   return 'COPIED_DIR'
 }
 

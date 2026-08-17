@@ -18,10 +18,16 @@
  * in-file checksum: a corrupt/forged manifest is bounded to skip-or-overwrite of
  * two known canonical renders, both recoverable via git + `arbiter diff`.
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 // #1991: re-exported from its leaf module so utils/fs.ts can import it without a cycle.
 export { manifestKey } from './manifest-key.js'
-import { ensureDir, renameTranslated, unlinkTranslated, writeFileTranslated } from '../utils/fs.js'
+import {
+  ensureDir,
+  renameTranslated,
+  unlinkTranslated,
+  writeFileTranslated,
+  readFileTranslated,
+} from '../utils/fs.js'
 import { join, dirname } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { FatalError } from '../utils/errors.js'
@@ -81,7 +87,7 @@ interface GeneratedManifestV1 {
 export function loadGeneratedManifest(dir: string): Record<string, string> {
   const path = join(dir, GENERATED_MANIFEST_FILE)
   if (!existsSync(path)) return {}
-  const raw = readFileSync(path, 'utf-8')
+  const raw = readFileTranslated(path, 'utf-8')
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -116,7 +122,7 @@ export function loadGeneratedManifest(dir: string): Record<string, string> {
 export function loadUnwiredGuards(dir: string): string[] {
   const path = join(dir, GENERATED_MANIFEST_FILE)
   if (!existsSync(path)) return []
-  const raw = readFileSync(path, 'utf-8')
+  const raw = readFileTranslated(path, 'utf-8')
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -144,7 +150,7 @@ export function loadUnwiredGuards(dir: string): string[] {
 export function loadWithheldSafety(dir: string): string[] {
   const path = join(dir, GENERATED_MANIFEST_FILE)
   if (!existsSync(path)) return []
-  const raw = readFileSync(path, 'utf-8')
+  const raw = readFileTranslated(path, 'utf-8')
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)

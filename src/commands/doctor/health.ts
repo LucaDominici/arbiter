@@ -2,7 +2,7 @@
 //
 // #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter doctor health`
 // subcommand (#539). Pure extraction, no behavior change.
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import os from 'node:os'
 import { jsonOutput } from '../../utils/json-output.js'
@@ -29,6 +29,7 @@ import {
 } from '../wizard/coherence.js'
 import { resolveCollaborationMode } from '../../config/collaboration-mode-defaults.js'
 import { deriveGateKey, gateLockPath } from '../gate-exec.js'
+import { readFileTranslated } from '../../utils/fs.js'
 
 /**
  * #1524: the raw shape the coherence checks read from arbiter.json. Reuses the
@@ -47,7 +48,7 @@ type RawCoherenceConfig = Partial<ArbiterConfig> & { enableSoloDevMode?: boolean
  */
 function readRawCoherenceConfig(dir: string): RawCoherenceConfig | null {
   try {
-    return JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as RawCoherenceConfig
+    return JSON.parse(readFileTranslated(join(dir, 'arbiter.json'), 'utf8')) as RawCoherenceConfig
   } catch {
     return null
   }
@@ -757,7 +758,7 @@ function checkGatePassLog(dir: string): HealthCheck {
       hint: 'Run `node scripts/check-all.mjs gate` to create the log.',
     }
   }
-  const lines = readFileSync(logPath, 'utf-8')
+  const lines = readFileTranslated(logPath, 'utf-8')
     .split('\n')
     .filter((l) => l.trim())
   const parsed: string[] = []
@@ -911,7 +912,7 @@ function checkTaskDocument(dir: string): HealthCheck {
     return { id, label, status: 'PASS', detail: 'no active task (.claude/.task/ absent)' }
   }
   try {
-    const state = JSON.parse(readFileSync(statusPath, 'utf-8')) as {
+    const state = JSON.parse(readFileTranslated(statusPath, 'utf-8')) as {
       phase?: string
       taskId?: string
     }

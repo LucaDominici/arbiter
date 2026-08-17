@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import ejs from 'ejs'
-import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { levelAtLeast, LEVEL_ORDER } from '../config/levels.js'
 import type { GovernanceLevel } from '../wizard/types.js'
+import { readFileTranslated } from './fs.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const TEMPLATES_DIR = join(__dirname, '..', 'templates')
@@ -151,7 +151,7 @@ function withRenderDefaults(data: object): object {
  */
 export function renderTemplate(templatePath: string, data: object): string {
   const fullPath = join(TEMPLATES_DIR, templatePath)
-  const source = readFileSync(fullPath, 'utf-8')
+  const source = readFileTranslated(fullPath, 'utf-8')
   return ejs.render(source, withRenderDefaults(data), { filename: fullPath })
 }
 
@@ -160,6 +160,6 @@ export function renderTemplate(templatePath: string, data: object): string {
  * Used by the plugin runner to render templates from plugin-owned templateRoot.
  */
 export function renderFromAbsPath(absPath: string, data: object): string {
-  const source = readFileSync(absPath, 'utf-8')
+  const source = readFileTranslated(absPath, 'utf-8')
   return ejs.render(source, withRenderDefaults(data), { filename: absPath })
 }

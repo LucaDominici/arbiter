@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2294",
+  "test_path": "__tests__/scripts/check-no-direct-fs.test.ts",
+  "test_commit_sha": "83daf6e302a571ebea5bb2b8fdce977731f7f040",
+  "test_blob_sha": "9fa46011644a1b7b4b4a746594a6efc28d8968d8",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/check-no-direct-fs.test.ts (14 tests | 1 failed) 565ms\n     × arbiter's own src/ passes with its committed allowlist 37ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 13 passed (14)\n   Start at  17:17:43\n   Duration  657ms (transform 17ms, setup 13ms, import 13ms, tests 565ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-no-direct-fs.test.ts > check-no-direct-fs.mjs — the real tree (#1991) > arbiter's own src/ passes with its committed allowlist\nAssertionError: check-no-direct-fs: 3 problem(s) — src/utils/fs.ts must be the sole write façade (CANON-17):\n  src/utils/file-lock.ts: direct write import (node:fs openSync, node:fs writeSync) — route through src/utils/fs.ts (writeFileTranslated / ensureDir / appendFileTranslated / copyFileTranslated / renameTranslated / chmodTranslated / unlinkTranslated / rmTranslated / symlinkTranslated / mkdtempTranslated) or add a dated pin to .no-direct-fs-allowlist\n  src/worktree/harvest.ts: direct write import (node:fs cpSync) — route through src/utils/fs.ts (writeFileTranslated / ensureDir / appendFileTranslated / copyFileTranslated / renameTranslated / chmodTranslated / unlinkTranslated / rmTranslated / symlinkTranslated / mkdtempTranslated) or add a dated pin to .no-direct-fs-allowlist\n  src/worktree/links.ts: direct write import (node:fs cpSync) — route through src/utils/fs.ts (writeFileTranslated / ensureDir / appendFileTranslated / copyFileTranslated / renameTranslated / chmodTranslated / unlinkTranslated / rmTranslated / symlinkTranslated / mkdtempTranslated) or add a dated pin to .no-direct-fs-allowlist\n: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/scripts/check-no-direct-fs.test.ts:163:48\n    161|   it(\"arbiter's own src/ passes with its committed allowlist\", () => {\n    162|     const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8' })\n    163|     expect(r.status, `${r.stdout}${r.stderr}`).toBe(0)\n       |                                                ^\n    164|   })\n    165| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-no-direct-fs.test.ts",
+  "recorded_at": "2026-08-17T15:17:43.721Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-no-direct-fs.test.ts"
+  ]
+}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { cpSync, existsSync, statSync } from 'node:fs'
-import { ensureDir } from '../utils/fs.js'
+import { existsSync, statSync } from 'node:fs'
+import { copyFileTranslated, ensureDir } from '../utils/fs.js'
 import { dirname, join } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 
@@ -141,9 +141,10 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
       continue
     }
 
-    // Create parent directories and copy
+    // Create parent directories and copy. The source is verified as a FILE above
+    // (directories are skipped), so the single-file primitive is the right route.
     ensureDir(dirname(destPath))
-    cpSync(srcPath, destPath)
+    copyFileTranslated(srcPath, destPath)
     result.copied.push(filePath)
     onFile?.(filePath, 'copy')
   }

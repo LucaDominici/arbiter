@@ -11,11 +11,12 @@
 // axis — arbiter's OWN ci-tools.json manifest vs arbiter's OWN workflow vs
 // arbiter's OWN check-all.mjs. Not reused here; see that script for CI-internal
 // manifest parity.
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { jsonOutput } from '../../utils/json-output.js'
 import { runCli, CliError } from '../../utils/run-cli.js'
 import { extractToolPins, compareSemVer, type SemVer, type ToolPin } from './tool-pin-extract.js'
+import { readFileTranslated } from '../../utils/fs.js'
 
 type HealthStatus = 'PASS' | 'WARN' | 'FAIL'
 
@@ -170,7 +171,7 @@ function emitTextOutput(checks: ToolPinCheck[], pass: number, warn: number, fail
 export function runDoctorToolPins(opts: DoctorToolPinsOptions = {}): DoctorToolPinsResult {
   const dir = resolve(opts.dir ?? '.')
   const allPins = listWorkflowFiles(dir).flatMap((path) => {
-    const text = readFileSync(path, 'utf-8')
+    const text = readFileTranslated(path, 'utf-8')
     const rel = path.slice(dir.length + 1)
     return extractToolPins(text, rel)
   })
