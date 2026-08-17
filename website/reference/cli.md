@@ -730,13 +730,14 @@ Manage git worktrees for parallel task development.
 
 These commands are fully functional but hidden from the default `arbiter --help` listing. They are not part of the stable public surface and may change without notice. List them from the CLI with `arbiter help --all`.
 
-| Command                 | Description                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------- |
-| `arbiter doc-set`       | —                                                                               |
-| `arbiter graph`         | Manage the provenance graph (#259)                                              |
-| `arbiter mark`          | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
-| `arbiter settings`      | List every settable arbiter.json path with its current value (#1121)            |
-| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates                      |
+| Command                 | Description                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| `arbiter doc-set`       | —                                                                                |
+| `arbiter graph`         | Manage the provenance graph (#259)                                               |
+| `arbiter mark`          | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206)  |
+| `arbiter method`        | Methodology lens: per-feature Config+Emit wiring status over `configure` (#2039) |
+| `arbiter settings`      | List every settable arbiter.json path with its current value (#1121)             |
+| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates                       |
 
 ## arbiter doc-set
 
@@ -773,6 +774,19 @@ Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206).
 - `--task <id>` — Set/override the active task id
 - `--digest <line>` — One-line progress digest for log.md
 - `--dir <dir>` — Target directory (default: current directory)
+
+## arbiter method
+
+Methodology lens: per-feature Config+Emit wiring status over `configure` (#2039).
+
+**Subcommands:**
+
+- `arbiter method status` — Read-only per-feature methodology report (Config + Emit facets)
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--json` — Emit machine-readable JSON output
 
 ## arbiter settings
 

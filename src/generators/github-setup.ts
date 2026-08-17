@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { chmodSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { chmodTranslated, resolvedPath, writeFile } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -30,7 +29,7 @@ export function generateGithubSetup(
       dryRun: opts.dryRun,
     })
     if (!opts.dryRun && result.action !== 'skipped') {
-      chmodSync(setupScript, SCRIPT_MODE)
+      chmodTranslated(setupScript, SCRIPT_MODE)
     }
     files.push(result)
   }
@@ -42,7 +41,7 @@ export function generateGithubSetup(
     { dryRun: opts.dryRun },
   )
   if (!opts.dryRun && bpResult.action !== 'skipped') {
-    chmodSync(bpScript, SCRIPT_MODE)
+    chmodTranslated(bpScript, SCRIPT_MODE)
   }
   files.push(bpResult)
 
@@ -61,7 +60,7 @@ export function generateGithubSetup(
       dryRun: opts.dryRun,
     })
     if (!opts.dryRun && result.action !== 'skipped') {
-      chmodSync(scriptPath, SCRIPT_MODE)
+      chmodTranslated(scriptPath, SCRIPT_MODE)
     }
     files.push(result)
   }

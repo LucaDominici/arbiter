@@ -9,8 +9,8 @@
 //   - --no-replay opt-out is enforced upstream in cli.ts; this module is
 //     only invoked when replay is enabled.
 
-import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
-import { ensureDir, writeFileTranslated } from './fs.js'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { ensureDir, rmTranslated, writeFileTranslated } from './fs.js'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { walkDir } from './walk-dir.js'
@@ -163,7 +163,7 @@ export function rotateReplayLogs(opts: RotateOptions): string[] {
   const evicted: string[] = []
   for (const entry of entries.slice(opts.capN)) {
     try {
-      rmSync(entry.full, { recursive: true, force: true })
+      rmTranslated(entry.full, { recursive: true, force: true })
       evicted.push(entry.name)
     } catch {
       // skip — rotation is best-effort, never blocks CLI exit

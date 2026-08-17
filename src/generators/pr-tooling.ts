@@ -13,8 +13,7 @@
 // orchestration tools (not gate infrastructure), so template === materialized
 // byte-for-byte, same as conformance.mjs.ejs / scripts/conformance.mjs.
 // skipIfExists: true — never clobber a hand-edited copy.
-import { chmodSync } from 'node:fs'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { chmodTranslated, resolvedPath, writeFile } from '../utils/fs.js'
 import { renderTemplate } from '../utils/render.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -70,7 +69,7 @@ export function generatePrTooling(
   if (!opts.dryRun) {
     for (const rel of ['scripts/bg-run.sh', 'scripts/pid-watch.sh']) {
       const scriptPath = resolvedPath(config.targetDir, rel)
-      chmodSync(scriptPath, SCRIPT_MODE)
+      chmodTranslated(scriptPath, SCRIPT_MODE)
     }
   }
   return { files }

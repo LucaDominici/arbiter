@@ -18,10 +18,10 @@
  * in-file checksum: a corrupt/forged manifest is bounded to skip-or-overwrite of
  * two known canonical renders, both recoverable via git + `arbiter diff`.
  */
-import { existsSync, readFileSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 // #1991: re-exported from its leaf module so utils/fs.ts can import it without a cycle.
 export { manifestKey } from './manifest-key.js'
-import { ensureDir, renameTranslated, writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, renameTranslated, unlinkTranslated, writeFileTranslated } from '../utils/fs.js'
 import { join, dirname } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { FatalError } from '../utils/errors.js'
@@ -232,7 +232,7 @@ export function saveGeneratedManifest(
     renameTranslated(tmp, path)
   } catch (err) {
     try {
-      unlinkSync(tmp)
+      unlinkTranslated(tmp)
     } catch {
       // best-effort cleanup; the primary error takes precedence.
     }

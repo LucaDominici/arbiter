@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import {
-  openSync,
-  writeSync,
-  closeSync,
-  readFileSync,
-  unlinkSync,
-  lstatSync,
-  existsSync,
-} from 'node:fs'
-import { renameTranslated, toFsError } from './fs.js'
+import { openSync, writeSync, closeSync, readFileSync, lstatSync, existsSync } from 'node:fs'
+import { renameTranslated, toFsError, unlinkTranslated } from './fs.js'
 import { resolve } from 'node:path'
 import os from 'node:os'
 import { randomBytes } from 'node:crypto'
@@ -218,7 +210,7 @@ function tryTakeover(lockPath: string, info: LockInfo, staleAgeMs: number): bool
     return false
   }
   try {
-    unlinkSync(staleMarker)
+    unlinkTranslated(staleMarker)
   } catch {
     // best-effort stale cleanup
   }
@@ -293,7 +285,7 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
   function deleteLock(): void {
     try {
       if (readLockInfo(lockPath)?.nonce === ourNonce) {
-        unlinkSync(lockPath)
+        unlinkTranslated(lockPath)
       }
     } catch {
       /* best-effort */
@@ -367,6 +359,6 @@ export function forceReleaseLock(
     )
   }
 
-  unlinkSync(lockPath)
+  unlinkTranslated(lockPath)
   return Promise.resolve()
 }

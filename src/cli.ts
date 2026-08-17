@@ -9,6 +9,7 @@ import { runDiff } from './commands/diff.js'
 import { runObsidian } from './commands/obsidian.js'
 import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
+import { runMethodStatus } from './commands/method.js'
 import {
   runWorktreeOpen,
   runWorktreeClose,
@@ -754,6 +755,61 @@ program
   .action((opts: { dir?: string | undefined; json: boolean }) => {
     try {
       runSettings({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}), json: opts.json })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    }
+  })
+
+// #2039: the FEATURE lens over `configure`'s FIELD surface. `method status` is pure read;
+// the bare `method` on a TTY opens the cluster lens, whose every write is delegated back to
+// `configure` (there is no second config engine). Same TTY/lazy-import split as `configure`.
+// hidden: the public surface is capped at 15 commands (T2 tier-3 cut, asserted by
+// __tests__/behavioral/help-surface.test.ts), and #2039's own design §0 says "no new public
+// CLI commands". `settings` — the FIELD view over the same paths — is hidden for the same
+// reason, so the FEATURE view over them belongs in the same tier. `arbiter help --all` and
+// the generated CLI reference both still document it.
+const method = program
+  .command('method', { hidden: true })
+  .description('Methodology lens: per-feature Config+Emit wiring status over `configure` (#2039)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string | undefined; json: boolean }) => {
+    const handler = async (): Promise<void> => {
+      // --json is a report request, never an interactive session, so it takes the read path
+      // even on a TTY. Without a write path in the MVP there is no --yes to require yet.
+      if (!opts.json && process.stdin.isTTY) {
+        const { runInteractiveMethod } = await import('./commands/method-interactive.js')
+        return runInteractiveMethod(opts.dir)
+      }
+      // runMethodStatus is sync and returns void — `return` it and
+      // @typescript-eslint/no-confusing-void-expression rightly objects.
+      runMethodStatus({
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        json: opts.json,
+      })
+    }
+    handler().catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    })
+  })
+
+method
+  .command('status')
+  .description('Read-only per-feature methodology report (Config + Emit facets)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((_opts: unknown, cmd: { optsWithGlobals: () => { dir?: string; json: boolean } }) => {
+    // #2162: parent and subcommand both declare --dir/--json, so read the merged view.
+    const merged = cmd.optsWithGlobals()
+    try {
+      runMethodStatus({
+        ...(merged.dir !== undefined ? { dir: merged.dir } : {}),
+        json: merged.json,
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`  Error: ${msg}\n`)

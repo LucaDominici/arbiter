@@ -3,7 +3,7 @@
 // #1839 (F3 friction cut): extracted from init.ts — generator execution, plugin
 // loading, dry-run preview, and rollback/verification of generation output. Pure
 // extraction, no behavior change.
-import { existsSync, unlinkSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { resolve, join, normalize, isAbsolute, sep, basename } from 'node:path'
 import { ArbiterError } from '../../utils/errors.js'
 import { t } from '../../i18n/index.js'
@@ -16,7 +16,7 @@ import { buildRegistry, runGeneratorsFromRegistry } from '../../generators/regis
 import type { GeneratorFailure } from '../../generators/registry.js'
 import { loadPlugin } from '../../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../../utils/render.js'
-import { copyFileTranslated, writeFile } from '../../utils/fs.js'
+import { copyFileTranslated, unlinkTranslated, writeFile } from '../../utils/fs.js'
 import type { WriteResult } from '../../utils/fs.js'
 import { runCli, CliError } from '../../utils/run-cli.js'
 import type { ProjectConfig } from '../../wizard/types.js'
@@ -388,7 +388,7 @@ export function rollbackGeneration(results: WriteResult[]): void {
   for (const result of results) {
     if (result.action === 'created') {
       try {
-        if (existsSync(result.path)) unlinkSync(result.path)
+        if (existsSync(result.path)) unlinkTranslated(result.path)
       } catch (err) {
         rollbackErrors.push(`Could not remove ${result.path}: ${errMsg(err)}`)
       }
@@ -397,7 +397,7 @@ export function rollbackGeneration(results: WriteResult[]): void {
       try {
         if (existsSync(backup)) {
           copyFileTranslated(backup, result.path)
-          unlinkSync(backup)
+          unlinkTranslated(backup)
         }
       } catch (err) {
         rollbackErrors.push(`Could not restore backup for ${result.path}: ${errMsg(err)}`)

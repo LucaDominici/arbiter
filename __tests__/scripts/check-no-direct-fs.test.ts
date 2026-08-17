@@ -57,6 +57,14 @@ describe('check-no-direct-fs.mjs — detection (#1991)', () => {
       'copyFileSync',
       'appendFileSync',
       'renameSync',
+      // #1991 residual tranche: the destructive/mutating ops. Each one now has a façade
+      // route (chmodTranslated / unlinkTranslated / rmTranslated / symlinkTranslated /
+      // mkdtempTranslated), which is the only reason it may sit in a gate at all.
+      'chmodSync',
+      'unlinkSync',
+      'rmSync',
+      'symlinkSync',
+      'mkdtempSync',
     ]) {
       const root = fixture({ 'src/a.ts': `import { ${op} } from 'node:fs'\n` })
       expect(run(root).status, op).toBe(1)
@@ -75,9 +83,17 @@ describe('check-no-direct-fs.mjs — detection (#1991)', () => {
     expect(run(root).status).toBe(1)
   })
 
-  it('does not flag read-only ops, which have no façade to route through', () => {
+  // #1991 closes with the façade scoped to MUTATION. This is the assertion that keeps that
+  // a decision rather than a drift: a future blanket read sweep has to delete this test,
+  // and deleting it is a visible act. Rationale + the 80-site measurement live in the
+  // gate script's header — 47 reads swallow whatever is thrown at them, 3+ branch on
+  // `err.code` and would BREAK under a translator, and the 25 bare ones need a per-call
+  // rule (this gate keys on imports and would flag 55 compliant files to reach them).
+  it('does not flag read ops — the façade boundary is mutation, by decision', () => {
     const root = fixture({
-      'src/a.ts': "import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'\n",
+      'src/a.ts':
+        "import { readFileSync, existsSync, readdirSync, statSync, lstatSync, readlinkSync } from 'node:fs'\n" +
+        "readFileSync('a', 'utf-8')\n",
     })
     expect(run(root).status).toBe(0)
   })
