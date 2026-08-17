@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto'
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { ensureDir, writeFileTranslated } from '../utils/fs.js'
+import { ensureDir, writeFileTranslated, readFileTranslated } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { normalizeChainId } from './task-state.js'
 import { getBoolFlag } from '../config/env-registry.js'
@@ -231,7 +231,7 @@ export function runTaskRecover(opts: TaskRecoverOptions = {}): void {
   const backlog = backlogPath(dir, sanit)
   if (existsSync(backlog)) {
     parts.push('━━━ Layer 1: BACKLOG.md ━━━')
-    parts.push(readFileSync(backlog, 'utf-8'))
+    parts.push(readFileTranslated(backlog, 'utf-8'))
     parts.push('━━━ END Layer 1 ━━━\n')
   } else {
     parts.push(`Layer 1: no BACKLOG.md at ${backlog}\n`)
@@ -305,7 +305,7 @@ function requirePlanReviewPass(opts: RequirePlanReviewPassOptions): RequirePlanR
   }
   let parsed: LatestJson
   try {
-    parsed = JSON.parse(readFileSync(latestPath, 'utf-8')) as LatestJson
+    parsed = JSON.parse(readFileTranslated(latestPath, 'utf-8')) as LatestJson
   } catch (err) {
     return {
       ok: false,
@@ -361,7 +361,7 @@ function loadPlanContentIfAvailable(dir: string): string | undefined {
   const resolved = join(dir, planPath)
   const candidate = existsSync(planPath) ? planPath : existsSync(resolved) ? resolved : undefined
   if (candidate === undefined) return undefined
-  return readFileSync(candidate, 'utf-8')
+  return readFileTranslated(candidate, 'utf-8')
 }
 
 function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
@@ -432,7 +432,7 @@ function checkGatePassMarkerGate(dir: string): void {
 
   let marker: GatePassMarker
   try {
-    const parsed: unknown = JSON.parse(readFileSync(markerPath, 'utf-8'))
+    const parsed: unknown = JSON.parse(readFileTranslated(markerPath, 'utf-8'))
     if (!isGatePassMarker(parsed)) throw new Error('marker must be a JSON object')
     marker = parsed
   } catch (err) {

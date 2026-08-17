@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { workerData, parentPort, type MessagePort } from 'node:worker_threads'
 import { pathToFileURL } from 'node:url'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import ejs from 'ejs'
 import type { ArbiterConfig } from '../utils/config.js'
 import type { PluginContext, PluginResult } from '../types/plugin.js'
+import { readFileTranslated } from './fs.js'
 
 interface WorkerData {
   entryPath: string
@@ -65,7 +65,7 @@ async function run(): Promise<void> {
       targetDir,
       renderTemplate(relPath: string, data: Record<string, unknown>): string {
         const absPath = join(templateRoot, relPath)
-        const src = readFileSync(absPath, 'utf-8')
+        const src = readFileTranslated(absPath, 'utf-8')
         return ejs.render(src, withPluginRenderDefaults(data))
       },
     }

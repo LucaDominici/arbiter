@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { readFileTranslated } from '../utils/fs.js'
 
 /**
  * Detects the base Java package for a project.
@@ -9,7 +10,7 @@ import { join } from 'node:path'
 export function detectBasePackage(dir: string): string | undefined {
   const pomPath = join(dir, 'pom.xml')
   if (existsSync(pomPath)) {
-    const content = readFileSync(pomPath, 'utf-8')
+    const content = readFileTranslated(pomPath, 'utf-8')
     // The project's OWN <groupId> is the base package, not the inherited
     // <parent> groupId. In a standard Spring Boot pom the <parent> block
     // (spring-boot-starter-parent → org.springframework.boot) precedes the
@@ -32,7 +33,7 @@ export function detectBasePackage(dir: string): string | undefined {
   for (const gradleFile of ['build.gradle', 'build.gradle.kts']) {
     const gradlePath = join(dir, gradleFile)
     if (existsSync(gradlePath)) {
-      const content = readFileSync(gradlePath, 'utf-8')
+      const content = readFileTranslated(gradlePath, 'utf-8')
       const match = content.match(/^group\s*=\s*['"]([^'"]+)['"]/m)
       if (match?.[1]) return match[1].trim()
     }

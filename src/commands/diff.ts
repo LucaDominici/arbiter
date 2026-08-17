@@ -7,7 +7,7 @@
 // side effects `update --github` would perform — as a STATIC descriptor, never
 // by calling `gh` (ADR-001; diff is strictly read-only).
 import { resolve, relative, join } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { loadConfig } from '../utils/config.js'
 import { slugifyProjectName } from './init.js'
 import { buildAdoptPredicate } from './update.js'
@@ -17,7 +17,7 @@ import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../generators/registry.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { t } from '../i18n/index.js'
-import { beginGenerationSession, endGenerationSession, type WriteResult } from '../utils/fs.js'
+import { beginGenerationSession, endGenerationSession, type WriteResult, readFileTranslated } from '../utils/fs.js'
 import { loadGeneratedManifest } from '../state/generated-manifest.js'
 import { renderAgentsMd } from '../generators/agents-md.js'
 import {
@@ -88,7 +88,7 @@ export function checkGovernanceSections(
   if (!existsSync(agentsPath)) {
     results.push({ file: 'AGENTS.md', section: 'Iron Laws', stale: true, detail: 'file missing' })
   } else {
-    const materializedIronLaws = extractIronLawsBlock(readFileSync(agentsPath, 'utf-8'))
+    const materializedIronLaws = extractIronLawsBlock(readFileTranslated(agentsPath, 'utf-8'))
     const stale =
       materializedIronLaws === null ||
       normalizeWhitespace(materializedIronLaws) !== normalizeWhitespace(currentIronLaws ?? '')

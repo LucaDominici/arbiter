@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
-import { resolvedPath, writeFile, writeFileTranslated } from '../utils/fs.js'
+import { resolvedPath, writeFile, writeFileTranslated, readFileTranslated } from '../utils/fs.js'
 import { formatContent } from '../utils/prettier-format.js'
 import { injectGradleWiring, safeApplyFromSnippet } from '../utils/gradle.js'
 import type { ProjectConfig } from '../wizard/types.js'
@@ -12,7 +12,7 @@ function appendCargoDevDep(base: string, name: string, version: string, dryRun: 
   if (dryRun) return
   const cargoPath = join(base, 'Cargo.toml')
   if (!existsSync(cargoPath)) return
-  const content = readFileSync(cargoPath, 'utf-8')
+  const content = readFileTranslated(cargoPath, 'utf-8')
   if (content.includes(name)) return
   const section = '[dev-dependencies]'
   const entry = `${name} = "${version}"\n`

@@ -721,6 +721,25 @@ export function copyTreeTranslated(
 }
 
 /**
+ * Read a file, translating a raw fs errno into an ArbiterError (CANON-17, #2293).
+ * The 25 bare readFileSync sites in src/ had no enclosing try, so a raw errno
+ * (ENOENT, EACCES, EISDIR, ...) reached the user as an unstyled Node stack. This is
+ * the single route for a read whose failure must surface as an actionable hint.
+ * Callers that need a fallback for a MISSING file keep their existsSync guard (the
+ * residual here is EACCES/EISDIR/TOCTOU, not ENOENT) or catch the translated error
+ * and branch on `err.code` — ArbiterError preserves the errno code.
+ */
+export function readFileTranslated(path: string): Buffer
+export function readFileTranslated(path: string, encoding: 'utf8' | 'utf-8'): string
+export function readFileTranslated(path: string, encoding?: 'utf8' | 'utf-8'): string | Buffer {
+  try {
+    return encoding ? readFileSync(path, encoding) : readFileSync(path)
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
+
+/**
  * Deeply merge two settings.json objects. Arrays are unioned (no duplicates by 'command').
  * All top-level keys from `existing` are preserved unchanged unless arbiter manages them
  * (currently: `hooks`, `permissions`).

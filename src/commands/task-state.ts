@@ -12,9 +12,9 @@
 // Fixed path (not per-sanitized-id) lets generated hooks find state without first reading a
 // `.task-id` dotfile. This module is the LOWER layer: it owns the phase vocabulary and all state
 // I/O. `src/commands/task.ts` is the higher orchestration layer and imports from here.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { appendFileTranslated, ensureDir, rmTranslated, writeFile } from '../utils/fs.js'
+import { appendFileTranslated, ensureDir, rmTranslated, writeFile, readFileTranslated } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 
 // ─── Phase vocabulary (single source; re-exported by task.ts for back-compat) ────────────────
@@ -235,7 +235,7 @@ export function readUnifiedState(root: string): UnifiedTaskState | null {
   if (existsSync(p)) {
     let parsed: Partial<UnifiedTaskState>
     try {
-      parsed = JSON.parse(readFileSync(p, 'utf-8')) as Partial<UnifiedTaskState>
+      parsed = JSON.parse(readFileTranslated(p, 'utf-8')) as Partial<UnifiedTaskState>
     } catch (err: unknown) {
       throw new Error(
         `readUnifiedState: corrupted status at ${p}: ${msg(err)}. ` +
@@ -342,7 +342,7 @@ const LEGACY_DOTFILES = [
 function readDotfile(claudeDir: string, name: string): string | undefined {
   const p = join(claudeDir, name)
   if (!existsSync(p)) return undefined
-  const raw = readFileSync(p, 'utf-8').trim()
+  const raw = readFileTranslated(p, 'utf-8').trim()
   return raw.length > 0 ? raw : undefined
 }
 
@@ -369,7 +369,7 @@ export function seedFromLegacy(root: string): UnifiedTaskState | null {
     const richPath = legacyPerIdStatusPath(claudeDir, idRaw)
     if (existsSync(richPath)) {
       try {
-        rich = JSON.parse(readFileSync(richPath, 'utf-8')) as Partial<UnifiedTaskState>
+        rich = JSON.parse(readFileTranslated(richPath, 'utf-8')) as Partial<UnifiedTaskState>
       } catch (err: unknown) {
         // Corrupt legacy rich state — warn loudly and PRESERVE the file (do not delete below) so
         // its metadata (runId/handoff/timestamps) is recoverable rather than silently destroyed.

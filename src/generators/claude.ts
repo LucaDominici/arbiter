@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
-import { ensureDir, mergeSettingsJson, resolvedPath, writeFile } from '../utils/fs.js'
+import { ensureDir, mergeSettingsJson, resolvedPath, writeFile, readFileTranslated } from '../utils/fs.js'
 import { DEFAULT_TASK_TIERS } from '../config/schema.js'
 import { resolveCollaborationAxes } from '../config/collaboration-mode-defaults.js'
 import type { ProjectConfig } from '../wizard/types.js'
@@ -75,7 +75,7 @@ function isPlainObject(x: unknown): x is Record<string, unknown> {
 }
 
 export function parseExistingSettings(settingsPath: string): Record<string, unknown> {
-  const raw = readFileSync(settingsPath, 'utf-8')
+  const raw = readFileTranslated(settingsPath, 'utf-8')
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)

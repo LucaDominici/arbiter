@@ -35,12 +35,13 @@
 //   - 8 rethrow, already translated. At least 3 of those (utils/canon-loader.ts,
 //     commands/worktree.ts, utils/safe-read.ts) BRANCH ON `err.code`; routing them through
 //     a translator would silently kill the ENOENT arm. CANON-17 exempts this shape too.
-//   - 25 are bare. Those ARE a live CANON-17 leak (cli.ts's top-level handler prints
-//     `Unexpected error: ENOENT: ...`), and eslint-rules/fs-errno-translation.js cannot
-//     see them — with no catch binding there is nothing for it to report. Tracked as
-//     #2293: this gate keys on IMPORTS, so adding readFileSync to the op set would flag
-//     all 56 importing files, 55 of them compliant. The fix is a per-CALL rule, not
-//     another name in the list above.
+//   - 25 were bare. Those WERE a live CANON-17 leak (cli.ts's top-level handler prints
+//     `Unexpected error: ENOENT: ...`), and eslint-rules/fs-errno-translation.js could not
+//     see them — with no catch binding there was nothing for it to report. Fixed in #2293
+//     as a per-CALL rule (the bare-read check in eslint-rules/fs-errno-translation.js) plus
+//     the `readFileTranslated` primitive in src/utils/fs.ts, NOT a name in the list above:
+//     this gate keys on IMPORTS, so adding readFileSync to the op set would flag all 56
+//     importing files, 55 of them compliant.
 //
 // Allowlist: .no-direct-fs-allowlist — "path  EXPIRES: YYYY-MM-DD  # reason", one per line.
 // Every pin MUST carry a future date AND a reason, and a pin whose path no longer violates

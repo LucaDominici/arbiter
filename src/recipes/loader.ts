@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { readFileSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { RecipeSchema, type Recipe } from './schema.js'
+import { readFileTranslated } from '../utils/fs.js'
 
 const MAX_BYTES = 256 * 1024 // 256 KB
 
@@ -58,7 +59,7 @@ function readLocalRecipe(source: string): Buffer {
       `Recipe file size ${stat.size} bytes exceeds limit of ${MAX_BYTES} bytes (256 KB). Reduce the recipe file size.`,
     )
   }
-  return readFileSync(filePath)
+  return readFileTranslated(filePath)
 }
 
 function assertResponseOk(response: Response, url: string): void {

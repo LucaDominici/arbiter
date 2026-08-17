@@ -15,9 +15,10 @@
 //
 // Read-only by construction (AC-4): only `readFileSync`/`readdirSync`. No
 // `--update-allowlist` write flag — the allowlist is hand-authored.
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { jsonOutput } from '../../utils/json-output.js'
+import { readFileTranslated } from '../../utils/fs.js'
 
 export interface FailOpenFinding {
   file: string
@@ -183,7 +184,7 @@ interface AllowlistResult {
 
 function loadAllowlist(path: string): AllowlistResult {
   if (!existsSync(path)) return { entries: [], malformed: false }
-  const raw = JSON.parse(readFileSync(path, 'utf-8')) as { entries?: AllowlistEntry[] }
+  const raw = JSON.parse(readFileTranslated(path, 'utf-8')) as { entries?: AllowlistEntry[] }
   const entries = raw.entries ?? []
   const malformed = entries.some((e) => !e.reason || e.reason.trim() === '')
   return { entries, malformed }
@@ -237,7 +238,7 @@ export function runDoctorFailOpenCensus(
   }
 
   const rawFindings = listScanFiles(dir)
-    .flatMap((path) => scanFileText(readFileSync(path, 'utf-8'), relative(dir, path)))
+    .flatMap((path) => scanFileText(readFileTranslated(path, 'utf-8'), relative(dir, path)))
     .sort((a, b) => (a.file === b.file ? a.line - b.line : a.file.localeCompare(b.file)))
 
   const findings = applyAllowlist(rawFindings, entries)
