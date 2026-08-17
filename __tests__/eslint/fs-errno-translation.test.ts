@@ -36,6 +36,42 @@ tester.run('fs-errno-translation (CANON-17, #1924)', rule, {
     { code: 'try { JSON.parse(s) } catch (err) { throw err }' },
     // fs imported but the try block calls something else.
     { code: FS_IMPORT + 'try { compute() } catch (err) { throw err }' },
+
+    // ── #2314: the non-leaking shapes each predicate must reject ──────────────
+    // The rule fires only on a RAW escape, so every near-miss below is a valid
+    // case — and each one is a distinct arm of isRawUse/isStdio/bindingIsTranslated
+    // that no fixture reached. Coverage of a lint rule IS its false-positive proof:
+    // an unexercised arm is a flood waiting for the first consumer to hit it.
+
+    // Import declaration from a module that is not node:fs at all.
+    { code: "import { join } from 'node:path'\ntry { join(a, b) } catch (err) { throw err }" },
+    // Mixed default + named specifiers in one node:fs declaration.
+    {
+      code: "import fs, { readFileSync } from 'node:fs'\ntry { readFileSync(p) } catch (err) { throw toFsError(err, p) }",
+    },
+    // A destructured catch param binds no name the rule can track.
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch ({ code }) { throw code }' },
+    // Sanctioned Node idiom: a new error under a message, cause preserved.
+    { code: FS_IMPORT + "try { readFileSync(p) } catch (err) { throw new Error('read failed') }" },
+    // A structured logger is keyed and rendered, not raw stdout.
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { logger.error(err) }' },
+    // console call, but the argument carries no errno.
+    { code: FS_IMPORT + "try { readFileSync(p) } catch (err) { console.error('read failed') }" },
+    // A call whose callee is an Identifier other than String.
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { console.error(describe(ctx)) }' },
+    // Member access on something that is not the caught binding.
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { console.error(ctx.message) }' },
+    // Template / binary / conditional shapes that never interpolate the binding.
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { console.error(`at ${p}`) }' },
+    { code: FS_IMPORT + "try { readFileSync(p) } catch (err) { console.error('at ' + p) }" },
+    { code: FS_IMPORT + "try { readFileSync(p) } catch (err) { console.error(q ? 'a' : 'b') }" },
+    // Consumers of the binding that are neither translators nor leaks.
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { report({ cause: err }) }' },
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { helper.wrap(err) }' },
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { throw new CustomError(err) }' },
+    // A translator called on something OTHER than the caught binding translates nothing —
+    // but nothing leaks either, so the rule stays silent.
+    { code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { throw toFsError(other, p) }' },
   ],
   invalid: [
     // Re-throwing the raw binding is the canonical violation.
@@ -75,6 +111,48 @@ tester.run('fs-errno-translation (CANON-17, #1924)', rule, {
     // Awaited node:fs/promises call.
     {
       code: "import { readFile } from 'node:fs/promises'\nasync function f() { try { await readFile(p) } catch (err) { throw err } }",
+      errors: [{ messageId: 'untranslatedErrno' }],
+    },
+
+    // ── #2314: every raw-escape shape isRawUse claims to catch ────────────────
+    // console.* is as much the user's terminal as process.stdout is.
+    {
+      code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { console.error(String(err)) }',
+      errors: [{ messageId: 'untranslatedErrno' }],
+    },
+    // `err.message` is the bare errno string with the stack trimmed off.
+    {
+      code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { console.log(err.message) }',
+      errors: [{ messageId: 'untranslatedErrno' }],
+    },
+    // Interpolated into a template literal.
+    {
+      code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { process.stdout.write(`${err}`) }',
+      errors: [{ messageId: 'untranslatedErrno' }],
+    },
+    // Concatenated onto a prefix.
+    {
+      code:
+        FS_IMPORT + "try { readFileSync(p) } catch (err) { console.error('read failed: ' + err) }",
+      errors: [{ messageId: 'untranslatedErrno' }],
+    },
+    // Behind a ternary — either arm leaks.
+    {
+      code: FS_IMPORT + "try { readFileSync(p) } catch (err) { console.error(q ? err : 'ok') }",
+      errors: [{ messageId: 'untranslatedErrno' }],
+    },
+    {
+      code: FS_IMPORT + "try { readFileSync(p) } catch (err) { console.error(q ? 'ok' : err) }",
+      errors: [{ messageId: 'untranslatedErrno' }],
+    },
+    // The re-throw sits inside a nested block, not at the handler's top level.
+    {
+      code: FS_IMPORT + 'try { readFileSync(p) } catch (err) { if (q) { throw err } }',
+      errors: [{ messageId: 'untranslatedErrno' }],
+    },
+    // The fs call sits inside an array literal in the try block.
+    {
+      code: FS_IMPORT + 'try { const a = [readFileSync(p)] } catch (err) { throw err }',
       errors: [{ messageId: 'untranslatedErrno' }],
     },
   ],
