@@ -334,3 +334,33 @@ describe('_nightly.yml.ejs — generated-gate-e2e Go toolchain satisfies every p
     expect(cacheDepCount).toBe(goVersionFileCount)
   })
 })
+
+// #2314 — the nightly went red the day the greenfield generated-gate job landed.
+// `greenfield-first-run.test.ts`'s useGitHub cell drives `arbiter init --github`, and
+// src/detectors/github.ts honours `--github` only when it finds an AUTHENTICATED gh.
+// The job's env carried VITEST_L2 alone, so on CI `permitGitHub` resolved false, init
+// emitted no .github/workflows at all (silently — that half is the separate product
+// defect #2315), and the cell's workflow-gate assertions failed. Green on a dev box
+// whose gh is logged in, red in CI, for want of one env line.
+describe('_nightly.yml.ejs — gh-dependent e2e steps carry a token (#2314)', () => {
+  it('the greenfield generated-gate step passes GH_TOKEN to the suite that runs init --github', () => {
+    const rendered = renderNightlyPartial({
+      language: 'typescript',
+      buildTool: 'npm',
+      enableNativeBakeE2E: true,
+    } as Record<string, unknown>)
+
+    // The step block: from its `- name:` line to the start of the next step OR the
+    // next job key — the greenfield step is its job's last, so the job boundary is
+    // what actually terminates it.
+    const step = rendered
+      .split(/^ {6}- (?=name:|uses:)|^ {2}(?=[a-z0-9-]+:$)/m)
+      .find((s) => s.includes('greenfield-first-run.test.ts'))
+    expect(step, 'expected a nightly step running greenfield-first-run.test.ts').toBeDefined()
+    expect(
+      step,
+      'the greenfield e2e step must carry a gh token: its useGitHub cell needs an ' +
+        'authenticated gh or `init --github` emits no workflows and the cell fails (#2314)',
+    ).toContain('GH_TOKEN: ${{ github.token }}')
+  })
+})
