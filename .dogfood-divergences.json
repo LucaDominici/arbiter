@@ -118,7 +118,7 @@
     "path": "check-action-pins.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self scans TWO corpora where the template scans one: besides .github/workflows and .github/actions it walks the workflow TEMPLATES arbiter ships (src/templates/**/workflows/*.ejs), because a fabricated or tag-shaped SHA in an .ejs is emitted verbatim into every generated project while the self gate stays green (#1491, security-privacy MAJOR-3) — and it therefore also skips templated refs (EJS/shell interpolation), a concept a target has no use for. Self additionally imports collectYamlFiles/collectWorkflowTemplates from scripts/lib/workflow-scan.mjs, which arbiter does NOT ship as a template, so the emitted twin must inline its own walker to stay self-contained. The CROSS_MAJOR_ALLOWLIST shas are identical on both sides; only self annotates each with its version comment. PERMANENT: a target project has no template corpus and no arbiter lib tree, so neither half of this divergence can ever be reconciled.",
-    "diffHash": "d9962978af14deb71fb3e24675463b2dcbabe2079c20b37879382e95db73c90b"
+    "diffHash": "cf4712a3c262ccf28ac5ad18c9b24c7da788559e5fc544ee118d649d69b0c7eb"
   },
   {
     "path": "check-anti-fake-green.mjs",
