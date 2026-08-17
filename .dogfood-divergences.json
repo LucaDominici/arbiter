@@ -226,7 +226,7 @@
     "path": "check-fail-closed-audit.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self is a strict superset on two axes. (1) Corpus: self classifies .github/workflows/*.yml as a `yaml` kind and runs the `|| true` fail-open scan over workflow files; the template audits only scripts/, .githooks/ and .claude/hooks/. (2) The library allowlist: ~20 named scripts/lib/* modules exempted from the entry-point error-handling contract because they export semantics rather than being entry points (gold-audit-lib, anti-fake-green-core, secret-presence-core, continue-on-error-core, doc-set-resolve, dist-staleness, acceptance-criteria, consumer-reliability-bar, …). Nearly every one of those files is self-only, so the list has no subject in a target. Self also handles the ENOENT readdir/stat race explicitly with a FAIL-OPEN-INTENT marker and rethrows everything else, where the template swallows. PERMANENT.",
-    "diffHash": "5f631c056af05f43fce764a0165cad2739ff24ddd7593788e83ae8451dddc9be"
+    "diffHash": "dc2c0268fe69b854c0e302f86a8736940373c7311c9109c383bdc972021430c0"
   },
   {
     "dest": "scripts",
