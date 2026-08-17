@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { openSync, writeSync, closeSync, readFileSync, lstatSync, existsSync } from 'node:fs'
-import { renameTranslated, toFsError, unlinkTranslated } from './fs.js'
+import { readFileSync, lstatSync, existsSync } from 'node:fs'
+import { createExclusiveTranslated, renameTranslated, unlinkTranslated } from './fs.js'
 import { resolve } from 'node:path'
 import os from 'node:os'
 import { randomBytes } from 'node:crypto'
@@ -168,9 +168,8 @@ export function isLockStale(info: LockInfo, staleAgeMs: number): boolean {
 
 function writeLockExclusive(path: string, info: LockInfo): void {
   const content = JSON.stringify(info)
-  let fd: number
   try {
-    fd = openSync(path, 'wx')
+    createExclusiveTranslated(path, content)
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code
     if (code === 'EEXIST') {
@@ -178,13 +177,9 @@ function writeLockExclusive(path: string, info: LockInfo): void {
       err.name = 'LockConflictError'
       throw err
     }
-    // CANON-17: any errno other than the EEXIST contention case is translated.
-    throw toFsError(e, path)
-  }
-  try {
-    writeSync(fd, content)
-  } finally {
-    closeSync(fd)
+    // createExclusiveTranslated already translated every non-EEXIST errno (CANON-17);
+    // re-throw the translated error unchanged.
+    throw e
   }
 }
 

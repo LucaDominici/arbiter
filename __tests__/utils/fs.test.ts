@@ -20,6 +20,8 @@ import {
   rmTranslated,
   symlinkTranslated,
   mkdtempTranslated,
+  createExclusiveTranslated,
+  copyTreeTranslated,
 } from '../../src/utils/fs.js'
 import { ArbiterError } from '../../src/utils/errors.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
@@ -735,6 +737,54 @@ describe('destructive-op translated primitives (#1991)', () => {
     try {
       mkdtempTranslated(join(dir, 'no-such-dir', 'probe-'))
       throw new Error('expected mkdtempTranslated to throw')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ArbiterError)
+      expect((err as ArbiterError).code).toBe('ENOENT')
+    }
+  })
+
+  it('createExclusiveTranslated writes content, and leaves EEXIST raw for the caller to branch on (#2294)', () => {
+    const f = join(dir, 'lock.json')
+    createExclusiveTranslated(f, '{"pid":1}')
+    expect(readFileSync(f, 'utf-8')).toBe('{"pid":1}')
+
+    // EEXIST is deliberately NOT translated: file-lock.ts branches on err.code === 'EEXIST'
+    // to build a LockConflictError. A translated ArbiterError would kill that arm silently.
+    try {
+      createExclusiveTranslated(f, '{"pid":2}')
+      throw new Error('expected createExclusiveTranslated to throw on an existing path')
+    } catch (err) {
+      expect(err).not.toBeInstanceOf(ArbiterError)
+      expect((err as NodeJS.ErrnoException).code).toBe('EEXIST')
+    }
+    // The failed exclusive-create must not have clobbered the original content.
+    expect(readFileSync(f, 'utf-8')).toBe('{"pid":1}')
+  })
+
+  it('createExclusiveTranslated translates a missing parent (ENOENT → ArbiterError)', () => {
+    try {
+      createExclusiveTranslated(join(dir, 'no-such-dir', 'lock.json'), '{}')
+      throw new Error('expected createExclusiveTranslated to throw')
+    } catch (err) {
+      expect(err).toBeInstanceOf(ArbiterError)
+      expect((err as ArbiterError).code).toBe('ENOENT')
+    }
+  })
+
+  it('copyTreeTranslated copies a directory tree recursively, and translates a missing source (#2294)', () => {
+    const src = join(dir, 'src')
+    mkdirSync(join(src, 'nested'), { recursive: true })
+    writeFileSync(join(src, 'a.txt'), 'a')
+    writeFileSync(join(src, 'nested', 'b.txt'), 'b')
+
+    const dest = join(dir, 'dest')
+    copyTreeTranslated(src, dest, { recursive: true })
+    expect(readFileSync(join(dest, 'a.txt'), 'utf-8')).toBe('a')
+    expect(readFileSync(join(dest, 'nested', 'b.txt'), 'utf-8')).toBe('b')
+
+    try {
+      copyTreeTranslated(join(dir, 'no-such-src'), join(dir, 'x'), { recursive: true })
+      throw new Error('expected copyTreeTranslated to throw')
     } catch (err) {
       expect(err).toBeInstanceOf(ArbiterError)
       expect((err as ArbiterError).code).toBe('ENOENT')

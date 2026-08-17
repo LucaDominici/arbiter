@@ -674,7 +674,7 @@ Never throw from a generator or detector. Callers do not have try/catch around g
 
 **Adverse git state guard:** Commands that write files (`init`, `update`) call `detectAdverseGitState()` before generating. If a rebase, merge, cherry-pick, bisect, or detached HEAD is detected, the command throws a `UserFacingError` with a fix suggestion. Pass `--force` to override — the guard will warn to stderr and continue instead of aborting. See `src/detectors/git.ts::detectAdverseGitState`.
 
-**Atomic writes:** All file writes go through `src/utils/fs.ts::writeFile`, which uses `atomicWrite()` internally: content is written to a `.arbiter-tmp-<timestamp>` sibling, then renamed into place. If `renameSync` fails with `ENOSPC` (disk full), a `UserFacingError` is thrown with a `df -h` hint. The temp file is cleaned up on any error.
+**Atomic writes:** All file writes go through the `src/utils/fs.ts` façade — `writeFile` (atomic temp+rename for generator-emitted files) or `writeFileTranslated` (one-shot direct writes) — which translates fs errnos into an `ArbiterError` (CANON-17). `writeFile` uses `atomicWrite()` internally: content is written to a `.arbiter-tmp-<timestamp>` sibling, then renamed into place. If `renameSync` fails with `ENOSPC` (disk full), a `UserFacingError` is thrown with a `df -h` hint. The temp file is cleaned up on any error. The façade also covers the less common write shapes: `copyTreeTranslated` (recursive directory copies) and `createExclusiveTranslated` (the atomic exclusive-create used by the lock file).
 
 ---
 

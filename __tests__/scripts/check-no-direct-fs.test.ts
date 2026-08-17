@@ -63,10 +63,13 @@ describe('check-no-direct-fs.mjs — detection (#1991)', () => {
       'chmodSync',
       'unlinkSync',
       'rmSync',
+      'rmdirSync',
       'symlinkSync',
       'mkdtempSync',
-      // #2294 residual: cpSync (copyTreeTranslated) and the openSync('wx')+writeSync
-      // pair (createExclusiveTranslated) — writes the gate could not see before.
+      // #2294 residual: cpSync (copyTreeTranslated) and the openSync/writeSync pair
+      // (createExclusiveTranslated) — writes the gate could not see before. openSync and
+      // writeSync stay in the set so any FUTURE direct use is flagged, even though the
+      // current exclusive-create route is writeFileSync(path, content, { flag: 'wx' }).
       'cpSync',
       'openSync',
       'writeSync',
