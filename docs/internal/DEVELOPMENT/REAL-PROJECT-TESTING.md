@@ -383,6 +383,8 @@ If a future change updates the nightly workflow or one of the real-project fixtu
 
 `greenfield-first-run.test.ts`, `go-debt-node-modules.test.ts`, and `record-red-runner.test.ts` (all under `__tests__/integration/e2e/functional/`) were, until #2257, wired into no CI workflow and no gate script — RED, but invisible. They now run nightly in `_nightly.yml`'s `generated-gate-e2e-greenfield` job (its own job, not folded into `generated-gate-e2e-misc`, because it needs Rust and Python toolchains neither sibling job installs).
 
+That job's step must carry `GH_TOKEN: ${{ github.token }}` (#2314). `greenfield-first-run.test.ts`'s useGitHub cell runs `arbiter init --github`, and `src/detectors/github.ts` honours `--github` only when a live `gh auth status` reports an authenticated CLI. Without a token in the step env the flag resolves false, `init` emits no `.github/workflows` at all, and the cell's workflow-gate assertions fail — a suite that is green on any developer machine whose `gh` is logged in, and red in CI. `__tests__/templates/_nightly-render.test.ts` pins the token to the step so the env cannot be dropped again. (That `init --github` degrades silently rather than warning is the separate product defect #2315.)
+
 ---
 
 ## Troubleshooting
