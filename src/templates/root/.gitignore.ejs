@@ -38,8 +38,19 @@ Thumbs.db
 # Arbiter evidence harness (local retention)
 .evidence/
 
-# Arbiter local runtime state
-.arbiter/
+# Arbiter local runtime state.
+# `/**` and not `/` (#2313): git cannot re-include a file whose PARENT DIRECTORY
+# stays excluded, so a blanket `.arbiter/` makes every negation below dead text.
+# The TDD evidence files are carved out because the L2 gate reads them from a
+# FRESH CI checkout, and because the produced-here guard in
+# scripts/check-tdd-evidence.mjs (#2307) diffs them against the merge-base — an
+# untracked evidence file makes that guard permanently inert. Everything else
+# under .arbiter/ is machine-local runtime state (plan run history, ship attempt
+# counters, worktrees, private notes) and stays ignored.
+.arbiter/**
+!.arbiter/evidence/
+!.arbiter/evidence/tdd/
+!.arbiter/evidence/tdd/*.json
 .agents-dispatched
 .claude/.task-*
 .claude/.task/

@@ -300,6 +300,18 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     expect(runScenario({ evidenceOnMain: true, taskCommit: true, nestedSource: true })).toBe(1)
   })
 
+  // The widening must not become a FALSE red: a nested-layout branch that really did run
+  // its cycle on this branch still passes.
+  it('PASS (exit 0) for a nested-layout branch with evidence produced on the branch', () => {
+    expect(
+      runScenario({
+        taskCommit: true,
+        nestedSource: true,
+        evidence: (sha) => validEvidence(sha, { test_path: 'backend/src/main/java/foo.test.ts' }),
+      }),
+    ).toBe(0)
+  })
+
   it('PASS (exit 0) for a cited task whose evidence file is untracked in the target', () => {
     expect(
       runScenario({

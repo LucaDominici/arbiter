@@ -77,10 +77,7 @@ describe('root/.gitignore.ejs — TDD evidence must stay committable (#2313)', (
     const repo = mkdtempSync(join(tmpdir(), 'gi-'))
     try {
       spawnSync('git', ['init', '-b', 'main'], { cwd: repo })
-      writeFileSync(
-        join(repo, '.gitignore'),
-        render({ language: 'java', projectName: 'consumer' }),
-      )
+      writeFileSync(join(repo, '.gitignore'), render({ language: 'java', projectName: 'consumer' }))
       const r = spawnSync('git', ['check-ignore', '-q', '--no-index', relPath], { cwd: repo })
       return r.status === 0
     } finally {
