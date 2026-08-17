@@ -47,7 +47,12 @@ vi.mock('../../src/detectors/existing.js', () => ({
   isBrownfield: vi.fn().mockReturnValue(false),
 }))
 vi.mock('../../src/detectors/github.js', () => ({
-  detectGithubAccess: vi.fn().mockReturnValue({ authenticated: false }),
+  detectGithubAccess: vi.fn().mockReturnValue({
+    available: true,
+    authenticated: true,
+    username: 'testuser',
+    error: null,
+  }),
 }))
 vi.mock('../../src/detectors/lanes.js', () => ({
   detectLanes: vi.fn().mockReturnValue({ lanes: [] }),

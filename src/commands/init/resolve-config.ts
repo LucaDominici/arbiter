@@ -33,21 +33,47 @@ import type {
 import type { Recipe } from '../../recipes/schema.js'
 import type { InitOptions } from './types.js'
 
+/**
+ * #2315 — `--github` / `--backend github` / `ARBITER_GITHUB=1` are EXPLICIT
+ * requests. When gh is not authenticated, the detector's error must reach the
+ * user instead of being absorbed into a silent `useGitHub:false` that drops
+ * every workflow gate. Fail loudly (exit 1) — the flag is explicit, not a hint.
+ */
+function githubAuthError(
+  githubAccess: ReturnType<typeof detectGithubAccess>,
+): ArbiterError {
+  return ArbiterError.fromKey(
+    'E_INIT_GITHUB_UNAUTHENTICATED',
+    'errors.E_INIT_GITHUB_UNAUTHENTICATED',
+    { error: githubAccess.error ?? 'gh is not authenticated' },
+  )
+}
+
 function resolveUseGitHub(
   options: InitOptions,
   _recipe: Recipe | undefined,
   githubAccess: ReturnType<typeof detectGithubAccess>,
 ): boolean {
-  if (options.backend !== undefined)
-    return options.backend === 'github' && githubAccess.authenticated
-  if (options.github) return githubAccess.authenticated
+  if (options.backend !== undefined) {
+    if (options.backend === 'github' && !githubAccess.authenticated) {
+      throw githubAuthError(githubAccess)
+    }
+    return options.backend === 'github'
+  }
+  if (options.github) {
+    if (!githubAccess.authenticated) throw githubAuthError(githubAccess)
+    return true
+  }
   const arbGhEnv = process.env['ARBITER_GITHUB']
   if (arbGhEnv !== undefined && arbGhEnv !== '1') {
     process.stderr.write(
       `Warning: ARBITER_GITHUB=${arbGhEnv} is not '1' — only ARBITER_GITHUB=1 activates GitHub API calls. Ignored.\n`,
     )
   }
-  if (arbGhEnv === '1') return githubAccess.authenticated
+  if (arbGhEnv === '1') {
+    if (!githubAccess.authenticated) throw githubAuthError(githubAccess)
+    return true
+  }
   return false
 }
 

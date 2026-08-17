@@ -39,7 +39,12 @@ vi.mock('../../src/detectors/existing.js', () => ({
   detectExisting: vi.fn().mockReturnValue({}),
 }))
 vi.mock('../../src/detectors/github.js', () => ({
-  detectGithubAccess: vi.fn().mockReturnValue({ authenticated: false }),
+  detectGithubAccess: vi.fn().mockReturnValue({
+    available: true,
+    authenticated: true,
+    username: 'testuser',
+    error: null,
+  }),
 }))
 vi.mock('../../src/detectors/language-hooks.js', () => ({
   getLanguageHooks: vi.fn().mockReturnValue({}),

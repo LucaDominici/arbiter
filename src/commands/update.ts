@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
-import { UserFacingError, FatalError } from '../utils/errors.js'
+import { UserFacingError, FatalError, ArbiterError } from '../utils/errors.js'
 import {
   beginGenerationSession,
   endGenerationSession,
@@ -667,7 +667,17 @@ function detectProjectInfo(
       `Warning: ARBITER_GITHUB=${arbGhEnv} is not '1' — only ARBITER_GITHUB=1 activates GitHub API calls. Ignored.\n`,
     )
   }
-  const useGitHub = options.github || envGitHub ? detectGithubAccess().authenticated : false
+  // #2315 — `--github` / `ARBITER_GITHUB=1` are explicit requests. Fail loudly
+  // when gh is not authenticated instead of silently dropping every workflow gate.
+  const githubAccess = detectGithubAccess()
+  if ((options.github || envGitHub) && !githubAccess.authenticated) {
+    throw ArbiterError.fromKey(
+      'E_UPDATE_GITHUB_UNAUTHENTICATED',
+      'errors.E_UPDATE_GITHUB_UNAUTHENTICATED',
+      { error: githubAccess.error ?? 'gh is not authenticated' },
+    )
+  }
+  const useGitHub = options.github || envGitHub
 
   // Shared resolver: builds the SAME ProjectConfig as `diff` (registry-dryRun)
   // so the two commands cannot drift on config either (#1077 secondary drift).
