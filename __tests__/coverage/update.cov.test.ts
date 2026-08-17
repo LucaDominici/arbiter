@@ -269,6 +269,19 @@ describe('update.ts branch coverage (#1486)', () => {
     expect(mockDetectGithub).toHaveBeenCalled()
   })
 
+  it('fails loudly when --github is passed but gh is not authenticated (#2315)', async () => {
+    mockLoadConfig.mockReturnValue(baseConfig())
+    mockDetectGithub.mockReturnValue({
+      available: true,
+      authenticated: false,
+      username: null,
+      error: 'Not authenticated. Run: gh auth login',
+    })
+    await expect(runUpdate({ dir, github: true })).rejects.toThrow(
+      /Not authenticated.*gh auth login/i,
+    )
+  })
+
   // ── selectAndRun: snapshot + no diff paths → no_config_changes ─────────────────
   it('prints no-config-changes and full-regens when snapshot present but diff empty', async () => {
     mockLoadConfig.mockReturnValue(baseConfig())

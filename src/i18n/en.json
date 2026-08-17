@@ -52,6 +52,8 @@
     "E_GENERATE_FAILED": "Generator failed: {key}.",
     "E_WORK_ADVANCE_FAILED": "Failed to advance task phase.",
     "E_INIT_GITHUB_SETUP": "Failed to set up GitHub Actions.",
+    "E_INIT_GITHUB_UNAUTHENTICATED": "--github was requested but GitHub CLI (gh) is not authenticated: {error}. No GitHub workflows or their 8 gates (ci-tiers, action-pins, workflow-perms, workflow-runners, workflow-sha-pinning, workflow-job-naming, pr-size-gate, merge-method-ff-only) were emitted. Run `gh auth login` (or set GH_TOKEN) and re-run `arbiter init --github`.",
+    "E_UPDATE_GITHUB_UNAUTHENTICATED": "--github was requested but GitHub CLI (gh) is not authenticated: {error}. No GitHub workflows or their 8 gates (ci-tiers, action-pins, workflow-perms, workflow-runners, workflow-sha-pinning, workflow-job-naming, pr-size-gate, merge-method-ff-only) were emitted. Run `gh auth login` (or set GH_TOKEN) and re-run `arbiter update --github`.",
     "E_INIT_WRITE": "Failed to write initialization files.",
     "E_INIT_DETECT": "Failed to detect project structure.",
     "E_INIT_UNKNOWN_LANGUAGE": "Language is unknown: test naming and test pyramid checks cannot be configured. Re-run `arbiter init --language <lang>` with the project language; governance files were not generated.",
