@@ -66,6 +66,9 @@ const WRITE_OPS = [
   'rmdirSync',
   'symlinkSync',
   'mkdtempSync',
+  'cpSync',
+  'openSync',
+  'writeSync',
 ]
 const PROMISE_WRITE_OPS = [
   'writeFile',

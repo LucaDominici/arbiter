@@ -65,6 +65,11 @@ describe('check-no-direct-fs.mjs — detection (#1991)', () => {
       'rmSync',
       'symlinkSync',
       'mkdtempSync',
+      // #2294 residual: cpSync (copyTreeTranslated) and the openSync('wx')+writeSync
+      // pair (createExclusiveTranslated) — writes the gate could not see before.
+      'cpSync',
+      'openSync',
+      'writeSync',
     ]) {
       const root = fixture({ 'src/a.ts': `import { ${op} } from 'node:fs'\n` })
       expect(run(root).status, op).toBe(1)
