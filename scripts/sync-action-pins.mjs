@@ -175,14 +175,8 @@ function runReverse() {
 
 // ─── Default / --check: EJS ← committed yml (corpus-wide) ────────────────────
 
-function runSync() {
-  const canonicalPins = collectCanonicalPins()
-  const templateFiles = collectWorkflowTemplates(TPL_ROOT)
-  if (templateFiles.length === 0) {
-    process.stdout.write('sync-action-pins: no workflow templates found — nothing to sync\n')
-    process.exit(0)
-  }
-
+// All occurrences across the corpus that diverge from their canonical pin.
+function collectDrifts(templateFiles, canonicalPins) {
   const drifts = []
   for (const file of templateFiles) {
     const rel = file.replace(`${ROOT}/`, '')
@@ -198,46 +192,79 @@ function runSync() {
       })
     }
   }
+  return drifts
+}
 
-  if (CHECK) {
-    if (drifts.length > 0) {
-      process.stderr.write(
-        `sync-action-pins: DRIFT — ${drifts.length} diverged pin(s) across ${templateFiles.length} template(s)\n`,
-      )
-      for (const d of drifts) {
-        process.stderr.write(
-          `  ${d.file}: ${d.action} template=${d.template}  canonical=${d.canonical}\n`,
-        )
-      }
-      process.stderr.write('  Fix: node scripts/sync-action-pins.mjs\n')
-      process.exit(1)
-    }
+function reportCheck(drifts, templateFiles) {
+  if (drifts.length === 0) {
     process.stdout.write('sync-action-pins: all templates in sync with committed workflows\n')
     process.exit(0)
   }
+  process.stderr.write(
+    `sync-action-pins: DRIFT — ${drifts.length} diverged pin(s) across ${templateFiles.length} template(s)\n`,
+  )
+  for (const d of drifts) {
+    process.stderr.write(
+      `  ${d.file}: ${d.action} template=${d.template}  canonical=${d.canonical}\n`,
+    )
+  }
+  process.stderr.write('  Fix: node scripts/sync-action-pins.mjs\n')
+  process.exit(1)
+}
 
+// Rewrite one `uses:` occurrence to its canonical pin, unless it's an
+// already-matching pin or a declared cross-major split. Returns the
+// replacement text and whether it counts as an update.
+function applyCanonicalPin(action, version, comment, canonicalPins) {
+  const canonical = canonicalPins.get(action)
+  if (canonical === undefined) return { text: undefined, updated: false }
+  const occComment = comment.trimEnd()
+  const occMajor = majorOfComment(occComment)
+  const canonMajor = majorOfComment(canonical.comment)
+  if (occMajor === canonMajor) {
+    if (canonical.version === version && canonical.comment.trim() === occComment.trim()) {
+      return { text: undefined, updated: false }
+    }
+    return { text: `${canonical.version}${canonical.comment}`, updated: true }
+  }
+  if (isDeclaredSplit(action, version, occComment)) return { text: undefined, updated: false }
+  return { text: `${canonical.version}${canonical.comment}`, updated: true }
+}
+
+function writeTemplates(templateFiles, canonicalPins) {
   let updated = 0
   for (const file of templateFiles) {
     const content = readFileSync(file, 'utf-8')
     const newContent = content.replace(APPLY_RE, (match, space, action, version, comment = '') => {
-      const canonical = canonicalPins.get(action)
-      if (canonical === undefined) return match
-      const occComment = comment.trimEnd()
-      const occMajor = majorOfComment(occComment)
-      const canonMajor = majorOfComment(canonical.comment)
-      if (occMajor === canonMajor) {
-        if (canonical.version === version && canonical.comment.trim() === occComment.trim())
-          return match
-        updated++
-        return `uses:${space}${action}@${canonical.version}${canonical.comment}`
-      }
-      if (isDeclaredSplit(action, version, occComment)) return match
+      const { text, updated: didUpdate } = applyCanonicalPin(
+        action,
+        version,
+        comment,
+        canonicalPins,
+      )
+      if (!didUpdate) return match
       updated++
-      return `uses:${space}${action}@${canonical.version}${canonical.comment}`
+      return `uses:${space}${action}@${text}`
     })
     if (newContent !== content) writeFileSync(file, newContent, 'utf-8')
   }
+  return updated
+}
 
+function runSync() {
+  const canonicalPins = collectCanonicalPins()
+  const templateFiles = collectWorkflowTemplates(TPL_ROOT)
+  if (templateFiles.length === 0) {
+    process.stdout.write('sync-action-pins: no workflow templates found — nothing to sync\n')
+    process.exit(0)
+  }
+
+  if (CHECK) {
+    reportCheck(collectDrifts(templateFiles, canonicalPins), templateFiles)
+    return
+  }
+
+  const updated = writeTemplates(templateFiles, canonicalPins)
   process.stdout.write('\n')
   if (updated > 0) {
     process.stdout.write(
