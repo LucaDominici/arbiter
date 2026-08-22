@@ -137,8 +137,10 @@ describe('#2328 gate-evidence binding — shape and schema fail closed', () => {
   // The headline failure mode: an absent field must never read as unconstrained.
   it.each(GATE_EVIDENCE_STRING_FIELDS)('rejects a marker with %s deleted', (field: string) => {
     const dir = track(makeRepo())
-    const marker = markerFor(dir)
-    delete marker[field]
+    // Rebuilt without the field rather than deleted in place (no-dynamic-delete).
+    const marker = Object.fromEntries(
+      Object.entries(markerFor(dir)).filter(([key]) => key !== field),
+    )
     const result = verify(marker, dir)
     expect(result.ok).toBe(false)
     expect(String(result.reason)).toContain(field)

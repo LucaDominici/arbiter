@@ -134,8 +134,123 @@ function toolchainFingerprintOf(root: string): string {
   return `sha256:${outer.digest('hex')}`
 }
 
-function reject(reason: string): GatePassVerifyResult {
-  return { ok: false, reason }
+/**
+ * Presence FIRST: an absent or blank field must never read as unconstrained,
+ * which is what makes a pre-v2 marker a rejection rather than a free pass.
+ */
+function shapeProblem(fields: Record<string, unknown>): string | null {
+  for (const field of GATE_PASS_POLICY.stringFields) {
+    const value = fields[field]
+    if (typeof value !== 'string' || value.trim() === '') {
+      return (
+        `gate-pass marker field "${field}" is missing or empty — evidence from an older ` +
+        'arbiter is not honoured; re-run the gate to stamp a current marker'
+      )
+    }
+  }
+  if (fields.schema !== GATE_PASS_POLICY.schema) {
+    return `gate-pass marker schema mismatch: expected "${GATE_PASS_POLICY.schema}", got "${String(fields.schema)}"`
+  }
+  if (fields.tree_was_clean_at_run_time !== true) {
+    return 'gate-pass marker tree_was_clean_at_run_time must be true'
+  }
+  return null
+}
+
+/** Level ranking and age. A marker may NARROW the consumer budget, never widen it. */
+function freshnessProblem(
+  fields: Record<string, unknown>,
+  minLevel: string,
+  maxAgeMin: number,
+  now: number,
+): string | null {
+  if (!Number.isFinite(maxAgeMin) || maxAgeMin <= 0) {
+    return `gate-pass age budget must be a positive number, got ${JSON.stringify(maxAgeMin)}`
+  }
+  const ttl = fields.ttl_minutes
+  if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) {
+    return `gate-pass marker ttl_minutes must be a positive finite number, got ${JSON.stringify(ttl)}`
+  }
+
+  const level = String(fields.level)
+  const rank = GATE_PASS_POLICY.levelRank[level]
+  const required = GATE_PASS_POLICY.levelRank[minLevel]
+  if (rank === undefined) return `gate-pass marker level "${level}" is not a known gate level`
+  if (required === undefined) return `required gate level "${minLevel}" is not a known gate level`
+  if (rank < required) {
+    return `gate-pass marker level "${level}" is below the required "${minLevel}"`
+  }
+
+  const timestamp = String(fields.timestamp)
+  const stampedAt = Date.parse(timestamp)
+  if (!Number.isFinite(stampedAt)) {
+    return `gate-pass marker timestamp is not a valid date: "${timestamp}"`
+  }
+  const ageMin = (now - stampedAt) / 60_000
+  if (ageMin < -GATE_PASS_POLICY.futureSkewMinutes) {
+    return `gate-pass marker timestamp is in the future: "${timestamp}"`
+  }
+  const budget = Math.min(maxAgeMin, ttl)
+  if (ageMin > budget) {
+    return `gate-pass marker expired: ${Math.round(ageMin)} min old, budget ${budget} min`
+  }
+  return null
+}
+
+/** Commit, branch and task correlation (the #1441 anti-replay axis included). */
+function commitProblem(
+  root: string,
+  fields: Record<string, unknown>,
+  taskId: string | undefined,
+): string | null {
+  const head = gitLine(root, ['rev-parse', 'HEAD'])
+  if (head === null) return 'gate-pass marker unverifiable: HEAD does not resolve'
+  if (fields.head_sha !== head) {
+    return `gate-pass marker head_sha mismatch: expected "${head}", got "${String(fields.head_sha)}"`
+  }
+
+  const branch = gitLine(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
+  if (branch === null) return 'gate-pass marker unverifiable: branch does not resolve'
+  if (fields.branch !== branch) {
+    return `gate-pass marker branch mismatch: expected "${branch}", got "${String(fields.branch)}"`
+  }
+
+  if (typeof taskId === 'string' && taskId.trim() !== '' && fields.task_id !== taskId) {
+    return `gate-pass marker task_id "${String(fields.task_id)}" does not match the current task "${taskId}" (anti-replay)`
+  }
+  return null
+}
+
+/** The three axes #2328 added: checkout, toolchain and working-tree content. */
+function identityProblem(root: string, fields: Record<string, unknown>): string | null {
+  if (fields.node_version !== process.version) {
+    return `gate-pass marker node_version mismatch: expected "${process.version}", got "${String(fields.node_version)}"`
+  }
+
+  const checkoutRoot = checkoutRootOf(root)
+  if (checkoutRoot === null) {
+    return 'gate-pass marker unverifiable: checkout root does not resolve'
+  }
+  if (fields.checkout_root !== checkoutRoot) {
+    return (
+      `gate-pass marker checkout_root mismatch: evidence was produced in "${String(fields.checkout_root)}", ` +
+      `this checkout is "${checkoutRoot}" — evidence does not travel between worktrees`
+    )
+  }
+
+  if (fields.toolchain_fingerprint !== toolchainFingerprintOf(root)) {
+    return (
+      'gate-pass marker toolchain_fingerprint mismatch — a lockfile or the installed ' +
+      'toolchain changed since the gate ran'
+    )
+  }
+
+  const treeHash = treeHashOf(root)
+  if (treeHash === null) return 'gate-pass marker unverifiable: tree hash does not resolve'
+  if (fields.tree_hash !== treeHash) {
+    return 'gate-pass marker tree_hash mismatch — the working tree changed since the gate ran'
+  }
+  return null
 }
 
 /**
@@ -147,122 +262,22 @@ export function verifyGatePassMarker(
   marker: unknown,
   opts: GatePassVerifyOptions,
 ): GatePassVerifyResult {
-  const { root } = opts
-  const minLevel = opts.minLevel ?? 'L2'
-  const now = opts.now ?? Date.now()
-
   if (typeof marker !== 'object' || marker === null || Array.isArray(marker)) {
-    return reject('gate-pass marker must be a JSON object')
+    return { ok: false, reason: 'gate-pass marker must be a JSON object' }
   }
   const fields = marker as Record<string, unknown>
+  const { root } = opts
 
-  for (const field of GATE_PASS_POLICY.stringFields) {
-    const value = fields[field]
-    if (typeof value !== 'string' || value.trim() === '') {
-      return reject(
-        `gate-pass marker field "${field}" is missing or empty — evidence from an older ` +
-          'arbiter is not honoured; re-run the gate to stamp a current marker',
-      )
-    }
-  }
+  const reason =
+    shapeProblem(fields) ??
+    freshnessProblem(
+      fields,
+      opts.minLevel ?? 'L2',
+      opts.maxAgeMin ?? GATE_PASS_POLICY.defaultTtlMinutes,
+      opts.now ?? Date.now(),
+    ) ??
+    commitProblem(root, fields, opts.taskId) ??
+    identityProblem(root, fields)
 
-  if (fields.schema !== GATE_PASS_POLICY.schema) {
-    return reject(
-      `gate-pass marker schema mismatch: expected "${GATE_PASS_POLICY.schema}", got "${String(fields.schema)}"`,
-    )
-  }
-
-  if (fields.tree_was_clean_at_run_time !== true) {
-    return reject('gate-pass marker tree_was_clean_at_run_time must be true')
-  }
-
-  const budgetOpt = Number(opts.maxAgeMin ?? GATE_PASS_POLICY.defaultTtlMinutes)
-  if (!Number.isFinite(budgetOpt) || budgetOpt <= 0) {
-    return reject(`gate-pass age budget must be a positive number, got ${JSON.stringify(budgetOpt)}`)
-  }
-  const ttl = fields.ttl_minutes
-  if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) {
-    return reject(
-      `gate-pass marker ttl_minutes must be a positive finite number, got ${JSON.stringify(ttl)}`,
-    )
-  }
-  // The marker may only NARROW the consumer's budget, never widen it.
-  const budget = Math.min(budgetOpt, ttl)
-
-  const level = String(fields.level)
-  const rank = GATE_PASS_POLICY.levelRank[level]
-  const required = GATE_PASS_POLICY.levelRank[minLevel]
-  if (rank === undefined) return reject(`gate-pass marker level "${level}" is not a known gate level`)
-  if (required === undefined) return reject(`required gate level "${minLevel}" is not a known gate level`)
-  if (rank < required) {
-    return reject(`gate-pass marker level "${level}" is below the required "${minLevel}"`)
-  }
-
-  const timestamp = String(fields.timestamp)
-  const stampedAt = Date.parse(timestamp)
-  if (!Number.isFinite(stampedAt)) {
-    return reject(`gate-pass marker timestamp is not a valid date: "${timestamp}"`)
-  }
-  const ageMin = (now - stampedAt) / 60_000
-  if (ageMin < -GATE_PASS_POLICY.futureSkewMinutes) {
-    return reject(`gate-pass marker timestamp is in the future: "${timestamp}"`)
-  }
-  if (ageMin > budget) {
-    return reject(`gate-pass marker expired: ${Math.round(ageMin)} min old, budget ${budget} min`)
-  }
-
-  const head = gitLine(root, ['rev-parse', 'HEAD'])
-  if (head === null) return reject('gate-pass marker unverifiable: HEAD does not resolve')
-  if (fields.head_sha !== head) {
-    return reject(
-      `gate-pass marker head_sha mismatch: expected "${head}", got "${String(fields.head_sha)}"`,
-    )
-  }
-
-  const branch = gitLine(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
-  if (branch === null) return reject('gate-pass marker unverifiable: branch does not resolve')
-  if (fields.branch !== branch) {
-    return reject(
-      `gate-pass marker branch mismatch: expected "${branch}", got "${String(fields.branch)}"`,
-    )
-  }
-
-  const taskId = opts.taskId
-  if (typeof taskId === 'string' && taskId.trim() !== '' && fields.task_id !== taskId) {
-    return reject(
-      `gate-pass marker task_id "${String(fields.task_id)}" does not match the current task "${taskId}" (anti-replay)`,
-    )
-  }
-
-  if (fields.node_version !== process.version) {
-    return reject(
-      `gate-pass marker node_version mismatch: expected "${process.version}", got "${String(fields.node_version)}"`,
-    )
-  }
-
-  const checkoutRoot = checkoutRootOf(root)
-  if (checkoutRoot === null) {
-    return reject('gate-pass marker unverifiable: checkout root does not resolve')
-  }
-  if (fields.checkout_root !== checkoutRoot) {
-    return reject(
-      `gate-pass marker checkout_root mismatch: evidence was produced in "${String(fields.checkout_root)}", ` +
-        `this checkout is "${checkoutRoot}" — evidence does not travel between worktrees`,
-    )
-  }
-
-  if (fields.toolchain_fingerprint !== toolchainFingerprintOf(root)) {
-    return reject(
-      'gate-pass marker toolchain_fingerprint mismatch — a lockfile or the installed ' +
-        'toolchain changed since the gate ran',
-    )
-  }
-
-  const treeHash = treeHashOf(root)
-  if (treeHash === null) return reject('gate-pass marker unverifiable: tree hash does not resolve')
-  if (fields.tree_hash !== treeHash) {
-    return reject('gate-pass marker tree_hash mismatch — the working tree changed since the gate ran')
-  }
-
-  return { ok: true }
+  return reason === null ? { ok: true } : { ok: false, reason }
 }

@@ -4,7 +4,7 @@
 // gets validated against the WRONG tree's gate marker/HEAD. These cases prove
 // resolveTargetRoot() correctly maps the command to its actual target worktree.
 import { spawnSync, execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'

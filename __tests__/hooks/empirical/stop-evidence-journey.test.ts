@@ -100,7 +100,7 @@ function writeJourney(dir: string, branch: string, sha: string, opts: JourneyOpt
 // #2328: the transcript lives OUTSIDE the gated tree — in production it sits
 // under the agent's own state dir, and writing it into the repo would change the
 // working-tree hash the gate-pass marker binds.
-function claimTranscript(_dir: string): string {
+function claimTranscript(): string {
   const p = join(mkdtempSync(join(tmpdir(), 'arbiter-stop-journey-t-')), 'transcript.jsonl')
   writeFileSync(
     p,
@@ -137,7 +137,7 @@ describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
     try {
       writeBaselineEvidence(dir, branch, sha)
       writeJourney(dir, branch, sha)
-      const r = runHook(hookPath, dir, claimTranscript(dir))
+      const r = runHook(hookPath, dir, claimTranscript())
       expect(r.status).toBe(0)
       expect(r.stderr).toBe('')
     } finally {
@@ -149,7 +149,7 @@ describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
     const { dir, hookPath, branch, sha } = setup(true)
     try {
       writeBaselineEvidence(dir, branch, sha)
-      const r = runHook(hookPath, dir, claimTranscript(dir))
+      const r = runHook(hookPath, dir, claimTranscript())
       expect(r.status).toBe(2)
       expect(r.stderr).toMatch(/journey/i)
     } finally {
@@ -162,7 +162,7 @@ describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
     try {
       writeBaselineEvidence(dir, branch, sha)
       writeJourney(dir, branch, sha, { target: 'dev-server' })
-      const r = runHook(hookPath, dir, claimTranscript(dir))
+      const r = runHook(hookPath, dir, claimTranscript())
       expect(r.status).toBe(2)
       expect(r.stderr).toMatch(/artifact/i)
     } finally {
@@ -175,7 +175,7 @@ describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
     try {
       writeBaselineEvidence(dir, branch, sha)
       writeJourney(dir, branch, sha, { spec: '' })
-      const r = runHook(hookPath, dir, claimTranscript(dir))
+      const r = runHook(hookPath, dir, claimTranscript())
       expect(r.status).toBe(2)
       expect(r.stderr).toMatch(/spec/i)
     } finally {
@@ -188,7 +188,7 @@ describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
     try {
       writeBaselineEvidence(dir, branch, sha)
       writeJourney(dir, branch, sha, { branch: 'task/other' })
-      const r = runHook(hookPath, dir, claimTranscript(dir))
+      const r = runHook(hookPath, dir, claimTranscript())
       expect(r.status).toBe(2)
       expect(r.stderr).toMatch(/journey/i)
     } finally {
@@ -201,7 +201,7 @@ describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
     try {
       writeBaselineEvidence(dir, branch, sha)
       writeJourney(dir, branch, sha, { sha: '0'.repeat(40) })
-      const r = runHook(hookPath, dir, claimTranscript(dir))
+      const r = runHook(hookPath, dir, claimTranscript())
       expect(r.status).toBe(2)
       expect(r.stderr).toMatch(/journey/i)
     } finally {
@@ -215,7 +215,7 @@ describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
       // No journey evidence at all — but the check is not rendered when the harness is off,
       // so the three baseline artifacts are sufficient to allow the stop.
       writeBaselineEvidence(dir, branch, sha)
-      const r = runHook(hookPath, dir, claimTranscript(dir))
+      const r = runHook(hookPath, dir, claimTranscript())
       expect(r.status).toBe(0)
       expect(r.stderr).toBe('')
     } finally {

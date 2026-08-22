@@ -61,10 +61,6 @@ interface RunResult {
   stubRan: boolean
 }
 
-function git(dir: string, args: string[]): string {
-  return execFileSync('git', args, { cwd: dir, encoding: 'utf-8' }).trim()
-}
-
 function setupRepo(opts: SetupOpts = {}): string {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-reuse-'))
   execFileSync('git', ['init', '-q'], { cwd: dir, stdio: 'ignore' })
@@ -98,8 +94,6 @@ function setupRepo(opts: SetupOpts = {}): string {
     cwd: dir,
     stdio: 'ignore',
   })
-
-  const headSha = git(dir, ['rev-parse', 'HEAD'])
 
   if (opts.stamp !== null) {
     // Written AFTER the commit → stays untracked (?? …); the porcelain check

@@ -274,7 +274,12 @@ export function materializeGateEvidenceLib(dir: string): void {
  */
 export function writeGatePassEvidence(
   dir: string,
-  opts: { level?: string; taskId?: string; stampedIn?: string; overrides?: Record<string, unknown> } = {},
+  opts: {
+    level?: string
+    taskId?: string
+    stampedIn?: string
+    overrides?: Record<string, unknown>
+  } = {},
 ): Record<string, unknown> {
   const built = buildGateEvidence({
     root: opts.stampedIn ?? dir,

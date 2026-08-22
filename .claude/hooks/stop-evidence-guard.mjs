@@ -130,7 +130,8 @@ function main() {
   const gateVerdict = gateEvidence.verifyGateEvidenceFile(gatePath, {
     root,
     minLevel: 'L2',
-    maxAgeMin: Number(process.env.ARBITER_EVIDENCE_MAX_AGE_MIN) ||
+    maxAgeMin:
+      Number(process.env.ARBITER_EVIDENCE_MAX_AGE_MIN) ||
       gateEvidence.GATE_EVIDENCE_DEFAULT_TTL_MIN,
     taskId,
   })

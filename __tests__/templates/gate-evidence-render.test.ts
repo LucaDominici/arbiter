@@ -68,7 +68,10 @@ describe('scripts/lib/gate-evidence.mjs.ejs — rendering (#2328, INV-48/CANON-0
     // Emitted alongside run-helpers.mjs, exactly as generateCheckAll co-emits both.
     const dir = track(mkdtempSync(join(tmpdir(), 'arbiter-ge-lib-')))
     mkdirSync(dir, { recursive: true })
-    writeFileSync(join(dir, 'run-helpers.mjs'), renderTemplate('scripts/lib/run-helpers.mjs.ejs', {}))
+    writeFileSync(
+      join(dir, 'run-helpers.mjs'),
+      renderTemplate('scripts/lib/run-helpers.mjs.ejs', {}),
+    )
     const file = join(dir, 'gate-evidence.mjs')
     writeFileSync(file, rendered)
     lib = (await import(pathToFileURL(file).href)) as unknown as RenderedLib
@@ -103,7 +106,11 @@ describe('scripts/lib/gate-evidence.mjs.ejs — rendering (#2328, INV-48/CANON-0
         (m.timestamp = new Date(Date.now() - 600 * 60_000).toISOString()),
       /expired/i,
     ],
-    ['forged ttl type', (m: Record<string, unknown>) => (m.ttl_minutes = 'forever'), /ttl_minutes/i],
+    [
+      'forged ttl type',
+      (m: Record<string, unknown>) => (m.ttl_minutes = 'forever'),
+      /ttl_minutes/i,
+    ],
   ])('the emitted verifier rejects: %s', (_label, plant, pattern) => {
     const dir = makeRepo()
     const marker = lib.buildGateEvidence({ root: dir, level: 'L2', taskId: '#1' }) as Record<
