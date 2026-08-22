@@ -26,12 +26,22 @@ import {
   GATE_EVIDENCE_LEVEL_RANK,
   GATE_EVIDENCE_STRING_FIELDS,
   GATE_EVIDENCE_TOOLCHAIN_INPUTS,
+  GATE_EVIDENCE_FUTURE_SKEW_MIN,
   buildGateEvidence,
+  computeToolchainFingerprint,
   verifyGateEvidence,
 } from '../../scripts/lib/gate-evidence.mjs'
 import { GATE_PASS_POLICY } from '../../src/evidence/gate-binding.js'
 
 const BRANCH = 'task/#2328-evidence-binding'
+
+/** The subset of GATE_EVIDENCE_TOOLCHAIN_INPUTS that `makeRepo()` creates. */
+const FIXTURE_TOOLCHAIN_FILES = [
+  'package.json',
+  'package-lock.json',
+  'node_modules/.package-lock.json',
+  '.nvmrc',
+] as const
 
 const dirs: string[] = []
 function track(dir: string): string {
@@ -310,17 +320,57 @@ describe('#2328 gate-evidence binding — toolchain identity', () => {
     expect(String(result.reason)).toMatch(/toolchain_fingerprint/i)
   })
 
-  it.each(GATE_EVIDENCE_TOOLCHAIN_INPUTS)(
-    'rejects evidence once %s is removed',
-    (relPath: string) => {
-      const dir = track(makeRepo())
-      const marker = markerFor(dir)
-      rmSync(join(dir, relPath), { force: true })
-      const result = verify(marker, dir)
-      expect(result.ok).toBe(false)
-      expect(String(result.reason)).toMatch(/toolchain_fingerprint|tree_hash/i)
-    },
-  )
+  // Only the inputs this fixture actually carries: removing a file that was
+  // already absent is a no-op by design (an absent input hashes to a sentinel).
+  it.each(FIXTURE_TOOLCHAIN_FILES)('rejects evidence once %s is removed', (relPath: string) => {
+    const dir = track(makeRepo())
+    const marker = markerFor(dir)
+    rmSync(join(dir, relPath), { force: true })
+    const result = verify(marker, dir)
+    expect(result.ok).toBe(false)
+    expect(String(result.reason)).toMatch(/toolchain_fingerprint|tree_hash/i)
+  })
+
+  it('bites in a NON-NODE project — the fingerprint is not a constant there', () => {
+    // arbiter ships this verifier into Java/Python/Go/Rust repos too. With a
+    // Node-only input list the fingerprint was sha256(absent, absent, …) for
+    // every one of them: an axis present in the marker that could never flip.
+    const dir = track(makeRepo())
+    for (const nodeFile of ['package.json', 'package-lock.json', '.nvmrc']) {
+      rmSync(join(dir, nodeFile), { force: true })
+    }
+    rmSync(join(dir, 'node_modules'), { recursive: true, force: true })
+    writeFileSync(join(dir, 'go.mod'), 'module example.com/fx\n\ngo 1.22\n')
+    writeFileSync(join(dir, 'go.sum'), 'example.com/dep v1.0.0 h1:abc=\n')
+    git(dir, ['add', '-A'])
+    git(dir, ['commit', '-q', '-m', 'go project'])
+
+    const marker = markerFor(dir)
+    expect(verify(marker, dir)).toEqual({ ok: true })
+
+    writeFileSync(join(dir, 'go.sum'), 'example.com/dep v1.0.1 h1:xyz=\n')
+    const result = verify(marker, dir)
+    expect(result.ok).toBe(false)
+    expect(String(result.reason)).toMatch(/toolchain_fingerprint|tree_hash/i)
+  })
+
+  it('hashes every declared toolchain input, not just the Node ones', () => {
+    for (const rel of FIXTURE_TOOLCHAIN_FILES) {
+      expect(GATE_EVIDENCE_TOOLCHAIN_INPUTS).toContain(rel)
+    }
+    // The list must span the stacks arbiter ships into, or the axis is inert there.
+    for (const rel of ['pom.xml', 'pyproject.toml', 'go.sum', 'Cargo.lock']) {
+      expect(GATE_EVIDENCE_TOOLCHAIN_INPUTS).toContain(rel)
+    }
+  })
+
+  it('gives two DIFFERENT projects two different fingerprints', () => {
+    // The all-absent sentinel value must not be the answer for whole ecosystems.
+    const a = track(makeRepo())
+    const b = track(makeRepo())
+    writeFileSync(join(b, 'package-lock.json'), JSON.stringify({ lockfileVersion: 3, b: true }))
+    expect(computeToolchainFingerprint(a)).not.toBe(computeToolchainFingerprint(b))
+  })
 
   it('rejects a marker carrying a forged toolchain_fingerprint', () => {
     const dir = track(makeRepo())
@@ -472,5 +522,6 @@ describe('#2328 gate-evidence binding — engine/script policy parity', () => {
     expect(GATE_PASS_POLICY.levelRank).toEqual(GATE_EVIDENCE_LEVEL_RANK)
     expect([...GATE_PASS_POLICY.stringFields]).toEqual([...GATE_EVIDENCE_STRING_FIELDS])
     expect([...GATE_PASS_POLICY.toolchainInputs]).toEqual([...GATE_EVIDENCE_TOOLCHAIN_INPUTS])
+    expect(GATE_PASS_POLICY.futureSkewMinutes).toBe(GATE_EVIDENCE_FUTURE_SKEW_MIN)
   })
 })

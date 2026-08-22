@@ -38,11 +38,32 @@ export const GATE_PASS_POLICY = {
     'toolchain_fingerprint',
   ] as readonly string[],
   /** Repo-resident toolchain identity, hashed by content — never by `--version`. */
+  /** Fixed cross-language superset — see scripts/lib/gate-evidence.mjs. */
   toolchainInputs: [
+    // Node
     'package.json',
     'package-lock.json',
     'node_modules/.package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
     '.nvmrc',
+    // Java
+    'pom.xml',
+    'build.gradle',
+    'build.gradle.kts',
+    'gradle/wrapper/gradle-wrapper.properties',
+    // Python
+    'pyproject.toml',
+    'poetry.lock',
+    'uv.lock',
+    'requirements.txt',
+    'requirements-dev.txt',
+    // Go
+    'go.mod',
+    'go.sum',
+    // Rust
+    'Cargo.toml',
+    'Cargo.lock',
   ] as readonly string[],
 } as const
 

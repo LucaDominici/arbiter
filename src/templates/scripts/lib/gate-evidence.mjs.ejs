@@ -65,15 +65,41 @@ export const GATE_EVIDENCE_STRING_FIELDS = Object.freeze([
 // manager's build — so hashing it would turn the gate permanently red instead
 // of catching anything. `node_version` covers the interpreter axis and is
 // compared separately by verifyGateEvidence.
+// arbiter ships this verifier into Java/Python/Go/Rust projects too, so the
+// list is a fixed CROSS-LANGUAGE superset: a Node-only list would make the
+// fingerprint the constant sha256(absent, absent, …) in every non-Node repo —
+// an axis that can never flip red, which is the very failure this issue is
+// about. An absent file contributes an `absent` sentinel, so the list stays
+// deterministic across all four consumers whatever the project is.
 export const GATE_EVIDENCE_TOOLCHAIN_INPUTS = Object.freeze([
+  // Node
   'package.json',
   'package-lock.json',
   'node_modules/.package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
   '.nvmrc',
+  // Java
+  'pom.xml',
+  'build.gradle',
+  'build.gradle.kts',
+  'gradle/wrapper/gradle-wrapper.properties',
+  // Python
+  'pyproject.toml',
+  'poetry.lock',
+  'uv.lock',
+  'requirements.txt',
+  'requirements-dev.txt',
+  // Go
+  'go.mod',
+  'go.sum',
+  // Rust
+  'Cargo.toml',
+  'Cargo.lock',
 ])
 
 /** Clock skew tolerated before a marker counts as stamped in the future. */
-const FUTURE_SKEW_MIN = 2
+export const GATE_EVIDENCE_FUTURE_SKEW_MIN = 2
 
 function gitLine(root, args) {
   try {
@@ -257,7 +283,7 @@ function freshnessProblem(marker, minLevel, maxAgeMin, now) {
     return `gate-pass marker timestamp is not a valid date: "${marker.timestamp}"`
   }
   const ageMin = (now - stampedAt) / 60_000
-  if (ageMin < -FUTURE_SKEW_MIN) {
+  if (ageMin < -GATE_EVIDENCE_FUTURE_SKEW_MIN) {
     return `gate-pass marker timestamp is in the future: "${marker.timestamp}"`
   }
   const budget = Math.min(maxAgeMin, ttl)

@@ -1949,8 +1949,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'evidence artifacts exist AND correlate to the current branch and HEAD sha: (1) the ' +
       'plan-review latest.json with verdict PASS, recorded on this branch at a commit that is an ' +
       'ancestor of HEAD; (2) the agents-dispatched sidecar (.arbiter/agents-dispatched.json) on ' +
-      'this branch at an ancestor commit; (3) the gate-pass marker (.arbiter/gate-pass.json) on ' +
-      'this branch with head_sha STRICTLY equal to HEAD (the exact tree was verified). A claim ' +
+      'this branch at an ancestor commit; (3) the gate-pass marker (.arbiter/gate-pass.json) that ' +
+      'still BINDS this tree — schema arbiter-gate-pass-v2, head_sha equal to HEAD, matching ' +
+      'branch and task id, plus the #2328 identity axes: working-tree content hash, checkout ' +
+      'root, toolchain fingerprint, gate level and TTL. A missing or blank field is a ' +
+      'rejection, never an unconstrained axis, so a pre-v2 marker is refused. A claim ' +
       'with any missing or stale artifact is blocked. Every other path — no claim, unreadable ' +
       'transcript, non-task branch, phase complete, hook re-entry — stands down. This is the ' +
       "backstop the soft UserPromptSubmit completion guard cannot be: it observes the agent's own " +
@@ -1961,8 +1964,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       "src/generators/claude.ts and dogfooded in arbiter's own .claude/ (CANON-01/14). Evidence " +
       'writers (scripts/check-all.mjs for the gate-pass marker; the /task and /ship command ' +
       'playbooks in .claude/commands/ for the plan-review and agents-dispatched sidecars) stamp ' +
-      'branch+sha so correlation is possible. Empirical coverage: ' +
-      '__tests__/hooks/empirical/stop-evidence-guard.test.ts.',
+      'branch+sha so correlation is possible; the marker binding itself lives in the shared ' +
+      'scripts/lib/gate-evidence.mjs (#2328). Empirical coverage: ' +
+      '__tests__/hooks/empirical/stop-evidence-guard.test.ts, ' +
+      '__tests__/evidence/gate-evidence-consumers.test.ts.',
   },
   {
     id: 'INV-115',
