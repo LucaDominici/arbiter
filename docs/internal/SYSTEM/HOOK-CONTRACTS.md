@@ -15,7 +15,7 @@ related: []
 > directory. Add a row here whenever you add a hook file; remove the row when you delete the file.
 > Mismatch → gate failure.
 >
-> **Loadability gate (#2324):** the same check also *runs* every `.claude/hooks/*.mjs` and fails
+> **Loadability gate (#2324):** the same check also _runs_ every `.claude/hooks/*.mjs` and fails
 > if any of them cannot load. A hook that crashes on import enforces nothing while still looking
 > installed.
 
@@ -50,7 +50,7 @@ Two blind spots hid it, and both are structural rather than accidental:
 2. `__tests__/hooks/empirical/ssot-guard.test.ts` builds its fixture from the **template pair**
    (template hook + rendered template lib), so it is self-consistent by construction and can never
    observe self-pair drift. `scripts/probe-hooks.mjs` does execute hooks, but takes `--root <repo>`
-   and is aimed at *generated* projects.
+   and is aimed at _generated_ projects.
 
 **Testing contract.** The loadability tests are mutation-flip shaped: `scripts/check-hook-contracts.mjs`
 takes `--root <dir>` so the same fixture tree is asserted green, then one planted defect must flip
