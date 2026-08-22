@@ -36,8 +36,8 @@
   },
   {
     "path": "hooks/lib.mjs",
-    "reason": "Arbiter self-dogfood: imports suppressions-shared.mjs and exports findInlineSuppression for inline-suppression directive support (INV-31). These arbiter-internal imports must not be back-ported to the template shipped to target projects.",
-    "diffHash": "9635567e24b512b699b46b6dcfccc2c6aa5566ae6dcca2ee339251d3710df7b7"
+    "reason": "Arbiter self-dogfood: delegates the suppression-arg parser to scripts/lib/suppressions-shared.mjs instead of carrying the template's inlined copy, so arbiter's hooks and its scripts cannot drift apart on suppression syntax (INV-31). A generated project has no scripts/lib/, so the template must keep inlining it — this import is the ONLY approved divergence. Everything else is forward-synced verbatim from the template. (#2324: the previous pin was a whole-file hash that silently absorbed 5 missing exports, including isPathInThisRepo, leaving pre-edit-ssot-guard crashing on load for 18 days. Re-pin only after diffing the export surface.)",
+    "diffHash": "e4a46c362f0f47da6451196e79f6fd82332160a8cddf3e1ae2a2e0a12c44c1fe"
   },
   {
     "path": "hooks/post-edit-dispatch.mjs",
