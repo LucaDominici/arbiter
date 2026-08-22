@@ -666,13 +666,16 @@ skill decision** (`wave-drain`), and "correlation" survives only as the declarat
 leaf primitives (`docs/REFERENCE/wave-primitives.md:13-16`). This is a _defensible_ simplification,
 but it means the "clustering intelligence" is now prompt text, not code.
 
-### 11.2 Live documentation drift — the phantom "Affinity line" (MEDIUM)
+### 11.2 Live documentation drift — the phantom "Affinity line" (RESOLVED, #2329)
 
-`ship.md.ejs:50-53` still tells every user that "Every `arbiter ship` call also prints an **Affinity**
-line … its best correlation score against open same-milestone siblings vs the threshold." **No source
-emits this anymore** — the ship action (`cli.ts`) calls only `buildShipStepLines` (Phase / Action /
-Tier / Governance / Autonomy / Companion). The feature the doc promises was pruned in §11.1. This is a
-generated template shipped to every target project, so the drift propagates outward.
+`ship.md.ejs` used to tell every user that "Every `arbiter ship` call also prints an **Affinity**
+line … its best correlation score against open same-milestone siblings vs the threshold", while no
+source emitted it — the ship action calls only `buildShipStepLines` (Phase / Action / Command /
+Review agents / Tier / Governance / Autonomy / Self-only checks / Companion). #2329 deleted the
+promise from the self command doc, the shipped template, and the `examples/*` copies, and pinned
+the absence with a globbed test (`__tests__/config/affinity-batching-removed.test.ts`). Kept here
+as the worked example of the class: a generated template propagates a false promise to every
+target, and no link/doc-set gate catches semantic staleness.
 
 ### 11.3 ADR-103 is cited everywhere but has no ADR file (MEDIUM)
 
@@ -686,12 +689,15 @@ comments in `gate-exec.ts`.)
 
 ### 11.4 Config knobs that outlived their consumers (MEDIUM)
 
-`ADR-094` is still `status: proposed`, yet its config fields shipped (`automation.affinityBatching`,
-`maxParallelWorktrees`). `affinityBatching` was meant to feed the affinity engine that §11.1 deleted,
-so the knob now only produces an advisory English string in `planAction` — a live setting with no
-computational consumer. Similarly ADR-035's pluggable decomposition backend abstraction survives in
-template EJS (`_backend = decompositionBackend ?? …`) while its consuming command ("arbiter work")
-was pruned.
+`ADR-094` is still `status: proposed`, yet its config fields shipped
+(`automation.maxParallelWorktrees`, `defaultGateLevel`). `affinityBatching` — meant to feed the
+affinity engine that §11.1 deleted, and reduced to one advisory English string in `planAction` —
+was **removed outright in #2329** (schema, wizard, resolver, settings/method catalogs, recipe
+schema, `ShipProfile`); every write surface now rejects the path rather than accepting and ignoring
+it. Two residuals remain: `maxParallelWorktrees` still resolves into `ShipProfile` with no reader
+there (its real consumers are `src/commands/doctor/health.ts` profile-coherence and `src/commands/wizard/coherence.ts`), and
+ADR-035's pluggable decomposition backend abstraction survives in template EJS
+(`_backend = decompositionBackend ?? …`) while its consuming command ("arbiter work") was pruned.
 
 ### 11.5 Overloaded vocabulary: "tier" means five different things (MEDIUM, comprehension risk)
 
@@ -732,13 +738,12 @@ governance.
 
 ### 11.9 Risk register
 
-| Risk                                                                 | Likelihood          | Impact | Mitigation in place                                                          |
-| -------------------------------------------------------------------- | ------------------- | ------ | ---------------------------------------------------------------------------- |
-| Doc-drift propagates a false promise to every target (Affinity line) | High (already live) | Medium | Fix the template; `check-doc-set`/link gates do not catch semantic staleness |
-| Missing ADR-103 causes divergent re-implementation of the carve-out  | Medium              | Medium | Rule is codified in `50-batch-execution.md` + code comments                  |
-| Overloaded "tier" vocabulary causes a mis-wired gate                 | Medium              | High   | Parity gates (`agent-dispatch-matrix`, catalog↔AGENTS) catch some, not all   |
-| Pruned-engine config knobs mislead an extender                       | Medium              | Low    | This section; the knobs still resolve safely (fail-closed defaults)          |
-| Two-engine parity (TS ↔ mjs) drifts                                  | Low                 | Medium | Deep-equal parity test in CI                                                 |
+| Risk                                                                | Likelihood | Impact | Mitigation in place                                                                       |
+| ------------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------- |
+| Missing ADR-103 causes divergent re-implementation of the carve-out | Medium     | Medium | Rule is codified in `50-batch-execution.md` + code comments                               |
+| Overloaded "tier" vocabulary causes a mis-wired gate                | Medium     | High   | Parity gates (`agent-dispatch-matrix`, catalog↔AGENTS) catch some, not all                |
+| Pruned-engine config knobs mislead an extender                      | Medium     | Low    | §11.4; `affinityBatching` deleted (#2329); the rest resolve safely (fail-closed defaults) |
+| Two-engine parity (TS ↔ mjs) drifts                                 | Low        | Medium | Deep-equal parity test in CI                                                              |
 
 ---
 

@@ -122,8 +122,6 @@ export interface AutomationConfig {
   maxParallelWorktrees?: number
   /** #1306 (ADR-094 §Decision.4) — default gate level for verification. Absent ⇒ derived from governance level. */
   defaultGateLevel?: GateLevel
-  /** #1306 (ADR-094 §Decision.4) — whether ship groups affinity-related issues into one batch. Absent ⇒ derived per collaboration mode. */
-  affinityBatching?: boolean
 }
 
 /**
@@ -1174,10 +1172,6 @@ function validateAutomationPrefs(raw: Record<string, unknown>, errors: string[])
   const gate = raw['defaultGateLevel']
   if (gate !== undefined && !VALID_GATE_LEVELS.includes(gate as GateLevel)) {
     errors.push(`automation.defaultGateLevel must be one of ${VALID_GATE_LEVELS.join('|')}`)
-  }
-  const affinity = raw['affinityBatching']
-  if (affinity !== undefined && typeof affinity !== 'boolean') {
-    errors.push('automation.affinityBatching must be a boolean')
   }
 }
 

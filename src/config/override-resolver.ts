@@ -36,7 +36,6 @@ const DERIVED_DEFAULTS: Record<string, string> = {
   'automation.autonomy': DEFAULT_AUTONOMY,
   'automation.maxParallelWorktrees': '1',
   'automation.defaultGateLevel': 'L1',
-  'automation.affinityBatching': 'false',
 }
 
 export interface ResolveSettingContext {

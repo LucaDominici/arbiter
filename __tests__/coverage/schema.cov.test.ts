@@ -450,12 +450,10 @@ describe('validateConfig — automation', () => {
         autonomy: 'L1',
         maxParallelWorktrees: 0,
         defaultGateLevel: 'L3',
-        affinityBatching: 'yes',
       },
     })
     expect(errs).toContain('automation.maxParallelWorktrees must be a positive integer')
     expect(errs.some((e) => e.includes('automation.defaultGateLevel must be one of'))).toBe(true)
-    expect(errs).toContain('automation.affinityBatching must be a boolean')
   })
 
   it('accepts a fully valid automation block', () => {
@@ -465,7 +463,6 @@ describe('validateConfig — automation', () => {
         autonomy: 'L2',
         maxParallelWorktrees: 3,
         defaultGateLevel: 'L1',
-        affinityBatching: true,
       },
     })
     expect(r.ok).toBe(true)

@@ -43,7 +43,6 @@ const AUTONOMY_PATH = 'automation.autonomy'
 /** #1306 — the unified config paths for the three Project-Profile orchestration prefs. */
 const MAX_PARALLEL_WORKTREES_PATH = 'automation.maxParallelWorktrees'
 const DEFAULT_GATE_LEVEL_PATH = 'automation.defaultGateLevel'
-const AFFINITY_BATCHING_PATH = 'automation.affinityBatching'
 const AUTO_ADVANCE_BEHAVIOR: ShipBehavior = 'auto-advance'
 const AUTO_MERGE_BEHAVIOR: ShipBehavior = 'auto-merge'
 
@@ -115,15 +114,13 @@ export interface ShipProfile {
   /** #1291 — resolved ship autonomy (flag > arbiter.json automation.autonomy > L0). */
   autonomy: AutonomyLevel
   /**
-   * #1306 (ADR-094 §Decision.4) — the three Project-Profile orchestration prefs,
-   * each resolved through the SAME unified precedence resolver as autonomy
-   * (override → session → profile → derived floor). The wave reads
-   * maxParallelWorktrees, verification reads defaultGateLevel, ship reads
-   * affinityBatching — all from this one resolved profile, never a bespoke chain.
+   * #1306 (ADR-094 §Decision.4) — the Project-Profile orchestration prefs, each
+   * resolved through the SAME unified precedence resolver as autonomy (override →
+   * session → profile → derived floor). Verification reads defaultGateLevel — from
+   * this one resolved profile, never a bespoke chain.
    */
   maxParallelWorktrees: number
   defaultGateLevel: GateLevel
-  affinityBatching: boolean
   /**
    * #1730 — companion plugins active for this ship run (ponytail, …), resolved HOME-ONLY and
    * empty on arbiter-self. Consumed by the green-phase action (drafting instruction) and the
@@ -208,7 +205,6 @@ export const CONSUMER_DEFAULT_PROFILE: ShipProfile = {
   // #1306 — conservative floors matching the resolver's DERIVED_DEFAULTS table.
   maxParallelWorktrees: 1,
   defaultGateLevel: 'L1',
-  affinityBatching: false,
   companions: [],
 }
 
@@ -332,10 +328,8 @@ function collaborationProfile(
 function resolveProfilePrefs(
   root: string,
   overrides: Record<string, string> | undefined,
-  profile:
-    | { maxParallelWorktrees?: number; defaultGateLevel?: string; affinityBatching?: boolean }
-    | undefined,
-): Pick<ShipProfile, 'maxParallelWorktrees' | 'defaultGateLevel' | 'affinityBatching'> {
+  profile: { maxParallelWorktrees?: number; defaultGateLevel?: string } | undefined,
+): Pick<ShipProfile, 'maxParallelWorktrees' | 'defaultGateLevel'> {
   const ctx = (profileValue: string | undefined): Parameters<typeof resolveSetting>[1] => ({
     root,
     ...(overrides !== undefined ? { overrides } : {}),
@@ -346,17 +340,12 @@ function resolveProfilePrefs(
     ctx(profile?.maxParallelWorktrees?.toString()),
   )
   const gateRaw = resolveSetting(DEFAULT_GATE_LEVEL_PATH, ctx(profile?.defaultGateLevel))
-  const affinityRaw = resolveSetting(
-    AFFINITY_BATCHING_PATH,
-    ctx(profile?.affinityBatching?.toString()),
-  )
   const mpw = Number(mpwRaw)
   return {
     maxParallelWorktrees: Number.isInteger(mpw) && mpw >= 1 ? mpw : 1,
     defaultGateLevel: (VALID_GATE_LEVELS as readonly string[]).includes(gateRaw)
       ? (gateRaw as GateLevel)
       : 'L1',
-    affinityBatching: affinityRaw === 'true',
   }
 }
 

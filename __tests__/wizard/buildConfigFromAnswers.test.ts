@@ -232,21 +232,20 @@ describe('buildConfigFromAnswers — automation.autonomy (#1261)', () => {
   })
 })
 
-// #1306 (ADR-094 §Decision.4 + §Decision.6): the three orchestration prefs are
+// #1306 (ADR-094 §Decision.4 + §Decision.6): the orchestration prefs are
 // DERIVED by the wizard (not asked) and INHERIT into the generated arbiter.json.
 describe('buildConfigFromAnswers — automation prefs derivation + inheritance (#1306)', () => {
   it('derives the prefs for peer-review @ L2 (default answers)', () => {
     const config = buildConfigFromAnswers(makeInput(), makeAnswers())
-    // peer-review → 3 worktrees + affinity batching; L2 governance → L1 gate.
+    // peer-review → 3 worktrees; L2 governance → L1 gate.
     expect(config.automation).toEqual({
       autonomy: 'L0',
       maxParallelWorktrees: 3,
       defaultGateLevel: 'L1',
-      affinityBatching: true,
     })
   })
 
-  it('derives trunk-solo prefs (1 worktree, no batching) and L2 gate at L3', () => {
+  it('derives trunk-solo prefs (1 worktree) and L2 gate at L3', () => {
     const config = buildConfigFromAnswers(
       makeInput(),
       makeAnswers({ collaborationMode: 'trunk-solo', governanceLevel: 'L3' }),
@@ -255,7 +254,6 @@ describe('buildConfigFromAnswers — automation prefs derivation + inheritance (
       autonomy: 'L0',
       maxParallelWorktrees: 1,
       defaultGateLevel: 'L2',
-      affinityBatching: false,
     })
   })
 
@@ -268,7 +266,6 @@ describe('buildConfigFromAnswers — automation prefs derivation + inheritance (
       autonomy: 'L0',
       maxParallelWorktrees: 3,
       defaultGateLevel: 'L1',
-      affinityBatching: true,
     })
   })
 

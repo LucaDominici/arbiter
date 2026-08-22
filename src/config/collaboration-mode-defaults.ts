@@ -97,21 +97,9 @@ const MAX_PARALLEL_WORKTREES_DEFAULTS: Record<CollaborationMode, number> = {
   'gated-review': 3,
 }
 
-/** Whether ship batches affinity-related issues for a collaboration mode. Solo ships one at a time. */
-const AFFINITY_BATCHING_DEFAULTS: Record<CollaborationMode, boolean> = {
-  'trunk-solo': false,
-  'peer-review': true,
-  'gated-review': true,
-}
-
 /** Returns the default max-parallel-worktrees for a collaboration mode. */
 export function resolveDefaultMaxParallelWorktrees(mode: CollaborationMode): number {
   return MAX_PARALLEL_WORKTREES_DEFAULTS[mode]
-}
-
-/** Returns the default affinity-batching toggle for a collaboration mode. */
-export function resolveDefaultAffinityBatching(mode: CollaborationMode): boolean {
-  return AFFINITY_BATCHING_DEFAULTS[mode]
 }
 
 /**

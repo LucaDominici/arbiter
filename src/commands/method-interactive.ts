@@ -32,7 +32,7 @@ import {
 
 /** Booleans get a yes/no prompt; everything else gets text validated by parseValue. */
 function isBooleanPath(path: string): boolean {
-  return path.startsWith('features.') || path === 'automation.affinityBatching'
+  return path.startsWith('features.')
 }
 
 function currentString(values: Record<string, unknown>, path: string): string {

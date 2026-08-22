@@ -69,7 +69,6 @@ export const ALLOWED_PATHS = new Set([
   // #1306 (ADR-094 §Decision.4) — Project-Profile orchestration prefs.
   'automation.maxParallelWorktrees',
   'automation.defaultGateLevel',
-  'automation.affinityBatching',
 ])
 
 /**
@@ -78,16 +77,15 @@ export const ALLOWED_PATHS = new Set([
  * such as `--autonomy`). Deliberately NOT all of ALLOWED_PATHS — persistent project
  * identity (governanceLevel, archetype, collaborationMode, …) must NOT be per-run
  * flippable. Today exactly the `automation.*` orchestration knobs; #1306 extends it
- * with maxParallelWorktrees / defaultGateLevel / affinityBatching. Every entry MUST
+ * with maxParallelWorktrees / defaultGateLevel. Every entry MUST
  * also be in ALLOWED_PATHS (asserted in tests) so the same parseValue validators apply.
  */
 export const OVERRIDABLE_PATHS = new Set([
   'automation.autonomy',
-  // #1306 — the three orchestration prefs are per-run overridable (like autonomy):
-  // a single ship/wave/verify run may dial concurrency, gate level, or batching.
+  // #1306 — the orchestration prefs are per-run overridable (like autonomy):
+  // a single ship/wave/verify run may dial concurrency or gate level.
   'automation.maxParallelWorktrees',
   'automation.defaultGateLevel',
-  'automation.affinityBatching',
 ])
 
 /**
@@ -275,41 +273,27 @@ export function parseValue(path: string, raw: string): unknown {
   return raw
 }
 
-/** #1306 — the non-enum automation scalar prefs (positive-int / boolean). */
-const AUTOMATION_SCALAR_PATHS = new Set([
-  'automation.maxParallelWorktrees',
-  'automation.affinityBatching',
-])
+/** #1306 — the non-enum automation scalar prefs (positive-int). */
+const AUTOMATION_SCALAR_PATHS = new Set(['automation.maxParallelWorktrees'])
 
 /**
- * #1306 — validate the two scalar automation prefs. maxParallelWorktrees is a
- * positive integer (rejects 0/negatives/floats); affinityBatching is a strict
- * boolean. Extracted from parseValue to keep it under the complexity ceiling.
+ * #1306 — validate the scalar automation pref: maxParallelWorktrees is a positive
+ * integer (rejects 0/negatives/floats). Extracted from parseValue to keep it under
+ * the complexity ceiling.
  */
-function parseAutomationScalar(path: string, raw: string): number | boolean {
-  if (path === 'automation.maxParallelWorktrees') {
-    const n = Number(raw)
-    if (!Number.isInteger(n) || n < 1) {
-      throw ArbiterError.fromKey(
-        'E_INVALID_NUMBER',
-        'errors.E_INVALID_NUMBER',
-        { path, value: raw },
-        {
-          hint: 'Provide a positive integer (≥1). Example: `--set automation.maxParallelWorktrees=3`.',
-        },
-      )
-    }
-    return n
+function parseAutomationScalar(path: string, raw: string): number {
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) {
+    throw ArbiterError.fromKey(
+      'E_INVALID_NUMBER',
+      'errors.E_INVALID_NUMBER',
+      { path, value: raw },
+      {
+        hint: 'Provide a positive integer (≥1). Example: `--set automation.maxParallelWorktrees=3`.',
+      },
+    )
   }
-  // automation.affinityBatching
-  if (raw === 'true') return true
-  if (raw === 'false') return false
-  throw ArbiterError.fromKey(
-    'E_INVALID_BOOL',
-    'errors.E_INVALID_BOOL',
-    { path, value: raw },
-    { hint: 'Use `true` or `false` (lowercase).' },
-  )
+  return n
 }
 
 /**

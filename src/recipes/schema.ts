@@ -86,15 +86,17 @@ export const RecipeSchema = z.object({
   enableGdprMapping: z.boolean().optional(),
   // #1261: ship-autonomy axis (ADR-093 §4) — the non-interactive override for
   // `automation.autonomy` (init --yes/--json never prompts; default is L0).
-  // #1306 (ADR-094 §Decision.4): the three orchestration prefs are recipe-settable
-  // too (optional — absent ⇒ derived per collaboration mode / governance level).
+  // #1306 (ADR-094 §Decision.4): the orchestration prefs are recipe-settable too
+  // (optional — absent ⇒ derived per collaboration mode / governance level).
+  // #2329 — .strict(): a removed or misspelled automation key must be REJECTED, not
+  // silently stripped by zod and then ignored (accept-then-ignore is the worse bug).
   automation: z
     .object({
       autonomy: z.enum(['L0', 'L1', 'L2', 'L3']),
       maxParallelWorktrees: z.number().int().positive().optional(),
       defaultGateLevel: z.enum(['L1', 'L2']).optional(),
-      affinityBatching: z.boolean().optional(),
     })
+    .strict()
     .optional(),
 })
 

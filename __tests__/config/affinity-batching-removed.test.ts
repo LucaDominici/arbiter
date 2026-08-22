@@ -73,9 +73,9 @@ describe('#2329 — the removed knob is rejected, never silently accepted', () =
   })
 
   it('`arbiter configure --set automation.affinityBatching=true` is REJECTED (E_UNKNOWN_PATH)', async () => {
-    await expect(
-      runConfigure({ dir, sets: [`${REMOVED_PATH}=true`] }),
-    ).rejects.toMatchObject({ code: 'E_UNKNOWN_PATH' })
+    await expect(runConfigure({ dir, sets: [`${REMOVED_PATH}=true`] })).rejects.toMatchObject({
+      code: 'E_UNKNOWN_PATH',
+    })
     // and nothing was persisted
     const automation = readArbiterJson(dir)['automation'] as Record<string, unknown>
     expect(automation).not.toHaveProperty('affinityBatching')

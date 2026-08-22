@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1306 (ADR-094 §Decision.4) — the three Project-Profile orchestration prefs:
-// maxParallelWorktrees / defaultGateLevel / affinityBatching. One schema field +
-// one catalog entry + one validator each, picked up by the unified #1305 resolver.
+// #1306 (ADR-094 §Decision.4) — the Project-Profile orchestration prefs:
+// maxParallelWorktrees / defaultGateLevel. One schema field + one catalog entry +
+// one validator each, picked up by the unified #1305 resolver. (affinityBatching was
+// the third; #2329 removed it — see __tests__/config/affinity-batching-removed.test.ts.)
 import { describe, it, expect, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,7 +13,6 @@ import { parseValue, ALLOWED_PATHS, OVERRIDABLE_PATHS } from '../../src/commands
 import { resolveSetting } from '../../src/config/override-resolver.js'
 import {
   resolveDefaultMaxParallelWorktrees,
-  resolveDefaultAffinityBatching,
   resolveDefaultGateLevel,
 } from '../../src/config/collaboration-mode-defaults.js'
 import { defaultConfig } from '../helpers/default-config.js'
@@ -42,13 +42,12 @@ const base = (automation: Record<string, unknown>): Record<string, unknown> => (
 // ── schema validation ─────────────────────────────────────────────────────────
 
 describe('validateConfig — automation prefs (#1306)', () => {
-  it('accepts valid values for all three fields', () => {
+  it('accepts valid values for both fields', () => {
     const r = validateConfig(
       base({
         autonomy: 'L1',
         maxParallelWorktrees: 3,
         defaultGateLevel: 'L2',
-        affinityBatching: true,
       }),
     )
     expect(r.ok).toBe(true)
@@ -75,22 +74,14 @@ describe('validateConfig — automation prefs (#1306)', () => {
     expect(validateConfig(base({ autonomy: 'L0', defaultGateLevel: 'L3' })).ok).toBe(false)
     expect(validateConfig(base({ autonomy: 'L0', defaultGateLevel: 'L1' })).ok).toBe(true)
   })
-
-  it('rejects non-boolean affinityBatching', () => {
-    expect(validateConfig(base({ autonomy: 'L0', affinityBatching: 'yes' })).ok).toBe(false)
-  })
 })
 
 // ── catalog + parseValue ────────────────────────────────────────────────────────
 
 describe('configure catalog + parseValue (#1306)', () => {
-  const paths = [
-    'automation.maxParallelWorktrees',
-    'automation.defaultGateLevel',
-    'automation.affinityBatching',
-  ]
+  const paths = ['automation.maxParallelWorktrees', 'automation.defaultGateLevel']
 
-  it('all three are in ALLOWED_PATHS and OVERRIDABLE_PATHS', () => {
+  it('both are in ALLOWED_PATHS and OVERRIDABLE_PATHS', () => {
     for (const p of paths) {
       expect(ALLOWED_PATHS.has(p), `${p} in ALLOWED_PATHS`).toBe(true)
       expect(OVERRIDABLE_PATHS.has(p), `${p} in OVERRIDABLE_PATHS`).toBe(true)
@@ -115,22 +106,15 @@ describe('configure catalog + parseValue (#1306)', () => {
     expect(parseValue('automation.defaultGateLevel', 'L2')).toBe('L2')
     expect(() => parseValue('automation.defaultGateLevel', 'L3')).toThrow()
   })
-
-  it('parseValue boolean-validates affinityBatching', () => {
-    expect(parseValue('automation.affinityBatching', 'true')).toBe(true)
-    expect(parseValue('automation.affinityBatching', 'false')).toBe(false)
-    expect(() => parseValue('automation.affinityBatching', '1')).toThrow()
-  })
 })
 
 // ── unified resolver derived floors (RT-1306-04) ──────────────────────────────
 
 describe('resolveSetting — derived floors for the new paths (#1306)', () => {
-  it('never throws "no derived default" for the three paths on a profile-blind repo', () => {
+  it('never throws "no derived default" for the paths on a profile-blind repo', () => {
     const dir = tmpRepo(base({ autonomy: 'L0' }))
     expect(resolveSetting('automation.maxParallelWorktrees', { root: dir })).toBe('1')
     expect(resolveSetting('automation.defaultGateLevel', { root: dir })).toBe('L1')
-    expect(resolveSetting('automation.affinityBatching', { root: dir })).toBe('false')
   })
 
   it('profile value wins over the floor', () => {
@@ -139,12 +123,10 @@ describe('resolveSetting — derived floors for the new paths (#1306)', () => {
         autonomy: 'L0',
         maxParallelWorktrees: 4,
         defaultGateLevel: 'L2',
-        affinityBatching: true,
       }),
     )
     expect(resolveSetting('automation.maxParallelWorktrees', { root: dir })).toBe('4')
     expect(resolveSetting('automation.defaultGateLevel', { root: dir })).toBe('L2')
-    expect(resolveSetting('automation.affinityBatching', { root: dir })).toBe('true')
   })
 
   it('per-run override wins over profile (highest precedence)', () => {
@@ -167,14 +149,12 @@ describe('resolveSetting — derived floors for the new paths (#1306)', () => {
 // ── wizard derivation (convention over configuration) ─────────────────────────
 
 describe('collaboration-mode derivations (#1306)', () => {
-  it('trunk-solo → 1 worktree, no affinity batching', () => {
+  it('trunk-solo → 1 worktree', () => {
     expect(resolveDefaultMaxParallelWorktrees('trunk-solo')).toBe(1)
-    expect(resolveDefaultAffinityBatching('trunk-solo')).toBe(false)
   })
 
-  it('peer/gated review → >1 worktrees, affinity batching on', () => {
+  it('peer/gated review → >1 worktrees', () => {
     expect(resolveDefaultMaxParallelWorktrees('peer-review')).toBeGreaterThan(1)
-    expect(resolveDefaultAffinityBatching('peer-review')).toBe(true)
     expect(resolveDefaultMaxParallelWorktrees('gated-review')).toBeGreaterThan(1)
   })
 

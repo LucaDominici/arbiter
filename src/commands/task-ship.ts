@@ -168,24 +168,6 @@ export function shipStepFor(
  * through the project gate — the engine never performs the merge itself.
  */
 /**
- * #1306 — the plan next-action, shaped by the wave-orchestration prefs. When
- * affinityBatching is on AND the profile permits >1 concurrent worktree, the plan
- * step advises grouping affinity-related issues into a parallel wave (bounded by
- * maxParallelWorktrees); otherwise it stays a single-issue plan. The engine never
- * spawns worktrees itself — the string is advisory and routes through the wave loop.
- */
-function planAction(profile: ShipProfile): string {
-  if (profile.affinityBatching && profile.maxParallelWorktrees > 1) {
-    return (
-      `Write the plan, then pass the plan-review gate. Affinity batching is on: ` +
-      `group affinity-related issues into a wave of up to ${profile.maxParallelWorktrees} ` +
-      `parallel worktrees.`
-    )
-  }
-  return 'Write the plan, then pass the plan-review gate.'
-}
-
-/**
  * #1730 — the green (implementation) action, optionally composed with active companion plugins.
  * When a companion (ponytail) is active on the resolved profile, its YAGNI drafting instruction is
  * appended; absent ⇒ the base string, byte-identical to a companion-free ship. The self-guard lives
@@ -304,10 +286,9 @@ function shipStepBody(
     case 'plan':
       return {
         phase,
-        // #1306 — the plan step consumes profile.affinityBatching + maxParallelWorktrees
-        // (resolved through the unified resolver): they tell the wave orchestrator whether
-        // to group affinity-related issues and how many worktrees may run concurrently.
-        action: planAction(profile),
+        // #2329 — batching guidance is model-side prose (the wave-drain skill), not a
+        // config knob: the affinity engine it keyed off was deleted in the #1817 B-prune.
+        action: 'Write the plan, then pass the plan-review gate.',
         command: 'arbiter verify plan <plan-file>',
         reviewAgents: 0,
       }

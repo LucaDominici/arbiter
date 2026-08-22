@@ -332,7 +332,6 @@ describe('runInit — recipe override path', () => {
           autonomy: 'L1',
           maxParallelWorktrees: 2,
           defaultGateLevel: 'L2',
-          affinityBatching: true,
         },
       }),
     )

@@ -521,7 +521,6 @@ function recipeAutomation(a: NonNullable<Recipe['automation']>): AutomationConfi
       ? { maxParallelWorktrees: a.maxParallelWorktrees }
       : {}),
     ...(a.defaultGateLevel !== undefined ? { defaultGateLevel: a.defaultGateLevel } : {}),
-    ...(a.affinityBatching !== undefined ? { affinityBatching: a.affinityBatching } : {}),
   }
 }
 

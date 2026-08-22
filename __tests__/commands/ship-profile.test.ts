@@ -98,7 +98,6 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       // #1306 — no automation block ⇒ resolver derived floors.
       maxParallelWorktrees: 1,
       defaultGateLevel: 'L1',
-      affinityBatching: false,
       // #1730 — no companion installed in the injected home.
       companions: [],
     })
@@ -201,7 +200,6 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       // #1306 — no automation block ⇒ resolver derived floors.
       maxParallelWorktrees: 1,
       defaultGateLevel: 'L1',
-      affinityBatching: false,
       // #1730 — arbiter-self never activates a companion (guard at resolution).
       companions: [],
     })
@@ -272,9 +270,9 @@ describe('resolveShipProfile — companion plugins (#1730)', () => {
   })
 })
 
-// #1306 (ADR-094 §Decision.4) — the three orchestration prefs resolve through the
-// SAME unified resolver as autonomy: wave reads maxParallelWorktrees, verification
-// reads defaultGateLevel, ship reads affinityBatching, all from one ShipProfile.
+// #1306 (ADR-094 §Decision.4) — the orchestration prefs resolve through the SAME
+// unified resolver as autonomy: verification reads defaultGateLevel, all from one
+// ShipProfile. (#2329 removed the third pref, affinityBatching.)
 describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', () => {
   it('surfaces persisted automation prefs from arbiter.json', () => {
     const dir = tmpRepo({
@@ -285,14 +283,12 @@ describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', (
           autonomy: 'L1',
           maxParallelWorktrees: 3,
           defaultGateLevel: 'L2',
-          affinityBatching: true,
         },
       }),
     })
     const p = resolveShipProfile(dir)
     expect(p.maxParallelWorktrees).toBe(3)
     expect(p.defaultGateLevel).toBe('L2')
-    expect(p.affinityBatching).toBe(true)
   })
 
   it('per-run --set overrides the persisted prefs (override layer wins)', () => {
@@ -304,21 +300,15 @@ describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', (
           autonomy: 'L0',
           maxParallelWorktrees: 3,
           defaultGateLevel: 'L2',
-          affinityBatching: true,
         },
       }),
     })
     const overrides = buildShipOverrides(dir, {
-      sets: [
-        'automation.maxParallelWorktrees=1',
-        'automation.defaultGateLevel=L1',
-        'automation.affinityBatching=false',
-      ],
+      sets: ['automation.maxParallelWorktrees=1', 'automation.defaultGateLevel=L1'],
     })
     const p = resolveShipProfile(dir, { overrides })
     expect(p.maxParallelWorktrees).toBe(1)
     expect(p.defaultGateLevel).toBe('L1')
-    expect(p.affinityBatching).toBe(false)
   })
 
   it('absent automation block ⇒ derived floors, never throws (RT-1306-04)', () => {
@@ -332,7 +322,6 @@ describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', (
     }).not.toThrow()
     expect(p.maxParallelWorktrees).toBe(1)
     expect(p.defaultGateLevel).toBe('L1')
-    expect(p.affinityBatching).toBe(false)
   })
 })
 

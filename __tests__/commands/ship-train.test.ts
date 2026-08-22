@@ -26,7 +26,6 @@ const TEST_PROFILE: ShipProfile = {
   autonomy: 'L0',
   maxParallelWorktrees: 1,
   defaultGateLevel: 'L1',
-  affinityBatching: false,
   companions: [],
 }
 

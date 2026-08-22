@@ -47,11 +47,6 @@ arbiter ship #NNN --advance
 # repeat 1–3 until the step reports "Phase: complete (done)"
 ```
 
-Every `arbiter ship` call also prints an **Affinity** line for the issue (computed automatically — no
-flag): its best correlation score against open same-milestone siblings vs the threshold. A
-`WARN low affinity` line means the issue is solo or weakly correlated to its siblings — verify it is
-well-scoped and not entangled before batching. The warning is advisory and never blocks the ship.
-
 On every sub-step, pin the cursor so a mid-task `/clear` resumes exactly:
 
 ```bash

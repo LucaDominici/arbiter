@@ -35,7 +35,6 @@ import {
   collaborationModeFromAnswers,
   resolveDefaultBranchingStrategy,
   resolveDefaultMaxParallelWorktrees,
-  resolveDefaultAffinityBatching,
   resolveDefaultGateLevel,
 } from '../config/collaboration-mode-defaults.js'
 import {
@@ -683,7 +682,6 @@ function buildProfileAxes(
       autonomy: answers.autonomy ?? 'L0',
       maxParallelWorktrees: resolveDefaultMaxParallelWorktrees(mode),
       defaultGateLevel: resolveDefaultGateLevel(answers.governanceLevel),
-      affinityBatching: resolveDefaultAffinityBatching(mode),
     },
   }
 }

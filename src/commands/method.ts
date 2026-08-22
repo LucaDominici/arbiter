@@ -241,12 +241,6 @@ export const METHODOLOGY_CATALOG: readonly MethodologyFeature[] = [
     name: 'Parallel worktree cap',
     configPaths: ['automation.maxParallelWorktrees'],
   },
-  {
-    id: 'M-AGENT-04',
-    cluster: 'agentic-harness',
-    name: 'Affinity batching',
-    configPaths: ['automation.affinityBatching'],
-  },
 
   // ── ssot-traceability ──────────────────────────────────────────────────────
   {

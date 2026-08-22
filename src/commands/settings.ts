@@ -90,7 +90,6 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
       // mode / governance level at init; absent ⇒ resolver floor at every read site.
       { path: 'automation.maxParallelWorktrees', label: 'Max parallel wave worktrees' },
       { path: 'automation.defaultGateLevel', label: 'Default gate level (L1|L2)' },
-      { path: 'automation.affinityBatching', label: 'Affinity batching (group related issues)' },
     ],
   },
   {

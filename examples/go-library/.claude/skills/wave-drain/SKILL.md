@@ -74,7 +74,7 @@ merge-train).
 
 2. Compose a **WAVE**: up to **10 issues**, partitioned into **groups** of **≤5 issues** each,
    grouped by module / dependency. Independent groups are parallelizable. Entangled issues
-   (the `/ship` affinity / batching warning flags these) go in the **same group** or get
+   (shared modules, or a declared `conflicts-with:#N`) go in the **same group** or get
    **split** first via `epic-decompose`.
 3. Record the wave roster: for each group list its issues, target modules, and the
    conflict-risk ordering you will use at integration.

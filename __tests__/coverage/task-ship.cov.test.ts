@@ -6,7 +6,7 @@
  * established ship suites do not reach:
  *   - normalizeShipTaskId: valid `#NNN` vs invalid-throw
  *   - normTier via shipStepFor: 'XS' / 'S' / default 'Standard'
- *   - planAction: affinity-batching-on(>1 worktree) vs default
+ *   - plan action: the constant single-issue string (#2329)
  *   - completeAction: non-trunk-solo / trunk-solo+direct / trunk-solo+pr-ff
  *   - verificationSelfOnlyChecks: isArbiterSelf true vs false
  *   - shipStepBody: every phase case, incl. the lateral red-team-rework
@@ -94,21 +94,14 @@ describe('shipStepFor — normTier + per-phase bodies', () => {
   })
 })
 
-describe('planAction branch — affinity batching', () => {
-  it('advises a parallel wave when affinityBatching && maxParallelWorktrees > 1', () => {
-    const step = shipStepFor('plan', 'Standard', profile({ affinityBatching: true, maxParallelWorktrees: 4 }))
-    expect(step.action).toContain('Affinity batching is on')
-    expect(step.action).toContain('up to 4')
-  })
-
-  it('stays single-issue when affinity is on but only one worktree is permitted', () => {
-    const step = shipStepFor('plan', 'Standard', profile({ affinityBatching: true, maxParallelWorktrees: 1 }))
-    expect(step.action).toBe('Write the plan, then pass the plan-review gate.')
-  })
-
-  it('stays single-issue when affinity batching is off', () => {
-    const step = shipStepFor('plan', 'Standard', profile({ affinityBatching: false, maxParallelWorktrees: 8 }))
-    expect(step.action).toBe('Write the plan, then pass the plan-review gate.')
+// #2329 — the plan action is a constant: the affinityBatching knob that used to
+// branch it was deleted along with the affinity engine (#1817 B-prune).
+describe('plan action — single-issue, knob-free', () => {
+  it('is the same string regardless of the worktree cap', () => {
+    for (const maxParallelWorktrees of [1, 4, 8]) {
+      const step = shipStepFor('plan', 'Standard', profile({ maxParallelWorktrees }))
+      expect(step.action).toBe('Write the plan, then pass the plan-review gate.')
+    }
   })
 })
 
