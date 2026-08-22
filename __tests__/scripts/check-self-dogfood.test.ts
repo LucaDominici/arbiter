@@ -14,6 +14,8 @@ import {
   computeDiff,
   hashDiff,
   classifyDivergence,
+  exportedSymbols,
+  missingExports,
 } from '../../scripts/check-self-dogfood.mjs'
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
@@ -44,12 +46,18 @@ function createDogfoodProbeRoot() {
   return root
 }
 
-function runDogfoodProbe(root: string, timeout: number) {
-  return spawnSync('node', [checkerPath, '--root', root], {
+function runDogfoodProbe(root: string, timeout: number, extraArgs: string[] = []) {
+  return spawnSync('node', [checkerPath, '--root', root, ...extraArgs], {
     cwd: repoRoot,
     encoding: 'utf-8',
     timeout,
   })
+}
+
+/** diffHash currently pinned for a divergence entry in a probe root's manifest. */
+function pinnedHash(root: string, path: string): string | undefined {
+  const entries = JSON.parse(readFileSync(join(root, '.dogfood-divergences.json'), 'utf-8'))
+  return entries.find((e: { path: string }) => e.path === path)?.diffHash
 }
 
 // ─── buildRenderContext ───────────────────────────────────────────────────────
@@ -480,4 +488,134 @@ describe('debt-toolchain twin drift is non-vacuous (#2229)', () => {
       rmSync(root, { recursive: true, force: true })
     }
   }, 360_000)
+})
+
+
+// ─── #2327: a dropped export is un-absorbable by --update-divergences ────────
+// #2324 in miniature: `.claude/hooks/lib.mjs` silently lost `isPathInThisRepo`,
+// a sibling hook imported it, and the hook crashed on every Edit/Write for 18
+// days. The whole-file hash DID notice each change — but `--update-divergences`
+// ABSORBED it. The rule below is deliberately not hash-derived, so re-pinning
+// cannot clear it: an approved divergence may add, replace or reimplement, it
+// may never DROP an export the template ships.
+
+describe('exportedSymbols (#2327)', () => {
+  it('collects function, async function, const, let, class and default exports', () => {
+    const src = [
+      'export function alpha() {}',
+      'export async function beta() {}',
+      'export const gamma = 1',
+      'export let delta = 2',
+      'export class Epsilon {}',
+      'export default function () {}',
+    ].join('\n')
+    expect([...(exportedSymbols(src) as Set<string>)].sort()).toEqual([
+      'Epsilon',
+      'alpha',
+      'beta',
+      'default',
+      'delta',
+      'gamma',
+    ])
+  })
+
+  it('collects named export lists, honouring `as` renames and newlines', () => {
+    const src = 'const a = 1\nconst b = 2\nexport {\n  a,\n  b as zeta,\n}\n'
+    expect([...(exportedSymbols(src) as Set<string>)].sort()).toEqual(['a', 'zeta'])
+  })
+
+  it('ignores a bare `export` occurrence inside ordinary prose/identifiers', () => {
+    expect([...(exportedSymbols('const exported = 1\n') as Set<string>)]).toEqual([])
+  })
+
+  it('returns null when the surface is not statically knowable (`export * from`)', () => {
+    expect(exportedSymbols("export * from './other.mjs'\n")).toBeNull()
+  })
+})
+
+describe('missingExports (#2327)', () => {
+  it('reports a symbol the template exports and the materialized copy does not', () => {
+    expect(
+      missingExports('export function isPathInThisRepo() {}\n', 'export function other() {}\n'),
+    ).toEqual(['isPathInThisRepo'])
+  })
+
+  it('does NOT report an export the materialized copy ADDS (legitimate divergence)', () => {
+    expect(
+      missingExports(
+        'export function shared() {}\n',
+        'export function shared() {}\nexport function extra() {}\n',
+      ),
+    ).toEqual([])
+  })
+
+  it('does NOT report a reimplementation that keeps the export name', () => {
+    expect(
+      missingExports('export function shared() { return 1 }\n', 'export const shared = () => 2\n'),
+    ).toEqual([])
+  })
+
+  it('honours a reviewed per-entry allowedDroppedExports allowlist', () => {
+    expect(missingExports('export function only() {}\n', '\n', ['only'])).toEqual([])
+    expect(missingExports('export function only() {}\n', '\n', ['somethingElse'])).toEqual([
+      'only',
+    ])
+  })
+
+  it('stays silent when either surface is unknowable rather than guessing a mass drop', () => {
+    expect(missingExports('export function a() {}\n', "export * from './x.mjs'\n")).toEqual([])
+  })
+})
+
+describe('a dropped export survives --update-divergences (#2327/#2324)', () => {
+  it('plants the #2324 defect (isPathInThisRepo dropped) and stays RED after a re-pin', () => {
+    const root = createDogfoodProbeRoot()
+    const target = join(root, '.claude/hooks/lib.mjs')
+    try {
+      const before = pinnedHash(root, 'hooks/lib.mjs')
+      // The exact #2324 shape: the function body stays, the `export` keyword
+      // vanishes, so a sibling hook's `import { isPathInThisRepo }` breaks.
+      const dropped = readFileSync(target, 'utf-8').replace(
+        'export function isPathInThisRepo(',
+        'function isPathInThisRepo(',
+      )
+      expect(dropped).not.toContain('export function isPathInThisRepo(')
+      writeFileSync(target, dropped, 'utf-8')
+
+      // Run 1: the sanctioned repair. It must NOT re-pin this entry...
+      const repin = runDogfoodProbe(root, 300_000, ['--update-divergences'])
+      expect(repin.status).not.toBe(0)
+      expect(pinnedHash(root, 'hooks/lib.mjs')).toBe(before)
+
+      // Run 2: ...and the gate must still be RED, naming the dropped symbol.
+      const after = runDogfoodProbe(root, 300_000)
+      expect(after.status).not.toBe(0)
+      const out = after.stdout + after.stderr
+      expect(out).toContain('isPathInThisRepo')
+      expect(out).toContain('drops export')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 660_000)
+
+  it('does NOT over-block: an ADDED export in the same file stays approvable', () => {
+    const root = createDogfoodProbeRoot()
+    const target = join(root, '.claude/hooks/lib.mjs')
+    try {
+      writeFileSync(
+        target,
+        readFileSync(target, 'utf-8') + '\nexport function syntheticAddedHelper() {\n  return 1\n}\n',
+        'utf-8',
+      )
+      // An added export is a legitimate divergence: the re-pin absorbs it and
+      // the gate goes green. If this fails, the rule rejects everything and
+      // proves nothing.
+      const repin = runDogfoodProbe(root, 300_000, ['--update-divergences'])
+      expect(repin.stdout + repin.stderr).not.toContain('drops export')
+      const after = runDogfoodProbe(root, 300_000)
+      expect(after.status).toBe(0)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 660_000)
 })
