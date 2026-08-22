@@ -9,6 +9,7 @@
 // step and advances the phase when its gate is green; the `/ship` slash command is the loop that
 // executes the model-requiring steps between calls. Reuses runTaskAdvance + the existing gates.
 import { ensureDir, writeFileTranslated } from '../utils/fs.js'
+import { UserFacingError } from '../utils/errors.js'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
@@ -657,7 +658,9 @@ function applyChainAdd(root: string, opts: TaskShipOptions): void {
     opts.trainLimits ?? DEFAULT_TRAIN_LIMITS,
   )
   if (verdict.sealed) {
-    throw new Error(
+    // UserFacingError, not Error: a seal is the policy working as designed, not a fault. The
+    // generic handler would print "Unexpected error", telling the operator something broke.
+    throw new UserFacingError(
       `SEALED: ${verdict.reason} — ${verdict.detail}. ` +
         `Land this train (gate, push, one PR closing every id) before starting the next one.`,
     )
