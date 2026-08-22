@@ -490,7 +490,6 @@ describe('debt-toolchain twin drift is non-vacuous (#2229)', () => {
   }, 360_000)
 })
 
-
 // ─── #2327: a dropped export is un-absorbable by --update-divergences ────────
 // #2324 in miniature: `.claude/hooks/lib.mjs` silently lost `isPathInThisRepo`,
 // a sibling hook imported it, and the hook crashed on every Edit/Write for 18
@@ -557,9 +556,7 @@ describe('missingExports (#2327)', () => {
 
   it('honours a reviewed per-entry allowedDroppedExports allowlist', () => {
     expect(missingExports('export function only() {}\n', '\n', ['only'])).toEqual([])
-    expect(missingExports('export function only() {}\n', '\n', ['somethingElse'])).toEqual([
-      'only',
-    ])
+    expect(missingExports('export function only() {}\n', '\n', ['somethingElse'])).toEqual(['only'])
   })
 
   it('stays silent when either surface is unknowable rather than guessing a mass drop', () => {
@@ -604,7 +601,8 @@ describe('a dropped export survives --update-divergences (#2327/#2324)', () => {
     try {
       writeFileSync(
         target,
-        readFileSync(target, 'utf-8') + '\nexport function syntheticAddedHelper() {\n  return 1\n}\n',
+        readFileSync(target, 'utf-8') +
+          '\nexport function syntheticAddedHelper() {\n  return 1\n}\n',
         'utf-8',
       )
       // An added export is a legitimate divergence: the re-pin absorbs it and
