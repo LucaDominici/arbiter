@@ -1,8 +1,8 @@
 ---
 title: 'Hook Contracts — `.claude/hooks/*.mjs`'
-doc_version: '1.1.0'
+doc_version: '1.2.0'
 status: active
-last_review: '2026-08-03'
+last_review: '2026-08-22'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/method']
@@ -14,6 +14,52 @@ related: []
 > **Anti-rot gate:** `scripts/check-hook-contracts.mjs` (L1) diffs this file against the hooks
 > directory. Add a row here whenever you add a hook file; remove the row when you delete the file.
 > Mismatch → gate failure.
+>
+> **Loadability gate (#2324):** the same check also *runs* every `.claude/hooks/*.mjs` and fails
+> if any of them cannot load. A hook that crashes on import enforces nothing while still looking
+> installed.
+
+---
+
+## Loadability contract (#2324)
+
+Every hook in `.claude/hooks/` MUST load. This is enforced, not assumed.
+
+**How it is checked.** `scripts/check-hook-contracts.mjs` spawns each hook as a child process with `{}` on
+stdin and fails when stderr carries a module-resolution signature (`SyntaxError`,
+`does not provide an export named`, `Cannot find module`, `ERR_MODULE_NOT_FOUND`,
+`ERR_UNSUPPORTED_DIR_IMPORT`).
+
+**Why spawned, never `import()`ed.** These hooks execute on load — `pre-edit-ssot-guard.mjs` calls
+`process.exit(0)` at top level, others read stdin and write files. Importing them would terminate
+the checker or fire real side effects.
+
+**Why the payload is `{}`.** ESM resolution happens before any user code runs, so a broken import
+surfaces regardless of payload — while an empty one makes every hook bail at its first field check
+instead of doing real work.
+
+**What is NOT a failure.** Exit 0 (allow) and exit 2 (block) are both healthy verdicts. Only a
+load failure fails the gate.
+
+**Why this exists.** `pre-edit-ssot-guard.mjs` imported `isPathInThisRepo` from a
+`.claude/hooks/lib.mjs` that never exported it, and crashed on every `Edit`/`Write` for 18 days.
+Two blind spots hid it, and both are structural rather than accidental:
+
+1. `hooks/lib.mjs` carries a **whole-file divergence pin** in `.dogfood-divergences.json`.
+   Re-pinning the hash on each change absorbs any drift, including a missing export.
+2. `__tests__/hooks/empirical/ssot-guard.test.ts` builds its fixture from the **template pair**
+   (template hook + rendered template lib), so it is self-consistent by construction and can never
+   observe self-pair drift. `scripts/probe-hooks.mjs` does execute hooks, but takes `--root <repo>`
+   and is aimed at *generated* projects.
+
+**Testing contract.** The loadability tests are mutation-flip shaped: `scripts/check-hook-contracts.mjs`
+takes `--root <dir>` so the same fixture tree is asserted green, then one planted defect must flip
+it red. A gate never observed to flip proves nothing.
+
+**Corollary for `.claude/hooks/lib.mjs`.** Its approved divergence from the template is exactly one
+thing — `findInlineSuppression` delegates to `scripts/lib/suppressions-shared.mjs` instead of the
+template's inlined parser. Before re-pinning that entry, diff the **export surface** against the
+rendered template; a subset is a bug, not a divergence.
 
 Generated from audit #615. Last updated: 2026-05-17.
 
