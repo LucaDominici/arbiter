@@ -55,7 +55,7 @@ function makeRepo(): string {
   git(dir, ['init', '-q', '-b', BRANCH])
   git(dir, ['config', 'user.email', 'test@arbiter.dev'])
   git(dir, ['config', 'user.name', 'Arbiter Test'])
-  writeFileSync(join(dir, '.gitignore'), 'node_modules/\n.arbiter/\n')
+  writeFileSync(join(dir, '.gitignore'), 'node_modules/\n')
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'fx', version: '1.0.0' }))
   writeFileSync(join(dir, 'package-lock.json'), JSON.stringify({ lockfileVersion: 3 }))
   writeFileSync(join(dir, '.nvmrc'), '22\n')
@@ -98,15 +98,17 @@ describe('#2328 gate-evidence binding — negative control', () => {
 })
 
 describe('#2328 gate-evidence binding — shape and schema fail closed', () => {
-  it.each([['null', null], ['array', []], ['string', 'a stale marker'], ['number', 7]] as const)(
-    'rejects a non-object marker: %s',
-    (_label, value) => {
-      const dir = track(makeRepo())
-      const result = verify(value, dir)
-      expect(result.ok).toBe(false)
-      expect(String(result.reason)).toMatch(/JSON object/i)
-    },
-  )
+  it.each([
+    ['null', null],
+    ['array', []],
+    ['string', 'a stale marker'],
+    ['number', 7],
+  ] as const)('rejects a non-object marker: %s', (_label, value) => {
+    const dir = track(makeRepo())
+    const result = verify(value, dir)
+    expect(result.ok).toBe(false)
+    expect(String(result.reason)).toMatch(/JSON object/i)
+  })
 
   it('rejects an OLD v1 marker verbatim — no grandfathering', () => {
     const dir = track(makeRepo())
@@ -208,6 +210,25 @@ describe('#2328 gate-evidence binding — tree identity', () => {
     const result = verify(markerFor(dir, { tree_hash: 'f'.repeat(40) }), dir)
     expect(result.ok).toBe(false)
     expect(String(result.reason)).toMatch(/tree_hash/i)
+  })
+
+  it("works in a repo that GITIGNORES .arbiter/ — arbiter's own shape", () => {
+    // Regression: excluding `.arbiter` with a `:(exclude)` pathspec makes
+    // `git add` refuse ("paths are ignored by one of your .gitignore files")
+    // in exactly the repos that ignore their own runtime state, so the writer
+    // silently produced NO marker and every consumer went dark.
+    const dir = track(makeRepo())
+    writeFileSync(join(dir, '.gitignore'), 'node_modules/\n.arbiter/\n')
+    git(dir, ['add', '-A'])
+    git(dir, ['commit', '-q', '-m', 'ignore .arbiter'])
+
+    const marker = markerFor(dir)
+    expect(marker.tree_hash).toEqual(expect.any(String))
+    expect(verify(marker, dir)).toEqual({ ok: true })
+
+    // …and the axis still bites in that shape.
+    writeFileSync(join(dir, 'src.txt'), 'tampered\n')
+    expect(verify(marker, dir).ok).toBe(false)
   })
 
   it('is NOT disturbed by arbiter runtime state written under .arbiter/', () => {

@@ -3,7 +3,12 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig, writeTaskStateFile } from '../../helpers.js'
+import {
+  makeConfig,
+  materializeGateEvidenceLib,
+  writeGatePassEvidence,
+  writeTaskStateFile,
+} from '../../helpers.js'
 
 // #1212 — fail-closed Stop hook. Spawns the rendered hook against a real git
 // repo and asserts exit 2 (block the stop) only when a completion claim is made
@@ -41,6 +46,8 @@ function setup() {
 
   // Seed a commit so HEAD resolves, then move onto a task/ branch.
   writeFileSync(join(dir, 'README.md'), '# fixture\n')
+  // #2328: the hook verifies the gate-pass marker through this shared library.
+  materializeGateEvidenceLib(dir)
   git(dir, ['add', '-A'])
   git(dir, ['commit', '-m', 'init', '--no-gpg-sign'])
   git(dir, ['checkout', '-b', 'task/1212'])
@@ -66,11 +73,14 @@ interface ContentBlock {
   thinking?: string
 }
 
+// #2328: the transcript lives OUTSIDE the gated tree — in production it sits
+// under the agent's own state dir, and writing it into the repo would change the
+// working-tree hash the gate-pass marker binds.
 function writeTranscript(
-  dir: string,
+  _dir: string,
   lines: Array<{ type: string; blocks: ContentBlock[] }>,
 ): string {
-  const p = join(dir, 'transcript.jsonl')
+  const p = join(mkdtempSync(join(tmpdir(), 'arbiter-stop-evidence-t-')), 'transcript.jsonl')
   const jsonl = lines
     .map((l) => JSON.stringify({ type: l.type, message: { role: l.type, content: l.blocks } }))
     .join('\n')
@@ -128,15 +138,16 @@ function writeCorrelatedEvidence(
     )
   }
   if (opts.omit !== 'gate') {
-    writeFileSync(
-      join(dir, '.arbiter', 'gate-pass.json'),
-      JSON.stringify({
-        head_sha: opts.gateSha ?? sha,
-        branch: b,
-        level: 'L2',
-        task_id: opts.gateTaskId ?? TASK_ID,
-      }),
-    )
+    // #2328: a REAL schema-v2 marker for this checkout; the case under test
+    // plants exactly one field on top of it.
+    writeGatePassEvidence(dir, {
+      taskId: opts.gateTaskId ?? TASK_ID,
+      overrides: {
+        ...(opts.gateSha !== undefined ? { head_sha: opts.gateSha } : {}),
+        ...(opts.branch !== undefined ? { branch: b } : {}),
+        ...(opts.gateTaskId !== undefined ? { task_id: opts.gateTaskId } : {}),
+      },
+    })
   }
 }
 

@@ -33,6 +33,7 @@ import {
 import { spawnSync, execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { materializeGateEvidenceLib, writeGatePassEvidence } from '../helpers.js'
 import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -41,16 +42,10 @@ const __dirname = dirname(__filename)
 const REPO_ROOT = resolve(__dirname, '..', '..')
 const HOOK_SRC = join(REPO_ROOT, '.githooks', 'pre-push')
 
-interface Stamp {
-  head_sha: string
-  branch: string
-  task_id: string
-  timestamp: string
-  level: string
-  node_version: string
-  git_user: string
-  tree_was_clean_at_run_time: boolean
-}
+// #2328: schema-v2 markers are BUILT by the real writer, never hand-written —
+// a hand-maintained literal is how a fixture ends up with an empty field that
+// silently disables an axis. Each case plants one override on a built marker.
+type Stamp = Record<string, unknown>
 
 interface SetupOpts {
   /** null → do not write a stamp at all. Otherwise overrides merged over a valid stamp. */
@@ -79,6 +74,10 @@ function setupRepo(opts: SetupOpts = {}): string {
   // node_modules must exist or the hook bails out early with exit 0 (masking everything).
   mkdirSync(join(dir, 'node_modules'), { recursive: true })
 
+  // #2328: the reuse decision is delegated to the shared verifier, co-emitted
+  // into every project at scripts/lib/gate-evidence.mjs.
+  materializeGateEvidenceLib(dir)
+
   // check-all stub: FAILS (exit 1) and drops a sentinel so we can prove it ran.
   mkdirSync(join(dir, 'scripts'), { recursive: true })
   writeFileSync(
@@ -103,21 +102,10 @@ function setupRepo(opts: SetupOpts = {}): string {
   const headSha = git(dir, ['rev-parse', 'HEAD'])
 
   if (opts.stamp !== null) {
-    const valid: Stamp = {
-      head_sha: headSha,
-      branch: 'task/reuse',
-      task_id: 'unknown',
-      timestamp: new Date().toISOString(),
-      level: 'L2',
-      node_version: process.version,
-      git_user: 'Arbiter Test',
-      tree_was_clean_at_run_time: true,
-      ...(opts.stamp ?? {}),
-    }
     // Written AFTER the commit → stays untracked (?? …); the porcelain check
-    // ignores untracked, so the working tree is still "clean" for the hook.
-    mkdirSync(join(dir, '.arbiter'), { recursive: true })
-    writeFileSync(join(dir, '.arbiter', 'gate-pass.json'), JSON.stringify(valid, null, 2) + '\n')
+    // ignores untracked, so the working tree is still "clean" for the hook, and
+    // the tree hash excludes `.arbiter/` by construction.
+    writeGatePassEvidence(dir, { taskId: 'unknown', overrides: opts.stamp ?? {} })
   }
 
   if (opts.advanceHeadAfterStamp) {

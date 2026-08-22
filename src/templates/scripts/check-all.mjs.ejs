@@ -1534,20 +1534,6 @@ if (!_inspect) {
 }
 
 if (_failedCount === 0 && !_inspect) {
-  const _headResult = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' });
-  const _headSha = _headResult.stdout.trim();
-  const _gitUserResult = spawnSync('git', ['config', 'user.name'], { encoding: 'utf-8' });
-  const _gitUser = _gitUserResult.status === 0 ? _gitUserResult.stdout.trim() : 'unknown';
-  // #1705/#1212: stamp the branch so the fail-closed Stop hook (stop-evidence-guard.mjs)
-  // can require this gate-pass to belong to the current branch (strict branch+sha match).
-  // Mirrors the live scripts/check-all.mjs gate-pass shape — omitting `branch` here breaks
-  // the generated hook's `gate.branch !== branch` check for every target project.
-  const _branch = (() => {
-    try {
-      const _r = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf-8' });
-      return _r.status === 0 ? _r.stdout.trim() : 'unknown';
-    } catch { return 'unknown'; }
-  })();
   // #1441: stamp the task id so the Stop hook can reject a prior task's gate-pass (anti-replay).
   const _taskId = (() => {
     try {
@@ -1557,28 +1543,25 @@ if (_failedCount === 0 && !_inspect) {
       return (typeof _s.taskId === 'string' && _s.taskId.length > 0) ? _s.taskId : 'unknown';
     } catch { return 'unknown'; }
   })();
-  // #2085: record whether the TRACKED tree was clean when the gate ran, so the
-  // generated pre-push hook can reuse this green evidence only when the stamp
-  // corresponds to a committed (clean) tree. Untracked files ('??') are ignored,
-  // matching the hook's porcelain semantics. Fail-closed: any error → false.
-  const _treeWasClean = (() => {
-    try {
-      const _p = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf-8' });
-      if (_p.status !== 0 || typeof _p.stdout !== 'string') return false;
-      return _p.stdout.split('\n').every((l) => l === '' || l.startsWith('??'));
-    } catch { return false; }
-  })();
-  const _markerPath = resolve(process.cwd(), '.arbiter/gate-pass.json');
+  // The marker binds tree content, checkout identity, toolchain identity, level
+  // and a TTL — not just head_sha + branch + a boolean. A fact that cannot be
+  // resolved yields no marker at all: a green gate with no marker is honest, a
+  // marker that cannot prove what it describes is not.
   try {
-    mkdirSync(dirname(_markerPath), { recursive: true });
-    writeFileSync(
-      _markerPath,
-      JSON.stringify(
-        { head_sha: _headSha, branch: _branch, task_id: _taskId, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser, tree_was_clean_at_run_time: _treeWasClean },
-        null,
-        2,
-      ) + '\n',
-    );
+    // Loaded lazily so a project missing the verifier writes NO marker (fail
+    // closed) instead of crashing an otherwise-green gate at import time.
+    const { buildGateEvidence } = await import('./lib/gate-evidence.mjs');
+    const _evidence = buildGateEvidence({ root: process.cwd(), level, taskId: _taskId });
+    if (_evidence === null) {
+      process.stderr.write(
+        'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
+          'could not be resolved, so nothing can bind this gate result to this tree\n',
+      );
+    } else {
+      const _markerPath = resolve(process.cwd(), '.arbiter/gate-pass.json');
+      mkdirSync(dirname(_markerPath), { recursive: true });
+      writeFileSync(_markerPath, JSON.stringify(_evidence, null, 2) + '\n');
+    }
   } catch (_err) {
     process.stderr.write(`check-all: warning: could not write gate marker: ${_err.message}\n`);
   }

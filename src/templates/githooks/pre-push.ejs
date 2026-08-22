@@ -188,39 +188,22 @@ fi
 
 # ─── reuse fresh green gate evidence (skip redundant rerun) ───────────────────
 # The heavy gate below is otherwise UNCONDITIONAL. If check-all.mjs already
-# stamped a GREEN gate result (.arbiter/gate-pass.json) for the EXACT current
-# HEAD, produced from a clean tree, under a matching node version, within the
-# same freshness window, reuse it and skip the rerun. The working tree is already
-# known-clean here (the porcelain check above exits on any tracked change).
-# Fail-closed: any mismatch / missing / malformed stamp / error → run the full
-# gate exactly as before. This runs AFTER the secret scan so security checks are
-# never skipped — only the redundant gate rerun is.
+# stamped a GREEN L2 marker (.arbiter/gate-pass.json) that still BINDS this exact
+# tree, reuse it and skip the rerun. The decision lives in the shared verifier
+# (scripts/lib/gate-evidence.mjs), so this hook demands the same axes as every
+# other consumer: schema, level, TTL, commit, branch, checkout root, toolchain
+# fingerprint and working-tree content hash.
+# Fail-closed: a missing verifier / missing / malformed / non-binding stamp, or
+# any error at all → fall through and run the full gate exactly as before.
 #
 # TRUST BOUNDARY: local convenience, NOT a security control. The stamp is a plain
-# JSON file a local process could forge; CI re-runs the full gate independently
-# and stays authoritative regardless.
-if [ -f ".arbiter/gate-pass.json" ]; then
-  REUSE_HEAD="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
-  if REUSE_MSG=$(REUSE_HEAD="$REUSE_HEAD" REUSE_LEVEL="L2" \
-       REUSE_MAX_AGE_MIN="$ARBITER_PREPUSH_MAX_AGE_MIN" node -e '
-         const { readFileSync } = require("fs");
-         const e = process.env;
-         let s;
-         try { s = JSON.parse(readFileSync(".arbiter/gate-pass.json", "utf-8")); }
-         catch { process.exit(1); }
-         const ageMin = (Date.now() - Date.parse(s.timestamp)) / 60000;
-         const ok =
-           s.head_sha === e.REUSE_HEAD &&
-           s.tree_was_clean_at_run_time === true &&
-           s.level === e.REUSE_LEVEL &&
-           s.node_version === process.version &&
-           Number.isFinite(ageMin) && ageMin >= 0 && ageMin <= Number(e.REUSE_MAX_AGE_MIN);
-         if (!ok) process.exit(1);
-         process.stdout.write("PRE-PUSH: reusing green " + s.level + " evidence for "
-           + String(s.head_sha).slice(0, 12) + " (verified " + Math.round(ageMin)
-           + " min ago), skipping rerun");
-       ' 2>/dev/null); then
-    echo "$REUSE_MSG"
+# JSON file a local process could forge; it only gates whether a developer's own
+# machine reruns its own gate. CI re-runs the full gate independently and stays
+# authoritative regardless.
+if [ -f ".arbiter/gate-pass.json" ] && [ -f "scripts/lib/gate-evidence.mjs" ]; then
+  if REUSE_MSG=$(node scripts/lib/gate-evidence.mjs verify \
+       --min-level L2 --max-age-min "$ARBITER_PREPUSH_MAX_AGE_MIN" 2>/dev/null); then
+    echo "PRE-PUSH: reusing green $REUSE_MSG, skipping rerun"
     exit 0
   fi
 fi

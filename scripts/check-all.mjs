@@ -552,30 +552,12 @@ if (isMain) {
 
   if (failed === 0) {
     try {
-      const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim()
-      // #1212: stamp the branch so the fail-closed Stop hook can require this
-      // gate-pass to belong to the current branch (strict branch+sha match).
-      const branch = (() => {
-        try {
-          return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-            encoding: 'utf-8',
-          }).trim()
-        } catch {
-          return 'unknown'
-        }
-      })()
-      const gitUser = (() => {
-        try {
-          return execFileSync('git', ['config', 'user.name'], { encoding: 'utf-8' }).trim()
-        } catch {
-          return 'unknown'
-        }
-      })()
+      const root = GIT_CWD ?? process.cwd()
       // #1441: stamp the task id so the fail-closed Stop hook can reject a prior
       // task's gate-pass on the same branch (anti-replay, beyond branch+sha).
       const taskId = (() => {
         try {
-          const statusPath = resolve(GIT_CWD ?? process.cwd(), '.claude/.task/status.json')
+          const statusPath = resolve(root, '.claude/.task/status.json')
           if (!existsSync(statusPath)) return 'unknown'
           const s = JSON.parse(readFileSync(statusPath, 'utf-8'))
           return typeof s.taskId === 'string' && s.taskId.length > 0 ? s.taskId : 'unknown'
@@ -583,41 +565,25 @@ if (isMain) {
           return 'unknown'
         }
       })()
-      // #2085: record whether the TRACKED tree was clean when the gate ran, so the
-      // pre-push hook can safely reuse this green evidence only when the stamp
-      // corresponds to a committed (clean) tree. Matches the hook's own porcelain
-      // semantics: untracked files ('??') are ignored. Fail-closed: any error → false
-      // (a stamp that cannot prove cleanliness is never reused).
-      const treeWasClean = (() => {
-        try {
-          const porcelain = execFileSync('git', ['status', '--porcelain'], {
-            encoding: 'utf-8',
-            cwd: GIT_CWD ?? process.cwd(),
-          })
-          return porcelain.split('\n').every((l) => l === '' || l.startsWith('??'))
-        } catch {
-          return false
-        }
-      })()
-      const markerPath = resolve(GIT_CWD ?? process.cwd(), '.arbiter/gate-pass.json')
-      mkdirSync(dirname(markerPath), { recursive: true })
-      writeFileSync(
-        markerPath,
-        JSON.stringify(
-          {
-            head_sha: headSha,
-            branch,
-            task_id: taskId,
-            timestamp: new Date().toISOString(),
-            level,
-            node_version: process.version,
-            git_user: gitUser,
-            tree_was_clean_at_run_time: treeWasClean,
-          },
-          null,
-          2,
-        ) + '\n',
-      )
+      // #2328: the marker binds tree content, checkout identity, toolchain
+      // identity, level and a TTL — not just head_sha + branch + a boolean.
+      // A fact that cannot be resolved yields no marker at all: a green gate
+      // with no marker is honest, a marker that cannot prove what it describes
+      // is not.
+      // Loaded lazily so a checkout missing the verifier writes NO marker (fail
+      // closed) instead of crashing an otherwise-green gate at import time.
+      const { buildGateEvidence } = await import('./lib/gate-evidence.mjs')
+      const evidence = buildGateEvidence({ root, level, taskId })
+      if (evidence === null) {
+        process.stderr.write(
+          'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
+            'could not be resolved, so nothing can bind this gate result to this tree\n',
+        )
+      } else {
+        const markerPath = resolve(root, '.arbiter/gate-pass.json')
+        mkdirSync(dirname(markerPath), { recursive: true })
+        writeFileSync(markerPath, JSON.stringify(evidence, null, 2) + '\n')
+      }
     } catch (err) {
       process.stderr.write(`check-all: warning: could not write gate marker: ${err.message}\n`)
     }

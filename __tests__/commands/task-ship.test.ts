@@ -4,7 +4,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createTestProject, cleanupTestProject } from '../helpers.js'
+import { execFileSync } from 'node:child_process'
+import { createTestProject, cleanupTestProject, writeGatePassEvidence } from '../helpers.js'
 import {
   runTaskShip,
   shipStepFor,
@@ -52,23 +53,24 @@ function writeTddEvidence(dir: string, taskId: string): void {
   )
 }
 
+/**
+ * #2328: the marker gate verifies tree, checkout, toolchain, level and age
+ * against a REAL checkout, so the fixture becomes a real repo and the marker is
+ * stamped by the writer rather than hand-written.
+ */
+function initGitRepo(dir: string): void {
+  const git = (args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+  git(['init', '-q', '-b', 'task/1206-gate-marker'])
+  git(['config', 'user.email', 'test@arbiter.dev'])
+  git(['config', 'user.name', 'test-user'])
+  // Mirrors arbiter's own .gitignore: task/gate runtime state is not tree content.
+  writeFileSync(join(dir, '.gitignore'), '.arbiter/\n.claude/.task/\n.claude/.task-*\n', 'utf-8')
+  git(['add', '-A'])
+  git(['commit', '-q', '-m', 'fixture', '--no-gpg-sign'])
+}
+
 function writeGatePassMarker(dir: string, taskId: string): void {
-  const markerDir = join(dir, '.arbiter')
-  mkdirSync(markerDir, { recursive: true })
-  writeFileSync(
-    join(markerDir, 'gate-pass.json'),
-    JSON.stringify({
-      head_sha: 'b'.repeat(40),
-      branch: 'task/1206-gate-marker',
-      task_id: taskId,
-      timestamp: '2026-08-03T00:00:00.000Z',
-      level: 'L2',
-      node_version: process.version,
-      git_user: 'test-user',
-      tree_was_clean_at_run_time: true,
-    }),
-    'utf-8',
-  )
+  writeGatePassEvidence(dir, { taskId })
 }
 
 function companionEvidencePath(taskId: string, dir: string): string {
@@ -253,6 +255,7 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
   })
 
   it('auto-advances phase-by-phase through gate-green to complete', () => {
+    initGitRepo(dir)
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeTddEvidence(dir, '#1206')
     // The verification/close/complete phase gates require a real-shape marker correlated to

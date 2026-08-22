@@ -117,10 +117,13 @@ describe('generateCheckAll', () => {
     //   issue-readiness.mjs + rework-log.mjs + lib/acceptance-criteria.mjs
     // + check-emission-parity.mjs (#2110 — manifest-vs-disk parity in the project's own gate)
     // + check-m16-handoff.mjs (M16 handoff-contract marker gate, #2103)
+    // + lib/gate-evidence.mjs (#2328 — the gate-pass identity binding shared by the
+    //   writer, both Claude hooks and the pre-push reuse rule)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(44)
+    expect(result.files).toHaveLength(45)
+    expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-evidence.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/acceptance-criteria.mjs'))).toBe(
@@ -365,23 +368,34 @@ describe('generateCheckAll', () => {
   })
 
   describe('gate-pass marker shape (#1705, probe≠writer)', () => {
-    it('gate-pass object includes branch (mirrors live scripts/check-all.mjs)', () => {
+    it('emitted check-all stamps the marker through the shared gate-evidence lib', () => {
       generateCheckAll(makeConfig(dir))
       const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-      // The gate-pass write block...
+      // The writer must not hand-roll the marker: the emitted gate stamps it with
+      // buildGateEvidence, the same function the hooks verify against (#2328).
+      expect(content).toContain("await import('./lib/gate-evidence.mjs')")
       const markerIdx = content.indexOf("'.arbiter/gate-pass.json'")
       expect(markerIdx).toBeGreaterThan(-1)
-      const block = content.slice(markerIdx, markerIdx + 600)
-      // ...must contain the branch field alongside head_sha/task_id (live shape).
-      expect(block).toContain('head_sha')
-      expect(block).toContain('branch')
-      expect(block).toContain('task_id')
+      expect(content).toContain(
+        'buildGateEvidence({ root: process.cwd(), level, taskId: _taskId })',
+      )
     })
 
-    it('computes branch via git rev-parse --abbrev-ref HEAD (not an undefined ref)', () => {
+    it('the co-emitted lib stamps head_sha/branch/task_id plus the identity axes', () => {
       generateCheckAll(makeConfig(dir))
-      const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-      expect(content).toContain("'rev-parse', '--abbrev-ref', 'HEAD'")
+      const lib = readFileSync(join(dir, 'scripts', 'lib', 'gate-evidence.mjs'), 'utf-8')
+      for (const field of [
+        'head_sha',
+        'branch',
+        'task_id',
+        'tree_hash',
+        'checkout_root',
+        'toolchain_fingerprint',
+        'ttl_minutes',
+      ]) {
+        expect(lib, `marker field ${field}`).toContain(field)
+      }
+      expect(lib).toContain("'rev-parse', '--abbrev-ref', 'HEAD'")
     })
   })
 

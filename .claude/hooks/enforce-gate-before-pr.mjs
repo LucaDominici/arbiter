@@ -107,14 +107,36 @@ try {
   process.exit(2)
 }
 
-const headResult = spawnSync('git', ['-C', repoRoot, 'rev-parse', 'HEAD'], { encoding: 'utf-8' })
-const currentHead = headResult.stdout.trim()
-
-if (marker.head_sha !== currentHead) {
+// The shared verifier is loaded lazily and fail-CLOSED: a static import that
+// cannot resolve would abort the hook with exit 1, which Claude Code treats as
+// non-blocking — a missing verifier would silently open the gate.
+let gateEvidence
+try {
+  gateEvidence = await import('../../scripts/lib/gate-evidence.mjs')
+} catch (err) {
   process.stderr.write(
-    `[arbiter] GATE GUARD: gate-pass.json is stale${rootNote}.\n` +
-      `Marker SHA: ${marker.head_sha}\n` +
-      `Current HEAD: ${currentHead}\n` +
+    `[arbiter] GATE GUARD: the gate-pass verifier could not be loaded${rootNote}: ` +
+      `${err instanceof Error ? err.message : String(err)}\n` +
+      'Restore scripts/lib/gate-evidence.mjs (arbiter emits it) and re-run the gate.\n',
+  )
+  process.exit(2)
+}
+
+// head_sha alone lets a marker from a sibling worktree, a changed lockfile or an
+// hours-old run open a PR. Every identity axis is checked here, against the
+// worktree the PR actually targets, and every one fails closed.
+const verdict = gateEvidence.verifyGateEvidence(marker, {
+  root: repoRoot,
+  minLevel: 'L2',
+  maxAgeMin:
+    Number(process.env.ARBITER_EVIDENCE_MAX_AGE_MIN) ||
+    gateEvidence.GATE_EVIDENCE_DEFAULT_TTL_MIN,
+})
+
+if (!verdict.ok) {
+  process.stderr.write(
+    `[arbiter] GATE GUARD: gate-pass.json is stale or does not bind this checkout${rootNote}.\n` +
+      `${verdict.reason}\n` +
       'Run `node scripts/check-all.mjs L2` again after your last commit.\n',
   )
   process.exit(2)

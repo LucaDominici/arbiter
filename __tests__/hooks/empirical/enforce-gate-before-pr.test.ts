@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig } from '../../helpers.js'
+import { makeConfig, materializeGateEvidenceLib, writeGatePassEvidence } from '../../helpers.js'
 
 const RAW_HOOK_PATH = resolve(
   import.meta.dirname,
@@ -21,6 +21,9 @@ function materializeHook(dir: string): string {
   writeFileSync(join(hooksDir, 'lib.mjs'), renderTemplate('claude/hooks/lib.mjs.ejs', cfg))
   const hookPath = join(hooksDir, 'enforce-gate-before-pr.mjs')
   writeFileSync(hookPath, readFileSync(RAW_HOOK_PATH, 'utf-8'))
+  // #2328: the hook verifies the marker through scripts/lib/gate-evidence.mjs,
+  // co-emitted into every project by generateCheckAll.
+  materializeGateEvidenceLib(dir)
   return hookPath
 }
 
@@ -47,22 +50,8 @@ function currentHead(dir: string): string {
 }
 
 function writeMarker(dir: string, headSha: string): void {
-  const arbiterDir = join(dir, '.arbiter')
-  mkdirSync(arbiterDir, { recursive: true })
-  writeFileSync(
-    join(arbiterDir, 'gate-pass.json'),
-    JSON.stringify(
-      {
-        head_sha: headSha,
-        timestamp: new Date().toISOString(),
-        level: 'L2',
-        node_version: process.version,
-        git_user: 'Test User',
-      },
-      null,
-      2,
-    ) + '\n',
-  )
+  // #2328: a real schema-v2 marker for this checkout, with only head_sha planted.
+  writeGatePassEvidence(dir, { taskId: 'unknown', overrides: { head_sha: headSha } })
 }
 
 const dirs: string[] = []

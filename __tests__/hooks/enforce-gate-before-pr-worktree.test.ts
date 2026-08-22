@@ -8,6 +8,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
+import { writeGatePassEvidence } from '../helpers.js'
 
 const HOOK_PATH = resolve(import.meta.dirname, '../../.claude/hooks/enforce-gate-before-pr.mjs')
 
@@ -31,16 +32,9 @@ function currentHead(dir: string): string {
 }
 
 function writeMarker(dir: string, headSha: string): void {
-  const arbiterDir = join(dir, '.arbiter')
-  mkdirSync(arbiterDir, { recursive: true })
-  writeFileSync(
-    join(arbiterDir, 'gate-pass.json'),
-    JSON.stringify(
-      { head_sha: headSha, timestamp: new Date().toISOString(), level: 'L2' },
-      null,
-      2,
-    ) + '\n',
-  )
+  // #2328: a REAL schema-v2 marker stamped IN `dir`, so the checkout_root axis
+  // is exercised by the worktree cases rather than bypassed.
+  writeGatePassEvidence(dir, { taskId: 'unknown', overrides: { head_sha: headSha } })
 }
 
 const dirs: string[] = []

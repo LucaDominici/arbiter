@@ -1,14 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2328 RED BASELINE — the engine-side mirror of scripts/lib/gate-evidence.mjs.
-// `arbiter task advance` must not delegate its verdict to a script that lives
-// inside the tree it is gating, so the policy is carried here too; the parity
-// test in __tests__/evidence/gate-evidence-binding.test.ts pins the two copies
-// together. This baseline reproduces the pre-#2328 binding on purpose.
+//
+// #2328 — engine-side verification of the gate-pass marker.
+//
+// `arbiter task advance` must NOT delegate its verdict to a script that lives
+// inside the tree it is gating: anyone who can edit `scripts/lib/gate-evidence.mjs`
+// would otherwise make `advance` pass forever. The engine therefore carries its
+// own copy of the same policy. `GATE_PASS_POLICY` is the shared contract and is
+// pinned against the script's constants by
+// `__tests__/evidence/gate-evidence-binding.test.ts`, so the two copies cannot
+// drift into a gate that validates nothing.
+//
+// See scripts/lib/gate-evidence.mjs for the rationale behind each axis.
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { mkdtempTranslated, rmTranslated } from '../utils/fs.js'
+import { runCli } from '../utils/run-cli.js'
 
 export const GATE_PASS_POLICY = {
   schema: 'arbiter-gate-pass-v2',
   defaultTtlMinutes: 240,
+  /** Clock skew tolerated before a marker counts as stamped in the future. */
+  futureSkewMinutes: 2,
   levelRank: { L0: 0, L1: 1, L2: 2, L3: 3 } as Readonly<Record<string, number>>,
+  /** Must be present AND non-blank before any comparison happens. */
   stringFields: [
     'schema',
     'head_sha',
@@ -21,6 +37,7 @@ export const GATE_PASS_POLICY = {
     'checkout_root',
     'toolchain_fingerprint',
   ] as readonly string[],
+  /** Repo-resident toolchain identity, hashed by content — never by `--version`. */
   toolchainInputs: [
     'package.json',
     'package-lock.json',
@@ -28,3 +45,224 @@ export const GATE_PASS_POLICY = {
     '.nvmrc',
   ] as readonly string[],
 } as const
+
+export interface GatePassVerifyOptions {
+  /** Directory inside the checkout the evidence must describe. */
+  root: string
+  /** Lowest gate level the caller accepts (default `L2`). */
+  minLevel?: string
+  /** Consumer age budget in minutes; a marker may narrow it, never widen it. */
+  maxAgeMin?: number
+  /** When set, the marker must belong to this task (anti-replay, #1441). */
+  taskId?: string
+  /** Injectable clock, for tests. */
+  now?: number
+}
+
+export type GatePassVerifyResult = { ok: true } | { ok: false; reason: string }
+
+function gitLine(root: string, args: readonly string[]): string | null {
+  try {
+    const result = runCli('git', [...args], { cwd: root, timeoutMs: 15_000 })
+    if (result.exitCode !== 0) return null
+    const out = result.stdout.trim()
+    return out === '' ? null : out
+  } catch {
+    return null
+  }
+}
+
+/** Physical path of the checkout `root` belongs to, symlinks resolved. */
+function checkoutRootOf(root: string): string | null {
+  const top = gitLine(root, ['rev-parse', '--show-toplevel'])
+  if (top === null) return null
+  try {
+    return realpathSync(top)
+  } catch {
+    return top
+  }
+}
+
+/**
+ * Content identity of the working tree, written through a throwaway index so
+ * neither the real index nor HEAD is touched. `.arbiter/` is excluded: it holds
+ * arbiter's own runtime state, including the marker being verified.
+ */
+function treeHashOf(root: string): string | null {
+  const top = checkoutRootOf(root)
+  if (top === null) return null
+  let indexDir: string | null = null
+  try {
+    indexDir = mkdtempTranslated(join(tmpdir(), 'arbiter-tree-index-'))
+    const env = { ...process.env, GIT_INDEX_FILE: join(indexDir, 'index') }
+    const staged = runCli('git', ['add', '-A'], { cwd: top, env, timeoutMs: 60_000 })
+    if (staged.exitCode !== 0) return null
+    // Drop `.arbiter/` from the throwaway index rather than excluding it via
+    // pathspec: `git add -- ':(exclude).arbiter'` names the path explicitly and
+    // errors out in every repo that gitignores its own runtime state.
+    const dropped = runCli('git', ['rm', '-r', '--cached', '--ignore-unmatch', '-q', '.arbiter'], {
+      cwd: top,
+      env,
+      timeoutMs: 30_000,
+    })
+    if (dropped.exitCode !== 0) return null
+    const written = runCli('git', ['write-tree'], { cwd: top, env, timeoutMs: 15_000 })
+    if (written.exitCode !== 0) return null
+    const out = written.stdout.trim()
+    return out === '' ? null : out
+  } catch {
+    return null
+  } finally {
+    if (indexDir !== null) rmTranslated(indexDir, { recursive: true, force: true })
+  }
+}
+
+/** sha256 over the BYTES of the repo-resident toolchain inputs, in fixed order. */
+function toolchainFingerprintOf(root: string): string {
+  const top = checkoutRootOf(root) ?? root
+  const outer = createHash('sha256')
+  for (const rel of GATE_PASS_POLICY.toolchainInputs) {
+    const path = join(top, ...rel.split('/'))
+    let entry = 'absent'
+    try {
+      if (existsSync(path)) entry = createHash('sha256').update(readFileSync(path)).digest('hex')
+    } catch {
+      entry = 'unreadable'
+    }
+    outer.update(`${rel}\n${entry}\n`)
+  }
+  return `sha256:${outer.digest('hex')}`
+}
+
+function reject(reason: string): GatePassVerifyResult {
+  return { ok: false, reason }
+}
+
+/**
+ * Verify a gate-pass marker against the tree it claims to describe. Never
+ * throws; every axis fails closed, and a missing or blank field is rejected
+ * rather than treated as unconstrained.
+ */
+export function verifyGatePassMarker(
+  marker: unknown,
+  opts: GatePassVerifyOptions,
+): GatePassVerifyResult {
+  const { root } = opts
+  const minLevel = opts.minLevel ?? 'L2'
+  const now = opts.now ?? Date.now()
+
+  if (typeof marker !== 'object' || marker === null || Array.isArray(marker)) {
+    return reject('gate-pass marker must be a JSON object')
+  }
+  const fields = marker as Record<string, unknown>
+
+  for (const field of GATE_PASS_POLICY.stringFields) {
+    const value = fields[field]
+    if (typeof value !== 'string' || value.trim() === '') {
+      return reject(
+        `gate-pass marker field "${field}" is missing or empty — evidence from an older ` +
+          'arbiter is not honoured; re-run the gate to stamp a current marker',
+      )
+    }
+  }
+
+  if (fields.schema !== GATE_PASS_POLICY.schema) {
+    return reject(
+      `gate-pass marker schema mismatch: expected "${GATE_PASS_POLICY.schema}", got "${String(fields.schema)}"`,
+    )
+  }
+
+  if (fields.tree_was_clean_at_run_time !== true) {
+    return reject('gate-pass marker tree_was_clean_at_run_time must be true')
+  }
+
+  const budgetOpt = Number(opts.maxAgeMin ?? GATE_PASS_POLICY.defaultTtlMinutes)
+  if (!Number.isFinite(budgetOpt) || budgetOpt <= 0) {
+    return reject(`gate-pass age budget must be a positive number, got ${JSON.stringify(budgetOpt)}`)
+  }
+  const ttl = fields.ttl_minutes
+  if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) {
+    return reject(
+      `gate-pass marker ttl_minutes must be a positive finite number, got ${JSON.stringify(ttl)}`,
+    )
+  }
+  // The marker may only NARROW the consumer's budget, never widen it.
+  const budget = Math.min(budgetOpt, ttl)
+
+  const level = String(fields.level)
+  const rank = GATE_PASS_POLICY.levelRank[level]
+  const required = GATE_PASS_POLICY.levelRank[minLevel]
+  if (rank === undefined) return reject(`gate-pass marker level "${level}" is not a known gate level`)
+  if (required === undefined) return reject(`required gate level "${minLevel}" is not a known gate level`)
+  if (rank < required) {
+    return reject(`gate-pass marker level "${level}" is below the required "${minLevel}"`)
+  }
+
+  const timestamp = String(fields.timestamp)
+  const stampedAt = Date.parse(timestamp)
+  if (!Number.isFinite(stampedAt)) {
+    return reject(`gate-pass marker timestamp is not a valid date: "${timestamp}"`)
+  }
+  const ageMin = (now - stampedAt) / 60_000
+  if (ageMin < -GATE_PASS_POLICY.futureSkewMinutes) {
+    return reject(`gate-pass marker timestamp is in the future: "${timestamp}"`)
+  }
+  if (ageMin > budget) {
+    return reject(`gate-pass marker expired: ${Math.round(ageMin)} min old, budget ${budget} min`)
+  }
+
+  const head = gitLine(root, ['rev-parse', 'HEAD'])
+  if (head === null) return reject('gate-pass marker unverifiable: HEAD does not resolve')
+  if (fields.head_sha !== head) {
+    return reject(
+      `gate-pass marker head_sha mismatch: expected "${head}", got "${String(fields.head_sha)}"`,
+    )
+  }
+
+  const branch = gitLine(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
+  if (branch === null) return reject('gate-pass marker unverifiable: branch does not resolve')
+  if (fields.branch !== branch) {
+    return reject(
+      `gate-pass marker branch mismatch: expected "${branch}", got "${String(fields.branch)}"`,
+    )
+  }
+
+  const taskId = opts.taskId
+  if (typeof taskId === 'string' && taskId.trim() !== '' && fields.task_id !== taskId) {
+    return reject(
+      `gate-pass marker task_id "${String(fields.task_id)}" does not match the current task "${taskId}" (anti-replay)`,
+    )
+  }
+
+  if (fields.node_version !== process.version) {
+    return reject(
+      `gate-pass marker node_version mismatch: expected "${process.version}", got "${String(fields.node_version)}"`,
+    )
+  }
+
+  const checkoutRoot = checkoutRootOf(root)
+  if (checkoutRoot === null) {
+    return reject('gate-pass marker unverifiable: checkout root does not resolve')
+  }
+  if (fields.checkout_root !== checkoutRoot) {
+    return reject(
+      `gate-pass marker checkout_root mismatch: evidence was produced in "${String(fields.checkout_root)}", ` +
+        `this checkout is "${checkoutRoot}" — evidence does not travel between worktrees`,
+    )
+  }
+
+  if (fields.toolchain_fingerprint !== toolchainFingerprintOf(root)) {
+    return reject(
+      'gate-pass marker toolchain_fingerprint mismatch — a lockfile or the installed ' +
+        'toolchain changed since the gate ran',
+    )
+  }
+
+  const treeHash = treeHashOf(root)
+  if (treeHash === null) return reject('gate-pass marker unverifiable: tree hash does not resolve')
+  if (fields.tree_hash !== treeHash) {
+    return reject('gate-pass marker tree_hash mismatch — the working tree changed since the gate ran')
+  }
+
+  return { ok: true }
+}

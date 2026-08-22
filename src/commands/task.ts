@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { ensureDir, writeFileTranslated, readFileTranslated } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { normalizeChainId } from './task-state.js'
-import { getBoolFlag } from '../config/env-registry.js'
+import { getBoolFlag, getNumberFlag } from '../config/env-registry.js'
 import {
   type TaskPhase,
   type UnifiedTaskState,
@@ -20,13 +20,9 @@ import {
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
-import {
-  currentBranch,
-  headSha,
-  pathExistsInCommit,
-  resolveEvidenceCommit,
-} from '../evidence/git-checks.js'
+import { pathExistsInCommit, resolveEvidenceCommit } from '../evidence/git-checks.js'
 import { detectHostCapabilities } from '../capabilities/host-probe.js'
+import { verifyGatePassMarker } from '../evidence/gate-binding.js'
 
 export class HandoffRequiredError extends Error {
   constructor(message: string) {
@@ -401,17 +397,15 @@ function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOp
   void claudeDir
 }
 
-type GatePassMarker = {
-  head_sha?: unknown
-  branch?: unknown
-  tree_was_clean_at_run_time?: unknown
-}
-
-function isGatePassMarker(value: unknown): value is GatePassMarker {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-/** Require a current, clean-tree gate pass before entering a post-implementation phase. */
+/**
+ * Require a current gate pass, bound to THIS tree, before entering a
+ * post-implementation phase.
+ *
+ * #2328: the verdict is computed in-engine (see src/evidence/gate-binding.ts) —
+ * never by running a script out of the tree being gated — and every identity
+ * axis fails closed: schema, level, age, commit, branch, checkout, toolchain
+ * and working-tree content.
+ */
 function checkGatePassMarkerGate(dir: string): void {
   const inCi = process.env.CI === 'true'
   const envBypass = getBoolFlag('ARBITER_SKIP_GATE_MARKER')
@@ -430,11 +424,9 @@ function checkGatePassMarkerGate(dir: string): void {
     )
   }
 
-  let marker: GatePassMarker
+  let parsed: unknown
   try {
-    const parsed: unknown = JSON.parse(readFileTranslated(markerPath, 'utf-8'))
-    if (!isGatePassMarker(parsed)) throw new Error('marker must be a JSON object')
-    marker = parsed
+    parsed = JSON.parse(readFileTranslated(markerPath, 'utf-8'))
   } catch (err) {
     throw new Error(
       `gate-pass marker corrupt at ${markerPath}: ${err instanceof Error ? err.message : String(err)}. ` +
@@ -443,27 +435,13 @@ function checkGatePassMarkerGate(dir: string): void {
     )
   }
 
-  const currentHead = headSha(dir)
-  if (marker.head_sha !== currentHead) {
-    throw new Error(
-      `gate-pass marker head_sha mismatch: expected current HEAD "${currentHead}", got "${String(marker.head_sha)}". ` +
-        'Run `node scripts/check-all.mjs L2` again.',
-    )
-  }
-
-  const branch = currentBranch(dir)
-  if (marker.branch !== branch) {
-    throw new Error(
-      `gate-pass marker branch mismatch: expected current branch "${branch}", got "${String(marker.branch)}". ` +
-        'Run `node scripts/check-all.mjs L2` again.',
-    )
-  }
-
-  if (marker.tree_was_clean_at_run_time !== true) {
-    throw new Error(
-      'gate-pass marker tree_was_clean_at_run_time must be true. ' +
-        'Run `node scripts/check-all.mjs L2` again from a clean tree.',
-    )
+  const verdict = verifyGatePassMarker(parsed, {
+    root: dir,
+    minLevel: 'L2',
+    maxAgeMin: getNumberFlag('ARBITER_EVIDENCE_MAX_AGE_MIN'),
+  })
+  if (!verdict.ok) {
+    throw new Error(`${verdict.reason}. Run \`node scripts/check-all.mjs L2\` again.`)
   }
 }
 

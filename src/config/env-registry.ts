@@ -254,6 +254,14 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   // ── Pre-push gate ────────────────────────────────────────────────────────
   {
+    name: 'ARBITER_EVIDENCE_MAX_AGE_MIN',
+    type: 'number',
+    default: 240,
+    purpose:
+      'Maximum age (minutes) of a gate-pass marker before every consumer refuses it (#2328).',
+    isGateBypass: false,
+  },
+  {
     name: 'ARBITER_PREPUSH_MAX_AGE_MIN',
     type: 'number',
     default: 240,
@@ -387,4 +395,19 @@ export function getBoolFlag(name: string, env: Env = process.env): boolean {
   const parsed = parseBooleanEnv(env[name])
   if (parsed !== undefined) return parsed
   return spec.default === true
+}
+
+/**
+ * Reads a registered numeric ARBITER_* flag, falling back to its declared
+ * default when unset, unparseable or non-positive. Same typo guard as
+ * {@link getBoolFlag}: an unregistered name throws.
+ */
+export function getNumberFlag(name: string, env: Env = process.env): number {
+  const spec = FLAG_BY_NAME.get(name)
+  if (spec === undefined || spec.type !== 'number') {
+    throw new Error(`getNumberFlag: "${name}" is not a registered numeric ARBITER_* flag (#1538)`)
+  }
+  const fallback = typeof spec.default === 'number' ? spec.default : 0
+  const parsed = Number(env[name])
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }

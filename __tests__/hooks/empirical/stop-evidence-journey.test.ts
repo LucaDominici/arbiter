@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig, writeTaskStateFile } from '../../helpers.js'
+import {
+  makeConfig,
+  materializeGateEvidenceLib,
+  writeGatePassEvidence,
+  writeTaskStateFile,
+} from '../../helpers.js'
 
 // #A2 (extends INV-114) — journey-first Definition-of-Done. When the evidence harness is on, a
 // completion claim additionally requires JOURNEY evidence: a run of the task's declared acceptance
@@ -43,6 +48,8 @@ function setup(evidenceHarness: boolean) {
   writeFileSync(hookPath, renderTemplate('claude/hooks/stop-evidence-guard.mjs.ejs', cfg))
 
   writeFileSync(join(dir, 'README.md'), '# fixture\n')
+  // #2328: the hook verifies the gate-pass marker through this shared library.
+  materializeGateEvidenceLib(dir)
   git(dir, ['add', '-A'])
   git(dir, ['commit', '-m', 'init', '--no-gpg-sign'])
   git(dir, ['checkout', '-b', 'task/1212'])
@@ -66,10 +73,7 @@ function writeBaselineEvidence(dir: string, branch: string, sha: string) {
     join(dir, '.arbiter', 'agents-dispatched.json'),
     JSON.stringify({ count: 4, branch, sha }),
   )
-  writeFileSync(
-    join(dir, '.arbiter', 'gate-pass.json'),
-    JSON.stringify({ head_sha: sha, branch, level: 'L2', task_id: TASK_ID }),
-  )
+  writeGatePassEvidence(dir, { taskId: TASK_ID })
 }
 
 interface JourneyOpts {
@@ -93,8 +97,11 @@ function writeJourney(dir: string, branch: string, sha: string, opts: JourneyOpt
   )
 }
 
-function claimTranscript(dir: string): string {
-  const p = join(dir, 'transcript.jsonl')
+// #2328: the transcript lives OUTSIDE the gated tree — in production it sits
+// under the agent's own state dir, and writing it into the repo would change the
+// working-tree hash the gate-pass marker binds.
+function claimTranscript(_dir: string): string {
+  const p = join(mkdtempSync(join(tmpdir(), 'arbiter-stop-journey-t-')), 'transcript.jsonl')
   writeFileSync(
     p,
     [

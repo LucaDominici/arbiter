@@ -11,6 +11,16 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+// The shared verifier is loaded lazily and fail-CLOSED: a static import that
+// cannot resolve would abort the hook with exit 1, which Claude Code treats as
+// non-blocking — the completion backstop would go silent instead of blocking.
+let gateEvidence = null;
+try {
+  gateEvidence = await import('../../scripts/lib/gate-evidence.mjs');
+} catch {
+  gateEvidence = null;
+}
+
 function main() {
   // --- stdin (Stop event payload) -------------------------------------------
   let input = {};
@@ -56,7 +66,6 @@ function main() {
   }
 
   // --- completion claimed: require correlated evidence ----------------------
-  const head = gitLine(['rev-parse', 'HEAD']);
 
   const fail = (reason) => {
     process.stderr.write(
@@ -99,13 +108,23 @@ function main() {
   if (dispatch.branch !== branch) fail(`dispatch evidence is for branch ${JSON.stringify(dispatch.branch)}, not ${branch}`);
   if (!isAncestor(dispatch.sha)) fail('dispatch evidence sha is not an ancestor of HEAD (stale)');
 
-  // 3. gate-pass — strict: this exact tree was verified (branch + head_sha == HEAD).
-  const gate = readJson(join(root, '.arbiter', 'gate-pass.json'));
-  if (gate === null) fail('gate-pass evidence missing (.arbiter/gate-pass.json)');
-  if (gate.branch !== branch) fail(`gate-pass evidence is for branch ${JSON.stringify(gate.branch)}, not ${branch}`);
-  if (gate.head_sha !== head) fail('gate-pass head_sha does not equal HEAD — re-run the gate on the current tree');
-  // #1441: anti-replay — the gate-pass must belong to THIS task, not a prior task on the same branch.
-  if (gate.task_id !== taskId) fail(`gate-pass task_id ${JSON.stringify(gate.task_id)} does not match current task ${taskId} — re-run the gate for this task (anti-replay)`);
+  // 3. gate-pass — strict: THIS tree, in THIS checkout, under THIS toolchain, was
+  // verified recently enough. The full identity binding replaces the old
+  // branch+head_sha pair; #1441 anti-replay rides along as the task-id axis.
+  const gatePath = join(root, '.arbiter', 'gate-pass.json');
+  if (!existsSync(gatePath)) fail('gate-pass evidence missing (.arbiter/gate-pass.json)');
+  if (gateEvidence === null)
+    fail(
+      'gate-pass verifier unavailable (scripts/lib/gate-evidence.mjs) — evidence cannot be bound to this tree',
+    );
+  const gateVerdict = gateEvidence.verifyGateEvidenceFile(gatePath, {
+    root,
+    minLevel: 'L2',
+    maxAgeMin: Number(process.env.ARBITER_EVIDENCE_MAX_AGE_MIN) ||
+      gateEvidence.GATE_EVIDENCE_DEFAULT_TTL_MIN,
+    taskId,
+  });
+  if (!gateVerdict.ok) fail(gateVerdict.reason);
 <% if (enableEvidenceHarness) { -%>
 
   // 4. journey evidence (#A2, extends INV-114) — a completion claim must reference a run of the

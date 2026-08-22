@@ -2,8 +2,9 @@
 // Legacy → unified migration (#1206) + the historical 'implementation' → 'red' alias (#549).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
-import { createTestProject, cleanupTestProject } from '../helpers.js'
+import { createTestProject, cleanupTestProject, writeGatePassEvidence } from '../helpers.js'
 import { runTaskAdvance, runTaskResume } from '../../src/commands/task.js'
 import { readUnifiedState } from '../../src/commands/task-state.js'
 
@@ -42,31 +43,24 @@ function writeEvidence(dir: string): void {
   writeFileSync(join(evDir, '#549.json'), JSON.stringify(VALID_EVIDENCE), 'utf-8')
 }
 
-function writeGatePassMarker(
-  dir: string,
-  overrides: Partial<{
-    head_sha: string
-    branch: string
-    tree_was_clean_at_run_time: boolean
-  }> = {},
-): void {
-  const markerDir = join(dir, '.arbiter')
-  mkdirSync(markerDir, { recursive: true })
-  writeFileSync(
-    join(markerDir, 'gate-pass.json'),
-    JSON.stringify({
-      head_sha: 'b'.repeat(40),
-      branch: 'task/549-phase-marker',
-      task_id: '#549',
-      timestamp: '2026-08-03T00:00:00.000Z',
-      level: 'L2',
-      node_version: process.version,
-      git_user: 'test-user',
-      tree_was_clean_at_run_time: true,
-      ...overrides,
-    }),
-    'utf-8',
-  )
+/**
+ * #2328: the marker gate now verifies tree, checkout, toolchain, level and age
+ * against a REAL checkout, so these cases need a real repo. The marker is built
+ * by the writer and one field is planted on top.
+ */
+function initGitRepo(dir: string): void {
+  const git = (args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+  git(['init', '-q', '-b', 'task/549-phase-marker'])
+  git(['config', 'user.email', 'test@arbiter.dev'])
+  git(['config', 'user.name', 'test-user'])
+  // Mirrors arbiter's own .gitignore: task/gate runtime state is not tree content.
+  writeFileSync(join(dir, '.gitignore'), '.arbiter/\n.claude/.task/\n.claude/.task-*\n', 'utf-8')
+  git(['add', '-A'])
+  git(['commit', '-q', '-m', 'fixture', '--no-gpg-sign'])
+}
+
+function writeGatePassMarker(dir: string, overrides: Record<string, unknown> = {}): void {
+  writeGatePassEvidence(dir, { taskId: '#549', overrides })
 }
 
 function captureStdout(fn: () => void): string {
@@ -173,6 +167,7 @@ describe('legacy → unified migration (#1206, #549)', () => {
   )
 
   it('refactor → verification rejects a stale head_sha marker', () => {
+    initGitRepo(dir)
     seedLegacy('refactor')
     writeGatePassMarker(dir, { head_sha: 'a'.repeat(40) })
     expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/head_sha/i)
@@ -180,6 +175,7 @@ describe('legacy → unified migration (#1206, #549)', () => {
   })
 
   it('refactor → verification rejects a marker for another branch', () => {
+    initGitRepo(dir)
     seedLegacy('refactor')
     writeGatePassMarker(dir, { branch: 'task/other-branch' })
     expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/branch/i)
@@ -187,6 +183,7 @@ describe('legacy → unified migration (#1206, #549)', () => {
   })
 
   it('refactor → verification rejects a marker recorded over a dirty tree', () => {
+    initGitRepo(dir)
     seedLegacy('refactor')
     writeGatePassMarker(dir, { tree_was_clean_at_run_time: false })
     expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/tree_was_clean_at_run_time/i)
@@ -194,6 +191,7 @@ describe('legacy → unified migration (#1206, #549)', () => {
   })
 
   it('refactor → verification accepts a fresh correlated marker and writes the phase', () => {
+    initGitRepo(dir)
     seedLegacy('refactor')
     writeGatePassMarker(dir)
     expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()

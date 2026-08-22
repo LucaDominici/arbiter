@@ -8,6 +8,7 @@ import { presetToTiers, defaultPresetForLevel } from '../src/invariants/filter.j
 import { acquireLock } from '../src/utils/file-lock.js'
 import { renderTemplate } from '../src/utils/render.js'
 import { loadGateRegistry } from '../src/generators/check-all.js'
+import { buildGateEvidence } from '../scripts/lib/gate-evidence.mjs'
 export { DEFAULT_THRESHOLDS } from '../src/config/schema.js'
 
 function sleep(ms: number): Promise<void> {
@@ -249,4 +250,40 @@ export function renderCheckAll(data: Record<string, unknown>): string {
     ...enriched,
     gates: loadGateRegistry(enriched),
   })
+}
+
+/**
+ * #2328 — materialize the shared gate-pass verifier into a fixture project,
+ * exactly as `generateCheckAll` co-emits it, so hooks and `.githooks/pre-push`
+ * can resolve `scripts/lib/gate-evidence.mjs`.
+ */
+export function materializeGateEvidenceLib(dir: string): void {
+  const libDir = join(dir, 'scripts', 'lib')
+  mkdirSync(libDir, { recursive: true })
+  const cfg = makeConfig(dir, { language: 'typescript' })
+  for (const name of ['gate-evidence.mjs', 'run-helpers.mjs']) {
+    writeFileSync(join(libDir, name), renderTemplate(`scripts/lib/${name}.ejs`, cfg))
+  }
+}
+
+/**
+ * #2328 — stamp a REAL schema-v2 gate-pass marker for `dir` through the writer
+ * path, optionally planting `overrides` on top. Fixtures must never hand-write
+ * the marker: a hand-maintained literal is how one of them ends up with an
+ * empty field nobody notices.
+ */
+export function writeGatePassEvidence(
+  dir: string,
+  opts: { level?: string; taskId?: string; stampedIn?: string; overrides?: Record<string, unknown> } = {},
+): Record<string, unknown> {
+  const built = buildGateEvidence({
+    root: opts.stampedIn ?? dir,
+    level: opts.level ?? 'L2',
+    taskId: opts.taskId ?? 'unknown',
+  }) as Record<string, unknown> | null
+  if (built === null) throw new Error(`writeGatePassEvidence: no git checkout at ${dir}`)
+  const marker = { ...built, ...(opts.overrides ?? {}) }
+  mkdirSync(join(dir, '.arbiter'), { recursive: true })
+  writeFileSync(join(dir, '.arbiter', 'gate-pass.json'), JSON.stringify(marker, null, 2) + '\n')
+  return marker
 }

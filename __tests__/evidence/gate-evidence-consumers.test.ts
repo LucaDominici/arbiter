@@ -59,10 +59,9 @@ function git(dir: string, args: string[]): string {
 /** The shared verifier, as a project would carry it. */
 function installGateEvidenceLib(dir: string): void {
   mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
-  copyFileSync(
-    join(REPO_ROOT, 'scripts', 'lib', 'gate-evidence.mjs'),
-    join(dir, 'scripts', 'lib', 'gate-evidence.mjs'),
-  )
+  for (const file of ['gate-evidence.mjs', 'run-helpers.mjs']) {
+    copyFileSync(join(REPO_ROOT, 'scripts', 'lib', file), join(dir, 'scripts', 'lib', file))
+  }
 }
 
 function makeRepo(): string {
@@ -70,7 +69,7 @@ function makeRepo(): string {
   git(dir, ['init', '-q', '-b', BRANCH])
   git(dir, ['config', 'user.email', 'test@arbiter.dev'])
   git(dir, ['config', 'user.name', 'Arbiter Test'])
-  writeFileSync(join(dir, '.gitignore'), 'node_modules/\n.arbiter/\n')
+  writeFileSync(join(dir, '.gitignore'), 'node_modules/\n')
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'fx', version: '1.0.0' }))
   writeFileSync(join(dir, 'package-lock.json'), JSON.stringify({ lockfileVersion: 3 }))
   writeFileSync(join(dir, '.nvmrc'), '22\n')
@@ -226,8 +225,8 @@ describe('#2328 consumer: stop-evidence-guard hook', () => {
     )
   }
 
-  function transcript(dir: string): string {
-    const p = join(dir, 'transcript.jsonl')
+  function transcript(): string {
+    const p = join(track(realpathSync(mkdtempSync(join(tmpdir(), 'arbiter-2328-t-')))), 't.jsonl')
     writeFileSync(
       p,
       [
@@ -251,7 +250,7 @@ describe('#2328 consumer: stop-evidence-guard hook', () => {
     return spawnSync('node', [HOOK], {
       cwd: dir,
       encoding: 'utf-8',
-      input: JSON.stringify({ transcript_path: transcript(dir), stop_hook_active: false }),
+      input: JSON.stringify({ transcript_path: transcript(), stop_hook_active: false }),
     })
   }
 

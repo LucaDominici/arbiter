@@ -227,6 +227,10 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   { rel: ['scripts', 'test-gate-layering.mjs'], tpl: 'scripts/test-gate-layering.mjs.ejs' },
   { rel: ['scripts', 'optional-emissions.json'], tpl: 'scripts/optional-emissions.json.ejs' },
   { rel: ['scripts', 'lib', 'run-helpers.mjs'], tpl: 'scripts/lib/run-helpers.mjs.ejs' },
+  // #2328: the gate-pass evidence binding. Emitted unconditionally — check-all.mjs
+  // imports it to STAMP the marker, and the pre-push hook plus both Claude hooks
+  // import it to VERIFY one. A project missing it fails closed everywhere.
+  { rel: ['scripts', 'lib', 'gate-evidence.mjs'], tpl: 'scripts/lib/gate-evidence.mjs.ejs' },
   {
     rel: ['scripts', 'check-collab-mode-wired.mjs'],
     tpl: 'scripts/check-collab-mode-wired.mjs.ejs',
