@@ -32,7 +32,8 @@
 // Exports for unit tests:
 //   buildRenderContext, templateToMaterialized, isAllowlisted,
 //   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS,
-//   hashDiff, classifyDivergence, EXTERNAL_CI_FAMILIES, matchedFamilyBasenames,
+//   hashDiff, classifyDivergence, exportedSymbols, missingExports,
+//   exportSurfaceViolation, EXTERNAL_CI_FAMILIES, matchedFamilyBasenames,
 //   checkExternalCiSurfaceParity
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
@@ -333,6 +334,72 @@ export function hashDiff(diff) {
 }
 
 /**
+ * Exported symbol names of an ES module, or `null` when the surface is not
+ * statically knowable (`export * from` re-exports an unnamed set — guessing
+ * there would read as a mass drop and over-block).
+ */
+export function exportedSymbols(content) {
+  if (/^\s*export\s+\*/m.test(content)) return null
+  const names = new Set()
+  for (const m of content.matchAll(
+    /^\s*export\s+(?:async\s+)?(?:function\s*\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)/gm,
+  )) {
+    names.add(m[1])
+  }
+  for (const m of content.matchAll(/^\s*export\s*\{([^}]*)\}/gm)) {
+    for (const spec of m[1].split(',')) {
+      const trimmed = spec.trim()
+      if (!trimmed) continue
+      const renamed = trimmed.match(/\bas\s+([A-Za-z_$][\w$]*)\s*$/)
+      names.add(renamed ? renamed[1] : trimmed.split(/\s+/)[0])
+    }
+  }
+  if (/^\s*export\s+default\b/m.test(content)) names.add('default')
+  return names
+}
+
+/**
+ * Symbols the template exports that the materialized copy does not, minus any
+ * the entry explicitly sanctions. Sorted; empty when nothing was dropped or
+ * when either surface is unknowable.
+ */
+export function missingExports(templateContent, materializedContent, allowed = []) {
+  const expected = exportedSymbols(templateContent)
+  const actual = exportedSymbols(materializedContent)
+  if (expected === null || actual === null) return []
+  const sanctioned = new Set(allowed)
+  return [...expected].filter((n) => !actual.has(n) && !sanctioned.has(n)).sort()
+}
+
+/**
+ * #2327: the whole-file diffHash DOES notice a dropped export — but
+ * `--update-divergences` then ABSORBS it. #2324 is the proof: `.claude/hooks/lib.mjs`
+ * lost 5 exports the template ships, one of which (`isPathInThisRepo`) a sibling hook
+ * imported, and the hook crashed on every Edit/Write for 18 days while each intervening
+ * change was met with a re-pin.
+ *
+ * This check is deliberately NOT derived from the pinned hash, so re-pinning cannot
+ * clear it. An approved divergence may ADD, REPLACE or REIMPLEMENT an export — it may
+ * never silently DROP one the template ships. A reviewed, intentional drop is declared
+ * per-entry in `allowedDroppedExports` (a human-only manifest edit;
+ * `--update-divergences` never writes that field).
+ *
+ * Returns a violation `{reason}` or null. Applies to `.mjs` pairs only.
+ */
+export function exportSurfaceViolation(entry, materializedPath, templateContent, actualContent) {
+  if (!materializedPath.endsWith('.mjs')) return null
+  const missing = missingExports(templateContent, actualContent, entry.allowedDroppedExports)
+  if (missing.length === 0) return null
+  return {
+    reason:
+      `materialized copy drops export(s) the template ships: ${missing.join(', ')} — an ` +
+      'approved divergence may add, replace or reimplement, never drop (#2327, the #2324 ' +
+      'class). `--update-divergences` cannot clear this. Restore the export(s), or — if the ' +
+      'drop is reviewed and intentional — name them in the entry\'s "allowedDroppedExports".',
+  }
+}
+
+/**
  * Classify a recomputed diff against a divergence entry's pinned diffHash.
  * Returns null when the divergence is still exactly the approved one, or a
  * violation object {reason} otherwise. Exported for unit tests.
@@ -431,6 +498,7 @@ function loadDivergences() {
 export async function checkRawHooks(root = repoRoot, divergences = loadDivergences()) {
   const drifted = []
   const visited = new Map()
+  const exportDrops = new Set()
   let checked = 0
   let skipped = 0
   for (const name of REQUIRED_RAW_HOOKS) {
@@ -444,14 +512,18 @@ export async function checkRawHooks(root = repoRoot, divergences = loadDivergenc
       drifted.push({ name, reason: 'materialized .claude/hooks copy missing' })
       continue
     }
-    const expected = await normalizeLines(readFileSync(template, 'utf-8'), template)
-    const actual = await normalizeLines(readFileSync(materialized, 'utf-8'), materialized)
+    const templateContent = readFileSync(template, 'utf-8')
+    const actualContent = readFileSync(materialized, 'utf-8')
+    const expected = await normalizeLines(templateContent, template)
+    const actual = await normalizeLines(actualContent, materialized)
     const diff = computeDiff(expected, actual)
 
     const entry = divergences.get(materialized)
     if (entry) {
       visited.set(materialized, diff)
-      const violation = classifyDivergence(entry, diff)
+      const drop = exportSurfaceViolation(entry, materialized, templateContent, actualContent)
+      if (drop) exportDrops.add(materialized)
+      const violation = drop ?? classifyDivergence(entry, diff)
       if (violation) {
         drifted.push({ name, ...violation })
       } else {
@@ -466,7 +538,7 @@ export async function checkRawHooks(root = repoRoot, divergences = loadDivergenc
       checked++
     }
   }
-  return { checked, skipped, drifted, visited }
+  return { checked, skipped, drifted, visited, exportDrops }
 }
 
 // ─── external CI-surface parity (R-02) ───────────────────────────────────────
@@ -590,6 +662,7 @@ export function matchedFamilyBasenames(rootDir, family) {
 export async function checkExternalCiSurfaceParity(rootDir, divergences, render) {
   const drifted = []
   const visited = new Map()
+  const exportDrops = new Set()
   let checked = 0
   let skipped = 0
 
@@ -622,7 +695,9 @@ export async function checkExternalCiSurfaceParity(rootDir, divergences, render)
 
       if (entry) {
         visited.set(materialized, diff)
-        const violation = classifyDivergence(entry, diff)
+        const drop = exportSurfaceViolation(entry, materialized, rendered, actualContent)
+        if (drop) exportDrops.add(materialized)
+        const violation = drop ?? classifyDivergence(entry, diff)
         if (violation) {
           drifted.push({
             template: templateRelPath,
@@ -647,7 +722,7 @@ export async function checkExternalCiSurfaceParity(rootDir, divergences, render)
       }
     }
   }
-  return { checked, skipped, drifted, visited }
+  return { checked, skipped, drifted, visited, exportDrops }
 }
 
 // ─── main ────────────────────────────────────────────────────────────────────
@@ -711,6 +786,12 @@ async function main() {
   })
 
   const divergences = loadDivergences()
+
+  // #2327: materialized paths whose export surface lost a symbol the template
+  // ships. Collected across all three corpora so --update-divergences refuses
+  // to re-pin them — the drop must be fixed or explicitly sanctioned, never
+  // absorbed by the sanctioned repair.
+  const exportDrops = new Set()
 
   let skipped = 0
   let checked = 0
@@ -789,7 +870,9 @@ async function main() {
     // must hash-match the approved pin. New drift inside it fails like any other.
     if (entry) {
       visited.set(materialized, diff)
-      const violation = classifyDivergence(entry, diff)
+      const drop = exportSurfaceViolation(entry, materialized, rendered, materializedContent)
+      if (drop) exportDrops.add(materialized)
+      const violation = drop ?? classifyDivergence(entry, diff)
       if (violation) {
         drifted.push({
           template: relative(repoRoot, templatePath),
@@ -817,6 +900,7 @@ async function main() {
   // #1090: also verify the raw .mjs hook corpus (copied verbatim, no EJS render).
   const raw = await checkRawHooks(repoRoot, divergences)
   for (const [p, d] of raw.visited) visited.set(p, d)
+  for (const p of raw.exportDrops) exportDrops.add(p)
 
   // R-02: workflow/check-script external CI-surface parity (#1877/#1894 drift class).
   // Needs arbiter's OWN resolved ProjectConfig + the real renderTemplate — scripts/
@@ -825,7 +909,7 @@ async function main() {
   // the top of main() (#1984); this catch remains for a missing/corrupt/unimportable
   // build and fails the gate closed (one drift entry) rather than crashing main()
   // before the .claude-family results above are reported.
-  let external = { checked: 0, skipped: 0, drifted: [], visited: new Map() }
+  let external = { checked: 0, skipped: 0, drifted: [], visited: new Map(), exportDrops: new Set() }
   let externalCheckFailed = false
   try {
     const distUrl = (p) => pathToFileURL(join(repoRoot, 'dist', p)).href
@@ -858,6 +942,7 @@ async function main() {
   skipped += external.skipped
   drifted.push(...external.drifted)
   for (const [p, d] of external.visited) visited.set(p, d)
+  for (const p of external.exportDrops) exportDrops.add(p)
 
   // Materialized dirs of EXTERNAL_CI_FAMILIES — used below to suppress cascading
   // "dead entry" noise for this family when the check above hard-failed (one clear
@@ -889,6 +974,10 @@ async function main() {
     let pinned = 0
     for (const e of entries) {
       const absPath = join(repoRoot, e.dest ?? '.claude', e.path)
+      // #2327: never re-pin over a dropped export — that is precisely the
+      // absorption this gate exists to prevent. The entry keeps its old hash
+      // and keeps failing until the export is restored or sanctioned.
+      if (exportDrops.has(absPath)) continue
       if (visited.has(absPath)) {
         const diff = visited.get(absPath)
         if (diff !== null) {
