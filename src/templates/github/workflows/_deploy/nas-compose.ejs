@@ -1,0 +1,45 @@
+      - name: Guard — NAS deploy secrets
+        env:
+          NAS_SSH_HOST: ${{ secrets.NAS_SSH_HOST }}
+          NAS_SSH_USER: ${{ secrets.NAS_SSH_USER }}
+          NAS_SSH_KEY: ${{ secrets.NAS_SSH_KEY }}
+          NAS_SSH_KNOWN_HOSTS: ${{ secrets.NAS_SSH_KNOWN_HOSTS }}
+          NAS_SUDO_PASS: ${{ secrets.NAS_SUDO_PASS }}
+        run: |
+          set -euo pipefail
+          for VAR in NAS_SSH_HOST NAS_SSH_USER NAS_SSH_KEY NAS_SSH_KNOWN_HOSTS NAS_SUDO_PASS; do
+            if [ -z "${!VAR:-}" ]; then
+              echo "::error::secrets.${VAR} is not set — configure it before enabling nas-compose deploy"
+              exit 1
+            fi
+          done
+
+      - name: NAS SSH setup
+        uses: ./.github/actions/nas-ssh
+        with:
+          key: ${{ secrets.NAS_SSH_KEY }}
+          known-hosts: ${{ secrets.NAS_SSH_KNOWN_HOSTS }}
+          host: ${{ secrets.NAS_SSH_HOST }}
+          user: ${{ secrets.NAS_SSH_USER }}
+          port: ${{ vars.NAS_SSH_PORT || '5022' }}
+
+      - name: Deploy — NAS compose (pull-by-digest + docker-compose lifecycle)
+        env:
+          NAS_ROOT: ${{ vars.NAS_ROOT || '/volume1/docker/app' }}
+          SERVICES: ${{ vars.NAS_SERVICES || '' }}
+          HEALTH_TIMEOUT_S: ${{ vars.NAS_HEALTH_TIMEOUT_S || '90' }}
+          BACKUP_CMD: ${{ vars.NAS_BACKUP_CMD || '' }}
+          NAS_SUDO_PASS: ${{ secrets.NAS_SUDO_PASS }}
+        run: |
+          set -euo pipefail
+          # IMAGE_TAG set by the cosign-copy partial ($GITHUB_ENV); required for PROD deploys
+          if [ -z "${IMAGE_TAG:-}" ]; then
+            echo "::error::IMAGE_TAG is not set — the cosign-copy step must export IMAGE_TAG before deploy"
+            exit 1
+          fi
+          if [ -f infra/nas-compose/deploy.sh ]; then
+            bash infra/nas-compose/deploy.sh "${IMAGE_TAG}"
+          else
+            echo "::error::infra/nas-compose/deploy.sh not found — run 'arbiter init'/'arbiter update' with deployTarget=nas-compose to scaffold it"
+            exit 1
+          fi

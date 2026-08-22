@@ -197,3 +197,39 @@ describe('generateCiTier — Java setup-java-maven emission (#1226)', () => {
     expect(file2?.action).toBe('skipped')
   })
 })
+
+// #9002: nas-compose deployTarget emits the nas-ssh composite action; every other
+// deployTarget does not.
+describe('generateCiTier — nas-ssh composite action emission (#9002)', () => {
+  it('emits nas-ssh/action.yml when deployTarget is nas-compose', () => {
+    const result = generateCiTier(makeConfig(dir, { useGitHub: true, deployTarget: 'nas-compose' }))
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.includes(join('.github', 'actions', 'nas-ssh', 'action.yml')))).toBe(
+      true,
+    )
+  })
+
+  it('does NOT emit nas-ssh/action.yml when deployTarget is ghcr', () => {
+    const result = generateCiTier(makeConfig(dir, { useGitHub: true, deployTarget: 'ghcr' }))
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.includes(join('.github', 'actions', 'nas-ssh', 'action.yml')))).toBe(
+      false,
+    )
+  })
+
+  // CANON-11: brownfield — re-init must honour skipIfExists semantics
+  it('nas-ssh/action.yml is skipIfExists — no overwrite on re-init (CANON-11)', () => {
+    const config = makeConfig(dir, { useGitHub: true, deployTarget: 'nas-compose' })
+    const result1 = generateCiTier(config)
+    const file1 = result1.files.find((f) =>
+      f.path.includes(join('.github', 'actions', 'nas-ssh', 'action.yml')),
+    )
+    expect(file1?.action).toBe('created')
+
+    const result2 = generateCiTier(config)
+    const file2 = result2.files.find((f) =>
+      f.path.includes(join('.github', 'actions', 'nas-ssh', 'action.yml')),
+    )
+    expect(file2?.action).toBe('skipped')
+  })
+})

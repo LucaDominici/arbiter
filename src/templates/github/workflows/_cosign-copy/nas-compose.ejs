@@ -1,0 +1,69 @@
+      # nas-compose delivers from GHCR (the NAS holds a read-only GHCR pull credential),
+      # so the promote-to-PROD mechanics are identical to the ghcr target: cosign copy
+      # writes a new tag, so this job must authenticate to the registry first.
+      - name: Log in to container registry
+        uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c  # v4.5.2
+        with:
+          registry: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign (keyless OIDC)
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6  # v4.1.2
+
+      - name: Resolve IMAGE_SHA from TEST image
+        id: resolve-sha
+        env:
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          IMAGE_SHA=$(docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}" 2>/dev/null \
+            | jq -r '([.manifests[]? | select((.platform.os // .Platform.os) == "linux") | (.digest // .Digest)][0]) // .config.digest // ""' 2>/dev/null || echo "")
+          if [ -z "${IMAGE_SHA}" ]; then
+            echo "::error::Could not resolve digest for ${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}. Ensure the image was published by the TEST deploy workflow."
+            exit 1
+          fi
+          echo "IMAGE_SHA=${IMAGE_SHA}" >> "$GITHUB_ENV"
+          echo "digest=${IMAGE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: cosign copy TEST → PROD (GHCR)
+        # cosign copy required — docker/crane tag drops OCI referrers (signatures, SBOM)
+        env:
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          cosign copy \
+            "${REGISTRY}/${IMAGE_NAME}@${IMAGE_SHA}" \
+            "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}"
+
+      - name: Resolve PROD digest (pin for verify + deploy)
+        env:
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          DEST_DIGEST=$(docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}" 2>/dev/null \
+            | jq -r '([.manifests[]? | select((.platform.os // .Platform.os) == "linux") | (.digest // .Digest)][0]) // .config.digest // ""' 2>/dev/null || echo "")
+          if [ -z "${DEST_DIGEST}" ]; then
+            echo "::error::Could not resolve PROD digest after cosign copy"
+            exit 1
+          fi
+          # Export pinned ref: deploy partial uses IMAGE_TAG from $GITHUB_ENV (avoids TOCTOU on mutable tag)
+          echo "IMAGE_TAG=${REGISTRY}/${IMAGE_NAME}@${DEST_DIGEST}" >> "$GITHUB_ENV"
+          echo "DEST_DIGEST=${DEST_DIGEST}" >> "$GITHUB_ENV"
+
+      - name: cosign verify PROD image (CI-side; the deploy script re-verifies on the NAS)
+        env:
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+        run: |
+          set -euo pipefail
+          cosign verify \
+            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.github/workflows/05-release\.yml@refs/tags/v.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${REGISTRY}/${IMAGE_NAME}@${DEST_DIGEST}"

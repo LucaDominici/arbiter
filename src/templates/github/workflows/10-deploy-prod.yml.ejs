@@ -71,7 +71,8 @@ const _dt = ({
   'ghcr': 'ghcr',
   'azure-container-app': 'azure-container-app',
   'aws-ecs': 'aws-ecs',
-  'gcp-cloud-run': 'gcp-cloud-run'
+  'gcp-cloud-run': 'gcp-cloud-run',
+  'nas-compose': 'nas-compose'
 })[typeof deployTarget !== 'undefined' ? deployTarget : 'none'] ?? 'none';
 %>
 <% if (_dt !== 'none') { %>

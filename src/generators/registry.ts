@@ -357,7 +357,8 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'infra',
-      enabled: config.deployTarget === 'azure-container-app',
+      enabled:
+        config.deployTarget === 'azure-container-app' || config.deployTarget === 'nas-compose',
       run: (opts) => generateInfra(config, opts).files,
     },
   ]

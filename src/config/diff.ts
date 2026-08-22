@@ -210,8 +210,9 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   // in the nested-diff allow-list; map the object key it actually produces.
   taxonomy: ['test-taxonomy', 'api-e2e'],
   hasPublicApi: ['api-middleware'],
-  // #1616: deployTarget drives the github deploy workflows + azure infra file.
-  deployTarget: ['github', 'infra'],
+  // #1616: deployTarget drives the github deploy workflows + azure/nas-compose infra
+  // file. #9002: nas-compose also emits the nas-ssh composite action via ci-tier.
+  deployTarget: ['github', 'infra', 'ci-tier'],
   industryOverlay: ['pharma', 'iso27001-controls', 'iso9001', 'regulated-overlay'],
   'observability.provider': ['observability'],
   'auth.provider': ['auth'],
