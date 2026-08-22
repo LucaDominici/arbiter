@@ -120,6 +120,38 @@ one commit per issue is the traceability floor. No chain declared ⇒ the check 
 no-op. `--chain` never changes whether the close step opens a PR or pushes directly — that
 stays governed by `collaborationMode`/`mergeMode` as before.
 
+### Growing a train instead of declaring it (`--chain-add`, #2331)
+
+`--chain` needs the whole batch known up front, which is when you know least about it. To add
+issues as you go, use `--chain-add` — it appends rather than replacing:
+
+```sh
+arbiter ship #NNN --chain-add #NNN1     # finish an issue, decide the next one belongs here
+arbiter ship #NNN --chain-add #NNN2     # append again; the train grows
+arbiter ship #NNN --chain-add #NNN3
+arbiter ship #NNN --chain-add #NNN4
+# SEALED: max-chain — the train already carries 4 issue(s), the limit is 4.
+# Land this train (gate, push, one PR closing every id) before starting the next one.
+```
+
+A refused append changes nothing — land the train, then start the next one. Four stop reasons, in
+precedence order:
+
+| Reason      | When                                                                |
+| ----------- | ------------------------------------------------------------------- |
+| `explicit`  | you passed `--seal`                                                 |
+| `risk`      | the issue you are adding widens to tier `Standard` — it rides alone |
+| `max-chain` | 4 ids on the branch, counting the primary                           |
+| `max-age`   | the train has been open longer than 240 min                         |
+
+A train that is open too long stops being a batch and becomes a long-lived branch, which is what
+batching exists to avoid. See ADR-115 for the full contract.
+
+**Every issue on the train owes RED evidence.** `arbiter task advance --to verification` requires
+TDD evidence for every id in `[taskId, ...chainIds]` and names all the missing ones at once. It
+checks at `verification` rather than `green` because a chain walks the phase machine once — at
+`green` only the primary issue is implemented.
+
 ## Common next reads
 
 - [`README.md`](../README.md) — feature overview

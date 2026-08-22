@@ -60,6 +60,23 @@ warning to a hard gate. `--chain` composes with the existing `collaborationMode`
 axis (`ship-profile.ts`) without changing it: a `peer-review` repo still gets one PR for the
 whole chain; a `trunk-solo`+`direct` repo still gets one direct push, no PR either way.
 
+**Bounding the batch (#2331, ADR-115).** A declared chain must be known up front, and nothing
+stops it growing. `arbiter ship <id> --chain-add <id>` appends to an open train instead, and
+refuses the append with `SEALED: <reason>` once a stop condition holds — at which point the train
+is landed rather than grown. Four reasons, in precedence order: `explicit` (`--seal`), `risk` (the
+appended issue widens to tier `Standard`, so it rides its own train), `max-chain` (4 ids including
+the primary), `max-age` (240 min, matching the pre-push evidence budget so a train cannot outlive
+the gate evidence it accumulates toward). Every signal is evaluable before the appended issue has
+a diff, which is when the decision is made. A refused append leaves state untouched.
+
+Deciding _which_ issues share a train stays a judgement call — only the bound is mechanical.
+
+**Every issue on a chain owes RED evidence.** `advance --to verification` requires TDD evidence for
+every id in `[taskId, ...chainIds]`, the evidence peer of the pre-push per-id commit scan. It sits
+at `verification` and not `green` because a chain traverses the phase machine once: at `green` only
+the primary issue is implemented, so demanding the whole chain there would deadlock every train at
+its first issue.
+
 ---
 
 ## 2. Unify the fixer and the checker for derived/generated state

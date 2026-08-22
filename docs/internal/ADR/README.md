@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-04'
+last_review: '2026-08-22'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 114)
+1. Create `NNN-short-title.md` in this directory (next free number after 115)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -141,3 +141,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 112 | [project-declared invariants (PROJ-NN) — the project is the author of its own catalog additions (#2035)](112-project-invariants-proj-nn.md)                           | Accepted   | 2026-08-04 |  |
 | 113 | [decision registry (D-NN) — blocked project decisions with per-decision enforcement (#2036)](113-decision-registry-dnn.md)                                            | Accepted   | 2026-08-04 |  |
 | 114 | [extended-set activation + live-SSOT drift binding (#2044)](114-extended-invariants-live-ssot.md)                                                                     | Accepted   | 2026-08-04 |  |
+| 115 | [Bounded Sealed Trains — When a Batch Stops Taking Issues](115-bounded-sealed-trains.md)                                                                              | Accepted   | 2026-08-22 |  |

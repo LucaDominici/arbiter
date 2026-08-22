@@ -18,6 +18,7 @@ import {
   writeUnifiedState,
   appendLog,
   normalizeChainId,
+  type UnifiedTaskState,
 } from './task-state.js'
 import { runTaskAdvance } from './task.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
@@ -44,6 +45,7 @@ import {
   appendChainIds,
   evaluateSeal,
   type TrainLimits,
+  type TrainSignals,
 } from './ship-train.js'
 
 /**
@@ -623,33 +625,36 @@ function shipTierFor(
  * question is whether THIS issue is risk-bearing, and seeding from a train that is already
  * Standard would seal every subsequent append for the wrong reason.
  */
+function trainSignalsFor(
+  root: string,
+  opts: TaskShipOptions,
+  state: UnifiedTaskState | null,
+  now: Date,
+): TrainSignals {
+  const gather = opts.gatherTierSignals ?? gatherTierSignals
+  return {
+    // The primary id rides the same branch, gate and PR, so it counts toward the bound.
+    chainSize: (state?.taskId ? 1 : 0) + (state?.chainIds ?? []).length,
+    openedAt: state?.timestamps.chainOpened,
+    now,
+    // Widen once per appended id; the strongest verdict across them decides.
+    widenedTier: (opts.chainAddIds ?? []).reduce<ShipTier>(
+      (acc, raw) => widenTier(acc, gather(root, normalizeChainId(raw))),
+      'XS',
+    ),
+    explicitSeal: opts.seal === true,
+  }
+}
+
 function applyChainAdd(root: string, opts: TaskShipOptions): void {
   const additions = opts.chainAddIds ?? []
   if (additions.length === 0 && opts.seal !== true) return
 
   const state = readUnifiedState(root)
-  const existing = state?.chainIds ?? []
-  const limits = opts.trainLimits ?? DEFAULT_TRAIN_LIMITS
   const now = opts.now ?? new Date()
-  const gather = opts.gatherTierSignals ?? gatherTierSignals
-
-  // The primary id rides the same branch, gate and PR, so it counts toward the bound.
-  const chainSize = (state?.taskId ? 1 : 0) + existing.length
-  // Widen once per appended id; the strongest verdict across them decides.
-  const widenedTier = additions.reduce<ShipTier>(
-    (acc, raw) => widenTier(acc, gather(root, normalizeChainId(raw))),
-    'XS',
-  )
-
   const verdict = evaluateSeal(
-    {
-      chainSize,
-      openedAt: state?.timestamps?.chainOpened,
-      now,
-      widenedTier,
-      explicitSeal: opts.seal === true,
-    },
-    limits,
+    trainSignalsFor(root, opts, state, now),
+    opts.trainLimits ?? DEFAULT_TRAIN_LIMITS,
   )
   if (verdict.sealed) {
     throw new Error(
@@ -658,12 +663,13 @@ function applyChainAdd(root: string, opts: TaskShipOptions): void {
     )
   }
 
+  const existing = state?.chainIds ?? []
   const chainIds = appendChainIds(existing, additions)
   writeUnifiedState(root, {
     chainIds,
     // Stamp the open time on the first append only; `timestamps` is shallow-merged, so this
     // never disturbs the phase-transition stamps sharing the map.
-    ...(state?.timestamps?.chainOpened === undefined
+    ...(state?.timestamps.chainOpened === undefined
       ? { timestamps: { chainOpened: now.toISOString() } }
       : {}),
   })
