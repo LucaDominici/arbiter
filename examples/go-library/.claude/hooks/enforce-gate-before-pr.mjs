@@ -129,8 +129,7 @@ const verdict = gateEvidence.verifyGateEvidence(marker, {
   root: repoRoot,
   minLevel: 'L2',
   maxAgeMin:
-    Number(process.env.ARBITER_EVIDENCE_MAX_AGE_MIN) ||
-    gateEvidence.GATE_EVIDENCE_DEFAULT_TTL_MIN,
+    Number(process.env.ARBITER_EVIDENCE_MAX_AGE_MIN) || gateEvidence.GATE_EVIDENCE_DEFAULT_TTL_MIN,
 })
 
 if (!verdict.ok) {
