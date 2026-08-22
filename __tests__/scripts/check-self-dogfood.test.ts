@@ -55,9 +55,12 @@ function runDogfoodProbe(root: string, timeout: number, extraArgs: string[] = []
 }
 
 /** diffHash currently pinned for a divergence entry in a probe root's manifest. */
-function pinnedHash(root: string, path: string): string | undefined {
+function divergenceEntry(root: string, path: string) {
   const entries = JSON.parse(readFileSync(join(root, '.dogfood-divergences.json'), 'utf-8'))
-  return entries.find((e: { path: string }) => e.path === path)?.diffHash
+  return entries.find((e: { path: string }) => e.path === path) as {
+    diffHash?: string
+    allowedDroppedExports?: string[]
+  }
 }
 
 // ─── buildRenderContext ───────────────────────────────────────────────────────
@@ -569,7 +572,7 @@ describe('a dropped export survives --update-divergences (#2327/#2324)', () => {
     const root = createDogfoodProbeRoot()
     const target = join(root, '.claude/hooks/lib.mjs')
     try {
-      const before = pinnedHash(root, 'hooks/lib.mjs')
+      const before = divergenceEntry(root, 'hooks/lib.mjs').diffHash
       // The exact #2324 shape: the function body stays, the `export` keyword
       // vanishes, so a sibling hook's `import { isPathInThisRepo }` breaks.
       const dropped = readFileSync(target, 'utf-8').replace(
@@ -582,7 +585,11 @@ describe('a dropped export survives --update-divergences (#2327/#2324)', () => {
       // Run 1: the sanctioned repair. It must NOT re-pin this entry...
       const repin = runDogfoodProbe(root, 300_000, ['--update-divergences'])
       expect(repin.status).not.toBe(0)
-      expect(pinnedHash(root, 'hooks/lib.mjs')).toBe(before)
+      const repinned = divergenceEntry(root, 'hooks/lib.mjs')
+      expect(repinned.diffHash).toBe(before)
+      // allowedDroppedExports is a HUMAN-only field: the sanctioned repair must
+      // never invent the very escape hatch that would clear the failure.
+      expect(repinned.allowedDroppedExports).toBeUndefined()
 
       // Run 2: ...and the gate must still be RED, naming the dropped symbol.
       const after = runDogfoodProbe(root, 300_000)

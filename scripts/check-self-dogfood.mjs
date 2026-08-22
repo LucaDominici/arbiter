@@ -762,6 +762,24 @@ export async function checkExternalCiSurfaceParity(rootDir, divergences, render)
 
 // ─── main ────────────────────────────────────────────────────────────────────
 
+/**
+ * #2327: the re-pin path rewrites the manifest with JSON.stringify, whose array
+ * formatting differs from prettier's — so the first array-valued field
+ * (`allowedDroppedExports`) made `--update-divergences` leave the file failing the
+ * format gate. Round-tripping through the repo's own prettier config keeps the
+ * sanctioned repair format-clean for any field shape. Falls back to the raw JSON if
+ * prettier is unavailable — a formatting nicety must never fail the gate.
+ */
+async function formatManifest(json) {
+  try {
+    const prettier = await import('prettier')
+    const options = (await prettier.resolveConfig(MANIFEST_PATH)) ?? {}
+    return await prettier.format(json, { ...options, filepath: MANIFEST_PATH })
+  } catch {
+    return json
+  }
+}
+
 async function main() {
   // #1984: R-02 below dynamically imports compiled dist/ (scripts/ cannot
   // import .ts directly, #1267). A missing build already failed closed via
@@ -1026,7 +1044,7 @@ async function main() {
         }
       }
     }
-    writeFileSync(MANIFEST_PATH, JSON.stringify(entries, null, 2) + '\n')
+    writeFileSync(MANIFEST_PATH, await formatManifest(JSON.stringify(entries, null, 2) + '\n'))
     process.stdout.write(
       `[dogfood] --update-divergences: pinned diffHash for ${pinned}/${entries.length} entr(ies) in .dogfood-divergences.json\n`,
     )
