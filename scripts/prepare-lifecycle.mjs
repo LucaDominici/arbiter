@@ -29,7 +29,8 @@ import { fileURLToPath } from 'node:url'
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const npmCache = process.env.npm_config_cache ? resolve(process.env.npm_config_cache) : null
 
-const installedAsDependency = false // ARBITER-TEMP-RED-#2335, fixed in next commit
+const installedAsDependency =
+  ROOT.split(sep).includes('node_modules') || (npmCache !== null && ROOT.startsWith(npmCache + sep))
 
 try {
   if (installedAsDependency && !existsSync(resolve(ROOT, 'dist', 'cli.js'))) {
