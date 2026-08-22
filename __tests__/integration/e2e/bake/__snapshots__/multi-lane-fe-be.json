@@ -284,7 +284,7 @@
     ".eslintrc-static.json": "3a3aa03974af8d2e0db99302c30d606043cd98cf771d8e1303fc574f12f0b137",
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",
     ".githooks/pre-commit": "d03114839ef5528563e9308c8ece10bc6dcce402ac0d8dd6eab97a459224a07e",
-    ".githooks/pre-push": "029e2d7a57f921a02f5620a45bd1fbffe5bc68194f303ac2919ffd9bf8a6ecce",
+    ".githooks/pre-push": "0dd4c22743ef2a2eb62598c34610b060aaf6f1f2ce906ab08d7148a7c90f7431",
     ".gitignore": "ccb4af3a3d454e81eaa6de70a6d5047dffdd3e256ee6e9a1a87a2221babebe16",
     ".lighthouserc.json": "d36f6ec5a3dca14b993fad551be8ef7f125d64d14a750253a1ada2bded7b315e",
     ".prettierignore": "4b9aa051a087caf0a81eeffb1de92e623f1616a20d9ac641605ddb8428c0a86c",

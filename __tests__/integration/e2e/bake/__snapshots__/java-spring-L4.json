@@ -389,7 +389,7 @@
     ".env.pact": "aa9ce4979b606d1958d1a0f7cf3125ec009730da56af8a1a82f792452a3e556f",
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",
     ".githooks/pre-commit": "7596e6686ec9424d9d8d9f559312a93aae17582a9fe187d1696e47dc325921d7",
-    ".githooks/pre-push": "abf72df5b93b60ad3c61966d0cc7770b7d434a7b48dad876c2660979a3ea19e4",
+    ".githooks/pre-push": "72cca1c18a649797ceefcf686d95d47046943254611424cb869b45d8cdc1710e",
     ".github/workflows/_contract-postman.yml": "acd6d2e3aaf465b55c801321d5d03bfdc81d92826308a939dd7b8bfcb9df907a",
     ".gitignore": "375b6713794c996042198ff9088c43d93f2a068a4b0f502595fc340e7b784aca",
     ".gitleaks.toml": "5b2d1758989a37aea3ea65081066a05d5e35bc27e390ccdee35b76cff5030b0e",
