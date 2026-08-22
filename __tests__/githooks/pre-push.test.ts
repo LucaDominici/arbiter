@@ -156,12 +156,14 @@ function setUpstream(dir: string): void {
   // `@{u}` only resolves when git can map refs/heads/* onto refs/remotes/origin/*, which
   // needs a remote with a fetch refspec — not just the two branch.* keys.
   execFileSync('git', ['config', 'remote.origin.url', '/dev/null'], { cwd: dir, stdio: 'ignore' })
-  execFileSync(
-    'git',
-    ['config', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*'],
-    { cwd: dir, stdio: 'ignore' },
-  )
-  execFileSync('git', ['config', `branch.${branch}.remote`, 'origin'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['config', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+  execFileSync('git', ['config', `branch.${branch}.remote`, 'origin'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
   execFileSync('git', ['config', `branch.${branch}.merge`, 'refs/heads/task-branch'], {
     cwd: dir,
     stdio: 'ignore',

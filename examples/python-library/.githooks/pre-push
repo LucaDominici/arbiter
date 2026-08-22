@@ -132,11 +132,17 @@ else
 fi
 
 if [ -n "$CHAIN_IDS" ]; then
+  # #2334 — the BASE range, not the incremental one. This gate asks "does every chained id
+  # have a commit on this branch", which is a property of the branch, not of one push. With
+  # `@{u}..HEAD` preferred, the first push passes and every later push sees only the new
+  # commits — so it demands each id be named AGAIN in that increment, which cannot be
+  # satisfied. That made the chain feature unusable on any branch pushed more than once.
+  # `@{u}..HEAD` remains the fallback for a branch that has no base ref to compare against.
   CHAIN_PUSH_RANGE=""
-  if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
-    CHAIN_PUSH_RANGE="@{u}..HEAD"
-  elif git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+  if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
     CHAIN_PUSH_RANGE="origin/main..HEAD"
+  elif git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+    CHAIN_PUSH_RANGE="@{u}..HEAD"
   fi
 
   # FAIL-OPEN-INTENT: an unresolvable range must not block an unrelated push — the whole
