@@ -101,14 +101,28 @@ export const GATE_EVIDENCE_TOOLCHAIN_INPUTS = Object.freeze([
 /** Clock skew tolerated before a marker counts as stamped in the future. */
 export const GATE_EVIDENCE_FUTURE_SKEW_MIN = 2
 
-function gitLine(root, args) {
+/**
+ * One line of git output, or null when git cannot answer.
+ *
+ * FAIL-OPEN-INTENT: null is a REJECTION, not a default. Every caller treats it
+ * as "this fact is unresolvable": buildGateEvidence writes no marker at all and
+ * verifyGateEvidence returns `unverifiable`. Rethrowing here would abort the
+ * gate run / crash a Claude Code hook (exit 1 = NON-blocking) instead, which is
+ * the strictly weaker outcome.
+ */
+function gitLine(root, args, env = process.env) {
   try {
     const out = execFileSync('git', args, {
       cwd: root,
+      env,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim()
     return out === '' ? null : out
+    // Null propagates to "no marker" (writer) or "unverifiable" (verifier); neither
+    // path accepts evidence. Rethrowing would instead abort the gate run or crash a
+    // Claude Code hook (exit 1 = NON-blocking), which is the strictly weaker outcome.
+    // FAIL-OPEN-INTENT: null is the REJECTING value, not a default.
   } catch {
     return null
   }
@@ -120,8 +134,11 @@ export function computeCheckoutRoot(root) {
   if (top === null) return null
   try {
     return realpathSync(top)
+    // Writer and verifier must agree on ONE spelling of the checkout root, so there
+    // is deliberately no un-realpath'd fallback here.
+    // FAIL-OPEN-INTENT: null rejects at both ends (no marker / unverifiable).
   } catch {
-    return top
+    return null
   }
 }
 
@@ -151,25 +168,16 @@ export function computeTreeHash(root) {
       env,
       stdio: 'ignore',
     })
-    return gitLineWithEnv(top, ['write-tree'], env)
+    return gitLine(top, ['write-tree'], env)
+    // buildGateEvidence refuses to emit a marker AT ALL when this is null — its
+    // null-guard is the local guarantee (proven by "refuses to build evidence when
+    // the tree hash cannot be computed"), so the safety does not live downstream.
+    // The verifier independently reports `unverifiable`. No path treats it as a match.
+    // FAIL-OPEN-INTENT: null means "tree unhashable" and is rejected by its caller here.
   } catch {
     return null
   } finally {
     if (indexDir !== null) rmSync(indexDir, { recursive: true, force: true })
-  }
-}
-
-function gitLineWithEnv(root, args, env) {
-  try {
-    const out = execFileSync('git', args, {
-      cwd: root,
-      env,
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    return out === '' ? null : out
-  } catch {
-    return null
   }
 }
 
@@ -184,6 +192,10 @@ export function computeToolchainFingerprint(root) {
       if (existsSync(path)) {
         entry = createHash('sha256').update(readFileSync(path)).digest('hex')
       }
+      // The 'unreadable' sentinel can never equal a real sha256, so an unreadable
+      // input makes the fingerprint MISMATCH and the marker is rejected. Skipping the
+      // entry instead would be the real fail-open: it silently shrinks the axis.
+      // FAIL-OPEN-INTENT: the sentinel is the rejecting value.
     } catch {
       entry = 'unreadable'
     }
@@ -201,9 +213,23 @@ function treeWasClean(root) {
       stdio: ['ignore', 'pipe', 'ignore'],
     })
     return porcelain.split('\n').every((line) => line === '' || line.startsWith('??'))
+    // verifyGateEvidence requires tree_was_clean_at_run_time === true, so a stamp
+    // that cannot prove cleanliness is never honoured.
+    // FAIL-OPEN-INTENT: false is the REJECTING value.
   } catch {
     return false
   }
+}
+
+/** A non-blank string, or `fallback`. */
+function orFallback(value, fallback) {
+  return typeof value === 'string' && value.trim() !== '' ? value : fallback
+}
+
+/** A positive finite number, or `fallback`. */
+function orPositive(value, fallback) {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : fallback
 }
 
 /**
@@ -211,25 +237,26 @@ function treeWasClean(root) {
  * unresolvable — a marker that cannot prove what it describes is never written.
  */
 export function buildGateEvidence({ root, level, taskId, ttlMinutes } = {}) {
-  const checkoutRoot = computeCheckoutRoot(root)
-  const headSha = gitLine(root, ['rev-parse', 'HEAD'])
-  const branch = gitLine(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
-  const treeHash = computeTreeHash(root)
-  if (checkoutRoot === null || headSha === null || branch === null || treeHash === null) return null
+  const facts = {
+    checkoutRoot: computeCheckoutRoot(root),
+    headSha: gitLine(root, ['rev-parse', 'HEAD']),
+    branch: gitLine(root, ['rev-parse', '--abbrev-ref', 'HEAD']),
+    treeHash: computeTreeHash(root),
+  }
+  if (Object.values(facts).some((fact) => fact === null)) return null
 
-  const ttl = Number(ttlMinutes ?? GATE_EVIDENCE_DEFAULT_TTL_MIN)
   return {
     schema: GATE_EVIDENCE_SCHEMA,
-    head_sha: headSha,
-    branch,
-    task_id: typeof taskId === 'string' && taskId.trim() !== '' ? taskId : 'unknown',
+    head_sha: facts.headSha,
+    branch: facts.branch,
+    task_id: orFallback(taskId, 'unknown'),
     timestamp: new Date().toISOString(),
-    level: typeof level === 'string' && level.trim() !== '' ? level : 'unknown',
-    ttl_minutes: Number.isFinite(ttl) && ttl > 0 ? ttl : GATE_EVIDENCE_DEFAULT_TTL_MIN,
+    level: orFallback(level, 'unknown'),
+    ttl_minutes: orPositive(ttlMinutes, GATE_EVIDENCE_DEFAULT_TTL_MIN),
     node_version: process.version,
     git_user: gitLine(root, ['config', 'user.name']) ?? 'unknown',
-    checkout_root: checkoutRoot,
-    tree_hash: treeHash,
+    checkout_root: facts.checkoutRoot,
+    tree_hash: facts.treeHash,
     toolchain_fingerprint: computeToolchainFingerprint(root),
     tree_was_clean_at_run_time: treeWasClean(root),
   }
@@ -258,16 +285,8 @@ function shapeProblem(marker) {
   return null
 }
 
-/** Level ranking and age. A marker may NARROW the consumer budget, never widen it. */
-function freshnessProblem(marker, minLevel, maxAgeMin, now) {
-  if (!Number.isFinite(maxAgeMin) || maxAgeMin <= 0) {
-    return `gate-pass age budget must be a positive number, got ${JSON.stringify(maxAgeMin)}`
-  }
-  const ttl = marker.ttl_minutes
-  if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) {
-    return `gate-pass marker ttl_minutes must be a positive finite number, got ${JSON.stringify(ttl)}`
-  }
-
+/** Gate level: an unknown level is never "good enough". */
+function levelProblem(marker, minLevel) {
   const rank = GATE_EVIDENCE_LEVEL_RANK[marker.level]
   const required = GATE_EVIDENCE_LEVEL_RANK[minLevel]
   if (rank === undefined) {
@@ -276,6 +295,18 @@ function freshnessProblem(marker, minLevel, maxAgeMin, now) {
   if (required === undefined) return `required gate level "${minLevel}" is not a known gate level`
   if (rank < required) {
     return `gate-pass marker level "${marker.level}" is below the required "${minLevel}"`
+  }
+  return null
+}
+
+/** Age. A marker may NARROW the consumer budget with its own ttl, never widen it. */
+function agingProblem(marker, maxAgeMin, now) {
+  if (!Number.isFinite(maxAgeMin) || maxAgeMin <= 0) {
+    return `gate-pass age budget must be a positive number, got ${JSON.stringify(maxAgeMin)}`
+  }
+  const ttl = marker.ttl_minutes
+  if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) {
+    return `gate-pass marker ttl_minutes must be a positive finite number, got ${JSON.stringify(ttl)}`
   }
 
   const stampedAt = Date.parse(marker.timestamp)
@@ -348,6 +379,9 @@ function identityProblem(root, marker) {
 /**
  * Verify a marker against the tree it claims to describe.
  *
+ * Ordered cheapest-first, and shape FIRST so a missing or blank field is a
+ * rejection before any comparison can read it as unconstrained.
+ *
  * @returns `{ ok: true }` or `{ ok: false, reason }` — never throws.
  */
 export function verifyGateEvidence(marker, opts = {}) {
@@ -355,19 +389,24 @@ export function verifyGateEvidence(marker, opts = {}) {
     return { ok: false, reason: 'gate-pass marker must be a JSON object' }
   }
   const root = opts.root ?? process.cwd()
+  const checks = [
+    () => shapeProblem(marker),
+    () => levelProblem(marker, opts.minLevel ?? 'L2'),
+    () =>
+      agingProblem(
+        marker,
+        Number(opts.maxAgeMin ?? GATE_EVIDENCE_DEFAULT_TTL_MIN),
+        typeof opts.now === 'number' ? opts.now : Date.now(),
+      ),
+    () => commitProblem(root, marker, opts.taskId),
+    () => identityProblem(root, marker),
+  ]
 
-  const reason =
-    shapeProblem(marker) ??
-    freshnessProblem(
-      marker,
-      opts.minLevel ?? 'L2',
-      Number(opts.maxAgeMin ?? GATE_EVIDENCE_DEFAULT_TTL_MIN),
-      typeof opts.now === 'number' ? opts.now : Date.now(),
-    ) ??
-    commitProblem(root, marker, opts.taskId) ??
-    identityProblem(root, marker)
-
-  return reason === null ? { ok: true } : { ok: false, reason }
+  for (const check of checks) {
+    const reason = check()
+    if (reason !== null) return { ok: false, reason }
+  }
+  return { ok: true }
 }
 
 /** Read + verify in one step; a missing or unparseable marker fails closed. */
@@ -375,6 +414,9 @@ export function verifyGateEvidenceFile(markerPath, opts = {}) {
   let parsed
   try {
     parsed = JSON.parse(readFileSync(markerPath, 'utf-8'))
+    // A missing or corrupt marker is refused, with the parse error surfaced verbatim
+    // to the caller in the rejection reason.
+    // FAIL-OPEN-INTENT: not a swallow — this catch RETURNS A REJECTION.
   } catch (err) {
     return { ok: false, reason: `gate-pass marker unreadable at ${markerPath}: ${err.message}` }
   }

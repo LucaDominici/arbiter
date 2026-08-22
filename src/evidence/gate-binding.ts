@@ -67,7 +67,7 @@ export const GATE_PASS_POLICY = {
   ] as readonly string[],
 } as const
 
-export interface GatePassVerifyOptions {
+interface GatePassVerifyOptions {
   /** Directory inside the checkout the evidence must describe. */
   root: string
   /** Lowest gate level the caller accepts (default `L2`). */
@@ -80,7 +80,7 @@ export interface GatePassVerifyOptions {
   now?: number
 }
 
-export type GatePassVerifyResult = { ok: true } | { ok: false; reason: string }
+type GatePassVerifyResult = { ok: true } | { ok: false; reason: string }
 
 function gitLine(root: string, args: readonly string[]): string | null {
   try {
@@ -88,6 +88,10 @@ function gitLine(root: string, args: readonly string[]): string | null {
     if (result.exitCode !== 0) return null
     const out = result.stdout.trim()
     return out === '' ? null : out
+    // Null propagates to "unverifiable" at every call site — `advance` refuses the
+    // phase rather than accepting the marker. Rethrowing would turn an unresolvable
+    // fact into a crash instead of a refusal.
+    // FAIL-OPEN-INTENT: null is the REJECTING value, not a default.
   } catch {
     return null
   }
@@ -99,8 +103,11 @@ function checkoutRootOf(root: string): string | null {
   if (top === null) return null
   try {
     return realpathSync(top)
+    // Writer and verifier must agree on ONE spelling of the checkout root, so there
+    // is deliberately no un-realpath'd fallback here.
+    // FAIL-OPEN-INTENT: null rejects (the checkout_root axis reports unverifiable).
   } catch {
-    return top
+    return null
   }
 }
 
@@ -131,6 +138,9 @@ function treeHashOf(root: string): string | null {
     if (written.exitCode !== 0) return null
     const out = written.stdout.trim()
     return out === '' ? null : out
+    // identityProblem turns null into "gate-pass marker unverifiable: tree hash does
+    // not resolve" — a refusal, checked in this same file, not a downstream promise.
+    // FAIL-OPEN-INTENT: null means "tree unhashable" and is rejected by its caller here.
   } catch {
     return null
   } finally {
@@ -147,6 +157,10 @@ function toolchainFingerprintOf(root: string): string {
     let entry = 'absent'
     try {
       if (existsSync(path)) entry = createHash('sha256').update(readFileSync(path)).digest('hex')
+      // The 'unreadable' sentinel can never equal a real sha256, so an unreadable
+      // input makes the fingerprint MISMATCH and the marker is rejected. Skipping the
+      // entry instead would be the real fail-open: it silently shrinks the axis.
+      // FAIL-OPEN-INTENT: the sentinel is the rejecting value.
     } catch {
       entry = 'unreadable'
     }
@@ -178,10 +192,24 @@ function shapeProblem(fields: Record<string, unknown>): string | null {
   return null
 }
 
-/** Level ranking and age. A marker may NARROW the consumer budget, never widen it. */
-function freshnessProblem(
+/** Gate level: an unknown level is never "good enough". */
+function levelProblem(fields: Record<string, unknown>, minLevel: string): string | null {
+  const level = String(fields.level)
+  const rank = GATE_PASS_POLICY.levelRank[level]
+  const required = GATE_PASS_POLICY.levelRank[minLevel]
+  if (rank === undefined) return `gate-pass marker level "${level}" is not a known gate level`
+  if (required === undefined) {
+    return `required gate level "${minLevel}" is not a known gate level`
+  }
+  if (rank < required) {
+    return `gate-pass marker level "${level}" is below the required "${minLevel}"`
+  }
+  return null
+}
+
+/** Age. A marker may NARROW the consumer budget with its own ttl, never widen it. */
+function agingProblem(
   fields: Record<string, unknown>,
-  minLevel: string,
   maxAgeMin: number,
   now: number,
 ): string | null {
@@ -191,15 +219,6 @@ function freshnessProblem(
   const ttl = fields.ttl_minutes
   if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) {
     return `gate-pass marker ttl_minutes must be a positive finite number, got ${JSON.stringify(ttl)}`
-  }
-
-  const level = String(fields.level)
-  const rank = GATE_PASS_POLICY.levelRank[level]
-  const required = GATE_PASS_POLICY.levelRank[minLevel]
-  if (rank === undefined) return `gate-pass marker level "${level}" is not a known gate level`
-  if (required === undefined) return `required gate level "${minLevel}" is not a known gate level`
-  if (rank < required) {
-    return `gate-pass marker level "${level}" is below the required "${minLevel}"`
   }
 
   const timestamp = String(fields.timestamp)
@@ -275,9 +294,10 @@ function identityProblem(root: string, fields: Record<string, unknown>): string 
 }
 
 /**
- * Verify a gate-pass marker against the tree it claims to describe. Never
- * throws; every axis fails closed, and a missing or blank field is rejected
- * rather than treated as unconstrained.
+ * Verify a gate-pass marker against the tree it claims to describe.
+ *
+ * Ordered cheapest-first, and shape FIRST so a missing or blank field is a
+ * rejection before any comparison can read it as unconstrained. Never throws.
  */
 export function verifyGatePassMarker(
   marker: unknown,
@@ -288,17 +308,22 @@ export function verifyGatePassMarker(
   }
   const fields = marker as Record<string, unknown>
   const { root } = opts
+  const checks: Array<() => string | null> = [
+    () => shapeProblem(fields),
+    () => levelProblem(fields, opts.minLevel ?? 'L2'),
+    () =>
+      agingProblem(
+        fields,
+        opts.maxAgeMin ?? GATE_PASS_POLICY.defaultTtlMinutes,
+        opts.now ?? Date.now(),
+      ),
+    () => commitProblem(root, fields, opts.taskId),
+    () => identityProblem(root, fields),
+  ]
 
-  const reason =
-    shapeProblem(fields) ??
-    freshnessProblem(
-      fields,
-      opts.minLevel ?? 'L2',
-      opts.maxAgeMin ?? GATE_PASS_POLICY.defaultTtlMinutes,
-      opts.now ?? Date.now(),
-    ) ??
-    commitProblem(root, fields, opts.taskId) ??
-    identityProblem(root, fields)
-
-  return reason === null ? { ok: true } : { ok: false, reason }
+  for (const check of checks) {
+    const reason = check()
+    if (reason !== null) return { ok: false, reason }
+  }
+  return { ok: true }
 }

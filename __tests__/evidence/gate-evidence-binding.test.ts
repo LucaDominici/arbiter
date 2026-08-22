@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -29,6 +29,7 @@ import {
   GATE_EVIDENCE_FUTURE_SKEW_MIN,
   buildGateEvidence,
   computeToolchainFingerprint,
+  computeTreeHash,
   verifyGateEvidence,
 } from '../../scripts/lib/gate-evidence.mjs'
 import { GATE_PASS_POLICY } from '../../src/evidence/gate-binding.js'
@@ -494,6 +495,39 @@ describe('#2328 gate-evidence binding — writer fails closed', () => {
   it('refuses to build evidence outside a git checkout', () => {
     const dir = track(realpathSync(mkdtempSync(join(tmpdir(), 'arbiter-gate-nogit-'))))
     expect(buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328' })).toBeNull()
+  })
+
+  it('refuses to build evidence when the tree hash cannot be computed', () => {
+    // The writer's null-guard is the LOCAL fail-closed guarantee for
+    // computeTreeHash's `catch { return null }` — it must not depend on a
+    // downstream consumer noticing a blank axis. Planted by making the object
+    // store unwritable with a new blob pending, so `git add` cannot succeed
+    // while `git rev-parse` still can.
+    const dir = track(makeRepo())
+    writeFileSync(join(dir, 'brand-new.txt'), 'blob not yet in the object store\n')
+    chmodSync(join(dir, '.git', 'objects'), 0o500)
+    try {
+      expect(computeTreeHash(dir)).toBeNull()
+      // HEAD still resolves — only the tree computation is broken.
+      expect(git(dir, ['rev-parse', 'HEAD'])).toMatch(/^[0-9a-f]{40}$/)
+      expect(buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328' })).toBeNull()
+    } finally {
+      chmodSync(join(dir, '.git', 'objects'), 0o700)
+    }
+  })
+
+  it('rejects a marker whose tree hash cannot be recomputed at verify time', () => {
+    const dir = track(makeRepo())
+    const marker = markerFor(dir)
+    writeFileSync(join(dir, 'brand-new.txt'), 'blob not yet in the object store\n')
+    chmodSync(join(dir, '.git', 'objects'), 0o500)
+    try {
+      const result = verify(marker, dir)
+      expect(result.ok).toBe(false)
+      expect(String(result.reason)).toMatch(/unverifiable|tree/i)
+    } finally {
+      chmodSync(join(dir, '.git', 'objects'), 0o700)
+    }
   })
 
   it('stamps every field the verifier requires', () => {
