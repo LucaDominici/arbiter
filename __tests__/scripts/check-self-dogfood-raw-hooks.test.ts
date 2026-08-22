@@ -63,3 +63,66 @@ describe('check-self-dogfood raw .mjs hook corpus (#1090)', () => {
     expect(drifted.some((d) => d.name === 'stop-dangerous.mjs')).toBe(true)
   })
 })
+
+// ─── #2327: the export-surface rule is wired into the raw-hook corpus too ────
+// The only currently-allowlisted raw hook (enforce-read-only.mjs) exports
+// nothing, so the real tree cannot exercise this path. These build a throwaway
+// root with a hand-built divergence Map — checkRawHooks accepts one — and prove
+// the wiring fires, and that it discriminates rather than rejecting everything.
+
+describe('raw-hook corpus honours the export-surface rule (#2327)', () => {
+  function rawHookRoot(templateBody: string, materializedBody: string) {
+    const root = mkdtempSync(join(tmpdir(), 'rawhooks-exports-'))
+    mkdirSync(join(root, 'src/templates/claude/hooks'), { recursive: true })
+    mkdirSync(join(root, '.claude/hooks'), { recursive: true })
+    writeFileSync(join(root, 'src/templates/claude/hooks/stop-dangerous.mjs'), templateBody)
+    writeFileSync(join(root, '.claude/hooks/stop-dangerous.mjs'), materializedBody)
+    const divergences = new Map([
+      [
+        join(root, '.claude/hooks/stop-dangerous.mjs'),
+        { path: 'hooks/stop-dangerous.mjs', reason: 'probe', diffHash: 'not-the-real-hash' },
+      ],
+    ])
+    return { root, divergences }
+  }
+
+  it('flags a materialized raw hook that drops a template export', async () => {
+    const mod = await import(modUrl)
+    const { root, divergences } = rawHookRoot(
+      'export function helper() {}\nprocess.exit(0)\n',
+      'function helper() {}\nprocess.exit(0)\n',
+    )
+    const { drifted, exportDrops } = await mod.checkRawHooks(root, divergences)
+    const hit = drifted.find((d: { name: string }) => d.name === 'stop-dangerous.mjs')
+    expect(hit?.reason).toContain('drops export')
+    expect(hit?.reason).toContain('helper')
+    expect([...exportDrops]).toEqual([join(root, '.claude/hooks/stop-dangerous.mjs')])
+  })
+
+  it('does NOT flag an ADDED export — that stays an ordinary pinned-diff decision', async () => {
+    const mod = await import(modUrl)
+    const { root, divergences } = rawHookRoot(
+      'export function helper() {}\nprocess.exit(0)\n',
+      'export function helper() {}\nexport function extra() {}\nprocess.exit(0)\n',
+    )
+    const { drifted, exportDrops } = await mod.checkRawHooks(root, divergences)
+    const hit = drifted.find((d: { name: string }) => d.name === 'stop-dangerous.mjs')
+    // Still red — the pinned hash is deliberately wrong — but for the HASH
+    // reason, which --update-divergences can legitimately clear.
+    expect(hit?.reason).toContain('CHANGED beyond the approved pin')
+    expect(hit?.reason).not.toContain('drops export')
+    expect([...exportDrops]).toEqual([])
+  })
+
+  it('does NOT flag a non-.mjs pair (rule is scoped to ES modules)', async () => {
+    const mod = await import(modUrl)
+    expect(
+      mod.exportSurfaceViolation(
+        {},
+        '/x/.claude/rules/90-exec-protocol.md',
+        'export function gone() {}\n',
+        '\n',
+      ),
+    ).toBeNull()
+  })
+})
