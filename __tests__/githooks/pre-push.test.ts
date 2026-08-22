@@ -143,6 +143,31 @@ function commitAheadOfOrigin(dir: string, subject: string): void {
   execFileSync('git', ['commit', '-q', '-m', subject], { cwd: dir, stdio: 'ignore' })
 }
 
+/**
+ * #2334 — point the current branch at `refs/remotes/origin/task-branch` via config.
+ * `git branch --set-upstream-to` needs a configured remote, which these fixtures do not
+ * have (they synthesise remote refs with `update-ref`), so set the two keys directly.
+ */
+function setUpstream(dir: string): void {
+  const branch = execFileSync('git', ['symbolic-ref', '--short', 'HEAD'], {
+    cwd: dir,
+    encoding: 'utf-8',
+  }).trim()
+  // `@{u}` only resolves when git can map refs/heads/* onto refs/remotes/origin/*, which
+  // needs a remote with a fetch refspec — not just the two branch.* keys.
+  execFileSync('git', ['config', 'remote.origin.url', '/dev/null'], { cwd: dir, stdio: 'ignore' })
+  execFileSync(
+    'git',
+    ['config', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*'],
+    { cwd: dir, stdio: 'ignore' },
+  )
+  execFileSync('git', ['config', `branch.${branch}.remote`, 'origin'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['config', `branch.${branch}.merge`, 'refs/heads/task-branch'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+}
+
 function runHook(dir: string, env: Record<string, string> = {}): RunResult {
   const result = spawnSync('/usr/bin/bash', ['.githooks/pre-push'], {
     cwd: dir,
@@ -325,6 +350,54 @@ describe('.githooks/pre-push — chain-batching gate (#2102)', () => {
     writeChainStatus(dir, { taskId: '#2102', chainIds: ['#2103'], phase: 'close' })
     // Only the primary id gets a commit — #2103 is never referenced.
     commitAheadOfOrigin(dir, 'feat: first issue in chain #2102')
+    const r = runHook(dir)
+    expect(r.status).not.toBe(0)
+    expect(r.stderr).toMatch(/chain batching/i)
+    expect(r.stderr).toContain('#2103')
+  })
+
+  /**
+   * #2334 — the gate prefers `@{u}..HEAD` when an upstream exists and only falls back to
+   * `origin/main..HEAD` otherwise. Every test above runs without an upstream, so the
+   * `@{u}` branch was never exercised — and it is the branch every REAL push after the
+   * first one takes. On a follow-up push the range holds only the new commits, so the
+   * gate demands each chain id be named again in that increment, which is impossible.
+   *
+   * The gate's purpose is traceability of the ids on the BRANCH, not in one increment.
+   */
+  it('a follow-up push to an already-pushed chain branch still passes (#2334)', () => {
+    dir = setupRepo({ ageMin: 30 })
+    writeChainStatus(dir, { taskId: '#2102', chainIds: ['#2103'], phase: 'close' })
+    commitAheadOfOrigin(dir, 'feat: first issue in chain #2102')
+    commitAheadOfOrigin(dir, 'feat: second issue in chain #2103')
+
+    // Simulate the first push having landed: a tracking branch at the current HEAD.
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/task-branch', 'HEAD'], {
+      cwd: dir,
+      stdio: 'ignore',
+    })
+    setUpstream(dir)
+
+    // A follow-up commit naming only the primary — e.g. a review fix.
+    commitAheadOfOrigin(dir, 'fix: review follow-up #2102')
+
+    const r = runHook(dir)
+    expect(r.stderr).not.toMatch(/chain batching/i)
+    expect(r.status).toBe(0)
+  })
+
+  it('a follow-up push still FAILS when a chain id is nowhere on the branch (#2334)', () => {
+    // Guard: widening the range must not turn the gate off.
+    dir = setupRepo({ ageMin: 30 })
+    writeChainStatus(dir, { taskId: '#2102', chainIds: ['#2103'], phase: 'close' })
+    commitAheadOfOrigin(dir, 'feat: first issue in chain #2102')
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/task-branch', 'HEAD'], {
+      cwd: dir,
+      stdio: 'ignore',
+    })
+    setUpstream(dir)
+    commitAheadOfOrigin(dir, 'fix: review follow-up #2102')
+
     const r = runHook(dir)
     expect(r.status).not.toBe(0)
     expect(r.stderr).toMatch(/chain batching/i)
