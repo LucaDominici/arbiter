@@ -33,7 +33,7 @@
 //   buildRenderContext, templateToMaterialized, isAllowlisted,
 //   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS,
 //   hashDiff, classifyDivergence, exportedSymbols, missingExports,
-//   exportSurfaceViolation, EXTERNAL_CI_FAMILIES, matchedFamilyBasenames,
+//   exportSurfaceViolation, classifyAllowlistedPair, EXTERNAL_CI_FAMILIES, matchedFamilyBasenames,
 //   checkExternalCiSurfaceParity
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
@@ -400,6 +400,31 @@ export function exportSurfaceViolation(entry, materializedPath, templateContent,
 }
 
 /**
+ * Single entry point for the three corpora (EJS templates, raw hooks, external CI
+ * surface) to resolve an ALLOWLISTED pair to a violation or null.
+ *
+ * Order matters: #2327's export-surface rule runs FIRST and is not derived from the
+ * pinned hash, so `--update-divergences` can never clear it. Only when the export
+ * surface is intact does the pinned-diff classification decide. A dropped-export path
+ * is recorded in `exportDrops` so the re-pin pass skips it entirely.
+ */
+export function classifyAllowlistedPair({
+  entry,
+  materialized,
+  templateContent,
+  actualContent,
+  diff,
+  exportDrops,
+}) {
+  const drop = exportSurfaceViolation(entry, materialized, templateContent, actualContent)
+  if (drop) {
+    exportDrops.add(materialized)
+    return drop
+  }
+  return classifyDivergence(entry, diff)
+}
+
+/**
  * Classify a recomputed diff against a divergence entry's pinned diffHash.
  * Returns null when the divergence is still exactly the approved one, or a
  * violation object {reason} otherwise. Exported for unit tests.
@@ -521,9 +546,14 @@ export async function checkRawHooks(root = repoRoot, divergences = loadDivergenc
     const entry = divergences.get(materialized)
     if (entry) {
       visited.set(materialized, diff)
-      const drop = exportSurfaceViolation(entry, materialized, templateContent, actualContent)
-      if (drop) exportDrops.add(materialized)
-      const violation = drop ?? classifyDivergence(entry, diff)
+      const violation = classifyAllowlistedPair({
+        entry,
+        materialized,
+        templateContent,
+        actualContent,
+        diff,
+        exportDrops,
+      })
       if (violation) {
         drifted.push({ name, ...violation })
       } else {
@@ -695,9 +725,14 @@ export async function checkExternalCiSurfaceParity(rootDir, divergences, render)
 
       if (entry) {
         visited.set(materialized, diff)
-        const drop = exportSurfaceViolation(entry, materialized, rendered, actualContent)
-        if (drop) exportDrops.add(materialized)
-        const violation = drop ?? classifyDivergence(entry, diff)
+        const violation = classifyAllowlistedPair({
+          entry,
+          materialized,
+          templateContent: rendered,
+          actualContent,
+          diff,
+          exportDrops,
+        })
         if (violation) {
           drifted.push({
             template: templateRelPath,
@@ -870,9 +905,14 @@ async function main() {
     // must hash-match the approved pin. New drift inside it fails like any other.
     if (entry) {
       visited.set(materialized, diff)
-      const drop = exportSurfaceViolation(entry, materialized, rendered, materializedContent)
-      if (drop) exportDrops.add(materialized)
-      const violation = drop ?? classifyDivergence(entry, diff)
+      const violation = classifyAllowlistedPair({
+        entry,
+        materialized,
+        templateContent: rendered,
+        actualContent: materializedContent,
+        diff,
+        exportDrops,
+      })
       if (violation) {
         drifted.push({
           template: relative(repoRoot, templatePath),
