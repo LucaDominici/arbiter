@@ -9,8 +9,26 @@
  * Every signal consumed here is available BEFORE the appended issue has any diff, because that
  * is when the append decision happens.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { appendChainIds, evaluateSeal, DEFAULT_TRAIN_LIMITS } from '../../src/commands/ship-train'
+import { runTaskShip } from '../../src/commands/task-ship'
+import { readUnifiedState } from '../../src/commands/task-state'
+import type { ShipProfile } from '../../src/commands/ship-profile'
+
+const TEST_PROFILE: ShipProfile = {
+  isArbiterSelf: false,
+  collaborationMode: 'peer-review',
+  mergeMode: 'pr-ff',
+  governanceLevel: 'L2',
+  autonomy: 'L0',
+  maxParallelWorktrees: 1,
+  defaultGateLevel: 'L1',
+  affinityBatching: false,
+  companions: [],
+}
 
 const at = (iso: string): Date => new Date(iso)
 const OPENED = '2026-08-22T00:00:00.000Z'
@@ -124,5 +142,101 @@ describe('evaluateSeal (#2331)', () => {
       expect(verdict.sealed).toBe(true)
       if (verdict.sealed) expect(verdict.detail.length).toBeGreaterThan(10)
     }
+  })
+})
+
+/**
+ * #2331 — the wiring. `applyChainAdd` runs before the document is seeded, so a refused append
+ * must leave state byte-identical: a sealed train never half-applies.
+ */
+describe('arbiter ship --chain-add (#2331 wiring)', () => {
+  let dir: string
+  const XS_SIGNALS = { labels: [] as string[], blastRadius: 0, milestoneBundled: false }
+
+  const ship = (opts: Record<string, unknown> = {}) =>
+    runTaskShip({
+      dir,
+      profileOverride: TEST_PROFILE,
+      gatherTierSignals: () => XS_SIGNALS,
+      now: new Date('2026-08-22T00:10:00.000Z'),
+      ...opts,
+    })
+
+  const chain = (): string[] => readUnifiedState(dir)?.chainIds ?? []
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-train-'))
+    runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('appends across separate invocations — the accumulating train', () => {
+    ship({ chainAddIds: ['#101'] })
+    ship({ chainAddIds: ['#102'] })
+    expect(chain()).toEqual(['#101', '#102'])
+  })
+
+  it('does not clear a live train when no flag is passed', () => {
+    ship({ chainAddIds: ['#101'] })
+    ship({})
+    expect(chain()).toEqual(['#101'])
+  })
+
+  it('stamps chainOpened once and never re-stamps it on later appends', () => {
+    ship({ chainAddIds: ['#101'] })
+    const first = readUnifiedState(dir)?.timestamps?.chainOpened
+    ship({ chainAddIds: ['#102'], now: new Date('2026-08-22T01:00:00.000Z') })
+    expect(readUnifiedState(dir)?.timestamps?.chainOpened).toBe(first)
+  })
+
+  it('refuses the append once the train is full, naming the reason', () => {
+    ship({ chainAddIds: ['#101', '#102', '#103'] })
+    expect(() => ship({ chainAddIds: ['#104'] })).toThrow(/SEALED: max-chain/)
+  })
+
+  it('leaves state untouched when it refuses — a sealed train never half-applies', () => {
+    ship({ chainAddIds: ['#101', '#102', '#103'] })
+    const before = chain()
+    expect(() => ship({ chainAddIds: ['#104'] })).toThrow()
+    expect(chain()).toEqual(before)
+  })
+
+  it('seals when the appended issue is risk-bearing, without adding it', () => {
+    expect(() =>
+      ship({
+        chainAddIds: ['#101'],
+        gatherTierSignals: () => ({ ...XS_SIGNALS, labels: ['epic'] }),
+      }),
+    ).toThrow(/SEALED: risk/)
+    expect(chain()).toEqual([])
+  })
+
+  it('judges the appended issue on its own risk, not the train it is joining', () => {
+    // Regression guard: widening from the train's tier would seal every append onto a
+    // Standard train for a reason that has nothing to do with the incoming issue.
+    ship({ chainAddIds: ['#101'], tier: 'Standard' })
+    expect(chain()).toEqual(['#101'])
+  })
+
+  it('seals on --seal alone, with no ids to add', () => {
+    expect(() => ship({ seal: true })).toThrow(/SEALED: explicit/)
+  })
+
+  it('counts the primary issue toward the bound — it rides the same gate and PR', () => {
+    // maxChain 2 means primary + one chained, so the second append is refused.
+    ship({ chainAddIds: ['#101'], trainLimits: { maxChain: 2, maxAgeMinutes: 240 } })
+    expect(() =>
+      ship({ chainAddIds: ['#102'], trainLimits: { maxChain: 2, maxAgeMinutes: 240 } }),
+    ).toThrow(/SEALED: max-chain/)
+  })
+
+  it('seals a train that has outlived its age budget', () => {
+    ship({ chainAddIds: ['#101'] })
+    expect(() =>
+      ship({ chainAddIds: ['#102'], now: new Date('2026-08-22T05:00:00.000Z') }),
+    ).toThrow(/SEALED: max-age/)
   })
 })

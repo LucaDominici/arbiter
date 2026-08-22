@@ -39,6 +39,12 @@ import {
 } from './ship-tier.js'
 
 export { type ShipTier } from './ship-tier.js'
+import {
+  DEFAULT_TRAIN_LIMITS,
+  appendChainIds,
+  evaluateSeal,
+  type TrainLimits,
+} from './ship-train.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
@@ -368,6 +374,18 @@ export interface TaskShipOptions {
    * chain untouched — a bare `arbiter ship --advance` must never silently clear it).
    */
   chainIds?: string[]
+  /**
+   * #2331 — `--chain-add <id>` (repeatable): APPEND to the declared chain instead of replacing
+   * it, so a train can accumulate as issues are understood. Refused with a SEALED error when a
+   * stop condition holds — the caller lands the train instead of growing it.
+   */
+  chainAddIds?: string[]
+  /** #2331 — `--seal`: close the train now, whatever the other signals say. */
+  seal?: boolean
+  /** Test seam: deterministic train bounds and clock without touching config or wall time. */
+  trainLimits?: TrainLimits
+  /** Test seam for a deterministic train clock. */
+  now?: Date
   /** #1291 — per-run --autonomy override (flag > arbiter.json automation.autonomy > L0). */
   autonomy?: string
   /**
@@ -593,9 +611,69 @@ function shipTierFor(
  * loop should execute next. With `advance`, advances one phase via runTaskAdvance — gate-green is
  * enforced by the underlying gates (a red gate throws and is surfaced to the caller).
  */
+/**
+ * #2331 — grow the open train by one or more ids, or refuse and tell the caller to land it.
+ *
+ * Runs BEFORE `seedShipState` so a refused append leaves the document exactly as it was: a
+ * sealed train must not half-apply. Throws rather than returning a verdict because every caller
+ * (CLI, orchestrator) must stop — `--chain-add` is a request that either takes effect or does
+ * not.
+ *
+ * The tier for the appended issue is widened from `XS`, never from the train's current tier: the
+ * question is whether THIS issue is risk-bearing, and seeding from a train that is already
+ * Standard would seal every subsequent append for the wrong reason.
+ */
+function applyChainAdd(root: string, opts: TaskShipOptions): void {
+  const additions = opts.chainAddIds ?? []
+  if (additions.length === 0 && opts.seal !== true) return
+
+  const state = readUnifiedState(root)
+  const existing = state?.chainIds ?? []
+  const limits = opts.trainLimits ?? DEFAULT_TRAIN_LIMITS
+  const now = opts.now ?? new Date()
+  const gather = opts.gatherTierSignals ?? gatherTierSignals
+
+  // The primary id rides the same branch, gate and PR, so it counts toward the bound.
+  const chainSize = (state?.taskId ? 1 : 0) + existing.length
+  // Widen once per appended id; the strongest verdict across them decides.
+  const widenedTier = additions.reduce<ShipTier>(
+    (acc, raw) => widenTier(acc, gather(root, normalizeChainId(raw))),
+    'XS',
+  )
+
+  const verdict = evaluateSeal(
+    {
+      chainSize,
+      openedAt: state?.timestamps?.chainOpened,
+      now,
+      widenedTier,
+      explicitSeal: opts.seal === true,
+    },
+    limits,
+  )
+  if (verdict.sealed) {
+    throw new Error(
+      `SEALED: ${verdict.reason} — ${verdict.detail}. ` +
+        `Land this train (gate, push, one PR closing every id) before starting the next one.`,
+    )
+  }
+
+  const chainIds = appendChainIds(existing, additions)
+  writeUnifiedState(root, {
+    chainIds,
+    // Stamp the open time on the first append only; `timestamps` is shallow-merged, so this
+    // never disturbs the phase-transition stamps sharing the map.
+    ...(state?.timestamps?.chainOpened === undefined
+      ? { timestamps: { chainOpened: now.toISOString() } }
+      : {}),
+  })
+  appendLog(root, `ship → train +${chainIds.length - existing.length} (${chainIds.join(', ')})`)
+}
+
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
   seedShipState(root, opts.taskId, opts.tier, opts.overrides, opts.chainIds)
+  applyChainAdd(root, opts)
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'

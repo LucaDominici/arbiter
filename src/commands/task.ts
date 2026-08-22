@@ -514,6 +514,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
       checkTddEvidenceGate(dir, claudeDir)
     },
     verification: () => {
+      checkChainTddEvidenceGate(dir)
       checkGatePassMarkerGate(dir)
     },
     close: () => {
@@ -533,8 +534,48 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
 }
 
 function checkTddEvidenceGate(dir: string, claudeDir: string): void {
-  const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
+  assertTddEvidenceFor(readTaskIdFromDisk(dir) ?? 'unknown', dir)
+  void claudeDir
+}
 
+/**
+ * #2331 — every issue on a chain owes RED evidence, not just the primary.
+ *
+ * `--chain` (#2102) lands N issues through ONE worktree, gate and PR, but the evidence gate only
+ * ever verified the single active id, so N−1 issues shipped with nothing asserting a test failed
+ * for them first. This is the evidence peer of the per-id commit-subject scan `.githooks/pre-push`
+ * already performs.
+ *
+ * It runs at `verification`, NOT at `green`: a chain traverses the phase machine once, so at
+ * `green` only the primary is implemented and demanding the whole chain would deadlock every
+ * train at its first issue.
+ *
+ * Reports every missing id at once — an operator fixing a train wants the whole list, not one
+ * failure per re-run.
+ */
+function checkChainTddEvidenceGate(dir: string): void {
+  const chainIds = readUnifiedState(dir)?.chainIds ?? []
+  if (chainIds.length === 0) return
+
+  const failures: string[] = []
+  for (const id of chainIds) {
+    try {
+      assertTddEvidenceFor(id, dir)
+    } catch (err) {
+      failures.push(`  ${id}: ${(err as Error).message}`)
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      `Chain TDD evidence gate: ${failures.length} of ${chainIds.length} chained issue(s) ` +
+        `lack valid RED evidence.\n${failures.join('\n')}\n` +
+        `Every issue batched onto this branch must have failed a test before it was implemented.`,
+    )
+  }
+}
+
+/** Validate the RED evidence for ONE issue id. Shared by the primary and chain gates. */
+function assertTddEvidenceFor(rawId: string, dir: string): void {
   const result = loadTddEvidence(rawId, dir)
   if (!result.ok) {
     throw new Error(
@@ -574,8 +615,6 @@ function checkTddEvidenceGate(dir: string, claudeDir: string): void {
         `Verify the test file was committed at that sha.`,
     )
   }
-
-  void claudeDir
 }
 
 // ─── Clear-strategy decision (#1209) ─────────────────────────────────────────────────────────────

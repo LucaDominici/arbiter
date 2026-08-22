@@ -1897,6 +1897,13 @@ program
     (v: string, acc: string[]) => [...acc, v],
     [] as string[],
   )
+  .option(
+    '--chain-add <id>',
+    'Append an issue to the open train, or refuse if it must seal first (repeatable, #2331)',
+    (v: string, acc: string[]) => [...acc, v],
+    [] as string[],
+  )
+  .option('--seal', 'Seal the open train now — land it before starting another (#2331)', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
@@ -1906,6 +1913,8 @@ program
         autonomy?: string
         set: string[]
         chain: string[]
+        chainAdd: string[]
+        seal: boolean
         advance: boolean
         skipPlanReview: boolean
         postClear: boolean
@@ -1931,6 +1940,10 @@ program
           // #2102 — only pass chainIds when the user actually supplied --chain: an absent flag
           // must never clobber a chain declared earlier (e.g. at `task init`) with an empty array.
           ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
+          // #2331 — same shape as --chain: only pass when actually supplied, so an absent flag
+          // is never mistaken for "append nothing" and can never seal or clear a live train.
+          ...(opts.chainAdd.length > 0 ? { chainAddIds: opts.chainAdd } : {}),
+          ...(opts.seal ? { seal: true } : {}),
           advance: opts.advance,
           advanceOpts: {
             skipPlanReview: opts.skipPlanReview,
