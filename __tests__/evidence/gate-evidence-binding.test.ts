@@ -16,8 +16,8 @@
  * "unconstrained". Old-schema markers are rejected, not grandfathered.
  */
 import { describe, it, expect, afterEach } from 'vitest'
-import { execFileSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -497,37 +497,61 @@ describe('#2328 gate-evidence binding — writer fails closed', () => {
     expect(buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328' })).toBeNull()
   })
 
+  /**
+   * Plant "the tree hash cannot be computed" in a way NO uid can bypass.
+   *
+   * A required `clean` filter that exits non-zero makes `git add` fail on
+   * config, not on permissions — root is refused exactly like anyone else —
+   * while `git rev-parse HEAD` keeps working, so ONLY the tree computation
+   * breaks. The previous chmod-based plant (`.git/objects` 0o500) was inert
+   * under root: mode bits do not restrain uid 0, so the writer returned a real
+   * hash and the test asserted on an unplanted defect. It passed locally and
+   * could only ever fail in CI, which runs as root.
+   *
+   * The precondition below is the loud part: if the plant ever stops biting,
+   * this fails with a named reason instead of silently testing nothing.
+   */
+  function plantUnhashableTree(dir: string): void {
+    writeFileSync(join(dir, '.gitattributes'), '* filter=arbiter-unhashable\n')
+    git(dir, ['config', 'filter.arbiter-unhashable.clean', 'exit 1'])
+    git(dir, ['config', 'filter.arbiter-unhashable.required', 'true'])
+
+    const probeIndex = join(
+      track(realpathSync(mkdtempSync(join(tmpdir(), 'arbiter-plant-probe-')))),
+      'index',
+    )
+    const probe = spawnSync('git', ['add', '-A'], {
+      cwd: dir,
+      env: { ...process.env, GIT_INDEX_FILE: probeIndex },
+      encoding: 'utf-8',
+    })
+    expect(
+      probe.status,
+      `plant did not take effect (uid ${process.getuid?.() ?? '?'}): git add still succeeds`,
+    ).not.toBe(0)
+  }
+
   it('refuses to build evidence when the tree hash cannot be computed', () => {
     // The writer's null-guard is the LOCAL fail-closed guarantee for
     // computeTreeHash's `catch { return null }` — it must not depend on a
-    // downstream consumer noticing a blank axis. Planted by making the object
-    // store unwritable with a new blob pending, so `git add` cannot succeed
-    // while `git rev-parse` still can.
+    // downstream consumer noticing a blank axis.
     const dir = track(makeRepo())
-    writeFileSync(join(dir, 'brand-new.txt'), 'blob not yet in the object store\n')
-    chmodSync(join(dir, '.git', 'objects'), 0o500)
-    try {
-      expect(computeTreeHash(dir)).toBeNull()
-      // HEAD still resolves — only the tree computation is broken.
-      expect(git(dir, ['rev-parse', 'HEAD'])).toMatch(/^[0-9a-f]{40}$/)
-      expect(buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328' })).toBeNull()
-    } finally {
-      chmodSync(join(dir, '.git', 'objects'), 0o700)
-    }
+    plantUnhashableTree(dir)
+
+    expect(computeTreeHash(dir)).toBeNull()
+    // HEAD still resolves — only the tree computation is broken.
+    expect(git(dir, ['rev-parse', 'HEAD'])).toMatch(/^[0-9a-f]{40}$/)
+    expect(buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328' })).toBeNull()
   })
 
   it('rejects a marker whose tree hash cannot be recomputed at verify time', () => {
     const dir = track(makeRepo())
     const marker = markerFor(dir)
-    writeFileSync(join(dir, 'brand-new.txt'), 'blob not yet in the object store\n')
-    chmodSync(join(dir, '.git', 'objects'), 0o500)
-    try {
-      const result = verify(marker, dir)
-      expect(result.ok).toBe(false)
-      expect(String(result.reason)).toMatch(/unverifiable|tree/i)
-    } finally {
-      chmodSync(join(dir, '.git', 'objects'), 0o700)
-    }
+    plantUnhashableTree(dir)
+
+    const result = verify(marker, dir)
+    expect(result.ok).toBe(false)
+    expect(String(result.reason)).toMatch(/unverifiable|tree/i)
   })
 
   it('stamps every field the verifier requires', () => {
