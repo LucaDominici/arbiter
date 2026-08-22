@@ -156,17 +156,24 @@ ARBITER_WORKTREES_DIR=/scratch/wt arbiter worktree open 42
 four consumers above accept it only when it still BINDS the tree in front of them. Schema
 `arbiter-gate-pass-v2` carries, besides `head_sha` / `branch` / `task_id` / `level` / `timestamp`:
 
-| Field                   | Binds                                                                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tree_hash`             | Working-tree content — a git tree written through a throwaway index, so untracked files count too. `.arbiter/` is excluded (arbiter's own state). |
-| `checkout_root`         | The physical worktree that ran the gate, realpath-resolved. Evidence does not travel between sibling worktrees.                                   |
-| `toolchain_fingerprint` | sha256 over the BYTES of `package.json`, `package-lock.json`, `node_modules/.package-lock.json` and `.nvmrc` — never `--version` output.          |
-| `ttl_minutes`           | The marker's own freshness budget; consumers take `min(ttl_minutes, ARBITER_EVIDENCE_MAX_AGE_MIN)`.                                               |
+| Field                   | Binds                                                                                                                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tree_hash`             | Working-tree content — a git tree written through a throwaway index, so untracked files count too. `.arbiter/` is excluded (arbiter's own state).                                          |
+| `checkout_root`         | The physical worktree that ran the gate, realpath-resolved. Evidence does not travel between sibling worktrees.                                                                            |
+| `toolchain_fingerprint` | sha256 over the BYTES of a fixed cross-language set of lock/config files (npm/yarn/pnpm, maven/gradle, pyproject/poetry/uv/requirements, go.mod/go.sum, Cargo) — never `--version` output. |
+| `ttl_minutes`           | The marker's own freshness budget; consumers take `min(ttl_minutes, ARBITER_EVIDENCE_MAX_AGE_MIN)`.                                                                                        |
 
 Every axis fails closed, and a missing or blank field is a rejection rather than an unconstrained
 axis — a marker written under an older schema is refused, not grandfathered. The interpreter binary
 is deliberately outside the fingerprint (`process.execPath` is not stable across the four consumers);
 `node_version` covers that axis instead.
+
+**`level` is enforced, and the floor is `L2`.** `arbiter task advance`, `enforce-gate-before-pr`
+and `stop-evidence-guard` all refuse a marker below `L2`, and the pre-push reuse rule only skips an
+L2 rerun for L2 evidence. This is deliberate: a PR or a completion claim must not rest on a
+fast-lane gate. A marker stamped by `check-all.mjs L1` is therefore rejected with
+`gate-pass marker level "L1" is below the required "L2"` — run `node scripts/check-all.mjs L2` to
+stamp an eligible one. Before #2328 `level` was recorded but never checked, so an L1 marker passed.
 
 ### Pre-push gate
 
