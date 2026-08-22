@@ -84,8 +84,9 @@ type GatePassVerifyResult = { ok: true } | { ok: false; reason: string }
 
 function gitLine(root: string, args: readonly string[]): string | null {
   try {
+    // runCli returns only on success and throws CliError otherwise, so there is
+    // no non-zero exit to test for here — the catch below is the failure path.
     const result = runCli('git', [...args], { cwd: root, timeoutMs: 15_000 })
-    if (result.exitCode !== 0) return null
     const out = result.stdout.trim()
     return out === '' ? null : out
     // Null propagates to "unverifiable" at every call site — `advance` refuses the
@@ -123,19 +124,16 @@ function treeHashOf(root: string): string | null {
   try {
     indexDir = mkdtempTranslated(join(tmpdir(), 'arbiter-tree-index-'))
     const env = { ...process.env, GIT_INDEX_FILE: join(indexDir, 'index') }
-    const staged = runCli('git', ['add', '-A'], { cwd: top, env, timeoutMs: 60_000 })
-    if (staged.exitCode !== 0) return null
+    runCli('git', ['add', '-A'], { cwd: top, env, timeoutMs: 60_000 })
     // Drop `.arbiter/` from the throwaway index rather than excluding it via
     // pathspec: `git add -- ':(exclude).arbiter'` names the path explicitly and
     // errors out in every repo that gitignores its own runtime state.
-    const dropped = runCli('git', ['rm', '-r', '--cached', '--ignore-unmatch', '-q', '.arbiter'], {
+    runCli('git', ['rm', '-r', '--cached', '--ignore-unmatch', '-q', '.arbiter'], {
       cwd: top,
       env,
       timeoutMs: 30_000,
     })
-    if (dropped.exitCode !== 0) return null
     const written = runCli('git', ['write-tree'], { cwd: top, env, timeoutMs: 15_000 })
-    if (written.exitCode !== 0) return null
     const out = written.stdout.trim()
     return out === '' ? null : out
     // identityProblem turns null into "gate-pass marker unverifiable: tree hash does
