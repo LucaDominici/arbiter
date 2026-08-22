@@ -10,6 +10,7 @@
 // executes the model-requiring steps between calls. Reuses runTaskAdvance + the existing gates.
 import { ensureDir, writeFileTranslated } from '../utils/fs.js'
 import { UserFacingError } from '../utils/errors.js'
+import { t } from '../i18n/index.js'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
@@ -660,12 +661,20 @@ function applyChainAdd(root: string, opts: TaskShipOptions): void {
   if (verdict.sealed) {
     // UserFacingError, not Error: a seal is the policy working as designed, not a fault. The
     // generic handler would print "Unexpected error", telling the operator something broke.
-    throw new UserFacingError(
-      `SEALED: ${verdict.reason} — ${verdict.detail}. ` +
-        `Land this train (gate, push, one PR closing every id) before starting the next one.`,
-    )
+    const seal = { reason: verdict.reason, detail: verdict.detail }
+    throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
   }
 
+  persistTrainAppend(root, state, additions, now)
+}
+
+/** Persist an accepted append. Split from the decision so each half stays legible. */
+function persistTrainAppend(
+  root: string,
+  state: UnifiedTaskState | null,
+  additions: readonly string[],
+  now: Date,
+): void {
   const existing = state?.chainIds ?? []
   const chainIds = appendChainIds(existing, additions)
   writeUnifiedState(root, {

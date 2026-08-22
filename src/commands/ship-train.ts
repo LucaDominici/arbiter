@@ -46,9 +46,9 @@ export interface TrainSignals {
   explicitSeal: boolean
 }
 
-export type SealReason = 'explicit' | 'risk' | 'max-chain' | 'max-age'
+type SealReason = 'explicit' | 'risk' | 'max-chain' | 'max-age'
 
-export type SealVerdict = { sealed: false } | { sealed: true; reason: SealReason; detail: string }
+type SealVerdict = { sealed: false } | { sealed: true; reason: SealReason; detail: string }
 
 /**
  * Four ids and four hours. Both are deliberately unremarkable: the age budget matches the
