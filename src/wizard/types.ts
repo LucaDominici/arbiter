@@ -111,7 +111,8 @@ export type AiTool = 'claude' | 'codex' | 'cursor' | 'copilot' | 'gemini' | 'win
 export type Archetype =
   'backend-web-db' | 'cli' | 'library' | 'data-pipeline' | 'frontend-spa' | 'embedded'
 
-export type DeployTarget = 'ghcr' | 'azure-container-app' | 'aws-ecs' | 'gcp-cloud-run' | 'none'
+export type DeployTarget =
+  'ghcr' | 'azure-container-app' | 'aws-ecs' | 'gcp-cloud-run' | 'nas-compose' | 'none'
 
 export type ArchitectureStyle = 'hexagonal' | 'layered' | 'modular-monolith' | 'none'
 

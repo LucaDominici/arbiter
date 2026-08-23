@@ -88,6 +88,19 @@ export function generateCiTier(
     )
   }
 
+  // #9002: nas-compose deployTarget uses this composite action from
+  // `_deploy/nas-compose.ejs` (04-deploy-test.yml / 10-deploy-prod.yml) to
+  // materialize the pinned SSH identity. skipIfExists preserves user edits.
+  if (config.deployTarget === 'nas-compose') {
+    files.push(
+      writeFile(
+        join(actionsDir, 'nas-ssh', 'action.yml'),
+        renderTemplate('github/actions/nas-ssh/action.yml.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
   return { files }
 }
 

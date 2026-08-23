@@ -1,0 +1,53 @@
+name: NAS SSH setup
+description: >-
+  Materialises the NAS SSH key and a PINNED known_hosts entry into a private temp
+  dir, and exports $NAS_SSH — the ssh command prefix the nas-compose deploy lane
+  uses. Host-key policy lives here so no caller can drift from it.
+inputs:
+  key:
+    description: Private SSH key authorised on the NAS (secrets.NAS_SSH_KEY).
+    required: true
+  known-hosts:
+    description: >-
+      known_hosts line for the NAS (secrets.NAS_SSH_KNOWN_HOSTS). Pinned, not
+      discovered: the runner container has no known_hosts of its own, so
+      StrictHostKeyChecking=accept-new would trust whatever answers first — on the
+      lane that ships a production image and recreates the prod container.
+    required: true
+  host:
+    description: NAS hostname or address (secrets.NAS_SSH_HOST).
+    required: true
+  user:
+    description: SSH user (secrets.NAS_SSH_USER).
+    required: true
+  port:
+    description: SSH port.
+    required: false
+    default: '5022'
+runs:
+  using: composite
+  steps:
+    - name: Materialise SSH identity and pinned host key
+      shell: bash
+      env:
+        NAS_KEY: ${{ inputs.key }}
+        NAS_KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        NAS_HOST: ${{ inputs.host }}
+        NAS_USER: ${{ inputs.user }}
+        NAS_PORT: ${{ inputs.port }}
+      run: |
+        set -euo pipefail
+        dir="${RUNNER_TEMP}/nas-ssh"
+        mkdir -p "$dir"
+        chmod 700 "$dir"
+        umask 077
+        printf '%s\n' "$NAS_KEY" > "$dir/id"
+        printf '%s\n' "$NAS_KNOWN_HOSTS" > "$dir/known_hosts"
+        chmod 600 "$dir/id" "$dir/known_hosts"
+        # ssh-keygen -y fails on a truncated or misencoded secret, which otherwise
+        # surfaces much later as an opaque "Permission denied".
+        ssh-keygen -y -P "" -f "$dir/id" > /dev/null
+        {
+          echo "NAS_SSH=ssh -i ${dir}/id -p ${NAS_PORT} -o IdentitiesOnly=yes -o UserKnownHostsFile=${dir}/known_hosts -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15 ${NAS_USER}@${NAS_HOST}"
+          echo "NAS_SSH_DIR=${dir}"
+        } >> "$GITHUB_ENV"
