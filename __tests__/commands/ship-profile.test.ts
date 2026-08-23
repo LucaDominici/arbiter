@@ -95,8 +95,7 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       mergeMode: 'pr-ff',
       governanceLevel: 'L2',
       autonomy: 'L0',
-      // #1306 — no automation block ⇒ resolver derived floors.
-      maxParallelWorktrees: 1,
+      // #1306 — no automation block ⇒ resolver derived floor.
       defaultGateLevel: 'L1',
       // #1730 — no companion installed in the injected home.
       companions: [],
@@ -197,8 +196,7 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       mergeMode: 'pr-ff',
       governanceLevel: 'L2',
       autonomy: 'L0',
-      // #1306 — no automation block ⇒ resolver derived floors.
-      maxParallelWorktrees: 1,
+      // #1306 — no automation block ⇒ resolver derived floor.
       defaultGateLevel: 'L1',
       // #1730 — arbiter-self never activates a companion (guard at resolution).
       companions: [],
@@ -287,8 +285,10 @@ describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', (
       }),
     })
     const p = resolveShipProfile(dir)
-    expect(p.maxParallelWorktrees).toBe(3)
     expect(p.defaultGateLevel).toBe('L2')
+    // #2333 — maxParallelWorktrees is a persistent-only knob now; it never reaches
+    // the profile even when arbiter.json sets it.
+    expect(Object.keys(p)).not.toContain('maxParallelWorktrees')
   })
 
   it('per-run --set overrides the persisted prefs (override layer wins)', () => {
@@ -304,11 +304,14 @@ describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', (
       }),
     })
     const overrides = buildShipOverrides(dir, {
-      sets: ['automation.maxParallelWorktrees=1', 'automation.defaultGateLevel=L1'],
+      sets: ['automation.defaultGateLevel=L1'],
     })
     const p = resolveShipProfile(dir, { overrides })
-    expect(p.maxParallelWorktrees).toBe(1)
     expect(p.defaultGateLevel).toBe('L1')
+    // #2333 — the sibling path is no longer an override target at all.
+    expect(() =>
+      buildShipOverrides(dir, { sets: ['automation.maxParallelWorktrees=1'] }),
+    ).toThrowError(/E_UNKNOWN_PATH|unknown/i)
   })
 
   it('absent automation block ⇒ derived floors, never throws (RT-1306-04)', () => {
@@ -320,7 +323,6 @@ describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', (
     expect(() => {
       p = resolveShipProfile(dir)
     }).not.toThrow()
-    expect(p.maxParallelWorktrees).toBe(1)
     expect(p.defaultGateLevel).toBe('L1')
   })
 })

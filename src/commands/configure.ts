@@ -76,15 +76,18 @@ export const ALLOWED_PATHS = new Set([
  * `arbiter ship` run may override via `--set <path>=<value>` (or an ergonomic alias
  * such as `--autonomy`). Deliberately NOT all of ALLOWED_PATHS — persistent project
  * identity (governanceLevel, archetype, collaborationMode, …) must NOT be per-run
- * flippable. Today exactly the `automation.*` orchestration knobs; #1306 extends it
- * with maxParallelWorktrees / defaultGateLevel. Every entry MUST
- * also be in ALLOWED_PATHS (asserted in tests) so the same parseValue validators apply.
+ * flippable. Every entry MUST also be in ALLOWED_PATHS (asserted in tests) so the same
+ * parseValue validators apply, AND must have a reader that observes it within the run:
+ * a path accepted per-run and then ignored is the #2329/#2333 accept-then-ignore bug.
  */
 export const OVERRIDABLE_PATHS = new Set([
   'automation.autonomy',
-  // #1306 — the orchestration prefs are per-run overridable (like autonomy):
-  // a single ship/wave/verify run may dial concurrency or gate level.
-  'automation.maxParallelWorktrees',
+  // #1306 — the gate level is per-run overridable (like autonomy): a single
+  // ship/wave/verify run may dial it. Read by verification via ShipProfile.
+  // #2333 — `automation.maxParallelWorktrees` was here and is NOT any more: #2329
+  // deleted its only ship-side reader, so `--set`ting it changed nothing about the
+  // run. It survives as a PERSISTENT knob (`arbiter configure`, ALLOWED_PATHS above)
+  // read by doctor profile-coherence and the wizard coherence check.
   'automation.defaultGateLevel',
 ])
 

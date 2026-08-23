@@ -90,7 +90,9 @@ describe('#2329 — the removed knob is rejected, never silently accepted', () =
   it('the per-run `ship --set` guard rejects it too (assertOverridablePath)', () => {
     expect(() => assertOverridablePath(REMOVED_PATH)).toThrowError(/E_UNKNOWN_PATH|unknown/i)
     // NEGATIVE CONTROL: a surviving overridable path is still accepted.
-    expect(() => assertOverridablePath('automation.maxParallelWorktrees')).not.toThrow()
+    // (#2333 retired automation.maxParallelWorktrees as an override target — it is
+    // still an ALLOWED_PATH, asserted below, just no longer a per-run one.)
+    expect(() => assertOverridablePath('automation.defaultGateLevel')).not.toThrow()
   })
 
   it('the path is gone from ALLOWED_PATHS, OVERRIDABLE_PATHS and the settings catalog', () => {

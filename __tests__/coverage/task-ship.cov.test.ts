@@ -97,9 +97,11 @@ describe('shipStepFor — normTier + per-phase bodies', () => {
 // #2329 — the plan action is a constant: the affinityBatching knob that used to
 // branch it was deleted along with the affinity engine (#1817 B-prune).
 describe('plan action — single-issue, knob-free', () => {
-  it('is the same string regardless of the worktree cap', () => {
-    for (const maxParallelWorktrees of [1, 4, 8]) {
-      const step = shipStepFor('plan', 'Standard', profile({ maxParallelWorktrees }))
+  // #2333 removed the profile field the cap used to ride on; the action stays a
+  // flat constant across every profile shape.
+  it('is the same string for every profile', () => {
+    for (const defaultGateLevel of ['L1', 'L2'] as const) {
+      const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
       expect(step.action).toBe('Write the plan, then pass the plan-review gate.')
     }
   })
