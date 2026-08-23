@@ -92,6 +92,14 @@ git config core.hooksPath
 
 If empty, run `git config core.hooksPath .githooks` once.
 
+`scripts.prepare` in `package.json` runs this same command automatically on `npm install` in a
+contributor checkout — but tolerates failure there (`2>/dev/null`, non-fatal, #2351): npm also runs
+`prepare` for a downstream consumer's `npm install github:LucaDominici/arbiter#<ref>`, with cwd
+inside npm's own git-clone tmp dir, where `git config` can legitimately fail
+("fatal: not in a git directory", exit 128) depending on the npm/git version pairing. That failure
+must never block `scripts/prepare-lifecycle.mjs` (the half that builds `dist/` for that consumer) —
+the hooksPath setting only matters for a real contributor checkout of this repo.
+
 ## 5. Open a task
 
 ```sh

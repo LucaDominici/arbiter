@@ -77,7 +77,7 @@
     "test:watch": "vitest",
     "lint": "eslint src __tests__ scripts",
     "typecheck": "tsc --noEmit",
-    "prepare": "git config core.hooksPath .githooks && node scripts/prepare-lifecycle.mjs",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null; node scripts/prepare-lifecycle.mjs",
     "check:arch": "depcruise src",
     "api:snapshot": "node scripts/check-api-snapshot.mjs --regen",
     "compat:snapshot": "node scripts/snapshot-compat-fixture.mjs",
