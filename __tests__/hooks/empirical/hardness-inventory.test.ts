@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync } from 'node:fs'
+import {
+  readFileSync,
+  writeFileSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  existsSync,
+  readdirSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -417,16 +425,23 @@ describe('check-hardness-inventory — self surface (#2326)', () => {
         ...FILE_FIXTURE,
         fixture: {
           type: 'file-with-content',
-          path: 'src/probe-fixture.ts',
+          // Sandbox-legal AND src/-relative — the shape the real manifest uses for the
+          // INV-12 guard. A path outside the sandbox is REFUSED before any write, which
+          // would make this test pass for the wrong reason and prove nothing about cleanup.
+          path: 'src/.arb-hardness-tmp/probe.ts',
           content: "import { spawnSync } from 'node:child_process'\n",
           envKey: 'CLAUDE_TOOL_INPUT_PATH',
         },
       })
       const result = runVerifier(['--manifest', manifestPath, '--hooks-dir', hooksDir])
-      expect(result.status).toBe(1) // the planted defect
+      expect(result.status).toBe(1)
+      // Red for the PLANTED DEFECT, not for a refused fixture — the two failure modes are
+      // indistinguishable by exit code alone.
+      expect(result.stdout + result.stderr).toMatch(/ceremony regression detected/)
+      expect(result.stdout + result.stderr).not.toMatch(/outside the fixture sandbox/)
       // A surviving child_process import under src/ would itself be an INV-12 violation.
-      expect(existsSync(join(root, 'src', 'probe-fixture.ts'))).toBe(false)
-      expect(existsSync(join(root, '.arb-hardness-tmp'))).toBe(false)
+      expect(readdirSync(join(root, 'src'))).toEqual([])
+      expect(readdirSync(root).filter((f) => f.startsWith('.arb-hardness'))).toEqual([])
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
