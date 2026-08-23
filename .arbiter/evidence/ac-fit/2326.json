@@ -1,0 +1,106 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2326",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "note": "Self surface covered behaviourally by check-hardness-inventory.mjs self mode (in-place spawn, cwd at repo root, in-repo fixture); probe-hooks.mjs stays consumer-scoped with the reason recorded. Both halves ship. AC reworded from the first normalisation, which had over-committed to naming probe-hooks.mjs as the vehicle; rewording recorded on the issue.",
+      "evidence": [
+        { "file": "scripts/check-hardness-inventory.mjs", "line": 138 },
+        { "file": ".arbiter/self-hooks-manifest.json", "line": 3 },
+        { "file": "docs/internal/SYSTEM/HOOK-CONTRACTS.md", "line": 52 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 213 }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "note": "No tracked-state mutation; every write confined to a gitignored pid-scoped sandbox, and any fixture path outside it is refused rather than written.",
+      "evidence": [
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 511 },
+        { "file": "scripts/check-hardness-inventory.mjs", "line": 162 },
+        { "file": ".gitignore", "line": 143 }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "note": "Gate-wired under a name distinct from the template run (parity gates are keyed by name; a duplicate would mask a failing self run). Measured ~200ms; L2 summary reports 233ms.",
+      "evidence": [
+        { "file": "scripts/check-all.mjs", "line": 194 },
+        { "file": "scripts/check-local-ci-parity.mjs", "line": 212 },
+        { "file": "scripts/lib/gate-affects-registry.mjs", "line": 131 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 483 }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "note": "Planted defect flips red with 'ceremony regression detected'; negative control green. Also reproduced on the real surface: four live exit-1 hooks found before the fix, all green after.",
+      "evidence": [
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 229 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 213 }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "note": "Surface matrix with a row per check plus an explicit known-uncovered-cells list.",
+      "evidence": [
+        { "file": "docs/internal/SYSTEM/HOOK-CONTRACTS.md", "line": 24 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 493 }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "note": "settings.json INTERSECT self manifest asserted; ADVISORY floor fails any ADVISORY entry whose source contains process.exit(2), with promotedBy as the only escape hatch and the env var verified present in source.",
+      "evidence": [
+        { "file": "scripts/check-hardness-inventory.mjs", "line": 195 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 458 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 344 }
+      ]
+    },
+    {
+      "id": "AC-7",
+      "verdict": "PASS",
+      "note": "Undeclared hook fails; an emptied hooks:[] manifest still fails rather than passing vacuously. lib.mjs/hooks.mjs excluded in self mode only.",
+      "evidence": [
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 281 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 263 },
+        { "file": "scripts/check-hardness-inventory.mjs", "line": 245 }
+      ]
+    },
+    {
+      "id": "AC-8",
+      "verdict": "PASS",
+      "note": "Hook runs against its own lib.mjs (sentinel export the template lib lacks), and expectStderr pins the verdict to the intended branch. Empirically: removing an export from .claude/hooks/lib.mjs reddens 10 self hooks, so this harness would have caught #2324 where the template-staged model could not.",
+      "evidence": [
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 245 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 382 },
+        { "file": "scripts/check-hardness-inventory.mjs", "line": 404 }
+      ]
+    },
+    {
+      "id": "AC-9",
+      "verdict": "PASS",
+      "note": "Fixture paths outside the sandbox and traversal escapes are refused without writing; path-only targets hashed before/after; cleanup asserted on the failing path and mutation-verified (disabling the rmSync flips it red).",
+      "evidence": [
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 306 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 400 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 421 },
+        { "file": "scripts/check-hardness-inventory.mjs", "line": 315 }
+      ]
+    },
+    {
+      "id": "AC-10",
+      "verdict": "PASS",
+      "note": "Floor of 10 observed asserted. Lowered from 12 during review: pre-edit-ssot-guard and enforce-gate-before-pr became declared-only because probing them consumed a developer's one-shot .arbiter/ssot-bypass token and read the live gate-pass marker respectively.",
+      "evidence": [
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 471 },
+        { "file": ".arbiter/self-hooks-manifest.json", "line": 4 }
+      ]
+    }
+  ]
+}

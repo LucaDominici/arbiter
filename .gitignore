@@ -27,6 +27,7 @@ coverage/
 # Use .arbiter/** (not .arbiter/) so child negations work per git spec
 .arbiter/**
 !.arbiter/hooks-manifest.json
+!.arbiter/self-hooks-manifest.json
 # Verification bridge: run history ignored, pointer files committable
 .arbiter/plan/runs/**
 !.arbiter/plan/PLAN.json
@@ -136,3 +137,7 @@ graphify-out/
 
 # tokensave MCP server local code-graph cache (regenerable, machine-local)
 .tokensave/
+
+# #2326: self-surface hardness fixtures (written inside the repo so the hooks'
+# repo-root scoping matches production; removed in a finally, never committed)
+.arb-hardness-tmp*/
