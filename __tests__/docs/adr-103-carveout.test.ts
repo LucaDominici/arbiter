@@ -52,10 +52,17 @@ describe('ADR-103 exists and matches the implemented primitives (#2330)', () => 
   })
 
   it('keeps the three prohibitions that survive the carve-out', () => {
+    // Scoped to the prohibition block: matched against the whole document these
+    // three phrases hit `no lockfile emulation`, the §1 enforcement table and the
+    // frontmatter `tags:` respectively — i.e. they passed with the block deleted.
     const text = adr()
-    expect(text).toMatch(/lockfile/i)
-    expect(text).toMatch(/main working tree|main tree/i)
-    expect(text).toMatch(/tag/i)
+    const start = text.indexOf('Still prohibited under the carve-out')
+    expect(start, 'the prohibition block itself is gone').toBeGreaterThan(-1)
+    const block = text.slice(start, text.indexOf('####', start))
+    expect(block).toMatch(/package\.json/)
+    expect(block).toMatch(/lockfile/i)
+    expect(block).toMatch(/main working tree/i)
+    expect(block).toMatch(/\btags?\b/i)
   })
 
   it('states the total lock order and the gate-exec leaf rule', () => {
@@ -71,8 +78,9 @@ describe('ADR-103 exists and matches the implemented primitives (#2330)', () => 
     expect(text).toMatch(/Where the paraphrase and the code disagree/i)
     // D1: the open lock does not serialize branch creation.
     expect(text).toMatch(/worktree-open\.log\.json/)
-    // D5 / RT-03: the `-o` trade-off is named, not asserted away.
-    expect(text).toMatch(/-o|--close/)
+    // D5: the `-o` trade-off is named, not asserted away. Must be the flag, not a
+    // hyphenated word — `/-o/` alone matches `carve-out`, `fail-open`, `co-terminous`.
+    expect(text).toMatch(/`(?:flock )?-o`|`--close`|`flock -o`/)
   })
 
   it('is honest that it is a reconstruction, not a recovered original', () => {
@@ -150,9 +158,10 @@ describe('no tracked doc still advertises ADR-103 as missing (#2330)', () => {
   // The gap was asserted in six architecture docs and one test header comment. A single
   // survivor re-opens the question the ADR answers, so scan rather than enumerate.
   const SCAN_ROOTS = ['docs/architecture', 'docs/REFERENCE', 'docs/methodology', '__tests__/docs']
-  // Dated audit records are evidence of the past, not live claims about the tree; and this
-  // file necessarily spells the phrases out in order to search for them.
-  const EXCLUDE = ['docs/audit', 'adr-103-carveout.test.ts']
+  // This file necessarily spells the phrases out in order to search for them.
+  // (docs/audit is not reachable from SCAN_ROOTS, so it needs no exclusion: dated
+  // audit records are evidence of the past, not live claims about the tree.)
+  const EXCLUDE = ['adr-103-carveout.test.ts']
 
   const GAP_PHRASES = [
     /missing ADR-103/i,

@@ -2,7 +2,7 @@
 title: 'Batch Execution Contract'
 doc_version: '1.1.0'
 status: active
-last_review: '2026-07-10'
+last_review: '2026-08-23'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']

@@ -463,7 +463,8 @@ made race-free by git's own atomic `git worktree add -b`, not by that lock — A
 **Gate mutex** (`gate-exec.ts`, ADR-103): a _deterministic leaf_ with no orchestration state. It keys
 the lock on `hash(git rev-parse --git-common-dir)` so every worktree of a repo converges on **one**
 lock (outside the repo, at `$XDG_RUNTIME_DIR/arbiter/…`), delegating both wait and release to
-`flock(1)` (kernel-side, survives SIGKILL/OOM); **fail-closed** (`E_GATE_MUTEX_UNSUPPORTED`, degrade to
+`flock(1)` (kernel-side, released on the flock holder's fd death — including SIGKILL/OOM; see
+ADR-103 D5 for what that does _not_ cover); **fail-closed** (`E_GATE_MUTEX_UNSUPPORTED`, degrade to
 serial) where `flock` is absent. Global lock order: `gate-lock ≺ worktree-lock ≺ wave-claim` (ADR-103
 §4) — gate-exec is a leaf, never invoked while `.arbiter/.lock` is held.
 
