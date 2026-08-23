@@ -1,1 +1,1 @@
-{"count":5,"branch":"task/#2135-release-bar","sha":"40b398acf0f165fb6a71703afebd70648354b495"}
+{"count":3,"agents":["code-reviewer","red-team-security","spec-fit"],"branch":"task/#2326-probe-hooks-surface","sha":"6127eccdf4f716a105bbfa89c6b30bc7dad458e9"}
