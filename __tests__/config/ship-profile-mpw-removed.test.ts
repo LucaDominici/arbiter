@@ -30,6 +30,10 @@ import {
   CONSUMER_DEFAULT_PROFILE,
 } from '../../src/commands/ship-profile.js'
 import { validateProfileCoherence } from '../../src/commands/wizard/coherence.js'
+import { SETTINGS_PATHS } from '../../src/commands/settings.js'
+import { RecipeSchema } from '../../src/recipes/schema.js'
+import { validateConfig } from '../../src/config/schema.js'
+import { resolveDefaultMaxParallelWorktrees } from '../../src/config/collaboration-mode-defaults.js'
 import { defaultConfig } from '../helpers/default-config.js'
 
 /** The path whose SHIP-side residual #2333 removes (the knob itself survives). */
@@ -161,35 +165,43 @@ describe('#2333 — the config knob keeps its two real consumers (no over-deleti
     expect(validateProfileCoherence(1, undefined, 'trunk-solo', 'L2').severity).toBe('OK')
     expect(validateProfileCoherence(4, undefined, 'peer-review', 'L2').severity).toBe('OK')
   })
+
+  it('the settings catalog, recipe schema, config schema and wizard derivation all keep it', () => {
+    expect(SETTINGS_PATHS.has(UNREAD_PATH)).toBe(true)
+    expect(
+      RecipeSchema.safeParse({ automation: { autonomy: 'L0', maxParallelWorktrees: 2 } }).success,
+    ).toBe(true)
+    const cfg = (mpw: unknown): Record<string, unknown> => ({
+      ...defaultConfig(),
+      automation: { autonomy: 'L0', maxParallelWorktrees: mpw },
+    })
+    expect(validateConfig(cfg(3)).ok).toBe(true)
+    expect(validateConfig(cfg(0)).ok).toBe(false)
+    expect(validateConfig(cfg(2.5)).ok).toBe(false)
+    // the wizard still derives a per-collaboration-mode value to persist
+    expect(resolveDefaultMaxParallelWorktrees('trunk-solo')).toBe(1)
+    expect(resolveDefaultMaxParallelWorktrees('peer-review')).toBeGreaterThan(1)
+  })
 })
 
-// ── the RATCHET that would have caught #2333 mechanically ─────────────────────
+// ── the RATCHET: OVERRIDABLE_PATHS ⊆ paths with a resolver derived floor ──────
 //
-// A per-run override target and a resolver derived-default must exist together:
-//   • a DERIVED_DEFAULTS entry without an OVERRIDABLE_PATHS entry is dead config
-//     (nothing can ever reach that layer) — the residual #2333 removes;
-//   • an OVERRIDABLE_PATHS entry without a DERIVED_DEFAULTS entry makes
-//     `resolveSetting` THROW on a profile-blind repo — a crash-on-fresh-repo bug.
-// Asserted behaviourally (resolveSetting throws iff no floor is registered) so no
-// module-private table needs exporting.
+// Deliberately a SUBSET, not a set-equality. `resolveSetting` throws
+// "no derived default registered" when no layer supplies a value, so an
+// OVERRIDABLE_PATHS entry with no floor is a crash-on-fresh-repo bug. The converse
+// is NOT asserted here: a future persistent-only path could legitimately route
+// through the resolver for its env-folding without being per-run settable. The
+// specific dead floor #2333 removes is pinned directly, by path, in
+// __tests__/config/profile-fields.test.ts.
+//
+// Asserted behaviourally so the module-private DERIVED_DEFAULTS table stays private.
 
-describe('#2333 — OVERRIDABLE_PATHS ↔ resolver derived floors stay in lockstep', () => {
-  it('every overridable path resolves on a profile-blind repo (a floor is registered)', () => {
+describe('#2333 — every overridable path has a resolver derived floor', () => {
+  it('resolves on a profile-blind repo instead of throwing', () => {
     const dir = blindRepo()
     expect(OVERRIDABLE_PATHS.size).toBeGreaterThanOrEqual(2) // non-vacuity
     for (const p of OVERRIDABLE_PATHS) {
       expect(() => resolveSetting(p, { root: dir }), `${p} has a derived floor`).not.toThrow()
-    }
-  })
-
-  it('every NON-overridable allowed path has NO floor — no dead resolver entry survives', () => {
-    const dir = blindRepo()
-    const nonOverridable = [...ALLOWED_PATHS].filter((p) => !OVERRIDABLE_PATHS.has(p))
-    expect(nonOverridable.length).toBeGreaterThan(0) // non-vacuity
-    for (const p of nonOverridable) {
-      expect(() => resolveSetting(p, { root: dir }), `${p} must have no floor`).toThrowError(
-        /no derived default/,
-      )
     }
   })
 })

@@ -26,15 +26,20 @@ import { DEFAULT_AUTONOMY } from './collaboration-mode-defaults.js'
 
 /**
  * The derived default for each resolvable path (the ADR-051/094 single default site).
- * #1306 — the three orchestration prefs register CONSERVATIVE FLOORS here: these are
- * the values a profile-blind read (no persisted value, no override) lands on, so the
+ * #1306 — the orchestration prefs register CONSERVATIVE FLOORS here: these are the
+ * values a profile-blind read (no persisted value, no override) lands on, so the
  * resolver never throws "no derived default" for them (RT-1306-04). The richer
  * per-collaboration-mode derivations are persisted by the init wizard
  * (collaboration-mode-defaults.ts); this table is the absolute safe floor only.
+ *
+ * #2333 — the keys track OVERRIDABLE_PATHS: this resolver serves per-run settable
+ * paths only, so a floor for a path nothing can override is dead config. Adding one
+ * here without a matching OVERRIDABLE_PATHS entry (or vice versa) is what let the
+ * unread `automation.maxParallelWorktrees` residual survive #2329 — pinned by
+ * __tests__/config/ship-profile-mpw-removed.test.ts.
  */
 const DERIVED_DEFAULTS: Record<string, string> = {
   'automation.autonomy': DEFAULT_AUTONOMY,
-  'automation.maxParallelWorktrees': '1',
   'automation.defaultGateLevel': 'L1',
 }
 

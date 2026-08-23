@@ -295,8 +295,7 @@ const profile = (over: Partial<ShipProfile> = {}): ShipProfile => ({
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
   autonomy: 'L0',
-  // #1306 — orchestration prefs (default to the resolver floors).
-  maxParallelWorktrees: 1,
+  // #1306 — orchestration pref (defaults to the resolver floor).
   defaultGateLevel: 'L1',
   // #1730 — no companion by default; individual tests inject one.
   companions: [],
@@ -469,9 +468,11 @@ describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead co
     expect(l1.command).toContain('L1')
   })
 
-  it('plan action is single-issue whatever the worktree cap (#2329)', () => {
-    for (const maxParallelWorktrees of [1, 3, 4]) {
-      const step = shipStepFor('plan', 'Standard', profile({ maxParallelWorktrees }))
+  // #2329 removed the knob that used to branch this action; #2333 removed the
+  // profile field it left behind. The action is now a flat constant.
+  it('plan action is a single-issue constant across every profile (#2329/#2333)', () => {
+    for (const defaultGateLevel of ['L1', 'L2'] as const) {
+      const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
       expect(step.action).toBe('Write the plan, then pass the plan-review gate.')
     }
   })
