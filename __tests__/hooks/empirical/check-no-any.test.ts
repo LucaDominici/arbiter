@@ -82,7 +82,7 @@ describe('check-no-any — empirical fire', () => {
 
     const result = runHook(hookPath, dir, filePath)
 
-    expect(result.status).toBe(1)
+    expect(result.status).toBe(2) // #2326: exit 2 is the blocking code
     expect(result.stderr).toContain('[arbiter] INV-04:')
     expect(result.stderr).toContain(`1: const x: ${ANY_TYPE} = 1`)
   })
@@ -93,7 +93,7 @@ describe('check-no-any — empirical fire', () => {
 
     const result = runHook(hookPath, dir, filePath)
 
-    expect(result.status).toBe(1)
+    expect(result.status).toBe(2) // #2326: exit 2 is the blocking code
     expect(result.stderr).toContain('[arbiter] INV-04:')
     expect(result.stderr).toContain(`1: const x: ${ANY_TYPE} = 1 // legitimate prose`)
   })
