@@ -13,7 +13,7 @@
 // explicitly and unconditionally building here would double that cost for
 // jobs that don't need dist at all.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
@@ -108,5 +108,37 @@ describe('scripts/prepare-lifecycle.mjs (#9001)', () => {
     const log = runPrepareLifecycle(packageRoot, npmCache)
 
     expect(log.trim()).toBe('run build')
+  })
+
+  it('the full package.json "prepare" command survives a non-git cwd (#2351)', () => {
+    // Real npm 11 behaviour observed on a self-hosted CI runner: prepare's cwd
+    // is npm's internal git-clone tmp dir, and `git config` there can fail with
+    // "fatal: not in a git directory" (exit 128) depending on the npm/git
+    // version pairing. With `&&`, that failure aborted the ENTIRE prepare step
+    // before prepare-lifecycle.mjs ever ran — silently shipping a git-dependency
+    // consumer a package with no dist/. The git-config half only matters for a
+    // real contributor checkout of this repo; it must never be able to block a
+    // consumer's install.
+    const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8')) as {
+      scripts: Record<string, string>
+    }
+    mkdirSync(resolve(workDir, 'scripts'), { recursive: true })
+    writeFileSync(resolve(workDir, 'scripts', 'prepare-lifecycle.mjs'), SCRIPT_SRC)
+    const notAGitDir = mkdtempSync(join(tmpdir(), 'arbiter-not-a-git-dir-'))
+    writeFileSync(join(notAGitDir, 'package.json'), '{}')
+    execFileSync(
+      'cp',
+      ['-r', resolve(workDir, 'scripts'), resolve(notAGitDir, 'scripts')],
+      {},
+    )
+
+    const result = spawnSync('sh', ['-c', pkg.scripts.prepare], {
+      cwd: notAGitDir,
+      encoding: 'utf-8',
+      env: { ...process.env, npm_config_cache: resolve(workDir, 'unrelated-npm-cache') },
+    })
+
+    expect(result.status, result.stderr).toBe(0)
+    rmSync(notAGitDir, { recursive: true, force: true })
   })
 })
