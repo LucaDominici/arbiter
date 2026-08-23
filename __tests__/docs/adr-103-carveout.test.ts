@@ -159,8 +159,9 @@ describe('no tracked doc still advertises ADR-103 as missing (#2330)', () => {
   // The gap was asserted in six architecture docs and one test header comment. A single
   // survivor re-opens the question the ADR answers, so scan rather than enumerate.
   const SCAN_ROOTS = ['docs/architecture', 'docs/REFERENCE', 'docs/methodology', '__tests__/docs']
-  // Dated audit records are evidence of the past, not live claims about the tree.
-  const EXCLUDE = ['docs/audit']
+  // Dated audit records are evidence of the past, not live claims about the tree; and this
+  // file necessarily spells the phrases out in order to search for them.
+  const EXCLUDE = ['docs/audit', 'adr-103-carveout.test.ts']
 
   const GAP_PHRASES = [
     /missing ADR-103/i,

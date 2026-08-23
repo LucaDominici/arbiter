@@ -35,8 +35,9 @@ Serializes expensive gates across N parallel worktree agents of the same repo.
   `E_GATE_MUTEX_UNSUPPORTED` and the hint to run serially (`--max-parallel 1`) or install
   util-linux flock. There is deliberately NO lockfile emulation — it would reintroduce the
   SIGKILL hole.
-- **Lock ordering (ADR-103):** gate-exec is a **leaf**. A process never holds two arbiter
-  locks; total order: `gate-lock ≺ worktree-lock ≺ wave-claim`.
+- **Lock ordering (ADR-103 §4):** gate-exec is a **leaf** — it takes only the gate flock and
+  is never invoked while `.arbiter/.lock` is held, so the one blocking lock is never acquired
+  underneath a file lock. Total order: `gate-lock ≺ worktree-lock ≺ wave-claim`.
 
 ## `symlink-children` worktree link strategy — per-worktree build caches
 

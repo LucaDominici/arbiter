@@ -456,15 +456,16 @@ plan red-team + multiagent review + a full gate GREEN on the wave PR.
 **Worktree isolation** (`worktree.ts`, `src/worktree`): must run from the main repo on a clean tree;
 branch `task/<#id>`; the on-disk dir strips `#` (it breaks Vite/Vitest/Node-ESM path resolution);
 `node_modules` symlinked with per-worktree `.vite`/`.cache` (`symlink-children`) so N parallel builds
-can't corrupt one shared cache; open/close guarded by `.arbiter/.lock`; close runs an
+can't corrupt one shared cache; the open-log write is guarded by `.arbiter/.lock` (branch creation is
+made race-free by git's own atomic `git worktree add -b`, not by that lock — ADR-103 D1); close runs an
 `assertBranchMerged` guard and an optional harvest of modified/untracked files back to main.
 
 **Gate mutex** (`gate-exec.ts`, ADR-103): a _deterministic leaf_ with no orchestration state. It keys
 the lock on `hash(git rev-parse --git-common-dir)` so every worktree of a repo converges on **one**
 lock (outside the repo, at `$XDG_RUNTIME_DIR/arbiter/…`), delegating both wait and release to
 `flock(1)` (kernel-side, survives SIGKILL/OOM); **fail-closed** (`E_GATE_MUTEX_UNSUPPORTED`, degrade to
-serial) where `flock` is absent. Global lock order: `gate-lock ≺ worktree-lock ≺ wave-claim`; a process
-never holds two arbiter locks at once.
+serial) where `flock` is absent. Global lock order: `gate-lock ≺ worktree-lock ≺ wave-claim` (ADR-103
+§4) — gate-exec is a leaf, never invoked while `.arbiter/.lock` is held.
 
 ### 6.6 The gate ladder at runtime
 
@@ -604,7 +605,7 @@ with gaps flagged) in [`adr-index.md`](adr-index.md). The load-bearing ones for 
 | 045                     | KIT taxonomy (wrap-not-replace, parity contract)                                | §5.4        |
 | 051, 101                | Collaboration-mode + runner-profile axes                                        | §5.3, §7.3  |
 | 059                     | `selfOnly` invariant filter                                                     | §8.4        |
-| 061, 103                | Batch-execution safety for parallel agents (**ADR-103 file missing**)           | §6.5, §11.3 |
+| 061, 103                | Batch-execution safety for parallel agents (ADR-103 amends 061)                 | §6.5, §11.3 |
 | 083                     | Matrix downgrade-vs-fix (PASS/HALF/FAKE verdicts)                               | §5.1        |
 | 090, 094                | Workflow performance budget + project-profile resolver                          | §5.3        |
 
@@ -677,15 +678,21 @@ the absence with a globbed test (`__tests__/config/affinity-batching-removed.tes
 as the worked example of the class: a generated template propagates a false promise to every
 target, and no link/doc-set gate catches semantic staleness.
 
-### 11.3 ADR-103 is cited everywhere but has no ADR file (MEDIUM)
+### 11.3 ADR-103 was cited everywhere but had no ADR file (RESOLVED, #2330)
 
 ADR-103 is the formal basis for parallel _write_-agents (the worktree carve-out) and is referenced in
 `src/cli.ts`, `src/templates/claude/rules/50-batch-execution.md`, `src/templates/claude/skills/wave-drain/SKILL.md.ejs`,
-`gate-exec.ts`, `worktree-prune.ts`, and the `related:` frontmatter of several files — yet
-`docs/internal/ADR/103-*.md` **does not exist**, and the ADR index/DECISIONS digest jumps 102 → 104.
-The rule is enforced in prose and code; the decision record is missing. (Recommendation: write the
-ADR-103 file; do not invent its content — reconstruct it from `50-batch-execution.md` + the lock-order
-comments in `gate-exec.ts`.)
+`gate-exec.ts`, `worktree-prune.ts`, and the `related:` frontmatter of several files — yet the file
+itself was never written (no add and no delete anywhere in git history; `13bf4ba9` shipped the rule,
+the changelog entry and the number, but no ADR). #2330 reconstructed it as
+`docs/internal/ADR/103-worktree-parallel-carveout.md` from the surviving citations and, where the
+rule-50 paraphrase and the code disagreed, from the code — the two divergences (the open lock does
+not serialize branch creation; `.arbiter/.lock ⊃ kit.lock` refutes "never two arbiter locks") are
+recorded in the ADR's divergence table and corrected in rule 50. The reconstruction also honours the
+`§2` / `§3` / `§4` citations embedded in `gate-exec.ts`, `worktree-prune.ts` and issue #1896, which a
+body written on the bare ADR template would have left dangling. Kept here as the worked example of
+the class: a number can ship, be enforced in code and prose, and cite a document that never existed.
+`__tests__/docs/adr-103-carveout.test.ts` pins the file and its section numbering.
 
 ### 11.4 Config knobs that outlived their consumers (MEDIUM)
 
@@ -740,7 +747,7 @@ governance.
 
 | Risk                                                                | Likelihood | Impact | Mitigation in place                                                                       |
 | ------------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------- |
-| Missing ADR-103 causes divergent re-implementation of the carve-out | Medium     | Medium | Rule is codified in `50-batch-execution.md` + code comments                               |
+| Carve-out conditions are stronger than their guards (spawn guard advisory, disjointness post-hoc) | Medium | Medium | ADR-103 §1 records each condition's real enforcement strength; #2330 |
 | Overloaded "tier" vocabulary causes a mis-wired gate                | Medium     | High   | Parity gates (`agent-dispatch-matrix`, catalog↔AGENTS) catch some, not all                |
 | Pruned-engine config knobs mislead an extender                      | Medium     | Low    | §11.4; `affinityBatching` deleted (#2329); the rest resolve safely (fail-closed defaults) |
 | Two-engine parity (TS ↔ mjs) drifts                                 | Low        | Medium | Deep-equal parity test in CI                                                              |
