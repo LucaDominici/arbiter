@@ -889,6 +889,10 @@ const DEPLOY_TARGET_OPTIONS: Opt<DeployTarget>[] = [
   { value: 'azure-container-app', label: 'azure-container-app — Azure Container Apps deploy' },
   { value: 'aws-ecs', label: 'aws-ecs             — AWS ECS deploy' },
   { value: 'gcp-cloud-run', label: 'gcp-cloud-run       — Google Cloud Run deploy' },
+  {
+    value: 'nas-compose',
+    label: 'nas-compose         — SSH + docker-compose deploy to a self-hosted NAS',
+  },
   { value: 'none', label: 'none                — no deploy workflows' },
 ]
 

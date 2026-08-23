@@ -645,6 +645,7 @@ const DEPLOY_TARGET_VALUES: Record<DeployTarget, true> = {
   'azure-container-app': true,
   'aws-ecs': true,
   'gcp-cloud-run': true,
+  'nas-compose': true,
   none: true,
 }
 export const DEPLOY_TARGETS: ReadonlySet<string> = new Set(Object.keys(DEPLOY_TARGET_VALUES))

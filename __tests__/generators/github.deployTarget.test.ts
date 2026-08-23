@@ -80,6 +80,29 @@ describe('generateGithub — deployTarget dispatch (#1005)', () => {
     expect(content).toMatch(/https:\/\/github\\\.com\/acme\/my-service\//)
   })
 
+  it('deployTarget nas-compose emits deploy workflows + nas-ssh composite action', () => {
+    generateGithub(makeConfig(dir, { deployTarget: 'nas-compose', archetype: 'backend-web-db' }))
+    const wfDir = join(dir, '.github', 'workflows')
+    expect(existsSync(join(wfDir, '04-deploy-test.yml'))).toBe(true)
+    expect(existsSync(join(wfDir, '10-deploy-prod.yml'))).toBe(true)
+  })
+
+  it('10-deploy-prod.yml with nas-compose contains cosign copy, nas-ssh action and infra/nas-compose/deploy.sh', () => {
+    generateGithub(
+      makeConfig(dir, {
+        deployTarget: 'nas-compose',
+        archetype: 'backend-web-db',
+        githubOwner: 'acme',
+        githubRepo: 'my-service',
+      }),
+    )
+    const content = readFileSync(join(dir, '.github', 'workflows', '10-deploy-prod.yml'), 'utf-8')
+    expect(content).toContain('cosign copy')
+    expect(content).toContain('cosign verify')
+    expect(content).toContain('./.github/actions/nas-ssh')
+    expect(content).toContain('infra/nas-compose/deploy.sh')
+  })
+
   it('10-deploy-prod.yml with azure-container-app contains cosign copy and ACR auth', () => {
     generateGithub(
       makeConfig(dir, {

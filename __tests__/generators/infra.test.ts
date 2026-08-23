@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // CANON-05: generator unit tests for src/generators/infra.ts (#893)
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, existsSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, existsSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { generateInfra } from '../../src/generators/infra.js'
@@ -62,5 +62,48 @@ describe('generateInfra', () => {
         rmSync(levelDir, { recursive: true, force: true })
       }
     }
+  })
+})
+
+// #9002: nas-compose deployTarget infra scaffold
+describe('generateInfra — nas-compose', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-infra-nas-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('emits exactly one file when deployTarget is nas-compose', () => {
+    const result = generateInfra(makeConfig(dir, { deployTarget: 'nas-compose' }))
+    expect(result.files.length).toBe(1)
+  })
+
+  it('emits deploy.sh to infra/nas-compose/', () => {
+    generateInfra(makeConfig(dir, { deployTarget: 'nas-compose' }))
+    expect(existsSync(join(dir, 'infra', 'nas-compose', 'deploy.sh'))).toBe(true)
+  })
+
+  it('result.files path includes deploy.sh', () => {
+    const result = generateInfra(makeConfig(dir, { deployTarget: 'nas-compose' }))
+    expect(result.files[0].path).toContain('deploy.sh')
+  })
+
+  it('deploy.sh is executable (0o755)', () => {
+    generateInfra(makeConfig(dir, { deployTarget: 'nas-compose' }))
+    const mode = statSync(join(dir, 'infra', 'nas-compose', 'deploy.sh')).mode & 0o777
+    expect(mode).toBe(0o755)
+  })
+
+  it('deploy.sh contains pull-by-digest, cosign verify on NAS, and compose lifecycle', () => {
+    generateInfra(makeConfig(dir, { deployTarget: 'nas-compose' }))
+    const content = readFileSync(join(dir, 'infra', 'nas-compose', 'deploy.sh'), 'utf-8')
+    expect(content).toContain('docker pull')
+    expect(content).toContain('cosign verify')
+    expect(content).toContain('docker-compose')
+    expect(content).not.toContain('<%')
   })
 })

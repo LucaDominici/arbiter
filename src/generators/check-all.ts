@@ -28,6 +28,22 @@ export interface GateRegistryEntry {
   condition?: string
   else?: string
   soft?: boolean
+  /**
+   * #9003 — this gate is the promoted ("full-strength") variant of the base
+   * gate whose id is named here. When the requested run level is high enough
+   * for THIS gate's own `level` to execute (same L1⊆L2⊆L3 containment as
+   * everything else), the base gate is skipped at runtime in its favor —
+   * e.g. an L3 `harness-full` gate with `promotes_to: harness-fast`.
+   * Optional; a gate with no `promotes_to` behaves exactly as today.
+   */
+  promotes_to?: string
+  /**
+   * #9003 — marks a gate as audit-only: a second axis orthogonal to level.
+   * Skipped at runtime when the consumer sets `ARBITER_AUDIT_MODE=off`
+   * (default: gates run). Optional; a gate with no `audit` behaves exactly
+   * as today.
+   */
+  audit?: boolean
 }
 
 const VALID_LEVELS = new Set(['L1', 'L2', 'L3'])
@@ -136,6 +152,50 @@ function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): 
     ...(typeof entry['condition'] === 'string' ? { condition: entry['condition'] } : {}),
     ...(typeof entry['else'] === 'string' ? { else: entry['else'] } : {}),
     ...(entry['soft'] === true ? { soft: true } : {}),
+    ...(typeof entry['promotes_to'] === 'string' ? { promotes_to: entry['promotes_to'] } : {}),
+    ...(entry['audit'] === true ? { audit: true } : {}),
+  }
+}
+
+// #9003: a `promotes_to` value must reference a real gate id in the SAME
+// registry — a typo would otherwise silently never suppress anything and
+// fail loud only at runtime (or never), matching the loud-by-construction
+// intent of the duplicate-id check above.
+export function validatePromotions(entries: GateRegistryEntry[]): void {
+  const ids = new Set(entries.map((e) => e.id))
+  for (const entry of entries) {
+    if (entry.promotes_to === undefined) continue
+    if (!ids.has(entry.promotes_to)) {
+      throw new Error(
+        `gate registry: gate "${entry.id}" promotes_to unknown gate id "${entry.promotes_to}"`,
+      )
+    }
+    // #9003: the runtime suppression of the base gate is decided ONLY from
+    // the registry (level + promotes_to) — it never consults the promoting
+    // gate's own runtime `condition`. A promoting gate that ALSO carries a
+    // runtime `condition` (the gateFilePresent idiom every script-backed
+    // gate uses) can self-skip when the condition is false, while the base
+    // it suppresses is unconditionally gone — neither gate runs, silently.
+    // Fail loud at generation time instead of allowing that fake-green class.
+    // (emitIf is NOT checked here: it filters entries out of GATE_REGISTRY
+    // entirely at generation time, before loadGateRegistry even sees them, so
+    // a false emitIf can never populate the runtime `_promotedAway` set.)
+    if (entry.condition !== undefined || entry.else !== undefined) {
+      throw new Error(
+        `gate registry: gate "${entry.id}" declares promotes_to and a runtime condition/else — ` +
+          'a false condition would suppress both gates silently',
+      )
+    }
+    // An inline gate's body is a hardcoded EJS branch matched on `g.id` in
+    // check-all.mjs.ejs (INLINE_BLOCKS) — a promoting gate declared `inline`
+    // with no matching branch emits nothing while still counting as "this
+    // level is reached" for _promotedAway, again suppressing both gates.
+    if (entry.kind === 'inline') {
+      throw new Error(
+        `gate registry: gate "${entry.id}" declares promotes_to and kind: inline — ` +
+          'an inline gate with no matching template branch would suppress both gates silently',
+      )
+    }
   }
 }
 
@@ -144,7 +204,9 @@ export function loadGateRegistry(data: Record<string, unknown>): GateRegistryEnt
   const rendered = renderTemplate('scripts/gate-registry.yml.ejs', registryData)
   const raw = parseGateRegistryYaml(rendered)
   const seen = new Set<string>()
-  return raw.map((entry) => normalizeGateEntry(entry, seen))
+  const entries = raw.map((entry) => normalizeGateEntry(entry, seen))
+  validatePromotions(entries)
+  return entries
 }
 
 /**

@@ -25,6 +25,13 @@
 #   else       optional — raw body emitted in the `else` branch (used by the
 #              SKIP-report gates: audit, npm-ci drift, playwright rules).
 #   soft       true → the gate runs with `{ soft: graceActive }`.
+#   promotes_to  optional — id of a gate this one REPLACES at runtime once its
+#              own level is reached (e.g. an L3 `harness-full` entry with
+#              `promotes_to: harness-fast` skips `harness-fast` once the run
+#              level is L3+). #9003.
+#   audit      optional true — an audit-only gate, a second axis orthogonal
+#              to level; skipped at runtime when the consumer sets
+#              `ARBITER_AUDIT_MODE=off`. #9003.
 #
 # ORDER IS MEANINGFUL: the emitted script runs gates in registry order within
 # each level (the pre-#2041 inline order is preserved).

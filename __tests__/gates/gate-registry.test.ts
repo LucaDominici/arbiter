@@ -18,7 +18,7 @@ import {
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { renderTemplate } from '../../src/utils/render.js'
-import { loadGateRegistry } from '../../src/generators/check-all.js'
+import { loadGateRegistry, validatePromotions } from '../../src/generators/check-all.js'
 import { makeConfig } from '../helpers.js'
 
 function renderGate(data: Record<string, unknown>): string {
@@ -238,5 +238,220 @@ describe('declarative gate registry (#2041)', () => {
     expect(existsSync(join(wrapper, 'gradle-wrapper.properties'))).toBe(true)
     expect(statSync(gradlew).mode & 0o111).not.toBe(0)
     expect(readFileSync(gradlew, 'utf-8')).toContain('org.gradle.wrapper.GradleWrapperMain')
+  })
+})
+
+// #9003 — promotes_to (a base/full-strength gate-substitution axis) and audit
+// (a level-orthogonal gate-tagging axis), both additive/opt-in fields on a gate entry.
+describe('gate registry: promotes_to and audit (#9003)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'gate-promo-fixture-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  const OK_CMD = ['node', '-e', 'process.exit(0)']
+
+  it('a gate with no promotes_to/audit renders byte-identical to the pre-#9003 shape', () => {
+    const data = baseData(dir)
+    const plain = { id: 'probe', name: 'probe gate', level: 'L2', kind: 'check', cmd: OK_CMD }
+    const rendered = renderGate({ ...data, gates: [plain] })
+    // The per-gate skip-wrap (if/else around runCheck) is opt-in — a gate
+    // with neither promotes_to nor audit gets the exact pre-#9003 one-liner,
+    // with no wrapping if/else around it.
+    expect(rendered).toContain("runCheck('probe gate', 'node', ['-e', 'process.exit(0)']);")
+    expect(rendered).not.toContain("if (_promotedAway.has('probe')")
+    expect(rendered).not.toMatch(/if \(_auditGatesOff\) \{\n\s*console\.log\('\[CHECK\] probe gate/)
+  })
+
+  it('promotes_to: the base gate runs when the promoted tier is not reached', () => {
+    const data = { ...baseData(dir), governanceLevel: 'L3' }
+    const base = {
+      id: 'harness-fast',
+      name: 'harness fast',
+      level: 'L1',
+      kind: 'check',
+      cmd: OK_CMD,
+    }
+    const full = {
+      id: 'harness-full',
+      name: 'harness full',
+      level: 'L3',
+      kind: 'check',
+      cmd: OK_CMD,
+      promotes_to: 'harness-fast',
+    }
+    const rendered = renderGate({ ...data, gates: [base, full] })
+    const l1 = runScript(rendered, ['--level', 'L1'])
+    expect(l1.status, l1.stdout + l1.stderr).toBe(0)
+    expect(l1.stdout).toContain('harness fast ... PASS')
+    expect(l1.stdout).not.toContain('harness full')
+  })
+
+  it('promotes_to: the promoted gate replaces the base once its own level is reached', () => {
+    const data = { ...baseData(dir), governanceLevel: 'L3' }
+    const base = {
+      id: 'harness-fast',
+      name: 'harness fast',
+      level: 'L1',
+      kind: 'check',
+      cmd: OK_CMD,
+    }
+    const full = {
+      id: 'harness-full',
+      name: 'harness full',
+      level: 'L3',
+      kind: 'check',
+      cmd: OK_CMD,
+      promotes_to: 'harness-fast',
+    }
+    const rendered = renderGate({ ...data, gates: [base, full] })
+    const l3 = runScript(rendered, ['--level', 'L3'])
+    expect(l3.status, l3.stdout + l3.stderr).toBe(0)
+    expect(l3.stdout).toContain('harness fast ... SKIP')
+    expect(l3.stdout).toContain('harness full ... PASS')
+  })
+
+  it('audit: an audit-tagged gate runs by default (ARBITER_AUDIT_MODE unset)', () => {
+    const data = baseData(dir)
+    const gate = {
+      id: 'audit-only',
+      name: 'audit only gate',
+      level: 'L1',
+      kind: 'check',
+      cmd: OK_CMD,
+      audit: true,
+    }
+    const rendered = renderGate({ ...data, gates: [gate] })
+    delete process.env.ARBITER_AUDIT_MODE
+    const r = runScript(rendered, ['--level', 'L1'])
+    expect(r.status, r.stdout + r.stderr).toBe(0)
+    expect(r.stdout).toContain('audit only gate ... PASS')
+  })
+
+  it('audit: ARBITER_AUDIT_MODE=off skips audit-tagged gates only', () => {
+    const data = baseData(dir)
+    const auditGate = {
+      id: 'audit-only',
+      name: 'audit only gate',
+      level: 'L1',
+      kind: 'check',
+      cmd: OK_CMD,
+      audit: true,
+    }
+    const plainGate = { id: 'plain', name: 'plain gate', level: 'L1', kind: 'check', cmd: OK_CMD }
+    const rendered = renderGate({ ...data, gates: [auditGate, plainGate] })
+    const prev = process.env.ARBITER_AUDIT_MODE
+    process.env.ARBITER_AUDIT_MODE = 'off'
+    try {
+      const r = runScript(rendered, ['--level', 'L1'])
+      expect(r.status, r.stdout + r.stderr).toBe(0)
+      expect(r.stdout).toContain('audit only gate ... SKIP')
+      expect(r.stdout).toContain('plain gate ... PASS')
+    } finally {
+      if (prev === undefined) delete process.env.ARBITER_AUDIT_MODE
+      else process.env.ARBITER_AUDIT_MODE = prev
+    }
+  })
+
+  it.each(['false', '0', 'no'])(
+    'audit: ARBITER_AUDIT_MODE=%s (boolean off-forms, not just literal "off") also skips',
+    (offForm) => {
+      const data = baseData(dir)
+      const auditGate = {
+        id: 'audit-only',
+        name: 'audit only gate',
+        level: 'L1',
+        kind: 'check',
+        cmd: OK_CMD,
+        audit: true,
+      }
+      const rendered = renderGate({ ...data, gates: [auditGate] })
+      const prev = process.env.ARBITER_AUDIT_MODE
+      process.env.ARBITER_AUDIT_MODE = offForm
+      try {
+        const r = runScript(rendered, ['--level', 'L1'])
+        expect(r.status, r.stdout + r.stderr).toBe(0)
+        expect(r.stdout).toContain('audit only gate ... SKIP')
+      } finally {
+        if (prev === undefined) delete process.env.ARBITER_AUDIT_MODE
+        else process.env.ARBITER_AUDIT_MODE = prev
+      }
+    },
+  )
+
+  it('loadGateRegistry (the real, unmodified registry) loads clean — no false-positive from the new validator', () => {
+    const data = baseData(dir, { language: 'typescript' })
+    expect(() => loadGateRegistry(data)).not.toThrow()
+  })
+
+  it('validatePromotions throws LOUD on a promotes_to referencing an unknown gate id', () => {
+    const entries = [
+      { id: 'harness-fast', name: 'harness fast', level: 'L1' as const, kind: 'check' as const },
+      {
+        id: 'harness-full',
+        name: 'harness full',
+        level: 'L3' as const,
+        kind: 'check' as const,
+        promotes_to: 'no-such-gate',
+      },
+    ]
+    expect(() => validatePromotions(entries)).toThrow(/promotes_to unknown gate id "no-such-gate"/)
+  })
+
+  it('validatePromotions accepts a promotes_to referencing a real gate id', () => {
+    const entries = [
+      { id: 'harness-fast', name: 'harness fast', level: 'L1' as const, kind: 'check' as const },
+      {
+        id: 'harness-full',
+        name: 'harness full',
+        level: 'L3' as const,
+        kind: 'check' as const,
+        promotes_to: 'harness-fast',
+      },
+    ]
+    expect(() => validatePromotions(entries)).not.toThrow()
+  })
+
+  it('validatePromotions throws LOUD when the promoting gate also carries a runtime condition', () => {
+    // A false `condition` on the promoting gate would self-skip it while the
+    // base it names is unconditionally suppressed — neither gate runs,
+    // silently. This is exactly the class of fake-green the registry's
+    // other validators exist to reject at generation time.
+    const entries = [
+      { id: 'harness-fast', name: 'harness fast', level: 'L1' as const, kind: 'check' as const },
+      {
+        id: 'harness-full',
+        name: 'harness full',
+        level: 'L3' as const,
+        kind: 'check' as const,
+        promotes_to: 'harness-fast',
+        condition: "gateFilePresent('scripts/harness-full.mjs', 'harness full')",
+      },
+    ]
+    expect(() => validatePromotions(entries)).toThrow(
+      /declares promotes_to and a runtime condition\/else/,
+    )
+  })
+
+  it('validatePromotions throws LOUD when the promoting gate is kind: inline', () => {
+    // An inline gate's body is a hardcoded EJS branch matched on g.id — a
+    // promoting gate with no matching branch emits nothing while still
+    // counting as "reached" for _promotedAway, suppressing both gates.
+    const entries = [
+      { id: 'harness-fast', name: 'harness fast', level: 'L1' as const, kind: 'check' as const },
+      {
+        id: 'harness-full',
+        name: 'harness full',
+        level: 'L3' as const,
+        kind: 'inline' as const,
+        promotes_to: 'harness-fast',
+      },
+    ]
+    expect(() => validatePromotions(entries)).toThrow(/declares promotes_to and kind: inline/)
   })
 })

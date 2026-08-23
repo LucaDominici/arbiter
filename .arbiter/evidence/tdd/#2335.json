@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2335",
+  "test_path": "__tests__/scripts/prepare-lifecycle.test.ts",
+  "test_commit_sha": "adb04ac37f7409731d05d2ba234dd75af5909f91",
+  "test_blob_sha": "9a8b666ee95788493cd6024192d085158a34e1b4",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/prepare-lifecycle.test.ts (5 tests | 2 failed) 98ms\n     × builds when installed as a git dependency (nested under node_modules, no dist) 30ms\n     × builds when running inside npm's cache dir (git dependency clone, no dist) 23ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 3 passed (5)\n   Start at  01:21:38\n   Duration  229ms (transform 29ms, setup 22ms, import 19ms, tests 98ms, environment 0ms)\n\n\nstderr | __tests__/scripts/prepare-lifecycle.test.ts > scripts/prepare-lifecycle.mjs (#9001) > builds when installed as a git dependency (nested under node_modules, no dist)\n\n\nstderr | __tests__/scripts/prepare-lifecycle.test.ts > scripts/prepare-lifecycle.mjs (#9001) > builds when running inside npm's cache dir (git dependency clone, no dist)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/prepare-lifecycle.test.ts > scripts/prepare-lifecycle.mjs (#9001) > builds when installed as a git dependency (nested under node_modules, no dist)\nAssertionError: expected '' to be 'run build' // Object.is equality\n\n- Expected\n+ Received\n\n- run build\n\n ❯ __tests__/scripts/prepare-lifecycle.test.ts:81:24\n     79|     const log = runPrepareLifecycle(packageRoot)\n     80|\n     81|     expect(log.trim()).toBe('run build')\n       |                        ^\n     82|   })\n     83|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/scripts/prepare-lifecycle.test.ts > scripts/prepare-lifecycle.mjs (#9001) > builds when running inside npm's cache dir (git dependency clone, no dist)\nAssertionError: expected '' to be 'run build' // Object.is equality\n\n- Expected\n+ Received\n\n- run build\n\n ❯ __tests__/scripts/prepare-lifecycle.test.ts:110:24\n    108|     const log = runPrepareLifecycle(packageRoot, npmCache)\n    109|\n    110|     expect(log.trim()).toBe('run build')\n       |                        ^\n    111|   })\n    112| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/prepare-lifecycle.test.ts",
+  "recorded_at": "2026-08-22T23:21:38.876Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/prepare-lifecycle.test.ts"
+  ]
+}

@@ -134,6 +134,10 @@ const CONFIGS: Array<{ name: string; data: Record<string, unknown> }> = [
     name: 'deploy/azure-container-app/L2',
     data: makeRenderData({ governanceLevel: 'L2', deployTarget: 'azure-container-app' }),
   },
+  {
+    name: 'deploy/nas-compose/L2',
+    data: makeRenderData({ governanceLevel: 'L2', deployTarget: 'nas-compose' }),
+  },
 ]
 
 /** Render every workflow template under one config → map of file name → content. */

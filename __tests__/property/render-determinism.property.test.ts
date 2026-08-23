@@ -89,6 +89,7 @@ const DEPLOY_TARGETS: DeployTarget[] = [
   'azure-container-app',
   'aws-ecs',
   'gcp-cloud-run',
+  'nas-compose',
   'none',
 ]
 

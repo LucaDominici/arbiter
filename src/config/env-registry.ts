@@ -290,6 +290,17 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     isGateBypass: true,
   },
   {
+    name: 'ARBITER_AUDIT_MODE',
+    type: 'boolean',
+    default: true,
+    purpose:
+      "Read by a generated consumer's check-all.mjs (#9003 gate-registry `audit: true` field) as " +
+      'on/off (parseBooleanEnv shape) — off ("ARBITER_AUDIT_MODE=off") skips audit-only gates, ' +
+      'a level-orthogonal axis (the #9003 design brief). Not read ' +
+      "by arbiter's own CLI — the flag lives in the emitted script, not this process.",
+    isGateBypass: true,
+  },
+  {
     name: 'ARBITER_SKIP_PLAN_REVIEW',
     type: 'boolean',
     default: false,

@@ -843,13 +843,14 @@ describe('exported provider/deploy-target unions (#1676/#1677)', () => {
 
   it('DEPLOY_TARGETS covers exactly the documented flag values', () => {
     expect([...DEPLOY_TARGETS].sort()).toEqual(
-      ['aws-ecs', 'azure-container-app', 'gcp-cloud-run', 'ghcr', 'none'].sort(),
+      ['aws-ecs', 'azure-container-app', 'gcp-cloud-run', 'ghcr', 'nas-compose', 'none'].sort(),
     )
   })
 
   it('isDeployTarget narrows known values and rejects unknown ones', () => {
     expect(isDeployTarget('gcp-cloud-run')).toBe(true)
     expect(isDeployTarget('ghcr')).toBe(true)
+    expect(isDeployTarget('nas-compose')).toBe(true)
     expect(isDeployTarget('none')).toBe(true)
     expect(isDeployTarget('bogus')).toBe(false)
     expect(isDeployTarget('')).toBe(false)

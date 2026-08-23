@@ -203,8 +203,44 @@ const _effectiveGates = gates.filter((g) => {
   if (g.language && g.language !== language) return false;
   return true;
 });
+// #9003 — render-time set of gate ids that are the BASE of some promotion
+// (i.e. some other gate declares `promotes_to: <this id>`), and the reverse
+// map (base id -> promoting gate id) used for the SKIP-reason message below.
+// Only gates in this set (and audit-tagged gates) get the runtime skip-wrap
+// below — every other gate's emission is byte-identical to pre-#9003 output.
+const _promotionBases = new Set(_effectiveGates.filter((g) => typeof g.promotes_to === 'string').map((g) => g.promotes_to));
+const _promotedByMap = new Map(_effectiveGates.filter((g) => typeof g.promotes_to === 'string').map((g) => [g.promotes_to, g.id]));
+const _hasAudit = _effectiveGates.some((g) => g.audit === true);
+// #9003 — the `_promotedAway`/`_auditGatesOff` runtime machinery below is
+// ONLY emitted when at least one gate in THIS consumer's registry opts in —
+// a consumer whose gates never declare promotes_to/audit gets byte-identical
+// output to pre-#9003 (no dead consts, no snapshot churn on `arbiter update`).
+const _hasSkipMachinery = _promotionBases.size > 0 || _hasAudit;
 %>
 const GATE_REGISTRY = <%- JSON.stringify(_effectiveGates) %>;
+<%_ if (_hasSkipMachinery) { _%>
+
+// #9003 — promoted-gate suppression: a gate whose id is the `promotes_to`
+// target of some OTHER gate is skipped once that promoting gate's own level
+// is reached (same L1⊆L2⊆L3 ordinal comparison the --dry-run manifest uses
+// above — e.g. an L3 `harness-full` gate declaring
+// `promotes_to: harness-fast` suppresses `harness-fast` once L3 is reached).
+const _promotedAway = new Set();
+for (const _pg of GATE_REGISTRY) {
+  if (_pg.promotes_to && _LEVELS.indexOf(_pg.level) <= _LEVELS.indexOf(level)) {
+    _promotedAway.add(_pg.promotes_to);
+  }
+}
+// #9003 — audit-mode gating: a gate tagged `audit: true` is a second axis
+// orthogonal to level. Default is ON (gates run); set
+// ARBITER_AUDIT_MODE=off to skip them.
+// Boolean-shaped (registered in env-registry.ts as type: 'boolean') — accept
+// the same off-forms a boolean env read accepts (mirrors parseBooleanEnv;
+// duplicated inline since this file ships to consumers with no arbiter dep).
+const _auditGatesOff = ['off', 'false', '0', 'no'].includes(
+  (process.env.ARBITER_AUDIT_MODE ?? '').trim().toLowerCase(),
+);
+<%_ } _%>
 
 // ─── #2078 (GATE-1 of #2041) — inspection modes, re-based on the registry.
 // `--dry-run` prints the registry manifest without executing (exit 0, zero
@@ -222,7 +258,16 @@ if (dryRun) {
   // does this lane run" under-reported the L3 lane by ~40 gates.
   for (const _g of GATE_REGISTRY) {
     if (_LEVELS.indexOf(_g.level) <= _LEVELS.indexOf(level)) {
+<%_ if (_hasSkipMachinery) { _%>
+      // #9003: the manifest must reflect the SAME runtime skip a real run
+      // would apply — a promoted-away or audit-off gate is not silently
+      // listed as if it would execute (the #2257 "diagnostic that lies" class).
+      const _dryPromo = _promotedAway.has(_g.id) ? '  [SKIP: promoted]' : '';
+      const _dryAudit = (_g.audit === true && _auditGatesOff) ? '  [SKIP: ARBITER_AUDIT_MODE=off]' : '';
+      console.log(`  ${_g.level}  ${_g.id}  ${_g.name}${_dryPromo}${_dryAudit}`);
+<%_ } else { _%>
       console.log(`  ${_g.level}  ${_g.id}  ${_g.name}`);
+<%_ } _%>
     }
   }
 }
@@ -321,6 +366,19 @@ if (true) {
 <% for (const g of l1) { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>
 <% if (g.language && g.language !== language) continue; %>
+<%_ const _isPromoted = _promotionBases.has(g.id); const _isAudit = g.audit === true; const _promoterId = _isPromoted ? _promotedByMap.get(g.id) : null; const _skipCond = []; if (_isPromoted) _skipCond.push("_promotedAway.has('" + g.id + "')"); if (_isAudit) _skipCond.push('_auditGatesOff'); _%>
+<%_ if (_skipCond.length) { _%>
+if (<%- _skipCond.join(' || ') %>) {
+<%_ if (_isPromoted && _isAudit) { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (' + (_promotedAway.has('<%= g.id %>') ? 'promoted by <%- _promoterId %>' : 'ARBITER_AUDIT_MODE=off') + ')');
+<%_ } else if (_isPromoted) { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (promoted by <%- _promoterId %>)');
+<%_ } else { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (ARBITER_AUDIT_MODE=off)');
+<%_ } _%>
+  pushResult('<%= g.name %>', 'SKIP', 0);
+} else {
+<%_ } _%>
 <% if (g.kind === 'inline') { %>
 <% if(g.id === 'npm-ci-drift') { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) { %><%- g.else %><% } else { %>
@@ -688,6 +746,9 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 <%- g.else %>
 }<% } else if (g.condition) { %> } <% } %>
 <% } %>
+<%_ if (_skipCond.length) { _%>
+}
+<%_ } _%>
 <% } %>
 }
 // ── L2 (full checks — pre-push) ──────────────────────────────────────────
@@ -695,6 +756,19 @@ if (level !== 'L1') {
 <% for (const g of l2) { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>
 <% if (g.language && g.language !== language) continue; %>
+<%_ const _isPromoted = _promotionBases.has(g.id); const _isAudit = g.audit === true; const _promoterId = _isPromoted ? _promotedByMap.get(g.id) : null; const _skipCond = []; if (_isPromoted) _skipCond.push("_promotedAway.has('" + g.id + "')"); if (_isAudit) _skipCond.push('_auditGatesOff'); _%>
+<%_ if (_skipCond.length) { _%>
+if (<%- _skipCond.join(' || ') %>) {
+<%_ if (_isPromoted && _isAudit) { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (' + (_promotedAway.has('<%= g.id %>') ? 'promoted by <%- _promoterId %>' : 'ARBITER_AUDIT_MODE=off') + ')');
+<%_ } else if (_isPromoted) { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (promoted by <%- _promoterId %>)');
+<%_ } else { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (ARBITER_AUDIT_MODE=off)');
+<%_ } _%>
+  pushResult('<%= g.name %>', 'SKIP', 0);
+} else {
+<%_ } _%>
 <% if (g.kind === 'inline') { %>
 <% if(g.id === 'npm-ci-drift') { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) { %><%- g.else %><% } else { %>
@@ -1123,6 +1197,9 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 <%- g.else %>
 }<% } else if (g.condition) { %> } <% } %>
 <% } %>
+<%_ if (_skipCond.length) { _%>
+}
+<%_ } _%>
 <% } %>
   // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
   // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
@@ -1135,6 +1212,19 @@ if (level === 'L3' || level === 'L4') {
 <% for (const g of l3) { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>
 <% if (g.language && g.language !== language) continue; %>
+<%_ const _isPromoted = _promotionBases.has(g.id); const _isAudit = g.audit === true; const _promoterId = _isPromoted ? _promotedByMap.get(g.id) : null; const _skipCond = []; if (_isPromoted) _skipCond.push("_promotedAway.has('" + g.id + "')"); if (_isAudit) _skipCond.push('_auditGatesOff'); _%>
+<%_ if (_skipCond.length) { _%>
+if (<%- _skipCond.join(' || ') %>) {
+<%_ if (_isPromoted && _isAudit) { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (' + (_promotedAway.has('<%= g.id %>') ? 'promoted by <%- _promoterId %>' : 'ARBITER_AUDIT_MODE=off') + ')');
+<%_ } else if (_isPromoted) { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (promoted by <%- _promoterId %>)');
+<%_ } else { _%>
+  console.log('[CHECK] <%= g.name %> ... SKIP (ARBITER_AUDIT_MODE=off)');
+<%_ } _%>
+  pushResult('<%= g.name %>', 'SKIP', 0);
+} else {
+<%_ } _%>
 <% if (g.kind === 'inline') { %>
 <% if(g.id === 'npm-ci-drift') { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) { %><%- g.else %><% } else { %>
@@ -1483,6 +1573,9 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 <%- g.else %>
 }<% } else if (g.condition) { %> } <% } %>
 <% } %>
+<%_ if (_skipCond.length) { _%>
+}
+<%_ } _%>
 <% } %>
 }
 
