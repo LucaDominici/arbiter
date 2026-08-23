@@ -108,7 +108,7 @@ not resolve in a fresh `git init`; `check-circular-deps` and `check-no-unused-ex
 `node_modules` must be whole-dir symlinked, re-creating the shared-cache defect #1873 removed;
 `.claude/settings.local.json` is an absolute symlink into the main checkout, so the copy is not
 sealed; and the copy carries `.env` into `/tmp`. Cost: 4.1 s copy + a 16.0 s median probe, versus
-~1.6 s in place. It also carries a private HARD/ADVISORY table that already contradicts ADR-032
+~0.2 s in place. It also carries a private HARD/ADVISORY table that already contradicts ADR-032
 (it declares `post-commit-check` HARD where the manifest declares it ADVISORY). It therefore stays
 consumer-scoped, and the self surface is covered by the mechanism above instead.
 
