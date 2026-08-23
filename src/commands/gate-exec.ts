@@ -13,6 +13,11 @@
  *   - the release is guaranteed on the flock holder's fd death — including
  *     SIGKILL/OOM-kill, the hole that Node `process.on('exit')`/signal handlers
  *     cannot cover (red-team finding #1 on #1873). No 1h stale-lock stall.
+ *     Scope (ADR-103 D5): "holder" is the `flock` process, not this one. Killing
+ *     the node PID orphans `flock`, which keeps the lock until the gate exits;
+ *     killing `flock` alone releases it while the gate is STILL RUNNING. Kill the
+ *     process group, not a PID. `doctor` reports this mutex (#2196) but cannot
+ *     repair it.
  *
  * Key: hash of `git rev-parse --git-common-dir` — every worktree of a repo
  * shares the main repo's common dir, so they converge on ONE lock. The lock

@@ -147,7 +147,8 @@ live in [`docs/internal/ADR/`](../internal/ADR/).
 | 103 | Worktree-isolated parallel execution carve-out                                                   | Accepted       |
 | 104 | Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning                             | Accepted       |
 
-_(Rows above stop at 104; 105-115 are listed in the generated index `docs/internal/ADR/README.md`.)_
+_(The rows above are a hand-curated thematic view and stop partway; the complete, always-current
+list is the generated index `docs/internal/ADR/README.md`.)_
 
 ## Gap register — architecturally-significant decisions with no ADR
 
