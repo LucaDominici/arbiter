@@ -126,11 +126,7 @@ describe('scripts/prepare-lifecycle.mjs (#9001)', () => {
     writeFileSync(resolve(workDir, 'scripts', 'prepare-lifecycle.mjs'), SCRIPT_SRC)
     const notAGitDir = mkdtempSync(join(tmpdir(), 'arbiter-not-a-git-dir-'))
     writeFileSync(join(notAGitDir, 'package.json'), '{}')
-    execFileSync(
-      'cp',
-      ['-r', resolve(workDir, 'scripts'), resolve(notAGitDir, 'scripts')],
-      {},
-    )
+    execFileSync('cp', ['-r', resolve(workDir, 'scripts'), resolve(notAGitDir, 'scripts')], {})
 
     const result = spawnSync('sh', ['-c', pkg.scripts.prepare], {
       cwd: notAGitDir,

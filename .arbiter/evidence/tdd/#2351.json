@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2351",
+  "test_path": "__tests__/scripts/prepare-lifecycle.test.ts",
+  "test_commit_sha": "5b96e4e87f360ddbb04a04dcfe266e92bd5a6577",
+  "test_blob_sha": "5a0dd81512fa5d1aa597803cf64cda6445b23f74",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/prepare-lifecycle.test.ts (6 tests | 1 failed) 281ms\n     × the full package.json \"prepare\" command survives a non-git cwd (#2351) 30ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 5 passed (6)\n   Start at  20:45:16\n   Duration  521ms (transform 32ms, setup 24ms, import 24ms, tests 281ms, environment 0ms)\n\n\nstderr | __tests__/scripts/prepare-lifecycle.test.ts > scripts/prepare-lifecycle.mjs (#9001) > the full package.json \"prepare\" command survives a non-git cwd (#2351)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/prepare-lifecycle.test.ts > scripts/prepare-lifecycle.mjs (#9001) > the full package.json \"prepare\" command survives a non-git cwd (#2351)\nAssertionError: fatal: not in a git directory\n: expected 128 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 128\n\n ❯ __tests__/scripts/prepare-lifecycle.test.ts:141:42\n    139|     })\n    140|\n    141|     expect(result.status, result.stderr).toBe(0)\n       |                                          ^\n    142|     rmSync(notAGitDir, { recursive: true, force: true })\n    143|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/prepare-lifecycle.test.ts",
+  "recorded_at": "2026-08-23T18:45:17.337Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/prepare-lifecycle.test.ts"
+  ]
+}
