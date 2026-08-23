@@ -1,0 +1,126 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2330",
+  "branch": "task/#2330-adr103",
+  "sha": "53ae8e40aa676330fa55bb9ca1239b9dfaa53c33",
+  "recordedAt": "2026-08-23T03:01:41.251315Z",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "note": "ADR exists; every technical claim cited to source and independently re-verified (flock -o semantics measured live).",
+      "evidence": [
+        {
+          "file": "docs/internal/ADR/103-worktree-parallel-carveout.md",
+          "line": 52
+        },
+        {
+          "file": "__tests__/docs/adr-103-carveout.test.ts",
+          "line": 35
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "note": "rule-50 (all four copies) and wave-primitives.md no longer carry the two falsified sentences and still carry the pinned lock order.",
+      "evidence": [
+        {
+          "file": "__tests__/docs/adr-103-carveout.test.ts",
+          "line": 131
+        },
+        {
+          "file": "src/templates/claude/rules/50-batch-execution.md",
+          "line": 43
+        },
+        {
+          "file": "docs/REFERENCE/wave-primitives.md",
+          "line": 38
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "note": "arc42 11.3 marked RESOLVED in place; 11.4-11.9 numbering and the #119/#116 anchors preserved.",
+      "evidence": [
+        {
+          "file": "docs/architecture/arc42.md",
+          "line": 682
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "note": "Generated ADR index + DECISIONS digest list 103; the hand-curated adr-index.md carries the row and no gap entry. check-adr-index.mjs has no contiguity check, so the test is the proof.",
+      "evidence": [
+        {
+          "file": "__tests__/docs/adr-103-carveout.test.ts",
+          "line": 200
+        },
+        {
+          "file": "docs/architecture/adr-index.md",
+          "line": 147
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "note": "Three conditions, 'voids the exemption', three residual prohibitions (block-scoped and mutation-checked), literal lock order, leaf + .arbiter/.lock.",
+      "evidence": [
+        {
+          "file": "__tests__/docs/adr-103-carveout.test.ts",
+          "line": 54
+        },
+        {
+          "file": "__tests__/docs/adr-103-carveout.test.ts",
+          "line": 68
+        },
+        {
+          "file": "docs/internal/ADR/103-worktree-parallel-carveout.md",
+          "line": 52
+        }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "note": "Globbed scan finds no surviving gap assertion; six divergences D1-D6 recorded with the code cited.",
+      "evidence": [
+        {
+          "file": "__tests__/docs/adr-103-carveout.test.ts",
+          "line": 186
+        },
+        {
+          "file": "__tests__/docs/adr-103-carveout.test.ts",
+          "line": 75
+        },
+        {
+          "file": "docs/internal/ADR/103-worktree-parallel-carveout.md",
+          "line": 190
+        }
+      ]
+    },
+    {
+      "id": "AC-7",
+      "verdict": "PASS",
+      "note": "Sections 1-5 present; 2 = primitives (cited by gate-exec.ts:6, worktree-prune.ts:7), 4 = lock order (gate-exec.ts:26), 3 = ship --batch (issue #1896).",
+      "evidence": [
+        {
+          "file": "__tests__/docs/adr-103-carveout.test.ts",
+          "line": 100
+        },
+        {
+          "file": "src/commands/gate-exec.ts",
+          "line": 26
+        },
+        {
+          "file": "src/commands/worktree-prune.ts",
+          "line": 7
+        }
+      ]
+    }
+  ]
+}
