@@ -18,14 +18,7 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 const ADR_PATH = join(repoRoot, 'docs', 'internal', 'ADR', '103-worktree-parallel-carveout.md')
-const RULE_TEMPLATE = join(
-  repoRoot,
-  'src',
-  'templates',
-  'claude',
-  'rules',
-  '50-batch-execution.md',
-)
+const RULE_TEMPLATE = join(repoRoot, 'src', 'templates', 'claude', 'rules', '50-batch-execution.md')
 const RULE_SELF = join(repoRoot, '.claude', 'rules', '50-batch-execution.md')
 const WAVE_PRIMITIVES = join(repoRoot, 'docs', 'REFERENCE', 'wave-primitives.md')
 
@@ -149,9 +142,7 @@ describe('rule-50 agrees with the reconstructed ADR (#2330)', () => {
     const template = readFileSync(RULE_TEMPLATE, 'utf-8')
     expect(template).toMatch(/gate-lock ≺ worktree-lock ≺ wave-claim/)
     expect(template).toMatch(/ADR-103/)
-    expect(readFileSync(WAVE_PRIMITIVES, 'utf-8')).toMatch(
-      /gate-lock ≺ worktree-lock ≺ wave-claim/,
-    )
+    expect(readFileSync(WAVE_PRIMITIVES, 'utf-8')).toMatch(/gate-lock ≺ worktree-lock ≺ wave-claim/)
   })
 })
 
