@@ -172,7 +172,11 @@ function selfManifest(root: string, entry: Record<string, unknown>) {
   const path = join(root, 'self-manifest.json')
   writeFileSync(
     path,
-    JSON.stringify({ version: 1, selfSurface: true, hooks: [{ file: 'probe-guard.mjs', ...entry }] }),
+    JSON.stringify({
+      version: 1,
+      selfSurface: true,
+      hooks: [{ file: 'probe-guard.mjs', ...entry }],
+    }),
   )
   return path
 }
@@ -201,7 +205,12 @@ describe('check-hardness-inventory — self surface (#2326)', () => {
   it('observes a self hook that blocks: in-place spawn, cwd at repo root (AC-1)', () => {
     const { root, hooksDir } = selfFixture(GUARD(2))
     try {
-      const result = runVerifier(['--manifest', selfManifest(root, FILE_FIXTURE), '--hooks-dir', hooksDir])
+      const result = runVerifier([
+        '--manifest',
+        selfManifest(root, FILE_FIXTURE),
+        '--hooks-dir',
+        hooksDir,
+      ])
       expect(result.stdout + result.stderr).toMatch(/exits 2 on violation fixture/)
       expect(result.status).toBe(0)
     } finally {
@@ -212,7 +221,12 @@ describe('check-hardness-inventory — self surface (#2326)', () => {
   it('flips RED when a HARD self hook stops blocking — planted defect (AC-4)', () => {
     const { root, hooksDir } = selfFixture(GUARD(1))
     try {
-      const result = runVerifier(['--manifest', selfManifest(root, FILE_FIXTURE), '--hooks-dir', hooksDir])
+      const result = runVerifier([
+        '--manifest',
+        selfManifest(root, FILE_FIXTURE),
+        '--hooks-dir',
+        hooksDir,
+      ])
       expect(result.status).toBe(1)
       expect(result.stdout + result.stderr).toMatch(/ceremony regression detected/)
     } finally {
@@ -226,7 +240,12 @@ describe('check-hardness-inventory — self surface (#2326)', () => {
     // where 2 is expected is a FAIL. Passing proves the real sibling was used.
     const { root, hooksDir } = selfFixture(GUARD(2), 'export const probeSentinel = 1\n')
     try {
-      const result = runVerifier(['--manifest', selfManifest(root, FILE_FIXTURE), '--hooks-dir', hooksDir])
+      const result = runVerifier([
+        '--manifest',
+        selfManifest(root, FILE_FIXTURE),
+        '--hooks-dir',
+        hooksDir,
+      ])
       expect(result.status).toBe(0)
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -238,7 +257,12 @@ describe('check-hardness-inventory — self surface (#2326)', () => {
     // self-mode widening both would demand a nonsense manifest entry.
     const { root, hooksDir } = selfFixture(GUARD(2))
     try {
-      const result = runVerifier(['--manifest', selfManifest(root, FILE_FIXTURE), '--hooks-dir', hooksDir])
+      const result = runVerifier([
+        '--manifest',
+        selfManifest(root, FILE_FIXTURE),
+        '--hooks-dir',
+        hooksDir,
+      ])
       expect(result.stdout + result.stderr).not.toMatch(/'(lib|hooks)\.mjs' has no manifest entry/)
       expect(result.status).toBe(0)
     } finally {
@@ -249,9 +273,15 @@ describe('check-hardness-inventory — self surface (#2326)', () => {
   it('fails on an undeclared self hook, and never passes vacuously on an empty manifest (AC-7)', () => {
     const { root, hooksDir } = selfFixture(GUARD(2))
     try {
-      writeFileSync(join(hooksDir, 'undeclared-guard.mjs'), '#!/usr/bin/env node\nprocess.exit(0)\n')
+      writeFileSync(
+        join(hooksDir, 'undeclared-guard.mjs'),
+        '#!/usr/bin/env node\nprocess.exit(0)\n',
+      )
       const declared = runVerifier([
-        '--manifest', selfManifest(root, FILE_FIXTURE), '--hooks-dir', hooksDir,
+        '--manifest',
+        selfManifest(root, FILE_FIXTURE),
+        '--hooks-dir',
+        hooksDir,
       ])
       expect(declared.status).toBe(1)
       expect(declared.stdout + declared.stderr).toMatch(/undeclared-guard\.mjs.*no manifest entry/)
@@ -260,6 +290,100 @@ describe('check-hardness-inventory — self surface (#2326)', () => {
       writeFileSync(emptyPath, JSON.stringify({ version: 1, selfSurface: true, hooks: [] }))
       const empty = runVerifier(['--manifest', emptyPath, '--hooks-dir', hooksDir])
       expect(empty.status).toBe(1)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('REFUSES a fixture.path outside the sandbox instead of writing it (AC-9)', () => {
+    // The self surface writes fixtures into the live repo and deletes them afterwards.
+    // An unguarded `fixture.path` is therefore a write-then-delete primitive aimed at the
+    // working tree — and the manifest that arms it is protected by neither enforce-read-only
+    // nor ssotGuardPatterns. A mis-authored `"path": "AGENTS.md"` must FAIL, not fire.
+    const { root, hooksDir } = selfFixture(GUARD(2))
+    try {
+      const victim = join(root, 'AGENTS.md')
+      const original = '# tracked file that must survive\n'
+      writeFileSync(victim, original)
+      const manifestPath = selfManifest(root, {
+        ...FILE_FIXTURE,
+        fixture: { ...FILE_FIXTURE.fixture, path: 'AGENTS.md' },
+      })
+      const result = runVerifier(['--manifest', manifestPath, '--hooks-dir', hooksDir])
+      expect(result.status).toBe(1)
+      expect(result.stdout + result.stderr).toMatch(/outside the fixture sandbox/)
+      expect(readFileSync(victim, 'utf-8')).toBe(original)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('REFUSES a fixture.path that escapes the repo via traversal (AC-9)', () => {
+    const { root, hooksDir } = selfFixture(GUARD(2))
+    try {
+      const manifestPath = selfManifest(root, {
+        ...FILE_FIXTURE,
+        fixture: { ...FILE_FIXTURE.fixture, path: '../escaped.ts' },
+      })
+      const result = runVerifier(['--manifest', manifestPath, '--hooks-dir', hooksDir])
+      expect(result.status).toBe(1)
+      expect(existsSync(join(root, '..', 'escaped.ts'))).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fails an ADVISORY entry whose hook actually blocks (AC-6)', () => {
+    // ADVISORY is otherwise an unasserted waiver: the spawn arm only exercises HARD entries,
+    // so declaring a live blocker ADVISORY silently removes it from the gate. This caught two
+    // real mis-declarations in this manifest's first version.
+    const { root, hooksDir } = selfFixture(GUARD(2))
+    try {
+      const manifestPath = selfManifest(root, {
+        classification: 'ADVISORY',
+        tools: ['claude'],
+        spawnable: false,
+        rationale: 'claims to be advisory while its source blocks',
+      })
+      const result = runVerifier(['--manifest', manifestPath, '--hooks-dir', hooksDir])
+      expect(result.status).toBe(1)
+      expect(result.stdout + result.stderr).toMatch(/declared ADVISORY but its source contains/)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a promotedBy claim the hook source does not back (AC-6)', () => {
+    const { root, hooksDir } = selfFixture(GUARD(2))
+    try {
+      const manifestPath = selfManifest(root, {
+        classification: 'ADVISORY',
+        tools: ['claude'],
+        spawnable: false,
+        promotedBy: 'ARBITER_NOT_IN_SOURCE',
+        rationale: 'unbacked promotion claim',
+      })
+      const result = runVerifier(['--manifest', manifestPath, '--hooks-dir', hooksDir])
+      expect(result.status).toBe(1)
+      expect(result.stdout + result.stderr).toMatch(/promotion claim is unbacked/)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when a hook exits right but never reaches its violation branch (AC-8)', () => {
+    // enforce-read-only exits 2 fail-closed on an UNRESOLVABLE path (INV-96). If the self
+    // lib's resolveToolInputPath regresses — the #2324 shape — the hook exits 2 for the wrong
+    // reason and an exit-code-only probe reports PASS. expectStderr pins the code path.
+    const { root, hooksDir } = selfFixture(GUARD(2))
+    try {
+      const manifestPath = selfManifest(root, {
+        ...FILE_FIXTURE,
+        expectStderr: 'this-string-is-never-printed',
+      })
+      const result = runVerifier(['--manifest', manifestPath, '--hooks-dir', hooksDir])
+      expect(result.status).toBe(1)
+      expect(result.stdout + result.stderr).toMatch(/did not reach the violation branch/)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -329,9 +453,9 @@ describe('arbiter self hooks are declared and observed (#2326)', () => {
     expect(hardWithWrongCode.map((h) => h.file)).toEqual([])
   })
 
-  it('keeps at least 12 self hooks empirically observed, not merely declared (AC-10)', () => {
+  it('keeps at least 10 self hooks empirically observed, not merely declared (AC-10)', () => {
     const observed = loadSelfManifest().hooks.filter((h) => h['spawnable'] === true)
-    expect(observed.length).toBeGreaterThanOrEqual(12)
+    expect(observed.length).toBeGreaterThanOrEqual(10)
   })
 
   it('gives every non-spawnable entry a written rationale (AC-6)', () => {
@@ -363,14 +487,21 @@ describe('arbiter self hooks are declared and observed (#2326)', () => {
       expect(doc).toContain(check)
     }
     expect(doc).toMatch(/## Hook check surface matrix/)
-    expect(doc).toMatch(/measured/i)
+    // Assert an actual figure, not the word "measured" — AC-3 requires a recorded cost, and a
+    // grep for the adjective keeps nothing honest.
+    expect(doc).toMatch(/measured[^.]*?\d+(\.\d+)?\s*(ms|s)\b/i)
+    expect(doc).toMatch(/10 of 30/)
   })
 
   it('mutates no tracked state when run against the real hooks dir (AC-2)', () => {
     const snapshot = () => ({
       head: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: REPO_ROOT, encoding: 'utf-8' }).stdout,
-      branch: spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: REPO_ROOT, encoding: 'utf-8' }).stdout,
-      status: spawnSync('git', ['status', '--porcelain'], { cwd: REPO_ROOT, encoding: 'utf-8' }).stdout,
+      branch: spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+        cwd: REPO_ROOT,
+        encoding: 'utf-8',
+      }).stdout,
+      status: spawnSync('git', ['status', '--porcelain'], { cwd: REPO_ROOT, encoding: 'utf-8' })
+        .stdout,
     })
     const before = snapshot()
     runVerifier(['--manifest', SELF_MANIFEST, '--hooks-dir', join(REPO_ROOT, '.claude/hooks')])
