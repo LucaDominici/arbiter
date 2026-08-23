@@ -134,7 +134,9 @@ memory: a registered worktree with a clean tree AND (branch fully merged OR no a
 Multi-issue dispatch through `ship --batch` is superseded by the `wave-drain` skill and the
 `/drain` command, which are where the carve-out is actually exercised.
 
-The deprecation runs on a window rather than a removal: **warn from 0.4.0, remove at 0.6.0**, with
+The deprecation runs on a window rather than a removal: **warn from 0.4.0, remove at 0.6.0** (the
+window is sourced from the `13bf4ba9` changeset and the `docs/DEPRECATIONS.md` ledger row, not from
+code — nothing in the tree encodes the version pair), with
 the removal tracked as its own follow-up issue (#1896) one release later. The decision removed a
 _dispatch form_, not the issue-runner seam behind it — that seam stayed synchronous and un-wired,
 and was itself pruned as dead code later (#1921).
@@ -186,6 +188,16 @@ How a wave lands depends on whether the target repo is governed:
 
 The asymmetry is deliberate: the single-PR form depends on a gate and evidence artifacts that only
 a governed repo has.
+
+**Sourcing note — this is the least-grounded section of the reconstruction.** Unlike §1-§4, which
+are recoverable from the primitives themselves, §5 rests on the shipped paper trail: the released
+`CHANGELOG.md` entry for 0.5.0, the `13bf4ba9` changeset, and PR #1879's body all attribute the
+"owner-ratified hybrid convergence model" to ADR-103 by name, and `docs/REFERENCE/wave-drain.md`
+carries it under this ADR's `related:` slug. Against that, #1873's pre-implementation finding map
+routed the convergence question to a later task (T6) rather than to the ADR task (T1). The shipped
+record was taken as authoritative over the plan that preceded it — but a reader should know the
+attribution is a judgement, not a citation, and that this is the section to re-open first if the
+original intent ever resurfaces.
 
 ## Where the paraphrase and the code disagree
 
