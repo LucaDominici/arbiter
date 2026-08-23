@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2348",
+  "test_path": "__tests__/scripts/check-tarball-contents.test.ts",
+  "test_commit_sha": "e9a3db6861d1accd8b2bcaf73597686b352be67c",
+  "test_blob_sha": "2f0063635b14a5fbac3dc0ae1c038cfa8652ed67",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/check-tarball-contents.test.ts (20 tests | 1 failed) 8ms\n     × flags a manifest missing the doc-set/gold-audit engine scripts (#2348) 2ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 19 passed (20)\n   Start at  19:35:12\n   Duration  122ms (transform 30ms, setup 13ms, import 31ms, tests 8ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-tarball-contents.test.ts > findMissingRequired — required runtime-asset presence (#1575, #1801) > flags a manifest missing the doc-set/gold-audit engine scripts (#2348)\nAssertionError: expected 'kit derived runtime data (dist/kit/de…' to match /check-doc-set\\.mjs/\n\n- Expected:\n/check-doc-set\\.mjs/\n\n+ Received:\n\"kit derived runtime data (dist/kit/derived.json) kit canonical-mapping runtime data (dist/kit/canonical-mapping.json)\"\n\n ❯ __tests__/scripts/check-tarball-contents.test.ts:131:20\n    129|     const m = findMissingRequired(['dist/cli.js', 'dist/kit/catalog.js…\n    130|     const labels = m.map((x) => x.label).join(' ')\n    131|     expect(labels).toMatch(/check-doc-set\\.mjs/)\n       |                    ^\n    132|     expect(labels).toMatch(/gold-audit\\.mjs/)\n    133|     expect(labels).toMatch(/check-doc-freshness\\.mjs/)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-tarball-contents.test.ts",
+  "recorded_at": "2026-08-23T17:35:12.313Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-tarball-contents.test.ts"
+  ]
+}
