@@ -1,0 +1,63 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2326",
+  "branch": "task/#2326-probe-hooks-surface",
+  "verdicts": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": "scripts/check-hardness-inventory.mjs:137-171,205-345 (self-surface mode: in-place spawn, cwd at repo root, in-repo fixture) + .arbiter/self-hooks-manifest.json (30 declared, 10 spawnable) + docs/internal/SYSTEM/HOOK-CONTRACTS.md:52-100 (why probe-hooks.mjs stays consumer-scoped, with measured evidence). Both halves of the AC ship. Reworded from the original normalisation, which over-committed to naming probe-hooks.mjs as the vehicle; the rewording and its reason are recorded on the issue."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": "__tests__/hooks/empirical/hardness-inventory.test.ts 'mutates no tracked state when run against the real hooks dir (AC-2)' (HEAD/branch/porcelain before+after a real run) and 'removes every fixture it writes, including on the failing path (AC-9)'. Containment guard at check-hardness-inventory.mjs:160-171 refuses any fixture.path outside the pid-scoped .arb-hardness-tmp* sandbox. Verified clean `git status --porcelain` after the full L2."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": "scripts/check-all.mjs:189-198 (runCheck 'hardness inventory (self hooks)'); L2 summary line 196: PASS 214ms. Cost recorded in docs/internal/SYSTEM/HOOK-CONTRACTS.md as ~200ms (five runs: 196/198/202/207/207ms). Test 'is wired into the gate under a name distinct from the template run (AC-3)' asserts the wiring and the distinct parity name; the doc test asserts a numeric figure, not the word 'measured'."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": "__tests__/hooks/empirical/hardness-inventory.test.ts 'flips RED when a HARD self hook stops blocking - planted defect (AC-4)' (exit 1 + 'ceremony regression detected') and 'observes a self hook that blocks (AC-1)' as the negative control (exit 0). Independently reproduced on the REAL surface: the gate found four live exit-1 hooks before the fix and passes after."
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": "docs/internal/SYSTEM/HOOK-CONTRACTS.md:24-50 'Hook check surface matrix' with a row per check (check-hook-contracts, check-hardness-inventory template + self, check-hook-routing, check-self-dogfood, probe-hooks, empirical suite) and an explicit 'known uncovered cells' list. Asserted by the doc test 'records the measured runtime and the surface matrix in HOOK-CONTRACTS.md (AC-3, AC-5)'."
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "evidence": "Test 'declares every hook wired in settings.json, and every HARD entry blocks via exit 2 (AC-6)' (settings.json INTERSECT self manifest); ADVISORY floor at check-hardness-inventory.mjs:191-215 fails any ADVISORY entry whose source contains process.exit(2), with promotedBy as the only escape hatch and the env var verified present in source. Tests 'fails an ADVISORY entry whose hook actually blocks' and 'rejects a promotedBy claim the hook source does not back'."
+    },
+    {
+      "id": "AC-7",
+      "verdict": "PASS",
+      "evidence": "Test 'fails on an undeclared self hook, and never passes vacuously on an empty manifest (AC-7)' - both the undeclared-hook arm and the emptied hooks:[] arm are red. Filter widened for lib.mjs/hooks.mjs in self mode only (check-hardness-inventory.mjs:169-171), asserted by 'excludes lib.mjs and hooks.mjs from the self drift walk (AC-7)'."
+    },
+    {
+      "id": "AC-8",
+      "verdict": "PASS",
+      "evidence": "Test 'runs the hook against its OWN lib.mjs, never a template-rendered one (AC-8)' (sentinel export the template lib lacks) plus 'fails when a hook exits right but never reaches its violation branch (AC-8)' (expectStderr). Empirically: removing `export` from resolveToolInputPath in .claude/hooks/lib.mjs reddens 10 self hooks - i.e. this harness would have caught #2324, which the template-staged model could not."
+    },
+    {
+      "id": "AC-9",
+      "verdict": "PASS",
+      "evidence": "Tests 'REFUSES a fixture.path outside the sandbox instead of writing it', 'REFUSES a fixture.path that escapes the repo via traversal', 'leaves a path-only fixture target byte-identical', 'removes every fixture it writes, including on the failing path'. path-only targets are hashed before/after (check-hardness-inventory.mjs:268-273,325-336). The cleanup test was mutation-verified: disabling the rmSync flips it red."
+    },
+    {
+      "id": "AC-10",
+      "verdict": "PASS",
+      "evidence": "Test 'keeps at least 10 self hooks empirically observed, not merely declared (AC-10)'. Checker reports 'PASSED (30 hooks, 10 HARD empirically verified)'. Floor lowered from 12 to 10 during review: pre-edit-ssot-guard and enforce-gate-before-pr were demoted to declared-only because probing them consumed a developer's one-shot .arbiter/ssot-bypass token and read the live gate-pass marker respectively."
+    }
+  ],
+  "gateEvidence": {
+    "command": "node scripts/check-all.mjs L2",
+    "result": "1 check failed: 'wiki lint (INV-116)' - wiki/internal-system-hook-contracts.md source_sha stale after editing docs/internal/SYSTEM/HOOK-CONTRACTS.md",
+    "residual": "EXPECTED AND SANCTIONED: the task brief forbids regenerating wiki/ (the integrator regenerates it once, to avoid conflicts with two parallel agents). This is the sole failure and it is a pure consequence of the doc edit this issue required. Every other check, including both hardness-inventory invocations, is PASS.",
+    "newCheckTiming": "hardness inventory (self hooks) ... PASS (214ms)"
+  }
+}
