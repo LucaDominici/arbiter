@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fail if a Java file uses raw generic types (unparameterized generics)
-// FAIL-OPEN-INTENT: hook exits 0 for non-Java files; Java violations exit 1 explicitly
+// FAIL-OPEN-INTENT: hook exits 0 for non-Java files; Java violations exit 2 (blocking, #2326)
 import { readFileSync, existsSync } from 'node:fs'
 import { resolveToolInputPath } from './lib.mjs'
 const file = resolveToolInputPath()
@@ -28,5 +28,9 @@ if (offending.length > 0) {
     `[arbiter] INV: Raw generic type found (always use type parameters like List<String>): ${file}\n`,
   )
   offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`))
-  process.exit(1)
+  // Exit 2 is the ONLY blocking code under the Claude Code hook protocol: it feeds the
+  // violation back to the agent. Exit 1 is non-blocking — it prints and the agent never
+  // sees it, so the guard was decoration. Same regression as #1631 (enforce-read-only);
+  // caught here by the self-surface hardness probe (#2326).
+  process.exit(2)
 }

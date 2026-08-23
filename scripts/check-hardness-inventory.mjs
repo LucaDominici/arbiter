@@ -118,6 +118,26 @@ if (!existsSync(manifestPath)) {
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
 const manifestByFile = new Map(manifest.hooks.map((h) => [h.file, h]))
 
+// ─── #2326: self-surface mode ────────────────────────────────────────────────
+// The default surface is `src/templates/claude/hooks` — hooks staged into a tmpdir next
+// to a TEMPLATE-rendered lib.mjs. That model is structurally wrong for a project's own
+// materialized `.claude/hooks/`, and was measured to produce a VACUOUS GREEN:
+//
+//   1. Arbiter self-hardens its hooks with repo-root scoping
+//      (`if (!file.startsWith(process.cwd())) process.exit(0)`), which the templates do
+//      not carry. A fixture in os.tmpdir() makes every such hook exit 0 — the gate then
+//      reports a healthy blocker while the hook is dead.
+//   2. `.claude/hooks/lib.mjs` imports `../../scripts/lib/suppressions-shared.mjs`, which
+//      cannot resolve from a tmpdir; and a hook staged beside the TEMPLATE lib is not the
+//      pair that broke in #2324 (a missing export from the SELF lib).
+//
+// Self mode therefore spawns each hook IN PLACE, with cwd at the repo root that owns the
+// hooks dir, and writes its fixture inside that repo. Opt-in via `selfSurface: true` on
+// the manifest — never a path heuristic, so the template invocation is byte-identical.
+const selfSurface = manifest.selfSurface === true
+const ownerRoot = resolve(hooksDir, '..', '..')
+const fixtureRoot = join(ownerRoot, '.arb-hardness-tmp')
+
 // ─── 0. HARD blocking-code invariant (#1631) ────────────────────────────────────
 // Under the Claude Code hook protocol, exit 2 is the ONLY blocking code: a PreToolUse
 // exit 2 aborts the tool call and feeds stderr to the agent; a PostToolUse exit 2 feeds
@@ -141,8 +161,14 @@ for (const entry of manifest.hooks) {
 // ─── 1. Drift detection ───────────────────────────────────────────────────────
 
 // Every hook file in hooksDir (excluding lib.mjs.ejs) must have a manifest entry
+// `hooks.mjs` is the dispatcher and `lib.mjs` a shared helper — neither is a hook, so
+// neither owes a hardness classification. The template dir only ever contains the `.ejs`
+// forms; a materialized dir contains the rendered ones too.
+// NOTE: `hooks.mjs.ejs` stays IN scope for the template surface — it has a manifest entry
+// there and dropping it would silently weaken an existing drift assertion.
+const NOT_HOOKS = new Set(['lib.mjs.ejs', ...(selfSurface ? ['lib.mjs', 'hooks.mjs'] : [])])
 const hookFiles = readdirSync(hooksDir)
-  .filter((f) => (f.endsWith('.mjs') || f.endsWith('.mjs.ejs')) && f !== 'lib.mjs.ejs')
+  .filter((f) => (f.endsWith('.mjs') || f.endsWith('.mjs.ejs')) && !NOT_HOOKS.has(f))
   .sort()
 
 for (const file of hookFiles) {
@@ -179,31 +205,66 @@ for (const entry of hardSpawnable) {
   }
 
   const env = { ...process.env }
-  // Strip bypass flags so hooks are tested in their natural enforced state.
+  // Strip bypass flags so hooks are tested in their natural enforced state. Each of these
+  // turns a blocking hook into an exit-0 one, so an operator environment that exports one
+  // would otherwise hand the gate a false green.
   delete env['ARBITER_SSOT_BYPASS']
   delete env['ARBITER_ALLOW_CHANNEL_DOWNGRADE']
+  if (selfSurface) {
+    delete env['ARBITER_PLAN_BYPASS']
+    delete env['ARBITER_FINDING_LOSS_HARD']
+    delete env['ARBITER_SPAWN_GUARD_HARD']
+    // Hooks that debounce on sha1(cwd) would no-op on every run after the first.
+    env['ARBITER_HOOK_DEBOUNCE_MS'] = '0'
+  }
   const tmpFiles = []
 
-  if (fixture.type === 'file-with-content') {
-    const dir = mkdtempSync(join(tmpdir(), 'arbiter-hardness-'))
+  if (fixture.type === 'path-only') {
+    // #2326: point the hook at an existing repo file WITHOUT writing it. Required for
+    // guards whose subject is a real protected path (enforce-read-only -> LICENSE,
+    // pre-edit-ssot-guard -> AGENTS.md). Resolved to an ABSOLUTE path because the hooks'
+    // repo-root guard compares prefixes — a relative fixture silently yields exit 0.
+    // This type exists because a writing fixture aimed at a real path truncated a tracked
+    // SSOT during development; it must be structurally impossible, not merely avoided.
+    env[fixture.envKey] = join(ownerRoot, fixture.path)
+  } else if (fixture.type === 'file-with-content') {
     const ext = fixture.extension ?? '.ts'
-    const tmpFile = join(dir, `fixture${ext}`)
-    writeFileSync(tmpFile, fixture.content)
-    env[fixture.envKey] = tmpFile
-    tmpFiles.push(dir)
+    // In self mode the fixture MUST live inside the probed repo or the hooks' repo-root
+    // guard short-circuits. `fixture.path` places it precisely (e.g. `src/...` for the
+    // INV-12 guard, which additionally requires a src/-relative path).
+    const target = selfSurface
+      ? join(ownerRoot, fixture.path ?? join('.arb-hardness-tmp', `fixture${ext}`))
+      : join(mkdtempSync(join(tmpdir(), 'arbiter-hardness-')), `fixture${ext}`)
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, fixture.content)
+    env[fixture.envKey] = target
+    tmpFiles.push(selfSurface ? target : dirname(target))
   } else if (fixture.type === 'env-only') {
     Object.assign(env, fixture.env)
   }
 
-  // Stage the hook next to a rendered lib.mjs (no-op when it has no lib import) and feed an
-  // empty stdin so resolveToolInputPath falls back to the fixture's env var (Codex contract).
-  const { staged, cleanup } = await stageHookWithLib(hookPath)
+  // Template surface: stage the hook next to a rendered lib.mjs (no-op when it has no lib
+  // import). Self surface: run it WHERE IT LIVES, so `./lib.mjs` resolves to the project's
+  // own lib — the only arrangement that can observe self-pair drift (#2324) — with cwd at
+  // the repo root so `process.cwd()`-based scoping matches production.
+  // Empty stdin either way, so resolveToolInputPath falls back to the fixture env var.
+  const { staged, cleanup } = selfSurface
+    ? { staged: hookPath, cleanup: () => {} }
+    : await stageHookWithLib(hookPath)
   let result
   try {
-    result = spawnSync('node', [staged], { encoding: 'utf-8', env, input: '' })
+    result = spawnSync('node', [staged], {
+      encoding: 'utf-8',
+      env,
+      input: '',
+      ...(selfSurface ? { cwd: ownerRoot } : {}),
+    })
   } finally {
     cleanup()
+    // Unconditional: a fixture that survives a failing run is worse than no coverage —
+    // a leftover child_process import under src/ is itself an INV-12 violation.
     for (const d of tmpFiles) rmSync(d, { recursive: true, force: true })
+    if (selfSurface) rmSync(fixtureRoot, { recursive: true, force: true })
   }
 
   if (result.status === expectedExitCode) {

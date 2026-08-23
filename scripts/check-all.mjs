@@ -6,10 +6,10 @@
 //                simulate-nightly (T4), simulate-weekly (T5)
 //   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
 //
-// check (T1, "check" subcommand — L1 fast checks): 125 hard checks (runCheck/runToolCheck)
-//   + 1 advisory (runWarnCheck), as of #2039 + #2291.
+// check (T1, "check" subcommand — L1 fast checks): 126 hard checks (runCheck/runToolCheck)
+//   + 1 advisory (runWarnCheck), as of #2039 + #2291 + #2326.
 // gate (T1+T2, "gate" subcommand, default): check + T2 extended checks, cumulative total
-//   150 hard checks + 9 advisory, as of #2039 + #2291.
+//   151 hard checks + 9 advisory, as of #2039 + #2291 + #2326.
 // These counts are hand-maintained (#2042 fixed a ~2x stale count and a 25/37-gate-name
 // drift found by audit) — do not hand-copy an enumerated gate list here, it WILL drift.
 // For the exhaustive, always-current list: grep this file for `run(Check|ToolCheck|WarnCheck)(`
@@ -186,6 +186,18 @@ if (isMain) {
   })
   runCheck('test naming', 'node', ['scripts/check-test-naming.mjs'])
   runCheck('hardness inventory', 'node', ['scripts/check-hardness-inventory.mjs'])
+  // #2326: the SAME checker aimed at arbiter's OWN materialized hooks. The line above
+  // covers the TEMPLATE pair only, so a defect living solely in `.claude/hooks/` was
+  // invisible to every hook check we had — the blind spot that let #2324 run 18 days.
+  // Distinct name: parity gates are keyed by name, and a duplicate would let the passing
+  // template run mask a failing self run. Measured ~1.6s.
+  runCheck('hardness inventory (self hooks)', 'node', [
+    'scripts/check-hardness-inventory.mjs',
+    '--manifest',
+    '.arbiter/self-hooks-manifest.json',
+    '--hooks-dir',
+    '.claude/hooks',
+  ])
   runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
   runCheck('install command (B1)', 'node', ['scripts/check-install-command.mjs'])
   runCheck('tool claims', 'node', ['scripts/check-tool-claims.mjs'])

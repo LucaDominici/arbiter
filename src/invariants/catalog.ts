@@ -560,11 +560,15 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     title:
       'Hook hardness manifest — every hook must declare intent; HARD hooks must empirically block',
     description:
-      'Every hook in src/templates/claude/hooks/ must be declared in .arbiter/hooks-manifest.json ' +
-      'with an explicit classification (HARD | ADVISORY). HARD hooks must empirically exit non-zero ' +
-      'on a canonical violation fixture. Any hook file without a manifest entry, or any HARD hook ' +
-      'that exits 0 on violation, fails CI. This prevents silent ceremony regression — where a hook ' +
-      'is declared hard but silently exits 0.',
+      'Every hook in src/templates/claude/hooks/ must be declared in .arbiter/hooks-manifest.json, ' +
+      'and every hook in the project\u2019s own materialized .claude/hooks/ in ' +
+      '.arbiter/self-hooks-manifest.json, with an explicit classification (HARD | ADVISORY). ' +
+      'HARD hooks must empirically exit 2 \u2014 the only blocking code under the Claude Code hook ' +
+      'protocol \u2014 on a canonical violation fixture. Any hook file without a manifest entry, or any ' +
+      'HARD hook that fails to block, fails CI. This prevents silent ceremony regression \u2014 where a ' +
+      'hook is declared hard but silently exits 0 (or exits 1, which prints without blocking). ' +
+      'Both surfaces are required: #2324 was a defect present ONLY in the materialized copy, ' +
+      'invisible to every template-scoped check (#2326).',
     alwaysActive: true,
     selfOnly: true,
     enforcement:
