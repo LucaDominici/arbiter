@@ -39,8 +39,8 @@ confirmed real incident: on 2026-03-01 parallel agents without worktrees produce
 on `main`, with no clean recovery path.
 
 A flat ban is also the end of multi-agent throughput. #1873 (`wave-drain`) needed N agents writing
-code at once. The question ADR-103 answers is not "is parallel writing safe" — it is *"under
-exactly which conditions does the R3 hazard stop existing, and what remains unsafe even then."*
+code at once. The question ADR-103 answers is not "is parallel writing safe" — it is _"under
+exactly which conditions does the R3 hazard stop existing, and what remains unsafe even then."_
 
 The hazard is **shared mutable working-tree state**: one index, one set of tracked files, one
 `node_modules`. Git worktrees remove the first two. They do not remove the third, they do not
@@ -72,12 +72,12 @@ isolation buys nothing:
 An ADR that overstates enforcement becomes the authority a future agent cites to justify an unsafe
 dispatch. So, measured against the tree rather than against intent:
 
-| Condition | Real enforcement | Strength |
-| --- | --- | --- |
-| 1. Dedicated worktree | `.claude/hooks/pre-spawn-worktree-guard.mjs` flags a second write-intent agent spawned into the main tree. Its predicate is a **path regex** (`<name>.worktrees/`) plus the harness `isolation: "worktree"` flag — it does **not** verify the tree came from `arbiter worktree open`. Advisory by default; hard only under `ARBITER_SPAWN_GUARD_HARD=1`. | Advisory, provenance-blind |
-| 2. Distinct branch | **Git's** property, not arbiter's: `git worktree add -b` fails if the branch exists, and git refuses to check out one branch in two worktrees. `branchNameFor(taskId, slug)` (`src/worktree/paths.ts:52`) makes the name deterministic per task, so two same-task opens collide. Reachable only via the `runWorktreeOpen` path — a harness-created worktree bypasses it. | Hard, but only on the sanctioned path |
-| 3. Disjoint file sets | Declared socially in the plan manifest. `scripts/check-touched-vs-manifest.mjs` proves `touched(G) ⊆ declared(G)` for **one** group, **post-hoc** at harvest, and is not part of `check-all`. Pairwise disjointness *across* groups — which is what condition 3 actually says — is computed nowhere. | Declared; partial post-hoc evidence |
-| Residual prohibitions | **Prose. Zero of three mechanically enforced.** No hook or gate covers `npm install`, a main-tree edit, or `git tag`. | Convention |
+| Condition             | Real enforcement                                                                                                                                                                                                                                                                                                                                                         | Strength                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| 1. Dedicated worktree | `.claude/hooks/pre-spawn-worktree-guard.mjs` flags a second write-intent agent spawned into the main tree. Its predicate is a **path regex** (`<name>.worktrees/`) plus the harness `isolation: "worktree"` flag — it does **not** verify the tree came from `arbiter worktree open`. Advisory by default; hard only under `ARBITER_SPAWN_GUARD_HARD=1`.                 | Advisory, provenance-blind            |
+| 2. Distinct branch    | **Git's** property, not arbiter's: `git worktree add -b` fails if the branch exists, and git refuses to check out one branch in two worktrees. `branchNameFor(taskId, slug)` (`src/worktree/paths.ts:52`) makes the name deterministic per task, so two same-task opens collide. Reachable only via the `runWorktreeOpen` path — a harness-created worktree bypasses it. | Hard, but only on the sanctioned path |
+| 3. Disjoint file sets | Declared socially in the plan manifest. `scripts/check-touched-vs-manifest.mjs` proves `touched(G) ⊆ declared(G)` for **one** group, **post-hoc** at harvest, and is not part of `check-all`. Pairwise disjointness _across_ groups — which is what condition 3 actually says — is computed nowhere.                                                                     | Declared; partial post-hoc evidence   |
+| Residual prohibitions | **Prose. Zero of three mechanically enforced.** No hook or gate covers `npm install`, a main-tree edit, or `git tag`.                                                                                                                                                                                                                                                    | Convention                            |
 
 This is a deliberate record of the gap, not an endorsement of it. The conditions are policy; the
 guards are partial. Anyone tightening them should start with the dependency prohibition, whose
@@ -135,7 +135,7 @@ Multi-issue dispatch through `ship --batch` is superseded by the `wave-drain` sk
 
 The deprecation runs on a window rather than a removal: **warn from 0.4.0, remove at 0.6.0**, with
 the removal tracked as its own follow-up issue (#1896) one release later. The `IssueRunner` seam
-stays synchronous and un-wired — the deprecation removes a *dispatch form*, not the seam.
+stays synchronous and un-wired — the deprecation removes a _dispatch form_, not the seam.
 
 **Status: executed.** `ship --batch` was removed in 0.6.0 and #1896 is closed. `docs/DEPRECATIONS.md`
 carries the ledger row.
@@ -157,7 +157,7 @@ same sense:
 - **`gate-lock`** is a real kernel `flock`, and the only **blocking** one.
 - **`worktree-lock`** is `.arbiter/.lock`, which is **per-directory** — one file per worktree plus
   one in the main repo, not a single repo-wide lock. Only `runWorktreeOpen` is pinned to the main
-  repo, so a worktree agent running `arbiter configure` takes *its own* lock and excludes nobody.
+  repo, so a worktree agent running `arbiter configure` takes _its own_ lock and excludes nobody.
 - **`wave-claim`** is not a filesystem lock at all. It is the GitHub check-**ALL**-then-claim-ALL
   assignee protocol in the `wave-drain` skill (#1378): verify every candidate issue is open and
   unassigned, then claim them all, releasing every claim already taken if any step fails.
@@ -169,7 +169,7 @@ because it is cheap, legible, and makes the leaf property checkable — not beca
 primitives are capable of the deadlock it names.
 
 One genuine nesting sits **outside** this three-element order: `saveConfig` takes
-`.arbiter/kit.lock` *inside* the command-level `.arbiter/.lock` (`src/utils/config.ts`), with
+`.arbiter/kit.lock` _inside_ the command-level `.arbiter/.lock` (`src/utils/config.ts`), with
 `acquireLock` reentrant since #1617. That pair is a documented exception, not a violation of §4.
 
 ### §5 — Convergence model (owner-ratified, 2026-07-10)
@@ -191,14 +191,14 @@ Until this file existed, `.claude/rules/50-batch-execution.md` was the only stat
 decision. Two of its sentences describe mechanisms the code does not implement. **The code wins**;
 rule-50 has been corrected, and the disagreements are recorded here so the correction is auditable.
 
-| # | The paraphrase said | What the code does |
-| --- | --- | --- |
-| D1 | "Branch creation is serialized by the worktree open lock, so there is no race on git ref creation." | `runWorktreeOpen` runs `git worktree add -b` **before** it acquires `.arbiter/.lock`; the lock guards only the `worktree-open.log.json` read-modify-write. The safety property still holds — but it holds because **git's ref creation is atomic and refuses an existing branch**, plus condition 2. The stated mechanism was wrong. |
-| D2 | "a process never holds two arbiter locks at once." | False as a general statement — see the `.arbiter/.lock ⊃ kit.lock` nesting in §4. The claim that actually carries weight is narrower, and is true: nothing in `src/` shells out to `arbiter gate-exec` as a subprocess, and `gate-exec` itself takes no `acquireLock` at all, so the one **blocking** lock is never taken while an arbiter file lock is held. Swept across all `.arbiter/.lock` holders (`init`, `configure`, `upgrade-level`, `update`, `doctor repair-state`): none invokes a gate inside the lock scope. This is an **observed fact**, not a guarantee — no gate or test pins it. |
-| D3 | `wave-claim` reads as a third arbiter lock. | It is the GitHub assignee protocol (§4), with no filesystem lock behind it. |
-| D4 | The direction of `≺` is unstated. | No source fixes it. §4 **stipulates** it rather than claiming the code forced it. |
-| D5 | The `gate-exec` docstring: release is "guaranteed on the flock holder's fd death — including SIGKILL/OOM-kill". | True of **the flock process's** file descriptor — which is not co-terminous with the `arbiter` process. `runInteractive` spawns `flock` as a child of node, so killing the `arbiter` PID orphans `flock`, and the gate keeps the lock. See Consequences. |
-| D6 | The 0.5.0 changelog records the rule landing "dual-side (self file + claude template + **codex template**)". | `src/templates/codex/rules/` no longer exists. ADR-106 made the Codex track *derive* rule 50 from the Claude template; the arbiter-side copy is `.agents/rules/50-batch-execution.md`, kept honest by `check-codex-self-parity.mjs`. Three copies plus a golden fixture, not three templates. |
+| #   | The paraphrase said                                                                                             | What the code does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | "Branch creation is serialized by the worktree open lock, so there is no race on git ref creation."             | `runWorktreeOpen` runs `git worktree add -b` **before** it acquires `.arbiter/.lock`; the lock guards only the `worktree-open.log.json` read-modify-write. The safety property still holds — but it holds because **git's ref creation is atomic and refuses an existing branch**, plus condition 2. The stated mechanism was wrong.                                                                                                                                                                                                                                                                 |
+| D2  | "a process never holds two arbiter locks at once."                                                              | False as a general statement — see the `.arbiter/.lock ⊃ kit.lock` nesting in §4. The claim that actually carries weight is narrower, and is true: nothing in `src/` shells out to `arbiter gate-exec` as a subprocess, and `gate-exec` itself takes no `acquireLock` at all, so the one **blocking** lock is never taken while an arbiter file lock is held. Swept across all `.arbiter/.lock` holders (`init`, `configure`, `upgrade-level`, `update`, `doctor repair-state`): none invokes a gate inside the lock scope. This is an **observed fact**, not a guarantee — no gate or test pins it. |
+| D3  | `wave-claim` reads as a third arbiter lock.                                                                     | It is the GitHub assignee protocol (§4), with no filesystem lock behind it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| D4  | The direction of `≺` is unstated.                                                                               | No source fixes it. §4 **stipulates** it rather than claiming the code forced it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| D5  | The `gate-exec` docstring: release is "guaranteed on the flock holder's fd death — including SIGKILL/OOM-kill". | True of **the flock process's** file descriptor — which is not co-terminous with the `arbiter` process. `runInteractive` spawns `flock` as a child of node, so killing the `arbiter` PID orphans `flock`, and the gate keeps the lock. See Consequences.                                                                                                                                                                                                                                                                                                                                             |
+| D6  | The 0.5.0 changelog records the rule landing "dual-side (self file + claude template + **codex template**)".    | `src/templates/codex/rules/` no longer exists. ADR-106 made the Codex track _derive_ rule 50 from the Claude template; the arbiter-side copy is `.agents/rules/50-batch-execution.md`, kept honest by `check-codex-self-parity.mjs`. Three copies plus a golden fixture, not three templates.                                                                                                                                                                                                                                                                                                        |
 
 ## Consequences
 
@@ -220,10 +220,10 @@ rule-50 has been corrected, and the disagreements are recorded here so the corre
   bounds is CPU/RAM/port contention, plus — incidentally — concurrent writes into the shared
   `node_modules`. It must not be cited as protecting shared arbiter state.
 - **The dependency prohibition is unenforced and its failure mode is severe.** Under
-  `symlink-children`, every top-level child of the worktree's `node_modules` points at the *main
-  repo's* copy. An `npm install` inside a worktree therefore mutates the main repo's copy of every
+  `symlink-children`, every top-level child of the worktree's `node_modules` points at the _main
+  repo's_ copy. An `npm install` inside a worktree therefore mutates the main repo's copy of every
   already-present package, while newly installed packages land as real directories in that
-  worktree only — cross-tree corruption *and* divergence. This is why the prohibition exists; it is
+  worktree only — cross-tree corruption _and_ divergence. This is why the prohibition exists; it is
   worth knowing that nothing stops it.
 - **The `-o` trade-off (#2196).** The E2E campaign (2026-08-03) found that the lock fd was
   inherited by every descendant, so a gate that backgrounded a daemon held the repo-wide mutex
@@ -233,7 +233,7 @@ rule-50 has been corrected, and the disagreements are recorded here so the corre
   command is still running**. The failure mode moved from a recoverable stall to a silent
   mutual-exclusion violation in that narrow window. Named here rather than asserted away.
 - **Correction to the audit record:** finding F1's caveat — "with `-o` the lock is released the
-  moment the command *starts*, so it serializes the gate's start, not its whole run" — is
+  moment the command _starts_, so it serializes the gate's start, not its whole run" — is
   **incorrect**. `flock(1)` closes the descriptor in the child only; the parent holds it for the
   full run. `docs/REFERENCE/wave-primitives.md` already states this correctly.
 - **Killing `arbiter` does not kill the gate** (D5). `runGateExec` spawns `flock` as a child and
@@ -242,7 +242,7 @@ rule-50 has been corrected, and the disagreements are recorded here so the corre
   supported recovery path short of a manual `/proc/*/fd` scan.
 - **A losing `worktree open` leaves a zombie the reaper cannot see.** `acquireLock` is fail-fast:
   on contention the loser has already created the worktree directory, the branch and the link
-  children before it dies with `E_LOCK_BUSY` — *before* writing its open-log entry. Since
+  children before it dies with `E_LOCK_BUSY` — _before_ writing its open-log entry. Since
   `worktree prune` enumerates only that log, the orphan is invisible to the reaper built to catch
   exactly this.
 - **The carve-out does not reach existing consumer projects.** Rule files are emitted with

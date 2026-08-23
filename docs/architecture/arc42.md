@@ -745,12 +745,12 @@ governance.
 
 ### 11.9 Risk register
 
-| Risk                                                                | Likelihood | Impact | Mitigation in place                                                                       |
-| ------------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------- |
-| Carve-out conditions are stronger than their guards (spawn guard advisory, disjointness post-hoc) | Medium | Medium | ADR-103 §1 records each condition's real enforcement strength; #2330 |
-| Overloaded "tier" vocabulary causes a mis-wired gate                | Medium     | High   | Parity gates (`agent-dispatch-matrix`, catalog↔AGENTS) catch some, not all                |
-| Pruned-engine config knobs mislead an extender                      | Medium     | Low    | §11.4; `affinityBatching` deleted (#2329); the rest resolve safely (fail-closed defaults) |
-| Two-engine parity (TS ↔ mjs) drifts                                 | Low        | Medium | Deep-equal parity test in CI                                                              |
+| Risk                                                                                              | Likelihood | Impact | Mitigation in place                                                                       |
+| ------------------------------------------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------- |
+| Carve-out conditions are stronger than their guards (spawn guard advisory, disjointness post-hoc) | Medium     | Medium | ADR-103 §1 records each condition's real enforcement strength; #2330                      |
+| Overloaded "tier" vocabulary causes a mis-wired gate                                              | Medium     | High   | Parity gates (`agent-dispatch-matrix`, catalog↔AGENTS) catch some, not all                |
+| Pruned-engine config knobs mislead an extender                                                    | Medium     | Low    | §11.4; `affinityBatching` deleted (#2329); the rest resolve safely (fail-closed defaults) |
+| Two-engine parity (TS ↔ mjs) drifts                                                               | Low        | Medium | Deep-equal parity test in CI                                                              |
 
 ---
 
