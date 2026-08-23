@@ -140,4 +140,4 @@ graphify-out/
 
 # #2326: self-surface hardness fixtures (written inside the repo so the hooks'
 # repo-root scoping matches production; removed in a finally, never committed)
-.arb-hardness-tmp/
+.arb-hardness-tmp*/
