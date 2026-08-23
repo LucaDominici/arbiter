@@ -81,17 +81,24 @@ describe('findMissingRequired — required runtime-asset presence (#1575, #1801)
 
   it('flags a manifest that ships only the kit .js but not the runtime JSON', () => {
     // Exactly the #1575 bug: tsc emits dist/kit/*.js but the JSON is never copied.
+    // Missing all 3 kit JSON entries plus all 6 doc-set/gold-audit engine entries.
     const m = findMissingRequired(['dist/kit/catalog.js', 'dist/kit/derived.js', 'dist/cli.js'])
-    expect(m).toHaveLength(3)
+    expect(m).toHaveLength(REQUIRED.length)
   })
 
-  it('passes a manifest that ships all three kit runtime data files', () => {
+  it('passes a manifest that ships every required runtime asset', () => {
     const m = findMissingRequired([
       'dist/cli.js',
       'dist/kit/catalog.js',
       'dist/kit/catalog.json',
       'dist/kit/derived.json',
       'dist/kit/canonical-mapping.json',
+      'scripts/check-doc-set.mjs',
+      'scripts/gold-audit.mjs',
+      'scripts/check-doc-freshness.mjs',
+      'scripts/check-doc-style.mjs',
+      'scripts/lib/doc-set-resolve.mjs',
+      'scripts/lib/gold-audit-lib.mjs',
     ])
     expect(m).toEqual([])
   })
@@ -101,12 +108,32 @@ describe('findMissingRequired — required runtime-asset presence (#1575, #1801)
       '.\\dist\\kit\\catalog.json',
       './dist/kit/derived.json',
       './dist/kit/canonical-mapping.json',
+      './scripts/check-doc-set.mjs',
+      './scripts/gold-audit.mjs',
+      './scripts/check-doc-freshness.mjs',
+      './scripts/check-doc-style.mjs',
+      './scripts/lib/doc-set-resolve.mjs',
+      './scripts/lib/gold-audit-lib.mjs',
     ])
     expect(m).toEqual([])
   })
 
   it('exposes a non-empty declarative required-rule list', () => {
     expect(REQUIRED.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('flags a manifest missing the doc-set/gold-audit engine scripts (#2348)', () => {
+    // src/commands/doc-set.ts and gold-audit.ts shell out to these at runtime
+    // (packageRoot()/scripts/*.mjs) — omitted from files[] until #2348, so every
+    // real consumer install threw MODULE_NOT_FOUND on `arbiter doc-set`/`gold-audit`.
+    const m = findMissingRequired(['dist/cli.js', 'dist/kit/catalog.json'])
+    const labels = m.map((x) => x.label).join(' ')
+    expect(labels).toMatch(/check-doc-set\.mjs/)
+    expect(labels).toMatch(/gold-audit\.mjs/)
+    expect(labels).toMatch(/check-doc-freshness\.mjs/)
+    expect(labels).toMatch(/check-doc-style\.mjs/)
+    expect(labels).toMatch(/lib\/doc-set-resolve\.mjs/)
+    expect(labels).toMatch(/lib\/gold-audit-lib\.mjs/)
   })
 })
 

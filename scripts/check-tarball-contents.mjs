@@ -71,6 +71,36 @@ export const REQUIRED = [
     label: 'kit canonical-mapping runtime data (dist/kit/canonical-mapping.json)',
     test: (p) => p === 'dist/kit/canonical-mapping.json',
   },
+  {
+    // #2335 follow-up: `arbiter doc-set`/`arbiter gold-audit` shell out to these
+    // engine scripts at runtime (src/commands/doc-set.ts, gold-audit.ts resolve
+    // packageRoot()/scripts/*.mjs) — omitted from every published version until now,
+    // so both commands threw MODULE_NOT_FOUND for every real consumer (registry or
+    // git-dependency install), and only ever "worked" on this dev checkout because
+    // `scripts/` sits next to the globally-linked dist/cli.js.
+    label: 'doc-set/gold-audit engine script (scripts/check-doc-set.mjs)',
+    test: (p) => p === 'scripts/check-doc-set.mjs',
+  },
+  {
+    label: 'doc-set/gold-audit engine script (scripts/gold-audit.mjs)',
+    test: (p) => p === 'scripts/gold-audit.mjs',
+  },
+  {
+    label: 'doc-set/gold-audit engine script (scripts/check-doc-freshness.mjs)',
+    test: (p) => p === 'scripts/check-doc-freshness.mjs',
+  },
+  {
+    label: 'doc-set/gold-audit engine script (scripts/check-doc-style.mjs)',
+    test: (p) => p === 'scripts/check-doc-style.mjs',
+  },
+  {
+    label: 'doc-set/gold-audit shared engine lib (scripts/lib/doc-set-resolve.mjs)',
+    test: (p) => p === 'scripts/lib/doc-set-resolve.mjs',
+  },
+  {
+    label: 'doc-set/gold-audit shared engine lib (scripts/lib/gold-audit-lib.mjs)',
+    test: (p) => p === 'scripts/lib/gold-audit-lib.mjs',
+  },
 ]
 
 /**
