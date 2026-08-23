@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-22'
+last_review: '2026-08-23'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -130,6 +130,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 100 | [Companion-plugin awareness in /ship](100-companion-plugin-awareness.md)                                                                                              | accepted   | 2026-07-01 |  |
 | 101 | [runnerProfile cadence axis (solo/fleet)](101-runner-profile-cadence-axis.md)                                                                                         | Accepted   | 2026-07-01 |  |
 | 102 | [gate the workflow-template-emitted dims at L3](102-l3-workflow-dim-gating.md)                                                                                        | Accepted   | 2026-07-01 |  |
+| 103 | [Worktree-Isolated Parallel Execution Carve-out](103-worktree-parallel-carveout.md)                                                                                   | Accepted   | 2026-08-23 |  |
 | 104 | [Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning](104-trivy-fs-replaces-owasp-dependency-check.md)                                               | Accepted   | 2026-07-10 |  |
 | 105 | [never-brick config migration — coercible vs fatal fields](105-never-brick-config-migration.md)                                                                       | Accepted   | 2026-07-11 |  |
 | 106 | [Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](106-codex-track-parity-contract.md)                                                 | Accepted   | 2026-07-16 |  |

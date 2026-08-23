@@ -32,7 +32,7 @@ already own.
 | — by GAMP verification tier  | 13 SCAFFOLD / 22 GATE / 20 E2E                   | same file, Verification Tier Distribution table                                                    | same gate; tier cell format validated                                                         |
 | INV-NN (invariants)          | 137 entries (INV-01..139, gaps at INV-83/84)     | `src/invariants/catalog.ts`                                                                        | STOP→REFUSE→cite INV-NN; catalog↔AGENTS.md parity (`scripts/check-catalog-agents-parity.mjs`) |
 | CANON-NN (process rules)     | 23 (CANON-01..23)                                | `docs/internal/SYSTEM/CANON.md`                                                                    | STOP→REFUSE→cite CANON-NN protocol (`.claude/rules/30-canon-enforcement.md`)                  |
-| ADR corpus                   | 113 files, gap at ADR-103                        | `docs/internal/ADR/` (confirmed by `docs/internal/SYSTEM/DECISIONS.md`'s generated 113-row digest) | `scripts/check-adr-index.mjs` (INV-107)                                                       |
+| ADR corpus                   | numbering contiguous 001..115 (see the dir)      | `docs/internal/ADR/` (count is pointer-only by policy; the digest `docs/internal/SYSTEM/DECISIONS.md` is generated) | `scripts/check-adr-index.mjs` (INV-107)                                                       |
 | KIT dimensions               | 78 (N01–N78)                                     | `src/kit/catalog.json`                                                                             | FEATURE_MATRIX KIT Dimension Legend + Coverage tables                                         |
 
 `.claude/rules/30-canon-enforcement.md`'s table lists only 21 of the 23 CANON-NN rules — it is
@@ -88,7 +88,7 @@ Per #2251, `docs/architecture/realization.md` now exists — the row above super
 | Progressive escalation ladder (strikes 2→3→5) — declarative-only residue of #2043                                                                                                                  | e2e gate consumption                                                                                   | #2248 (resolved wave-4)                     |
 | **The 20 E2E-tier RTM rows with zero test evidence** (the FIT review's key finding)                                                                                                                | fully accounted: 17 via #2244 + REQ-002/031 via #1156 + REQ-033 via #1151                              | see above, no new issue needed              |
 | `docs/architecture/realization.md` (divergence log) speced but not created                                                                                                                         | #2251                                                                                                  | #2251 (new, filed during this verification) |
-| `adr-index.md:15` and `architecture/README.md:29` both hand-state "106 Architecture Decision Records"                                                                                              | verified actual = 113 files (gap at ADR-103); not in #2239's files-touched scope (arc42/c4/CANON only) | #2250 (new, filed during this verification) |
+| `adr-index.md:15` and `architecture/README.md:29` both hand-state "106 Architecture Decision Records"                                                                                              | RESOLVED: converted to pointer form; the ADR-103 half of the finding closed separately by #2330 | #2250 (new, filed during this verification) |
 | `PRD.md` Phase 10/11 marked "in progress" while MILESTONES.md §Reconciliation 2026-07-18 records every constituent milestone CLOSED; also a M22-M30 vs M22-M32 range mismatch between the two docs | `docs/PRODUCT/PRD.md`, `docs/internal/PRODUCT/MILESTONES.md`                                           | #2252 (new, filed during this verification) |
 
 ## 5. Verification status
@@ -97,8 +97,8 @@ Per #2251, `docs/architecture/realization.md` now exists — the row above super
 (`task/#2249-analysis-doc` @ wave-3 c294d29d + local commits, 2026-08-09) by grep/wc against the
 cited SSOT file, or by live-running the CLI, not copied from #2239's 2026-08-04 audit, the
 originating task brief, or any prior conversation. The gate-ladder count moved by one verified
-commit (`10cf4490`) since that audit, and the ADR corpus (113) diverges from adr-index.md's
-hand-typed 106 — both are the argument _for_ pointer-only sections, not a defect in this doc.
+commit (`10cf4490`) since that audit, and the ADR corpus diverged from adr-index.md's hand-typed
+106 — both are the argument _for_ pointer-only sections, not a defect in this doc.
 
 **Method blend** (Step 0 research: as-is/current-state analysis practice, technical
 due-diligence-lite audits, and gap-analysis templates all converge on the same three moves —
