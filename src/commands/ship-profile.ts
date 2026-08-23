@@ -40,8 +40,13 @@ import {
 
 /** #1305 — the unified config path for the ship autonomy knob (`--autonomy` desugars here). */
 const AUTONOMY_PATH = 'automation.autonomy'
-/** #1306 — the unified config paths for the three Project-Profile orchestration prefs. */
-const MAX_PARALLEL_WORKTREES_PATH = 'automation.maxParallelWorktrees'
+/**
+ * #1306 — the unified config path for the Project-Profile orchestration pref.
+ * #2333 — `automation.maxParallelWorktrees` is NOT here: it lost its only ship-side
+ * reader when #2329 deleted `planAction()`'s affinity branch, so it is no longer a
+ * per-run override target (it survives as a persistent knob read by doctor/wizard
+ * coherence). A path resolved into this profile MUST have a reader.
+ */
 const DEFAULT_GATE_LEVEL_PATH = 'automation.defaultGateLevel'
 const AUTO_ADVANCE_BEHAVIOR: ShipBehavior = 'auto-advance'
 const AUTO_MERGE_BEHAVIOR: ShipBehavior = 'auto-merge'
@@ -114,12 +119,12 @@ export interface ShipProfile {
   /** #1291 — resolved ship autonomy (flag > arbiter.json automation.autonomy > L0). */
   autonomy: AutonomyLevel
   /**
-   * #1306 (ADR-094 §Decision.4) — the Project-Profile orchestration prefs, each
-   * resolved through the SAME unified precedence resolver as autonomy (override →
-   * session → profile → derived floor). Verification reads defaultGateLevel — from
-   * this one resolved profile, never a bespoke chain.
+   * #1306 (ADR-094 §Decision.4) — the Project-Profile orchestration pref, resolved
+   * through the SAME unified precedence resolver as autonomy (override → session →
+   * profile → derived floor). Verification reads it — from this one resolved profile,
+   * never a bespoke chain. (#2333 removed the sibling `maxParallelWorktrees`: it had
+   * no reader after #2329, so `ship --set` accepted it and the run ignored it.)
    */
-  maxParallelWorktrees: number
   defaultGateLevel: GateLevel
   /**
    * #1730 — companion plugins active for this ship run (ponytail, …), resolved HOME-ONLY and
@@ -202,8 +207,7 @@ export const CONSUMER_DEFAULT_PROFILE: ShipProfile = {
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
   autonomy: 'L0',
-  // #1306 — conservative floors matching the resolver's DERIVED_DEFAULTS table.
-  maxParallelWorktrees: 1,
+  // #1306 — conservative floor matching the resolver's DERIVED_DEFAULTS table.
   defaultGateLevel: 'L1',
   companions: [],
 }
@@ -266,11 +270,11 @@ export function resolveShipProfile(
   // value and autonomy falls to override/session/default — consistent with the
   // whole-profile degrade above (RT-03).
   const autonomy = resolveAutonomy(root, overrides, config?.automation?.autonomy)
-  // #1306 — resolve the three orchestration prefs through the SAME unified resolver,
-  // each layered (override → session → profile → derived floor). The profile-layer
-  // raw is the value we already read here (config?.automation?.*), so a malformed
-  // config (config === null) contributes no profile value and each falls to
-  // override/session/floor — consistent with the whole-profile degrade above (RT-03).
+  // #1306 — resolve the orchestration pref through the SAME unified resolver, layered
+  // (override → session → profile → derived floor). The profile-layer raw is the value
+  // we already read here (config?.automation?.*), so a malformed config (config === null)
+  // contributes no profile value and it falls to override/session/floor — consistent
+  // with the whole-profile degrade above (RT-03).
   const prefs = resolveProfilePrefs(root, overrides, config?.automation)
   const companions = profileCompanions(root, self, opts, config)
   if (config === null) {
@@ -320,29 +324,27 @@ function collaborationProfile(
 }
 
 /**
- * #1306 — resolve the three Project-Profile orchestration prefs through the unified
- * resolver and narrow each to its domain type. `resolveSetting` only ever returns a
- * parseValue-valid value (positive int / 'L1'|'L2' / 'true'|'false') or the registered
- * floor, so each narrow is total; the guards are fail-closed belt-and-braces (RT-1306-05).
+ * #1306 — resolve the Project-Profile orchestration pref through the unified resolver
+ * and narrow it to its domain type. `resolveSetting` only ever returns a parseValue-valid
+ * value ('L1'|'L2') or the registered floor, so the narrow is total; the guard is
+ * fail-closed belt-and-braces (RT-1306-05).
+ *
+ * #2333 — returns a single pref. The return type is narrowed deliberately: it is
+ * spread into the profile at the call site, and TypeScript exempts SPREAD properties
+ * from excess-property checking, so a widened return here would silently reintroduce
+ * an unread field on the resolved profile at runtime.
  */
 function resolveProfilePrefs(
   root: string,
   overrides: Record<string, string> | undefined,
-  profile: { maxParallelWorktrees?: number; defaultGateLevel?: string } | undefined,
-): Pick<ShipProfile, 'maxParallelWorktrees' | 'defaultGateLevel'> {
-  const ctx = (profileValue: string | undefined): Parameters<typeof resolveSetting>[1] => ({
+  profile: { defaultGateLevel?: string } | undefined,
+): Pick<ShipProfile, 'defaultGateLevel'> {
+  const gateRaw = resolveSetting(DEFAULT_GATE_LEVEL_PATH, {
     root,
     ...(overrides !== undefined ? { overrides } : {}),
-    ...(profileValue !== undefined ? { profileValue } : {}),
+    ...(profile?.defaultGateLevel !== undefined ? { profileValue: profile.defaultGateLevel } : {}),
   })
-  const mpwRaw = resolveSetting(
-    MAX_PARALLEL_WORKTREES_PATH,
-    ctx(profile?.maxParallelWorktrees?.toString()),
-  )
-  const gateRaw = resolveSetting(DEFAULT_GATE_LEVEL_PATH, ctx(profile?.defaultGateLevel))
-  const mpw = Number(mpwRaw)
   return {
-    maxParallelWorktrees: Number.isInteger(mpw) && mpw >= 1 ? mpw : 1,
     defaultGateLevel: (VALID_GATE_LEVELS as readonly string[]).includes(gateRaw)
       ? (gateRaw as GateLevel)
       : 'L1',

@@ -87,8 +87,12 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
       // design — set here, via a recipe, or per-run with `arbiter ship --autonomy`.
       { path: 'automation.autonomy', label: 'Ship autonomy level (absent = L0)' },
       // #1306 (ADR-094 §Decision.4): orchestration prefs derived per collaboration
-      // mode / governance level at init; absent ⇒ resolver floor at every read site.
+      // mode / governance level at init.
+      // #2333: maxParallelWorktrees is PERSISTENT-ONLY — no per-run `--set`, no
+      // resolver floor. It is a declared cap that doctor/wizard coherence check;
+      // absent ⇒ those consumers treat it as the coherent floor (1) themselves.
       { path: 'automation.maxParallelWorktrees', label: 'Max parallel wave worktrees' },
+      // defaultGateLevel keeps its resolver floor (absent ⇒ L1 at every read site).
       { path: 'automation.defaultGateLevel', label: 'Default gate level (L1|L2)' },
     ],
   },
