@@ -53,16 +53,6 @@ describe('detectInstalledSkills', () => {
     expect(skills).toHaveLength(0)
   })
 
-  it('deduplicates skills by skillId (first hit wins)', async () => {
-    // Both targetDir and claudeHome have the same skill — targetDir wins (scan 2 before 3)
-    const skills = detectInstalledSkills({
-      targetDir: join(FIXTURES, 'with-frontend-design'),
-      claudeHome: join(FIXTURES, 'with-frontend-design'),
-    })
-    const fdSkills = skills.filter((s) => s.skillId === 'frontend-design:frontend-design')
-    expect(fdSkills).toHaveLength(1)
-  })
-
   it('handles nonexistent targetDir gracefully', async () => {
     const skills = detectInstalledSkills({
       targetDir: '/does/not/exist',

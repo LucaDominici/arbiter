@@ -72,6 +72,8 @@ function validEvidence(sha: string, overrides: Record<string, unknown> = {}) {
  */
 function runScenario(opts: {
   taskCommit?: boolean
+  /** A conventional task subject that changes docs only, not governed source. */
+  docsOnlyTaskCommit?: boolean
   skipTrailer?: boolean
   /** Leave an orphaned (unreachable but still present) commit object behind, as a rebase does. */
   orphan?: boolean
@@ -125,9 +127,14 @@ function runScenario(opts: {
     g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
 
     if (opts.taskCommit) {
-      const srcDir = opts.nestedSource ? join('backend', 'src', 'main', 'java') : 'src'
-      mkdirSync(join(repo, srcDir), { recursive: true })
-      writeFileSync(join(repo, srcDir, 'foo.test.ts'), 'test("foo", () => {})\n')
+      const taskDir = opts.docsOnlyTaskCommit
+        ? 'docs'
+        : opts.nestedSource
+          ? join('backend', 'src', 'main', 'java')
+          : 'src'
+      const taskFile = opts.docsOnlyTaskCommit ? 'note.md' : 'foo.test.ts'
+      mkdirSync(join(repo, taskDir), { recursive: true })
+      writeFileSync(join(repo, taskDir, taskFile), 'test("foo", () => {})\n')
       g(['add', '.'])
       const msg = opts.skipTrailer
         ? 'feat(#42): add foo\n\nARBITER-SKIP-TDD: 1'
@@ -275,6 +282,10 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
 
   it('vacuous PASS (exit 0) for a body-refs branch that changes no source', () => {
     expect(runScenario({ bodyRefsCommit: true, sourceless: true, evidence: () => null })).toBe(0)
+  })
+
+  it('vacuous PASS (exit 0) for docs-only work with a task-id subject but no evidence (#2371)', () => {
+    expect(runScenario({ taskCommit: true, docsOnlyTaskCommit: true, evidence: () => null })).toBe(0)
   })
 
   it('FAIL (exit 1) when src/ changes cite no task id anywhere', () => {

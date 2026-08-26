@@ -20,7 +20,8 @@
 // instruments it correctly (100% lines / 86.66% branches). No further code
 // change needed for #1731 — this anchoring invariant guards both.
 import { describe, it, expect } from 'vitest'
-import { isAbsolute } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { isAbsolute, resolve } from 'node:path'
 import config from '../../vitest.config'
 
 function coverageExclude(): string[] {
@@ -42,5 +43,23 @@ describe('vitest coverage exclude anchoring (#1742)', () => {
       // under a .claude/ directory (agent worktrees).
       expect(isAbsolute(pattern), `coverage exclude "${pattern}" must be root-anchored`).toBe(true)
     }
+  })
+
+  it('never excludes shipped source files to hide environment-dependent branches (#2373)', () => {
+    expect(coverageExclude().filter((pattern) => pattern.startsWith('src/'))).toEqual([])
+  })
+
+  it('keeps ignores on genuinely environment-dependent branches only (#2373)', () => {
+    const source = (path: string): string => readFileSync(resolve(path), 'utf-8')
+    const hostProbe = source('src/capabilities/host-probe.ts')
+    const skillDetector = source('src/integrations/skill-detector.ts')
+    const taskShip = source('src/commands/task-ship.ts')
+    const task = source('src/commands/task.ts')
+
+    expect(hostProbe).toMatch(/#2373:[^\n]+\.claude\/projects[^\n]*\n\s*\/\* v8 ignore start \*\//)
+    expect(skillDetector).not.toMatch(/v8 ignore/)
+    expect(taskShip).toMatch(/#2373:[^\n]*companion[^\n]*\n\s*\/\* v8 ignore next \*\//)
+    expect(taskShip).toMatch(/#2373:[^\n]*companion[^\n]*\n\s*\/\* v8 ignore start \*\//)
+    expect(task).not.toContain('#2373')
   })
 })

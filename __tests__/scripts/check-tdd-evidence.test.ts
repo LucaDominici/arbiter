@@ -281,6 +281,7 @@ describe('main()', () => {
       if (key.includes('merge-base')) return 'deadbeef'
       if (key.includes('--format=%s')) return 'feat(#551): add thing'
       if (key.includes('--format=%H')) return ''
+      if (key.includes('diff --name-only')) return 'src/thing.ts'
       // verify tdd → throw (simulates FAIL)
       throw Object.assign(new Error('FAIL'), { stderr: 'evidence not found', stdout: '' })
     }
@@ -299,7 +300,12 @@ describe('main()', () => {
   // (`git log --format=%H <base>..HEAD -- .arbiter/evidence/tdd/#NNN.json`) also matches
   // the `--format=%H` body-log pattern, so it must be matched FIRST or these tests pass
   // for the wrong reason.
-  function subjectRun(opts: { changed: string; inherited?: boolean; bodyFresh?: boolean }) {
+  function subjectRun(opts: {
+    changed: string
+    inherited?: boolean
+    bodyFresh?: boolean
+    verifyFails?: boolean
+  }) {
     const SUBJECT = 'fix(#2300): reuse an already-merged task id'
     return (_cmd: string, args: string[]) => {
       const key = args.join(' ')
@@ -312,6 +318,9 @@ describe('main()', () => {
       }
       if (key.includes('--format=%H')) return `${'a'.repeat(40)}\n${SUBJECT}\n\nRefs #2401\n\x00`
       if (key.includes('diff --name-only')) return opts.changed
+      if (opts.verifyFails) {
+        throw Object.assign(new Error('FAIL'), { stderr: 'evidence not found', stdout: '' })
+      }
       return 'PASS'
     }
   }
@@ -353,6 +362,15 @@ describe('main()', () => {
     exitFn.mockReset()
     main({
       runFn: subjectRun({ changed: 'docs/runbook.md', inherited: true }) as never,
+      exitFn: exitFn as never,
+    })
+    expect(exitFn).toHaveBeenCalledWith(0)
+  })
+
+  it('exits 0 for docs-only work even when its cited subject id has no evidence (#2371)', () => {
+    exitFn.mockReset()
+    main({
+      runFn: subjectRun({ changed: 'docs/runbook.md', inherited: true, verifyFails: true }) as never,
       exitFn: exitFn as never,
     })
     expect(exitFn).toHaveBeenCalledWith(0)

@@ -89,6 +89,55 @@ describe('detectInstalledSkills cache (#798)', () => {
     )
   }
 
+  it('parses double- and single-quoted frontmatter values (#2373)', () => {
+    const quoted = [
+      { dir: 'double', quote: '"', name: 'double-quoted', version: '2.0.0' },
+      { dir: 'single', quote: "'", name: 'single-quoted', version: '3.0.0' },
+    ]
+    for (const { dir, quote, name, version } of quoted) {
+      const skillDir = join(projectDir, '.claude', 'skills', dir)
+      mkdirSync(skillDir, { recursive: true })
+      writeFileSync(
+        join(skillDir, 'SKILL.md'),
+        `---\nname: ${quote}${name}${quote}\npluginOwner: ${quote}quoted${quote}\nversion: ${quote}${version}${quote}\n---\n`,
+      )
+    }
+
+    const skills = detectInstalledSkills({ targetDir: projectDir, claudeHome: homeDir })
+    expect(skills.map(({ skillId, version }) => ({ skillId, version }))).toEqual([
+      { skillId: 'quoted:double-quoted', version: '2.0.0' },
+      { skillId: 'quoted:single-quoted', version: '3.0.0' },
+    ])
+  })
+
+  it('descends into directories and ignores files not named SKILL.md (#2373)', () => {
+    writeSkill(projectDir, 'me', 'alpha')
+    const skillsRoot = join(projectDir, '.claude', 'skills')
+    writeFileSync(join(skillsRoot, 'README.md'), '# Not a skill\n')
+    writeFileSync(join(skillsRoot, 'alpha', 'notes.txt'), 'not metadata\n')
+
+    const skills = detectInstalledSkills({ targetDir: projectDir, claudeHome: homeDir })
+    expect(skills.map((skill) => skill.skillId)).toEqual(['me:alpha'])
+  })
+
+  it('deduplicates identical skill ids and keeps the first scan-root hit (#2373)', () => {
+    writeSkill(projectDir, 'shared', 'alpha')
+    const homeSkillDir = join(homeDir, 'skills', 'alpha')
+    mkdirSync(homeSkillDir, { recursive: true })
+    writeFileSync(
+      join(homeSkillDir, 'SKILL.md'),
+      '---\nname: alpha\npluginOwner: shared\nversion: 9.0.0\n---\n',
+    )
+
+    const skills = detectInstalledSkills({ targetDir: projectDir, claudeHome: homeDir })
+    expect(skills).toHaveLength(1)
+    expect(skills[0]).toMatchObject({
+      skillId: 'shared:alpha',
+      version: '1.0.0',
+      sourcePath: join(projectDir, '.claude', 'skills', 'alpha', 'SKILL.md'),
+    })
+  })
+
   it('returns identical array reference on second call (same key)', () => {
     writeSkill(projectDir, 'me', 'alpha')
     const first = detectInstalledSkills({ targetDir: projectDir, claudeHome: homeDir })

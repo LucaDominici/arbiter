@@ -171,6 +171,21 @@ describe('runVerifyTdd()', () => {
     expect(check?.pass).toBe(false)
   })
 
+  it('reports shallow history as a degraded verification environment, not failed evidence (#2372)', () => {
+    const dir = tmpRepo()
+    writeEvidence(dir, VALID_EVIDENCE)
+    mockedResolveCommit.mockReturnValueOnce({
+      degraded: true,
+      reason: 'git history is shallow; fetch full history before verifying TDD evidence',
+    } as never)
+
+    const result = runVerifyTdd({ taskId: '#551', dir })
+
+    expect(result.status).toBe('DEGRADED')
+    expect(result.exitCode).toBe(2)
+    expect(result.reason).toMatch(/shallow.*history/i)
+  })
+
   // #2116: after a rebase the pinned sha is gone, but the RED test's content is not.
   it('verifies against the rebase-healed commit when the pinned sha is orphaned', () => {
     const dir = tmpRepo()
