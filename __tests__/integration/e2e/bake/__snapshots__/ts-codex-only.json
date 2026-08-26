@@ -151,7 +151,7 @@
     ".agents/plan/README.md": "bdca22392d62033e1038d713937c788aef6d31064e9c08a6dda112842e1a9c07",
     ".agents/rules/05-agent-lifecycle.md": "0cfaa8a26aace5594a65ce4bf01395cdeae1581fe77cbd2b4ec79e3d8181e910",
     ".agents/rules/25-todo-folder-policy.md": "4db8c0a73cc7397b65e1755dc77d2b85172495e66d434513ed5f3a01f3572a1d",
-    ".agents/rules/50-batch-execution.md": "0485c724b751abb428bbaf8f4b1e8c67f18808b1156dc7cdd1b78c90ba98d6f5",
+    ".agents/rules/50-batch-execution.md": "93112953b7aa60d64f29b6d36d1753afc6eda6af95d47ddc6ef87f15163d4aee",
     ".agents/rules/60-incidental-capture.md": "5c6937eb1a6ca9f14cebe11641198a570b220c434176c1aec8aacbcccf1f9032",
     ".agents/rules/90-exec-protocol.md": "c0ee8c10c36bfe8087f779c41e0b8d4f398c60bc8a58ef19e708beac2a202adc",
     ".claude/hooks/check-no-orphan-todo.mjs": "df13499ab7bb9c8a50d4616d4bb52a8e558bb9b1ef7f71bfbda5e0dd24cbd122",
