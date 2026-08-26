@@ -18,8 +18,6 @@ function findTranscriptPath(): string | null {
     const encoded = encodeURIComponent(cwd).replace(/%2F/g, '-').replace(/^-/, '')
     const projectsDir = join(homedir(), '.claude', 'projects')
     const entries = readdirSync(projectsDir, { withFileTypes: true })
-    // #2373: minimal CI has no ~/.claude/projects; readdirSync returns to catch before this loop.
-    /* v8 ignore start */
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
       if (!entry.name.includes(encoded.slice(0, 20))) continue
@@ -28,7 +26,6 @@ function findTranscriptPath(): string | null {
       const jsonl = files.find((f) => f.endsWith('.jsonl'))
       if (jsonl) return join(dir, jsonl)
     }
-    /* v8 ignore stop */
     return null
   } catch {
     return null

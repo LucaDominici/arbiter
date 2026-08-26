@@ -248,7 +248,8 @@ function resolveSelectedTaskId(
   } catch (err) {
     return { ok: false, reason: err instanceof Error ? err.message : String(err) }
   }
-  if (taskId === activeTaskId || readUnifiedState(dir)?.chainIds?.includes(taskId)) {
+  const chainIds = readUnifiedState(dir)?.chainIds ?? []
+  if (taskId === activeTaskId || chainIds.some((id) => id === taskId)) {
     return { taskId }
   }
   return {

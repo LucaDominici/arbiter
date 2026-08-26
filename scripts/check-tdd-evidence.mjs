@@ -5,9 +5,9 @@
 //
 // Scopes to commits since git merge-base origin/main HEAD (branch-relative).
 // Every task id in a commit SUBJECT is verified individually. A branch with no such id
-// that changes src/ must still carry at least one verified evidence among the tasks its
+// that changes non-documentation files must still carry at least one verified evidence among the tasks its
 // commit BODIES cite (#2217) — refs-in-the-body is no longer a vacuous pass.
-// Independently, ANY branch changing src/ must carry one verified evidence PRODUCED on
+// Independently, ANY branch changing non-documentation files must carry one verified evidence PRODUCED on
 // the branch, over subject ∪ body ids (#2307) — citing an already-merged id proves
 // nothing, since verify tdd's sha-on-branch check asserts only ancestry.
 // Rejects any commit with ARBITER-SKIP-TDD: 1 trailer at L2+.
@@ -17,7 +17,7 @@
 //   --dir points the gate at another repository (default: arbiter's own checkout).
 //
 // Exports for unit tests: parseTaskIdsFromLog, parseTaskIdsFromBodies,
-// touchesGovernedSource, hasSkipTrailer, formatSkipError, formatFloorError,
+// isDocsOnlyChange, hasSkipTrailer, formatSkipError, formatFloorError,
 // formatUncitedSourceError
 
 import { execFileSync } from 'node:child_process'
@@ -88,18 +88,24 @@ export function parseTaskIdsFromBodies(bodyLog) {
 }
 
 /**
- * True when the branch changes governed source — the unit the TDD invariant is about.
- *
- * `src/templates/**` counts: templates ARE the product shipped to governed targets, so
- * exempting them would leave the hole open exactly where generated enforcement lives.
- *
- * A `src/` SEGMENT, not a repo-root prefix (#2313) — kept identical to the SHIPPED
- * predicate in src/templates/scripts/check-tdd-evidence.mjs.ejs. Behaviourally a no-op
- * here (arbiter is single-module), but letting the self-gate and the emitted gate mean
- * different things is the drift the dogfood pin exists to catch.
+ * True only when every changed path is a documentation artifact. This is deliberately
+ * an allowlist: executable files in flat, cmd/, internal/, pkg/, nested-module, or gate-
+ * script layouts must never become vacuous merely because their path lacks `src/`.
  */
-export function touchesGovernedSource(changedPaths) {
-  return changedPaths.split('\n').some((p) => /(?:^|\/)src\//.test(p.trim()))
+export function isDocsOnlyChange(changedPaths) {
+  const paths = changedPaths
+    .split('\n')
+    .map((p) => p.trim())
+    .filter(Boolean)
+  const doc = /\.(?:md|mdx|rst|adoc|txt)$/i
+  const docAsset = /\.(?:png|jpe?g|gif|webp|svg)$/i
+  return (
+    paths.length > 0 &&
+    paths.every((p) => {
+      if (!p.includes('/')) return p !== 'AGENTS.md' && doc.test(p)
+      return /^(?:docs|wiki)\//.test(p) && (doc.test(p) || docAsset.test(p))
+    })
+  )
 }
 
 /**
@@ -124,20 +130,20 @@ const FLOOR_REMEDY =
   `  Two ways forward:\n` +
   `    1. record real red→green evidence for one cited task:\n` +
   `         arbiter task record-red --test-path <path>\n` +
-  `    2. move the src/ change onto its own branch whose commit SUBJECT carries the\n` +
+  `    2. move the non-documentation change onto its own branch whose commit SUBJECT carries the\n` +
   `       task id (fix(#NNN): ...) — that commit is then verified individually.\n`
 
-/** Branch changes src/ but cites no task at all — nothing to attach evidence to. */
+/** Branch changes non-documentation files but cites no task — nothing to attach evidence to. */
 export function formatUncitedSourceError() {
   return (
-    `\ncheck-tdd-evidence: FAIL — this branch changes src/ but cites no task id,\n` +
-    `in any commit subject or body. A source change with no traceable task cannot\n` +
+    `\ncheck-tdd-evidence: FAIL — this branch changes non-documentation files but cites no task id,\n` +
+    `in any commit subject or body. A governed change with no traceable task cannot\n` +
     `carry TDD evidence (#2217).\n${FLOOR_REMEDY}`
   )
 }
 
 /**
- * Branch changes src/ and cites tasks, but none has evidence that was both PRODUCED on
+ * Branch changes non-documentation files and cites tasks, but none has evidence PRODUCED on
  * this branch and verifies. Fires on either citation path (#2217, #2307).
  */
 export function formatFloorError(ids, subjectCited = false) {
@@ -149,7 +155,7 @@ export function formatFloorError(ids, subjectCited = false) {
       `    arbiter task record-red --test-path <path>\n`
     : FLOOR_REMEDY
   return (
-    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${ids.join(', ')},\n` +
+    `\ncheck-tdd-evidence: FAIL — this branch changes non-documentation files and cites ${ids.join(', ')},\n` +
     `but none of them has verified TDD evidence PRODUCED on this branch (#2217, #2307).\n` +
     `Citing a task whose evidence already sits on main proves nothing: verify tdd's\n` +
     `sha-on-branch check asserts only ancestry, which every branch off main satisfies.\n` +
@@ -186,7 +192,7 @@ function subjectLogOrPass(run, mergeBase) {
   try {
     return run('git', ['log', `${mergeBase}..HEAD`, '--format=%s'], { cwd: repoRoot })
   } catch {
-    process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
+    process.stderr.write('check-tdd-evidence: ERROR — cannot read branch commit subjects\n')
     return null
   }
 }
@@ -195,31 +201,39 @@ function bodyLogOrEmpty(run, mergeBase) {
   try {
     return run('git', ['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'], { cwd: repoRoot })
   } catch {
-    return ''
+    process.stderr.write('check-tdd-evidence: ERROR — cannot read branch commit bodies\n')
+    return null
   }
 }
 
 function branchFloor(run, mergeBase, taskIds, bodyLog) {
-  let changed = ''
+  let changed
   try {
     changed = run('git', ['diff', '--name-only', `${mergeBase}..HEAD`], { cwd: repoRoot })
   } catch {
-    changed = ''
+    process.stderr.write('check-tdd-evidence: ERROR — cannot determine changed files\n')
+    return { exitCode: 2, docsOnly: false }
+  }
+  if (changed.trim().length === 0) {
+    process.stderr.write(
+      'check-tdd-evidence: ERROR — changed-file probe returned no usable paths\n',
+    )
+    return { exitCode: 2, docsOnly: false }
   }
   // Computed on BOTH paths: the subject path owes the produced-here floor too (#2307),
   // and it is gated on this exact predicate.
-  const touchesSource = touchesGovernedSource(changed)
-  if (taskIds.length > 0) return { exitCode: null, touchesSource }
-  if (!touchesSource) {
+  const docsOnly = isDocsOnlyChange(changed)
+  if (taskIds.length > 0) return { exitCode: null, docsOnly }
+  if (docsOnly) {
     process.stdout.write(
-      'check-tdd-evidence: no task-ID commits and no src/ change, vacuous pass\n',
+      'check-tdd-evidence: no task-ID commits and docs-only change, vacuous pass\n',
     )
-    return { exitCode: 0, touchesSource }
+    return { exitCode: 0, docsOnly }
   }
   const ids = parseTaskIdsFromBodies(bodyLog)
-  if (ids.length > 0) return { exitCode: null, touchesSource }
+  if (ids.length > 0) return { exitCode: null, docsOnly }
   process.stderr.write(formatUncitedSourceError())
-  return { exitCode: 1, touchesSource }
+  return { exitCode: 1, docsOnly }
 }
 
 function skipTrailerErrors(bodyLog) {
@@ -292,13 +306,13 @@ function verifyBranchFloor(run, mergeBase, floorIds, subjectCited = false) {
  * cited task HAS evidence; it cannot prove this branch PRODUCED any of it, because
  * verify tdd's sha-on-branch check asserts only ANCESTRY. So a branch touching src/
  * whose subject cites an already-merged id passed the floor with no red→green cycle at
- * all. Gated on touchesSource exactly as #2217 is, so a docs-only branch that happens to
- * cite a task id in its subject stays green.
+ * all. The docs-only return above keeps a documentation branch that happens to cite a
+ * task id in its subject green.
  *
  * Extracted from main() to keep it inside the complexity-10 ratchet (#1523/#1542).
  */
-function subjectFloorFails(run, mergeBase, floorIds, touchesSource) {
-  return touchesSource && verifyBranchFloor(run, mergeBase, floorIds, true) !== 0
+function subjectFloorFails(run, mergeBase, floorIds) {
+  return verifyBranchFloor(run, mergeBase, floorIds, true) !== 0
 }
 
 function mainOptions(opts) {
@@ -321,18 +335,23 @@ export function main(opts) {
 
   // Get one-liner subjects for task-ID parsing
   const subjectLog = subjectLogOrPass(run, mergeBase)
-  if (subjectLog === null) return exitFn(0)
+  if (subjectLog === null) return exitFn(2)
+  if (subjectLog.length === 0) {
+    process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
+    return exitFn(0)
+  }
 
   const taskIds = parseTaskIdsFromLog(subjectLog)
 
   // Collect full commit bodies — needed for the skip-trailer check AND for the
   // branch-level floor below.
   const bodyLog = bodyLogOrEmpty(run, mergeBase)
+  if (bodyLog === null) return exitFn(2)
 
   // #2217 — the branch floor. Subject-scoped IDs are verified per commit (below). A
   // branch whose commits cite issues only in their BODIES used to parse to zero IDs and
   // pass VACUOUSLY, whatever it changed. Evidence is now owed per CHANGE: a branch that
-  // touches src/ must carry at least ONE verified TDD evidence among the tasks it cites.
+  // changes non-documentation files must carry verified evidence among the tasks it cites.
   const floor = branchFloor(run, mergeBase, taskIds, bodyLog)
   if (floor.exitCode !== null) return exitFn(floor.exitCode)
 
@@ -351,10 +370,10 @@ export function main(opts) {
   }
 
   // #2371: subject ids do not create a TDD obligation by themselves. Once the
-  // branch-floor predicate has established that no governed source changed,
+  // branch-floor predicate has established that only documentation changed,
   // docs-only work remains a vacuous pass.
-  if (!floor.touchesSource) {
-    process.stdout.write('check-tdd-evidence: no src/ change, vacuous pass\n')
+  if (floor.docsOnly) {
+    process.stdout.write('check-tdd-evidence: docs-only change, vacuous pass\n')
     return exitFn(0)
   }
 
@@ -380,7 +399,7 @@ export function main(opts) {
     return exitFn(1)
   }
 
-  if (subjectFloorFails(run, mergeBase, floorIds, floor.touchesSource)) {
+  if (subjectFloorFails(run, mergeBase, floorIds)) {
     return exitFn(1)
   }
 

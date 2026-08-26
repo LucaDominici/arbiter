@@ -60,9 +60,9 @@ if (collectionErrors.length > 0) {
 // first-CI false regression the moment the baseline is captured on a
 // different machine than CI (observed: coverageLine -0.16pp, coverageBranch
 // -0.22pp — both well under a real change). check-coverage-ratchet.mjs
-// (#1483) already carries this exact TOLERANCE=0.5 pp noise floor for the
+// (#1483) carries this exact TOLERANCE=0.4 pp noise floor for the
 // same v8-jitter reason; mirroring its value here is parity, not invention.
-const COVERAGE_NOISE_TOLERANCE_PP = 0.5
+const COVERAGE_NOISE_TOLERANCE_PP = 0.4
 const NOISE_TOLERANT_METRICS = new Set(['coverageLine', 'coverageBranch'])
 
 // ─── Compare ──────────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ for (const [key, base] of Object.entries(baseline.metrics)) {
     if (curr.value > base.value) {
       status = '✅ improved'
       improvements++
-    } else if (base.value - curr.value > tolerance) {
+    } else if (curr.value < base.value - tolerance) {
       status = '❌ regressed'
       regressions++
     } else if (curr.value < base.value) {

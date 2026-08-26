@@ -74,6 +74,8 @@ function runScenario(opts: {
   taskCommit?: boolean
   /** A conventional task subject that changes docs only, not governed source. */
   docsOnlyTaskCommit?: boolean
+  /** A conventional task subject that changes a root-level Go source file. */
+  rootGoTaskCommit?: boolean
   skipTrailer?: boolean
   /** Leave an orphaned (unreachable but still present) commit object behind, as a rebase does. */
   orphan?: boolean
@@ -129,10 +131,16 @@ function runScenario(opts: {
     if (opts.taskCommit) {
       const taskDir = opts.docsOnlyTaskCommit
         ? 'docs'
-        : opts.nestedSource
-          ? join('backend', 'src', 'main', 'java')
-          : 'src'
-      const taskFile = opts.docsOnlyTaskCommit ? 'note.md' : 'foo.test.ts'
+        : opts.rootGoTaskCommit
+          ? '.'
+          : opts.nestedSource
+            ? join('backend', 'src', 'main', 'java')
+            : 'src'
+      const taskFile = opts.docsOnlyTaskCommit
+        ? 'note.md'
+        : opts.rootGoTaskCommit
+          ? 'math.go'
+          : 'foo.test.ts'
       mkdirSync(join(repo, taskDir), { recursive: true })
       writeFileSync(join(repo, taskDir, taskFile), 'test("foo", () => {})\n')
       g(['add', '.'])
@@ -290,6 +298,10 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     )
   })
 
+  it('FAIL (exit 1) for a root-level Go change with a task-id subject but no evidence', () => {
+    expect(runScenario({ taskCommit: true, rootGoTaskCommit: true, evidence: () => null })).toBe(1)
+  })
+
   it('FAIL (exit 1) when src/ changes cite no task id anywhere', () => {
     expect(runScenario({ uncitedSourceCommit: true })).toBe(1)
   })
@@ -305,8 +317,8 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     expect(runScenario({ evidenceOnMain: true, taskCommit: true })).toBe(1)
   })
 
-  // #2313: THE FALSIFIER for a multi-module consumer. `touchesGovernedSource` matched a
-  // repo-ROOT `src/` only, so on a Java consumer laid out as `backend/src/main/java/...`
+  // #2313: THE FALSIFIER for a multi-module consumer. The old predicate matched a
+  // repo-root `src/` only, so on a Java consumer laid out as `backend/src/main/java/...`
   // the whole produced-here floor was gated off and the branch above passed with 0 — the
   // guard was inert for reasons that had nothing to do with evidence tracking.
   it('FAIL (exit 1) when a subject-cited id changing backend/src/ has evidence only from main', () => {

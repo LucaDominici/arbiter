@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
@@ -63,6 +65,20 @@ describe('debt-report.mjs.ejs', () => {
     const data = makeDataWithProfile({ language: 'typescript' })
     const rendered = renderTemplate('scripts/debt-report.mjs.ejs', data)
     expect(rendered).toContain('require-improvement')
+  })
+
+  it('keeps the self and rendered debt tolerance equal to the coverage ratchet', () => {
+    const data = makeDataWithProfile({ language: 'typescript' })
+    const rendered = renderTemplate('scripts/debt-report.mjs.ejs', data)
+    const selfReport = readFileSync(resolve('scripts/debt-report.mjs'), 'utf-8')
+    const coverageRatchet = readFileSync(resolve('scripts/check-coverage-ratchet.mjs'), 'utf-8')
+    const value = (source: string, name: string): number =>
+      Number(new RegExp(`const ${name} = (\\d+(?:\\.\\d+)?)`).exec(source)?.[1])
+
+    const ratchetTolerance = value(coverageRatchet, 'TOLERANCE')
+    expect(value(selfReport, 'COVERAGE_NOISE_TOLERANCE_PP')).toBe(ratchetTolerance)
+    expect(value(rendered, 'COVERAGE_NOISE_TOLERANCE_PP')).toBe(ratchetTolerance)
+    expect(90).toBeLessThan(90.41 - ratchetTolerance)
   })
 
   it('outputs a markdown table', () => {

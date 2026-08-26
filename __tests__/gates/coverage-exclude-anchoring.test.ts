@@ -49,14 +49,14 @@ describe('vitest coverage exclude anchoring (#1742)', () => {
     expect(coverageExclude().filter((pattern) => pattern.startsWith('src/'))).toEqual([])
   })
 
-  it('keeps ignores on genuinely environment-dependent branches only (#2373)', () => {
+  it('does not hide runnable host-probe branches behind v8 ignores (#2373)', () => {
     const source = (path: string): string => readFileSync(resolve(path), 'utf-8')
     const hostProbe = source('src/capabilities/host-probe.ts')
     const skillDetector = source('src/integrations/skill-detector.ts')
     const taskShip = source('src/commands/task-ship.ts')
     const task = source('src/commands/task.ts')
 
-    expect(hostProbe).toMatch(/#2373:[^\n]+\.claude\/projects[^\n]*\n\s*\/\* v8 ignore start \*\//)
+    expect(hostProbe).not.toMatch(/v8 ignore/)
     expect(skillDetector).not.toMatch(/v8 ignore/)
     expect(taskShip).toMatch(/#2373:[^\n]*companion[^\n]*\n\s*\/\* v8 ignore next \*\//)
     expect(taskShip).toMatch(/#2373:[^\n]*companion[^\n]*\n\s*\/\* v8 ignore start \*\//)
