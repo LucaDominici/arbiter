@@ -16,9 +16,15 @@ const MAX_ENTRIES = 50000
 // mis-detecting a SKILL.md vendored inside a dependency (#1634).
 const SKIP_DIRS = new Set(['node_modules'])
 
+interface ScanLimits {
+  maxDepth: number
+  maxEntries: number
+}
+
 interface DetectOptions {
   targetDir: string
   claudeHome: string
+  scanLimits?: ScanLimits
 }
 
 /** Parse YAML frontmatter from a SKILL.md string. Returns null if no valid frontmatter found. */
@@ -48,8 +54,14 @@ interface WalkCount {
 }
 
 /** Walk a directory tree up to maxDepth, returning paths of all SKILL.md files found. */
-function findSkillFiles(dir: string, depth: number, found: string[], count: WalkCount): void {
-  if (depth > MAX_DEPTH || count.n >= MAX_ENTRIES) return
+function findSkillFiles(
+  dir: string,
+  depth: number,
+  found: string[],
+  count: WalkCount,
+  limits: ScanLimits,
+): void {
+  if (depth > limits.maxDepth || count.n >= limits.maxEntries) return
   if (!existsSync(dir)) return
   let entries: string[]
   try {
@@ -61,7 +73,7 @@ function findSkillFiles(dir: string, depth: number, found: string[], count: Walk
   // a residual truncation would drop a filesystem-arbitrary subset (#1634).
   entries.sort()
   for (const entry of entries) {
-    if (count.n >= MAX_ENTRIES) {
+    if (count.n >= limits.maxEntries) {
       count.truncated = true
       break
     }
@@ -76,7 +88,7 @@ function findSkillFiles(dir: string, depth: number, found: string[], count: Walk
       continue
     }
     if (st.isDirectory()) {
-      findSkillFiles(full, depth + 1, found, count)
+      findSkillFiles(full, depth + 1, found, count, limits)
     } else if (entry === 'SKILL.md') {
       found.push(full)
       count.n++
@@ -142,15 +154,16 @@ function collectFromDir(
   seen: Set<string>,
   results: InstalledSkill[],
   deriveOwner: (p: string) => string,
+  limits: ScanLimits,
 ): void {
   const found: string[] = []
   const count: WalkCount = { n: 0, truncated: false }
-  findSkillFiles(dir, 0, found, count)
+  findSkillFiles(dir, 0, found, count, limits)
   if (count.truncated) {
     // Never a silent partial scan: surface the ceiling so a missing skill is
     // attributable rather than mysterious (#1634).
     process.stderr.write(
-      `[arbiter] skill scan reached MAX_ENTRIES (${MAX_ENTRIES}) under ${dir}; results may be partial\n`,
+      `[arbiter] skill scan reached MAX_ENTRIES (${limits.maxEntries}) under ${dir}; results may be partial\n`,
     )
   }
   for (const path of found) {
@@ -174,13 +187,14 @@ const userOwner = (): string => 'user'
 //   3. claudeHome/plugins/cache/PLUGIN/VERSION/skills/NAME/SKILL.md
 //   4. claudeHome/skills/NAME/SKILL.md
 //
-// Per-session cache keyed by (targetDir, claudeHome). Subsequent calls
+// Per-session cache keyed by (targetDir, claudeHome, scanLimits). Subsequent calls
 // with the same key reuse the previous scan result instead of walking
 // the FS again. Tests / long-running processes that mutate skills on
 // disk between scans MUST call `clearSkillCache()` to force a re-walk.
 export function detectInstalledSkills(opts: DetectOptions): InstalledSkill[] {
   const { targetDir, claudeHome } = opts
-  const cacheKey = `${targetDir}\x00${claudeHome}`
+  const limits = opts.scanLimits ?? { maxDepth: MAX_DEPTH, maxEntries: MAX_ENTRIES }
+  const cacheKey = `${targetDir}\x00${claudeHome}\x00${limits.maxDepth}\x00${limits.maxEntries}`
   const hit = skillCache.get(cacheKey)
   if (hit) return hit
 
@@ -193,13 +207,13 @@ export function detectInstalledSkills(opts: DetectOptions): InstalledSkill[] {
   // home. Skip a scan root entirely when its base is empty (#1566).
   if (targetDir) {
     const pluginsRoot = join(targetDir, '.claude', 'plugins')
-    collectFromDir(pluginsRoot, seen, results, (p) => derivePluginOwner(p, pluginsRoot))
-    collectFromDir(join(targetDir, '.claude', 'skills'), seen, results, projectOwner)
+    collectFromDir(pluginsRoot, seen, results, (p) => derivePluginOwner(p, pluginsRoot), limits)
+    collectFromDir(join(targetDir, '.claude', 'skills'), seen, results, projectOwner, limits)
   }
   if (claudeHome) {
     const cacheRoot = join(claudeHome, 'plugins', 'cache')
-    collectFromDir(cacheRoot, seen, results, (p) => derivePluginOwner(p, cacheRoot))
-    collectFromDir(join(claudeHome, 'skills'), seen, results, userOwner)
+    collectFromDir(cacheRoot, seen, results, (p) => derivePluginOwner(p, cacheRoot), limits)
+    collectFromDir(join(claudeHome, 'skills'), seen, results, userOwner, limits)
   }
 
   // Freeze before caching so a consumer that mutates the result (sort/push)

@@ -350,6 +350,14 @@ export function main(opts) {
     return exitFn(0)
   }
 
+  // #2371: subject ids do not create a TDD obligation by themselves. Once the
+  // branch-floor predicate has established that no governed source changed,
+  // docs-only work remains a vacuous pass.
+  if (!floor.touchesSource) {
+    process.stdout.write('check-tdd-evidence: no src/ change, vacuous pass\n')
+    return exitFn(0)
+  }
+
   // The branch owes ONE verified evidence, not one per cited issue — docs and chore
   // commits that merely reference an issue owe nothing. Candidates are subject ids UNION
   // body ids: a merge-train branch whose subject cites a merged id but whose body cites

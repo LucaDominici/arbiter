@@ -85,6 +85,18 @@ export interface EvidenceCommitRef {
   test_blob_sha?: string | undefined
 }
 
+export interface DegradedEvidenceCommitResolution {
+  degraded: true
+  reason: string
+}
+
+export type EvidenceCommitResolution =
+  { sha: string; healed: boolean } | DegradedEvidenceCommitResolution
+
+function isShallowRepository(dir?: string): boolean {
+  return gitValue(['rev-parse', '--is-shallow-repository'], dir) === 'true'
+}
+
 /**
  * The commit this evidence is about, resolved against the CURRENT branch (#2116).
  *
@@ -103,9 +115,16 @@ export interface EvidenceCommitRef {
 export function resolveEvidenceCommit(
   ev: EvidenceCommitRef,
   dir?: string,
-): { sha: string; healed: boolean } | null {
+): EvidenceCommitResolution | null {
   if (shaExistsOnBranch(ev.test_commit_sha, dir)) {
     return { sha: ev.test_commit_sha, healed: false }
+  }
+  if (isShallowRepository(dir)) {
+    return {
+      degraded: true,
+      reason:
+        'git history is shallow; fetch full history (for GitHub Actions, set actions/checkout fetch-depth: 0) before verifying TDD evidence',
+    }
   }
   const blob = ev.test_blob_sha
   if (blob === undefined) return null

@@ -12,8 +12,9 @@
 //
 // Exit codes per INV-53: 0=PASS (or bootstrap, or the #1731 local degrade below),
 // 1=FAIL (a metric regressed), 2=ERROR (summary absent/unreadable/genuinely empty in CI).
-// TOLERANCE absorbs sub-0.5pp v8 run-to-run jitter (documented, not a leak: a real
-// regression is always > 0.5pp across the ~12k-line product surface).
+// TOLERANCE absorbs sub-0.4pp v8 run-to-run jitter. With the 90.41% branch
+// baseline this retains a 90.01% ratchet floor above the 90% hard threshold
+// (#2319), so the early-warning band cannot invert.
 //
 // #1731: some sandboxed local agent-worktree environments have a broken
 // @vitest/coverage-v8 remapping step that emits a structurally-valid but totally
@@ -33,7 +34,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const METRICS = ['lines', 'branches', 'functions', 'statements']
-const TOLERANCE = 0.5
+const TOLERANCE = 0.4
 // Mirrors scripts/lib/run-helpers.mjs's IS_CI (not imported — this script is
 // intentionally standalone/dependency-free, invokable outside the check-all.mjs harness).
 const IS_CI = () => process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'

@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2319",
+  "test_path": "__tests__/scripts/check-coverage-ratchet.test.ts",
+  "test_commit_sha": "7e4663a71c14bdcdaff4f00a6d2dd05ca3815c5f",
+  "test_blob_sha": "896b26773ee533fb44254c0b7ff20d147f5f9c08",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/check-coverage-ratchet.test.ts (10 tests | 1 failed) 164ms\n     × keeps the branch ratchet above the 90% hard floor without recapturing its 90.41% baseline (#2319) 19ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 9 passed (10)\n   Start at  00:14:39\n   Duration  249ms (transform 17ms, setup 12ms, import 12ms, tests 164ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-coverage-ratchet.test.ts > check-coverage-ratchet > keeps the branch ratchet above the 90% hard floor without recapturing its 90.41% baseline (#2319)\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-coverage-ratchet.test.ts:115:24\n    113|       const r = run(t.summary, t.baseline)\n    114|\n    115|       expect(r.status).toBe(1)\n       |                        ^\n    116|     } finally {\n    117|       t.cleanup()\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-coverage-ratchet.test.ts",
+  "recorded_at": "2026-08-26T22:14:40.254Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-coverage-ratchet.test.ts"
+  ]
+}

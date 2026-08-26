@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2336",
+  "test_path": "__tests__/commands/task-record-red.test.ts",
+  "test_commit_sha": "7e4663a71c14bdcdaff4f00a6d2dd05ca3815c5f",
+  "test_blob_sha": "b25bdeb4268b7b17e7c125e1a628ff567b8d273d",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/commands/task-record-red.test.ts (49 tests | 1 failed) 40ms\n     × records a train secondary issue under its own explicit task id, not the branch primary (#2336) 5ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 48 passed (49)\n   Start at  00:14:36\n   Duration  256ms (transform 109ms, setup 12ms, import 141ms, tests 40ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/commands/task-record-red.test.ts > runTaskRecordRed() branch-preference and evidence-ownership (#2064) > records a train secondary issue under its own explicit task id, not the branch primary (#2336)\nAssertionError: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/commands/task-record-red.test.ts:831:79\n    829|\n    830|     expect(result.ok).toBe(true)\n    831|     expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#504.j…\n       |                                                                               ^\n    832|     expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#503.j…\n    833|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/commands/task-record-red.test.ts",
+  "recorded_at": "2026-08-26T22:14:36.851Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/task-record-red.test.ts"
+  ]
+}
