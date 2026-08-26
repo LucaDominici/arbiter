@@ -69,8 +69,10 @@ merge-train).
    Underspecification is paid here, as a prompt before dispatch — not after review as a
    thrown-away PR. Exit 2 (gh/network error) ⇒ treat the issue as not composable this wave.
    If `scripts/issue-readiness.mjs` does not exist in this repo (Track-B emission is a
-   tracked follow-up, ADR-110), **skip this readiness step entirely** — a
-   `Cannot find module` failure is never a "not ready" verdict.
+   tracked follow-up, ADR-110), a `Cannot find module` failure is never a "not ready"
+   verdict — record `readiness: script absent — skipped` in the wave roster and move on.
+   The skip is declared, never silent: an unrecorded skip is indistinguishable from a
+   forgotten step.
 
 2. Compose a **WAVE**: up to **10 issues**, partitioned into **groups** of **≤5 issues** each,
    grouped by module / dependency. Independent groups are parallelizable. Entangled issues
@@ -142,12 +144,12 @@ done
 
 ---
 
-## Phase 1 — One cumulative plan (Opus)
+## Phase 1 — One cumulative plan (session model — plan synthesis is a judgment stage)
 
 Write **a single cumulative plan** for the whole wave to `.claude/plans/wave-N.md`. For each
 group include a **manifest**:
 
-- **Files** the group will touch — file-sets MUST be disjoint across parallel groups
+- **Files** the group will touch — file-sets must be disjoint across parallel groups
   (ADR-103 carve-out condition; overlap → same group, serial)
   - **Read-set** — files/globs the group is expected to READ beyond its write set (M6 #1943;
     reads bounded socially, writes mechanically)
@@ -183,10 +185,10 @@ In parallel, dispatch a **tier-Standard red-team** (3 agents) against the cumula
 - **CRITICAL** → rework the plan (**max 2 cycles**, then escalate to a human).
 - **PASS** = **GO for the entire wave**.
 
-## Phase 2.5 — Optional 3-hop plan gate (label `needs-plan`)
+## Phase 2.5 — Per-issue 3-hop plan gate (default-on)
 
-Issues labelled `needs-plan` (architectural / ambiguous scope) get a **per-issue 3-hop plan
-trail as issue comments BEFORE any code**:
+Every issue in the wave gets a **per-issue 3-hop plan trail as issue comments before any
+code**:
 
 1. **hop 1/3** — draft plan (comment headed `## Piano hop 1/3` or `## Plan hop 1/3`)
 2. **hop 2/3** — adversarial red-team: every finding with `file:line` evidence and a verdict
@@ -194,9 +196,15 @@ trail as issue comments BEFORE any code**:
 
 The orchestrator verifies the trail **deterministically via `gh`**: three hop-header
 comments, each carrying at least one `file:line` evidence marker and a non-trivial body.
-The QUALITY of the hops is model-side — this check catches absence, not proforma. The cost
-is explicit and paid up front: **3 agent-runs per gated issue**; that is why the gate is
-label-scoped, not default-on.
+The quality of the hops is model-side — this check catches absence, not proforma.
+
+The gate is default-on and unconditional: a plan discovered wrong at integration costs the
+whole group's rework, which is far more than the gate's explicit up-front cost. That cost
+scales with the tier, not with enthusiasm — hop 2's adversarial pass runs with the tier's
+`refutation_skeptics` count from `.claude/agent-dispatch-matrix.json` (XS/S = 1 skeptic,
+Standard = 3). The `needs-plan` label no longer switches the gate on (it is always on); it
+raises hop 2 to the Standard floor (3 skeptics) for architectural or ambiguous-scope
+issues regardless of tier.
 
 ---
 
@@ -242,10 +250,14 @@ Each agent's loop:
 
 ```bash
 arbiter task init --plan <wave-N.md#group-anchor>   # anchor to the group's plan section
-# TDD per unit (skill: tdd): red → green → refactor
+# invoke the tdd skill per unit: red → verify-red → green → verify-green → refactor
 # targeted tests green
 git commit                                          # format enforced by post-commit-check
 ```
+
+Every worker brief names the `tdd` skill explicitly — a worker that starts from
+implementation code has skipped the red step, and the pre-push tdd-evidence check will fail
+its branch structurally (see Iron Law below).
 
 Then emit a **DONE report**: files touched, tests added, commits, and `findings[]`.
 
@@ -315,6 +327,9 @@ wave.** The rest of the wave proceeds.
    - **CRITICAL / MAJOR** → dispatch a fixer agent.
 4. **Verify, then gate:**
 
+   Run the `verification` skill on the cumulative branch first (claim-based pass: every
+   claim in the DONE reports gets checked against the tree, not trusted), then the gate:
+
    ```bash
    # skill: verification — claim-based pass on the cumulative branch first
    # FULL GATE → writes gate-pass.json; under the per-repo mutex (ADR-103) so a
@@ -357,8 +372,10 @@ wave.** The rest of the wave proceeds.
    `node scripts/check-touched-vs-manifest.mjs --plan .claude/plans/wave-N.md --group <G>
 --base main --branch <group-branch>` — an agent that edited outside its declared write set
    also read outside it and voided the ADR-103 disjointness assumption. Non-zero ⇒ the group
-   is NOT clear to merge (root-cause: either the manifest was under-declared or the agent
-   scope-crept). Read-set row absent ⇒ advisory only, PASS.
+   is not clear to merge (root-cause: either the manifest was under-declared or the agent
+   scope-crept). A read-set row absent from the manifest fails the check for that group the
+   same way: an omitted row must not be able to disarm the check it feeds — fix the plan's
+   manifest, then re-run.
 
 ---
 

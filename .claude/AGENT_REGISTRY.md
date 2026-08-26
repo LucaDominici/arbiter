@@ -18,13 +18,18 @@ Source of truth: `.claude/agents/<name>.md`. Update this file whenever an agent 
 
 ## Agents
 
-| Agent              | Model                 | Effort | Cost Rationale                                                                                    |
-| ------------------ | --------------------- | ------ | ------------------------------------------------------------------------------------------------- |
-| `ai-pr-gate`       | Default (Sonnet)      | Low    | Read-only INV-91 compliance check; scans PR labels + reviewer identity; fast and targeted         |
-| `bridge-reviewer`  | Default (Sonnet)      | Low    | Short-circuit combinatorial logic; no code reading required; runs after context-checker completes |
-| `codebase-scanner` | Haiku                 | Low    | Read-only pattern search; fast latency; cost-optimized for high-frequency lookups                 |
-| `context-checker`  | Default (Sonnet)      | Medium | Must read CONTEXT_PACK.md + task diff in full; emits structured REVIEW_CONTEXT JSON               |
-| `red-team`         | Default (Sonnet/Opus) | High   | Adversarial multi-vector analysis; deep code reasoning; runs pre-merge on complex changes         |
+| Agent              | Model                          | Effort | Cost Rationale                                                                                    |
+| ------------------ | ------------------------------ | ------ | ------------------------------------------------------------------------------------------------- |
+| `ai-pr-gate`       | Sonnet (pinned in frontmatter) | Low    | Read-only INV-91 compliance check; scans PR labels + reviewer identity; fast and targeted         |
+| `bridge-reviewer`  | Sonnet (pinned in frontmatter) | Low    | Short-circuit combinatorial logic; no code reading required; runs after context-checker completes |
+| `codebase-scanner` | Haiku (pinned in frontmatter)  | Low    | Read-only pattern search; fast latency; cost-optimized for high-frequency lookups                 |
+| `context-checker`  | Sonnet (pinned in frontmatter) | Medium | Must read CONTEXT_PACK.md + task diff in full; emits structured REVIEW_CONTEXT JSON               |
+| `red-team`         | Inherit (session Opus/Fable)   | High   | Adversarial verdicts are the one stage worth the top tier; read-only tools pinned in frontmatter  |
+
+The Model column mirrors each agent's `model:` frontmatter — the static pyramid (AGENTS.md
+§Model-Pyramid): Haiku for mechanical scans, Sonnet for structured review passes, the
+session model only where an adversarial judgment is the deliverable. Frontmatter is the
+SSOT; a registry row that disagrees with it is a doc bug.
 
 ---
 

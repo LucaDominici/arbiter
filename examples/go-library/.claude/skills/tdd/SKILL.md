@@ -13,7 +13,8 @@ related: []
 
 # Test-Driven Development
 
-**Iron Law:** No production code without a failing test first.
+No production code without a failing test first — a test written after the implementation
+can only confirm what the code already does, never what it was supposed to do.
 
 ## Red-Green-Refactor
 
@@ -69,4 +70,7 @@ writing tests from your own reading of the issue is grading your own homework.
 
 ## When to Skip TDD
 
-Only with explicit user permission. "This is simple" is never a reason.
+Only with explicit user permission, and a granted skip is recorded, never tacit: note it in
+the plan (`tdd: skipped — user permission, <where granted>`) so review and verification see
+a decision instead of an omission. "This is simple" is never a reason — simplicity predicts
+typing cost, not defect rate.

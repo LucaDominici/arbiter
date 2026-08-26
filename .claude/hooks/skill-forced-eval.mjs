@@ -18,7 +18,7 @@ switch (phase) {
   case 'verification':
     process.stdout.write(
       `━━━ VERIFICATION MODE ━━━\n` +
-        `Run /verification-before-completion, then npm run test before committing.\n`,
+        `Run the verification skill, then npm run test before committing.\n`,
     )
     break
 
@@ -42,17 +42,17 @@ switch (phase) {
 
     process.stdout.write(
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `MANDATORY SKILL CHECK (evaluate before responding):\n` +
+        `Skill check — work through this before responding:\n` +
         `\n` +
         `1. About to write implementation code?\n` +
-        `   → invoke /test-driven-development FIRST\n` +
+        `   → invoke the tdd skill first (red before green)\n` +
         `\n` +
         `2. Human just said GO on a plan?\n` +
-        `   → run a plan review subagent FIRST\n` +
+        `   → run a plan review subagent first\n` +
         `   → use Task tool (subagent_type="general-purpose")\n` +
         `\n` +
-        `3. User mentions a library, upgrade, migration, or deprecated API?\n` +
-        `   → delegate to context7-docs subagent FIRST\n` +
+        `3. Prompt mentions a library, upgrade, migration, or deprecated API?\n` +
+        `   → read the library's current docs before coding against memory\n` +
         `\n` +
         `4. None of the above? Proceed normally.\n` +
         `   Gate command: npm run test\n` +

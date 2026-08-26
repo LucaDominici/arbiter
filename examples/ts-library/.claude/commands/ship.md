@@ -83,14 +83,24 @@ arbiter task advance --to plan
 
 | Phase | What `/ship` does | Review agents |
 |-------|-------------------|---------------|
-| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), STOP the ship. The `[ -f … ]` guard makes the step a no-op on brownfield trees that predate the script's emission (ADR-110) — a missing script is never a not-ready verdict; seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`); the plan MUST carry the mandatory sections (see §Plan contents) | — |
+| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), stop the ship. When the script is absent (brownfield trees predating its emission, ADR-110) a missing script is never a not-ready verdict — but the skip is declared, never silent: record `readiness: script absent — skipped` in the plan preamble so the omission stays visible. Seed task state (see Local-only state above) | — |
+| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; run the `senior-survey` skill for every new `src/` file the plan introduces (the pre-edit hook validates its Survey block); pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`); the plan carries every mandatory section (see §Plan contents) — a missing section is a FAIL | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
-| `red` | Write failing tests (TDD red) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
-| `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
+| `red` | Write failing tests with the `tdd` skill (red → verify-red is its own step: watch each test fail for the right reason) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
+| `green` | Implement the minimum to pass, continuing the `tdd` loop (composes with active companion plugins — see below) | — |
 | `refactor` | Clean up; dispatch 2 code-review agents + 1 adversarial verifier | 2 (Standard) |
-| `verification` | Run the gate: `npm run test` then `node scripts/check-all.mjs check` | — |
+| `verification` | Run the `verification` skill, then the gate: `npm run test` then `node scripts/check-all.mjs check` | — |
 | `complete` | Commit, push, open/merge PR, close issue, clean up | — |
+
+### Model tier per dispatch (static guidance, AGENTS.md §Model-Pyramid)
+
+Mechanical sub-steps — readiness parsing, auditor routing, file discovery, grep sweeps — go
+to the cheapest agent (`codebase-scanner`, Haiku). Review, context-check and gate-bridge
+subagents run on Sonnet-class agents (their registry defaults). The session model
+(Opus/Fable-class) is reserved for the judgment stages: plan synthesis, red-team attack
+angles, and the adversarial verifier's verdict. This is dispatch guidance the orchestrator
+applies when spawning agents, not runtime machinery — arbiter never selects a model tier
+programmatically.
 
 
 Review-agent minimums by tier: XS=1, S=1, Standard=2.
@@ -123,7 +133,7 @@ constraint → rewrite → repeat).
 /ship plans with a SINGLE planner; these mandatory sections make that one plan carry what a multi-specialist panel would have produced (#2176 study: union-of-specialists prompt reproduced 3-specialist content at +19% cost vs +69% for real orchestration, equal quality — multi-specialist planning is NOT adopted).
 
 - **Approach & decomposition** — module boundaries and data flow of the change.
-- **Threat model & abuse cases** — who can abuse this and how. May be `n/a — no security surface` ONLY with a one-line justification; a bare `n/a` is a plan-review FAIL.
+- **Threat model & abuse cases** — who can abuse this and how. `n/a — no security surface` is accepted only with a one-line justification; a bare `n/a` is a plan-review FAIL.
 - **Input validation** — what is validated, where the trust boundary is, what happens on invalid input.
 - **Idiomatic patterns & pitfalls** — the recommended stdlib/framework APIs for this change and the known traps to avoid.
 - **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4`; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
@@ -293,7 +303,9 @@ At **GO/handoff** (plan-review gate green):
 - A phase gate throws (plan-review FAIL, TDD evidence missing, budget breach) → fix the root cause; do
   not bypass. `arbiter ship --advance` surfaces the gate's exit code (78 handoff, 79 budget).
 - CRITICAL red-team finding → `arbiter task advance --to red-team-rework`, revise, re-run review.
-- If `tasks.worktree` is `always` in `arbiter.json`, opening a worktree is mandatory — HARD STOP if skipped.
+- If `tasks.worktree` is `always` in `arbiter.json`, open a worktree before any edit — a ship
+  that skipped it stops here, because every downstream artifact (branch, evidence, gate) is
+  anchored to the worktree.
 - The fail-closed Stop hook (INV-114) requires three correlated artifacts before any completion claim:
   plan-review `latest.json` (written by the plan-review dispatch — not a CLI command since #1817),
   `.arbiter/agents-dispatched.json`

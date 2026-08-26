@@ -1,4 +1,8 @@
 {
+  "env": {
+    "ARBITER_SPAWN_GUARD_HARD": "1",
+    "ARBITER_FINDING_LOSS_HARD": "1"
+  },
   "hooks": {
     "PreToolUse": [
       {

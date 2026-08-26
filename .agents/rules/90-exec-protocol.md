@@ -11,12 +11,12 @@ related: []
 
 # Execution Protocol
 
-## Branch Enforcement (MANDATORY)
+## Branch Enforcement
 
 Before any file edit:
 
 1. Run `git branch --show-current`
-2. If on `main` → HARD STOP → create task branch
+2. If on `main` → stop and create a task branch first — edits on `main` bypass every review and gate artifact that anchors to a task branch
 3. Branch must start with `task/` — e.g., `task/#123-description`
 
 ## Execution Flow

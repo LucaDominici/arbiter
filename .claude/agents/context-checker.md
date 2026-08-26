@@ -1,5 +1,6 @@
 ---
 name: context-checker
+model: sonnet
 tools:
   - Read
   - Grep

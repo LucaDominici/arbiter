@@ -51,6 +51,22 @@ describe('completion-guard — empirical spawn', () => {
     }
   })
 
+  it('exits 2 on a paraphrased completion claim (regex covers paraphrases, #A11 drift)', () => {
+    const { dir, hookPath } = setup('green')
+    try {
+      const result = spawnSync('node', [hookPath], {
+        cwd: dir,
+        input: JSON.stringify({ prompt: 'the implementation is done, everything shipped' }),
+        encoding: 'utf-8',
+      })
+
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('COMPLETION GUARD')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('exits 0 on benign prompt (no completion claim)', () => {
     const { dir, hookPath } = setup('red')
     try {

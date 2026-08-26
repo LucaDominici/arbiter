@@ -48,8 +48,10 @@ Level 5:  AI judgment — last resort
 
 ## Iron Laws
 
-Behavioral protocol rules that sit above the invariant catalog — process discipline,
-not a checkable gate. Violation protocol: **STOP → REFUSE → cite the law**.
+Behavioral protocol rules that sit above the invariant catalog — process discipline.
+Each law is stated once, with its rationale and (where one exists) the mechanism that
+backs it; a law whose mechanism is listed is not prose-only, and treating it as
+negotiable trips that mechanism. Violation protocol: **STOP → REFUSE → cite the law**.
 
 ### Worktree Isolation Is Mandatory For Parallel Agents
 
@@ -58,6 +60,8 @@ editing — two or more agents writing into the same working tree at once — is
 prohibited: git index state, lockfiles, and in-flight diffs corrupt under
 concurrent writers, with no clean recovery path. One agent, one worktree, one
 branch.
+_Backed by:_ `pre-spawn-worktree-guard.mjs` (hard grading enabled repo-wide via
+`ARBITER_SPAWN_GUARD_HARD=1` in `.claude/settings.json` `env`).
 
 ### Complete Means Merged To Main
 
@@ -67,6 +71,8 @@ each red by root cause (read the failing job's log, fix the underlying cause,
 push, re-verify), repeated until every check passes and it merges. Handing back or
 abandoning a red PR, or reporting a task complete while its PR is still open, is a
 process violation.
+_Backed by:_ `stop-evidence-guard.mjs` (INV-114 correlated evidence) and
+`guard-done-evidence.mjs` (#1872, active via `features.evidenceHarness: true`).
 
 ### Root-Cause-First After Any Failure
 
@@ -94,6 +100,12 @@ actual defect, not the model tier. This is guidance for human or orchestrator ju
 about model selection, not a runtime feature: arbiter does not measure, select, or gate
 on model tier at any pipeline stage — the tier-assignment machinery this replaces stays
 deprecated, not reintroduced.
+
+The guidance is applied statically, never at runtime: sub-agents pin their tier in
+frontmatter (`model:` in `.claude/agents/*.md` — Haiku for mechanical scans, Sonnet for
+structured review passes, `inherit` where an adversarial judgment is the deliverable), and
+the orchestration commands (`/ship`, `/drain`) carry per-phase dispatch guidance. The
+frontmatter is the SSOT; `.claude/AGENT_REGISTRY.md` mirrors it.
 
 ---
 

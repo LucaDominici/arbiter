@@ -39,8 +39,10 @@ without arbiter → N-PR + merge-train (skill appendix).
 2. **One cumulative plan** → `.claude/plans/wave-N.md` (group manifests with DISJOINT
    file-sets, anchors for CANON-16).
 3. **One plan review** + tier-Standard red-team. CRITICAL → rework (max 2 cycles) → else GO.
-   Issues labelled `needs-plan` additionally pass the per-issue **3-hop plan gate**
-   (skill §Phase 2.5) before their agent writes code.
+   Every issue then passes the per-issue **3-hop plan gate** (skill §Phase 2.5, default-on;
+   hop 2's skeptic count scales with the tier) before its agent writes code — the
+   `needs-plan` label raises hop 2 to the Standard skeptic floor, it no longer switches the
+   gate on.
 4. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`), TDD per
    unit, light checks only; full gate forbidden in worktrees. Expensive gates that can race
    another agent on the same repo go through `arbiter gate-exec -- <cmd>` (flock(1) mutex,

@@ -53,7 +53,10 @@ function runHook(
     cwd: dir,
     encoding: 'utf-8',
     input: JSON.stringify(payload),
-    env: { ...process.env, ...env },
+    // Arbiter's own .claude/settings.json exports ARBITER_SPAWN_GUARD_HARD=1 (hard
+    // grading repo-wide) — blank it so the default-grading tests test the code
+    // default, not the ambient session env; hard tests still opt in explicitly.
+    env: { ...process.env, ARBITER_SPAWN_GUARD_HARD: '', ...env },
   })
 }
 

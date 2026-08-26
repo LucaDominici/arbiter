@@ -12,7 +12,7 @@
     "securityScanning": true,
     "mutationTesting": true,
     "contractTesting": true,
-    "evidenceHarness": false,
+    "evidenceHarness": true,
     "acceptanceAnchor": true,
     "soloDevMode": true
   },

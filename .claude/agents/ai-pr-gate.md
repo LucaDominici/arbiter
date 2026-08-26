@@ -1,5 +1,6 @@
 ---
 name: ai-pr-gate
+model: sonnet
 description: Reviews bot-authored PRs for INV-91 compliance. Checks that the approved-by-human label is present and that the approval came from a human reviewer who is not the PR author. Use before merging any PR authored by a bot or AI agent.
 title: 'AI-PR Gate Agent'
 doc_version: '1.0.0'

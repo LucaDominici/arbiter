@@ -1,5 +1,10 @@
 ---
 name: red-team
+model: inherit
+tools:
+  - Read
+  - Grep
+  - Glob
 description: Adversarial quality and security review. Finds vulnerabilities, logic gaps, missing edge cases, and invariant violations. Use before merging security-sensitive or complex changes.
 title: 'Red Team Agent'
 doc_version: '1.0.0'

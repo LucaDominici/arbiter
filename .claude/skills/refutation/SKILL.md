@@ -41,7 +41,7 @@ Single-reviewer verdicts inherit the reviewer's blind spots and a "reviewing to 
    - **only** the finding text + its citations — no sibling verdicts, no orchestrator opinion;
    - the mandate: "your job is to REFUTE this claim against the actual code; return UPHELD only if you fail to refute it."
 4. **Persist.** Each skeptic's return is an E1 agent-return envelope (`role:"skeptic"` + `refutations[]`), piped through `node scripts/record-agent-return.mjs --task '#NNN'`.
-5. **Marker.** After dispatch, write `.arbiter/evidence/agent-returns/<task>/refutation-required.json`:
+5. **Marker.** The **orchestrator** writes `.arbiter/evidence/agent-returns/<task>/refutation-required.json` at dispatch time — before the skeptic verdicts come back, as a numbered step of the review phase. The gate below adjudicates only when the marker exists, so leaving it to post-hoc discretion turns the gate into one that never fires. When the review produced no findings at or above the threshold, still write the marker with an empty `findings` array: that records the threshold was evaluated, instead of leaving "no marker" ambiguous between "nothing to refute" and "step skipped".
 
    ```json
    { "task": "#NNN", "threshold": "high", "skeptics": 3, "findings": ["f1", "f2"] }
@@ -55,7 +55,7 @@ Single-reviewer verdicts inherit the reviewer's blind spots and a "reviewing to 
 
 ## Gate
 
-`scripts/check-refutation-verdicts.mjs` (advisory `runWarnCheck` at L2+, promoted to `runCheck` at gated-review): marker present ⇒ every finding in `findings` must have ≥ N skeptic verdicts AND a strict UPHELD majority. No marker ⇒ nothing to adjudicate (PASS — the scope condition is itself checked, not a skip).
+`scripts/check-refutation-verdicts.mjs` (advisory `runWarnCheck` at L2+, promoted to `runCheck` at gated-review): marker present ⇒ every finding in `findings` must have ≥ N skeptic verdicts and a strict UPHELD majority. No marker ⇒ the gate passes vacuously — which is exactly why step 5 makes writing the marker (empty `findings` included) the orchestrator's unconditional duty at dispatch: the gate can only adjudicate what was declared, and `/ship` and `/drain` both name this step in their review phases.
 
 When a mechanical matcher — rather than this gate's structural check — has to decide whether LLM-authored text matches a ground-truth item, the sampled-audit-then-judge protocol in `docs/internal/METHOD/ADJUDICATION.md` applies.
 

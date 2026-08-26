@@ -353,7 +353,15 @@ if (isMain) {
   // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
   // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still
   // inside the L1 partition (captured by l1EndIdx below) → hash- and set-invariant.
-  runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
+  // 20-min ceiling for the full vitest suite: the shared 10-min default is a
+  // hang-catcher, but on low-core containers the suite legitimately runs
+  // ~10.5 min while making progress — a ceiling that trips on a healthy slow
+  // run turns an environment budget into a phantom red (observed 2026-08-26:
+  // 616s green standalone vs 600s gate timeout on a 4-core box).
+  runCheck('unit tests', 'npm', ['test'], {
+    timeoutMs: 20 * 60 * 1000,
+    ...(vitestEnv ? { env: vitestEnv } : {}),
+  })
   runCheck(
     'greenfield smoke',
     'npx',

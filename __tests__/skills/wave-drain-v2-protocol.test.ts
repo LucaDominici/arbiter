@@ -62,12 +62,13 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
     expect(md).toMatch(/serial lane/i)
   })
 
-  it('has the optional 3-hop plan gate scoped to needs-plan with explicit cost', () => {
+  it('has the per-issue 3-hop plan gate default-on with tier-scaled skeptics', () => {
     expect(md).toMatch(/Phase 2\.5/)
+    expect(md).toMatch(/default-on/)
     expect(md).toMatch(/needs-plan/)
     expect(md).toMatch(/hop 1\/3/)
     expect(md).toMatch(/file:line/)
-    expect(md).toMatch(/3 agent-runs per gated issue/)
+    expect(md).toMatch(/refutation_skeptics/)
   })
 
   it('caps parallelism by machine headroom', () => {

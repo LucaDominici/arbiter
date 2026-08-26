@@ -18,7 +18,7 @@ related: []
 <% const _testCommand = (typeof testCommand !== 'undefined' && testCommand) ? testCommand : 'npm test'; %>
 <% const _backend = (typeof decompositionBackend !== 'undefined' ? decompositionBackend : null) ?? (useGitHub ? 'github' : 'markdown'); %>
 <% const _soloMode = _collaborationMode === 'trunk-solo'; %>
-<% const _refactorLabel = _soloMode ? '1 self-review agent (trunk-solo mode) + 1 adversarial verifier' : `dispatch ${_tiers.Standard.reviewAgentCount} code-review agents + 1 adversarial verifier`; %>
+<% const _refactorLabel = _soloMode ? 'dispatch 1 independent code-review agent (trunk-solo mode — a fresh subagent with no implementation context) + 1 adversarial verifier' : `dispatch ${_tiers.Standard.reviewAgentCount} code-review agents + 1 adversarial verifier`; %>
 <% const _refactorCount = _soloMode ? '1' : `${_tiers.Standard.reviewAgentCount} (Standard)`; %>
 
 # /ship #NNN
@@ -113,19 +113,41 @@ only, so there is no evidence to move them.
 
 Only a human may originate a non-widest ship tier: either an explicit `--tier XS|S` flag, or a tier persisted by `arbiter task init --id <id> --tier <tier>`. Without either, `arbiter ship` falls back to the widest tier (`Standard`) as a fail-safe. Deterministic signals do not originate a tier; they may only widen the selected tier and its review-agent count and vertical breadth.
 
-The selected tier may be widened by deterministic signals only: a FRESH `graphify-out/graph.json` blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle (floor: Standard). Signals may only widen, never narrow. Tier/routing selection MUST NOT be driven by text-only LLM classification (Study C, #2176: 75.6% adjacent accuracy, 20% fail-dangerous L→S). The review count follows the **final** tier — a widened tier gets the widened tier's count — and the security escalation only ever widens it further; nothing narrows it.
+**XS/S must be confirmed by blast radius, not diff size.** Diff size measures typing cost,
+not risk: a one-line edit in a shared module carries a Standard-sized blast radius. Before
+accepting a human-originated XS or S tier, run `/impact` on every file the plan touches and
+record the dependent list in the plan. The tier stays XS/S only when every touched file is a
+leaf — at most one upstream dependent — and none sits on a core path (`src/invariants/`,
+`src/generators/`, `src/commands/`, `.claude/hooks/`, the shipped template tree (any file
+with an `.ejs` twin), or config consumed by `scripts/check-all.mjs`). Two or more dependents, or any
+core-path file, widens the tier to Standard. This is a count over the impact report, not a
+judgment call, and it composes with the widen-only rule above: impact can widen a tier,
+never narrow it. The impact report goes into the reviewer's context so the single XS
+reviewer reads the change together with its callers.
+
+The selected tier may be widened by deterministic signals only: a FRESH `graphify-out/graph.json` blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle (floor: Standard). Signals may only widen, never narrow. Tier/routing selection is never driven by text-only LLM classification (Study C, #2176: 75.6% adjacent accuracy, 20% fail-dangerous L→S). The review count follows the **final** tier — a widened tier gets the widened tier's count — and the security escalation only ever widens it further; nothing narrows it.
 <% } %>
 
 | Phase | What `/ship` does | Review agents |
 |-------|-------------------|---------------|
-| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), STOP the ship. The `[ -f … ]` guard makes the step a no-op on brownfield trees that predate the script's emission (ADR-110) — a missing script is never a not-ready verdict; seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`); the plan MUST carry the mandatory sections (see §Plan contents) | — |
+| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), stop the ship. When the script is absent (brownfield trees predating its emission, ADR-110) a missing script is never a not-ready verdict — but the skip is declared, never silent: record `readiness: script absent — skipped` in the plan preamble so the omission stays visible. Seed task state (see Local-only state above) | — |
+| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; run the `senior-survey` skill for every new `src/` file the plan introduces (the pre-edit hook validates its Survey block); pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`); the plan carries every mandatory section (see §Plan contents) — a missing section is a FAIL | — |
 | `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
-| `red` | Write failing tests (TDD red) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
-| `green` | Implement the minimum to pass (composes with active companion plugins — see below) | — |
+| `red` | Write failing tests with the `tdd` skill (red → verify-red is its own step: watch each test fail for the right reason) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
+| `green` | Implement the minimum to pass, continuing the `tdd` loop (composes with active companion plugins — see below) | — |
 | `refactor` | Clean up; <%= _refactorLabel %> | <%= _refactorCount %> |
-| `verification` | Run the gate: `<%= _testCommand %>` then `node scripts/check-all.mjs check` | — |
+| `verification` | Run the `verification` skill, then the gate: `<%= _testCommand %>` then `node scripts/check-all.mjs check` | — |
 | `complete` | Commit, push, open/merge PR, close issue, clean up | — |
+
+### Model tier per dispatch (static guidance, AGENTS.md §Model-Pyramid)
+
+Mechanical sub-steps — readiness parsing, auditor routing, file discovery, grep sweeps — go
+to the cheapest agent (`codebase-scanner`, Haiku). Review, context-check and gate-bridge
+subagents run on Sonnet-class agents (their registry defaults). The session model
+(Opus/Fable-class) is reserved for the judgment stages: plan synthesis, red-team attack
+angles, and the adversarial verifier's verdict. This is dispatch guidance the orchestrator
+applies when spawning agents, not runtime machinery — arbiter never selects a model tier
+programmatically.
 
 <% if (!_soloMode) { %>
 Review-agent minimums by tier: XS=<%= _tiers.XS.reviewAgentCount %>, S=<%= _tiers.S.reviewAgentCount %>, Standard=<%= _tiers.Standard.reviewAgentCount %>.
@@ -158,7 +180,7 @@ constraint → rewrite → repeat).
 /ship plans with a SINGLE planner; these mandatory sections make that one plan carry what a multi-specialist panel would have produced (#2176 study: union-of-specialists prompt reproduced 3-specialist content at +19% cost vs +69% for real orchestration, equal quality — multi-specialist planning is NOT adopted).
 
 - **Approach & decomposition** — module boundaries and data flow of the change.
-- **Threat model & abuse cases** — who can abuse this and how. May be `n/a — no security surface` ONLY with a one-line justification; a bare `n/a` is a plan-review FAIL.
+- **Threat model & abuse cases** — who can abuse this and how. `n/a — no security surface` is accepted only with a one-line justification; a bare `n/a` is a plan-review FAIL.
 - **Input validation** — what is validated, where the trust boundary is, what happens on invalid input.
 - **Idiomatic patterns & pitfalls** — the recommended stdlib/framework APIs for this change and the known traps to avoid.
 - **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4`; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
@@ -258,6 +280,17 @@ every still-`resolved:false` finding caps its mapped auditor's verdict score and
 | HIGH / MEDIUM | Adapt plan in-place before advancing |
 | SUGGESTION | Note only — no blocking |
 
+**Refutation of high-stakes findings (skill: `refutation`).** As soon as the red-team
+returns findings, the orchestrator — not the reviewing agent — writes the marker
+`.arbiter/evidence/agent-returns/<task>/refutation-required.json` listing every finding at
+severity `high` or `critical`, then dispatches the skeptics (counts from
+`.claude/agent-dispatch-matrix.json` `refutation_skeptics`: XS/S=1, where the red-team is
+the skeptic; Standard=3). Writing the marker at this point is a numbered step of the review
+phase, not a choice: `scripts/check-refutation-verdicts.mjs` adjudicates only when the
+marker exists, so a marker left unwritten is a gate that never fires. No findings at or
+above `high` ⇒ write the marker with an empty `findings` array, which records that the
+threshold was evaluated.
+
 <% } %>
 
 ---
@@ -266,13 +299,17 @@ every still-`resolved:false` finding caps its mapped auditor's verdict score and
 
 <% if (governanceLevel !== 'L1') { %>
 <% if (_soloMode) { %>
-**Solo review — self-audit pass (1 agent):**
+**Solo review — independent reviewer (1 agent):**
 
-Dispatch a single self-review agent covering: bugs & logic errors, type safety, domain consistency
-(AGENTS.md / ADRs), silent failures (swallowed exceptions, wrong fallbacks).
+Dispatch a single independent code-review agent covering: bugs & logic errors, type safety,
+domain consistency (AGENTS.md / ADRs), silent failures (swallowed exceptions, wrong
+fallbacks). The reviewer is a fresh subagent that receives the diff, the plan's frozen
+anchor and the impact report — never the implementation transcript: a reviewer that shares
+the implementer's context inherits the implementer's blind spots, which is the failure mode
+review exists to catch.
 
 Security escalation applies in trunk-solo too: when the escalation fires, the agent writes
-`"count":3` and the three reviewer names into the `printf` instead of `1` and `["self-review"]`
+`"count":3` and the three reviewer names into the `printf` instead of `1` and `["independent-review"]`
 in `.arbiter/agents-dispatched.json` (#2177). Where `route-auditors.mjs` and
 `.claude/auditor-routing.json` exist (arbiter's own tree), run the router without `--size-floor`
 and read its `active` array; where they do not exist — every generated project, since neither file
@@ -282,21 +319,25 @@ never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-mkdir -p .arbiter && printf '{"count":1,"agents":["self-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+mkdir -p .arbiter && printf '{"count":1,"agents":["independent-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 
-**HARD STOP** if self-review agent was not actually dispatched.
+Write this file only after the reviewer subagent has actually been dispatched — "I reviewed
+it" without an agent tool call does not satisfy the gate, and the fail-closed Stop hook
+(INV-114) reads branch+sha from this file, so a sidecar written for an undispatched reviewer
+makes every later completion claim false.
 
 **Persist.** The reviewer hands back an `arbiter-agent-return-v1` envelope with `role: "reviewer"`
-and `agent: "self-review"`, piped through `node scripts/record-agent-return.mjs --task '#NNN'`.
+and `agent: "independent-review"`, piped through `node scripts/record-agent-return.mjs --task '#NNN'`.
 
 ```bash
 node scripts/check-review-completion.mjs --task '#NNN'
 ```
 
-On non-zero: re-dispatch ONLY the agent(s) named by the failure exactly ONCE, persist their returns
-the same way, and re-run the check. If it still fails → **HARD STOP**; do not advance, report the
-blocked agent. An agent that exhausted its turn budget but wrote its findings counts as COMPLETED —
+On non-zero: re-dispatch only the agent(s) named by the failure, exactly once, persist their returns
+the same way, and re-run the check. If it still fails, stop and report the blocked agent —
+advancing past an incomplete review is what the completion gate exists to prevent (it is
+what turns 77% ITT into 88% per-protocol; see §Phase map). An agent that exhausted its turn budget but wrote its findings counts as COMPLETED —
 it is never re-dispatched; only a missing or malformed artifact is.
 
 <% } else { %>
@@ -319,7 +360,10 @@ When the security escalation fires, dispatch a third reviewer whose lead angle i
 vertical that fired and include its name in `agents[]` and the `count` — the sidecar must never
 under-declare the reviewers actually dispatched (#2177).
 
-**HARD STOP** if agents were not actually dispatched. "I reviewed it" without agent tool calls does not satisfy this gate.
+Write the sidecar only after the agents have actually been dispatched — "I reviewed it"
+without agent tool calls does not satisfy this gate, and the fail-closed Stop hook (INV-114)
+reads branch+sha from this file, so a sidecar written for undispatched reviewers makes every
+later completion claim false.
 
 **Persist.** Every reviewer hands back an `arbiter-agent-return-v1` envelope with `role: "reviewer"`
 and `agent` equal to its name in `agents[]`, piped through `node scripts/record-agent-return.mjs --task '#NNN'`.
@@ -328,14 +372,16 @@ and `agent` equal to its name in `agents[]`, piped through `node scripts/record-
 node scripts/check-review-completion.mjs --task '#NNN'
 ```
 
-On non-zero: re-dispatch ONLY the agent(s) named by the failure exactly ONCE, persist their returns
-the same way, and re-run the check. If it still fails → **HARD STOP**; do not advance, report the
-blocked agent. An agent that exhausted its turn budget but wrote its findings counts as COMPLETED —
+On non-zero: re-dispatch only the agent(s) named by the failure, exactly once, persist their returns
+the same way, and re-run the check. If it still fails, stop and report the blocked agent —
+advancing past an incomplete review is what the completion gate exists to prevent (it is
+what turns 77% ITT into 88% per-protocol; see §Phase map). An agent that exhausted its turn budget but wrote its findings counts as COMPLETED —
 it is never re-dispatched; only a missing or malformed artifact is.
 
 <% } %>
 
-**Adversarial Verifier (mandatory, after review):** Trace each new feature end-to-end; check dead code,
+**Adversarial Verifier (runs after review, every tier — review checks quality, the verifier
+checks fit, and neither substitutes for the other):** Trace each new feature end-to-end; check dead code,
 CLI option wiring end-to-end (flag declared → parsed → forwarded), fixture assumptions and test setup.
 
 **FIT rubric (INV-138):** The verifier judges FIT against the plan's frozen `## Acceptance
@@ -349,7 +395,8 @@ verification/close).
 Any FAIL or NOT-TESTED blocks advance — unproven criterion = REJECT. A REJECT that forces
 a redo is rework data:
 `[ -f scripts/rework-log.mjs ] && node scripts/rework-log.mjs add --issue NNN --reason <r> --caught review`
-(guarded for brownfield trees that predate the script's emission — ADR-110).
+When the script is absent (brownfield trees predating its emission, ADR-110), note
+`rework-log: script absent — skipped` next to the REJECT so the lost data point is visible.
 
 <% } %>
 
@@ -462,7 +509,9 @@ At **GO/handoff** (plan-review gate green):
 - A phase gate throws (plan-review FAIL, TDD evidence missing, budget breach) → fix the root cause; do
   not bypass. `arbiter ship --advance` surfaces the gate's exit code (78 handoff, 79 budget).
 - CRITICAL red-team finding → `arbiter task advance --to red-team-rework`, revise, re-run review.
-- If `tasks.worktree` is `always` in `arbiter.json`, opening a worktree is mandatory — HARD STOP if skipped.
+- If `tasks.worktree` is `always` in `arbiter.json`, open a worktree before any edit — a ship
+  that skipped it stops here, because every downstream artifact (branch, evidence, gate) is
+  anchored to the worktree.
 - The fail-closed Stop hook (INV-114) requires three correlated artifacts before any completion claim:
   plan-review `latest.json` (written by the plan-review dispatch — not a CLI command since #1817),
   `.arbiter/agents-dispatched.json`

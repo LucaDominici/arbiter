@@ -89,7 +89,9 @@ The `pre-edit-plan-anchor.mjs` hook validates this block before allowing the Wri
 3. `### Evidence` subsection with ≥3 lines starting with ``- `grep`` or ``- `ls``
 4. `### Rationale` subsection with ≥200 non-whitespace characters
 
-If validation fails: `STOP — CANON-16 violation`. Fix the Survey or set `ARBITER_PLAN_BYPASS=1` for justified bypasses.
+If validation fails: `STOP — CANON-16 violation`. Fix the Survey — the hook is telling you
+the plan lacks the evidence a reviewer needs, and the fix is always to supply it, not to
+route around the hook.
 
 ## Multi-File Tasks
 

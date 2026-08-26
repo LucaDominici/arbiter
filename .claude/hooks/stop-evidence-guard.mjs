@@ -58,7 +58,7 @@ function main() {
   const claimText = latestAssistantText(input.transcript_path)
   if (claimText === null) process.exit(0) // missing/unreadable transcript → stand down
   const COMPLETION_PATTERNS =
-    /\b(task complete|task completed|all phases complete|pr merged|merged to main|wrapping up|ready to (merge|close))\b/i
+    /\b(task (is )?(complete|completed|done|finished)|task complete|task completed|all phases complete|work is (done|complete)|implementation (is )?(complete|done|finished)|pr merged|merged to main|wrapping up|ready to (merge|close)|shipped)\b/i
   if (!COMPLETION_PATTERNS.test(claimText)) {
     // #1402 — end-of-task reflection sweep: a non-blocking nudge to drain seen-but-unrecorded
     // findings. Only fires when undrained findings exist; never changes the exit code.

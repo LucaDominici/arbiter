@@ -67,7 +67,7 @@ try {
 
 // Completion claim patterns
 const COMPLETION_PATTERNS =
-  /\b(task complete|task completed|all phases complete|pr merged|merged to main|wrapping up|ready to (merge|close))\b/i
+  /\b(task (is )?(complete|completed|done|finished)|task complete|task completed|all phases complete|work is (done|complete)|implementation (is )?(complete|done|finished)|pr merged|merged to main|wrapping up|ready to (merge|close)|shipped)\b/i
 if (!COMPLETION_PATTERNS.test(promptText)) process.exit(0)
 
 // Completion claimed before the task reached the complete phase.

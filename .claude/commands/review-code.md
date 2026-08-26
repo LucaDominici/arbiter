@@ -133,9 +133,14 @@ skip can never raise the score** (no inflation by omission). Verdict ladder:
 
 `--caps` lowers a single auditor's contribution to at most `pct`% of its weight.
 This is how an unaddressed red-team finding caps its mapped auditor (see
-**Forward-linked red-team findings** below). Caps are **agent-applied** at review
-time — the agent passes them based on the unresolved-finding ledger; the script
-does not itself read task state.
+**Forward-linked red-team findings** below). The script does not itself read task
+state, so deriving the caps is the dispatching agent's unconditional step, not an
+option: before scoring, read the unresolved-finding ledger
+(`.claude/.task/status.json` `redTeamFindings`) and pass `--caps` for every
+`resolved:false` finding's mapped auditor. A ledger with unresolved findings and a
+score computed without `--caps` is an inflated score — state in the report which
+caps were applied, or `caps: none — ledger empty` when the ledger has no unresolved
+findings, so the omission is checkable.
 
 ### Forward-linked red-team findings (#1212, INV-114 sibling)
 

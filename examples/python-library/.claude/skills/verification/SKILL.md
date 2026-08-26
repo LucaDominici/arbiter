@@ -13,7 +13,10 @@ related: []
 
 # Verification Before Completion
 
-Use this before declaring any work done.
+Run this sequence before any completion claim — a claim made from memory of green output is
+the single most common agent failure mode, so every claim below is re-verified against the
+tree now, not recalled. Work through the steps in order; each depends on the previous one,
+and an unchecked box is an unfinished task, not an optional extra.
 
 ## Checklist
 
@@ -53,9 +56,10 @@ node scripts/check-all.mjs L2
 - [ ] No dead code
 - [ ] No circular dependencies
 
-## Hard Stops
+## Stop conditions
 
-Do NOT commit or push if:
-- Gate fails
-- Tests are failing
-- You added a TODO without a task ID (`TODO(#NNN): ...`)
+Commit and push only when every box above is checked. A failing gate, a failing test, or a
+TODO without a task ID (`TODO(#NNN): ...`) stops the completion claim here: fix the root
+cause first — a claim made over a red check is false the moment it is written, and the Stop
+hook (INV-114) will reject it anyway. Report what is red and what you are doing about it
+instead of claiming done.

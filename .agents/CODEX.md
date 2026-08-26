@@ -2,7 +2,7 @@
 title: 'arbiter — Codex Configuration'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-17'
+last_review: '2026-08-26'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
@@ -146,6 +146,7 @@ gate time (`node scripts/check-all.mjs`) or is manual discipline, as stated.
 | `closer-mode-guard.mjs`        | CLOSER-mode enforcement in the close phase                                  | None — manual discipline                                              |
 | `exitplanmode-banner.mjs`      | Plan-exit banner in the task lifecycle                                      | None — informational only                                             |
 | `stop-finding-loss.mjs`        | Detects research dispatches with zero persisted findings (E6b #1948)        | None — manual discipline                                              |
+| `guard-done-evidence.mjs`      | Requires recorded evidence before done claims                               | Gate: `arbiter verify tdd` / evidence checks                          |
 | `post-brainstorm-stop.mjs`     | Brainstorm terminal-state guardrail (#1265)                                 | None — manual discipline                                              |
 | `check-circular-deps.mjs`      | Detects circular deps per-edit (INV-01)                                     | Gate: `madge --circular src` in `check-all.mjs`                       |
 | `check-no-pii.mjs`             | Blocks PII patterns in source (real-time)                                   | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`     |
