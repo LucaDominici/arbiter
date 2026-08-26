@@ -370,7 +370,11 @@ describe('main()', () => {
   it('exits 0 for docs-only work even when its cited subject id has no evidence (#2371)', () => {
     exitFn.mockReset()
     main({
-      runFn: subjectRun({ changed: 'docs/runbook.md', inherited: true, verifyFails: true }) as never,
+      runFn: subjectRun({
+        changed: 'docs/runbook.md',
+        inherited: true,
+        verifyFails: true,
+      }) as never,
       exitFn: exitFn as never,
     })
     expect(exitFn).toHaveBeenCalledWith(0)

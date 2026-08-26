@@ -319,6 +319,14 @@ for (const block of bodyLog.split('\x00').filter(Boolean)) {
   process.exit(1)
 }
 
+// #2371: a task id in a docs-only commit does not owe TDD evidence. The source-change
+// predicate above is authoritative; subject ids only select evidence when it says a
+// governed source change occurred.
+if (!touchesSource) {
+  process.stdout.write('check-tdd-evidence: no src/ change, vacuous pass\n')
+  process.exit(0)
+}
+
 // Floor path: the branch owes ONE verified evidence, not one per cited issue — a docs
 // or chore commit that merely references an issue owes nothing.
 if (taskIds.length === 0) {

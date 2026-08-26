@@ -323,7 +323,7 @@
   {
     "path": "check-local-ci-parity.mjs",
     "dest": "scripts",
-    "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder. Re-pinned #2326: one more arbiter-self-only CI_COVERAGE id ('hardness inventory (self hooks)'), squarely inside this entry's existing rationale \u2014 no consumer project has arbiter's .claude/hooks self-hardness gate.",
+    "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder. Re-pinned #2326: one more arbiter-self-only CI_COVERAGE id ('hardness inventory (self hooks)'), squarely inside this entry's existing rationale — no consumer project has arbiter's .claude/hooks self-hardness gate.",
     "diffHash": "7b1bca3654df2983980be42043b3d8d7f6ed9dc07c0b59401500c5868b1fa5a3"
   },
   {
@@ -348,7 +348,7 @@
     "path": "check-tdd-evidence.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). The largest pin, and the two sides are deliberately different programs. The TEMPLATE is self-contained by design: it inlines the TddEvidenceV1 schema, the failure-signature list and the git reachability checks so a target needs no local arbiter install. SELF delegates verification to `tsx src/cli.ts verify tdd` and exports its helpers for unit tests. Both sides now enforce the produced-here floor over subject ∪ body ids (#2217, #2307), so an already-merged task's inherited evidence cannot satisfy the branch floor ('without this the floor is theatre') on EITHER the body- or the subject-cited path. The template applies it TRACKED-CONDITIONALLY: a generated .gitignore ignores .arbiter/ wholesale, so where the evidence file is untracked the guard warns and stands down rather than rejecting every branch, and becomes live the moment a target un-ignores .arbiter/evidence/tdd/*.json (as arbiter does for itself). Self also counts src/templates/** as governed source — templates ARE the product shipped to targets. Both sides share the ARBITER-SKIP-TDD rejection. PERMANENT: each side's design is forced by whether the arbiter CLI is present.",
-    "diffHash": "855f8c0769f1559a4317dcb444ac1035209616ab1986e8cd4b0c5a347f63bf88"
+    "diffHash": "fb99e15989abadde144dc6a964daba51e261c0fba0ba945eba7e954a3b636778"
   },
   {
     "path": "check-test-naming.mjs",

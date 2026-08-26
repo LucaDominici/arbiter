@@ -285,7 +285,9 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
   })
 
   it('vacuous PASS (exit 0) for docs-only work with a task-id subject but no evidence (#2371)', () => {
-    expect(runScenario({ taskCommit: true, docsOnlyTaskCommit: true, evidence: () => null })).toBe(0)
+    expect(runScenario({ taskCommit: true, docsOnlyTaskCommit: true, evidence: () => null })).toBe(
+      0,
+    )
   })
 
   it('FAIL (exit 1) when src/ changes cite no task id anywhere', () => {
