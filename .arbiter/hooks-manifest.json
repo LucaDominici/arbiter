@@ -226,12 +226,13 @@
     },
     {
       "file": "skill-forced-eval.mjs.ejs",
-      "classification": "ADVISORY",
+      "classification": "HARD",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "rationale": "Skill context injector — advisory context injection, not a guard"
+      "expectedExitCode": 2,
+      "rationale": "UserPromptSubmit hard block (exit 2) — after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit prompts and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
     },
     {
       "file": "check-circular-deps.mjs.ejs",

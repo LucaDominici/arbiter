@@ -1,0 +1,56 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2383",
+  "branch": "task/#2383-skill-forced-eval",
+  "recordedAt": "2026-08-27T20:25:00Z",
+  "criteria": [
+    {
+      "id": "AC-2383.1",
+      "verdict": "PASS",
+      "note": "The hook derives phase-bound evidence from structured Skill and edit tool events, with ordering and successful results enforced.",
+      "evidence": [
+        { "file": ".claude/hooks/skill-forced-eval.mjs", "line": 170 },
+        { "file": "__tests__/hooks/empirical/skill-forced-eval.test.ts", "line": 200 }
+      ]
+    },
+    {
+      "id": "AC-2383.2",
+      "verdict": "PASS",
+      "note": "Missing evidence blocks implementation phases with exit 2 and an actionable remediation; no-edit and non-implementation phases stand down.",
+      "evidence": [
+        { "file": ".claude/hooks/skill-forced-eval.mjs", "line": 51 },
+        { "file": "__tests__/hooks/empirical/skill-forced-eval.test.ts", "line": 185 }
+      ]
+    },
+    {
+      "id": "AC-2383.3",
+      "verdict": "PASS",
+      "note": "Unreadable stdin, unavailable transcripts, and unknown phases have explicit fail-open comments; malformed parseable evidence fails closed.",
+      "evidence": [
+        { "file": ".claude/hooks/skill-forced-eval.mjs", "line": 68 },
+        { "file": ".claude/hooks/skill-forced-eval.mjs", "line": 123 },
+        { "file": "__tests__/hooks/empirical/skill-forced-eval.test.ts", "line": 263 }
+      ]
+    },
+    {
+      "id": "AC-2383.4",
+      "verdict": "PASS",
+      "note": "The self and generated hook documentation describe the blocking verifier, and the hook-doc parity gate passes.",
+      "evidence": [
+        { "file": ".claude/CLAUDE.md", "line": 166 },
+        { "file": "src/templates/claude/CLAUDE.md.ejs", "line": 166 },
+        { "file": "docs/internal/SYSTEM/HOOK-CONTRACTS.md", "line": 40 }
+      ]
+    },
+    {
+      "id": "AC-2383.5",
+      "verdict": "PASS",
+      "note": "Empirical tests cover block, success, stand-down, parity, dispatcher routing, and malformed inputs; L1 and L2 gates are required before landing.",
+      "evidence": [
+        { "file": "__tests__/hooks/empirical/skill-forced-eval.test.ts", "line": 320 },
+        { "file": "__tests__/scripts/probe-hooks.test.ts", "line": 1 },
+        { "file": "scripts/check-all.mjs", "line": 1 }
+      ]
+    }
+  ]
+}

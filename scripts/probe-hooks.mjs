@@ -39,12 +39,6 @@ const ADVISORY = {
       tool_input: { plan: 'probe plan' },
     },
   },
-  'skill-forced-eval.mjs': {
-    rationale: 'Prints a skill-selection reminder before prompts and intentionally never blocks.',
-    // Must match the hook's CODE_KEYWORDS filter, or the probe stops at the smart filter.
-    kind: 'prompt',
-    value: 'implement the parser in src/probe.ts and add a test',
-  },
   'wiki-on-commit.mjs': {
     rationale: 'Refreshes wiki context after commits and reports diagnostics without blocking.',
     kind: 'command',
@@ -179,6 +173,12 @@ const HARD = {
     rationale: 'Requires an active implementation phase and coherent task branch.',
     kind: 'path',
     fixture: 'src/unplanned-probe.ts',
+  },
+  'skill-forced-eval.mjs': {
+    states: ['PRIMED'],
+    rationale:
+      'Requires a successful phase-bound Skill(tdd) result before an observed implementation edit.',
+    kind: 'skill-forced-eval',
   },
   'guard-task-completion.mjs': {
     states: ['PRIMED'],
@@ -325,6 +325,7 @@ function establishState(root, state) {
       JSON.stringify({
         taskId: '#1',
         phase: 'green',
+        timestamps: { green: new Date().toISOString() },
         plan: '.claude/plans/missing-probe-plan.md',
         branch: 'task/#1-probe',
         tier: 'Standard',
@@ -373,6 +374,33 @@ function probeOne(root, hooksDir, temporary, language, hook, state) {
     }
   }
   prepareSpecialState(root, temporary, contract, state)
+  if (contract.kind === 'skill-forced-eval') {
+    const blockedPayload = payloadFor(root, temporary, language, contract)
+    const blocked = runHook(root, join(hooksDir, hook), blockedPayload)
+    const passingPayload = payloadFor(root, temporary, language, {
+      ...contract,
+      skillEvidence: true,
+    })
+    const passing = runHook(root, join(hooksDir, hook), passingPayload)
+    const exercised = blocked.status === 2 && passing.status === 0
+    return {
+      hook,
+      state,
+      mode: 'HARD',
+      exitCode: blocked.status,
+      verdict: exercised
+        ? classifyHookResult({
+            exitCode: blocked.status,
+            signal: blocked.signal,
+            hardness: 'HARD',
+            applicable: true,
+            rationale: contract.rationale ?? '',
+          })
+        : 'PROBE-ERROR',
+      rationale: contract.rationale ?? '',
+      diagnostic: `missing-skill ${commandDiagnostic(blocked)}; successful-skill ${commandDiagnostic(passing)}`,
+    }
+  }
   const payload = payloadFor(root, temporary, language, contract)
   const result = runHook(root, join(hooksDir, hook), payload)
   return {
@@ -452,7 +480,7 @@ function prepareSpecialState(root, temporary, contract, state) {
 }
 
 function payloadFor(root, temporary, language, contract) {
-  const special = specialPayload(temporary, contract)
+  const special = specialPayload(root, temporary, contract)
   if (special !== null) return special
   return filePayload(root, temporary, language, contract)
 }
@@ -481,7 +509,7 @@ function findingLossPayload(temporary) {
   return { stop_hook_active: false, transcript_path: path }
 }
 
-function specialPayload(temporary, contract) {
+function specialPayload(root, temporary, contract) {
   switch (contract.kind) {
     case 'command':
       return { tool_input: { command: contract.value } }
@@ -491,6 +519,102 @@ function specialPayload(temporary, contract) {
       return findingLossPayload(temporary)
     case 'prompt':
       return { prompt: contract.value }
+    case 'skill-forced-eval': {
+      const sessionId = 'probe-skill-forced-eval'
+      const home = join(temporary, 'home')
+      const path = join(
+        home,
+        '.claude',
+        'projects',
+        encodeProjectPath(resolve(root)),
+        `${sessionId}.jsonl`,
+      )
+      mkdirSync(dirname(path), { recursive: true })
+      const timestamp = new Date().toISOString()
+      const records =
+        contract.skillEvidence === true
+          ? [
+              {
+                type: 'assistant',
+                timestamp,
+                message: {
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'tool_use',
+                      id: 'probe-skill',
+                      name: 'Skill',
+                      input: { skill: 'tdd' },
+                    },
+                  ],
+                },
+              },
+              {
+                type: 'user',
+                timestamp,
+                message: {
+                  role: 'user',
+                  content: [{ type: 'tool_result', tool_use_id: 'probe-skill', is_error: false }],
+                },
+              },
+              {
+                type: 'assistant',
+                timestamp,
+                message: {
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'tool_use',
+                      id: 'probe-edit',
+                      name: 'Edit',
+                      input: { file_path: 'src/probe.ts' },
+                    },
+                  ],
+                },
+              },
+              {
+                type: 'user',
+                timestamp,
+                message: {
+                  role: 'user',
+                  content: [{ type: 'tool_result', tool_use_id: 'probe-edit', is_error: false }],
+                },
+              },
+            ]
+          : [
+              {
+                type: 'assistant',
+                timestamp,
+                message: {
+                  role: 'assistant',
+                  content: [
+                    {
+                      type: 'tool_use',
+                      id: 'probe-edit',
+                      name: 'Edit',
+                      input: { file_path: 'src/probe.ts' },
+                    },
+                  ],
+                },
+              },
+              {
+                type: 'user',
+                timestamp,
+                message: {
+                  role: 'user',
+                  content: [{ type: 'tool_result', tool_use_id: 'probe-edit', is_error: false }],
+                },
+              },
+            ]
+      writeFileSync(path, records.map((record) => JSON.stringify(record)).join('\n') + '\n')
+      return {
+        session_id: sessionId,
+        cwd: root,
+        prompt: 'continue implementation',
+        transcript_path: path,
+        __probeHome: home,
+      }
+    }
     case 'brainstorm':
       return { prompt: '/task #1' }
     case 'bad-commit':
@@ -536,9 +660,10 @@ function sourceExtension(language) {
 
 function runHook(root, hookPath, payload, extraEnv = {}) {
   if (!existsSync(hookPath)) return { status: null, stderr: `missing ${hookPath}` }
+  const { __probeHome, ...inputPayload } = payload ?? {}
   return spawnSync('node', [hookPath], {
     cwd: root,
-    input: JSON.stringify(payload),
+    input: JSON.stringify(inputPayload),
     encoding: 'utf-8',
     timeout: 90000,
     env: {
@@ -548,9 +673,14 @@ function runHook(root, hookPath, payload, extraEnv = {}) {
       // pass for the wrong reason). `extraEnv` re-enables exactly the knob under probe.
       ...Object.fromEntries(PROMOTION_KNOBS.map((knob) => [knob, '0'])),
       CLAUDE_PROJECT_DIR: root,
+      ...(typeof __probeHome === 'string' ? { HOME: __probeHome } : {}),
       ...extraEnv,
     },
   })
+}
+
+function encodeProjectPath(path) {
+  return path.replace(/[^A-Za-z0-9]/g, '-')
 }
 
 function gitPorcelain(root) {

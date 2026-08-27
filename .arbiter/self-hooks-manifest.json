@@ -319,12 +319,13 @@
     },
     {
       "file": "skill-forced-eval.mjs",
-      "classification": "ADVISORY",
+      "classification": "HARD",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "rationale": "Prints a skill-selection reminder before prompts; intentionally never blocks."
+      "expectedExitCode": 2,
+      "rationale": "UserPromptSubmit hard block (exit 2) — after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit prompts and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
     },
     {
       "file": "wiki-on-commit.mjs",

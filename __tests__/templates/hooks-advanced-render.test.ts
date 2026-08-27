@@ -191,11 +191,12 @@ describe('hooks/skill-forced-eval.mjs.ejs', () => {
     expect(out).toContain('pytest')
   })
 
-  it('handles red/green/refactor phases with keyword filter', () => {
+  it('renders phase-bound transcript evidence checks', () => {
     const out = renderTemplate('claude/hooks/skill-forced-eval.mjs.ejs', configFor('typescript'))
-    expect(out).toContain("case 'red'")
-    expect(out).toContain("case 'green'")
-    expect(out).toContain("case 'refactor'")
+    expect(out).toContain("new Set(['red', 'green', 'refactor'])")
+    expect(out).toContain('tool_result')
+    expect(out).toContain('transcript_path')
+    expect(out).not.toContain('CODE_KEYWORDS')
   })
 
   it('handles plan phase', () => {

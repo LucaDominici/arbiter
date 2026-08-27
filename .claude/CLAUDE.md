@@ -65,7 +65,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → Edit\|Write  | `post-edit-dispatch.mjs`       | Run format + lint after file edits                                                                                            |
 | `PostToolUseFailure` → Bash  | `debug-state-on-failure.mjs`   | Persist debug state when gate/test commands fail                                                                              |
 | `UserPromptSubmit` → \*      | `post-brainstorm-stop.mjs`     | Block /task while brainstorm session active                                                                                   |
-| `UserPromptSubmit` → \*      | `skill-forced-eval.mjs`        | Phase-aware skill checklist injected as context (non-blocking; names the tdd/verification skills)                             |
+| `UserPromptSubmit` → \*      | `skill-forced-eval.mjs`        | Phase-bound TDD evidence verifier; blocks implementation edits without a successful `Skill(tdd)` result (exit 2)              |
 | `UserPromptSubmit` → \*      | `guard-task-completion.mjs`    | Hard-block premature task-completion claims (exit 2)                                                                          |
 | `UserPromptSubmit` → \*      | `guard-done-evidence.mjs`      | Validate SHA-pinned done-evidence before completion claims (#1872; active — `features.evidenceHarness: true` in arbiter.json) |
 | `Stop` → \*                  | `stop-evidence-guard.mjs`      | Block completion claims without correlated evidence (INV-114, #1212)                                                          |

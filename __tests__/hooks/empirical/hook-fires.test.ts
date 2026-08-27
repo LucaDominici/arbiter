@@ -737,7 +737,12 @@ describe('skill-forced-eval — empirical fire', () => {
   })
 
   it('exits 0 and writes plan-mode context to stdout in plan phase', () => {
-    const r = spawnHook(hookPath, dir, {}, JSON.stringify({ prompt: 'go' }))
+    const r = spawnHook(
+      hookPath,
+      dir,
+      {},
+      JSON.stringify({ session_id: 'hook-fires-plan', prompt: 'go' }),
+    )
     expect(r.status).toBe(0)
     expect(r.stdout).toMatch(/PLAN MODE/i)
   })

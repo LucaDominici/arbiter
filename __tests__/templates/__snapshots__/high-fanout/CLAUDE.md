@@ -32,6 +32,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PreToolUse` → Edit\|Write | `pre-edit-ssot-guard.mjs` | Prevent unauthorized SSOT edits |
 | `PostToolUse` → Bash | `post-commit-check.mjs` | Verify commit format after git commits |
 | `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs` | Block orphan TODOs (INV-21) |
+| `UserPromptSubmit` → * | `skill-forced-eval.mjs` | Phase-bound TDD evidence verifier; blocks implementation edits without a successful `Skill(tdd)` result (exit 2) |
 | `UserPromptSubmit` → * | `guard-task-completion.mjs` | Warn on premature task-completion claims |
 | `Stop` → * | `stop-evidence-guard.mjs` | Block completion claims without correlated evidence (INV-114) |
 | `PostToolUse` → Edit\|Write | `check-no-any.mjs` | Block `any` types (INV-04) |

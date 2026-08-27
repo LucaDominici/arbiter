@@ -206,6 +206,38 @@ describe('probe-hooks liveness contract (#2135)', () => {
     }
   })
 
+  it('drives skill-forced-eval with its transcript fixture in PRIMED state', () => {
+    const dir = fixture(
+      'skill-forced-eval.mjs',
+      readFileSync(resolve('.claude/hooks/skill-forced-eval.mjs'), 'utf-8'),
+    )
+    writeFileSync(
+      join(dir, '.claude/hooks/lib.mjs'),
+      readFileSync(resolve('.claude/hooks/lib.mjs'), 'utf-8'),
+    )
+    mkdirSync(join(dir, 'scripts/lib'), { recursive: true })
+    writeFileSync(
+      join(dir, 'scripts/lib/suppressions-shared.mjs'),
+      readFileSync(resolve('scripts/lib/suppressions-shared.mjs'), 'utf-8'),
+    )
+    try {
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      const rows = JSON.parse(result.stdout).rows
+      expect(rows).toEqual([
+        expect.objectContaining({ state: 'BARE', verdict: 'NOT-APPLICABLE' }),
+        expect.objectContaining({ state: 'PRIMED', verdict: 'BLOCKS' }),
+        expect.objectContaining({ state: 'CLOSE', verdict: 'NOT-APPLICABLE' }),
+        expect.objectContaining({ state: 'VERIFICATION', verdict: 'NOT-APPLICABLE' }),
+      ])
+      expect(rows.find((row: { state: string }) => row.state === 'PRIMED').diagnostic).toMatch(
+        /missing-skill exit=2,signal=null; successful-skill exit=0,signal=null/,
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it.each([
     ['closer-mode-guard.mjs', 'CLOSE'],
     ['guard-done-evidence.mjs', 'VERIFICATION'],

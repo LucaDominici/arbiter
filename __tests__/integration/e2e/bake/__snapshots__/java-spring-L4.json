@@ -316,7 +316,7 @@
   "contentHashes": {
     ".arbiter/ship/TICK_PROMPT.md": "14264bf6e19ae157035993e32bca4e3ef38be99382dc8a855f9b07b4be32b61f",
     ".arbiter/ship/supervisor.sh": "0d500f3bf30d2e34a207f06a3d977789b5357cd8830f3e6a3aef8b59a6ab8acb",
-    ".claude/CLAUDE.md": "4a0a4a36d6539419a153dd450b31c44397f7d3e82d613c4abc5abf7e4f50d9e3",
+    ".claude/CLAUDE.md": "6043a465c133c5d94ae134d22a9bb014f8c7b07371cc4a3e8dbc281774067fb4",
     ".claude/agents/agent-write-classes.json": "0a9be89cbc2549479d4b4cf549465cd350a2b1ef4b3adb4ccb49bc943f1b9761",
     ".claude/agents/bridge-reviewer.md": "17200dc97d59ccfd95292ba2b0cfea4fdec17130fe48a910b57d263dd9ba91cb",
     ".claude/agents/codebase-scanner.md": "27db4ff54e68ec9a92afcf7b7701485e9a9bdd45013719f4156d28b52fc4b100",
@@ -355,7 +355,7 @@
     ".claude/hooks/pre-edit-plan-anchor.mjs": "81519f50ddb52f9b07382a9b32580d43f72526b69539d4092f11a5938e724e1a",
     ".claude/hooks/pre-edit-ssot-guard.mjs": "2317c2075bea7c4f19d4164d89e79867fc65886ad29e6033c34349f4b027ae78",
     ".claude/hooks/pre-spawn-worktree-guard.mjs": "54ce4d9030ced33a855befa3525dcd9d8f34d390525ee98a84a0ed1676c842ff",
-    ".claude/hooks/skill-forced-eval.mjs": "3a354a91c4cd310e9bedabbb84e1f766d5ef80cb446d5ffefaf54138729dc3a5",
+    ".claude/hooks/skill-forced-eval.mjs": "6cee081ffe51b9b6ac3ea9cabcd468c78f39688e9c8ad17c1e81c484e0b7eead",
     ".claude/hooks/stop-dangerous.mjs": "f2896a9bc48e44dd9e201a766a9880cd18a39c446605ca3fe2b6adad16425a34",
     ".claude/hooks/stop-evidence-guard.mjs": "4c98dd5bff1ac08191af117e5fc0a9876dda223b89b90d0c8b0cf0ca2fd70230",
     ".claude/hooks/stop-finding-loss.mjs": "878e5e9b00d253cdac62b3e22b00c0d14faa02d04493e2c277f8fce987dc2734",
