@@ -339,20 +339,22 @@ function checkGateMutex(dir: string): HealthCheck {
         hint: 'Run `arbiter update` to restore scripts/lib/waiter-count.mjs.',
       }
     }
-    if (count >= 2) {
+    if (count > 2) {
       return {
         id,
         label,
         status: 'WARN',
-        detail: `mutex ${lockPath}; ${count} holder/waiter process(es) currently have the lock open`,
-        hint: 'A backgrounded daemon from a previous gate can be the holder; inspect it before starting another gate.',
+        detail: `mutex ${lockPath}; ${count} supervisor/holder/waiter process(es) currently have the lock open`,
+        hint: 'Inspect the process groups; do not kill only flock while its gated command is running.',
       }
     }
     return {
       id,
       label,
       status: 'PASS',
-      detail: `mutex ${lockPath}; ${count} holder/waiter process(es) currently have the lock open`,
+      detail:
+        `mutex ${lockPath}; ${count} supervisor/holder/waiter process(es) currently have the lock open ` +
+        '(a normal gate-exec uses two: Node holder + detached supervisor)',
     }
   } catch {
     return {

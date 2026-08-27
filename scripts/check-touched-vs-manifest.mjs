@@ -3,8 +3,8 @@
 // CATALOG: E7 (#1943, M6 read-set + ADR-103 disjointness) — touched-vs-manifest gate. Context
 // CATALOG: economy made checkable: a wave group declares what it will WRITE (manifest `Files` row);
 // CATALOG: what a worker actually TOUCHED (git diff --name-only base...branch) must stay inside
-// CATALOG: that declared write set. An agent that edited outside its manifest also read outside it
-// CATALOG: and voided the ADR-103 disjointness assumption — the hard, cheap, high-signal half.
+// CATALOG: that declared write set. This proves one group's write-set compliance.
+// CATALOG: Pairwise cross-group disjointness is declared but not computed by this check.
 // CATALOG: Rejected fold-in into check-agent-dispatch.mjs: that asserts the dispatch matrix vs the
 // CATALOG: compiled derivation (declaration parity), not the post-hoc touched⊆manifest predicate
 // CATALOG: (execution inside declaration). Different axis, different lifecycle (plan-time vs harvest).
@@ -159,7 +159,7 @@ function main() {
         '\n',
     )
     process.stdout.write(
-      `[check-touched-vs-manifest] FAIL: voided ADR-103 disjointness assumption\n`,
+      `[check-touched-vs-manifest] FAIL: violated the declared write-set contract for group "${GROUP}"; this single-group check does not prove cross-group pairwise disjointness\n`,
     )
     return 1
   }

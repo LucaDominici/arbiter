@@ -377,7 +377,8 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       summary: 'flock(1) unavailable — gate mutex unsupported on this platform',
       detail:
         '`arbiter gate-exec` delegates the per-repo gate mutex to util-linux flock(1) because ' +
-        'only the kernel releases the lock when the holder dies from SIGKILL/OOM. On platforms ' +
+        'the kernel-backed lock survives killing the Arbiter Node PID alone and releases after ' +
+        'the gate-exec supervisor is SIGKILL/OOM-killed and its process group is torn down. On platforms ' +
         'without flock (macOS base system, Windows) the mutex cannot be provided safely, and a ' +
         'lockfile emulation would reintroduce the SIGKILL hole — so gate-exec fails closed (ADR-103).',
       recovery:

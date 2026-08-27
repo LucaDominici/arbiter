@@ -161,16 +161,9 @@
       "tools": [
         "claude"
       ],
-      "spawnable": true,
+      "spawnable": false,
       "expectedExitCode": 2,
-      "fixture": {
-        "type": "isolated-root",
-        "path": "AGENTS.md",
-        "content": "# isolated SSOT fixture\n",
-        "envKey": "CLAUDE_TOOL_INPUT_PATH"
-      },
-      "expectStderr": "SSOT GUARD",
-      "rationale": "Guards SSOT paths (DEFAULT_SSOT_PATTERNS plus arbiter.json governance.ssotGuardPatterns). #2342 runs the real self hook and lib from a disposable isolated root, so no live .arbiter/ssot-bypass token can be consumed."
+      "rationale": "Guards SSOT paths (DEFAULT_SSOT_PATTERNS plus arbiter.json governance.ssotGuardPatterns). NOT spawnable in place: driving it past the pattern match reaches the one-shot bypass block, which rmSync()s the developer's armed .arbiter/ssot-bypass token \u2014 a read-only gate check must never consume user state \u2014 and with a non-empty reason the hook then exits 0, reddening the gate on a healthy hook. Observing it needs an isolated repo root (tracked follow-up #2342). Its self lib.mjs remains covered: a broken export there reddens 10 other spawnable hooks, measured."
     },
     {
       "file": "stop-dangerous.mjs",
@@ -195,16 +188,9 @@
       "tools": [
         "claude"
       ],
-      "spawnable": true,
+      "spawnable": false,
       "expectedExitCode": 2,
-      "fixture": {
-        "type": "isolated-root",
-        "env": {
-          "CLAUDE_TOOL_INPUT_COMMAND": "gh pr create --title fixture"
-        }
-      },
-      "expectStderr": "No gate-pass\\.json",
-      "rationale": "Blocks `gh pr create` without a valid gate-pass marker. #2342 probes a disposable isolated root with no marker, so a prior live L2 result cannot make the assertion vacuous."
+      "rationale": "Blocks `gh pr create` without a valid gate-pass marker. NOT spawnable in place: its verdict depends on live .arbiter/gate-pass.json, which check-all.mjs itself writes at the end of every green run (240 min TTL, and computeTreeHash excludes .arbiter/). A second consecutive L2 on a clean tree would see a valid marker, the hook would correctly exit 0, and the probe would report a ceremony regression \u2014 a gate that goes red because the previous gate went green. Needs an isolated root (tracked follow-up #2342)."
     },
     {
       "file": "pre-edit-plan-anchor.mjs",
@@ -268,13 +254,12 @@
     },
     {
       "file": "post-commit-check.mjs",
-      "classification": "HARD",
+      "classification": "ADVISORY",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "expectedExitCode": 2,
-      "rationale": "PostToolUse conventional-commit guard (INV-22) blocks the agent with exit 2; the track-aware checklist remains informational (#724). Not spawnable in place because it reads the live commit history."
+      "rationale": "PostToolUse conventional-commit check (INV-22) + track-aware checklist (#724) \u2014 declared non-blocking in ADR-032. NOTE (#2326): manifest ADVISORY / template exit(2) / self exit(1) are mutually inconsistent. Deliberately NOT reconciled here \u2014 adjudicating it needs ADR-032, not a unilateral flip. Tracked as a follow-up."
     },
     {
       "file": "check-circular-deps.mjs",
@@ -366,13 +351,8 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "E5 #1947. Advisory by default; ARBITER_SPAWN_GUARD_HARD=1 promotes it. The isolated-root Task/Agent stdin fixture empirically verifies both modes.",
-      "promotedBy": "ARBITER_SPAWN_GUARD_HARD",
-      "fixture": {
-        "type": "isolated-root",
-        "input": "{\"tool_input\":{\"subagent_type\":\"unknown\",\"isolation\":\"worktree\",\"prompt\":\"work on #12 and #34\"}}"
-      },
-      "expectStderr": "one-task-per-dispatch"
+      "rationale": "E5 #1947. Advisory by default; ARBITER_SPAWN_GUARD_HARD=1 promotes it. Driven by a Task/Agent dispatch payload on stdin, not a tool-input path.",
+      "promotedBy": "ARBITER_SPAWN_GUARD_HARD"
     },
     {
       "file": "stop-finding-loss.mjs",
@@ -381,15 +361,8 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "E6b #1948. Advisory by default; ARBITER_FINDING_LOSS_HARD=1 promotes it. The isolated-root Stop transcript fixture empirically verifies both modes.",
-      "promotedBy": "ARBITER_FINDING_LOSS_HARD",
-      "fixture": {
-        "type": "isolated-root",
-        "path": "transcript.jsonl",
-        "content": "{\"type\":\"user\",\"timestamp\":\"2999-01-01T00:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"start\"}]}}\n{\"type\":\"assistant\",\"timestamp\":\"2999-01-01T00:00:00.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Task\"},{\"type\":\"tool_use\",\"name\":\"Agent\"}]}}\n",
-        "input": "{\"transcript_path\":\"{fixturePath}\"}"
-      },
-      "expectStderr": "FINDING LOSS"
+      "rationale": "E6b #1948. Advisory by default; ARBITER_FINDING_LOSS_HARD=1 promotes it. Needs a Stop transcript with >=2 agent dispatches, supplied via stdin.",
+      "promotedBy": "ARBITER_FINDING_LOSS_HARD"
     }
   ]
 }

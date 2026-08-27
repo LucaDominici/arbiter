@@ -328,8 +328,9 @@ only under the ADR-103 carve-out, all conditions necessary: (1) dedicated worktr
 agent (`/wt-open`, `src/worktree/`), (2) distinct branch per agent, (3) file-sets
 declared disjoint in the plan manifest _before_ dispatch. Always serial regardless:
 dependency/lockfile changes, main-tree edits, tags. Expensive gates serialize through
-the flock mutex (`arbiter gate-exec`, kernel-level, released on the flock holder's fd
-death — including SIGKILL/OOM); lock acquisition is totally ordered
+the flock mutex (`arbiter gate-exec`, kernel-level, released when the gate-exec supervisor
+is SIGKILL/OOM-killed; killing the Arbiter Node PID alone leaves that supervisor holding);
+lock acquisition is totally ordered
 (gate ≺ worktree ≺ wave-claim, ADR-103 §4) with `gate-exec` as the leaf;
 stale worktrees are reaped (`arbiter worktree prune --stale`).
 

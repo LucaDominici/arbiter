@@ -25,7 +25,7 @@ parallel agents, you do not implement.
 | Flag               | Default | Meaning                                                                        |
 | ------------------ | ------- | ------------------------------------------------------------------------------ |
 | `--wave-size N`    | 10      | Max issues per wave                                                            |
-| `--max-parallel N` | 6       | Max worktree agents; effective cap `min(--max-parallel, nproc - 2, wave size)` |
+| `--max-parallel N` | <%= maxParallelWorktrees %>       | Max worktree agents; effective cap `min(--max-parallel, nproc - 2, wave size)` |
 
 Parallel write-agents are legal ONLY under the ADR-103 rule-50 carve-out: dedicated
 worktree, distinct branch, plan-manifest-disjoint file-sets; deps/main-tree/tags stay
@@ -44,7 +44,10 @@ without arbiter → N-PR + merge-train (skill appendix).
 4. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`), TDD per
    unit, light checks only; full gate forbidden in worktrees. Expensive gates that can race
    another agent on the same repo go through `arbiter gate-exec -- <cmd>` (flock(1) mutex,
-   released even on SIGKILL/OOM; fail-closed serial where flock is missing). Caches are
+   released when the gate-exec supervisor is SIGKILL/OOM-killed; killing the Arbiter Node
+   PID alone leaves that supervisor holding; Linux tracks ordinary process-group escapes by an
+   inherited sentinel, but a payload that deliberately closes it is outside the guarantee;
+   fail-closed serial where flock is missing). Caches are
    per-worktree (`symlink-children`). Anti-stall: gate-waits are ONE foreground wait;
    turn-stalls are bounded by the watchdog sweep over real `gh`/worktree state.
 5. **Local integration** on `wave-N-integration` (off `main`): sequential merge,

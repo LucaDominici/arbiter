@@ -30,11 +30,6 @@
     "diffHash": "2b226ddf77f1ccce3f829db73c84eb580c365f78322d0140e42932a96e0bc0ff"
   },
   {
-    "path": "hooks/check-no-any.mjs",
-    "reason": "Arbiter self-dogfood: the materialized TypeScript language hook adds repo-root scoping, comment filtering, detailed findings, and INV-04 inline-suppression support. The generated body remains the portable target-project baseline; #2339 pins the exact generated-body versus self-hook diff so either side moving alone fails.",
-    "diffHash": "3ddf58ed35bc5edd5a94a290675bb1cc6258d4e507ce9d52f90e3e6a0ede6cf3"
-  },
-  {
     "path": "hooks/guard-task-completion.mjs",
     "reason": "Arbiter self-dogfood: inlines getRepoRoot() and readTaskState() instead of importing from lib.mjs, making it self-contained for the arbiter repo's own task-lifecycle enforcement. (Confirmed intentional 2026-05-29, #1092.)",
     "diffHash": "ea3f916c0636437a8048e59f3d0f2385b63a8f8997b5546e444d88df18122e99"
@@ -72,7 +67,7 @@
   {
     "path": "hooks/post-commit-check.mjs",
     "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 — static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) — intentional: arbiter's self-config is more conservative than generated target advice.",
-    "diffHash": "7317b295f76df445a1de70d0e5da5b2cf2e9fbb351a2ccd12971465fa48a0e7a"
+    "diffHash": "4ceacea62229c8d2211d03921824f44309a0dd76d05c2113eeab47ffee2b3847"
   },
   {
     "path": "hooks/check-no-orphan-todo.mjs",

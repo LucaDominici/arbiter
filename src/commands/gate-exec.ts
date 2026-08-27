@@ -4,20 +4,24 @@
  *
  * Serializes expensive gates across N parallel worktree agents of the SAME
  * repo. Deterministic leaf primitive (ADR-103 §2): no orchestration state, no
- * issue awareness — it derives a per-repo key, then delegates the wait AND the
- * release to `flock(1)`:
+ * issue awareness — it derives a per-repo key, then delegates the blocking
+ * acquisition to `flock(1)` while Node and a detached supervisor retain the
+ * locked open-file description until the gate is safe to release:
  *
  *   - the wait is kernel-side and blocking (no poll, no backoff);
- *   - `flock --close` closes the lock fd before it execs the gate command, so
- *     a backgrounded descendant cannot inherit the mutex beyond the gate;
- *   - the release is guaranteed on the flock holder's fd death — including
- *     SIGKILL/OOM-kill, the hole that Node `process.on('exit')`/signal handlers
- *     cannot cover (red-team finding #1 on #1873). No 1h stale-lock stall.
- *     Scope (ADR-103 D5): "holder" is the `flock` process, not this one. Killing
- *     the node PID orphans `flock`, which keeps the lock until the gate exits;
- *     killing `flock` alone releases it while the gate is STILL RUNNING. Kill the
- *     process group, not a PID. `doctor` reports this mutex (#2196) but cannot
- *     repair it.
+ *   - the supervisor runs `flock 3`, then launches the command from a subshell
+ *     that closes fd 3 first, so no gated descendant inherits the mutex;
+ *   - Node retains the same locked open-file description. If the supervisor is
+ *     killed, Node kills its process group, then Linux procfs holders of a
+ *     separate inherited sentinel fd, before closing the final safety copy;
+ *   - residual limit: a payload that deliberately closes that sentinel fd
+ *     before escaping the process group is no longer observable. On that path,
+ *     or without Linux procfs, supervisor death can still release the mutex
+ *     while the escaped payload runs;
+ *   - Ctrl-C tears down the supervisor group and tracked descendants before Node
+ *     releases its copy. A hard SIGKILL of Node still leaves the supervisor's
+ *     copy held until the gate exits. `doctor` reports the mutex and its
+ *     supervisor/holder/waiter count.
  *
  * Key: hash of `git rev-parse --git-common-dir` — every worktree of a repo
  * shares the main repo's common dir, so they converge on ONE lock. The lock
@@ -36,12 +40,17 @@
  *   - src/utils/file-lock.ts: lockfile-based try-or-fail mutex — wrong
  *     semantics here (no kernel release on SIGKILL, no queued wait); kept for
  *     its callers, bugfixed separately (T2).
- *   - src/utils/run-cli.ts: runInteractive inherits stdio and applies no
- *     timeout — exactly what a long gate under a mutex needs (INV-12).
+ *   - src/utils/run-cli.ts: runInteractive inherits stdio, applies no timeout,
+ *     and owns the process-group teardown used here (INV-12).
  */
 import { existsSync } from 'node:fs'
-import { ensureDir } from '../utils/fs.js'
-import { createHash } from 'node:crypto'
+import {
+  closeDescriptorTranslated,
+  ensureDir,
+  openAppendDescriptorTranslated,
+  unlinkTranslated,
+} from '../utils/fs.js'
+import { createHash, randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { runCli, runInteractive, CliError } from '../utils/run-cli.js'
@@ -83,8 +92,8 @@ export function assertFlockAvailable(env: NodeJS.ProcessEnv = process.env): void
 }
 
 /**
- * The exact argv gate-exec executes: blocking close-on-exec flock, exit-code
- * passthrough. `-o` is flock's own `--close` option and MUST precede `--`; it
+ * Direct-flock argv for compatibility and kernel contract tests. `runGateExec`
+ * uses the supervised fd form below. `-o` is flock's own `--close` option and MUST precede `--`; it
  * closes the lock fd before the gate command is exec'd, preventing the command
  * and its descendants from retaining the mutex. `--` ends flock's option
  * parsing, so it takes everything after the lock file verbatim and child flags
@@ -93,6 +102,12 @@ export function assertFlockAvailable(env: NodeJS.ProcessEnv = process.env): void
 export function gateExecArgv(lockPath: string, cmdArgs: readonly string[]): string[] {
   return ['flock', '-o', '--', lockPath, ...cmdArgs]
 }
+
+const CHILD_LOCK_FD = 3
+const DESCENDANT_SENTINEL_FD = 4
+const SUPERVISOR_SCRIPT =
+  `exec ${DESCENDANT_SENTINEL_FD}>>"$1" || exit $?; shift; ` +
+  `flock ${CHILD_LOCK_FD} || exit $?; (exec ${CHILD_LOCK_FD}>&-; exec "$@")`
 
 export interface GateExecOptions {
   /** Command + args to run under the mutex (everything after `--`). */
@@ -138,7 +153,7 @@ export function gateQueueAdvisory(dir: string, lockPath: string): string | null 
  * Run `cmdArgs` under the per-repo gate mutex. Blocks (kernel-side) until the
  * lock is free, inherits stdio, and returns the child's exit code verbatim.
  */
-export function runGateExec(opts: GateExecOptions): number {
+export async function runGateExec(opts: GateExecOptions): Promise<number> {
   const dir = opts.dir ?? process.cwd()
   assertFlockAvailable()
   const key = opts.key ?? deriveGateKey(dir)
@@ -146,7 +161,24 @@ export function runGateExec(opts: GateExecOptions): number {
   process.stderr.write(`gate-exec: mutex ${lockPath} (blocking until free)\n`)
   const advisory = gateQueueAdvisory(dir, lockPath)
   if (advisory) process.stderr.write(`${advisory}\n`)
-  const [flockBin, ...flockArgs] = gateExecArgv(lockPath, opts.cmdArgs)
-  const { exitCode } = runInteractive(flockBin as string, flockArgs, { cwd: dir })
-  return exitCode
+  const lockFd = openAppendDescriptorTranslated(lockPath)
+  const sentinelPath = `${lockPath}.${process.pid}-${randomBytes(4).toString('hex')}.sentinel`
+  try {
+    const { exitCode } = await runInteractive(
+      'sh',
+      ['-c', SUPERVISOR_SCRIPT, 'gate-exec-supervisor', sentinelPath, ...opts.cmdArgs],
+      {
+        cwd: dir,
+        extraFds: [lockFd],
+        detached: true,
+        teardownProcessGroupOnSignal: true,
+        teardownOnParentSignal: true,
+        trackedDescendantFdPath: sentinelPath,
+      },
+    )
+    return exitCode
+  } finally {
+    closeDescriptorTranslated(lockFd, lockPath)
+    if (existsSync(sentinelPath)) unlinkTranslated(sentinelPath)
+  }
 }

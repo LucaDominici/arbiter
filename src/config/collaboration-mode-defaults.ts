@@ -102,6 +102,18 @@ export function resolveDefaultMaxParallelWorktrees(mode: CollaborationMode): num
   return MAX_PARALLEL_WORKTREES_DEFAULTS[mode]
 }
 
+/** Returns the explicit wave concurrency cap, or its collaboration-mode default. */
+export function resolveMaxParallelWorktrees(config: {
+  automation?: ProjectConfig['automation']
+  collaborationMode?: ProjectConfig['collaborationMode']
+  enableSoloDevMode?: ProjectConfig['enableSoloDevMode']
+}): number {
+  return (
+    config.automation?.maxParallelWorktrees ??
+    resolveDefaultMaxParallelWorktrees(resolveCollaborationMode(config))
+  )
+}
+
 /**
  * Returns the default gate level for a governance level: L1/L2 governance runs
  * the L1 gate by default (fast); L3/L4 rigour defaults to the L2 gate. A
@@ -155,8 +167,8 @@ export function collaborationModeFromAnswers(answers: Partial<WizardAnswers>): C
  * protection, generators) delegate here. Eliminates the ≥3 duplicated fallback chains.
  */
 export function resolveCollaborationMode(config: {
-  collaborationMode?: CollaborationMode
-  enableSoloDevMode?: boolean
+  collaborationMode?: CollaborationMode | undefined
+  enableSoloDevMode?: boolean | undefined
 }): CollaborationMode {
   if (config.collaborationMode !== undefined) return config.collaborationMode
   // eslint-disable-next-line @typescript-eslint/no-deprecated -- back-compat alias

@@ -13,6 +13,8 @@ import {
   symlinkSync,
   mkdtempSync,
   cpSync,
+  openSync,
+  closeSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomBytes, createHash } from 'node:crypto'
@@ -111,7 +113,9 @@ export function registerCleanupHandlers(): void {
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     process.once(signal, () => {
       doCleanup()
-      process.kill(process.pid, signal)
+      // An active command runner owns orderly descendant teardown. Without one,
+      // restore the signal's default termination behavior.
+      if (process.listenerCount(signal) === 0) process.kill(process.pid, signal)
     })
   }
 }
@@ -575,6 +579,24 @@ export function writeFileTranslated(path: string, data: string | Uint8Array): vo
 // Node stack instead of an ArbiterError with an actionable hint. They are deliberately
 // thin: no atomicity, no generation-session semantics, no dryRun — that is `writeFile`'s
 // job. These are for the one-shot filesystem effects the rest of `src/` performs.
+
+/** Open an append-mode descriptor, creating the file when absent. */
+export function openAppendDescriptorTranslated(path: string): number {
+  try {
+    return openSync(path, 'a')
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
+
+/** Close a descriptor, translating filesystem failures against its source path. */
+export function closeDescriptorTranslated(fd: number, path: string): void {
+  try {
+    closeSync(fd)
+  } catch (err) {
+    throw toFsError(err, path)
+  }
+}
 
 /**
  * Create a directory and its parents. The recursive form is what essentially every

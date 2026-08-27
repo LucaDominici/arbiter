@@ -60,10 +60,12 @@ arbiter mark --tdd GREEN --last "<done>" --next "<exact next action>" --digest "
 Before writing task state, ensure runtime files never get committed:
 
 ```bash
-mkdir -p .git/info .claude/plans
-touch .git/info/exclude
-for pattern in ".claude/.task-*" ".claude/.task/" ".claude/plans/" ".agents-dispatched" ".arbiter/"; do
-  grep -qxF "$pattern" .git/info/exclude || printf "%s\n" "$pattern" >> .git/info/exclude
+exclude_file="$(git rev-parse --git-path info/exclude)"
+mkdir -p "$(dirname "$exclude_file")" .claude/plans
+touch "$exclude_file"
+node -e 'const fs=require("node:fs"),p=process.argv[1],s=fs.readFileSync(p,"utf8"),n=s.replace(/^\.arbiter\/\r?$(?:\n)?/gm,"");if(n!==s)fs.writeFileSync(p,n)' "$exclude_file"
+for pattern in ".claude/.task-*" ".claude/.task/" ".claude/plans/" ".agents-dispatched"; do
+  grep -qxF "$pattern" "$exclude_file" || printf "%s\n" "$pattern" >> "$exclude_file"
 done
 ```
 

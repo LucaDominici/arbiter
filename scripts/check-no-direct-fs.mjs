@@ -189,7 +189,8 @@ function checkFile(rel, src, ctx) {
         `(writeFileTranslated / ensureDir / appendFileTranslated / copyFileTranslated / ` +
         `renameTranslated / chmodTranslated / unlinkTranslated / rmTranslated / ` +
         `symlinkTranslated / mkdtempTranslated / copyTreeTranslated / ` +
-        `createExclusiveTranslated) or add a dated pin to ${ALLOWLIST_FILE}`,
+        `createExclusiveTranslated / openAppendDescriptorTranslated) or add a dated pin to ` +
+        `${ALLOWLIST_FILE}`,
     )
     return
   }

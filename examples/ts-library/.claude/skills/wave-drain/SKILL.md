@@ -203,6 +203,8 @@ label-scoped, not default-on.
 ## Phase 3 — Parallel execution (scale out)
 
 Spawn **one agent per group** in an **isolated worktree** (`/wt-open`, a branch per group).
+`--max-parallel` defaults to **3** from
+`automation.maxParallelWorktrees` (or the collaboration-mode default when absent).
 Effective cap: **`min(--max-parallel, nproc - 2, wave size)`** — the mutex serializes the
 GATE, not the workers' implicit builds, so leave the box headroom.
 
@@ -213,7 +215,10 @@ runs **once**, on integration.
 **Gate mutex (ADR-103):** any expensive gate that could run concurrently with another
 agent's gate on the same repo (parallel waves, ship agents, overnight batches) goes through
 `arbiter gate-exec -- <gate-cmd>`. The wait is kernel-side (`flock(1)`, blocking) and the
-lock releases even if the holder is SIGKILL/OOM-killed — no 1h stale stall, no poll loop.
+lock releases if the gate-exec supervisor is SIGKILL/OOM-killed; killing the Arbiter Node
+PID alone leaves that supervisor holding — no 1h stale stall, no poll loop. Linux tracks ordinary
+process-group escapes by an inherited sentinel; a payload that deliberately closes it before
+escaping is outside the guarantee and can outlive mutex release.
 Where `flock(1)` does not exist (macOS base system, Windows) `gate-exec` fails closed:
 degrade the wave to serial (`--max-parallel 1`).
 
@@ -355,10 +360,10 @@ wave.** The rest of the wave proceeds.
 
    **M6 touched-vs-manifest GO condition (#1943):** before merging each group's branch, run
    `node scripts/check-touched-vs-manifest.mjs --plan .claude/plans/wave-N.md --group <G>
---base main --branch <group-branch>` — an agent that edited outside its declared write set
-   also read outside it and voided the ADR-103 disjointness assumption. Non-zero ⇒ the group
-   is NOT clear to merge (root-cause: either the manifest was under-declared or the agent
-   scope-crept). Read-set row absent ⇒ advisory only, PASS.
+--base main --branch <group-branch>` — this verifies touched(G) ⊆ declared(G) for one group;
+   it does not prove cross-group pairwise disjointness. Non-zero ⇒ the group is NOT clear to
+   merge (root-cause: either the manifest was under-declared or the agent scope-crept).
+   Read-set row absent ⇒ advisory only, PASS.
 
 ---
 
@@ -427,7 +432,8 @@ the train is native — PRs are the only integration unit). Field-proven 2026-07
    flock /tmp/<repo>-gate.lock -c '<gate-cmd>'   # e.g. 'make gate' or './run.sh ci'
    ```
 
-   Same semantics: kernel wait, kernel release on SIGKILL/OOM, one foreground wait.
+   Same semantics: kernel wait, kernel release when the direct flock process is
+   SIGKILL/OOM-killed, one foreground wait.
 
 3. **Per-PR convergence:** each finished issue → its own PR with auto-merge armed. Never
    watch-loop a PR; the sweep observes.

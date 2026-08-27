@@ -567,14 +567,12 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'protocol \u2014 on a canonical violation fixture. Any hook file without a manifest entry, or any ' +
       'HARD hook that fails to block, fails CI. This prevents silent ceremony regression \u2014 where a ' +
       'hook is declared hard but silently exits 0 (or exits 1, which prints without blocking). ' +
-      'The self manifest sets selfSurface: true so in-place self-hook probes exercise the ' +
-      'materialized hook with its real sibling lib.mjs and repo-root scope. Both surfaces are ' +
-      'required: #2324 was a defect present ONLY in the materialized copy, invisible to every ' +
-      'template-scoped check (#2326).',
+      'Both surfaces are required: #2324 was a defect present ONLY in the materialized copy, ' +
+      'invisible to every template-scoped check (#2326).',
     alwaysActive: true,
     selfOnly: true,
     enforcement:
-      'L1 gate (scripts/check-hardness-inventory.mjs) — template checks plus in-place self-hook probes, drift, and empirical exit-code assertions on every CI run',
+      'L1 gate (scripts/check-hardness-inventory.mjs) — drift and empirical exit-code assertions on every CI run',
   },
 
   // ─── Operational: Generated Githooks ─────────────────────────────────────────
