@@ -1,0 +1,46 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2386",
+  "branch": "task/#2386-playwright-signature-wave2-v2",
+  "sha": "6a045c13d16b99ea609fa72de7c1c8675551a4c9",
+  "recordedAt": "2026-08-27T18:25:14Z",
+  "criteria": [
+    {
+      "id": "AC-2386.1",
+      "verdict": "PASS",
+      "note": "The CLI registry recognises a non-zero Playwright line/list summary.",
+      "evidence": [
+        { "file": "src/evidence/tdd.ts", "line": 40 },
+        { "file": "__tests__/evidence/tdd.test.ts", "line": 87 }
+      ]
+    },
+    {
+      "id": "AC-2386.2",
+      "verdict": "PASS",
+      "note": "The source registry and emitted gate template carry the same signature.",
+      "evidence": [
+        { "file": "src/evidence/tdd.ts", "line": 40 },
+        { "file": "src/templates/scripts/check-tdd-evidence.mjs.ejs", "line": 121 },
+        { "file": "__tests__/evidence/tdd.test.ts", "line": 99 }
+      ]
+    },
+    {
+      "id": "AC-2386.3",
+      "verdict": "PASS",
+      "note": "The non-zero quantifier rejects a Playwright summary containing 0 failed.",
+      "evidence": [
+        { "file": "src/evidence/tdd.ts", "line": 40 },
+        { "file": "__tests__/evidence/tdd.test.ts", "line": 91 }
+      ]
+    },
+    {
+      "id": "AC-2386.4",
+      "verdict": "PASS",
+      "note": "Bake snapshots were regenerated and the integration suite is green.",
+      "evidence": [
+        { "file": "__tests__/integration/e2e/bake/fixture-bake.test.ts", "line": 128 },
+        { "file": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json", "line": 331 }
+      ]
+    }
+  ]
+}
