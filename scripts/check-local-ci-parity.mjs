@@ -235,6 +235,7 @@ const CI_COVERAGE = new Map([
   ['doc path citations (#2243)', 'gate-full'],
   ['governance mirror sync (#1805)', 'gate-full'],
   ['doc style', 'gate-full'],
+  ['orchestration integrity (#2387)', 'gate-full'],
   ['claude-md lint (#1266)', 'gate-full'],
   ['doc index (#1102)', 'gate-full'],
   ['llms.txt drift (#1721)', 'gate-full'],
