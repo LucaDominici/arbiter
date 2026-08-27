@@ -160,7 +160,30 @@ describe('runDoctorHealth (#539)', () => {
     expect(c?.status).toBe('PASS')
   })
 
-  it('reports the gate mutex path and queued waiters without making doctor fail (#2196)', async () => {
+  it('reports multiple gate process groups without making doctor fail (#2196, #2346)', async () => {
+    mockRunCli.mockImplementation((command, args) => {
+      if (command === 'node' && args[0]?.endsWith('waiter-count.mjs')) {
+        return { stdout: '4\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      if (command === 'git' && args[0] === 'rev-parse') {
+        return { stdout: '.git\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      return { stdout: 'ok\n', stderr: '', exitCode: 0, durationMs: 0 }
+    })
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'lib', 'waiter-count.mjs'), '// shared helper')
+
+    const result = await runDoctorHealth({ dir, json: true })
+    const check = result.checks.find((c) => c.id === 'gate-mutex')
+    expect(check?.status).toBe('WARN')
+    expect(check?.detail).toMatch(/gate\.lock/)
+    expect(check?.detail).toMatch(/4/)
+    expect(check?.hint).toMatch(/process group/i)
+    expect(result.fail).toBe(0)
+  })
+
+  it('PASSes for one supervised gate (Node holder + detached supervisor) (#2346)', async () => {
     mockRunCli.mockImplementation((command, args) => {
       if (command === 'node' && args[0]?.endsWith('waiter-count.mjs')) {
         return { stdout: '2\n', stderr: '', exitCode: 0, durationMs: 0 }
@@ -176,32 +199,9 @@ describe('runDoctorHealth (#539)', () => {
 
     const result = await runDoctorHealth({ dir, json: true })
     const check = result.checks.find((c) => c.id === 'gate-mutex')
-    expect(check?.status).toBe('WARN')
-    expect(check?.detail).toMatch(/gate\.lock/)
-    expect(check?.detail).toMatch(/2/)
-    expect(check?.hint).toMatch(/backgrounded daemon/i)
-    expect(result.fail).toBe(0)
-  })
-
-  it('PASSes when the gate mutex is free or has only one holder (#2196)', async () => {
-    mockRunCli.mockImplementation((command, args) => {
-      if (command === 'node' && args[0]?.endsWith('waiter-count.mjs')) {
-        return { stdout: '1\n', stderr: '', exitCode: 0, durationMs: 0 }
-      }
-      if (command === 'git' && args[0] === 'rev-parse') {
-        return { stdout: '.git\n', stderr: '', exitCode: 0, durationMs: 0 }
-      }
-      return { stdout: 'ok\n', stderr: '', exitCode: 0, durationMs: 0 }
-    })
-    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
-    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
-    writeFileSync(join(dir, 'scripts', 'lib', 'waiter-count.mjs'), '// shared helper')
-
-    const result = await runDoctorHealth({ dir, json: true })
-    const check = result.checks.find((c) => c.id === 'gate-mutex')
     expect(check?.status).toBe('PASS')
     expect(check?.detail).toMatch(/gate\.lock/)
-    expect(check?.detail).toMatch(/1/)
+    expect(check?.detail).toMatch(/normal gate-exec uses two/i)
   })
 
   it('WARNs when the gate mutex helper returns a non-integer count instead of treating it as empty', async () => {

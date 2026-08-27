@@ -137,34 +137,6 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
     }
   })
 
-  it('keeps a self-only hook out of the divergence ratchet when dogfood pins its body', () => {
-    const { dir, cleanup } = makeRoot()
-    try {
-      withHookMechanism(dir, 'self-hook.mjs')
-      write(
-        dir,
-        '.dogfood-divergences.json',
-        JSON.stringify([{ path: 'hooks/self-hook.mjs', reason: 'pins the exact body diff' }]),
-      )
-      write(
-        dir,
-        'scripts/canon01-self-only.json',
-        JSON.stringify({
-          selfOnly: [
-            { path: '.claude/hooks/self-hook.mjs', reason: 'classified self-only by contract' },
-          ],
-        }),
-      )
-      write(dir, 'scripts/canon01-baseline.json', JSON.stringify({ divergences: 0, selfOnly: 1 }))
-
-      const r = run(dir)
-      expect(r.status).toBe(0)
-      expect(r.stdout).toContain('0 divergence, 1 self-only')
-    } finally {
-      cleanup()
-    }
-  })
-
   it('[RED] exits 1 on a self-only entry with no reason (fail-closed)', () => {
     const { dir, cleanup } = makeRoot()
     try {

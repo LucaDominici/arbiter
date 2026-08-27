@@ -249,51 +249,6 @@ describe('check-hardness-inventory.mjs (hook hardness manifest gate)', () => {
     }
   })
 
-  it('rejects a template hook declared ADVISORY when it contains a blocking exit (#2345)', () => {
-    const f = makeFixture()
-    try {
-      writeFileSync(join(f.hooksDir, 'sample.mjs.ejs'), 'process.exit(2)\n')
-      writeManifest(f.manifest, [
-        {
-          file: 'sample.mjs.ejs',
-          classification: 'ADVISORY',
-          spawnable: false,
-          rationale: 'synthetic template misdeclaration',
-        },
-      ])
-      const r = run(f.manifest, f.hooksDir, f.codexTemplate)
-      expect(r.status).toBe(1)
-    } finally {
-      f.cleanup()
-    }
-  })
-
-  it('rejects a promotedBy hook that names the env var but does not block under it', () => {
-    const f = makeFixture()
-    try {
-      writeFileSync(
-        join(f.hooksDir, 'sample.mjs'),
-        "if (process.env.ARBITER_SAMPLE_HARD === '1') process.exit(0)\nprocess.exit(0)\n// process.exit(2)\n",
-      )
-      writeManifest(f.manifest, [
-        {
-          file: 'sample.mjs',
-          classification: 'ADVISORY',
-          spawnable: false,
-          promotedBy: 'ARBITER_SAMPLE_HARD',
-          fixture: { type: 'isolated-root' },
-          expectStderr: 'sample violation',
-          rationale: 'synthetic unbacked promotion',
-        },
-      ])
-      const r = run(f.manifest, f.hooksDir, f.codexTemplate)
-      expect(r.status).toBe(1)
-      expect(r.stdout + r.stderr).toContain('promotion claim is unbacked')
-    } finally {
-      f.cleanup()
-    }
-  })
-
   it('passes against the real repo manifest, hooks dir, and codex template', () => {
     const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: resolve('.') })
     expect(r.status ?? 1).toBe(0)

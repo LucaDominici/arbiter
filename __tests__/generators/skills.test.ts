@@ -64,6 +64,16 @@ describe('generateSkills', () => {
     expect(result.files).toHaveLength(SKILL_NAMES.length)
   })
 
+  it('renders automation.maxParallelWorktrees as the wave-drain --max-parallel default', () => {
+    const config = makeConfig(dir, {
+      tools: ['claude'],
+      automation: { autonomy: 'L0', maxParallelWorktrees: 7 },
+    })
+    generateSkills(config, [])
+    const content = readFileSync(join(dir, '.claude', 'skills', 'wave-drain', 'SKILL.md'), 'utf-8')
+    expect(content).toContain('`--max-parallel` defaults to **7**')
+  })
+
   it('skips tdd skill when superpowers test-driven-development skill is present', () => {
     const config = makeConfig(dir, { tools: ['claude'] })
     const result = generateSkills(config, [SUPERPOWERS_TDD])
