@@ -118,6 +118,7 @@ const FAILURE_SIGNATURES = [
   /test result: FAILED/m, // cargo
   /--- FAIL:/m, // go
   /^# fail [1-9]\d*/m, // tap (node:test)
+  /^\s*[1-9]\d* failed\b/m, // playwright line/list reporter ("  1 failed")
 ]
 const hasFailureSignature = (log) => FAILURE_SIGNATURES.some((re) => re.test(log))
 

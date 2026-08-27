@@ -37,6 +37,7 @@ export const FAILURE_SIGNATURES: FailureSignatureEntry[] = [
   { framework: 'cargo', pattern: /test result: FAILED/m },
   { framework: 'go', pattern: /--- FAIL:/m },
   { framework: 'tap', pattern: /^# fail [1-9]\d*/m },
+  { framework: 'playwright', pattern: /^\s*[1-9]\d* failed\b/m },
 ]
 
 export interface ExtractResult {

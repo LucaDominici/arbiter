@@ -76,6 +76,8 @@ phase control; the `/ship` loop auto-advances phases when their gates are green.
 
 `arbiter task record-red --test-path <path>` records only a genuinely failing test run. A runner
 that exits 0 is rejected, and Node's `node:test`/TAP failure summary is recognized via `# fail N`.
+Playwright's `line`/`list` reporters are recognized via their `N failed` summary, with N ≥ 1 so
+`0 failed` never becomes red evidence.
 Commit the RED test before recording it so the evidence can be correlated to the test commit.
 On a declared train, `--task-id #NNN` may select only the active task or an exact member of the
 state document's `chainIds` array; malformed `chainIds` data and undeclared secondary IDs are
