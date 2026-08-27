@@ -12,7 +12,7 @@ related: []
 # Engineering Defaults — arbiter
 
 **Status:** NORMATIVE
-**Location:** `docs/METHOD/ENGINEERING_DEFAULTS.md`
+**Location:** `docs/internal/METHOD/ENGINEERING_DEFAULTS.md`
 **Purpose:** SOLID-first engineering baseline. Principles trump patterns. Read before designing new modules.
 
 ---
@@ -128,7 +128,7 @@ operators need to see (#684).
 ## Scope
 
 Applies to: `src/detectors/build.ts`, `src/detectors/framework.ts`,
-`src/detectors/modules.ts`, and any future detector added under `src/detectors/`.
+`src/detectors/scaffold-wiring.ts`, and any future detector added under `src/detectors/`.
 
 Does NOT apply to test helpers or scripts.
 

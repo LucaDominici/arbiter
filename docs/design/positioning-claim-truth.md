@@ -52,6 +52,21 @@ Adding axes where arbiter wins is tempting and shifts the comparison. Out of sco
 **D5 — Coordinate with the cross-model feature.**
 If cross-model review lands (#2357), the "multi-model review" axis legitimately flips. The PR must leave the row in a state that updates with a value flip, not a rewrite.
 
+## Decision outcome
+
+**D3 resolved — do not extend `check-tool-claims.mjs`.** Its narrow, verifiable contract is
+copy-pasteable tool selection: a non-core value passed to `--tools`, or a false coupling to
+`--accept-beta-tools`. Detecting an underclaim in a comparison cell would require a second,
+hand-maintained semantic capability-to-invariant registry, which would be less trustworthy than
+the table it polices.
+
+Instead, the self-only entry in `standards/gold-doc-set.yml` enrols all six comparison pages in
+`scripts/check-doc-freshness.mjs`, coupled to the supported-tool configuration, both configuration
+emitters, the Claude-agent generator, and `scripts/check-feature-matrix.mjs`. A relevant source
+change now makes every comparison page stale until its `last_review` is renewed. The focused
+`__tests__/docs/comparison-claim-truth.test.ts` prevents these exact truth corrections from
+regressing.
+
 ## Open questions
 
 - Is D3's mechanical rule actually implementable? It may need an explicit capability-to-invariant mapping in the tables (e.g. an HTML comment per row) for a gate to verify it without heuristics.
@@ -62,12 +77,12 @@ If cross-model review lands (#2357), the "multi-model review" axis legitimately 
 
 ## Acceptance Criteria
 
-- [ ] AC-1: `Requirements traceability` reads as present for arbiter in `website/comparisons/index.md` and `website/comparisons/spec-kit.md`, citing the verifiable anchor (INV-112 / CANON-23 / `scripts/check-feature-matrix.mjs`).
-- [ ] AC-2: the `Multi-tool support` row is disambiguated into two distinct axes — multi-tool configuration emission vs multi-model review/orchestration — with the honest value for arbiter on each.
-- [ ] AC-3: `Spec-driven development` stays absent for arbiter, with the rationale explicit in the prose (no durable spec artifact yet).
-- [ ] AC-4: all six pages under `website/comparisons/` are verified row by row; every value assigned to arbiter is traceable to an invariant, a script, or a demonstrated absence of both.
-- [ ] AC-5: an explicit decision on D3 is recorded — either the mechanical check is implemented, or it is argued in writing why not, naming the alternative freshness mechanism.
-- [ ] AC-6: `last_review` is updated on every touched page and `node scripts/check-doc-freshness.mjs` stays green.
+- [x] AC-1: `Requirements traceability` reads as present for arbiter in `website/comparisons/index.md` and `website/comparisons/spec-kit.md`, citing the verifiable anchor (INV-112 / CANON-23 / `scripts/check-feature-matrix.mjs`).
+- [x] AC-2: the `Multi-tool support` row is disambiguated into two distinct axes — multi-tool configuration emission vs multi-model review/orchestration — with the honest value for arbiter on each.
+- [x] AC-3: `Spec-driven development` stays absent for arbiter, with the rationale explicit in the prose (no durable spec artifact yet).
+- [x] AC-4: all six pages under `website/comparisons/` are verified row by row; every value assigned to arbiter is traceable to an invariant, a script, or a demonstrated absence of both.
+- [x] AC-5: an explicit decision on D3 is recorded — either the mechanical check is implemented, or it is argued in writing why not, naming the alternative freshness mechanism.
+- [x] AC-6: `last_review` is updated on every touched page and `node scripts/check-doc-freshness.mjs` stays green.
 - [ ] AC-7: `node scripts/check-all.mjs L2` green, `check-tool-claims` included.
 
 ## Non-Goals

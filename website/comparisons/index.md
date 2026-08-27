@@ -2,7 +2,7 @@
 title: 'Comparisons'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-22'
+last_review: '2026-08-26'
 owner: ''
 canonical_id: ''
 tags: []
@@ -21,30 +21,37 @@ Most alternatives in this space are persona frameworks: they tell the AI _who to
 
 ## Feature Matrix
 
-| Capability                          | arbiter | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
-| ----------------------------------- | ------- | ---- | ---- | ----------- | ----------- | -------- |
-| Canonical governance file           | ✓       | —    | —    | —           | —           | —        |
-| Multi-tool support (Claude + Codex) | ✓       | —    | ✓    | —           | —           | —        |
-| Language-aware generation           | ✓       | —    | —    | —           | —           | —        |
-| L1/L2/L3/L4 governance tiers        | ✓       | —    | —    | —           | —           | —        |
-| Generated hook scripts              | ✓       | —    | —    | —           | —           | —        |
-| GitHub infrastructure               | ✓       | —    | —    | —           | —           | —        |
-| CI workflow generation              | ✓       | —    | —    | —           | —           | —        |
-| Idempotent update                   | ✓       | —    | —    | —           | —           | —        |
-| Specialized sub-agents¹             | ✓       | ✓    | ✓    | ✓           | ✓           | —        |
-| Autonomous task execution¹          | ✓       | —    | ✓    | ✓           | —           | —        |
-| Parallel agent orchestration¹       | ✓       | —    | —    | ✓           | —           | —        |
-| Agent personas / role definitions   | —       | ✓    | —    | —           | ✓           | —        |
-| Spec-driven development             | —       | —    | —    | —           | —           | ✓        |
-| npx install                         | ✓       | —    | —    | —           | —           | —        |
-| Zero telemetry                      | ✓       | —    | —    | —           | —           | —        |
+| Capability                                              | arbiter                | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
+| ------------------------------------------------------- | ---------------------- | ---- | ---- | ----------- | ----------- | -------- |
+| Canonical governance file                               | ✓                      | —    | —    | —           | —           | —        |
+| Multi-tool configuration emission (Claude Code + Codex) | ✓                      | n/r  | n/r  | n/r         | n/r         | n/r      |
+| Multi-model review / orchestration                      | —                      | n/r  | n/r  | n/r         | n/r         | n/r      |
+| Language-aware generation                               | ✓                      | —    | —    | —           | —           | —        |
+| L1/L2/L3/L4 governance tiers                            | ✓                      | —    | —    | —           | —           | —        |
+| Generated hook scripts                                  | ✓                      | —    | —    | —           | —           | —        |
+| GitHub infrastructure                                   | ✓                      | —    | —    | —           | —           | —        |
+| CI workflow generation                                  | ✓                      | —    | —    | —           | —           | —        |
+| Idempotent update                                       | ✓                      | —    | —    | —           | —           | —        |
+| Requirements traceability                               | ✓ (INV-112 / CANON-23) | n/r  | n/r  | n/r         | n/r         | ✓        |
+| Specialized sub-agents¹                                 | ✓                      | ✓    | ✓    | ✓           | ✓           | —        |
+| Autonomous task execution¹                              | ✓                      | —    | ✓    | ✓           | —           | —        |
+| Parallel agent orchestration¹                           | ✓                      | —    | —    | ✓           | —           | —        |
+| Agent personas / role definitions                       | —                      | ✓    | —    | —           | ✓           | —        |
+| Spec-driven development                                 | —                      | —    | —    | —           | —           | ✓        |
+| npx install                                             | ✓                      | —    | —    | —           | —           | —        |
+| Zero telemetry                                          | ✓                      | —    | —    | —           | —           | —        |
 
-> **Key:** ✓ = present, — = not present or not a stated goal.
+> **Key:** ✓ = present, — = not present or not a stated goal, n/r = not reassessed in this
+> arbiter-focused correction.
 > **¹** Provided by arbiter's _optional orchestration layer_ (`/ship`, `/drain`, and the
 > `bridge-reviewer`/`codebase-scanner`/`context-checker`/`red-team` sub-agents), which is distinct
 > from — and not required by — the installer **core**. Arbiter does **not** ship agent _personas_.
 > "Claude + Codex" are the supported tools out of the box; Cursor, Copilot, Windsurf, Aider, and
 > Gemini CLI generators exist but are **experimental** — not yet selectable via `--tools`.
+> Arbiter emits configuration for Claude Code and Codex, but does not run cross-model review or
+> orchestration. Its requirements traceability is enforced by INV-112, CANON-23, and
+> `scripts/check-feature-matrix.mjs`; it does not yet create a durable specification artifact, so
+> spec-driven development remains absent.
 
 ## When to choose arbiter
 
@@ -71,4 +78,4 @@ Most alternatives in this space are persona frameworks: they tell the AI _who to
 
 ---
 
-_Last reviewed: 2026-06-22_
+_Last reviewed: 2026-08-26_
