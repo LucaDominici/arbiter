@@ -32,14 +32,14 @@ generates governance scaffolding.
 
 ## Cross-cutting concepts
 
-| Concept               | Source                                                     |
-| --------------------- | ---------------------------------------------------------- |
-| Invariants (INV-NN)   | `../../GLOBAL_INVARIANTS.md` + `../../AGENTS.md`           |
-| Process rules (CANON) | `../SYSTEM/CANON.md`                                       |
-| Decision log (ADR)    | `../ADR/`                                                  |
-| Patterns catalog      | `../METHOD/PATTERNS_CATALOG.md` (planned; not yet present) |
-| Test taxonomy         | `../TEST_TAXONOMY.md`                                      |
-| CI tier model         | `../SYSTEM/CI-TIER-MODEL.md`                               |
+| Concept               | Source                                                 |
+| --------------------- | ------------------------------------------------------ |
+| Invariants (INV-NN)   | `../../../GLOBAL_INVARIANTS.md` + `../../../AGENTS.md` |
+| Process rules (CANON) | `../SYSTEM/CANON.md`                                   |
+| Decision log (ADR)    | `../ADR/`                                              |
+| Patterns catalog      | `../METHOD/PATTERNS_CATALOG.md`                        |
+| Test taxonomy         | `src/templates/root/TEST_TAXONOMY.md.ejs`              |
+| CI tier model         | `../SYSTEM/CI-TIER-MODEL.md`                           |
 
 ## When to file an ADR
 
@@ -127,17 +127,17 @@ Each tool config opens with an explicit pointer to `AGENTS.md`:
 
 ### What tool configs add (and only this)
 
-| Tool             | Claude Code                                 | Codex                           |
-| ---------------- | ------------------------------------------- | ------------------------------- |
-| Auth/Permissions | `settings.json` permissions + allowed tools | —                               |
-| Hook wiring      | `settings.json` hooks section               | —                               |
-| Hook scripts     | `.claude/hooks/*.mjs`                       | —                               |
-| Slash commands   | `.claude/commands/*.md`                     | —                               |
-| Sub-agents       | `.claude/agents/*.md`                       | —                               |
-| Plan schema      | —                                           | `CODEX.md` §Plan Schema         |
-| Exec router      | —                                           | `CODEX.md` §Execution Router    |
-| Context pack     | —                                           | `.agents/plan/CONTEXT_PACK.md`  |
-| Rule mirror      | `.claude/rules/`                            | `.agents/rules/` (same content) |
+| Tool             | Claude Code                                 | Codex                                     |
+| ---------------- | ------------------------------------------- | ----------------------------------------- |
+| Auth/Permissions | `settings.json` permissions + allowed tools | —                                         |
+| Hook wiring      | `settings.json` hooks section               | —                                         |
+| Hook scripts     | `.claude/hooks/*.mjs`                       | —                                         |
+| Slash commands   | `.claude/commands/*.md`                     | —                                         |
+| Sub-agents       | `.claude/agents/*.md`                       | —                                         |
+| Plan schema      | —                                           | `CODEX.md` §Plan Schema                   |
+| Exec router      | —                                           | `CODEX.md` §Execution Router              |
+| Context pack     | —                                           | `<project>/.agents/plan/CONTEXT_PACK.md`  |
+| Rule mirror      | `.claude/rules/`                            | `<project>/.agents/rules/` (same content) |
 
 ### What tool configs must NOT contain
 
@@ -155,7 +155,7 @@ Anything duplicated between `AGENTS.md` and a tool config will drift.
 
 ### CI Workflow
 
-Generated at `.github/workflows/ci.yml`, parameterized by detected stack:
+Generated target projects receive `<project>/.github/workflows/01-pr-fast.yml`, parameterized by detected stack:
 
 - TypeScript: `npm ci -> typecheck -> lint -> test --coverage`
 - Java: `gradlew checkstyleMain -> gradlew test`
@@ -207,18 +207,18 @@ Applied to `main` via `gh api`:
 Phases 3 and 4 are complete and shipped:
 
 - **Phase 3** — `arbiter update` and `arbiter diff` commands with `arbiter.json` config persistence
-- **Phase 4** — Additional tool targets (Cursor `.cursorrules`, Copilot `.github/copilot-instructions.md`)
+- **Phase 4** — Additional tool targets (Cursor `<project>/.cursorrules`, Copilot `<project>/.github/copilot-instructions.md`)
 
 See the [CLI Reference](../../website/reference/cli.md) for command documentation.
 
 ### Additional Tool Targets
 
-| Tool       | File                              | Status              |
-| ---------- | --------------------------------- | ------------------- |
-| Cursor     | `.cursorrules`                    | Shipped             |
-| Copilot    | `.github/copilot-instructions.md` | Shipped             |
-| Gemini CLI | `GEMINI.md`                       | Planned (Phase 6-8) |
-| Windsurf   | `.windsurfrules`                  | Planned (Phase 6-8) |
+| Tool       | File                                        | Status              |
+| ---------- | ------------------------------------------- | ------------------- |
+| Cursor     | `.cursorrules`                              | Shipped             |
+| Copilot    | `<project>/.github/copilot-instructions.md` | Shipped             |
+| Gemini CLI | `GEMINI.md`                                 | Planned (Phase 6-8) |
+| Windsurf   | `.windsurfrules`                            | Planned (Phase 6-8) |
 
 All targets follow the same thin-pointer pattern: point to `AGENTS.md`, add only tool-specific configuration.
 
@@ -307,17 +307,17 @@ Tool overlays **add** what `AGENTS.md` cannot express natively for a specific to
 
 **What tool configs add (and only this):**
 
-| Concern               | Claude Code                                    | Codex                          |
-| --------------------- | ---------------------------------------------- | ------------------------------ |
-| Permissions schema    | `settings.json` `permissions` + `allowedTools` | —                              |
-| Hook wiring           | `settings.json` `hooks` section                | —                              |
-| Enforcement scripts   | `.claude/hooks/*.mjs`                          | —                              |
-| Slash commands        | `.claude/commands/*.md`                        | —                              |
-| Sub-agent definitions | `.claude/agents/*.md`                          | —                              |
-| Plan schema           | —                                              | `CODEX.md` §Plan Schema        |
-| Execution router      | —                                              | `CODEX.md` §Execution Router   |
-| Context pack          | —                                              | `.agents/plan/CONTEXT_PACK.md` |
-| Rule mirror           | `.claude/rules/`                               | `.agents/rules/`               |
+| Concern               | Claude Code                                    | Codex                                    |
+| --------------------- | ---------------------------------------------- | ---------------------------------------- |
+| Permissions schema    | `settings.json` `permissions` + `allowedTools` | —                                        |
+| Hook wiring           | `settings.json` `hooks` section                | —                                        |
+| Enforcement scripts   | `.claude/hooks/*.mjs`                          | —                                        |
+| Slash commands        | `.claude/commands/*.md`                        | —                                        |
+| Sub-agent definitions | `.claude/agents/*.md`                          | —                                        |
+| Plan schema           | —                                              | `CODEX.md` §Plan Schema                  |
+| Execution router      | —                                              | `CODEX.md` §Execution Router             |
+| Context pack          | —                                              | `<project>/.agents/plan/CONTEXT_PACK.md` |
+| Rule mirror           | `.claude/rules/`                               | `<project>/.agents/rules/`               |
 
 **What tool configs must not contain:**
 
@@ -343,7 +343,7 @@ The generation pipeline enforces the layer model through two mechanisms:
 
 `src/utils/fs.ts` exposes `writeFile(path, content, opts)` with:
 
-- `{ backup: true }` — write a `.arbiter-backup` copy of the existing file, then replace. Used for `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md`.
+- `{ backup: true }` — write a `.arbiter-backup` copy of the existing file, then replace. Used for `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `<project>/.cursorrules`, `<project>/.github/copilot-instructions.md`.
 - `{ skipIfExists: true }` — do nothing if the file exists. Used for hooks, rules, commands, GitHub files, `scripts/check-all.mjs`.
 - `mergeSettingsJson()` — deep merge for `settings.json`: hooks union by matcher+command, permissions union arrays, other keys keep existing value.
 
@@ -542,23 +542,23 @@ original 8 — it is a representative sample of the pattern, not a complete inve
 
 ### `claude/` (multiple files)
 
-| File                          | Output                            | Type    |
-| ----------------------------- | --------------------------------- | ------- |
-| `claude-md.ejs`               | `.claude/CLAUDE.md`               | Dynamic |
-| `settings.json.ejs`           | `.claude/settings.json` (initial) | Dynamic |
-| `hooks/pre-tool-use.mjs.ejs`  | `.claude/hooks/pre-tool-use.mjs`  | Dynamic |
-| `hooks/post-tool-use.mjs.ejs` | `.claude/hooks/post-tool-use.mjs` | Dynamic |
-| `rules/exec-protocol.md`      | `.claude/rules/exec-protocol.md`  | Static  |
-| `commands/task.md`            | `.claude/commands/task.md`        | Static  |
+| File                                                    | Output                                           | Type    |
+| ------------------------------------------------------- | ------------------------------------------------ | ------- |
+| `src/templates/claude/CLAUDE.md.ejs`                    | `<project>/.claude/CLAUDE.md`                    | Dynamic |
+| `src/templates/claude/settings.json.ejs`                | `<project>/.claude/settings.json`                | Dynamic |
+| `src/templates/claude/hooks/post-edit-dispatch.mjs.ejs` | `<project>/.claude/hooks/post-edit-dispatch.mjs` | Dynamic |
+| `src/templates/claude/hooks/post-commit-check.mjs.ejs`  | `<project>/.claude/hooks/post-commit-check.mjs`  | Dynamic |
+| `src/templates/claude/rules/90-exec-protocol.md.ejs`    | `<project>/.claude/rules/90-exec-protocol.md`    | Dynamic |
+| `src/templates/claude/commands/task.md.ejs`             | `<project>/.claude/commands/task.md`             | Dynamic |
 
 ### `codex/` (multiple files)
 
-| File                     | Output                           | Type    |
-| ------------------------ | -------------------------------- | ------- |
-| `codex-md.ejs`           | `.agents/CODEX.md`               | Dynamic |
-| `rules/exec-protocol.md` | `.agents/rules/exec-protocol.md` | Static  |
-| `plan/PLAN.json`         | `.agents/plan/PLAN.json`         | Static  |
-| `plan/CONTEXT_PACK.md`   | `.agents/plan/CONTEXT_PACK.md`   | Static  |
+| File                               | Output                                        | Type    |
+| ---------------------------------- | --------------------------------------------- | ------- |
+| `src/templates/codex/CODEX.md.ejs` | `<project>/.agents/CODEX.md`                  | Dynamic |
+| generated Codex rule mirror        | `<project>/.agents/rules/90-exec-protocol.md` | Static  |
+| generated task-plan artifact       | `<project>/.agents/plan/PLAN.json`            | Static  |
+| generated context artifact         | `<project>/.agents/plan/CONTEXT_PACK.md`      | Static  |
 
 ### `cursor/` (1 file)
 
@@ -568,20 +568,20 @@ original 8 — it is a representative sample of the pattern, not a complete inve
 
 ### `copilot/` (1 file)
 
-| File                          | Output                            | Type    |
-| ----------------------------- | --------------------------------- | ------- |
-| `copilot-instructions.md.ejs` | `.github/copilot-instructions.md` | Dynamic |
+| File                                                | Output                                      | Type    |
+| --------------------------------------------------- | ------------------------------------------- | ------- |
+| `src/templates/copilot/copilot-instructions.md.ejs` | `<project>/.github/copilot-instructions.md` | Dynamic |
 
 ### `github/` (multiple files)
 
-| File                         | Output                               | Type    |
-| ---------------------------- | ------------------------------------ | ------- |
-| `workflows/ci.yml.ejs`       | `.github/workflows/ci.yml`           | Dynamic |
-| `PULL_REQUEST_TEMPLATE.md`   | `.github/PULL_REQUEST_TEMPLATE.md`   | Static  |
-| `ISSUE_TEMPLATE/bug.yml`     | `.github/ISSUE_TEMPLATE/bug.yml`     | Static  |
-| `ISSUE_TEMPLATE/feature.yml` | `.github/ISSUE_TEMPLATE/feature.yml` | Static  |
-| `ISSUE_TEMPLATE/task.yml`    | `.github/ISSUE_TEMPLATE/task.yml`    | Static  |
-| `dependabot.yml.ejs`         | `.github/dependabot.yml`             | Dynamic |
+| File                                                       | Output                                                 | Type    |
+| ---------------------------------------------------------- | ------------------------------------------------------ | ------- |
+| `src/templates/github/workflows/01-pr-fast.yml.ejs`        | `<project>/.github/workflows/01-pr-fast.yml`           | Dynamic |
+| `src/templates/github/PULL_REQUEST_TEMPLATE.md.ejs`        | `<project>/.github/PULL_REQUEST_TEMPLATE.md`           | Dynamic |
+| `src/templates/github/issue-templates/bug-report.yml`      | `<project>/.github/ISSUE_TEMPLATE/bug-report.yml`      | Static  |
+| `src/templates/github/issue-templates/feature-request.yml` | `<project>/.github/ISSUE_TEMPLATE/feature-request.yml` | Static  |
+| `src/templates/github/issue-templates/task-brief.yml.ejs`  | `<project>/.github/ISSUE_TEMPLATE/task-brief.yml`      | Dynamic |
+| `src/templates/github/dependabot.yml.ejs`                  | `<project>/.github/dependabot.yml`                     | Dynamic |
 
 ### `root/` (multiple files)
 
@@ -594,9 +594,9 @@ original 8 — it is a representative sample of the pattern, not a complete inve
 
 ### `check-all/` (1 file)
 
-| File                | Output                  | Type    |
-| ------------------- | ----------------------- | ------- |
-| `check-all.mjs.ejs` | `scripts/check-all.mjs` | Dynamic |
+| File                                      | Output                            | Type    |
+| ----------------------------------------- | --------------------------------- | ------- |
+| `src/templates/scripts/check-all.mjs.ejs` | `<project>/scripts/check-all.mjs` | Dynamic |
 
 ---
 
@@ -619,22 +619,22 @@ How arbiter handles existing files, merges configuration, and ensures idempotent
 
 ## Conflict Resolution Strategy
 
-| File                               | Strategy                         | Reason                           |
-| ---------------------------------- | -------------------------------- | -------------------------------- |
-| `AGENTS.md`                        | Backup + replace                 | Always regenerated from template |
-| `.claude/CLAUDE.md`                | Backup + replace                 | Thin pointer — stateless         |
-| `.agents/CODEX.md`                 | Backup + replace                 | Thin pointer — stateless         |
-| `.claude/settings.json`            | Deep merge                       | Custom hooks must be preserved   |
-| `.claude/hooks/*.mjs`              | Skip if exists                   | Project-customized               |
-| `.claude/rules/*.md`               | Skip if exists                   | Project-customized               |
-| `.claude/commands/*.md`            | Skip if exists                   | Project-customized               |
-| `.github/workflows/ci.yml`         | Skip if exists                   | May be heavily customized        |
-| `.github/PULL_REQUEST_TEMPLATE.md` | Skip if exists                   | May be customized                |
-| `.github/ISSUE_TEMPLATE/*`         | Skip if exists                   | May be customized                |
-| `scripts/check-all.mjs`            | Skip if exists                   | May be customized                |
-| `SECURITY.md`, `.editorconfig`     | Skip if exists                   | Created once                     |
-| GitHub labels                      | Create missing + update existing | Idempotent provisioning          |
-| Branch protection                  | Always apply                     | Rules are deterministic          |
+| File                                         | Strategy                         | Reason                           |
+| -------------------------------------------- | -------------------------------- | -------------------------------- |
+| `AGENTS.md`                                  | Backup + replace                 | Always regenerated from template |
+| `.claude/CLAUDE.md`                          | Backup + replace                 | Thin pointer — stateless         |
+| `.agents/CODEX.md`                           | Backup + replace                 | Thin pointer — stateless         |
+| `.claude/settings.json`                      | Deep merge                       | Custom hooks must be preserved   |
+| `.claude/hooks/*.mjs`                        | Skip if exists                   | Project-customized               |
+| `.claude/rules/*.md`                         | Skip if exists                   | Project-customized               |
+| `.claude/commands/*.md`                      | Skip if exists                   | Project-customized               |
+| `<project>/.github/workflows/01-pr-fast.yml` | Skip if exists                   | May be heavily customized        |
+| `<project>/.github/PULL_REQUEST_TEMPLATE.md` | Skip if exists                   | May be customized                |
+| `<project>/.github/ISSUE_TEMPLATE/*`         | Skip if exists                   | May be customized                |
+| `<project>/scripts/check-all.mjs`            | Skip if exists                   | May be customized                |
+| `SECURITY.md`, `.editorconfig`               | Skip if exists                   | Created once                     |
+| GitHub labels                                | Create missing + update existing | Idempotent provisioning          |
+| Branch protection                            | Always apply                     | Rules are deterministic          |
 
 ---
 
@@ -703,7 +703,7 @@ Track B has four sub-tracks. Not all four are required for every capability — 
 | --------- | ------------------------------------------------------------------------------ | ----------------------------------------------------- |
 | **B1**    | EJS template under `src/templates/`                                            | Capability produces a generated file                  |
 | **B2**    | Generator under `src/generators/*.ts`                                          | B1 template needs rendering logic or parameterization |
-| **B3**    | KIT reference doc under `docs/REFERENCE/`                                      | Capability maps to ≥1 KIT dim                         |
+| **B3**    | KIT reference doc under `<project>/docs/REFERENCE/`                            | Capability maps to ≥1 KIT dim                         |
 | **B4**    | Invariant or gate entry in `src/invariants/catalog.ts` or `src/kit/catalog.ts` | Capability has a machine-enforceable contract         |
 
 If a capability is docs-only (no template, no gate), B1/B2/B4 may be omitted — but B3 is always required.
@@ -712,12 +712,12 @@ If a capability is docs-only (no template, no gate), B1/B2/B4 may be omitted —
 
 ## Wave Matrix Template
 
-Every wave in `docs/plans/planning-skeleton-migration-plan.md` fills in this table:
+Every planned wave fills in this table:
 
-| Deliverable           | Track A path            | B1 template path                          | B2 generator                              | B3 doc path                    | B4 catalog entry |
-| --------------------- | ----------------------- | ----------------------------------------- | ----------------------------------------- | ------------------------------ | ---------------- |
-| (example) gate script | `scripts/check-foo.mjs` | `src/templates/scripts/check-foo.mjs.ejs` | `src/generators/anti-drift-validators.ts` | `docs/REFERENCE/dim-NN-foo.md` | INV-NN           |
-| (fill per wave)       |                         |                                           |                                           |                                |                  |
+| Deliverable           | Track A path                      | B1 template path  | B2 generator                              | B3 doc path                              | B4 catalog entry |
+| --------------------- | --------------------------------- | ----------------- | ----------------------------------------- | ---------------------------------------- | ---------------- |
+| (example) gate script | `<project>/scripts/check-foo.mjs` | matching template | `src/generators/anti-drift-validators.ts` | `<project>/docs/REFERENCE/dim-NN-foo.md` | INV-NN           |
+| (fill per wave)       |                                   |                   |                                           |                                          |                  |
 
 ---
 
@@ -732,7 +732,7 @@ Every wave in `docs/plans/planning-skeleton-migration-plan.md` fills in this tab
 | B1    | `src/templates/local-wrapper/Makefile.ejs`                       |
 | B1    | `src/templates/local-wrapper/run.sh.ejs`                         |
 | B2    | `src/generators/local-wrapper.ts`                                |
-| B3    | `docs/REFERENCE/local-wrapper-contract.md`                       |
+| B3    | `<project>/docs/REFERENCE/local-wrapper-contract.md`             |
 | B4    | INV-87 in `src/invariants/catalog.ts`                            |
 
 ### Example: CI Tier Baseline (W4)
@@ -743,30 +743,30 @@ Every wave in `docs/plans/planning-skeleton-migration-plan.md` fills in this tab
 | A     | `.github/workflows/02-pr-extended.yml`                  |
 | B1    | `src/templates/github/workflows/01-pr-fast.yml.ejs`     |
 | B1    | `src/templates/github/workflows/02-pr-extended.yml.ejs` |
-| B2    | `src/generators/github-workflows.ts` (extend)           |
-| B3    | `docs/REFERENCE/ci-tier-workflows.md`                   |
+| B2    | `src/generators/github-setup.ts` (extend)               |
+| B3    | `<project>/docs/REFERENCE/ci-tier-workflows.md`         |
 | B4    | INV-73 status update in catalog                         |
 
 ### Example: KIT Canonical SSOT (W2)
 
-| Track | Deliverable                                             |
-| ----- | ------------------------------------------------------- |
-| A     | `src/kit/{taxonomy,catalog,index}.ts`                   |
-| A     | `scripts/check-kit-catalog-parity.mjs`                  |
-| B1    | `src/templates/kit/*.ejs`                               |
-| B2    | `src/generators/kit.ts`                                 |
-| B3    | `docs/REFERENCE/dim-001-*.md … dim-078-*.md` (78 files) |
-| B4    | INV-86 in catalog                                       |
+| Track | Deliverable                                            |
+| ----- | ------------------------------------------------------ |
+| A     | `src/kit/{taxonomy,catalog,index}.ts`                  |
+| A     | `scripts/check-kit-catalog-parity.mjs`                 |
+| B1    | `src/templates/kit/*.ejs`                              |
+| B2    | `src/generators/gold-kit.ts`                           |
+| B3    | `<project>/docs/REFERENCE/dim-001-*.md … dim-078-*.md` |
+| B4    | INV-86 in catalog                                      |
 
 ### Example: Anti-Drift Validator (W6)
 
-| Track | Deliverable                                                           |
-| ----- | --------------------------------------------------------------------- |
-| A     | `scripts/check-workflow-sha-pinning.mjs`                              |
-| B1    | `src/templates/scripts/anti-drift/check-workflow-sha-pinning.mjs.ejs` |
-| B2    | `src/generators/anti-drift-validators.ts`                             |
-| B3    | `docs/REFERENCE/anti-drift-family.md`                                 |
-| B4    | INV-89 (every validator must support `--help`)                        |
+| Track | Deliverable                                                |
+| ----- | ---------------------------------------------------------- |
+| A     | `<project>/scripts/check-workflow-sha-pinning.mjs`         |
+| B1    | `src/templates/scripts/check-workflow-sha-pinning.mjs.ejs` |
+| B2    | `src/generators/anti-drift-validators.ts`                  |
+| B3    | `docs/REFERENCE/anti-drift-family.md`                      |
+| B4    | INV-89 (every validator must support `--help`)             |
 
 ---
 
@@ -818,7 +818,7 @@ The dual-track contract does NOT apply to:
 ## References
 
 - `#skeleton-governance-architecture (this document)` — primitive taxonomy and architecture Q&A
-- `docs/plans/planning-skeleton-migration-plan.md` — wave-by-wave dual-track matrix
+- wave-by-wave dual-track matrix — maintained with each active wave
 - `AGENTS.md §Invariants` — INV-73, INV-86..INV-93
 - `.claude/rules/30-canon-enforcement.md` — CANON-04/05/07/11/13/14/15
 
@@ -894,8 +894,8 @@ audit trail, see INV-83 when implemented).
 
 ## Related
 
-- `docs/TEST_TAXONOMY.md` — 25-dimension test taxonomy
-- `docs/REFERENCE/evidence-schema.md` — schema reference for target projects
+- `src/templates/root/TEST_TAXONOMY.md.ejs` — 25-dimension target taxonomy
+- `<project>/docs/REFERENCE/evidence-schema.md` — schema reference for target projects
 - `scripts/check-tdd-evidence.mjs` — TDD evidence per-commit check (separate concern)
 - `src/invariants/catalog.ts` — INV-90 entry
 - `AGENTS.md` — INV-90 declaration
@@ -906,7 +906,7 @@ audit trail, see INV-83 when implemented).
 
 > Single SSOT defining the target architecture for arbiter's engineering skeleton harness.
 > Every primitive used across W2-W11 is named here.
-> Downstream: `#dual-track-contract (this document)`, `docs/audits/arbiter-skeleton-gap-analysis.md`.
+> Downstream: `#dual-track-contract (this document)`.
 
 ---
 
@@ -916,24 +916,24 @@ audit trail, see INV-83 when implemented).
 
 Every artifact in the engineering skeleton belongs to exactly one category.
 
-| Value                   | Description                                                         | Arbiter Primitive                                                   |
-| ----------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `local-command-harness` | Developer-facing entrypoint scripts and Makefile/run.sh façade      | `Makefile`, `run.sh`, `scripts/check-all.mjs`                       |
-| `ci-workflow`           | GitHub Actions workflow files (.github/workflows/\*.yml)            | `.github/workflows/*.yml` + EJS templates                           |
-| `parity-mechanism`      | Contracts verifying local command output ↔ CI job output            | `scripts/check-local-ci-parity.mjs` + INV-87                        |
-| `test-harness`          | Test taxonomy, test runners, test types, evidence schema            | `docs/TEST_TAXONOMY.md`, `schemas/evidence-bundle.schema.json`      |
-| `contract-verification` | API schema, pact, OpenAPI, Newman contract tests                    | `src/templates/contract/` (framework only)                          |
-| `static-analysis`       | Lint, format, type-check, dead code, architectural rule enforcement | `scripts/check-*.mjs` (agnostic) + stack adapter (stack-specific)   |
-| `supply-chain-check`    | Signing, SBOM, Trivy (fs + container scan), secret scanning         | `.github/workflows/05-release.yml`, `scripts/check-secret-scan.mjs` |
-| `evidence-capture`      | Commands + outputs captured in machine-readable bundles             | `.evidence/*/`, `scripts/evidence-*.mjs`                            |
-| `docs-governance`       | Docs that are required by protocol (AGENTS.md, ADRs, runbooks)      | `AGENTS.md`, `docs/ADR/`, `docs/SYSTEM/`                            |
-| `agent-instruction`     | Directives for AI agents (AGENTS.md, .claude/agents/\*.md)          | `.claude/agents/*.md`, `AGENTS.md`                                  |
-| `agent-command`         | Claude Code slash commands (.claude/commands/\*.md)                 | `.claude/commands/*.md`                                             |
-| `hook`                  | Pre/post edit/bash hooks and git hooks                              | `.claude/hooks/*.mjs`, `.githooks/`                                 |
-| `bootstrap`             | Repo initialization scripts (setup-repo.sh, arbiter init)           | `scripts/setup-repo.sh`, `src/commands/init.ts`                     |
-| `release`               | Release workflow, signing, artifact publishing                      | `.github/workflows/05-release.yml`, `sign-and-attest` action        |
-| `issue-governance`      | Label sync, PR template, PR staleness, notify workflows             | `.github/labels.yml`, `.github/workflows/_*.yml`                    |
-| `anti-drift-validator`  | Scripts checking that repo state matches declared contracts         | `scripts/check-*.mjs` (drift family)                                |
+| Value                   | Description                                                         | Arbiter Primitive                                                                |
+| ----------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `local-command-harness` | Developer-facing entrypoint scripts and Makefile/run.sh façade      | `Makefile`, `run.sh`, `scripts/check-all.mjs`                                    |
+| `ci-workflow`           | GitHub Actions workflow files (.github/workflows/\*.yml)            | `.github/workflows/*.yml` + EJS templates                                        |
+| `parity-mechanism`      | Contracts verifying local command output ↔ CI job output            | `scripts/check-local-ci-parity.mjs` + INV-87                                     |
+| `test-harness`          | Test taxonomy, test runners, test types, evidence schema            | `src/templates/root/TEST_TAXONOMY.md.ejs`, `schemas/evidence-bundle.schema.json` |
+| `contract-verification` | API schema, pact, OpenAPI, Newman contract tests                    | `src/templates/contract/` (framework only)                                       |
+| `static-analysis`       | Lint, format, type-check, dead code, architectural rule enforcement | `scripts/check-*.mjs` (agnostic) + stack adapter (stack-specific)                |
+| `supply-chain-check`    | Signing, SBOM, Trivy (fs + container scan), secret scanning         | `.github/workflows/05-release.yml`, `scripts/check-secret-scan.mjs`              |
+| `evidence-capture`      | Commands + outputs captured in machine-readable bundles             | `.evidence/*/`, `scripts/evidence-*.mjs`                                         |
+| `docs-governance`       | Docs that are required by protocol (AGENTS.md, ADRs, runbooks)      | `AGENTS.md`, `docs/ADR/`, `docs/SYSTEM/`                                         |
+| `agent-instruction`     | Directives for AI agents (AGENTS.md, .claude/agents/\*.md)          | `.claude/agents/*.md`, `AGENTS.md`                                               |
+| `agent-command`         | Claude Code slash commands (.claude/commands/\*.md)                 | `.claude/commands/*.md`                                                          |
+| `hook`                  | Pre/post edit/bash hooks and git hooks                              | `.claude/hooks/*.mjs`, `.githooks/`                                              |
+| `bootstrap`             | Repo initialization scripts (setup-repo.sh, arbiter init)           | `scripts/setup-repo.sh`, `src/commands/init.ts`                                  |
+| `release`               | Release workflow, signing, artifact publishing                      | `.github/workflows/05-release.yml`, `sign-and-attest` action                     |
+| `issue-governance`      | Label sync, PR template, PR staleness, notify workflows             | `.github/labels.yml`, `.github/workflows/_*.yml`                                 |
+| `anti-drift-validator`  | Scripts checking that repo state matches declared contracts         | `scripts/check-*.mjs` (drift family)                                             |
 
 ---
 
@@ -1051,21 +1051,21 @@ The parity contract is machine-verified by `scripts/check-local-ci-parity.mjs`. 
 
 ## Arbiter Primitives Map
 
-| Primitive Type  | Arbiter representation                                                             | Enforcement mechanism                           |
-| --------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Invariant rule  | `src/invariants/catalog.ts` entry + `GLOBAL_INVARIANTS.md`                         | `scripts/check-*.mjs` in gate                   |
-| Gate script     | `scripts/check-*.mjs` (agnostic) or stack adapter emits                            | `check-all.mjs` orchestration                   |
-| Git hook        | `.githooks/pre-commit` (arbiter-self) + `src/templates/hooks/*.ejs`                | `setup-repo.sh` installs                        |
-| CI workflow     | `.github/workflows/*.yml` (arbiter-self) + `src/templates/github/workflows/*.ejs`  | Generator emits per tier                        |
-| Generator       | `src/generators/*.ts`                                                              | `arbiter init` invokes                          |
-| Template        | `src/templates/**/*.ejs`                                                           | EJS render via generator                        |
-| Stack adapter   | RETIRED (#1837) — test-only scaffold, zero runtime callers; removed                | n/a                                             |
-| Evidence        | `.evidence/<batch>/`                                                               | `scripts/evidence-rotate.mjs`                   |
-| KIT catalog     | `src/kit/catalog.ts`                                                               | `scripts/check-kit-catalog-parity.mjs` (INV-86) |
-| Makefile target | `Makefile` (arbiter-self) + `src/templates/local-wrapper/Makefile.ejs`             | `check-local-ci-parity.mjs`                     |
-| ADR             | `docs/ADR/NNN-*.md` (arbiter-self) + referenced from `docs/REFERENCE/dim-NNN-*.md` | Docs only; no gate                              |
-| Sub-agent       | `.claude/agents/*.md`                                                              | `.claude/settings.json` registration            |
-| Agent command   | `.claude/commands/*.md`                                                            | Claude Code skill invocation                    |
+| Primitive Type  | Arbiter representation                                                                                | Enforcement mechanism                           |
+| --------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Invariant rule  | `src/invariants/catalog.ts` entry + `GLOBAL_INVARIANTS.md`                                            | `scripts/check-*.mjs` in gate                   |
+| Gate script     | `scripts/check-*.mjs` (agnostic) or stack adapter emits                                               | `check-all.mjs` orchestration                   |
+| Git hook        | `.githooks/pre-commit` (arbiter-self) + `src/templates/hooks/*.ejs`                                   | `setup-repo.sh` installs                        |
+| CI workflow     | `.github/workflows/*.yml` (arbiter-self) + `src/templates/github/workflows/*.ejs`                     | Generator emits per tier                        |
+| Generator       | `src/generators/*.ts`                                                                                 | `arbiter init` invokes                          |
+| Template        | `src/templates/**/*.ejs`                                                                              | EJS render via generator                        |
+| Stack adapter   | RETIRED (#1837) — test-only scaffold, zero runtime callers; removed                                   | n/a                                             |
+| Evidence        | `.evidence/<batch>/`                                                                                  | `scripts/evidence-rotate.mjs`                   |
+| KIT catalog     | `src/kit/catalog.ts`                                                                                  | `scripts/check-kit-catalog-parity.mjs` (INV-86) |
+| Makefile target | `Makefile` (arbiter-self) + `src/templates/local-wrapper/Makefile.ejs`                                | `check-local-ci-parity.mjs`                     |
+| ADR             | `docs/internal/ADR/NNN-*.md` (arbiter-self) + referenced from `<project>/docs/REFERENCE/dim-NNN-*.md` | Docs only; no gate                              |
+| Sub-agent       | `.claude/agents/*.md`                                                                                 | `.claude/settings.json` registration            |
+| Agent command   | `.claude/commands/*.md`                                                                               | Claude Code skill invocation                    |
 
 ---
 
@@ -1073,18 +1073,18 @@ The parity contract is machine-verified by `scripts/check-local-ci-parity.mjs`. 
 
 For every primitive introduced in W2-W11, both tracks ship in the same PR:
 
-| Primitive     | Track A (arbiter-self)                    | Track B1 (EJS template)                                    | Track B2 (generator)                      | Track B3 (KIT doc)                           | Track B4 (invariant) |
-| ------------- | ----------------------------------------- | ---------------------------------------------------------- | ----------------------------------------- | -------------------------------------------- | -------------------- |
-| Gate script   | `scripts/check-*.mjs`                     | `src/templates/scripts/*.mjs.ejs`                          | `src/generators/anti-drift-validators.ts` | `docs/REFERENCE/dim-NN-*.md`                 | INV-NN in catalog    |
-| CI workflow   | `.github/workflows/*.yml`                 | `src/templates/github/workflows/*.yml.ejs`                 | `src/generators/github-workflows.ts`      | `docs/REFERENCE/ci-tier-workflows.md`        | INV-73 update        |
-| Makefile      | `Makefile`                                | `src/templates/local-wrapper/Makefile.ejs`                 | `src/generators/local-wrapper.ts`         | `docs/REFERENCE/local-wrapper-contract.md`   | INV-87               |
-| Stack adapter | RETIRED (#1837)                           | n/a                                                        | n/a                                       | n/a                                          | INV-88 (retired)     |
-| KIT catalog   | `src/kit/catalog.ts`                      | n/a (RETIRED, #2015)                                       | `scripts/gen-derived-pages.mjs`           | `docs/REFERENCE/dim-001-*.md … dim-078-*.md` | INV-86               |
-| Evidence      | `.evidence/<batch>/`                      | `src/templates/evidence/*.ejs`                             | `src/generators/test-taxonomy.ts`         | `docs/REFERENCE/evidence-schema.md`          | INV-90               |
-| Supply chain  | `.github/workflows/05-release.yml`        | `src/templates/github/workflows/05-release.yml.ejs`        | `src/generators/github-workflows.ts`      | `docs/REFERENCE/supply-chain.md`             | INV-92               |
-| AI-PR gate    | `.github/workflows/_label-on-approve.yml` | `src/templates/github/workflows/_label-on-approve.yml.ejs` | `src/generators/github-workflows.ts`      | `docs/REFERENCE/ai-pr-gate.md`               | INV-91               |
+| Primitive     | Track A (arbiter-self)                    | Track B1 (EJS template)                                    | Track B2 (generator)                      | Track B3 (KIT doc)                                     | Track B4 (invariant) |
+| ------------- | ----------------------------------------- | ---------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------ | -------------------- |
+| Gate script   | `scripts/check-*.mjs`                     | `src/templates/scripts/*.mjs.ejs`                          | `src/generators/anti-drift-validators.ts` | `<project>/docs/REFERENCE/dim-NN-*.md`                 | INV-NN in catalog    |
+| CI workflow   | `.github/workflows/*.yml`                 | `src/templates/github/workflows/*.yml.ejs`                 | `src/generators/github-setup.ts`          | `<project>/docs/REFERENCE/ci-tier-workflows.md`        | INV-73 update        |
+| Makefile      | `Makefile`                                | `src/templates/local-wrapper/Makefile.ejs`                 | `src/generators/local-wrapper.ts`         | `<project>/docs/REFERENCE/local-wrapper-contract.md`   | INV-87               |
+| Stack adapter | RETIRED (#1837)                           | n/a                                                        | n/a                                       | n/a                                                    | INV-88 (retired)     |
+| KIT catalog   | `src/kit/catalog.ts`                      | n/a (RETIRED, #2015)                                       | `scripts/gen-derived-pages.mjs`           | `<project>/docs/REFERENCE/dim-001-*.md … dim-078-*.md` | INV-86               |
+| Evidence      | `.evidence/<batch>/`                      | `src/templates/evidence/*.ejs`                             | `src/generators/test-taxonomy.ts`         | `<project>/docs/REFERENCE/evidence-schema.md`          | INV-90               |
+| Supply chain  | `.github/workflows/05-release.yml`        | `src/templates/github/workflows/05-release.yml.ejs`        | `src/generators/github-setup.ts`          | `<project>/docs/REFERENCE/supply-chain.md`             | INV-92               |
+| AI-PR gate    | `.github/workflows/_label-on-approve.yml` | `src/templates/github/workflows/_label-on-approve.yml.ejs` | `src/generators/github-setup.ts`          | `<project>/docs/REFERENCE/ai-pr-gate.md`               | INV-91               |
 
-Not all four B sub-tracks apply to every primitive. The per-wave matrix in `docs/plans/planning-skeleton-migration-plan.md` specifies which.
+Not all four B sub-tracks apply to every primitive. Each wave's matrix specifies which.
 
 ---
 
@@ -1104,7 +1104,7 @@ CANON-04/05/07/11 (`.claude/rules/30-canon-enforcement.md`) require that any new
 
 ### Q4 — How are Java/Spring-specific patterns isolated?
 
-Stack-specific dims (tag: `java_spring`) route to `src/adapters/java.ts` (F2). Core scripts and templates only reference `agnostic`-tagged dims. The `StackAdapter` interface (W5) is the only bridge; it returns `GateDescriptor[]` and `WorkflowTemplateRef[]`, not raw files.
+Stack-specific Java patterns are generated by `src/generators/archunit.ts`. Core scripts and templates only reference `agnostic`-tagged dims; stack-specific generation stays isolated from those shared paths.
 
 ### Q5 — How are KIT dims linked to invariants and scripts?
 
@@ -1120,7 +1120,7 @@ Every gate run writes to `.evidence/<batch>/`. The `schemas/evidence-bundle.sche
 
 ### Q8 — How does the AI-PR gate satisfy 21 CFR §11.10(g)?
 
-`_label-on-approve.yml` applies `approved-by-human` only when: reviewer ≠ author AND reviewer.type ≠ Bot AND review.state = APPROVED. `_ai-draft-check.yml` blocks merge unless that label is present on AI-authored PRs. Triple-check documented in `docs/REFERENCE/ai-pr-gate.md`.
+`_label-on-approve.yml` applies `approved-by-human` only when: reviewer ≠ author AND reviewer.type ≠ Bot AND review.state = APPROVED. `_ai-draft-check.yml` blocks merge unless that label is present on AI-authored PRs. The generated workflow pair implements the triple-check.
 
 ### Q9 — How are templates parameterized across 3 governance levels?
 
@@ -1132,7 +1132,7 @@ W4 ships 4 baseline workflows → INV-73 status: `transition`. W8 adds AI-PR wor
 
 ### Q11 — How does supply chain signing work in generated projects?
 
-`src/templates/github/workflows/05-release.yml.ejs` + `sign-and-attest/action.yml.ejs` provide the signing composite action. Generated only for `governanceLevel >= 2`. At `governanceLevel == 3`, Trivy strict and SBOM attestation are mandatory (INV-92).
+`src/templates/github/workflows/05-release.yml.ejs` + `src/templates/github/actions/sign-and-attest/action.yml.ejs` provide the signing composite action. Generated only for `governanceLevel >= 2`. At `governanceLevel == 3`, Trivy strict and SBOM attestation are mandatory (INV-92).
 
 ### Q12 — How does the anti-drift family stay current?
 
@@ -1142,9 +1142,7 @@ Each anti-drift validator in `scripts/check-*.mjs` must support `--help` (INV-89
 
 ## References
 
-- `docs/plans/planning-skeleton-migration-plan.md` — wave execution playbook
 - `#dual-track-contract (this document)` — binding dual-track contract
-- `docs/audits/kit-canonical-mapping.json` — machine-readable 78-dim catalog
-- `docs/audits/arbiter-skeleton-gap-analysis.md` — severity-rated gap matrix
-- `docs/REFERENCE/external-kit-sources.md` — KIT XLSX pointer + refresh procedure
+- `src/kit/catalog.ts` — machine-readable KIT catalog
+- `docs/internal/PRODUCT/FEATURE_MATRIX.md` — traceability matrix
 - `AGENTS.md` — invariants INV-73, INV-86..INV-93

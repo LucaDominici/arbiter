@@ -2,7 +2,7 @@
 title: 'arbiter Reuse Registry'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-21'
+last_review: '2026-08-26'
 owner: ''
 canonical_id: 'REUSE_REGISTRY'
 tags: ['audience/dev', 'kind/method', 'scope/self']
@@ -14,7 +14,7 @@ related: ['REUSE_REGISTRY_SPEC', 'PATTERNS_CATALOG']
 **Purpose:** File-level registry of shared reusable modules. Consult before
 creating any new file under `src/` or `scripts/` (CANON-16 survey).
 
-**Spec:** `docs/METHOD/REUSE_REGISTRY_SPEC.md`
+**Spec template:** `src/templates/root/docs/METHOD/REUSE_REGISTRY_SPEC.md.ejs`
 
 ---
 
@@ -58,7 +58,7 @@ Shell-facing gate helpers. Used by `scripts/check-*.mjs` and CI entry points.
   from `process.argv`.
 - when_to_avoid: scripts with their own argument schema; use a dedicated arg
   parser (e.g. `parseArgs` from `node:util`) instead.
-- tests: indirect via `__tests__/scripts/check-all.test.ts`
+- tests: indirect via `__tests__/scripts/check-all-l1.test.ts`
 - since: 0.1.0
 
 ### run-helpers
@@ -95,7 +95,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
 ### canon-loader
 
 - path: src/utils/canon-loader.ts
-- purpose: Parse `docs/SYSTEM/CANON.md` into structured `CanonEntry` objects
+- purpose: Parse `docs/internal/SYSTEM/CANON.md` into structured `CanonEntry` objects
   with numeric ID, title, and trigger condition.
 - key_exports: CanonEntry, loadCanon
 - when_to_use: any code that needs to enumerate or look up CANON-NN rules
@@ -164,7 +164,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
 - when_to_use: throwing or displaying any named arbiter error; look up the code
   in the catalog rather than writing inline messages.
 - when_to_avoid: transient internal errors with no user-facing recovery path.
-- tests: `__tests__/utils/error-catalog.test.ts`
+- tests: `__tests__/utils/errors.test.ts`
 - since: 0.1.0
 
 ### errors
@@ -290,7 +290,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
 - when_to_use: benchmarks and profiling tests that need statistical percentile
   measurements.
 - when_to_avoid: production code paths; measurement overhead is not negligible.
-- tests: `__tests__/utils/perf.test.ts`
+- tests: no dedicated test is currently registered
 - since: 0.1.0
 
 ### platform
@@ -364,7 +364,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
   publish tier for a given archetype.
 - when_to_avoid: contexts where the archetype is unknown or the bucket is
   hardcoded in configuration.
-- tests: `__tests__/utils/release-bucket.test.ts`
+- tests: no dedicated test is currently registered
 - since: 0.1.0
 
 ### render
@@ -377,7 +377,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
   `src/templates/**/*.ejs`.
 - when_to_avoid: ad-hoc `ejs.render()` calls; always go through
   `renderTemplate` so the context and path resolution are consistent.
-- tests: `__tests__/utils/render.test.ts`
+- tests: `__tests__/utils/render-basepackage.test.ts`
 - since: 0.1.0
 
 ### replay
@@ -414,7 +414,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
 - when_to_use: any code that needs a unique, sortable, human-readable ID for
   run directories, evidence records, or audit logs.
 - when_to_avoid: cryptographic key material; IDs are not securely random.
-- tests: `__tests__/utils/run-id.test.ts`
+- tests: `__tests__/run-id.test.ts`
 - since: 0.1.0
 
 ### safe-read
@@ -440,7 +440,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
   without `Date.now()` or `Math.random()`.
 - when_to_avoid: security-sensitive contexts; the RNG is deterministic, not
   cryptographic.
-- tests: `__tests__/utils/seed.test.ts`
+- tests: no dedicated test is currently registered
 - since: 0.1.0
 
 ### vault-sync
@@ -453,7 +453,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
   survive re-generation without overwriting changes.
 - when_to_avoid: fully machine-owned files where overwrite-on-regenerate is
   the intended semantics; use `fs.writeFile` directly.
-- tests: `__tests__/utils/vault-sync.test.ts`
+- tests: no dedicated test is currently registered
 - since: 0.1.0
 
 ---
@@ -485,7 +485,7 @@ Evidence harness helpers consumed by the pre-push gate and TDD enforcement.
   and needs typed, validated results.
 - when_to_avoid: ad-hoc `JSON.parse` of evidence files; use this loader for
   consistent error handling.
-- tests: `__tests__/evidence/load.test.ts`
+- tests: no dedicated test is currently registered
 - since: 0.1.0
 
 ### summary

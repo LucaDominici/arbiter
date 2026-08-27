@@ -485,6 +485,24 @@ checks:
   # enabled anywhere else — enrollment is inert for any repo that copies this manifest shape.
   # all-R cells (not tiers{}-derived) so enrollment is mandatory on self even while `tierColumn`
   # reads a non-enterprise value on some future run (robust to any T1b/tier_floor removal).
+  - path: website/comparisons
+    tier: mandatory
+    tiers: { solo: 'R', small: 'R', enterprise: 'R' }
+    freshness_class: high-churn
+    glob: 'website/comparisons/*.md'
+    couples_to:
+      [
+        'src/wizard/types.ts',
+        'src/commands/init/resolve-config.ts',
+        'src/generators/claude.ts',
+        'src/generators/codex.ts',
+        'src/generators/agents-claude.ts',
+        'scripts/check-feature-matrix.mjs',
+      ]
+    applies: self-charter
+    phase: inception
+    drivers: ['diataxis']
+    purpose: Public comparison claims, refreshed when their owned tool or traceability surfaces change.
   - path: docs/research/enterprise-doc-standard-2026.md
     tier: mandatory
     tiers: { solo: 'R', small: 'R', enterprise: 'R' }

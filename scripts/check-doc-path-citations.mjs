@@ -52,11 +52,14 @@ function argValue(flag) {
 const CWD = resolve('.')
 const ROOTS = argValue('roots') ? argValue('roots').split(',') : ['docs', 'website', '.claude']
 
-// Same rationale as check-phantom-command-scan.mjs's SKIP_PATH_SEGMENTS:
-// decision/roadmap archives and the changelog legitimately narrate paths that
-// were proposed, renamed, or removed — not current-state promises.
+// Decision/roadmap archives and the changelog legitimately narrate paths that
+// were proposed, renamed, or removed — not current-state promises. `internal`
+// is a location, not an archive: its CANON, METHOD, PRODUCT, and architecture
+// documents describe the current contract and must stay on this scan surface.
 const SKIP_PATH_SEGMENTS = [
-  `${sep}internal${sep}`,
+  `${sep}internal${sep}ADR${sep}`,
+  `${sep}internal${sep}SYSTEM${sep}DECISIONS.md`,
+  `${sep}internal${sep}PRODUCT${sep}MILESTONES.md`,
   `${sep}changelog${sep}`,
   `${sep}design${sep}`,
   `${sep}audit${sep}`,
@@ -95,6 +98,72 @@ const PATH_ALLOWLIST = new Set([
   // Mirrors the M16_CORPUS array in scripts/check-m16-handoff.mjs, which
   // deliberately lists a not-yet-written skill and tolerates its absence.
   'docs/methodology/agent-orchestration-and-context-hygiene.md:.claude/skills/drain/SKILL.md',
+  // CANON-07 explicitly records the deletion of this dead test as a lesson.
+  'docs/internal/SYSTEM/CANON.md:__tests__/integration/generated-check-all.test.ts',
+  // HOOK-CONTRACTS uses this deliberately invalid escape attempt as the example
+  // of a fixture path that the guard must reject without writing it.
+  'docs/internal/SYSTEM/HOOK-CONTRACTS.md:../escaped.ts',
+  // CANONICAL_PATHS is a current SSOT and is scanned. Its left table column is
+  // the permanent history of these deliberately removed aliases; each right
+  // column target remains subject to the normal existence check.
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ARCHITECTURE/CANONICAL-SOURCE-MODEL.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ARCHITECTURE/CONFLICT-RESOLUTION.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ARCHITECTURE/OVERVIEW.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ARCHITECTURE/TEMPLATE-SYSTEM.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/architecture/OVERVIEW.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/architecture/CANONICAL-SOURCE-MODEL.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/architecture/TEMPLATE-SYSTEM.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/architecture/CONFLICT-RESOLUTION.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/architecture/dual-track-contract.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/architecture/evidence-bundle.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/architecture/skeleton-governance.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/architecture/ARCHITECTURE.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/SYSTEM/detector-error-policy.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/SYSTEM/FAIL_CLOSED.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/METHOD/TRACK_MODEL.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/SYSTEM/POST_COMMIT_TRACKS.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/METHOD/DOC_SEMVER.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/rfc/README.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/METHOD/PROCESS.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/TESTING_POLICY.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/MASTER_TEST_PLAN.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/TEST_TAXONOMY.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/METHOD/SELF_VALIDATION_PROTOCOL.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/SYSTEM/E2E-RUNTIMES.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/GOVERNANCE/index.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/GOVERNANCE/RACI.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/SYSTEM/ID-STABILITY.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/METHOD/TAG_TAXONOMY.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/GOVERNANCE/GOOD-FIRST-ISSUE-POLICY.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/SETUP.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/install/windows.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/CODING_STANDARDS.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/DEVELOPMENT/GETTING-STARTED.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/DEVELOPMENT/CONVENTIONS.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/PRODUCT/MILESTONES.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ADR/001-agents-md-canonical.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ADR/002-thin-pointer-pattern.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ADR/003-gh-cli-required.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ADR/004-skip-if-exists.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ADR/005-deep-merge-settings.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ADR/031-plugin-api-v1.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/SYSTEM/DECISIONS.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/SYSTEM/CANON.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/ARCHITECTURE.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/METHOD/SSOT_CORE_SET.md',
+  'docs/internal/METHOD/CANONICAL_PATHS.md:docs/METHOD/CANONICAL_PATHS.md',
+  // GAP is a live, time-stamped audit and is scanned. These FALSO findings
+  // deliberately cite the absent path that the audit proved absent.
+  'docs/internal/SYSTEM/GAP.md:src/commands/anti-fake-green.ts',
+  'docs/internal/SYSTEM/GAP.md:__tests__/commands/anti-fake-green.test.ts',
+  'docs/internal/SYSTEM/GAP.md:src/bad.ts',
+  'docs/internal/SYSTEM/GAP.md:config/pr-size-config.json',
+  'docs/internal/SYSTEM/GAP.md:docs/SYSTEM/CANON.md',
+  'docs/internal/SYSTEM/GAP.md:docs/SYSTEM/DECISIONS.md',
+  'docs/internal/SYSTEM/GAP.md:docs/DEVELOPMENT/REAL-PROJECT-TESTING.md',
+  'docs/internal/SYSTEM/GAP.md:docs/GOVERNANCE/E2E_CONSTITUTION.md',
+  'docs/internal/SYSTEM/GAP.md:docs/METHOD/BACKEND_CONTEXT.md',
+  'docs/internal/SYSTEM/GAP.md:docs/METHOD/FRONTEND_CONTEXT.md',
 ])
 
 // Path-shaped citations under these roots are runtime-generated artifacts, not
@@ -109,8 +178,9 @@ const RUNTIME_ROOT_SKIP = [
   'coverage/', // test-coverage reporter output
   '.git/', // git internals
   'tmp/', // scratch output
-  '.claude/.task', // unified task document written by the task lifecycle (#2260)
+  '.claude/.task/', // unified task document written by the task lifecycle (#2260)
   '.claude/hooks/logs/', // hook event log, appended at runtime (#2260)
+  '.claude/.last-done-evidence.json', // task-completion state, written at runtime
   '.evidence/', // evidence bundle a governed project's gate emits (#2260)
   'graphify-out/', // optional graphify CLI output — absent unless graphify ran (#2260)
   'plan-review/', // plan-review step output, written per task (#2260)
@@ -119,9 +189,9 @@ const RUNTIME_ROOT_SKIP = [
   'scratchpad/', // per-session scratch notes, never committed (#2260)
 ]
 
-// #2260: prose that deliberately uses a PLACEHOLDER path — a template the reader
+// #2260: prose that deliberately uses a sample path — a template the reader
 // substitutes, not a promise about the filesystem. Matched as a substring of the
-// cited path so one pattern covers every doc that uses the same placeholder.
+// cited path so one pattern covers every doc that uses the same sample.
 const PLACEHOLDER_PATTERNS = [
   'path/to/', // generic "your file here" stand-in in skill/command templates
   'file/path.', // commit/report body template line: `file/path.ts`: <what changed>
@@ -129,6 +199,8 @@ const PLACEHOLDER_PATTERNS = [
   'my-tool', // CONTRIBUTING's "add your own generator" walkthrough scaffold
   'my-rules/', // custom-invariant recipe scaffold emitted by `arbiter plugin init`
   'my-language', // custom-generator recipe's stand-in language name
+  'dim-NN-', // generic KIT-dimension filename in architecture tables
+  'scripts/X.mjs', // invariant-enforcement sample for an arbitrary gate
 ]
 
 // Matches a backtick-wrapped, standalone repo-relative path: at least one `/`
@@ -161,7 +233,10 @@ export function extractPathCitations(markdown) {
 export function findPhantomPaths(citedPaths, repoRoot, fileDir = repoRoot) {
   return [...citedPaths]
     .filter((p) => !/^(https?:)?\/\//.test(p))
-    .filter((p) => !RUNTIME_ROOT_SKIP.some((skip) => p.startsWith(skip)))
+    .filter(
+      (p) =>
+        !RUNTIME_ROOT_SKIP.some((skip) => (skip.endsWith('/') ? p.startsWith(skip) : p === skip)),
+    )
     .filter((p) => !PLACEHOLDER_PATTERNS.some((ph) => p.includes(ph)))
     .filter(
       (p) =>
@@ -204,7 +279,7 @@ export function isGitIgnored(citedPath, cwd = CWD) {
 
 const SCANNABLE_SUFFIXES = ['.md', '.md.ejs']
 
-function collectScanFiles(root) {
+export function collectScanFiles(root) {
   const abs = resolve(CWD, root)
   if (!existsSync(abs)) return []
   if (statSync(abs).isFile()) {
@@ -244,7 +319,8 @@ function main() {
     process.stdout.write(
       `[check-doc-path-citations] FAIL: ${violations} dead path citation(s) found\n`,
     )
-    process.exit(1)
+    process.exitCode = 1
+    return
   }
   process.stdout.write(
     `[check-doc-path-citations] OK — every cited path exists (${files.length} file(s) scanned)\n`,

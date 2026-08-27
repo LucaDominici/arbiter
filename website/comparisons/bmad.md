@@ -2,7 +2,7 @@
 title: 'arbiter vs BMAD'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-22'
+last_review: '2026-08-26'
 owner: ''
 canonical_id: ''
 tags: []
@@ -67,4 +67,4 @@ BMAD governs _workflow_; arbiter governs _rules_. A project can use BMAD persona
 
 ---
 
-_Last reviewed: 2026-06-22_
+_Last reviewed: 2026-08-26_

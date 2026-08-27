@@ -2,7 +2,7 @@
 title: 'arbiter vs SuperClaude'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-22'
+last_review: '2026-08-26'
 owner: ''
 canonical_id: ''
 tags: []
@@ -34,18 +34,21 @@ arbiter works across tools. Its governance artifacts apply whether you are using
 
 ## Feature comparison
 
-| Capability                          | arbiter | SuperClaude |
-| ----------------------------------- | ------- | ----------- |
-| Enhanced slash commands             | —       | ✓           |
-| Specialized Claude personas         | —       | ✓           |
-| Curated prompt library              | —       | ✓           |
-| Governance file (AGENTS.md)         | ✓       | —           |
-| Blocking hook scripts               | ✓       | —           |
-| CI workflow generation              | ✓       | —           |
-| Multi-tool support (Claude + Codex) | ✓       | —           |
-| Language-aware setup                | ✓       | —           |
-| L1/L2/L3/L4 governance tiers        | ✓       | —           |
-| Zero telemetry guarantee            | ✓       | —           |
+| Capability                                              | arbiter | SuperClaude |
+| ------------------------------------------------------- | ------- | ----------- |
+| Enhanced slash commands                                 | —       | ✓           |
+| Specialized Claude personas                             | —       | ✓           |
+| Curated prompt library                                  | —       | ✓           |
+| Governance file (AGENTS.md)                             | ✓       | —           |
+| Blocking hook scripts                                   | ✓       | —           |
+| CI workflow generation                                  | ✓       | —           |
+| Multi-tool configuration emission (Claude Code + Codex) | ✓       | n/r         |
+| Multi-model review / orchestration                      | —       | n/r         |
+| Language-aware setup                                    | ✓       | —           |
+| L1/L2/L3/L4 governance tiers                            | ✓       | —           |
+| Zero telemetry guarantee                                | ✓       | —           |
+
+`n/r` means this arbiter-focused correction did not reassess SuperClaude's corresponding capability.
 
 ---
 
@@ -69,4 +72,4 @@ SuperClaude enhances the _Claude Code experience_; arbiter enforces the _project
 
 ---
 
-_Last reviewed: 2026-06-22_
+_Last reviewed: 2026-08-26_

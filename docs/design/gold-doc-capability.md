@@ -2,7 +2,7 @@
 title: 'Gold-Doc Capability — self, generator, enforcer'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-09'
+last_review: '2026-08-26'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
