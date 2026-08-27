@@ -366,18 +366,21 @@ export interface RunInteractiveOptions {
 }
 
 async function killAndWaitForProcessGroup(pid: number): Promise<void> {
-  try {
-    process.kill(-pid, 'SIGKILL')
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ESRCH') return
-    throw err
-  }
+  let warned = false
   for (;;) {
     try {
+      process.kill(-pid, 'SIGKILL')
       process.kill(-pid, 0)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ESRCH') return
-      throw err
+      if (!warned) {
+        process.stderr.write(
+          `gate-exec: cannot kill process group ${pid}; retaining the mutex and retrying\n`,
+        )
+        warned = true
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      continue
     }
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
@@ -410,13 +413,16 @@ function procFileHolders(path: string): number[] | null {
         holders.push(pid)
         break
         // FAIL-OPEN-INTENT: process/fd disappeared between directory read and readlink; keep scanning live descriptors.
-      } catch {}
+      } catch {
+        continue
+      }
     }
   }
   return holders
 }
 
 async function killAndWaitForTrackedDescendants(path: string): Promise<void> {
+  let warned = false
   for (;;) {
     const holders = procFileHolders(path)
     if (holders === null) {
@@ -426,14 +432,22 @@ async function killAndWaitForTrackedDescendants(path: string): Promise<void> {
       return
     }
     if (holders.length === 0) return
+    let killFailed = false
     for (const pid of holders) {
       try {
         process.kill(pid, 'SIGKILL')
       } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ESRCH') throw err
+        if ((err as NodeJS.ErrnoException).code === 'ESRCH') continue
+        if (!warned) {
+          process.stderr.write(
+            `gate-exec: cannot kill tracked descendant ${pid}; retaining the mutex and retrying\n`,
+          )
+          warned = true
+        }
+        killFailed = true
       }
     }
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    await new Promise((resolve) => setTimeout(resolve, killFailed ? 100 : 10))
   }
 }
 
@@ -509,7 +523,7 @@ export function runInteractive(
         }
         removeParentSignalHandlers()
         const signalExitCode = parentSignal
-          ? 128 + ({ SIGHUP: 1, SIGINT: 2, SIGTERM: 15 }[parentSignal] ?? 0)
+          ? 128 + { SIGHUP: 1, SIGINT: 2, SIGTERM: 15 }[parentSignal]
           : undefined
         resolve({ exitCode: signalExitCode ?? code ?? 1 })
       }
