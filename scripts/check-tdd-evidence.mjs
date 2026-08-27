@@ -315,6 +315,32 @@ function subjectFloorFails(run, mergeBase, floorIds) {
   return verifyBranchFloor(run, mergeBase, floorIds, true) !== 0
 }
 
+function collectBranchContext(run, envSkip) {
+  const mergeBase = mergeBaseOrSkip(run, envSkip)
+  if (mergeBase === null) return { exitCode: 0 }
+  const subjectLog = subjectLogOrPass(run, mergeBase)
+  if (subjectLog === null) return { exitCode: 2 }
+  if (subjectLog.length === 0) {
+    process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
+    return { exitCode: 0 }
+  }
+  const taskIds = parseTaskIdsFromLog(subjectLog)
+  const bodyLog = bodyLogOrEmpty(run, mergeBase)
+  if (bodyLog === null) return { exitCode: 2 }
+  const floor = branchFloor(run, mergeBase, taskIds, bodyLog)
+  if (floor.exitCode !== null) return { exitCode: floor.exitCode }
+  return { mergeBase, taskIds, bodyLog, floor }
+}
+
+function verifySubjectTasks(run, taskIds) {
+  if (!taskIds.map((taskId) => verifyOne(run, taskId)).includes(false)) return true
+  process.stderr.write(
+    `\ncheck-tdd-evidence: one or more task IDs failed TDD evidence verification.\n` +
+      `Run: arbiter task record-red --test-path <path>\n`,
+  )
+  return false
+}
+
 function mainOptions(opts) {
   return {
     runFn: opts?.runFn ?? defaultRun,
@@ -329,31 +355,9 @@ export function main(opts) {
 
   // ARBITER_SKIP_TDD=1 → L1-only bypass; gate still fails at L2 if trailer present
   const envSkip = process.env.ARBITER_SKIP_TDD === '1'
-
-  const mergeBase = mergeBaseOrSkip(run, envSkip)
-  if (mergeBase === null) return exitFn(0)
-
-  // Get one-liner subjects for task-ID parsing
-  const subjectLog = subjectLogOrPass(run, mergeBase)
-  if (subjectLog === null) return exitFn(2)
-  if (subjectLog.length === 0) {
-    process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
-    return exitFn(0)
-  }
-
-  const taskIds = parseTaskIdsFromLog(subjectLog)
-
-  // Collect full commit bodies — needed for the skip-trailer check AND for the
-  // branch-level floor below.
-  const bodyLog = bodyLogOrEmpty(run, mergeBase)
-  if (bodyLog === null) return exitFn(2)
-
-  // #2217 — the branch floor. Subject-scoped IDs are verified per commit (below). A
-  // branch whose commits cite issues only in their BODIES used to parse to zero IDs and
-  // pass VACUOUSLY, whatever it changed. Evidence is now owed per CHANGE: a branch that
-  // changes non-documentation files must carry verified evidence among the tasks it cites.
-  const floor = branchFloor(run, mergeBase, taskIds, bodyLog)
-  if (floor.exitCode !== null) return exitFn(floor.exitCode)
+  const context = collectBranchContext(run, envSkip)
+  if ('exitCode' in context) return exitFn(context.exitCode)
+  const { mergeBase, taskIds, bodyLog, floor } = context
 
   // Check for skip trailers — forbidden at L2+
   const errors = skipTrailerErrors(bodyLog)
@@ -390,14 +394,7 @@ export function main(opts) {
     return exitFn(verifyBranchFloor(run, mergeBase, floorIds))
   }
 
-  const results = taskIds.map((taskId) => verifyOne(run, taskId))
-  if (results.includes(false)) {
-    process.stderr.write(
-      `\ncheck-tdd-evidence: one or more task IDs failed TDD evidence verification.\n` +
-        `Run: arbiter task record-red --test-path <path>\n`,
-    )
-    return exitFn(1)
-  }
+  if (!verifySubjectTasks(run, taskIds)) return exitFn(1)
 
   if (subjectFloorFails(run, mergeBase, floorIds)) {
     return exitFn(1)

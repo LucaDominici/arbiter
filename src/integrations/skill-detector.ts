@@ -53,25 +53,58 @@ interface WalkCount {
   truncated: boolean
 }
 
+interface WalkContext {
+  found: string[]
+  count: WalkCount
+  limits: ScanLimits
+}
+
+function sortedDirectoryEntries(dir: string): string[] | null {
+  try {
+    return readdirSync(dir).sort()
+  } catch {
+    return null
+  }
+}
+
+function visitSkillEntry(
+  dir: string,
+  entry: string,
+  depth: number,
+  context: WalkContext,
+): void {
+  const { found, count } = context
+  if (entry.startsWith('.') || SKIP_DIRS.has(entry)) return
+  const full = join(dir, entry)
+  let stat
+  try {
+    stat = statSync(full)
+  } catch {
+    return
+  }
+  if (stat.isDirectory()) {
+    findSkillFiles(full, depth + 1, context)
+    return
+  }
+  if (entry === 'SKILL.md') {
+    found.push(full)
+    count.n++
+  }
+}
+
 /** Walk a directory tree up to maxDepth, returning paths of all SKILL.md files found. */
 function findSkillFiles(
   dir: string,
   depth: number,
-  found: string[],
-  count: WalkCount,
-  limits: ScanLimits,
+  context: WalkContext,
 ): void {
+  const { count, limits } = context
   if (depth > limits.maxDepth || count.n >= limits.maxEntries) return
   if (!existsSync(dir)) return
-  let entries: string[]
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
-  }
+  const entries = sortedDirectoryEntries(dir)
+  if (entries === null) return
   // Sort so the traversal order is deterministic across machines — without this,
   // a residual truncation would drop a filesystem-arbitrary subset (#1634).
-  entries.sort()
   for (const entry of entries) {
     if (count.n >= limits.maxEntries) {
       count.truncated = true
@@ -79,20 +112,7 @@ function findSkillFiles(
     }
     // Prune VCS/editor metadata and dependency trees — never hosts a real skill,
     // and a vendored SKILL.md inside one would be mis-attributed (#1634).
-    if (entry.startsWith('.') || SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let st
-    try {
-      st = statSync(full)
-    } catch {
-      continue
-    }
-    if (st.isDirectory()) {
-      findSkillFiles(full, depth + 1, found, count, limits)
-    } else if (entry === 'SKILL.md') {
-      found.push(full)
-      count.n++
-    }
+    visitSkillEntry(dir, entry, depth, context)
   }
 }
 
@@ -158,7 +178,7 @@ function collectFromDir(
 ): void {
   const found: string[] = []
   const count: WalkCount = { n: 0, truncated: false }
-  findSkillFiles(dir, 0, found, count, limits)
+  findSkillFiles(dir, 0, { found, count, limits })
   if (count.truncated) {
     // Never a silent partial scan: surface the ceiling so a missing skill is
     // attributable rather than mysterious (#1634).

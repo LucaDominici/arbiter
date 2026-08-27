@@ -94,73 +94,76 @@ function readCurrent(total) {
   return out
 }
 
-function main() {
+function readCoverageTotal() {
   if (!existsSync(SUMMARY)) {
     process.stderr.write(
       `  check-coverage-ratchet: ERROR coverage summary not found: ${SUMMARY}\n` +
         `  Run the suite with --coverage first (it emits coverage/coverage-summary.json).\n`,
     )
-    return 2
+    return null
   }
-
-  let total
   try {
-    total = JSON.parse(readFileSync(SUMMARY, 'utf-8')).total
+    return JSON.parse(readFileSync(SUMMARY, 'utf-8')).total
   } catch (err) {
     process.stderr.write(`  check-coverage-ratchet: ERROR ${err?.message ?? err}\n`)
-    return 2
+    return null
   }
+}
 
-  if (isEmptyInstrumentationSignature(total)) {
-    if (IS_CI()) {
-      process.stderr.write(
-        `  check-coverage-ratchet: ERROR coverage-summary.json shows 0 instrumented files ` +
-          `in CI (all metrics zeroed, pct 'Unknown'). This should never happen in CI — ` +
-          `failing closed. See #1731 for the known local-only sandbox variant of this shape.\n`,
-      )
-      return 2
-    }
-    process.stdout.write(
-      `  check-coverage-ratchet: WARN — v8 coverage collected 0 files (known local-sandbox\n` +
-        `  defect, tracked as #1731: some agent-worktree environments' @vitest/coverage-v8\n` +
-        `  remapping silently drops all coverage data). Degrading to a local-only SKIP; CI\n` +
-        `  stays fail-closed and is the authoritative gate for this check. This is NOT a\n` +
-        `  passing coverage result — verify via the real CI run before trusting it.\n`,
+function emptyInstrumentationExitCode(total) {
+  if (!isEmptyInstrumentationSignature(total)) return null
+  if (IS_CI()) {
+    process.stderr.write(
+      `  check-coverage-ratchet: ERROR coverage-summary.json shows 0 instrumented files ` +
+        `in CI (all metrics zeroed, pct 'Unknown'). This should never happen in CI — ` +
+        `failing closed. See #1731 for the known local-only sandbox variant of this shape.\n`,
     )
-    return 0
-  }
-
-  let current
-  try {
-    current = readCurrent(total)
-  } catch (err) {
-    process.stderr.write(`  check-coverage-ratchet: ERROR ${err?.message ?? err}\n`)
     return 2
   }
+  process.stdout.write(
+    `  check-coverage-ratchet: WARN — v8 coverage collected 0 files (known local-sandbox\n` +
+      `  defect, tracked as #1731: some agent-worktree environments' @vitest/coverage-v8\n` +
+      `  remapping silently drops all coverage data). Degrading to a local-only SKIP; CI\n` +
+      `  stays fail-closed and is the authoritative gate for this check. This is NOT a\n` +
+      `  passing coverage result — verify via the real CI run before trusting it.\n`,
+  )
+  return 0
+}
 
-  // Bootstrap: no baseline yet → record the current floor and pass.
+function readCoverageCurrent(total) {
+  try {
+    return readCurrent(total)
+  } catch (err) {
+    process.stderr.write(`  check-coverage-ratchet: ERROR ${err?.message ?? err}\n`)
+    return null
+  }
+}
+
+function writeBaselineIfNeeded(current) {
   if (!existsSync(BASELINE)) {
     writeFileSync(BASELINE, JSON.stringify(current, null, 2) + '\n')
     process.stdout.write(
       `  check-coverage-ratchet: baseline bootstrapped → ${BASELINE} ` +
         `(L ${current.lines} / B ${current.branches} / F ${current.functions} / S ${current.statements})\n`,
     )
-    return 0
+    return true
   }
+  return false
+}
 
-  const baseline = JSON.parse(readFileSync(BASELINE, 'utf-8'))
+function ratchetBaselineIfRequested(current, baseline) {
+  if (!UPDATE) return false
+  const next = {}
+  for (const m of METRICS) next[m] = Math.max(current[m], Number(baseline[m] ?? 0))
+  writeFileSync(BASELINE, JSON.stringify(next, null, 2) + '\n')
+  process.stdout.write(
+    `  check-coverage-ratchet: baseline ratcheted → ` +
+      `L ${next.lines} / B ${next.branches} / F ${next.functions} / S ${next.statements}\n`,
+  )
+  return true
+}
 
-  if (UPDATE) {
-    const next = {}
-    for (const m of METRICS) next[m] = Math.max(current[m], Number(baseline[m] ?? 0))
-    writeFileSync(BASELINE, JSON.stringify(next, null, 2) + '\n')
-    process.stdout.write(
-      `  check-coverage-ratchet: baseline ratcheted → ` +
-        `L ${next.lines} / B ${next.branches} / F ${next.functions} / S ${next.statements}\n`,
-    )
-    return 0
-  }
-
+function floorRegressions(current, baseline) {
   const regressions = []
   for (const m of METRICS) {
     const base = Number(baseline[m] ?? 0)
@@ -170,7 +173,20 @@ function main() {
       )
     }
   }
+  return regressions
+}
 
+function main() {
+  const total = readCoverageTotal()
+  if (total === null) return 2
+  const emptyExitCode = emptyInstrumentationExitCode(total)
+  if (emptyExitCode !== null) return emptyExitCode
+  const current = readCoverageCurrent(total)
+  if (current === null) return 2
+  if (writeBaselineIfNeeded(current)) return 0
+  const baseline = JSON.parse(readFileSync(BASELINE, 'utf-8'))
+  if (ratchetBaselineIfRequested(current, baseline)) return 0
+  const regressions = floorRegressions(current, baseline)
   if (regressions.length > 0) {
     process.stderr.write(
       `  check-coverage-ratchet: FAIL — coverage regressed below the ratchet floor:\n` +

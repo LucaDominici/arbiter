@@ -77,6 +77,15 @@ phase control; the `/ship` loop auto-advances phases when their gates are green.
 `arbiter task record-red --test-path <path>` records only a genuinely failing test run. A runner
 that exits 0 is rejected, and Node's `node:test`/TAP failure summary is recognized via `# fail N`.
 Commit the RED test before recording it so the evidence can be correlated to the test commit.
+On a declared train, `--task-id #NNN` may select only the active task or an exact member of the
+state document's `chainIds` array; malformed `chainIds` data and undeclared secondary IDs are
+rejected before the test runs or any evidence is written.
+
+At L2, `check-tdd-evidence.mjs` treats a branch as docs-only only when every changed path is on its
+documentation allowlist: a root documentation file (except `AGENTS.md`), or a documentation file
+or visual asset under `docs/` or `wiki/`. Any other path is a non-documentation change and must
+satisfy the branch TDD-evidence floor; this is intentionally not inferred from whether a path
+contains `src/`.
 
 The positional `<id>` accepts both `1280` and `#1280`: it is normalized to the canonical `#NNN`
 form once at parse (#1280), so the persisted task id always matches the TDD-evidence schema

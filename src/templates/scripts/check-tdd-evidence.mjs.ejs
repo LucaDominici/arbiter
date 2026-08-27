@@ -242,70 +242,78 @@ function floorSatisfied(mergeBase, candidates) {
   return false
 }
 
-// ─── Entry point ──────────────────────────────────────────────────────────────
-function run() {
-let mergeBase
-try {
-  mergeBase = git(['merge-base', 'origin/main', 'HEAD'])
-} catch {
-  process.stdout.write('check-tdd-evidence: no origin/main (local-only branch), skipping\n')
-  process.exit(0)
-}
-
-let subjectLog
-try {
-  subjectLog = git(['log', `${mergeBase}..HEAD`, '--format=%s'])
-} catch {
-  throw new Error('cannot read branch commit subjects')
-}
-if (subjectLog.length === 0) {
-  process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
-  process.exit(0)
-}
-
-const taskIds = parseTaskIds(subjectLog)
-
-let bodyLog = ''
-try {
-  bodyLog = git(['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'])
-} catch {
-  throw new Error('cannot read branch commit bodies')
-}
-
-// #2217 — the branch floor. Subject-scoped ids are verified per commit (below). A branch
-// whose commits cite issues only in their BODIES (`Refs #NNN`, the convention for a
-// commit with no TDD cycle of its own) parsed to zero ids and passed VACUOUSLY, whatever
-// it changed. Evidence is owed per CHANGE: a branch that touches source must carry at
-// least ONE verified evidence among the tasks it cites.
-let changed
-try {
-  changed = git(['diff', '--name-only', `${mergeBase}..HEAD`])
-} catch {
-  throw new Error('cannot determine changed files')
-}
-if (changed.trim().length === 0) throw new Error('changed-file probe returned no usable paths')
-// Computed on BOTH paths: the subject path owes the produced-here floor too (#2307),
-// and it is gated on this exact predicate.
-const docsOnly = isDocsOnlyChange(changed)
-
-// Candidates are subject ids UNION body ids: a merge-train branch whose subject cites a
-// merged id but whose body cites a task with fresh on-branch evidence has run a real
-// cycle and must pass.
-const floorIds = [...new Set([...taskIds, ...parseBodyTaskIds(bodyLog)])]
-
-if (taskIds.length === 0) {
-  if (docsOnly) {
-    process.stdout.write('check-tdd-evidence: no task-ID commits and docs-only change, vacuous pass\n')
+function collectBranchContext() {
+  let mergeBase
+  try {
+    mergeBase = git(['merge-base', 'origin/main', 'HEAD'])
+  } catch {
+    process.stdout.write('check-tdd-evidence: no origin/main (local-only branch), skipping\n')
     process.exit(0)
   }
-  if (floorIds.length === 0) {
-    process.stderr.write(
-      '\ncheck-tdd-evidence: FAIL — this branch changes non-documentation files but cites no task id in any ' +
-        'commit subject or body, so no TDD evidence can back it (#2217).\n' + FLOOR_REMEDY,
-    )
-    process.exit(1)
+
+  let subjectLog
+  try {
+    subjectLog = git(['log', `${mergeBase}..HEAD`, '--format=%s'])
+  } catch {
+    throw new Error('cannot read branch commit subjects')
   }
+  if (subjectLog.length === 0) {
+    process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
+    process.exit(0)
+  }
+
+  const taskIds = parseTaskIds(subjectLog)
+  let bodyLog = ''
+  try {
+    bodyLog = git(['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'])
+  } catch {
+    throw new Error('cannot read branch commit bodies')
+  }
+
+  let changed
+  try {
+    changed = git(['diff', '--name-only', `${mergeBase}..HEAD`])
+  } catch {
+    throw new Error('cannot determine changed files')
+  }
+  if (changed.trim().length === 0) throw new Error('changed-file probe returned no usable paths')
+  const docsOnly = isDocsOnlyChange(changed)
+  const floorIds = [...new Set([...taskIds, ...parseBodyTaskIds(bodyLog)])]
+
+  if (taskIds.length === 0) {
+    if (docsOnly) {
+      process.stdout.write('check-tdd-evidence: no task-ID commits and docs-only change, vacuous pass\n')
+      process.exit(0)
+    }
+    if (floorIds.length === 0) {
+      process.stderr.write(
+        '\ncheck-tdd-evidence: FAIL — this branch changes non-documentation files but cites no task id in any ' +
+          'commit subject or body, so no TDD evidence can back it (#2217).\n' + FLOOR_REMEDY,
+      )
+      process.exit(1)
+    }
+  }
+  return { mergeBase, taskIds, bodyLog, docsOnly, floorIds }
 }
+
+function verifySubjectTasks(taskIds) {
+  let anyFail = false
+  for (const taskId of taskIds) {
+    const r = verifyTask(taskId)
+    process.stdout.write(`  ${taskId}: ${r.ok ? 'PASS' : `FAIL — ${r.reason}`}\n`)
+    if (!r.ok) anyFail = true
+  }
+  if (!anyFail) return true
+  process.stderr.write(
+    '\ncheck-tdd-evidence: one or more task(s) failed TDD evidence re-verification. ' +
+      'Record red→green evidence with `arbiter task record-red --test-path <path>`.\n',
+  )
+  return false
+}
+
+// ─── Entry point ──────────────────────────────────────────────────────────────
+function run() {
+  const { mergeBase, taskIds, bodyLog, docsOnly, floorIds } = collectBranchContext()
 
 // Reject the skip trailer — forbidden at L2+.
 for (const block of bodyLog.split('\x00').filter(Boolean)) {
@@ -344,24 +352,7 @@ if (taskIds.length === 0) {
   process.exit(1)
 }
 
-let anyFail = false
-for (const taskId of taskIds) {
-  const r = verifyTask(taskId)
-  if (r.ok) {
-    process.stdout.write(`  ${taskId}: PASS\n`)
-  } else {
-    process.stdout.write(`  ${taskId}: FAIL — ${r.reason}\n`)
-    anyFail = true
-  }
-}
-
-if (anyFail) {
-  process.stderr.write(
-    '\ncheck-tdd-evidence: one or more task(s) failed TDD evidence re-verification. ' +
-      'Record red→green evidence with `arbiter task record-red --test-path <path>`.\n',
-  )
-  process.exit(1)
-}
+if (!verifySubjectTasks(taskIds)) process.exit(1)
 // #2307 — the SAME produced-here floor, on the subject path. The per-id loop above
 // proves each cited task HAS evidence; it cannot prove this branch PRODUCED any of it,
 // because check 4 asserts only ancestry. So a branch touching source whose subject cites
