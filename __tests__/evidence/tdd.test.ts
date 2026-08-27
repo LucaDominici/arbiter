@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, chmodSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
 import {
@@ -62,7 +62,7 @@ describe('TddEvidenceV1 schema', () => {
 })
 
 describe('FAILURE_SIGNATURES registry', () => {
-  it('contains entries for vitest, jest, pytest, gradle, cargo, go', () => {
+  it('contains entries for vitest, jest, pytest, gradle, cargo, go and playwright (AC-2386.2)', () => {
     const frameworks = FAILURE_SIGNATURES.map((e) => e.framework)
     expect(frameworks).toContain('vitest')
     expect(frameworks).toContain('jest')
@@ -70,12 +70,33 @@ describe('FAILURE_SIGNATURES registry', () => {
     expect(frameworks).toContain('gradle')
     expect(frameworks).toContain('cargo')
     expect(frameworks).toContain('go')
+    expect(frameworks).toContain('playwright')
   })
 
   it('each entry has a non-null regex', () => {
     for (const entry of FAILURE_SIGNATURES) {
       expect(entry.pattern).toBeInstanceOf(RegExp)
     }
+  })
+})
+
+describe('extractFailureSignature() — Playwright line/list reporter', () => {
+  const failedRun = ['Running 3 tests using 1 worker', '', '  1 failed'].join('\n')
+
+  it('recognises a non-zero failed summary as red evidence (AC-2386.1)', () => {
+    expect(extractFailureSignature(failedRun)?.framework).toBe('playwright')
+  })
+
+  it('does not accept a zero failed summary as red evidence (AC-2386.3)', () => {
+    expect(extractFailureSignature('Running 3 tests using 1 worker\n  0 failed')).toBeNull()
+  })
+
+  it('keeps the same signature in the emitted gate template (AC-2386.2)', () => {
+    const template = readFileSync(
+      resolve('src/templates/scripts/check-tdd-evidence.mjs.ejs'),
+      'utf-8',
+    )
+    expect(template).toContain('/^\\s*[1-9]\\d* failed\\b/m')
   })
 })
 
