@@ -160,14 +160,18 @@ describe('collaborationMode — ceremony divergence (#1119)', () => {
     expect(shipMd).not.toContain('gh pr create')
   })
 
-  it('trunk-solo ship.md has 1 review agent minimum (minimal ceremony, #1216)', async () => {
+  it('trunk-solo ship.md has 1 review agent minimum, and it is independent (#1216)', async () => {
     // #1216: orchestration content (review agent count) is now in ship.md.
+    // The count stays 1 in trunk-solo (minimal ceremony); what changed is that the
+    // reviewer is a fresh subagent rather than the implementer auditing itself — a
+    // reviewer sharing the implementer's context inherits its blind spots.
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true, solo: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
-    expect(shipMd).toContain('Solo review — self-audit pass (1 agent)')
+    expect(shipMd).toContain('Solo review — independent reviewer (1 agent)')
+    expect(shipMd).not.toContain('self-audit pass')
   })
 
   it('peer-review ship.md does NOT show "direct merge" block (#1216)', async () => {

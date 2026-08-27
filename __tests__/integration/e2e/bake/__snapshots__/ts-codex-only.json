@@ -153,7 +153,7 @@
     ".agents/rules/25-todo-folder-policy.md": "4db8c0a73cc7397b65e1755dc77d2b85172495e66d434513ed5f3a01f3572a1d",
     ".agents/rules/50-batch-execution.md": "0485c724b751abb428bbaf8f4b1e8c67f18808b1156dc7cdd1b78c90ba98d6f5",
     ".agents/rules/60-incidental-capture.md": "5c6937eb1a6ca9f14cebe11641198a570b220c434176c1aec8aacbcccf1f9032",
-    ".agents/rules/90-exec-protocol.md": "c0ee8c10c36bfe8087f779c41e0b8d4f398c60bc8a58ef19e708beac2a202adc",
+    ".agents/rules/90-exec-protocol.md": "09d5c62741e1c193756a13b078ceb6e0eb40d3db6ddc14dc5ce28241a3c77819",
     ".claude/hooks/check-no-orphan-todo.mjs": "df13499ab7bb9c8a50d4616d4bb52a8e558bb9b1ef7f71bfbda5e0dd24cbd122",
     ".claude/hooks/check-no-placeholders.mjs": "9577c2526d708b6171225b00dfc43530ecd5b1ea35f519e5163522dc230b9089",
     ".claude/hooks/check-no-skipped-tests.mjs": "25f10180080c9536af50fba56f29b50a326fe5223410a7d8ddaa7cb60dcc8e91",
