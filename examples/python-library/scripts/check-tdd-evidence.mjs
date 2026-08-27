@@ -8,10 +8,10 @@
 // target needs no local arbiter install. Scoped to commits since
 // `git merge-base origin/main HEAD` (branch-relative). Rejects the ARBITER-SKIP-TDD: 1
 // commit trailer (forbidden at L2+). Self-SKIPs (exit 0) when origin/main is
-// unavailable (local-only branch) and for a branch that neither carries a task-ID commit
-// nor changes src/ (vacuous pass).
+// unavailable (local-only branch) and for a docs-only branch without a task-ID commit
+// (vacuous pass).
 //
-// A branch with no task id in any commit SUBJECT that changes src/ must still carry ONE
+// A branch with no task id in any commit SUBJECT that changes non-documentation files must carry ONE
 // verified evidence among the tasks its commit BODIES cite (`Refs #NNN`) — evidence is
 // owed per CHANGE, not per commit (#2217). Independently, ANY branch changing source
 // must carry one verified evidence PRODUCED on the branch, over subject ∪ body ids
@@ -84,20 +84,18 @@ function parseBodyTaskIds(bodyLog) {
 }
 
 /**
- * True when the branch changes governed source — the unit the TDD invariant is about.
- *
- * A `src/` SEGMENT, not a repo-root prefix (#2313). The prefix form covered the
- * single-module TypeScript, Python (src-layout) and Rust trees, but a multi-module
- * Java/Gradle consumer lays its source out as `backend/src/main/java/...` and a Vue
- * frontend as `frontend/src/...` — neither starts with `src/`, so the whole TDD floor
- * (#2217 and the produced-here guard of #2307) was gated OFF on exactly the consumers
- * it was shipped for, silently and for reasons unrelated to evidence. A Go project laid
- * out as `cmd/` + `internal/` is still NOT covered: such a branch keeps today's vacuous
- * pass rather than a wrong failure. Widening further is the upgrade path if a target
- * needs it.
+ * True only when every changed path is a documentation artifact. This is deliberately
+ * an allowlist: executable files in flat, cmd/, internal/, pkg/, nested-module, or gate-
+ * script layouts must never become vacuous merely because their path lacks `src/`.
  */
-function touchesGovernedSource(changedPaths) {
-  return changedPaths.split('\n').some((p) => /(?:^|\/)src\//.test(p.trim()))
+function isDocsOnlyChange(changedPaths) {
+  const paths = changedPaths.split('\n').map((p) => p.trim()).filter(Boolean)
+  const doc = /\.(?:md|mdx|rst|adoc|txt)$/i
+  const docAsset = /\.(?:png|jpe?g|gif|webp|svg)$/i
+  return paths.length > 0 && paths.every((p) => {
+    if (!p.includes('/')) return p !== 'AGENTS.md' && doc.test(p)
+    return /^(?:docs|wiki)\//.test(p) && (doc.test(p) || docAsset.test(p))
+  })
 }
 
 /** The two legitimate ways to satisfy the branch floor (#2217). */
@@ -244,66 +242,78 @@ function floorSatisfied(mergeBase, candidates) {
   return false
 }
 
-// ─── Entry point ──────────────────────────────────────────────────────────────
-function run() {
-let mergeBase
-try {
-  mergeBase = git(['merge-base', 'origin/main', 'HEAD'])
-} catch {
-  process.stdout.write('check-tdd-evidence: no origin/main (local-only branch), skipping\n')
-  process.exit(0)
-}
-
-let subjectLog
-try {
-  subjectLog = git(['log', `${mergeBase}..HEAD`, '--format=%s'])
-} catch {
-  process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
-  process.exit(0)
-}
-
-const taskIds = parseTaskIds(subjectLog)
-
-let bodyLog = ''
-try {
-  bodyLog = git(['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'])
-} catch {
-  bodyLog = ''
-}
-
-// #2217 — the branch floor. Subject-scoped ids are verified per commit (below). A branch
-// whose commits cite issues only in their BODIES (`Refs #NNN`, the convention for a
-// commit with no TDD cycle of its own) parsed to zero ids and passed VACUOUSLY, whatever
-// it changed. Evidence is owed per CHANGE: a branch that touches source must carry at
-// least ONE verified evidence among the tasks it cites.
-let changed = ''
-try {
-  changed = git(['diff', '--name-only', `${mergeBase}..HEAD`])
-} catch {
-  changed = ''
-}
-// Computed on BOTH paths: the subject path owes the produced-here floor too (#2307),
-// and it is gated on this exact predicate.
-const touchesSource = touchesGovernedSource(changed)
-
-// Candidates are subject ids UNION body ids: a merge-train branch whose subject cites a
-// merged id but whose body cites a task with fresh on-branch evidence has run a real
-// cycle and must pass.
-const floorIds = [...new Set([...taskIds, ...parseBodyTaskIds(bodyLog)])]
-
-if (taskIds.length === 0) {
-  if (!touchesSource) {
-    process.stdout.write('check-tdd-evidence: no task-ID commits and no source change, vacuous pass\n')
+function collectBranchContext() {
+  let mergeBase
+  try {
+    mergeBase = git(['merge-base', 'origin/main', 'HEAD'])
+  } catch {
+    process.stdout.write('check-tdd-evidence: no origin/main (local-only branch), skipping\n')
     process.exit(0)
   }
-  if (floorIds.length === 0) {
-    process.stderr.write(
-      '\ncheck-tdd-evidence: FAIL — this branch changes src/ but cites no task id in any ' +
-        'commit subject or body, so no TDD evidence can back it (#2217).\n' + FLOOR_REMEDY,
-    )
-    process.exit(1)
+
+  let subjectLog
+  try {
+    subjectLog = git(['log', `${mergeBase}..HEAD`, '--format=%s'])
+  } catch {
+    throw new Error('cannot read branch commit subjects')
   }
+  if (subjectLog.length === 0) {
+    process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
+    process.exit(0)
+  }
+
+  const taskIds = parseTaskIds(subjectLog)
+  let bodyLog = ''
+  try {
+    bodyLog = git(['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'])
+  } catch {
+    throw new Error('cannot read branch commit bodies')
+  }
+
+  let changed
+  try {
+    changed = git(['diff', '--name-only', `${mergeBase}..HEAD`])
+  } catch {
+    throw new Error('cannot determine changed files')
+  }
+  if (changed.trim().length === 0) throw new Error('changed-file probe returned no usable paths')
+  const docsOnly = isDocsOnlyChange(changed)
+  const floorIds = [...new Set([...taskIds, ...parseBodyTaskIds(bodyLog)])]
+
+  if (taskIds.length === 0) {
+    if (docsOnly) {
+      process.stdout.write('check-tdd-evidence: no task-ID commits and docs-only change, vacuous pass\n')
+      process.exit(0)
+    }
+    if (floorIds.length === 0) {
+      process.stderr.write(
+        '\ncheck-tdd-evidence: FAIL — this branch changes non-documentation files but cites no task id in any ' +
+          'commit subject or body, so no TDD evidence can back it (#2217).\n' + FLOOR_REMEDY,
+      )
+      process.exit(1)
+    }
+  }
+  return { mergeBase, taskIds, bodyLog, docsOnly, floorIds }
 }
+
+function verifySubjectTasks(taskIds) {
+  let anyFail = false
+  for (const taskId of taskIds) {
+    const r = verifyTask(taskId)
+    process.stdout.write(`  ${taskId}: ${r.ok ? 'PASS' : `FAIL — ${r.reason}`}\n`)
+    if (!r.ok) anyFail = true
+  }
+  if (!anyFail) return true
+  process.stderr.write(
+    '\ncheck-tdd-evidence: one or more task(s) failed TDD evidence re-verification. ' +
+      'Record red→green evidence with `arbiter task record-red --test-path <path>`.\n',
+  )
+  return false
+}
+
+// ─── Entry point ──────────────────────────────────────────────────────────────
+function run() {
+  const { mergeBase, taskIds, bodyLog, docsOnly, floorIds } = collectBranchContext()
 
 // Reject the skip trailer — forbidden at L2+.
 for (const block of bodyLog.split('\x00').filter(Boolean)) {
@@ -319,6 +329,14 @@ for (const block of bodyLog.split('\x00').filter(Boolean)) {
   process.exit(1)
 }
 
+// #2371: a task id in a docs-only commit does not owe TDD evidence. The source-change
+// classifier above is authoritative; subject ids only select evidence for a
+// non-documentation change.
+if (docsOnly) {
+  process.stdout.write('check-tdd-evidence: docs-only change, vacuous pass\n')
+  process.exit(0)
+}
+
 // Floor path: the branch owes ONE verified evidence, not one per cited issue — a docs
 // or chore commit that merely references an issue owes nothing.
 if (taskIds.length === 0) {
@@ -327,40 +345,22 @@ if (taskIds.length === 0) {
     process.exit(0)
   }
   process.stderr.write(
-    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${floorIds.join(', ')}, but ` +
+    `\ncheck-tdd-evidence: FAIL — this branch changes non-documentation files and cites ${floorIds.join(', ')}, but ` +
       'none of them has verified TDD evidence produced on this branch (#2217, #2307).\n' +
       FLOOR_REMEDY,
   )
   process.exit(1)
 }
 
-let anyFail = false
-for (const taskId of taskIds) {
-  const r = verifyTask(taskId)
-  if (r.ok) {
-    process.stdout.write(`  ${taskId}: PASS\n`)
-  } else {
-    process.stdout.write(`  ${taskId}: FAIL — ${r.reason}\n`)
-    anyFail = true
-  }
-}
-
-if (anyFail) {
-  process.stderr.write(
-    '\ncheck-tdd-evidence: one or more task(s) failed TDD evidence re-verification. ' +
-      'Record red→green evidence with `arbiter task record-red --test-path <path>`.\n',
-  )
-  process.exit(1)
-}
+if (!verifySubjectTasks(taskIds)) process.exit(1)
 // #2307 — the SAME produced-here floor, on the subject path. The per-id loop above
 // proves each cited task HAS evidence; it cannot prove this branch PRODUCED any of it,
 // because check 4 asserts only ancestry. So a branch touching source whose subject cites
-// an already-merged id passed the floor with no red→green cycle at all. Gated on
-// touchesSource exactly as #2217 is, so a docs-only branch that happens to cite a task
-// id in its subject stays green.
-if (touchesSource && !floorSatisfied(mergeBase, floorIds)) {
+// an already-merged id passed the floor with no red→green cycle at all. The docs-only
+// return above keeps a documentation branch that happens to cite a task id green.
+if (!floorSatisfied(mergeBase, floorIds)) {
   process.stderr.write(
-    `\ncheck-tdd-evidence: FAIL — this branch changes src/ and cites ${floorIds.join(', ')}, but ` +
+    `\ncheck-tdd-evidence: FAIL — this branch changes non-documentation files and cites ${floorIds.join(', ')}, but ` +
       'none of them has verified TDD evidence produced on this branch (#2307).\n' + FLOOR_REMEDY,
   )
   process.exit(1)

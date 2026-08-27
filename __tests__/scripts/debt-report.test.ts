@@ -699,7 +699,7 @@ describe('debt-report.mjs --gate (fail-closed on collection errors)', () => {
 // baseline on identical code (platform/timing variance, not a real
 // regression) — observed on wave-3: coverageLine -0.16pp, coverageBranch
 // -0.22pp both false-flagged "regressed" against a locally-captured baseline.
-// coverageLine/coverageBranch tolerate up to 0.5pp of drop (matching
+// coverageLine/coverageBranch tolerate up to 0.4pp of drop (matching
 // check-coverage-ratchet.mjs's own TOLERANCE for the identical v8-jitter
 // reason) before it counts as a regression.
 describe('debt-report.mjs coverage noise tolerance (#2253)', () => {

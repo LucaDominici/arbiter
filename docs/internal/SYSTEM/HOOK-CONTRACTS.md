@@ -21,6 +21,100 @@ related: []
 
 ---
 
+## Hook check surface matrix (#2326)
+
+There are three distinct hook surfaces, and a check that covers one says **nothing** about the
+others. #2324 was a defect present only in arbiter's own materialized copy: every check we had
+inspected either the template pair or a generated project, so it survived 18 days. This table
+exists so the next gap is visible by reading rather than by breaking.
+
+| Check                                                            | Template pair (`src/templates/claude/hooks/`)                      | Generated project                                                               | Arbiter's own `.claude/hooks/`                                                                                                                           |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/check-hook-contracts.mjs`                               | —                                                                  | —                                                                               | **loads + documented** (#2324 floor)                                                                                                                     |
+| `scripts/check-hardness-inventory.mjs` (default)                 | **declared + observed** (26 hooks, 7 HARD fixtures + 2 promotions) | —                                                                               | —                                                                                                                                                        |
+| `scripts/check-hardness-inventory.mjs --hooks-dir .claude/hooks` | —                                                                  | —                                                                               | **declared + observed** (30 hooks, 12 HARD fixtures + 2 promotions) — #2326                                                                              |
+| `scripts/check-hook-routing.mjs`                                 | —                                                                  | **full route** (emitted → dispatcher → settings)                                | ◐ **partial** — on self it falls back to `.arbiter/hooks-manifest.json`, whose entries are template-named, so only the 8 name-matching hooks are checked |
+| `scripts/check-self-dogfood.mjs`                                 | **byte-diff vs self copy** for raw and generated language hooks    | —                                                                               | same applicable hooks                                                                                                                                    |
+| `scripts/probe-hooks.mjs`                                        | —                                                                  | **behavioural**, 4 states × BARE/PRIMED/CLOSE/VERIFICATION (#2135 consumer bar) | — _by decision, see below_                                                                                                                               |
+| `__tests__/hooks/empirical/*`                                    | **behavioural**                                                    | —                                                                               | — (fixtures are built from the template pair, so they are self-consistent by construction)                                                               |
+
+**Known uncovered cells, stated rather than implied:**
+
+- `scripts/check-hook-routing.mjs`'s partial self coverage (above).
+- 16 of arbiter's 30 self hooks are **declared, not observed** — see the ceiling below.
+
+---
+
+## Self-surface hardness contract (#2326)
+
+`.arbiter/self-hooks-manifest.json` is the hardness SSOT for arbiter's **own** materialized hooks,
+the sibling of `.arbiter/hooks-manifest.json` (which governs the template surface). Both are
+enforced by the same checker under INV-36; the self run is gate-wired as
+`hardness inventory (self hooks)` and takes a **measured ~200 ms** (five runs: 196 / 198 / 202 / 207 / 207 ms).
+
+**Why the self run cannot reuse the template model.** Two structural reasons, both measured:
+
+1. **Repo-root scoping.** Arbiter self-hardens its hooks with
+   `if (!file.startsWith(process.cwd())) process.exit(0)`, which the shipped templates do not carry.
+   The template harness writes fixtures into `os.tmpdir()`, so every such hook exits 0 — the gate
+   would report a healthy blocker while the hook is dead.
+2. **Own-lib provenance.** `.claude/hooks/lib.mjs` imports
+   `../../scripts/lib/suppressions-shared.mjs`, unresolvable from a staged tmpdir; and a hook staged
+   beside a _template-rendered_ lib is not the pair that broke in #2324.
+
+So `selfSurface: true` makes the checker spawn each hook **in place**, with `cwd` at the repo root
+and the fixture written inside the repo, under a **pid-scoped** `.arb-hardness-tmp-<pid>/` (gitignored,
+removed in a `finally`; pid-scoped so concurrent gates cannot delete each other's fixtures).
+
+Writing into the live repo is a write-then-delete primitive aimed at the working tree, so it is
+**guarded, not merely conventional**:
+
+- `fixture.path` must resolve inside the repo AND inside the exact pid-scoped
+  `.arb-hardness-tmp-<pid>` directory. Anything else — `AGENTS.md`, a `.arb-hardness-` basename
+  under a tracked parent, or `../escaped.ts` — **fails the check
+  without writing**. A fixture helper truncated `docs/internal/SYSTEM/DECISIONS.md` during
+  development of this very check; the guard exists so that cannot recur.
+- `path-only` fixtures name an existing protected file (`LICENSE`), write nothing, and their target
+  is **hashed before and after** the spawn — a modified target fails the check.
+- `expectStderr` pins a verdict to the intended code path. `enforce-read-only` exits 2 fail-closed
+  on an _unresolvable_ path (INV-96), so an exit-code-only probe would report PASS if the self lib's
+  `resolveToolInputPath` regressed — which is exactly the #2324 shape.
+- An `ADVISORY` entry whose source contains `process.exit(2)` fails: otherwise `ADVISORY` is an
+  unasserted waiver that quietly removes a live blocker from the gate. The escape hatch is an
+  explicit `promotedBy: "ARBITER_*_HARD"` backed by an isolated behavioral fixture; the checker
+  observes exit 0 by default and exit 2 with the named switch enabled.
+
+**The ceiling, stated as a number.** **12 of 30** hooks are `spawnable: true` and therefore
+**observed** to block. Two further ADVISORY hooks are observed in both their default and promoted
+grading modes. The remaining 16 are **declared only** — they need live task state, git history, or
+another fixture the harness does not yet supply, and each carries that reason in its manifest
+`rationale`. #2342 moved `pre-edit-ssot-guard` and `enforce-gate-before-pr` into disposable isolated
+roots, so the probes cannot consume a developer's one-shot bypass or see the live gate-pass marker.
+A green self run means: every declared-HARD hook that _can_ be driven by a fixture does block, and
+every hook on disk has a declared hardness. It does **not** mean every hook blocks. Extending the
+harness to more state-bearing fixtures is a tracked follow-up.
+
+**Why `scripts/probe-hooks.mjs` is not the self instrument.** It is the strongest _behavioural_ hook check
+in the repo, but it is right for a generated project, where the tree is disposable by construction.
+Against arbiter, measured: its `establishState()` does `git add -A` → `git commit` →
+`git checkout -B main` and `rmSync('.claude/.task')`, so self-probing requires a synthetic copy —
+and a synthetic copy manufactures false greens. `wiki-on-commit` early-exits because `HEAD~1` does
+not resolve in a fresh `git init`; `check-circular-deps` and `check-no-unused-exports` are debounced
+(20 s window, whole probe ~12 s) so three of four states are no-ops that classify as passes;
+`node_modules` must be whole-dir symlinked, re-creating the shared-cache defect #1873 removed;
+`.claude/settings.local.json` is an absolute symlink into the main checkout, so the copy is not
+sealed; and the copy carries `.env` into `/tmp`. Cost: 4.1 s copy + a 16.0 s median probe, versus
+~1.6 s in place. It also carries a private HARD/ADVISORY table that already contradicts ADR-032
+(it declares `post-commit-check` HARD where the manifest declares it ADVISORY). It therefore stays
+consumer-scoped, and the self surface is covered by the mechanism above instead.
+
+**Known inconsistency, deliberately not resolved here.** `post-commit-check` is ADVISORY in
+`.arbiter/hooks-manifest.json` (ADR-032, with a rationale), its template exits 2, and arbiter's
+materialized copy exits 1. Those three cannot all be right. Adjudicating needs ADR-032, not a
+unilateral flip, so it is filed rather than changed.
+
+---
+
 ## Loadability contract (#2324)
 
 Every hook in `.claude/hooks/` MUST load. This is enforced, not assumed.
@@ -174,12 +268,14 @@ Shared helpers imported by hooks. Not registered as hooks themselves.
 
 Present in `.claude/hooks/` but not wired in `settings.json`. Document reason for non-registration.
 
-| Hook                         | Reason Not Registered                                                                                                                                    |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `check-no-mockmvc.mjs`       | PostToolUse Java guard (INV-29): blocks MockMvc imports; only applies to Java files. Not registered in arbiter self-config (no Java sources here).       |
-| `check-no-raw-types.mjs`     | PostToolUse Java guard: blocks unparameterized generic types in Java files. Not registered in arbiter self-config (no Java sources here).                |
-| `check-no-skipped-tests.mjs` | Available for opt-in by generated projects; not self-applied to arbiter (arbiter uses `.skip` in `vitest.config.ts` exclusions, not inline skip markers) |
-| `hooks.mjs`                  | Arbiter-generated hook dispatcher for target projects. Present here as dogfood; not registered as Claude Code hook in arbiter's own settings.json.       |
+> Corrected #2326: `check-no-skipped-tests.mjs` was listed here but IS wired in
+> `.claude/settings.json`. Row removed.
+
+| Hook                     | Reason Not Registered                                                                                                                              |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check-no-mockmvc.mjs`   | PostToolUse Java guard (INV-29): blocks MockMvc imports; only applies to Java files. Not registered in arbiter self-config (no Java sources here). |
+| `check-no-raw-types.mjs` | PostToolUse Java guard: blocks unparameterized generic types in Java files. Not registered in arbiter self-config (no Java sources here).          |
+| `hooks.mjs`              | Arbiter-generated hook dispatcher for target projects. Present here as dogfood; not registered as Claude Code hook in arbiter's own settings.json. |
 
 ---
 
@@ -196,8 +292,11 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 
 Eight hooks are emitted **verbatim** to target projects by `src/generators/claude.ts`
 (`readTemplate` → `writeFile`, no EJS render): `stop-dangerous`, `enforce-read-only`,
-`pre-edit-ssot-guard`, `check-no-orphan-todo`, `check-no-placeholders`, `enforce-gate-before-pr`,
-`check-no-unused-exports`, `check-no-skipped-tests`. `scripts/check-self-dogfood.mjs`
+`pre-edit-ssot-guard`, `enforce-gate-before-pr`, `check-no-unused-exports`,
+`check-no-skipped-tests`, `post-brainstorm-stop`, `pre-spawn-worktree-guard`.
+(Corrected #2326: this list previously named `check-no-orphan-todo` and `check-no-placeholders`,
+which are **not** in `REQUIRED_RAW_HOOKS` — see `scripts/check-self-dogfood.mjs:67-76`. A surface
+doc that misstates its own corpus is the failure this file exists to prevent.) `scripts/check-self-dogfood.mjs`
 (`checkRawHooks`, exported as `REQUIRED_RAW_HOOKS`) diffs each shipped template against arbiter's
 materialized `.claude/hooks/` copy and **fails closed** on undocumented drift — closing the INV-45
 gap where the corpus walk collected only `.ejs`, so a shipped hook could silently weaken.

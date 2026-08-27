@@ -32,5 +32,9 @@ if (offending.length > 0) {
   process.stderr.write(`[arbiter] INV-04: No 'any' type allowed in ${file}:\n`)
   offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`))
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-04\` for details.\n`)
-  process.exit(1)
+  // Exit 2 is the ONLY blocking code under the Claude Code hook protocol: it feeds the
+  // violation back to the agent. Exit 1 is non-blocking — it prints and the agent never
+  // sees it, so the guard was decoration. Same regression as #1631 (enforce-read-only);
+  // caught here by the self-surface hardness probe (#2326).
+  process.exit(2)
 }

@@ -804,4 +804,63 @@ describe('runTaskRecordRed() branch-preference and evidence-ownership (#2064)', 
     expect(result.ok).toBe(true)
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'))).toBe(true)
   })
+
+  it('records a train secondary issue under its own explicit task id, not the branch primary (#2336)', () => {
+    const dir = tmpRepo()
+    mkdirSync(join(dir, '.claude', '.task'), { recursive: true })
+    writeFileSync(
+      join(dir, '.claude', '.task', 'status.json'),
+      JSON.stringify({ taskId: '#503', chainIds: ['#504'] }),
+      'utf-8',
+    )
+    const testPath = '__tests__/secondary.test.ts'
+
+    mockBranch('task/#503-primary')
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks(testPath)
+    mockedRunCli.mockReturnValueOnce({
+      stdout: `FAIL ${testPath}\n✗ 1 failed`,
+      stderr: '',
+      exitCode: 1,
+      durationMs: 100,
+    })
+
+    const result = runTaskRecordRed({ testPath, dir, taskId: '#504' })
+
+    expect(result.ok).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#504.json'))).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#503.json'))).toBe(false)
+  })
+
+  it.each(['#5040', ['#504', 504]])(
+    'rejects malformed chainIds before authorizing secondary evidence: %j',
+    (chainIds) => {
+      const dir = tmpRepo()
+      mkdirSync(join(dir, '.claude', '.task'), { recursive: true })
+      writeFileSync(
+        join(dir, '.claude', '.task', 'status.json'),
+        JSON.stringify({ taskId: '#503', chainIds }),
+        'utf-8',
+      )
+      const testPath = '__tests__/secondary.test.ts'
+
+      mockBranch('task/#503-primary')
+      mockedRunCli.mockReturnValueOnce({
+        stdout: gitSha(),
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+      })
+      mockCleanGitChecks(testPath)
+      mockedRunCli.mockReturnValueOnce({
+        stdout: `FAIL ${testPath}\n✗ 1 failed`,
+        stderr: '',
+        exitCode: 1,
+        durationMs: 100,
+      })
+
+      expect(() => runTaskRecordRed({ testPath, dir, taskId: '#504' })).toThrow(/chainIds/)
+      expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#504.json'))).toBe(false)
+    },
+  )
 })

@@ -24,7 +24,6 @@ const TEST_PROFILE: ShipProfile = {
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
   autonomy: 'L0',
-  maxParallelWorktrees: 1,
   defaultGateLevel: 'L1',
   companions: [],
 }

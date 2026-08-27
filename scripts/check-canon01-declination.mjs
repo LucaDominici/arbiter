@@ -6,8 +6,8 @@
 // CATALOG: scripts/check-all.mjs) and maps each to exactly one of: a template emission
 // CATALOG: under src/templates/**, a motivated .dogfood-divergences.json entry, or a
 // CATALOG: reasoned entry in scripts/canon01-self-only.json. Unmapped = FAIL, named.
-// CATALOG: Plus a monotone ratchet: neither the divergence ledger nor the self-only
-// CATALOG: allowlist may grow (scripts/canon01-baseline.json).
+// CATALOG: Plus a monotone ratchet: neither the CANON-01 divergence classification nor
+// CATALOG: the self-only allowlist may grow (scripts/canon01-baseline.json).
 // CATALOG: Rejected fold-in into check-self-dogfood.mjs (INV-45/CANON-14): that gate walks
 // CATALOG: the TEMPLATE corpus forward (template -> materialized byte-drift, pinned diff
 // CATALOG: hashes). It cannot see a self-only mechanism, because a mechanism with no
@@ -30,7 +30,8 @@
 //                   additionally required to live under src/templates/claude/hooks/).
 //   divergence    — the basename is pinned in .dogfood-divergences.json (a template twin
 //                   that intentionally differs; the diff itself is policed by
-//                   check-self-dogfood.mjs, not here).
+//                   check-self-dogfood.mjs, not here). An exact self-only path wins over
+//                   a dogfood content pin: the pin does not reclassify the mechanism.
 //   self-only     — scripts/canon01-self-only.json entry. `reason` is MANDATORY (an entry
 //                   without one is a blanket allowlist, so it FAILs). `expires` marks a
 //                   STAGED entry — not yet confirmed self-only, audit due by that date;
@@ -254,6 +255,16 @@ function loadInputs(opts) {
   }
 }
 
+/** A dogfood content pin does not override an exact CANON-01 self-only classification. */
+function isSelfOnlyDivergence(entry, selfOnly) {
+  const path = entry.dest
+    ? `${entry.dest}/${entry.path}`
+    : String(entry.path).startsWith('hooks/')
+      ? `.claude/${entry.path}`
+      : null
+  return path !== null && selfOnly.has(path)
+}
+
 /** Bucket every self mechanism. Returns { counts, unmapped }. */
 function buildInventory(ctx, gateSrc, settingsSrc) {
   const counts = { template: 0, divergence: 0, 'self-only': 0, 'external-tool': 0 }
@@ -347,17 +358,18 @@ function main() {
   const opts = parseArgs(process.argv.slice(2))
   const { settingsSrc, gateSrc, divergences, selfOnlyDoc, baseline } = loadInputs(opts)
   const { byPath: selfOnly, problems } = indexSelfOnly(selfOnlyDoc.selfOnly, opts.now)
+  const canonDivergences = divergences.filter((entry) => !isSelfOnlyDivergence(entry, selfOnly))
 
   const ctx = {
     templates: indexTemplates(opts.root, opts.templatesDir),
-    divergenceBasenames: new Set(divergences.map((d) => String(d.path).split('/').pop())),
+    divergenceBasenames: new Set(canonDivergences.map((d) => String(d.path).split('/').pop())),
     selfOnly,
     usedSelfOnly: new Set(),
   }
   const { counts, unmapped } = buildInventory(ctx, gateSrc, settingsSrc)
   problems.push(...auditSelfOnlyList(ctx, opts.root))
 
-  const observed = { divergences: divergences.length, selfOnly: selfOnly.size }
+  const observed = { divergences: canonDivergences.length, selfOnly: selfOnly.size }
   const grown = Object.keys(observed).filter((k) => observed[k] > (baseline[k] ?? 0))
 
   return opts.updateBaseline

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -94,6 +94,35 @@ describe('detectInstalledSkills truncation + owner derivation (#1634)', () => {
     )
     const skills = detectInstalledSkills({ targetDir: '/nonexistent', claudeHome: home })
     expect(skills.some((s) => s.skillId === 'superpowers:test-driven-development')).toBe(true)
+  })
+
+  it('keeps skills at MAX_DEPTH and stops before deeper entries (#2373)', () => {
+    const cacheRoot = join(home, 'plugins', 'cache')
+    const atLimit = join(cacheRoot, 'a', 'b', 'c', 'd', 'e', 'f')
+    writeSkill(atLimit, 'at-limit', 'pluginOwner: depth\n')
+    writeSkill(join(atLimit, 'g'), 'too-deep', 'pluginOwner: depth\n')
+
+    const skills = detectInstalledSkills({ targetDir: '/nonexistent', claudeHome: home })
+    expect(skills.map((skill) => skill.skillId)).toEqual(['depth:at-limit'])
+  })
+
+  it('stops at MAX_ENTRIES and reports the truncated scan (#2373)', () => {
+    const cacheRoot = join(home, 'plugins', 'cache')
+    writeSkill(join(cacheRoot, 'a'), 'first', 'pluginOwner: cap\n')
+    writeSkill(join(cacheRoot, 'b'), 'second', 'pluginOwner: cap\n')
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+
+    try {
+      const skills = detectInstalledSkills({
+        targetDir: '/nonexistent',
+        claudeHome: home,
+        scanLimits: { maxDepth: 6, maxEntries: 1 },
+      })
+      expect(skills.map((skill) => skill.skillId)).toEqual(['cap:first'])
+      expect(stderr).toHaveBeenCalledWith(expect.stringContaining('MAX_ENTRIES (1)'))
+    } finally {
+      stderr.mockRestore()
+    }
   })
 
   it('Defect 1: node_modules and dot-dirs are pruned from the walk', () => {

@@ -103,6 +103,21 @@ describe('check-coverage-ratchet', () => {
     }
   })
 
+  it('keeps the branch ratchet above the 90% hard floor without recapturing its 90.41% baseline (#2319)', () => {
+    const t = makeTemp()
+    try {
+      const baseline = { ...BASE, branches: 90.41 }
+      writeFileSync(t.baseline, JSON.stringify(baseline))
+      writeSummary(t.summary, { ...baseline, branches: 90 })
+
+      const r = run(t.summary, t.baseline)
+
+      expect(r.status).toBe(1)
+    } finally {
+      t.cleanup()
+    }
+  })
+
   it('--update ratchets each metric monotonically upward (never down)', () => {
     const t = makeTemp()
     try {

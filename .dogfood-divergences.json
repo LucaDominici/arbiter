@@ -36,6 +36,11 @@
     "diffHash": "2b226ddf77f1ccce3f829db73c84eb580c365f78322d0140e42932a96e0bc0ff"
   },
   {
+    "path": "hooks/check-no-any.mjs",
+    "reason": "Arbiter self-dogfood: the materialized TypeScript language hook adds repo-root scoping, comment filtering, detailed findings, and INV-04 inline-suppression support. The generated body remains the portable target-project baseline; #2339 pins the exact generated-body versus self-hook diff so either side moving alone fails.",
+    "diffHash": "3ddf58ed35bc5edd5a94a290675bb1cc6258d4e507ce9d52f90e3e6a0ede6cf3"
+  },
+  {
     "path": "hooks/guard-task-completion.mjs",
     "reason": "Arbiter self-dogfood: inlines getRepoRoot() and readTaskState() instead of importing from lib.mjs, making it self-contained for the arbiter repo's own task-lifecycle enforcement. (Confirmed intentional 2026-05-29, #1092.)",
     "diffHash": "ea3f916c0636437a8048e59f3d0f2385b63a8f8997b5546e444d88df18122e99"
@@ -73,7 +78,7 @@
   {
     "path": "hooks/post-commit-check.mjs",
     "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 — static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) — intentional: arbiter's self-config is more conservative than generated target advice.",
-    "diffHash": "4ceacea62229c8d2211d03921824f44309a0dd76d05c2113eeab47ffee2b3847"
+    "diffHash": "7317b295f76df445a1de70d0e5da5b2cf2e9fbb351a2ccd12971465fa48a0e7a"
   },
   {
     "path": "hooks/check-no-orphan-todo.mjs",
@@ -329,8 +334,8 @@
   {
     "path": "check-local-ci-parity.mjs",
     "dest": "scripts",
-    "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder. Also carries the CI_COVERAGE row for \"orchestration integrity (#2387)\": that gate is self-only (it resolves references against arbiter's own skill/command/agent registry and scans the template tree), so a generated target never runs it and the shipped template must not claim CI coverage for it.",
-    "diffHash": "401d03575c3cd317a7907ba5444c304e4e21121d8ba73af1197b935836c857fd"
+    "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder. Re-pinned #2326: one more arbiter-self-only CI_COVERAGE id ('hardness inventory (self hooks)'), squarely inside this entry's existing rationale — no consumer project has arbiter's .claude/hooks self-hardness gate. Re-pinned #2387: one further arbiter-self-only CI_COVERAGE id (\"orchestration integrity (#2387)\"), same class — that gate resolves references against arbiter's own skill/command/agent registry and scans the template tree, so a generated target never runs it and the shipped template must not claim CI coverage for it.",
+    "diffHash": "e35556eb8ce61698ce6bda4271ed3068af319490b14a06db492e72e426d59141"
   },
   {
     "path": "check-suppression-expiry.mjs",
@@ -353,8 +358,8 @@
   {
     "path": "check-tdd-evidence.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). The largest pin, and the two sides are deliberately different programs. The TEMPLATE is self-contained by design: it inlines the TddEvidenceV1 schema, the failure-signature list and the git reachability checks so a target needs no local arbiter install. SELF delegates verification to `tsx src/cli.ts verify tdd` and exports its helpers for unit tests. Both sides now enforce the produced-here floor over subject ∪ body ids (#2217, #2307), so an already-merged task's inherited evidence cannot satisfy the branch floor ('without this the floor is theatre') on EITHER the body- or the subject-cited path. The template applies it TRACKED-CONDITIONALLY: a generated .gitignore ignores .arbiter/ wholesale, so where the evidence file is untracked the guard warns and stands down rather than rejecting every branch, and becomes live the moment a target un-ignores .arbiter/evidence/tdd/*.json (as arbiter does for itself). Self also counts src/templates/** as governed source — templates ARE the product shipped to targets. Both sides share the ARBITER-SKIP-TDD rejection. PERMANENT: each side's design is forced by whether the arbiter CLI is present.",
-    "diffHash": "855f8c0769f1559a4317dcb444ac1035209616ab1986e8cd4b0c5a347f63bf88"
+    "reason": "Read line-by-line (#2275). The largest pin, and the two sides are deliberately different programs. The TEMPLATE is self-contained by design: it inlines the TddEvidenceV1 schema, the failure-signature list and the git reachability checks so a target needs no local arbiter install. SELF delegates verification to `tsx src/cli.ts verify tdd` and exports its helpers for unit tests. Both sides now enforce the produced-here floor over subject ∪ body ids (#2217, #2307), so an already-merged task's inherited evidence cannot satisfy the branch floor ('without this the floor is theatre') on EITHER the body- or the subject-cited path. The template applies it TRACKED-CONDITIONALLY: a generated .gitignore ignores .arbiter/ wholesale, so where the evidence file is untracked the guard warns and stands down rather than rejecting every branch, and becomes live the moment a target un-ignores .arbiter/evidence/tdd/*.json (as arbiter does for itself). Both sides exempt only an allowlisted docs-only file set; executable changes in flat, cmd/, internal/, pkg/, nested-module, and gate-script layouts remain governed. Both sides share the ARBITER-SKIP-TDD rejection. PERMANENT: each side's design is forced by whether the arbiter CLI is present.",
+    "diffHash": "f90ecae9f84a68eada99bea759e7345e8c365eefbdf5d4fd2a84020455abaaff"
   },
   {
     "path": "check-test-naming.mjs",

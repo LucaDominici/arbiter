@@ -1390,6 +1390,8 @@ verify
       )
     } else if (result.status === 'PASS') {
       process.stdout.write(`verify tdd: PASS (${result.checks?.length ?? 0} checks)\n`)
+    } else if (result.status === 'DEGRADED') {
+      process.stderr.write(`verify tdd: DEGRADED — ${result.reason ?? 'unknown'}\n`)
     } else {
       process.stderr.write(`verify tdd: FAIL — ${result.reason ?? 'unknown'}\n`)
     }
@@ -1721,6 +1723,7 @@ task
   .description('Record TDD red-phase evidence: run a failing test and capture evidence (#551)')
   .requiredOption('--test-path <path>', 'Repo-relative path to the failing test file')
   .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
+  .option('--task <id>', 'Task id; use for a declared secondary issue on a train (#2336)')
   .option(
     '--test-command <cmd>',
     'Override the test runner binary (e.g. go, pytest, npx). Overrides language-based auto-selection. The command is passed verbatim to the runner (no shell interpolation).',
@@ -1737,6 +1740,7 @@ task
     (opts: {
       testPath: string
       dir?: string
+      task?: string
       testCommand?: string
       testArg?: string[]
       timeoutMs?: string
@@ -1749,6 +1753,7 @@ task
       const result = runTaskRecordRed({
         testPath: opts.testPath,
         ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(opts.task !== undefined ? { taskId: opts.task } : {}),
         ...(testCmd !== undefined ? { testCmd } : {}),
         ...(timeoutMs !== undefined ? { timeoutMs } : {}),
         force: opts.force,

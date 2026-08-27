@@ -2,6 +2,7 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { runVerifyTdd } from '../../src/commands/verify-tdd.js'
 
@@ -169,6 +170,38 @@ describe('runVerifyTdd()', () => {
     expect(result.reason).toMatch(/not reachable/)
     const check = result.checks?.find((c) => c.name === 'sha-on-branch')
     expect(check?.pass).toBe(false)
+  })
+
+  it('reports a real shallow repository as a degraded verification environment (#2372)', async () => {
+    const origin = tmpRepo()
+    const dir = tmpRepo()
+    const git = (args: string[], cwd = origin) => {
+      const result = spawnSync('git', args, { cwd, encoding: 'utf-8' })
+      expect(result.status, result.stderr).toBe(0)
+      return result.stdout.trim()
+    }
+    git(['init', '-b', 'main'])
+    git(['config', 'user.email', ['tester', 'example.invalid'].join('@')])
+    git(['config', 'user.name', 'tester'])
+    writeFileSync(join(origin, 'README.md'), 'first\n')
+    git(['add', 'README.md'])
+    git(['commit', '-m', 'first'])
+    writeFileSync(join(origin, 'README.md'), 'second\n')
+    git(['commit', '-am', 'second'])
+    git(['clone', '--depth', '1', `file://${origin}`, dir])
+    expect(git(['rev-parse', '--is-shallow-repository'], dir)).toBe('true')
+    writeEvidence(dir, VALID_EVIDENCE)
+
+    const actual = await vi.importActual<typeof import('../../src/evidence/git-checks.js')>(
+      '../../src/evidence/git-checks.js',
+    )
+    mockedResolveCommit.mockImplementationOnce(actual.resolveEvidenceCommit)
+
+    const result = runVerifyTdd({ taskId: '#551', dir })
+
+    expect(result.status).toBe('DEGRADED')
+    expect(result.exitCode).toBe(2)
+    expect(result.reason).toMatch(/shallow.*history/i)
   })
 
   // #2116: after a rebase the pinned sha is gone, but the RED test's content is not.

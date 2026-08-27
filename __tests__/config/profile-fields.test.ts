@@ -81,11 +81,15 @@ describe('validateConfig — automation prefs (#1306)', () => {
 describe('configure catalog + parseValue (#1306)', () => {
   const paths = ['automation.maxParallelWorktrees', 'automation.defaultGateLevel']
 
-  it('both are in ALLOWED_PATHS and OVERRIDABLE_PATHS', () => {
+  // #2333 — the ALLOWED-but-not-OVERRIDABLE asymmetry is now MEANINGFUL, not
+  // accidental: a path may be persistently configurable while having no per-run
+  // reader, and per-run `--set` must refuse exactly those.
+  it('both are ALLOWED (persistent); only defaultGateLevel is OVERRIDABLE (per-run)', () => {
     for (const p of paths) {
       expect(ALLOWED_PATHS.has(p), `${p} in ALLOWED_PATHS`).toBe(true)
-      expect(OVERRIDABLE_PATHS.has(p), `${p} in OVERRIDABLE_PATHS`).toBe(true)
     }
+    expect(OVERRIDABLE_PATHS.has('automation.defaultGateLevel')).toBe(true)
+    expect(OVERRIDABLE_PATHS.has('automation.maxParallelWorktrees')).toBe(false)
   })
 
   it('OVERRIDABLE_PATHS remains a strict subset of ALLOWED_PATHS', () => {
@@ -111,32 +115,34 @@ describe('configure catalog + parseValue (#1306)', () => {
 // ── unified resolver derived floors (RT-1306-04) ──────────────────────────────
 
 describe('resolveSetting — derived floors for the new paths (#1306)', () => {
-  it('never throws "no derived default" for the paths on a profile-blind repo', () => {
+  it('never throws "no derived default" for the overridable path on a profile-blind repo', () => {
     const dir = tmpRepo(base({ autonomy: 'L0' }))
-    expect(resolveSetting('automation.maxParallelWorktrees', { root: dir })).toBe('1')
     expect(resolveSetting('automation.defaultGateLevel', { root: dir })).toBe('L1')
   })
 
-  it('profile value wins over the floor', () => {
-    const dir = tmpRepo(
-      base({
-        autonomy: 'L0',
-        maxParallelWorktrees: 4,
-        defaultGateLevel: 'L2',
-      }),
+  // #2333 — the floor for maxParallelWorktrees was DELETED with its override target.
+  // This resolver serves per-run settable paths only; a floor for a path nothing can
+  // override is dead config, and this is the assertion that keeps it deleted.
+  it('THROWS for maxParallelWorktrees — no floor survives a retired override target', () => {
+    const dir = tmpRepo(base({ autonomy: 'L0' }))
+    expect(() => resolveSetting('automation.maxParallelWorktrees', { root: dir })).toThrowError(
+      /no derived default/,
     )
-    expect(resolveSetting('automation.maxParallelWorktrees', { root: dir })).toBe('4')
+  })
+
+  it('profile value wins over the floor', () => {
+    const dir = tmpRepo(base({ autonomy: 'L0', defaultGateLevel: 'L2' }))
     expect(resolveSetting('automation.defaultGateLevel', { root: dir })).toBe('L2')
   })
 
   it('per-run override wins over profile (highest precedence)', () => {
-    const dir = tmpRepo(base({ autonomy: 'L0', maxParallelWorktrees: 4 }))
+    const dir = tmpRepo(base({ autonomy: 'L0', defaultGateLevel: 'L2' }))
     expect(
-      resolveSetting('automation.maxParallelWorktrees', {
+      resolveSetting('automation.defaultGateLevel', {
         root: dir,
-        overrides: { 'automation.maxParallelWorktrees': '2' },
+        overrides: { 'automation.defaultGateLevel': 'L1' },
       }),
-    ).toBe('2')
+    ).toBe('L1')
   })
 
   it('an invalid profile value warn-skips to the floor (fail-closed)', () => {

@@ -586,6 +586,9 @@ function assertTddEvidenceFor(rawId: string, dir: string): void {
         `the evidence after a rebase.`,
     )
   }
+  if ('degraded' in resolved) {
+    throw new Error(`TDD evidence gate: ${resolved.reason}`)
+  }
 
   if (!pathExistsInCommit(resolved.sha, ev.test_path, dir)) {
     throw new Error(

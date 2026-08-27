@@ -219,6 +219,12 @@ export function normalizePhase(raw: string | undefined, sourceLabel = STATUS_FIL
 
 /** Ensure a parsed/seeded object is a complete UnifiedTaskState with all defaults filled. */
 function normalize(raw: Partial<UnifiedTaskState>): UnifiedTaskState {
+  if (
+    raw.chainIds !== undefined &&
+    (!Array.isArray(raw.chainIds) || raw.chainIds.some((id) => typeof id !== 'string'))
+  ) {
+    throw new Error('Corrupted chainIds in status.json: expected an array of strings.')
+  }
   const base = defaultState()
   return {
     ...base,

@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 import {
   parseTaskIdsFromLog,
   parseTaskIdsFromBodies,
-  touchesGovernedSource,
+  isDocsOnlyChange,
   hasSkipTrailer,
   formatSkipError,
   main,
@@ -82,24 +82,30 @@ describe('parseTaskIdsFromBodies', () => {
   })
 })
 
-describe('touchesGovernedSource', () => {
-  it('is true for any change under src/, templates included', () => {
-    expect(touchesGovernedSource('docs/x.md\nsrc/commands/task.ts')).toBe(true)
-    expect(touchesGovernedSource('src/templates/scripts/check-all.mjs.ejs')).toBe(true)
+describe('isDocsOnlyChange', () => {
+  it('is false for executable changes in any supported layout', () => {
+    expect(isDocsOnlyChange('docs/x.md\nsrc/commands/task.ts')).toBe(false)
+    expect(isDocsOnlyChange('math.go')).toBe(false)
+    expect(isDocsOnlyChange('cmd/server/main.go')).toBe(false)
+    expect(isDocsOnlyChange('internal/math.go')).toBe(false)
+    expect(isDocsOnlyChange('pkg/math.go')).toBe(false)
+    expect(isDocsOnlyChange('scripts/check-tdd-evidence.mjs')).toBe(false)
   })
 
   // #2313: kept identical to the SHIPPED predicate in
   // src/templates/scripts/check-tdd-evidence.mjs.ejs. A no-op for arbiter (single-module,
   // source is `src/`), but a divergence here is how the self-gate and the shipped gate
   // start meaning different things.
-  it('is true for a nested module root (backend/src, frontend/src)', () => {
-    expect(touchesGovernedSource('backend/src/main/java/App.java')).toBe(true)
-    expect(touchesGovernedSource('frontend/src/App.vue')).toBe(true)
+  it('is false for a nested module root (backend/src, frontend/src)', () => {
+    expect(isDocsOnlyChange('backend/src/main/java/App.java')).toBe(false)
+    expect(isDocsOnlyChange('frontend/src/App.vue')).toBe(false)
   })
 
-  it('is false for a branch that changes no source', () => {
-    expect(touchesGovernedSource('docs/x.md\n__tests__/foo.test.ts\nREADME.md')).toBe(false)
-    expect(touchesGovernedSource('')).toBe(false)
+  it('is true only for documentation artifacts', () => {
+    expect(isDocsOnlyChange('docs/x.md\nwiki/guide.svg\nREADME.md')).toBe(true)
+    expect(isDocsOnlyChange('website/src/App.tsx')).toBe(false)
+    expect(isDocsOnlyChange('AGENTS.md')).toBe(false)
+    expect(isDocsOnlyChange('')).toBe(false)
   })
 })
 
@@ -164,6 +170,7 @@ describe('main()', () => {
     exitFn.mockReset()
     const responses = new Map([
       ['merge-base', 'deadbeef'],
+      ['diff --name-only', 'docs/note.md'],
       ['log', 'chore: update deps\ndocs: fix typo'],
       ['--format=%H', ''],
     ])
@@ -178,6 +185,7 @@ describe('main()', () => {
     const responses = new Map([
       ['merge-base', 'deadbeef'],
       ['--format=%s', 'feat(#551): add thing'],
+      ['diff --name-only', 'src/thing.ts'],
       ['--format=%H', bodyLog],
     ])
     main({ runFn: makeRun(responses) as never, exitFn: exitFn as never })
@@ -190,6 +198,7 @@ describe('main()', () => {
     const responses = new Map([
       ['merge-base', 'deadbeef'],
       ['--format=%s', 'feat(#551): add thing'],
+      ['diff --name-only', 'src/thing.ts'],
       ['--format=%H', ''],
     ])
     main({ runFn: makeRun(responses) as never, exitFn: exitFn as never })
@@ -201,6 +210,8 @@ describe('main()', () => {
     const responses = new Map([
       ['merge-base', 'deadbeef'],
       ['--format=%s', 'feat(#551): add thing'],
+      ['evidence/tdd', 'c'.repeat(40)],
+      ['diff --name-only', 'src/thing.ts'],
       ['--format=%H', ''],
       ['verify', 'PASS'],
     ])
@@ -274,18 +285,45 @@ describe('main()', () => {
     expect(exitFn).toHaveBeenCalledWith(1)
   })
 
-  it('exits 1 when a task ID fails verification', () => {
+  it('exits 1 when a root-level Go change has no evidence for its task ID', () => {
     exitFn.mockReset()
     const runFn = (_cmd: string, args: string[]) => {
       const key = args.join(' ')
       if (key.includes('merge-base')) return 'deadbeef'
       if (key.includes('--format=%s')) return 'feat(#551): add thing'
       if (key.includes('--format=%H')) return ''
+      if (key.includes('diff --name-only')) return 'math.go'
       // verify tdd → throw (simulates FAIL)
       throw Object.assign(new Error('FAIL'), { stderr: 'evidence not found', stdout: '' })
     }
     main({ runFn: runFn as never, exitFn: exitFn as never })
     expect(exitFn).toHaveBeenCalledWith(1)
+  })
+
+  it('exits 2 when the changed-file probe fails instead of treating it as an empty diff', () => {
+    exitFn.mockReset()
+    const runFn = (_cmd: string, args: string[]) => {
+      const key = args.join(' ')
+      if (key.includes('merge-base')) return 'deadbeef'
+      if (key.includes('--format=%s')) return 'fix(#551): add thing'
+      if (key.includes('--format=%H')) return ''
+      if (key.includes('diff --name-only')) throw new Error('git diff failed')
+      return 'PASS'
+    }
+    main({ runFn: runFn as never, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(2)
+  })
+
+  it('exits 2 when the changed-file probe returns no usable paths', () => {
+    exitFn.mockReset()
+    const responses = new Map([
+      ['merge-base', 'deadbeef'],
+      ['--format=%s', 'fix(#551): add thing'],
+      ['--format=%H', ''],
+      ['diff --name-only', ' \n'],
+    ])
+    main({ runFn: makeRun(responses) as never, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(2)
   })
 
   // ── #2307: the produced-here guard on the SUBJECT path ──────────────────────
@@ -299,7 +337,12 @@ describe('main()', () => {
   // (`git log --format=%H <base>..HEAD -- .arbiter/evidence/tdd/#NNN.json`) also matches
   // the `--format=%H` body-log pattern, so it must be matched FIRST or these tests pass
   // for the wrong reason.
-  function subjectRun(opts: { changed: string; inherited?: boolean; bodyFresh?: boolean }) {
+  function subjectRun(opts: {
+    changed: string
+    inherited?: boolean
+    bodyFresh?: boolean
+    verifyFails?: boolean
+  }) {
     const SUBJECT = 'fix(#2300): reuse an already-merged task id'
     return (_cmd: string, args: string[]) => {
       const key = args.join(' ')
@@ -312,6 +355,9 @@ describe('main()', () => {
       }
       if (key.includes('--format=%H')) return `${'a'.repeat(40)}\n${SUBJECT}\n\nRefs #2401\n\x00`
       if (key.includes('diff --name-only')) return opts.changed
+      if (opts.verifyFails) {
+        throw Object.assign(new Error('FAIL'), { stderr: 'evidence not found', stdout: '' })
+      }
       return 'PASS'
     }
   }
@@ -347,12 +393,25 @@ describe('main()', () => {
     expect(exitFn).toHaveBeenCalledWith(0)
   })
 
-  // Gated on touchesGovernedSource, exactly as #2217 is. PR #2309 was docs-only with
-  // #2307 in the subject; an ungated guard would have flipped it red.
+  // The docs-only classifier protects PR #2309's shape: documentation with #2307 in
+  // the subject must not create a TDD obligation.
   it('exits 0 for a docs-only branch citing a subject id with inherited evidence', () => {
     exitFn.mockReset()
     main({
       runFn: subjectRun({ changed: 'docs/runbook.md', inherited: true }) as never,
+      exitFn: exitFn as never,
+    })
+    expect(exitFn).toHaveBeenCalledWith(0)
+  })
+
+  it('exits 0 for docs-only work even when its cited subject id has no evidence (#2371)', () => {
+    exitFn.mockReset()
+    main({
+      runFn: subjectRun({
+        changed: 'docs/runbook.md',
+        inherited: true,
+        verifyFails: true,
+      }) as never,
       exitFn: exitFn as never,
     })
     expect(exitFn).toHaveBeenCalledWith(0)
@@ -373,7 +432,7 @@ describe('check-tdd-evidence.mjs --dir <repo>', () => {
   const GATE = resolve(new URL('../../scripts/check-tdd-evidence.mjs', import.meta.url).pathname)
 
   /** Repo with origin/main + one commit whose task id lives only in the body. */
-  function seedRepo(changed: string): string {
+  function seedRepo(changed: string, subject = 'chore: tidy up'): string {
     const repo = mkdtempSync(join(tmpdir(), 'tdd-gate-e2e-'))
     repos.push(repo)
     const g = (args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf-8' })
@@ -389,7 +448,7 @@ describe('check-tdd-evidence.mjs --dir <repo>', () => {
     mkdirSync(join(repo, join(changed, '..')), { recursive: true })
     writeFileSync(join(repo, changed), 'export const x = 1\n')
     g(['add', '.'])
-    g(['commit', '-m', 'chore: tidy up'])
+    g(['commit', '-m', subject])
     return repo
   }
 
@@ -408,6 +467,12 @@ describe('check-tdd-evidence.mjs --dir <repo>', () => {
   it('passes vacuously for a branch that changes no source', () => {
     const { status } = runGate(seedRepo('docs/note.md'))
     expect(status).toBe(0)
+  })
+
+  it('fails a subject-cited root-level Go change with no TDD evidence', () => {
+    const { status, out } = runGate(seedRepo('math.go', 'fix(#42): alter Add'))
+    expect(out).toMatch(/#42/)
+    expect(status).toBe(1)
   })
 
   // ── #2307, on a real branch ────────────────────────────────────────────────

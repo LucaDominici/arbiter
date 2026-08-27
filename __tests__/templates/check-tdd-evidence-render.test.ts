@@ -72,6 +72,10 @@ function validEvidence(sha: string, overrides: Record<string, unknown> = {}) {
  */
 function runScenario(opts: {
   taskCommit?: boolean
+  /** A conventional task subject that changes docs only, not governed source. */
+  docsOnlyTaskCommit?: boolean
+  /** A conventional task subject that changes a root-level Go source file. */
+  rootGoTaskCommit?: boolean
   skipTrailer?: boolean
   /** Leave an orphaned (unreachable but still present) commit object behind, as a rebase does. */
   orphan?: boolean
@@ -125,9 +129,20 @@ function runScenario(opts: {
     g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
 
     if (opts.taskCommit) {
-      const srcDir = opts.nestedSource ? join('backend', 'src', 'main', 'java') : 'src'
-      mkdirSync(join(repo, srcDir), { recursive: true })
-      writeFileSync(join(repo, srcDir, 'foo.test.ts'), 'test("foo", () => {})\n')
+      const taskDir = opts.docsOnlyTaskCommit
+        ? 'docs'
+        : opts.rootGoTaskCommit
+          ? '.'
+          : opts.nestedSource
+            ? join('backend', 'src', 'main', 'java')
+            : 'src'
+      const taskFile = opts.docsOnlyTaskCommit
+        ? 'note.md'
+        : opts.rootGoTaskCommit
+          ? 'math.go'
+          : 'foo.test.ts'
+      mkdirSync(join(repo, taskDir), { recursive: true })
+      writeFileSync(join(repo, taskDir, taskFile), 'test("foo", () => {})\n')
       g(['add', '.'])
       const msg = opts.skipTrailer
         ? 'feat(#42): add foo\n\nARBITER-SKIP-TDD: 1'
@@ -277,6 +292,16 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     expect(runScenario({ bodyRefsCommit: true, sourceless: true, evidence: () => null })).toBe(0)
   })
 
+  it('vacuous PASS (exit 0) for docs-only work with a task-id subject but no evidence (#2371)', () => {
+    expect(runScenario({ taskCommit: true, docsOnlyTaskCommit: true, evidence: () => null })).toBe(
+      0,
+    )
+  })
+
+  it('FAIL (exit 1) for a root-level Go change with a task-id subject but no evidence', () => {
+    expect(runScenario({ taskCommit: true, rootGoTaskCommit: true, evidence: () => null })).toBe(1)
+  })
+
   it('FAIL (exit 1) when src/ changes cite no task id anywhere', () => {
     expect(runScenario({ uncitedSourceCommit: true })).toBe(1)
   })
@@ -292,8 +317,8 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     expect(runScenario({ evidenceOnMain: true, taskCommit: true })).toBe(1)
   })
 
-  // #2313: THE FALSIFIER for a multi-module consumer. `touchesGovernedSource` matched a
-  // repo-ROOT `src/` only, so on a Java consumer laid out as `backend/src/main/java/...`
+  // #2313: THE FALSIFIER for a multi-module consumer. The old predicate matched a
+  // repo-root `src/` only, so on a Java consumer laid out as `backend/src/main/java/...`
   // the whole produced-here floor was gated off and the branch above passed with 0 — the
   // guard was inert for reasons that had nothing to do with evidence tracking.
   it('FAIL (exit 1) when a subject-cited id changing backend/src/ has evidence only from main', () => {

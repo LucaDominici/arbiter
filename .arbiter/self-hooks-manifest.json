@@ -1,0 +1,395 @@
+{
+  "version": 1,
+  "selfSurface": true,
+  "_comment": "#2326 \u2014 hardness SSOT for arbiter's OWN materialized .claude/hooks/. Sibling of .arbiter/hooks-manifest.json, which covers src/templates/claude/hooks (the TEMPLATE surface). Consumed by `scripts/check-hardness-inventory.mjs --manifest .arbiter/self-hooks-manifest.json --hooks-dir .claude/hooks`, wired into the gate as 'hardness inventory (self hooks)'. selfSurface:true makes the checker spawn each hook IN PLACE with cwd at the repo root and the fixture inside the repo \u2014 the only arrangement under which arbiter's repo-root-scoped, own-lib-importing hooks actually execute. spawnable:true means OBSERVED (spawned against a violation fixture and asserted to exit 2); spawnable:false means DECLARED ONLY, and every one carries the reason it cannot be driven by a file/env fixture. 10 of 30 are observed today; that ceiling is documented in docs/internal/SYSTEM/HOOK-CONTRACTS.md.",
+  "hooks": [
+    {
+      "file": "check-no-any.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "file-with-content",
+        "path": ".arb-hardness-tmp/fixture.ts",
+        "content": "const value: any = 1\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "INV-04: blocks `any` in TypeScript. Was exit 1 (non-blocking) until #2326 \u2014 the violation never reached the agent.",
+      "expectStderr": "INV-04"
+    },
+    {
+      "file": "check-no-direct-spawn.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "file-with-content",
+        "path": "src/.arb-hardness-tmp/probe.ts",
+        "content": "import { spawnSync } from 'node:child_process'\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "INV-12: blocks direct child_process outside src/utils/run-cli.ts (ADR-020). Fixture must sit under src/ \u2014 the hook returns early otherwise. Was exit 1 until #2326.",
+      "expectStderr": "INV-12"
+    },
+    {
+      "file": "check-no-raw-types.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "file-with-content",
+        "path": ".arb-hardness-tmp/Probe.java",
+        "content": "class Probe { List values; }\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "Blocks unparameterized generics in Java. Unregistered in arbiter's settings.json (no Java sources here) but dogfooded, and its generator already emits exit 2 \u2014 the self copy had drifted to exit 1 until #2326.",
+      "expectStderr": "raw type|List|generic"
+    },
+    {
+      "file": "check-no-mockmvc.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "file-with-content",
+        "path": ".arb-hardness-tmp/ProbeTest.java",
+        "content": "class ProbeTest { MockMvc client; }\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "INV-29: blocks MockMvc in Java tests. Unregistered here (no Java sources) but dogfooded; generator emits exit 2, self copy had drifted to exit 1 until #2326.",
+      "expectStderr": "MockMvc"
+    },
+    {
+      "file": "check-no-orphan-todo.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "file-with-content",
+        "path": ".arb-hardness-tmp/fixture.ts",
+        "content": "// TODO: missing task id\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "INV-21: a TODO without a task ID is a gate violation. Only observable in place \u2014 it imports ../../scripts/check-no-orphan-todo.mjs, unresolvable from a staged tmpdir.",
+      "expectStderr": "INV-21"
+    },
+    {
+      "file": "check-no-pii.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "file-with-content",
+        "path": ".arb-hardness-tmp/fixture.ts",
+        "content": "const contact = \"probe@example.invalid\";\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "INV-12: blocks PII patterns. Only observable in place \u2014 imports ../../scripts/lib/suppressions-shared.mjs.",
+      "expectStderr": "INV-12|PII"
+    },
+    {
+      "file": "check-no-placeholders.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "file-with-content",
+        "path": ".arb-hardness-tmp/fixture.ts",
+        "content": "// FIXME: unfinished\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "Blocks placeholder/WIP markers before save.",
+      "expectStderr": "placeholder|PLACEHOLDER|FIXME"
+    },
+    {
+      "file": "check-no-skipped-tests.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "file-with-content",
+        "path": ".arb-hardness-tmp/fixture.test.ts",
+        "content": "it.skip('probe', () => {})\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "NI-11: skipped/disabled tests must not be committed.",
+      "expectStderr": "skip"
+    },
+    {
+      "file": "enforce-read-only.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "path-only",
+        "path": "LICENSE",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "Guards LICENSE / lockfiles. path-only: the fixture names a real protected file and MUST NOT be written. Absolute resolution matters \u2014 a relative path fails the hook's repo-root prefix guard and yields a false green. Arbiter deliberately drops AGENTS.md from its read-only set (it authors its own), so the consumer fixture does not apply here.",
+      "expectStderr": "Read-only file"
+    },
+    {
+      "file": "pre-edit-ssot-guard.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "isolated-root",
+        "path": "AGENTS.md",
+        "content": "# isolated SSOT fixture\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "expectStderr": "SSOT GUARD",
+      "rationale": "Guards SSOT paths (DEFAULT_SSOT_PATTERNS plus arbiter.json governance.ssotGuardPatterns). #2342 runs the real self hook and lib from a disposable isolated root, so no live .arbiter/ssot-bypass token can be consumed."
+    },
+    {
+      "file": "stop-dangerous.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "env-only",
+        "env": {
+          "CLAUDE_TOOL_INPUT_COMMAND": "rm -rf /"
+        }
+      },
+      "rationale": "Blocks dangerous Bash commands and writes to protected Arbiter state.",
+      "expectStderr": "Blocked"
+    },
+    {
+      "file": "enforce-gate-before-pr.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "isolated-root",
+        "env": {
+          "CLAUDE_TOOL_INPUT_COMMAND": "gh pr create --title fixture"
+        }
+      },
+      "expectStderr": "No gate-pass\\.json",
+      "rationale": "Blocks `gh pr create` without a valid gate-pass marker. #2342 probes a disposable isolated root with no marker, so a prior live L2 result cannot make the assertion vacuous."
+    },
+    {
+      "file": "pre-edit-plan-anchor.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "CANON-16 plan anchor. Not fixture-drivable: requires an active task phase plus a coherent task branch in .claude/.task/status.json, which a file/env fixture cannot supply without mutating live task state."
+    },
+    {
+      "file": "guard-task-completion.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "Governs completion language only while an implementation phase is active \u2014 needs live task state, not a file fixture."
+    },
+    {
+      "file": "guard-done-evidence.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "#1872 evidence harness. Needs task phase `verification` AND features.evidenceHarness=true in arbiter.json (false in self config), so it is inert by design here; driving it would mean mutating arbiter.json mid-gate."
+    },
+    {
+      "file": "stop-evidence-guard.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "INV-114. Stop-event hook: needs a transcript file and an active task, supplied via stdin JSON rather than a tool-input path."
+    },
+    {
+      "file": "closer-mode-guard.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "A11 CLOSER rules. Applicable only in the `close` phase \u2014 needs live task state."
+    },
+    {
+      "file": "post-brainstorm-stop.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "Terminal-state guard. Requires the .arbiter/brainstorm-active marker; planting it in the live repo mid-gate would block the operator's own /task."
+    },
+    {
+      "file": "post-commit-check.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "PostToolUse conventional-commit guard (INV-22) blocks the agent with exit 2; the track-aware checklist remains informational (#724). Not spawnable in place because it reads the live commit history."
+    },
+    {
+      "file": "check-circular-deps.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Blocks on violation (process.exit(2)) \u2014 declared HARD, not ADVISORY: .claude/CLAUDE.md claims it blocks and it does. NOT spawnable: the per-edit madge run soft-skips when the tool is unavailable or debounced, so a fixture cannot deterministically reach the blocking branch; the L1 gate is the authoritative check for this rule. (#2326: it was mis-declared ADVISORY in this manifest's first version, which is why the ADVISORY floor check now exists.)",
+      "expectedExitCode": 2
+    },
+    {
+      "file": "check-no-unused-exports.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Blocks on violation (process.exit(2)) \u2014 declared HARD, not ADVISORY: .claude/CLAUDE.md claims it blocks and it does. NOT spawnable: the per-edit knip run soft-skips when the tool is unavailable or debounced, so a fixture cannot deterministically reach the blocking branch; the L1 gate is the authoritative check for this rule. (#2326: it was mis-declared ADVISORY in this manifest's first version, which is why the ADVISORY floor check now exists.)",
+      "expectedExitCode": 2
+    },
+    {
+      "file": "post-edit-dispatch.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Runs formatter/linter feedback after edits; intentionally never blocks. Spawning it would run real prettier/eslint over the fixture."
+    },
+    {
+      "file": "debug-state-on-failure.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Records diagnostic context after a failed tool call; intentionally never blocks."
+    },
+    {
+      "file": "pre-compact.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Persists best-effort context before compaction; intentionally never blocks."
+    },
+    {
+      "file": "exitplanmode-banner.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Prints the next ship step after plan mode; intentionally never blocks."
+    },
+    {
+      "file": "skill-forced-eval.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Prints a skill-selection reminder before prompts; intentionally never blocks."
+    },
+    {
+      "file": "wiki-on-commit.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Refreshes wiki context after commits. Not fixture-drivable: it diffs HEAD~1..HEAD and would invoke gen-wiki.mjs, writing into wiki/."
+    },
+    {
+      "file": "pre-edit-load-memory.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "Injects .claude/memory-impl.md gotchas when the edited path matches its globs; stdout-inject only, never blocks."
+    },
+    {
+      "file": "pre-spawn-worktree-guard.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "E5 #1947. Advisory by default; ARBITER_SPAWN_GUARD_HARD=1 promotes it. The isolated-root Task/Agent stdin fixture empirically verifies both modes.",
+      "promotedBy": "ARBITER_SPAWN_GUARD_HARD",
+      "fixture": {
+        "type": "isolated-root",
+        "input": "{\"tool_input\":{\"subagent_type\":\"unknown\",\"isolation\":\"worktree\",\"prompt\":\"work on #12 and #34\"}}"
+      },
+      "expectStderr": "one-task-per-dispatch"
+    },
+    {
+      "file": "stop-finding-loss.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "E6b #1948. Advisory by default; ARBITER_FINDING_LOSS_HARD=1 promotes it. The isolated-root Stop transcript fixture empirically verifies both modes.",
+      "promotedBy": "ARBITER_FINDING_LOSS_HARD",
+      "fixture": {
+        "type": "isolated-root",
+        "path": "transcript.jsonl",
+        "content": "{\"type\":\"user\",\"timestamp\":\"2999-01-01T00:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"start\"}]}}\n{\"type\":\"assistant\",\"timestamp\":\"2999-01-01T00:00:00.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Task\"},{\"type\":\"tool_use\",\"name\":\"Agent\"}]}}\n",
+        "input": "{\"transcript_path\":\"{fixturePath}\"}"
+      },
+      "expectStderr": "FINDING LOSS"
+    }
+  ]
+}

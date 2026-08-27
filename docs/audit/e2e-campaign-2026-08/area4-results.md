@@ -107,7 +107,8 @@ gate2 exit=0 blocked_for=17.94s
 
 1. **One flag, fixes the leak and kill-scenarios B/D:** add `-o` to `gateExecArgv` → `['flock','-o','--',lockPath,...cmdArgs]`. Verified live without touching arbiter:
    `flock -o -- $LOCK sh -c 'nohup sleep 20 >/dev/null 2>&1 & echo gated-done'` → `with -o after gate returns: FREE`.
-   Caveat to document: with `-o` the lock is released the moment the command _starts_, so it serializes the gate's start, not its whole run. If the mutex must cover the whole run, the alternative is to keep the fd only in flock and `setsid`/`close-on-exec` the payload.
+   Caveat to document: with `-o` the lock is released the moment the command _starts_, so it serializes the gate's start, not its whole run.
+   **CORRECTION (#2330):** this caveat is wrong. `flock(1)` closes the descriptor in the child only; the parent retains it for the wrapped command's whole run (re-measured 2026-08-23). What `-o` really changes is that killing `flock` alone now frees the mutex while the gate keeps running — see ADR-103 §2 and its Consequences. If the mutex must cover the whole run, the alternative is to keep the fd only in flock and `setsid`/`close-on-exec` the payload.
 2. **Scenario A needs a separate fix:** `runGateExec` should install `SIGTERM`/`SIGINT`/exit handlers that kill the flock child's _process group_, and the child should be spawned with `detached:false` + an explicit group kill, so that killing `arbiter` terminates the gate instead of orphaning it. (`-o` does not help here — the orphaned flock still holds the fd.)
 3. **Operator escape hatch:** teach `arbiter doctor` about the gate mutex — report the lock path, whether it is held (`flock -n <path> true`), and which pids hold fd on it; offer a `--repair` that kills the holder group. Today `doctor` is blind to it.
 

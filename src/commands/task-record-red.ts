@@ -8,7 +8,7 @@ import {
   hasDirtyTestPaths,
   pathExistsInCommit,
 } from '../evidence/git-checks.js'
-import { readTaskId } from './task-state.js'
+import { normalizeChainId, readTaskId, readUnifiedState } from './task-state.js'
 import { loadConfig } from '../utils/config.js'
 import { detectLanguage } from '../detectors/language.js'
 import type { Language } from '../wizard/types.js'
@@ -16,6 +16,8 @@ import type { Language } from '../wizard/types.js'
 export interface RecordRedOptions {
   testPath: string
   dir?: string
+  /** Task to record for; required to select a secondary issue on a declared train. */
+  taskId?: string
   /** Explicit test command (binary + args); overrides runner auto-selection. */
   testCmd?: readonly string[]
   /** Test-run timeout in ms. Default 60_000; clamped to [1000, 600_000]. */
@@ -233,7 +235,35 @@ export function taskIdFromBranch(branch: string): string | undefined {
  *   incident (a stale task-document surviving a branch switch) that #2064 fixes.
  * - Neither resolves → the pre-existing "no active task" refusal.
  */
-function resolveActiveTaskId(dir: string): { taskId: string } | RecordRedFailure {
+function resolveSelectedTaskId(
+  requestedTaskId: string | undefined,
+  activeTaskId: string,
+  dir: string,
+): { taskId: string } | RecordRedFailure {
+  if (requestedTaskId === undefined) return { taskId: activeTaskId }
+
+  let taskId: string
+  try {
+    taskId = normalizeChainId(requestedTaskId)
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) }
+  }
+  const chainIds = readUnifiedState(dir)?.chainIds ?? []
+  if (taskId === activeTaskId || chainIds.some((id) => id === taskId)) {
+    return { taskId }
+  }
+  return {
+    ok: false,
+    reason:
+      `task ${taskId} is not the active task or a declared train secondary — ` +
+      `add it with \`arbiter ship --chain-add ${taskId}\` before recording its RED evidence.`,
+  }
+}
+
+function resolveActiveTaskId(
+  dir: string,
+  requestedTaskId?: string,
+): { taskId: string } | RecordRedFailure {
   const docTaskId = readTaskId(dir)
   const branch = currentBranch(dir)
   const branchTaskId = taskIdFromBranch(branch)
@@ -256,14 +286,14 @@ function resolveActiveTaskId(dir: string): { taskId: string } | RecordRedFailure
       reason: `no active task — run \`arbiter task init --id #NNN\` (or \`/task #NNN\`) to initialise the task first`,
     }
   }
-  return { taskId }
+  return resolveSelectedTaskId(requestedTaskId, taskId, dir)
 }
 
 export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | RecordRedFailure {
   const dir = opts.dir ?? process.cwd()
   const timeoutMs = clampTimeout(opts.timeoutMs)
 
-  const resolution = resolveActiveTaskId(dir)
+  const resolution = resolveActiveTaskId(dir, opts.taskId)
   if ('reason' in resolution) return resolution
   const taskId = resolution.taskId
 

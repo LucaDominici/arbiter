@@ -10,8 +10,8 @@ interface VerifyTddCheck {
 }
 
 export interface VerifyTddResult {
-  status: 'PASS' | 'FAIL'
-  exitCode: 0 | 1
+  status: 'PASS' | 'FAIL' | 'DEGRADED'
+  exitCode: 0 | 1 | 2
   taskId: string
   reason?: string
   checks?: VerifyTddCheck[]
@@ -62,6 +62,12 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
     const reason = unresolvedCommitReason(ev)
     return fail(taskId, reason, [...checks, { name: 'sha-on-branch', pass: false, reason }])
   }
+  if ('degraded' in resolved) {
+    return degrade(taskId, resolved.reason, [
+      ...checks,
+      { name: 'sha-on-branch', pass: false, reason: resolved.reason },
+    ])
+  }
   const redSha = resolved.sha
   checks.push(reachableCommitCheck(ev, resolved))
 
@@ -89,6 +95,10 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
 
 function fail(taskId: string, reason: string, checks: VerifyTddCheck[]): VerifyTddResult {
   return { status: 'FAIL', exitCode: 1, taskId, reason, checks }
+}
+
+function degrade(taskId: string, reason: string, checks: VerifyTddCheck[]): VerifyTddResult {
+  return { status: 'DEGRADED', exitCode: 2, taskId, reason, checks }
 }
 
 function unresolvedCommitReason(ev: {

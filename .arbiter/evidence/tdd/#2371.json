@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2371",
+  "test_path": "__tests__/templates/check-tdd-evidence-render.test.ts",
+  "test_commit_sha": "7e4663a71c14bdcdaff4f00a6d2dd05ca3815c5f",
+  "test_blob_sha": "541e494a1879c4976e779e4e47d18b75287dd84b",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/templates/check-tdd-evidence-render.test.ts (23 tests | 1 failed) 1127ms\n     × vacuous PASS (exit 0) for docs-only work with a task-id subject but no evidence (#2371) 53ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 22 passed (23)\n   Start at  00:14:37\n   Duration  1.34s (transform 106ms, setup 12ms, import 132ms, tests 1.13s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/templates/check-tdd-evidence-render.test.ts > scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446) > vacuous PASS (exit 0) for docs-only work with a task-id subject but no evidence (#2371)\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/templates/check-tdd-evidence-render.test.ts:288:95\n    286|\n    287|   it('vacuous PASS (exit 0) for docs-only work with a task-id subject …\n    288|     expect(runScenario({ taskCommit: true, docsOnlyTaskCommit: true, e…\n       |                                                                                               ^\n    289|   })\n    290|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/templates/check-tdd-evidence-render.test.ts",
+  "recorded_at": "2026-08-26T22:14:38.740Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/templates/check-tdd-evidence-render.test.ts"
+  ]
+}

@@ -328,15 +328,18 @@ only under the ADR-103 carve-out, all conditions necessary: (1) dedicated worktr
 agent (`/wt-open`, `src/worktree/`), (2) distinct branch per agent, (3) file-sets
 declared disjoint in the plan manifest _before_ dispatch. Always serial regardless:
 dependency/lockfile changes, main-tree edits, tags. Expensive gates serialize through
-the flock mutex (`arbiter gate-exec`, kernel-level, released even on SIGKILL); lock
-acquisition is totally ordered (gate ≺ worktree ≺ wave-claim) to prevent deadlock;
+the flock mutex (`arbiter gate-exec`, kernel-level, released on the flock holder's fd
+death — including SIGKILL/OOM); lock acquisition is totally ordered
+(gate ≺ worktree ≺ wave-claim, ADR-103 §4) with `gate-exec` as the leaf;
 stale worktrees are reaped (`arbiter worktree prune --stale`).
 
 **Why.** R3 — the one failure mode with a confirmed real incident and no clean
 recovery path. Isolation converts a catastrophic race into ordinary merge mechanics.
 
-**Enforcement.** HARD-structural: worktree open is lock-serialized; gate mutex is
-flock(1), fail-closed serial where flock is missing; Iron Law in `AGENTS.md`
+**Enforcement.** MIXED — see ADR-103 §1 for the per-condition strength: the branch is
+made race-free by git's atomic `git worktree add -b` (the open lock guards the open-log
+write, not branch creation); the gate mutex is flock(1), fail-closed serial where flock
+is missing; the spawn guard is advisory by default; Iron Law in `AGENTS.md`
 (STOP→REFUSE on violation). Recovery protocol codified in rule-50. TO-CREATE: a
 dispatch-time hook that refuses to spawn a write-agent whose `cwd` is the main tree
 while another write-agent is active (today the rule is iron but the spawn itself is

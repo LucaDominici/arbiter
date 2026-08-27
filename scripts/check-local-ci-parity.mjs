@@ -209,6 +209,7 @@ const CI_COVERAGE = new Map([
   ['commitlint', 'gate-full'],
   ['test naming', 'gate-full'],
   ['hardness inventory', 'gate-full'],
+  ['hardness inventory (self hooks)', 'gate-full'],
   ['docs', 'gate-full'],
   ['matrix fixtures', 'gate-full'],
   ['matrix proven cells', 'gate-full'],

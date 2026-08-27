@@ -1,0 +1,49 @@
+{
+  "$schemaVersion": 1,
+  "taskIds": ["#2336", "#2371", "#2372", "#2319", "#2373"],
+  "tier": "Standard",
+  "agentCount": 3,
+  "angles": ["regression", "data-integrity", "edge-cases"],
+  "recordedBy": "retroactive red-team-review — the phase was skipped on the first pass of this group and is being recovered under the /ship mandate (2026-08-27)",
+  "findings": [
+    {
+      "id": "RT-A",
+      "severity": "CRITICAL",
+      "summary": "#2371's early exit blinds the TDD evidence gate: touchesSource matches only paths containing src/, and branchFloor() fails open when git diff fails",
+      "convergence": "found independently by all three agents (regression, data-integrity, edge-cases)",
+      "repro": "On a generated Go library change root-level math.go, commit 'fix(#42): alter Add' with no #42 evidence — the gate prints 'no src/ change, vacuous pass' and exits 0",
+      "auditorHint": "correctness",
+      "resolved": false
+    },
+    {
+      "id": "RT-B",
+      "severity": "CRITICAL",
+      "summary": "host-probe v8 ignore suppresses a loop that runs in normal developer use; its accompanying test only regex-matches the ignore marker, so it stays green if the loop is wrong",
+      "repro": "Mock homedir() to a temp home containing .claude/projects/<encoded-cwd>/session.jsonl and make the selection return the wrong file — coverage stays green",
+      "auditorHint": "test-quality",
+      "resolved": false
+    },
+    {
+      "id": "RT-C",
+      "severity": "HIGH",
+      "summary": "chainIds substring authorization is fail-open: readUnifiedState does not validate chainIds is an array, and .includes() on a string matches substrings",
+      "repro": "{ taskId: '#503', chainIds: '#5040' } authorizes --task #504 because '#5040'.includes('#504') is true",
+      "auditorHint": "correctness",
+      "resolved": false
+    },
+    {
+      "id": "RT-D",
+      "severity": "MEDIUM",
+      "summary": "the shallow-history test stubs resolveEvidenceCommit(), so removing the isShallowRepository() branch leaves it green — a vacuous oracle for #2372",
+      "auditorHint": "test-quality",
+      "resolved": false
+    },
+    {
+      "id": "RT-E",
+      "severity": "MEDIUM",
+      "summary": "coverage tolerance parity claim is false: check-coverage-ratchet now uses 0.4pp while debt-report.mjs still states it mirrors this gate's exact TOLERANCE=0.5pp and still uses 0.5",
+      "auditorHint": "docs-accuracy",
+      "resolved": false
+    }
+  ]
+}

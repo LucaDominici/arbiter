@@ -483,7 +483,7 @@ Arbiter's cross-language-matrix.json tracks tool maturity per language. A 'prove
 
 ### INV-36: Hook hardness manifest — every hook must declare intent; HARD hooks must empirically block
 
-Every hook in src/templates/claude/hooks/ must be declared in .arbiter/hooks-manifest.json with an explicit classification (HARD | ADVISORY). HARD hooks must empirically exit non-zero on a canonical violation fixture. Any hook file without a manifest entry, or any HARD hook that exits 0 on violation, fails CI. This prevents silent ceremony regression — where a hook is declared hard but silently exits 0.
+Every hook in src/templates/claude/hooks/ must be declared in .arbiter/hooks-manifest.json, and every hook in the project's own materialized .claude/hooks/ in .arbiter/self-hooks-manifest.json, with an explicit classification (HARD | ADVISORY). HARD hooks must empirically exit 2 — the only blocking code under the Claude Code hook protocol — on a canonical violation fixture. Any hook file without a manifest entry, or any HARD hook that fails to block, fails CI. This prevents silent ceremony regression — where a hook is declared hard but silently exits 0 (or exits 1, which prints without blocking). Both surfaces are required: #2324 was a defect present ONLY in the materialized copy, invisible to every template-scoped check (#2326).
 
 **Enforcement:** L1 gate (scripts/check-hardness-inventory.mjs) — drift and empirical exit-code assertions on every CI run
 

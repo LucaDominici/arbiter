@@ -130,6 +130,9 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'commitlint', affects: ALWAYS },
   { name: 'test naming', affects: ALWAYS },
   { name: 'hardness inventory', affects: ALWAYS },
+  // #2326: same checker, arbiter's own .claude/hooks/ surface. ALWAYS like its
+  // template sibling — a hook can stop blocking from a change anywhere in its import graph.
+  { name: 'hardness inventory (self hooks)', affects: ALWAYS },
   { name: 'install command (B1)', affects: ALWAYS },
   { name: 'tool claims', affects: ALWAYS },
   { name: 'third-party licenses', affects: ALWAYS },

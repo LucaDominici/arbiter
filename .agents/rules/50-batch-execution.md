@@ -2,7 +2,7 @@
 title: 'Batch Execution Contract'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-17'
+last_review: '2026-08-23'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
@@ -47,8 +47,10 @@ agent is exempt from the edit/commit/branch prohibitions only when ALL of the fo
 conditions hold — each is necessary, and any miss voids the exemption:
 
 1. **Dedicated worktree** — the agent operates in its own git worktree opened via
-   `arbiter worktree open` (or `/wt-open`). Branch creation is serialized by the
-   worktree open lock, so there is no race on git ref creation.
+   `arbiter worktree open` (or `/wt-open`). What prevents the ref race is git itself:
+   `git worktree add -b` creates the branch atomically and refuses one that exists.
+   (The `.arbiter/.lock` taken during open guards the open-log write, not branch
+   creation — ADR-103 D1.)
 2. **Distinct branch per agent** — no two parallel agents ever share a branch.
 3. **Disjoint file-sets** — the file-sets the agents will touch are declared disjoint
    in a plan manifest (wave-drain Phase 1) before dispatch.
@@ -60,9 +62,9 @@ Still prohibited even under the carve-out:
 - **Editing the main working tree** — workers write only inside their own worktree.
 - **Creating tags** — tags are repo-global refs; no worktree isolation applies.
 
-Lock discipline under the carve-out (anti-deadlock, ADR-103): a process never holds
-two arbiter locks at once. `arbiter gate-exec` is a **leaf** operation — it acquires
-only the gate flock and is never invoked while `.arbiter/.lock` is held. Total
+Lock discipline under the carve-out (ADR-103 §4): `arbiter gate-exec` is a **leaf**
+operation — it acquires only the gate flock and is never invoked while `.arbiter/.lock`
+is held, so the one BLOCKING lock is never taken underneath a file lock. Total
 acquisition order: gate-lock ≺ worktree-lock ≺ wave-claim.
 
 ## Anti-Rot Checklist

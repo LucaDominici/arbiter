@@ -518,6 +518,8 @@ function writeCompanionEvidence(
   const evidence: CompanionEvidenceV1 = {
     $schemaVersion: 1,
     companions: profile.companions.map((c) => ({ id: c.id, mode: c.mode })),
+    // #2373: minimal CI has no developer-home companion skills, so real diff collection is unselected.
+    /* v8 ignore next */
     diffStats: (opts.gatherCompanionDiffStats ?? gatherCompanionDiffStats)(root),
     recordedAt: opts.recordedAt ?? new Date().toISOString(),
   }
@@ -531,6 +533,8 @@ function writeCompanionEvidence(
   return out
 }
 
+// #2373: minimal CI has no developer-home companion skills, so this Git evidence path is unreachable.
+/* v8 ignore start */
 function gatherCompanionDiffStats(repoDir: string): CompanionDiffStats {
   const base = diffBase(repoDir)
   const range = base ? `${base}...HEAD` : 'HEAD'
@@ -560,6 +564,7 @@ function parseShortstat(shortstat: string): CompanionDiffStats {
   const deletions = Number((shortstat.match(/(\d+) deletions?\(-\)/) ?? [])[1] ?? 0)
   return { files, insertions, deletions }
 }
+/* v8 ignore stop */
 
 function writeVerificationCompanionEvidence(
   root: string,

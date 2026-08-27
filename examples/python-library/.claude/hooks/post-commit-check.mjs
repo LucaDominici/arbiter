@@ -8,11 +8,13 @@ import { resolveToolInputCommand } from './lib.mjs';
 // Reading only the env var made this guard silently inert under Claude Code (#1565).
 const command = resolveToolInputCommand();
 
-// Only act on git commit commands
-if (!/^git commit/.test(command)) process.exit(0);
+// Only act on git commit commands, including the normal `git -C <repo> commit` form.
+const commit = command.match(/^git(?:\s+-C\s+(?:"([^"]+)"|'([^']+)'|(\S+)))?\s+commit\b/);
+if (!commit) process.exit(0);
+const gitDir = commit[1] ?? commit[2] ?? commit[3];
 
 // Get last commit message
-const result = spawnSync('git', ['log', '-1', '--format=%s'], {
+const result = spawnSync('git', [...(gitDir ? ['-C', gitDir] : []), 'log', '-1', '--format=%s'], {
   encoding: 'utf-8',
 });
 const msg = (result.stdout ?? '').trim();
@@ -31,6 +33,7 @@ if (!CONVENTIONAL.test(msg)) {
     `[arbiter] Expected: type(scope): summary (e.g., feat(auth): add login)\n`,
   );
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-22\` for details.\n`);
+  // Exit 2 is the Claude Code hook protocol's blocking code.
   process.exit(2);
 }
 

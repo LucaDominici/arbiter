@@ -47,7 +47,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
       try {
         const f = join(dir, 'test.ts')
         writeFileSync(f, 'const x: any = 1;\n')
-        expect(runHook('check-no-any.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-any.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
@@ -61,7 +61,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
           f,
           '// arbiter-suppress(INV-04, until=2020-01-01, reason="DI field injected by Spring", owner=@luca)\nconst x: any = 1;\n',
         )
-        expect(runHook('check-no-any.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-any.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
@@ -75,7 +75,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
           f,
           '// arbiter-suppress(INV-99, until=2099-01-01, reason="DI field injected by Spring", owner=@luca)\nconst x: any = 1;\n',
         )
-        expect(runHook('check-no-any.mjs', f, dir).status).toBe(1)
+        expect(runHook('check-no-any.mjs', f, dir).status).toBe(2)
       } finally {
         cleanup()
       }
