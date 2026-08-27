@@ -571,7 +571,7 @@
     "scripts/pii-scan.mjs": "9a71b2e064edea21eeb6da9d3a0b6d57e7782c3636c6866c924977c355ccff74",
     "scripts/pr-merge-watch.mjs": "f40b8bbc41a7c221b4cf6e5719753b49b246dc86402f0e9bdf8c1e88642ed1ab",
     "scripts/record-agent-return.mjs": "e4046ed65b5cd72cfada8b92ac289db54e4c8e04f37f9194602f192023a62aae",
-    "scripts/record-journey-evidence.mjs": "5e15a21ce2899c5b701ae0675c0a2b95a4ee063bb6da3095f14a0cb06fb70f69",
+    "scripts/record-journey-evidence.mjs": "d56cb468d7c895de02a5c9f74c5ca9947874e2196acb48d48f1dea5917dbea41",
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
     "scripts/run-postman-tests.sh": "e859d168c5df6e2f9377e1190c764e8250c1bf31df4a9d2eecd9cd1276f2077f",
     "scripts/seed-test-data.sh": "c09b5221748953371060c5a754f40bf5eca274419ffbc907cbcfbac668caf2a7",
