@@ -347,7 +347,7 @@ function finalRetryError(
  * are inherited from the parent process so the child can take over the TTY.
  * Returns the child's exit status.
  */
-export interface RunInteractiveOptions {
+interface RunInteractiveOptions {
   cwd?: string
   env?: NodeJS.ProcessEnv
   /** Extra parent fds mapped to child fd 3 onward. */
