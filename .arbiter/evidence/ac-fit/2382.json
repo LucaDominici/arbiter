@@ -1,0 +1,48 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2382",
+  "branch": "task/#2382-materialize-journey-evidence",
+  "recordedAt": "2026-08-28T00:10:34+02:00",
+  "criteria": [
+    {
+      "id": "AC-2382.1",
+      "verdict": "PASS",
+      "note": "The documented recorder binds the current Git branch/SHA, canonical sanitized task path, explicit spec, and artifact target; the harness emits the same producer for downstream targets.",
+      "evidence": [
+        { "file": "scripts/record-journey-evidence.mjs", "line": 18 },
+        { "file": "scripts/record-journey-evidence.mjs", "line": 31 },
+        { "file": "src/generators/evidence-retention.ts", "line": 58 },
+        { "file": "docs/internal/ADR/037-evidence-harness-target-projects.md", "line": 95 },
+        { "file": "__tests__/generators/evidence-retention.test.ts", "line": 75 }
+      ]
+    },
+    {
+      "id": "AC-2382.2",
+      "verdict": "PASS",
+      "note": "The self Stop hook contains the harness journey verifier with branch, ancestor, spec, and exact artifact-target checks; the rendered-template behavior remains covered.",
+      "evidence": [
+        { "file": ".claude/hooks/stop-evidence-guard.mjs", "line": 140 },
+        { "file": "src/templates/claude/hooks/stop-evidence-guard.mjs.ejs", "line": 128 },
+        { "file": "__tests__/hooks/empirical/stop-evidence-journey.test.ts", "line": 135 }
+      ]
+    },
+    {
+      "id": "AC-2382.3",
+      "verdict": "PASS",
+      "note": "The stop-hook divergence entry is gone and self-dogfood reports all checked materialized files in parity.",
+      "evidence": [
+        { "file": ".dogfood-divergences.json", "line": 1 },
+        { "file": "scripts/check-self-dogfood.mjs", "line": 1 }
+      ]
+    },
+    {
+      "id": "AC-2382.4",
+      "verdict": "PASS",
+      "note": "The full L2 gate completed with all checks passed after the final implementation and evidence commits.",
+      "evidence": [
+        { "file": "scripts/check-all.mjs", "line": 1 },
+        { "file": ".arbiter/evidence/journey/_2382.json", "line": 1 }
+      ]
+    }
+  ]
+}
