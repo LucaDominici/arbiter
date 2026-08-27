@@ -355,7 +355,7 @@
     ".claude/hooks/pre-edit-plan-anchor.mjs": "81519f50ddb52f9b07382a9b32580d43f72526b69539d4092f11a5938e724e1a",
     ".claude/hooks/pre-edit-ssot-guard.mjs": "2317c2075bea7c4f19d4164d89e79867fc65886ad29e6033c34349f4b027ae78",
     ".claude/hooks/pre-spawn-worktree-guard.mjs": "54ce4d9030ced33a855befa3525dcd9d8f34d390525ee98a84a0ed1676c842ff",
-    ".claude/hooks/skill-forced-eval.mjs": "6cee081ffe51b9b6ac3ea9cabcd468c78f39688e9c8ad17c1e81c484e0b7eead",
+    ".claude/hooks/skill-forced-eval.mjs": "2d4db435de5b67caeae9689f8cf157921c107be57c5d92b3cd7b6f3250ad9f46",
     ".claude/hooks/stop-dangerous.mjs": "f2896a9bc48e44dd9e201a766a9880cd18a39c446605ca3fe2b6adad16425a34",
     ".claude/hooks/stop-evidence-guard.mjs": "4c98dd5bff1ac08191af117e5fc0a9876dda223b89b90d0c8b0cf0ca2fd70230",
     ".claude/hooks/stop-finding-loss.mjs": "878e5e9b00d253cdac62b3e22b00c0d14faa02d04493e2c277f8fce987dc2734",
