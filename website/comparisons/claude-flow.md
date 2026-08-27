@@ -2,7 +2,7 @@
 title: 'arbiter vs claude-flow'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-06-22'
 owner: ''
 canonical_id: ''
 tags: []
@@ -34,23 +34,21 @@ arbiter _also_ ships an **optional orchestration layer** (`/ship`, `/drain`, fou
 
 ## Feature comparison
 
-| Capability                                              | arbiter | claude-flow |
-| ------------------------------------------------------- | ------- | ----------- |
-| Multi-agent orchestration¹                              | ✓       | ✓           |
-| Parallel agent execution¹                               | ✓       | ✓           |
-| Shared agent memory/state                               | —       | ✓           |
-| Runtime fleet coordinator                               | —       | ✓           |
-| Governance file (AGENTS.md)                             | ✓       | —           |
-| Blocking hook scripts                                   | ✓       | —           |
-| CI workflow generation                                  | ✓       | —           |
-| Multi-tool configuration emission (Claude Code + Codex) | ✓       | n/r         |
-| Multi-model review / orchestration                      | —       | n/r         |
-| Language-aware setup                                    | ✓       | —           |
-| npx install in one step                                 | ✓       | —           |
+| Capability                          | arbiter | claude-flow |
+| ----------------------------------- | ------- | ----------- |
+| Multi-agent orchestration¹          | ✓       | ✓           |
+| Parallel agent execution¹           | ✓       | ✓           |
+| Shared agent memory/state           | —       | ✓           |
+| Runtime fleet coordinator           | —       | ✓           |
+| Governance file (AGENTS.md)         | ✓       | —           |
+| Blocking hook scripts               | ✓       | —           |
+| CI workflow generation              | ✓       | —           |
+| Multi-tool support (Claude + Codex) | ✓       | —           |
+| Language-aware setup                | ✓       | —           |
+| npx install in one step             | ✓       | —           |
 
 > **¹** Via arbiter's _optional orchestration layer_ (`/ship`, `/drain`) — distinct from the installer
 > core, and lighter-weight than claude-flow's runtime fleet coordination.
-> `n/r` means this arbiter-focused correction did not reassess claude-flow's corresponding capability.
 
 ---
 
@@ -74,4 +72,4 @@ claude-flow manages _how agents are coordinated_; arbiter manages _what rules th
 
 ---
 
-_Last reviewed: 2026-08-26_
+_Last reviewed: 2026-06-22_

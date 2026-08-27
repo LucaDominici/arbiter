@@ -155,21 +155,38 @@ const selfFixtureDirs = new Set([fixtureRoot])
  * This is not hypothetical: a fixture helper truncated docs/internal/SYSTEM/DECISIONS.md
  * during development of this very check.
  *
- * Legal shapes, enforced rather than documented: inside a `.arb-hardness-tmp-*` directory,
- * or a basename prefixed `.arb-hardness-`. Both are gitignored, and both make the
- * subsequent rmSync provably safe. Anything else FAILS the check — it never writes.
+ * Legal shape, enforced rather than documented: inside the exact pid-scoped
+ * `.arb-hardness-tmp-*` directory. Anything else FAILS before a write. Cleanup removes
+ * that exact sandbox root, never dirname(target) — which may be a tracked parent (RW-6).
  */
 function fixtureWriteTargetProblem(abs) {
   const rel = relative(ownerRoot, abs)
   if (rel.startsWith('..') || isAbsolute(rel)) return `resolves outside the repo (${rel})`
   const segments = rel.split(sep)
-  const contained =
-    segments.some((seg) => seg.startsWith('.arb-hardness-tmp')) ||
-    basename(abs).startsWith('.arb-hardness')
-  if (!contained) {
-    return `is outside the fixture sandbox — write fixtures under .arb-hardness-tmp-*/ or name them .arb-hardness-*`
+  if (!segments.includes(basename(fixtureRoot))) {
+    return `is outside the fixture sandbox — write fixtures under .arb-hardness-tmp-*/`
   }
   return null
+}
+
+function fixtureSandboxRoot(abs) {
+  const segments = relative(ownerRoot, abs).split(sep)
+  return join(ownerRoot, ...segments.slice(0, segments.indexOf(basename(fixtureRoot)) + 1))
+}
+
+function stageSelfHookInRoot(hookPath, root) {
+  const staged = join(root, '.claude/hooks', basename(hookPath))
+  mkdirSync(dirname(staged), { recursive: true })
+  writeFileSync(staged, readFileSync(hookPath))
+  const lib = join(hooksDir, 'lib.mjs')
+  if (existsSync(lib)) writeFileSync(join(dirname(staged), 'lib.mjs'), readFileSync(lib))
+  const suppressionLib = join(ownerRoot, 'scripts/lib/suppressions-shared.mjs')
+  if (existsSync(suppressionLib)) {
+    const dest = join(root, 'scripts/lib/suppressions-shared.mjs')
+    mkdirSync(dirname(dest), { recursive: true })
+    writeFileSync(dest, readFileSync(suppressionLib))
+  }
+  return staged
 }
 
 // ─── 0. HARD blocking-code invariant (#1631) ────────────────────────────────────
@@ -200,13 +217,9 @@ for (const entry of manifest.hooks) {
 // both `process.exit(2)` and were mis-declared ADVISORY in this manifest's first version.
 // Static, so it covers entries that cannot be spawned at all.
 //
-// SELF SURFACE ONLY for now. Running it over the template manifest surfaces six more
-// mis-declarations (check-no-unused-exports, check-circular-deps, hooks.mjs,
-// pre-spawn-worktree-guard, stop-finding-loss, post-commit-check) — all real, all
-// pre-existing, and one of them (post-commit-check) needs an ADR-032 adjudication that is
-// out of scope here. They are filed with that exact list rather than silently waived; this
-// guard flips on for the template surface when that issue lands.
-for (const entry of selfSurface ? manifest.hooks : []) {
+// This covers both the template and self surfaces. A default-ADVISORY hook may retain an
+// explicitly named *_HARD promotion branch; all other blocking exits mean it is HARD.
+for (const entry of manifest.hooks) {
   if (entry.classification !== 'ADVISORY') continue
   // An advisory hook MAY carry a blocking branch behind an explicit promotion knob
   // (ARBITER_*_HARD). Declaring that knob is the escape hatch — and it is a claim, not a
@@ -296,6 +309,9 @@ for (const entry of hardSpawnable) {
     env['ARBITER_HOOK_DEBOUNCE_MS'] = '0'
   }
   const tmpFiles = []
+  let isolatedRoot = null
+  let fixtureTarget = null
+  let hookInput = fixture.input ?? ''
 
   let pathOnlyBefore = null
   if (fixture.type === 'path-only') {
@@ -345,10 +361,26 @@ for (const entry of hardSpawnable) {
       continue
     }
     env[fixture.envKey] = target
-    if (selfSurface) selfFixtureDirs.add(dirname(target))
+    if (selfSurface) selfFixtureDirs.add(fixtureSandboxRoot(target))
     tmpFiles.push(selfSurface ? target : dirname(target))
   } else if (fixture.type === 'env-only') {
     Object.assign(env, fixture.env)
+  } else if (fixture.type === 'isolated-root') {
+    isolatedRoot = mkdtempSync(join(tmpdir(), 'arbiter-hardness-root-'))
+    Object.assign(env, fixture.env)
+    if (fixture.path) {
+      fixtureTarget = resolve(isolatedRoot, fixture.path)
+      const rel = relative(isolatedRoot, fixtureTarget)
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        fail(`${entry.file}: isolated fixture.path '${fixture.path}' resolves outside its root`)
+        rmSync(isolatedRoot, { recursive: true, force: true })
+        continue
+      }
+      mkdirSync(dirname(fixtureTarget), { recursive: true })
+      writeFileSync(fixtureTarget, fixture.content ?? '')
+      if (fixture.envKey) env[fixture.envKey] = fixtureTarget
+      hookInput = hookInput.replaceAll('{fixturePath}', fixtureTarget)
+    }
   }
 
   // Template surface: stage the hook next to a rendered lib.mjs (no-op when it has no lib
@@ -356,22 +388,26 @@ for (const entry of hardSpawnable) {
   // own lib — the only arrangement that can observe self-pair drift (#2324) — with cwd at
   // the repo root so `process.cwd()`-based scoping matches production.
   // Empty stdin either way, so resolveToolInputPath falls back to the fixture env var.
-  const { staged, cleanup } = selfSurface
-    ? { staged: hookPath, cleanup: () => {} }
-    : await stageHookWithLib(hookPath)
+  const { staged, cleanup } =
+    selfSurface && isolatedRoot
+      ? { staged: stageSelfHookInRoot(hookPath, isolatedRoot), cleanup: () => {} }
+      : selfSurface
+        ? { staged: hookPath, cleanup: () => {} }
+        : await stageHookWithLib(hookPath)
   let result
   try {
     result = spawnSync('node', [staged], {
       encoding: 'utf-8',
       env,
-      input: '',
-      ...(selfSurface ? { cwd: ownerRoot } : {}),
+      input: hookInput,
+      ...(isolatedRoot ? { cwd: isolatedRoot } : selfSurface ? { cwd: ownerRoot } : {}),
     })
   } finally {
     cleanup()
     // Unconditional: a fixture that survives a failing run is worse than no coverage —
     // a leftover child_process import under src/ is itself an INV-12 violation.
     for (const d of tmpFiles) rmSync(d, { recursive: true, force: true })
+    if (isolatedRoot) rmSync(isolatedRoot, { recursive: true, force: true })
     if (selfSurface) {
       // Both sandbox locations: the repo-root one and any nested one (src/ fixtures must be
       // src/-relative for the INV-12 guard). Unconditional — a surviving child_process
@@ -414,6 +450,84 @@ for (const entry of hardSpawnable) {
   }
 }
 
+// A promotedBy declaration is executable evidence, not a free-text waiver (#2345):
+// the same violation fixture must be advisory by default and blocking when the named
+// environment switch is enabled. Isolated roots keep these structured-stdin probes from
+// touching the checkout (both real promoted hooks write/read runtime sidecars).
+const promotedEntries = manifest.hooks.filter(
+  (h) => h.classification === 'ADVISORY' && typeof h.promotedBy === 'string' && h.promotedBy,
+)
+
+for (const entry of promotedEntries) {
+  const fixture = entry.fixture
+  if (!fixture || fixture.type !== 'isolated-root') {
+    fail(
+      `[hardness-blocking] ${entry.file} promotion claim is unbacked — promotedBy requires an isolated-root fixture`,
+    )
+    continue
+  }
+  if (typeof entry.expectStderr !== 'string' || entry.expectStderr === '') {
+    fail(
+      `[hardness-blocking] ${entry.file} promotion claim is unbacked — promotedBy requires an expectStderr violation signature`,
+    )
+    continue
+  }
+
+  const hookPath = join(hooksDir, entry.file)
+  if (!existsSync(hookPath)) continue
+  const root = mkdtempSync(join(tmpdir(), 'arbiter-hardness-promotion-'))
+  let staged
+  let cleanup = () => {}
+  let input = fixture.input ?? ''
+  try {
+    if (fixture.path) {
+      const target = resolve(root, fixture.path)
+      const rel = relative(root, target)
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        fail(`${entry.file}: promotion fixture.path '${fixture.path}' resolves outside its root`)
+        continue
+      }
+      mkdirSync(dirname(target), { recursive: true })
+      writeFileSync(target, fixture.content ?? '')
+      input = input.replaceAll('{fixturePath}', target)
+    }
+
+    if (selfSurface) staged = stageSelfHookInRoot(hookPath, root)
+    else ({ staged, cleanup } = await stageHookWithLib(hookPath))
+
+    const env = Object.fromEntries(
+      Object.entries({ ...process.env, ...fixture.env }).filter(
+        ([key]) => key !== entry.promotedBy,
+      ),
+    )
+    const advisory = spawnSync('node', [staged], {
+      cwd: root,
+      encoding: 'utf-8',
+      env,
+      input,
+    })
+    const promoted = spawnSync('node', [staged], {
+      cwd: root,
+      encoding: 'utf-8',
+      env: { ...env, [entry.promotedBy]: '1' },
+      input,
+    })
+    const signatureMatches = new RegExp(entry.expectStderr).test(promoted.stderr ?? '')
+
+    if (advisory.status === 0 && promoted.status === 2 && signatureMatches) {
+      pass(`${entry.file} is advisory by default and blocks when ${entry.promotedBy}=1`)
+    } else {
+      fail(
+        `[hardness-blocking] ${entry.file} promotion claim is unbacked — default exit ${advisory.status}, ` +
+          `${entry.promotedBy}=1 exit ${promoted.status}${signatureMatches ? '' : ', wrong violation branch'}`,
+      )
+    }
+  } finally {
+    cleanup()
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
 // ─── 3. Codex parity check ────────────────────────────────────────────────────
 
 const codexEntries = manifest.hooks.filter(
@@ -450,6 +564,6 @@ if (failed > 0) {
   process.exit(1)
 } else {
   process.stdout.write(
-    `\n=== HARDNESS INVENTORY PASSED (${hookFiles.length} hooks, ${hardSpawnable.length} HARD empirically verified, ${codexEntries.length} Codex parity verified) ===\n`,
+    `\n=== HARDNESS INVENTORY PASSED (${hookFiles.length} hooks, ${hardSpawnable.length} HARD empirically verified, ${promotedEntries.length} promotions verified, ${codexEntries.length} Codex parity verified) ===\n`,
   )
 }

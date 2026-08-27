@@ -2,7 +2,7 @@
 title: 'arbiter vs spec-kit'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-05-20'
 owner: ''
 canonical_id: ''
 tags: []
@@ -32,15 +32,15 @@ arbiter is a **governance installer**. It governs the _execution_ phase: what th
 
 ## Feature comparison
 
-| Capability                   | arbiter                | spec-kit |
-| ---------------------------- | ---------------------- | -------- |
-| Governance file (AGENTS.md)  | ✓                      | —        |
-| Spec-driven requirements     | —                      | ✓        |
-| AI tool hooks (blocking)     | ✓                      | —        |
-| CI workflow generation       | ✓                      | —        |
-| Requirements traceability    | ✓ (INV-112 / CANON-23) | ✓        |
-| Idempotent project setup     | ✓                      | —        |
-| Language-aware configuration | ✓                      | —        |
+| Capability                   | arbiter | spec-kit |
+| ---------------------------- | ------- | -------- |
+| Governance file (AGENTS.md)  | ✓       | —        |
+| Spec-driven requirements     | —       | ✓        |
+| AI tool hooks (blocking)     | ✓       | —        |
+| CI workflow generation       | ✓       | —        |
+| Requirements traceability    | —       | ✓        |
+| Idempotent project setup     | ✓       | —        |
+| Language-aware configuration | ✓       | —        |
 
 ---
 
@@ -62,10 +62,6 @@ arbiter is a **governance installer**. It governs the _execution_ phase: what th
 
 spec-kit and arbiter address different phases and can coexist. spec-kit governs what gets built; arbiter governs how it gets built. A team using spec-kit for requirements and arbiter for execution-phase governance gets coverage at both ends.
 
-Arbiter's FEATURE_MATRIX and `scripts/check-feature-matrix.mjs` provide governed requirements
-traceability, but arbiter does not yet create a durable specification artifact. It therefore does
-not claim spec-driven development.
-
 ---
 
-_Last reviewed: 2026-08-26_
+_Last reviewed: 2026-05-15_

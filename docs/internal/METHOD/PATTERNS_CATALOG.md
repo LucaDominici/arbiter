@@ -53,7 +53,7 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 - **Registry path:** `src/verify/`
 - **Variation axis:** the dimension being audited (drive-by scope, orphan TODOs, UI
   language, skip patterns). Each rule lives in its own file under `rules/` and is
-  composed via `src/verify/rules/registry.ts`.
+  composed via `rules/registry.ts`.
 - **Test approach:** golden plan fixtures driven through `runVerify()`; assert the
   `ReviewJsonV1` shape, status, and per-rule findings.
 - **Rejected alternatives:** runtime-only enforcement; rejected because catching a bad
@@ -164,5 +164,5 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 2. Add a `## <N>. <Pattern Name>` section with all six labelled bullets.
 3. Run `npx vitest run __tests__/docs/patterns-catalog-structure.test.ts` to confirm
    the structure gate still passes.
-4. Update `docs/internal/METHOD/SSOT_CORE_SET.md` if the entry introduces a new SSOT-level
+4. Update `docs/METHOD/SSOT_CORE_SET.md` if the entry introduces a new SSOT-level
    pattern domain.

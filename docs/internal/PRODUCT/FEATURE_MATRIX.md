@@ -1,8 +1,8 @@
 ---
 title: 'FEATURE_MATRIX — Product Truth RTM'
-doc_version: '1.1.1'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-08-08'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/pm', 'kind/product', 'kind/governance']
@@ -63,9 +63,9 @@ gap to close than `Partial`+`GATE`.
 
 Assignment rule used to seed this column (#2242): a row whose `test_ref` names a
 file in one of the evidence directories above takes that directory's tier
-directly. As of 2026-08-26, 46 rows cite a test: 13 `SCAFFOLD`, 21 `GATE`, and
-12 `E2E`; nine rows still have no `test_ref`. A row with no `test_ref` declares
-the tier its capability *requires*: stack/language
+directly. All 10 rows with a cited `test_ref` land under `GATE`: none cites a
+bake- or functional-tier test, so none reaches `SCAFFOLD` or `E2E` evidence. A row with no
+`test_ref` (45 rows) declares the tier its capability *requires*: stack/language
 support → `SCAFFOLD` (INV-32 anchors verification to a real-project fixture per
 language); arbiter-internal mechanisms with no target-project dependency (CLI
 surface, generator registry, invariant catalog, SSOT/parity gates, wizard,
@@ -196,20 +196,25 @@ Counts updated by the #2244–#2247 evidence backfill. One tier moved: REQ-045
 arbiter's own repo script and is never generated into a target project, so no
 generated-gate harness can reach it; #2242 assigned `E2E` in error.
 
-The #2244 backfill now leaves **46 rows** with a `test_ref`, including **12 `E2E`
-rows** backed by functional-tier tests. The cited functional evidence is limited to
-the named behaviours described in each row's `note`; it does not promote an
-unseeded sub-capability by association.
+The backfill also changed the evidence picture the previous paragraph described.
+34 rows now carry a `test_ref`: bake-tier evidence backs the 5 stack-support rows
+and 3 of the artifact rows (`SCAFFOLD`), the 10 arbiter-internal rows and the 8
+artifact rows cite their own unit/integration tests (`GATE`), and three `E2E` rows
+— REQ-003, REQ-004, REQ-009 — cite
+`__tests__/integration/e2e/functional/fixture-functional.test.ts`, the first
+functional-tier citations in this matrix.
 
-The remaining **7 `E2E` rows still have no functional-tier evidence**:
-REQ-002, REQ-008, REQ-011, REQ-031, REQ-033, REQ-037, and REQ-046. Their blockers
-are specific and material: L4 pharma/audit-trail needs a Java overlay cell
-(REQ-002/031); Playwright lacks a runnable start command and k6 has no gate
-(REQ-008); gitleaks is binary-guarded and PII scanning is SKIP-compatible
-(REQ-011); the kit gate is explicitly missing (REQ-033); Pact requires a live
-broker or a contract-faithful stub (REQ-037); and the local wrapper requires both
-an L2 result artifact and CI-artifact access (REQ-046). No existing functional
-test exercises those behaviours, so their `test_ref` cells remain blank.
+The remaining **13 `E2E` rows still have no functional-tier evidence**, and the
+reason is structural rather than a missing assertion: every fixture in
+`__tests__/integration/e2e/functional/` inits with `architectureStyle='none'`,
+`useGitHub=false`, `coverageEnabled=false` and at L1 or L2, so the gates those rows
+describe (boundaries/ArchUnit, workflow runners, Playwright/k6, FE INV-102..106,
+Pact, evidence INV-33, mutation) are never **emitted**, let alone executed. Each
+such row's `note` records its specific blocker and its unit-tier fallback. Closing
+them needs new fixture cells, not new assertions — and it needs the functional
+harness itself repaired first: `greenfield-first-run.test.ts`, the file the tier
+table above names as the `E2E` exemplar, is currently RED and is executed by **no**
+CI workflow (as are `go-debt-node-modules.test.ts` and `record-red-runner.test.ts`).
 
 ---
 
@@ -266,14 +271,11 @@ longer re-derivable from the table alone.
 
 ### True-gap clusters (40 rows, 4 clusters) — new follow-up filed per cluster
 
-**Cluster 1 — Core governance/enforcement generators lacked cited E2E test_ref**
-(17 rows at triage, `E2E` tier, CANON-23-critical) → **#2244**
+**Cluster 1 — Core governance/enforcement generators lack cited E2E test_ref**
+(17 rows, `E2E` tier, CANON-23-critical) → **#2244**
 REQ-001, REQ-003, REQ-004, REQ-005, REQ-006, REQ-007, REQ-008, REQ-009,
 REQ-010, REQ-011, REQ-016, REQ-032, REQ-036, REQ-037, REQ-038, REQ-045,
-REQ-046. Twelve now cite functional evidence; REQ-045 was correctly reclassified
-to `GATE`; REQ-008, REQ-011, REQ-037, and REQ-046 remain unbacked. The separate
-accepted-partial E2E rows REQ-002, REQ-031, and REQ-033 are also unbacked for the
-reasons recorded above.
+REQ-046
 
 **Cluster 2 — Stack-support rows lack a dedicated real-project fixture
 test_ref** (5 rows, `SCAFFOLD` tier, asymmetric with Kotlin/REQ-026) →
@@ -297,4 +299,3 @@ REQ-012, REQ-013, REQ-034, REQ-035, REQ-047, REQ-048, REQ-049, REQ-050
 | ------- | ---------- | -------------------------------------------------------------------- |
 | 1.0.0   | 2026-06-02 | Initial seeding from reconciliation audit; 51 rows, all dims covered |
 | 1.1.0   | 2026-08-08 | #2242: GAMP-style enhancement — `verification_tier` column (SCAFFOLD\|GATE\|E2E) added to all 55 rows; REQ-017/018/019 stale hand-copied counts refreshed as SSOT pointers; gap triage of 46 Partial + 1 Missing rows (7 accepted-partial, 40 true-gap across 4 filed clusters: #2244–#2247) |
-| 1.1.1   | 2026-08-26 | #2244 evidence audit: corrected the stale 34/13 totals to 46 cited rows and seven remaining E2E gaps; blank cells retained where no functional test exists |

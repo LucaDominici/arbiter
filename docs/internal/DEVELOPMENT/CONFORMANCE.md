@@ -2,21 +2,17 @@
 title: 'arbiter — Conformance Scorecard'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-06-15'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/spec']
-related: ['docs/internal/SYSTEM/CANON.md']
+related: ['docs/SYSTEM/CANON.md']
 ---
 
 # arbiter conformance scorecard (#1369)
 
 > `arbiter conformance` — scores a project against the arbiter gold standard and emits a
 > per-dimension matrix (pass / partial / fail / skip + evidence ref).
-
-> **Status:** this is a proposed command interface, not a registered current CLI
-> command. The shipped related surface is `arbiter doctor --prove-gates`, which
-> runs negative proofs for the tier-1 conformance dimensions.
 
 ---
 
@@ -64,7 +60,7 @@ related: ['docs/internal/SYSTEM/CANON.md']
 
 ---
 
-## Proposed usage (not a current CLI command)
+## Usage
 
 ```bash
 # Score current project (text output)
@@ -82,18 +78,12 @@ arbiter conformance --fail-on partial
 
 ---
 
-## Implemented building blocks
+## Implementation
 
-- **`src/conformance/engine.ts`** — deterministic scorecard evaluator; it is
-  not currently exposed as `arbiter conformance`.
-- **`src/conformance/dimensions.ts`** — per-dimension probe functions.
-- **`src/conformance/gate-proofs.ts`** — negative-proof registry for tier-1
-  conformance dimensions.
-- **`src/commands/doctor/prove-gates.ts`** — implementation of the current
-  `arbiter doctor --prove-gates` surface.
-- **`__tests__/conformance/engine.test.ts`** and
-  **`__tests__/commands/doctor-prove-gates.test.ts`** — direct coverage of the
-  evaluator and current command.
+- **`src/commands/conformance.ts`** — `runConformance()` entry point + types
+- **`src/conformance/dimensions.ts`** — per-dimension probe functions (pure, testable)
+- **`src/conformance/render.ts`** — terminal + JSON rendering helpers
+- **`__tests__/commands/conformance.test.ts`** — 15 unit tests
 
 ---
 

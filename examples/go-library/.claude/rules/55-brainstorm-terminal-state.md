@@ -18,7 +18,7 @@ decision, captured durably — never code.
 
 A brainstorm session has exactly one terminal state:
 
-1. A committed design doc under `docs/design/<topic-slug>.md`, and
+1. A committed design doc under `.arbiter/design/<topic-slug>.md`, and
 2. A GitHub issue that captures the decision.
 
 Once both exist, the session **STOPS**. It never flows into implementation in the

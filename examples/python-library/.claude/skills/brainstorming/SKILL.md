@@ -54,14 +54,14 @@ Write a short design document covering:
 - Key decisions and rejected alternatives
 - Open questions
 
-Save to `docs/design/<topic-slug>.md`.
+Save to `.arbiter/design/<topic-slug>.md`.
 
 ### Step 5 — Create GitHub issue
 
 Create a GH issue capturing the design decision:
 
 ```bash
-gh issue create --title "design: <topic-slug>" --body "$(cat docs/design/<topic-slug>.md)"
+gh issue create --title "design: <topic-slug>" --body "$(cat .arbiter/design/<topic-slug>.md)"
 ```
 
 ## Terminal State (MANDATORY)

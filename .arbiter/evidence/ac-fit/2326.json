@@ -55,11 +55,11 @@
     {
       "id": "AC-6",
       "verdict": "PASS",
-      "note": "settings.json INTERSECT self manifest asserted; ADVISORY floor fails any ADVISORY entry whose source contains process.exit(2), with promotedBy as the only escape hatch and the env var verified present in source.",
+      "note": "settings.json INTERSECT self manifest asserted; ADVISORY hooks containing process.exit(2) fail unless promotedBy is backed by an isolated behavioral fixture that observes exit 0 by default and exit 2 with the named switch enabled.",
       "evidence": [
-        { "file": "scripts/check-hardness-inventory.mjs", "line": 195 },
-        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 458 },
-        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 344 }
+        { "file": "scripts/check-hardness-inventory.mjs", "line": 453 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 367 },
+        { "file": "__tests__/scripts/check-hardness-inventory.test.ts", "line": 271 }
       ]
     },
     {
@@ -88,18 +88,18 @@
       "note": "Fixture paths outside the sandbox and traversal escapes are refused without writing; path-only targets hashed before/after; cleanup asserted on the failing path and mutation-verified (disabling the rmSync flips it red).",
       "evidence": [
         { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 306 },
-        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 400 },
-        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 421 },
-        { "file": "scripts/check-hardness-inventory.mjs", "line": 315 }
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 344 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 428 },
+        { "file": "scripts/check-hardness-inventory.mjs", "line": 155 }
       ]
     },
     {
       "id": "AC-10",
       "verdict": "PASS",
-      "note": "Floor of 10 observed asserted. Lowered from 12 during review: pre-edit-ssot-guard and enforce-gate-before-pr became declared-only because probing them consumed a developer's one-shot .arbiter/ssot-bypass token and read the live gate-pass marker respectively.",
+      "note": "12 self hooks are empirically observed. #2342 restores pre-edit-ssot-guard and enforce-gate-before-pr via disposable isolated roots, so probes cannot consume a live one-shot bypass or read a live gate-pass marker.",
       "evidence": [
-        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 471 },
-        { "file": ".arbiter/self-hooks-manifest.json", "line": 4 }
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 538 },
+        { "file": "__tests__/hooks/empirical/hardness-inventory.test.ts", "line": 570 }
       ]
     }
   ]

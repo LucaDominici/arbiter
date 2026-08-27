@@ -31,7 +31,8 @@
 //
 // Exports for unit tests:
 //   buildRenderContext, templateToMaterialized, isAllowlisted,
-//   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS,
+//   isConfigGated, normalizeLines, computeDiff, checkRawHooks, checkLanguageHooks,
+//   REQUIRED_RAW_HOOKS,
 //   hashDiff, classifyDivergence, exportedSymbols, missingExports,
 //   exportSurfaceViolation, classifyAllowlistedPair, EXTERNAL_CI_FAMILIES, matchedFamilyBasenames,
 //   checkExternalCiSurfaceParity
@@ -571,6 +572,65 @@ export async function checkRawHooks(root = repoRoot, divergences = loadDivergenc
   return { checked, skipped, drifted, visited, exportDrops }
 }
 
+/**
+ * #2339: hooks emitted from ProjectConfig.languageHooks have no EJS/raw template file;
+ * their body comes from src/detectors/language-hooks.ts. Compare those generated bodies
+ * directly with arbiter's materialized self hooks. check-no-orphan-todo is excluded because
+ * planClaudeHooks deliberately emits its EJS template instead, already covered above.
+ */
+export async function checkLanguageHooks(root, languageHooks, divergences = loadDivergences()) {
+  const drifted = []
+  const visited = new Map()
+  const exportDrops = new Set()
+  let checked = 0
+  let skipped = 0
+
+  for (const hook of languageHooks.filter((h) => h.name !== 'check-no-orphan-todo.mjs')) {
+    const materialized = join(root, '.claude/hooks', hook.name)
+    const template = `src/detectors/language-hooks.ts::${hook.name}`
+    if (!existsSync(materialized)) {
+      drifted.push({
+        template,
+        materialized: relative(root, materialized),
+        reason: 'materialized language hook missing',
+      })
+      continue
+    }
+
+    const actualContent = readFileSync(materialized, 'utf-8')
+    const expectedLines = await normalizeLines(hook.body, materialized)
+    const actualLines = await normalizeLines(actualContent, materialized)
+    const diff = computeDiff(expectedLines, actualLines)
+    const entry = divergences.get(materialized)
+
+    if (entry) {
+      visited.set(materialized, diff)
+      const violation = classifyAllowlistedPair({
+        entry,
+        materialized,
+        templateContent: hook.body,
+        actualContent,
+        diff,
+        exportDrops,
+      })
+      if (violation)
+        drifted.push({ template, materialized: relative(root, materialized), ...violation })
+      else skipped++
+    } else if (diff) {
+      drifted.push({
+        template,
+        materialized: relative(root, materialized),
+        added: diff.added.slice(0, 5),
+        removed: diff.removed.slice(0, 5),
+      })
+    } else {
+      checked++
+    }
+  }
+
+  return { checked, skipped, drifted, visited, exportDrops }
+}
+
 // ─── external CI-surface parity (R-02) ───────────────────────────────────────
 //
 // #1877/#1894 showed a drift class TEMPLATE_ROOTS cannot see: arbiter swapped its
@@ -967,6 +1027,7 @@ async function main() {
   // the top of main() (#1984); this catch remains for a missing/corrupt/unimportable
   // build and fails the gate closed (one drift entry) rather than crashing main()
   // before the .claude-family results above are reported.
+  let language = { checked: 0, skipped: 0, drifted: [], visited: new Map(), exportDrops: new Set() }
   let external = { checked: 0, skipped: 0, drifted: [], visited: new Map(), exportDrops: new Set() }
   let externalCheckFailed = false
   try {
@@ -978,6 +1039,7 @@ async function main() {
     const stored = loadConfig(repoRoot)
     if (!stored) throw new Error('arbiter.json not found')
     const { config: projectConfig } = resolveProjectConfig(repoRoot, 'arbiter', stored)
+    language = await checkLanguageHooks(repoRoot, projectConfig.languageHooks, divergences)
     // Script twins render under their owning generators' data contract, not a
     // bare ProjectConfig: the debt toolchain twins use metricsProfile.* keys
     // that only the debt generator derives (#2229). The extra key is harmless
@@ -996,6 +1058,11 @@ async function main() {
         'first — scripts/ cannot import .ts directly (#1267).',
     })
   }
+  checked += language.checked
+  skipped += language.skipped
+  drifted.push(...language.drifted)
+  for (const [p, d] of language.visited) visited.set(p, d)
+  for (const p of language.exportDrops) exportDrops.add(p)
   checked += external.checked
   skipped += external.skipped
   drifted.push(...external.drifted)

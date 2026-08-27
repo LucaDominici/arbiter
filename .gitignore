@@ -56,9 +56,9 @@ coverage/
 # (file-precise: only the ledger is re-included, stray files stay ignored per #1770)
 !.arbiter/rework/
 !.arbiter/rework/ledger.jsonl
-# #1770 (T1): manager state (MILESTONES, DONE, chat-protocol), redteam evidence,
-# and other internal-only artifacts stay untracked+ignored ahead of the repo going
-# public. docs/design/ is tracked separately for durable design docs.
+# #1770 (T1): manager state (MILESTONES, DONE, chat-protocol), design notes,
+# redteam evidence, and other internal-only artifacts stay untracked+ignored
+# ahead of the repo going public. Kept on disk, never re-added by `git add -A`.
 
 # Java build artifacts in fixtures
 __tests__/**/.gradle/
