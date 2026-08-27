@@ -67,12 +67,7 @@ function sortedDirectoryEntries(dir: string): string[] | null {
   }
 }
 
-function visitSkillEntry(
-  dir: string,
-  entry: string,
-  depth: number,
-  context: WalkContext,
-): void {
+function visitSkillEntry(dir: string, entry: string, depth: number, context: WalkContext): void {
   const { found, count } = context
   if (entry.startsWith('.') || SKIP_DIRS.has(entry)) return
   const full = join(dir, entry)
@@ -93,11 +88,7 @@ function visitSkillEntry(
 }
 
 /** Walk a directory tree up to maxDepth, returning paths of all SKILL.md files found. */
-function findSkillFiles(
-  dir: string,
-  depth: number,
-  context: WalkContext,
-): void {
+function findSkillFiles(dir: string, depth: number, context: WalkContext): void {
   const { count, limits } = context
   if (depth > limits.maxDepth || count.n >= limits.maxEntries) return
   if (!existsSync(dir)) return

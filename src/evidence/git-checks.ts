@@ -85,13 +85,12 @@ export interface EvidenceCommitRef {
   test_blob_sha?: string | undefined
 }
 
-export interface DegradedEvidenceCommitResolution {
+interface DegradedEvidenceCommitResolution {
   degraded: true
   reason: string
 }
 
-export type EvidenceCommitResolution =
-  { sha: string; healed: boolean } | DegradedEvidenceCommitResolution
+type EvidenceCommitResolution = { sha: string; healed: boolean } | DegradedEvidenceCommitResolution
 
 function isShallowRepository(dir?: string): boolean {
   return gitValue(['rev-parse', '--is-shallow-repository'], dir) === 'true'
