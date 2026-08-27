@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateEvidenceRetention } from '../../src/generators/evidence-retention.js'
@@ -70,6 +70,37 @@ describe('generateEvidenceRetention', () => {
     const path = join(dir, 'scripts', 'record-journey-evidence.mjs')
     expect(existsSync(path)).toBe(true)
     expect(readFileSync(path, 'utf-8')).toContain('--target artifact')
+  })
+
+  it('runs the emitted recorder against the generated target checkout', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+    execFileSync('git', ['commit', '-m', 'fixture', '--no-gpg-sign'], {
+      cwd: dir,
+      stdio: 'ignore',
+    })
+    generateEvidenceRetention(config)
+    const path = join(dir, 'scripts', 'record-journey-evidence.mjs')
+    const branch = execFileSync('git', ['branch', '--show-current'], {
+      cwd: dir,
+      encoding: 'utf8',
+    }).trim()
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    const result = spawnSync(
+      'node',
+      [path, '--task-id', '#2382', '--spec', 'node dist/cli.js --help', '--target', 'artifact'],
+      { cwd: dir, encoding: 'utf8' },
+    )
+
+    expect(result.status).toBe(0)
+    expect(
+      JSON.parse(readFileSync(join(dir, '.arbiter', 'evidence', 'journey', '_2382.json'), 'utf8')),
+    ).toEqual({
+      branch,
+      sha,
+      spec: 'node dist/cli.js --help',
+      target: 'artifact',
+    })
   })
 
   it('does not generate scripts/done-evidence.mjs when harness off', () => {

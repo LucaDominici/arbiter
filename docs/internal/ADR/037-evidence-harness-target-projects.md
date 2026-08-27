@@ -106,8 +106,11 @@ node scripts/record-journey-evidence.mjs \
 
 The recorder derives `branch` and `sha` from Git and writes
 `.arbiter/evidence/journey/_2382.json`; it deliberately records nothing unless the caller names
-the required `artifact` target. Run the declared acceptance spec against the built artifact before
-invoking it.
+the required `artifact` target. It is a binding/attestation command, not a generic E2E runner: run
+the declared acceptance spec against the built artifact, inspect its successful result, then invoke
+the recorder. The existing schema intentionally carries no command output or artifact digest, so
+the hook enforces the declared artifact boundary and Git correlation but does not claim
+cryptographic proof that an arbitrary command was executed.
 
 ---
 
