@@ -25,7 +25,7 @@ parallel agents, you do not implement.
 | Flag               | Default | Meaning                                                                        |
 | ------------------ | ------- | ------------------------------------------------------------------------------ |
 | `--wave-size N`    | 10      | Max issues per wave                                                            |
-| `--max-parallel N` | 3       | Max worktree agents; effective cap `min(--max-parallel, nproc - 2, wave size)` |
+| `--max-parallel N` | 1       | Max worktree agents; effective cap `min(--max-parallel, nproc - 2, wave size)` |
 
 Parallel write-agents are legal ONLY under the ADR-103 rule-50 carve-out: dedicated
 worktree, distinct branch, plan-manifest-disjoint file-sets; deps/main-tree/tags stay

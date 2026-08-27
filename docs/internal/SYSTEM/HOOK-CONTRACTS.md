@@ -63,7 +63,8 @@ enforced by the same checker under INV-36; the self run is gate-wired as
    The template harness writes fixtures into `os.tmpdir()`, so every such hook exits 0 — the gate
    would report a healthy blocker while the hook is dead.
 2. **Own-lib provenance.** `.claude/hooks/lib.mjs` imports
-   `../../scripts/lib/suppressions-shared.mjs`, unresolvable from a staged tmpdir; and a hook staged
+   `scripts/lib/suppressions-shared.mjs` (a two-level relative specifier in the source),
+   unresolvable from a staged tmpdir; and a hook staged
    beside a _template-rendered_ lib is not the pair that broke in #2324.
 
 So `selfSurface: true` makes the checker spawn each hook **in place**, with `cwd` at the repo root
@@ -143,7 +144,7 @@ load failure fails the gate.
 `.claude/hooks/lib.mjs` that never exported it, and crashed on every `Edit`/`Write` for 18 days.
 Two blind spots hid it, and both are structural rather than accidental:
 
-1. `hooks/lib.mjs` carries a **whole-file divergence pin** in `.dogfood-divergences.json`.
+1. `.claude/hooks/lib.mjs` carries a **whole-file divergence pin** in `.dogfood-divergences.json`.
    Re-pinning the hash on each change absorbs any drift, including a missing export.
 2. `__tests__/hooks/empirical/ssot-guard.test.ts` builds its fixture from the **template pair**
    (template hook + rendered template lib), so it is self-consistent by construction and can never
