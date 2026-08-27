@@ -36,6 +36,9 @@ coverage/
 !.arbiter/evidence/
 !.arbiter/evidence/tdd/
 !.arbiter/evidence/tdd/*.json
+# Journey evidence is committed so the Stop guard's artifact proof is auditable
+!.arbiter/evidence/journey/
+!.arbiter/evidence/journey/*.json
 # tech-debt.json files written by `arbiter task record-tech-debt` — whitelist so CI sees them
 !.arbiter/evidence/*/
 !.arbiter/evidence/*/tech-debt.json

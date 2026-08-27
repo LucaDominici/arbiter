@@ -62,6 +62,13 @@ export function generateEvidenceRetention(
         renderTemplate('scripts/done-evidence.mjs.ejs', data),
         { skipIfExists: false, backup: true, dryRun: opts.dryRun },
       ),
+      // The Stop hook's journey check must ship with its producer; otherwise an
+      // enabled evidence harness deadlocks every target at completion (#2382).
+      writeFile(
+        resolvedPath(base, 'scripts', 'record-journey-evidence.mjs'),
+        renderTemplate('scripts/record-journey-evidence.mjs.ejs', data),
+        { skipIfExists: false, backup: true, dryRun: opts.dryRun },
+      ),
     )
   }
 

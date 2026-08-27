@@ -72,7 +72,7 @@ function main() {
       `━━━ STOP EVIDENCE GUARD ━━━\n` +
         `Completion claim blocked on ${branch} (phase: ${phase}):\n` +
         `  ${reason}\n\n` +
-        `A completion claim requires plan-review + dispatch + gate-pass evidence,\n` +
+        `A completion claim requires plan-review + dispatch + gate-pass + journey evidence,\n` +
         `each recorded on this branch at a commit reachable from HEAD.\n` +
         `Re-run the missing step, then claim completion again.\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`,
@@ -136,6 +136,18 @@ function main() {
     taskId,
   })
   if (!gateVerdict.ok) fail(gateVerdict.reason)
+
+  // 4. journey evidence (#A2, extends INV-114) — a completion claim must reference a run of the
+  // task's declared acceptance E2E spec AGAINST THE BUILT ARTIFACT (compose image / dist), not the
+  // dev server. One downstream project shipped green-tested images whose prod UI ran in fixture mode (buttons
+  // dead) because the acceptance journey was only ever exercised against the dev server.
+  const journey = readJson(join(root, '.arbiter', 'evidence', 'journey', sanitizeTaskId(taskId) + '.json'))
+  if (journey === null) fail('journey evidence missing or unreadable (.arbiter/evidence/journey/<taskId>.json) — declare the acceptance E2E spec up front and run it before claiming completion')
+  if (journey.branch !== branch) fail(`journey evidence is for branch ${JSON.stringify(journey.branch)}, not ${branch}`)
+  if (!isAncestor(journey.sha)) fail('journey evidence sha is not an ancestor of HEAD (stale) — re-run the acceptance spec on the current tree')
+  if (typeof journey.spec !== 'string' || journey.spec.length === 0) fail('journey evidence does not name the acceptance spec it ran (missing "spec")')
+  // Artifact parity: the run must have exercised the built artifact, never dev-server-only.
+  if (journey.target !== 'artifact') fail(`journey evidence ran against ${JSON.stringify(journey.target)}, not the built artifact — a dev-server run does not prove the packaged image works (set target:"artifact" after running the spec against the compose image / dist)`)
 
   // All correlated evidence present — allow the stop, after a final reflection-sweep nudge (#1402).
   reflectionSweep(root)

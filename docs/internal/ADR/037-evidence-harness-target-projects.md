@@ -92,6 +92,23 @@ A missing, stale, spec-less, or dev-server-only journey artifact blocks the stop
 message naming the specific defect. The check is config-gated: projects without the evidence harness
 keep the three-artifact contract unchanged.
 
+To produce the artifact in the arbiter self-repo, build and exercise the packaged CLI first, then
+bind that successful run to the current checkout:
+
+```bash
+npm run build
+node dist/cli.js --help
+node scripts/record-journey-evidence.mjs \
+  --task-id '#2382' \
+  --spec 'node dist/cli.js --help' \
+  --target artifact
+```
+
+The recorder derives `branch` and `sha` from Git and writes
+`.arbiter/evidence/journey/_2382.json`; it deliberately records nothing unless the caller names
+the required `artifact` target. Run the declared acceptance spec against the built artifact before
+invoking it.
+
 ---
 
 ## Consequences

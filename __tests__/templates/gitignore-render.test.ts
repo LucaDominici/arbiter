@@ -89,6 +89,10 @@ describe('root/.gitignore.ejs — TDD evidence must stay committable (#2313)', (
     expect(checkIgnore('.arbiter/evidence/tdd/#42.json')).toBe(false)
   })
 
+  it('does NOT ignore .arbiter/evidence/journey/*.json (#2382)', () => {
+    expect(checkIgnore('.arbiter/evidence/journey/_2382.json')).toBe(false)
+  })
+
   it('still ignores the rest of .arbiter/ runtime state', () => {
     expect(checkIgnore('.arbiter/ship/42/attempts.json')).toBe(true)
     expect(checkIgnore('.arbiter/plan/runs/1/run.json')).toBe(true)
