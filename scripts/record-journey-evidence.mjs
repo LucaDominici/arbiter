@@ -64,7 +64,9 @@ try {
   writeFileSync(temporaryPath, JSON.stringify(evidence, null, 2) + '\n', 'utf8')
   renameSync(temporaryPath, evidencePath)
 } catch (error) {
-  fail(`could not write ${evidencePath}: ${error instanceof Error ? error.message : String(error)}`)
+  const message = `could not write ${evidencePath}: ${error instanceof Error ? error.message : String(error)}`
+  process.stderr.write(`[record-journey-evidence] ERROR: ${message}\n${usage}`)
+  process.exit(2)
 }
 
 process.stdout.write(`[record-journey-evidence] wrote ${evidencePath}\n`)
