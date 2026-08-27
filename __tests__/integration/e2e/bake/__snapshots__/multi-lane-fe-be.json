@@ -285,7 +285,7 @@
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",
     ".githooks/pre-commit": "d03114839ef5528563e9308c8ece10bc6dcce402ac0d8dd6eab97a459224a07e",
     ".githooks/pre-push": "0dd4c22743ef2a2eb62598c34610b060aaf6f1f2ce906ab08d7148a7c90f7431",
-    ".gitignore": "ccb4af3a3d454e81eaa6de70a6d5047dffdd3e256ee6e9a1a87a2221babebe16",
+    ".gitignore": "b47cfc5ed9211a7612c79bcdbd3eda1f4498e47770167d8ab417b3add6d7dee5",
     ".lighthouserc.json": "d36f6ec5a3dca14b993fad551be8ef7f125d64d14a750253a1ada2bded7b315e",
     ".prettierignore": "4b9aa051a087caf0a81eeffb1de92e623f1616a20d9ac641605ddb8428c0a86c",
     ".prettierrc.json": "2ba158185b0ad7f72c160eb17eaf3ea0cfadfffdf6ebc0377a25f8d5a21eb1ae",

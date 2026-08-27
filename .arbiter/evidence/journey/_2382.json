@@ -1,0 +1,6 @@
+{
+  "branch": "task/#2382-materialize-journey-evidence",
+  "sha": "6c20a64e300e00c471ebb8b98721937b89ffd4f8",
+  "spec": "node dist/cli.js --help",
+  "target": "artifact"
+}
