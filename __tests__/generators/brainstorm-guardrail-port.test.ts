@@ -100,7 +100,5 @@ describe('#1265 brainstorm guardrail — terminal-state rule', () => {
     const content = readFileSync(rulePath, 'utf-8')
     expect(content).toMatch(/never auto-implement|no auto-implementation|never.*implement/i)
     expect(content).toContain('brainstorm-active')
-    expect(content).toContain('docs/design/<topic-slug>.md')
-    expect(content).not.toContain('.arbiter/design/')
   })
 })

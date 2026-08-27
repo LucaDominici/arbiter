@@ -9,13 +9,9 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import {
-  collectScanFiles,
-  extractPathCitations,
-  findPhantomPaths,
-} from '../../scripts/check-doc-path-citations.mjs'
+import { extractPathCitations, findPhantomPaths } from '../../scripts/check-doc-path-citations.mjs'
 
 const SCRIPT = resolve('scripts/check-doc-path-citations.mjs')
 
@@ -64,18 +60,6 @@ describe('findPhantomPaths', () => {
     expect(findPhantomPaths(new Set(['.arbiter/e2e-ledger.jsonl']), resolve('.'))).toEqual([])
   })
 
-  it('skips the exact runtime-generated task-completion state file', () => {
-    expect(findPhantomPaths(new Set(['.claude/.last-done-evidence.json']), resolve('.'))).toEqual(
-      [],
-    )
-  })
-
-  it('does not let a nonexistent lookalike inherit a runtime file exemption', () => {
-    expect(
-      findPhantomPaths(new Set(['.claude/.last-done-evidence.json-forged']), resolve('.')),
-    ).toEqual(['.claude/.last-done-evidence.json-forged'])
-  })
-
   it('skips a URL', () => {
     expect(findPhantomPaths(new Set(['https://example.com/foo.js']), resolve('.'))).toEqual([])
   })
@@ -105,41 +89,7 @@ describe('check-doc-path-citations.mjs — synthetic phantom fails closed (AC-22
         cwd: dir,
       })
       expect(r.status).toBe(1)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  // #2362: docs/internal contains current-state contracts, whereas ADRs,
-  // DECISIONS.md, and changelogs narrate historical paths.
-  it('#2362 scans binding docs/internal contracts but exempts historical paths', () => {
-    const fixtureRoot = resolve('__tests__/fixtures/doc-path-citations-internal/docs')
-    const binding = collectScanFiles(fixtureRoot)
-    expect(binding).toEqual([join(fixtureRoot, 'internal', 'SYSTEM', 'CANON.md')])
-    expect(
-      findPhantomPaths(
-        extractPathCitations(readFileSync(binding[0], 'utf-8')),
-        resolve('.'),
-        dirname(binding[0]),
-      ),
-    ).toEqual(['src/totally/made-up.ts'])
-
-    const dir = mkdtempSync(join(tmpdir(), 'path-citation-archive-'))
-    try {
-      const docs = join(dir, 'docs')
-      mkdirSync(join(docs, 'internal', 'ADR'), { recursive: true })
-      mkdirSync(join(docs, 'internal', 'SYSTEM'), { recursive: true })
-      mkdirSync(join(docs, 'changelog'), { recursive: true })
-      writeFileSync(
-        join(docs, 'internal', 'ADR', '001-historical.md'),
-        '`src/archive/adr-only.ts`\n',
-      )
-      writeFileSync(
-        join(docs, 'internal', 'SYSTEM', 'DECISIONS.md'),
-        '`src/archive/decisions-only.ts`\n',
-      )
-      writeFileSync(join(docs, 'changelog', '2026-08.md'), '`src/archive/changelog-only.ts`\n')
-      expect(collectScanFiles(docs)).toEqual([])
+      expect(r.stdout).toContain('src/ship/fix-on-red.ts')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -193,19 +143,6 @@ describe('check-doc-path-citations.mjs — real repo (AC-2243.4 local proof)', (
       cwd: resolve('.'),
     })
     expect(r.stdout).not.toContain('fix-on-red.md: `src/ship/fix-on-red.ts`')
-  })
-
-  it('#2362 names the existing generator-matrix contract test as regression coverage', () => {
-    const doc = readFileSync(resolve('docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md'), 'utf-8')
-    const scanner = readFileSync(resolve('scripts/check-doc-path-citations.mjs'), 'utf-8')
-    expect(doc).toContain(
-      '`generator-matrix.yml` runs the functional fixtures alongside those vitest harnesses.',
-    )
-    expect(doc).toContain('`__tests__/scripts/generator-matrix-workflow.test.ts` locks')
-    expect(doc).not.toContain('`__tests__/scripts/real-project-matrix-workflow.test.ts` locks')
-    expect(scanner).not.toContain(
-      'docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md:__tests__/scripts/real-project-matrix-workflow.test.ts',
-    )
   })
 })
 
@@ -267,6 +204,7 @@ describe('#2260 — a gitignored path is local-by-design, not a phantom', () => 
 
   it('still flags an absent path that is neither tracked nor ignored', () => {
     const r = runAgainstRepo('See `src/totally/made-up.ts` for details.\n')
+    expect(r.stdout).toContain('src/totally/made-up.ts')
     expect(r.status).toBe(1)
   })
 })

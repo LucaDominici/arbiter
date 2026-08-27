@@ -678,6 +678,34 @@ describe('post-commit-check — empirical fire', () => {
     expect(r.stderr).toMatch(/INV-22/)
   })
 
+  it('exits 2 for git -C commit against a repo with a non-conventional HEAD', () => {
+    const target = join(dir, 'repo with spaces')
+    mkdirSync(target)
+    spawnSync('git', ['init'], { cwd: target, encoding: 'utf-8' })
+    spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], {
+      cwd: target,
+      encoding: 'utf-8',
+    })
+    spawnSync('git', ['config', 'user.name', 'Arbiter Test'], {
+      cwd: target,
+      encoding: 'utf-8',
+    })
+    spawnSync(
+      'git',
+      ['-c', 'commit.gpgSign=false', 'commit', '--allow-empty', '-m', 'bad commit message'],
+      {
+        cwd: target,
+        encoding: 'utf-8',
+      },
+    )
+
+    const r = spawnHook(hookPath, dir, {
+      CLAUDE_TOOL_INPUT_COMMAND: `git -C "${target}" commit`,
+    })
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/INV-22/)
+  })
+
   it('exits 0 on valid conventional commit message', () => {
     spawnSync('git', ['init'], { cwd: dir, encoding: 'utf-8' })
     spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], {

@@ -439,6 +439,23 @@ describe('allowlisted-file drift detection is non-vacuous (CANON-14, #1838)', ()
   }, 150_000)
 })
 
+describe('language-hook body dogfood parity (#2339)', () => {
+  it('turns RED when a generated language hook diverges from its materialized self copy', () => {
+    const root = createDogfoodProbeRoot()
+    const target = join(root, '.claude/hooks/check-no-any.mjs')
+    try {
+      writeFileSync(target, readFileSync(target, 'utf-8') + '\n// synthetic #2339 drift\n')
+      const r = runDogfoodProbe(root, 300_000)
+      const out = r.stdout + r.stderr
+      expect(r.status).toBe(1)
+      expect(out).toContain('check-no-any.mjs')
+      expect(out).toContain('CHANGED beyond the approved pin')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 360_000)
+})
+
 // ─── non-vacuity proof for the ship family (#1290) ────────────────────────────
 // The dogfood gate must actually WALK src/templates/ship/ — a mapped-but-unwalked
 // family passes vacuously. We mutate the materialized supervisor in a disposable
