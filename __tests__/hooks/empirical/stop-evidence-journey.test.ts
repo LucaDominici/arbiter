@@ -133,8 +133,13 @@ function runHook(hookPath: string, dir: string, transcriptPath: string) {
 
 describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
   it('materializes the harness journey block in the self hook (AC-2382.2)', () => {
-    const raw = readFileSync(join(process.cwd(), '.claude', 'hooks', 'stop-evidence-guard.mjs'), 'utf8')
-    expect(raw).toContain('A completion claim requires plan-review + dispatch + gate-pass + journey evidence')
+    const raw = readFileSync(
+      join(process.cwd(), '.claude', 'hooks', 'stop-evidence-guard.mjs'),
+      'utf8',
+    )
+    expect(raw).toContain(
+      'A completion claim requires plan-review + dispatch + gate-pass + journey evidence',
+    )
     expect(raw).toContain('// 4. journey evidence (#A2, extends INV-114)')
     expect(raw).toContain("sanitizeTaskId(taskId) + '.json'")
     expect(raw).toContain("journey.target !== 'artifact'")

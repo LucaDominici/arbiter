@@ -23,7 +23,11 @@ function fixture(): { dir: string; branch: string; sha: string } {
   git(dir, ['commit', '-m', 'fixture', '--no-gpg-sign'])
   mkdirSync(join(dir, 'dist'), { recursive: true })
   writeFileSync(join(dir, 'dist', 'cli.js'), '#!/usr/bin/env node\n')
-  return { dir, branch: git(dir, ['branch', '--show-current']), sha: git(dir, ['rev-parse', 'HEAD']) }
+  return {
+    dir,
+    branch: git(dir, ['branch', '--show-current']),
+    sha: git(dir, ['rev-parse', 'HEAD']),
+  }
 }
 
 afterEach(() => {
@@ -64,7 +68,10 @@ describe('record-journey-evidence.mjs (#2382)', () => {
   })
 
   it('documents the runnable artifact command (AC-2382.1)', () => {
-    const adr = readFileSync(join(REPO_ROOT, 'docs', 'internal', 'ADR', '037-evidence-harness-target-projects.md'), 'utf8')
+    const adr = readFileSync(
+      join(REPO_ROOT, 'docs', 'internal', 'ADR', '037-evidence-harness-target-projects.md'),
+      'utf8',
+    )
     expect(adr).toContain('node scripts/record-journey-evidence.mjs')
     expect(adr).toContain('--target artifact')
   })
