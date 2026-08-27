@@ -42,6 +42,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    globalSetup: [join(root, '__tests__/setup/tracked-claude-guard.ts')],
     setupFiles: [join(root, 'vitest.setup.ts')],
     // Generator tests create full project trees and (with the #1486 coverage suite) many files
     // stub process globals / spawn short-lived subprocesses; under full-suite parallelism on a

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { runConfigure } from '../../src/commands/configure.js'
+import { cleanupTestProject, createTestProject } from '../helpers.js'
 
 vi.mock('../../src/utils/config.js', () => ({
   loadConfig: vi.fn(),
@@ -18,6 +19,7 @@ const mockValidateConfig = validateConfig as ReturnType<typeof vi.fn>
 
 const BASE_CONFIG = {
   governanceLevel: 'L1',
+  collaborationMode: 'trunk-solo',
   tools: ['claude'],
   permitGitHub: false,
   features: {
@@ -41,8 +43,10 @@ const BASE_CONFIG = {
 
 describe('configure --json', () => {
   let written: string
+  let dir: string
 
   beforeEach(() => {
+    dir = createTestProject('typescript')
     written = ''
     vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       written += String(chunk)
@@ -52,13 +56,14 @@ describe('configure --json', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    cleanupTestProject(dir)
   })
 
   it('emits JSON envelope on success', async () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
     mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
 
-    await runConfigure({ sets: ['permitGitHub=true'], json: true })
+    await runConfigure({ dir, sets: ['permitGitHub=true'], json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('configure')
@@ -73,7 +78,7 @@ describe('configure --json', () => {
       throw new Error('process.exit')
     })
 
-    await expect(runConfigure({ sets: ['permitGitHub=true'], json: true })).rejects.toThrow(
+    await expect(runConfigure({ dir, sets: ['permitGitHub=true'], json: true })).rejects.toThrow(
       'process.exit',
     )
 
@@ -86,7 +91,7 @@ describe('configure --json', () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
     mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
 
-    await runConfigure({ sets: ['permitGitHub=false'], json: false })
+    await runConfigure({ dir, sets: ['permitGitHub=false'], json: false })
 
     // Human mode emits text to stdout via process.stdout.write (#820), but
     // must NOT emit a JSON envelope. Assert the captured text is not JSON.
@@ -98,7 +103,7 @@ describe('configure --json', () => {
       throw new Error('process.exit')
     })
 
-    await expect(runConfigure({ sets: [], json: true })).rejects.toThrow('process.exit')
+    await expect(runConfigure({ dir, sets: [], json: true })).rejects.toThrow('process.exit')
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('configure')
