@@ -486,7 +486,8 @@ group is expected to read beyond its write set. The HANDOFF template's `Where:` 
 --base <ref> [--branch <b>]`: parse the group's `Files`+`Read-set` manifest rows; compute
 `git diff --name-only <base>...<branch>`; any touched file outside the declared **write** set
 ⇒ FAIL (the hard, cheap, high-signal half — an agent that edited outside its manifest also
-read outside it, and it voided the ADR-103 disjointness assumption). Missing manifest section
+read outside it, violating that group's declared write-set contract). This single-group check
+does not prove cross-group pairwise disjointness. Missing manifest section
 for a wave group ⇒ FAIL (declaration is the point). Read-set row absent ⇒ advisory line on
 stderr, PASS (reads are bounded socially, writes mechanically).
 

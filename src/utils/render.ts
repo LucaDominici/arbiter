@@ -3,6 +3,7 @@ import ejs from 'ejs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { levelAtLeast, LEVEL_ORDER } from '../config/levels.js'
+import { resolveMaxParallelWorktrees } from '../config/collaboration-mode-defaults.js'
 import type { GovernanceLevel } from '../wizard/types.js'
 import { readFileTranslated } from './fs.js'
 
@@ -134,6 +135,7 @@ function withRenderDefaults(data: object): object {
     withLevelBooleans(
       withBasePackageDefault({
         ...data,
+        maxParallelWorktrees: resolveMaxParallelWorktrees(data),
         sourceExtensions:
           typeof language === 'string' ? [...(SOURCE_EXTENSIONS[language] ?? [])] : [],
       }),

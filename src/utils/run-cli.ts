@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync, type StdioOptions } from 'node:child_process'
+import { readdirSync, readlinkSync } from 'node:fs'
 import { getLogger } from './logger.js'
 
 export interface RunCliOptions {
@@ -165,6 +166,25 @@ function classifyAttempt(obs: AttemptObservation): Attempt {
     }
   }
 
+  if (errorCode !== undefined) {
+    return {
+      ok: false,
+      fatal: true,
+      error: new CliError(
+        {
+          cmd,
+          args,
+          exitCode: -1,
+          stdout,
+          stderr,
+          timedOut: false,
+          notFound: false,
+        },
+        `Command failed to start (${errorCode}): ${cmd}`,
+      ),
+    }
+  }
+
   if (obs.status !== 0) {
     return {
       ok: false,
@@ -323,37 +343,193 @@ function finalRetryError(
 }
 
 /**
- * Run an interactive CLI command (e.g. `$EDITOR`) whose stdin/stdout/stderr
+ * Run an interactive CLI command whose stdin/stdout/stderr
  * are inherited from the parent process so the child can take over the TTY.
- * Returns the child's exit status. Used by `arbiter report` to spawn the
- * user's editor for manifest review before bundling.
+ * Returns the child's exit status.
  */
+interface RunInteractiveOptions {
+  cwd?: string
+  env?: NodeJS.ProcessEnv
+  /** Extra parent fds mapped to child fd 3 onward. */
+  extraFds?: readonly number[]
+  /** Start the child as a process-group leader. */
+  detached?: boolean
+  /** Kill the child's process group when the child itself dies by signal. */
+  teardownProcessGroupOnSignal?: boolean
+  /** Tear down the child and tracked descendants before handling a parent signal. */
+  teardownOnParentSignal?: boolean
+  /**
+   * Path held open by every descendant through a non-lock fd. After process-group
+   * teardown, kill holders that escaped that group (Linux `/proc` only).
+   */
+  trackedDescendantFdPath?: string
+}
+
+async function killAndWaitForProcessGroup(pid: number): Promise<void> {
+  let warned = false
+  for (;;) {
+    try {
+      process.kill(-pid, 'SIGKILL')
+      process.kill(-pid, 0)
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ESRCH') return
+      if (!warned) {
+        process.stderr.write(
+          `gate-exec: cannot kill process group ${pid}; retaining the mutex and retrying\n`,
+        )
+        warned = true
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      continue
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
+
+/** Return PIDs holding `path` open, or null when procfs is unavailable. */
+function procFileHolders(path: string): number[] | null {
+  let entries: string[]
+  try {
+    entries = readdirSync('/proc')
+    // FAIL-OPEN-INTENT: procfs is Linux-only; process-group teardown already ran and the warning below exposes the reduced cleanup scope.
+  } catch {
+    return null
+  }
+
+  const holders: number[] = []
+  for (const entry of entries) {
+    if (!/^\d+$/.test(entry)) continue
+    const pid = Number(entry)
+    let fds: string[]
+    try {
+      fds = readdirSync(`/proc/${pid}/fd`)
+      // FAIL-OPEN-INTENT: an unreadable or vanished PID must not prevent scanning the remaining processes.
+    } catch {
+      continue
+    }
+    for (const fd of fds) {
+      try {
+        if (readlinkSync(`/proc/${pid}/fd/${fd}`) !== path) continue
+        holders.push(pid)
+        break
+        // FAIL-OPEN-INTENT: process/fd disappeared between directory read and readlink; keep scanning live descriptors.
+      } catch {
+        continue
+      }
+    }
+  }
+  return holders
+}
+
+async function killAndWaitForTrackedDescendants(path: string): Promise<void> {
+  let warned = false
+  for (;;) {
+    const holders = procFileHolders(path)
+    if (holders === null) {
+      process.stderr.write(
+        'gate-exec: warning: /proc unavailable; escaped descendant cleanup is limited to the supervisor process group\n',
+      )
+      return
+    }
+    if (holders.length === 0) return
+    let killFailed = false
+    for (const pid of holders) {
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ESRCH') continue
+        if (!warned) {
+          process.stderr.write(
+            `gate-exec: cannot kill tracked descendant ${pid}; retaining the mutex and retrying\n`,
+          )
+          warned = true
+        }
+        killFailed = true
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, killFailed ? 100 : 10))
+  }
+}
+
 export function runInteractive(
   cmd: string,
   args: readonly string[],
-  opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
-): { exitCode: number } {
-  const result = spawnSync(cmd, [...args], {
-    cwd: opts.cwd,
-    env: opts.env,
-    stdio: 'inherit',
-    shell: false,
+  opts: RunInteractiveOptions = {},
+): Promise<{ exitCode: number }> {
+  const stdio: StdioOptions = opts.extraFds
+    ? ['inherit', 'inherit', 'inherit', ...opts.extraFds]
+    : 'inherit'
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, [...args], {
+      cwd: opts.cwd,
+      env: opts.env,
+      stdio,
+      shell: false,
+      detached: opts.detached,
+    })
+    let parentSignal: 'SIGHUP' | 'SIGINT' | 'SIGTERM' | undefined
+    let teardownPromise: Promise<void> | undefined
+    const teardown = (): Promise<void> => {
+      if (teardownPromise !== undefined) return teardownPromise
+      teardownPromise = (async () => {
+        if (child.pid !== undefined) await killAndWaitForProcessGroup(child.pid)
+        if (opts.trackedDescendantFdPath !== undefined) {
+          await killAndWaitForTrackedDescendants(opts.trackedDescendantFdPath)
+        }
+      })()
+      return teardownPromise
+    }
+    const parentSignalHandlers = new Map<NodeJS.Signals, () => void>()
+    const removeParentSignalHandlers = (): void => {
+      for (const [signal, handler] of parentSignalHandlers) {
+        process.removeListener(signal, handler)
+      }
+    }
+    if (opts.teardownOnParentSignal) {
+      for (const signal of ['SIGHUP', 'SIGINT', 'SIGTERM'] as const) {
+        const handler = (): void => {
+          parentSignal ??= signal
+          void teardown().catch(reject)
+        }
+        parentSignalHandlers.set(signal, handler)
+        process.once(signal, handler)
+      }
+    }
+    child.once('error', (err: NodeJS.ErrnoException) => {
+      removeParentSignalHandlers()
+      if (err.code !== 'ENOENT') {
+        resolve({ exitCode: 1 })
+        return
+      }
+      reject(
+        new CliError(
+          {
+            cmd,
+            args,
+            exitCode: -1,
+            stdout: '',
+            stderr: '',
+            timedOut: false,
+            notFound: true,
+          },
+          `Command not found: ${cmd}`,
+        ),
+      )
+    })
+    child.once('close', (code, signal) => {
+      const finish = async (): Promise<void> => {
+        if (parentSignal !== undefined || (signal && opts.teardownProcessGroupOnSignal)) {
+          await teardown()
+        }
+        removeParentSignalHandlers()
+        const signalExitCode = parentSignal
+          ? 128 + { SIGHUP: 1, SIGINT: 2, SIGTERM: 15 }[parentSignal]
+          : undefined
+        resolve({ exitCode: signalExitCode ?? code ?? 1 })
+      }
+      void finish().catch(reject)
+    })
   })
-  if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
-    throw new CliError(
-      {
-        cmd,
-        args,
-        exitCode: -1,
-        stdout: '',
-        stderr: '',
-        timedOut: false,
-        notFound: true,
-      },
-      `Command not found: ${cmd}`,
-    )
-  }
-  return { exitCode: result.status ?? 1 }
 }
 
 /**

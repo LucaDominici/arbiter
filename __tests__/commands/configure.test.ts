@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { runConfigure } from '../../src/commands/configure.js'
@@ -64,6 +64,22 @@ describe('runConfigure — --set round-trips', () => {
     const thresholds = raw['thresholds'] as Record<string, unknown>
     expect(thresholds['lineCoverage']).toBe(90)
     expect(thresholds['branchCoverage']).toBe(DEFAULT_THRESHOLDS.L2.branchCoverage) // unchanged
+  })
+
+  it('updates an existing /drain default when the worktree cap changes (#2344)', async () => {
+    writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 2 } })
+    const drainPath = join(dir, '.claude', 'commands', 'drain.md')
+    mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
+    writeFileSync(
+      drainPath,
+      'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n',
+    )
+
+    await runConfigure({ dir, sets: ['automation.maxParallelWorktrees=7'] })
+
+    expect(readFileSync(drainPath, 'utf8')).toBe(
+      'before\n| `--max-parallel N` | 7       | Max worktree agents; keep this text |\nafter\n',
+    )
   })
 
   it('applies multiple --set flags atomically', async () => {

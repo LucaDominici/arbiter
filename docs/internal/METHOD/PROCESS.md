@@ -26,7 +26,7 @@ arbiter task belongs to exactly one _track_. A track scopes:
 
 **Pairs with:** the CONTEXT_PACK emitter (`scripts/emit-context-pack.mjs`), whose per-track defaults this model informs.
 
-> Not to be confused with `docs/METHOD/TRACK_ROUTER.md.ejs` (query routing
+> Not to be confused with `src/templates/root/docs/METHOD/TRACK_ROUTER.md.ejs` (query routing
 > for agents). TRACK_ROUTER tells an agent which doc to read next;
 > TRACK_MODEL tells the orchestrator which subsystem a task lives in.
 
@@ -187,7 +187,7 @@ Generated target hooks have equivalent regexes baked in at `arbiter init` render
 
 ### Ambiguity: Path Prefix vs Extension
 
-When a file matches both a FE path prefix and a BE extension (e.g., `frontend/server.go`), **both** tracks are emitted. Extension and path-prefix checks are independent. Tests in `__tests__/unit/detect-track.test.ts` pin this behavior.
+When a file matches both a FE path prefix and a BE extension (e.g., `<project>/frontend/server.go`), **both** tracks are emitted. Extension and path-prefix checks are independent. Tests in `__tests__/unit/detect-track.test.ts` pin this behavior.
 
 ### CRLF Handling
 
@@ -257,7 +257,7 @@ Checklists are baked into the generated hook at `arbiter init` time from EJS par
 
 ## Related
 
-- ADR-043 (`docs/SYSTEM/DECISIONS.md`) — design history and completion note
+- ADR-043 (`docs/internal/SYSTEM/DECISIONS.md`) — design history and completion note
 - `scripts/detect-track.mjs` — canonical regex source
 - `__tests__/unit/detect-track.test.ts` — behavior specs
 - `src/templates/claude/hooks/post-commit-check.mjs.ejs` — generated hook template
@@ -354,7 +354,7 @@ Write an RFC when your change:
 
 ## Process
 
-1. **Copy** `docs/rfc/0000-template.md` to `docs/rfc/NNNN-short-title.md` (replace `NNNN` with the next available number).
+1. **Copy** the RFC template to a new `<project>/docs/rfc/NNNN-short-title.md` file (replace `NNNN` with the next available number).
 2. **Fill in** all sections. "Unresolved Questions" is required — leave it empty only if there genuinely are none.
 3. **Open a PR** with just the RFC file. Set the PR title to `RFC NNNN: <short title>`.
 4. **7-day comment window** — the PR stays open for at least 7 calendar days after the last substantive edit.

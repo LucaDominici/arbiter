@@ -21,6 +21,15 @@ const ADR_PATH = join(repoRoot, 'docs', 'internal', 'ADR', '103-worktree-paralle
 const RULE_TEMPLATE = join(repoRoot, 'src', 'templates', 'claude', 'rules', '50-batch-execution.md')
 const RULE_SELF = join(repoRoot, '.claude', 'rules', '50-batch-execution.md')
 const WAVE_PRIMITIVES = join(repoRoot, 'docs', 'REFERENCE', 'wave-primitives.md')
+const SIGKILL_SCOPE_SURFACES = [
+  'src/i18n/en.json',
+  '.claude/commands/drain.md',
+  'src/templates/claude/commands/drain.md.ejs',
+  '.claude/skills/wave-drain/SKILL.md',
+  'src/templates/claude/skills/wave-drain/SKILL.md.ejs',
+  'docs/REFERENCE/wave-drain.md',
+  'docs/methodology/agent-orchestration-and-context-hygiene.md',
+] as const
 
 const adr = (): string => readFileSync(ADR_PATH, 'utf-8')
 
@@ -85,6 +94,24 @@ describe('ADR-103 exists and matches the implemented primitives (#2330)', () => 
 
   it('is honest that it is a reconstruction, not a recovered original', () => {
     expect(adr()).toMatch(/reconstruct/i)
+  })
+})
+
+describe('gate-mutex SIGKILL wording names the killed process (#2380)', () => {
+  it('scopes all nine SIGKILL/OOM release claims to the supervisor or direct flock process', () => {
+    const contexts: string[] = []
+    for (const rel of SIGKILL_SCOPE_SURFACES) {
+      const text = readFileSync(join(repoRoot, rel), 'utf-8')
+      for (const match of text.matchAll(/SIGKILL\/OOM/g)) {
+        const at = match.index
+        contexts.push(text.slice(Math.max(0, at - 160), at + 160))
+      }
+    }
+
+    expect(contexts).toHaveLength(9)
+    for (const context of contexts) {
+      expect(context).toMatch(/gate-exec\s+supervisor|direct flock\s+process/i)
+    }
   })
 })
 

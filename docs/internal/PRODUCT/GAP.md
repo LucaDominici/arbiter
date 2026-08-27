@@ -2,7 +2,7 @@
 title: 'GAP — arbiter gap register'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-08'
+last_review: '2026-08-26'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/pm', 'kind/product']
@@ -163,6 +163,7 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | #1723 | Tech debt #1723 | Open   | low      |
 | #1724 | Tech debt #1724 | Open   | low      |
 | #1725 | Tech debt #1725 | Open   | low      |
+| #2391 | Tech debt #2391 | Open   | low      |
 | #2388 | Tech debt #2388 | Open   | low      |
 | #1735 | Tech debt #1735 | Open   | low      |
 | #1736 | Tech debt #1736 | Open   | low      |

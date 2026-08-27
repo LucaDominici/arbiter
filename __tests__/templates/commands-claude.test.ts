@@ -151,9 +151,16 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).toContain('arbiter task init')
   })
 
-  it('local-only state: sets up .git/info/exclude before task state', () => {
+  // #2343 — this test used to REQUIRE the .git/info/exclude step. That step appended
+  // '.arbiter/' to a file git consults before .gitignore, which defeats every negation
+  // the repo's own .gitignore relies on (.gitignore uses '.arbiter/**' deliberately) and
+  // broke __tests__/scripts/rework-log.test.ts. .git/info/exclude is also shared across
+  // every worktree, so one run poisoned all of them. The assertion is inverted: the
+  // instruction must stay gone, and the local-only paths it was meant to cover are still
+  // named so the guidance itself is not lost.
+  it('local-only state: never writes .arbiter/ into .git/info/exclude (#2343)', () => {
     const content = renderShip()
-    expect(content).toContain('.git/info/exclude')
+    expect(content).not.toContain('.git/info/exclude')
     for (const pattern of ['.claude/.task-*', '.claude/.task/', '.claude/plans/', '.arbiter/']) {
       expect(content).toContain(pattern)
     }

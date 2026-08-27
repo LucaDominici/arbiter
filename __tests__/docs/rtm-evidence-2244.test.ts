@@ -35,4 +35,21 @@ describe('#2244 — FEATURE_MATRIX.md functional-tier citations + REQ-045 tier f
     expect(doc).toContain('TIER CORRECTED E2E→GATE (#2244)')
     expect(doc).toMatch(/\| REQ-045 \|.*\|\s*GATE\s*\|\s*$/m)
   })
+
+  it('reports the seven remaining E2E rows honestly instead of the obsolete thirteen-row count', () => {
+    const doc = read(MATRIX)
+    expect(doc).toContain('remaining **7 `E2E` rows still have no functional-tier evidence**')
+    expect(doc).not.toContain('remaining **13 `E2E` rows still have no functional-tier evidence**')
+    for (const id of [
+      'REQ-002',
+      'REQ-008',
+      'REQ-011',
+      'REQ-031',
+      'REQ-033',
+      'REQ-037',
+      'REQ-046',
+    ]) {
+      expect(doc).toContain(id)
+    }
+  })
 })

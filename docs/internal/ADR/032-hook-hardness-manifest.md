@@ -13,7 +13,7 @@ related: []
 
 **Status:** Accepted
 **Date:** 2026-05-05
-**Issues:** #402, #405, #410, #2326
+**Issues:** #402, #405, #410
 
 ## Context
 
@@ -28,7 +28,7 @@ Without a structural verification mechanism, regressions could re-appear silentl
 
 1. **Hard-block both hooks** (`#402`, `#405`): exit 2 on violation; respect session-scoped bypass env vars (`ARBITER_SSOT_BYPASS=1`, `ARBITER_PLAN_BYPASS=1`).
 
-2. **Commit a template hardness manifest** (`.arbiter/hooks-manifest.json`): every hook file in `src/templates/claude/hooks/` must have an explicit `HARD` or `ADVISORY` classification. HARD entries include a `fixture` and `expectedExitCode` for empirical spawn assertions.
+2. **Commit a hardness manifest** (`.arbiter/hooks-manifest.json`): every hook file in `src/templates/claude/hooks/` must have an explicit `HARD` or `ADVISORY` classification. HARD entries include a `fixture` and `expectedExitCode` for empirical spawn assertions.
 
 3. **Wire a verifier** (`scripts/check-hardness-inventory.mjs`) into the L1 gate:
    - Drift detection: every hook file has a manifest entry; every entry points to an existing file.
@@ -36,17 +36,9 @@ Without a structural verification mechanism, regressions could re-appear silentl
 
 4. **INV-36** added to `src/invariants/catalog.ts` (governance tier, alwaysActive).
 
-5. **Dogfood arbiter's materialized hook surface** (`#2326`):
-   `.arbiter/self-hooks-manifest.json` declares every `.claude/hooks/` file with
-   `selfSurface: true`. The verifier runs its in-place self-hook probes with the owning
-   repo as cwd, using contained fixtures, so it exercises the actual hook and sibling
-   `lib.mjs` rather than a template-staged surrogate.
-
 ## Consequences
 
 - Hook hardness is a binary, mechanically-enforced invariant — ceremony cannot re-appear silently.
 - Adding a new hook requires a manifest entry (gate blocks otherwise).
 - Changing a HARD hook to exit 0 without updating the manifest fails L1 CI.
 - EJS-template hooks (rendered at `arbiter init` time) are classified HARD in the manifest with `spawnable: false`; empirical coverage lives in their respective `__tests__/hooks/empirical/` test files.
-- Self hooks have a separate manifest and in-place self-hook probes, closing the gap where a
-  materialized-only divergence could pass every template-scoped check.

@@ -1022,9 +1022,9 @@ program
   )
   .option('--key <key>', 'Explicit mutex key (overrides per-repo derivation)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((cmdArgs: string[], opts: { key?: string; dir?: string }) => {
+  .action(async (cmdArgs: string[], opts: { key?: string; dir?: string }) => {
     try {
-      const code = runGateExec({
+      const code = await runGateExec({
         cmdArgs,
         ...(opts.key !== undefined ? { key: opts.key } : {}),
         ...(opts.dir !== undefined ? { dir: opts.dir } : {}),

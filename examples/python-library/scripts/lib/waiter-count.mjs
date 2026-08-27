@@ -3,11 +3,10 @@
 // scripts/lib/waiter-count.mjs (#2098) — shared fd-count helper for the
 // gate-exec mutex lockfile.
 //
-// `flock -o -- <lockfile> cmd` opens the lock file's fd BEFORE blocking in the
-// flock() syscall. Its parent keeps that fd while the command runs, so every
-// process contending for the lock (the current holder plus every process still
-// queued behind it) has the file open. `fuser <lockfile>` lists exactly those
-// PIDs.
+// `gate-exec` opens the lock file once in Node and shares that open-file
+// description with its detached supervisor. A normal active gate therefore
+// exposes two PIDs through `fuser`; an acquiring waiter can briefly expose a
+// third while flock(1) blocks. `fuser <lockfile>` lists those holder/waiter PIDs.
 //
 // ONE canonical implementation, two consumers (#2098 acceptance: "don't
 // duplicate it"):

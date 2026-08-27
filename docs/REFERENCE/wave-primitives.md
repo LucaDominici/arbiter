@@ -25,10 +25,10 @@ Serializes expensive gates across N parallel worktree agents of the same repo.
   on ONE lock. Override with `--key` for non-repo scopes.
 - **Lock file:** `$XDG_RUNTIME_DIR/arbiter/<key>-gate.lock` (fallback: OS tmpdir). Never
   inside the repo: per-worktree locks would be a null mutex; an in-repo lock dirties trees.
-- **Mechanics:** delegates wait AND release to `flock(1)` with `--close` (`-o`). The wait is
-  kernel-side and blocking (no poll/backoff); `-o` closes the lock fd before the wrapped command
-  starts, so backgrounded descendants cannot retain the mutex. The flock holder still releases on
-  fd death, including SIGKILL/OOM-kill, which no Node exit/signal handler can cover.
+- **Mechanics:** a detached supervisor acquires a Node-opened fd with `flock 3`; both processes
+  retain that locked open-file description while the wrapped command runs in a subshell that closes
+  fd 3 before `exec`, so backgrounded descendants cannot retain the mutex. If the supervisor dies
+  by signal, Node tears down its process group before releasing the final fd copy.
 - **Exit code:** verbatim passthrough of the wrapped command; `2` for gate-exec's own
   errors.
 - **Fail-closed:** without `flock(1)` (macOS base system, Windows) the command errors with

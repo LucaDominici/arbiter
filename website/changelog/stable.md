@@ -34,8 +34,10 @@ related: []
   applies only to EPERM unknown-user pids. T3: new `arbiter gate-exec [--key K]
 -- <cmd...>` per-repo gate mutex — key hashed from the git common dir so all
   worktrees of a repo converge on one flock(1) lock under XDG_RUNTIME_DIR;
-  kernel-side blocking wait and guaranteed release on SIGKILL/OOM; exit-code
-  passthrough; fail-closed E_GATE_MUTEX_UNSUPPORTED where flock is missing.
+  kernel-side blocking wait and release when the gate-exec supervisor is
+  SIGKILL/OOM-killed after process-group teardown; killing the Arbiter Node PID alone
+  leaves that supervisor holding; exit-code passthrough; fail-closed
+  E_GATE_MUTEX_UNSUPPORTED where flock is missing.
   T4: new worktree link strategy `symlink-children` (now the node_modules
   default) — per-child symlinks excluding `.vite`/`.cache`, so parallel
   worktree builds stop corrupting one shared cache; `symlink`/`copy` configs
@@ -46,7 +48,7 @@ related: []
 - wave-drain skill v2 + /drain v2 (T6 of #1873, dual-side): the parallel wave
   protocol proven 2026-07-09/10 lands in the existing skill/command — ADR-103
   legality header (worktree + distinct branch + disjoint file-sets), gate mutex
-  via `arbiter gate-exec` (flock(1), SIGKILL/OOM-safe, fail-closed serial
+  via `arbiter gate-exec` (flock(1), supervisor-SIGKILL/OOM-safe, fail-closed serial
   fallback), anti-stall split (deterministic gate-wait vs sweep-bounded
   turn-stall), `conflicts-with:#N` serial lane, optional per-issue 3-hop plan
   gate for `needs-plan`, cap `min(--max-parallel, nproc-2, wave)`, per-worktree

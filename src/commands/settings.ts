@@ -89,8 +89,8 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
       // #1306 (ADR-094 §Decision.4): orchestration prefs derived per collaboration
       // mode / governance level at init.
       // #2333: maxParallelWorktrees is PERSISTENT-ONLY — no per-run `--set`, no
-      // resolver floor. It is a declared cap that doctor/wizard coherence check;
-      // absent ⇒ those consumers treat it as the coherent floor (1) themselves.
+      // resolver floor. It is a persistent wave cap consumed by doctor/wizard
+      // coherence and rendered /drain surfaces; absent ⇒ collaboration-mode default.
       { path: 'automation.maxParallelWorktrees', label: 'Max parallel wave worktrees' },
       // defaultGateLevel keeps its resolver floor (absent ⇒ L1 at every read site).
       { path: 'automation.defaultGateLevel', label: 'Default gate level (L1|L2)' },

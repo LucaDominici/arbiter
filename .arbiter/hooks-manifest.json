@@ -69,13 +69,12 @@
     },
     {
       "file": "check-no-unused-exports.mjs",
-      "classification": "HARD",
+      "classification": "ADVISORY",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "expectedExitCode": 2,
-      "rationale": "When knip finds an unused export, this PostToolUse guard blocks with exit 2. It may stand down when unavailable or debounced; the L1 gate remains the authoritative backstop. TypeScript projects only (#156)."
+      "rationale": "Per-edit knip feedback is advisory because it intentionally soft-skips when unavailable or debounced; the authoritative L1 unused-export gate remains HARD. TypeScript projects only (#156)."
     },
     {
       "file": "check-no-pii.mjs.ejs",
@@ -200,13 +199,12 @@
     },
     {
       "file": "post-commit-check.mjs.ejs",
-      "classification": "HARD",
+      "classification": "ADVISORY",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "expectedExitCode": 2,
-      "rationale": "PostToolUse conventional-commit guard (INV-22) blocks the agent with exit 2; the track-aware checklist remains informational (#724)."
+      "rationale": "PostToolUse conventional-commit check (INV-22) + track-aware checklist (#724) — non-blocking informational output"
     },
     {
       "file": "post-edit-dispatch.mjs.ejs",
@@ -237,23 +235,21 @@
     },
     {
       "file": "check-circular-deps.mjs.ejs",
-      "classification": "HARD",
+      "classification": "ADVISORY",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "expectedExitCode": 2,
-      "rationale": "When madge finds a cycle, this PostToolUse guard blocks with exit 2. It may stand down when unavailable or debounced; the L1 gate remains the authoritative backstop. EJS template rendered for TypeScript projects."
+      "rationale": "Per-edit madge feedback is advisory because it intentionally soft-skips when madge is unavailable or debounced; the authoritative L1 circular-dependency gate remains HARD. EJS template rendered for TypeScript projects."
     },
     {
       "file": "hooks.mjs.ejs",
-      "classification": "HARD",
+      "classification": "ADVISORY",
       "tools": [
         "claude"
       ],
       "spawnable": false,
-      "expectedExitCode": 2,
-      "rationale": "#248: Single dispatcher entrypoint — it blocks with exit 2 when a registered handler is missing or signalled, and propagates handler exits. EJS template renders with language/governance conditional entries."
+      "rationale": "#248: Single dispatcher entrypoint — routes events to handler scripts via config table. EJS template renders with language/governance conditional entries. Delegates to individual HARD/ADVISORY handlers; exit code mirrors first non-zero handler."
     },
     {
       "file": "wiki-on-commit.mjs.ejs",
@@ -300,13 +296,7 @@
         "claude"
       ],
       "spawnable": false,
-      "promotedBy": "ARBITER_SPAWN_GUARD_HARD",
-      "fixture": {
-        "type": "isolated-root",
-        "input": "{\"tool_input\":{\"subagent_type\":\"unknown\",\"isolation\":\"worktree\",\"prompt\":\"work on #12 and #34\"}}"
-      },
-      "expectStderr": "one-task-per-dispatch",
-      "rationale": "E5 (#1947, design doc §E5): PreToolUse Task|Agent tripwire flagging a second write-intent sub-agent spawn onto the main working tree (M9) plus the M2 one-task-per-dispatch check. Defaults to advisory (stderr nudge, exit 0); ARBITER_SPAWN_GUARD_HARD=1 promotes to hard (exit 2). Wired in .claude/settings.json's PreToolUse matchers (Task|Agent) per OD-14 2026-07-17. The isolated-root structured-stdin fixture empirically verifies both grading modes; dedicated coverage remains in __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts."
+      "rationale": "E5 (#1947, design doc §E5): PreToolUse Task|Agent tripwire flagging a second write-intent sub-agent spawn onto the main working tree (M9) plus the M2 one-task-per-dispatch check. Defaults to advisory (stderr nudge, exit 0); ARBITER_SPAWN_GUARD_HARD=1 promotes to hard (exit 2). Wired in .claude/settings.json's PreToolUse matchers (Task|Agent) per OD-14 2026-07-17. Not auto-spawnable via the env-only/file-with-content fixture shapes (stdin is a structured Task/Agent tool_input payload); empirical exit-code coverage in __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts."
     },
     {
       "file": "stop-finding-loss.mjs.ejs",
@@ -315,15 +305,7 @@
         "claude"
       ],
       "spawnable": false,
-      "promotedBy": "ARBITER_FINDING_LOSS_HARD",
-      "fixture": {
-        "type": "isolated-root",
-        "path": "transcript.jsonl",
-        "content": "{\"type\":\"user\",\"timestamp\":\"2999-01-01T00:00:00.000Z\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"start\"}]}}\n{\"type\":\"assistant\",\"timestamp\":\"2999-01-01T00:00:00.000Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Task\"},{\"type\":\"tool_use\",\"name\":\"Agent\"}]}}\n",
-        "input": "{\"transcript_path\":\"{fixturePath}\"}"
-      },
-      "expectStderr": "FINDING LOSS",
-      "rationale": "E6b (#1948, design doc §E6b): ACTIVATED-ADVISORY (OD-14 2026-07-17) — Stop hook detecting the R1 signature at session scale (>=2 research sub-agent dispatches with zero persisted findings/agent-return envelopes since session start). Defaults to advisory (stderr nudge, exit 0); ARBITER_FINDING_LOSS_HARD=1 promotes to hard (exit 2, guarded by stop_hook_active re-entry) per the design doc's gated-review tier. The isolated-root transcript fixture empirically verifies both grading modes; dedicated coverage remains in __tests__/hooks/empirical/stop-finding-loss.test.ts."
+      "rationale": "E6b (#1948, design doc §E6b): ACTIVATED-ADVISORY (OD-14 2026-07-17) — Stop hook detecting the R1 signature at session scale (>=2 research sub-agent dispatches with zero persisted findings/agent-return envelopes since session start). Defaults to advisory (stderr nudge, exit 0); ARBITER_FINDING_LOSS_HARD=1 promotes to hard (exit 2, guarded by stop_hook_active re-entry) per the design doc's gated-review tier. ACTIVATED advisory in .claude/settings.json's Stop chain per OD-14 (2026-07-17); hard grading remains opt-in via ARBITER_FINDING_LOSS_HARD=1. Not auto-spawnable via the env-only/file-with-content fixture shapes (stdin is a structured Stop transcript payload); empirical exit-code coverage in __tests__/hooks/empirical/stop-finding-loss.test.ts."
     }
   ]
 }

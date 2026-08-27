@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -19,6 +23,10 @@ function renderSupervisor(overrides: Record<string, unknown> = {}): string {
 
 function renderTickPrompt(overrides: Record<string, unknown> = {}): string {
   return renderTemplate('ship/TICK_PROMPT.md.ejs', baseData(overrides))
+}
+
+function renderShipCommand(): string {
+  return renderTemplate('claude/commands/ship.md.ejs', baseData({}))
 }
 
 describe('supervisor.sh.ejs render', () => {
@@ -144,6 +152,57 @@ describe('cross-stack render (DoD: stacks × governance)', () => {
   })
 })
 
+describe('ship command local-only state (#2343)', () => {
+  it('does not put .arbiter/ in the shared .git/info/exclude', () => {
+    const excludeLoop = renderShipCommand().match(/for pattern in[\s\S]*?\ndone/)?.[0]
+    expect(excludeLoop).toBeDefined()
+    expect(excludeLoop).toContain('".claude/.task/"')
+    expect(excludeLoop).not.toContain('".arbiter/"')
+  })
+
+  it('removes only a legacy .arbiter/ entry from the shared worktree exclude', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-exclude-'))
+    const main = join(root, 'main')
+    const worktree = join(root, 'worktree')
+    try {
+      expect(spawnSync('git', ['init', main]).status).toBe(0)
+      expect(
+        spawnSync('git', ['-C', main, 'commit', '--allow-empty', '-m', 'init'], {
+          env: {
+            ...process.env,
+            GIT_AUTHOR_NAME: 'Arbiter Test',
+            GIT_AUTHOR_EMAIL: 'arbiter-test',
+            GIT_COMMITTER_NAME: 'Arbiter Test',
+            GIT_COMMITTER_EMAIL: 'arbiter-test',
+          },
+        }).status,
+      ).toBe(0)
+      expect(
+        spawnSync('git', ['-C', main, 'worktree', 'add', '-b', 'test-worktree', worktree]).status,
+      ).toBe(0)
+
+      const excludePath = join(main, '.git', 'info', 'exclude')
+      writeFileSync(excludePath, 'before\n.arbiter/\nafter\n.arbiter-cache/\n')
+      const block = renderShipCommand().match(
+        /## Local-only state[\s\S]*?```bash\n([\s\S]*?)```/,
+      )?.[1]
+      expect(block).toBeDefined()
+
+      const first = spawnSync('bash', ['-c', block as string], { cwd: worktree })
+      expect(first.status, first.stderr.toString()).toBe(0)
+      const expected =
+        'before\nafter\n.arbiter-cache/\n' +
+        '.claude/.task-*\n.claude/.task/\n.claude/plans/\n.agents-dispatched\n'
+      expect(readFileSync(excludePath, 'utf8')).toBe(expected)
+
+      expect(spawnSync('bash', ['-c', block as string], { cwd: worktree }).status).toBe(0)
+      expect(readFileSync(excludePath, 'utf8')).toBe(expected)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
 // ── #1292 (ADR-093 §5): self-only boundary — locked forever ──────────────────
 //
 // Template-authoring rules (CANON-04/05/13/14/18), matrix promotion
@@ -153,10 +212,6 @@ describe('cross-stack render (DoD: stacks × governance)', () => {
 // every rendered driver artifact × every banned marker.
 
 describe('self-only boundary (#1292, ADR-093 §5)', () => {
-  function renderShipCommand(): string {
-    return renderTemplate('claude/commands/ship.md.ejs', baseData({}))
-  }
-
   const artifacts: ReadonlyArray<readonly [string, () => string]> = [
     ['supervisor.sh', () => renderSupervisor()],
     ['TICK_PROMPT.md', () => renderTickPrompt()],

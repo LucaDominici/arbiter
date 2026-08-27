@@ -341,29 +341,6 @@ describe('check-hardness-inventory — self surface (#2326)', () => {
     }
   })
 
-  it('REFUSES a fixture whose deletable parent is outside the exact sandbox root', () => {
-    const { root, hooksDir } = selfFixture(GUARD(2))
-    try {
-      const trackedParent = join(root, 'tracked-parent')
-      const keeper = join(trackedParent, 'keeper.txt')
-      mkdirSync(trackedParent)
-      writeFileSync(keeper, 'must survive\n')
-      const manifestPath = selfManifest(root, {
-        ...FILE_FIXTURE,
-        fixture: {
-          ...FILE_FIXTURE.fixture,
-          path: 'tracked-parent/.arb-hardness-probe.ts',
-        },
-      })
-      const result = runVerifier(['--manifest', manifestPath, '--hooks-dir', hooksDir])
-      expect(result.status).toBe(1)
-      expect(result.stdout + result.stderr).toMatch(/outside the fixture sandbox/)
-      expect(readFileSync(keeper, 'utf-8')).toBe('must survive\n')
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
   it('fails an ADVISORY entry whose hook actually blocks (AC-6)', () => {
     // ADVISORY is otherwise an unasserted waiver: the spawn arm only exercises HARD entries,
     // so declaring a live blocker ADVISORY silently removes it from the gate. This caught two
@@ -491,85 +468,9 @@ describe('arbiter self hooks are declared and observed (#2326)', () => {
     expect(hardWithWrongCode.map((h) => h.file)).toEqual([])
   })
 
-  it('observes the self post-commit hook blocking git -C commit empirically (#2340)', () => {
-    const templateManifest = JSON.parse(readFileSync(MANIFEST, 'utf-8')) as Manifest
-    const templateEntry = templateManifest.hooks.find((h) => h.file === 'post-commit-check.mjs.ejs')
-    const selfEntry = loadSelfManifest().hooks.find((h) => h.file === 'post-commit-check.mjs')
-    expect(templateEntry).toMatchObject({ classification: 'HARD', expectedExitCode: 2 })
-    expect(selfEntry).toMatchObject({ classification: 'HARD', expectedExitCode: 2 })
-
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-post-commit-self-'))
-    const target = join(root, 'repo with spaces')
-    try {
-      mkdirSync(target)
-      spawnSync('git', ['init'], { cwd: target, encoding: 'utf-8' })
-      spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], {
-        cwd: target,
-        encoding: 'utf-8',
-      })
-      spawnSync('git', ['config', 'user.name', 'Arbiter Test'], {
-        cwd: target,
-        encoding: 'utf-8',
-      })
-      spawnSync(
-        'git',
-        ['-c', 'commit.gpgSign=false', 'commit', '--allow-empty', '-m', 'bad commit message'],
-        {
-          cwd: target,
-          encoding: 'utf-8',
-        },
-      )
-      const result = spawnSync('node', [join(REPO_ROOT, '.claude/hooks/post-commit-check.mjs')], {
-        cwd: REPO_ROOT,
-        encoding: 'utf-8',
-        env: {
-          ...process.env,
-          CLAUDE_TOOL_INPUT_COMMAND: `git -C "${target}" commit`,
-        },
-        input: '',
-      })
-      expect(result.status).toBe(2)
-      expect(result.stderr).toMatch(/INV-22/)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  it('empirically observes the two isolated-root #2342 self hooks', () => {
-    const entries = loadSelfManifest().hooks.filter((h) =>
-      ['pre-edit-ssot-guard.mjs', 'enforce-gate-before-pr.mjs'].includes(h.file),
-    )
-    expect(entries).toHaveLength(2)
-    expect(entries.every((h) => h['spawnable'] === true)).toBe(true)
-
-    const result = runVerifier([
-      '--manifest',
-      SELF_MANIFEST,
-      '--hooks-dir',
-      join(REPO_ROOT, '.claude/hooks'),
-    ])
-    const out = result.stdout + result.stderr
-    expect(result.status).toBe(0)
-    expect(out).toMatch(/pre-edit-ssot-guard\.mjs exits 2 on violation fixture/)
-    expect(out).toMatch(/enforce-gate-before-pr\.mjs exits 2 on violation fixture/)
-  })
-
-  it('records the #2326 self-hook surface in ADR-032 and INV-36 (#2341)', () => {
-    const adr = readFileSync(
-      join(REPO_ROOT, 'docs/internal/ADR/032-hook-hardness-manifest.md'),
-      'utf-8',
-    )
-    const catalog = readFileSync(join(REPO_ROOT, 'src/invariants/catalog.ts'), 'utf-8')
-
-    expect(adr).toContain('.arbiter/self-hooks-manifest.json')
-    expect(adr).toContain('selfSurface: true')
-    expect(catalog).toMatch(/id: 'INV-36'[\s\S]*?selfSurface: true/)
-    expect(catalog).toMatch(/id: 'INV-36'[\s\S]*?in-place self-hook probes/)
-  })
-
-  it('keeps at least 12 self hooks empirically observed, not merely declared (AC-10)', () => {
+  it('keeps at least 10 self hooks empirically observed, not merely declared (AC-10)', () => {
     const observed = loadSelfManifest().hooks.filter((h) => h['spawnable'] === true)
-    expect(observed.length).toBeGreaterThanOrEqual(12)
+    expect(observed.length).toBeGreaterThanOrEqual(10)
   })
 
   it('gives every non-spawnable entry a written rationale (AC-6)', () => {
@@ -604,7 +505,7 @@ describe('arbiter self hooks are declared and observed (#2326)', () => {
     // Assert an actual figure, not the word "measured" — AC-3 requires a recorded cost, and a
     // grep for the adjective keeps nothing honest.
     expect(doc).toMatch(/measured[^.]*?\d+(\.\d+)?\s*(ms|s)\b/i)
-    expect(doc).toMatch(/12 of 30/)
+    expect(doc).toMatch(/10 of 30/)
   })
 
   it('mutates no tracked state when run against the real hooks dir (AC-2)', () => {

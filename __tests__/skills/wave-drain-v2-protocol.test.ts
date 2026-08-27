@@ -9,29 +9,30 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { describe, it, expect } from 'vitest'
+import { resolveMaxParallelWorktrees } from '../../src/config/collaboration-mode-defaults.js'
+import { renderTemplate } from '../../src/utils/render.js'
+import type { ProjectConfig } from '../../src/wizard/types.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(here, '..', '..')
 
 const skillSelf = join(repoRoot, '.claude', 'skills', 'wave-drain', 'SKILL.md')
-const skillTemplate = join(
-  repoRoot,
-  'src',
-  'templates',
-  'claude',
-  'skills',
-  'wave-drain',
-  'SKILL.md.ejs',
-)
 const drainSelf = join(repoRoot, '.claude', 'commands', 'drain.md')
-const drainTemplate = join(repoRoot, 'src', 'templates', 'claude', 'commands', 'drain.md.ejs')
 const promptPath = join(repoRoot, '.claude', 'prompts', 'opus-4.8-harness-wave-orchestrator.md')
+const selfConfig = JSON.parse(readFileSync(join(repoRoot, 'arbiter.json'), 'utf-8')) as Pick<
+  ProjectConfig,
+  'automation' | 'collaborationMode' | 'enableSoloDevMode'
+>
+const renderData = {
+  ...selfConfig,
+  maxParallelWorktrees: resolveMaxParallelWorktrees(selfConfig),
+}
 
 describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => {
   const md = readFileSync(skillSelf, 'utf-8')
 
-  it('is dual-side: self file is byte-equal to the claude template', () => {
-    expect(md).toBe(readFileSync(skillTemplate, 'utf-8'))
+  it('is dual-side: self file matches the rendered claude template', () => {
+    expect(md).toBe(renderTemplate('claude/skills/wave-drain/SKILL.md.ejs', renderData))
   })
 
   it('states the ADR-103 legality conditions and the ratified convergence model', () => {
@@ -43,10 +44,11 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
     expect(md).toMatch(/ONE wave PR/)
   })
 
-  it('prescribes the gate mutex primitive with SIGKILL/OOM release and serial fallback', () => {
+  it('scopes SIGKILL/OOM release to the gate-exec supervisor and keeps serial fallback', () => {
     expect(md).toMatch(/arbiter gate-exec/)
     expect(md).toMatch(/flock\(1\)/)
-    expect(md).toMatch(/SIGKILL\/OOM/)
+    expect(md).toMatch(/gate-exec\s+supervisor[^.]*SIGKILL\/OOM/i)
+    expect(md).toMatch(/Arbiter Node\s+PID alone/i)
     expect(md).toMatch(/--max-parallel 1/)
   })
 
@@ -109,8 +111,8 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
 describe('/drain v2 — entrypoint (#1873, ADR-103)', () => {
   const md = readFileSync(drainSelf, 'utf-8')
 
-  it('is dual-side: self file is byte-equal to the claude template', () => {
-    expect(md).toBe(readFileSync(drainTemplate, 'utf-8'))
+  it('is dual-side: self file matches the rendered claude template', () => {
+    expect(md).toBe(renderTemplate('claude/commands/drain.md.ejs', renderData))
   })
 
   it('wires the v2 protocol: mutex, cap, 3-hop, prune, convergence', () => {

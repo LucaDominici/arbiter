@@ -45,7 +45,7 @@ const AUTONOMY_PATH = 'automation.autonomy'
  * #2333 — `automation.maxParallelWorktrees` is NOT here: it lost its only ship-side
  * reader when #2329 deleted `planAction()`'s affinity branch, so it is no longer a
  * per-run override target (it survives as a persistent knob read by doctor/wizard
- * coherence). A path resolved into this profile MUST have a reader.
+ * coherence and rendered /drain surfaces). A path resolved into this profile MUST have a reader.
  */
 const DEFAULT_GATE_LEVEL_PATH = 'automation.defaultGateLevel'
 const AUTO_ADVANCE_BEHAVIOR: ShipBehavior = 'auto-advance'

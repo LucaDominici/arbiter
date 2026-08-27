@@ -96,6 +96,22 @@ describe('generateClaude', () => {
     expect(existsSync(join(dir, '.claude', 'hooks', 'lib.mjs'))).toBe(true)
   })
 
+  it('#2344 — changes the generated /drain default for each configured worktree cap', () => {
+    const renderDrain = (maxParallelWorktrees: number): string => {
+      const targetDir = join(dir, String(maxParallelWorktrees))
+      mkdirSync(targetDir)
+      generateClaude(
+        makeConfig(targetDir, {
+          automation: { autonomy: 'L0', maxParallelWorktrees },
+        }),
+      )
+      return readFileSync(join(targetDir, '.claude', 'commands', 'drain.md'), 'utf-8')
+    }
+
+    expect(renderDrain(2)).toMatch(/`--max-parallel N` \| 2\s+\|/)
+    expect(renderDrain(7)).toMatch(/`--max-parallel N` \| 7\s+\|/)
+  })
+
   it('includes language hooks in dispatcher config table when provided (#248)', () => {
     const config = makeConfig(dir, {
       languageHooks: [

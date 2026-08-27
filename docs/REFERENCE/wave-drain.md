@@ -48,8 +48,9 @@ rest of the wave.
    capped at `min(--max-parallel, nproc - 2, wave size)`. Worktrees run **light checks
    only** (targeted `vitest` + lint); the full gate is forbidden in worktrees. Expensive
    gates that can race another agent on the same repo go through
-   `arbiter gate-exec -- <cmd>` (flock(1) mutex — kernel wait, released even on
-   SIGKILL/OOM; fail-closed serial where flock is missing). Caches are per-worktree
+   `arbiter gate-exec -- <cmd>` (flock(1) mutex — kernel wait, released when the gate-exec
+   supervisor is SIGKILL/OOM-killed; killing the Arbiter Node PID alone leaves that
+   supervisor holding; fail-closed serial where flock is missing). Caches are per-worktree
    (`symlink-children`). Anti-stall: gate-waits are ONE foreground wait; turn-stalls are
    only bounded by the watchdog sweep over real `gh`/worktree state.
 5. **Local integration** — `wave-N-integration` off `main`: sequential merge in

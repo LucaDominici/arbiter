@@ -123,7 +123,7 @@ node scripts/sync-action-pins.mjs --check   # standalone: exit 1 on drift
 node scripts/check-all.mjs L1               # full gate including parity check
 ```
 
-See ADR-051 in `docs/SYSTEM/DECISIONS.md` for the full design decision.
+See ADR-051 in `docs/internal/SYSTEM/DECISIONS.md` for the full design decision.
 
 ## Vulnerability triage notes (2026-05-20)
 

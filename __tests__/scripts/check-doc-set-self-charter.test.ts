@@ -122,7 +122,7 @@ describe('check-doc-set: the SHIPPED self manifest enrolls the 5 real charter ro
   }
   const charterRows = manifest.checks.filter((c) => c.applies === 'self-charter')
 
-  it('enrolls exactly the 5 designed charter rows, all-R (tier-invariant)', () => {
+  it('enrolls exactly the 6 designed charter rows, all-R (tier-invariant)', () => {
     const paths = charterRows.map((c) => c.path).sort()
     expect(paths).toEqual(
       [
@@ -131,6 +131,10 @@ describe('check-doc-set: the SHIPPED self manifest enrolls the 5 real charter ro
         'docs/design/gold-doc-capability.md',
         'docs/design/gold-doc-self-tier-and-coherence.md',
         'docs/design/gold-doc-tranches-t3-t5.md',
+        // #2360: the public comparison tables had drifted from what the tool does.
+        // Enrolling them as a high-churn charter row is what stops that recurring —
+        // they now have a tracked freshness obligation instead of relying on notice.
+        'website/comparisons',
       ].sort(),
     )
     for (const c of charterRows) {

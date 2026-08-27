@@ -20,7 +20,7 @@
     "E_LOCK_SYMLINK_UNLINK": "Lock path {path} is a symlink \u2014 refusing to unlink. Remove it manually.",
     "E_LOCK_UNREADABLE": "Cannot read lock at {path} \u2014 it may not exist or is not a valid arbiter lock. Check permissions with `ls -la {path}`.",
     "E_LOCK_PID_CHANGED": "Lock PID changed: expected {expected} but found {found}. The lock was released and re-acquired between inspect and recover. Aborting.",
-    "E_GATE_MUTEX_UNSUPPORTED": "flock(1) is {detail} \u2014 the per-repo gate mutex requires util-linux flock (kernel-side release on SIGKILL/OOM; a lockfile emulation would reintroduce that hole). Run the wave serially (--max-parallel 1, no mutex needed) or install flock. (ADR-103)",
+    "E_GATE_MUTEX_UNSUPPORTED": "flock(1) is {detail} \u2014 the per-repo gate mutex requires util-linux flock (kernel-side release when the gate-exec supervisor is SIGKILL/OOM-killed; killing the Arbiter Node PID alone leaves that supervisor holding the mutex). Run the wave serially (--max-parallel 1, no mutex needed) or install flock. (ADR-103)",
     "E_NO_PLAN_ANCHOR": "No active plan anchor found. Run `/task #NNN` to initialize a plan.",
     "E_WORK_NO_CONFIG": "No arbiter.json found. Run `arbiter init` first.",
     "E_WORK_NO_PHASE": "Cannot advance: no active task phase.",

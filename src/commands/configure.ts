@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, join } from 'node:path'
+import { existsSync } from 'node:fs'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import {
   validateConfig,
@@ -16,7 +17,8 @@ import { ArbiterError } from '../utils/errors.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import type { Archetype } from '../wizard/types.js'
 import { t } from '../i18n/index.js'
-import { ensureDir } from '../utils/fs.js'
+import { ensureDir, readFileTranslated, writeFile } from '../utils/fs.js'
+import { resolveMaxParallelWorktrees } from '../config/collaboration-mode-defaults.js'
 
 export interface ConfigureOptions {
   dir?: string | undefined
@@ -426,6 +428,23 @@ function applySet(config: ArbiterConfigV2, path: string, value: unknown): Arbite
   )
 }
 
+/** Keep the materialized /drain default live for existing projects (#2344). */
+function syncDrainMaxParallel(targetDir: string, config: ArbiterConfigV2): void {
+  const drainPath = join(targetDir, '.claude', 'commands', 'drain.md')
+  if (!existsSync(drainPath)) return
+  const cap = resolveMaxParallelWorktrees({
+    automation: config.automation,
+    collaborationMode: config.collaborationMode,
+    enableSoloDevMode: config.features.soloDevMode,
+  })
+  const before = readFileTranslated(drainPath, 'utf8')
+  const after = before.replace(
+    /^(\| `--max-parallel N` \|) [^|\r\n]+(\| Max worktree agents;.*)$/m,
+    `$1 ${cap}       $2`,
+  )
+  if (after !== before) writeFile(drainPath, after)
+}
+
 export async function runConfigure(options: ConfigureOptions): Promise<void> {
   if (options.sets.length === 0) {
     if (options.json) {
@@ -490,6 +509,7 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
   try {
     await saveConfig(targetDir, result.config)
+    syncDrainMaxParallel(targetDir, result.config)
   } finally {
     await lock.release()
   }

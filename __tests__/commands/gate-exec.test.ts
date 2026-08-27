@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // T3 of #1873 (ADR-103): `arbiter gate-exec` — per-repo gate mutex primitive.
 // Key derivation is per-REPO (git-common-dir), so every worktree of the same
-// repo converges on the same lock; execution delegates to flock(1) (kernel
-// releases the lock on SIGKILL/OOM — the hole Node cleanup handlers cannot
-// cover); absence of flock is a hard, explicit error (fail-closed).
+// repo converges on the same lock; execution delegates acquisition to flock(1)
+// while Node keeps a safety fd until supervisor process-group teardown;
+// absence of flock is a hard, explicit error (fail-closed).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -102,6 +102,7 @@ describe('gate-exec (#1873 T3)', () => {
       expect((e as { code?: string }).code).toBe('E_GATE_MUTEX_UNSUPPORTED')
       // Actionable hint: serial fallback or install flock.
       expect((e as Error).message).toMatch(/--max-parallel 1/)
+      expect((e as Error).message).toMatch(/gate-exec supervisor/i)
     }
   })
 
@@ -109,7 +110,7 @@ describe('gate-exec (#1873 T3)', () => {
     expect(() => assertFlockAvailable()).not.toThrow()
   })
 
-  // ── argv composition (what gate-exec execs) ────────────────────────────────
+  // ── direct-flock compatibility primitive ──────────────────────────────────
 
   it('composes a blocking close-on-exec flock argv: flock -o -- <lock> <cmd...>', () => {
     const argv = gateExecArgv('/run/arbiter/k-gate.lock', ['npm', 'test'])
@@ -118,13 +119,13 @@ describe('gate-exec (#1873 T3)', () => {
 
   // ── execution: exit-code passthrough under the real flock ─────────────────
 
-  it('runGateExec passes the child exit code through (real flock)', () => {
-    const code = runGateExec({ cmdArgs: ['sh', '-c', 'exit 7'], dir: repoA })
+  it('runGateExec passes the child exit code through (real flock)', async () => {
+    const code = await runGateExec({ cmdArgs: ['sh', '-c', 'exit 7'], dir: repoA })
     expect(code).toBe(7)
   })
 
-  it('runGateExec returns 0 for a green command and honours --key override', () => {
-    const code = runGateExec({ cmdArgs: ['true'], dir: repoA, key: 'custom-key' })
+  it('runGateExec returns 0 for a green command and honours --key override', async () => {
+    const code = await runGateExec({ cmdArgs: ['true'], dir: repoA, key: 'custom-key' })
     expect(code).toBe(0)
   })
 })

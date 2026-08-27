@@ -462,10 +462,11 @@ made race-free by git's own atomic `git worktree add -b`, not by that lock — A
 
 **Gate mutex** (`gate-exec.ts`, ADR-103): a _deterministic leaf_ with no orchestration state. It keys
 the lock on `hash(git rev-parse --git-common-dir)` so every worktree of a repo converges on **one**
-lock (outside the repo, at `$XDG_RUNTIME_DIR/arbiter/…`), delegating both wait and release to
-`flock(1)` (kernel-side, released on the flock holder's fd death — including SIGKILL/OOM; see
-ADR-103 D5 for what that does _not_ cover); **fail-closed** (`E_GATE_MUTEX_UNSUPPORTED`, degrade to
-serial) where `flock` is absent. Global lock order: `gate-lock ≺ worktree-lock ≺ wave-claim` (ADR-103
+lock (outside the repo, at `$XDG_RUNTIME_DIR/arbiter/…`). A detached supervisor uses `flock(1)` for
+the kernel-side wait; Node and the supervisor retain the locked open-file description while the
+payload closes its copy before `exec`. Supervisor death triggers process-group teardown before
+release; **fail-closed** (`E_GATE_MUTEX_UNSUPPORTED`, degrade to serial) where `flock` is absent.
+Global lock order: `gate-lock ≺ worktree-lock ≺ wave-claim` (ADR-103
 §4) — gate-exec is a leaf, never invoked while `.arbiter/.lock` is held.
 
 ### 6.6 The gate ladder at runtime
@@ -702,9 +703,10 @@ the class: a number can ship, be enforced in code and prose, and cite a document
 affinity engine that §11.1 deleted, and reduced to one advisory English string in `planAction` —
 was **removed outright in #2329** (schema, wizard, resolver, settings/method catalogs, recipe
 schema, `ShipProfile`); every write surface now rejects the path rather than accepting and ignoring
-it. Two residuals remain: `maxParallelWorktrees` still resolves into `ShipProfile` with no reader
-there (its real consumers are `src/commands/doctor/health.ts` profile-coherence and `src/commands/wizard/coherence.ts`), and
-ADR-035's pluggable decomposition backend abstraction survives in template EJS
+it. `maxParallelWorktrees` was removed from `ShipProfile` in #2333; #2344 wires its persistent
+value into the rendered `/drain` and wave-drain defaults, alongside the existing doctor/wizard
+coherence readers. One residual remains: ADR-035's pluggable decomposition backend abstraction
+survives in template EJS
 (`_backend = decompositionBackend ?? …`) while its consuming command ("arbiter work") was pruned.
 
 ### 11.5 Overloaded vocabulary: "tier" means five different things (MEDIUM, comprehension risk)

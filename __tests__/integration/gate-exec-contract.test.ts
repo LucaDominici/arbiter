@@ -3,33 +3,61 @@
 //   1. Two concurrent gate-exec critical sections NEVER overlap.
 //   2. SIGKILL of the holder (OOM-kill model: whole process tree) releases the
 //      lock IMMEDIATELY — the next waiter enters with no stale-age stall.
-// The tests spawn the EXACT argv gate-exec composes (gateExecArgv), so they
-// exercise the kernel semantics of the artifact the command runs — not a
-// reimplementation.
+// Baseline tests exercise the direct-flock compatibility primitive; the #2346
+// regressions spawn the real source CLI and verify its supervised topology.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { spawn, execFileSync } from 'node:child_process'
+import { spawn, spawnSync, execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { gateExecArgv } from '../../src/commands/gate-exec.js'
+import { join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { gateExecArgv, gateLockPath } from '../../src/commands/gate-exec.js'
+
+const CLI_PATH = resolve(new URL('../../src/cli.ts', import.meta.url).pathname)
+const TSX_ESM_LOADER = createRequire(import.meta.url).resolve('tsx/esm')
 
 function spawnGate(
   lockPath: string,
   shellScript: string,
-  opts: { detached?: boolean; timeoutSeconds?: number } = {},
+  opts: { detached?: boolean } = {},
 ): ReturnType<typeof spawn> {
   const [bin, ...args] = gateExecArgv(lockPath, ['sh', '-c', shellScript])
-  const command = opts.timeoutSeconds === undefined ? (bin as string) : 'timeout'
-  const commandArgs =
-    opts.timeoutSeconds === undefined ? args : [`${opts.timeoutSeconds}s`, bin as string, ...args]
-  return spawn(command, commandArgs, {
+  return spawn(bin as string, args, {
     stdio: 'ignore',
     detached: opts.detached ?? false,
   })
 }
 
 function waitExit(child: ReturnType<typeof spawn>): Promise<number | null> {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve(child.exitCode)
+  }
   return new Promise((resolve) => child.on('close', (code) => resolve(code)))
+}
+
+function spawnGateCli(dir: string, key: string, shellScript: string): ReturnType<typeof spawn> {
+  return spawn(
+    process.execPath,
+    [
+      '--import',
+      TSX_ESM_LOADER,
+      CLI_PATH,
+      'gate-exec',
+      '--key',
+      key,
+      '--dir',
+      dir,
+      '--',
+      'sh',
+      '-c',
+      shellScript,
+    ],
+    {
+      cwd: dir,
+      env: { ...process.env, XDG_RUNTIME_DIR: dir, ARBITER_NO_EVIDENCE: '1' },
+      stdio: 'ignore',
+    },
+  )
 }
 
 function sleep(ms: number): Promise<void> {
@@ -74,18 +102,40 @@ async function waitUntilExists(path: string, timeoutMs: number): Promise<boolean
 async function waitUntilExited(pid: number, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
+    if (!isProcessAlive(pid)) return true
+    await sleep(25)
+  }
+  return !isProcessAlive(pid)
+}
+
+/** Linux exposes direct children without a process-name race or a `pgrep` dependency. */
+async function waitForDirectChild(pid: number, timeoutMs: number): Promise<number | undefined> {
+  const childrenPath = `/proc/${pid}/task/${pid}/children`
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
     try {
-      process.kill(pid, 0)
+      const child = Number(readFileSync(childrenPath, 'utf-8').trim().split(/\s+/)[0])
+      if (Number.isInteger(child) && child > 0) return child
     } catch {
-      return true
+      // Parent may still be starting or may already have exited.
     }
     await sleep(25)
   }
+  return undefined
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    const state = readFileSync(`/proc/${pid}/stat`, 'utf-8').match(/^\d+ \(.+\) (\S)/)?.[1]
+    if (state === 'Z') return false
+  } catch {
+    // Fall through to the portable liveness probe when /proc is unavailable.
+  }
   try {
     process.kill(pid, 0)
-    return false
-  } catch {
     return true
+  } catch {
+    return false
   }
 }
 
@@ -152,22 +202,153 @@ describe('gate-exec mutex contract (#1873 T3)', () => {
     expect(elapsed).toBeLessThan(5_000)
   }, 30_000)
 
+  it('keeps the mutex held when the lock supervisor (the pre-fix flock holder) is SIGKILLed', async () => {
+    const key = 'kill-flock-holder'
+    const cliLockPath = gateLockPath(key, { XDG_RUNTIME_DIR: dir })
+    const commandPidPath = join(dir, 'gated-command.pid')
+    const holder = spawnGateCli(
+      dir,
+      key,
+      `echo $$ > "${commandPidPath}"; while :; do sleep 1; done`,
+    )
+    let lockSupervisorPid: number | undefined
+    let commandPid: number | undefined
+
+    try {
+      expect(await waitUntilExists(commandPidPath, 10_000)).toBe(true)
+      expect(await waitUntilHeld(cliLockPath, 10_000)).toBe(true)
+      lockSupervisorPid = await waitForDirectChild(holder.pid as number, 10_000)
+      commandPid = Number(readFileSync(commandPidPath, 'utf-8').trim())
+      expect(lockSupervisorPid).toBeDefined()
+      expect(isProcessAlive(commandPid)).toBe(true)
+
+      // Pin the exact #2346 window: before the fix this direct child was flock,
+      // and stopping Node prevented it from reacting before the second acquire.
+      process.kill(holder.pid as number, 'SIGSTOP')
+      process.kill(lockSupervisorPid as number, 'SIGKILL')
+      expect(await waitUntilExited(lockSupervisorPid as number, 5_000)).toBe(true)
+      expect(isProcessAlive(commandPid)).toBe(true)
+
+      const probe = spawnSync('flock', ['-n', '--', cliLockPath, 'true'])
+      expect(probe.status).not.toBe(0)
+
+      process.kill(holder.pid as number, 'SIGCONT')
+      expect(await waitExit(holder)).not.toBe(0)
+      expect(isProcessAlive(commandPid)).toBe(false)
+      expect(spawnSync('flock', ['-n', '--', cliLockPath, 'true']).status).toBe(0)
+    } finally {
+      for (const pid of [holder.pid, lockSupervisorPid, commandPid]) {
+        if (pid === undefined || !isProcessAlive(pid)) continue
+        try {
+          process.kill(pid, 'SIGCONT')
+          process.kill(pid, 'SIGKILL')
+        } catch {
+          // The process may have exited between the liveness probe and cleanup.
+        }
+      }
+    }
+  }, 30_000)
+
+  it('tears down a setsid-escaped gate before releasing the mutex (RW-1)', async () => {
+    const key = 'setsid-escape'
+    const cliLockPath = gateLockPath(key, { XDG_RUNTIME_DIR: dir })
+    const escapedPidPath = join(dir, 'escaped-command.pid')
+    const holder = spawnGateCli(
+      dir,
+      key,
+      `exec setsid sh -c 'echo $$ > "${escapedPidPath}"; while :; do sleep 1; done'`,
+    )
+    let supervisorPid: number | undefined
+    let escapedPid: number | undefined
+
+    try {
+      expect(await waitUntilExists(escapedPidPath, 10_000)).toBe(true)
+      expect(await waitUntilHeld(cliLockPath, 10_000)).toBe(true)
+      supervisorPid = await waitForDirectChild(holder.pid as number, 10_000)
+      escapedPid = Number(readFileSync(escapedPidPath, 'utf-8').trim())
+      expect(supervisorPid).toBeDefined()
+      expect(isProcessAlive(escapedPid)).toBe(true)
+
+      process.kill(supervisorPid as number, 'SIGKILL')
+
+      expect(await waitExit(holder)).not.toBe(0)
+      expect(await waitUntilExited(escapedPid, 5_000)).toBe(true)
+      expect(spawnSync('flock', ['-n', '--', cliLockPath, 'true']).status).toBe(0)
+    } finally {
+      for (const pid of [holder.pid, supervisorPid, escapedPid]) {
+        if (pid === undefined || !isProcessAlive(pid)) continue
+        try {
+          process.kill(pid, 'SIGKILL')
+        } catch {
+          // The process may have exited between the liveness probe and cleanup.
+        }
+      }
+    }
+  }, 30_000)
+
+  it('Ctrl-C tears down the gated command and releases the mutex (RW-2)', async () => {
+    const key = 'operator-sigint'
+    const cliLockPath = gateLockPath(key, { XDG_RUNTIME_DIR: dir })
+    const commandPidPath = join(dir, 'interrupted-command.pid')
+    const holder = spawnGateCli(
+      dir,
+      key,
+      `echo $$ > "${commandPidPath}"; while :; do sleep 1; done`,
+    )
+    let supervisorPid: number | undefined
+    let commandPid: number | undefined
+
+    try {
+      expect(await waitUntilExists(commandPidPath, 10_000)).toBe(true)
+      expect(await waitUntilHeld(cliLockPath, 10_000)).toBe(true)
+      supervisorPid = await waitForDirectChild(holder.pid as number, 10_000)
+      commandPid = Number(readFileSync(commandPidPath, 'utf-8').trim())
+      expect(supervisorPid).toBeDefined()
+      expect(isProcessAlive(commandPid)).toBe(true)
+
+      process.kill(holder.pid as number, 'SIGINT')
+
+      expect(await waitExit(holder)).toBe(130)
+      expect(await waitUntilExited(commandPid, 5_000)).toBe(true)
+      expect(spawnSync('flock', ['-n', '--', cliLockPath, 'true']).status).toBe(0)
+    } finally {
+      for (const pid of [holder.pid, supervisorPid, commandPid]) {
+        if (pid === undefined || !isProcessAlive(pid)) continue
+        try {
+          process.kill(pid, 'SIGKILL')
+        } catch {
+          // The process may have exited between the liveness probe and cleanup.
+        }
+      }
+    }
+  }, 30_000)
+
+  it('releases the mutex after the gated command exits normally', async () => {
+    const key = 'normal-exit-control'
+    const cliLockPath = gateLockPath(key, { XDG_RUNTIME_DIR: dir })
+    const holder = spawnGateCli(dir, key, 'true')
+
+    expect(await waitExit(holder)).toBe(0)
+    expect(spawnSync('flock', ['-n', '--', cliLockPath, 'true']).status).toBe(0)
+  }, 15_000)
+
   it('does not leave the mutex held when the gate backgrounds a child', async () => {
+    const key = 'background-child'
+    const cliLockPath = gateLockPath(key, { XDG_RUNTIME_DIR: dir })
     const childPidPath = join(dir, 'background-child.pid')
     let backgroundPid: number | undefined
     try {
-      // The backgrounded sleep outlives its shell. Without flock --close (-o),
-      // it inherits flock's lock fd and makes the next gate wait behind it.
-      const first = spawnGate(lockPath, `sleep 30 & echo $! > "${childPidPath}"; exit 0`)
+      // The backgrounded sleep outlives its shell. The supervised command must
+      // close fd 3 before exec so this descendant cannot retain the mutex.
+      const first = spawnGateCli(dir, key, `sleep 30 & echo $! > "${childPidPath}"; exit 0`)
       expect(await waitExit(first)).toBe(0)
       expect(await waitUntilExists(childPidPath, 5_000)).toBe(true)
       backgroundPid = Number(readFileSync(childPidPath, 'utf-8').trim())
 
-      // Run the exact argv from gateExecArgv under a bounded outer timeout so
-      // the red regression fails loudly instead of holding the suite hostage.
+      // Bound the probe so an inherited descriptor fails loudly instead of
+      // holding the suite behind the backgrounded process.
       const start = Date.now()
-      const second = spawnGate(lockPath, 'true', { timeoutSeconds: 1 })
-      const code = await waitExit(second)
+      const code = spawnSync('flock', ['-w', '1', '--', cliLockPath, 'true']).status
       const elapsed = Date.now() - start
       expect(code).toBe(0)
       expect(elapsed).toBeLessThan(500)
