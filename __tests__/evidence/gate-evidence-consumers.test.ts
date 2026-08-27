@@ -225,6 +225,16 @@ describe('#2328 consumer: stop-evidence-guard hook', () => {
     )
   }
 
+  function seedJourneyEvidence(dir: string): void {
+    const sha = git(dir, ['rev-parse', 'HEAD'])
+    const journeyDir = join(dir, '.arbiter', 'evidence', 'journey')
+    mkdirSync(journeyDir, { recursive: true })
+    writeFileSync(
+      join(journeyDir, '_2328.json'),
+      JSON.stringify({ branch: BRANCH, sha, spec: 'e2e/checkout.spec.ts', target: 'artifact' }),
+    )
+  }
+
   function transcript(): string {
     const p = join(track(realpathSync(mkdtempSync(join(tmpdir(), 'arbiter-2328-t-')))), 't.jsonl')
     writeFileSync(
@@ -257,8 +267,18 @@ describe('#2328 consumer: stop-evidence-guard hook', () => {
   it('allows the completion claim when the evidence was produced in THIS checkout', () => {
     const dir = track(makeRepo())
     seedCorrelatedEvidence(dir)
+    seedJourneyEvidence(dir)
     stampEvidence(dir)
     expect(runHook(dir).status).toBe(0)
+  })
+
+  it('blocks the completion claim when journey evidence is missing', () => {
+    const dir = track(makeRepo())
+    seedCorrelatedEvidence(dir)
+    stampEvidence(dir)
+    const result = runHook(dir)
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/journey/i)
   })
 
   it('blocks the completion claim when the evidence came from a sibling checkout', () => {
