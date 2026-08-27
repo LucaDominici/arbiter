@@ -362,9 +362,7 @@ function main() {
 
   const ctx = {
     templates: indexTemplates(opts.root, opts.templatesDir),
-    divergenceBasenames: new Set(
-      canonDivergences.map((d) => String(d.path).split('/').pop()),
-    ),
+    divergenceBasenames: new Set(canonDivergences.map((d) => String(d.path).split('/').pop())),
     selfOnly,
     usedSelfOnly: new Set(),
   }
