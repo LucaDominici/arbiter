@@ -319,4 +319,73 @@ describe('record-agent-return.mjs', () => {
     expect(written.branch).toBeTruthy()
     expect(written.ts).toBeTruthy()
   })
+
+  it('stamps default Anthropic provenance and overwrites incoming provenance', () => {
+    const valid = envelope({ provenance: { vendor: 'openai', dispatch: 'external-cli' } })
+    delete (valid as Record<string, unknown>).sha
+    delete (valid as Record<string, unknown>).branch
+    delete (valid as Record<string, unknown>).ts
+    const result = spawnSync(
+      'node',
+      [RECORD_SCRIPT, '--task', '#1943', '--evidence-dir', evidenceDir, '--repo-root', tmpDir],
+      {
+        input: JSON.stringify(valid),
+        encoding: 'utf-8',
+        timeout: 10000,
+      },
+    )
+    expect(result.status).toBe(0)
+    const taskDir = join(evidenceDir, '_1943')
+    const files = readdirSync(taskDir)
+    const written = JSON.parse(readFileSync(join(taskDir, files[0]!), 'utf-8')) as Record<
+      string,
+      unknown
+    >
+    expect(written.provenance).toEqual({ vendor: 'anthropic', dispatch: 'subagent' })
+  })
+
+  it('stamps explicit external-cli provenance flags', () => {
+    const valid = envelope()
+    delete (valid as Record<string, unknown>).sha
+    delete (valid as Record<string, unknown>).branch
+    delete (valid as Record<string, unknown>).ts
+    const result = spawnSync(
+      'node',
+      [
+        RECORD_SCRIPT,
+        '--task',
+        '#1943',
+        '--evidence-dir',
+        evidenceDir,
+        '--repo-root',
+        tmpDir,
+        '--provenance-vendor',
+        'openai',
+        '--provenance-cli',
+        'codex',
+        '--provenance-cli-version',
+        '0.5.1',
+        '--provenance-dispatch',
+        'external-cli',
+      ],
+      {
+        input: JSON.stringify(valid),
+        encoding: 'utf-8',
+        timeout: 10000,
+      },
+    )
+    expect(result.status).toBe(0)
+    const taskDir = join(evidenceDir, '_1943')
+    const files = readdirSync(taskDir)
+    const written = JSON.parse(readFileSync(join(taskDir, files[0]!), 'utf-8')) as Record<
+      string,
+      unknown
+    >
+    expect(written.provenance).toEqual({
+      vendor: 'openai',
+      dispatch: 'external-cli',
+      cli: 'codex',
+      cliVersion: '0.5.1',
+    })
+  })
 })
