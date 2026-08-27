@@ -218,6 +218,9 @@ if (isMain) {
   runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
   runCheck('governance mirror sync (#1805)', 'node', ['scripts/check-governance-mirror-sync.mjs'])
   runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'])
+  // #2387: the orchestration surface drifts in two ways models obey literally — a skill or
+  // agent name with no file behind it, and a mandatory ceremony step re-marked optional.
+  runCheck('orchestration integrity (#2387)', 'node', ['scripts/check-orchestration-integrity.mjs'])
   runCheck('claude-md lint (#1266)', 'node', ['scripts/check-claude-md-lint.mjs'])
   runCheck('doc index (#1102)', 'node', ['scripts/gen-doc-index.mjs', '--check'])
   runCheck('llms.txt drift (#1721)', 'node', ['scripts/gen-llms-txt.mjs', '--check'])

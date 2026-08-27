@@ -101,6 +101,10 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'cli ref parity (INV-111)', affects: TEMPLATES },
 
   // ─── everything else: ALWAYS (safe default, not yet evidenced narrower) ──
+  // #2387: defaults to ALWAYS — its surface spans .claude/** prose, src/templates/**
+  // twins and the skill/command/agent registry the references resolve against, so no
+  // narrow bucket is provably safe for it.
+  { name: 'orchestration integrity (#2387)', affects: ALWAYS },
   { name: 'build-kit', affects: ALWAYS },
   { name: 'no redacted tokens', affects: ALWAYS },
   { name: 'no work refs', affects: ALWAYS },

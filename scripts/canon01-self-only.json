@@ -239,6 +239,10 @@
       "expires": "2026-08-29"
     },
     {
+      "path": "scripts/check-orchestration-integrity.mjs",
+      "reason": "#2387: guards arbiter's OWN orchestration prose (.claude/commands, .claude/skills, .claude/hooks and their src/templates/claude twins) against dangling skill/agent references and optional-marked ceremony. Self-only by construction for now: it resolves references against arbiter's own skill/command/agent registry and scans the template tree, which a generated target does not carry. Shipping a target-facing twin is a separate decision, deliberately out of scope in #2387's Non-Goals."
+    },
+    {
       "path": "scripts/check-orchestrator-coverage.mjs",
       "reason": "Every scripts/check-*.mjs is reachable from check-all.mjs. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
       "expires": "2026-08-29"

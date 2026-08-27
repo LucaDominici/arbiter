@@ -116,7 +116,8 @@ describe('findOptionalCeremony', () => {
 
   it('leaves a ceremony term alone when it is stated unconditionally', () => {
     const dir = surface({
-      '.claude/skills/wave-drain/SKILL.md': '## Phase 2.5 — Per-issue 3-hop plan gate (default-on)\n',
+      '.claude/skills/wave-drain/SKILL.md':
+        '## Phase 2.5 — Per-issue 3-hop plan gate (default-on)\n',
     })
     try {
       expect(findOptionalCeremony(dir)).toEqual([])
