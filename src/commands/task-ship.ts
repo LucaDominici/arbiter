@@ -522,9 +522,9 @@ function assertSeedWithinLimit(
   chainIds: readonly string[] | undefined,
   limits: TrainLimits,
 ): void {
-  if (chainIds === undefined) return
+  if (chainIds === undefined && taskId === undefined) return
   const primaryCount = taskId !== undefined || existing?.taskId !== undefined ? 1 : 0
-  const projectedSize = primaryCount + chainIds.length
+  const projectedSize = primaryCount + (chainIds ?? existing?.chainIds ?? []).length
   if (projectedSize <= limits.maxChain) return
   const seal = {
     reason: 'max-chain' as const,
@@ -692,11 +692,12 @@ function trainSignalsFor(
   opts: TaskShipOptions,
   state: UnifiedTaskState | null,
   now: Date,
+  chainSize = (state?.taskId ? 1 : 0) + (state?.chainIds ?? []).length,
 ): TrainSignals {
   const gather = opts.gatherTierSignals ?? gatherTierSignals
   return {
     // The primary id rides the same branch, gate and PR, so it counts toward the bound.
-    chainSize: (state?.taskId ? 1 : 0) + (state?.chainIds ?? []).length,
+    chainSize,
     openedAt: state?.timestamps.chainOpened,
     now,
     // Widen once per appended id; the strongest verdict across them decides.
@@ -708,16 +709,21 @@ function trainSignalsFor(
   }
 }
 
-function applyChainAdd(root: string, opts: TaskShipOptions): void {
+function assertChainAddAllowed(
+  root: string,
+  opts: TaskShipOptions,
+  state: UnifiedTaskState | null,
+  now: Date,
+  limits: TrainLimits,
+): void {
   const additions = opts.chainAddIds ?? []
-  if (additions.length === 0 && opts.seal !== true) return
-
-  const state = readUnifiedState(root)
-  const now = opts.now ?? new Date()
-  const limits = opts.trainLimits ?? DEFAULT_TRAIN_LIMITS
-  const existing = state?.chainIds ?? []
-  const projectedSize = (state?.taskId ? 1 : 0) + appendChainIds(existing, additions).length
-  const currentVerdict = evaluateSeal(trainSignalsFor(root, opts, state, now), limits)
+  const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
+  const existing =
+    opts.chainIds !== undefined ? opts.chainIds.map(normalizeChainId) : (state?.chainIds ?? [])
+  const primaryCount = taskId === undefined ? 0 : 1
+  const currentSize = primaryCount + existing.length
+  const projectedSize = primaryCount + appendChainIds(existing, additions).length
+  const currentVerdict = evaluateSeal(trainSignalsFor(root, opts, state, now, currentSize), limits)
   const verdict =
     currentVerdict.sealed || projectedSize <= limits.maxChain
       ? currentVerdict
@@ -732,8 +738,18 @@ function applyChainAdd(root: string, opts: TaskShipOptions): void {
     const seal = { reason: verdict.reason, detail: verdict.detail }
     throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
   }
+}
 
-  persistTrainAppend(root, state, additions, now)
+function applyChainAdd(root: string, opts: TaskShipOptions, persist = true): void {
+  const additions = opts.chainAddIds ?? []
+  if (additions.length === 0 && opts.seal !== true) return
+
+  const state = readUnifiedState(root)
+  const now = opts.now ?? new Date()
+  const limits = opts.trainLimits ?? DEFAULT_TRAIN_LIMITS
+  assertChainAddAllowed(root, opts, state, now, limits)
+
+  if (persist) persistTrainAppend(root, state, additions, now)
 }
 
 /** Persist an accepted append. Split from the decision so each half stays legible. */
@@ -758,6 +774,9 @@ function persistTrainAppend(
 
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
+  // Validate the complete train mutation before seeding task metadata. A rejected append must
+  // leave both fresh and existing state untouched, including task/tier/override fields.
+  applyChainAdd(root, opts, false)
   seedShipState(root, opts)
   applyChainAdd(root, opts)
 

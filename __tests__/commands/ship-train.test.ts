@@ -253,6 +253,28 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
       ship({ chainAddIds: ['#102'], now: new Date('2026-08-22T05:00:00.000Z') }),
     ).toThrow(/SEALED: max-age/)
   })
+
+  it('does not seed any fields when a combined seed and append exceeds the limit', () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'arbiter-train-atomic-seed-'))
+    try {
+      expect(() =>
+        runTaskShip({
+          dir: fresh,
+          taskId: '#100',
+          tier: 'S',
+          overrides: { 'automation.defaultGateLevel': 'L2' },
+          chainIds: ['#101'],
+          chainAddIds: ['#102', '#103', '#104', '#105'],
+          profileOverride: TEST_PROFILE,
+          gatherTierSignals: () => XS_SIGNALS,
+          now: new Date('2026-08-22T00:10:00.000Z'),
+        }),
+      ).toThrow(/SEALED: max-chain/)
+      expect(readUnifiedState(fresh)).toBeNull()
+    } finally {
+      rmSync(fresh, { recursive: true, force: true })
+    }
+  })
 })
 
 it('refuses an initial --chain seed that exceeds the train limit', () => {
@@ -275,6 +297,25 @@ it('refuses an initial --chain seed that exceeds the train limit', () => {
         profileOverride: TEST_PROFILE,
       }),
     ).toThrow(/SEALED: max-chain/)
+    expect(readUnifiedState(dir)).toEqual(before)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+it('rejects adding a primary issue to an already-full chain before writing it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-primary-limit-'))
+  try {
+    runTaskShip({
+      dir,
+      chainIds: ['#101', '#102', '#103', '#104', '#105'],
+      profileOverride: TEST_PROFILE,
+    })
+    const before = readUnifiedState(dir)
+
+    expect(() => runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })).toThrow(
+      /SEALED: max-chain/,
+    )
     expect(readUnifiedState(dir)).toEqual(before)
   } finally {
     rmSync(dir, { recursive: true, force: true })
