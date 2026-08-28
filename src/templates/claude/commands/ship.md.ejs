@@ -367,7 +367,77 @@ if [ "$external_review_fulfilled" = 1 ]; then
 else
   review_agents_json='["independent-review"]'
 fi
-mkdir -p .arbiter && printf '{"count":1,"agents":%s,"branch":"%s","sha":"%s","taskId":%s}\n' "$review_agents_json" "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" "$task_id_json" > .arbiter/agents-dispatched.json
+node - "$review_agents_json" "1" "$task_id_json" <<'NODE' || exit 2
+const fs = require('node:fs')
+const path = require('node:path')
+const crypto = require('node:crypto')
+const child = require('node:child_process')
+
+if (process.platform === 'win32')
+  throw new Error('secure reviewer sidecar writing is unsupported on Windows')
+
+const [agentsJson, countText, taskIdJson] = process.argv.slice(2)
+const agents = JSON.parse(agentsJson)
+const count = Number(countText)
+const taskId = JSON.parse(taskIdJson)
+if (!Number.isInteger(count) || !Array.isArray(agents) || agents.length !== count)
+  throw new Error('invalid reviewer sidecar panel')
+
+const descriptorPath = (fd) => `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${fd}`
+const directoryFlags = fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW
+let dirFd = -1
+try {
+  dirFd = fs.openSync('/', directoryFlags)
+  for (const part of path.resolve(process.cwd()).split('/').filter(Boolean).concat('.arbiter')) {
+    const childPath = path.join(descriptorPath(dirFd), part)
+    try {
+      fs.mkdirSync(childPath)
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error
+    }
+    const nextFd = fs.openSync(childPath, directoryFlags)
+    fs.closeSync(dirFd)
+    dirFd = nextFd
+  }
+  const dirPath = descriptorPath(dirFd)
+  const tempPath = path.join(dirPath, `.arbiter-tmp-${crypto.randomBytes(4).toString('hex')}`)
+  let tempFd = -1
+  let pendingTemp = tempPath
+  try {
+    tempFd = fs.openSync(
+      tempPath,
+      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW,
+      0o600,
+    )
+    const branch = child.execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim()
+    const sha = child.execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+    fs.writeFileSync(tempFd, `${JSON.stringify({ count, agents, branch, sha, taskId })}\n`)
+    fs.closeSync(tempFd)
+    tempFd = -1
+    fs.renameSync(tempPath, path.join(dirPath, 'agents-dispatched.json'))
+    pendingTemp = null
+  } finally {
+    if (tempFd !== -1) {
+      try {
+        fs.closeSync(tempFd)
+      } catch {
+        // Preserve the primary write error.
+      }
+    }
+    if (pendingTemp !== null) {
+      try {
+        fs.unlinkSync(pendingTemp)
+      } catch {
+        // Preserve the primary write error.
+      }
+    }
+  }
+} finally {
+  if (dirFd !== -1) fs.closeSync(dirFd)
+}
+NODE
 ```
 
 Write this file only after the reviewer subagent has actually been dispatched — "I reviewed
@@ -414,7 +484,77 @@ review_agents_json='[<%- Array.from({ length: _tiers.Standard.reviewAgentCount }
 if [ "$external_review_fulfilled" = 1 ]; then
   review_agents_json='[<%- Array.from({ length: Math.max(0, _tiers.Standard.reviewAgentCount - 1) }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>,"codex-reviewer"]'
 fi
-mkdir -p .arbiter && printf '{"count":<%= _tiers.Standard.reviewAgentCount %>,"agents":%s,"branch":"%s","sha":"%s","taskId":%s}\n' "$review_agents_json" "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" "$task_id_json" > .arbiter/agents-dispatched.json
+node - "$review_agents_json" "<%= _tiers.Standard.reviewAgentCount %>" "$task_id_json" <<'NODE' || exit 2
+const fs = require('node:fs')
+const path = require('node:path')
+const crypto = require('node:crypto')
+const child = require('node:child_process')
+
+if (process.platform === 'win32')
+  throw new Error('secure reviewer sidecar writing is unsupported on Windows')
+
+const [agentsJson, countText, taskIdJson] = process.argv.slice(2)
+const agents = JSON.parse(agentsJson)
+const count = Number(countText)
+const taskId = JSON.parse(taskIdJson)
+if (!Number.isInteger(count) || !Array.isArray(agents) || agents.length !== count)
+  throw new Error('invalid reviewer sidecar panel')
+
+const descriptorPath = (fd) => `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${fd}`
+const directoryFlags = fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW
+let dirFd = -1
+try {
+  dirFd = fs.openSync('/', directoryFlags)
+  for (const part of path.resolve(process.cwd()).split('/').filter(Boolean).concat('.arbiter')) {
+    const childPath = path.join(descriptorPath(dirFd), part)
+    try {
+      fs.mkdirSync(childPath)
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error
+    }
+    const nextFd = fs.openSync(childPath, directoryFlags)
+    fs.closeSync(dirFd)
+    dirFd = nextFd
+  }
+  const dirPath = descriptorPath(dirFd)
+  const tempPath = path.join(dirPath, `.arbiter-tmp-${crypto.randomBytes(4).toString('hex')}`)
+  let tempFd = -1
+  let pendingTemp = tempPath
+  try {
+    tempFd = fs.openSync(
+      tempPath,
+      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW,
+      0o600,
+    )
+    const branch = child.execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim()
+    const sha = child.execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+    fs.writeFileSync(tempFd, `${JSON.stringify({ count, agents, branch, sha, taskId })}\n`)
+    fs.closeSync(tempFd)
+    tempFd = -1
+    fs.renameSync(tempPath, path.join(dirPath, 'agents-dispatched.json'))
+    pendingTemp = null
+  } finally {
+    if (tempFd !== -1) {
+      try {
+        fs.closeSync(tempFd)
+      } catch {
+        // Preserve the primary write error.
+      }
+    }
+    if (pendingTemp !== null) {
+      try {
+        fs.unlinkSync(pendingTemp)
+      } catch {
+        // Preserve the primary write error.
+      }
+    }
+  }
+} finally {
+  if (dirFd !== -1) fs.closeSync(dirFd)
+}
+NODE
 ```
 
 When the security escalation fires, dispatch a third reviewer whose lead angle is the security-class

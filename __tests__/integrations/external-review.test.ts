@@ -21,6 +21,10 @@ vi.mock('../../src/utils/run-cli.js', async (importActual) => {
   const actual = await importActual<typeof import('../../src/utils/run-cli.js')>()
   return { ...actual, runCli: vi.fn() }
 })
+vi.mock('../../src/evidence/git-checks.js', () => ({
+  currentBranch: vi.fn(() => 'current-branch'),
+  headSha: vi.fn(() => 'current-sha'),
+}))
 
 const mockedRunCli = vi.mocked(runCli)
 const repoRoot = process.cwd()
@@ -224,6 +228,63 @@ describe('invokeExternalReview (#2357)', () => {
     }
   })
 
+  it('rejects a symlinked custom dispatch root before writing outside it', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-custom-symlink-'))
+    const outside = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-custom-outside-'))
+    const linkedDispatch = join(fixture, 'dispatch')
+    try {
+      symlinkSync(outside, linkedDispatch, 'dir')
+      expect(() =>
+        invokeExternalReview({
+          repoRoot,
+          taskId: '#2358',
+          prompt: 'Review.',
+          diff: 'diff',
+          cfg: config({ diffEgressConsent: false }),
+          evidenceDir: join(fixture, 'agent-returns'),
+          dispatchEvidenceDir: linkedDispatch,
+          tier: 'Standard',
+          phase: 'refactor',
+          vertical: 'security',
+        }),
+      ).toThrow(/symlink|descriptor|unsupported/i)
+      expect(existsSync(join(outside, '_2358', 'dispatch.json'))).toBe(false)
+    } catch (error) {
+      expect(String(error)).toMatch(/symlink|descriptor|unsupported/i)
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('stamps dispatch identity from Git instead of caller-supplied branch and SHA', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-identity-'))
+    try {
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config({ diffEgressConsent: false }),
+        evidenceDir: join(evidenceRoot, 'agent-returns'),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+      })
+
+      expect(result.status).toBe('degraded')
+      expect(
+        JSON.parse(readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf8')),
+      ).toMatchObject({
+        branch: 'current-branch',
+        sha: 'current-sha',
+      })
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
   it('uses read-only Codex stdin and persists only through the recorder (AC-3/AC-4/AC-7)', () => {
     mockedRunCli.mockImplementation((cmd) => {
       if (cmd === 'codex')
@@ -335,8 +396,6 @@ describe('invokeExternalReview (#2357)', () => {
         tier: 'Standard',
         phase: 'refactor',
         vertical: 'security',
-        branch: 'task/#2358-cross-model-degradation-evidence',
-        sha: 'deadbeef',
       })
 
       expect(result.status).toBe('degraded')
@@ -346,8 +405,8 @@ describe('invokeExternalReview (#2357)', () => {
       expect(dispatch).toMatchObject({
         schema: 'arbiter-cross-model-dispatch-v1',
         taskId: '#2358',
-        branch: 'task/#2358-cross-model-degradation-evidence',
-        sha: 'deadbeef',
+        branch: 'current-branch',
+        sha: 'current-sha',
         phase: 'refactor',
         requested: [{ provider: 'codex', vertical: 'security' }],
         fulfilled: [],
@@ -379,8 +438,6 @@ describe('invokeExternalReview (#2357)', () => {
         tier: 'XS',
         phase: 'refactor',
         vertical: 'bugs',
-        branch: 'task/#2358-cross-model-degradation-evidence',
-        sha: 'deadbeef',
       })
       expect(result.degradationReasons).toEqual([])
       const dispatch = JSON.parse(
@@ -407,8 +464,6 @@ describe('invokeExternalReview (#2357)', () => {
         tier: 'Standard',
         phase: 'refactor',
         vertical: 'bugs',
-        branch: 'task/#2358-cross-model-degradation-evidence',
-        sha: 'deadbeef',
       })
       expect(result.degradationReasons).toEqual([])
       const dispatch = JSON.parse(
@@ -435,8 +490,6 @@ describe('invokeExternalReview (#2357)', () => {
           tier: 'Standard',
           phase: 'refactor',
           vertical: 'security',
-          branch: 'task/#2358-cross-model-degradation-evidence',
-          sha: 'deadbeef',
         }),
       ).toThrow(/unavailable|degrad/i)
     } finally {
@@ -463,8 +516,6 @@ describe('invokeExternalReview (#2357)', () => {
         tier: 'Standard',
         phase: 'refactor',
         vertical: 'security',
-        branch: 'task/#2358-cross-model-degradation-evidence',
-        sha: 'deadbeef',
       }),
     ).toThrow(/unavailable|envelope-rejected|degrad/i)
   })
@@ -488,8 +539,6 @@ describe('invokeExternalReview (#2357)', () => {
         tier: 'Standard',
         phase: 'refactor',
         vertical: 'security',
-        branch: 'task/#2358-cross-model-degradation-evidence',
-        sha: 'deadbeef',
       })
       expect(result.status).toBe('degraded')
       expect(result.degradationReason).toBe('envelope-rejected')
@@ -521,8 +570,6 @@ describe('invokeExternalReview (#2357)', () => {
         tier: 'Standard',
         phase: 'refactor',
         vertical: 'security',
-        branch: 'task/#2358-cross-model-degradation-evidence',
-        sha: 'deadbeef',
       })
       expect(result.status).toBe('degraded')
       const dispatch = JSON.parse(

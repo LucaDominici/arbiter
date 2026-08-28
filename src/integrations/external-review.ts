@@ -9,13 +9,11 @@ import type { TaskPhase } from '../commands/task-state.js'
 import type { ShipTier } from '../commands/ship-tier.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
 import {
-  ensureDir,
   mkdtempTranslated,
   readFileTranslated,
   rmTranslated,
   toFsError,
   writeFileContained,
-  writeFileTranslated,
 } from '../utils/fs.js'
 import { getLogger } from '../utils/logger.js'
 import { CliError, runCli, type RunCliResult } from '../utils/run-cli.js'
@@ -86,8 +84,6 @@ export interface ExternalReviewRequest {
   tier?: ShipTier
   phase?: TaskPhase
   vertical?: string
-  branch?: string
-  sha?: string
 }
 
 export interface ExternalReviewResult {
@@ -557,29 +553,28 @@ function writeDispatchEvidence(
   const artifact: CrossModelDispatchArtifact = {
     schema: CROSS_MODEL_DISPATCH_SCHEMA,
     taskId: request.taskId,
-    branch: request.branch ?? currentBranch(request.repoRoot),
-    sha: request.sha ?? headSha(request.repoRoot),
+    branch: currentBranch(request.repoRoot),
+    sha: headSha(request.repoRoot),
     ts: new Date().toISOString(),
     phase: request.phase ?? plan.phase,
     requested: requestedEntries(request, plan),
     fulfilled: fulfilledEntries(request, result, envelopePath),
     degraded: degradedEntries(request, plan, result, error ?? request.access?.error),
   }
-  const root =
-    request.dispatchEvidenceDir ?? join(request.repoRoot, '.arbiter', 'evidence', 'cross-model')
-  const taskDir = join(root, sanitizeTask(request.taskId))
-  const out = join(taskDir, 'dispatch.json')
   const content = `${JSON.stringify(artifact, null, 2)}\n`
-  if (request.dispatchEvidenceDir === undefined) {
+  if (request.dispatchEvidenceDir !== undefined) {
     writeFileContained(
-      request.repoRoot,
-      join('.arbiter', 'evidence', 'cross-model', sanitizeTask(request.taskId), 'dispatch.json'),
+      request.dispatchEvidenceDir,
+      join(sanitizeTask(request.taskId), 'dispatch.json'),
       content,
     )
     return
   }
-  ensureDir(taskDir)
-  writeFileTranslated(out, content)
+  writeFileContained(
+    request.repoRoot,
+    join('.arbiter', 'evidence', 'cross-model', sanitizeTask(request.taskId), 'dispatch.json'),
+    content,
+  )
 }
 
 function outsideRoot(root: string, candidate: string): boolean {

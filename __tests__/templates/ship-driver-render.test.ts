@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
@@ -314,6 +322,36 @@ describe('ship command cross-model sidecar (#2357)', () => {
       })
     } finally {
       rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to write the manual reviewer sidecar through a symlinked .arbiter directory', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-symlink-'))
+    const outside = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-outside-'))
+    try {
+      expect(
+        spawnSync('git', ['init', '-q', '-b', 'task/#2357-sidecar-symlink'], { cwd: root }).status,
+      ).toBe(0)
+      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
+      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
+      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
+      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
+      writeFileSync(
+        join(root, '.claude', '.task', 'status.json'),
+        JSON.stringify({ taskId: '#2357' }),
+      )
+      symlinkSync(outside, join(root, '.arbiter'), 'dir')
+
+      const block = renderPeerShipCommand().match(
+        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
+      )?.[1]
+      expect(block).toBeDefined()
+      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
+      expect(result.status).not.toBe(0)
+      expect(existsSync(join(outside, 'agents-dispatched.json'))).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
     }
   })
 })

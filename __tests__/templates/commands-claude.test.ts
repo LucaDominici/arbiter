@@ -184,7 +184,13 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
 
   it('uses one authoritative dispatch sidecar for cross-model review', () => {
     const content = renderShip()
-    expect(content.match(/> \.arbiter\/agents-dispatched\.json/g) ?? []).toHaveLength(1)
+    expect(
+      content.match(
+        /fs\.renameSync\(tempPath, path\.join\(dirPath, 'agents-dispatched\.json'\)\)/g,
+      ) ?? [],
+    ).toHaveLength(1)
+    expect(content).not.toMatch(/> \.arbiter\/agents-dispatched\.json/)
+    expect(content).toContain('O_NOFOLLOW')
     expect(content).toContain('manual block writes the complete reviewer')
     expect(content).toContain('codex-reviewer')
     expect(content).toContain('external_review_fulfilled')

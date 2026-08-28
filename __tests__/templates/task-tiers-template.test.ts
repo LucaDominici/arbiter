@@ -21,7 +21,7 @@ function render(taskTiers?: unknown, collaborationMode = 'peer-review'): string 
 
 function dispatchedReviewers(rendered: string): { count: number; names: string[] } {
   const namesMatch = rendered.match(/review_agents(?:_json)?='(\[[^']*\])'/)
-  const countMatch = rendered.match(/printf '\{"count":(\d+),"agents":%s,"branch"/)
+  const countMatch = rendered.match(/node - "\$review_agents_json" "(\d+)" "\$task_id_json"/)
 
   if (namesMatch === null || countMatch === null) {
     throw new Error('Expected the non-solo review-dispatch sidecar block')
@@ -29,9 +29,6 @@ function dispatchedReviewers(rendered: string): { count: number; names: string[]
 
   const names = JSON.parse(namesMatch[1]) as string[]
   const count = Number.parseInt(countMatch[1], 10)
-  const sidecar = `{"count":${count},"agents":${namesMatch[1]},"branch":"b","sha":"s"}`
-
-  expect(() => JSON.parse(sidecar)).not.toThrow()
 
   return { count, names }
 }
