@@ -183,6 +183,12 @@ describe('check-cross-model-review (#2358)', () => {
     expect(readFileSync(SCHEMA, 'utf-8')).toContain('arbiter-cross-model-dispatch-v1')
   })
 
+  it('uses descriptor-relative no-follow reads for evidence', () => {
+    const source = readFileSync(SCRIPT, 'utf-8')
+    expect(source).toContain('O_NOFOLLOW')
+    expect(source).toContain('readFileContained')
+  })
+
   it('explicitly skips when cross-model review is disabled', () => {
     const result = run()
     expect(result.status).toBe(0)

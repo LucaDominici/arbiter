@@ -362,7 +362,7 @@ if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFile
   echo 'ERROR: active task id is missing or invalid' >&2
   exit 2
 fi
-if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs"),c=require("node:child_process"),d=JSON.parse(f.readFileSync(process.argv[1],"utf8")),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId,b=c.execFileSync("git",["branch","--show-current"],{encoding:"utf8"}).trim(),s=c.execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(),u=d.fulfilled;process.exit(d.taskId===t&&d.branch===b&&d.sha===s&&Array.isArray(u)&&u.length===1&&u[0]?.provider==="codex"&&typeof u[0]?.cliVersion==="string"&&typeof u[0]?.envelope==="string"&&Array.isArray(d.degraded)&&d.degraded.length===0?0:1)' "$dispatch_file"; then
+if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8"));process.exit(c.crossModelReview?.enabled===true?0:1)}catch{process.exit(1)}' && node scripts/check-cross-model-review.mjs >/dev/null 2>&1; then
   external_review_fulfilled=1
 fi
 if [ "$external_review_fulfilled" = 1 ]; then
@@ -483,7 +483,7 @@ if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFile
   echo 'ERROR: active task id is missing or invalid' >&2
   exit 2
 fi
-if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs"),c=require("node:child_process"),d=JSON.parse(f.readFileSync(process.argv[1],"utf8")),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId,b=c.execFileSync("git",["branch","--show-current"],{encoding:"utf8"}).trim(),s=c.execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(),u=d.fulfilled;process.exit(d.taskId===t&&d.branch===b&&d.sha===s&&Array.isArray(u)&&u.length===1&&u[0]?.provider==="codex"&&typeof u[0]?.cliVersion==="string"&&typeof u[0]?.envelope==="string"&&Array.isArray(d.degraded)&&d.degraded.length===0?0:1)' "$dispatch_file"; then
+if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8"));process.exit(c.crossModelReview?.enabled===true?0:1)}catch{process.exit(1)}' && node scripts/check-cross-model-review.mjs >/dev/null 2>&1; then
   external_review_fulfilled=1
 fi
 review_agents_json='[<%- Array.from({ length: _tiers.Standard.reviewAgentCount }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>]'

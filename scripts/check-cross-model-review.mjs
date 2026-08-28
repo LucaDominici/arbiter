@@ -8,9 +8,9 @@
 // Exit codes (INV-53): 0 PASS/SKIP, 1 evidence or policy FAIL, 2 invocation/IO ERROR.
 // Usage: node scripts/check-cross-model-review.mjs [--root <dir>] [--task <id>]
 
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
+import { constants as fsConstants, closeSync, existsSync, openSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 
 const args = process.argv.slice(2)
@@ -38,6 +38,64 @@ function readJson(path, label) {
     // FAIL-OPEN-INTENT: error() emits the failure and exits 2; the catch cannot return a pass.
   } catch (cause) {
     error(`cannot read ${label} ${path}: ${cause instanceof Error ? cause.message : String(cause)}`)
+  }
+}
+
+function descriptorPath(fd) {
+  return `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${fd}`
+}
+
+function containedParts(relativePath) {
+  if (isAbsolute(relativePath)) throw new Error(`contained path must be relative: ${relativePath}`)
+  const parts = relativePath.split(/[\\/]+/)
+  if (parts.some((part) => part === '' || part === '.' || part === '..')) {
+    throw new Error(`contained path has invalid components: ${relativePath}`)
+  }
+  return parts
+}
+
+function readFileContained(rootDir, relativePath, label) {
+  if (process.platform === 'win32') {
+    error(`${label} descriptor-relative reads are unsupported on Windows`)
+  }
+  let dirFd = -1
+  let fileFd = -1
+  try {
+    const parts = containedParts(relativePath)
+    const fileName = parts.pop()
+    const directoryFlags = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW
+    dirFd = openSync('/', directoryFlags)
+    for (const part of [...resolve(rootDir).split('/').filter(Boolean), ...parts]) {
+      const next = openSync(join(descriptorPath(dirFd), part), directoryFlags)
+      closeSync(dirFd)
+      dirFd = next
+    }
+    fileFd = openSync(
+      join(descriptorPath(dirFd), fileName),
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    )
+    return readFileSync(fileFd, 'utf-8')
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause)
+    if (cause?.code === 'ENOENT' || cause?.code === 'ELOOP' || cause?.code === 'ENOTDIR') {
+      fail(`cannot read ${label} ${join(rootDir, relativePath)}: ${detail}`)
+    }
+    error(`cannot read ${label} ${join(rootDir, relativePath)}: ${detail}`)
+    throw cause
+  } finally {
+    if (fileFd !== -1) closeSync(fileFd)
+    if (dirFd !== -1) closeSync(dirFd)
+  }
+}
+
+function readContainedJson(rootDir, relativePath, label) {
+  try {
+    return JSON.parse(readFileContained(rootDir, relativePath, label))
+  } catch (cause) {
+    error(
+      `cannot parse ${label} ${join(rootDir, relativePath)}: ${cause instanceof Error ? cause.message : String(cause)}`,
+    )
+    throw cause
   }
 }
 
@@ -95,29 +153,14 @@ if (!isRecord(status) || typeof status.taskId !== 'string' || status.taskId.leng
 
 const taskId = status.taskId
 const taskSegment = taskId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'unknown'
-const evidencePath = join(root, '.arbiter', 'evidence', 'cross-model', taskSegment, 'dispatch.json')
-if (!existsSync(evidencePath)) fail(`dispatch evidence missing: ${evidencePath}`)
-
-function rejectSymlinkedPath(path, label) {
-  let current = path
-  while (true) {
-    let stat
-    try {
-      stat = lstatSync(current)
-    } catch (cause) {
-      error(
-        `cannot inspect ${label} ${current}: ${cause instanceof Error ? cause.message : String(cause)}`,
-      )
-      throw cause
-    }
-    if (stat.isSymbolicLink()) fail(`${label} must not contain symbolic links: ${current}`)
-    const parent = dirname(current)
-    if (parent === current) return
-    current = parent
-  }
-}
-
-rejectSymlinkedPath(evidencePath, 'dispatch evidence')
+const evidenceRelativePath = join(
+  '.arbiter',
+  'evidence',
+  'cross-model',
+  taskSegment,
+  'dispatch.json',
+)
+const evidencePath = join(root, evidenceRelativePath)
 
 function gitValue(args, label) {
   try {
@@ -153,7 +196,7 @@ try {
     `cannot load agent-return schema ${agentSchemaPath}: ${cause instanceof Error ? cause.message : String(cause)}`,
   )
 }
-const artifact = readJson(evidencePath, 'dispatch evidence')
+const artifact = readContainedJson(root, evidenceRelativePath, 'dispatch evidence')
 const schemaErrors = validateSchema(artifact, schema, schema, evidencePath)
 if (schemaErrors.length > 0) fail(schemaErrors.join('; '))
 if (artifact.taskId !== taskId) {
@@ -197,39 +240,16 @@ if (artifact.requested.length === 0) {
   )
 }
 
-let repoResolved
-try {
-  repoResolved = realpathSync(root)
-} catch (cause) {
-  // FAIL-OPEN-INTENT: an unresolved repository root is an invocation error, never a pass.
-  error(
-    `cannot resolve repository root ${root}: ${cause instanceof Error ? cause.message : String(cause)}`,
-  )
-  process.exit(2)
-}
 const agentReturnsRoot = resolve(root, '.arbiter', 'evidence', 'agent-returns')
 for (const [index, fulfilled] of artifact.fulfilled.entries()) {
   const envelope = fulfilled.envelope
   if (isAbsolute(envelope)) fail(`fulfilled[${index}].envelope must be repo-relative`)
   const envelopePath = resolve(root, envelope)
-  const outside = relative(repoResolved, envelopePath).startsWith('..')
-  if (outside) fail(`fulfilled[${index}].envelope escapes the repository: ${envelope}`)
-  if (!existsSync(envelopePath)) fail(`fulfilled[${index}].envelope not found: ${envelope}`)
-  let envelopeResolved
-  let agentReturnsResolved
-  try {
-    envelopeResolved = realpathSync(envelopePath)
-    agentReturnsResolved = realpathSync(agentReturnsRoot)
-  } catch (cause) {
-    // FAIL-OPEN-INTENT: an unresolved envelope or evidence root is rejected, never accepted.
-    fail(
-      `fulfilled[${index}].envelope does not resolve to a repository file: ${envelope} (${cause instanceof Error ? cause.message : String(cause)})`,
-    )
-    process.exit(1)
+  const outside = relative(root, envelopePath)
+  if (outside.startsWith('..') || isAbsolute(outside)) {
+    fail(`fulfilled[${index}].envelope escapes the repository: ${envelope}`)
   }
-  const realOutside = relative(repoResolved, envelopeResolved).startsWith('..')
-  if (realOutside) fail(`fulfilled[${index}].envelope escapes the repository: ${envelope}`)
-  const outsideAgentReturns = relative(agentReturnsResolved, envelopeResolved)
+  const outsideAgentReturns = relative(agentReturnsRoot, envelopePath)
   if (
     outsideAgentReturns === '' ||
     outsideAgentReturns.startsWith('..') ||
@@ -237,13 +257,8 @@ for (const [index, fulfilled] of artifact.fulfilled.entries()) {
   ) {
     fail(`fulfilled[${index}].envelope must be under .arbiter/evidence/agent-returns: ${envelope}`)
   }
-  const envelopeValue = readJson(envelopeResolved, 'fulfilled envelope')
-  const envelopeSchemaErrors = validateSchema(
-    envelopeValue,
-    agentSchema,
-    agentSchema,
-    envelopeResolved,
-  )
+  const envelopeValue = readContainedJson(root, envelope, 'fulfilled envelope')
+  const envelopeSchemaErrors = validateSchema(envelopeValue, agentSchema, agentSchema, envelopePath)
   if (envelopeSchemaErrors.length > 0) fail(envelopeSchemaErrors.join('; '))
   if (!isRecord(envelopeValue) || envelopeValue.taskId !== taskId) {
     fail(`fulfilled[${index}].envelope taskId must match active task ${JSON.stringify(taskId)}`)

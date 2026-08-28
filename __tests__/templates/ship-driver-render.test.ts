@@ -17,6 +17,7 @@ import { makeConfig } from '../helpers.js'
 
 const SHIP_VARS = { shipLabel: 'ship', harnessCmd: 'claude' }
 const dummyDir = '/tmp/arbiter-ship-render-test'
+const REPO_ROOT = process.cwd()
 
 function baseData(overrides: Record<string, unknown>): Record<string, unknown> {
   return { ...makeConfig(dummyDir), ...SHIP_VARS, ...overrides } as unknown as Record<
@@ -41,6 +42,23 @@ function renderPeerShipCommand(): string {
   return renderTemplate(
     'claude/commands/ship.md.ejs',
     baseData({ collaborationMode: 'peer-review' }),
+  )
+}
+
+function installCrossModelChecker(root: string): void {
+  for (const rel of [
+    'scripts/check-cross-model-review.mjs',
+    'scripts/lib/agent-return-validate.mjs',
+    'schemas/cross-model-dispatch.schema.json',
+    'schemas/agent-return.schema.json',
+  ]) {
+    const target = join(root, rel)
+    mkdirSync(join(target, '..'), { recursive: true })
+    writeFileSync(target, readFileSync(join(REPO_ROOT, rel)))
+  }
+  writeFileSync(
+    join(root, 'arbiter.json'),
+    JSON.stringify({ crossModelReview: { enabled: true, onUnavailable: 'degrade' } }),
   )
 }
 
@@ -229,20 +247,50 @@ describe('ship command cross-model sidecar (#2357)', () => {
       execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
       execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
       const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+      installCrossModelChecker(root)
 
       mkdirSync(join(root, '.claude', '.task'), { recursive: true })
       mkdirSync(join(root, '.arbiter', 'evidence', 'cross-model', '_2357'), { recursive: true })
+      mkdirSync(join(root, '.arbiter', 'evidence', 'agent-returns', '_2357'), {
+        recursive: true,
+      })
       writeFileSync(
         join(root, '.claude', '.task', 'status.json'),
         JSON.stringify({ taskId: '#2357' }),
       )
+      const envelope = '.arbiter/evidence/agent-returns/_2357/codex-reviewer-0.json'
       writeFileSync(
-        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
+        join(root, envelope),
         JSON.stringify({
+          schema: 'arbiter-agent-return-v1',
+          agent: 'codex-reviewer',
+          role: 'reviewer',
           taskId: '#2357',
           branch: 'task/#2357-template',
           sha,
-          fulfilled: [{ provider: 'codex', cliVersion: '0.5.1', envelope: 'codex.json' }],
+          ts: '2026-08-28T12:00:00.000Z',
+          verdict: 'PASS',
+          confidence: 1,
+          findings: [],
+          provenance: {
+            vendor: 'openai',
+            dispatch: 'external-cli',
+            cli: 'codex',
+            cliVersion: '0.5.1',
+          },
+        }),
+      )
+      writeFileSync(
+        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
+        JSON.stringify({
+          schema: 'arbiter-cross-model-dispatch-v1',
+          taskId: '#2357',
+          branch: 'task/#2357-template',
+          sha,
+          ts: '2026-08-28T12:00:00.000Z',
+          phase: 'refactor',
+          requested: [{ provider: 'codex', vertical: 'bugs' }],
+          fulfilled: [{ provider: 'codex', cliVersion: '0.5.1', envelope }],
           degraded: [],
         }),
       )
@@ -272,6 +320,32 @@ describe('ship command cross-model sidecar (#2357)', () => {
         branch: 'task/#2357-template',
         sha,
       })
+
+      writeFileSync(
+        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
+        JSON.stringify({
+          schema: 'arbiter-cross-model-dispatch-v1',
+          taskId: '#2357',
+          branch: 'task/#2357-template',
+          sha,
+          ts: '2026-08-28T12:00:00.000Z',
+          phase: 'refactor',
+          requested: [{ provider: 'codex', vertical: 'bugs' }],
+          fulfilled: [
+            {
+              provider: 'codex',
+              cliVersion: '0.5.1',
+              envelope: '.arbiter/evidence/agent-returns/_2357/missing.json',
+            },
+          ],
+          degraded: [],
+        }),
+      )
+      const forged = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
+      expect(forged.status, forged.stderr).toBe(0)
+      expect(
+        JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toMatchObject({ count: 2, agents: ['bugs', 'domain'] })
 
       writeFileSync(
         join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
