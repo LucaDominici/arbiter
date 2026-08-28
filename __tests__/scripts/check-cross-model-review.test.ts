@@ -233,6 +233,13 @@ describe('check-cross-model-review (#2358)', () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(/enabled must be boolean/i)
   })
 
+  it('rejects an invalid unavailable policy before checking evidence', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'ignore' } })
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/onUnavailable must be degrade or fail/i)
+  })
+
   it('validates evidence when the environment enables the feature', () => {
     json('arbiter.json', {})
     const result = run({ ARBITER_CROSS_MODEL_REVIEW: ' YES ' })

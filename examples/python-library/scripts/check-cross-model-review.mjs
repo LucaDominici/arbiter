@@ -205,6 +205,9 @@ if (configuredCrossModel === undefined) {
   if (!isRecord(configuredCrossModel)) fail('crossModelReview must be an object when present')
   crossModel = configuredCrossModel
 }
+if (crossModel.onUnavailable !== 'degrade' && crossModel.onUnavailable !== 'fail') {
+  fail('crossModelReview.onUnavailable must be degrade or fail')
+}
 const enabled = envOverride ?? crossModel.enabled
 if (enabled !== true) {
   if (requireFulfilled) fail('cross-model review is not enabled')

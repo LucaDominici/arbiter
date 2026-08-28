@@ -39,23 +39,19 @@ function runCheck(
   sidecar: string,
   evidenceDir: string,
   repoRoot: string,
-  task: string = TASK,
+  task: string | null = TASK,
 ): CheckResult {
-  const result = spawnSync(
-    'node',
-    [
-      CHECK_SCRIPT,
-      '--task',
-      task,
-      `--sidecar=${sidecar}`,
-      '--evidence-dir',
-      evidenceDir,
-      `--schema=${SCHEMA}`,
-      '--repo-root',
-      repoRoot,
-    ],
-    { encoding: 'utf-8', timeout: 10000 },
-  )
+  const args = [
+    CHECK_SCRIPT,
+    `--sidecar=${sidecar}`,
+    '--evidence-dir',
+    evidenceDir,
+    `--schema=${SCHEMA}`,
+    '--repo-root',
+    repoRoot,
+  ]
+  if (task !== null) args.splice(1, 0, '--task', task)
+  const result = spawnSync('node', args, { encoding: 'utf-8', timeout: 10000 })
   return {
     exitCode: result.status ?? 1,
     stdout: result.stdout ?? '',
@@ -292,8 +288,14 @@ describe('check-review-completion.mjs', () => {
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(1)
   })
 
-  it('exits 0 when the dispatch sidecar is absent', () => {
-    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  it('fails when a task has no dispatch sidecar', () => {
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toMatch(/sidecar is required/i)
+  })
+
+  it('exits 0 without task context when the dispatch sidecar is absent', () => {
+    expect(runCheck(sidecar, evidenceDir, tmpDir, null).exitCode).toBe(0)
   })
 
   it('fails closed when the dispatch sidecar is a symlink', () => {

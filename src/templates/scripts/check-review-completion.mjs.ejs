@@ -524,6 +524,12 @@ function main() {
     return 2
   }
   if (!sidecarState.exists) {
+    if (requestedTask) {
+      process.stderr.write(
+        `[check-review-completion] FAIL: dispatch sidecar is required for task ${requestedTask}\n`,
+      )
+      return 1
+    }
     // FAIL-OPEN-INTENT: no dispatch sidecar means no review dispatch was recorded, so this task-scoped reconciliation has no subject.
     process.stdout.write(
       '[check-review-completion] OK — dispatch sidecar not found, vacuous pass\n',
