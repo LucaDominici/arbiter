@@ -357,7 +357,7 @@ never a "no security surface" verdict.
 external_review_fulfilled=0
 dispatch_file="$(node -e 'const f=require("node:fs"),p=require("node:path");try{const t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;process.stdout.write(p.join(".arbiter","evidence","cross-model",t.replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"unknown","dispatch.json"))}catch{}' 2>/dev/null || true)"
 task_id_json="$(node -e 'const f=require("node:fs");try{process.stdout.write(JSON.stringify(JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId ?? ""))}catch{process.stdout.write(JSON.stringify(""))}' 2>/dev/null || printf '""')"
-if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs"),c=require("node:child_process"),d=JSON.parse(f.readFileSync(process.argv[1],"utf8")),b=c.execFileSync("git",["branch","--show-current"],{encoding:"utf8"}).trim(),s=c.execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();process.exit(d.branch===b&&d.sha===s&&d.fulfilled?.length===1&&d.degraded?.length===0?0:1)' "$dispatch_file"; then
+if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs"),c=require("node:child_process"),d=JSON.parse(f.readFileSync(process.argv[1],"utf8")),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId,b=c.execFileSync("git",["branch","--show-current"],{encoding:"utf8"}).trim(),s=c.execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();process.exit(d.taskId===t&&d.branch===b&&d.sha===s&&d.fulfilled?.length===1&&d.degraded?.length===0?0:1)' "$dispatch_file"; then
   external_review_fulfilled=1
 fi
 if [ "$external_review_fulfilled" = 1 ]; then

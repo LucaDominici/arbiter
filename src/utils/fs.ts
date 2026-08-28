@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
+  constants as fsConstants,
   existsSync,
   mkdirSync,
   writeFileSync,
@@ -16,7 +17,7 @@ import {
   openSync,
   closeSync,
 } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import { randomBytes, createHash } from 'node:crypto'
 import { ArbiterError } from './errors.js'
 import { getLogger } from './logger.js'
@@ -568,6 +569,119 @@ export function writeFileTranslated(path: string, data: string | Uint8Array): vo
     writeFileSync(path, data)
   } catch (err) {
     throw toFsError(err, path)
+  }
+}
+
+function containedParts(relativePath: string): string[] {
+  if (isAbsolute(relativePath)) throw new Error(`contained path must be relative: ${relativePath}`)
+  const parts = relativePath.split(/[\\/]+/)
+  if (parts.some((part) => part === '' || part === '.' || part === '..')) {
+    throw new Error(`contained path has invalid components: ${relativePath}`)
+  }
+  return parts
+}
+
+function openContainedDirectory(rootDir: string, directoryParts: readonly string[]): number {
+  if (process.platform === 'win32') {
+    ensureDir(join(rootDir, ...directoryParts))
+    return -1
+  }
+  const flags = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW
+  let fd = -1
+  try {
+    fd = openSync(rootDir, flags)
+    for (const part of directoryParts) {
+      const child = `/proc/self/fd/${fd}/${part}`
+      try {
+        mkdirSync(child)
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw toFsError(err, child)
+      }
+      const next = openSync(child, flags)
+      closeSync(fd)
+      fd = next
+    }
+    return fd
+  } catch (err) {
+    if (fd !== -1) closeSync(fd)
+    throw toFsError(err, rootDir)
+  }
+}
+
+/** Write below an already-owned root without following replaceable directory components. */
+export function writeFileContained(rootDir: string, relativePath: string, data: string): void {
+  const parts = containedParts(relativePath)
+  const fileName = parts.pop() as string
+  const fullPath = join(rootDir, relativePath)
+  if (process.platform === 'win32') {
+    try {
+      ensureDir(join(rootDir, ...parts))
+      writeFileSync(fullPath, data)
+      return
+    } catch (err) {
+      throw toFsError(err, fullPath)
+    }
+  }
+
+  let dirFd = -1
+  let tempFd = -1
+  let tempPath: string | null = null
+  try {
+    dirFd = openContainedDirectory(rootDir, parts)
+    const dirPath = `/proc/self/fd/${dirFd}`
+    tempPath = join(dirPath, `.arbiter-tmp-${randomBytes(4).toString('hex')}`)
+    tempFd = openSync(
+      tempPath,
+      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+      0o600,
+    )
+    writeFileSync(tempFd, data)
+    closeSync(tempFd)
+    tempFd = -1
+    renameSync(tempPath, join(dirPath, fileName))
+    tempPath = null
+  } catch (err) {
+    if (tempFd !== -1) closeSync(tempFd)
+    if (tempPath !== null) {
+      try {
+        unlinkSync(tempPath)
+      } catch {
+        // Best-effort cleanup; preserve the primary translated error.
+      }
+    }
+    throw toFsError(err, fullPath)
+  } finally {
+    if (dirFd !== -1) closeSync(dirFd)
+  }
+}
+
+/** Read below an owned root without following replaceable directory/file components. */
+export function readFileContained(rootDir: string, relativePath: string): string {
+  const parts = containedParts(relativePath)
+  const fileName = parts.pop() as string
+  const fullPath = join(rootDir, relativePath)
+  if (process.platform === 'win32') {
+    try {
+      return readFileSync(fullPath, 'utf8')
+    } catch (err) {
+      throw toFsError(err, fullPath)
+    }
+  }
+
+  let dirFd = -1
+  let fileFd = -1
+  try {
+    dirFd = openContainedDirectory(rootDir, parts)
+    fileFd = openSync(
+      `/proc/self/fd/${dirFd}/${fileName}`,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    )
+    return readFileSync(fileFd, 'utf8')
+  } catch (err) {
+    throw toFsError(err, fullPath)
+  } finally {
+    if (fileFd !== -1) closeSync(fileFd)
+    if (dirFd !== -1) closeSync(dirFd)
   }
 }
 

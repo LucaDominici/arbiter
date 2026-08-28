@@ -14,6 +14,7 @@ import {
   readFileTranslated,
   rmTranslated,
   toFsError,
+  writeFileContained,
   writeFileTranslated,
 } from '../utils/fs.js'
 import { getLogger } from '../utils/logger.js'
@@ -568,11 +569,17 @@ function writeDispatchEvidence(
     request.dispatchEvidenceDir ?? join(request.repoRoot, '.arbiter', 'evidence', 'cross-model')
   const taskDir = join(root, sanitizeTask(request.taskId))
   const out = join(taskDir, 'dispatch.json')
+  const content = `${JSON.stringify(artifact, null, 2)}\n`
   if (request.dispatchEvidenceDir === undefined) {
-    assertSafeDirectoryPath(request.repoRoot, taskDir)
+    writeFileContained(
+      request.repoRoot,
+      join('.arbiter', 'evidence', 'cross-model', sanitizeTask(request.taskId), 'dispatch.json'),
+      content,
+    )
+    return
   }
   ensureDir(taskDir)
-  writeFileTranslated(out, `${JSON.stringify(artifact, null, 2)}\n`)
+  writeFileTranslated(out, content)
 }
 
 function outsideRoot(root: string, candidate: string): boolean {

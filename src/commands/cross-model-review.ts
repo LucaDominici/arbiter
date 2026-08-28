@@ -11,7 +11,7 @@ import { resolveShipProfile } from './ship-profile.js'
 import { normTier, type ShipTier } from './ship-tier.js'
 import type { TaskPhase } from './task-state.js'
 import { existsSync, lstatSync, readFileSync } from 'node:fs'
-import { ensureDir, toFsError, writeFile } from '../utils/fs.js'
+import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
@@ -88,9 +88,12 @@ function assertSafeSidecarFile(path: string): void {
   }
 }
 
-function readSidecar(path: string): ReviewSidecar | null {
+function readSidecar(repoRoot: string): ReviewSidecar | null {
+  const path = join(repoRoot, '.arbiter', 'agents-dispatched.json')
   try {
-    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    const parsed: unknown = JSON.parse(
+      readFileContained(repoRoot, join('.arbiter', 'agents-dispatched.json')),
+    )
     if (!isRecord(parsed)) throw new Error(`${path} must contain a JSON object`)
     return parsed
   } catch (error) {
@@ -158,17 +161,19 @@ export function writeExternalReviewSidecar(
   result: ExternalReviewResult,
 ): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
-  const arbiterDir = join(repoRoot, '.arbiter')
-  ensureDir(arbiterDir)
   assertSafeArbiterEvidenceRoot(repoRoot)
-  const sidecarPath = join(arbiterDir, 'agents-dispatched.json')
+  const sidecarPath = join(repoRoot, '.arbiter', 'agents-dispatched.json')
   assertSafeSidecarFile(sidecarPath)
   const branch = currentBranch(repoRoot)
   const sha = headSha(repoRoot)
   if (branch === 'unknown' || sha === 'unknown')
     throw new Error('cannot bind dispatch sidecar to Git HEAD')
-  const panel = sidecarAgents(readSidecar(sidecarPath), branch, sha, taskId)
-  writeFile(sidecarPath, `${JSON.stringify({ ...panel, taskId, branch, sha }, null, 2)}\n`)
+  const panel = sidecarAgents(readSidecar(repoRoot), branch, sha, taskId)
+  writeFileContained(
+    repoRoot,
+    join('.arbiter', 'agents-dispatched.json'),
+    `${JSON.stringify({ ...panel, taskId, branch, sha }, null, 2)}\n`,
+  )
 }
 
 /** Run the automatic refactor-step bridge; consent-off runs only the local degradation recorder. */

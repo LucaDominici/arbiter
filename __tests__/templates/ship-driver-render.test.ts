@@ -230,7 +230,13 @@ describe('ship command cross-model sidecar (#2357)', () => {
       )
       writeFileSync(
         join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
-        JSON.stringify({ branch: 'task/#2357-template', sha, fulfilled: [{}], degraded: [] }),
+        JSON.stringify({
+          taskId: '#2357',
+          branch: 'task/#2357-template',
+          sha,
+          fulfilled: [{}],
+          degraded: [],
+        }),
       )
       writeFileSync(
         join(root, '.arbiter', 'agents-dispatched.json'),
@@ -256,6 +262,54 @@ describe('ship command cross-model sidecar (#2357)', () => {
         agents: ['bugs', 'codex-reviewer'],
         taskId: '#2357',
         branch: 'task/#2357-template',
+        sha,
+      })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not treat a dispatch artifact for another task as fulfilled', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-task-binding-'))
+    try {
+      expect(
+        spawnSync('git', ['init', '-q', '-b', 'task/#2357-task-binding'], { cwd: root }).status,
+      ).toBe(0)
+      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
+      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
+      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
+      const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+
+      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
+      mkdirSync(join(root, '.arbiter', 'evidence', 'cross-model', '_2357'), { recursive: true })
+      writeFileSync(
+        join(root, '.claude', '.task', 'status.json'),
+        JSON.stringify({ taskId: '#2357' }),
+      )
+      writeFileSync(
+        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
+        JSON.stringify({
+          taskId: '#other-task',
+          branch: 'task/#2357-task-binding',
+          sha,
+          fulfilled: [{}],
+          degraded: [],
+        }),
+      )
+
+      const block = renderPeerShipCommand().match(
+        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
+      )?.[1]
+      expect(block).toBeDefined()
+      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
+      expect(result.status, result.stderr).toBe(0)
+      expect(
+        JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toMatchObject({
+        count: 2,
+        agents: ['bugs', 'domain'],
+        taskId: '#2357',
+        branch: 'task/#2357-task-binding',
         sha,
       })
     } finally {
