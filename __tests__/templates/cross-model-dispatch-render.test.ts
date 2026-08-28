@@ -9,6 +9,10 @@ describe('cross-model dispatch templates (#2358)', () => {
   it('renders the checker, schema, and L2 advisory gate', () => {
     const checker = renderTemplate('scripts/check-cross-model-review.mjs.ejs', {})
     const schema = renderTemplate('scripts/schemas/cross-model-dispatch.schema.json.ejs', {})
+    const externalSchema = renderTemplate(
+      'scripts/schemas/agent-return-external.schema.json.ejs',
+      {},
+    )
     const gates = loadGateRegistry({
       ...makeConfig('/tmp/cross-model-render'),
       packageManager: 'npm',
@@ -22,6 +26,7 @@ describe('cross-model dispatch templates (#2358)', () => {
 
     expect(checker).toContain('cross-model-dispatch.schema.json')
     expect(JSON.parse(schema).properties.degraded.items.properties.reason.enum).toContain('timeout')
+    expect(JSON.parse(externalSchema).$id).toContain('agent-return-external')
     expect(gates).toContainEqual(
       expect.objectContaining({
         id: 'cross-model-review',

@@ -48,6 +48,7 @@ import {
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
+import { runCrossModelReview } from './commands/cross-model-review.js'
 import { buildShipOverrides, resolveShipProfile } from './commands/ship-profile.js'
 import { detectExternalModel } from './detectors/external-model.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
@@ -1136,6 +1137,36 @@ program
         ascii: opts.ascii,
       })
       process.exit(result.exitCode)
+    },
+  )
+
+review
+  .command('cross-model')
+  .description('Run the configured Codex review seat against a diff from stdin (#2357)')
+  .requiredOption('--task <id>', 'Task issue id, for example #2357')
+  .requiredOption('--prompt <text>', 'Review prompt; the code diff is read from stdin')
+  .option('--tier <tier>', 'Ship tier (XS|S|Standard; default: Standard)')
+  .option('--phase <phase>', 'Task phase (default: refactor)')
+  .option('--vertical <vertical>', 'Review vertical (default: bugs)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action(
+    (opts: {
+      task: string
+      prompt: string
+      tier?: string
+      phase?: TaskPhase
+      vertical?: string
+      dir?: string
+    }) => {
+      const result = runCrossModelReview({
+        taskId: opts.task,
+        prompt: opts.prompt,
+        ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+        ...(opts.phase !== undefined ? { phase: opts.phase } : {}),
+        ...(opts.vertical !== undefined ? { vertical: opts.vertical } : {}),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+      process.stdout.write(`${JSON.stringify(result)}\n`)
     },
   )
 

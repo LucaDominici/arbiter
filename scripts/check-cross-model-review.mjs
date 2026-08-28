@@ -10,7 +10,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
+import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 
 const args = process.argv.slice(2)
 function option(name) {
@@ -44,6 +44,14 @@ function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function parseBooleanEnv(raw) {
+  if (raw === undefined) return undefined
+  const value = raw.trim().toLowerCase()
+  if (['true', '1', 'yes', 'on'].includes(value)) return true
+  if (['false', '0', 'no', 'off'].includes(value)) return false
+  return undefined
+}
+
 if (!existsSync(configPath)) {
   process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
   process.exit(0)
@@ -51,19 +59,26 @@ if (!existsSync(configPath)) {
 
 const config = readJson(configPath, 'configuration')
 if (!isRecord(config)) error('arbiter.json must contain an object')
-const crossModel = config.crossModelReview
-if (crossModel === undefined || !isRecord(crossModel)) {
-  if (crossModel !== undefined) fail('crossModelReview must be an object when present')
-  process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
-  process.exit(0)
+const envOverride = parseBooleanEnv(process.env.ARBITER_CROSS_MODEL_REVIEW)
+const configuredCrossModel = config.crossModelReview
+let crossModel
+if (configuredCrossModel === undefined) {
+  if (envOverride !== true) {
+    process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
+    process.exit(0)
+  }
+  crossModel = { enabled: true, onUnavailable: 'degrade' }
+} else {
+  if (!isRecord(configuredCrossModel)) fail('crossModelReview must be an object when present')
+  crossModel = configuredCrossModel
 }
-if (crossModel.enabled !== true) {
-  if (crossModel.enabled !== false) fail('crossModelReview.enabled must be boolean')
-  process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
-  process.exit(0)
-}
-if (process.env.ARBITER_CROSS_MODEL_REVIEW?.toLowerCase() === 'false') {
-  process.stdout.write('[check-cross-model-review] skipped: crossModelReview disabled-by-env\n')
+const enabled = envOverride ?? crossModel.enabled
+if (enabled !== true) {
+  if (envOverride === undefined && crossModel.enabled !== false) {
+    fail('crossModelReview.enabled must be boolean')
+  }
+  const reason = envOverride === false ? 'disabled-by-env' : 'not enabled'
+  process.stdout.write(`[check-cross-model-review] skipped: crossModelReview ${reason}\n`)
   process.exit(0)
 }
 
@@ -92,6 +107,16 @@ try {
     `cannot load dispatch schema ${schemaPath}: ${cause instanceof Error ? cause.message : String(cause)}`,
   )
 }
+const agentSchemaPath = join(root, 'schemas', 'agent-return.schema.json')
+let agentSchema
+try {
+  agentSchema = loadSchema(agentSchemaPath)
+  // FAIL-OPEN-INTENT: error() emits the failure and exits 2; the catch cannot return a pass.
+} catch (cause) {
+  error(
+    `cannot load agent-return schema ${agentSchemaPath}: ${cause instanceof Error ? cause.message : String(cause)}`,
+  )
+}
 const artifact = readJson(evidencePath, 'dispatch evidence')
 const schemaErrors = validateSchema(artifact, schema, schema, evidencePath)
 if (schemaErrors.length > 0) fail(schemaErrors.join('; '))
@@ -101,23 +126,56 @@ if (artifact.taskId !== taskId) {
   )
 }
 
+if (artifact.requested.length === 0) {
+  if (artifact.fulfilled.length > 0 || artifact.degraded.length > 0) {
+    fail('dispatch has outcomes but no requested external slot')
+  }
+} else if (artifact.fulfilled.length === 0 && artifact.degraded.length === 0) {
+  fail('every requested external slot must have a fulfilled or degraded outcome')
+} else if (artifact.fulfilled.length > artifact.requested.length) {
+  fail('dispatch has more fulfilled slots than requested external slots')
+} else if (
+  artifact.degraded.length === 0 &&
+  artifact.fulfilled.length < artifact.requested.length
+) {
+  fail('dispatch leaves a requested external slot without an outcome')
+}
+
 const repoResolved = resolve(root)
+const agentReturnsRoot = resolve(root, '.arbiter', 'evidence', 'agent-returns')
 for (const [index, fulfilled] of artifact.fulfilled.entries()) {
   const envelope = fulfilled.envelope
   if (isAbsolute(envelope)) fail(`fulfilled[${index}].envelope must be repo-relative`)
   const envelopePath = resolve(root, envelope)
   const outside = relative(repoResolved, envelopePath).startsWith('..')
   if (outside) fail(`fulfilled[${index}].envelope escapes the repository: ${envelope}`)
+  const outsideAgentReturns = relative(agentReturnsRoot, envelopePath)
+  if (
+    outsideAgentReturns === '' ||
+    outsideAgentReturns.startsWith('..') ||
+    isAbsolute(outsideAgentReturns)
+  ) {
+    fail(`fulfilled[${index}].envelope must be under .arbiter/evidence/agent-returns: ${envelope}`)
+  }
   if (!existsSync(envelopePath)) fail(`fulfilled[${index}].envelope not found: ${envelope}`)
   const envelopeValue = readJson(envelopePath, 'fulfilled envelope')
-  if (
-    !isRecord(envelopeValue) ||
-    !isRecord(envelopeValue.provenance) ||
-    typeof envelopeValue.provenance.vendor !== 'string' ||
-    envelopeValue.provenance.vendor === 'anthropic'
-  ) {
-    fail(`fulfilled[${index}].envelope must carry non-Anthropic provenance.vendor`)
+  const envelopeSchemaErrors = validateSchema(envelopeValue, agentSchema, agentSchema, envelopePath)
+  if (envelopeSchemaErrors.length > 0) fail(envelopeSchemaErrors.join('; '))
+  if (!isRecord(envelopeValue) || envelopeValue.taskId !== taskId) {
+    fail(`fulfilled[${index}].envelope taskId must match active task ${JSON.stringify(taskId)}`)
   }
+  const provenance = isRecord(envelopeValue.provenance) ? envelopeValue.provenance : null
+  if (
+    provenance?.vendor !== 'openai' ||
+    provenance.dispatch !== 'external-cli' ||
+    provenance.cli !== 'codex'
+  ) {
+    fail(
+      `fulfilled[${index}].envelope must carry Codex provenance (vendor=openai, dispatch=external-cli, cli=codex)`,
+    )
+  }
+  const citationErrors = enforceCitations(envelopeValue, root, envelopePath)
+  if (citationErrors.length > 0) fail(citationErrors.join('; '))
 }
 
 if (crossModel.onUnavailable === 'fail' && artifact.degraded.length > 0) {

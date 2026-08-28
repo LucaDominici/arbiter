@@ -21,6 +21,7 @@
       "src/commands/init/resolve-config.ts",
       "src/commands/ship-profile.ts",
       "src/commands/task-ship.ts",
+      "src/commands/cross-model-review.ts",
       "src/cli.ts",
       "src/integrations/external-review.ts",
       "src/wizard",
@@ -32,9 +33,11 @@
       "scripts/check-all.mjs",
       "scripts/check-agent-dispatch.mjs",
       "scripts/data/advisory-ledger.json",
+      "scripts/lib/gate-affects-registry.mjs",
       ".claude/commands/ship.md",
       ".claude/AGENT_REGISTRY.md",
       "PRIVACY.md",
+      "website/reference/cli.md",
       "docs/design/cross-model-review-config.md",
       "__tests__"
     ]
@@ -72,15 +75,21 @@
     { "path": "schemas/agent-return-external.schema.json", "operation": "create" },
     { "path": "src/cli.ts", "operation": "modify" },
     { "path": "src/commands/task-ship.ts", "operation": "modify" },
+    { "path": "src/commands/cross-model-review.ts", "operation": "create" },
     { "path": "src/templates/claude/commands/ship.md.ejs", "operation": "modify" },
     { "path": ".claude/commands/ship.md", "operation": "modify" },
     { "path": ".claude/AGENT_REGISTRY.md", "operation": "modify" },
+    { "path": "website/reference/cli.md", "operation": "modify" },
     { "path": "__tests__/integrations/external-review.test.ts", "operation": "create" },
     { "path": "__tests__/integrations/external-review-subprocess.test.ts", "operation": "create" },
     { "path": "__tests__/commands/task-ship.test.ts", "operation": "modify" },
     { "path": "scripts/check-cross-model-review.mjs", "operation": "create" },
     { "path": "schemas/cross-model-dispatch.schema.json", "operation": "create" },
     { "path": "src/templates/scripts/check-cross-model-review.mjs.ejs", "operation": "create" },
+    {
+      "path": "src/templates/scripts/schemas/agent-return-external.schema.json.ejs",
+      "operation": "create"
+    },
     {
       "path": "src/templates/scripts/schemas/cross-model-dispatch.schema.json.ejs",
       "operation": "create"
@@ -92,6 +101,7 @@
     { "path": "scripts/data/advisory-ledger.json", "operation": "modify" },
     { "path": ".bloat-baseline.json", "operation": "modify" },
     { "path": "__tests__/scripts/check-cross-model-review.test.ts", "operation": "create" },
+    { "path": "__tests__/commands/cross-model-review.test.ts", "operation": "create" },
     { "path": "__tests__/scripts/check-agent-dispatch.test.ts", "operation": "modify" },
     { "path": "__tests__/templates/cross-model-dispatch-render.test.ts", "operation": "create" },
     { "path": "scripts/lib/gate-affects-registry.mjs", "operation": "modify" },

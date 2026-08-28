@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cross-model-dispatch.schema.json",
+  "title": "Arbiter Cross-Model Dispatch Evidence",
+  "description": "Local evidence for every enabled cross-model review dispatch.",
+  "type": "object",
+  "required": [
+    "schema",
+    "taskId",
+    "branch",
+    "sha",
+    "ts",
+    "phase",
+    "requested",
+    "fulfilled",
+    "degraded"
+  ],
+  "properties": {
+    "schema": { "const": "arbiter-cross-model-dispatch-v1" },
+    "taskId": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string", "minLength": 1 },
+    "sha": { "type": "string", "minLength": 1 },
+    "ts": { "type": "string", "format": "date-time" },
+    "phase": {
+      "enum": [
+        "preflight",
+        "plan",
+        "red-team-review",
+        "red-team-rework",
+        "red",
+        "green",
+        "refactor",
+        "verification",
+        "close",
+        "complete"
+      ]
+    },
+    "requested": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provider", "vertical"],
+        "properties": {
+          "provider": { "const": "codex" },
+          "vertical": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "fulfilled": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provider", "cliVersion", "envelope"],
+        "properties": {
+          "provider": { "const": "codex" },
+          "cliVersion": { "type": "string", "minLength": 1 },
+          "envelope": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "degraded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provider", "vertical", "substitute", "reason", "detail"],
+        "properties": {
+          "provider": { "const": "codex" },
+          "vertical": { "type": "string", "minLength": 1 },
+          "substitute": { "const": "anthropic" },
+          "reason": {
+            "enum": [
+              "cli-not-found",
+              "not-authenticated",
+              "consent-absent",
+              "disabled-by-env",
+              "timeout",
+              "nonzero-exit",
+              "coercion-failed",
+              "envelope-rejected",
+              "diff-truncated"
+            ]
+          },
+          "detail": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

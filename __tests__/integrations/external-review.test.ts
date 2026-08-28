@@ -107,6 +107,21 @@ describe('planCrossModelSlots (#2357)', () => {
     expect(externalSlotsForTier('S')).toBe(0)
     expect(externalSlotsForTier('Standard')).toBe(1)
   })
+
+  it('never plans an external seat outside the tier matrix', () => {
+    for (const tier of ['XS', 'S'] as const) {
+      const plan = planCrossModelSlots({
+        tier,
+        phase: 'refactor',
+        totalSlots: 1,
+        verticals: ['bugs'],
+        cfg: config(),
+        access: access(),
+      })
+      expect(plan.external).toEqual([])
+      expect(plan.anthropic).toEqual(['bugs'])
+    }
+  })
 })
 
 describe('extractAgentReturnJson (#2357)', () => {
@@ -141,7 +156,12 @@ describe('invokeExternalReview (#2357)', () => {
     mockedRunCli.mockImplementation((cmd) => {
       if (cmd === 'codex')
         return { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
-      return { stdout: '[recorded]', stderr: '', exitCode: 0, durationMs: 1 }
+      return {
+        stdout: '[record-agent-return] OK — wrote .arbiter/evidence/agent-returns/_2357/codex.json',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 1,
+      }
     })
 
     const result = invokeExternalReview({
@@ -271,6 +291,34 @@ describe('invokeExternalReview (#2357)', () => {
     }
   })
 
+  it('does not manufacture a degraded outcome for tiers without an external seat', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-xs-'))
+    try {
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config(),
+        access: access(),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'XS',
+        phase: 'refactor',
+        vertical: 'bugs',
+        branch: 'task/#2358-cross-model-degradation-evidence',
+        sha: 'deadbeef',
+      })
+      expect(result.degradationReasons).toEqual([])
+      const dispatch = JSON.parse(
+        readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf-8'),
+      )
+      expect(dispatch.requested).toEqual([])
+      expect(dispatch.degraded).toEqual([])
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
   it('stops the external review when onUnavailable is fail (#2358)', () => {
     const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-fail-'))
     try {
@@ -292,5 +340,126 @@ describe('invokeExternalReview (#2357)', () => {
     } finally {
       rmSync(evidenceRoot, { recursive: true, force: true })
     }
+  })
+
+  it('stops when the recorder rejects an otherwise valid external envelope', () => {
+    mockedRunCli.mockImplementation((cmd) => {
+      if (cmd === 'codex')
+        return { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
+      if (cmd === 'node') throw new Error('recorder rejected envelope')
+      return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+    })
+
+    expect(() =>
+      invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config({ onUnavailable: 'fail' }),
+        dispatchEvidenceDir: mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-rejected-')),
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+        branch: 'task/#2358-cross-model-degradation-evidence',
+        sha: 'deadbeef',
+      }),
+    ).toThrow(/unavailable|envelope-rejected|degrad/i)
+  })
+
+  it('degrades when the recorder exits without confirming persistence', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-no-marker-'))
+    try {
+      mockedRunCli.mockImplementation((cmd) =>
+        cmd === 'codex'
+          ? { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
+          : { stdout: '', stderr: '', exitCode: 0, durationMs: 1 },
+      )
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config(),
+        access: access(),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+        branch: 'task/#2358-cross-model-degradation-evidence',
+        sha: 'deadbeef',
+      })
+      expect(result.status).toBe('degraded')
+      expect(result.degradationReason).toBe('envelope-rejected')
+      const dispatch = JSON.parse(
+        readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf-8'),
+      )
+      expect(dispatch.fulfilled).toEqual([])
+      expect(dispatch.degraded[0].reason).toBe('envelope-rejected')
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves provider probe detail in degraded dispatch evidence', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-probe-'))
+    try {
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config(),
+        access: access({
+          available: false,
+          authenticated: false,
+          error: 'codex CLI probe timed out',
+        }),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+        branch: 'task/#2358-cross-model-degradation-evidence',
+        sha: 'deadbeef',
+      })
+      expect(result.status).toBe('degraded')
+      const dispatch = JSON.parse(
+        readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf-8'),
+      )
+      expect(dispatch.degraded[0]).toMatchObject({
+        reason: 'timeout',
+        detail: 'codex CLI probe timed out',
+      })
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('stops when a successful external response is degraded by diff truncation', () => {
+    mockedRunCli.mockImplementation((cmd) =>
+      cmd === 'codex'
+        ? { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
+        : {
+            stdout:
+              '[record-agent-return] OK — wrote .arbiter/evidence/agent-returns/_2358/codex.json',
+            stderr: '',
+            exitCode: 0,
+            durationMs: 1,
+          },
+    )
+
+    expect(() =>
+      invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'x'.repeat(512 * 1024 + 1),
+        cfg: config({ onUnavailable: 'fail' }),
+        dispatchEvidenceDir: mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-truncated-')),
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+      }),
+    ).toThrow(/unavailable|diff-truncated|degrad/i)
   })
 })

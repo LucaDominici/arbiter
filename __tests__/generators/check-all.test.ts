@@ -26,6 +26,23 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
+  it('emits the reduced external-review schema beside the generic agent-return schema (#2357)', () => {
+    const result = generateCheckAll(makeConfig(dir))
+    expect(
+      result.files.some((f) => f.path.endsWith('schemas/agent-return-external.schema.json')),
+    ).toBe(true)
+  })
+
+  it('emits cross-model evidence tooling and its advisory gate at L2 (#2358)', () => {
+    const result = generateCheckAll(makeConfig(dir, { governanceLevel: 'L2' }))
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('scripts/check-cross-model-review.mjs'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('schemas/cross-model-dispatch.schema.json'))).toBe(true)
+    expect(readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')).toContain(
+      'cross-model review (#2358)',
+    )
+  })
+
   // #2278: the evidence-gate block emitted at L3+ reads .evidence/SUMMARY.json, and
   // until now nothing in a generated tree could write it — the template existed but
   // no generator rendered it. Emission is gated on the SAME level as its consumer.
@@ -109,10 +126,11 @@ describe('generateCheckAll', () => {
     // + check-safety-adopt-ratchet.mjs (T1, anti-erosion ratchet — convergence playbook)
     // + check-smoke-journeys.mjs (INV-137 smoke-journey acceptance floor, #2080)
     // + check-e2e-escalation.mjs (e2e ledger consecutive-failure escalation gate, #2043)
-    // + the 9 anti-context-rot twins (E1-E7 #1943, CANON-14): check-agent-return,
+    // + the 10 anti-context-rot twins (E1-E7 #1943, CANON-14): check-agent-return,
     //   check-refutation-verdicts, check-audit-dry-pass, check-handoff-doc,
     //   check-touched-vs-manifest, record-agent-return, lib/gate-args,
-    //   lib/agent-return-validate, schemas/agent-return.schema.json
+    //   lib/agent-return-validate, schemas/agent-return.schema.json,
+    //   schemas/agent-return-external.schema.json
     // + the 3 acceptance-anchor orchestration tools (INV-138, ADR-110):
     //   issue-readiness.mjs + rework-log.mjs + lib/acceptance-criteria.mjs
     // + check-emission-parity.mjs (#2110 — manifest-vs-disk parity in the project's own gate)
@@ -122,7 +140,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(45)
+    expect(result.files).toHaveLength(48)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-evidence.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/rework-log.mjs'))).toBe(true)
@@ -178,6 +196,7 @@ describe('generateCheckAll', () => {
       'scripts/lib/gate-args.mjs',
       'scripts/lib/agent-return-validate.mjs',
       'schemas/agent-return.schema.json',
+      'schemas/agent-return-external.schema.json',
     ]) {
       expect(result.files.some((f) => f.path.endsWith(twin))).toBe(true)
     }

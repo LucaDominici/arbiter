@@ -6,6 +6,7 @@ import { CliError, runCli } from '../../src/utils/run-cli.js'
 import {
   detectExternalModel,
   detectExternalModels,
+  PROVIDER_SPECS,
   resetExternalModelDetection,
 } from '../../src/detectors/external-model.js'
 
@@ -33,6 +34,16 @@ describe('external model detection', () => {
 
   afterEach(() => {
     rmSync(homeDir, { recursive: true, force: true })
+  })
+
+  it('keeps the Codex provider contract declarative', () => {
+    expect(PROVIDER_SPECS.codex).toMatchObject({
+      command: 'codex',
+      versionArgs: ['--version'],
+      vendor: 'openai',
+      authSignal: expect.stringContaining('inference'),
+      installHint: expect.stringContaining('Install'),
+    })
   })
 
   it('detects an installed and authenticated Codex CLI without reading credentials', () => {
@@ -95,7 +106,7 @@ describe('external model detection', () => {
     expect(detectExternalModel('codex', { homeDir, env: {} })).toMatchObject({
       available: false,
       authenticated: false,
-      error: 'codex CLI not found',
+      error: expect.stringMatching(/codex CLI not found.*Install/i),
     })
   })
 

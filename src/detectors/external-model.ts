@@ -22,8 +22,23 @@ export interface ExternalModelDetectionOptions {
   env?: NodeJS.ProcessEnv
 }
 
-const PROVIDER_SPECS: Record<ExternalModelProvider, { command: string; vendor: 'openai' }> = {
-  codex: { command: 'codex', vendor: 'openai' },
+export interface ExternalModelProviderSpec {
+  command: string
+  versionArgs: readonly string[]
+  vendor: 'openai'
+  /** Authentication is inferred from signal presence; the credential value is never read. */
+  authSignal: string
+  installHint: string
+}
+
+export const PROVIDER_SPECS: Record<ExternalModelProvider, ExternalModelProviderSpec> = {
+  codex: {
+    command: 'codex',
+    versionArgs: ['--version'],
+    vendor: 'openai',
+    authSignal: 'OPENAI_API_KEY or ~/.codex/auth.json presence (inference)',
+    installHint: 'Install the Codex CLI: https://github.com/openai/codex',
+  },
 }
 
 const detectionCache = new Map<ExternalModelProvider, ExternalModelAccess>()
@@ -47,7 +62,7 @@ export function detectExternalModel(
 
   const spec = PROVIDER_SPECS[provider]
   try {
-    const result = runCli(spec.command, ['--version'], { timeoutMs: 5_000, retries: 0 })
+    const result = runCli(spec.command, [...spec.versionArgs], { timeoutMs: 5_000, retries: 0 })
     const authenticated = hasCodexAuth(options)
     const access: ExternalModelAccess = {
       provider,
@@ -69,7 +84,7 @@ export function detectExternalModel(
       version: null,
       error:
         error instanceof CliError && error.notFound
-          ? 'codex CLI not found'
+          ? `${spec.command} CLI not found — ${spec.installHint}`
           : error instanceof CliError && error.timedOut
             ? 'codex CLI probe timed out'
             : 'codex CLI probe failed',

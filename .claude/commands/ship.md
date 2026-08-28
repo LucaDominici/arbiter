@@ -97,7 +97,14 @@ and `externalReviewers` is only the external portion. The external seat is assig
 to `security` when that vertical is active, otherwise `bugs`; unavailable, unauthenticated,
 or unconsented access falls back to Anthropic.
 
-The invocation is `codex exec --sandbox read-only --ephemeral --skip-git-repo-check` with
+When `arbiter ship` reports `External reviewers: 1`, run the wired boundary below from the
+repository root; it sends the diff on stdin and delegates the actual `codex exec` invocation.
+
+```bash
+git diff --binary origin/main...HEAD | arbiter review cross-model --task '#NNN' --tier Standard --phase refactor --vertical security --prompt 'Review this change for bugs, type safety, security, data integrity, and silent failures.'
+```
+
+The boundary invokes `codex exec --sandbox read-only --ephemeral --skip-git-repo-check` with
 the prompt and a maximum 512 KiB diff on stdin. Output uses the reduced
 `schemas/agent-return-external.schema.json` projection and is persisted only through
 `scripts/record-agent-return.mjs` with `vendor=openai`, `cli=codex`, and

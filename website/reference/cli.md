@@ -666,6 +666,7 @@ Semantic diff between graph snapshots (#262).
 
 **Subcommands:**
 
+- `arbiter review cross-model` — Run the configured Codex review seat against a diff from stdin (#2357)
 - `arbiter review diff` — Semantic diff between two graph snapshots (#262)
 
 ## arbiter ship

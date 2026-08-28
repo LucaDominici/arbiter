@@ -530,6 +530,21 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['schemas', 'agent-return.schema.json'],
     tpl: 'scripts/schemas/agent-return.schema.json.ejs',
   },
+  {
+    rel: ['schemas', 'agent-return-external.schema.json'],
+    tpl: 'scripts/schemas/agent-return-external.schema.json.ejs',
+  },
+  // #2358: cross-model evidence tooling is available at every governance level. The advisory
+  // L2 registry gate is emitted by the debt-gate ring and explicitly skips when the optional
+  // crossModelReview config is absent or disabled.
+  {
+    rel: ['scripts', 'check-cross-model-review.mjs'],
+    tpl: 'scripts/check-cross-model-review.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'cross-model-dispatch.schema.json'],
+    tpl: 'scripts/schemas/cross-model-dispatch.schema.json.ejs',
+  },
   // #2058: best-effort nightly safety net — deletes Actions artifacts GitHub
   // itself already marked expired but hasn't physically purged. Invoked directly
   // by the nightly workflow's cleanup-expired-artifacts job, not wired into the
@@ -556,14 +571,6 @@ const DEBT_GATED_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string 
   },
   { rel: ['scripts', 'check-audit-dry-pass.mjs'], tpl: 'scripts/check-audit-dry-pass.mjs.ejs' },
   { rel: ['scripts', 'check-handoff-doc.mjs'], tpl: 'scripts/check-handoff-doc.mjs.ejs' },
-  {
-    rel: ['scripts', 'check-cross-model-review.mjs'],
-    tpl: 'scripts/check-cross-model-review.mjs.ejs',
-  },
-  {
-    rel: ['schemas', 'cross-model-dispatch.schema.json'],
-    tpl: 'scripts/schemas/cross-model-dispatch.schema.json.ejs',
-  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

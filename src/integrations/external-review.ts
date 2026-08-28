@@ -143,7 +143,11 @@ function configuredSlotCount(input: SlotInput): number | null {
   if (!cfg.providers.includes('codex')) return null
   if (!input.access?.available) return null
   if (!input.access.authenticated) return null
-  return Math.min(slotCount(input.totalSlots), Math.max(0, cfg.slots.codeReview))
+  return Math.min(
+    externalSlotsForTier(input.tier),
+    slotCount(input.totalSlots),
+    Math.max(0, cfg.slots.codeReview),
+  )
 }
 
 function fallbackReason(input: SlotInput): ExternalReviewDegradationReason {
@@ -378,32 +382,61 @@ function sanitizeTask(taskId: string): string {
   return taskId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'unknown'
 }
 
+const DIRECT_DISPATCH_REASONS: Partial<
+  Record<ExternalReviewDegradationReason, CrossModelDispatchReason>
+> = {
+  'consent-missing': 'consent-absent',
+  'provider-unauthenticated': 'not-authenticated',
+  disabled: 'disabled-by-env',
+  'provider-not-configured': 'disabled-by-env',
+  'diff-truncated': 'diff-truncated',
+  'coercion-failed': 'coercion-failed',
+  'envelope-rejected': 'envelope-rejected',
+}
+
+function dispatchReasonFromCliError(error: unknown): CrossModelDispatchReason {
+  if (!(error instanceof CliError)) return 'nonzero-exit'
+  if (error.notFound) return 'cli-not-found'
+  return error.timedOut ? 'timeout' : 'nonzero-exit'
+}
+
+function dispatchReasonFromUnavailableError(error: unknown): CrossModelDispatchReason {
+  const detail = errorMessage(error)?.toLowerCase()
+  if (detail?.includes('timed out') || detail?.includes('timeout')) return 'timeout'
+  if (detail?.includes('exit') || detail?.includes('failed')) return 'nonzero-exit'
+  return 'cli-not-found'
+}
+
 function dispatchReason(
   reason: ExternalReviewDegradationReason,
   error?: unknown,
 ): CrossModelDispatchReason {
-  if (reason === 'consent-missing') return 'consent-absent'
-  if (reason === 'provider-unauthenticated') return 'not-authenticated'
-  if (reason === 'disabled' || reason === 'provider-not-configured') return 'disabled-by-env'
-  if (reason === 'diff-truncated') return 'diff-truncated'
-  if (reason === 'coercion-failed') return 'coercion-failed'
-  if (reason === 'envelope-rejected') return 'envelope-rejected'
-  if (reason === 'invocation-failed' && error instanceof CliError) {
-    if (error.notFound) return 'cli-not-found'
-    if (error.timedOut) return 'timeout'
-    return 'nonzero-exit'
-  }
-  if (reason === 'provider-unavailable') return 'cli-not-found'
-  return 'nonzero-exit'
+  return (
+    DIRECT_DISPATCH_REASONS[reason] ??
+    (reason === 'invocation-failed'
+      ? dispatchReasonFromCliError(error)
+      : reason === 'provider-unavailable'
+        ? dispatchReasonFromUnavailableError(error)
+        : 'nonzero-exit')
+  )
+}
+
+function errorMessage(error: unknown): string | null {
+  if (typeof error === 'string' && error.trim() !== '') return error.trim()
+  if (error instanceof Error && error.message.trim() !== '') return error.message.trim()
+  return null
 }
 
 function dispatchDetail(reason: CrossModelDispatchReason, error?: unknown): string {
-  if (reason === 'cli-not-found' && error instanceof CliError && error.notFound) {
-    return `Command not found: ${error.cmd}`
+  const message = errorMessage(error)
+  if (reason === 'cli-not-found') {
+    if (error instanceof CliError && error.notFound) return `Command not found: ${error.cmd}`
+    return message ?? 'Codex CLI unavailable'
   }
-  if (reason === 'timeout') return 'Codex invocation timed out'
-  if (reason === 'nonzero-exit' && error instanceof CliError) {
-    return `Codex exited with status ${error.exitCode}`
+  if (reason === 'timeout') return message ?? 'Codex invocation timed out'
+  if (reason === 'nonzero-exit') {
+    if (error instanceof CliError) return `Codex exited with status ${error.exitCode}`
+    return message ?? 'Codex CLI exited unsuccessfully'
   }
   const details: Record<
     Exclude<CrossModelDispatchReason, 'cli-not-found' | 'timeout' | 'nonzero-exit'>,
@@ -416,7 +449,7 @@ function dispatchDetail(reason: CrossModelDispatchReason, error?: unknown): stri
     'envelope-rejected': 'the recorder rejected the Codex envelope',
     'diff-truncated': 'diff exceeded the 512 KiB review limit',
   }
-  return details[reason as keyof typeof details]
+  return details[reason]
 }
 
 function relativeEvidencePath(repoRoot: string, path: string | null): string | null {
@@ -428,7 +461,12 @@ function requestedEntries(
   request: ExternalReviewRequest,
   plan: CrossModelPlan,
 ): CrossModelDispatchArtifact['requested'] {
-  if (!request.cfg.enabled || externalSlotsForTier(request.tier ?? 'Standard') === 0) return []
+  if (
+    !request.cfg.enabled ||
+    plan.phase !== 'refactor' ||
+    externalSlotsForTier(request.tier ?? 'Standard') === 0
+  )
+    return []
   return [{ provider: 'codex', vertical: request.vertical ?? plan.external[0] ?? 'bugs' }]
 }
 
@@ -453,6 +491,7 @@ function degradedEntries(
   result: ExternalReviewResult,
   error?: unknown,
 ): CrossModelDispatchArtifact['degraded'] {
+  if (plan.phase !== 'refactor' || externalSlotsForTier(request.tier ?? 'Standard') === 0) return []
   const vertical = request.vertical ?? plan.external[0] ?? 'bugs'
   return result.degradationReasons.map((originalReason) => {
     const reason = dispatchReason(originalReason, error)
@@ -482,7 +521,7 @@ function writeDispatchEvidence(
     phase: request.phase ?? plan.phase,
     requested: requestedEntries(request, plan),
     fulfilled: fulfilledEntries(request, result, envelopePath),
-    degraded: degradedEntries(request, plan, result, error),
+    degraded: degradedEntries(request, plan, result, error ?? request.access?.error),
   }
   const root =
     request.dispatchEvidenceDir ?? join(request.repoRoot, '.arbiter', 'evidence', 'cross-model')
@@ -500,11 +539,7 @@ function finalizeResult(
   error?: unknown,
 ): ExternalReviewResult {
   writeDispatchEvidence(request, plan, result, envelopePath, error)
-  if (
-    request.cfg.onUnavailable === 'fail' &&
-    result.status === 'degraded' &&
-    result.envelope === undefined
-  ) {
+  if (request.cfg.onUnavailable === 'fail' && result.status === 'degraded') {
     throw new Error(`cross-model review unavailable: ${result.degradationReasons.join(', ')}`)
   }
   return result
@@ -523,6 +558,54 @@ function cleanupTemp(dir: string): void {
   }
 }
 
+function resultWithoutExternal(
+  request: ExternalReviewRequest,
+  plan: CrossModelPlan,
+  prepared: ReturnType<typeof truncateDiff>,
+): ExternalReviewResult {
+  const noSeat = externalSlotsForTier(request.tier ?? 'Standard') === 0 || plan.phase !== 'refactor'
+  const reasons = noSeat ? [] : [plan.degradationReason ?? 'provider-unavailable']
+  const result = resultFor(request, prepared, reasons)
+  return request.cfg.enabled ? finalizeResult(request, plan, result) : result
+}
+
+function persistExternalPayload(
+  request: ExternalReviewRequest,
+  plan: CrossModelPlan,
+  prepared: ReturnType<typeof truncateDiff>,
+  reasons: ExternalReviewDegradationReason[],
+  input: { prompt: string; payload: ExternalReviewPayload },
+): ExternalReviewResult {
+  let envelopePath: string | null
+  try {
+    if (request.access === undefined)
+      throw new Error('external access disappeared before persistence')
+    envelopePath = persistEnvelope(request, request.access, input.payload)
+    if (envelopePath === null) throw new Error('recorder did not confirm envelope persistence')
+  } catch (error) {
+    return finalizeResult(
+      request,
+      plan,
+      resultFor(request, prepared, [...reasons, 'envelope-rejected'], {
+        envelope: input.payload,
+        prompt: input.prompt,
+      }),
+      null,
+      error,
+    )
+  }
+  return finalizeResult(
+    request,
+    plan,
+    resultFor(request, prepared, reasons, {
+      envelope: input.payload,
+      recorded: true,
+      prompt: input.prompt,
+    }),
+    envelopePath,
+  )
+}
+
 /** Invoke one external seat and hand its validated envelope to the existing recorder. */
 export function invokeExternalReview(request: ExternalReviewRequest): ExternalReviewResult {
   const prepared = truncateDiff(request.diff)
@@ -538,10 +621,7 @@ export function invokeExternalReview(request: ExternalReviewRequest): ExternalRe
     ...(request.access !== undefined ? { access: request.access } : {}),
   })
   if (initial.external.length === 0) {
-    const result = resultFor(request, prepared, [
-      initial.degradationReason ?? 'provider-unavailable',
-    ])
-    return request.cfg.enabled ? finalizeResult(request, initial, result) : result
+    return resultWithoutExternal(request, initial, prepared)
   }
   const reasons: ExternalReviewDegradationReason[] = prepared.truncated ? ['diff-truncated'] : []
   const prompt = buildPrompt(request.prompt, prepared.text, prepared.truncated)
@@ -559,29 +639,7 @@ export function invokeExternalReview(request: ExternalReviewRequest): ExternalRe
         null,
       )
     }
-    try {
-      if (request.access === undefined)
-        throw new Error('external access disappeared before persistence')
-      const envelopePath = persistEnvelope(request, request.access, payload)
-      return finalizeResult(
-        request,
-        initial,
-        resultFor(request, prepared, reasons, { envelope: payload, recorded: true, prompt }),
-        envelopePath,
-      )
-      // FAIL-OPEN-INTENT: recorder failure is returned as an explicit envelope-rejected degradation.
-    } catch (error) {
-      return finalizeResult(
-        request,
-        initial,
-        resultFor(request, prepared, [...reasons, 'envelope-rejected'], {
-          envelope: payload,
-          prompt,
-        }),
-        null,
-        error,
-      )
-    }
+    return persistExternalPayload(request, initial, prepared, reasons, { prompt, payload })
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('cross-model review unavailable:'))
       throw error
