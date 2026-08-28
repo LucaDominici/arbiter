@@ -29,6 +29,10 @@ const repoDefault = resolve(__dirname, '..')
 
 const argv = process.argv.slice(2)
 const TASK_ID = arg('task', argv)
+const PROVENANCE_VENDOR = arg('provenance-vendor', argv)
+const PROVENANCE_CLI = arg('provenance-cli', argv)
+const PROVENANCE_CLI_VERSION = arg('provenance-cli-version', argv)
+const PROVENANCE_DISPATCH = arg('provenance-dispatch', argv)
 const EVIDENCE_DIR = arg('evidence-dir', argv)
   ? resolve(arg('evidence-dir', argv))
   : join(repoDefault, '.arbiter', 'evidence', 'agent-returns')
@@ -79,6 +83,16 @@ function stampProvenance() {
   return { branch, sha, ts: new Date().toISOString() }
 }
 
+function stampAgentProvenance() {
+  const provenance = {
+    vendor: PROVENANCE_VENDOR ?? 'anthropic',
+    dispatch: PROVENANCE_DISPATCH ?? 'subagent',
+  }
+  if (PROVENANCE_CLI !== null) provenance.cli = PROVENANCE_CLI
+  if (PROVENANCE_CLI_VERSION !== null) provenance.cliVersion = PROVENANCE_CLI_VERSION
+  return provenance
+}
+
 async function main() {
   if (!TASK_ID || !/^#[0-9]+$/.test(TASK_ID)) {
     process.stderr.write(
@@ -105,14 +119,15 @@ async function main() {
     )
     return 2
   }
-  // The agent supplies everything EXCEPT provenance (branch/sha/ts). The recorder stamps
-  // those itself — never trusted from input — then validates the FULL stamped envelope
-  // against the schema before writing. A malformed return fails at hand-back time.
+  // The agent supplies everything EXCEPT authority fields (branch/sha/ts/provenance). The
+  // recorder stamps those itself — never trusted from input — then validates the FULL stamped
+  // envelope against the schema before writing. A malformed return fails at hand-back time.
   const stamped = stampProvenance()
   const env = /** @type {Record<string, unknown>} */ (parsed)
   env['branch'] = stamped.branch
   env['sha'] = stamped.sha
   env['ts'] = stamped.ts
+  env['provenance'] = stampAgentProvenance()
   const schemaErrors = validateSchema(env, schema, schema, '<stdin>')
   if (schemaErrors.length > 0) {
     for (const e of schemaErrors) process.stdout.write(`[record-agent-return] FAIL: ${e}\n`)

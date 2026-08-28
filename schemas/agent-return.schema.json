@@ -78,6 +78,34 @@
       "type": "array",
       "description": "Optional paths under .arbiter/evidence/ backing this return.",
       "items": { "type": "string", "minLength": 1 }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Optional dispatch provenance stamped by the recorder, never trusted from agent input.",
+      "required": ["vendor", "dispatch"],
+      "additionalProperties": false,
+      "properties": {
+        "vendor": {
+          "type": "string",
+          "enum": ["anthropic", "openai", "google", "other"]
+        },
+        "dispatch": {
+          "type": "string",
+          "enum": ["subagent", "external-cli"]
+        },
+        "cli": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cliVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   },
   "$defs": {

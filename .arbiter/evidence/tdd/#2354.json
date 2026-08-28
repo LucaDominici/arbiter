@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2354",
+  "test_path": "__tests__/scripts/check-agent-return.test.ts",
+  "test_commit_sha": "a07fe9a5cb2ba8a5a1dbb8c2b8be2f9998488ef8",
+  "test_blob_sha": "ced6c5c163165570687733c71658dfd49c9b1916",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/check-agent-return.test.ts (18 tests | 2 failed) 346ms\n     × stamps default Anthropic provenance and overwrites incoming provenance 26ms\n     × stamps explicit external-cli provenance flags 24ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 16 passed (18)\n   Start at  01:59:48\n   Duration  447ms (transform 14ms, setup 6ms, import 15ms, tests 346ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-agent-return.test.ts > record-agent-return.mjs > stamps default Anthropic provenance and overwrites incoming provenance\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/scripts/check-agent-return.test.ts:337:27\n    335|       },\n    336|     )\n    337|     expect(result.status).toBe(0)\n       |                           ^\n    338|     const taskDir = join(evidenceDir, '_1943')\n    339|     const files = readdirSync(taskDir)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/scripts/check-agent-return.test.ts > record-agent-return.mjs > stamps explicit external-cli provenance flags\nAssertionError: expected undefined to deeply equal { vendor: 'openai', …(3) }\n\n- Expected:\n{\n  \"cli\": \"codex\",\n  \"cliVersion\": \"0.5.1\",\n  \"dispatch\": \"external-cli\",\n  \"vendor\": \"openai\",\n}\n\n+ Received:\nundefined\n\n ❯ __tests__/scripts/check-agent-return.test.ts:384:32\n    382|       unknown\n    383|     >\n    384|     expect(written.provenance).toEqual({\n       |                                ^\n    385|       vendor: 'openai',\n    386|       dispatch: 'external-cli',\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-agent-return.test.ts",
+  "recorded_at": "2026-08-27T23:59:49.277Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-agent-return.test.ts"
+  ]
+}

@@ -98,3 +98,10 @@ A gate that _requires_ `provenance` on every `role:"reviewer"` envelope is a sep
 ## Wave placement
 
 Lane **A (evidence schema)**, runs first — behaviour-zero and unblocks the cross-model chain. No file-set overlap with any other issue in the wave.
+
+## Implementation status
+
+Issue #2354 implements the recorder-stamped provenance contract described above. The
+field remains optional for backwards compatibility; newly recorded envelopes receive
+the default `anthropic`/`subagent` provenance unless the caller supplies explicit
+dispatch flags.
