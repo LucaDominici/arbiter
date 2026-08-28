@@ -8,9 +8,9 @@
 // Exit codes (INV-53): 0 PASS/SKIP, 1 evidence or policy FAIL, 2 invocation/IO ERROR.
 // Usage: node scripts/check-cross-model-review.mjs [--root <dir>] [--task <id>]
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 
 const args = process.argv.slice(2)
@@ -97,6 +97,27 @@ const taskId = status.taskId
 const taskSegment = taskId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'unknown'
 const evidencePath = join(root, '.arbiter', 'evidence', 'cross-model', taskSegment, 'dispatch.json')
 if (!existsSync(evidencePath)) fail(`dispatch evidence missing: ${evidencePath}`)
+
+function rejectSymlinkedPath(path, label) {
+  let current = path
+  while (true) {
+    let stat
+    try {
+      stat = lstatSync(current)
+    } catch (cause) {
+      error(
+        `cannot inspect ${label} ${current}: ${cause instanceof Error ? cause.message : String(cause)}`,
+      )
+      throw cause
+    }
+    if (stat.isSymbolicLink()) fail(`${label} must not contain symbolic links: ${current}`)
+    const parent = dirname(current)
+    if (parent === current) return
+    current = parent
+  }
+}
+
+rejectSymlinkedPath(evidencePath, 'dispatch evidence')
 
 function gitValue(args, label) {
   try {

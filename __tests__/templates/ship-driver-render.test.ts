@@ -242,7 +242,7 @@ describe('ship command cross-model sidecar (#2357)', () => {
           taskId: '#2357',
           branch: 'task/#2357-template',
           sha,
-          fulfilled: [{}],
+          fulfilled: [{ provider: 'codex', cliVersion: '0.5.1', envelope: 'codex.json' }],
           degraded: [],
         }),
       )
@@ -272,6 +272,22 @@ describe('ship command cross-model sidecar (#2357)', () => {
         branch: 'task/#2357-template',
         sha,
       })
+
+      writeFileSync(
+        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
+        JSON.stringify({
+          taskId: '#2357',
+          branch: 'task/#2357-template',
+          sha,
+          fulfilled: [{}],
+          degraded: [],
+        }),
+      )
+      const malformed = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
+      expect(malformed.status, malformed.stderr).toBe(0)
+      expect(
+        JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toMatchObject({ count: 2, agents: ['bugs', 'domain'] })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -352,6 +368,28 @@ describe('ship command cross-model sidecar (#2357)', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
       rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('fails closed when the active task state is missing', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-no-task-'))
+    try {
+      expect(
+        spawnSync('git', ['init', '-q', '-b', 'task/#2357-no-task'], { cwd: root }).status,
+      ).toBe(0)
+      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
+      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
+      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
+
+      const block = renderPeerShipCommand().match(
+        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
+      )?.[1]
+      expect(block).toBeDefined()
+      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
+      expect(result.status).not.toBe(0)
+      expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
     }
   })
 })

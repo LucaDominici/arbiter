@@ -247,10 +247,41 @@ describe('invokeExternalReview (#2357)', () => {
           phase: 'refactor',
           vertical: 'security',
         }),
-      ).toThrow(/symlink|descriptor|unsupported/i)
+      ).toThrow(/symlink|symbolic|ELOOP|descriptor|unsupported/i)
       expect(existsSync(join(outside, '_2358', 'dispatch.json'))).toBe(false)
     } catch (error) {
-      expect(String(error)).toMatch(/symlink|descriptor|unsupported/i)
+      expect(String(error)).toMatch(/symlink|symbolic|ELOOP|descriptor|unsupported/i)
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects an intermediate symlink in a custom dispatch root before writing outside it', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-custom-nested-symlink-'))
+    const outside = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-custom-nested-outside-'))
+    const linkedParent = join(fixture, 'linked')
+    const linkedDispatch = join(linkedParent, 'dispatch')
+    try {
+      mkdirSync(join(outside, 'dispatch'))
+      symlinkSync(outside, linkedParent, 'dir')
+      expect(() =>
+        invokeExternalReview({
+          repoRoot,
+          taskId: '#2358',
+          prompt: 'Review.',
+          diff: 'diff',
+          cfg: config({ diffEgressConsent: false }),
+          evidenceDir: join(fixture, 'agent-returns'),
+          dispatchEvidenceDir: linkedDispatch,
+          tier: 'Standard',
+          phase: 'refactor',
+          vertical: 'security',
+        }),
+      ).toThrow(/symlink|symbolic|ELOOP|descriptor|unsupported/i)
+      expect(existsSync(join(outside, 'dispatch', '_2358', 'dispatch.json'))).toBe(false)
+    } catch (error) {
+      expect(String(error)).toMatch(/symlink|symbolic|ELOOP|descriptor|unsupported/i)
     } finally {
       rmSync(fixture, { recursive: true, force: true })
       rmSync(outside, { recursive: true, force: true })

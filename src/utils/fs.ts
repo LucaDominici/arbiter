@@ -17,7 +17,7 @@ import {
   openSync,
   closeSync,
 } from 'node:fs'
-import { dirname, isAbsolute, join } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { randomBytes, createHash } from 'node:crypto'
 import { ArbiterError } from './errors.js'
 import { getLogger } from './logger.js'
@@ -587,9 +587,10 @@ function openContainedDirectory(rootDir: string, directoryParts: readonly string
   const flags = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW
   let fd = -1
   try {
-    fd = openSync(rootDir, flags)
-    for (const part of directoryParts) {
-      const child = `/proc/self/fd/${fd}/${part}`
+    fd = openSync('/', flags)
+    const rootParts = resolve(rootDir).split('/').filter(Boolean)
+    for (const part of [...rootParts, ...directoryParts]) {
+      const child = `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${fd}/${part}`
       try {
         mkdirSync(child)
       } catch (err) {
@@ -617,7 +618,7 @@ export function writeFileContained(rootDir: string, relativePath: string, data: 
   let tempPath: string | null = null
   try {
     dirFd = openContainedDirectory(rootDir, parts)
-    const dirPath = `/proc/self/fd/${dirFd}`
+    const dirPath = `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${dirFd}`
     tempPath = join(dirPath, `.arbiter-tmp-${randomBytes(4).toString('hex')}`)
     tempFd = openSync(
       tempPath,
@@ -655,7 +656,7 @@ export function readFileContained(rootDir: string, relativePath: string): string
   try {
     dirFd = openContainedDirectory(rootDir, parts)
     fileFd = openSync(
-      `/proc/self/fd/${dirFd}/${fileName}`,
+      `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${dirFd}/${fileName}`,
       fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
     )
     return readFileSync(fileFd, 'utf8')

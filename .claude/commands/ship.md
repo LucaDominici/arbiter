@@ -356,8 +356,11 @@ never a "no security surface" verdict.
 # Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
 external_review_fulfilled=0
 dispatch_file="$(node -e 'const f=require("node:fs"),p=require("node:path");try{const t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;process.stdout.write(p.join(".arbiter","evidence","cross-model",t.replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"unknown","dispatch.json"))}catch{}' 2>/dev/null || true)"
-task_id_json="$(node -e 'const f=require("node:fs");try{process.stdout.write(JSON.stringify(JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId ?? ""))}catch{process.stdout.write(JSON.stringify(""))}' 2>/dev/null || printf '""')"
-if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs"),c=require("node:child_process"),d=JSON.parse(f.readFileSync(process.argv[1],"utf8")),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId,b=c.execFileSync("git",["branch","--show-current"],{encoding:"utf8"}).trim(),s=c.execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();process.exit(d.taskId===t&&d.branch===b&&d.sha===s&&d.fulfilled?.length===1&&d.degraded?.length===0?0:1)' "$dispatch_file"; then
+if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;if(typeof t!=="string"||!/^#[0-9]+$/.test(t))process.exit(2);process.stdout.write(JSON.stringify(t))' 2>/dev/null)"; then
+  echo 'ERROR: active task id is missing or invalid' >&2
+  exit 2
+fi
+if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs"),c=require("node:child_process"),d=JSON.parse(f.readFileSync(process.argv[1],"utf8")),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId,b=c.execFileSync("git",["branch","--show-current"],{encoding:"utf8"}).trim(),s=c.execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(),u=d.fulfilled;process.exit(d.taskId===t&&d.branch===b&&d.sha===s&&Array.isArray(u)&&u.length===1&&u[0]?.provider==="codex"&&typeof u[0]?.cliVersion==="string"&&typeof u[0]?.envelope==="string"&&Array.isArray(d.degraded)&&d.degraded.length===0?0:1)' "$dispatch_file"; then
   external_review_fulfilled=1
 fi
 if [ "$external_review_fulfilled" = 1 ]; then

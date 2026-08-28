@@ -489,6 +489,40 @@ describe('check-cross-model-review (#2358)', () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(/escapes|symlink|repository|agent-returns/i)
   })
 
+  it('rejects degraded dispatch evidence reached through an external symlink', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    const outside = mkdtempSync(join(tmpdir(), 'cross-model-review-dispatch-outside-'))
+    try {
+      mkdirSync(join(outside, '_2358'), { recursive: true })
+      writeFileSync(
+        join(outside, '_2358', 'dispatch.json'),
+        `${JSON.stringify(
+          dispatch({
+            degraded: [
+              {
+                provider: 'codex',
+                vertical: 'security',
+                substitute: 'anthropic',
+                reason: 'cli-not-found',
+                detail: 'Command not found: codex',
+              },
+            ],
+          }),
+          null,
+          2,
+        )}\n`,
+      )
+      mkdirSync(join(root, '.arbiter', 'evidence'), { recursive: true })
+      symlinkSync(outside, join(root, '.arbiter', 'evidence', 'cross-model'), 'dir')
+
+      const result = run()
+      expect(result.status).toBe(1)
+      expect(`${result.stdout}${result.stderr}`).toMatch(/symlink|repository|dispatch/i)
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
   it('rejects a fulfilled file that is not a valid agent-return envelope', () => {
     json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
     json('.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json', {
