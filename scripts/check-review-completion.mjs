@@ -263,11 +263,15 @@ function checkAgentEnvelope(agent, sidecar, task, files, valid) {
   const matchingFiles = files.filter((file) => isAgentEnvelopeFile(file, agent))
   const matching = valid.filter((envelope) => envelope['agent'] === agent)
   const taskMatch = matching.filter((envelope) => envelope['taskId'] === task)
-  const branchMatch = taskMatch.find((envelope) => envelope['branch'] === sidecar.branch)
+  const branchMatch = taskMatch.find(
+    (envelope) => envelope['branch'] === sidecar.branch && envelope['role'] === 'reviewer',
+  )
   if (branchMatch) {
     if (branchMatch['sha'] === sidecar.sha) return null
     return `${agent}: provenance mismatch — expected sha ${sidecar.sha}, observed ${branchMatch['sha']}`
   }
+  const wrongRole = taskMatch.find((envelope) => envelope['branch'] === sidecar.branch)
+  if (wrongRole) return `${agent}: return envelope role must be reviewer`
   if (taskMatch.length > 0) {
     const observed = String(taskMatch[0]['branch'])
     return `${agent}: provenance mismatch — expected branch ${sidecar.branch}, observed ${observed}`
@@ -309,13 +313,18 @@ function checkNamedAgentEnvelopes(sidecar, task, files, valid) {
  * @returns {string[]}
  */
 function checkLegacyReviewerCount(sidecar, task, valid) {
-  const reviewerCount = valid.filter(
-    (envelope) =>
-      envelope['role'] === 'reviewer' &&
-      envelope['taskId'] === task &&
-      envelope['branch'] === sidecar.branch &&
-      envelope['sha'] === sidecar.sha,
-  ).length
+  const reviewerAgents = new Set(
+    valid
+      .filter(
+        (envelope) =>
+          envelope['role'] === 'reviewer' &&
+          envelope['taskId'] === task &&
+          envelope['branch'] === sidecar.branch &&
+          envelope['sha'] === sidecar.sha,
+      )
+      .map((envelope) => envelope['agent']),
+  )
+  const reviewerCount = reviewerAgents.size
   if (reviewerCount < sidecar.count) {
     return [
       `legacy dispatch expects ${sidecar.count} reviewer envelope(s) but found ${reviewerCount}`,
@@ -424,6 +433,20 @@ function checkoutBindingError(sidecar) {
   })
   if (ancestor.status !== 0) {
     return `sidecar sha ${sidecar.sha} is not an ancestor of current HEAD ${head}`
+  }
+  const changed = spawnSync('git', ['diff', '--name-only', `${sidecar.sha}..${head}`], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
+  if (changed.status !== 0) {
+    return `cannot inspect changes since sidecar sha ${sidecar.sha}`
+  }
+  const changedPaths = String(changed.stdout)
+    .split(/\r?\n/)
+    .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
+  if (changedPaths.length > 0) {
+    return `review sidecar sha ${sidecar.sha} is stale; tracked files changed after dispatch`
   }
   return null
 }
