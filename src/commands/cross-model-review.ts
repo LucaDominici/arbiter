@@ -10,7 +10,7 @@ import { resolveShipProfile } from './ship-profile.js'
 import { normTier, type ShipTier } from './ship-tier.js'
 import type { TaskPhase } from './task-state.js'
 import { existsSync, lstatSync, readFileSync } from 'node:fs'
-import { toFsError, writeFileContained } from '../utils/fs.js'
+import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
@@ -90,10 +90,13 @@ function assertSafeSidecarFile(path: string): void {
 }
 
 function readSidecar(repoRoot: string): ReviewSidecar | null {
+  const relativePath = join('.arbiter', 'agents-dispatched.json')
   const path = join(repoRoot, '.arbiter', 'agents-dispatched.json')
   try {
     assertSafeArbiterEvidenceRoot(repoRoot)
-    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    assertSafeSidecarFile(path)
+    if (!existsSync(path)) return null
+    const parsed: unknown = JSON.parse(readFileContained(repoRoot, relativePath))
     if (!isRecord(parsed)) throw new Error(`${path} must contain a JSON object`)
     return parsed
   } catch (error) {
@@ -140,6 +143,7 @@ function hasCurrentFulfilledReview(repoRoot: string, taskId: string): boolean {
         },
       ).exitCode === 0
     )
+    // FAIL-OPEN-INTENT: stale or unavailable fulfilment evidence is a cache miss; rerun review.
   } catch {
     return false
   }
@@ -205,6 +209,23 @@ function writeExternalReviewSidecar(
   )
 }
 
+function assertReviewTreeClean(repoRoot: string): void {
+  const status = runCli('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
+    cwd: repoRoot,
+    timeoutMs: 15_000,
+  }).stdout
+  const unreviewed = status
+    .split(/\r?\n/)
+    .filter((line) => line.length > 2)
+    .map((line) => line.slice(3))
+    .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
+  if (unreviewed.length > 0) {
+    throw new Error(
+      `working tree has uncommitted changes; commit before external review (${unreviewed.join(', ')})`,
+    )
+  }
+}
+
 /** Run the automatic refactor-step bridge; consent-off runs only the local degradation recorder. */
 function runShipCrossModelReview(
   options: ShipCrossModelReviewOptions,
@@ -230,20 +251,7 @@ function runShipCrossModelReview(
   let preflightDegradation: 'invocation-failed' | undefined
   if (options.cfg.diffEgressConsent) {
     try {
-      const status = runCli('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
-        cwd: repoRoot,
-        timeoutMs: 15_000,
-      }).stdout
-      const unreviewed = status
-        .split(/\r?\n/)
-        .filter((line) => line.length > 2)
-        .map((line) => line.slice(3))
-        .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
-      if (unreviewed.length > 0) {
-        throw new Error(
-          `working tree has uncommitted changes; commit before external review (${unreviewed.join(', ')})`,
-        )
-      }
+      assertReviewTreeClean(repoRoot)
       diff = runCli('git', ['diff', '--binary', 'origin/main...HEAD'], {
         cwd: repoRoot,
         timeoutMs: 15_000,
