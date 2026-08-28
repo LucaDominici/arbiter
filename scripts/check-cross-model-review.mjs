@@ -368,6 +368,9 @@ for (const [index, fulfilled] of artifact.fulfilled.entries()) {
 if (crossModel.onUnavailable === 'fail' && artifact.degraded.length > 0) {
   fail('crossModelReview.onUnavailable=fail with degraded dispatch evidence')
 }
+if (artifact.fulfilled.length > 0 && crossModel.diffEgressConsent !== true) {
+  fail('fulfilled cross-model evidence requires current diffEgressConsent=true')
+}
 
 const recordPanel = option('--record-panel')
 if (recordPanel !== undefined) {

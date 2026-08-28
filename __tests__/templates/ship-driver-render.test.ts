@@ -62,7 +62,9 @@ function installCrossModelChecker(
   }
   writeFileSync(
     join(root, 'arbiter.json'),
-    JSON.stringify({ crossModelReview: { enabled, onUnavailable } }),
+    JSON.stringify({
+      crossModelReview: { enabled, diffEgressConsent: true, onUnavailable },
+    }),
   )
 }
 
