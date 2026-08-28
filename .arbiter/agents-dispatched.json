@@ -1,7 +1,7 @@
 {
-  "count": 1,
-  "agents": ["Planck the 2nd"],
+  "count": 2,
+  "agents": ["Terra", "Sol"],
   "taskId": "#2354",
   "branch": "task/#2354-cross-model-review",
-  "sha": "5635382446fddf763db5ea9db32854a6f1281557"
+  "sha": "da1457a3e0e9fb30229c18db8b30e345307241e6"
 }
