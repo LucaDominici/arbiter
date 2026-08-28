@@ -275,6 +275,44 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
       rmSync(fresh, { recursive: true, force: true })
     }
   })
+
+  it('does not seed when the preflight signal changes before persistence', () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'arbiter-train-single-decision-'))
+    let signalCalls = 0
+    try {
+      expect(() =>
+        runTaskShip({
+          dir: fresh,
+          taskId: '#100',
+          tier: 'Standard',
+          chainAddIds: ['#101'],
+          profileOverride: TEST_PROFILE,
+          gatherTierSignals: () =>
+            signalCalls++ === 0 ? XS_SIGNALS : { ...XS_SIGNALS, labels: ['epic'] },
+          now: new Date('2026-08-22T00:10:00.000Z'),
+        }),
+      ).not.toThrow()
+      expect(signalCalls).toBe(1)
+      expect(readUnifiedState(fresh)?.chainIds).toEqual(['#101'])
+    } finally {
+      rmSync(fresh, { recursive: true, force: true })
+    }
+  })
+
+  it('allows five chained issues when no primary issue is declared', () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'arbiter-train-no-primary-'))
+    try {
+      runTaskShip({
+        dir: fresh,
+        chainIds: ['#101', '#102', '#103', '#104'],
+        profileOverride: TEST_PROFILE,
+      })
+      runTaskShip({ dir: fresh, chainAddIds: ['#105'], profileOverride: TEST_PROFILE })
+      expect(readUnifiedState(fresh)?.chainIds).toEqual(['#101', '#102', '#103', '#104', '#105'])
+    } finally {
+      rmSync(fresh, { recursive: true, force: true })
+    }
+  })
 })
 
 it('refuses an initial --chain seed that exceeds the train limit', () => {
