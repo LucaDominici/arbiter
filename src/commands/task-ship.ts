@@ -455,6 +455,11 @@ export interface ShipResult {
   profile: ShipProfile
 }
 
+/** #2357 — a degraded external seat must be replanned as the full Anthropic panel. */
+export function withoutExternalReview(result: ShipResult): ShipResult {
+  return { ...result, step: shipStepFor(result.phase, result.tier, result.profile) }
+}
+
 /**
  * Build the human-readable step-output lines for a ship invocation, including the
  * #1260 tier + vertical-breadth summary. Kept here (not inline in the CLI action) so the

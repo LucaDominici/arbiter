@@ -47,7 +47,7 @@ import {
   HandoffRequiredError,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
-import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
+import { runTaskShip, buildShipStepLines, withoutExternalReview } from './commands/task-ship.js'
 import { runCrossModelReview, runShipCrossModelReview } from './commands/cross-model-review.js'
 import { buildShipOverrides, resolveShipProfile } from './commands/ship-profile.js'
 import { detectExternalModel } from './detectors/external-model.js'
@@ -455,14 +455,14 @@ function runConfiguredShipReview(
   result: ReturnType<typeof runTaskShip>,
   tier: string | undefined,
   access: ReturnType<typeof detectExternalModel> | undefined,
-): void {
+): ReturnType<typeof runShipCrossModelReview> | null {
   const config = result.profile.crossModelReview
-  if (result.advanced || result.phase !== 'refactor' || !config?.enabled) return
+  if (result.advanced || result.phase !== 'refactor' || !config?.enabled) return null
   const taskId = readUnifiedState(root)?.taskId
   if (taskId === undefined) {
     throw new Error('crossModelReview is enabled but the active ship task id is missing')
   }
-  runShipCrossModelReview({
+  return runShipCrossModelReview({
     dir: root,
     taskId,
     tier: result.tier ?? normTier(tier),
@@ -471,6 +471,16 @@ function runConfiguredShipReview(
     cfg: config,
     ...(access !== undefined ? { access } : {}),
   })
+}
+
+function shipOutputAfterConfiguredReview(
+  root: string,
+  result: ReturnType<typeof runTaskShip>,
+  tier: string | undefined,
+  access: ReturnType<typeof detectExternalModel> | undefined,
+): ReturnType<typeof runTaskShip> {
+  const externalReview = runConfiguredShipReview(root, result, tier, access)
+  return externalReview?.status === 'degraded' ? withoutExternalReview(result) : result
 }
 
 program
@@ -2028,8 +2038,13 @@ program
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
           ...(externalModelAccess !== undefined ? { externalModelAccess } : {}),
         })
-        runConfiguredShipReview(shipRoot, result, opts.tier, externalModelAccess)
-        const lines = buildShipStepLines(result)
+        const outputResult = shipOutputAfterConfiguredReview(
+          shipRoot,
+          result,
+          opts.tier,
+          externalModelAccess,
+        )
+        const lines = buildShipStepLines(outputResult)
         process.stdout.write(lines.join('\n') + '\n')
       } catch (err) {
         if (err instanceof HandoffRequiredError) {
