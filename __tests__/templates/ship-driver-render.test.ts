@@ -45,7 +45,10 @@ function renderPeerShipCommand(): string {
   )
 }
 
-function installCrossModelChecker(root: string): void {
+function installCrossModelChecker(
+  root: string,
+  onUnavailable: 'degrade' | 'fail' = 'degrade',
+): void {
   for (const rel of [
     'scripts/check-cross-model-review.mjs',
     'scripts/lib/agent-return-validate.mjs',
@@ -58,7 +61,7 @@ function installCrossModelChecker(root: string): void {
   }
   writeFileSync(
     join(root, 'arbiter.json'),
-    JSON.stringify({ crossModelReview: { enabled: true, onUnavailable: 'degrade' } }),
+    JSON.stringify({ crossModelReview: { enabled: true, onUnavailable } }),
   )
 }
 
@@ -362,6 +365,34 @@ describe('ship command cross-model sidecar (#2357)', () => {
       expect(
         JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
       ).toMatchObject({ count: 2, agents: ['bugs', 'domain'] })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not fall back when the external policy is fail', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-fail-policy-'))
+    try {
+      expect(
+        spawnSync('git', ['init', '-q', '-b', 'task/#2357-fail-policy'], { cwd: root }).status,
+      ).toBe(0)
+      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
+      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
+      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
+      installCrossModelChecker(root, 'fail')
+      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
+      writeFileSync(
+        join(root, '.claude', '.task', 'status.json'),
+        JSON.stringify({ taskId: '#2357' }),
+      )
+
+      const block = renderPeerShipCommand().match(
+        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
+      )?.[1]
+      expect(block).toBeDefined()
+      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
+      expect(result.status).not.toBe(0)
+      expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

@@ -266,6 +266,28 @@ describe('check-cross-model-review (#2358)', () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(/anthropic|vendor/i)
   })
 
+  it('rejects a fulfilled envelope whose agent is not Codex', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    json(
+      '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+      envelope({ agent: 'attacker' }),
+    )
+    writeArtifact(
+      dispatch({
+        fulfilled: [
+          {
+            provider: 'codex',
+            cliVersion: '0.5.1',
+            envelope: '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+          },
+        ],
+      }),
+    )
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/agent|codex/i)
+  })
+
   it('rejects an out-of-enum degradation reason', () => {
     json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
     writeArtifact(

@@ -211,6 +211,12 @@ function parseObject(value: string): ExternalReviewPayload | null {
 function isPayloadObject(value: unknown): value is ExternalReviewPayload {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
   const record = value as Record<string, unknown>
+  if (
+    Object.keys(record).some(
+      (key) => !['verdict', 'confidence', 'findings', 'refutations'].includes(key),
+    )
+  )
+    return false
   return (
     (record.verdict === 'PASS' || record.verdict === 'WARN' || record.verdict === 'FAIL') &&
     typeof record.confidence === 'number' &&
@@ -393,7 +399,10 @@ function persistEnvelope(
       agent: 'codex-reviewer',
       role: 'reviewer',
       taskId: request.taskId,
-      ...envelope,
+      verdict: envelope.verdict,
+      confidence: envelope.confidence,
+      findings: envelope.findings,
+      refutations: envelope.refutations,
     }),
     timeoutMs: request.cfg.timeoutMs,
     retries: 0,

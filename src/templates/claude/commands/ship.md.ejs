@@ -356,16 +356,20 @@ never a "no security surface" verdict.
 # fulfilled Codex seat and do not add another Anthropic seat.
 # Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
 external_review_fulfilled=0
-dispatch_file="$(node -e 'const f=require("node:fs"),p=require("node:path");try{const t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;process.stdout.write(p.join(".arbiter","evidence","cross-model",t.replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"unknown","dispatch.json"))}catch{}' 2>/dev/null || true)"
 if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;if(typeof t!=="string"||!/^#[0-9]+$/.test(t))process.exit(2);process.stdout.write(JSON.stringify(t))' 2>/dev/null)"; then
   echo 'ERROR: active task id is missing or invalid' >&2
   exit 2
 fi
 review_agents_json='["independent-review"]'
 candidate_review_agents_json='["codex-reviewer"]'
-if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "1" >/dev/null 2>&1; then
+checker_status=0
+node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "1" >/dev/null 2>&1 || checker_status=$?
+if [ "$checker_status" = 0 ]; then
   external_review_fulfilled=1
   review_agents_json="$candidate_review_agents_json"
+elif node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8"));process.exit(c.crossModelReview?.enabled===true&&c.crossModelReview?.onUnavailable==="fail"?0:1)}catch{process.exit(1)}'; then
+  echo 'ERROR: cross-model review is required and did not fulfill its Codex seat' >&2
+  exit "$checker_status"
 fi
 if [ "$external_review_fulfilled" != 1 ]; then
 node - "$review_agents_json" "1" "$task_id_json" <<'NODE' || exit 2
@@ -476,16 +480,20 @@ not the split. Lead angles for this dispatch: <%- Array.from({ length: _tiers.St
 # fulfilled Codex seat and do not add another Anthropic seat.
 # Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
 external_review_fulfilled=0
-dispatch_file="$(node -e 'const f=require("node:fs"),p=require("node:path");try{const t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;process.stdout.write(p.join(".arbiter","evidence","cross-model",t.replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"unknown","dispatch.json"))}catch{}' 2>/dev/null || true)"
 if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;if(typeof t!=="string"||!/^#[0-9]+$/.test(t))process.exit(2);process.stdout.write(JSON.stringify(t))' 2>/dev/null)"; then
   echo 'ERROR: active task id is missing or invalid' >&2
   exit 2
 fi
 review_agents_json='[<%- Array.from({ length: _tiers.Standard.reviewAgentCount }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>]'
 candidate_review_agents_json='[<%- Array.from({ length: Math.max(0, _tiers.Standard.reviewAgentCount - 1) }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>,"codex-reviewer"]'
-if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "<%= _tiers.Standard.reviewAgentCount %>" >/dev/null 2>&1; then
+checker_status=0
+node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "<%= _tiers.Standard.reviewAgentCount %>" >/dev/null 2>&1 || checker_status=$?
+if [ "$checker_status" = 0 ]; then
   external_review_fulfilled=1
   review_agents_json="$candidate_review_agents_json"
+elif node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8"));process.exit(c.crossModelReview?.enabled===true&&c.crossModelReview?.onUnavailable==="fail"?0:1)}catch{process.exit(1)}'; then
+  echo 'ERROR: cross-model review is required and did not fulfill its Codex seat' >&2
+  exit "$checker_status"
 fi
 if [ "$external_review_fulfilled" != 1 ]; then
 node - "$review_agents_json" "<%= _tiers.Standard.reviewAgentCount %>" "$task_id_json" <<'NODE' || exit 2

@@ -309,6 +309,9 @@ for (const [index, fulfilled] of artifact.fulfilled.entries()) {
   const envelopeValue = readContainedJson(root, envelope, 'fulfilled envelope')
   const envelopeSchemaErrors = validateSchema(envelopeValue, agentSchema, agentSchema, envelopePath)
   if (envelopeSchemaErrors.length > 0) fail(envelopeSchemaErrors.join('; '))
+  if (envelopeValue.agent !== 'codex-reviewer' || envelopeValue.role !== 'reviewer') {
+    fail(`fulfilled[${index}].envelope must be the Codex reviewer envelope`)
+  }
   if (!isRecord(envelopeValue) || envelopeValue.taskId !== taskId) {
     fail(`fulfilled[${index}].envelope taskId must match active task ${JSON.stringify(taskId)}`)
   }
