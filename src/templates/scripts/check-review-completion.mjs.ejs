@@ -120,7 +120,7 @@ function isSidecar(value) {
  * @returns {string}
  */
 function sanitizeTask(task) {
-  return task.replace(/[#/]/g, '')
+  return task.replace(/[^0-9A-Za-z-]/g, '_')
 }
 
 /**

@@ -100,7 +100,7 @@ describe('check-review-completion.mjs', () => {
   }
 
   function writeEnvelope(name: string, body: Record<string, unknown>): void {
-    const taskDir = join(evidenceDir, '2177')
+    const taskDir = join(evidenceDir, '_2177')
     mkdirSync(taskDir, { recursive: true })
     writeFileSync(join(taskDir, `${name}.json`), JSON.stringify(body, null, 2))
   }
@@ -109,6 +109,13 @@ describe('check-review-completion.mjs', () => {
     writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha', 'beta'] })
     writeEnvelope('alpha', envelope('alpha'))
     writeEnvelope('beta', envelope('beta'))
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('uses the recorder-compatible underscore-sanitized task directory', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope('alpha', envelope('alpha'))
 
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
   })
@@ -124,7 +131,7 @@ describe('check-review-completion.mjs', () => {
 
   it('exits 1 and names an agent whose envelope artifact is empty', () => {
     writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
-    const taskDir = join(evidenceDir, '2177')
+    const taskDir = join(evidenceDir, '_2177')
     mkdirSync(taskDir, { recursive: true })
     writeFileSync(join(taskDir, 'alpha.json'), '')
 
@@ -135,7 +142,7 @@ describe('check-review-completion.mjs', () => {
 
   it('exits 1 and names an agent whose envelope artifact is malformed JSON', () => {
     writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
-    const taskDir = join(evidenceDir, '2177')
+    const taskDir = join(evidenceDir, '_2177')
     mkdirSync(taskDir, { recursive: true })
     writeFileSync(join(taskDir, 'alpha.json'), '{not valid json')
 
