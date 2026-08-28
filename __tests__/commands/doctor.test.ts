@@ -97,6 +97,8 @@ describe('runDoctorHealth (#539)', () => {
   })
 
   it('reports authenticated external Codex access in the project health checks', async () => {
+    vi.stubEnv('HOME', dir)
+    vi.stubEnv('USERPROFILE', dir)
     resetExternalModelDetection()
     mkdirSync(join(dir, '.codex'), { recursive: true })
     writeFileSync(join(dir, '.codex', 'auth.json'), '{}\n')

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — exercise the real runCli boundary with a PATH stub, never a Codex installation.
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   chmodSync,
   mkdirSync,
@@ -18,6 +18,7 @@ import { invokeExternalReview } from '../../src/integrations/external-review.js'
 describe('external review subprocess boundary (#2357)', () => {
   let fixture: string
   let evidenceDir: string
+  let reviewEnv: NodeJS.ProcessEnv
 
   beforeEach(() => {
     fixture = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-codex-'))
@@ -41,16 +42,18 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
       'utf-8',
     )
     chmodSync(codex, 0o755)
-    vi.stubEnv('PATH', `${bin}:${process.env.PATH ?? ''}`)
+    reviewEnv = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+      OPENAI_API_KEY: 'sentinel-secret',
+    }
   })
 
   afterEach(() => {
-    vi.unstubAllEnvs()
     rmSync(fixture, { recursive: true, force: true })
   })
 
   it('runs a PATH stub and records the validated envelope, excluding raw stdout (AC-10)', () => {
-    vi.stubEnv('OPENAI_API_KEY', 'sentinel-secret')
     const result = invokeExternalReview({
       repoRoot: process.cwd(),
       taskId: '#2357',
@@ -70,6 +73,7 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
         error: null,
       },
       evidenceDir,
+      env: reviewEnv,
     })
 
     expect(result.status).toBe('fulfilled')

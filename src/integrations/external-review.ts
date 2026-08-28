@@ -87,6 +87,7 @@ interface ExternalReviewRequest {
   tier?: ShipTier
   phase?: TaskPhase
   vertical?: string
+  env?: NodeJS.ProcessEnv
 }
 
 interface ExternalReviewResult {
@@ -357,9 +358,10 @@ function invokeCodex(
   schemaPath: string,
 ): RunCliResult {
   const sandboxRoot = dirname(outputPath)
+  const sourceEnv = request.env ?? process.env
   const env = Object.fromEntries(
     CODEX_ENV_KEYS.flatMap((key) => {
-      const value = process.env[key]
+      const value = sourceEnv[key]
       return value === undefined ? [] : [[key, value]]
     }),
   )
