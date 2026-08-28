@@ -321,15 +321,11 @@ describe('record-agent-return.mjs', () => {
   })
 
   it('rejects malformed stdin with exit 1 and writes nothing', () => {
-    const result = spawnSync(
-      'node',
-      [RECORD_SCRIPT, '--task', '#1943', '--evidence-dir', evidenceDir, '--repo-root', tmpDir],
-      {
-        input: 'not json',
-        encoding: 'utf-8',
-        timeout: 10000,
-      },
-    )
+    const result = spawnSync('node', [RECORD_SCRIPT, '--task', '#1943', '--repo-root', tmpDir], {
+      input: 'not json',
+      encoding: 'utf-8',
+      timeout: 10000,
+    })
     expect(result.status).toBe(1)
     expect(existsSync(evidenceDir)).toBe(false)
   })
@@ -355,15 +351,11 @@ describe('record-agent-return.mjs', () => {
     delete (valid as Record<string, unknown>).sha
     delete (valid as Record<string, unknown>).branch
     delete (valid as Record<string, unknown>).ts
-    const result = spawnSync(
-      'node',
-      [RECORD_SCRIPT, '--task', '#1943', '--evidence-dir', evidenceDir, '--repo-root', tmpDir],
-      {
-        input: JSON.stringify(valid),
-        encoding: 'utf-8',
-        timeout: 10000,
-      },
-    )
+    const result = spawnSync('node', [RECORD_SCRIPT, '--task', '#1943', '--repo-root', tmpDir], {
+      input: JSON.stringify(valid),
+      encoding: 'utf-8',
+      timeout: 10000,
+    })
     expect(result.status).toBe(0)
     // one json file under _1943/ (sanitizeTaskId('#1943') → '_1943')
     const taskDir = join(evidenceDir, '_1943')
@@ -446,5 +438,27 @@ describe('record-agent-return.mjs', () => {
       cli: 'codex',
       cliVersion: '0.5.1',
     })
+  })
+
+  it('rejects a symlinked evidence directory before writing outside the repository', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'record-agent-return-outside-'))
+    const linkedEvidenceDir = join(tmpDir, '.arbiter', 'evidence', 'agent-returns')
+    try {
+      mkdirSync(join(tmpDir, '.arbiter', 'evidence'), { recursive: true })
+      symlinkSync(outside, linkedEvidenceDir, 'dir')
+      const valid = envelope()
+      delete (valid as Record<string, unknown>).sha
+      delete (valid as Record<string, unknown>).branch
+      delete (valid as Record<string, unknown>).ts
+      const result = spawnSync('node', [RECORD_SCRIPT, '--task', '#1943', '--repo-root', tmpDir], {
+        input: JSON.stringify(valid),
+        encoding: 'utf-8',
+        timeout: 10000,
+      })
+      expect(result.status).toBe(2)
+      expect(readdirSync(outside)).toEqual([])
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
   })
 })

@@ -17,7 +17,15 @@
 // Usage:
 //   node scripts/record-agent-return.mjs --task '#NNN' [--evidence-dir=<path>]
 //                                       [--repo-root=<path>] < return.json
-import { mkdirSync, writeFileSync, readdirSync } from 'node:fs'
+import {
+  constants as fsConstants,
+  closeSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { resolve, join } from 'node:path'
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -33,10 +41,10 @@ const PROVENANCE_VENDOR = arg('provenance-vendor', argv)
 const PROVENANCE_CLI = arg('provenance-cli', argv)
 const PROVENANCE_CLI_VERSION = arg('provenance-cli-version', argv)
 const PROVENANCE_DISPATCH = arg('provenance-dispatch', argv)
+const REPO_ROOT = arg('repo-root', argv) ? resolve(arg('repo-root', argv)) : repoDefault
 const EVIDENCE_DIR = arg('evidence-dir', argv)
   ? resolve(arg('evidence-dir', argv))
-  : join(repoDefault, '.arbiter', 'evidence', 'agent-returns')
-const REPO_ROOT = arg('repo-root', argv) ? resolve(arg('repo-root', argv)) : repoDefault
+  : join(REPO_ROOT, '.arbiter', 'evidence', 'agent-returns')
 const SCHEMA_PATH = join(repoDefault, 'schemas', 'agent-return.schema.json')
 
 function readStdin() {
@@ -93,6 +101,90 @@ function stampAgentProvenance() {
   return provenance
 }
 
+function descriptorPath(fd) {
+  return `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${fd}`
+}
+
+function openContainedDirectory(rootDir, childParts) {
+  if (process.platform === 'win32') {
+    throw new Error('secure agent-return recording is unsupported on Windows')
+  }
+  const flags = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW
+  const absoluteRoot = resolve(rootDir)
+  let fd = -1
+  try {
+    fd = openSync('/', flags)
+    for (const part of [...absoluteRoot.split('/').filter(Boolean), ...childParts]) {
+      const child = join(descriptorPath(fd), part)
+      try {
+        mkdirSync(child)
+      } catch (err) {
+        if (err?.code !== 'EEXIST') throw err
+      }
+      const next = openSync(child, flags)
+      closeSync(fd)
+      fd = next
+    }
+    return fd
+  } catch (err) {
+    if (fd !== -1) closeSync(fd)
+    throw err
+  }
+}
+
+function writeEnvelopeContained(evidenceDir, task, agent, content) {
+  let dirFd = -1
+  try {
+    dirFd = openContainedDirectory(evidenceDir, [task])
+    const dirPath = descriptorPath(dirFd)
+    let n = 0
+    try {
+      n = readdirSync(dirPath).filter(
+        (f) => f.startsWith(`${agent}-`) && f.endsWith('.json'),
+      ).length
+    } catch (err) {
+      if (err?.code !== 'ENOENT') throw err
+      // A freshly opened task directory may be empty; its first shard is zero.
+    }
+    for (let attempt = 0; attempt < 10_000; attempt++, n++) {
+      const filename = `${agent}-${n}.json`
+      const path = join(dirPath, filename)
+      let fileFd = -1
+      try {
+        fileFd = openSync(
+          path,
+          fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+          0o600,
+        )
+        writeFileSync(fileFd, content, 'utf8')
+        closeSync(fileFd)
+        fileFd = -1
+        return join(evidenceDir, task, filename)
+      } catch (err) {
+        if (fileFd !== -1) {
+          try {
+            closeSync(fileFd)
+            // FAIL-OPEN-INTENT: cleanup close failure must not replace the primary write error.
+          } catch {
+            // Preserve the primary write error.
+          }
+        }
+        if (err?.code === 'EEXIST') continue
+        try {
+          unlinkSync(path)
+          // FAIL-OPEN-INTENT: best-effort cleanup must not replace the primary write error.
+        } catch {
+          // Preserve the primary write error.
+        }
+        throw err
+      }
+    }
+    throw new Error(`too many agent-return shards for ${agent}`)
+  } finally {
+    if (dirFd !== -1) closeSync(dirFd)
+  }
+}
+
 async function main() {
   if (!TASK_ID || !/^#[0-9]+$/.test(TASK_ID)) {
     process.stderr.write(
@@ -139,35 +231,23 @@ async function main() {
     return 1
   }
   const sanitizedTask = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')
-  const taskDir = join(EVIDENCE_DIR, sanitizedTask)
-  try {
-    mkdirSync(taskDir, { recursive: true })
-  } catch (err) {
-    process.stderr.write(
-      `[record-agent-return] ERROR: cannot mkdir ${taskDir}: ${err instanceof Error ? err.message : String(err)}\n`,
-    )
-    return 2
-  }
   const agent =
     typeof env['agent'] === 'string' ? String(env['agent']).replace(/[^0-9A-Za-z-]/g, '-') : 'agent'
-  let n = 0
   try {
-    n = readdirSync(taskDir).filter((f) => f.startsWith(`${agent}-`) && f.endsWith('.json')).length
-    // FAIL-OPEN-INTENT: readdirSync on a fresh taskDir for the agent counter — empty dir → 0 is the correct shard index.
-  } catch {
-    /* empty → 0 */
-  }
-  const outPath = join(taskDir, `${agent}-${n}.json`)
-  try {
-    writeFileSync(outPath, `${JSON.stringify(env, null, 2)}\n`)
+    const outPath = writeEnvelopeContained(
+      EVIDENCE_DIR,
+      sanitizedTask,
+      agent,
+      `${JSON.stringify(env, null, 2)}\n`,
+    )
+    process.stdout.write(`[record-agent-return] OK — wrote ${outPath}\n`)
+    return 0
   } catch (err) {
     process.stderr.write(
-      `[record-agent-return] ERROR: cannot write ${outPath}: ${err instanceof Error ? err.message : String(err)}\n`,
+      `[record-agent-return] ERROR: cannot write evidence: ${err instanceof Error ? err.message : String(err)}\n`,
     )
     return 2
   }
-  process.stdout.write(`[record-agent-return] OK — wrote ${outPath}\n`)
-  return 0
 }
 
 main()

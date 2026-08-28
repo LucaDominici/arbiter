@@ -112,7 +112,7 @@ function isCurrentSidecar(
     existing !== null &&
     existing.branch === branch &&
     existing.sha === sha &&
-    (existing.taskId === undefined || existing.taskId === taskId)
+    existing.taskId === taskId
   )
 }
 

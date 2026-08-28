@@ -582,10 +582,8 @@ function containedParts(relativePath: string): string[] {
 }
 
 function openContainedDirectory(rootDir: string, directoryParts: readonly string[]): number {
-  if (process.platform === 'win32') {
-    ensureDir(join(rootDir, ...directoryParts))
-    return -1
-  }
+  if (process.platform === 'win32')
+    throw new Error('descriptor-relative filesystem operations are unsupported on Windows')
   const flags = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW
   let fd = -1
   try {
@@ -613,15 +611,6 @@ export function writeFileContained(rootDir: string, relativePath: string, data: 
   const parts = containedParts(relativePath)
   const fileName = parts.pop() as string
   const fullPath = join(rootDir, relativePath)
-  if (process.platform === 'win32') {
-    try {
-      ensureDir(join(rootDir, ...parts))
-      writeFileSync(fullPath, data)
-      return
-    } catch (err) {
-      throw toFsError(err, fullPath)
-    }
-  }
 
   let dirFd = -1
   let tempFd = -1
@@ -660,13 +649,6 @@ export function readFileContained(rootDir: string, relativePath: string): string
   const parts = containedParts(relativePath)
   const fileName = parts.pop() as string
   const fullPath = join(rootDir, relativePath)
-  if (process.platform === 'win32') {
-    try {
-      return readFileSync(fullPath, 'utf8')
-    } catch (err) {
-      throw toFsError(err, fullPath)
-    }
-  }
 
   let dirFd = -1
   let fileFd = -1

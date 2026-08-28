@@ -19,6 +19,7 @@ import { resolveShipProfile } from '../../src/commands/ship-profile.js'
 import {
   runCrossModelReview,
   runShipCrossModelReview,
+  writeExternalReviewSidecar,
 } from '../../src/commands/cross-model-review.js'
 import { runCli } from '../../src/utils/run-cli.js'
 
@@ -27,9 +28,10 @@ const REPO_ROOT = process.cwd()
 vi.mock('../../src/detectors/external-model.js', () => ({
   detectExternalModel: vi.fn(),
 }))
-vi.mock('../../src/integrations/external-review.js', () => ({
-  invokeExternalReview: vi.fn(),
-}))
+vi.mock('../../src/integrations/external-review.js', async (importActual) => {
+  const actual = await importActual<typeof import('../../src/integrations/external-review.js')>()
+  return { ...actual, invokeExternalReview: vi.fn() }
+})
 vi.mock('../../src/commands/ship-profile.js', () => ({
   resolveShipProfile: vi.fn(),
 }))
@@ -258,6 +260,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         JSON.stringify({
           count: 2,
           agents: ['anthropic-reviewer', 'anthropic-reviewer-2'],
+          taskId: '#2357',
           branch: 'task/#2357-cross-model-cli',
           sha: fixtureSha,
         }),
@@ -300,6 +303,44 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         branch: 'task/#2357-cross-model-cli',
         sha: fixtureSha,
         taskId: '#2357',
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('treats a sidecar without taskId as stale instead of reusing its panel', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-task-required-'))
+    try {
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(
+        join(dir, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({
+          count: 2,
+          agents: ['anthropic-reviewer', 'anthropic-reviewer-2'],
+          branch: 'diff',
+          sha: 'diff',
+        }),
+      )
+
+      writeExternalReviewSidecar(dir, '#2357', {
+        provider: 'codex',
+        status: 'fulfilled',
+        diffBytes: 1,
+        diffTruncated: false,
+        degradationReasons: [],
+        recorded: true,
+        envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+      })
+
+      expect(
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toEqual({
+        count: 1,
+        agents: ['codex-reviewer'],
+        taskId: '#2357',
+        branch: 'diff',
+        sha: 'diff',
       })
     } finally {
       rmSync(dir, { recursive: true, force: true })
