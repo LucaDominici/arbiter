@@ -22,7 +22,7 @@
 // Without --task, resolves a task id from the sidecar's optional task/taskId field; otherwise
 // vacuously passes so the advisory check-all invocation does not guess task context.
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
@@ -124,6 +124,14 @@ function sanitizeTask(task) {
 }
 
 /**
+ * @param {string} agent
+ * @returns {string}
+ */
+function sanitizeAgent(agent) {
+  return agent.replace(/[^0-9A-Za-z-]/g, '-')
+}
+
+/**
  * @param {unknown} err
  * @returns {string}
  */
@@ -140,31 +148,49 @@ function isTaskId(task) {
 }
 
 /**
+ * @param {string} dir
+ * @returns {{ exists: true } | { exists: false } | { error: string }}
+ */
+function inspectDirectoryPath(dir) {
+  const absolute = resolve(dir)
+  const ancestors = []
+  for (let current = absolute; ; current = dirname(current)) {
+    ancestors.push(current)
+    const parent = dirname(current)
+    if (parent === current) break
+  }
+  for (const ancestor of ancestors.reverse()) {
+    try {
+      const state = lstatSync(ancestor)
+      if (state.isSymbolicLink()) return { error: `${ancestor} is a symlink` }
+      if (ancestor !== absolute && !state.isDirectory()) {
+        return { error: `${ancestor} is not a directory` }
+      }
+      if (ancestor === absolute && !state.isDirectory()) {
+        return { error: `${absolute} is not a directory` }
+      }
+    } catch (err) {
+      if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return { exists: false }
+      return { error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+  return { exists: true }
+}
+
+/**
  * @param {string} evidenceRoot
  * @param {string[]} taskDirs
  * @returns {{ files: string[] } | { error: string }}
  */
 function listEnvelopeFiles(evidenceRoot, taskDirs) {
-  try {
-    const root = lstatSync(evidenceRoot)
-    if (root.isSymbolicLink()) return { error: `${evidenceRoot} is a symlink` }
-    if (!root.isDirectory()) return { error: `${evidenceRoot} is not a directory` }
-    // FAIL-OPEN-INTENT: an absent evidence root means zero returns; the caller turns this into a task-completion FAIL, never a silent pass.
-  } catch (err) {
-    if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return { files: [] }
-    return { error: err instanceof Error ? err.message : String(err) }
-  }
+  const rootState = inspectDirectoryPath(evidenceRoot)
+  if ('error' in rootState) return rootState
+  if (!rootState.exists) return { files: [] }
 
   for (const taskDir of taskDirs) {
-    let state
-    try {
-      state = lstatSync(taskDir)
-    } catch (err) {
-      if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') continue
-      return { error: err instanceof Error ? err.message : String(err) }
-    }
-    if (state.isSymbolicLink()) return { error: `${taskDir} is a symlink` }
-    if (!state.isDirectory()) return { error: `${taskDir} is not a directory` }
+    const taskState = inspectDirectoryPath(taskDir)
+    if ('error' in taskState) return taskState
+    if (!taskState.exists) continue
     try {
       return {
         files: readdirSync(taskDir)
@@ -196,7 +222,8 @@ function readEnvelopes(files, schema) {
   const valid = []
   for (const file of files) {
     try {
-      if (lstatSync(file).size === 0) {
+      const fileState = lstatSync(file)
+      if (fileState.isSymbolicLink() || !fileState.isFile() || fileState.size === 0) {
         continue
       }
       const parsed = JSON.parse(readFileSync(file, 'utf-8'))
@@ -219,7 +246,8 @@ function readEnvelopes(files, schema) {
  */
 function isAgentEnvelopeFile(file, agent) {
   const basename = file.slice(file.lastIndexOf('/') + 1)
-  return basename === `${agent}.json` || basename.startsWith(`${agent}-`)
+  const safeAgent = sanitizeAgent(agent)
+  return basename === `${safeAgent}.json` || basename.startsWith(`${safeAgent}-`)
 }
 
 /**

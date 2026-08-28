@@ -143,6 +143,32 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/symlink/i)
   })
 
+  it('recognizes recorder-sanitized agent filenames when reporting malformed returns', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['reviewer/foo'] })
+    writeEnvelopeIn('_2177', 'reviewer-foo-0', {})
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toMatch(/missing, empty, malformed, or schema-invalid/)
+  })
+
+  it('fails closed when an evidence-root ancestor is a symlink', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    const evidenceParent = join(tmpDir, '.arbiter', 'evidence')
+    const outside = join(tmpDir, 'outside')
+    rmSync(evidenceParent, { recursive: true, force: true })
+    mkdirSync(join(outside, 'agent-returns', '_2177'), { recursive: true })
+    writeFileSync(
+      join(outside, 'agent-returns', '_2177', 'alpha.json'),
+      JSON.stringify(envelope('alpha'), null, 2),
+    )
+    symlinkSync(outside, evidenceParent, 'dir')
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(2)
+    expect(output(result)).toMatch(/symlink/i)
+  })
+
   it('exits 1 and names a dispatched agent that has no envelope', () => {
     writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha', 'beta'] })
     writeEnvelope('alpha', envelope('alpha'))
