@@ -34,6 +34,7 @@ while [ "$#" -gt 0 ]; do
 done
 scope="$(dirname "$0")/../codex-scope.txt"
 if [ -e package.json ]; then printf '%s\n' 'repo-visible' > "$scope"; else printf '%s\n' 'scratch-only' > "$scope"; fi
+if [ "\${OPENAI_API_KEY:-}" = 'sentinel-secret' ]; then printf '%s\n' 'api-key-forwarded' > "$scope"; fi
 printf '%s\\n' 'raw stdout must never become evidence'
 printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[]}' > "$out"
 `,
@@ -49,6 +50,7 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
   })
 
   it('runs a PATH stub and records the validated envelope, excluding raw stdout (AC-10)', () => {
+    vi.stubEnv('OPENAI_API_KEY', 'sentinel-secret')
     const result = invokeExternalReview({
       repoRoot: process.cwd(),
       taskId: '#2357',

@@ -331,6 +331,10 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           'while [ "$#" -gt 0 ]; do\n' +
           '  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi\n' +
           'done\n' +
+          'count_file="$(dirname "$0")/../codex-count"\n' +
+          'count=0\n' +
+          'if [ -f "$count_file" ]; then count=$(cat "$count_file"); fi\n' +
+          'printf "%s" "$((count + 1))" > "$count_file"\n' +
           'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}\\n\' > "$out"\n',
       )
       chmodSync(codex, 0o755)
@@ -446,6 +450,22 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         sha: fixtureSha,
         taskId: '#2357',
       })
+
+      execFileSync(
+        process.execPath,
+        [join(REPO_ROOT, 'dist', 'cli.js'), 'ship', '#2357', '--tier', 'Standard', '--dir', dir],
+        {
+          cwd: dir,
+          env: {
+            ...process.env,
+            PATH: bin + ':' + (process.env.PATH ?? ''),
+            OPENAI_API_KEY: 'cross-model-test-sentinel',
+          },
+          stdio: 'ignore',
+          timeout: 30_000,
+        },
+      )
+      expect(readFileSync(join(dir, 'codex-count'), 'utf8')).toBe('1')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

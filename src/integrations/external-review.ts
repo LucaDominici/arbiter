@@ -22,7 +22,6 @@ const CODEX_ENV_KEYS = [
   'PATH',
   'HOME',
   'CODEX_HOME',
-  'OPENAI_API_KEY',
   'TMPDIR',
   'TMP',
   'TEMP',

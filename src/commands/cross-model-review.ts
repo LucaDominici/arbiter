@@ -117,6 +117,19 @@ function isCurrentSidecar(
   )
 }
 
+function hasCurrentFulfilledReview(repoRoot: string, taskId: string): boolean {
+  if (!existsSync(join(repoRoot, '.git'))) return false
+  const branch = currentBranch(repoRoot)
+  const sha = headSha(repoRoot)
+  if (branch === 'unknown' || sha === 'unknown') return false
+  const sidecar = readSidecar(repoRoot)
+  return (
+    isCurrentSidecar(sidecar, branch, sha, taskId) &&
+    Array.isArray(sidecar.agents) &&
+    sidecar.agents.includes('codex-reviewer')
+  )
+}
+
 function readSidecarAgents(existing: ReviewSidecar): string[] | null {
   if (existing.agents === undefined) return null
   if (
@@ -182,6 +195,20 @@ function runShipCrossModelReview(
   options: ShipCrossModelReviewOptions,
 ): ReturnType<typeof invokeExternalReview> {
   const repoRoot = resolve(options.dir)
+  if (
+    options.cfg.enabled &&
+    options.cfg.diffEgressConsent &&
+    hasCurrentFulfilledReview(repoRoot, options.taskId)
+  ) {
+    return {
+      provider: 'codex',
+      status: 'fulfilled',
+      diffBytes: 0,
+      diffTruncated: false,
+      degradationReasons: [],
+      recorded: true,
+    }
+  }
   let diff = ''
   let access = options.cfg.diffEgressConsent ? options.access : undefined
   if (options.cfg.diffEgressConsent) {
