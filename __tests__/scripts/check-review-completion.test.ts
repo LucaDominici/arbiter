@@ -330,6 +330,14 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/sidecar/i)
   })
 
+  it('rejects an empty reviewer panel', () => {
+    writeSidecar({ count: 0, branch: BRANCH, sha: '0123456789abcdef', agents: [] })
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(2)
+    expect(output(result)).toMatch(/sidecar/i)
+  })
+
   it('rejects an explicit task that disagrees with the sidecar task', () => {
     writeSidecar({
       count: 1,

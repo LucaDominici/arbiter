@@ -103,7 +103,7 @@ function isValidAgentList(value) {
  * @returns {boolean}
  */
 function hasValidSidecarFields(record) {
-  if (!isNonNegativeInteger(record['count'])) return false
+  if (!isNonNegativeInteger(record['count']) || record['count'] < 1) return false
   if (!isNonEmptyString(record['branch'])) return false
   return isNonEmptyString(record['sha'])
 }

@@ -6,12 +6,11 @@
 // CATALOG: it cannot fold into check-agent-dispatch.mjs because that replays a static matrix and has no runtime artifact input; the src/ provider check is also outside the fail-open census, so this artifact is the compensating control.
 //
 // Exit codes (INV-53): 0 PASS/SKIP, 1 evidence or policy FAIL, 2 invocation/IO ERROR.
-// Usage: node scripts/check-cross-model-review.mjs [--root <dir>] [--task <id>]
+// Usage: node scripts/check-cross-model-review.mjs [--root <dir>] [--task <id>] [--require-degraded]
 
 import {
   constants as fsConstants,
   closeSync,
-  existsSync,
   openSync,
   readFileSync,
   renameSync,
@@ -21,17 +20,17 @@ import {
 import { execFileSync } from 'node:child_process'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
+import { enforceCitations, validateSchema } from './lib/agent-return-validate.mjs'
 
 const args = process.argv.slice(2)
 const requireFulfilled = args.includes('--require-fulfilled')
+const requireDegraded = args.includes('--require-degraded')
 function option(name) {
   const index = args.indexOf(name)
   return index >= 0 ? args[index + 1] : undefined
 }
 
 const root = resolve(option('--root') ?? process.cwd())
-const configPath = join(root, 'arbiter.json')
 
 function fail(message) {
   process.stderr.write(`[check-cross-model-review] FAIL: ${message}\n`)
@@ -41,15 +40,6 @@ function fail(message) {
 function error(message) {
   process.stderr.write(`[check-cross-model-review] ERROR: ${message}\n`)
   process.exit(2)
-}
-
-function readJson(path, label) {
-  try {
-    return JSON.parse(readFileSync(path, 'utf-8'))
-    // FAIL-OPEN-INTENT: error() emits the failure and exits 2; the catch cannot return a pass.
-  } catch (cause) {
-    error(`cannot read ${label} ${path}: ${cause instanceof Error ? cause.message : String(cause)}`)
-  }
 }
 
 function descriptorPath(fd) {
@@ -163,6 +153,32 @@ function readContainedJson(rootDir, relativePath, label) {
   }
 }
 
+function containedExists(rootDir, relativePath, label) {
+  let dirFd = -1
+  let fileFd = -1
+  try {
+    const parts = containedParts(relativePath)
+    const fileName = parts.pop()
+    dirFd = openContainedDirectory(rootDir, parts)
+    fileFd = openSync(
+      join(descriptorPath(dirFd), fileName),
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    )
+    return true
+  } catch (cause) {
+    if (cause?.code === 'ENOENT') return false
+    const detail = cause instanceof Error ? cause.message : String(cause)
+    if (cause?.code === 'ELOOP' || cause?.code === 'ENOTDIR') {
+      fail(`cannot read ${label} ${join(rootDir, relativePath)}: ${detail}`)
+    }
+    error(`cannot read ${label} ${join(rootDir, relativePath)}: ${detail}`)
+    return false
+  } finally {
+    if (fileFd !== -1) closeSync(fileFd)
+    if (dirFd !== -1) closeSync(dirFd)
+  }
+}
+
 function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -175,13 +191,13 @@ function parseBooleanEnv(raw) {
   return undefined
 }
 
-if (!existsSync(configPath)) {
+if (!containedExists(root, 'arbiter.json', 'configuration')) {
   if (requireFulfilled) fail('cross-model review is not enabled')
   process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
   process.exit(0)
 }
 
-const config = readJson(configPath, 'configuration')
+const config = readContainedJson(root, 'arbiter.json', 'configuration')
 if (!isRecord(config)) error('arbiter.json must contain an object')
 const envOverride = parseBooleanEnv(process.env.ARBITER_CROSS_MODEL_REVIEW)
 const configuredCrossModel = config.crossModelReview
@@ -202,6 +218,10 @@ if (enabled !== true) {
   if (envOverride === undefined && crossModel.enabled !== false) {
     fail('crossModelReview.enabled must be boolean')
   }
+  if (requireDegraded) {
+    process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
+    process.exit(0)
+  }
   const reason = envOverride === false ? 'disabled-by-env' : 'not enabled'
   process.stdout.write(`[check-cross-model-review] skipped: crossModelReview ${reason}\n`)
   process.exit(0)
@@ -210,8 +230,8 @@ if (enabled !== true) {
 const statusPath = join(root, '.claude', '.task', 'status.json')
 const status = option('--task')
   ? { taskId: option('--task') }
-  : existsSync(statusPath)
-    ? readJson(statusPath, 'task state')
+  : containedExists(root, '.claude/.task/status.json', 'task state')
+    ? readContainedJson(root, '.claude/.task/status.json', 'task state')
     : null
 if (!isRecord(status) || typeof status.taskId !== 'string' || status.taskId.length === 0) {
   fail(`enabled crossModelReview has no task id in ${statusPath}`)
@@ -245,7 +265,10 @@ function gitValue(args, label) {
 const schemaPath = join(root, 'schemas', 'cross-model-dispatch.schema.json')
 let schema
 try {
-  schema = loadSchema(schemaPath)
+  if (!containedExists(root, 'schemas/cross-model-dispatch.schema.json', 'dispatch schema')) {
+    throw new Error(`schema not found: ${schemaPath}`)
+  }
+  schema = readContainedJson(root, 'schemas/cross-model-dispatch.schema.json', 'dispatch schema')
   // FAIL-OPEN-INTENT: error() emits the failure and exits 2; the catch cannot return a pass.
 } catch (cause) {
   error(
@@ -255,7 +278,10 @@ try {
 const agentSchemaPath = join(root, 'schemas', 'agent-return.schema.json')
 let agentSchema
 try {
-  agentSchema = loadSchema(agentSchemaPath)
+  if (!containedExists(root, 'schemas/agent-return.schema.json', 'agent-return schema')) {
+    throw new Error(`schema not found: ${agentSchemaPath}`)
+  }
+  agentSchema = readContainedJson(root, 'schemas/agent-return.schema.json', 'agent-return schema')
   // FAIL-OPEN-INTENT: error() emits the failure and exits 2; the catch cannot return a pass.
 } catch (cause) {
   error(
@@ -327,6 +353,14 @@ if (
     artifact.degraded.length !== 0)
 ) {
   fail('--require-fulfilled needs exactly one fulfilled Codex seat and no degradation')
+}
+if (
+  requireDegraded &&
+  (artifact.requested.length !== 1 ||
+    artifact.fulfilled.length !== 0 ||
+    artifact.degraded.length !== 1)
+) {
+  fail('--require-degraded needs exactly one degraded external seat and no fulfillment')
 }
 
 const agentReturnsRoot = resolve(root, '.arbiter', 'evidence', 'agent-returns', taskSegment)

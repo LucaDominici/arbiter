@@ -226,6 +226,13 @@ describe('check-cross-model-review (#2358)', () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(/disabled-by-env/i)
   })
 
+  it('does not treat an invalid enabled flag as a degraded skip', () => {
+    json('arbiter.json', { crossModelReview: { enabled: 'false', onUnavailable: 'degrade' } })
+    const result = run({}, ['--require-degraded'])
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/enabled must be boolean/i)
+  })
+
   it('validates evidence when the environment enables the feature', () => {
     json('arbiter.json', {})
     const result = run({ ARBITER_CROSS_MODEL_REVIEW: ' YES ' })
@@ -238,6 +245,51 @@ describe('check-cross-model-review (#2358)', () => {
     const result = run()
     expect(result.status).toBe(1)
     expect(`${result.stdout}${result.stderr}`).toMatch(/dispatch\.json|missing/i)
+  })
+
+  it('accepts a valid degradation when degradation is explicitly required', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    writeArtifact(
+      dispatch({
+        degraded: [
+          {
+            provider: 'codex',
+            vertical: 'security',
+            substitute: 'anthropic',
+            reason: 'cli-not-found',
+            detail: 'Command not found: codex',
+          },
+        ],
+      }),
+    )
+
+    const result = run({}, ['--require-degraded'])
+    expect(result.status).toBe(0)
+  })
+
+  it('rejects a symlinked configuration file', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    const outside = join(root, 'outside-arbiter.json')
+    writeFileSync(outside, JSON.stringify({ crossModelReview: { enabled: false } }))
+    rmSync(join(root, 'arbiter.json'))
+    symlinkSync(outside, join(root, 'arbiter.json'))
+
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/symlink|configuration/i)
+  })
+
+  it('rejects a symlinked task state file', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    const statusPath = join(root, '.claude', '.task', 'status.json')
+    const outside = join(root, 'outside-status.json')
+    writeFileSync(outside, JSON.stringify({ taskId: '#2358' }))
+    rmSync(statusPath)
+    symlinkSync(outside, statusPath)
+
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/symlink|task state/i)
   })
 
   it('rejects an empty dispatch when a fulfilled seat is required', () => {
