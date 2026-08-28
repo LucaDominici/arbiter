@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — the /ship-facing CLI boundary must reach the external-review invoker.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { detectExternalModel } from '../../src/detectors/external-model.js'
 import { invokeExternalReview } from '../../src/integrations/external-review.js'
 import { resolveShipProfile } from '../../src/commands/ship-profile.js'
@@ -9,6 +21,8 @@ import {
   runShipCrossModelReview,
 } from '../../src/commands/cross-model-review.js'
 import { runCli } from '../../src/utils/run-cli.js'
+
+const REPO_ROOT = process.cwd()
 
 vi.mock('../../src/detectors/external-model.js', () => ({
   detectExternalModel: vi.fn(),
@@ -155,5 +169,116 @@ describe('runCrossModelReview (#2357)', () => {
     expect(mockedRunCli).not.toHaveBeenCalled()
     expect(mockedInvoke).toHaveBeenCalledWith(expect.objectContaining({ diff: '', cfg: noConsent }))
     expect(mockedInvoke.mock.calls[0]?.[0]).not.toHaveProperty('access')
+  })
+})
+
+describe('arbiter ship cross-model wiring (#2357)', () => {
+  it('invokes the external seat from the real CLI refactor boundary', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-ship-cross-model-'))
+    try {
+      const bin = join(dir, 'bin')
+      mkdirSync(bin, { recursive: true })
+      const codex = join(bin, 'codex')
+      writeFileSync(
+        codex,
+        '#!/bin/sh\n' +
+          'if [ "$1" = "--version" ]; then printf "codex 1.2.3\\n"; exit 0; fi\n' +
+          'out=""\n' +
+          'while [ "$#" -gt 0 ]; do\n' +
+          '  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi\n' +
+          'done\n' +
+          'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}\\n\' > "$out"\n',
+      )
+      chmodSync(codex, 0o755)
+
+      const sourceConfig = JSON.parse(
+        readFileSync(join(REPO_ROOT, 'arbiter.json'), 'utf8'),
+      ) as Record<string, unknown>
+      sourceConfig.collaborationMode = 'peer-review'
+      sourceConfig.crossModelReview = {
+        enabled: true,
+        diffEgressConsent: true,
+        providers: ['codex'],
+        slots: { codeReview: 1, redTeamReview: 0 },
+        timeoutMs: 5_000,
+        onUnavailable: 'degrade',
+      }
+      writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)
+      writeFileSync(
+        join(dir, 'package.json'),
+        '{"name":"cross-model-cli-fixture","version":"1.0.0"}\n',
+      )
+
+      const statusDir = join(dir, '.claude', '.task')
+      mkdirSync(statusDir, { recursive: true })
+      writeFileSync(
+        join(statusDir, 'status.json'),
+        `${JSON.stringify(
+          {
+            taskId: '#2357',
+            phase: 'refactor',
+            tier: 'Standard',
+            plan: '',
+            branch: '',
+            cursor: { tddPhase: null, lastAction: '', nextAction: '' },
+            handoffStrategy: null,
+            handoffReady: false,
+            runId: 'cross-model-cli-test',
+            timestamps: {},
+            gateDecisions: [],
+          },
+          null,
+          2,
+        )}\n`,
+      )
+
+      mkdirSync(join(dir, 'schemas'), { recursive: true })
+      mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+      for (const relativePath of [
+        'schemas/agent-return.schema.json',
+        'scripts/record-agent-return.mjs',
+        'scripts/lib/agent-return-validate.mjs',
+        'scripts/lib/gate-args.mjs',
+      ]) {
+        copyFileSync(join(REPO_ROOT, relativePath), join(dir, relativePath))
+      }
+
+      execFileSync('git', ['init', '-q', '-b', 'task/#2357-cross-model-cli'], { cwd: dir })
+      execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: dir })
+      execFileSync('git', ['config', 'user.name', 'test-user'], { cwd: dir })
+      execFileSync('git', ['add', '-A'], { cwd: dir })
+      execFileSync('git', ['commit', '-q', '-m', 'fixture', '--no-gpg-sign'], { cwd: dir })
+      execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: dir })
+
+      const result = spawnSync(
+        process.execPath,
+        [join(REPO_ROOT, 'dist', 'cli.js'), 'ship', '#2357', '--tier', 'Standard', '--dir', dir],
+        {
+          cwd: dir,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            OPENAI_API_KEY: 'cross-model-test-sentinel',
+          },
+          timeout: 30_000,
+        },
+      )
+
+      expect(result.status).toBe(0)
+      const artifact = JSON.parse(
+        readFileSync(
+          join(dir, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
+          'utf8',
+        ),
+      ) as { fulfilled: Array<{ envelope: string }>; degraded: unknown[] }
+      expect(artifact.fulfilled).toHaveLength(1)
+      expect(artifact.degraded).toEqual([])
+      expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
+        '"vendor": "openai"',
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

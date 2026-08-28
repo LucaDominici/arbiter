@@ -33,6 +33,7 @@ const CROSS_MODEL_SCHEMA = {
     phase: { enum: ['preflight', 'plan', 'red', 'green', 'refactor', 'verification', 'complete'] },
     requested: {
       type: 'array',
+      maxItems: 1,
       items: {
         type: 'object',
         required: ['provider', 'vertical'],
@@ -45,6 +46,7 @@ const CROSS_MODEL_SCHEMA = {
     },
     fulfilled: {
       type: 'array',
+      maxItems: 1,
       items: {
         type: 'object',
         required: ['provider', 'cliVersion', 'envelope'],
@@ -58,6 +60,7 @@ const CROSS_MODEL_SCHEMA = {
     },
     degraded: {
       type: 'array',
+      maxItems: 1,
       items: {
         type: 'object',
         required: ['provider', 'vertical', 'substitute', 'reason', 'detail'],
@@ -295,6 +298,39 @@ describe('check-cross-model-review (#2358)', () => {
     const result = run()
     expect(result.status).toBe(1)
     expect(`${result.stdout}${result.stderr}`).toMatch(/outcome|requested|slot/i)
+  })
+
+  it('rejects evidence that requests more than the single external seat', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    writeArtifact(
+      dispatch({
+        requested: [
+          { provider: 'codex', vertical: 'security' },
+          { provider: 'codex', vertical: 'bugs' },
+        ],
+        degraded: [
+          {
+            provider: 'codex',
+            vertical: 'security',
+            substitute: 'anthropic',
+            reason: 'cli-not-found',
+            detail: 'Command not found: codex',
+          },
+          {
+            provider: 'codex',
+            vertical: 'bugs',
+            substitute: 'anthropic',
+            reason: 'cli-not-found',
+            detail: 'Command not found: codex',
+          },
+        ],
+      }),
+    )
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(
+      /one external seat|cardinality|maxItems|requested/i,
+    )
   })
 
   it('rejects dispatch evidence stamped for another branch', () => {

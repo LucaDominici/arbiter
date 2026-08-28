@@ -154,6 +154,16 @@ if (artifact.sha !== currentSha) {
   )
 }
 
+if (
+  artifact.requested.length > 1 ||
+  artifact.fulfilled.length > 1 ||
+  artifact.degraded.length > 1
+) {
+  fail(
+    'cross-model dispatch has one external seat; requested and outcome arrays must contain at most one entry',
+  )
+}
+
 if (artifact.requested.length === 0) {
   if (artifact.fulfilled.length > 0 || artifact.degraded.length > 0) {
     fail('dispatch has outcomes but no requested external slot')

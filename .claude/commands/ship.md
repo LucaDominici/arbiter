@@ -20,6 +20,7 @@ related: []
 
 
 
+
 # /ship #NNN
 
 `/ship` is the **single orchestration entrypoint** — it drives an issue to a reviewed, merged PR by
@@ -348,12 +349,21 @@ never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-# Set this only after the external recorder confirms a fulfilled Codex seat; leave it 0 on degradation.
-if [ "${external_review_fulfilled:-0}" = 1 ]; then
-  mkdir -p .arbiter && printf '{"count":1,"agents":["codex-reviewer"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
-else
-  mkdir -p .arbiter && printf '{"count":1,"agents":["independent-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+# The automatic `arbiter ship` bridge stamps this task's dispatch.json first. Read that
+# artifact so this remains the only sidecar writer and a fulfilled Codex seat cannot be
+# followed by an accidental second Anthropic seat.
+# Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
+external_review_fulfilled=0
+dispatch_file="$(node -e 'const f=require("node:fs"),p=require("node:path");try{const t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;process.stdout.write(p.join(".arbiter","evidence","cross-model",t.replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"unknown","dispatch.json"))}catch{}' 2>/dev/null || true)"
+if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs"),c=require("node:child_process"),d=JSON.parse(f.readFileSync(process.argv[1],"utf8")),b=c.execFileSync("git",["branch","--show-current"],{encoding:"utf8"}).trim(),s=c.execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim();process.exit(d.branch===b&&d.sha===s&&d.fulfilled?.length===1&&d.degraded?.length===0?0:1)' "$dispatch_file"; then
+  external_review_fulfilled=1
 fi
+if [ "$external_review_fulfilled" = 1 ]; then
+  review_agents_json='["codex-reviewer"]'
+else
+  review_agents_json='["independent-review"]'
+fi
+mkdir -p .arbiter && printf '{"count":1,"agents":%s,"branch":"%s","sha":"%s"}\n' "$review_agents_json" "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 
 Write this file only after the reviewer subagent has actually been dispatched — "I reviewed
@@ -402,8 +412,10 @@ When the script is absent (brownfield trees predating its emission, ADR-110), no
 
 
 
+
 **trunk-solo + pr-ff:** open a PR as the check/audit carrier, then atomically
 fast-forward `main` to the exact gated head SHA:
+
 
 ```bash
 gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
@@ -422,9 +434,11 @@ gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
 Closes #NNN
 PRBODY
 )"
+
 node scripts/pr-merge-watch.mjs \
   "$(gh repo view --json nameWithOwner -q .nameWithOwner)" \
   "$(gh pr view --json number -q .number)"
+
 ```
 
 

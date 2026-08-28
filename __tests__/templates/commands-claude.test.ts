@@ -188,6 +188,8 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).toContain('Use the single sidecar writer')
     expect(content).toContain('codex-reviewer')
     expect(content).toContain('external_review_fulfilled')
+    expect(content).toContain('evidence/cross-model')
+    expect(content).toMatch(/agents.*codex-reviewer|codex-reviewer.*agents/)
   })
 
   it('refactor section includes acceptance-criteria PASS/FAIL/NOT-TESTED', () => {

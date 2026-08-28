@@ -37,6 +37,7 @@
     },
     "requested": {
       "type": "array",
+      "maxItems": 1,
       "items": {
         "type": "object",
         "required": ["provider", "vertical"],
@@ -49,6 +50,7 @@
     },
     "fulfilled": {
       "type": "array",
+      "maxItems": 1,
       "items": {
         "type": "object",
         "required": ["provider", "cliVersion", "envelope"],
@@ -62,6 +64,7 @@
     },
     "degraded": {
       "type": "array",
+      "maxItems": 1,
       "items": {
         "type": "object",
         "required": ["provider", "vertical", "substitute", "reason", "detail"],

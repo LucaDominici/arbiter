@@ -21,9 +21,9 @@ import {
   readdirSync,
   symlinkSync,
 } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
-import { spawnSync } from 'node:child_process'
 import { resolveCitation } from '../../scripts/lib/agent-return-validate.mjs'
 
 const CHECK_SCRIPT = new URL('../../scripts/check-agent-return.mjs', import.meta.url).pathname
@@ -253,6 +253,28 @@ describe('check-agent-return.mjs', () => {
       expect(resolveCitation(tmpDir, 'abcdef0', 'src/linked.ts', 1).ok).toBe(false)
     } finally {
       rmSync(outsideDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a committed Git symlink citation even when its target is inside the repository', () => {
+    const gitRoot = mkdtempSync(join(tmpdir(), 'agent-return-git-symlink-'))
+    try {
+      mkdirSync(join(gitRoot, 'src'), { recursive: true })
+      writeFileSync(join(gitRoot, 'src', 'target.ts'), 'export const target = 1\n')
+      symlinkSync('target.ts', join(gitRoot, 'src', 'linked.ts'))
+      execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: gitRoot })
+      execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: gitRoot })
+      execFileSync('git', ['config', 'user.name', 'test-user'], { cwd: gitRoot })
+      execFileSync('git', ['add', '-A'], { cwd: gitRoot })
+      execFileSync('git', ['commit', '-q', '-m', 'fixture', '--no-gpg-sign'], { cwd: gitRoot })
+      const sha = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: gitRoot,
+        encoding: 'utf8',
+      }).trim()
+
+      expect(resolveCitation(gitRoot, sha, 'src/linked.ts', 1).ok).toBe(false)
+    } finally {
+      rmSync(gitRoot, { recursive: true, force: true })
     }
   })
 

@@ -196,6 +196,23 @@ export function resolveCitation(repoRoot, sha, file, line) {
     return { ok: false, reason: `citation file "${file}" escapes the repository` }
   }
   if (isGitRepo(repoRoot)) {
+    let mode
+    try {
+      const treeEntry = execFileSync('git', ['ls-tree', '-z', sha, '--', file], {
+        cwd: repoRoot,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 4000,
+      })
+        .split('\0')
+        .find((entry) => entry.length > 0)
+      mode = treeEntry?.split(/[ \t]/, 1)[0]
+    } catch {
+      return { ok: false, reason: `citation file "${file}" does not resolve at sha ${sha}` }
+    }
+    if (mode !== '100644' && mode !== '100755') {
+      return { ok: false, reason: `citation file "${file}" is not a regular file at sha ${sha}` }
+    }
     try {
       execFileSync('git', ['cat-file', '-e', `${sha}:${file}`], {
         cwd: repoRoot,
