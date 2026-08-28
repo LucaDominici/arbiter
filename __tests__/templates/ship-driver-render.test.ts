@@ -66,6 +66,8 @@ function installCrossModelChecker(
       crossModelReview: { enabled, diffEgressConsent: true, onUnavailable },
     }),
   )
+  execFileSync('git', ['add', '-A'], { cwd: root })
+  execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'cross-model fixture'], { cwd: root })
 }
 
 describe('supervisor.sh.ejs render', () => {
@@ -252,7 +254,6 @@ describe('ship command cross-model sidecar (#2357)', () => {
       execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
       execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
       execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
-      const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
       installCrossModelChecker(root)
 
       mkdirSync(join(root, '.claude', '.task'), { recursive: true })
@@ -264,6 +265,9 @@ describe('ship command cross-model sidecar (#2357)', () => {
         join(root, '.claude', '.task', 'status.json'),
         JSON.stringify({ taskId: '#2357' }),
       )
+      execFileSync('git', ['add', '.claude/.task/status.json'], { cwd: root })
+      execFileSync('git', ['commit', '-q', '-m', 'task fixture'], { cwd: root })
+      const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
       const envelope = '.arbiter/evidence/agent-returns/_2357/codex-reviewer-0.json'
       writeFileSync(
         join(root, envelope),

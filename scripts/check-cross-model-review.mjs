@@ -284,6 +284,20 @@ if (artifact.sha !== currentSha) {
   )
 }
 
+const changedPaths = [
+  gitValue(['diff', '--name-only'], 'working tree changes').split(/\r?\n/).filter(Boolean),
+  gitValue(['diff', '--cached', '--name-only'], 'index changes').split(/\r?\n/).filter(Boolean),
+  gitValue(['status', '--porcelain=v1', '--untracked-files=all'], 'checkout status')
+    .split(/\r?\n/)
+    .filter((line) => line.length > 2)
+    .map((line) => line.slice(3)),
+]
+  .flat()
+  .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
+if (changedPaths.length > 0) {
+  fail('checkout has unreviewed changes after cross-model dispatch')
+}
+
 if (
   artifact.requested.length > 1 ||
   artifact.fulfilled.length > 1 ||
@@ -315,7 +329,7 @@ if (
   fail('--require-fulfilled needs exactly one fulfilled Codex seat and no degradation')
 }
 
-const agentReturnsRoot = resolve(root, '.arbiter', 'evidence', 'agent-returns')
+const agentReturnsRoot = resolve(root, '.arbiter', 'evidence', 'agent-returns', taskSegment)
 for (const [index, fulfilled] of artifact.fulfilled.entries()) {
   const envelope = fulfilled.envelope
   if (isAbsolute(envelope)) fail(`fulfilled[${index}].envelope must be repo-relative`)
@@ -330,7 +344,13 @@ for (const [index, fulfilled] of artifact.fulfilled.entries()) {
     outsideAgentReturns.startsWith('..') ||
     isAbsolute(outsideAgentReturns)
   ) {
-    fail(`fulfilled[${index}].envelope must be under .arbiter/evidence/agent-returns: ${envelope}`)
+    fail(
+      `fulfilled[${index}].envelope must be under the active task's agent-return directory: ${envelope}`,
+    )
+  }
+  const envelopeName = relative(agentReturnsRoot, envelopePath)
+  if (!/^codex-reviewer(?:-\d+)?\.json$/.test(envelopeName)) {
+    fail(`fulfilled[${index}].envelope must use the canonical Codex reviewer filename: ${envelope}`)
   }
   const envelopeValue = readContainedJson(root, envelope, 'fulfilled envelope')
   const envelopeSchemaErrors = validateSchema(envelopeValue, agentSchema, agentSchema, envelopePath)

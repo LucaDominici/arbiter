@@ -21,7 +21,15 @@
 //       [--evidence-dir=<path>] [--schema=<path>] [--repo-root=<path>]
 // Without --task, resolves a task id from the sidecar's optional task/taskId field; otherwise
 // vacuously passes so the advisory check-all invocation does not guess task context.
-import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
+import {
+  constants as fsConstants,
+  closeSync,
+  existsSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+} from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -171,6 +179,33 @@ function inspectDirectoryPath(dir) {
       }
       if (ancestor === absolute && !state.isDirectory()) {
         return { error: `${absolute} is not a directory` }
+      }
+    } catch (err) {
+      if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return { exists: false }
+      return { error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+  return { exists: true }
+}
+
+/**
+ * @param {string} file
+ * @returns {{ exists: true } | { exists: false } | { error: string }}
+ */
+function inspectFilePath(file) {
+  const absolute = resolve(file)
+  const ancestors = []
+  for (let current = absolute; ; current = dirname(current)) {
+    ancestors.push(current)
+    const parent = dirname(current)
+    if (parent === current) break
+  }
+  for (const ancestor of ancestors.reverse()) {
+    try {
+      const state = lstatSync(ancestor)
+      if (state.isSymbolicLink()) return { error: `${ancestor} is a symlink` }
+      if (ancestor === absolute ? !state.isFile() : !state.isDirectory()) {
+        return { error: `${ancestor} is not the expected file path` }
       }
     } catch (err) {
       if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return { exists: false }
@@ -372,12 +407,16 @@ function reportReviewFailures(failures) {
  * @returns {{ sidecar: DispatchSidecar } | { error: string }}
  */
 function readDispatchSidecar() {
+  let fd = -1
   try {
-    const parsed = JSON.parse(readFileSync(sidecarPath, 'utf-8'))
+    fd = openSync(sidecarPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
+    const parsed = JSON.parse(readFileSync(fd, 'utf-8'))
     if (!isSidecar(parsed)) throw new Error('sidecar must contain count, branch, and sha')
     return { sidecar: parsed } // FAIL-OPEN-INTENT: error value is returned and surfaced by the caller, which exits non-zero.
   } catch (err) {
     return { error: errorMessage(err) }
+  } finally {
+    if (fd !== -1) closeSync(fd)
   }
 }
 
@@ -400,6 +439,9 @@ function sidecarTaskError(sidecar, requested) {
   const declared = [sidecar.task, sidecar.taskId].filter((value) => value !== undefined)
   if (declared.some((value) => typeof value !== 'string' || !isTaskId(value))) {
     return 'sidecar task/taskId must be GitHub issue ids like #2177'
+  }
+  if (requested && declared.length === 0) {
+    return `requested task ${requested} requires a task/taskId in the dispatch sidecar`
   }
   const selected = requested ?? sidecarTask(sidecar)
   if (selected && declared.some((value) => value !== selected)) {
@@ -456,11 +498,32 @@ function checkoutBindingError(sidecar) {
       return `review sidecar sha ${sidecar.sha} is stale; tracked files changed after dispatch`
     }
   }
+  const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
+  if (status.status !== 0) return `cannot inspect checkout status for sidecar sha ${sidecar.sha}`
+  const dirtyPaths = String(status.stdout)
+    .split(/\r?\n/)
+    .filter((line) => line.length > 2)
+    .map((line) => line.slice(3))
+    .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
+  if (dirtyPaths.length > 0) {
+    return `review sidecar sha ${sidecar.sha} is stale; checkout has unreviewed changes`
+  }
   return null
 }
 
 function main() {
-  if (!existsSync(sidecarPath)) {
+  const sidecarState = inspectFilePath(sidecarPath)
+  if ('error' in sidecarState) {
+    process.stderr.write(
+      `[check-review-completion] ERROR: cannot read sidecar ${sidecarPath}: ${sidecarState.error}\n`,
+    )
+    return 2
+  }
+  if (!sidecarState.exists) {
     // FAIL-OPEN-INTENT: no dispatch sidecar means no review dispatch was recorded, so this task-scoped reconciliation has no subject.
     process.stdout.write(
       '[check-review-completion] OK — dispatch sidecar not found, vacuous pass\n',

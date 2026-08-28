@@ -28,6 +28,7 @@ type Sidecar = {
   branch: string
   sha: string
   agents?: string[]
+  taskId?: string
 }
 
 function output(result: CheckResult): string {
@@ -95,6 +96,11 @@ describe('check-review-completion.mjs', () => {
   })
 
   function writeSidecar(value: Sidecar): void {
+    mkdirSync(join(sidecar, '..'), { recursive: true })
+    writeFileSync(sidecar, JSON.stringify({ taskId: TASK, ...value }, null, 2))
+  }
+
+  function writeTasklessSidecar(value: Sidecar): void {
     mkdirSync(join(sidecar, '..'), { recursive: true })
     writeFileSync(sidecar, JSON.stringify(value, null, 2))
   }
@@ -290,6 +296,16 @@ describe('check-review-completion.mjs', () => {
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
   })
 
+  it('fails closed when the dispatch sidecar is a symlink', () => {
+    const outside = join(tmpDir, 'outside.json')
+    writeFileSync(outside, '{}')
+    symlinkSync(outside, sidecar)
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(2)
+    expect(output(result)).toMatch(/symlink/i)
+  })
+
   it('exits 2 when the dispatch sidecar contains malformed JSON', () => {
     mkdirSync(join(sidecar, '..'), { recursive: true })
     writeFileSync(sidecar, '{not valid json')
@@ -329,6 +345,15 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/task/i)
   })
 
+  it('rejects an explicit task when a legacy sidecar has no task id', () => {
+    writeTasklessSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef' })
+    writeEnvelopeIn('_9999', 'alpha', envelope('alpha', { taskId: '#9999' }))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir, '#9999')
+    expect(result.exitCode).toBe(2)
+    expect(output(result)).toMatch(/task/i)
+  })
+
   it('binds the sidecar SHA to the current checkout when git metadata exists', () => {
     const branchResult = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
       cwd: process.cwd(),
@@ -363,7 +388,7 @@ describe('check-review-completion.mjs', () => {
       mkdirSync(evidence, { recursive: true })
       writeFileSync(
         join(repo, '.arbiter', 'agents-dispatched.json'),
-        JSON.stringify({ count: 1, agents: ['alpha'], branch, sha: base }),
+        JSON.stringify({ taskId: TASK, count: 1, agents: ['alpha'], branch, sha: base }),
       )
       writeFileSync(
         join(evidence, 'alpha.json'),
@@ -398,7 +423,7 @@ describe('check-review-completion.mjs', () => {
       mkdirSync(evidence, { recursive: true })
       writeFileSync(
         join(repo, '.arbiter', 'agents-dispatched.json'),
-        JSON.stringify({ count: 1, agents: ['alpha'], branch, sha: base }),
+        JSON.stringify({ taskId: TASK, count: 1, agents: ['alpha'], branch, sha: base }),
       )
       writeFileSync(
         join(evidence, 'alpha.json'),
@@ -413,6 +438,42 @@ describe('check-review-completion.mjs', () => {
       )
       expect(result.exitCode).toBe(2)
       expect(output(result)).toMatch(/stale|changed/i)
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a sidecar when a source file is untracked', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'review-completion-git-'))
+    try {
+      const git = (args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf-8' })
+      expect(git(['init', '-q']).status).toBe(0)
+      expect(git(['config', 'user.email', 'test-user']).status).toBe(0)
+      expect(git(['config', 'user.name', 'Test']).status).toBe(0)
+      writeFileSync(join(repo, 'tracked.txt'), 'before\n')
+      expect(git(['add', 'tracked.txt']).status).toBe(0)
+      expect(git(['commit', '-qm', 'before']).status).toBe(0)
+      const base = git(['rev-parse', 'HEAD']).stdout.trim()
+      const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim()
+      const evidence = join(repo, '.arbiter', 'evidence', 'agent-returns', '_2177')
+      mkdirSync(evidence, { recursive: true })
+      writeFileSync(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({ taskId: TASK, count: 1, agents: ['alpha'], branch, sha: base }),
+      )
+      writeFileSync(
+        join(evidence, 'alpha.json'),
+        JSON.stringify(envelope('alpha', { branch, sha: base })),
+      )
+      writeFileSync(join(repo, 'untracked-source.ts'), 'export const stale = true\n')
+
+      const result = runCheck(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        join(repo, '.arbiter', 'evidence', 'agent-returns'),
+        repo,
+      )
+      expect(result.exitCode).toBe(2)
+      expect(output(result)).toMatch(/stale|changed|untracked/i)
     } finally {
       rmSync(repo, { recursive: true, force: true })
     }

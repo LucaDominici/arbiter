@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2358 — dispatch artifact schema and advisory gate.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -99,6 +107,22 @@ function git(args: string[]): string {
 function json(path: string, value: unknown): void {
   mkdirSync(join(root, path, '..'), { recursive: true })
   writeFileSync(join(root, path), `${JSON.stringify(value, null, 2)}\n`)
+  if (existsSync(join(root, '.git')) && !path.startsWith('.arbiter/')) {
+    commitFixtureChanges(path)
+  }
+}
+
+function commitFixtureChanges(path: string): void {
+  execFileSync('git', ['add', '--', path], { cwd: root, stdio: 'ignore' })
+  const staged = spawnSync('git', ['diff', '--cached', '--quiet'], {
+    cwd: root,
+    stdio: 'ignore',
+  })
+  if (staged.status !== 1) return
+  execFileSync('git', ['commit', '-q', '-m', 'fixture update', '--no-gpg-sign'], {
+    cwd: root,
+    stdio: 'ignore',
+  })
 }
 
 function dispatch(overrides: Record<string, unknown> = {}) {
@@ -456,6 +480,52 @@ describe('check-cross-model-review (#2358)', () => {
     const result = run()
     expect(result.status).toBe(1)
     expect(`${result.stdout}${result.stderr}`).toMatch(/current HEAD|match/i)
+  })
+
+  it('rejects dispatch evidence when tracked changes are staged after dispatch', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    writeFileSync(join(root, 'tracked.txt'), 'before\n')
+    execFileSync('git', ['add', 'tracked.txt'], { cwd: root })
+    execFileSync('git', ['commit', '-q', '-m', 'tracked fixture', '--no-gpg-sign'], { cwd: root })
+    writeArtifact(
+      dispatch({
+        degraded: [
+          {
+            provider: 'codex',
+            vertical: 'security',
+            substitute: 'anthropic',
+            reason: 'cli-not-found',
+            detail: 'Command not found: codex',
+          },
+        ],
+      }),
+    )
+    writeFileSync(join(root, 'tracked.txt'), 'after\n')
+    execFileSync('git', ['add', 'tracked.txt'], { cwd: root })
+
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/unreviewed|changes|checkout/i)
+  })
+
+  it('rejects a fulfilled envelope whose filename is not canonical', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    json('.arbiter/evidence/agent-returns/_2358/evil-name.json', envelope())
+    writeArtifact(
+      dispatch({
+        fulfilled: [
+          {
+            provider: 'codex',
+            cliVersion: '0.5.1',
+            envelope: '.arbiter/evidence/agent-returns/_2358/evil-name.json',
+          },
+        ],
+      }),
+    )
+
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/canonical|filename|agent-return/i)
   })
 
   it('rejects a fulfilled slot whose provenance is not the Codex provider', () => {
