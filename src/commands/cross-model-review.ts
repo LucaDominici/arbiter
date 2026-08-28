@@ -10,7 +10,7 @@ import { resolveShipProfile } from './ship-profile.js'
 import { normTier, type ShipTier } from './ship-tier.js'
 import type { TaskPhase } from './task-state.js'
 import { existsSync, lstatSync, readFileSync } from 'node:fs'
-import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js'
+import { toFsError, writeFileContained } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
@@ -92,9 +92,8 @@ function assertSafeSidecarFile(path: string): void {
 function readSidecar(repoRoot: string): ReviewSidecar | null {
   const path = join(repoRoot, '.arbiter', 'agents-dispatched.json')
   try {
-    const parsed: unknown = JSON.parse(
-      readFileContained(repoRoot, join('.arbiter', 'agents-dispatched.json')),
-    )
+    assertSafeArbiterEvidenceRoot(repoRoot)
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
     if (!isRecord(parsed)) throw new Error(`${path} must contain a JSON object`)
     return parsed
   } catch (error) {
@@ -228,18 +227,32 @@ function runShipCrossModelReview(
   let diff = ''
   let access = options.cfg.diffEgressConsent ? options.access : undefined
   let preflightError: unknown
-  let preflightDegradation: 'diff-collection-failed' | undefined
+  let preflightDegradation: 'invocation-failed' | undefined
   if (options.cfg.diffEgressConsent) {
     try {
+      const status = runCli('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
+        cwd: repoRoot,
+        timeoutMs: 15_000,
+      }).stdout
+      const unreviewed = status
+        .split(/\r?\n/)
+        .filter((line) => line.length > 2)
+        .map((line) => line.slice(3))
+        .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
+      if (unreviewed.length > 0) {
+        throw new Error(
+          `working tree has uncommitted changes; commit before external review (${unreviewed.join(', ')})`,
+        )
+      }
       diff = runCli('git', ['diff', '--binary', 'origin/main...HEAD'], {
         cwd: repoRoot,
         timeoutMs: 15_000,
       }).stdout
-      // FAIL-OPEN-INTENT: a diff collection failure is recorded as an explicit degradation; no diff is sent.
+      // FAIL-OPEN-INTENT: a preflight failure is recorded as an explicit degradation; no diff is sent.
     } catch (error) {
       access = undefined
       preflightError = error
-      preflightDegradation = 'diff-collection-failed'
+      preflightDegradation = 'invocation-failed'
     }
   }
   const result = invokeExternalReview({

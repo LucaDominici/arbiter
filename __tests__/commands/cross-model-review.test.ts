@@ -138,6 +138,9 @@ describe('runCrossModelReview (#2357)', () => {
   })
 
   it('ships the configured external review from the real refactor boundary', () => {
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 1 })
+      .mockReturnValueOnce({ stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 })
     const result = runShipCrossModelReview({
       dir: '/tmp/project',
       taskId: '#2357',
@@ -149,6 +152,11 @@ describe('runCrossModelReview (#2357)', () => {
     })
 
     expect(result.status).toBe('fulfilled')
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'git',
+      ['status', '--porcelain=v1', '--untracked-files=all'],
+      expect.objectContaining({ cwd: '/tmp/project' }),
+    )
     expect(mockedRunCli).toHaveBeenCalledWith(
       'git',
       ['diff', '--binary', 'origin/main...HEAD'],
@@ -274,6 +282,7 @@ describe('runCrossModelReview (#2357)', () => {
     try {
       mockedRunCli.mockReset()
       mockedRunCli
+        .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 1 })
         .mockImplementationOnce(() => {
           throw new Error('git diff failed')
         })
@@ -294,7 +303,7 @@ describe('runCrossModelReview (#2357)', () => {
         expect.objectContaining({
           diff: '',
           cfg,
-          preflightDegradation: 'diff-collection-failed',
+          preflightDegradation: 'invocation-failed',
           preflightError: expect.objectContaining({ message: 'git diff failed' }),
         }),
       )

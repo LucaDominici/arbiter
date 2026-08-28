@@ -179,6 +179,8 @@ describe('validateConfig — crossModelReview (#2356)', () => {
     ['diffEgressConsent', { ...crossModelReview, diffEgressConsent: 'yes' }],
     ['providers', { ...crossModelReview, providers: ['gemini'] }],
     ['slots', { ...crossModelReview, slots: { codeReview: -1, redTeamReview: 0 } }],
+    ['codeReview slots', { ...crossModelReview, slots: { codeReview: 99, redTeamReview: 0 } }],
+    ['redTeamReview slots', { ...crossModelReview, slots: { codeReview: 1, redTeamReview: 7 } }],
     ['timeoutMs', { ...crossModelReview, timeoutMs: 0 }],
     ['onUnavailable', { ...crossModelReview, onUnavailable: 'ignore' }],
   ])('rejects invalid %s values', (_field, value) => {

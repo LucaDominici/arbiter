@@ -1264,11 +1264,13 @@ function validateCrossModelSlots(raw: Record<string, unknown>, errors: string[])
     errors.push('crossModelReview.slots must be an object')
     return
   }
-  for (const slot of ['codeReview', 'redTeamReview'] as const) {
-    const value = slots[slot]
-    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-      errors.push(`crossModelReview.slots.${slot} must be a non-negative integer`)
-    }
+  const codeReview = slots['codeReview']
+  if (codeReview !== 0 && codeReview !== 1) {
+    errors.push('crossModelReview.slots.codeReview must be 0 or 1 in v1')
+  }
+  const redTeamReview = slots['redTeamReview']
+  if (redTeamReview !== 0) {
+    errors.push('crossModelReview.slots.redTeamReview must be 0 until red-team support ships')
   }
 }
 

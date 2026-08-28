@@ -204,6 +204,13 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
     expect(() => ship({ chainAddIds: ['#105'] })).toThrow(/SEALED: max-chain/)
   })
 
+  it('refuses one append request that would exceed the train limit', () => {
+    expect(() => ship({ chainAddIds: ['#101', '#102', '#103', '#104', '#105'] })).toThrow(
+      /SEALED: max-chain/,
+    )
+    expect(chain()).toEqual([])
+  })
+
   it('leaves state untouched when it refuses — a sealed train never half-applies', () => {
     ship({ chainAddIds: ['#101', '#102', '#103', '#104'] })
     const before = chain()

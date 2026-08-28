@@ -82,8 +82,7 @@
               "nonzero-exit",
               "coercion-failed",
               "envelope-rejected",
-              "diff-truncated",
-              "diff-collection-failed"
+              "diff-truncated"
             ]
           },
           "detail": { "type": "string", "minLength": 1 }

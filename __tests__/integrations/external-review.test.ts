@@ -836,7 +836,7 @@ describe('invokeExternalReview (#2357)', () => {
         prompt: 'Review.',
         diff: '',
         cfg: config(),
-        preflightDegradation: 'diff-collection-failed',
+        preflightDegradation: 'invocation-failed',
         preflightError: new Error('git diff failed'),
         evidenceDir: join(evidenceRoot, 'agent-returns'),
         dispatchEvidenceDir: evidenceRoot,
@@ -850,10 +850,10 @@ describe('invokeExternalReview (#2357)', () => {
       )
       expect(result).toMatchObject({
         status: 'degraded',
-        degradationReason: 'diff-collection-failed',
+        degradationReason: 'invocation-failed',
       })
       expect(dispatch.degraded[0]).toMatchObject({
-        reason: 'diff-collection-failed',
+        reason: 'nonzero-exit',
         detail: 'git diff failed',
       })
     } finally {

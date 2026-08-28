@@ -44,7 +44,6 @@ type CrossModelDispatchReason =
   | 'nonzero-exit'
   | 'coercion-failed'
   | 'envelope-rejected'
-  | 'diff-collection-failed'
   | 'diff-truncated'
 
 type ExternalReviewDegradationReason =
@@ -57,7 +56,6 @@ type ExternalReviewDegradationReason =
   | 'invocation-failed'
   | 'coercion-failed'
   | 'envelope-rejected'
-  | 'diff-collection-failed'
 
 interface ExternalReviewPayload {
   verdict: 'PASS' | 'WARN' | 'FAIL'
@@ -436,7 +434,6 @@ const DIRECT_DISPATCH_REASONS: Partial<
   'diff-truncated': 'diff-truncated',
   'coercion-failed': 'coercion-failed',
   'envelope-rejected': 'envelope-rejected',
-  'diff-collection-failed': 'diff-collection-failed',
 }
 
 function dispatchReasonFromCliError(error: unknown): CrossModelDispatchReason {
@@ -493,7 +490,6 @@ function dispatchDetail(reason: CrossModelDispatchReason, error?: unknown): stri
     'coercion-failed': 'Codex output did not contain a valid review payload',
     'envelope-rejected': 'the recorder rejected the Codex envelope',
     'diff-truncated': 'diff exceeded the 512 KiB review limit',
-    'diff-collection-failed': message ?? 'git diff collection failed',
   }
   return details[reason]
 }

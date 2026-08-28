@@ -87,7 +87,6 @@ const CROSS_MODEL_SCHEMA = {
               'coercion-failed',
               'envelope-rejected',
               'diff-truncated',
-              'diff-collection-failed',
             ],
           },
           detail: { type: 'string', minLength: 1 },

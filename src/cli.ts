@@ -457,7 +457,7 @@ function runConfiguredShipReview(
   access: ReturnType<typeof detectExternalModel> | undefined,
 ): void {
   const config = result.profile.crossModelReview
-  if (result.phase !== 'refactor' || !config?.enabled) return
+  if (result.advanced || result.phase !== 'refactor' || !config?.enabled) return
   const taskId = readUnifiedState(root)?.taskId
   if (taskId === undefined) {
     throw new Error('crossModelReview is enabled but the active ship task id is missing')

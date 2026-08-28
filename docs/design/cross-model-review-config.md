@@ -77,7 +77,7 @@ An egress question cannot default to yes. And a user is not asked to configure s
 
 ## Open questions
 
-- `slots.redTeamReview` is in the schema but v1 leaves it at 0 (no consumer). That is accept-then-ignore in miniature: better to omit it until needed, or keep it with a validator that rejects any value other than 0?
+- `slots.codeReview` is limited to `0|1` and `slots.redTeamReview` is limited to `0` until a red-team consumer ships; unsupported slot requests fail validation instead of being silently ignored.
 - `timeoutMs` at 300 s is a guess. It should be calibrated against a real measurement of `codex exec` on an average diff.
 - The wizard is already 18 questions. Is one more conditional question acceptable, or should cross-model configuration move entirely to post-init `arbiter configure`?
 

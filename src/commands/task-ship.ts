@@ -697,10 +697,18 @@ function applyChainAdd(root: string, opts: TaskShipOptions): void {
 
   const state = readUnifiedState(root)
   const now = opts.now ?? new Date()
-  const verdict = evaluateSeal(
-    trainSignalsFor(root, opts, state, now),
-    opts.trainLimits ?? DEFAULT_TRAIN_LIMITS,
-  )
+  const limits = opts.trainLimits ?? DEFAULT_TRAIN_LIMITS
+  const existing = state?.chainIds ?? []
+  const projectedSize = (state?.taskId ? 1 : 0) + appendChainIds(existing, additions).length
+  const currentVerdict = evaluateSeal(trainSignalsFor(root, opts, state, now), limits)
+  const verdict =
+    currentVerdict.sealed || projectedSize <= limits.maxChain
+      ? currentVerdict
+      : {
+          sealed: true as const,
+          reason: 'max-chain' as const,
+          detail: `the requested append would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
+        }
   if (verdict.sealed) {
     // UserFacingError, not Error: a seal is the policy working as designed, not a fault. The
     // generic handler would print "Unexpected error", telling the operator something broke.
