@@ -540,7 +540,7 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   },
 ]
 
-// The four repo-wide anti-context-rot gates are wired ADVISORY (runWarnCheck)
+// The repo-wide anti-context-rot gates are wired ADVISORY (runWarnCheck)
 // inside check-all.mjs.ejs's enableDebtGates ring (L2+ default) — their emission
 // follows the SAME predicate so no fixture ever carries a dead emission (#1835
 // class; caught by check-emission-coherence on L1/peer-review).
@@ -556,6 +556,14 @@ const DEBT_GATED_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string 
   },
   { rel: ['scripts', 'check-audit-dry-pass.mjs'], tpl: 'scripts/check-audit-dry-pass.mjs.ejs' },
   { rel: ['scripts', 'check-handoff-doc.mjs'], tpl: 'scripts/check-handoff-doc.mjs.ejs' },
+  {
+    rel: ['scripts', 'check-cross-model-review.mjs'],
+    tpl: 'scripts/check-cross-model-review.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'cross-model-dispatch.schema.json'],
+    tpl: 'scripts/schemas/cross-model-dispatch.schema.json.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

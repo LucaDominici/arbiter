@@ -9,6 +9,12 @@
       "rationale": "M8 core substrate + M12 citation enforcement. Advisory until the dispatch cross-check sidecar is routinely populated; promote to runCheck + --enforce at gated-review once producer lines land in ship.md."
     },
     {
+      "check": "cross-model review (#2358)",
+      "since": "2026-08-28",
+      "promoteBy": "2026-11-28",
+      "rationale": "#2358 dispatch artifact and vendor-provenance audit. Advisory while cross-model review remains opt-in and local evidence accumulates; promote only after enabled-run coverage is routine."
+    },
+    {
       "check": "review completion (#2177)",
       "since": "2026-08-02",
       "promoteBy": "2026-10-14",

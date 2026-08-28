@@ -224,7 +224,12 @@ describe('invokeExternalReview (#2357)', () => {
   it('writes dispatch evidence for an enabled degraded run (#2358)', () => {
     const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-'))
     try {
-      mockedRunCli.mockImplementation(() => ({ stdout: '', stderr: '', exitCode: 0, durationMs: 1 }))
+      mockedRunCli.mockImplementation(() => ({
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 1,
+      }))
       const result = invokeExternalReview({
         repoRoot,
         taskId: '#2358',

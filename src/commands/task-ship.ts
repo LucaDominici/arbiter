@@ -97,6 +97,9 @@ type CompanionEvidenceV1 = z.infer<typeof CompanionEvidenceV1>
 const REDTEAM_AGENTS: Record<ShipTier, number> = { XS: 1, S: 2, Standard: 3 }
 /** #2178/#2176: post-implementation code-review agents per tier (mirrors /task Phase 6 minimums). */
 const REVIEW_AGENTS: Record<ShipTier, number> = { XS: 1, S: 1, Standard: 2 }
+export function reviewAgentsForTier(tier: ShipTier): number {
+  return REVIEW_AGENTS[tier]
+}
 /** #2178: a diff whose file-path-matched auditors include security/data-integrity/silent-failures
     escalates the code review to a panel (study: singles 82-83%, panels 97-99%). */
 export const REVIEW_AGENTS_SECURITY_SURFACE = 3

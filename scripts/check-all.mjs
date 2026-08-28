@@ -9,7 +9,7 @@
 // check (T1, "check" subcommand — L1 fast checks): 126 hard checks (runCheck/runToolCheck)
 //   + 1 advisory (runWarnCheck), as of #2039 + #2291 + #2326.
 // gate (T1+T2, "gate" subcommand, default): check + T2 extended checks, cumulative total
-//   151 hard checks + 9 advisory, as of #2039 + #2291 + #2326.
+//   151 hard checks + 10 advisories, as of #2039 + #2291 + #2326 + #2358.
 // These counts are hand-maintained (#2042 fixed a ~2x stale count and a 25/37-gate-name
 // drift found by audit) — do not hand-copy an enumerated gate list here, it WILL drift.
 // For the exhaustive, always-current list: grep this file for `run(Check|ToolCheck|WarnCheck)(`
@@ -466,6 +466,7 @@ if (isMain) {
     // E1-E6a #1943 (anti-context-rot enforcers, advisory at land-time per design §0; promote
     // to runCheck at gated-review). Vacuous-pass when no evidence — wired now so the path is real.
     runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
+    runWarnCheck('cross-model review (#2358)', 'node', ['scripts/check-cross-model-review.mjs'])
     runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
     runWarnCheck('refutation majority (E2 #1943)', 'node', [
       'scripts/check-refutation-verdicts.mjs',

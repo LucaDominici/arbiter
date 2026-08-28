@@ -2,17 +2,36 @@
 // #2357 — one optional Codex reviewer seat, with the recorder as the trust boundary.
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import type { ExternalModelAccess } from '../detectors/external-model.js'
 import type { CrossModelReviewConfig, CrossModelReviewProvider } from '../wizard/types.js'
 import type { TaskPhase } from '../commands/task-state.js'
 import type { ShipTier } from '../commands/ship-tier.js'
-import { mkdtempTranslated, readFileTranslated, rmTranslated } from '../utils/fs.js'
+import { currentBranch, headSha } from '../evidence/git-checks.js'
+import {
+  ensureDir,
+  mkdtempTranslated,
+  readFileTranslated,
+  rmTranslated,
+  writeFileTranslated,
+} from '../utils/fs.js'
 import { getLogger } from '../utils/logger.js'
-import { runCli, type RunCliResult } from '../utils/run-cli.js'
+import { CliError, runCli, type RunCliResult } from '../utils/run-cli.js'
 
 export const EXTERNAL_REVIEW_SCHEMA = 'schemas/agent-return-external.schema.json'
 export const EXTERNAL_REVIEW_MAX_DIFF_BYTES = 512 * 1024
+export const CROSS_MODEL_DISPATCH_SCHEMA = 'arbiter-cross-model-dispatch-v1'
+
+export type CrossModelDispatchReason =
+  | 'cli-not-found'
+  | 'not-authenticated'
+  | 'consent-absent'
+  | 'disabled-by-env'
+  | 'timeout'
+  | 'nonzero-exit'
+  | 'coercion-failed'
+  | 'envelope-rejected'
+  | 'diff-truncated'
 
 export type ExternalReviewDegradationReason =
   | 'disabled'
@@ -48,6 +67,12 @@ export interface ExternalReviewRequest {
   cfg: CrossModelReviewConfig
   access?: ExternalModelAccess
   evidenceDir?: string
+  dispatchEvidenceDir?: string
+  tier?: ShipTier
+  phase?: TaskPhase
+  vertical?: string
+  branch?: string
+  sha?: string
 }
 
 export interface ExternalReviewResult {
@@ -63,6 +88,24 @@ export interface ExternalReviewResult {
   prompt?: string
 }
 
+export interface CrossModelDispatchArtifact {
+  schema: typeof CROSS_MODEL_DISPATCH_SCHEMA
+  taskId: string
+  branch: string
+  sha: string
+  ts: string
+  phase: TaskPhase
+  requested: Array<{ provider: 'codex'; vertical: string }>
+  fulfilled: Array<{ provider: 'codex'; cliVersion: string; envelope: string }>
+  degraded: Array<{
+    provider: 'codex'
+    vertical: string
+    substitute: 'anthropic'
+    reason: CrossModelDispatchReason
+    detail: string
+  }>
+}
+
 type SlotInput = {
   tier: ShipTier
   phase: TaskPhase
@@ -70,6 +113,11 @@ type SlotInput = {
   verticals: readonly string[]
   cfg?: CrossModelReviewConfig
   access?: ExternalModelAccess
+}
+
+/** v1 reserves one external seat for Standard; XS/S retain an Anthropic baseline. */
+export function externalSlotsForTier(tier: ShipTier): number {
+  return tier === 'Standard' ? 1 : 0
 }
 
 function slotCount(totalSlots: number): number {
@@ -139,6 +187,7 @@ function parseObject(value: string): ExternalReviewPayload | null {
   try {
     const parsed: unknown = JSON.parse(value)
     return isPayloadObject(parsed) ? parsed : null
+    // FAIL-OPEN-INTENT: malformed external output becomes an explicit coercion degradation.
   } catch {
     return null
   }
@@ -309,8 +358,8 @@ function persistEnvelope(
   request: ExternalReviewRequest,
   access: ExternalModelAccess,
   envelope: ExternalReviewPayload,
-): void {
-  runCli('node', recorderArgs(request, access), {
+): string | null {
+  const result = runCli('node', recorderArgs(request, access), {
     cwd: request.repoRoot,
     input: JSON.stringify({
       schema: 'arbiter-agent-return-v1',
@@ -322,11 +371,149 @@ function persistEnvelope(
     timeoutMs: request.cfg.timeoutMs,
     retries: 0,
   })
+  return result.stdout.match(/\[record-agent-return\] OK — wrote (.+)\s*$/m)?.[1] ?? null
+}
+
+function sanitizeTask(taskId: string): string {
+  return taskId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'unknown'
+}
+
+function dispatchReason(
+  reason: ExternalReviewDegradationReason,
+  error?: unknown,
+): CrossModelDispatchReason {
+  if (reason === 'consent-missing') return 'consent-absent'
+  if (reason === 'provider-unauthenticated') return 'not-authenticated'
+  if (reason === 'disabled' || reason === 'provider-not-configured') return 'disabled-by-env'
+  if (reason === 'diff-truncated') return 'diff-truncated'
+  if (reason === 'coercion-failed') return 'coercion-failed'
+  if (reason === 'envelope-rejected') return 'envelope-rejected'
+  if (reason === 'invocation-failed' && error instanceof CliError) {
+    if (error.notFound) return 'cli-not-found'
+    if (error.timedOut) return 'timeout'
+    return 'nonzero-exit'
+  }
+  if (reason === 'provider-unavailable') return 'cli-not-found'
+  return 'nonzero-exit'
+}
+
+function dispatchDetail(reason: CrossModelDispatchReason, error?: unknown): string {
+  if (reason === 'cli-not-found' && error instanceof CliError && error.notFound) {
+    return `Command not found: ${error.cmd}`
+  }
+  if (reason === 'timeout') return 'Codex invocation timed out'
+  if (reason === 'nonzero-exit' && error instanceof CliError) {
+    return `Codex exited with status ${error.exitCode}`
+  }
+  const details: Record<
+    Exclude<CrossModelDispatchReason, 'cli-not-found' | 'timeout' | 'nonzero-exit'>,
+    string
+  > = {
+    'not-authenticated': 'Codex CLI is not authenticated',
+    'consent-absent': 'cross-model diff egress consent is absent',
+    'disabled-by-env': 'cross-model review is disabled by configuration or environment',
+    'coercion-failed': 'Codex output did not contain a valid review payload',
+    'envelope-rejected': 'the recorder rejected the Codex envelope',
+    'diff-truncated': 'diff exceeded the 512 KiB review limit',
+  }
+  return details[reason as keyof typeof details]
+}
+
+function relativeEvidencePath(repoRoot: string, path: string | null): string | null {
+  if (path === null) return null
+  return relative(repoRoot, path).replaceAll('\\', '/')
+}
+
+function requestedEntries(
+  request: ExternalReviewRequest,
+  plan: CrossModelPlan,
+): CrossModelDispatchArtifact['requested'] {
+  if (!request.cfg.enabled || externalSlotsForTier(request.tier ?? 'Standard') === 0) return []
+  return [{ provider: 'codex', vertical: request.vertical ?? plan.external[0] ?? 'bugs' }]
+}
+
+function fulfilledEntries(
+  request: ExternalReviewRequest,
+  result: ExternalReviewResult,
+  envelopePath: string | null,
+): CrossModelDispatchArtifact['fulfilled'] {
+  if (result.envelope === undefined || !result.recorded || envelopePath === null) return []
+  return [
+    {
+      provider: 'codex',
+      cliVersion: request.access?.version ?? 'unknown',
+      envelope: relativeEvidencePath(request.repoRoot, envelopePath) ?? envelopePath,
+    },
+  ]
+}
+
+function degradedEntries(
+  request: ExternalReviewRequest,
+  plan: CrossModelPlan,
+  result: ExternalReviewResult,
+  error?: unknown,
+): CrossModelDispatchArtifact['degraded'] {
+  const vertical = request.vertical ?? plan.external[0] ?? 'bugs'
+  return result.degradationReasons.map((originalReason) => {
+    const reason = dispatchReason(originalReason, error)
+    return {
+      provider: 'codex',
+      vertical,
+      substitute: 'anthropic',
+      reason,
+      detail: dispatchDetail(reason, error),
+    }
+  })
+}
+
+function writeDispatchEvidence(
+  request: ExternalReviewRequest,
+  plan: CrossModelPlan,
+  result: ExternalReviewResult,
+  envelopePath: string | null,
+  error?: unknown,
+): void {
+  const artifact: CrossModelDispatchArtifact = {
+    schema: CROSS_MODEL_DISPATCH_SCHEMA,
+    taskId: request.taskId,
+    branch: request.branch ?? currentBranch(request.repoRoot),
+    sha: request.sha ?? headSha(request.repoRoot),
+    ts: new Date().toISOString(),
+    phase: request.phase ?? plan.phase,
+    requested: requestedEntries(request, plan),
+    fulfilled: fulfilledEntries(request, result, envelopePath),
+    degraded: degradedEntries(request, plan, result, error),
+  }
+  const root =
+    request.dispatchEvidenceDir ?? join(request.repoRoot, '.arbiter', 'evidence', 'cross-model')
+  const taskDir = join(root, sanitizeTask(request.taskId))
+  const out = join(taskDir, 'dispatch.json')
+  ensureDir(taskDir)
+  writeFileTranslated(out, `${JSON.stringify(artifact, null, 2)}\n`)
+}
+
+function finalizeResult(
+  request: ExternalReviewRequest,
+  plan: CrossModelPlan,
+  result: ExternalReviewResult,
+  envelopePath: string | null = null,
+  error?: unknown,
+): ExternalReviewResult {
+  writeDispatchEvidence(request, plan, result, envelopePath, error)
+  if (
+    request.cfg.onUnavailable === 'fail' &&
+    result.status === 'degraded' &&
+    result.envelope === undefined
+  ) {
+    throw new Error(`cross-model review unavailable: ${result.degradationReasons.join(', ')}`)
+  }
+  return result
 }
 
 function cleanupTemp(dir: string): void {
   try {
     rmTranslated(dir, { recursive: true, force: true })
+    // FAIL-OPEN-INTENT: scratch cleanup is best effort after the result/artifact is finalized.
   } catch (error) {
     getLogger().warn(
       'cross_model_review.temp_cleanup_failed',
@@ -339,16 +526,22 @@ function cleanupTemp(dir: string): void {
 /** Invoke one external seat and hand its validated envelope to the existing recorder. */
 export function invokeExternalReview(request: ExternalReviewRequest): ExternalReviewResult {
   const prepared = truncateDiff(request.diff)
+  const tier = request.tier ?? 'Standard'
+  const phase = request.phase ?? 'refactor'
+  const vertical = request.vertical ?? 'bugs'
   const initial = planCrossModelSlots({
-    tier: 'Standard',
-    phase: 'refactor',
-    totalSlots: 1,
-    verticals: ['bugs'],
+    tier,
+    phase,
+    totalSlots: externalSlotsForTier(tier),
+    verticals: [vertical],
     cfg: request.cfg,
     ...(request.access !== undefined ? { access: request.access } : {}),
   })
   if (initial.external.length === 0) {
-    return resultFor(request, prepared, [initial.degradationReason ?? 'provider-unavailable'])
+    const result = resultFor(request, prepared, [
+      initial.degradationReason ?? 'provider-unavailable',
+    ])
+    return request.cfg.enabled ? finalizeResult(request, initial, result) : result
   }
   const reasons: ExternalReviewDegradationReason[] = prepared.truncated ? ['diff-truncated'] : []
   const prompt = buildPrompt(request.prompt, prepared.text, prepared.truncated)
@@ -358,21 +551,47 @@ export function invokeExternalReview(request: ExternalReviewRequest): ExternalRe
   try {
     const codex = invokeCodex(request, prompt, outputPath, schemaPath)
     const payload = extractAgentReturnJson(outputText(outputPath, codex))
-    if (payload === null)
-      return resultFor(request, prepared, [...reasons, 'coercion-failed'], { prompt })
+    if (payload === null) {
+      return finalizeResult(
+        request,
+        initial,
+        resultFor(request, prepared, [...reasons, 'coercion-failed'], { prompt }),
+        null,
+      )
+    }
     try {
       if (request.access === undefined)
         throw new Error('external access disappeared before persistence')
-      persistEnvelope(request, request.access, payload)
-    } catch {
-      return resultFor(request, prepared, [...reasons, 'envelope-rejected'], {
-        envelope: payload,
-        prompt,
-      })
+      const envelopePath = persistEnvelope(request, request.access, payload)
+      return finalizeResult(
+        request,
+        initial,
+        resultFor(request, prepared, reasons, { envelope: payload, recorded: true, prompt }),
+        envelopePath,
+      )
+      // FAIL-OPEN-INTENT: recorder failure is returned as an explicit envelope-rejected degradation.
+    } catch (error) {
+      return finalizeResult(
+        request,
+        initial,
+        resultFor(request, prepared, [...reasons, 'envelope-rejected'], {
+          envelope: payload,
+          prompt,
+        }),
+        null,
+        error,
+      )
     }
-    return resultFor(request, prepared, reasons, { envelope: payload, recorded: true, prompt })
-  } catch {
-    return resultFor(request, prepared, [...reasons, 'invocation-failed'], { prompt })
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('cross-model review unavailable:'))
+      throw error
+    return finalizeResult(
+      request,
+      initial,
+      resultFor(request, prepared, [...reasons, 'invocation-failed'], { prompt }),
+      null,
+      error,
+    )
   } finally {
     cleanupTemp(scratch)
   }

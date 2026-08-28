@@ -61,7 +61,13 @@ try {
 }
 
 // ── 1. Structural validation ─────────────────────────────────────────────────
-const REQUIRED = ['axes', 'tier_verticals', 'track_modifiers', 'pr_type_modifiers']
+const REQUIRED = [
+  'axes',
+  'tier_verticals',
+  'track_modifiers',
+  'pr_type_modifiers',
+  'model_diversity',
+]
 for (const k of REQUIRED) {
   if (!(k in matrix)) fail(`missing required key "${k}"`)
 }
@@ -101,16 +107,26 @@ for (const p of matrix.axes.pr_type) {
 
 // ── 2. Tier-floor parity vs the pure task-ship mirror (the core anti-drift check) ─
 let verticalsForTier
+let reviewAgentsForTier
+let externalSlotsForTier
 try {
   const shipUrl = pathToFileURL(join(REPO_ROOT, 'dist', 'commands', 'task-ship.js')).href
-  ;({ verticalsForTier } = await import(shipUrl))
+  ;({ verticalsForTier, reviewAgentsForTier } = await import(shipUrl))
+  const reviewUrl = pathToFileURL(
+    join(REPO_ROOT, 'dist', 'integrations', 'external-review.js'),
+  ).href
+  ;({ externalSlotsForTier } = await import(reviewUrl))
 } catch (e) {
-  invoke(
-    `cannot import compiled task-ship mirror (dist/commands/task-ship.js) — run "npm run build": ${e.message}`,
-  )
+  invoke(`cannot import compiled dispatch mirrors — run "npm run build": ${e.message}`)
 }
 if (typeof verticalsForTier !== 'function') {
   invoke('dist/commands/task-ship.js does not export verticalsForTier')
+}
+if (typeof reviewAgentsForTier !== 'function') {
+  invoke('dist/commands/task-ship.js does not export reviewAgentsForTier')
+}
+if (typeof externalSlotsForTier !== 'function') {
+  invoke('dist/integrations/external-review.js does not export externalSlotsForTier')
 }
 
 const eq = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
@@ -132,7 +148,32 @@ for (const tier of matrix.axes.tier) {
   }
 }
 
-// ── 3. Refutation-skeptics parity (M13 #1943) ───────────────────────────────
+// ── 3. Model-diversity parity (#2358) ──────────────────────────────────────
+for (const tier of matrix.axes.tier) {
+  const declared = matrix.model_diversity[tier]
+  if (!Number.isInteger(declared) || declared < 0) {
+    fail(`model_diversity.${tier} missing or not a non-negative integer in matrix`)
+  }
+  let external
+  let reviewAgents
+  try {
+    external = externalSlotsForTier(tier)
+    reviewAgents = reviewAgentsForTier(tier)
+  } catch (e) {
+    invoke(`dispatch slot derivation for tier "${tier}" threw: ${e.message}`)
+  }
+  if (declared > reviewAgents) {
+    fail(`model_diversity.${tier} declares ${declared}, above REVIEW_AGENTS=${reviewAgents}`)
+  }
+  if (declared !== external) {
+    fail(
+      `model_diversity.${tier} drift: matrix declares ${declared} but ` +
+        `externalSlotsForTier("${tier}") yields ${external}`,
+    )
+  }
+}
+
+// ── 4. Refutation-skeptics parity (M13 #1943) ───────────────────────────────
 // The refutation skill's documented N table (.claude/skills/refutation/SKILL.md) MUST equal
 // the matrix `refutation_skeptics` block — N is declared, not improvised (M1/M10). A drift
 // here means the skill dispatches a different skeptic count than the dispatch SSOT promises.

@@ -59,6 +59,7 @@ export function detectExternalModel(
     }
     detectionCache.set(provider, access)
     return access
+    // FAIL-OPEN-INTENT: provider probe failure is recorded as unavailable so the caller can apply its explicit degrade/fail policy.
   } catch (error) {
     const access: ExternalModelAccess = {
       provider,

@@ -220,6 +220,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'refutation majority (E2 #1943)', affects: ALWAYS },
   { name: 'audit dry-pass (E3 #1943)', affects: ALWAYS },
   { name: 'handoff lint (E6a #1943)', affects: ALWAYS },
+  { name: 'cross-model review (#2358)', affects: ALWAYS },
   { name: 'bypass ceremony (E4 #1949)', affects: ALWAYS },
   { name: 'commit-footer rationale (INV-119)', affects: ALWAYS },
   { name: 'fail-closed audit (INV-96)', affects: ALWAYS },

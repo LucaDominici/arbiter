@@ -25,10 +25,13 @@
       "src/integrations/external-review.ts",
       "src/wizard",
       "src/generators",
+      ".bloat-baseline.json",
+      ".claude/agent-dispatch-matrix.json",
+      ".claude/agent-dispatch-matrix.schema.json",
       "scripts/check-cross-model-review.mjs",
       "scripts/check-all.mjs",
       "scripts/check-agent-dispatch.mjs",
-      ".claude/agent-dispatch-matrix.json",
+      "scripts/data/advisory-ledger.json",
       ".claude/commands/ship.md",
       ".claude/AGENT_REGISTRY.md",
       "PRIVACY.md",
@@ -83,9 +86,16 @@
       "operation": "create"
     },
     { "path": "src/templates/scripts/check-all.mjs.ejs", "operation": "modify" },
+    { "path": "src/templates/scripts/gate-registry.yml.ejs", "operation": "modify" },
     { "path": "src/generators/check-all.ts", "operation": "modify" },
+    { "path": ".claude/agent-dispatch-matrix.schema.json", "operation": "modify" },
+    { "path": "scripts/data/advisory-ledger.json", "operation": "modify" },
+    { "path": ".bloat-baseline.json", "operation": "modify" },
     { "path": "__tests__/scripts/check-cross-model-review.test.ts", "operation": "create" },
-    { "path": "__tests__/scripts/check-agent-dispatch.test.ts", "operation": "modify" }
+    { "path": "__tests__/scripts/check-agent-dispatch.test.ts", "operation": "modify" },
+    { "path": "__tests__/templates/cross-model-dispatch-render.test.ts", "operation": "create" },
+    { "path": "scripts/lib/gate-affects-registry.mjs", "operation": "modify" },
+    { "path": "__tests__/templates/__snapshots__/high-fanout/check-all.mjs", "operation": "modify" }
   ],
   "invariants": {
     "ui_language": "EN",
