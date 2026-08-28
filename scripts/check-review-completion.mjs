@@ -84,7 +84,7 @@ function isNonEmptyString(value) {
  */
 function isValidAgentList(value) {
   if (!Array.isArray(value)) return false
-  return value.every((agent) => isNonEmptyString(agent))
+  return value.every((agent) => isNonEmptyString(agent)) && new Set(value).size === value.length
 }
 
 /**
@@ -261,7 +261,10 @@ function checkAgentEnvelope(agent, sidecar, files, valid) {
   const matchingFiles = files.filter((file) => isAgentEnvelopeFile(file, agent))
   const matching = valid.filter((envelope) => envelope['agent'] === agent)
   const branchMatch = matching.find((envelope) => envelope['branch'] === sidecar.branch)
-  if (branchMatch) return null
+  if (branchMatch) {
+    if (branchMatch['sha'] === sidecar.sha) return null
+    return `${agent}: provenance mismatch — expected sha ${sidecar.sha}, observed ${branchMatch['sha']}`
+  }
   if (matching.length > 0) {
     const observed = String(matching[0]['branch'])
     return `${agent}: provenance mismatch — expected branch ${sidecar.branch}, observed ${observed}`

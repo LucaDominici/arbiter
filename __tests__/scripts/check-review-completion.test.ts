@@ -209,6 +209,15 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toContain(BRANCH)
   })
 
+  it('rejects a same-branch envelope from a different commit', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope('alpha', envelope('alpha', { sha: 'deadbeef' }))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toMatch(/sha/i)
+  })
+
   it('uses the legacy count fallback when two reviewer envelopes were returned', () => {
     writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef' })
     writeEnvelope('alpha', envelope('alpha'))
@@ -248,6 +257,15 @@ describe('check-review-completion.mjs', () => {
     writeEnvelope('beta', envelope('beta'))
 
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(1)
+  })
+
+  it('rejects duplicate named agents in the dispatch sidecar', () => {
+    writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha', 'alpha'] })
+    writeEnvelope('alpha', envelope('alpha'))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(2)
+    expect(output(result)).toMatch(/sidecar/i)
   })
 
   it('accepts a complete well-formed envelope without a turn-budget field', () => {
