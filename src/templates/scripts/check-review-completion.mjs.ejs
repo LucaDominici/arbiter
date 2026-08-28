@@ -55,6 +55,8 @@ const schemaPath = arg('schema', argv)
  * @typedef {{ count: number, branch: string, sha: string, agents?: string[], task?: string, taskId?: string }} DispatchSidecar
  */
 
+/** @typedef {{ envelope: Record<string, unknown>, file: string }} ValidEnvelope */
+
 /**
  * @param {unknown} value
  * @returns {value is Record<string, unknown>}
@@ -216,10 +218,10 @@ function listEnvelopeFiles(evidenceRoot, taskDirs) {
 /**
  * @param {string[]} files
  * @param {Record<string, unknown>} schema
- * @returns {Record<string, unknown>[]}
+ * @returns {ValidEnvelope[]}
  */
 function readEnvelopes(files, schema) {
-  /** @type {Record<string, unknown>[]} */
+  /** @type {ValidEnvelope[]} */
   const valid = []
   for (const file of files) {
     try {
@@ -231,7 +233,7 @@ function readEnvelopes(files, schema) {
       if (validateSchema(parsed, schema, schema, file).length > 0) {
         continue
       }
-      valid.push(/** @type {Record<string, unknown>} */ (parsed))
+      valid.push({ envelope: /** @type {Record<string, unknown>} */ (parsed), file })
       // FAIL-OPEN-INTENT: malformed or unreadable envelope artifacts are recorded as incomplete reviewers below, never accepted as a return.
     } catch {
       continue
@@ -256,12 +258,14 @@ function isAgentEnvelopeFile(file, agent) {
  * @param {DispatchSidecar} sidecar
  * @param {string} task
  * @param {string[]} files
- * @param {Record<string, unknown>[]} valid
+ * @param {ValidEnvelope[]} valid
  * @returns {string | null}
  */
 function checkAgentEnvelope(agent, sidecar, task, files, valid) {
   const matchingFiles = files.filter((file) => isAgentEnvelopeFile(file, agent))
-  const matching = valid.filter((envelope) => envelope['agent'] === agent)
+  const matching = valid
+    .filter(({ envelope, file }) => envelope['agent'] === agent && isAgentEnvelopeFile(file, agent))
+    .map(({ envelope }) => envelope)
   const taskMatch = matching.filter((envelope) => envelope['taskId'] === task)
   const branchMatch = taskMatch.find(
     (envelope) => envelope['branch'] === sidecar.branch && envelope['role'] === 'reviewer',
@@ -309,20 +313,22 @@ function checkNamedAgentEnvelopes(sidecar, task, files, valid) {
 /**
  * @param {DispatchSidecar} sidecar
  * @param {string} task
- * @param {Record<string, unknown>[]} valid
+ * @param {ValidEnvelope[]} valid
  * @returns {string[]}
  */
 function checkLegacyReviewerCount(sidecar, task, valid) {
   const reviewerAgents = new Set(
     valid
       .filter(
-        (envelope) =>
+        ({ envelope, file }) =>
+          typeof envelope['agent'] === 'string' &&
+          isAgentEnvelopeFile(file, envelope['agent']) &&
           envelope['role'] === 'reviewer' &&
           envelope['taskId'] === task &&
           envelope['branch'] === sidecar.branch &&
           envelope['sha'] === sidecar.sha,
       )
-      .map((envelope) => envelope['agent']),
+      .map(({ envelope }) => envelope['agent']),
   )
   const reviewerCount = reviewerAgents.size
   if (reviewerCount < sidecar.count) {
@@ -337,7 +343,7 @@ function checkLegacyReviewerCount(sidecar, task, valid) {
  * @param {DispatchSidecar} sidecar
  * @param {string} task
  * @param {string[]} files
- * @param {Record<string, unknown>[]} valid
+ * @param {ValidEnvelope[]} valid
  * @returns {string[]}
  */
 function collectReviewFailures(sidecar, task, files, valid) {
@@ -434,19 +440,21 @@ function checkoutBindingError(sidecar) {
   if (ancestor.status !== 0) {
     return `sidecar sha ${sidecar.sha} is not an ancestor of current HEAD ${head}`
   }
-  const changed = spawnSync('git', ['diff', '--name-only', `${sidecar.sha}..${head}`], {
-    cwd: repoRoot,
-    encoding: 'utf-8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  })
-  if (changed.status !== 0) {
-    return `cannot inspect changes since sidecar sha ${sidecar.sha}`
-  }
-  const changedPaths = String(changed.stdout)
-    .split(/\r?\n/)
-    .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
-  if (changedPaths.length > 0) {
-    return `review sidecar sha ${sidecar.sha} is stale; tracked files changed after dispatch`
+  for (const diffArgs of [[`${sidecar.sha}..${head}`], [], ['--cached']]) {
+    const changed = spawnSync('git', ['diff', '--name-only', ...diffArgs], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    if (changed.status !== 0) {
+      return `cannot inspect changes since sidecar sha ${sidecar.sha}`
+    }
+    const changedPaths = String(changed.stdout)
+      .split(/\r?\n/)
+      .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
+    if (changedPaths.length > 0) {
+      return `review sidecar sha ${sidecar.sha} is stale; tracked files changed after dispatch`
+    }
   }
   return null
 }

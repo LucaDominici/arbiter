@@ -253,6 +253,15 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/missing|reviewer/i)
   })
 
+  it('rejects a valid envelope whose filename belongs to another agent', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelopeIn('_2177', 'evil-name', envelope('alpha'))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toMatch(/missing/i)
+  })
+
   it('counts distinct reviewer agents in the legacy fallback', () => {
     writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef' })
     writeEnvelopeIn('_2177', 'alpha-0', envelope('alpha'))
@@ -368,6 +377,42 @@ describe('check-review-completion.mjs', () => {
       )
       expect(result.exitCode).toBe(2)
       expect(output(result)).toMatch(/stale|changed|ancestor/i)
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a sidecar when tracked files change without a commit', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'review-completion-git-'))
+    try {
+      const git = (args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf-8' })
+      expect(git(['init', '-q']).status).toBe(0)
+      expect(git(['config', 'user.email', 'test-user']).status).toBe(0)
+      expect(git(['config', 'user.name', 'Test']).status).toBe(0)
+      writeFileSync(join(repo, 'tracked.txt'), 'before\n')
+      expect(git(['add', 'tracked.txt']).status).toBe(0)
+      expect(git(['commit', '-qm', 'before']).status).toBe(0)
+      const base = git(['rev-parse', 'HEAD']).stdout.trim()
+      const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim()
+      const evidence = join(repo, '.arbiter', 'evidence', 'agent-returns', '_2177')
+      mkdirSync(evidence, { recursive: true })
+      writeFileSync(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({ count: 1, agents: ['alpha'], branch, sha: base }),
+      )
+      writeFileSync(
+        join(evidence, 'alpha.json'),
+        JSON.stringify(envelope('alpha', { branch, sha: base })),
+      )
+      writeFileSync(join(repo, 'tracked.txt'), 'after\n')
+
+      const result = runCheck(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        join(repo, '.arbiter', 'evidence', 'agent-returns'),
+        repo,
+      )
+      expect(result.exitCode).toBe(2)
+      expect(output(result)).toMatch(/stale|changed/i)
     } finally {
       rmSync(repo, { recursive: true, force: true })
     }
