@@ -872,6 +872,42 @@ describe('invokeExternalReview (#2357)', () => {
     }
   })
 
+  it('does not describe a git preflight failure as a Codex exit', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-git-preflight-'))
+    try {
+      invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: '',
+        cfg: config(),
+        preflightDegradation: 'invocation-failed',
+        preflightError: new CliError({
+          cmd: 'git',
+          args: ['diff', '--binary', 'origin/main...HEAD'],
+          exitCode: 128,
+          stdout: '',
+          stderr: 'fatal: bad revision',
+          timedOut: false,
+          notFound: false,
+        }),
+        evidenceDir: join(evidenceRoot, 'agent-returns'),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+      })
+
+      const dispatch = JSON.parse(
+        readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf8'),
+      )
+      expect(dispatch.degraded[0].detail).toBe('git exited with status 128')
+      expect(dispatch.degraded[0].detail).not.toContain('Codex')
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
   it('fails closed when an invocation failure meets the fail policy', () => {
     const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-invocation-fail-'))
     try {

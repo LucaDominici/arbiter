@@ -9,7 +9,6 @@ import { createTestProject, cleanupTestProject, writeGatePassEvidence } from '..
 import {
   runTaskShip,
   shipStepFor,
-  withoutExternalReview,
   nextPhase,
   buildShipStepLines,
   REVIEW_AGENTS_SECURITY_SURFACE,
@@ -117,42 +116,6 @@ describe('ship sequencing — pure plan', () => {
     expect(step.externalReviewers).toBe(1)
     expect(step.action).toContain('dispatch 1 Anthropic code-review agent(s) + 1 Codex reviewer(s)')
     expect(step.action).toContain('panel total: 2')
-  })
-
-  it('replans the complete Anthropic panel after the external seat degrades', () => {
-    const profileWithCrossModel = profile({
-      crossModelReview: {
-        enabled: true,
-        diffEgressConsent: true,
-        providers: ['codex'],
-        slots: { codeReview: 1, redTeamReview: 0 },
-        timeoutMs: 300_000,
-        onUnavailable: 'degrade',
-      },
-    })
-    const planned = shipStepFor('refactor', 'Standard', profileWithCrossModel, undefined, {
-      chainIds: [],
-      externalModelAccess: {
-        provider: 'codex',
-        vendor: 'openai',
-        available: true,
-        authenticated: true,
-        version: '1.2.3',
-        error: null,
-      },
-    })
-    const fallback = withoutExternalReview({
-      phase: 'refactor',
-      step: planned,
-      advanced: false,
-      done: false,
-      tier: 'Standard',
-      profile: profileWithCrossModel,
-    })
-
-    expect(fallback.step.reviewAgents).toBe(2)
-    expect(fallback.step.externalReviewers).toBeUndefined()
-    expect(fallback.step.action).toContain('dispatch 2 code-review agent(s)')
   })
 
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {

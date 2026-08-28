@@ -455,11 +455,6 @@ export interface ShipResult {
   profile: ShipProfile
 }
 
-/** #2357 — a degraded external seat must be replanned as the full Anthropic panel. */
-export function withoutExternalReview(result: ShipResult): ShipResult {
-  return { ...result, step: shipStepFor(result.phase, result.tier, result.profile) }
-}
-
 /**
  * Build the human-readable step-output lines for a ship invocation, including the
  * #1260 tier + vertical-breadth summary. Kept here (not inline in the CLI action) so the
@@ -516,19 +511,44 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
  * write; everything downstream (evidence path lookup, task_id identity check) relies
  * on this form.
  */
+function seedPrimaryCount(
+  existing: UnifiedTaskState | null,
+  taskId: string | undefined,
+  taskChanged: boolean,
+): number {
+  if (hasShipTaskId(taskId)) return 1
+  return !taskChanged && hasShipTaskId(existing?.taskId) ? 1 : 0
+}
+
+function seedChainIds(
+  existing: UnifiedTaskState | null,
+  chainIds: readonly string[] | undefined,
+  taskChanged: boolean,
+): readonly string[] {
+  return chainIds ?? (taskChanged ? [] : (existing?.chainIds ?? []))
+}
+
+function seedProjectedSize(
+  existing: UnifiedTaskState | null,
+  taskId: string | undefined,
+  chainIds: readonly string[] | undefined,
+): number | null {
+  if (chainIds === undefined && taskId === undefined) return null
+  const taskChanged = shipTaskChanged(existing, taskId)
+  return (
+    seedPrimaryCount(existing, taskId, taskChanged) +
+    seedChainIds(existing, chainIds, taskChanged).length
+  )
+}
+
 function assertSeedWithinLimit(
   existing: UnifiedTaskState | null,
   taskId: string | undefined,
   chainIds: readonly string[] | undefined,
   limits: TrainLimits,
 ): void {
-  if (chainIds === undefined && taskId === undefined) return
-  const taskChanged = shipTaskChanged(existing, taskId)
-  const primaryCount =
-    hasShipTaskId(taskId) || (!taskChanged && hasShipTaskId(existing?.taskId)) ? 1 : 0
-  const existingChainIds = taskChanged ? [] : (existing?.chainIds ?? [])
-  const projectedSize = primaryCount + (chainIds ?? existingChainIds).length
-  if (projectedSize <= limits.maxChain) return
+  const projectedSize = seedProjectedSize(existing, taskId, chainIds)
+  if (projectedSize === null || projectedSize <= limits.maxChain) return
   const seal = {
     reason: 'max-chain' as const,
     detail: `the requested seed would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
@@ -728,13 +748,13 @@ function trainSignalsFor(
   }
 }
 
-function assertChainAddAllowed(
-  root: string,
-  opts: TaskShipOptions,
-  state: UnifiedTaskState | null,
-  now: Date,
-  limits: TrainLimits,
-): void {
+interface ChainAddContext {
+  signalState: UnifiedTaskState | null
+  currentSize: number
+  projectedSize: number
+}
+
+function chainAddContext(opts: TaskShipOptions, state: UnifiedTaskState | null): ChainAddContext {
   const additions = opts.chainAddIds ?? []
   const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
   const taskChanged = shipTaskChanged(state, taskId)
@@ -745,26 +765,37 @@ function assertChainAddAllowed(
         ? []
         : (state?.chainIds ?? [])
   const primaryCount = hasShipTaskId(taskId) ? 1 : 0
-  const currentSize = primaryCount + existing.length
-  const projectedSize = primaryCount + appendChainIds(existing, additions).length
+  return {
+    signalState: taskChanged ? null : state,
+    currentSize: primaryCount + existing.length,
+    projectedSize: primaryCount + appendChainIds(existing, additions).length,
+  }
+}
+
+function assertChainAddAllowed(
+  root: string,
+  opts: TaskShipOptions,
+  state: UnifiedTaskState | null,
+  now: Date,
+  limits: TrainLimits,
+): void {
+  const { signalState, currentSize, projectedSize } = chainAddContext(opts, state)
   const currentVerdict = evaluateSeal(
-    trainSignalsFor(root, opts, taskChanged ? null : state, now, currentSize),
+    trainSignalsFor(root, opts, signalState, now, currentSize),
     limits,
   )
-  const verdict =
-    currentVerdict.sealed || projectedSize <= limits.maxChain
-      ? currentVerdict
-      : {
-          sealed: true as const,
-          reason: 'max-chain' as const,
-          detail: `the requested append would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
-        }
-  if (verdict.sealed) {
+  if (currentVerdict.sealed) {
     // UserFacingError, not Error: a seal is the policy working as designed, not a fault. The
     // generic handler would print "Unexpected error", telling the operator something broke.
-    const seal = { reason: verdict.reason, detail: verdict.detail }
+    const seal = { reason: currentVerdict.reason, detail: currentVerdict.detail }
     throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
   }
+  if (projectedSize <= limits.maxChain) return
+  const seal = {
+    reason: 'max-chain' as const,
+    detail: `the requested append would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
+  }
+  throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
 }
 
 function prepareChainAdd(
@@ -801,20 +832,21 @@ function persistTrainAppend(
   appendLog(root, `ship → train +${chainIds.length - existing.length} (${chainIds.join(', ')})`)
 }
 
+function applyPreparedChainAdd(
+  root: string,
+  prepared: { additions: readonly string[]; now: Date } | null,
+): void {
+  if (prepared === null) return
+  persistTrainAppend(root, readUnifiedState(root), prepared.additions, prepared.now)
+}
+
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
   // Validate the complete train mutation before seeding task metadata. A rejected append must
   // leave both fresh and existing state untouched, including task/tier/override fields.
   const preparedChainAdd = prepareChainAdd(root, opts)
   seedShipState(root, opts)
-  if (preparedChainAdd !== null) {
-    persistTrainAppend(
-      root,
-      readUnifiedState(root),
-      preparedChainAdd.additions,
-      preparedChainAdd.now,
-    )
-  }
+  applyPreparedChainAdd(root, preparedChainAdd)
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'

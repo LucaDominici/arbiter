@@ -487,7 +487,10 @@ function dispatchDetail(reason: CrossModelDispatchReason, error?: unknown): stri
   }
   if (reason === 'timeout') return message ?? 'Codex invocation timed out'
   if (reason === 'nonzero-exit') {
-    if (error instanceof CliError) return `Codex exited with status ${error.exitCode}`
+    if (error instanceof CliError) {
+      const command = error.cmd === 'codex' ? 'Codex' : error.cmd
+      return `${command} exited with status ${error.exitCode}`
+    }
     return message ?? 'Codex CLI exited unsuccessfully'
   }
   const details: Record<

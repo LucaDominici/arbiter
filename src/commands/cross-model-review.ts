@@ -33,6 +33,7 @@ function runCrossModelReview(
   options: CrossModelReviewCommandOptions,
 ): ReturnType<typeof invokeExternalReview> {
   const repoRoot = resolve(options.dir ?? process.cwd())
+  const tier = normTier(options.tier)
   const profile = resolveShipProfile(repoRoot)
   const cfg = profile.crossModelReview
   if (!cfg?.enabled) {
@@ -48,11 +49,11 @@ function runCrossModelReview(
     diff: options.diff ?? readStdin(),
     cfg,
     access: detectExternalModel('codex'),
-    tier: normTier(options.tier),
+    tier,
     phase: options.phase ?? 'refactor',
     vertical: options.vertical ?? 'bugs',
   })
-  if (existsSync(repoRoot)) writeExternalReviewSidecar(repoRoot, options.taskId, result)
+  if (existsSync(repoRoot)) writeExternalReviewSidecar(repoRoot, options.taskId, result, tier)
   return result
 }
 
@@ -177,12 +178,23 @@ function sidecarAgents(
   branch: string,
   sha: string,
   taskId: string,
+  tier: ShipTier,
 ): { count: number; agents: string[] } {
-  const fresh = { count: 1, agents: ['codex-reviewer'] }
+  const fresh =
+    tier === 'Standard'
+      ? { count: 2, agents: ['anthropic-reviewer', 'codex-reviewer'] }
+      : { count: 1, agents: ['codex-reviewer'] }
   if (!isCurrentSidecar(existing, branch, sha, taskId)) return fresh
   const agents = readSidecarAgents(existing)
   if (agents === null) return fresh
   if (agents.length === 0) return fresh
+  if (tier === 'Standard' && agents.length === 1) {
+    const first = agents[0] ?? 'anthropic-reviewer'
+    return {
+      count: 2,
+      agents: [first === 'codex-reviewer' ? 'anthropic-reviewer' : first, 'codex-reviewer'],
+    }
+  }
   if (!agents.includes('codex-reviewer')) agents[agents.length - 1] = 'codex-reviewer'
   return { count: agents.length, agents }
 }
@@ -192,6 +204,7 @@ function writeExternalReviewSidecar(
   repoRoot: string,
   taskId: string,
   result: ReturnType<typeof invokeExternalReview>,
+  tier: ShipTier = 'Standard',
 ): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
   assertSafeArbiterEvidenceRoot(repoRoot)
@@ -201,7 +214,7 @@ function writeExternalReviewSidecar(
   const sha = headSha(repoRoot)
   if (branch === 'unknown' || sha === 'unknown')
     throw new Error('cannot bind dispatch sidecar to Git HEAD')
-  const panel = sidecarAgents(readSidecar(repoRoot), branch, sha, taskId)
+  const panel = sidecarAgents(readSidecar(repoRoot), branch, sha, taskId, tier)
   writeFileContained(
     repoRoot,
     join('.arbiter', 'agents-dispatched.json'),
@@ -271,7 +284,8 @@ function runShipCrossModelReview(
     phase: options.phase,
     vertical: options.vertical,
   })
-  if (existsSync(repoRoot)) writeExternalReviewSidecar(repoRoot, options.taskId, result)
+  if (existsSync(repoRoot))
+    writeExternalReviewSidecar(repoRoot, options.taskId, result, options.tier)
   return result
 }
 

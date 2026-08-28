@@ -47,7 +47,7 @@ import {
   HandoffRequiredError,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
-import { runTaskShip, buildShipStepLines, withoutExternalReview } from './commands/task-ship.js'
+import { runTaskShip, buildShipStepLines, shipStepFor } from './commands/task-ship.js'
 import { runCrossModelReview, runShipCrossModelReview } from './commands/cross-model-review.js'
 import { buildShipOverrides, resolveShipProfile } from './commands/ship-profile.js'
 import { detectExternalModel } from './detectors/external-model.js'
@@ -480,7 +480,9 @@ function shipOutputAfterConfiguredReview(
   access: ReturnType<typeof detectExternalModel> | undefined,
 ): ReturnType<typeof runTaskShip> {
   const externalReview = runConfiguredShipReview(root, result, tier, access)
-  return externalReview?.status === 'degraded' ? withoutExternalReview(result) : result
+  return externalReview?.status === 'degraded'
+    ? { ...result, step: shipStepFor(result.phase, result.tier, result.profile) }
+    : result
 }
 
 program

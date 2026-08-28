@@ -194,11 +194,27 @@ describe('runCrossModelReview (#2357)', () => {
       })
       const sidecarPath = join(dir, '.arbiter', 'agents-dispatched.json')
       expect(JSON.parse(readFileSync(sidecarPath, 'utf8'))).toEqual({
-        count: 1,
-        agents: ['codex-reviewer'],
+        count: 2,
+        agents: ['anthropic-reviewer', 'codex-reviewer'],
         taskId: '#2357',
         branch: 'diff',
         sha: 'diff',
+      })
+
+      writeFileSync(
+        sidecarPath,
+        JSON.stringify({
+          count: 1,
+          agents: ['codex-reviewer'],
+          taskId: '#2357',
+          branch: 'diff',
+          sha: 'diff',
+        }),
+      )
+      runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' })
+      expect(JSON.parse(readFileSync(sidecarPath, 'utf8'))).toMatchObject({
+        count: 2,
+        agents: ['anthropic-reviewer', 'codex-reviewer'],
       })
 
       writeFileSync(
@@ -662,8 +678,8 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       expect(
         JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
       ).toEqual({
-        count: 1,
-        agents: ['codex-reviewer'],
+        count: 2,
+        agents: ['anthropic-reviewer', 'codex-reviewer'],
         taskId: '#2357',
         branch: 'diff',
         sha: 'diff',

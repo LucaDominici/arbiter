@@ -286,6 +286,12 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     // Phase-map refactor row should indicate trunk-solo count (1), not tier count (4)
     expect(content).toMatch(/trunk.?solo.*1|1.*self.?review/i)
   })
+
+  it('trunk-solo external candidate keeps an Anthropic seat for the Standard panel', () => {
+    const content = renderShip('typescript', 'L2', 'trunk-solo', 'pr-ff')
+    expect(content).toContain('candidate.length < total')
+    expect(content).toContain('candidate.push(`reviewer-${candidate.length + 1}`)')
+  })
 })
 
 describe('claude commands: ship.md — stack parameterization', () => {
