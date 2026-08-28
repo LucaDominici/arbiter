@@ -175,6 +175,22 @@ function readSidecarAgents(existing: ReviewSidecar): string[] | null {
   return agents
 }
 
+function freshReviewPanel(context: {
+  tier: ShipTier
+  collaborationMode: 'trunk-solo' | 'peer-review' | 'gated-review'
+}): { count: number; agents: string[] } {
+  const peerStandard = context.collaborationMode !== 'trunk-solo' && context.tier === 'Standard'
+  return peerStandard
+    ? { count: 2, agents: ['anthropic-reviewer', 'codex-reviewer'] }
+    : { count: 1, agents: ['codex-reviewer'] }
+}
+
+function completeReviewPanel(agents: string[], panelSize: number): string[] {
+  if (panelSize !== 2 || agents.length !== 1) return agents
+  const first = agents[0] ?? 'anthropic-reviewer'
+  return [first === 'codex-reviewer' ? 'anthropic-reviewer' : first, 'codex-reviewer']
+}
+
 function sidecarAgents(
   existing: ReviewSidecar | null,
   branch: string,
@@ -185,23 +201,13 @@ function sidecarAgents(
     collaborationMode: 'trunk-solo' | 'peer-review' | 'gated-review'
   },
 ): { count: number; agents: string[] } {
-  const panelSize =
-    context.collaborationMode === 'trunk-solo' ? 1 : context.tier === 'Standard' ? 2 : 1
-  const fresh =
-    panelSize === 2
-      ? { count: 2, agents: ['anthropic-reviewer', 'codex-reviewer'] }
-      : { count: 1, agents: ['codex-reviewer'] }
+  const fresh = freshReviewPanel(context)
   if (!isCurrentSidecar(existing, branch, sha, taskId)) return fresh
   const agents = readSidecarAgents(existing)
   if (agents === null) return fresh
   if (agents.length === 0) return fresh
-  if (panelSize === 2 && agents.length === 1) {
-    const first = agents[0] ?? 'anthropic-reviewer'
-    return {
-      count: 2,
-      agents: [first === 'codex-reviewer' ? 'anthropic-reviewer' : first, 'codex-reviewer'],
-    }
-  }
+  const completed = completeReviewPanel(agents, fresh.count)
+  if (completed !== agents) return { count: completed.length, agents: completed }
   if (!agents.includes('codex-reviewer')) agents[agents.length - 1] = 'codex-reviewer'
   return { count: agents.length, agents }
 }

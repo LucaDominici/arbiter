@@ -479,6 +479,12 @@ function errorMessage(error: unknown): string | null {
   return null
 }
 
+function nonzeroExitDetail(error: unknown, message: string | null): string {
+  if (!(error instanceof CliError)) return message ?? 'Codex CLI exited unsuccessfully'
+  const command = error.cmd === 'codex' ? 'Codex' : error.cmd
+  return `${command} exited with status ${error.exitCode}`
+}
+
 function dispatchDetail(reason: CrossModelDispatchReason, error?: unknown): string {
   const message = errorMessage(error)
   if (reason === 'cli-not-found') {
@@ -486,13 +492,7 @@ function dispatchDetail(reason: CrossModelDispatchReason, error?: unknown): stri
     return message ?? 'Codex CLI unavailable'
   }
   if (reason === 'timeout') return message ?? 'Codex invocation timed out'
-  if (reason === 'nonzero-exit') {
-    if (error instanceof CliError) {
-      const command = error.cmd === 'codex' ? 'Codex' : error.cmd
-      return `${command} exited with status ${error.exitCode}`
-    }
-    return message ?? 'Codex CLI exited unsuccessfully'
-  }
+  if (reason === 'nonzero-exit') return nonzeroExitDetail(error, message)
   const details: Record<
     Exclude<CrossModelDispatchReason, 'cli-not-found' | 'timeout' | 'nonzero-exit'>,
     string
