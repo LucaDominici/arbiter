@@ -2,7 +2,7 @@
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2354",
   "branch": "task/#2354-cross-model-review",
-  "sha": "d3a08b1ff93cdab3bfd69d0e113eefa62860c337",
+  "sha": "8d898a7e41b64afb802c5ca978f153682f2baa38",
   "recordedAt": "2026-08-28T13:30:20+02:00",
   "criteria": [
     { "id": "AC-2354.1", "verdict": "PASS", "evidence": [{ "file": "schemas/agent-return.schema.json", "line": 82 }] },
