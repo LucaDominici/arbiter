@@ -290,10 +290,11 @@ function reviewPhaseStepBody(
       reviewAgents: 0,
     }
   }
+  const reviewAgents = profile.collaborationMode === 'trunk-solo' ? 1 : REVIEW_AGENTS[t]
   const plan = planCrossModelSlots({
     tier: t,
     phase,
-    totalSlots: REVIEW_AGENTS[t],
+    totalSlots: reviewAgents,
     verticals,
     ...(profile.crossModelReview !== undefined ? { cfg: profile.crossModelReview } : {}),
     ...(externalModelAccess !== undefined ? { access: externalModelAccess } : {}),
@@ -303,9 +304,9 @@ function reviewPhaseStepBody(
     phase,
     action:
       externalCount > 0
-        ? `Clean up, then dispatch ${REVIEW_AGENTS[t] - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${REVIEW_AGENTS[t]}.`
-        : `Clean up, then dispatch ${REVIEW_AGENTS[t]} code-review agent(s) + 1 adversarial verifier.`,
-    reviewAgents: REVIEW_AGENTS[t],
+        ? `Clean up, then dispatch ${reviewAgents - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${reviewAgents}.`
+        : `Clean up, then dispatch ${reviewAgents} code-review agent(s) + 1 adversarial verifier.`,
+    reviewAgents,
   }
   return externalCount > 0 ? { ...step, externalReviewers: externalCount } : step
 }

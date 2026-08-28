@@ -201,7 +201,7 @@ function isValidReviewerPanel(agents, count, collaborationMode) {
   const expectedCount = collaborationMode === 'trunk-solo' ? 1 : 2
   return (
     Number.isInteger(count) &&
-    count === expectedCount &&
+    (count === expectedCount || count === 3) &&
     Array.isArray(agents) &&
     agents.length === count &&
     agents.every((agent) => typeof agent === 'string' && agent.length > 0) &&

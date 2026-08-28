@@ -118,6 +118,38 @@ describe('ship sequencing — pure plan', () => {
     expect(step.action).toContain('panel total: 2')
   })
 
+  it('keeps the trunk-solo external panel at one reviewer', () => {
+    const step = shipStepFor(
+      'refactor',
+      'Standard',
+      profile({
+        collaborationMode: 'trunk-solo',
+        crossModelReview: {
+          enabled: true,
+          diffEgressConsent: true,
+          providers: ['codex'],
+          slots: { codeReview: 1, redTeamReview: 0 },
+          timeoutMs: 300_000,
+          onUnavailable: 'degrade',
+        },
+      }),
+      undefined,
+      {
+        chainIds: [],
+        externalModelAccess: {
+          provider: 'codex',
+          vendor: 'openai',
+          available: true,
+          authenticated: true,
+          version: '1.2.3',
+          error: null,
+        },
+      },
+    )
+    expect(step).toMatchObject({ reviewAgents: 1, externalReviewers: 1 })
+    expect(step.action).toContain('panel total: 1')
+  })
+
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {
     expect(
       shipStepFor(

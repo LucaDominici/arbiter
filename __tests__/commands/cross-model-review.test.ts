@@ -688,4 +688,31 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('does not grow a trunk-solo Standard sidecar', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-trunk-solo-'))
+    try {
+      mockedRunCli.mockReturnValue({ stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 })
+      writeExternalReviewSidecar(
+        dir,
+        '#2357',
+        {
+          provider: 'codex',
+          status: 'fulfilled',
+          diffBytes: 1,
+          diffTruncated: false,
+          degradationReasons: [],
+          recorded: true,
+          envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+        },
+        'Standard',
+        'trunk-solo',
+      )
+      expect(
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toMatchObject({ count: 1, agents: ['codex-reviewer'] })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

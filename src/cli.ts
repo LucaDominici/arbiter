@@ -469,6 +469,7 @@ function runConfiguredShipReview(
     phase: result.phase,
     vertical: result.step.verticals.includes('security') ? 'security' : 'bugs',
     cfg: config,
+    collaborationMode: result.profile.collaborationMode,
     ...(access !== undefined ? { access } : {}),
   })
 }

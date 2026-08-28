@@ -330,7 +330,10 @@ wave.** The rest of the wave proceeds.
    - Write the **evidence file** (fail-closed, INV-114).
    - Any still-unresolved `redTeamFindings` cap their mapped auditor's score (`[RT-xx UNRESOLVED]`).
    - **CRITICAL / MAJOR** → dispatch a fixer agent.
-4. **Verify, then gate:**
+4. **Commit the cumulative candidate and all review/evidence artifacts.** This is the final
+   pre-gate commit. The working tree must be clean; nothing may be committed after L2 because
+   `gate-pass.json` is bound to the exact HEAD and tree hash.
+5. **Verify, then gate:**
 
    Run the `verification` skill on the cumulative branch first (claim-based pass: every
    claim in the DONE reports gets checked against the tree, not trusted), then the gate:
@@ -339,18 +342,18 @@ wave.** The rest of the wave proceeds.
    # skill: verification — claim-based pass on the cumulative branch first
    # FULL GATE → writes gate-pass.json; under the per-repo mutex (ADR-103) so a
    # concurrent agent's gate never interleaves with this one:
-   arbiter gate-exec -- sh -c 'npm run test && node scripts/check-all.mjs L2'
+   arbiter gate-exec -- node scripts/check-all.mjs L2
    ```
 
    `gate-pass.json` is required by the `enforce-gate-before-pr` hook.
 
-5. **RED → root-cause structural fix** (never `--no-verify`, never skip). If the culprit is
+6. **RED → root-cause structural fix** (never `--no-verify`, never skip). If the culprit is
    one group, **revert that group's merge** → mark its issues `needs-human` → the wave
    continues with the rest. **Any reverted/redone group and any FIT REJECT is rework
    data**: append the why × where-caught before proceeding —
    `node scripts/rework-log.mjs add --issue <n> --reason <r> --caught review` (taxonomy in
    the script; `report` mode shows which issue-template section is leaking).
-6. **One PR per wave.** Body: a table mapping each issue → its commit, and **one `Closes #N`
+7. **One PR per wave.** Body: a table mapping each issue → its commit, and **one `Closes #N`
    line per issue** — never a comma-separated list (`Closes #N1, #N2, ...`); GitHub's
    closing-keyword parser only reliably auto-closes the first issue in such a list on
    admin/rebase-merge (#1766). Merge **only with checks GREEN**:
@@ -368,7 +371,7 @@ wave.** The rest of the wave proceeds.
 
    CI red → root-cause fix → re-gate (PRs are owned until merged green).
 
-7. `/wt-close` (harvest) + `arbiter worktree prune --stale 24` (review the dry-run report,
+8. `/wt-close` (harvest) + `arbiter worktree prune --stale 24` (review the dry-run report,
    then re-run with `--execute`) → `/clear` → **next wave**, until the backlog is empty. The
    reaper also runs inside the watchdog sweep, so a crashed worker's zombie worktree never
    outlives the wave (dirty trees are never touched — INV-96).

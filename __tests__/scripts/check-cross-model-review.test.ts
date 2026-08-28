@@ -771,4 +771,35 @@ describe('check-cross-model-review (#2358)', () => {
     expect(result.status).toBe(2)
     expect(`${result.stdout}${result.stderr}`).toMatch(/reviewer panel/i)
   })
+
+  it('accepts the three-reviewer security escalation panel', () => {
+    json('arbiter.json', {
+      collaborationMode: 'peer-review',
+      crossModelReview: { enabled: true, diffEgressConsent: true, onUnavailable: 'degrade' },
+    })
+    json('.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json', envelope())
+    writeArtifact(
+      dispatch({
+        fulfilled: [
+          {
+            provider: 'codex',
+            cliVersion: '0.5.1',
+            envelope: '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+          },
+        ],
+      }),
+    )
+    const agents = ['security-reviewer', 'domain-reviewer', 'codex-reviewer']
+    const result = run({}, [
+      '--require-fulfilled',
+      '--record-panel',
+      JSON.stringify(agents),
+      '--record-count',
+      '3',
+    ])
+    expect(result.status).toBe(0)
+    expect(
+      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+    ).toMatchObject({ count: 3, agents })
+  })
 })

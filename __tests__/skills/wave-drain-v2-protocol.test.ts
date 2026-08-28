@@ -97,6 +97,18 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
     expect(md).toContain('node scripts/check-all.mjs L2')
   })
 
+  it('commits review evidence before one exact-HEAD L2 gate and PR creation', () => {
+    const commit = md.indexOf('Commit the cumulative candidate and all review/evidence artifacts')
+    const gate = md.indexOf('arbiter gate-exec -- node scripts/check-all.mjs L2')
+    const pr = md.indexOf('One PR per wave')
+    expect(commit).toBeGreaterThan(-1)
+    expect(gate).toBeGreaterThan(commit)
+    expect(pr).toBeGreaterThan(gate)
+    expect(md).not.toContain(
+      "arbiter gate-exec -- sh -c 'npm run test && node scripts/check-all.mjs L2'",
+    )
+  })
+
   it('keeps the standard merge path for non-solo projects without admin bypass', () => {
     const peerReview = renderTemplate('claude/skills/wave-drain/SKILL.md.ejs', {
       ...selfConfig,
