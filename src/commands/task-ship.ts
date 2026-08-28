@@ -523,14 +523,23 @@ function assertSeedWithinLimit(
   limits: TrainLimits,
 ): void {
   if (chainIds === undefined && taskId === undefined) return
-  const primaryCount = taskId !== undefined || existing?.taskId !== undefined ? 1 : 0
-  const projectedSize = primaryCount + (chainIds ?? existing?.chainIds ?? []).length
+  const taskChanged = shipTaskChanged(existing, taskId)
+  const primaryCount = taskId !== undefined || (!taskChanged && existing?.taskId !== undefined) ? 1 : 0
+  const existingChainIds = taskChanged ? [] : (existing?.chainIds ?? [])
+  const projectedSize = primaryCount + (chainIds ?? existingChainIds).length
   if (projectedSize <= limits.maxChain) return
   const seal = {
     reason: 'max-chain' as const,
     detail: `the requested seed would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
   }
   throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
+}
+
+function shipTaskChanged(existing: UnifiedTaskState | null, taskId: string | undefined): boolean {
+  if (taskId === undefined || existing?.taskId === undefined || existing.taskId.length === 0) {
+    return false
+  }
+  return existing.taskId.replace(/^#/, '') !== taskId.replace(/^#/, '')
 }
 
 function seedShipState(root: string, opts: TaskShipOptions): void {
@@ -718,12 +727,26 @@ function assertChainAddAllowed(
 ): void {
   const additions = opts.chainAddIds ?? []
   const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
+  const taskChanged = shipTaskChanged(state, taskId)
   const existing =
-    opts.chainIds !== undefined ? opts.chainIds.map(normalizeChainId) : (state?.chainIds ?? [])
+    opts.chainIds !== undefined
+      ? opts.chainIds.map(normalizeChainId)
+      : taskChanged
+        ? []
+        : (state?.chainIds ?? [])
   const primaryCount = taskId === undefined ? 0 : 1
   const currentSize = primaryCount + existing.length
   const projectedSize = primaryCount + appendChainIds(existing, additions).length
-  const currentVerdict = evaluateSeal(trainSignalsFor(root, opts, state, now, currentSize), limits)
+  const currentVerdict = evaluateSeal(
+    trainSignalsFor(
+      root,
+      opts,
+      taskChanged ? null : state,
+      now,
+      currentSize,
+    ),
+    limits,
+  )
   const verdict =
     currentVerdict.sealed || projectedSize <= limits.maxChain
       ? currentVerdict

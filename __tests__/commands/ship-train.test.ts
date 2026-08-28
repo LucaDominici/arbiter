@@ -321,3 +321,22 @@ it('rejects adding a primary issue to an already-full chain before writing it', 
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+it('does not count a prior task train when a new primary resets task state', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-task-reset-'))
+  try {
+    runTaskShip({
+      dir,
+      taskId: '#100',
+      chainIds: ['#101', '#102', '#103', '#104'],
+      profileOverride: TEST_PROFILE,
+    })
+
+    runTaskShip({ dir, taskId: '#200', profileOverride: TEST_PROFILE })
+
+    expect(readUnifiedState(dir)).toMatchObject({ taskId: '#200', phase: 'preflight' })
+    expect(readUnifiedState(dir)?.chainIds).toBeUndefined()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
