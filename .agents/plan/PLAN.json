@@ -201,6 +201,7 @@
     { "path": "__tests__/wizard/prompts.test.ts", "operation": "modify" },
     { "path": "docs/design/agent-return-provenance.md", "operation": "modify" },
     { "path": "docs/design/cross-model-review-config.md", "operation": "modify" },
+    { "path": "docs/design/cross-model-review-slot.md", "operation": "modify" },
     { "path": "docs/design/external-model-detection.md", "operation": "modify" },
     { "path": "examples/go-library/.arbiter-generated-manifest.json", "operation": "modify" },
     { "path": "examples/go-library/.claude/commands/ship.md", "operation": "modify" },
