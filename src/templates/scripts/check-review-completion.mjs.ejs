@@ -518,7 +518,9 @@ function checkoutBindingError(sidecar) {
 function main() {
   const sidecarState = inspectFilePath(sidecarPath)
   if ('error' in sidecarState) {
-    process.stderr.write(`[check-review-completion] ERROR: cannot read sidecar ${sidecarPath}: ${sidecarState.error}\n`)
+    process.stderr.write(
+      `[check-review-completion] ERROR: cannot read sidecar ${sidecarPath}: ${sidecarState.error}\n`,
+    )
     return 2
   }
   if (!sidecarState.exists) {
