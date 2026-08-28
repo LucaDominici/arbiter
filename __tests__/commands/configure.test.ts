@@ -66,6 +66,32 @@ describe('runConfigure — --set round-trips', () => {
     expect(thresholds['branchCoverage']).toBe(DEFAULT_THRESHOLDS.L2.branchCoverage) // unchanged
   })
 
+  it('sets nested crossModelReview fields and persists the block', async () => {
+    writeV2Config(dir)
+
+    await runConfigure({
+      dir,
+      sets: [
+        'crossModelReview.enabled=true',
+        'crossModelReview.diffEgressConsent=true',
+        'crossModelReview.providers=codex',
+        'crossModelReview.slots.codeReview=1',
+        'crossModelReview.slots.redTeamReview=0',
+        'crossModelReview.timeoutMs=300000',
+        'crossModelReview.onUnavailable=degrade',
+      ],
+    })
+
+    expect(readArbiterJson(dir)['crossModelReview']).toEqual({
+      enabled: true,
+      diffEgressConsent: true,
+      providers: ['codex'],
+      slots: { codeReview: 1, redTeamReview: 0 },
+      timeoutMs: 300000,
+      onUnavailable: 'degrade',
+    })
+  })
+
   it('updates an existing /drain default when the worktree cap changes (#2344)', async () => {
     writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 2 } })
     const drainPath = join(dir, '.claude', 'commands', 'drain.md')

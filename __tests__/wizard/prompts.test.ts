@@ -52,6 +52,7 @@ interface ClackAnswers {
   industryOverlay?: string
   autonomy?: string
   runnerProfile?: string
+  crossModelReview?: boolean
   /** Final "Proceed?" confirmation. Defaults to true. */
   proceed?: boolean
 }
@@ -65,6 +66,7 @@ function setupClack(answers: ClackAnswers): void {
   vi.mocked(clack.multiselect).mockResolvedValue(answers.tools ?? [])
   vi.mocked(clack.confirm).mockImplementation(async ({ message }: { message: string }) => {
     if (message.includes('Proceed')) return answers.proceed ?? true
+    if (message.includes('Cross-model review')) return answers.crossModelReview ?? false
     // language confirmation (Use detected language …?)
     return answers.keepDetectedLanguage ?? true
   })
@@ -880,6 +882,84 @@ describe('decompositionBackend selection', () => {
     const result = await runWizard(input)
     expect(result!.decompositionBackend).toBe('markdown')
     expect(result!.useGitHub).toBe(false)
+  })
+})
+
+describe('cross-model review prompt (#2356)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    process.exitCode = 0
+  })
+
+  afterEach(() => {
+    process.exitCode = 0
+  })
+
+  it('skips the prompt when no external provider is available', async () => {
+    setupClack({ description: 'my project', tools: ['claude'], governanceLevel: 'L2', proceed: true })
+
+    const result = await runWizard(makeWizardInput())
+
+    expect(result!.crossModelReview).toBeUndefined()
+    expect(vi.mocked(clack.confirm).mock.calls.some(([call]) =>
+      (call as { message: string }).message.includes('Cross-model review'),
+    )).toBe(false)
+  })
+
+  it('prints a note and does not ask when the provider is available but unauthenticated', async () => {
+    const input = makeWizardInput()
+    input.externalModelAccess = {
+      provider: 'codex',
+      vendor: 'openai',
+      available: true,
+      authenticated: false,
+      version: '0.5.1',
+      error: 'Not authenticated',
+    }
+    const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    setupClack({ description: 'my project', tools: ['claude'], governanceLevel: 'L2', proceed: true })
+
+    const result = await runWizard(input)
+
+    expect(result!.crossModelReview).toBeUndefined()
+    expect(output.mock.calls.map(([value]) => String(value)).join(' ')).toMatch(
+      /cross-model.*not authenticated/i,
+    )
+    expect(vi.mocked(clack.confirm).mock.calls.some(([call]) =>
+      (call as { message: string }).message.includes('Cross-model review'),
+    )).toBe(false)
+    output.mockRestore()
+  })
+
+  it('asks with a false default and persists both enabled and consent on yes', async () => {
+    const input = makeWizardInput()
+    input.externalModelAccess = {
+      provider: 'codex',
+      vendor: 'openai',
+      available: true,
+      authenticated: true,
+      version: '0.5.1',
+      error: null,
+    }
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      crossModelReview: true,
+      proceed: true,
+    })
+
+    const result = await runWizard(input)
+    const prompt = vi.mocked(clack.confirm).mock.calls.find(([call]) =>
+      (call as { message: string }).message.includes('Cross-model review'),
+    )
+
+    expect(prompt?.[0]).toEqual(expect.objectContaining({ initialValue: false }))
+    expect(result!.crossModelReview).toMatchObject({
+      enabled: true,
+      diffEgressConsent: true,
+      providers: ['codex'],
+    })
   })
 })
 

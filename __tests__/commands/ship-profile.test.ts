@@ -327,6 +327,35 @@ describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', (
   })
 })
 
+describe('resolveShipProfile — cross-model review (#2356)', () => {
+  it('exposes the persisted block to the ship runtime reader', () => {
+    const crossModelReview = {
+      enabled: true,
+      diffEgressConsent: true,
+      providers: ['codex'],
+      slots: { codeReview: 1, redTeamReview: 0 },
+      timeoutMs: 300000,
+      onUnavailable: 'degrade',
+    }
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfg({ crossModelReview }),
+    })
+
+    expect(resolveShipProfile(dir).crossModelReview).toEqual(crossModelReview)
+  })
+
+  it('allows per-run enabled changes but refuses per-run consent changes', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme-app') })
+    expect(buildShipOverrides(dir, { sets: ['crossModelReview.enabled=true'] })).toEqual({
+      'crossModelReview.enabled': 'true',
+    })
+    expect(() =>
+      buildShipOverrides(dir, { sets: ['crossModelReview.diffEgressConsent=true'] }),
+    ).toThrowError(/E_UNKNOWN_PATH|unknown/i)
+  })
+})
+
 describe('isArbiterSelf — package-name signal, rooted, crash-safe (#1288 RT-04/09)', () => {
   it('true only for the unique @arbiter/cli package name', () => {
     const self = tmpRepo({ 'package.json': pkg('@arbiter/cli') })

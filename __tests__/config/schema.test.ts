@@ -149,6 +149,45 @@ describe('validateConfig — valid v2', () => {
   })
 })
 
+describe('validateConfig — crossModelReview (#2356)', () => {
+  const crossModelReview = {
+    enabled: true,
+    diffEgressConsent: true,
+    providers: ['codex'],
+    slots: { codeReview: 1, redTeamReview: 0 },
+    timeoutMs: 300_000,
+    onUnavailable: 'degrade',
+  }
+
+  it('accepts the optional cross-model review block without a schema-version bump', () => {
+    const result = validateConfig({ ...BASE_VALID, crossModelReview })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.config.crossModelReview).toEqual(crossModelReview)
+      expect(result.config.$schemaVersion).toBeUndefined()
+    }
+  })
+
+  it('keeps legacy configs without crossModelReview valid', () => {
+    const result = validateConfig(BASE_VALID)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.config.crossModelReview).toBeUndefined()
+  })
+
+  it.each([
+    ['enabled', { ...crossModelReview, enabled: 'yes' }],
+    ['diffEgressConsent', { ...crossModelReview, diffEgressConsent: 'yes' }],
+    ['providers', { ...crossModelReview, providers: ['gemini'] }],
+    ['slots', { ...crossModelReview, slots: { codeReview: -1, redTeamReview: 0 } }],
+    ['timeoutMs', { ...crossModelReview, timeoutMs: 0 }],
+    ['onUnavailable', { ...crossModelReview, onUnavailable: 'ignore' }],
+  ])('rejects invalid %s values', (_field, value) => {
+    const result = validateConfig({ ...BASE_VALID, crossModelReview: value })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.errors.some((error) => error.includes('crossModelReview'))).toBe(true)
+  })
+})
+
 describe('validateConfig — companions override map (#1730)', () => {
   const base = {
     version: '0.2',

@@ -29,6 +29,17 @@ describe('applyEnvOverrides (#233)', () => {
     expect(out.features.contractTesting).toBe(false)
   })
 
+  it('overrides cross-model review enabled state without inventing a persistent file field', () => {
+    const cfg = baseConfig()
+    const out = applyEnvOverrides(cfg, { ARBITER_CROSS_MODEL_REVIEW: 'true' })
+    expect(out.crossModelReview).toMatchObject({
+      enabled: true,
+      diffEgressConsent: false,
+      providers: ['codex'],
+    })
+    expect(cfg.crossModelReview).toBeUndefined()
+  })
+
   it('overrides thresholds via ARBITER_THRESHOLD__<FIELD>', () => {
     const cfg = baseConfig()
     const out = applyEnvOverrides(cfg, {

@@ -172,6 +172,33 @@ describe('buildConfigFromAnswers — industryOverlay axis (#1254)', () => {
   })
 })
 
+describe('buildConfigFromAnswers — cross-model review (#2356)', () => {
+  const crossModelReview = {
+    enabled: true,
+    diffEgressConsent: true,
+    providers: ['codex'] as ['codex'],
+    slots: { codeReview: 1, redTeamReview: 0 },
+    timeoutMs: 300000,
+    onUnavailable: 'degrade' as const,
+  }
+
+  it('threads an affirmative answer into ProjectConfig', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers({ crossModelReview }))
+    expect(config.crossModelReview).toEqual(crossModelReview)
+  })
+
+  it('omits the block when the conditional question is skipped or declined', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers())
+    expect(config.crossModelReview).toBeUndefined()
+  })
+
+  it('persists the affirmative block into arbiter.json', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const config = buildArbiterConfig(buildConfigFromAnswers(makeInput(), makeAnswers({ crossModelReview })))
+    expect(config.crossModelReview).toEqual(crossModelReview)
+  })
+})
+
 describe('buildConfigFromAnswers — runnerProfile axis (#1693, ADR-101)', () => {
   it('threads the chosen runnerProfile answer into the ProjectConfig', () => {
     const config = buildConfigFromAnswers(makeInput(), makeAnswers({ runnerProfile: 'solo' }))
