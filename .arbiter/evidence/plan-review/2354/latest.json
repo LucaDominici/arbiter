@@ -1,16 +1,14 @@
 {
   "verdict": "PASS",
-  "reviewer": "codex-plan-review",
+  "reviewer": "Terra-plan-review",
   "branch": "task/#2354-cross-model-review",
-  "sha": "ee61d23421678eaf4df1e1d7da712001c818c310",
-  "planDigest": "e5a9185c8dc1498dd7a246707619f53c90c01bdae763c5416fc11e45b9a1d030",
+  "sha": "49cf93f24e4976ba6d56b0e53ccbb0acd789fd58",
+  "planDigest": "de4e27f58742491d95b10260fed09e3c70e432e5536a6b24517d12b8bcb51d5b",
   "checks": {
-    "acceptanceCriteria": "PASS — 47 unique namespaced anchors; five fenced source blocks match live issue ACs.",
-    "manifestScope": "PASS — 94/94 changed files are in PLAN.json and within scope.paths.",
-    "existingCodeSurveys": "PASS — three new src files, each with 3 evidence lines and >200-character rationale.",
-    "impactEvidence": "PASS — concrete dependency paths, symbols, consumers, and generated twins documented.",
-    "nonGoalsSecurityException": "PASS — explicit and honest AC-2354.7 security-hardening exception.",
-    "driveByScope": "PASS — no unlisted implementation, process, generated, example, documentation, or test files."
+    "manifestScope": "PASS: 163/163 exact diff paths; no missing or stale entries",
+    "workflowStabilization": "PASS: explicitly user-authorized and forward-only ordering is documented",
+    "nonGoals": "PASS: agent-return validator is unchanged",
+    "impactEvidence": "PASS"
   },
   "findings": []
 }
