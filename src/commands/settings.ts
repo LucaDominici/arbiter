@@ -97,6 +97,18 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
     ],
   },
   {
+    group: 'Cross-model review',
+    fields: [
+      { path: 'crossModelReview.enabled', label: 'Cross-model review enabled' },
+      { path: 'crossModelReview.diffEgressConsent', label: 'Diff egress consent' },
+      { path: 'crossModelReview.providers', label: 'Review providers' },
+      { path: 'crossModelReview.slots.codeReview', label: 'Code-review slots' },
+      { path: 'crossModelReview.slots.redTeamReview', label: 'Red-team-review slots' },
+      { path: 'crossModelReview.timeoutMs', label: 'Review timeout (ms)' },
+      { path: 'crossModelReview.onUnavailable', label: 'Unavailable-provider policy' },
+    ],
+  },
+  {
     group: 'Thresholds',
     fields: [
       { path: 'thresholds.lineCoverage', label: 'Line coverage %' },

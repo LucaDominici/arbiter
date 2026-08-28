@@ -130,6 +130,14 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     isGateBypass: false,
   },
   {
+    name: 'ARBITER_CROSS_MODEL_REVIEW',
+    type: 'boolean',
+    default: false,
+    purpose:
+      'Per-run override for crossModelReview.enabled; disabling it weakens the optional adversarial review axis.',
+    isGateBypass: true,
+  },
+  {
     name: 'ARBITER_ACCEPTANCE_ANCHOR',
     type: 'boolean',
     default: false,

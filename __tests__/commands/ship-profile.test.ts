@@ -354,6 +354,26 @@ describe('resolveShipProfile — cross-model review (#2356)', () => {
       buildShipOverrides(dir, { sets: ['crossModelReview.diffEgressConsent=true'] }),
     ).toThrowError(/E_UNKNOWN_PATH|unknown/i)
   })
+
+  it('applies the per-run enabled override while preserving persisted consent', () => {
+    const crossModelReview = {
+      enabled: false,
+      diffEgressConsent: true,
+      providers: ['codex'],
+      slots: { codeReview: 1, redTeamReview: 0 },
+      timeoutMs: 300000,
+      onUnavailable: 'degrade',
+    }
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfg({ crossModelReview }),
+    })
+
+    expect(
+      resolveShipProfile(dir, { overrides: { 'crossModelReview.enabled': 'true' } })
+        .crossModelReview,
+    ).toEqual({ ...crossModelReview, enabled: true })
+  })
 })
 
 describe('isArbiterSelf — package-name signal, rooted, crash-safe (#1288 RT-04/09)', () => {

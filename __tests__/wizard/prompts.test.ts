@@ -896,14 +896,23 @@ describe('cross-model review prompt (#2356)', () => {
   })
 
   it('skips the prompt when no external provider is available', async () => {
-    setupClack({ description: 'my project', tools: ['claude'], governanceLevel: 'L2', proceed: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
 
     expect(result!.crossModelReview).toBeUndefined()
-    expect(vi.mocked(clack.confirm).mock.calls.some(([call]) =>
-      (call as { message: string }).message.includes('Cross-model review'),
-    )).toBe(false)
+    expect(
+      vi
+        .mocked(clack.confirm)
+        .mock.calls.some(([call]) =>
+          (call as { message: string }).message.includes('Cross-model review'),
+        ),
+    ).toBe(false)
   })
 
   it('prints a note and does not ask when the provider is available but unauthenticated', async () => {
@@ -917,7 +926,12 @@ describe('cross-model review prompt (#2356)', () => {
       error: 'Not authenticated',
     }
     const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
-    setupClack({ description: 'my project', tools: ['claude'], governanceLevel: 'L2', proceed: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
 
     const result = await runWizard(input)
 
@@ -925,9 +939,13 @@ describe('cross-model review prompt (#2356)', () => {
     expect(output.mock.calls.map(([value]) => String(value)).join(' ')).toMatch(
       /cross-model.*not authenticated/i,
     )
-    expect(vi.mocked(clack.confirm).mock.calls.some(([call]) =>
-      (call as { message: string }).message.includes('Cross-model review'),
-    )).toBe(false)
+    expect(
+      vi
+        .mocked(clack.confirm)
+        .mock.calls.some(([call]) =>
+          (call as { message: string }).message.includes('Cross-model review'),
+        ),
+    ).toBe(false)
     output.mockRestore()
   })
 
@@ -950,9 +968,11 @@ describe('cross-model review prompt (#2356)', () => {
     })
 
     const result = await runWizard(input)
-    const prompt = vi.mocked(clack.confirm).mock.calls.find(([call]) =>
-      (call as { message: string }).message.includes('Cross-model review'),
-    )
+    const prompt = vi
+      .mocked(clack.confirm)
+      .mock.calls.find(([call]) =>
+        (call as { message: string }).message.includes('Cross-model review'),
+      )
 
     expect(prompt?.[0]).toEqual(expect.objectContaining({ initialValue: false }))
     expect(result!.crossModelReview).toMatchObject({

@@ -10,6 +10,9 @@ import type {
   CollaborationMode,
   ConformanceThresholds,
   ContractType,
+  CrossModelReviewConfig,
+  CrossModelReviewProvider,
+  CrossModelReviewUnavailablePolicy,
   DeployTarget,
   EvidenceRetentionConfig,
   FrontendConfig,
@@ -30,7 +33,7 @@ import type {
 import type { BrownfieldClass } from '../kit/thresholds.js'
 import type { Invariant } from '../invariants/types.js'
 
-export type { ThresholdsV2, TaskTiers }
+export type { ThresholdsV2, TaskTiers, CrossModelReviewConfig }
 
 export interface FeatureFlags {
   contractTesting: boolean
@@ -77,6 +80,15 @@ export const DEFAULT_TASK_TIERS: TaskTiers = {
   XS: { planDepth: 'minimal', reviewAgentCount: 1 },
   S: { planDepth: 'brief', reviewAgentCount: 1 },
   Standard: { planDepth: 'full', reviewAgentCount: 2 },
+}
+
+export const DEFAULT_CROSS_MODEL_REVIEW: CrossModelReviewConfig = {
+  enabled: false,
+  diffEgressConsent: false,
+  providers: ['codex'],
+  slots: { codeReview: 1, redTeamReview: 0 },
+  timeoutMs: 300_000,
+  onUnavailable: 'degrade',
 }
 
 interface DecompositionConfig {
@@ -294,6 +306,8 @@ export interface ArbiterConfigV2 {
   contextPack?: ContextPackConfig
   /** #1291 — ship autonomy gating (ADR-093 §4). Absent ⇒ L0 (ask each step). */
   automation?: AutomationConfig
+  /** #2356 — opt-in external review and explicit code-egress consent. */
+  crossModelReview?: CrossModelReviewConfig
   /** Observability provider configuration. Absent = no observability files generated. */
   observability?: ObservabilityConfig
   /** Auth provider configuration. Absent = no auth setup files generated. */
@@ -975,6 +989,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateTaskTiers(draft['taskTiers'], errors)
   validateContextPack(draft['contextPack'], errors)
   validateAutomation(draft['automation'], errors)
+  validateCrossModelReview(draft['crossModelReview'], errors)
   validateChannel(draft['channel'], errors)
   validateGovernance(draft['governance'], errors)
   validateKit(draft['kit'], errors)
@@ -1200,6 +1215,75 @@ function validateContextPack(raw: unknown, errors: string[]): void {
     if (typeof m['adr'] !== 'string' || m['adr'].length === 0) {
       errors.push(`contextPack.adrMappings[${i}].adr must be a non-empty string`)
     }
+  }
+}
+
+const CROSS_MODEL_REVIEW_PROVIDERS: ReadonlySet<CrossModelReviewProvider> = new Set(['codex'])
+const CROSS_MODEL_REVIEW_POLICIES: ReadonlySet<CrossModelReviewUnavailablePolicy> = new Set([
+  'degrade',
+  'fail',
+])
+
+/** #2356 — validate the optional, consent-bearing external-review block. */
+function validateCrossModelReview(raw: unknown, errors: string[]): void {
+  if (raw === undefined) return
+  if (!isRecord(raw)) {
+    errors.push('crossModelReview must be an object')
+    return
+  }
+  validateCrossModelBooleans(raw, errors)
+  validateCrossModelProviders(raw, errors)
+  validateCrossModelSlots(raw, errors)
+  validateCrossModelTimeout(raw, errors)
+  validateCrossModelPolicy(raw, errors)
+}
+
+function validateCrossModelBooleans(raw: Record<string, unknown>, errors: string[]): void {
+  if (typeof raw['enabled'] !== 'boolean') {
+    errors.push('crossModelReview.enabled must be a boolean')
+  }
+  if (typeof raw['diffEgressConsent'] !== 'boolean') {
+    errors.push('crossModelReview.diffEgressConsent must be a boolean')
+  }
+}
+
+function validateCrossModelProviders(raw: Record<string, unknown>, errors: string[]): void {
+  const providers = raw['providers']
+  if (
+    !Array.isArray(providers) ||
+    providers.length === 0 ||
+    providers.some(
+      (provider) => !CROSS_MODEL_REVIEW_PROVIDERS.has(provider as CrossModelReviewProvider),
+    )
+  ) {
+    errors.push('crossModelReview.providers must be a non-empty array containing only codex')
+  }
+}
+
+function validateCrossModelSlots(raw: Record<string, unknown>, errors: string[]): void {
+  const slots = raw['slots']
+  if (!isRecord(slots)) {
+    errors.push('crossModelReview.slots must be an object')
+    return
+  }
+  for (const slot of ['codeReview', 'redTeamReview'] as const) {
+    const value = slots[slot]
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+      errors.push(`crossModelReview.slots.${slot} must be a non-negative integer`)
+    }
+  }
+}
+
+function validateCrossModelTimeout(raw: Record<string, unknown>, errors: string[]): void {
+  const timeoutMs = raw['timeoutMs']
+  if (typeof timeoutMs !== 'number' || !Number.isInteger(timeoutMs) || timeoutMs < 1) {
+    errors.push('crossModelReview.timeoutMs must be a positive integer')
+  }
+}
+
+function validateCrossModelPolicy(raw: Record<string, unknown>, errors: string[]): void {
+  if (!CROSS_MODEL_REVIEW_POLICIES.has(raw['onUnavailable'] as CrossModelReviewUnavailablePolicy)) {
+    errors.push('crossModelReview.onUnavailable must be degrade or fail')
   }
 }
 

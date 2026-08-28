@@ -11,6 +11,7 @@ import { detectGitInfo } from '../../detectors/git.js'
 import { detectExisting } from '../../detectors/existing.js'
 import { detectBasePackage } from '../../detectors/package.js'
 import { detectGithubAccess } from '../../detectors/github.js'
+import { detectExternalModel } from '../../detectors/external-model.js'
 import { getLanguageHooks } from '../../detectors/language-hooks.js'
 import { detectPackageManager } from '../../detectors/package-manager.js'
 import { detectLanes } from '../../detectors/lanes.js'
@@ -141,6 +142,7 @@ export interface InitProjectDetection {
   gitInfo: ReturnType<typeof detectGitInfo>
   existing: ReturnType<typeof detectExisting>
   githubAccess: ReturnType<typeof detectGithubAccess>
+  externalModelAccess: ReturnType<typeof detectExternalModel>
   lanes: ReturnType<typeof detectLanes>['lanes']
 }
 
@@ -162,6 +164,7 @@ export function detectProjectForInit(
   const gitInfo = detectGitInfo(targetDir)
   const existing = detectExisting(targetDir)
   const githubAccess = detectGithubAccess()
+  const externalModelAccess = detectExternalModel('codex')
   const lanes = detectLanes(targetDir).lanes
 
   log(
@@ -190,6 +193,7 @@ export function detectProjectForInit(
     gitInfo,
     existing,
     githubAccess,
+    externalModelAccess,
     lanes,
   }
 }
@@ -235,6 +239,7 @@ export async function resolveConfig(args: {
   gitInfo: ReturnType<typeof detectGitInfo>
   existing: ReturnType<typeof detectExisting>
   githubAccess: ReturnType<typeof detectGithubAccess>
+  externalModelAccess: ReturnType<typeof detectExternalModel>
   lanes: import('../../wizard/types.js').Lane[]
   languageLocked: boolean
   languageSource: string | null
@@ -250,6 +255,7 @@ export async function resolveConfig(args: {
     gitInfo,
     existing,
     githubAccess,
+    externalModelAccess,
     lanes,
     languageLocked,
     languageSource,
@@ -282,6 +288,7 @@ export async function resolveConfig(args: {
     gitInfo,
     existing,
     githubAccess,
+    externalModelAccess,
     detectedLanes: lanes,
     languageLocked,
     languageSource,

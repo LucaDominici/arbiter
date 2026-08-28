@@ -184,7 +184,8 @@ describe('validateConfig — crossModelReview (#2356)', () => {
   ])('rejects invalid %s values', (_field, value) => {
     const result = validateConfig({ ...BASE_VALID, crossModelReview: value })
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.errors.some((error) => error.includes('crossModelReview'))).toBe(true)
+    if (!result.ok)
+      expect(result.errors.some((error) => error.includes('crossModelReview'))).toBe(true)
   })
 })
 

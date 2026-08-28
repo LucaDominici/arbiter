@@ -20,7 +20,8 @@ related: []
 - Usage statistics or analytics
 - Error reports or crash data
 - Machine identifiers or IP addresses
-- Project structure, file names, or code content
+- Project structure, file names, or code content (unless you explicitly enable cross-model review,
+  which sends the change diff to the selected provider CLI)
 - Command-line arguments or flags you pass
 - Timing data or performance metrics
 
@@ -32,10 +33,11 @@ There is no opt-out because there is nothing to opt out of.
 
 Arbiter is offline by default. The only network activity is explicit and user-initiated:
 
-| Action                                   | When                                                                    | Why                                                                                                             |
-| ---------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `arbiter init` (GitHub-backend projects) | Repo setup step touches branch protection, labels, or the project board | Shells out to your local `gh` CLI, which uses its own auth — arbiter never receives or transmits a token itself |
-| `arbiter init --recipe <https://…>`      | You pass an `https://` recipe URL                                       | Fetches the recipe JSON you pointed it at                                                                       |
+| Action                                   | When                                                                    | Why                                                                                                                                 |
+| ---------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `arbiter init` (GitHub-backend projects) | Repo setup step touches branch protection, labels, or the project board | Shells out to your local `gh` CLI, which uses its own auth — arbiter never receives or transmits a token itself                     |
+| `arbiter init --recipe <https://…>`      | You pass an `https://` recipe URL                                       | Fetches the recipe JSON you pointed it at                                                                                           |
+| Cross-model review                       | You explicitly enable it and consent to diff egress                     | Sends the change diff through your local provider CLI, which uses its own auth — arbiter never receives or transmits a token itself |
 
 In every case, the network call is a direct consequence of a command (and, for recipes, a URL) you explicitly ran. Arbiter does not call home in the background, on startup, or at any other time.
 

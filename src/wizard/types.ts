@@ -3,6 +3,21 @@ export type InvariantTier = 'architectural' | 'data' | 'security' | 'operational
 
 export type InvariantPreset = 'essential' | 'standard' | 'full'
 
+export type CrossModelReviewProvider = 'codex'
+export type CrossModelReviewUnavailablePolicy = 'degrade' | 'fail'
+
+export interface CrossModelReviewConfig {
+  enabled: boolean
+  diffEgressConsent: boolean
+  providers: CrossModelReviewProvider[]
+  slots: {
+    codeReview: number
+    redTeamReview: number
+  }
+  timeoutMs: number
+  onUnavailable: CrossModelReviewUnavailablePolicy
+}
+
 /**
  * Meta-preset that bundles governance, compliance, observability, and auth config
  * into a single opt-in. Providers remain 'none' — user fills them in separately.
@@ -79,6 +94,8 @@ export interface WizardAnswers {
    * Default false.
    */
   enableFiveLaneCi?: boolean
+  /** #2356: optional, explicit consent for sending diffs to the external reviewer CLI. */
+  crossModelReview?: CrossModelReviewConfig
 }
 
 export interface MigrationPlan {
@@ -242,6 +259,9 @@ export interface ProjectConfig {
 
   tools: AiTool[]
   governanceLevel: GovernanceLevel
+
+  /** #2356: explicit opt-in and diff-egress consent for external review slots. */
+  crossModelReview?: CrossModelReviewConfig
 
   useGitHub: boolean
   permitGitHub?: boolean

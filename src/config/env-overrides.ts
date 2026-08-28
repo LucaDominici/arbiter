@@ -18,7 +18,11 @@
 
 import type { GovernanceLevel } from '../wizard/types.js'
 import { parseBooleanEnv } from '../utils/env.js'
-import { DEFAULT_THRESHOLDS, isThresholdValueInRange } from './schema.js'
+import {
+  DEFAULT_CROSS_MODEL_REVIEW,
+  DEFAULT_THRESHOLDS,
+  isThresholdValueInRange,
+} from './schema.js'
 import type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 } from './schema.js'
 
 type Env = Record<string, string | undefined>
@@ -209,6 +213,22 @@ export function applyEnvOverrides(cfg: ArbiterConfigV2, env: Env): ArbiterConfig
     }
     // Reserved prefix used by harness — not a config override.
     if (key === 'ARBITER_NO_EVIDENCE') continue
+
+    if (key === 'ARBITER_CROSS_MODEL_REVIEW') {
+      const value = parseBooleanEnv(rawValue)
+      if (value === undefined) {
+        warnDroppedOverride(key, `value "${rawValue}" is not a recognized boolean`)
+      } else {
+        next = {
+          ...next,
+          crossModelReview: {
+            ...(next.crossModelReview ?? DEFAULT_CROSS_MODEL_REVIEW),
+            enabled: value,
+          },
+        }
+      }
+      continue
+    }
 
     // Loose top-level pattern: ARBITER_<TOP_FIELD>
     next = applyTopLevelOverride(next, key, rawValue)

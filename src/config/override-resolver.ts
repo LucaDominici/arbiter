@@ -41,6 +41,7 @@ import { DEFAULT_AUTONOMY } from './collaboration-mode-defaults.js'
 const DERIVED_DEFAULTS: Record<string, string> = {
   'automation.autonomy': DEFAULT_AUTONOMY,
   'automation.defaultGateLevel': 'L1',
+  'crossModelReview.enabled': 'false',
 }
 
 export interface ResolveSettingContext {

@@ -30,7 +30,12 @@ import {
 import { resolveSetting } from '../config/override-resolver.js'
 import { assertOverridablePath, parseValue } from './configure.js'
 import { writeOverride } from './task-state.js'
-import type { CollaborationMode, SoloMergeMode, GovernanceLevel } from '../wizard/types.js'
+import type {
+  CollaborationMode,
+  SoloMergeMode,
+  GovernanceLevel,
+  CrossModelReviewConfig,
+} from '../wizard/types.js'
 import {
   AUTONOMY_LEVELS,
   VALID_GATE_LEVELS,
@@ -116,6 +121,8 @@ export interface ShipProfile {
   collaborationMode: CollaborationMode
   mergeMode: SoloMergeMode
   governanceLevel: GovernanceLevel
+  /** #2356 — persisted external-review consent/config, when present. */
+  crossModelReview?: CrossModelReviewConfig
   /** #1291 — resolved ship autonomy (flag > arbiter.json automation.autonomy > L0). */
   autonomy: AutonomyLevel
   /**
@@ -276,11 +283,19 @@ export function resolveShipProfile(
   // contributes no profile value and it falls to override/session/floor — consistent
   // with the whole-profile degrade above (RT-03).
   const prefs = resolveProfilePrefs(root, overrides, config?.automation)
+  const crossModelReview = resolveCrossModelReview(root, overrides, config?.crossModelReview)
   const companions = profileCompanions(root, self, opts, config)
   if (config === null) {
     return { ...CONSUMER_DEFAULT_PROFILE, isArbiterSelf: self, autonomy, ...prefs, companions }
   }
-  return { ...collaborationProfile(config), isArbiterSelf: self, autonomy, ...prefs, companions }
+  return {
+    ...collaborationProfile(config),
+    isArbiterSelf: self,
+    autonomy,
+    ...prefs,
+    companions,
+    ...(crossModelReview !== undefined ? { crossModelReview } : {}),
+  }
 }
 
 /**
@@ -367,4 +382,20 @@ function resolveAutonomy(
     ...(profileValue !== undefined ? { profileValue } : {}),
   })
   return isAutonomyLevel(resolved) ? resolved : 'L0'
+}
+
+/** #2356 — only the opt-in switch is per-run; diff consent stays in the project profile. */
+function resolveCrossModelReview(
+  root: string,
+  overrides: Record<string, string> | undefined,
+  profile: CrossModelReviewConfig | undefined,
+): CrossModelReviewConfig | undefined {
+  if (profile === undefined) return undefined
+  const enabled =
+    resolveSetting('crossModelReview.enabled', {
+      root,
+      ...(overrides !== undefined ? { overrides } : {}),
+      profileValue: String(profile.enabled),
+    }) === 'true'
+  return { ...profile, enabled }
 }

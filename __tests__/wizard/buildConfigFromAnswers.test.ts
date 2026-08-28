@@ -194,7 +194,9 @@ describe('buildConfigFromAnswers — cross-model review (#2356)', () => {
 
   it('persists the affirmative block into arbiter.json', async () => {
     const { buildArbiterConfig } = await import('../../src/commands/init.js')
-    const config = buildArbiterConfig(buildConfigFromAnswers(makeInput(), makeAnswers({ crossModelReview })))
+    const config = buildArbiterConfig(
+      buildConfigFromAnswers(makeInput(), makeAnswers({ crossModelReview })),
+    )
     expect(config.crossModelReview).toEqual(crossModelReview)
   })
 })

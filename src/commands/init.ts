@@ -160,6 +160,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       gitInfo: detection.gitInfo,
       existing: detection.existing,
       githubAccess: detection.githubAccess,
+      externalModelAccess: detection.externalModelAccess,
       lanes: detection.lanes,
       languageLocked: detection.languageLocked,
       languageSource: detection.languageSource,

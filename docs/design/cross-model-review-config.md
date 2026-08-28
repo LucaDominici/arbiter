@@ -13,6 +13,12 @@ related: ['src/config/schema.ts', 'src/wizard/prompts.ts', 'PRIVACY.md']
 
 The `crossModelReview` block in `arbiter.json`, and explicit consent to diff egress, from the wizard.
 
+## Implementation status
+
+Implemented in `#2356`: schema validation, configure/env plumbing, conditional wizard consent,
+init persistence, the ship-profile reader, and the privacy disclosure are covered. Execution of
+external review and diff transmission remain non-goals for this issue.
+
 ## Problem statement
 
 For cross-model review to be usable there must be somewhere to declare it: which providers, how many slots, what to do when the provider is missing. And first of all, there must be **consent**.

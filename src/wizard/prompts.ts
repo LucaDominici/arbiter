@@ -22,13 +22,14 @@ import type { BuildCommands } from '../detectors/build.js'
 import type { GitInfo } from '../detectors/git.js'
 import type { ExistingState } from '../detectors/existing.js'
 import type { GithubAccess } from '../detectors/github.js'
+import type { ExternalModelAccess } from '../detectors/external-model.js'
 import { cleanupInFlightTmpFiles } from '../utils/fs.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { detectArchetypeHint } from '../detectors/framework.js'
 import { ARCHETYPE_DB_SET } from '../detectors/axis.js'
 import { defaultContractType, shouldAskContractType } from './archetype-defaults.js'
-import { DEFAULT_THRESHOLDS } from '../config/schema.js'
+import { DEFAULT_CROSS_MODEL_REVIEW, DEFAULT_THRESHOLDS } from '../config/schema.js'
 import { levelAtLeast } from '../config/levels.js'
 import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
 import {
@@ -51,6 +52,8 @@ export interface WizardInput {
   gitInfo: GitInfo
   existing: ExistingState
   githubAccess: GithubAccess
+  /** #2356: local external-provider probe used to gate the egress-consent question. */
+  externalModelAccess?: ExternalModelAccess
   detectedLanes?: Lane[]
   /** When true, --language was passed on CLI; skip all language prompts and use wizardInput.language. */
   languageLocked?: boolean
@@ -443,6 +446,34 @@ async function collectDecompositionBackend(
   }
 }
 
+const CROSS_MODEL_REVIEW_MESSAGE = `Cross-model review? One code-review slot is handed to your local codex CLI (OpenAI) instead of a Claude subagent. This sends the change diff to a third-party vendor under your credentials. arbiter makes no network calls itself and never sees a token.`
+
+/** #2356 — ask for diff-egress consent only when a usable provider is detected. */
+async function collectCrossModelReviewAnswer(
+  wizardInput: WizardInput,
+  raw: RawAnswers,
+): Promise<void> {
+  const access = wizardInput.externalModelAccess
+  if (!access?.available) return
+  if (!access.authenticated) {
+    process.stdout.write(
+      `  Cross-model review skipped: ${access.error ?? 'external provider not authenticated'}.\n`,
+    )
+    return
+  }
+  const enabled = await unwrap(
+    confirm({ message: CROSS_MODEL_REVIEW_MESSAGE, initialValue: false }),
+  )
+  if (!enabled) return
+  raw.crossModelReview = {
+    ...DEFAULT_CROSS_MODEL_REVIEW,
+    enabled: true,
+    diffEgressConsent: true,
+    providers: [...DEFAULT_CROSS_MODEL_REVIEW.providers],
+    slots: { ...DEFAULT_CROSS_MODEL_REVIEW.slots },
+  }
+}
+
 /**
  * Prompt 14.5 — #1835 (Task B, #1825): collapsed 5-lane CI doctrine, GitHub-only
  * opt-in. Asked only when the decomposition backend is GitHub (the generator
@@ -532,6 +563,9 @@ async function collectRawAnswers(wizardInput: WizardInput): Promise<RawAnswers> 
 
   // 12 — decomposition backend (only when gh is available AND authenticated).
   await collectDecompositionBackend(wizardInput, raw)
+
+  // 12.5 — #2356: explicit consent before any later ship phase can egress a diff.
+  await collectCrossModelReviewAnswer(wizardInput, raw)
 
   // 13 — collaboration mode.
   raw.collaborationMode = await unwrap(
@@ -745,6 +779,9 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     runnerProfile: answers.runnerProfile ?? 'fleet',
     // #1254/#1261: compliance-overlay + ship-autonomy Project-Profile axes.
     ...buildProfileAxes(answers),
+    ...(answers.crossModelReview !== undefined
+      ? { crossModelReview: answers.crossModelReview }
+      : {}),
   }
 }
 

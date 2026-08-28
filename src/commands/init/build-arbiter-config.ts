@@ -202,6 +202,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.lanes.length > 0 ? { lanes: config.lanes } : {}),
     ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),
     ...buildProviderFields(config),
+    ...(config.crossModelReview !== undefined ? { crossModelReview: config.crossModelReview } : {}),
     ...(config.preset !== undefined && config.preset !== 'none' ? { preset: config.preset } : {}),
     // #2035/#2044: persist the project-declared governance surface — PROJ-NN
     // invariants (incl. plugin contributions merged at generation) and the

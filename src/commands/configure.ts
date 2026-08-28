@@ -9,6 +9,7 @@ import {
   VALID_BRANCHING_STRATEGIES,
   AUTONOMY_LEVELS,
   VALID_GATE_LEVELS,
+  DEFAULT_CROSS_MODEL_REVIEW,
 } from '../config/schema.js'
 import { acquireLock } from '../utils/file-lock.js'
 import { jsonOutput } from '../utils/json-output.js'
@@ -71,6 +72,13 @@ export const ALLOWED_PATHS = new Set([
   // #1306 (ADR-094 §Decision.4) — Project-Profile orchestration prefs.
   'automation.maxParallelWorktrees',
   'automation.defaultGateLevel',
+  'crossModelReview.enabled',
+  'crossModelReview.diffEgressConsent',
+  'crossModelReview.providers',
+  'crossModelReview.slots.codeReview',
+  'crossModelReview.slots.redTeamReview',
+  'crossModelReview.timeoutMs',
+  'crossModelReview.onUnavailable',
 ])
 
 /**
@@ -91,6 +99,9 @@ export const OVERRIDABLE_PATHS = new Set([
   // run. It survives as a PERSISTENT knob (`arbiter configure`, ALLOWED_PATHS above)
   // read by doctor profile-coherence and the wizard coherence check.
   'automation.defaultGateLevel',
+  // #2356 — a run may opt into the already-consented reviewer; consent itself
+  // is persistent and cannot be granted by a per-run override.
+  'crossModelReview.enabled',
 ])
 
 /**
@@ -132,6 +143,15 @@ const VALID_CONTRACT_TYPES = new Set([
   'grpc',
   'message-queue',
   'none',
+])
+
+const CROSS_MODEL_BOOLEAN_PATHS = new Set([
+  'crossModelReview.enabled',
+  'crossModelReview.diffEgressConsent',
+])
+const CROSS_MODEL_SLOT_PATHS = new Set([
+  'crossModelReview.slots.codeReview',
+  'crossModelReview.slots.redTeamReview',
 ])
 
 function parseAxisValue(path: string, raw: string): unknown {
@@ -190,6 +210,66 @@ function parseAxisValue(path: string, raw: string): unknown {
   )
 }
 
+function parseCrossModelValue(path: string, raw: string): unknown {
+  if (CROSS_MODEL_BOOLEAN_PATHS.has(path)) {
+    if (raw === 'true') return true
+    if (raw === 'false') return false
+    throw ArbiterError.fromKey(
+      'E_INVALID_BOOL',
+      'errors.E_INVALID_BOOL',
+      { path, value: raw },
+      { hint: 'Use `true` or `false` (lowercase).' },
+    )
+  }
+  if (path === 'crossModelReview.providers') {
+    const providers = raw.split(',').map((provider) => provider.trim())
+    if (providers.length === 1 && providers[0] === 'codex') return providers
+    throw ArbiterError.fromKey(
+      'E_INVALID_TOOL',
+      'errors.E_INVALID_TOOL',
+      { noun: 'provider', tool: JSON.stringify(raw), valid: 'codex' },
+      { hint: 'The only supported cross-model provider is codex.' },
+    )
+  }
+  if (CROSS_MODEL_SLOT_PATHS.has(path) || path === 'crossModelReview.timeoutMs') {
+    const value = Number(raw)
+    const minimum = CROSS_MODEL_SLOT_PATHS.has(path) ? 0 : 1
+    if (!Number.isInteger(value) || value < minimum) {
+      throw ArbiterError.fromKey(
+        'E_INVALID_NUMBER',
+        'errors.E_INVALID_NUMBER',
+        { path, value: raw },
+        { hint: `Provide an integer >= ${minimum}.` },
+      )
+    }
+    return value
+  }
+  if (path === 'crossModelReview.onUnavailable') {
+    if (raw === 'degrade' || raw === 'fail') return raw
+    throw ArbiterError.fromKey(
+      'E_INVALID_ARCHETYPE',
+      'errors.E_INVALID_ARCHETYPE',
+      { field: path, value: raw, valid: 'degrade, fail' },
+      { hint: 'Use `degrade` or `fail`.' },
+    )
+  }
+  return raw
+}
+
+function parseFeatureValue(path: string, raw: string): boolean | null {
+  if (!path.startsWith('features.')) return null
+  if (raw === 'true') return true
+  if (raw === 'false') return false
+  throw ArbiterError.fromKey(
+    'E_INVALID_BOOL',
+    'errors.E_INVALID_BOOL',
+    { path: 'features.*', value: raw },
+    {
+      hint: 'Use `true` or `false` (lowercase). Example: `arbiter configure --set features.debtGates=true`.',
+    },
+  )
+}
+
 const AXIS_PATHS = new Set([
   'archetype',
   'architectureStyle',
@@ -205,18 +285,8 @@ const AXIS_PATHS = new Set([
  * as `arbiter configure` — one validation surface, no parallel re-implementation.
  */
 export function parseValue(path: string, raw: string): unknown {
-  if (path.startsWith('features.')) {
-    if (raw === 'true') return true
-    if (raw === 'false') return false
-    throw ArbiterError.fromKey(
-      'E_INVALID_BOOL',
-      'errors.E_INVALID_BOOL',
-      { path: 'features.*', value: raw },
-      {
-        hint: 'Use `true` or `false` (lowercase). Example: `arbiter configure --set features.debtGates=true`.',
-      },
-    )
-  }
+  const featureValue = parseFeatureValue(path, raw)
+  if (featureValue !== null) return featureValue
   if (path.startsWith('thresholds.')) {
     const n = Number(raw)
     if (!Number.isFinite(n))
@@ -261,6 +331,7 @@ export function parseValue(path: string, raw: string): unknown {
     }
     return toolList
   }
+  if (path.startsWith('crossModelReview.')) return parseCrossModelValue(path, raw)
   if (AXIS_PATHS.has(path)) return parseAxisValue(path, raw)
   // #1306 — the two scalar automation prefs (int / bool) are validated in a helper
   // so parseValue stays within the complexity-15 limit. Returns undefined when the
@@ -412,10 +483,30 @@ function applySet(config: ArbiterConfigV2, path: string, value: unknown): Arbite
     const top = parts[0]
     const key = parts[1]
     const root = config as unknown as Record<string, Record<string, unknown>>
-    const parent = root[top] ?? {}
+    const parent =
+      root[top] ?? (top === 'crossModelReview' ? structuredClone(DEFAULT_CROSS_MODEL_REVIEW) : {})
     return {
       ...config,
       [top]: { ...parent, [key]: value },
+    }
+  }
+  if (
+    parts.length === 3 &&
+    parts[0] !== undefined &&
+    parts[1] !== undefined &&
+    parts[2] !== undefined
+  ) {
+    const top = parts[0]
+    const middle = parts[1]
+    const leaf = parts[2]
+    const root = config as unknown as Record<string, Record<string, unknown>>
+    const fallback: Record<string, unknown> =
+      top === 'crossModelReview' ? { ...structuredClone(DEFAULT_CROSS_MODEL_REVIEW) } : {}
+    const parent = root[top] ?? fallback
+    const nested = (parent[middle] as Record<string, unknown> | undefined) ?? {}
+    return {
+      ...config,
+      [top]: { ...parent, [middle]: { ...nested, [leaf]: value } },
     }
   }
   throw ArbiterError.fromKey(

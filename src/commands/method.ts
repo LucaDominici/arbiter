@@ -241,6 +241,20 @@ export const METHODOLOGY_CATALOG: readonly MethodologyFeature[] = [
     name: 'Parallel worktree cap',
     configPaths: ['automation.maxParallelWorktrees'],
   },
+  {
+    id: 'M-AGENT-04',
+    cluster: 'agentic-harness',
+    name: 'Cross-model review consent',
+    configPaths: [
+      'crossModelReview.enabled',
+      'crossModelReview.diffEgressConsent',
+      'crossModelReview.providers',
+      'crossModelReview.slots.codeReview',
+      'crossModelReview.slots.redTeamReview',
+      'crossModelReview.timeoutMs',
+      'crossModelReview.onUnavailable',
+    ],
+  },
 
   // ── ssot-traceability ──────────────────────────────────────────────────────
   {
