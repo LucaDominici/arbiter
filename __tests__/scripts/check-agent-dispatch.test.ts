@@ -146,3 +146,35 @@ describe('check-agent-dispatch — refutation_skeptics parity (M13 #1943)', () =
     expect(`${r.stdout}${r.stderr}`).toMatch(/skill not found/i)
   })
 })
+
+describe('check-agent-dispatch — model_diversity parity (#2358)', () => {
+  let tmp: string
+
+  beforeAll(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'agent-dispatch-model-diversity-'))
+    mkdirSync(join(tmp, '.claude'), { recursive: true })
+    cpSync(MATRIX, join(tmp, '.claude/agent-dispatch-matrix.json'))
+    cpSync(
+      join(REPO_ROOT, '.claude/agent-dispatch-matrix.schema.json'),
+      join(tmp, '.claude/agent-dispatch-matrix.schema.json'),
+    )
+  })
+
+  afterAll(() => {
+    if (tmp && existsSync(tmp)) rmSync(tmp, { recursive: true, force: true })
+  })
+
+  it('exits non-zero when the declared Standard external-slot count drifts', () => {
+    const m = JSON.parse(readFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), 'utf-8'))
+    m.model_diversity ??= { XS: 0, S: 0, Standard: 1 }
+    m.model_diversity.Standard = 0
+    writeFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), JSON.stringify(m, null, 2))
+    const r = spawnSync(process.execPath, [SCRIPT, '--matrix-root', tmp], {
+      encoding: 'utf-8',
+      cwd: REPO_ROOT,
+      env: { ...process.env, NO_COLOR: '1' },
+    })
+    expect(r.status).not.toBe(0)
+    expect(`${r.stdout}${r.stderr}`).toMatch(/model_diversity|external.*slot|Standard/i)
+  })
+})

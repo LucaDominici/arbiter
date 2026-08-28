@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — cross-model review slot: pure planning, coercion and recorder boundary.
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { DEFAULT_CROSS_MODEL_REVIEW } from '../../src/config/schema.js'
 import type { CrossModelReviewConfig } from '../../src/wizard/types.js'
 import type { ExternalModelAccess } from '../../src/detectors/external-model.js'
 import { runCli } from '../../src/utils/run-cli.js'
 import {
   extractAgentReturnJson,
+  externalSlotsForTier,
   invokeExternalReview,
   planCrossModelSlots,
   type ExternalReviewPayload,
@@ -98,6 +100,12 @@ describe('planCrossModelSlots (#2357)', () => {
     expect(fallback.external).toEqual([])
     expect(fallback.anthropic).toHaveLength(2)
     expect(fallback.degradationReason).toBe('consent-missing')
+  })
+
+  it('declares one Standard external slot and none for XS/S (#2358)', () => {
+    expect(externalSlotsForTier('XS')).toBe(0)
+    expect(externalSlotsForTier('S')).toBe(0)
+    expect(externalSlotsForTier('Standard')).toBe(1)
   })
 })
 
@@ -211,5 +219,73 @@ describe('invokeExternalReview (#2357)', () => {
     expect(result.degradationReason).toBe('diff-truncated')
     expect(result.prompt).toContain('diff-truncated')
     expect(result.prompt).toContain('512 KiB')
+  })
+
+  it('writes dispatch evidence for an enabled degraded run (#2358)', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-'))
+    try {
+      mockedRunCli.mockImplementation(() => ({ stdout: '', stderr: '', exitCode: 0, durationMs: 1 }))
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config({ diffEgressConsent: false }),
+        evidenceDir: join(evidenceRoot, 'agent-returns'),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+        branch: 'task/#2358-cross-model-degradation-evidence',
+        sha: 'deadbeef',
+      })
+
+      expect(result.status).toBe('degraded')
+      const artifact = join(evidenceRoot, '_2358', 'dispatch.json')
+      expect(existsSync(artifact)).toBe(true)
+      const dispatch = JSON.parse(readFileSync(artifact, 'utf-8'))
+      expect(dispatch).toMatchObject({
+        schema: 'arbiter-cross-model-dispatch-v1',
+        taskId: '#2358',
+        branch: 'task/#2358-cross-model-degradation-evidence',
+        sha: 'deadbeef',
+        phase: 'refactor',
+        requested: [{ provider: 'codex', vertical: 'security' }],
+        fulfilled: [],
+        degraded: [
+          {
+            provider: 'codex',
+            vertical: 'security',
+            substitute: 'anthropic',
+            reason: 'consent-absent',
+          },
+        ],
+      })
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('stops the external review when onUnavailable is fail (#2358)', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-fail-'))
+    try {
+      expect(() =>
+        invokeExternalReview({
+          repoRoot,
+          taskId: '#2358',
+          prompt: 'Review.',
+          diff: 'diff',
+          cfg: config({ diffEgressConsent: false, onUnavailable: 'fail' }),
+          dispatchEvidenceDir: evidenceRoot,
+          tier: 'Standard',
+          phase: 'refactor',
+          vertical: 'security',
+          branch: 'task/#2358-cross-model-degradation-evidence',
+          sha: 'deadbeef',
+        }),
+      ).toThrow(/unavailable|degrad/i)
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
   })
 })
