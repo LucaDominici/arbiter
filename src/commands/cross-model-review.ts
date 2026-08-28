@@ -5,7 +5,6 @@ import { detectExternalModel, type ExternalModelAccess } from '../detectors/exte
 import {
   assertSafeArbiterEvidenceRoot,
   invokeExternalReview,
-  type ExternalReviewResult,
 } from '../integrations/external-review.js'
 import { resolveShipProfile } from './ship-profile.js'
 import { normTier, type ShipTier } from './ship-tier.js'
@@ -16,10 +15,10 @@ import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
 
-export const SHIP_CROSS_MODEL_PROMPT =
+const SHIP_CROSS_MODEL_PROMPT =
   'Review this change for bugs, type safety, security, data integrity, and silent failures.'
 
-export interface CrossModelReviewCommandOptions {
+interface CrossModelReviewCommandOptions {
   taskId: string
   prompt: string
   diff?: string
@@ -30,7 +29,9 @@ export interface CrossModelReviewCommandOptions {
 }
 
 /** Run the configured Codex seat; the diff defaults to stdin so it never enters argv. */
-export function runCrossModelReview(options: CrossModelReviewCommandOptions): ExternalReviewResult {
+function runCrossModelReview(
+  options: CrossModelReviewCommandOptions,
+): ReturnType<typeof invokeExternalReview> {
   const repoRoot = resolve(options.dir ?? process.cwd())
   const profile = resolveShipProfile(repoRoot)
   const cfg = profile.crossModelReview
@@ -55,7 +56,7 @@ export function runCrossModelReview(options: CrossModelReviewCommandOptions): Ex
   return result
 }
 
-export interface ShipCrossModelReviewOptions {
+interface ShipCrossModelReviewOptions {
   dir: string
   taskId: string
   tier: ShipTier
@@ -155,10 +156,10 @@ function sidecarAgents(
 }
 
 /** Record the fulfilled external seat for a CLI review path without inflating the panel. */
-export function writeExternalReviewSidecar(
+function writeExternalReviewSidecar(
   repoRoot: string,
   taskId: string,
-  result: ExternalReviewResult,
+  result: ReturnType<typeof invokeExternalReview>,
 ): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
   assertSafeArbiterEvidenceRoot(repoRoot)
@@ -177,9 +178,9 @@ export function writeExternalReviewSidecar(
 }
 
 /** Run the automatic refactor-step bridge; consent-off runs only the local degradation recorder. */
-export function runShipCrossModelReview(
+function runShipCrossModelReview(
   options: ShipCrossModelReviewOptions,
-): ExternalReviewResult {
+): ReturnType<typeof invokeExternalReview> {
   const repoRoot = resolve(options.dir)
   let diff = ''
   let access = options.cfg.diffEgressConsent ? options.access : undefined
@@ -208,6 +209,8 @@ export function runShipCrossModelReview(
   if (existsSync(repoRoot)) writeExternalReviewSidecar(repoRoot, options.taskId, result)
   return result
 }
+
+export { runCrossModelReview, runShipCrossModelReview, writeExternalReviewSidecar }
 
 function readStdin(): string {
   try {

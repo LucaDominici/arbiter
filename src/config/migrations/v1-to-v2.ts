@@ -9,12 +9,11 @@
  * Issue: #231
  */
 
-import type { AiTool, GovernanceLevel } from '../../wizard/types.js'
+import type { AiTool, GovernanceLevel, ThresholdsV2 } from '../../wizard/types.js'
 import {
   type ArbiterConfigV2,
   type DecompositionBackendId,
   type FeatureFlags,
-  type ThresholdsV2,
   AI_TOOLS,
   DEFAULT_THRESHOLDS,
   GOVERNANCE_LEVELS,

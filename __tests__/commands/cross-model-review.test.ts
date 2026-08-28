@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -171,6 +173,146 @@ describe('runCrossModelReview (#2357)', () => {
     expect(mockedRunCli).not.toHaveBeenCalled()
     expect(mockedInvoke).toHaveBeenCalledWith(expect.objectContaining({ diff: '', cfg: noConsent }))
     expect(mockedInvoke.mock.calls[0]?.[0]).not.toHaveProperty('access')
+  })
+
+  it('writes a fresh sidecar and replaces the current panel tail with Codex', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-sidecar-'))
+    try {
+      runCrossModelReview({
+        dir,
+        taskId: '#2357',
+        prompt: 'Review.',
+        diff: 'diff',
+      })
+      const sidecarPath = join(dir, '.arbiter', 'agents-dispatched.json')
+      expect(JSON.parse(readFileSync(sidecarPath, 'utf8'))).toEqual({
+        count: 1,
+        agents: ['codex-reviewer'],
+        taskId: '#2357',
+        branch: 'diff',
+        sha: 'diff',
+      })
+
+      writeFileSync(
+        sidecarPath,
+        JSON.stringify({
+          count: 2,
+          agents: ['anthropic-reviewer', 'anthropic-reviewer-2'],
+          taskId: '#2357',
+          branch: 'diff',
+          sha: 'diff',
+        }),
+      )
+      runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' })
+      expect(JSON.parse(readFileSync(sidecarPath, 'utf8')).agents).toEqual([
+        'anthropic-reviewer',
+        'codex-reviewer',
+      ])
+
+      writeFileSync(
+        sidecarPath,
+        JSON.stringify({
+          count: 3,
+          agents: ['security-review', 'data-integrity-review', 'silent-failures-review'],
+          taskId: '#2357',
+          branch: 'diff',
+          sha: 'diff',
+        }),
+      )
+      runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' })
+      expect(JSON.parse(readFileSync(sidecarPath, 'utf8'))).toMatchObject({
+        count: 3,
+        agents: ['security-review', 'data-integrity-review', 'codex-reviewer'],
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects an invalid existing sidecar instead of overwriting it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-invalid-sidecar-'))
+    try {
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(
+        join(dir, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({
+          count: 2,
+          agents: ['anthropic-reviewer'],
+          taskId: '#2357',
+          branch: 'diff',
+          sha: 'diff',
+        }),
+      )
+      expect(() =>
+        runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' }),
+      ).toThrow(/invalid count/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a symlinked sidecar before the write', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-sidecar-link-'))
+    const outside = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-sidecar-outside-'))
+    try {
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      symlinkSync(
+        join(outside, 'agents-dispatched.json'),
+        join(dir, '.arbiter', 'agents-dispatched.json'),
+      )
+      expect(() =>
+        runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' }),
+      ).toThrow(/symbolic|symlink/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('degrades the ship bridge when diff collection fails and still records the panel', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-diff-failure-'))
+    try {
+      mockedRunCli.mockReset()
+      mockedRunCli
+        .mockImplementationOnce(() => {
+          throw new Error('git diff failed')
+        })
+        .mockReturnValue({ stdout: 'diff-state', stderr: '', exitCode: 0, durationMs: 1 })
+
+      runShipCrossModelReview({
+        dir,
+        taskId: '#2357',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+        cfg,
+        access: mockedDetect.mock.results[0]?.value,
+      })
+
+      expect(mockedInvoke).toHaveBeenCalledWith(expect.objectContaining({ diff: '', cfg }))
+      expect(mockedInvoke.mock.calls.at(-1)?.[0]).not.toHaveProperty('access')
+      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not create a sidecar for a non-fulfilled result', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-no-sidecar-'))
+    try {
+      mockedInvoke.mockReturnValueOnce({
+        provider: 'codex',
+        status: 'degraded',
+        diffBytes: 0,
+        diffTruncated: false,
+        degradationReasons: ['provider-unavailable'],
+        recorded: false,
+      })
+      runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' })
+      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
 

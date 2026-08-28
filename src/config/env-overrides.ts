@@ -16,14 +16,14 @@
  * Issue: #233
  */
 
-import type { GovernanceLevel } from '../wizard/types.js'
+import type { GovernanceLevel, ThresholdsV2 } from '../wizard/types.js'
 import { parseBooleanEnv } from '../utils/env.js'
 import {
   DEFAULT_CROSS_MODEL_REVIEW,
   DEFAULT_THRESHOLDS,
   isThresholdValueInRange,
 } from './schema.js'
-import type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 } from './schema.js'
+import type { ArbiterConfigV2, FeatureFlags } from './schema.js'
 
 type Env = Record<string, string | undefined>
 

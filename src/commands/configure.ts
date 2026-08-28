@@ -210,49 +210,59 @@ function parseAxisValue(path: string, raw: string): unknown {
   )
 }
 
-function parseCrossModelValue(path: string, raw: string): unknown {
-  if (CROSS_MODEL_BOOLEAN_PATHS.has(path)) {
-    if (raw === 'true') return true
-    if (raw === 'false') return false
+function parseCrossModelBoolean(path: string, raw: string): boolean {
+  if (raw === 'true') return true
+  if (raw === 'false') return false
+  throw ArbiterError.fromKey(
+    'E_INVALID_BOOL',
+    'errors.E_INVALID_BOOL',
+    { path, value: raw },
+    { hint: 'Use `true` or `false` (lowercase).' },
+  )
+}
+
+function parseCrossModelProviders(raw: string): string[] {
+  const providers = raw.split(',').map((provider) => provider.trim())
+  if (providers.length === 1 && providers[0] === 'codex') return providers
+  throw ArbiterError.fromKey(
+    'E_INVALID_TOOL',
+    'errors.E_INVALID_TOOL',
+    { noun: 'provider', tool: JSON.stringify(raw), valid: 'codex' },
+    { hint: 'The only supported cross-model provider is codex.' },
+  )
+}
+
+function parseCrossModelNumber(path: string, raw: string): number {
+  const value = Number(raw)
+  const minimum = CROSS_MODEL_SLOT_PATHS.has(path) ? 0 : 1
+  if (!Number.isInteger(value) || value < minimum) {
     throw ArbiterError.fromKey(
-      'E_INVALID_BOOL',
-      'errors.E_INVALID_BOOL',
+      'E_INVALID_NUMBER',
+      'errors.E_INVALID_NUMBER',
       { path, value: raw },
-      { hint: 'Use `true` or `false` (lowercase).' },
+      { hint: `Provide an integer >= ${minimum}.` },
     )
   }
-  if (path === 'crossModelReview.providers') {
-    const providers = raw.split(',').map((provider) => provider.trim())
-    if (providers.length === 1 && providers[0] === 'codex') return providers
-    throw ArbiterError.fromKey(
-      'E_INVALID_TOOL',
-      'errors.E_INVALID_TOOL',
-      { noun: 'provider', tool: JSON.stringify(raw), valid: 'codex' },
-      { hint: 'The only supported cross-model provider is codex.' },
-    )
-  }
+  return value
+}
+
+function parseCrossModelPolicy(path: string, raw: string): string {
+  if (raw === 'degrade' || raw === 'fail') return raw
+  throw ArbiterError.fromKey(
+    'E_INVALID_ARCHETYPE',
+    'errors.E_INVALID_ARCHETYPE',
+    { field: path, value: raw, valid: 'degrade, fail' },
+    { hint: 'Use `degrade` or `fail`.' },
+  )
+}
+
+function parseCrossModelValue(path: string, raw: string): unknown {
+  if (CROSS_MODEL_BOOLEAN_PATHS.has(path)) return parseCrossModelBoolean(path, raw)
+  if (path === 'crossModelReview.providers') return parseCrossModelProviders(raw)
   if (CROSS_MODEL_SLOT_PATHS.has(path) || path === 'crossModelReview.timeoutMs') {
-    const value = Number(raw)
-    const minimum = CROSS_MODEL_SLOT_PATHS.has(path) ? 0 : 1
-    if (!Number.isInteger(value) || value < minimum) {
-      throw ArbiterError.fromKey(
-        'E_INVALID_NUMBER',
-        'errors.E_INVALID_NUMBER',
-        { path, value: raw },
-        { hint: `Provide an integer >= ${minimum}.` },
-      )
-    }
-    return value
+    return parseCrossModelNumber(path, raw)
   }
-  if (path === 'crossModelReview.onUnavailable') {
-    if (raw === 'degrade' || raw === 'fail') return raw
-    throw ArbiterError.fromKey(
-      'E_INVALID_ARCHETYPE',
-      'errors.E_INVALID_ARCHETYPE',
-      { field: path, value: raw, valid: 'degrade, fail' },
-      { hint: 'Use `degrade` or `fail`.' },
-    )
-  }
+  if (path === 'crossModelReview.onUnavailable') return parseCrossModelPolicy(path, raw)
   return raw
 }
 
@@ -473,41 +483,46 @@ function applyAssignment(
   }
 }
 
+function applyTopLevel(config: ArbiterConfigV2, key: string, value: unknown): ArbiterConfigV2 {
+  return { ...config, [key]: value }
+}
+
+function applyNested(
+  config: ArbiterConfigV2,
+  top: string,
+  key: string,
+  value: unknown,
+): ArbiterConfigV2 {
+  const root = config as unknown as Record<string, Record<string, unknown>>
+  const parent =
+    root[top] ?? (top === 'crossModelReview' ? structuredClone(DEFAULT_CROSS_MODEL_REVIEW) : {})
+  return { ...config, [top]: { ...parent, [key]: value } }
+}
+
+function applyDeep(
+  config: ArbiterConfigV2,
+  top: string,
+  middle: string,
+  leaf: string,
+  value: unknown,
+): ArbiterConfigV2 {
+  const root = config as unknown as Record<string, Record<string, unknown>>
+  const fallback: Record<string, unknown> =
+    top === 'crossModelReview' ? { ...structuredClone(DEFAULT_CROSS_MODEL_REVIEW) } : {}
+  const parent = root[top] ?? fallback
+  const nested = (parent[middle] as Record<string, unknown> | undefined) ?? {}
+  return { ...config, [top]: { ...parent, [middle]: { ...nested, [leaf]: value } } }
+}
+
 function applySet(config: ArbiterConfigV2, path: string, value: unknown): ArbiterConfigV2 {
   const parts = path.split('.')
-  if (parts.length === 1 && parts[0] !== undefined) {
-    const key0 = parts[0]
-    return { ...config, [key0]: value }
+  const [top, middle, leaf] = parts
+  if (parts.length === 1 && top !== undefined) return applyTopLevel(config, top, value)
+  if (parts.length === 2 && top !== undefined && middle !== undefined) {
+    return applyNested(config, top, middle, value)
   }
-  if (parts.length === 2 && parts[0] !== undefined && parts[1] !== undefined) {
-    const top = parts[0]
-    const key = parts[1]
-    const root = config as unknown as Record<string, Record<string, unknown>>
-    const parent =
-      root[top] ?? (top === 'crossModelReview' ? structuredClone(DEFAULT_CROSS_MODEL_REVIEW) : {})
-    return {
-      ...config,
-      [top]: { ...parent, [key]: value },
-    }
-  }
-  if (
-    parts.length === 3 &&
-    parts[0] !== undefined &&
-    parts[1] !== undefined &&
-    parts[2] !== undefined
-  ) {
-    const top = parts[0]
-    const middle = parts[1]
-    const leaf = parts[2]
-    const root = config as unknown as Record<string, Record<string, unknown>>
-    const fallback: Record<string, unknown> =
-      top === 'crossModelReview' ? { ...structuredClone(DEFAULT_CROSS_MODEL_REVIEW) } : {}
-    const parent = root[top] ?? fallback
-    const nested = (parent[middle] as Record<string, unknown> | undefined) ?? {}
-    return {
-      ...config,
-      [top]: { ...parent, [middle]: { ...nested, [leaf]: value } },
-    }
+  if (parts.length === 3 && top !== undefined && middle !== undefined && leaf !== undefined) {
+    return applyDeep(config, top, middle, leaf, value)
   }
   throw ArbiterError.fromKey(
     'E_UNSUPPORTED_PATH_DEPTH',

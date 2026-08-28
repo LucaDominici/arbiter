@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2358 — source/template twins and advisory registry wiring.
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { renderTemplate } from '../../src/utils/render.js'
 import { loadGateRegistry } from '../../src/generators/check-all.js'
 import { makeConfig } from '../helpers.js'
@@ -8,10 +9,13 @@ import { makeConfig } from '../helpers.js'
 describe('cross-model dispatch templates (#2358)', () => {
   it('renders the checker, schema, and L2 advisory gate', () => {
     const checker = renderTemplate('scripts/check-cross-model-review.mjs.ejs', {})
-    const schema = renderTemplate('scripts/schemas/cross-model-dispatch.schema.json.ejs', {})
-    const externalSchema = renderTemplate(
-      'scripts/schemas/agent-return-external.schema.json.ejs',
-      {},
+    const schema = readFileSync(
+      'src/templates/scripts/schemas/cross-model-dispatch.schema.json',
+      'utf8',
+    )
+    const externalSchema = readFileSync(
+      'src/templates/scripts/schemas/agent-return-external.schema.json',
+      'utf8',
     )
     const gates = loadGateRegistry({
       ...makeConfig('/tmp/cross-model-render'),

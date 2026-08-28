@@ -359,9 +359,21 @@ if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFile
   exit 2
 fi
 review_agents_json='["independent-review"]'
-candidate_review_agents_json='["codex-reviewer"]'
+candidate_review_agents_json="$(node - "$review_agents_json" <<'NODE'
+const agents = JSON.parse(process.argv[2])
+if (!Array.isArray(agents) || agents.length === 0 || agents.some((agent) => typeof agent !== 'string'))
+  process.exit(2)
+const candidate = [...agents]
+const codex = candidate.indexOf('codex-reviewer')
+if (codex === -1) candidate[candidate.length - 1] = 'codex-reviewer'
+if (candidate.filter((agent) => agent === 'codex-reviewer').length !== 1)
+  process.exit(2)
+process.stdout.write(JSON.stringify(candidate))
+NODE
+)"
+candidate_review_count="$(node -e 'const agents=JSON.parse(process.argv[1]);process.stdout.write(String(agents.length))' "$candidate_review_agents_json")"
 checker_status=0
-node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "1" >/dev/null 2>&1 || checker_status=$?
+node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "$candidate_review_count" >/dev/null 2>&1 || checker_status=$?
 if [ "$checker_status" = 0 ]; then
   external_review_fulfilled=1
   review_agents_json="$candidate_review_agents_json"

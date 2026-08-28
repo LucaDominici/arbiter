@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — cross-model review slot: pure planning, coercion and recorder boundary.
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { DEFAULT_CROSS_MODEL_REVIEW } from '../../src/config/schema.js'
 import type { CrossModelReviewConfig } from '../../src/wizard/types.js'
 import type { ExternalModelAccess } from '../../src/detectors/external-model.js'
-import { runCli } from '../../src/utils/run-cli.js'
+import { CliError, runCli } from '../../src/utils/run-cli.js'
 import {
   assertSafeArbiterEvidenceRoot,
   extractAgentReturnJson,
@@ -352,22 +360,27 @@ describe('invokeExternalReview (#2357)', () => {
         '--sandbox',
         'read-only',
         '--ephemeral',
+        '--ignore-user-config',
+        '-c',
+        'shell_environment_policy.inherit="none"',
         '--skip-git-repo-check',
         '--output-schema',
         join(repoRoot, 'schemas', 'agent-return-external.schema.json'),
         '-o',
-        '-C',
-        repoRoot,
         '-',
       ]),
       expect.objectContaining({
-        cwd: repoRoot,
+        cwd: expect.any(String),
         input: expect.stringContaining('diff --git a/file b/file'),
         timeoutMs: 12_345,
         retries: 0,
       }),
     )
     const codexArgs = mockedRunCli.mock.calls[0]?.[1] ?? []
+    const sandboxRoot = codexArgs[codexArgs.indexOf('-C') + 1]
+    expect(sandboxRoot).toEqual(expect.any(String))
+    expect(sandboxRoot).not.toBe(repoRoot)
+    expect(mockedRunCli.mock.calls[0]?.[2]).toMatchObject({ cwd: sandboxRoot })
     expect(codexArgs).not.toContain('Review this change.')
     expect(codexArgs).not.toContain('diff --git a/file b/file')
     expect(mockedRunCli).toHaveBeenNthCalledWith(
@@ -659,6 +672,215 @@ describe('invokeExternalReview (#2357)', () => {
         reason: 'timeout',
         detail: 'codex CLI probe timed out',
       })
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('reads the non-empty Codex output file before stdout', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-output-file-'))
+    try {
+      mockedRunCli.mockImplementation((cmd, args) => {
+        if (cmd === 'codex') {
+          const outputPath = args[args.indexOf('-o') + 1]
+          writeFileSync(outputPath!, JSON.stringify(payload))
+          return { stdout: 'ignored stdout', stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        return {
+          stdout: '[record-agent-return] OK — wrote codex.json',
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
+      })
+
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2357',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config(),
+        access: access(),
+        evidenceDir: join(evidenceRoot, 'agent-returns'),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+      })
+
+      expect(result.status).toBe('fulfilled')
+      expect(result.envelope).toEqual(payload)
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('degrades oversized Codex output before JSON coercion', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-large-output-'))
+    try {
+      mockedRunCli.mockImplementationOnce(() => ({
+        stdout: `{${'x'.repeat(512 * 1024)}}`,
+        stderr: '',
+        exitCode: 0,
+        durationMs: 1,
+      }))
+
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2357',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config(),
+        access: access(),
+        evidenceDir: join(evidenceRoot, 'returns'),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+      })
+
+      expect(result.status).toBe('degraded')
+      expect(result.degradationReason).toBe('coercion-failed')
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('records typed CLI invocation failures and preserves their dispatch reason', () => {
+    const cases = [
+      {
+        name: 'not-found',
+        error: new CliError({
+          cmd: 'codex',
+          args: ['exec'],
+          exitCode: -1,
+          stdout: '',
+          stderr: '',
+          timedOut: false,
+          notFound: true,
+        }),
+        reason: 'cli-not-found',
+      },
+      {
+        name: 'nonzero',
+        error: new CliError({
+          cmd: 'codex',
+          args: ['exec'],
+          exitCode: 7,
+          stdout: '',
+          stderr: 'failed',
+          timedOut: false,
+          notFound: false,
+        }),
+        reason: 'nonzero-exit',
+      },
+      {
+        name: 'timeout',
+        error: new CliError({
+          cmd: 'codex',
+          args: ['exec'],
+          exitCode: -1,
+          stdout: '',
+          stderr: 'timed out',
+          timedOut: true,
+          notFound: false,
+        }),
+        reason: 'timeout',
+      },
+    ] as const
+
+    for (const testCase of cases) {
+      const evidenceRoot = mkdtempSync(join(tmpdir(), `arbiter-cross-model-${testCase.name}-`))
+      try {
+        mockedRunCli.mockReset()
+        mockedRunCli.mockImplementationOnce(() => {
+          throw testCase.error
+        })
+        let result: ReturnType<typeof invokeExternalReview> | undefined
+        let thrown: unknown
+        try {
+          result = invokeExternalReview({
+            repoRoot,
+            taskId: '#2358',
+            prompt: 'Review.',
+            diff: 'diff',
+            cfg: config(),
+            access: access(),
+            evidenceDir: join(evidenceRoot, 'agent-returns'),
+            dispatchEvidenceDir: evidenceRoot,
+            tier: 'Standard',
+            phase: 'refactor',
+            vertical: 'security',
+          })
+        } catch (error) {
+          thrown = error
+        }
+        expect(thrown).toBeUndefined()
+        const dispatch = JSON.parse(
+          readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf8'),
+        )
+        expect(result?.degradationReason).toBe('invocation-failed')
+        expect(dispatch.degraded[0]).toMatchObject({ reason: testCase.reason })
+      } finally {
+        rmSync(evidenceRoot, { recursive: true, force: true })
+      }
+    }
+  })
+
+  it('fails closed when an invocation failure meets the fail policy', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-invocation-fail-'))
+    try {
+      mockedRunCli.mockImplementationOnce(() => {
+        throw new CliError({
+          cmd: 'codex',
+          args: ['exec'],
+          exitCode: 7,
+          stdout: '',
+          stderr: 'failed',
+          timedOut: false,
+          notFound: false,
+        })
+      })
+      expect(() =>
+        invokeExternalReview({
+          repoRoot,
+          taskId: '#2358',
+          prompt: 'Review.',
+          diff: 'diff',
+          cfg: config({ onUnavailable: 'fail' }),
+          access: access(),
+          evidenceDir: join(evidenceRoot, 'agent-returns'),
+          dispatchEvidenceDir: evidenceRoot,
+          tier: 'Standard',
+          phase: 'refactor',
+          vertical: 'security',
+        }),
+      ).toThrow(/unavailable|invocation-failed|degrad/i)
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('maps a provider failure detail without a timeout to a nonzero exit', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-provider-failure-'))
+    try {
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config(),
+        access: access({ available: false, authenticated: false, error: 'codex CLI failed' }),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+      })
+      const dispatch = JSON.parse(
+        readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf8'),
+      )
+      expect(result.status).toBe('degraded')
+      expect(dispatch.degraded[0]).toMatchObject({ reason: 'nonzero-exit' })
     } finally {
       rmSync(evidenceRoot, { recursive: true, force: true })
     }

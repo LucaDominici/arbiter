@@ -32,6 +32,8 @@ out=""
 while [ "$#" -gt 0 ]; do
   if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
 done
+scope="$(dirname "$0")/../codex-scope.txt"
+if [ -e package.json ]; then printf '%s\n' 'repo-visible' > "$scope"; else printf '%s\n' 'scratch-only' > "$scope"; fi
 printf '%s\\n' 'raw stdout must never become evidence'
 printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[]}' > "$out"
 `,
@@ -76,5 +78,6 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
     expect(readFileSync(join(taskDir, files[0]!), 'utf-8')).not.toContain(
       'raw stdout must never become evidence',
     )
+    expect(readFileSync(join(fixture, 'codex-scope.txt'), 'utf-8')).toBe('scratch-only\n')
   })
 })

@@ -75,21 +75,32 @@ function openContainedDirectory(rootDir, directoryParts) {
   }
 }
 
-function readFileContained(rootDir, relativePath, label) {
+function openContainedFile(rootDir, relativePath) {
   if (process.platform === 'win32') {
-    error(`${label} descriptor-relative reads are unsupported on Windows`)
+    error('descriptor-relative filesystem operations are unsupported on Windows')
   }
-  let dirFd = -1
-  let fileFd = -1
+  const parts = containedParts(relativePath)
+  const fileName = parts.pop()
+  const dirFd = openContainedDirectory(rootDir, parts)
   try {
-    const parts = containedParts(relativePath)
-    const fileName = parts.pop()
-    dirFd = openContainedDirectory(rootDir, parts)
-    fileFd = openSync(
-      join(descriptorPath(dirFd), fileName),
-      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
-    )
-    return readFileSync(fileFd, 'utf-8')
+    const fileFd = openSync(join(descriptorPath(dirFd), fileName), fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
+    return { dirFd, fileFd }
+  } catch (cause) {
+    closeSync(dirFd)
+    throw cause
+  }
+}
+
+function closeContainedFile(handles) {
+  closeSync(handles.fileFd)
+  closeSync(handles.dirFd)
+}
+
+function readFileContained(rootDir, relativePath, label) {
+  let handles = null
+  try {
+    handles = openContainedFile(rootDir, relativePath)
+    return readFileSync(handles.fileFd, 'utf-8')
   } catch (cause) {
     const detail = cause instanceof Error ? cause.message : String(cause)
     if (cause?.code === 'ENOENT' || cause?.code === 'ELOOP' || cause?.code === 'ENOTDIR') {
@@ -98,8 +109,7 @@ function readFileContained(rootDir, relativePath, label) {
     error(`cannot read ${label} ${join(rootDir, relativePath)}: ${detail}`)
     throw cause
   } finally {
-    if (fileFd !== -1) closeSync(fileFd)
-    if (dirFd !== -1) closeSync(dirFd)
+    if (handles !== null) closeContainedFile(handles)
   }
 }
 
@@ -150,14 +160,11 @@ function readContainedJson(rootDir, relativePath, label) {
 }
 
 function containedExists(rootDir, relativePath, label) {
-  let dirFd = -1
-  let fileFd = -1
+  let handles = null
   try {
-    const parts = containedParts(relativePath)
-    const fileName = parts.pop()
-    dirFd = openContainedDirectory(rootDir, parts)
-    fileFd = openSync(join(descriptorPath(dirFd), fileName), fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
+    handles = openContainedFile(rootDir, relativePath)
     return true
+  // FAIL-OPEN-INTENT: ENOENT means absent; every other filesystem error exits non-zero below.
   } catch (cause) {
     if (cause?.code === 'ENOENT') return false
     const detail = cause instanceof Error ? cause.message : String(cause)
@@ -167,8 +174,7 @@ function containedExists(rootDir, relativePath, label) {
     error(`cannot read ${label} ${join(rootDir, relativePath)}: ${detail}`)
     return false
   } finally {
-    if (fileFd !== -1) closeSync(fileFd)
-    if (dirFd !== -1) closeSync(dirFd)
+    if (handles !== null) closeContainedFile(handles)
   }
 }
 
@@ -182,6 +188,18 @@ function parseBooleanEnv(raw) {
   if (['true', '1', 'yes', 'on'].includes(value)) return true
   if (['false', '0', 'no', 'off'].includes(value)) return false
   return undefined
+}
+
+function isValidReviewerPanel(agents, count) {
+  return (
+    Number.isInteger(count) &&
+    count > 0 &&
+    Array.isArray(agents) &&
+    agents.length === count &&
+    agents.every((agent) => typeof agent === 'string' && agent.length > 0) &&
+    new Set(agents).size === agents.length &&
+    agents.filter((agent) => agent === 'codex-reviewer').length === 1
+  )
 }
 
 if (!containedExists(root, 'arbiter.json', 'configuration')) {
@@ -405,7 +423,7 @@ if (recordPanel !== undefined) {
     error(`cannot parse reviewer panel: ${cause instanceof Error ? cause.message : String(cause)}`)
     throw cause
   }
-  if (!Array.isArray(agents) || !Number.isInteger(recordCount) || agents.length !== recordCount) {
+  if (!isValidReviewerPanel(agents, recordCount)) {
     error('reviewer panel count does not match its agent list')
   }
   writeFileContained(

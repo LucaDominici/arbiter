@@ -97,9 +97,6 @@ type CompanionEvidenceV1 = z.infer<typeof CompanionEvidenceV1>
 const REDTEAM_AGENTS: Record<ShipTier, number> = { XS: 1, S: 2, Standard: 3 }
 /** #2178/#2176: post-implementation code-review agents per tier (mirrors /task Phase 6 minimums). */
 const REVIEW_AGENTS: Record<ShipTier, number> = { XS: 1, S: 1, Standard: 2 }
-export function reviewAgentsForTier(tier: ShipTier): number {
-  return REVIEW_AGENTS[tier]
-}
 /** #2178: a diff whose file-path-matched auditors include security/data-integrity/silent-failures
     escalates the code review to a panel (study: singles 82-83%, panels 97-99%). */
 export const REVIEW_AGENTS_SECURITY_SURFACE = 3
@@ -462,17 +459,23 @@ export interface ShipResult {
  * #1260 tier + vertical-breadth summary. Kept here (not inline in the CLI action) so the
  * action stays simple and the formatting is unit-testable.
  */
+function optionalShipStepLines(result: ShipResult): string[] {
+  const lines: string[] = []
+  if (result.step.command) lines.push(`Command: ${result.step.command}`)
+  if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
+  if (result.step.externalReviewers !== undefined) {
+    lines.push(`External reviewers: ${result.step.externalReviewers}`)
+  }
+  return lines
+}
+
 export function buildShipStepLines(result: ShipResult, legacyTier?: string): string[] {
   const tier = result.tier ?? normTier(legacyTier)
   const lines = [
     `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
     `Action: ${result.step.action}`,
   ]
-  if (result.step.command) lines.push(`Command: ${result.step.command}`)
-  if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
-  if (result.step.externalReviewers !== undefined) {
-    lines.push(`External reviewers: ${result.step.externalReviewers}`)
-  }
+  lines.push(...optionalShipStepLines(result))
   lines.push(`Tier: ${tier} · verticals: ${result.step.verticals.join(', ')}`)
   // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
   // consumer of the field, so the read is honest and not dead config).

@@ -3,10 +3,10 @@ export type InvariantTier = 'architectural' | 'data' | 'security' | 'operational
 
 export type InvariantPreset = 'essential' | 'standard' | 'full'
 
-export type CrossModelReviewProvider = 'codex'
-export type CrossModelReviewUnavailablePolicy = 'degrade' | 'fail'
+type CrossModelReviewProvider = 'codex'
+type CrossModelReviewUnavailablePolicy = 'degrade' | 'fail'
 
-export interface CrossModelReviewConfig {
+interface CrossModelReviewConfig {
   enabled: boolean
   diffEgressConsent: boolean
   providers: CrossModelReviewProvider[]
@@ -17,6 +17,8 @@ export interface CrossModelReviewConfig {
   timeoutMs: number
   onUnavailable: CrossModelReviewUnavailablePolicy
 }
+
+export type { CrossModelReviewProvider, CrossModelReviewUnavailablePolicy, CrossModelReviewConfig }
 
 /**
  * Meta-preset that bundles governance, compliance, observability, and auth config

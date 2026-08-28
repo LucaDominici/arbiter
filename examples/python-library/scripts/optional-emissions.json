@@ -14,6 +14,10 @@
       "rationale": "REVERSE (#1518): emitted unconditionally as an advisory aggregate thin-runner, but wired (runWarnCheck 'anti-fake-green') in check-all.mjs only at L2+ (INV-135). At L1 it ships present-but-unwired, available for manual/CI invocation."
     },
     {
+      "path": "scripts/check-cross-model-review.mjs",
+      "rationale": "REVERSE (#2358): cross-model evidence tooling is emitted at every governance level, but its advisory gate is wired only in the L2 debt-gate ring. At L1 it remains available for manual invocation without adding an L1 gate."
+    },
+    {
       "path": "scripts/check-decision-registry.mjs",
       "rationale": "REVERSE (#2036, #1518): emitted unconditionally (self-contained, SKIPs gracefully when no registry exists), but wired (runCheck 'decision registry') in check-all.mjs only at L2+ (enableDebtGates, same tier as doc-set/anti-fake-green above). At L1 it ships present-but-unwired, available for manual/CI invocation."
     },

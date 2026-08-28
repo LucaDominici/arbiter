@@ -107,11 +107,11 @@ for (const p of matrix.axes.pr_type) {
 
 // ── 2. Tier-floor parity vs the pure task-ship mirror (the core anti-drift check) ─
 let verticalsForTier
-let reviewAgentsForTier
+let shipStepFor
 let externalSlotsForTier
 try {
   const shipUrl = pathToFileURL(join(REPO_ROOT, 'dist', 'commands', 'task-ship.js')).href
-  ;({ verticalsForTier, reviewAgentsForTier } = await import(shipUrl))
+  ;({ verticalsForTier, shipStepFor } = await import(shipUrl))
   const reviewUrl = pathToFileURL(
     join(REPO_ROOT, 'dist', 'integrations', 'external-review.js'),
   ).href
@@ -122,8 +122,8 @@ try {
 if (typeof verticalsForTier !== 'function') {
   invoke('dist/commands/task-ship.js does not export verticalsForTier')
 }
-if (typeof reviewAgentsForTier !== 'function') {
-  invoke('dist/commands/task-ship.js does not export reviewAgentsForTier')
+if (typeof shipStepFor !== 'function') {
+  invoke('dist/commands/task-ship.js does not export shipStepFor')
 }
 if (typeof externalSlotsForTier !== 'function') {
   invoke('dist/integrations/external-review.js does not export externalSlotsForTier')
@@ -158,7 +158,7 @@ for (const tier of matrix.axes.tier) {
   let reviewAgents
   try {
     external = externalSlotsForTier(tier)
-    reviewAgents = reviewAgentsForTier(tier)
+    reviewAgents = shipStepFor('refactor', tier).reviewAgents
   } catch (e) {
     invoke(`dispatch slot derivation for tier "${tier}" threw: ${e.message}`)
   }

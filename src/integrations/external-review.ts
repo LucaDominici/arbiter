@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — one optional Codex reviewer seat, with the recorder as the trust boundary.
-import { existsSync, lstatSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { ExternalModelAccess } from '../detectors/external-model.js'
@@ -31,11 +31,12 @@ const CODEX_ENV_KEYS = [
   'NO_COLOR',
 ] as const
 
-export const EXTERNAL_REVIEW_SCHEMA = 'schemas/agent-return-external.schema.json'
-export const EXTERNAL_REVIEW_MAX_DIFF_BYTES = 512 * 1024
-export const CROSS_MODEL_DISPATCH_SCHEMA = 'arbiter-cross-model-dispatch-v1'
+const EXTERNAL_REVIEW_SCHEMA = 'schemas/agent-return-external.schema.json'
+const EXTERNAL_REVIEW_MAX_DIFF_BYTES = 512 * 1024
+const EXTERNAL_REVIEW_MAX_OUTPUT_BYTES = 512 * 1024
+const CROSS_MODEL_DISPATCH_SCHEMA = 'arbiter-cross-model-dispatch-v1'
 
-export type CrossModelDispatchReason =
+type CrossModelDispatchReason =
   | 'cli-not-found'
   | 'not-authenticated'
   | 'consent-absent'
@@ -46,7 +47,7 @@ export type CrossModelDispatchReason =
   | 'envelope-rejected'
   | 'diff-truncated'
 
-export type ExternalReviewDegradationReason =
+type ExternalReviewDegradationReason =
   | 'disabled'
   | 'consent-missing'
   | 'provider-unavailable'
@@ -57,14 +58,14 @@ export type ExternalReviewDegradationReason =
   | 'coercion-failed'
   | 'envelope-rejected'
 
-export interface ExternalReviewPayload {
+interface ExternalReviewPayload {
   verdict: 'PASS' | 'WARN' | 'FAIL'
   confidence: number
   findings: Array<Record<string, unknown>>
   refutations: Array<Record<string, unknown>>
 }
 
-export interface CrossModelPlan {
+interface CrossModelPlan {
   tier: ShipTier
   phase: TaskPhase
   external: string[]
@@ -72,7 +73,7 @@ export interface CrossModelPlan {
   degradationReason?: ExternalReviewDegradationReason
 }
 
-export interface ExternalReviewRequest {
+interface ExternalReviewRequest {
   repoRoot: string
   taskId: string
   prompt: string
@@ -86,7 +87,7 @@ export interface ExternalReviewRequest {
   vertical?: string
 }
 
-export interface ExternalReviewResult {
+interface ExternalReviewResult {
   provider: CrossModelReviewProvider
   status: 'fulfilled' | 'degraded'
   diffBytes: number
@@ -97,7 +98,7 @@ export interface ExternalReviewResult {
   recorded: boolean
 }
 
-export interface CrossModelDispatchArtifact {
+interface CrossModelDispatchArtifact {
   schema: typeof CROSS_MODEL_DISPATCH_SCHEMA
   taskId: string
   branch: string
@@ -125,7 +126,7 @@ type SlotInput = {
 }
 
 /** v1 reserves one external seat for Standard; XS/S retain an Anthropic baseline. */
-export function externalSlotsForTier(tier: ShipTier): number {
+function externalSlotsForTier(tier: ShipTier): number {
   return tier === 'Standard' ? 1 : 0
 }
 
@@ -175,16 +176,13 @@ function preferredVertical(verticals: readonly string[]): string {
 }
 
 /** Pure panel planner. External seats replace Anthropic seats; they never increase the panel. */
-export function planCrossModelSlots(input: SlotInput): CrossModelPlan {
+function planCrossModelSlots(input: SlotInput): CrossModelPlan {
   if (input.phase !== 'refactor') return fallbackPlan(input, 'disabled')
   const count = configuredSlotCount(input)
   if (count === null || count === 0) return fallbackPlan(input, fallbackReason(input))
   const labels = input.verticals.length > 0 ? input.verticals : ['bugs']
   const externalVertical = preferredVertical(labels)
-  const external = Array.from({ length: count }, (_, index) => {
-    if (index === 0) return externalVertical
-    return labels[index % labels.length] ?? 'bugs'
-  })
+  const external = [externalVertical]
   const anthropicCount = slotCount(input.totalSlots) - count
   const anthropic = Array.from(
     { length: anthropicCount },
@@ -225,39 +223,42 @@ function isPayloadObject(value: unknown): value is ExternalReviewPayload {
   )
 }
 
+function balancedObjectAt(text: string, start: number): { value: string; end: number } | null {
+  let depth = 0
+  let quoted = false
+  let escaped = false
+  for (let index = start; index < text.length; index++) {
+    const char = text[index]
+    if (quoted) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else quoted = char !== '"'
+      continue
+    }
+    if (char === '"') {
+      quoted = true
+      continue
+    }
+    depth += char === '{' ? 1 : char === '}' ? -1 : 0
+    if (depth === 0) return { value: text.slice(start, index + 1), end: index }
+  }
+  return null
+}
+
 function balancedObjects(text: string): string[] {
   const objects: string[] = []
   for (let start = 0; start < text.length; start++) {
     if (text[start] !== '{') continue
-    let depth = 0
-    let quoted = false
-    let escaped = false
-    for (let index = start; index < text.length; index++) {
-      const char = text[index]
-      if (quoted) {
-        if (escaped) escaped = false
-        else if (char === '\\') escaped = true
-        else if (char === '"') quoted = false
-        continue
-      }
-      if (char === '"') {
-        quoted = true
-        continue
-      }
-      if (char === '{') depth++
-      if (char === '}') depth--
-      if (depth === 0) {
-        objects.push(text.slice(start, index + 1))
-        start = index
-        break
-      }
-    }
+    const object = balancedObjectAt(text, start)
+    if (object === null) continue
+    objects.push(object.value)
+    start = object.end
   }
   return objects
 }
 
 /** Parse structured output deterministically; never repairs malformed JSON. */
-export function extractAgentReturnJson(text: string): ExternalReviewPayload | null {
+function extractAgentReturnJson(text: string): ExternalReviewPayload | null {
   const trimmed = text.trim()
   if (trimmed === '') return null
   const direct = parseObject(trimmed)
@@ -335,12 +336,16 @@ function recorderArgs(request: ExternalReviewRequest, access: ExternalModelAcces
   ]
 }
 
-function outputText(outputPath: string, codex: RunCliResult): string {
+function outputText(outputPath: string, codex: RunCliResult): string | null {
   if (existsSync(outputPath)) {
+    if (statSync(outputPath).size > EXTERNAL_REVIEW_MAX_OUTPUT_BYTES) return null
     const file = readFileTranslated(outputPath, 'utf-8')
+    if (Buffer.byteLength(file, 'utf8') > EXTERNAL_REVIEW_MAX_OUTPUT_BYTES) return null
     if (file.trim() !== '') return file
   }
-  return codex.stdout
+  return Buffer.byteLength(codex.stdout, 'utf8') > EXTERNAL_REVIEW_MAX_OUTPUT_BYTES
+    ? null
+    : codex.stdout
 }
 
 function invokeCodex(
@@ -349,6 +354,7 @@ function invokeCodex(
   outputPath: string,
   schemaPath: string,
 ): RunCliResult {
+  const sandboxRoot = dirname(outputPath)
   const env = Object.fromEntries(
     CODEX_ENV_KEYS.flatMap((key) => {
       const value = process.env[key]
@@ -362,17 +368,20 @@ function invokeCodex(
       '--sandbox',
       'read-only',
       '--ephemeral',
+      '--ignore-user-config',
+      '-c',
+      'shell_environment_policy.inherit="none"',
       '--skip-git-repo-check',
       '--output-schema',
       schemaPath,
       '-o',
       outputPath,
       '-C',
-      request.repoRoot,
+      sandboxRoot,
       '-',
     ],
     {
-      cwd: request.repoRoot,
+      cwd: sandboxRoot,
       env,
       input: prompt,
       timeoutMs: request.cfg.timeoutMs,
@@ -622,7 +631,7 @@ function assertSafeDirectoryPath(repoRoot: string, targetPath: string): void {
 }
 
 /** Reject a pre-existing .arbiter link before default evidence writes can follow it. */
-export function assertSafeArbiterEvidenceRoot(repoRoot: string): void {
+function assertSafeArbiterEvidenceRoot(repoRoot: string): void {
   for (const path of [
     join(repoRoot, '.arbiter'),
     join(repoRoot, '.arbiter', 'evidence'),
@@ -708,8 +717,10 @@ function persistExternalPayload(
   )
 }
 
-/** Invoke one external seat and hand its validated envelope to the existing recorder. */
-export function invokeExternalReview(request: ExternalReviewRequest): ExternalReviewResult {
+function prepareExternalReview(request: ExternalReviewRequest): {
+  prepared: ReturnType<typeof truncateDiff>
+  initial: CrossModelPlan
+} {
   if (
     request.cfg.enabled &&
     (request.dispatchEvidenceDir === undefined || request.evidenceDir === undefined)
@@ -718,16 +729,20 @@ export function invokeExternalReview(request: ExternalReviewRequest): ExternalRe
   }
   const prepared = truncateDiff(request.diff)
   const tier = request.tier ?? 'Standard'
-  const phase = request.phase ?? 'refactor'
-  const vertical = request.vertical ?? 'bugs'
   const initial = planCrossModelSlots({
     tier,
-    phase,
+    phase: request.phase ?? 'refactor',
     totalSlots: externalSlotsForTier(tier),
-    verticals: [vertical],
+    verticals: [request.vertical ?? 'bugs'],
     cfg: request.cfg,
     ...(request.access !== undefined ? { access: request.access } : {}),
   })
+  return { prepared, initial }
+}
+
+/** Invoke one external seat and hand its validated envelope to the existing recorder. */
+function invokeExternalReview(request: ExternalReviewRequest): ExternalReviewResult {
+  const { prepared, initial } = prepareExternalReview(request)
   if (initial.external.length === 0) {
     return resultWithoutExternal(request, initial, prepared)
   }
@@ -739,7 +754,8 @@ export function invokeExternalReview(request: ExternalReviewRequest): ExternalRe
     const outputPath = join(scratch, 'return.json')
     const schemaPath = join(request.repoRoot, EXTERNAL_REVIEW_SCHEMA)
     const codex = invokeCodex(request, prompt, outputPath, schemaPath)
-    const payload = extractAgentReturnJson(outputText(outputPath, codex))
+    const output = outputText(outputPath, codex)
+    const payload = output === null ? null : extractAgentReturnJson(output)
     if (payload === null) {
       return finalizeResult(
         request,
@@ -762,4 +778,12 @@ export function invokeExternalReview(request: ExternalReviewRequest): ExternalRe
   } finally {
     if (scratch !== null) cleanupTemp(scratch)
   }
+}
+
+export {
+  externalSlotsForTier,
+  planCrossModelSlots,
+  extractAgentReturnJson,
+  assertSafeArbiterEvidenceRoot,
+  invokeExternalReview,
 }

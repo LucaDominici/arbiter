@@ -737,4 +737,37 @@ describe('check-cross-model-review (#2358)', () => {
     expect(result.status).toBe(1)
     expect(`${result.stdout}${result.stderr}`).toMatch(/requested|fulfilled|degraded|outcome/i)
   })
+
+  it.each([
+    ['empty', [], 0],
+    ['duplicate', ['codex-reviewer', 'codex-reviewer'], 2],
+    ['non-string', [42], 1],
+    ['without Codex', ['independent-review'], 1],
+  ])('rejects a %s recorded reviewer panel', (_label, agents, count) => {
+    json('arbiter.json', {
+      crossModelReview: { enabled: true, diffEgressConsent: true, onUnavailable: 'degrade' },
+    })
+    json('.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json', envelope())
+    writeArtifact(
+      dispatch({
+        fulfilled: [
+          {
+            provider: 'codex',
+            cliVersion: '0.5.1',
+            envelope: '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+          },
+        ],
+      }),
+    )
+
+    const result = run({}, [
+      '--require-fulfilled',
+      '--record-panel',
+      JSON.stringify(agents),
+      '--record-count',
+      String(count),
+    ])
+    expect(result.status).toBe(2)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/reviewer panel/i)
+  })
 })

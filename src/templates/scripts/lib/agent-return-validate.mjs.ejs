@@ -173,74 +173,53 @@ function isGitRepo(repoRoot) {
   }
 }
 
-/**
- * Resolve a citation against the envelope sha.
- * Production (git repo): `git cat-file -e <sha>:<file>` must succeed and the file content
- * at that sha must have >= `line` lines. Fail-closed — a bad sha or missing file at the
- * sha is a rejection, never a silent pass.
- * Non-git fixture dirs: fall back to the filesystem (test harness, not a real repo).
- * @param {string} repoRoot
- * @param {string} sha
- * @param {string} file
- * @param {number} line
- * @returns {{ ok: true } | { ok: false, reason: string }}
- */
-export function resolveCitation(repoRoot, sha, file, line) {
-  if (file === '' || isAbsolute(file)) {
-    return { ok: false, reason: `citation file "${file}" is not repo-relative` }
+function resolveGitCitation(repoRoot, sha, file, line) {
+  let mode
+  try {
+    const treeEntry = execFileSync('git', ['ls-tree', '-z', sha, '--', file], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 4000,
+    })
+      .split('\0')
+      .find((entry) => entry.length > 0)
+    mode = treeEntry?.split(/[ \t]/, 1)[0]
+  } catch {
+    return { ok: false, reason: `citation file "${file}" does not resolve at sha ${sha}` }
   }
-  const repoPath = resolve(repoRoot)
-  const abs = resolve(repoPath, file)
-  const lexical = relative(repoPath, abs)
-  if (lexical === '' || lexical.startsWith('..') || isAbsolute(lexical)) {
-    return { ok: false, reason: `citation file "${file}" escapes the repository` }
+  if (mode !== '100644' && mode !== '100755') {
+    return { ok: false, reason: `citation file "${file}" is not a regular file at sha ${sha}` }
   }
-  if (isGitRepo(repoRoot)) {
-    let mode
-    try {
-      const treeEntry = execFileSync('git', ['ls-tree', '-z', sha, '--', file], {
-        cwd: repoRoot,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 4000,
-      })
-        .split('\0')
-        .find((entry) => entry.length > 0)
-      mode = treeEntry?.split(/[ \t]/, 1)[0]
-    } catch {
-      return { ok: false, reason: `citation file "${file}" does not resolve at sha ${sha}` }
-    }
-    if (mode !== '100644' && mode !== '100755') {
-      return { ok: false, reason: `citation file "${file}" is not a regular file at sha ${sha}` }
-    }
-    try {
-      execFileSync('git', ['cat-file', '-e', `${sha}:${file}`], {
-        cwd: repoRoot,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'ignore', 'ignore'],
-        timeout: 4000,
-      })
-    } catch {
-      return { ok: false, reason: `citation file "${file}" does not resolve at sha ${sha}` }
-    }
-    let content = ''
-    try {
-      content = execFileSync('git', ['show', `${sha}:${file}`], {
-        cwd: repoRoot,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 6000,
-      })
-    } catch {
-      return { ok: false, reason: `cannot read "${file}" at sha ${sha}` }
-    }
-    const lineCount = content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
-    if (line > lineCount) {
-      return { ok: false, reason: `citation line ${line} > file length ${lineCount} for "${file}"` }
-    }
-    return { ok: true }
+  try {
+    execFileSync('git', ['cat-file', '-e', `${sha}:${file}`], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'ignore', 'ignore'],
+      timeout: 4000,
+    })
+  } catch {
+    return { ok: false, reason: `citation file "${file}" does not resolve at sha ${sha}` }
   }
-  // Non-git fallback (fixture dirs): resolve against the filesystem.
+  let content = ''
+  try {
+    content = execFileSync('git', ['show', `${sha}:${file}`], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 6000,
+    })
+  } catch {
+    return { ok: false, reason: `cannot read "${file}" at sha ${sha}` }
+  }
+  const lineCount = content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
+  if (line > lineCount) {
+    return { ok: false, reason: `citation line ${line} > file length ${lineCount} for "${file}"` }
+  }
+  return { ok: true }
+}
+
+function resolveFilesystemCitation(repoPath, abs, file, line) {
   if (!existsSync(abs)) {
     return { ok: false, reason: `citation file "${file}" does not resolve at repo root` }
   }
@@ -267,6 +246,33 @@ export function resolveCitation(repoRoot, sha, file, line) {
     return { ok: false, reason: `citation line ${line} > file length ${lineCount} for "${file}"` }
   }
   return { ok: true }
+}
+
+/**
+ * Resolve a citation against the envelope sha.
+ * Production (git repo): `git cat-file -e <sha>:<file>` must succeed and the file content
+ * at that sha must have >= `line` lines. Fail-closed — a bad sha or missing file at the
+ * sha is a rejection, never a silent pass.
+ * Non-git fixture dirs: fall back to the filesystem (test harness, not a real repo).
+ * @param {string} repoRoot
+ * @param {string} sha
+ * @param {string} file
+ * @param {number} line
+ * @returns {{ ok: true } | { ok: false, reason: string }}
+ */
+export function resolveCitation(repoRoot, sha, file, line) {
+  if (file === '' || isAbsolute(file)) {
+    return { ok: false, reason: `citation file "${file}" is not repo-relative` }
+  }
+  const repoPath = resolve(repoRoot)
+  const abs = resolve(repoPath, file)
+  const lexical = relative(repoPath, abs)
+  if (lexical === '' || lexical.startsWith('..') || isAbsolute(lexical)) {
+    return { ok: false, reason: `citation file "${file}" escapes the repository` }
+  }
+  return isGitRepo(repoRoot)
+    ? resolveGitCitation(repoRoot, sha, file, line)
+    : resolveFilesystemCitation(repoPath, abs, file, line)
 }
 
 /**

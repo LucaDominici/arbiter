@@ -33,8 +33,6 @@ import type {
 import type { BrownfieldClass } from '../kit/thresholds.js'
 import type { Invariant } from '../invariants/types.js'
 
-export type { ThresholdsV2, TaskTiers, CrossModelReviewConfig }
-
 export interface FeatureFlags {
   contractTesting: boolean
   mutationTesting: boolean

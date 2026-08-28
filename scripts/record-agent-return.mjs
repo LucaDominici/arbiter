@@ -132,6 +132,39 @@ function openContainedDirectory(rootDir, childParts) {
   }
 }
 
+function writeEnvelopeShard(dirPath, evidenceDir, task, agent, filename, content) {
+  const path = join(dirPath, filename)
+  let fileFd = -1
+  try {
+    fileFd = openSync(
+      path,
+      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+      0o600,
+    )
+    writeFileSync(fileFd, content, 'utf8')
+    closeSync(fileFd)
+    fileFd = -1
+    return join(evidenceDir, task, filename)
+  } catch (err) {
+    if (fileFd !== -1) {
+      try {
+        closeSync(fileFd)
+        // FAIL-OPEN-INTENT: cleanup close failure must not replace the primary write error.
+      } catch {
+        // Preserve the primary write error.
+      }
+    }
+    if (err?.code === 'EEXIST') return null
+    try {
+      unlinkSync(path)
+      // FAIL-OPEN-INTENT: best-effort cleanup must not replace the primary write error.
+    } catch {
+      // Preserve the primary write error.
+    }
+    throw err
+  }
+}
+
 function writeEnvelopeContained(evidenceDir, task, agent, content) {
   let dirFd = -1
   try {
@@ -148,36 +181,8 @@ function writeEnvelopeContained(evidenceDir, task, agent, content) {
     }
     for (let attempt = 0; attempt < 10_000; attempt++, n++) {
       const filename = `${agent}-${n}.json`
-      const path = join(dirPath, filename)
-      let fileFd = -1
-      try {
-        fileFd = openSync(
-          path,
-          fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
-          0o600,
-        )
-        writeFileSync(fileFd, content, 'utf8')
-        closeSync(fileFd)
-        fileFd = -1
-        return join(evidenceDir, task, filename)
-      } catch (err) {
-        if (fileFd !== -1) {
-          try {
-            closeSync(fileFd)
-            // FAIL-OPEN-INTENT: cleanup close failure must not replace the primary write error.
-          } catch {
-            // Preserve the primary write error.
-          }
-        }
-        if (err?.code === 'EEXIST') continue
-        try {
-          unlinkSync(path)
-          // FAIL-OPEN-INTENT: best-effort cleanup must not replace the primary write error.
-        } catch {
-          // Preserve the primary write error.
-        }
-        throw err
-      }
+      const outPath = writeEnvelopeShard(dirPath, evidenceDir, task, agent, filename, content)
+      if (outPath !== null) return outPath
     }
     throw new Error(`too many agent-return shards for ${agent}`)
   } finally {
@@ -185,32 +190,29 @@ function writeEnvelopeContained(evidenceDir, task, agent, content) {
   }
 }
 
-async function main() {
-  if (!TASK_ID || !/^#[0-9]+$/.test(TASK_ID)) {
-    process.stderr.write(
-      `[record-agent-return] ERROR: --task must be a GitHub issue id like '#1943' (got: ${String(TASK_ID)})\n`,
-    )
-    return 2
-  }
-  const raw = await readStdin()
-  let parsed
+function parseInput(raw) {
   try {
-    parsed = JSON.parse(raw)
+    return { parsed: JSON.parse(raw) }
   } catch (err) {
     process.stdout.write(
       `[record-agent-return] FAIL: invalid JSON stdin: ${err instanceof Error ? err.message : String(err)}\n`,
     )
-    return 1
+    return { exitCode: 1 }
   }
-  let schema
+}
+
+function loadReturnSchema() {
   try {
-    schema = loadSchema(SCHEMA_PATH)
+    return { schema: loadSchema(SCHEMA_PATH) }
   } catch (err) {
     process.stderr.write(
       `[record-agent-return] ERROR: cannot load schema: ${err instanceof Error ? err.message : String(err)}\n`,
     )
-    return 2
+    return { exitCode: 2 }
   }
+}
+
+function stampAndValidate(parsed, schema) {
   // The agent supplies everything EXCEPT authority fields (branch/sha/ts/provenance). The
   // recorder stamps those itself — never trusted from input — then validates the FULL stamped
   // envelope against the schema before writing. A malformed return fails at hand-back time.
@@ -222,14 +224,32 @@ async function main() {
   env['provenance'] = stampAgentProvenance()
   const schemaErrors = validateSchema(env, schema, schema, '<stdin>')
   if (schemaErrors.length > 0) {
-    for (const e of schemaErrors) process.stdout.write(`[record-agent-return] FAIL: ${e}\n`)
-    return 1
+    for (const error of schemaErrors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
+    return null
   }
   const citationErrors = enforceCitations(env, REPO_ROOT, '<stdin>')
   if (citationErrors.length > 0) {
-    for (const e of citationErrors) process.stdout.write(`[record-agent-return] FAIL: ${e}\n`)
-    return 1
+    for (const error of citationErrors)
+      process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
+    return null
   }
+  return env
+}
+
+async function main() {
+  if (!TASK_ID || !/^#[0-9]+$/.test(TASK_ID)) {
+    process.stderr.write(
+      `[record-agent-return] ERROR: --task must be a GitHub issue id like '#1943' (got: ${String(TASK_ID)})\n`,
+    )
+    return 2
+  }
+  const raw = await readStdin()
+  const input = parseInput(raw)
+  if ('exitCode' in input) return input.exitCode
+  const schemaResult = loadReturnSchema()
+  if ('exitCode' in schemaResult) return schemaResult.exitCode
+  const env = stampAndValidate(input.parsed, schemaResult.schema)
+  if (env === null) return 1
   const sanitizedTask = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')
   const agent =
     typeof env['agent'] === 'string' ? String(env['agent']).replace(/[^0-9A-Za-z-]/g, '-') : 'agent'

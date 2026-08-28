@@ -532,7 +532,7 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   },
   {
     rel: ['schemas', 'agent-return-external.schema.json'],
-    tpl: 'scripts/schemas/agent-return-external.schema.json.ejs',
+    tpl: 'scripts/schemas/agent-return-external.schema.json',
   },
   // #2358: cross-model evidence tooling is available at every governance level. The advisory
   // L2 registry gate is emitted by the debt-gate ring and explicitly skips when the optional
@@ -543,7 +543,7 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   },
   {
     rel: ['schemas', 'cross-model-dispatch.schema.json'],
-    tpl: 'scripts/schemas/cross-model-dispatch.schema.json.ejs',
+    tpl: 'scripts/schemas/cross-model-dispatch.schema.json',
   },
   // #2058: best-effort nightly safety net — deletes Actions artifacts GitHub
   // itself already marked expired but hasn't physically purged. Invoked directly

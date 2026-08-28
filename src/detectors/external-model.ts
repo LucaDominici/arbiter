@@ -4,9 +4,9 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
 
-export type ExternalModelProvider = 'codex'
+type ExternalModelProvider = 'codex'
 
-export interface ExternalModelAccess {
+interface ExternalModelAccess {
   provider: ExternalModelProvider
   vendor: 'openai'
   available: boolean
@@ -15,14 +15,14 @@ export interface ExternalModelAccess {
   error: string | null
 }
 
-export interface ExternalModelDetectionOptions {
+interface ExternalModelDetectionOptions {
   /** Dependency injection for tests and callers inspecting another home directory. */
   homeDir?: string
   /** Environment signal used for authentication inference; credential values are never read. */
   env?: NodeJS.ProcessEnv
 }
 
-export interface ExternalModelProviderSpec {
+interface ExternalModelProviderSpec {
   command: string
   versionArgs: readonly string[]
   vendor: 'openai'
@@ -31,7 +31,7 @@ export interface ExternalModelProviderSpec {
   installHint: string
 }
 
-export const PROVIDER_SPECS: Record<ExternalModelProvider, ExternalModelProviderSpec> = {
+const PROVIDER_SPECS: Record<ExternalModelProvider, ExternalModelProviderSpec> = {
   codex: {
     command: 'codex',
     versionArgs: ['--version'],
@@ -54,7 +54,7 @@ function hasCodexAuth(options: ExternalModelDetectionOptions): boolean {
   return existsSync(join(options.homeDir ?? homedir(), '.codex', 'auth.json'))
 }
 
-export function detectExternalModel(
+function detectExternalModel(
   provider: ExternalModelProvider,
   options: ExternalModelDetectionOptions = {},
 ): ExternalModelAccess {
@@ -95,7 +95,7 @@ export function detectExternalModel(
   }
 }
 
-export function detectExternalModels(
+function detectExternalModels(
   providers: readonly ExternalModelProvider[] = Object.keys(
     PROVIDER_SPECS,
   ) as ExternalModelProvider[],
@@ -104,6 +104,13 @@ export function detectExternalModels(
   return providers.map((provider) => detectExternalModel(provider, options))
 }
 
-export function resetExternalModelDetection(): void {
+function resetExternalModelDetection(): void {
   detectionCache.clear()
+}
+
+export {
+  type ExternalModelAccess,
+  detectExternalModel,
+  detectExternalModels,
+  resetExternalModelDetection,
 }

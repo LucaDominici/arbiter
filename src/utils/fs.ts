@@ -608,7 +608,7 @@ function openContainedDirectory(rootDir: string, directoryParts: readonly string
 }
 
 /** Write below an already-owned root without following replaceable directory components. */
-export function writeFileContained(rootDir: string, relativePath: string, data: string): void {
+function writeFileContained(rootDir: string, relativePath: string, data: string): void {
   const parts = containedParts(relativePath)
   const fileName = parts.pop() as string
   const fullPath = join(rootDir, relativePath)
@@ -646,7 +646,7 @@ export function writeFileContained(rootDir: string, relativePath: string, data: 
 }
 
 /** Read below an owned root without following replaceable directory/file components. */
-export function readFileContained(rootDir: string, relativePath: string): string {
+function readFileContained(rootDir: string, relativePath: string): string {
   const parts = containedParts(relativePath)
   const fileName = parts.pop() as string
   const fullPath = join(rootDir, relativePath)
@@ -667,6 +667,8 @@ export function readFileContained(rootDir: string, relativePath: string): string
     if (dirFd !== -1) closeSync(dirFd)
   }
 }
+
+export { writeFileContained, readFileContained }
 
 // ── Translated one-shot primitives (#1991, CANON-17) ─────────────────────────
 //

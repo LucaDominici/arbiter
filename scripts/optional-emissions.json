@@ -9,6 +9,10 @@
       "rationale": "Dual-nature (#1419): in the arbiter self-repo this IS the 18KB gold-audit ENGINE (scripts/gold-audit.mjs); in target projects arbiter init/update emits a THIN RUNNER at the same path that delegates to `npx arbiter gold-audit --check` (no engine copy, no `yaml` dep). Both respond to --check, so the check-all.mjs advisory (existsSync-guarded, plain --check, never --require-baseline downstream) is byte-identical for self and targets. Declared optional so the emission-coherence lint treats the guarded reference as intentional."
     },
     {
+      "path": "scripts/check-cross-model-review.mjs",
+      "rationale": "REVERSE (#2358): cross-model evidence tooling is emitted at every governance level, but its advisory gate is wired only in the L2 debt-gate ring. At L1 it remains available for manual invocation without adding an L1 gate."
+    },
+    {
       "path": "scripts/check-touched-vs-manifest.mjs",
       "rationale": "REVERSE (#1943, E7/M6): invoked by the wave-drain skill at harvest time (per group, with --plan/--group/--base args), NOT by check-all.mjs \u2014 check-all has no --plan context, so wiring it there would be ceremony (a gate that runs vacuous or errors on missing args every commit). The skill is the runtime wiring; emission-coherence scans check-all/hooks/workflows/commands, not .claude/skills/. Emitted unconditionally so governed targets get the same harvest GO condition."
     },

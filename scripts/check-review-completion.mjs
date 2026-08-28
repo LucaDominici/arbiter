@@ -25,13 +25,14 @@ import {
   constants as fsConstants,
   closeSync,
   existsSync,
+  fstatSync,
   lstatSync,
   openSync,
   readFileSync,
   readdirSync,
 } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
@@ -158,28 +159,26 @@ function isTaskId(task) {
   return /^#[0-9]+$/.test(task)
 }
 
-/**
- * @param {string} dir
- * @returns {{ exists: true } | { exists: false } | { error: string }}
- */
-function inspectDirectoryPath(dir) {
-  const absolute = resolve(dir)
+/** @param {string} absolute @returns {string[]} */
+function ancestorsOf(absolute) {
   const ancestors = []
   for (let current = absolute; ; current = dirname(current)) {
     ancestors.push(current)
     const parent = dirname(current)
     if (parent === current) break
   }
-  for (const ancestor of ancestors.reverse()) {
+  return ancestors.reverse()
+}
+
+function inspectPath(path, validate) {
+  const absolute = resolve(path)
+  for (const ancestor of ancestorsOf(absolute)) {
     try {
       const state = lstatSync(ancestor)
       if (state.isSymbolicLink()) return { error: `${ancestor} is a symlink` }
-      if (ancestor !== absolute && !state.isDirectory()) {
-        return { error: `${ancestor} is not a directory` }
-      }
-      if (ancestor === absolute && !state.isDirectory()) {
-        return { error: `${absolute} is not a directory` }
-      }
+      const error = validate(ancestor, absolute, state)
+      if (error) return { error }
+      // FAIL-OPEN-INTENT: a missing ancestor means the requested evidence path is absent; other errors return an exit-2 error.
     } catch (err) {
       if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return { exists: false }
       return { error: err instanceof Error ? err.message : String(err) }
@@ -188,31 +187,90 @@ function inspectDirectoryPath(dir) {
   return { exists: true }
 }
 
+function inspectDirectoryPath(dir) {
+  return inspectPath(dir, (ancestor, absolute, state) => {
+    if (ancestor !== absolute && !state.isDirectory()) return `${ancestor} is not a directory`
+    if (ancestor === absolute && !state.isDirectory()) return `${absolute} is not a directory`
+    return null
+  })
+}
+
 /**
  * @param {string} file
  * @returns {{ exists: true } | { exists: false } | { error: string }}
  */
 function inspectFilePath(file) {
-  const absolute = resolve(file)
-  const ancestors = []
-  for (let current = absolute; ; current = dirname(current)) {
-    ancestors.push(current)
-    const parent = dirname(current)
-    if (parent === current) break
-  }
-  for (const ancestor of ancestors.reverse()) {
-    try {
-      const state = lstatSync(ancestor)
-      if (state.isSymbolicLink()) return { error: `${ancestor} is a symlink` }
-      if (ancestor === absolute ? !state.isFile() : !state.isDirectory()) {
-        return { error: `${ancestor} is not the expected file path` }
-      }
-    } catch (err) {
-      if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return { exists: false }
-      return { error: err instanceof Error ? err.message : String(err) }
+  return inspectPath(file, (ancestor, absolute, state) => {
+    if (ancestor === absolute ? !state.isFile() : !state.isDirectory()) {
+      return `${ancestor} is not the expected file path`
     }
+    return null
+  })
+}
+
+const directoryFlags = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW
+
+function descriptorPath(fd) {
+  return `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${fd}`
+}
+
+function openDirectoryPath(path) {
+  if (process.platform === 'win32') {
+    throw new Error('descriptor-relative filesystem operations are unsupported on Windows')
   }
-  return { exists: true }
+  let fd = -1
+  try {
+    fd = openSync('/', directoryFlags)
+    for (const part of resolve(path).split('/').filter(Boolean)) {
+      const next = openSync(join(descriptorPath(fd), part), directoryFlags)
+      closeSync(fd)
+      fd = next
+    }
+    return fd
+  } catch (err) {
+    if (fd !== -1) closeSync(fd)
+    throw err
+  }
+}
+
+function openFilePath(file) {
+  const absolute = resolve(file)
+  const dirFd = openDirectoryPath(dirname(absolute))
+  try {
+    const fileFd = openSync(
+      join(descriptorPath(dirFd), basename(absolute)),
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    )
+    return { dirFd, fileFd }
+  } catch (err) {
+    closeSync(dirFd)
+    throw err
+  }
+}
+
+function closeFilePath(handles) {
+  closeSync(handles.fileFd)
+  closeSync(handles.dirFd)
+}
+
+function readRegularFile(file) {
+  const handles = openFilePath(file)
+  try {
+    const state = fstatSync(handles.fileFd)
+    if (!state.isFile() || state.size === 0) return null
+    return readFileSync(handles.fileFd, 'utf-8')
+  } finally {
+    closeFilePath(handles)
+  }
+}
+
+function readDirectoryEntries(dir) {
+  const fd = openDirectoryPath(dir)
+  try {
+    return readdirSync(descriptorPath(fd))
+  } finally {
+    closeSync(fd)
+  }
 }
 
 /**
@@ -231,16 +289,9 @@ function listEnvelopeFiles(evidenceRoot, taskDirs) {
     if (!taskState.exists) continue
     try {
       return {
-        files: readdirSync(taskDir)
+        files: readDirectoryEntries(taskDir)
           .map((entry) => join(taskDir, entry))
-          .filter((file) => {
-            try {
-              const fileState = lstatSync(file)
-              return fileState.isFile() && !fileState.isSymbolicLink() && file.endsWith('.json')
-            } catch {
-              return false
-            }
-          }),
+          .filter((file) => file.endsWith('.json')),
       }
       // FAIL-OPEN-INTENT: return the directory-read error to main so it becomes an exit-2 error with task context.
     } catch (err) {
@@ -260,11 +311,9 @@ function readEnvelopes(files, schema) {
   const valid = []
   for (const file of files) {
     try {
-      const fileState = lstatSync(file)
-      if (fileState.isSymbolicLink() || !fileState.isFile() || fileState.size === 0) {
-        continue
-      }
-      const parsed = JSON.parse(readFileSync(file, 'utf-8'))
+      const content = readRegularFile(file)
+      if (content === null) continue
+      const parsed = JSON.parse(content)
       if (validateSchema(parsed, schema, schema, file).length > 0) {
         continue
       }
@@ -407,16 +456,16 @@ function reportReviewFailures(failures) {
  * @returns {{ sidecar: DispatchSidecar } | { error: string }}
  */
 function readDispatchSidecar() {
-  let fd = -1
+  let handles = null
   try {
-    fd = openSync(sidecarPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
-    const parsed = JSON.parse(readFileSync(fd, 'utf-8'))
+    handles = openFilePath(sidecarPath)
+    const parsed = JSON.parse(readFileSync(handles.fileFd, 'utf-8'))
     if (!isSidecar(parsed)) throw new Error('sidecar must contain count, branch, and sha')
     return { sidecar: parsed } // FAIL-OPEN-INTENT: error value is returned and surfaced by the caller, which exits non-zero.
   } catch (err) {
     return { error: errorMessage(err) }
   } finally {
-    if (fd !== -1) closeSync(fd)
+    if (handles !== null) closeFilePath(handles)
   }
 }
 
@@ -482,87 +531,104 @@ function checkoutBindingError(sidecar) {
   if (ancestor.status !== 0) {
     return `sidecar sha ${sidecar.sha} is not an ancestor of current HEAD ${head}`
   }
-  for (const diffArgs of [[`${sidecar.sha}..${head}`], [], ['--cached']]) {
+  const trackedError = trackedChangesError(sidecar.sha, head)
+  if (trackedError) return trackedError
+  return dirtyCheckoutError(sidecar.sha)
+}
+
+function trackedChangesError(sha, head) {
+  for (const diffArgs of [[`${sha}..${head}`], [], ['--cached']]) {
     const changed = spawnSync('git', ['diff', '--name-only', ...diffArgs], {
       cwd: repoRoot,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
     })
-    if (changed.status !== 0) {
-      return `cannot inspect changes since sidecar sha ${sidecar.sha}`
-    }
+    if (changed.status !== 0) return `cannot inspect changes since sidecar sha ${sha}`
     const changedPaths = String(changed.stdout)
       .split(/\r?\n/)
       .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
     if (changedPaths.length > 0) {
-      return `review sidecar sha ${sidecar.sha} is stale; tracked files changed after dispatch`
+      return `review sidecar sha ${sha} is stale; tracked files changed after dispatch`
     }
   }
+  return null
+}
+
+function dirtyCheckoutError(sha) {
   const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
     cwd: repoRoot,
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'ignore'],
   })
-  if (status.status !== 0) return `cannot inspect checkout status for sidecar sha ${sidecar.sha}`
+  if (status.status !== 0) return `cannot inspect checkout status for sidecar sha ${sha}`
   const dirtyPaths = String(status.stdout)
     .split(/\r?\n/)
     .filter((line) => line.length > 2)
     .map((line) => line.slice(3))
     .filter((path) => path.length > 0 && !path.startsWith('.arbiter/'))
   if (dirtyPaths.length > 0) {
-    return `review sidecar sha ${sidecar.sha} is stale; checkout has unreviewed changes`
+    return `review sidecar sha ${sha} is stale; checkout has unreviewed changes`
   }
   return null
 }
 
-function main() {
+function loadSidecarForCheck() {
   const sidecarState = inspectFilePath(sidecarPath)
   if ('error' in sidecarState) {
     process.stderr.write(
       `[check-review-completion] ERROR: cannot read sidecar ${sidecarPath}: ${sidecarState.error}\n`,
     )
-    return 2
+    return { exitCode: 2 }
   }
   if (!sidecarState.exists) {
     if (requestedTask) {
       process.stderr.write(
         `[check-review-completion] FAIL: dispatch sidecar is required for task ${requestedTask}\n`,
       )
-      return 1
+      return { exitCode: 1 }
     }
-    // FAIL-OPEN-INTENT: no dispatch sidecar means no review dispatch was recorded, so this task-scoped reconciliation has no subject.
     process.stdout.write(
       '[check-review-completion] OK — dispatch sidecar not found, vacuous pass\n',
     )
-    return 0
+    return { exitCode: 0 }
   }
-
   const sidecarResult = readDispatchSidecar()
   if ('error' in sidecarResult) {
     process.stderr.write(
       `[check-review-completion] ERROR: cannot read sidecar ${sidecarPath}: ${sidecarResult.error}\n`,
     )
-    return 2
+    return { exitCode: 2 }
   }
-  const { sidecar } = sidecarResult
+  return sidecarResult
+}
 
+function resolveTaskContext(sidecar) {
   const taskError = sidecarTaskError(sidecar, requestedTask)
   if (taskError) {
     process.stderr.write(`[check-review-completion] ERROR: ${taskError}\n`)
-    return 2
+    return { exitCode: 2 }
   }
   const task = requestedTask ?? sidecarTask(sidecar)
   if (!task) {
-    // FAIL-OPEN-INTENT: check-all has no task context and the legacy sidecar has no task id; avoid reconciling unrelated historical evidence.
     process.stdout.write('[check-review-completion] OK — task id unavailable, vacuous pass\n')
-    return 0
+    return { exitCode: 0 }
   }
   if (!isTaskId(task)) {
     process.stderr.write(
       `[check-review-completion] ERROR: --task must be a GitHub issue id like '#2177' (got: ${task})\n`,
     )
-    return 2
+    return { exitCode: 2 }
   }
+  return { task }
+}
+
+function main() {
+  const sidecarResult = loadSidecarForCheck()
+  if ('exitCode' in sidecarResult) return sidecarResult.exitCode
+  const taskResult = resolveTaskContext(sidecarResult.sidecar)
+  if ('exitCode' in taskResult) return taskResult.exitCode
+  const { sidecar } = sidecarResult
+  const { task } = taskResult
 
   const checkoutError = checkoutBindingError(sidecar)
   if (checkoutError) {
