@@ -145,14 +145,8 @@ const currentSha = gitValue(['rev-parse', 'HEAD'], 'HEAD SHA')
 if (artifact.branch !== currentBranch) {
   fail(`dispatch branch ${JSON.stringify(artifact.branch)} does not match current branch ${JSON.stringify(currentBranch)}`)
 }
-try {
-  execFileSync('git', ['-C', root, 'merge-base', '--is-ancestor', artifact.sha, 'HEAD'], {
-    encoding: 'utf-8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
-  // FAIL-OPEN-INTENT: a dispatch SHA outside the current history is stale evidence and fails below.
-} catch {
-  fail(`dispatch SHA ${JSON.stringify(artifact.sha)} is not an ancestor of current HEAD ${currentSha}`)
+if (artifact.sha !== currentSha) {
+  fail(`dispatch SHA ${JSON.stringify(artifact.sha)} does not match current HEAD ${JSON.stringify(currentSha)}`)
 }
 
 if (artifact.requested.length === 0) {

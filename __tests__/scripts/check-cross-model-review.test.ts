@@ -339,6 +339,32 @@ describe('check-cross-model-review (#2358)', () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(/sha|ancestor|history/i)
   })
 
+  it('rejects dispatch evidence stamped to an ancestor of the current HEAD', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    const ancestor = git(['rev-parse', 'HEAD'])
+    execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'advance', '--no-gpg-sign'], {
+      cwd: root,
+      stdio: 'ignore',
+    })
+    writeArtifact(
+      dispatch({
+        sha: ancestor,
+        degraded: [
+          {
+            provider: 'codex',
+            vertical: 'security',
+            substitute: 'anthropic',
+            reason: 'cli-not-found',
+            detail: 'Command not found: codex',
+          },
+        ],
+      }),
+    )
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/current HEAD|match/i)
+  })
+
   it('rejects a fulfilled slot whose provenance is not the Codex provider', () => {
     json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
     json(

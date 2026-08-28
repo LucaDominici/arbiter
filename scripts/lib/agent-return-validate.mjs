@@ -11,8 +11,8 @@
 // No entry point, no process.exit (see check-fail-closed-audit SKIP_FILES). Consumers own
 // the exit contract. Pure deterministic — missing inputs throw / return errors, never a
 // silent pass.
-import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { isAbsolute, relative, resolve } from 'node:path'
 import { execFileSync, execSync } from 'node:child_process'
 
 /**
@@ -186,6 +186,15 @@ function isGitRepo(repoRoot) {
  * @returns {{ ok: true } | { ok: false, reason: string }}
  */
 export function resolveCitation(repoRoot, sha, file, line) {
+  if (file === '' || isAbsolute(file)) {
+    return { ok: false, reason: `citation file "${file}" is not repo-relative` }
+  }
+  const repoPath = resolve(repoRoot)
+  const abs = resolve(repoPath, file)
+  const lexical = relative(repoPath, abs)
+  if (lexical === '' || lexical.startsWith('..') || isAbsolute(lexical)) {
+    return { ok: false, reason: `citation file "${file}" escapes the repository` }
+  }
   if (isGitRepo(repoRoot)) {
     try {
       execFileSync('git', ['cat-file', '-e', `${sha}:${file}`], {
@@ -215,11 +224,27 @@ export function resolveCitation(repoRoot, sha, file, line) {
     return { ok: true }
   }
   // Non-git fallback (fixture dirs): resolve against the filesystem.
-  const abs = resolve(repoRoot, file)
   if (!existsSync(abs)) {
     return { ok: false, reason: `citation file "${file}" does not resolve at repo root` }
   }
-  const content = readFileSync(abs, 'utf-8')
+  let realRepoPath
+  let realAbs
+  try {
+    realRepoPath = realpathSync(repoPath)
+    realAbs = realpathSync(abs)
+  } catch {
+    return { ok: false, reason: `citation file "${file}" does not resolve at repo root` }
+  }
+  const realRelative = relative(realRepoPath, realAbs)
+  if (realRelative === '' || realRelative.startsWith('..') || isAbsolute(realRelative)) {
+    return { ok: false, reason: `citation file "${file}" escapes the repository` }
+  }
+  let content
+  try {
+    content = readFileSync(realAbs, 'utf-8')
+  } catch {
+    return { ok: false, reason: `cannot read citation file "${file}"` }
+  }
   const lineCount = content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
   if (line > lineCount) {
     return { ok: false, reason: `citation line ${line} > file length ${lineCount} for "${file}"` }

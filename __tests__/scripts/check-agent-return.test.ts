@@ -19,9 +19,10 @@ import {
   existsSync,
   readFileSync,
   readdirSync,
+  symlinkSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { resolveCitation } from '../../scripts/lib/agent-return-validate.mjs'
 
@@ -237,6 +238,33 @@ describe('check-agent-return.mjs', () => {
     const result = resolveCitation(process.cwd(), 'f7b9cbdc', citationFile, 1)
     expect(result.ok).toBe(false)
     expect(existsSync(marker)).toBe(false)
+  })
+
+  it('rejects absolute, parent-relative, and symlinked citation paths', () => {
+    const outsideDir = mkdtempSync(join(tmpdir(), 'agent-return-citation-outside-'))
+    try {
+      const outside = join(outsideDir, 'outside.ts')
+      writeFileSync(outside, 'outside\n')
+      mkdirSync(join(tmpDir, 'src'), { recursive: true })
+      symlinkSync(outside, join(tmpDir, 'src', 'linked.ts'))
+
+      expect(resolveCitation(tmpDir, 'abcdef0', outside, 1).ok).toBe(false)
+      expect(resolveCitation(tmpDir, 'abcdef0', relative(tmpDir, outside), 1).ok).toBe(false)
+      expect(resolveCitation(tmpDir, 'abcdef0', 'src/linked.ts', 1).ok).toBe(false)
+    } finally {
+      rmSync(outsideDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects absolute, parent-relative, and symlinked citation paths', () => {
+    const outside = join(tmpDir, '..', 'agent-return-outside.ts')
+    writeFileSync(outside, 'outside\n')
+    mkdirSync(join(tmpDir, 'src'), { recursive: true })
+    symlinkSync(outside, join(tmpDir, 'src', 'linked.ts'))
+
+    expect(resolveCitation(tmpDir, 'abcdef0', outside, 1).ok).toBe(false)
+    expect(resolveCitation(tmpDir, 'abcdef0', '../agent-return-outside.ts', 1).ok).toBe(false)
+    expect(resolveCitation(tmpDir, 'abcdef0', 'src/linked.ts', 1).ok).toBe(false)
   })
 
   // ─── --enforce dispatch cross-check ────────────────────────────────────────

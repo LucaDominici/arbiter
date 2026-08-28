@@ -71,8 +71,8 @@ export function runShipCrossModelReview(
         cwd: repoRoot,
         timeoutMs: 15_000,
       }).stdout
+      // FAIL-OPEN-INTENT: a diff collection failure is recorded as an explicit degradation; no diff is sent.
     } catch {
-      // The integration still writes the enabled-run degradation artifact; no diff is sent.
       access = undefined
     }
   }

@@ -36,7 +36,7 @@ export const PROVIDER_SPECS: Record<ExternalModelProvider, ExternalModelProvider
     command: 'codex',
     versionArgs: ['--version'],
     vendor: 'openai',
-    authSignal: 'OPENAI_API_KEY or ~/.codex/auth.json presence (inference)',
+    authSignal: 'OPENAI_API_KEY or ~/.codex/auth.json presence (inference; openai/codex#10233)',
     installHint: 'Install the Codex CLI: https://github.com/openai/codex',
   },
 }
@@ -48,6 +48,7 @@ function parseVersion(stdout: string): string | null {
 }
 
 function hasCodexAuth(options: ExternalModelDetectionOptions): boolean {
+  // Authentication is inferred from presence only; the Codex auth caveat is tracked in openai/codex#10233.
   const env = options.env ?? process.env
   if (env.OPENAI_API_KEY !== undefined) return true
   return existsSync(join(options.homeDir ?? homedir(), '.codex', 'auth.json'))

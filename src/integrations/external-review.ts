@@ -18,6 +18,19 @@ import {
 import { getLogger } from '../utils/logger.js'
 import { CliError, runCli, type RunCliResult } from '../utils/run-cli.js'
 
+const CODEX_ENV_KEYS = [
+  'PATH',
+  'HOME',
+  'CODEX_HOME',
+  'OPENAI_API_KEY',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'LANG',
+  'LC_ALL',
+  'NO_COLOR',
+] as const
+
 export const EXTERNAL_REVIEW_SCHEMA = 'schemas/agent-return-external.schema.json'
 export const EXTERNAL_REVIEW_MAX_DIFF_BYTES = 512 * 1024
 export const CROSS_MODEL_DISPATCH_SCHEMA = 'arbiter-cross-model-dispatch-v1'
@@ -332,6 +345,12 @@ function invokeCodex(
   outputPath: string,
   schemaPath: string,
 ): RunCliResult {
+  const env = Object.fromEntries(
+    CODEX_ENV_KEYS.flatMap((key) => {
+      const value = process.env[key]
+      return value === undefined ? [] : [[key, value]]
+    }),
+  )
   return runCli(
     'codex',
     [
@@ -350,6 +369,7 @@ function invokeCodex(
     ],
     {
       cwd: request.repoRoot,
+      env,
       input: prompt,
       timeoutMs: request.cfg.timeoutMs,
       retries: 0,
@@ -599,6 +619,7 @@ function persistExternalPayload(
       throw new Error('external access disappeared before persistence')
     envelopePath = persistEnvelope(request, request.access, payload)
     if (envelopePath === null) throw new Error('recorder did not confirm envelope persistence')
+    // FAIL-OPEN-INTENT: recorder failures become an explicit degradation and never a fulfilled review.
   } catch (error) {
     return finalizeResult(
       request,

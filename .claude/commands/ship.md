@@ -346,6 +346,7 @@ never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
+# If the optional external seat is fulfilled, use the literal agent name "codex-reviewer" instead.
 mkdir -p .arbiter && printf '{"count":1,"agents":["independent-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 

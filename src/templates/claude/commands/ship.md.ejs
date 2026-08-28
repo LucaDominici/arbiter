@@ -349,6 +349,7 @@ never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
+# If the optional external seat is fulfilled, use the literal agent name "codex-reviewer" instead.
 mkdir -p .arbiter && printf '{"count":1,"agents":["independent-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 
@@ -382,6 +383,7 @@ not the split. Lead angles for this dispatch: <%- Array.from({ length: _tiers.St
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
 # review_agents: the exact reviewer names you dispatched — one per agent, same names the envelopes carry.
+# When the external seat is fulfilled, the literal name is "codex-reviewer"; keep it out when the seat degraded.
 review_agents='<%- Array.from({ length: _tiers.Standard.reviewAgentCount }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>'
 mkdir -p .arbiter && printf '{"count":<%= _tiers.Standard.reviewAgentCount %>,"agents":[%s],"branch":"%s","sha":"%s"}\n' "$review_agents" "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
