@@ -26,6 +26,8 @@ describe('check-all.mjs integration — summary table (#210, CANON-07)', () => {
     })
     expect(rendered).toContain('=== Summary ===')
     expect(rendered).toContain('Failed checks:')
+    expect(rendered).toContain("r.status === 'FAIL' || r.status === 'TIMEOUT'")
+    expect(rendered).toContain('`- ${r.name} (${r.status})`')
     expect(rendered).toContain('IS_CI')
     expect(rendered).toContain('Elapsed')
     expect(rendered).toContain('Total')
@@ -34,6 +36,8 @@ describe('check-all.mjs integration — summary table (#210, CANON-07)', () => {
     const lib = renderTemplate('scripts/lib/run-helpers.mjs.ejs', cfg)
     expect(lib).toContain('::error::')
     expect(lib).toContain('stripAnsi')
+    expect(lib).toContain("status: 'TIMEOUT'")
+    expect(lib).toContain('availableParallelism')
   })
 
   it('summary table appears in output of a minimal check-all script (passing)', () => {

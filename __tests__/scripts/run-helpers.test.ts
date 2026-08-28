@@ -16,6 +16,30 @@ function runHarness(script: string, env: Record<string, string> = {}) {
 }
 
 describe('run-helpers — runCheck (HARD)', () => {
+  it('scales the measured 24-core timeout budget up on low-core machines (#2370)', () => {
+    const scale = (runHelpersMod as Record<string, unknown>).scaledTimeoutMs as
+      | ((cores: number) => number)
+      | undefined
+
+    expect(scale).toBeTypeOf('function')
+    expect(scale!(24)).toBe(600_000)
+    expect(scale!(4)).toBe(3_600_000)
+    expect(scale!(48)).toBe(600_000)
+  })
+
+  it('records TIMEOUT distinctly from a genuine FAIL (#2370)', () => {
+    const r = runHarness(`
+      import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      runCheck('slow', process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 20 });
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    const last = r.stdout.trim().split('\n').pop()!
+    const payload = JSON.parse(last)
+    expect(payload.failed).toBe(1)
+    expect(payload.results[0]).toMatchObject({ name: 'slow', status: 'TIMEOUT' })
+    expect(r.stdout).toContain('TIMEOUT (after')
+  })
+
   it('records PASS and does not increment failed when command exits 0', () => {
     const r = runHarness(`
       import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
