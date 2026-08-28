@@ -8,12 +8,23 @@
 // Exit codes (INV-53): 0 PASS/SKIP, 1 evidence or policy FAIL, 2 invocation/IO ERROR.
 // Usage: node scripts/check-cross-model-review.mjs [--root <dir>] [--task <id>]
 
-import { constants as fsConstants, closeSync, existsSync, openSync, readFileSync } from 'node:fs'
+import {
+  constants as fsConstants,
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { isAbsolute, join, relative, resolve } from 'node:path'
+import { randomBytes } from 'node:crypto'
 import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 
 const args = process.argv.slice(2)
+const requireFulfilled = args.includes('--require-fulfilled')
 function option(name) {
   const index = args.indexOf(name)
   return index >= 0 ? args[index + 1] : undefined
@@ -54,6 +65,26 @@ function containedParts(relativePath) {
   return parts
 }
 
+function openContainedDirectory(rootDir, directoryParts) {
+  if (process.platform === 'win32') {
+    error('descriptor-relative filesystem operations are unsupported on Windows')
+  }
+  const flags = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW
+  let fd = -1
+  try {
+    fd = openSync('/', flags)
+    for (const part of [...resolve(rootDir).split('/').filter(Boolean), ...directoryParts]) {
+      const next = openSync(join(descriptorPath(fd), part), flags)
+      closeSync(fd)
+      fd = next
+    }
+    return fd
+  } catch (cause) {
+    if (fd !== -1) closeSync(fd)
+    throw cause
+  }
+}
+
 function readFileContained(rootDir, relativePath, label) {
   if (process.platform === 'win32') {
     error(`${label} descriptor-relative reads are unsupported on Windows`)
@@ -63,13 +94,7 @@ function readFileContained(rootDir, relativePath, label) {
   try {
     const parts = containedParts(relativePath)
     const fileName = parts.pop()
-    const directoryFlags = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW
-    dirFd = openSync('/', directoryFlags)
-    for (const part of [...resolve(rootDir).split('/').filter(Boolean), ...parts]) {
-      const next = openSync(join(descriptorPath(dirFd), part), directoryFlags)
-      closeSync(dirFd)
-      dirFd = next
-    }
+    dirFd = openContainedDirectory(rootDir, parts)
     fileFd = openSync(
       join(descriptorPath(dirFd), fileName),
       fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
@@ -84,6 +109,43 @@ function readFileContained(rootDir, relativePath, label) {
     throw cause
   } finally {
     if (fileFd !== -1) closeSync(fileFd)
+    if (dirFd !== -1) closeSync(dirFd)
+  }
+}
+
+function writeFileContained(rootDir, relativePath, data, label) {
+  let dirFd = -1
+  let tempFd = -1
+  let tempPath = null
+  try {
+    const parts = containedParts(relativePath)
+    const fileName = parts.pop()
+    dirFd = openContainedDirectory(rootDir, parts)
+    const dirPath = descriptorPath(dirFd)
+    tempPath = join(dirPath, `.arbiter-tmp-${randomBytes(4).toString('hex')}`)
+    tempFd = openSync(
+      tempPath,
+      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+      0o600,
+    )
+    writeFileSync(tempFd, data, 'utf-8')
+    closeSync(tempFd)
+    tempFd = -1
+    renameSync(tempPath, join(dirPath, fileName))
+    tempPath = null
+  } catch (cause) {
+    error(`cannot write ${label} ${join(rootDir, relativePath)}: ${cause instanceof Error ? cause.message : String(cause)}`)
+    throw cause
+  } finally {
+    if (tempFd !== -1) closeSync(tempFd)
+    if (tempPath !== null) {
+      try {
+        unlinkSync(tempPath)
+      // FAIL-OPEN-INTENT: cleanup failure must not replace the primary write error.
+      } catch {
+        // Preserve the primary write error.
+      }
+    }
     if (dirFd !== -1) closeSync(dirFd)
   }
 }
@@ -110,6 +172,7 @@ function parseBooleanEnv(raw) {
 }
 
 if (!existsSync(configPath)) {
+  if (requireFulfilled) fail('cross-model review is not enabled')
   process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
   process.exit(0)
 }
@@ -131,6 +194,7 @@ if (configuredCrossModel === undefined) {
 }
 const enabled = envOverride ?? crossModel.enabled
 if (enabled !== true) {
+  if (requireFulfilled) fail('cross-model review is not enabled')
   if (envOverride === undefined && crossModel.enabled !== false) {
     fail('crossModelReview.enabled must be boolean')
   }
@@ -222,6 +286,13 @@ if (artifact.requested.length === 0) {
   fail(`dispatch outcomes (${artifact.fulfilled.length + artifact.degraded.length}) do not match requested external slots (${artifact.requested.length})`)
 }
 
+if (
+  requireFulfilled &&
+  (artifact.requested.length !== 1 || artifact.fulfilled.length !== 1 || artifact.degraded.length !== 0)
+) {
+  fail('--require-fulfilled needs exactly one fulfilled Codex seat and no degradation')
+}
+
 const agentReturnsRoot = resolve(root, '.arbiter', 'evidence', 'agent-returns')
 for (const [index, fulfilled] of artifact.fulfilled.entries()) {
   const envelope = fulfilled.envelope
@@ -261,6 +332,28 @@ for (const [index, fulfilled] of artifact.fulfilled.entries()) {
 
 if (crossModel.onUnavailable === 'fail' && artifact.degraded.length > 0) {
   fail('crossModelReview.onUnavailable=fail with degraded dispatch evidence')
+}
+
+const recordPanel = option('--record-panel')
+if (recordPanel !== undefined) {
+  if (!requireFulfilled) error('--record-panel requires --require-fulfilled')
+  const recordCount = Number(option('--record-count'))
+  let agents
+  try {
+    agents = JSON.parse(recordPanel)
+  } catch (cause) {
+    error(`cannot parse reviewer panel: ${cause instanceof Error ? cause.message : String(cause)}`)
+    throw cause
+  }
+  if (!Array.isArray(agents) || !Number.isInteger(recordCount) || agents.length !== recordCount) {
+    error('reviewer panel count does not match its agent list')
+  }
+  writeFileContained(
+    root,
+    '.arbiter/agents-dispatched.json',
+    `${JSON.stringify({ count: recordCount, agents, taskId, branch: currentBranch, sha: currentSha })}\n`,
+    'reviewer sidecar',
+  )
 }
 
 process.stdout.write(

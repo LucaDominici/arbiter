@@ -116,8 +116,8 @@ function dispatch(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function run(env: Record<string, string> = {}) {
-  return spawnSync(process.execPath, [SCRIPT, '--root', root], {
+function run(env: Record<string, string> = {}, args: string[] = []) {
+  return spawnSync(process.execPath, [SCRIPT, '--root', root, ...args], {
     cwd: REPO_ROOT,
     encoding: 'utf-8',
     env: { ...process.env, NO_COLOR: '1', ...env },
@@ -214,6 +214,14 @@ describe('check-cross-model-review (#2358)', () => {
     const result = run()
     expect(result.status).toBe(1)
     expect(`${result.stdout}${result.stderr}`).toMatch(/dispatch\.json|missing/i)
+  })
+
+  it('rejects an empty dispatch when a fulfilled seat is required', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    writeArtifact(dispatch({ requested: [] }))
+    const result = run({}, ['--require-fulfilled'])
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/require-fulfilled|fulfilled|seat/i)
   })
 
   it('fails an enabled degraded run under onUnavailable=fail', () => {

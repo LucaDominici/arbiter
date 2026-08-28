@@ -352,9 +352,8 @@ never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-# The automatic `arbiter ship` bridge records a fulfilled Codex seat in the sidecar before this
-# block. This block writes the complete reviewer panel; preserve that seat and do not add another
-# Anthropic seat.
+# The validated external-review path records the complete reviewer panel atomically; preserve the
+# fulfilled Codex seat and do not add another Anthropic seat.
 # Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
 external_review_fulfilled=0
 dispatch_file="$(node -e 'const f=require("node:fs"),p=require("node:path");try{const t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;process.stdout.write(p.join(".arbiter","evidence","cross-model",t.replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"unknown","dispatch.json"))}catch{}' 2>/dev/null || true)"
@@ -362,14 +361,13 @@ if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFile
   echo 'ERROR: active task id is missing or invalid' >&2
   exit 2
 fi
-if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8"));process.exit(c.crossModelReview?.enabled===true?0:1)}catch{process.exit(1)}' && node scripts/check-cross-model-review.mjs >/dev/null 2>&1; then
+review_agents_json='["independent-review"]'
+candidate_review_agents_json='["codex-reviewer"]'
+if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "1" >/dev/null 2>&1; then
   external_review_fulfilled=1
+  review_agents_json="$candidate_review_agents_json"
 fi
-if [ "$external_review_fulfilled" = 1 ]; then
-  review_agents_json='["codex-reviewer"]'
-else
-  review_agents_json='["independent-review"]'
-fi
+if [ "$external_review_fulfilled" != 1 ]; then
 node - "$review_agents_json" "1" "$task_id_json" <<'NODE' || exit 2
 const fs = require('node:fs')
 const path = require('node:path')
@@ -441,6 +439,7 @@ try {
   if (dirFd !== -1) fs.closeSync(dirFd)
 }
 NODE
+fi
 ```
 
 Write this file only after the reviewer subagent has actually been dispatched — "I reviewed
@@ -473,9 +472,8 @@ not the split. Lead angles for this dispatch: <%- Array.from({ length: _tiers.St
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
 # review_agents: the exact reviewer names you dispatched — one per agent, same names the envelopes carry.
-# The automatic `arbiter ship` bridge records a fulfilled Codex seat in the sidecar before this
-# block. This block writes the complete reviewer panel; preserve that seat and do not add another
-# Anthropic seat.
+# The validated external-review path records the complete reviewer panel atomically; preserve the
+# fulfilled Codex seat and do not add another Anthropic seat.
 # Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
 external_review_fulfilled=0
 dispatch_file="$(node -e 'const f=require("node:fs"),p=require("node:path");try{const t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;process.stdout.write(p.join(".arbiter","evidence","cross-model",t.replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"unknown","dispatch.json"))}catch{}' 2>/dev/null || true)"
@@ -483,13 +481,13 @@ if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFile
   echo 'ERROR: active task id is missing or invalid' >&2
   exit 2
 fi
-if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8"));process.exit(c.crossModelReview?.enabled===true?0:1)}catch{process.exit(1)}' && node scripts/check-cross-model-review.mjs >/dev/null 2>&1; then
-  external_review_fulfilled=1
-fi
 review_agents_json='[<%- Array.from({ length: _tiers.Standard.reviewAgentCount }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>]'
-if [ "$external_review_fulfilled" = 1 ]; then
-  review_agents_json='[<%- Array.from({ length: Math.max(0, _tiers.Standard.reviewAgentCount - 1) }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>,"codex-reviewer"]'
+candidate_review_agents_json='[<%- Array.from({ length: Math.max(0, _tiers.Standard.reviewAgentCount - 1) }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>,"codex-reviewer"]'
+if [ -n "$dispatch_file" ] && [ -f "$dispatch_file" ] && node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "<%= _tiers.Standard.reviewAgentCount %>" >/dev/null 2>&1; then
+  external_review_fulfilled=1
+  review_agents_json="$candidate_review_agents_json"
 fi
+if [ "$external_review_fulfilled" != 1 ]; then
 node - "$review_agents_json" "<%= _tiers.Standard.reviewAgentCount %>" "$task_id_json" <<'NODE' || exit 2
 const fs = require('node:fs')
 const path = require('node:path')
@@ -561,6 +559,7 @@ try {
   if (dirFd !== -1) fs.closeSync(dirFd)
 }
 NODE
+fi
 ```
 
 When the security escalation fires, dispatch a third reviewer whose lead angle is the security-class

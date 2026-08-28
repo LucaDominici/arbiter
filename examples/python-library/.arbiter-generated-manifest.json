@@ -101,7 +101,7 @@
     "scripts/check-collab-mode-wired.mjs": "998ef0a8d0c506846c1002c906b786e375a71301748071c54f65c9e0a44284d0",
     "scripts/check-constraint-scan.mjs": "76e91acf40b58ebf2c6f3331e7039ddc83b93efac6af9e8f6ac10d243680562c",
     "scripts/check-continue-on-error.mjs": "9449a69ae77dabde2653dfc92ce06d92988b8e6c0a90858b82e96d1b9cb4103d",
-    "scripts/check-cross-model-review.mjs": "c2a33af05fb9101a6acffb90752cf5025c098cd4847f6882d7fcb551a0ffacc2",
+    "scripts/check-cross-model-review.mjs": "8be19b8841379ba38c274ca475b7420e460d51dcd53f172d45036d061b77c25c",
     "scripts/check-decision-registry.mjs": "02c54143d2ded9c18e22eadb4ed61b8fbec8deae3dbc320fd0395d42e3a5b9b4",
     "scripts/check-doc-freshness.mjs": "771ed2ad0719cf946938ba34d73fdf0bbc6f57935df2804c02e9090f0c293504",
     "scripts/check-doc-links.mjs": "7d7161bbf69f797974bbb1b9f10183fdc9b37d000985c4c189de48fc82950ab9",
