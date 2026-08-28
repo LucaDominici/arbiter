@@ -7,7 +7,7 @@
  * whose review artifact did not arrive.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -99,10 +99,14 @@ describe('check-review-completion.mjs', () => {
     writeFileSync(sidecar, JSON.stringify(value, null, 2))
   }
 
-  function writeEnvelope(name: string, body: Record<string, unknown>): void {
-    const taskDir = join(evidenceDir, '_2177')
+  function writeEnvelopeIn(taskDirName: string, name: string, body: Record<string, unknown>): void {
+    const taskDir = join(evidenceDir, taskDirName)
     mkdirSync(taskDir, { recursive: true })
     writeFileSync(join(taskDir, `${name}.json`), JSON.stringify(body, null, 2))
+  }
+
+  function writeEnvelope(name: string, body: Record<string, unknown>): void {
+    writeEnvelopeIn('_2177', name, body)
   }
 
   it('exits 0 when every dispatched agent returned a well-formed envelope', () => {
@@ -118,6 +122,25 @@ describe('check-review-completion.mjs', () => {
     writeEnvelope('alpha', envelope('alpha'))
 
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('accepts legacy task directories when no recorder-compatible directory exists', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelopeIn('2177', 'alpha', envelope('alpha'))
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('fails closed when the recorder-compatible task directory is a symlink', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    const outside = join(tmpDir, 'outside')
+    mkdirSync(outside, { recursive: true })
+    writeFileSync(join(outside, 'alpha.json'), JSON.stringify(envelope('alpha'), null, 2))
+    symlinkSync(outside, join(evidenceDir, '_2177'), 'dir')
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(2)
+    expect(output(result)).toMatch(/symlink/i)
   })
 
   it('exits 1 and names a dispatched agent that has no envelope', () => {

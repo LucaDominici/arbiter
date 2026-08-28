@@ -21,7 +21,7 @@
 //       [--evidence-dir=<path>] [--schema=<path>] [--repo-root=<path>]
 // Without --task, resolves a task id from the sidecar's optional task/taskId field; otherwise
 // vacuously passes so the advisory check-all invocation does not guess task context.
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
@@ -141,30 +141,49 @@ function isTaskId(task) {
 
 /**
  * @param {string} evidenceRoot
- * @param {string} taskDir
+ * @param {string[]} taskDirs
  * @returns {{ files: string[] } | { error: string }}
  */
-function listEnvelopeFiles(evidenceRoot, taskDir) {
-  for (const dir of [evidenceRoot, taskDir]) {
+function listEnvelopeFiles(evidenceRoot, taskDirs) {
+  try {
+    const root = lstatSync(evidenceRoot)
+    if (root.isSymbolicLink()) return { error: `${evidenceRoot} is a symlink` }
+    if (!root.isDirectory()) return { error: `${evidenceRoot} is not a directory` }
+    // FAIL-OPEN-INTENT: an absent evidence root means zero returns; the caller turns this into a task-completion FAIL, never a silent pass.
+  } catch (err) {
+    if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return { files: [] }
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
+
+  for (const taskDir of taskDirs) {
+    let state
     try {
-      const state = statSync(dir)
-      if (!state.isDirectory()) return { error: `${dir} is not a directory` }
-      // FAIL-OPEN-INTENT: an absent evidence root or task directory means zero returns; the caller turns this into a task-completion FAIL, never a silent pass.
+      state = lstatSync(taskDir)
     } catch (err) {
-      if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return { files: [] }
+      if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') continue
+      return { error: err instanceof Error ? err.message : String(err) }
+    }
+    if (state.isSymbolicLink()) return { error: `${taskDir} is a symlink` }
+    if (!state.isDirectory()) return { error: `${taskDir} is not a directory` }
+    try {
+      return {
+        files: readdirSync(taskDir)
+          .map((entry) => join(taskDir, entry))
+          .filter((file) => {
+            try {
+              const fileState = lstatSync(file)
+              return fileState.isFile() && !fileState.isSymbolicLink() && file.endsWith('.json')
+            } catch {
+              return false
+            }
+          }),
+      }
+      // FAIL-OPEN-INTENT: return the directory-read error to main so it becomes an exit-2 error with task context.
+    } catch (err) {
       return { error: err instanceof Error ? err.message : String(err) }
     }
   }
-  try {
-    return {
-      files: readdirSync(taskDir)
-        .map((entry) => join(taskDir, entry))
-        .filter((file) => statSync(file).isFile() && file.endsWith('.json')),
-    }
-    // FAIL-OPEN-INTENT: return the directory-read error to main so it becomes an exit-2 error with task context.
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) }
-  }
+  return { files: [] }
 }
 
 /**
@@ -177,7 +196,7 @@ function readEnvelopes(files, schema) {
   const valid = []
   for (const file of files) {
     try {
-      if (statSync(file).size === 0) {
+      if (lstatSync(file).size === 0) {
         continue
       }
       const parsed = JSON.parse(readFileSync(file, 'utf-8'))
@@ -353,7 +372,10 @@ function main() {
     return 2
   }
 
-  const listed = listEnvelopeFiles(evidenceDir, join(evidenceDir, sanitizeTask(task)))
+  const taskName = sanitizeTask(task)
+  const taskDirs = [join(evidenceDir, taskName)]
+  if (taskName.startsWith('_')) taskDirs.push(join(evidenceDir, taskName.slice(1)))
+  const listed = listEnvelopeFiles(evidenceDir, taskDirs)
   if ('error' in listed) {
     process.stderr.write(
       `[check-review-completion] ERROR: cannot read task evidence: ${listed.error}\n`,
